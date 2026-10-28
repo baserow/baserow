@@ -89,7 +89,8 @@ def test_create_pages_saves_the_pages_around_a_bad_one(site):
 
     assert [p["name"] for p in result["created_pages"]] == ["First", "Last"]
     assert result["errors"] == [
-        "Clash: The page path /home already exists for your builder instance."
+        f"Clash: The path '/home' is already used by page {site['page'].id} "
+        f"('{site['page'].name}'). This page was not created. Pick another path."
     ]
     assert not Page.objects.filter(builder=site["builder"], name="Clash").exists()
 
@@ -98,7 +99,7 @@ def test_create_pages_saves_the_pages_around_a_bad_one(site):
 def test_update_page_gives_a_readable_path_clash(data_fixture, site):
     other = data_fixture.create_builder_page(builder=site["builder"], path="/other")
 
-    with pytest.raises(ToolInputError, match="The page path /home already exists"):
+    with pytest.raises(ToolInputError, match="The path '/home' is already used"):
         update_page(
             site["ctx"], page=PageUpdate(page_id=other.id, path="/home"), thought="t"
         )
@@ -343,7 +344,7 @@ def test_update_page_refuses_a_path_param_named_like_a_query_param(data_fixture,
         query_params=[{"name": "id", "type": "text"}],
     )
 
-    with pytest.raises(ToolInputError, match="No changes were applied"):
+    with pytest.raises(ToolInputError, match="Nothing was changed in this call"):
         update_page(
             site["ctx"],
             page=PageUpdate(page_id=page.id, path="/products/:id"),

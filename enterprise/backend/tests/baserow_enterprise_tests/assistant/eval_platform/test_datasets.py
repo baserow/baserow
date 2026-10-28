@@ -254,6 +254,8 @@ EXPECTED_CASE_IDS = {
         "prod-replay/form-for-table-with-formula-field",
         "prod-replay/impossible-formula-request",
         "prod-replay/iso-week-number-formula",
+        "prod-replay/orders-linked-to-number-primary",
+        "prod-replay/page-at-taken-path",
         "prod-replay/page-inspection-existing-elements",
         "prod-replay/project-tracker-onboarding",
         "prod-replay/signed-amount-formula",
@@ -265,7 +267,7 @@ EXPECTED_CASE_IDS = {
 # AssistantDeps default of DATABASE; every other builder case derived
 # APPLICATION from its application-slot UIContext. All automation cases never
 # set deps.mode, so they ran (and still run) in DATABASE mode too.
-# Prod-replay derived mode from the UI context: builder page inspection ran in
+# Prod-replay derived mode from the UI context: the builder replays run in
 # APPLICATION, every other replay in DATABASE.
 EXPECTED_MODES = {
     **{
@@ -279,6 +281,7 @@ EXPECTED_MODES = {
         case_id: AgentMode.DATABASE for case_id in EXPECTED_CASE_IDS["kuma-prod-replay"]
     },
     "prod-replay/page-inspection-existing-elements": AgentMode.APPLICATION,
+    "prod-replay/page-at-taken-path": AgentMode.APPLICATION,
 }
 
 
@@ -295,7 +298,7 @@ class TestDatasetCounts:
         assert len(grouped["kuma-docs"]) == 64
         assert len(grouped["kuma-builder"]) == 35
         assert len(grouped["kuma-automation"]) == 11
-        assert len(grouped["kuma-prod-replay"]) == 7
+        assert len(grouped["kuma-prod-replay"]) == 9
 
     def test_case_ids_match_inventory(self):
         grouped = cases_by_dataset()

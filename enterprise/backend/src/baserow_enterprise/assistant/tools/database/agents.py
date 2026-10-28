@@ -16,7 +16,6 @@ from pydantic_ai.messages import (
     ToolCallPart,
     ToolReturnPart,
 )
-from pydantic_ai.toolsets import FunctionToolset
 from pydantic_ai.usage import UsageLimits
 
 from baserow.contrib.database.api.formula.serializers import TypeFormulaResultSerializer
@@ -24,6 +23,7 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import FormulaField
 from baserow.core.generative_ai.lifecycle import run_agent_sync_with_model
 from baserow.core.models import Workspace
+from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 from baserow_premium.prompts import get_formula_docs
 
 from . import helpers
@@ -333,7 +333,7 @@ def run_formula_generation(
 
     from baserow_enterprise.assistant.model_profiles import UTILITY
 
-    formula_toolset = FunctionToolset(
+    formula_toolset = AssistantFunctionToolset(
         [Tool(get_formula_type_tool(user, workspace))],
         max_retries=FORMULA_AGENT_RETRIES,
     )
@@ -509,7 +509,7 @@ def generate_sample_rows(
     sample_row_agent = Agent(
         output_type=str,
         instructions=SAMPLE_ROW_AGENT_INSTRUCTIONS,
-        tools=create_tools,
+        toolsets=[AssistantFunctionToolset(create_tools)],
         name="sample_row_agent",
     )
     run_agent_sync_with_model(

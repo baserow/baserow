@@ -1,7 +1,6 @@
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
-from django.core.files.base import ContentFile
 from django.db import transaction
 from django.test.utils import override_settings
 from django.utils import timezone
@@ -14,13 +13,16 @@ from baserow.core.jobs.constants import JOB_PENDING, JOB_STARTED
 from baserow.core.models import Template, Workspace
 from baserow.core.storage import get_default_storage
 from baserow.core.user.handler import UserHandler
-from baserow.core.user_templates.constants import USER_TEMPLATE_DELETION_GRACE_PERIOD
 from baserow.core.user_templates.models import (
     CreateUserTemplateJob,
     UserTemplateContentToDelete,
 )
-from baserow.core.user_templates.tasks import delete_orphaned_user_template_workspaces
-from tests.baserow.core.user_templates.utils import ICON
+from tests.baserow.core.user_templates.utils import (
+    ICON,
+    create_content,
+    purge_after_the_grace_period,
+    store_archive,
+)
 
 User = get_user_model()
 
@@ -115,24 +117,11 @@ def test_scheduled_user_deletion_deletes_template_owner_and_other_user(
 
 
 def create_template_with_content(data_fixture, user):
-    workspace = data_fixture.create_workspace(name="Template")
-    data_fixture.create_database_application(workspace=workspace)
-    archive = get_default_storage().save(
-        "template-revisions/template.zip", ContentFile(b"archive")
-    )
+    workspace, archive = create_content(data_fixture, "Template")
     template = data_fixture.create_user_template(
         user=user, workspace=workspace, archive=archive, icon=ICON
     )
     return template, workspace, archive
-
-
-def purge_after_the_grace_period():
-    Template.objects.filter(marked_for_deletion_at__isnull=False).update(
-        marked_for_deletion_at=timezone.now()
-        - USER_TEMPLATE_DELETION_GRACE_PERIOD
-        - timedelta(hours=1)
-    )
-    delete_orphaned_user_template_workspaces()
 
 
 def assert_template_and_content_removed(template, workspace, archive):
@@ -199,9 +188,7 @@ def test_deleting_a_user_while_their_template_is_updated(data_fixture, state):
     template, workspace, archive = create_template_with_content(data_fixture, user)
     # What the update copied so far.
     job_workspace = data_fixture.create_workspace(name="Copy")
-    job_archive = get_default_storage().save(
-        "template-revisions/copy.zip", ContentFile(b"archive")
-    )
+    job_archive = store_archive("copy.zip")
     job = CreateUserTemplateJob.objects.create(
         user=user,
         state=state,

@@ -9,6 +9,7 @@ import {
 import { listRows } from "../../fixtures/database/rows";
 import { createGalleryView } from "../../fixtures/database/view";
 import { getClient } from "../../client";
+import { getBrowserRefreshToken } from "../../fixtures/user";
 import { baserowConfig } from "../../playwright.config";
 import * as fs from "fs";
 import * as path from "path";
@@ -167,7 +168,7 @@ test.describe("Rich text image upload", () => {
       `/database/${g.database.id}/table/${g.table.id}/${gallery.id}`,
       baserowConfig.PUBLIC_WEB_FRONTEND_URL,
     );
-    galleryUrl.searchParams.set("token", g.user.refreshToken);
+    galleryUrl.searchParams.set("token", await getBrowserRefreshToken(g.user));
     await page.goto(galleryUrl.toString());
     const cardValue = page
       .locator(".gallery-view__card", { hasText: "inline" })

@@ -45,6 +45,7 @@ from loguru import logger
 from opentelemetry.sdk.trace import ReadableSpan, SpanProcessor, TracerProvider
 from opentelemetry.sdk.trace.sampling import ALWAYS_ON
 from opentelemetry.trace import SpanKind
+from pydantic_ai.exceptions import ContentFilterError, ModelHTTPError
 
 from baserow.core.posthog import get_posthog_client
 from baserow_enterprise.assistant.models import AssistantChat
@@ -558,6 +559,30 @@ class AssistantTraceOutcome(StrEnum):
     NO_ANSWER = "no_answer"
 
 
+_ERROR_MAX_CHARS = 500
+
+
+def _error_message(exception: Exception) -> str:
+    """
+    Describe *exception* without the model output or provider response body,
+    which can hold user data and would split PostHog's error groups.
+
+    :param exception: The error that ended the run.
+    :return: The message, at most ``_ERROR_MAX_CHARS`` characters long.
+    """
+
+    if isinstance(exception, ModelHTTPError):
+        message = (
+            f"status_code: {exception.status_code}, model_name: {exception.model_name}"
+        )
+    elif isinstance(exception, ContentFilterError):
+        # The message can quote the model's refusal.
+        message = "Content filter triggered"
+    else:
+        message = getattr(exception, "message", None) or str(exception)
+    return message[:_ERROR_MAX_CHARS]
+
+
 _FAILED_OUTCOMES = frozenset(
     {AssistantTraceOutcome.ERROR, AssistantTraceOutcome.NO_ANSWER}
 )
@@ -636,19 +661,22 @@ class PosthogTracingCallback:
             if tool_call_names and isinstance(output_state, dict):
                 output_state["tool_calls"] = tool_call_names
 
+            properties = {
+                "$ai_session_id": chat.uuid,
+                "$ai_span_name": f"{self.user_id}: {human_message[:20]}",
+                "$ai_span_id": self.span_id,
+                "$ai_latency": (_utc_now() - start_time).total_seconds(),
+                "$ai_is_error": outcome in _FAILED_OUTCOMES,
+                "$ai_input_state": {"user_message": human_message},
+                "$ai_output_state": output_state,
+                "assistant_outcome": outcome.value,
+            }
+            if exception is not None:
+                # PostHog groups failed traces by these, not by the output state.
+                properties["$ai_error"] = _error_message(exception)
+                properties["$ai_error_type"] = type(exception).__name__
             self._capture_event(
-                "$ai_trace",
-                timestamp=start_time,
-                properties={
-                    "$ai_session_id": chat.uuid,
-                    "$ai_span_name": f"{self.user_id}: {human_message[:20]}",
-                    "$ai_span_id": self.span_id,
-                    "$ai_latency": (_utc_now() - start_time).total_seconds(),
-                    "$ai_is_error": outcome in _FAILED_OUTCOMES,
-                    "$ai_input_state": {"user_message": human_message},
-                    "$ai_output_state": output_state,
-                    "assistant_outcome": outcome.value,
-                },
+                "$ai_trace", timestamp=start_time, properties=properties
             )
 
             try:
@@ -693,7 +721,7 @@ class PosthogTracingCallback:
         """
 
         if outcome is AssistantTraceOutcome.ERROR:
-            return str(exception)
+            return _error_message(exception)
         if outcome is AssistantTraceOutcome.ANSWERED:
             return self.trace_outputs
         return {"status": outcome.value}

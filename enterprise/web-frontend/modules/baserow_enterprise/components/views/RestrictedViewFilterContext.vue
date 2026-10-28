@@ -401,7 +401,16 @@ export default {
 
       const overrides = this.buildOverrides()
       const removedIds = [...this.removedFieldIds]
-      const baseItems = clone(this.view.default_row_values || [])
+      // A write-only field can't have a default value, but the store can still
+      // hold one from before the field became write-only.
+      const writeOnlyFieldIds = this.fields
+        .filter((field) =>
+          this.$registry.get('field', field.type).isWriteOnlyField(field)
+        )
+        .map((field) => field.id)
+      const baseItems = clone(this.view.default_row_values || []).filter(
+        (item) => !writeOnlyFieldIds.includes(item.field)
+      )
 
       try {
         const items = buildPayload(baseItems, overrides, removedIds)

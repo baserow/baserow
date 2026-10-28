@@ -18,6 +18,7 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
   </header>
   <div class="data-table__body">
     <table class="data-table__table" aria-busy="false">
+      <!--v-if-->
       <thead>
         <tr class="data-table__table-row">
           <th style="" class="data-table__table-cell data-table__table-cell--header data-table__table-cell--sticky-left">
@@ -109,7 +110,7 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
           </td>
           <td class="data-table__table-cell data-table__table-cell--name">
             <div class="data-table__table-cell-content">
-              <div title="user name">user name</div>
+              <div class="data-table__text-field" title="user name">user name</div>
               <!--v-if-->
             </div>
           </td>
@@ -196,6 +197,7 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
   </header>
   <div class="data-table__body">
     <table class="data-table__table" aria-busy="false">
+      <!--v-if-->
       <thead>
         <tr class="data-table__table-row">
           <th style="" class="data-table__table-cell data-table__table-cell--header data-table__table-cell--sticky-left">
@@ -287,7 +289,7 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
           </td>
           <td class="data-table__table-cell data-table__table-cell--name">
             <div class="data-table__table-cell-content">
-              <div title="user_name">user_name</div>
+              <div class="data-table__text-field" title="user_name">user_name</div>
               <!--v-if-->
             </div>
           </td>
@@ -357,7 +359,7 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
           </td>
           <td class="data-table__table-cell data-table__table-cell--name">
             <div class="data-table__table-cell-content">
-              <div title="user_name">user_name</div>
+              <div class="data-table__text-field" title="user_name">user_name</div>
               <!--v-if-->
             </div>
           </td>
@@ -427,7 +429,7 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
           </td>
           <td class="data-table__table-cell data-table__table-cell--name">
             <div class="data-table__table-cell-content">
-              <div title="user_name">user_name</div>
+              <div class="data-table__text-field" title="user_name">user_name</div>
               <!--v-if-->
             </div>
           </td>

@@ -299,7 +299,7 @@ def test_update_rows_create_update_entries_for_all_updated_fields(data_fixture):
     assert PendingSearchValueUpdate.objects.count() == 0
 
     with patch(
-        "baserow.contrib.database.search.handler.SearchHandler.process_search_data_updates"
+        "baserow.contrib.database.search.search_data_updater_types.FullTextSearchDataUpdaterType.process_pending_updates"
     ) as mock:
         row1, row2, row3 = (
             RowHandler()

@@ -32,6 +32,11 @@ export class AutomationApplicationType extends ApplicationType {
     return i18n.t('applicationType.automations')
   }
 
+  getViewLabel() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('applicationType.viewAutomation')
+  }
+
   getDescription() {
     const { $i18n: i18n } = this.app
     return i18n.t('applicationType.automationDesc')

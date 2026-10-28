@@ -1,0 +1,12 @@
+{
+    "type": "breaking_change",
+    "message": "Accepting a workspace invitation requires the emailed token or a verified email address",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [
+        "POST /api/workspaces/invitations/{id}/accept/ takes an optional token",
+        "Without it, unverified users get ERROR_GROUP_INVITATION_EMAIL_NOT_VERIFIED, unless the instance has no SMTP server configured"
+    ],
+    "created_at": "2026-10-26"
+}

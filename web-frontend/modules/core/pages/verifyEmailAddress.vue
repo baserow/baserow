@@ -44,6 +44,11 @@ const { data: result, error } = await useAsyncData('verify-email', async () => {
     const { data } = await AuthService($client).verifyEmail(token)
 
     if (!isAuthenticated) {
+      // Users with two-factor authentication don't get tokens and have to sign
+      // in through the login page.
+      if (!data.refresh_token) {
+        return { emailMismatch: false }
+      }
       store.dispatch('auth/setUserData', data)
       await setToken(nuxtApp, data.refresh_token)
       await setUserSessionCookie(nuxtApp, data.user_session)

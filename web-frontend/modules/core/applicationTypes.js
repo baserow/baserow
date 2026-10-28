@@ -28,6 +28,14 @@ export class ApplicationType extends Registerable {
   }
 
   /**
+   * The label of a link that opens an application of this type, like "View
+   * database". A string per type, so that translators decide on the case.
+   */
+  getViewLabel() {
+    return null
+  }
+
+  /**
    * Small description of the application type, shown in the create new application
    * context menu.
    */

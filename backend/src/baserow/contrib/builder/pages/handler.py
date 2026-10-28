@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.db.models import QuerySet
 
 from baserow.contrib.builder.compat.graph_migrator import (
@@ -178,9 +178,11 @@ class PageHandler:
         if page.shared:
             raise SharedPageIsReadOnly()
 
+        page_id = page.id
         page.delete()
 
         self.invalidate_page_cache(page)
+        transaction.on_commit(lambda: self.invalidate_page_public_cache(page_id))
 
     def update_page(self, page: Page, **kwargs) -> Page:
         """
@@ -261,6 +263,9 @@ class PageHandler:
         Generates the cache key used by the public elements, data sources and workflow
         actions endpoints. Anonymous and authenticated visitors always get separate
         cache keys, and authenticated visitors are further separated by role.
+        Callers must authorize authenticated actors against the page before reading
+        this cache; role-based sharing is only valid among actors allowed to access
+        that page.
 
         Authenticated visitors without a role must not share a key with anonymous
         visitors: they see different records (e.g. elements restricted to logged-in
@@ -283,6 +288,31 @@ class PageHandler:
             auth = f"_auth_{getattr(user, 'role', '')}"
         return f"ab_public_page_{page_id}{auth}_{record_name}_records"
 
+    @classmethod
+    def get_page_public_cache_invalidate_key(cls, page_id: int) -> str:
+        """
+        Returns the key invalidating every public cache of a published page: whether
+        it's published and its records for every audience.
+
+        :param page_id: the ID of the public page.
+        :return: the invalidation key.
+        """
+
+        return f"ab_public_page_{page_id}_public_cache"
+
+    @classmethod
+    def invalidate_page_public_cache(cls, page_id: int):
+        """
+        Invalidates every public cache of a published page, so that the next public
+        request reads the page from the database again.
+
+        :param page_id: the ID of the public page.
+        """
+
+        global_cache.invalidate(
+            invalidate_key=cls.get_page_public_cache_invalidate_key(page_id)
+        )
+
     def is_published_page(self, public_page_id: int) -> bool:
         """
         Returns whether this public page ID points to a published domain
@@ -295,6 +325,7 @@ class PageHandler:
         return global_cache.get(
             f"ab_public_page_{public_page_id}_published",
             default=lambda: self._is_published_application_page(public_page_id),
+            invalidate_key=self.get_page_public_cache_invalidate_key(public_page_id),
             timeout=BUILDER_PAGE_IS_PUBLISHED_CACHE_TTL_SECONDS,
         )
 
@@ -520,17 +551,36 @@ class PageHandler:
         :return: If the path is unique
         """
 
-        queryset = Page.objects_and_trash if base_queryset is None else base_queryset
+        if self.get_page_with_clashing_path(builder, path, base_queryset) is None:
+            return True
+        if raises:
+            raise PagePathNotUnique(path=path, builder_id=builder.id)
+        return False
 
-        existing_paths = queryset.filter(builder=builder).values_list("path", flat=True)
+    def get_page_with_clashing_path(
+        self,
+        builder: Builder,
+        path: str,
+        base_queryset: QuerySet | None = None,
+    ) -> Page | None:
+        """
+        Finds the page whose path clashes with the given path. Paths clash when
+        they only differ in the names of their parameters.
+
+        :param builder: The builder that the page belongs to.
+        :param path: The path to look for.
+        :param base_queryset: The pages to search, trashed ones included by default.
+        :return: The clashing page, or None if the path is free.
+        """
+
+        queryset = Page.objects_and_trash if base_queryset is None else base_queryset
+        pages = queryset.filter(builder=builder).only("id", "name", "path", "trashed")
 
         path_generalised = self.generalise_path(path)
-        for existing_path in existing_paths:
-            if self.generalise_path(existing_path) == path_generalised:
-                if raises:
-                    raise PagePathNotUnique(path=path, builder_id=builder.id)
-                return False
-        return True
+        for page in pages:
+            if self.generalise_path(page.path) == path_generalised:
+                return page
+        return None
 
     def generalise_path(self, path: str) -> str:
         """

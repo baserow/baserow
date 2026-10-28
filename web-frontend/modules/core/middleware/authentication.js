@@ -1,4 +1,5 @@
 import {
+  getRefreshTokenSessionId,
   getTokenIfEnoughTimeLeft,
   setToken,
   setUserSessionCookie,
@@ -14,17 +15,25 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return
   }
 
-  const userSession = to.query.user_session
-  if (userSession) {
-    await setUserSessionCookie(nuxtApp, userSession)
-  }
-
   // token can be in the query string (SSO) or in the cookies (previous session)
+  const cookieToken = await getTokenIfEnoughTimeLeft(nuxtApp)
   let refreshToken = to.query.token
-  if (refreshToken) {
+  const sessionId = getRefreshTokenSessionId(refreshToken)
+  if (
+    sessionId &&
+    cookieToken &&
+    sessionId === getRefreshTokenSessionId(cookieToken)
+  ) {
+    // Reloading a page that still has the token in its URL. It has been
+    // rotated since, and using it again would sign the session off.
+    refreshToken = cookieToken
+  } else if (refreshToken) {
     await setToken(nuxtApp, refreshToken)
+    if (to.query.user_session) {
+      await setUserSessionCookie(nuxtApp, to.query.user_session)
+    }
   } else {
-    refreshToken = await getTokenIfEnoughTimeLeft(nuxtApp)
+    refreshToken = cookieToken
   }
 
   if (refreshToken) {

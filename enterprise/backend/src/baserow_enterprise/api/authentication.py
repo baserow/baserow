@@ -1,3 +1,4 @@
+import time
 from typing import Optional
 from urllib.parse import unquote
 from urllib.request import Request
@@ -9,7 +10,7 @@ from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from rest_framework import authentication, exceptions
 
 from baserow.core.user.handler import UserHandler
-from baserow.core.user.utils import UserSessionPayload
+from baserow.core.user.utils import USER_SESSION_SALT, UserSessionPayload
 
 
 def extract_user_session_from_request(
@@ -28,15 +29,15 @@ def extract_user_session_from_request(
     """
 
     cookie_name = f"{settings.FRONTEND_COOKIE_PREFIX}user_session"
-    cookie = request.COOKIES.get(cookie_name, None) or ""
-    signer = TimestampSigner()
+    cookie = unquote(request.COOKIES.get(cookie_name, None) or "")
 
-    try:
-        return UserSessionPayload(
-            **signer.unsign_object(unquote(cookie), max_age=max_age)
-        )
-    except (BadSignature, SignatureExpired):
-        return None
+    # Sessions signed before refresh tokens were rotated use the default salt.
+    for signer in (TimestampSigner(salt=USER_SESSION_SALT), TimestampSigner()):
+        try:
+            return UserSessionPayload(**signer.unsign_object(cookie, max_age=max_age))
+        except (BadSignature, SignatureExpired):
+            pass
+    return None
 
 
 class AuthenticateFromUserSessionAuthentication(authentication.BaseAuthentication):
@@ -61,8 +62,15 @@ class AuthenticateFromUserSessionAuthentication(authentication.BaseAuthenticatio
         except user_model.DoesNotExist:
             raise exceptions.AuthenticationFailed(err_msg)
 
-        if not user.is_active or UserHandler().refresh_token_hash_is_blacklisted(
-            user_session.token_hash
+        handler = UserHandler()
+        if (
+            not user.is_active
+            # A session hash keeps the cookie valid while the refresh token
+            # rotates, signing off revokes the whole session.
+            or handler.refresh_token_hash_is_blacklisted(
+                user_session.session_hash or user_session.token_hash
+            )
+            or (user_session.expires_at and user_session.expires_at < time.time())
         ):
             raise exceptions.AuthenticationFailed(err_msg)
 

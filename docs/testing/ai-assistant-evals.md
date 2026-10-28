@@ -190,7 +190,7 @@ hashes, so branch/model comparisons are filterable in Phoenix.
 | `kuma-database` | 21 | tables, fields, views, filters, rows |
 | `kuma-builder` | 32 | pages, elements, menus, data sources, themes, user sources |
 | `kuma-automation` | 7 | workflows, triggers, nodes |
-| `kuma-prod-replay` | 7 | invented prompts for failure classes that used to end the turn |
+| `kuma-prod-replay` | 9 | invented prompts for failure classes that used to end the turn |
 | `kuma-docs` | 64 | docs Q&A via `search_user_docs`, incl. cannot-do guardrail cases |
 
 `kuma-docs` needs the `embeddings` service (`ai` profile) and a knowledge base

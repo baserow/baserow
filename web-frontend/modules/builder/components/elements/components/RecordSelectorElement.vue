@@ -73,7 +73,6 @@ import _ from 'lodash'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import formElement from '@baserow/modules/builder/mixins/formElement'
 import collectionElement from '@baserow/modules/builder/mixins/collectionElement'
-import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll.vue'
 import DataSourceService from '@baserow/modules/builder/services/dataSource'
 import { handleDispatchError } from '@baserow/modules/builder/utils/error'
@@ -152,28 +151,12 @@ export default {
       const options = this.elementContent.map((record, recordIndex) => ({
         value: this.getId(record),
         nameSuffix: ensureString(
-          this.resolveFormula(
-            this.element.option_name_suffix,
-            // Formula context to resolve `current record` to the current index
-            new Proxy(
-              new RuntimeFormulaContext(
-                this.$registry.getAll('builderDataProvider'),
-                {
-                  ...this.applicationContext,
-                  dataScope: DATA_SCOPES.INCLUDE_TARGET_ELEMENT,
-                  // We don't want the full recordIndex path here as we always want a
-                  // data source as source for this component and we don't want nested
-                  // data selection.
-                  recordIndexPath: [recordIndex],
-                }
-              ),
-              {
-                get(target, prop) {
-                  return target.get(prop)
-                },
-              }
-            )
-          )
+          this.resolveFormula(this.element.option_name_suffix, (context) => ({
+            ...context,
+            dataScope: DATA_SCOPES.INCLUDE_TARGET_ELEMENT,
+            // Options use their own data source rather than a nested row.
+            recordIndexPath: [recordIndex],
+          }))
         ),
         name:
           this.dataSourceType.getRecordName(this.dataSource, record || {}) ||

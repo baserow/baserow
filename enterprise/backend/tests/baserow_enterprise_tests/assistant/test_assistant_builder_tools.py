@@ -3829,3 +3829,202 @@ def test_update_record_selector_allows_multiple_selection(data_fixture):
     assert result["status"] == "ok"
     assert selector.multiple is True
     assert selector.label["formula"] == "'Owners'"
+
+
+@pytest.mark.django_db
+def test_create_pages_returns_a_taken_path_to_the_model(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    taken = data_fixture.create_builder_page(builder=builder, name="Home", path="/")
+
+    result = create_pages(
+        make_test_ctx(user, workspace),
+        application_id=builder.id,
+        pages=[
+            PageCreate(name="About", path="/about"),
+            PageCreate(name="Start", path="/"),
+        ],
+        thought="Create the pages",
+    )
+
+    assert result["errors"] == [
+        f"Start: The path '/' is already used by page {taken.id} ('Home'). This "
+        "page was not created. Pick another path."
+    ]
+    assert Page.objects.filter(builder=builder, path="/about").exists()
+
+
+@pytest.mark.django_db
+def test_update_page_returns_a_taken_path_to_the_model(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    taken = data_fixture.create_builder_page(builder=builder, name="Home", path="/")
+    page = data_fixture.create_builder_page(
+        builder=builder, name="About", path="/about"
+    )
+
+    with pytest.raises(ToolInputError, match=f"page {taken.id}"):
+        update_page(
+            make_test_ctx(user, workspace),
+            page=PageUpdate(page_id=page.id, path="/"),
+            thought="Move the page",
+        )
+
+    page.refresh_from_db()
+    assert page.path == "/about"
+
+
+@pytest.mark.django_db
+def test_create_pages_rejects_two_new_pages_with_the_same_path(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+
+    with pytest.raises(
+        ToolInputError,
+        match="'About' at '/about/:id' and 'Team' at '/about/:slug' use the same",
+    ):
+        create_pages(
+            make_test_ctx(user, workspace),
+            application_id=builder.id,
+            pages=[
+                PageCreate(name="About", path="/about/:id"),
+                PageCreate(name="Team", path="/about/:slug"),
+            ],
+            thought="Create the pages",
+        )
+
+    assert not Page.objects.filter(builder=builder, name="About").exists()
+
+
+@pytest.mark.django_db
+def test_create_pages_names_a_trashed_page_that_holds_the_path(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    trashed = data_fixture.create_builder_page(
+        builder=builder, name="Old about", path="/about", trashed=True
+    )
+
+    result = create_pages(
+        make_test_ctx(user, workspace),
+        application_id=builder.id,
+        pages=[PageCreate(name="About", path="/about")],
+        thought="Create the page",
+    )
+
+    assert (
+        f"page {trashed.id} ('Old about'), which is in the trash"
+        in (result["errors"][0])
+    )
+
+
+@pytest.mark.django_db
+def test_update_page_path_params_on_a_taken_path_is_returned_to_the_model(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    taken = data_fixture.create_builder_page(
+        builder=builder, name="Product", path="/product/:id"
+    )
+    # An import can leave two pages on clashing paths.
+    page = data_fixture.create_builder_page(
+        builder=builder, name="Item", path="/product/:slug"
+    )
+
+    with pytest.raises(ToolInputError, match=f"page {taken.id}"):
+        update_page(
+            make_test_ctx(user, workspace),
+            page=PageUpdate(
+                page_id=page.id, path_params=[PagePathParam(name="slug", type="text")]
+            ),
+            thought="Change the parameter type",
+        )
+
+
+@pytest.mark.django_db
+def test_update_page_returns_an_invalid_path_to_the_model(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(
+        builder=builder,
+        name="Product",
+        path="/product/:id",
+        path_params=[{"name": "id", "type": "text"}],
+    )
+
+    with pytest.raises(ToolInputError, match="Nothing was changed"):
+        update_page(
+            make_test_ctx(user, workspace),
+            page=PageUpdate(page_id=page.id, path="/product/:id/:id"),
+            thought="Repeat the parameter",
+        )
+
+    page.refresh_from_db()
+    assert page.path == "/product/:id"
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(
+    "trashed, visibility, existing_form, expected_path, reuses_page, forms",
+    [
+        (False, "all", None, "/login", True, 1),
+        (False, "all", "unbound", "/login", True, 1),
+        (False, "all", "other", "/login", True, 2),
+        (False, "logged-in", None, "/login-1", False, 1),
+        (True, "all", None, "/login-1", False, 1),
+    ],
+)
+def test_setup_user_source_puts_the_login_form_on_the_login_path(
+    data_fixture, trashed, visibility, existing_form, expected_path, reuses_page, forms
+):
+    from baserow_enterprise.assistant.tools.builder.tools import setup_user_source
+    from baserow_enterprise.assistant.tools.builder.types.user_source import (
+        UserSourceSetup,
+    )
+    from baserow_enterprise.builder.elements.element_types import (
+        AuthFormElementType,
+    )
+    from baserow_enterprise.builder.elements.models import AuthFormElement
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    existing = data_fixture.create_builder_page(
+        builder=builder,
+        name="Sign in",
+        path="/login",
+        trashed=trashed,
+        visibility=visibility,
+    )
+    if existing_form is not None:
+        other = (
+            data_fixture.create_user_source_with_first_type(application=builder)
+            if existing_form == "other"
+            else None
+        )
+        data_fixture.create_builder_element(
+            AuthFormElementType, page=existing, user_source=other
+        )
+
+    result = setup_user_source(
+        make_test_ctx(user, workspace),
+        application_id=builder.id,
+        setup=UserSourceSetup(name="App Users", database_id=database.id),
+        thought="Add logins",
+    )
+
+    login_page = Page.objects.get(id=result["login_page_id"])
+    assert login_page.path == expected_path
+    assert (login_page.id == existing.id) is reuses_page
+    login_forms = AuthFormElement.objects.filter(page=login_page)
+    assert login_forms.count() == forms
+    assert login_forms.filter(user_source_id=result["user_source_id"]).count() == 1
+    builder.refresh_from_db()
+    assert builder.login_page_id == login_page.id

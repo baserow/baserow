@@ -769,6 +769,43 @@ export function extractRowMetadata(data, rowId) {
 }
 
 /**
+ * Calls `fetchRows` once per `chunkSize` rows when `limit` is above it, because the
+ * backend rejects page sizes above the row page size limit. The responses are merged
+ * into one, as if a single request was made. Only the first chunk asks for the field
+ * options and the count.
+ */
+export async function fetchRowsInChunks(fetchRows, { chunkSize, ...params }) {
+  const { offset = 0, limit = 100 } = params
+  if (!chunkSize || limit <= chunkSize) {
+    return await fetchRows(params)
+  }
+
+  const requests = []
+  for (let start = 0; start < limit; start += chunkSize) {
+    const isFirst = start === 0
+    requests.push(
+      fetchRows({
+        ...params,
+        offset: (offset ?? 0) + start,
+        limit: Math.min(chunkSize, limit - start),
+        includeFieldOptions: isFirst && params.includeFieldOptions,
+        excludeCount: !isFirst || params.excludeCount,
+      })
+    )
+  }
+  const responses = await Promise.all(requests)
+  const data = { ...responses[0].data }
+  data.results = responses.flatMap((response) => response.data.results)
+  if (data.row_metadata) {
+    data.row_metadata = Object.assign(
+      {},
+      ...responses.map((response) => response.data.row_metadata)
+    )
+  }
+  return { ...responses[0], data }
+}
+
+/**
  * Limit the size of a cookie's value by removing elements from an array
  * until it fits within the maximum allowed cookie size. The array is
  * assumed to be ordered by least important to most important, so the first

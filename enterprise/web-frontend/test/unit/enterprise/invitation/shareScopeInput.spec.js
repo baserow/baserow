@@ -286,10 +286,9 @@ test('collects picks as chips and emits them with the role', async () => {
     await input.trigger('keydown', { key: 'Enter' })
 
     const chips = wrapper.findAll('.invite-input__chip')
-    expect(chips.map((chip) => chip.text())).toEqual([
-      'Mark Delgado',
-      'new@x.com',
-    ])
+    expect(
+      chips.map((chip) => chip.find('.invite-input__chip-label').text())
+    ).toEqual(['Mark Delgado', 'new@x.com'])
     expect(input.element.value).toBe('')
     expect(button.attributes('disabled')).toBeUndefined()
     expect(button.text()).toContain('shareScope.addAs')

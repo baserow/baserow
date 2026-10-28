@@ -69,7 +69,7 @@
             hide())
           "
         >
-          <i class="context__menu-item-icon iconoir-community"></i>
+          <i class="context__menu-item-icon baserow-icon-team"></i>
           {{ $t('workspaceContext.members') }}
         </a>
       </li>

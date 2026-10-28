@@ -41,6 +41,11 @@ export class DatabaseApplicationType extends ApplicationType {
     return i18n.t('applicationType.databases')
   }
 
+  getViewLabel() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('applicationType.viewDatabase')
+  }
+
   getDescription() {
     const { $i18n: i18n } = this.app
     return i18n.t('applicationType.databaseDesc')

@@ -3,6 +3,7 @@ import json
 import os
 import re
 from collections import defaultdict
+from contextlib import nullcontext
 from dataclasses import dataclass
 from io import BufferedReader, BytesIO
 from pathlib import Path
@@ -20,7 +21,7 @@ from django.utils import translation
 from django.utils.translation import gettext as _
 
 import zipstream
-from itsdangerous import URLSafeSerializer
+from itsdangerous import BadSignature, URLSafeSerializer
 from loguru import logger
 from opentelemetry import trace
 from tqdm import tqdm
@@ -30,9 +31,10 @@ from baserow.core.db import specific_queryset
 from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.registries import plugin_registry
 from baserow.core.user.utils import normalize_email_address
+from baserow.core.user_templates.constants import USER_TEMPLATE_SEEDED_ID_MAPPINGS
 
 from .context import clear_current_workspace_id, set_current_workspace_id
-from .emails import WorkspaceInvitationEmail
+from .emails import WorkspaceInvitationEmail, can_deliver_emails
 from .exceptions import (
     ApplicationDoesNotExist,
     ApplicationNotInWorkspace,
@@ -40,6 +42,7 @@ from .exceptions import (
     CannotDeleteYourselfFromWorkspace,
     DuplicateApplicationMaxLocksExceededException,
     InvalidPermissionContext,
+    InvalidWorkspaceRole,
     LastAdminOfWorkspace,
     PermissionDenied,
     PermissionException,
@@ -49,6 +52,7 @@ from .exceptions import (
     WorkspaceDoesNotExist,
     WorkspaceInvitationDoesNotExist,
     WorkspaceInvitationEmailMismatch,
+    WorkspaceInvitationEmailNotVerified,
     WorkspaceUserAlreadyExists,
     WorkspaceUserDoesNotExist,
     WorkspaceUserIsLastAdmin,
@@ -1065,6 +1069,34 @@ class CoreHandler:
         )
         return [wk_user.user for wk_user in wk_users]
 
+    def raise_if_invalid_workspace_role(
+        self, role_uid: str, workspace: Workspace
+    ) -> None:
+        """
+        Checks that the role uid is one of the roles available in the workspace. The
+        first permission manager that answers decides, otherwise only the basic
+        ADMIN and MEMBER roles are available.
+
+        :param role_uid: The role uid stored in the `permissions` value.
+        :param workspace: The workspace the role is given in.
+        :raises InvalidWorkspaceRole: If the role is not available.
+        """
+
+        for permission_manager_name in settings.PERMISSION_MANAGERS:
+            is_valid = permission_manager_type_registry.get(
+                permission_manager_name
+            ).is_workspace_role_uid_valid(role_uid, workspace)
+            if is_valid is not None:
+                break
+        else:
+            is_valid = role_uid in {
+                WORKSPACE_USER_PERMISSION_ADMIN,
+                WORKSPACE_USER_PERMISSION_MEMBER,
+            }
+
+        if not is_valid:
+            raise InvalidWorkspaceRole(f"The role {role_uid} is not available.")
+
     def update_workspace_user(
         self,
         user: AbstractUser,
@@ -1078,6 +1110,7 @@ class CoreHandler:
         :param workspace_user: The workspace user that must be updated.
         :raises CannotChangeYourOwnWorkspaceRole: If the user tries to change their
             own role in the workspace.
+        :raises InvalidWorkspaceRole: If the new role is not available.
         :return: The updated workspace user instance.
         """
 
@@ -1095,6 +1128,11 @@ class CoreHandler:
             # Otherwise an admin could demote themselves and lose access.
             raise CannotChangeYourOwnWorkspaceRole(
                 "Cannot change your own role in the workspace."
+            )
+
+        if "permissions" in kwargs:
+            self.raise_if_invalid_workspace_role(
+                kwargs["permissions"], workspace_user.workspace
             )
 
         return self.force_update_workspace_user(user, workspace_user, **kwargs)
@@ -1180,6 +1218,21 @@ class CoreHandler:
         """
 
         return URLSafeSerializer(settings.SECRET_KEY, "workspace-invite")
+
+    def _is_workspace_invitation_token(
+        self, token: str | None, invitation: WorkspaceInvitation
+    ) -> bool:
+        """
+        Returns whether the token is the signed id of the given invitation.
+        """
+
+        if not token:
+            return False
+
+        try:
+            return self.get_workspace_invitation_signer().loads(token) == invitation.id
+        except BadSignature:
+            return False
 
     def send_workspace_invitation_email(self, invitation):
         """
@@ -1288,7 +1341,7 @@ class CoreHandler:
             Can be an existing or not existing user.
         :param permissions: The workspace permissions that the user will get once they
             have accepted the invitation.
-        :raises ValueError: If the provided permissions are not allowed.
+        :raises InvalidWorkspaceRole: If the provided permissions are not available.
         :raises UserInvalidWorkspacePermissionsError: If the user does not belong to the
             workspace or doesn't have right permissions in the workspace.
         :return: The created workspace invitation.
@@ -1300,6 +1353,8 @@ class CoreHandler:
             workspace=workspace,
             context=workspace,
         )
+
+        self.raise_if_invalid_workspace_role(permissions, workspace)
 
         email = normalize_email_address(email)
 
@@ -1361,7 +1416,7 @@ class CoreHandler:
         :param invitation: The invitation that must be updated.
         :param permissions: The new permissions of the invitation that the user must
             has after accepting.
-        :raises ValueError: If the provided permissions is not allowed.
+        :raises InvalidWorkspaceRole: If the provided permissions are not available.
         :raises UserInvalidWorkspacePermissionsError: If the user does not belong to the
             workspace or doesn't have right permissions in the workspace.
         :return: The updated workspace permissions instance.
@@ -1373,6 +1428,8 @@ class CoreHandler:
             workspace=invitation.workspace,
             context=invitation,
         )
+
+        self.raise_if_invalid_workspace_role(permissions, invitation.workspace)
 
         invitation.permissions = permissions
         invitation.save()
@@ -1465,20 +1522,33 @@ class CoreHandler:
         return workspace_user
 
     def accept_workspace_invitation(
-        self, user: User, invitation: WorkspaceInvitation
+        self,
+        user: User,
+        invitation: WorkspaceInvitation,
+        token: str | None = None,
     ) -> WorkspaceUser:
         """
         Accepts a workspace invitation by adding the user to the correct workspace with
         the right permissions. It can only be accepted if the invitation was
-        addressed to the email address of the user. Because the invitation has been
-        accepted it can then be deleted. If the user is already a member of the
-        workspace the invitation is consumed without changing their existing
-        permissions, so a stale invitation can never lower an existing member's role.
+        addressed to the email address of the user, and if the user either provides
+        the token from the invitation email or has a verified email address. The
+        latter is only required when this instance can deliver emails, because
+        otherwise neither the invitation nor a verification email arrives. Because
+        the invitation has been accepted it can then be deleted. If the user is
+        already a member of the workspace the invitation is consumed without changing
+        their existing permissions, so a stale invitation can never lower an existing
+        member's role.
 
         :param user: The user who has accepted the invitation.
         :param invitation: The invitation that must be accepted.
+        :param token: The signed invitation id from the invitation email. It proves
+            that the user received the email, so their email address is marked as
+            verified.
         :raises WorkspaceInvitationEmailMismatch: If the invitation email does not match
             the one of the user.
+        :raises WorkspaceInvitationEmailNotVerified: If no valid token is provided,
+            the email address of the user is not verified and this instance can
+            deliver emails.
         :return: The workspace user relationship related to the invite.
         """
 
@@ -1486,6 +1556,17 @@ class CoreHandler:
             raise WorkspaceInvitationEmailMismatch(
                 "The email address of the invitation does not match the one of the "
                 "user."
+            )
+
+        profile = user.profile
+        if self._is_workspace_invitation_token(token, invitation):
+            if not profile.email_verified:
+                profile.email_verified = True
+                profile.save(update_fields=["email_verified"])
+        elif not profile.email_verified and can_deliver_emails():
+            raise WorkspaceInvitationEmailNotVerified(
+                "The invitation can only be accepted with the token from the "
+                "invitation email or with a verified email address."
             )
 
         workspace_user = self.add_user_to_workspace(
@@ -1935,10 +2016,12 @@ class CoreHandler:
         self,
         workspace: Workspace,
         exported_applications: List[Dict[str, Any]],
-        files_buffer: IO[bytes],
+        files_buffer: Optional[IO[bytes]],
         import_export_config: ImportExportConfig,
         storage: Optional[Storage] = None,
         progress_builder: Optional[ChildProgressBuilder] = None,
+        *,
+        atomic_per_application: bool = False,
     ) -> Tuple[List[Application], Dict[str, Any]]:
         """
         Imports multiple exported applications into the given workspace. It is
@@ -1950,12 +2033,17 @@ class CoreHandler:
         :param workspace: The workspace that the applications must be imported to.
         :param exported_applications: A list containing the applications generated by
             the `export_workspace_applications` method.
-        :param files_buffer: A file buffer containing the exported files in ZIP format.
+        :param files_buffer: A file buffer containing the exported files in ZIP
+            format, or None when the files are already in the storage, for example
+            when the applications are copied within this instance.
         :param storage: The storage where the files can be copied to.
         :param progress_builder: If provided will be used to build a child progress bar
             and report on this methods progress to the parent of the progress_builder.
         :param import_export_config: provides configuration options for the
             import/export process to customize how it works.
+        :param atomic_per_application: Whether each application is imported in its
+            own atomic block, so that a failure leaves no half-imported application
+            behind when the caller has no transaction of its own.
         :return: The newly created applications based on the import and a dict
             containing a mapping of old ids to new ids.
         """
@@ -1963,6 +2051,13 @@ class CoreHandler:
         progress = ChildProgressBuilder.build(
             progress_builder, len(exported_applications) * 1000
         )
+        id_mapping: Dict[str, Any] = {}
+        if import_export_config.is_user_template:
+            # A user template holds only some applications of its source. The guards
+            # only clear unmapped references when their mapping exists, which isn't
+            # the case when the referenced application isn't imported.
+            for key in USER_TEMPLATE_SEEDED_ID_MAPPINGS:
+                id_mapping[key] = {}
 
         storage = storage or get_default_storage()
 
@@ -1992,30 +2087,35 @@ class CoreHandler:
             # Callbacks registered during the loop run when this context exits,
             # by which point every application exists.
             with deferred_callback_context():
-                id_mapping: Dict[str, Any] = {}
                 imported_applications = []
                 next_application_order_value = Application.get_last_order(workspace)
                 for application in prioritized_applications:
                     application_type = application_type_registry.get(
                         application["type"]
                     )
-                    imported_application = application_type.import_serialized(
-                        workspace,
-                        application,
-                        import_export_config,
-                        id_mapping,
-                        files_zip,
-                        storage,
-                        progress_builder=progress.create_child_builder(
-                            represents_progress=1000
-                        ),
-                    )
+                    with (
+                        transaction.atomic()
+                        if atomic_per_application
+                        else nullcontext()
+                    ):
+                        imported_application = application_type.import_serialized(
+                            workspace,
+                            application,
+                            import_export_config,
+                            id_mapping,
+                            files_zip,
+                            storage,
+                            progress_builder=progress.create_child_builder(
+                                represents_progress=1000
+                            ),
+                        )
                     imported_application.order = next_application_order_value
                     next_application_order_value += 1
                     imported_applications.append(imported_application)
                 Application.objects.bulk_update(imported_applications, ["order"])
         finally:
-            files_zip.close()
+            if files_zip is not None:
+                files_zip.close()
 
         return imported_applications, id_mapping
 
@@ -2395,6 +2495,27 @@ class CoreHandler:
         if files_buffer:
             files_buffer.close()
 
+        self.mark_applications_installed_from_template(user, applications, template)
+
+        return applications, id_mapping
+
+    def mark_applications_installed_from_template(
+        self,
+        user: AbstractUser,
+        applications: List[Application],
+        template: Template,
+    ) -> None:
+        """
+        Finishes the install of a template: links the installed applications to the
+        template they were installed from, and sends the signals of applications a
+        user created. Used by both the official and the user template install.
+
+        :param user: The user who installed the template.
+        :param applications: The applications the install created.
+        :param template: The installed template, or for a user template the
+            installed revision.
+        """
+
         # Because a user has initiated the creation of applications, we need to
         # call the `application_created` signal for each created application.
         #
@@ -2412,8 +2533,6 @@ class CoreHandler:
                 )
 
         Application.objects.bulk_update(applications, ["installed_from_template"])
-
-        return applications, id_mapping
 
     @classmethod
     def raise_if_user_is_last_admin_of_workspace(cls, workspace_user: WorkspaceUser):

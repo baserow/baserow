@@ -3,26 +3,17 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { ModalStub } from '@baserow/test/helpers/modalStub'
+import { permission } from '@baserow/test/helpers/permission'
+import { heldBack } from '@baserow/test/helpers/heldBack'
+import { seedWorkspaces, updateJob } from '@baserow/test/helpers/store'
 import CreateUserTemplateModal from '@baserow/modules/core/components/template/CreateUserTemplateModal'
 import UserTemplateContentForm from '@baserow/modules/core/components/template/UserTemplateContentForm'
 
-// The permission plugin allows everything in tests and can't be replaced.
-const permission = vi.hoisted(() => ({ check: () => true }))
-
-vi.mock('#app', async (importOriginal) => {
-  const original = await importOriginal()
-  return {
-    ...original,
-    useNuxtApp: () =>
-      new Proxy(original.useNuxtApp(), {
-        get(target, property) {
-          return property === '$hasPermission'
-            ? (...args) => permission.check(...args)
-            : Reflect.get(target, property)
-        },
-      }),
-  }
-})
+vi.mock('#app', async (importOriginal) =>
+  (await import('@baserow/test/helpers/permission')).mockHasPermission(
+    importOriginal
+  )
+)
 
 const categories = [
   { id: 1, name: 'Business' },
@@ -51,37 +42,27 @@ describe('CreateUserTemplateModal', () => {
   beforeEach(async () => {
     testApp = new TestApp()
     permission.check = () => true
-    const { store } = testApp
-    const workspaces = [
-      { id: 1, name: 'Acme' },
-      { id: 2, name: 'Side project' },
-      { id: 3, name: 'Read only' },
-    ]
-    for (const workspace of workspaces) {
-      await store.dispatch('workspace/forceCreate', workspace)
-      // Loaded, so that they aren't fetched.
-      store.commit('workspace/SET_PERMISSIONS', {
-        workspaceId: workspace.id,
-        permissions: [],
-      })
-    }
-    store.commit('workspace/SET_SELECTED', store.getters['workspace/get'](1))
     const database = { type: 'database', tables: [] }
-    const applications = [
-      { id: 11, name: 'CRM', workspace: { id: 1 }, ...database },
-      {
-        id: 12,
-        name: 'Site',
-        workspace: { id: 1 },
-        type: 'builder',
-        pages: [],
-      },
-      { id: 21, name: 'Notes', workspace: { id: 2 }, ...database },
-      { id: 31, name: 'Shared', workspace: { id: 3 }, ...database },
-    ]
-    for (const application of applications) {
-      await store.dispatch('application/forceCreate', application)
-    }
+    await seedWorkspaces(
+      testApp.store,
+      [
+        { id: 1, name: 'Acme' },
+        { id: 2, name: 'Side project' },
+        { id: 3, name: 'Read only' },
+      ],
+      [
+        { id: 11, name: 'CRM', workspace: { id: 1 }, ...database },
+        {
+          id: 12,
+          name: 'Site',
+          workspace: { id: 1 },
+          type: 'builder',
+          pages: [],
+        },
+        { id: 21, name: 'Notes', workspace: { id: 2 }, ...database },
+        { id: 31, name: 'Shared', workspace: { id: 3 }, ...database },
+      ]
+    )
   })
 
   afterEach(async () => {
@@ -424,12 +405,11 @@ describe('CreateUserTemplateModal', () => {
 
     await createButton(wrapper).trigger('click')
     await flushPromises()
-    const job = testApp.store.getters['job/get'](7)
-    await testApp.store.dispatch('job/forceUpdate', {
-      job,
-      data: { state: 'finished', progress_percentage: 100, template: 3 },
+    await updateJob(testApp.store, 7, {
+      state: 'finished',
+      progress_percentage: 100,
+      template: 3,
     })
-    await flushPromises()
 
     expect(wrapper.emitted('created')).toHaveLength(1)
     expect(wrapper.emitted('created')[0][0].template).toBe(3)
@@ -448,12 +428,10 @@ describe('CreateUserTemplateModal', () => {
 
     await createButton(wrapper).trigger('click')
     await flushPromises()
-    const job = testApp.store.getters['job/get'](7)
-    await testApp.store.dispatch('job/forceUpdate', {
-      job,
-      data: { state: 'failed', human_readable_error: 'Permission denied' },
+    await updateJob(testApp.store, 7, {
+      state: 'failed',
+      human_readable_error: 'Permission denied',
     })
-    await flushPromises()
 
     expect(wrapper.text()).toContain('Permission denied')
     expect(wrapper.emitted('created')).toBeUndefined()
@@ -467,17 +445,12 @@ describe('CreateUserTemplateModal', () => {
 
     await createButton(wrapper).trigger('click')
     await flushPromises()
-    const job = testApp.store.getters['job/get'](7)
-    await testApp.store.dispatch('job/forceUpdate', {
-      job,
-      data: {
-        state: 'failed',
-        human_readable_error: 'Failed',
-        template: 3,
-        revision: 3,
-      },
+    await updateJob(testApp.store, 7, {
+      state: 'failed',
+      human_readable_error: 'Failed',
+      template: 3,
+      revision: 3,
     })
-    await flushPromises()
 
     expect(wrapper.emitted('created')).toHaveLength(1)
     expect(wrapper.findComponent({ name: 'Modal' }).vm.open).toBe(false)
@@ -515,10 +488,9 @@ describe('CreateUserTemplateModal', () => {
     await flushPromises()
     wrapper.vm.hide()
 
-    const job = testApp.store.getters['job/get'](7)
-    await testApp.store.dispatch('job/forceUpdate', {
-      job,
-      data: { state: 'failed', human_readable_error: 'Permission denied' },
+    await updateJob(testApp.store, 7, {
+      state: 'failed',
+      human_readable_error: 'Permission denied',
     })
     await wrapper.vm.show()
     await flushPromises()
@@ -544,9 +516,9 @@ describe('CreateUserTemplateModal', () => {
     await goToContent(wrapper)
     await createButton(wrapper).trigger('click')
     await flushPromises()
-    await testApp.store.dispatch('job/forceUpdate', {
-      job: testApp.store.getters['job/get'](7),
-      data: { state: 'failed', human_readable_error: 'Permission denied' },
+    await updateJob(testApp.store, 7, {
+      state: 'failed',
+      human_readable_error: 'Permission denied',
     })
     wrapper.vm.hide()
 
@@ -573,13 +545,8 @@ describe('CreateUserTemplateModal', () => {
   })
 
   test('keeps a template that is still being sent when shown again', async () => {
-    let respond = null
-    testApp.mock.onPost('/jobs/').reply(
-      () =>
-        new Promise((resolve) => {
-          respond = resolve
-        })
-    )
+    const jobRequest = heldBack()
+    testApp.mock.onPost('/jobs/').reply(jobRequest.reply)
     const wrapper = await mountAndShow()
     await goToContent(wrapper)
     await createButton(wrapper).trigger('click')
@@ -602,7 +569,7 @@ describe('CreateUserTemplateModal', () => {
     expect(wrapper.vm.values.name).toBe('Sprint Tracker')
     expect(createButton(wrapper).attributes('disabled')).toBeDefined()
 
-    respond([200, runningJob()])
+    jobRequest.send([200, runningJob()])
     await flushPromises()
 
     expect(wrapper.vm.values.name).toBe('Sprint Tracker')

@@ -81,6 +81,7 @@ import {
   getVisibleGroupDepthPageToFetch,
   getMissingAbsoluteRowRanges,
   buildGroupBySectionPlacements,
+  getGroupByRowFetchWindows,
   getGroupByRowsRequestKey,
   mergeGroupByDataPageInto,
   reindexGroupBySectionPositionsInto,
@@ -2040,30 +2041,12 @@ export const actions = {
       return { results: [], count: getters.getCount }
     }
 
-    const startOffset = Math.min(
-      ...sections.map(
-        (section) => section.absoluteRowOffset + section.startPosition
-      )
+    const windows = getGroupByRowFetchWindows(
+      sections,
+      getters.getBufferRequestSize,
+      getters.getCount
     )
-    const endOffset = Math.max(
-      ...sections.map(
-        (section) => section.absoluteRowOffset + section.endPosition
-      )
-    )
-    const bufferRequestSize = getters.getBufferRequestSize
-    const requestOffset = Math.max(
-      Math.floor((startOffset - bufferRequestSize) / bufferRequestSize) *
-        bufferRequestSize,
-      0
-    )
-    const countLimit = getters.getCount > 0 ? getters.getCount : endOffset
-    const requestEndOffset = Math.min(
-      Math.ceil((endOffset + bufferRequestSize) / bufferRequestSize) *
-        bufferRequestSize,
-      countLimit
-    )
-    const limit = requestEndOffset - requestOffset
-    if (limit <= 0) {
+    if (windows.length === 0) {
       return { results: [], count: getters.getCount }
     }
 
@@ -2074,56 +2057,67 @@ export const actions = {
     const groupBy = getGroupBy(rootGetters, gridId, getters.getAdhocGrouping)
     const orderBy = getOrderBy(view, getters.getAdhocSorting)
     const filters = getFilters(view, getters.getAdhocFiltering)
-    const requestParams = {
-      gridId,
-      offset: requestOffset,
-      limit,
-      includeFieldOptions,
-      search,
-      searchMode,
-      publicUrl,
-      publicAuthToken,
-      groupBy,
-      orderBy,
-      filters,
-    }
-    const requestKey = getGroupByRowsRequestKey(requestParams)
-    const fetchRows = () =>
-      GridService($client).fetchRows({
-        ...requestParams,
-        signal,
-      })
+    // Only the first window asks for the field options and the count.
+    const fetchWindow = async ({ offset, limit }, index) => {
+      const requestParams = {
+        gridId,
+        offset,
+        limit,
+        includeFieldOptions: includeFieldOptions && index === 0,
+        excludeCount: index > 0,
+        search,
+        searchMode,
+        publicUrl,
+        publicAuthToken,
+        groupBy,
+        orderBy,
+        filters,
+      }
+      const requestKey = getGroupByRowsRequestKey(requestParams)
+      const fetchRows = () =>
+        GridService($client).fetchRowsInChunks({
+          chunkSize: $config.public.baserowRowPageSizeLimit,
+          ...requestParams,
+          signal,
+        })
 
-    let rowRequest = activeGroupByRowsRequests.get(requestKey)
-    if (!rowRequest) {
-      rowRequest = fetchRows().finally(() => {
-        if (activeGroupByRowsRequests.get(requestKey) === rowRequest) {
-          activeGroupByRowsRequests.delete(requestKey)
+      let rowRequest = activeGroupByRowsRequests.get(requestKey)
+      if (!rowRequest) {
+        rowRequest = fetchRows().finally(() => {
+          if (activeGroupByRowsRequests.get(requestKey) === rowRequest) {
+            activeGroupByRowsRequests.delete(requestKey)
+          }
+        })
+        activeGroupByRowsRequests.set(requestKey, rowRequest)
+      }
+
+      try {
+        return await rowRequest
+      } catch (error) {
+        const currentRequestWasCancelled = axios.isCancel(error)
+        if (currentRequestWasCancelled && !signal?.aborted) {
+          return await fetchRows()
         }
-      })
-      activeGroupByRowsRequests.set(requestKey, rowRequest)
-    }
-
-    const groupByRevision = state.groupBy.revision || 0
-    let response
-    try {
-      response = await rowRequest
-    } catch (error) {
-      const currentRequestWasCancelled = axios.isCancel(error)
-      if (currentRequestWasCancelled && !signal?.aborted) {
-        response = await fetchRows()
-      } else {
         throw error
       }
     }
-    const { data } = response
+
+    const groupByRevision = state.groupBy.revision || 0
+    const responses = await Promise.all(windows.map(fetchWindow))
+    const windowsData = responses.map(({ data }) => data)
+    const data = {
+      ...windowsData[0],
+      results: windowsData.flatMap((windowData) => windowData.results),
+    }
     if (isGroupByRequestStale(getters, state, groupByGeneration, signal)) {
       return data
     }
 
-    data.results.forEach((row) => {
-      const metadata = extractRowMetadata(data, row.id)
-      populateRow(row, metadata, false)
+    windowsData.forEach((windowData) => {
+      windowData.results.forEach((row) => {
+        const metadata = extractRowMetadata(windowData, row.id)
+        populateRow(row, metadata, false)
+      })
     })
 
     // A bumped revision means an optimistic mutation landed mid-flight; bail so the
@@ -2144,13 +2138,15 @@ export const actions = {
       commit('SET_COUNT', data.count)
     }
 
-    commitLoadedGroupByRows({
-      commit,
-      layout,
-      data,
-      requestOffset,
-      groupByFields,
-      registry: $registry,
+    windowsData.forEach((windowData, index) => {
+      commitLoadedGroupByRows({
+        commit,
+        layout,
+        data: windowData,
+        requestOffset: windows[index].offset,
+        groupByFields,
+        registry: $registry,
+      })
     })
 
     return data
@@ -2161,7 +2157,8 @@ export const actions = {
   ) {
     const { $client, $config } = this
     const groupByGeneration = state.groupBy.generation || 0
-    const { data } = await GridService($client).fetchRows({
+    const { data } = await GridService($client).fetchRowsInChunks({
+      chunkSize: $config.public.baserowRowPageSizeLimit,
       gridId,
       offset: 0,
       limit: 0,
@@ -2606,7 +2603,8 @@ export const actions = {
       lastRequestLimit = requestLimit
       lastQueryController = new AbortController()
       lastRequest = GridService($client)
-        .fetchRows({
+        .fetchRowsInChunks({
+          chunkSize: $config.public.baserowRowPageSizeLimit,
           gridId,
           offset: requestOffset,
           limit: requestLimit,
@@ -2823,7 +2821,8 @@ export const actions = {
       return
     }
 
-    const { data } = await GridService($client).fetchRows({
+    const { data } = await GridService($client).fetchRowsInChunks({
+      chunkSize: $config.public.baserowRowPageSizeLimit,
       gridId,
       offset: 0,
       limit,
@@ -3005,7 +3004,8 @@ export const actions = {
       })
       .then(({ limit, offset, count }) =>
         GridService($client)
-          .fetchRows({
+          .fetchRowsInChunks({
+            chunkSize: $config.public.baserowRowPageSizeLimit,
             gridId,
             offset,
             limit,
@@ -3169,7 +3169,8 @@ export const actions = {
     // skeleton. Mixed/collapsed states tie their offsets to the tree, so they can't.
     const parallelExpandRows =
       scrollTop === 0 && effectiveExpandAll
-        ? GridService($client).fetchRows({
+        ? GridService($client).fetchRowsInChunks({
+            chunkSize: $config.public.baserowRowPageSizeLimit,
             gridId,
             offset: 0,
             limit: getters.getBufferRequestSize,
@@ -3283,40 +3284,36 @@ export const actions = {
         placeSnapshotRows(rowData, 0)
       }
     } else if (sections.length > 0) {
-      const startOffset = Math.min(
-        ...sections.map(
-          (section) => section.absoluteRowOffset + section.startPosition
+      // Unpadded, because the snapshot layout only knows the loaded groups; the
+      // follow-up fetch below fills the rest of the viewport.
+      const windows = getGroupByRowFetchWindows(sections, 0, getters.getCount)
+      // Only the first window asks for the field options and the count.
+      const responses = await Promise.all(
+        windows.map(({ offset, limit }, index) =>
+          GridService($client).fetchRowsInChunks({
+            chunkSize: $config.public.baserowRowPageSizeLimit,
+            gridId,
+            offset,
+            limit,
+            includeFieldOptions: includeFieldOptions && index === 0,
+            search: getters.getServerSearchTerm,
+            searchMode: getDefaultSearchModeFromEnv($config),
+            publicUrl: rootGetters['page/view/public/getIsPublic'],
+            publicAuthToken: rootGetters['page/view/public/getAuthToken'],
+            groupBy: getGroupBy(rootGetters, gridId, getters.getAdhocGrouping),
+            orderBy: getOrderBy(view, getters.getAdhocSorting),
+            filters: getFilters(view, getters.getAdhocFiltering),
+            excludeCount: index > 0 || getters.canExcludeCount,
+          })
         )
       )
-      const endOffset = Math.max(
-        ...sections.map(
-          (section) => section.absoluteRowOffset + section.endPosition
-        )
-      )
-      const requestOffset = startOffset
-      const limit = Math.max(0, endOffset - startOffset)
-
-      if (limit > 0) {
-        const { data } = await GridService($client).fetchRows({
-          gridId,
-          offset: requestOffset,
-          limit,
-          includeFieldOptions,
-          search: getters.getServerSearchTerm,
-          searchMode: getDefaultSearchModeFromEnv($config),
-          publicUrl: rootGetters['page/view/public/getIsPublic'],
-          publicAuthToken: rootGetters['page/view/public/getAuthToken'],
-          groupBy: getGroupBy(rootGetters, gridId, getters.getAdhocGrouping),
-          orderBy: getOrderBy(view, getters.getAdhocSorting),
-          filters: getFilters(view, getters.getAdhocFiltering),
-          excludeCount: getters.canExcludeCount,
-        })
-        if ((state.groupBy.generation || 0) !== groupByGeneration) {
-          return true
-        }
-        rowData = data
-        placeSnapshotRows(rowData, requestOffset)
+      if ((state.groupBy.generation || 0) !== groupByGeneration) {
+        return true
       }
+      responses.forEach(({ data }, index) => {
+        placeSnapshotRows(data, windows[index].offset)
+      })
+      rowData = responses[0]?.data ?? null
     }
 
     commit('APPLY_GROUP_BY_STATE', {
@@ -4144,7 +4141,8 @@ export const actions = {
 
     const results = []
     for (const range of ranges) {
-      const { data } = await GridService($client).fetchRows({
+      const { data } = await GridService($client).fetchRowsInChunks({
+        chunkSize: $config.public.baserowRowPageSizeLimit,
         gridId,
         offset: range.offset,
         limit: range.limit,

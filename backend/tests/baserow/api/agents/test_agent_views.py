@@ -69,6 +69,21 @@ def test_agent_pagination_with_duplicate_names(data_fixture, api_client, sorts):
 
 
 @pytest.mark.django_db
+def test_list_agents_page_size_is_limited(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    url = reverse("api:agents:workspace", kwargs={"workspace_id": workspace.id})
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+
+    response = api_client.get(f"{url}?size=201", **headers)
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_PAGE_SIZE_LIMIT"
+
+    response = api_client.get(f"{url}?size=200", **headers)
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
 def test_member_can_list_but_cannot_mutate_agents(data_fixture, api_client):
     admin = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin)

@@ -2,12 +2,12 @@ import json
 
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.messages import RetryPromptPart, ToolReturnPart, UserPromptPart
-from pydantic_ai.toolsets import FunctionToolset
 
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.output_validation import validate_final_answer
 from baserow_enterprise.assistant.prompts import AGENT_SYSTEM_PROMPT
 from baserow_enterprise.assistant.tools.routing import is_mode_redirect
+from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 
 FREE_LICENSE_TIER = "free"
 _CANONICAL_LICENSE_TIERS = {
@@ -164,7 +164,7 @@ def dynamic_toolset(ctx: RunContext[AssistantDeps]):
     """
 
     if ctx.deps.dynamic_tools:
-        ts = FunctionToolset()
+        ts = AssistantFunctionToolset()
         for tool in ctx.deps.dynamic_tools:
             ts.add_tool(tool)
         return ts
@@ -173,6 +173,10 @@ def dynamic_toolset(ctx: RunContext[AssistantDeps]):
 
 title_agent: Agent[None, str] = Agent(
     output_type=str,
-    instructions="Create a short title (max 50 chars) for the following user request.",
+    instructions=(
+        "Write a title of at most 50 characters for the user request below. "
+        "Reply with the title only, on one line. Do not answer or carry out "
+        "the request."
+    ),
     name="title_agent",
 )

@@ -26,6 +26,24 @@ class TemplateChangedDuringUpdate(Exception):
 
 class TemplateHasNoContent(Exception):
     """
-    Raised when the details of a user template are updated, but its latest revision
-    has no content left to copy.
+    Raised when a revision of a user template has no content left to copy. An
+    update of the details, which shares the content of the latest revision,
+    raises it when the revision has no workspace anymore or was pruned. An
+    install raises it in those cases too, and when the workspace of the revision
+    holds no applications.
+    """
+
+
+class TemplateUpdated(Exception):
+    """
+    Raised when a user template is installed while another revision than the one
+    the user was shown is installable, because another revision was made public
+    or its owner updated it since.
+    """
+
+
+class TemplateBlocked(Exception):
+    """
+    Raised when the owner of a user template that an admin blocked tries to install
+    it.
     """

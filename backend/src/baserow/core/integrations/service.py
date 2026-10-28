@@ -5,7 +5,6 @@ from django.contrib.auth.models import AbstractUser
 from baserow.core.exceptions import CannotCalculateIntermediateOrder
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.exceptions import (
-    IntegrationCredentialRequired,
     IntegrationNotInSameApplication,
 )
 from baserow.core.integrations.handler import IntegrationHandler
@@ -17,7 +16,10 @@ from baserow.core.integrations.operations import (
     ReadIntegrationOperationType,
     UpdateIntegrationOperationType,
 )
-from baserow.core.integrations.registries import IntegrationType
+from baserow.core.integrations.registries import (
+    IntegrationType,
+    check_secret_targets_unchanged,
+)
 from baserow.core.integrations.signals import (
     integration_created,
     integration_moved,
@@ -153,18 +155,15 @@ class IntegrationService:
         """
 
         for secret, targets in integration_type.secret_field_dependencies.items():
-            if not getattr(integration, secret, None):
+            if not getattr(integration, secret, None) or secret in values:
                 continue
 
-            target_changed = any(
-                target in values and values[target] != getattr(integration, target)
-                for target in targets
+            check_secret_targets_unchanged(
+                secret,
+                targets,
+                values,
+                lambda target: getattr(integration, target),
             )
-            if target_changed and secret not in values:
-                raise IntegrationCredentialRequired(
-                    f"The `{secret}` must be supplied again when the connection "
-                    f"target changes."
-                )
 
     def update_integration(
         self,

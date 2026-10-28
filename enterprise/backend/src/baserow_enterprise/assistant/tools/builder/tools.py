@@ -12,7 +12,6 @@ from django.utils.translation import gettext as _
 
 from pydantic import Field
 from pydantic_ai import ModelRetry, RunContext
-from pydantic_ai.toolsets import FunctionToolset
 
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.core.exceptions import PermissionException
@@ -23,15 +22,15 @@ from baserow_enterprise.assistant.tools.builder.themes import (
     apply_theme,
 )
 from baserow_enterprise.assistant.tools.shared import (
-    ToolInputError,
     permission_denied_result,
     raise_if_permission_denied,
     require_payload,
 )
+from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 from baserow_enterprise.assistant.types import BuilderPageNavigationType
 
 from . import agents, helpers
-from .errors import item_error, user_error_message
+from .errors import item_error
 from .registries import assistant_element_type_registry
 from .types import (
     ActionCreate,
@@ -183,6 +182,7 @@ def create_pages(
 
     # Skip duplicates
     existing = {p.name.lower(): p for p in helpers.list_pages(user, builder)}
+    helpers.ensure_distinct_paths([p for p in pages if p.name.lower() not in existing])
     created_pages: list[PageItem] = []
     skipped_pages: list[PageItem] = []
     errors: list[str] = []
@@ -270,13 +270,7 @@ def update_page(
 
     tool_helpers.update_status(_("Updating page %(id)d...") % {"id": page.page_id})
 
-    try:
-        updated_page = helpers.update_page(user, ctx.deps.workspace, page)
-    except Exception as exc:
-        message = user_error_message(exc)
-        if message is None:
-            raise
-        raise ToolInputError(f"{message} No changes were applied.") from exc
+    updated_page = helpers.update_page(user, ctx.deps.workspace, page)
     page_item = PageItem.from_orm(updated_page)
 
     return {
@@ -1815,4 +1809,4 @@ TOOL_FUNCTIONS = [
     setup_user_source,
     set_theme,
 ]
-builder_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)
+builder_toolset = AssistantFunctionToolset(TOOL_FUNCTIONS, max_retries=3)

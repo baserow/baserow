@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
+import { heldBack } from '@baserow/test/helpers/heldBack'
 import UserTemplateList from '@baserow/modules/core/components/template/UserTemplateList'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
 
@@ -132,6 +133,24 @@ describe('UserTemplateList', () => {
     expect(wrapper.find('.template-empty-state').exists()).toBe(false)
   })
 
+  test('shows how many times each template was used', async () => {
+    mockPages(
+      page([
+        userTemplate(1, 'Sprint Tracker', 'public', { install_count: 0 }),
+        userTemplate(2, 'Launch Plan', 'public', { install_count: 1 }),
+        userTemplate(3, 'Growth Playbook', 'private', { install_count: 7 }),
+      ])
+    )
+    const wrapper = await mountComponent()
+
+    expect(
+      wrapper.findAll('.user-template-list__used-count').map((el) => el.text())
+    ).toStrictEqual(['0', '1', '7'])
+    expect(
+      wrapper.findAll('.user-template-list__used').map((el) => el.text())
+    ).toStrictEqual(['0 times', '1 time', '7 times'])
+  })
+
   test('shows the empty state when the user has no templates', async () => {
     mockPages(page([]))
     const wrapper = await mountComponent()
@@ -151,13 +170,8 @@ describe('UserTemplateList', () => {
   })
 
   test('shows only the loading state until the list is loaded', async () => {
-    let reply = null
-    testApp.mock.onGet('/templates/').replyOnce(
-      () =>
-        new Promise((resolve) => {
-          reply = resolve
-        })
-    )
+    const firstPage = heldBack()
+    testApp.mock.onGet('/templates/').replyOnce(firstPage.reply)
     const wrapper = await testApp.mount(UserTemplateList, { props: {} })
     await flushPromises()
 
@@ -165,7 +179,7 @@ describe('UserTemplateList', () => {
     expect(wrapper.find('.user-template-list__toolbar').exists()).toBe(false)
     expect(wrapper.find('.template-empty-state').exists()).toBe(false)
 
-    reply([200, page([])])
+    firstPage.send([200, page([])])
     await flushPromises()
 
     expect(wrapper.find('.user-template-list__loading').exists()).toBe(false)
@@ -480,16 +494,6 @@ describe('UserTemplateList', () => {
     )
     const remaining = templates.filter(({ id }) => id !== 5)
 
-    // A reply that is sent only when the test says so.
-    const heldBack = () => {
-      let send = null
-      const reply = () =>
-        new Promise((resolve) => {
-          send = resolve
-        })
-      return { reply, send: (value) => send(value) }
-    }
-
     const removeWhileLoading = async (...reloads) => {
       const nextPage = heldBack()
       mockPages(page(templates.slice(0, 20), 22), nextPage.reply, ...reloads)
@@ -539,24 +543,29 @@ describe('UserTemplateList', () => {
       )
     })
 
-    test('keeps it dropped when the reload fails', async () => {
-      const { wrapper, nextPage } = await removeWhileLoading(() => [500, {}])
+    test('shows the error when the reload fails, and loads again on retry', async () => {
+      const { wrapper, nextPage } = await removeWhileLoading(
+        () => [500, {}],
+        page(remaining.slice(0, 20), 21)
+      )
       nextPage.send([200, page(remaining.slice(20), 21)])
+      await flushPromises()
+
+      expect(wrapper.find('.template-empty-state__title').text()).toBe(
+        'userTemplateList.errorTitle'
+      )
+
+      await wrapper.find('.template-empty-state .button').trigger('click')
       await flushPromises()
 
       expect(requests).toStrictEqual([
         { offset: 0, limit: 20 },
         { offset: 20, limit: 20 },
         { offset: 0, limit: 20 },
+        { offset: 0, limit: 20 },
       ])
       expect(rowNames(wrapper)).toStrictEqual(
-        templates
-          .slice(0, 20)
-          .filter(({ id }) => id !== 5)
-          .map(({ name }) => name)
-      )
-      expect(wrapper.find('.user-template-list__title').text()).toBe(
-        'userTemplateList.count - 21'
+        remaining.slice(0, 20).map(({ name }) => name)
       )
     })
 

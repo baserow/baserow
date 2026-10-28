@@ -5547,8 +5547,14 @@ class ViewHandler:
             value = item.get("value")
             func_name = item.get("function")
 
-            # Validate function against field type.
             field_obj = model._field_objects[field_id]
+            if field_obj["type"].write_only:
+                raise ValidationError(
+                    f"Field of type {field_obj['type'].type} can't have a default "
+                    "value."
+                )
+
+            # Validate function against field type.
             if func_name:
                 supported = field_obj["type"].get_supported_default_value_functions()
                 if func_name not in supported:
@@ -5629,6 +5635,8 @@ class ViewHandler:
             field_obj = model._field_objects[field_id]
             field = field_obj["field"]
             field_type = field_obj["type"]
+            if field_type.write_only:
+                continue
             field_name = field_obj["name"]
             supported_functions = field_type.get_supported_default_value_functions()
 

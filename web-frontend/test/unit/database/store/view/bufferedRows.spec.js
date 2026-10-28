@@ -2451,4 +2451,43 @@ describe('Buffered rows search', () => {
     const rowsInStore = store.getters[`${storeName}/getRows`]
     expect(rowsInStore[0]).toBeUndefined()
   })
+
+  test('visible rows are fetched in chunks within the row page size limit', async () => {
+    const requests = []
+    const service = () => ({
+      fetchRows({ limit, offset }) {
+        requests.push({ offset, limit })
+        const results = Array.from({ length: limit }, (_, index) => ({
+          id: offset + index + 1,
+        }))
+        return { data: { count: 100, results } }
+      },
+    })
+    const populateRow = (row) => {
+      row._ = {}
+      return row
+    }
+    const store = createStore(
+      { service, populateRow },
+      { requestSize: 40, viewId: 1, rows: Array(100).fill(null) }
+    )
+    const originalLimit = store.$config.public.baserowRowPageSizeLimit
+    store.$config.public.baserowRowPageSizeLimit = 20
+    try {
+      await store.dispatch('test/fetchMissingRowsInNewRange', {
+        startIndex: 40,
+        endIndex: 70,
+      })
+    } finally {
+      store.$config.public.baserowRowPageSizeLimit = originalLimit
+    }
+
+    for (const { limit } of requests) {
+      expect(limit).toBeLessThanOrEqual(20)
+    }
+    const visibleRows = store.getters['test/getRows'].slice(40, 71)
+    expect(visibleRows.map((row) => row?.id)).toEqual(
+      Array.from({ length: 31 }, (_, index) => 41 + index)
+    )
+  })
 })

@@ -1,15 +1,26 @@
 import { MembersPagePluginType } from '@baserow/modules/database/membersPagePluginTypes'
 import MembersRoleField from '@baserow_enterprise/components/MembersRoleField'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
-import InvitesRoleField from '@baserow_enterprise/components/InvitesRoleField'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import UserTeamsField from '@baserow_enterprise/components/crudTable/fields/UserTeamsField'
 import HighestPaidRoleField from '@baserow_enterprise/components/crudTable/fields/HighestPaidRoleField'
 import AdminHighestPaidRoleField from '@baserow/modules/core/components/admin/users/fields/HighestPaidRoleField'
+import { getSubjectRoleAssignmentsRowExpansion } from '@baserow_enterprise/utils/subjectRoleAssignments'
 
 export class EnterpriseMembersPagePluginType extends MembersPagePluginType {
   static getType() {
     return 'enterprise_members_columns'
+  }
+
+  getRowExpansion() {
+    return getSubjectRoleAssignmentsRowExpansion({
+      subjectType: 'auth.User',
+      columnKey: 'role_uid',
+      getSubjectId: (row) => row.user_id,
+      // Nobody can change their own role.
+      isReadOnly: (row) =>
+        row.user_id === this.app.$store.getters['auth/getUserId'],
+    })
   }
 
   mutateMembersTableColumns(columns, context) {
@@ -50,15 +61,6 @@ export class EnterpriseMembersPagePluginType extends MembersPagePluginType {
     columns.splice(insertBeforeColumnIndex, 0, teamsColumn)
 
     return columns
-  }
-
-  mutateMembersInvitesTableColumns(columns, context) {
-    return this._replaceRoleColumn(
-      columns,
-      InvitesRoleField,
-      'permissions',
-      context
-    )
   }
 
   mutateAdminUsersTableColumns(columns, context) {

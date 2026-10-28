@@ -273,6 +273,10 @@ def specific_iterator(
                         select_related_key,
                         getattr(item, select_related_key),
                     )
+                elif select_related_key in item._state.fields_cache:
+                    # A reverse one-to-one relation without an object is cached as
+                    # None, but `hasattr` is False for it.
+                    specific_object._state.fields_cache[select_related_key] = None
 
         # If the original item has the `_prefetched_objects_cache` object, it means that
         # the `prefetch_related` was used and fetched on the base queryset. By

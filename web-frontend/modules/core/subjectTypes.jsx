@@ -1,10 +1,19 @@
+import Avatar from '@baserow/modules/core/components/Avatar'
 import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
 import { Registerable } from '@baserow/modules/core/registry'
 import AgentService from '@baserow/modules/core/services/agent'
 
 export class SubjectType extends Registerable {
-  get avatarColor() {
-    return 'blue'
+  /** Component owning this subject type's avatar color, icon and shape. */
+  get avatarComponent() {
+    return (this._avatarComponent ??= ({ subject, size }) => (
+      <Avatar
+        initials={nameAbbreviation(this.getDisplayName(subject) || '')}
+        color="blue"
+        rounded
+        size={size}
+      />
+    ))
   }
 
   get iconClass() {
@@ -59,14 +68,6 @@ export class SubjectType extends Registerable {
 
   getDisplayName(subject) {
     return subject.name
-  }
-
-  /**
-   * The initials shown in the avatar of the subject, or an empty string to show
-   * the icon instead.
-   */
-  getInitials(subject) {
-    return ''
   }
 
   /**
@@ -126,9 +127,7 @@ export class SubjectType extends Registerable {
       email: subject.email,
       subtitle: this.getSubtitle(subject) ?? this.getBadge(),
       search: this.getSearchText(subject),
-      initials: this.getInitials(subject),
-      icon: this.iconClass,
-      color: this.avatarColor,
+      avatarComponent: this.avatarComponent,
       subject,
     }
   }
@@ -173,10 +172,6 @@ export class UserSubjectType extends SubjectType {
     return resolveUserName
       ? resolveUserName(subject)
       : subject.name || subject.first_name || subject.email
-  }
-
-  getInitials(subject) {
-    return nameAbbreviation(this.getDisplayName(subject))
   }
 
   getSubtitle(subject) {
@@ -232,8 +227,15 @@ export class AgentSubjectType extends SubjectType {
     return 30
   }
 
-  get avatarColor() {
-    return 'purple'
+  get avatarComponent() {
+    return (this._avatarComponent ??= ({ size }) => (
+      <Avatar
+        class="agent-avatar"
+        icon="baserow-icon-agent"
+        color="purple"
+        size={size}
+      />
+    ))
   }
 
   get iconClass() {

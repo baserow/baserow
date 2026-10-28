@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, Dict, List, Optional, Type, TypeVar
+from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
 
 from django.contrib.auth.models import AbstractUser
 
@@ -15,8 +15,34 @@ from baserow.core.registry import (
     Registry,
 )
 
+from .exceptions import IntegrationCredentialRequired
 from .models import Integration
 from .types import IntegrationDictSubClass, IntegrationSubClass
+
+
+def check_secret_targets_unchanged(
+    secret: str,
+    targets: List[str],
+    values: Dict[str, Any],
+    get_stored: Callable[[str], Any],
+):
+    """
+    Raises if a request-target field protecting a stored secret is being changed
+    while the secret is omitted. A target that is omitted is not a change.
+
+    :param secret: The secret's name, used in the error message.
+    :param targets: The fields that choose where the secret is sent.
+    :param values: The new values, without the secret.
+    :param get_stored: Returns the stored value of a target.
+    :raises IntegrationCredentialRequired: When a target changes.
+    """
+
+    if any(
+        target in values and values[target] != get_stored(target) for target in targets
+    ):
+        raise IntegrationCredentialRequired(
+            f"The `{secret}` must be supplied again when the connection target changes."
+        )
 
 
 class IntegrationType(

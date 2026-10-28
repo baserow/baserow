@@ -55,6 +55,7 @@ from baserow.contrib.database.search.regexes import (
     RE_REMOVE_ALL_PUNCTUATION_ALREADY_REMOVED_FROM_TSVS_FOR_QUERY,
     RE_REMOVE_NON_SEARCHABLE_PUNCTUATION_FROM_TSVECTOR_DATA,
 )
+from baserow.contrib.database.search.registries import search_data_updater_registry
 from baserow.contrib.database.search.tasks import schedule_update_search_data
 from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
 from baserow.core.psycopg import errors
@@ -616,9 +617,6 @@ class SearchHandler:
         Queues a pending search value update for the given table, fields and row ids.
         If field_ids is None, all searchable fields will be considered.
         If row_ids is None, all rows will be considered.
-        Because PendingSearchValueUpdate has a unique constraint on (field_id, row_id),
-        this method will only create new entries for combinations that do not already
-        exist in the PendingSearchValueUpdate table.
 
         :param table: The table for which the search value update should be queued.
         :param field_ids: Optional list of field IDs to queue search value updates for.
@@ -627,27 +625,10 @@ class SearchHandler:
             If None, all rows will be considered.
         """
 
-        searchable_field_ids = {
-            f.id for f in table.get_model().get_searchable_fields(include_trash=True)
-        }
-        if field_ids is None:
-            field_ids = searchable_field_ids
-        else:
-            field_ids = [fid for fid in set(field_ids) if fid in searchable_field_ids]
+        from .search_data_updater_types import FullTextSearchDataUpdaterType
 
-        # Ensure order to avoid deadlocks updating the same cells.
-        ordered_field_ids = sorted(field_ids)
-        ordered_row_ids = sorted(set(row_ids or [None]))
-        PendingSearchValueUpdate.objects.bulk_create(
-            [
-                PendingSearchValueUpdate(field_id=field_id, row_id=row_id)
-                for field_id in ordered_field_ids
-                for row_id in ordered_row_ids
-            ],
-            update_conflicts=True,
-            unique_fields=["field_id", "row_id"],
-            update_fields=["updated_on"],
-            batch_size=1000,
+        search_data_updater_registry.get(FullTextSearchDataUpdaterType.type).queue(
+            table, field_ids=field_ids, row_ids=row_ids
         )
 
     @classmethod
@@ -894,86 +875,13 @@ class SearchHandler:
             time budget was exhausted before completion.
         """
 
-        start = time.monotonic()
+        from .search_data_updater_types import FullTextSearchDataUpdaterType
 
-        def budget_exhausted() -> bool:
-            return (
-                time_budget_seconds is not None
-                and (time.monotonic() - start) > time_budget_seconds
-            )
-
-        table_field_ids = list(
-            Field.objects_and_trash.filter(table=table)
-            .order_by()
-            .values_list("id", flat=True)
+        return search_data_updater_registry.get(
+            FullTextSearchDataUpdaterType.type
+        ).process_pending_updates(
+            table,
+            None
+            if time_budget_seconds is None
+            else time.monotonic() + time_budget_seconds,
         )
-        full_field_updates = (
-            PendingSearchValueUpdate.objects.filter(
-                field_id__in=table_field_ids, row_id=None
-            )
-            .order_by()
-            .values_list("field_id", flat=True)
-        )
-
-        # Balance between query efficiency and cpu-usage for complex search expressions.
-        fields_batch_size = 3
-
-        # First process full-field updates (row_id=None), removing any remaining
-        # row-specific updates on the same field.
-        last = False
-        while not last:
-            if budget_exhausted():
-                logger.info(
-                    "Time budget exhausted for table {} during full-field updates.",
-                    table.id,
-                )
-                return False
-            with transaction.atomic():
-                field_ids = list(full_field_updates[:fields_batch_size])
-                # Only delete updates older than this timestamp to avoid
-                # loosing newer updates made while processing.
-                check_timestamp = datetime.now(tz=timezone.utc)
-                if len(field_ids) < fields_batch_size:
-                    last = True
-                if field_ids:
-                    cls.update_search_data(table, field_ids=field_ids)
-                    cls.delete_pending_updates(
-                        Q(field_id__in=field_ids, updated_on__lte=check_timestamp)
-                    )
-
-        def _fetch_next_batch() -> QuerySet[PendingSearchValueUpdate]:
-            return PendingSearchValueUpdate.objects.filter(
-                field_id__in=table_field_ids, row_id__isnull=False
-            ).order_by()
-
-        # Now handle single-cells updates, grouping them for efficiency
-        last = False
-        while not last:
-            if budget_exhausted():
-                logger.info(
-                    "Time budget exhausted for table {} during row updates.",
-                    table.id,
-                )
-                return False
-            with transaction.atomic():
-                count = settings.SEARCH_UPDATE_BATCH_SIZE
-                pending_cells_updates = _fetch_next_batch()[:count]
-                check_timestamp = datetime.now(tz=timezone.utc)
-                if len(pending_cells_updates) < count:
-                    last = True
-
-                field_ids, row_ids, update_ids = set(), set(), []
-                for cell_update in pending_cells_updates:
-                    field_ids.add(cell_update.field_id)
-                    row_ids.add(cell_update.row_id)
-                    update_ids.append(cell_update.id)
-
-                if update_ids:
-                    cls.update_search_data(
-                        table, field_ids=list(field_ids), row_ids=list(row_ids)
-                    )
-                    cls.delete_pending_updates(
-                        Q(id__in=update_ids, updated_on__lte=check_timestamp)
-                    )
-
-        return True

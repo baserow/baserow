@@ -11,10 +11,11 @@ from django.conf import settings
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.db import transaction
 
-from httpx import Client as httpxClient
 from loguru import logger
 from pgvector.django import L2Distance
 
+from baserow.core.embeddings import get_embedder
+from baserow.core.text_chunking import split_text
 from baserow_enterprise.assistant.models import (
     DEFAULT_CATEGORIES,
     KnowledgeBaseCategory,
@@ -34,75 +35,9 @@ MAX_LEXICAL_QUERY_TERMS = 64
 def split_document(content: str):
     """Yield bounded, overlapping source slices without dropping content."""
 
-    start = 0
     if not content:
         yield 0, 0, ""
-    while start < len(content):
-        end = min(start + KNOWLEDGE_CHUNK_SIZE, len(content))
-        if end < len(content):
-            for separator in ("\n\n", "\n", " "):
-                boundary = content.rfind(
-                    separator, start + KNOWLEDGE_CHUNK_SIZE // 2, end
-                )
-                if boundary >= 0:
-                    end = boundary + len(separator)
-                    break
-        yield start, end, content[start:end]
-        if end == len(content):
-            break
-        start = end - KNOWLEDGE_CHUNK_OVERLAP
-        # Start at a word boundary within the overlap when possible. If a word,
-        # code block or URL is very long, the hard character bound still progresses.
-        boundary = content.find(" ", start, end)
-        if boundary >= 0:
-            start = boundary + 1
-
-
-class BaserowEmbedder:
-    def __init__(self, api_url: str):
-        self.api_url = api_url
-
-    def _embed(self, texts: list[str], batch_size=8) -> list[list[float]]:
-        embeddings = []
-        client = httpxClient(base_url=self.api_url)
-        try:
-            for i in range(0, len(texts), batch_size):
-                response = client.post(
-                    "/embed", json={"texts": texts[i : i + batch_size]}
-                )
-                response.raise_for_status()
-                embeddings.extend(response.json()["embeddings"])
-        finally:
-            client.close()
-        return embeddings
-
-    def __call__(self, texts: list[str]) -> list[list[float]]:
-        if not texts:
-            return []
-
-        if not isinstance(texts, (list, tuple)):
-            texts = [texts]
-
-        embeddings = self._embed(texts)
-
-        if len(embeddings) != len(texts):
-            raise ValueError(
-                f"Expected {len(texts)} embeddings, but got {len(embeddings)}"
-            )
-
-        # Ensure the dimensions are correct
-        if len(embeddings[0]) > KnowledgeBaseChunk.EMBEDDING_DIMENSIONS:
-            raise ValueError(
-                f"Expected embeddings of dimension {KnowledgeBaseChunk.EMBEDDING_DIMENSIONS}, "
-                "but got {len(embeddings[0])}"
-            )
-        elif len(embeddings[0]) < KnowledgeBaseChunk.EMBEDDING_DIMENSIONS:
-            # Pad the embeddings with zeros if they are smaller than expected
-            for i in range(len(embeddings)):
-                embeddings[i] = embeddings[i] + [0.0] * (
-                    KnowledgeBaseChunk.EMBEDDING_DIMENSIONS - len(embeddings[i])
-                )
-        return embeddings
+    yield from split_text(content, KNOWLEDGE_CHUNK_SIZE, KNOWLEDGE_CHUNK_OVERLAP)
 
 
 class VectorHandler:
@@ -112,7 +47,7 @@ class VectorHandler:
     @property
     def embedder(self):
         if self._embedder is None:
-            self._embedder = BaserowEmbedder(settings.BASEROW_EMBEDDINGS_API_URL)
+            self._embedder = get_embedder()
         return self._embedder
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:

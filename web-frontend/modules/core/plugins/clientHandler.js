@@ -25,6 +25,10 @@ export class ClientErrorMap {
         $i18n.t('clientHandler.userNotInWorkspaceTitle'),
         $i18n.t('clientHandler.userNotInWorkspaceDescription')
       ),
+      ERROR_GROUP_INVITATION_EMAIL_NOT_VERIFIED: new ResponseErrorMessage(
+        $i18n.t('clientHandler.invitationEmailNotVerifiedTitle'),
+        $i18n.t('clientHandler.invitationEmailNotVerifiedDescription')
+      ),
       ERROR_USER_INVALID_GROUP_PERMISSIONS: new ResponseErrorMessage(
         $i18n.t('clientHandler.invalidWorkspacePermissionsTitle'),
         $i18n.t('clientHandler.invalidWorkspacePermissionsDescription')
@@ -150,6 +154,18 @@ export class ClientErrorMap {
       ERROR_MAX_LOCKS_PER_TRANSACTION_EXCEEDED: new ResponseErrorMessage(
         $i18n.t('clientHandler.maxLocksPerTransactionExceededTitle'),
         $i18n.t('clientHandler.maxLocksPerTransactionExceededDescription')
+      ),
+      ERROR_TEMPLATE_BLOCKED: new ResponseErrorMessage(
+        $i18n.t('clientHandler.templateBlockedTitle'),
+        $i18n.t('clientHandler.templateBlockedDescription')
+      ),
+      ERROR_TEMPLATE_HAS_NO_CONTENT: new ResponseErrorMessage(
+        $i18n.t('clientHandler.templateHasNoContentTitle'),
+        $i18n.t('clientHandler.templateHasNoContentDescription')
+      ),
+      ERROR_TEMPLATE_UPDATED: new ResponseErrorMessage(
+        $i18n.t('clientHandler.templateUpdatedTitle'),
+        $i18n.t('clientHandler.templateUpdatedDescription')
       ),
       ERROR_LAST_ADMIN_OF_GROUP: new ResponseErrorMessage(
         $i18n.t('clientHandler.lastAdminTitle'),

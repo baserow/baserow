@@ -1320,6 +1320,11 @@ class DatabaseConfig(AppConfig):
         workspace_search_registry.register(RowSearchType())
         workspace_search_registry.register(TableSearchType())
 
+        from .search.registries import search_data_updater_registry
+        from .search.search_data_updater_types import FullTextSearchDataUpdaterType
+
+        search_data_updater_registry.register(FullTextSearchDataUpdaterType())
+
         from baserow.contrib.database.fields.field_constraints import (
             RatingTypeUniqueWithEmptyConstraint,
             TextTypeUniqueWithEmptyConstraint,

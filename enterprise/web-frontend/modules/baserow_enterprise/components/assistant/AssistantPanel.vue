@@ -123,7 +123,10 @@ export default {
     workspace: {
       handler(newWorkspace) {
         this.resetStore()
-        this.fetchChats(newWorkspace.id)
+        // The selected workspace is an empty object once it goes away.
+        if (newWorkspace.id !== undefined) {
+          this.fetchChats(newWorkspace.id)
+        }
       },
       immediate: true,
     },

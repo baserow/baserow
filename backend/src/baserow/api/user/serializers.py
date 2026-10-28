@@ -46,6 +46,7 @@ from baserow.core.user.utils import (
     IMPERSONATED_BY_CLAIM,
     generate_session_tokens_for_user,
     normalize_email_address,
+    prepare_user_tokens_payload,
 )
 
 User = get_user_model()
@@ -336,12 +337,27 @@ def get_all_user_data_serialized(
     }
 
 
-def log_in_user(request, user):
+def check_user_can_log_in_with_password(user):
+    """
+    Raises if the user isn't allowed to sign in with the password provider.
+
+    :param user: The user that wants to sign in.
+    :raises AuthProviderDisabled: When the password provider is disabled and the
+        user isn't staff.
+    :raises DeactivatedUserException: When the user is deactivated.
+    :return: The password provider.
+    """
+
     password_provider = PasswordProviderHandler.get()
     if not password_provider.enabled and user.is_staff is False:
         raise AuthProviderDisabled()
     if not user.is_active:
         raise DeactivatedUserException()
+    return password_provider
+
+
+def log_in_user(request, user):
+    password_provider = check_user_can_log_in_with_password(user)
 
     settings = CoreHandler().get_settings()
     if (
@@ -399,18 +415,16 @@ class TokenObtainPairWithUserSerializer(TokenObtainPairSerializer):
 
         super().validate(attrs)
 
-        twofa_provider = TwoFactorAuthHandler().get_provider(self.user)
+        twofa_provider = TwoFactorAuthHandler().get_enabled_provider(self.user)
         if twofa_provider:
-            provider_type = twofa_provider.get_type()
-            if provider_type.is_enabled(twofa_provider):
-                token = TwoFactorAccessToken.for_user(self.user)
-                token.set_exp(lifetime=timedelta(minutes=2))
-                return TwoFactorAuthRequiredSerializer(
-                    {
-                        "two_factor_auth": provider_type.type,
-                        "token": str(token),
-                    }
-                ).data
+            token = TwoFactorAccessToken.for_user(self.user)
+            token.set_exp(lifetime=timedelta(minutes=2))
+            return TwoFactorAuthRequiredSerializer(
+                {
+                    "two_factor_auth": twofa_provider.get_type().type,
+                    "token": str(token),
+                }
+            ).data
 
         return log_in_user(self.context["request"], self.user)
 
@@ -430,14 +444,19 @@ class TokenRefreshWithUserSerializer(TokenRefreshSerializer):
         attrs["refresh"] = attrs.pop("refresh_token", attrs.get("token"))
         super().validate(attrs)
 
+        # A rotated token stays usable for a short while, so the rotation itself
+        # checks the blacklist.
         user = get_user_from_token(
-            attrs["refresh"], RefreshToken, check_if_refresh_token_is_blacklisted=True
+            attrs["refresh"],
+            RefreshToken,
+            check_if_refresh_token_is_blacklisted=not settings.ROTATE_REFRESH_TOKENS,
         )
 
         token = RefreshToken(attrs["refresh"])
-        settings = CoreHandler().get_settings()
+        instance_settings = CoreHandler().get_settings()
         if (
-            settings.email_verification == Settings.EmailVerificationOptions.ENFORCED
+            instance_settings.email_verification
+            == Settings.EmailVerificationOptions.ENFORCED
             and not user.profile.email_verified
             and not user.is_staff
             and token.get("verified_email_claim")
@@ -448,6 +467,11 @@ class TokenRefreshWithUserSerializer(TokenRefreshSerializer):
         data = generate_session_tokens_for_user(
             user, impersonated_by_user_id=token.get(IMPERSONATED_BY_CLAIM)
         )
+        if settings.ROTATE_REFRESH_TOKENS:
+            refresh_token = UserHandler().rotate_refresh_token(attrs["refresh"])
+            data = prepare_user_tokens_payload(
+                user.id, data["access_token"], refresh_token
+            )
         data.update(**get_all_user_data_serialized(user, self.context["request"]))
         token_refreshes_counter.add(1)
         return data

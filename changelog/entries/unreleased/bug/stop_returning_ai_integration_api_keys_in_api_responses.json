@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Stop returning AI integration API keys in API responses",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "integration",
+    "bullet_points": [],
+    "created_at": "2026-10-23"
+}

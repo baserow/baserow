@@ -5,7 +5,7 @@
         $t('inviteInput.batchLimitExceeded', { limit: invitationBatchLimit })
       }}
     </p>
-    <div class="invite-input__row">
+    <div ref="row" class="invite-input__row">
       <div class="invite-input__field" @click="focus">
         <span
           v-for="item in selected"
@@ -15,8 +15,15 @@
           :class="{ 'invite-input__chip--error': chipError(item) !== null }"
           @mousedown.prevent
         >
-          <i class="invite-input__chip-icon" :class="item.icon"></i>
-          {{ item.name }}
+          <component
+            :is="item.avatarComponent"
+            v-if="item.avatarComponent"
+            :subject="item.subject"
+            size="small"
+            aria-hidden="true"
+          />
+          <i v-else class="invite-input__chip-icon" :class="item.icon"></i>
+          <span class="invite-input__chip-label">{{ item.name }}</span>
           <a class="invite-input__chip-remove" @click.stop="remove(item)">
             <i class="iconoir-cancel"></i>
           </a>
@@ -75,10 +82,11 @@
         </slot>
       </Button>
     </div>
-    <div
-      v-if="showResults"
+    <Context
       ref="results"
       class="invite-input__results"
+      :style="{ width: resultsWidth }"
+      @hidden="close"
       @mousedown.prevent
     >
       <div v-if="tabs.length > 0" class="invite-input__tabs">
@@ -133,7 +141,14 @@
           :class="{ 'invite-input__item--disabled': option.disabledReason }"
           @click="toggle(option)"
         >
+          <component
+            :is="option.avatarComponent"
+            v-if="option.avatarComponent"
+            :subject="option.subject"
+            size="large"
+          />
           <Avatar
+            v-else
             :initials="option.initials"
             :icon="option.initials ? '' : option.icon"
             :color="option.color"
@@ -164,10 +179,8 @@
       <div v-if="nothingToShow" class="invite-input__empty">
         {{ noResultsTextOrDefault }}
       </div>
-    </div>
-    <div v-show="!showResults">
-      <slot></slot>
-    </div>
+    </Context>
+    <slot></slot>
   </div>
 </template>
 
@@ -202,7 +215,7 @@ export function extractEmails(text) {
  * the parent calls `remove()` or `reset()` once they were added.
  *
  * An option is an object of `{ key, type, id, name, subtitle, search,
- * initials, icon, color }` with an optional `email` for someone who can be
+ * avatarComponent, subject }` with an optional `email` for someone who can be
  * found by their address. One that can't be picked, because it already has a
  * role, an invitation or whatever else, carries the reason in
  * `disabledReason` and a short version of it, like "Editor here", in
@@ -227,10 +240,9 @@ export function extractEmails(text) {
  * own change event instead. The list stays open while the chips and the list
  * itself are clicked, because neither takes the focus away from the input,
  * except for the native input of a checkbox, which gets the focus when its
- * label is clicked and hands it straight back. It
- * opens right below the input and takes the place of the default slot, which
- * holds whatever the parent shows below the input otherwise. With tabs, a close
- * button next to them brings that back, keeping the picks and the search.
+ * label is clicked and hands it straight back. The results open in an anchored
+ * context below the input, leaving the default slot visible. Closing the context
+ * keeps the picks and search so they can be continued on focus.
  */
 export default {
   name: 'InviteInput',
@@ -293,6 +305,7 @@ export default {
     return {
       chipTooltipOptions: CHIP_TOOLTIP_OPTIONS,
       query: '',
+      resultsWidth: 'auto',
       open: false,
       activeTab: TAB_ALL,
       selected: [],
@@ -424,6 +437,19 @@ export default {
     },
   },
   watch: {
+    showResults(show) {
+      if (show) {
+        this.showResultsContext()
+      } else {
+        this.$refs.results.hide(false)
+      }
+    },
+    // Picking chips can wrap the input onto another line.
+    'selected.length'() {
+      if (this.showResults) {
+        this.$nextTick(() => this.showResultsContext())
+      }
+    },
     roles(roles) {
       if (!roles.some((role) => role.uid === this.roleUid)) {
         this.roleUid = this.initialRoleUid(roles)
@@ -449,6 +475,11 @@ export default {
     },
     focus() {
       this.$refs.input.focus()
+    },
+    showResultsContext() {
+      const row = this.$refs.row
+      this.resultsWidth = `${row.offsetWidth}px`
+      this.$refs.results.show(row, 'bottom', 'left', 8)
     },
     /**
      * Escape closes the results when they are open, and only them: the modal
@@ -477,7 +508,11 @@ export default {
      * was typed isn't lost by clicking elsewhere.
      */
     blur(event) {
-      if (this.$refs.results?.contains(event.relatedTarget)) {
+      if (
+        this.$refs.results
+          ?.getTeleportedElement()
+          ?.contains(event.relatedTarget)
+      ) {
         this.focus()
         return
       }

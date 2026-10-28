@@ -19,18 +19,17 @@ describe('ApplicationSelector', () => {
       props: { workspace: { id: 1 }, ...props },
     })
 
-  test('shows the export title by default', async () => {
-    const wrapper = await mountComponent()
+  test.each([
+    [
+      'shows the export title by default',
+      {},
+      'exportWorkspaceForm.selectDataToExport',
+    ],
+    ['shows the given title', { title: 'Content' }, 'Content'],
+  ])('%s', async (_title, props, title) => {
+    const wrapper = await mountComponent(props)
 
-    expect(wrapper.find('.application-selector__title').text()).toBe(
-      'exportWorkspaceForm.selectDataToExport'
-    )
-  })
-
-  test('shows the given title', async () => {
-    const wrapper = await mountComponent({ title: 'Content' })
-
-    expect(wrapper.find('.application-selector__title').text()).toBe('Content')
+    expect(wrapper.find('.application-selector__title').text()).toBe(title)
   })
 
   test('disables its buttons and checkboxes, also for the keyboard', async () => {

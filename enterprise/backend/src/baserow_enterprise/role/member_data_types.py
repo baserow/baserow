@@ -1,6 +1,7 @@
 from typing import Dict, List, OrderedDict, Union
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 
 from rest_framework import serializers
@@ -14,6 +15,8 @@ from baserow_enterprise.api.role.serializers import RoleField
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 from baserow_premium.plugins import PremiumPlugin
+
+User = get_user_model()
 
 
 class EnterpriseRolesDataType(MemberDataType):
@@ -109,5 +112,50 @@ class EnterpriseRolesDataType(MemberDataType):
             highest_role_per_user = usage.highest_role_per_user_id
             for user in serialized_data:
                 user["highest_role_uid"] = highest_role_per_user.get(user["id"], None)
+
+        return serialized_data
+
+
+class EnterpriseRoleAssignmentCountDataType(MemberDataType):
+    type = "role_assignment_count"
+
+    def get_request_serializer_field(self) -> serializers.Field:
+        return serializers.IntegerField(
+            required=False,
+            help_text=(
+                "Enterprise or advanced only: the number of roles this workspace user "
+                "holds on databases, tables and restricted views whose roles the "
+                "requesting user may read."
+            ),
+        )
+
+    def annotate_serialized_workspace_members_data(
+        self,
+        workspace: Workspace,
+        serialized_data: List[OrderedDict],
+        user: AbstractUser,
+    ) -> List[OrderedDict]:
+        """
+        Annotates every workspace member with the number of roles they hold on
+        databases, tables and restricted views, as listed by the subject role
+        assignments endpoint.
+        """
+
+        users = list(
+            User.objects.filter(
+                id__in=[member["user_id"] for member in serialized_data]
+            )
+        )
+        counts = RoleAssignmentHandler().count_subject_role_assignments(
+            user, workspace, users
+        )
+        if not counts:
+            return serialized_data
+
+        count_per_user_id = {member.id: count for member, count in counts.items()}
+        for member in serialized_data:
+            member["role_assignment_count"] = count_per_user_id.get(
+                member["user_id"], 0
+            )
 
         return serialized_data
