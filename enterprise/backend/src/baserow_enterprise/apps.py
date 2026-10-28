@@ -90,6 +90,7 @@ def register_semantic_search_features():
     from baserow_enterprise.semantic_search.semantic_search_field_types import (
         AISemanticSearchFieldType,
         EmailSemanticSearchFieldType,
+        FileSemanticSearchFieldType,
         FormulaSemanticSearchFieldType,
         LongTextSemanticSearchFieldType,
         LookupSemanticSearchFieldType,
@@ -108,6 +109,7 @@ def register_semantic_search_features():
     semantic_search_field_type_registry.register(LookupSemanticSearchFieldType())
     semantic_search_field_type_registry.register(RollupSemanticSearchFieldType())
     semantic_search_field_type_registry.register(AISemanticSearchFieldType())
+    semantic_search_field_type_registry.register(FileSemanticSearchFieldType())
 
     field_extension_registry.register(SemanticSearchFieldExtensionType())
     search_data_updater_registry.register(SemanticSearchDataUpdaterType())

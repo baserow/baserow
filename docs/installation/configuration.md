@@ -307,6 +307,8 @@ until you make a model available to Kuma and select it under **AI features**; se
 | BASEROW\_SEMANTIC\_SEARCH\_CHUNK\_SIZE | The maximum number of characters of a part of a cell value that's searched by semantic search. Requires `BASEROW_EMBEDDINGS_API_URL` and pgvector. | 1000 |
 | BASEROW\_SEMANTIC\_SEARCH\_CHUNK\_OVERLAP | The number of characters consecutive parts of a cell value overlap, so that text on a boundary remains findable. | 150 |
 | BASEROW\_SEMANTIC\_SEARCH\_MAX\_CHUNKS\_PER\_CELL | The maximum number of parts of a cell value that are searchable. Text beyond this isn't found by semantic search. | 30 |
+| BASEROW\_SEMANTIC\_SEARCH\_MAX\_FILES\_PER\_CELL | The maximum number of files of a file field cell of which the content is searchable. | 10 |
+| BASEROW\_SEMANTIC\_SEARCH\_MAX\_FILE\_SIZE\_MB | Files larger than this are only searchable by their name. | 5 |
 | BASEROW\_SEMANTIC\_SEARCH\_TASK\_TIME\_BUDGET\_SECONDS | How long a background task updates the semantic search index of a table before it continues in a new task. | 240 |
 | BASEROW\_SEMANTIC\_SEARCH\_MAX\_RESULTS | The maximum number of results a semantic search action or data source can return. | 100 |
 

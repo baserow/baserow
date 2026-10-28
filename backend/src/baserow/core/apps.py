@@ -34,6 +34,26 @@ class CoreConfig(AppConfig):
             ApplicationTrashableItemType,
             WorkspaceTrashableItemType,
         )
+        from baserow.core.user_files.file_text_extractor_types import (
+            EmailFileTextExtractorType,
+            HTMLFileTextExtractorType,
+            OpenDocumentFileTextExtractorType,
+            PDFFileTextExtractorType,
+            PlainTextFileTextExtractorType,
+            PowerPointFileTextExtractorType,
+            SpreadsheetFileTextExtractorType,
+            WordFileTextExtractorType,
+        )
+        from baserow.core.user_files.registries import file_text_extractor_registry
+
+        file_text_extractor_registry.register(PlainTextFileTextExtractorType())
+        file_text_extractor_registry.register(HTMLFileTextExtractorType())
+        file_text_extractor_registry.register(PDFFileTextExtractorType())
+        file_text_extractor_registry.register(WordFileTextExtractorType())
+        file_text_extractor_registry.register(SpreadsheetFileTextExtractorType())
+        file_text_extractor_registry.register(PowerPointFileTextExtractorType())
+        file_text_extractor_registry.register(OpenDocumentFileTextExtractorType())
+        file_text_extractor_registry.register(EmailFileTextExtractorType())
 
         trash_item_type_registry.register(WorkspaceTrashableItemType())
         trash_item_type_registry.register(ApplicationTrashableItemType())

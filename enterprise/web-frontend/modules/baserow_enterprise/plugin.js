@@ -124,6 +124,7 @@ import { SemanticSearchFieldFormAdvancedSettingType } from '@baserow_enterprise/
 import {
   AISemanticSearchFieldType,
   EmailSemanticSearchFieldType,
+  FileSemanticSearchFieldType,
   FormulaSemanticSearchFieldType,
   LongTextSemanticSearchFieldType,
   LookupSemanticSearchFieldType,
@@ -245,6 +246,7 @@ export default defineNuxtPlugin({
       LookupSemanticSearchFieldType,
       RollupSemanticSearchFieldType,
       AISemanticSearchFieldType,
+      FileSemanticSearchFieldType,
     ]) {
       $registry.register(
         'semanticSearchFieldType',

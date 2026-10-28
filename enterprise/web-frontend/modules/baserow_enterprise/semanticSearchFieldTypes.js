@@ -42,6 +42,12 @@ export class PhoneNumberSemanticSearchFieldType extends SemanticSearchFieldType 
   }
 }
 
+export class FileSemanticSearchFieldType extends SemanticSearchFieldType {
+  static getType() {
+    return 'file'
+  }
+}
+
 export class FormulaSemanticSearchFieldType extends SemanticSearchFieldType {
   static getType() {
     return 'formula'
