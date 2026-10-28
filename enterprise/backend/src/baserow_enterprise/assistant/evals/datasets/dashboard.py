@@ -38,6 +38,9 @@ PROMPT_CHANGES_TO_AVERAGE = (
     "instead of the total."
 )
 PROMPT_READS_WIDGET = "What does the Revenue widget on this dashboard show right now?"
+PROMPT_ANSWERS_FROM_CHART = (
+    "Make the Deals by stage chart a doughnut, then tell me how many deals are Won."
+)
 
 
 def _dashboard_ui_context(user, workspace, dashboard: Dashboard) -> str:
@@ -308,6 +311,90 @@ register_case(
         prompt=PROMPT_READS_WIDGET,
         scenario="dashboard-sales-with-revenue",
         checks=_check_reads_widget,
+        mode=AgentMode.DASHBOARD,
+        max_iters=10,
+    )
+)
+
+
+# ---------------------------------------------------------------------------
+# Answers a question from a chart that already shows it
+# ---------------------------------------------------------------------------
+
+
+@register_scenario("dashboard-sales-with-stage-chart")
+def _sales_with_stage_chart_scenario(fx: Fixtures) -> EvalScenario:
+    scenario = _sales_workspace(fx)
+    _grant_premium(scenario.user)
+    refs = scenario.refs
+    (widget,) = create_widgets(
+        ToolContext(user=scenario.user, workspace=scenario.workspace),
+        refs["dashboard"].id,
+        [
+            {
+                "type": "pie_chart",
+                "title": "Deals by stage",
+                "table_id": refs["deals"].id,
+                "series": [
+                    {
+                        "field_id": refs["deals"].field_set.get(name="Name").id,
+                        "aggregation_type": "count",
+                    }
+                ],
+                "group_by_field_id": refs["stage"].id,
+            }
+        ],
+    )["created"]
+    refs["widget_id"] = widget["id"]
+    # A view that already filters on Won, like the one the user may keep.
+    won_view = fx.create_grid_view(table=refs["deals"], name="Won only")
+    fx.create_view_filter(
+        view=won_view,
+        field=refs["stage"],
+        type="single_select_equal",
+        value=str(refs["stage"].select_options.get(value="Won").id),
+    )
+    return scenario
+
+
+UNREQUESTED_WRITE_TOOLS = (
+    "create_widgets",
+    "delete_widgets",
+    "create_views",
+    "create_view_filters",
+)
+
+
+def _check_answers_from_chart(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    (widget,) = _widgets(scenario)
+    return [
+        CheckResult(
+            "the chart is a doughnut",
+            widget["chart_type"] == "DOUGHNUT",
+            hint=f"widget: {widget}",
+        ),
+        CheckResult(
+            "answer gives 2 Won deals",
+            "2" in output.answer,
+            hint=output.answer[:200],
+        ),
+        CheckResult(
+            "changed nothing else",
+            not any(tool_called(output, name) for name in UNREQUESTED_WRITE_TOOLS),
+            hint=f"tool calls: {output.tool_calls}",
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="dashboard/answers-from-chart",
+        dataset="kuma-dashboard",
+        prompt=PROMPT_ANSWERS_FROM_CHART,
+        scenario="dashboard-sales-with-stage-chart",
+        checks=_check_answers_from_chart,
         mode=AgentMode.DASHBOARD,
         max_iters=10,
     )

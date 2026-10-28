@@ -130,3 +130,17 @@ def test_an_open_dashboard_starts_in_dashboard_mode(sales):
     )
 
     assert _mode_for_ui_context(ui_context) == AgentMode.DASHBOARD
+
+
+@pytest.mark.parametrize(
+    "key,producer",
+    [
+        ("dashboard_id", "list_builders"),
+        ("widget_id", "list_widgets"),
+        ("widget_ids", "list_widgets"),
+    ],
+)
+def test_dashboard_ids_name_the_tool_that_lists_them(key, producer):
+    from baserow_enterprise.assistant.tools.toolset import _id_producer
+
+    assert _id_producer(key.removesuffix("s")) == producer
