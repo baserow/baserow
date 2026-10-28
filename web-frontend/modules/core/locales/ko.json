@@ -686,7 +686,8 @@
         "errorJobCannotBeCancelledDescription": "작업이 이미 완료되어 취소할 수 없습니다.\n첫 번째 스냅샷을 삭제하여 제거하세요.",
         "errorJobAlreadyRunningTitle": "이미 실행 중",
         "errorJobAlreadyRunningDescription": "다른 가져오기 작업이 이미 실행 중입니다. 새로운 작업을 시작하려면 해당 작업이 완료될 때까지 기다려야 합니다.",
-        "stateCanceled": "취소"
+        "stateCanceled": "취소",
+        "errorJobCannotBeCancelledGenericDescription": "작업이 이미 완료되어 취소할 수 없습니다."
     },
     "datetime": {
         "secondsAgo": "방금 전 | 1초 전 | {n}초 전",
@@ -711,7 +712,7 @@
                 "name": "이름",
                 "email": "이메일",
                 "role": "기본 역할",
-                "highestRole": "최고 역할",
+                "highestRole": "최상위 역할",
                 "highestRoleHelpText": "이 작업공간의 어떤 것에서 직접 또는 팀에서 할당된 이 사용자의 최고 역할",
                 "teams": "팀",
                 "highestRoleInstanceHelpText": "인스턴스에서 이 사용자가 갖는 가장 높은 역할",
@@ -720,7 +721,10 @@
             "actions": {
                 "copyEmail": "이메일 복사",
                 "remove": "작업공간에서 제거"
-            }
+            },
+            "emptyTitle": "아직 멤버가 없습니다",
+            "emptyDescription": "이 워크스페이스에서 함께 작업할 사람을 초대하세요. 각 사람의 역할을 선택하여 보기 및 편집 권한을 관리하세요.",
+            "search": "멤버 검색"
         },
         "invitesTable": {
             "title": "{workspaceName}의 대기 중인 초대 {invitesAmount}개",
@@ -732,7 +736,10 @@
             "actions": {
                 "copyEmail": "이메일 복사",
                 "remove": "초대 취소"
-            }
+            },
+            "emptyTitle": "대기 중인 초대가 없습니다",
+            "emptyDescription": "이 워크스페이스에 참여할 사람을 초대하세요. 초대를 수락할 때까지 여기에서 초대 상태를 확인하고 관리할 수 있습니다.",
+            "search": "초대 검색"
         },
         "membersInviteModal": {
             "title": "작업공간 멤버 초대",
@@ -1515,7 +1522,10 @@
         "emailTitle": "이메일로 멤버 초대",
         "linkTitle": "링크로 멤버 초대",
         "linkEmptyTitle": "아직 초대 링크를 만들지 않았습니다",
-        "linkEmptyDescription": "서로 다른 역할의 링크를 여러 개 만들 수 있습니다."
+        "linkEmptyDescription": "서로 다른 역할의 링크를 여러 개 만들 수 있습니다.",
+        "pendingEmptyTitle": "대기 중인 초대가 없습니다.",
+        "pendingTitle": "대기 중인 초대",
+        "pendingEmptyDescription": "초대를 수락할 때까지 여기에 표시됩니다."
     },
     "templateInstall": {
         "selectWorkspace": "작업공간 선택",
@@ -1525,7 +1535,10 @@
     },
     "templateDetails": {
         "back": "템플릿으로 돌아가기",
-        "contents": "포함된 내용"
+        "contents": "포함된 내용",
+        "actions": "작업",
+        "editDetails": "세부 정보 편집",
+        "updateContent": "템플릿 콘텐츠 업데이트"
     },
     "trashType": {
         "integration": "통합",
@@ -1551,7 +1564,12 @@
         "tools": "도구 {count}개 | 도구 {count}개",
         "connectedOn": "{date}에 연결됨",
         "disconnect": "연결 해제",
-        "confirmDisconnect": "연결을 해제하려면 다시 클릭하세요"
+        "confirmDisconnect": "연결을 해제하려면 다시 클릭하세요",
+        "toolsOff": "도구 {count}개 꺼짐 | 도구 {count}개 꺼짐",
+        "editTools": "도구 편집",
+        "editToolsTitle": "{client}용 도구",
+        "editToolsDescription": "{workspace}에서 수행할 수 있는 작업을 선택하세요. 다시 로그인하지 않아도 다음 요청부터 앱에 변경 사항이 적용됩니다.",
+        "saveTools": "저장"
     },
     "coreManualTriggerServiceForm": {
         "responseOptionsLabel": "응답",
@@ -1606,7 +1624,8 @@
         "users": "사용자",
         "anonymousUser": "익명 사용자",
         "agent": "에이전트",
-        "agents": "에이전트"
+        "agents": "에이전트",
+        "members": "멤버"
     },
     "agents": {
         "tabTitle": "에이전트",
@@ -1615,7 +1634,7 @@
         "create": "에이전트 생성",
         "createTitle": "에이전트 생성",
         "updateTitle": "에이전트 편집",
-        "save": "에이전트 저장",
+        "save": "변경 사항 저장",
         "edit": "에이전트 편집",
         "delete": "에이전트 삭제",
         "general": "일반",
@@ -1623,6 +1642,132 @@
         "name": "이름",
         "invalidNameTitle": "사용할 수 없는 에이전트 이름입니다",
         "lastActive": "마지막 활동",
-        "workspaceRole": "작업공간 역할"
+        "workspaceRole": "작업공간 역할",
+        "search": "에이전트 검색",
+        "emptyTitle": "아직 에이전트가 없습니다",
+        "emptyDescription": "에이전트를 만들어 AI 도구를 워크스페이스에 연결하세요. 역할과 팀을 선택하여 접근할 수 있는 항목을 관리하세요.",
+        "new": "새로 만들기",
+        "roleHelpText": "먼저 접근 권한 없음으로 설정한 다음 필요에 따라 특정 데이터베이스, 테이블 또는 뷰에 대한 접근 권한을 부여하세요."
+    },
+    "mcpToolPicker": {
+        "tools": "수행할 수 있는 작업",
+        "readOnly": "읽기 전용",
+        "fullAccess": "전체 접근 권한",
+        "none": "없음",
+        "noTools": "사용 가능한 도구가 없습니다.",
+        "deletes": "삭제",
+        "overwrites": "덮어쓰기",
+        "areaDatabase": "데이터베이스",
+        "databaseRead": "테이블 및 행 읽기",
+        "databaseEdit": "생성 및 변경",
+        "databaseDelete": "삭제"
+    },
+    "createUserTemplateJobType": {
+        "name": "템플릿 생성"
+    },
+    "inviteInput": {
+        "placeholder": "이메일 주소 입력 또는 붙여넣기",
+        "invite": "초대",
+        "inviteAs": "{count}명을 {role} 역할로 초대",
+        "batchLimitExceeded": "한 번에 최대 {limit}개의 이메일 주소를 초대할 수 있습니다. 계속하려면 초과한 주소를 삭제하세요.",
+        "tabAll": "전체",
+        "inviteEmail": "{email} 초대",
+        "alreadyInvited": "이미 대기 중인 초대가 있습니다.\n다시 초대하는 대신 초대 페이지에서 역할을 변경할 수 있습니다.",
+        "inviteEmailDescription": "{role} 역할로 워크스페이스에 참여합니다",
+        "alreadyMember": "이미 이 워크스페이스의 멤버입니다",
+        "roleNotForEmails": "새로운 사람을 {role} 역할로 초대할 수 없습니다",
+        "noResults": "초대하려는 사람의 전체 이메일 주소를 입력하세요."
+    },
+    "templateEmptyState": {
+        "noResultsTitle": "템플릿을 찾을 수 없습니다",
+        "noResultsDescription": "“{query}”와 일치하는 템플릿이 없습니다. 다른 검색어를 사용해 보세요."
+    },
+    "templateModal": {
+        "officialTemplates": "공식 템플릿",
+        "yourTemplates": "내 템플릿"
+    },
+    "createUserTemplateModal": {
+        "detailsTitle": "새 템플릿",
+        "detailsDescription": "작업의 재사용 가능한 사본을 비공개 템플릿으로 저장하세요.",
+        "continue": "계속",
+        "contentTitle": "템플릿 콘텐츠 선택",
+        "contentDescription": "콘텐츠를 가져올 워크스페이스를 선택한 다음 템플릿에 포함할 항목을 고르세요.",
+        "create": "템플릿 생성",
+        "cannotBeCancelled": "템플릿이 이미 생성되어 취소할 수 없습니다.",
+        "failedAfterCreated": "템플릿이 생성되었지만 이후 문제가 발생했습니다."
+    },
+    "updateUserTemplateModal": {
+        "detailsTitle": "템플릿 편집",
+        "detailsDescription": "템플릿이 표시되는 방식을 변경하세요. 템플릿 콘텐츠는 그대로 유지됩니다.",
+        "contentTitle": "콘텐츠 업데이트",
+        "contentDescription": "워크스페이스 중 하나의 애플리케이션으로 템플릿 콘텐츠를 교체하세요. 세부 정보, 링크 및 접근 권한은 그대로 유지됩니다.",
+        "save": "변경 사항 저장",
+        "update": "템플릿 업데이트",
+        "failedAfterUpdated": "템플릿이 업데이트되었지만 이후 문제가 발생했습니다.",
+        "updated": "템플릿이 업데이트되었습니다",
+        "cannotBeCancelled": "템플릿이 이미 업데이트되어 취소할 수 없습니다.",
+        "invalidKeptDetails": "템플릿의 아이콘 또는 카테고리 중 하나를 더 이상 사용할 수 없습니다. 먼저 “세부 정보 편집”에서 변경한 다음 콘텐츠를 업데이트하세요."
+    },
+    "userTemplateDetailsForm": {
+        "name": "이름",
+        "namePlaceholder": "템플릿 이름",
+        "nameRequired": "이름을 입력해야 합니다.",
+        "chooseIcon": "아이콘 선택",
+        "description": "설명",
+        "descriptionPlaceholder": "이 템플릿은 어떤 용도인가요?",
+        "categories": "카테고리",
+        "categoriesRequired": "카테고리를 하나 이상 선택하세요."
+    },
+    "userTemplateContentForm": {
+        "workspace": "워크스페이스",
+        "workspaceEmpty": "이 워크스페이스에는 복사할 항목이 없습니다.",
+        "workspaceNoPermission": "이 워크스페이스를 복사할 권한이 없습니다.",
+        "applications": "콘텐츠",
+        "noticePeople": "사람 관련 정보: 공동 작업자 필드 값, 역할 할당 및 AI 필드 자동 업데이트를 실행하는 사용자.",
+        "noticeSecrets": "연동 및 데이터 동기화에 사용되는 대부분의 비밀번호, 토큰 및 API 키.",
+        "noticePersonalViews": "개인 뷰.",
+        "noticeTitle": "복사되지 않는 항목",
+        "noticeReferences": "포함되지 않은 데이터베이스에 대한 연결. 해당 데이터베이스를 사용하는 데이터 소스, 필터 및 트리거는 다시 설정해야 합니다.",
+        "noticeRest": "그 외 모든 항목은 그대로 공유됩니다.",
+        "selectedApplications": "선택된 애플리케이션 0개 | 선택된 애플리케이션 1개 | 선택된 애플리케이션 {count}개"
+    },
+    "templateIconSelectContext": {
+        "search": "아이콘 검색",
+        "noResults": "아이콘을 찾을 수 없습니다"
+    },
+    "userTemplateList": {
+        "title": "내 템플릿",
+        "count": "템플릿 0개 | 템플릿 1개 | 템플릿 {count}개",
+        "search": "템플릿 검색",
+        "newTemplate": "새 템플릿",
+        "name": "이름",
+        "visibility": "공개 범위",
+        "lastUpdated": "마지막 업데이트",
+        "emptyDescription": "작업을 템플릿으로 만들어 나중에 미리 보고 공유하세요.",
+        "emptyTitle": "아직 생성한 템플릿이 없습니다",
+        "noWorkspace": "템플릿은 워크스페이스에서 생성됩니다. 먼저 워크스페이스를 만들거나 참여하세요.",
+        "noContent": "템플릿은 워크스페이스의 콘텐츠로 생성됩니다. 먼저 데이터베이스, 애플리케이션 또는 자동화를 추가하세요.",
+        "stateInReview": "검토 중",
+        "statePrivate": "비공개",
+        "stateRejected": "거부됨",
+        "stateBlocked": "차단됨",
+        "errorTitle": "내 템플릿을 불러올 수 없습니다",
+        "statePublic": "공개",
+        "errorDescription": "내 템플릿을 불러오는 동안 문제가 발생했습니다.",
+        "retry": "다시 시도",
+        "actions": "작업",
+        "editDetails": "세부 정보 편집",
+        "updateContent": "템플릿 콘텐츠 업데이트"
+    },
+    "crudTable": {
+        "empty": "아직 항목이 없습니다",
+        "emptyPage": "이 페이지에는 결과가 없습니다.",
+        "noResults": "결과를 찾을 수 없습니다. 검색어나 필터를 조정해 보세요.",
+        "rowActions": "행 작업",
+        "collapseRow": "행 세부 정보 접기",
+        "expandRow": "행 세부 정보 펼치기"
+    },
+    "managementPages": {
+        "you": "나"
     }
 }
