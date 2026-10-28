@@ -1016,6 +1016,19 @@ class PermissionManagerType(abc.ABC, Instance):
 
         return []
 
+    def is_workspace_role_uid_valid(
+        self, role_uid: str, workspace: "Workspace"
+    ) -> Optional[bool]:
+        """
+        Return whether the role uid can be given to a workspace member, or None to
+        defer to the next permission manager.
+
+        :param role_uid: The role uid stored in the `permissions` value.
+        :param workspace: The workspace the role is given in.
+        """
+
+        return None
+
 
 class PermissionManagerTypeRegistry(Registry[PermissionManagerType]):
     """

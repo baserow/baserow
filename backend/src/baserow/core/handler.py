@@ -40,6 +40,7 @@ from .exceptions import (
     CannotDeleteYourselfFromWorkspace,
     DuplicateApplicationMaxLocksExceededException,
     InvalidPermissionContext,
+    InvalidWorkspaceRole,
     LastAdminOfWorkspace,
     PermissionDenied,
     PermissionException,
@@ -1065,6 +1066,34 @@ class CoreHandler:
         )
         return [wk_user.user for wk_user in wk_users]
 
+    def raise_if_invalid_workspace_role(
+        self, role_uid: str, workspace: Workspace
+    ) -> None:
+        """
+        Checks that the role uid is one of the roles available in the workspace. The
+        first permission manager that answers decides, otherwise only the basic
+        ADMIN and MEMBER roles are available.
+
+        :param role_uid: The role uid stored in the `permissions` value.
+        :param workspace: The workspace the role is given in.
+        :raises InvalidWorkspaceRole: If the role is not available.
+        """
+
+        for permission_manager_name in settings.PERMISSION_MANAGERS:
+            is_valid = permission_manager_type_registry.get(
+                permission_manager_name
+            ).is_workspace_role_uid_valid(role_uid, workspace)
+            if is_valid is not None:
+                break
+        else:
+            is_valid = role_uid in {
+                WORKSPACE_USER_PERMISSION_ADMIN,
+                WORKSPACE_USER_PERMISSION_MEMBER,
+            }
+
+        if not is_valid:
+            raise InvalidWorkspaceRole(f"The role {role_uid} is not available.")
+
     def update_workspace_user(
         self,
         user: AbstractUser,
@@ -1078,6 +1107,7 @@ class CoreHandler:
         :param workspace_user: The workspace user that must be updated.
         :raises CannotChangeYourOwnWorkspaceRole: If the user tries to change their
             own role in the workspace.
+        :raises InvalidWorkspaceRole: If the new role is not available.
         :return: The updated workspace user instance.
         """
 
@@ -1095,6 +1125,11 @@ class CoreHandler:
             # Otherwise an admin could demote themselves and lose access.
             raise CannotChangeYourOwnWorkspaceRole(
                 "Cannot change your own role in the workspace."
+            )
+
+        if "permissions" in kwargs:
+            self.raise_if_invalid_workspace_role(
+                kwargs["permissions"], workspace_user.workspace
             )
 
         return self.force_update_workspace_user(user, workspace_user, **kwargs)
@@ -1288,7 +1323,7 @@ class CoreHandler:
             Can be an existing or not existing user.
         :param permissions: The workspace permissions that the user will get once they
             have accepted the invitation.
-        :raises ValueError: If the provided permissions are not allowed.
+        :raises InvalidWorkspaceRole: If the provided permissions are not available.
         :raises UserInvalidWorkspacePermissionsError: If the user does not belong to the
             workspace or doesn't have right permissions in the workspace.
         :return: The created workspace invitation.
@@ -1300,6 +1335,8 @@ class CoreHandler:
             workspace=workspace,
             context=workspace,
         )
+
+        self.raise_if_invalid_workspace_role(permissions, workspace)
 
         email = normalize_email_address(email)
 
@@ -1361,7 +1398,7 @@ class CoreHandler:
         :param invitation: The invitation that must be updated.
         :param permissions: The new permissions of the invitation that the user must
             has after accepting.
-        :raises ValueError: If the provided permissions is not allowed.
+        :raises InvalidWorkspaceRole: If the provided permissions are not available.
         :raises UserInvalidWorkspacePermissionsError: If the user does not belong to the
             workspace or doesn't have right permissions in the workspace.
         :return: The updated workspace permissions instance.
@@ -1373,6 +1410,8 @@ class CoreHandler:
             workspace=invitation.workspace,
             context=invitation,
         )
+
+        self.raise_if_invalid_workspace_role(permissions, invitation.workspace)
 
         invitation.permissions = permissions
         invitation.save()

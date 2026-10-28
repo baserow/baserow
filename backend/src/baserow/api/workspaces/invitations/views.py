@@ -23,6 +23,7 @@ from baserow.api.errors import (
 )
 from baserow.api.mixins import SearchableViewMixin, SortableViewMixin
 from baserow.api.schemas import get_error_schema
+from baserow.api.workspaces.errors import ERROR_INVALID_WORKSPACE_ROLE
 from baserow.api.workspaces.invitations.errors import (
     ERROR_GROUP_INVITATION_DOES_NOT_EXIST,
     ERROR_GROUP_INVITATION_EMAIL_MISMATCH,
@@ -40,6 +41,7 @@ from baserow.core.actions import (
 from baserow.core.captcha.exceptions import CaptchaVerificationFailed
 from baserow.core.captcha.handler import CaptchaHandler
 from baserow.core.exceptions import (
+    InvalidWorkspaceRole,
     UserInvalidWorkspacePermissionsError,
     UserNotInWorkspace,
     WorkspaceDoesNotExist,
@@ -176,6 +178,7 @@ class WorkspaceInvitationsView(APIView, SortableViewMixin, SearchableViewMixin):
                     "ERROR_USER_INVALID_GROUP_PERMISSIONS",
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_CAPTCHA_VERIFICATION_FAILED",
+                    "ERROR_INVALID_WORKSPACE_ROLE",
                 ]
             ),
             404: get_error_schema(["ERROR_GROUP_DOES_NOT_EXIST"]),
@@ -190,6 +193,7 @@ class WorkspaceInvitationsView(APIView, SortableViewMixin, SearchableViewMixin):
             UserInvalidWorkspacePermissionsError: ERROR_USER_INVALID_GROUP_PERMISSIONS,
             WorkspaceUserAlreadyExists: ERROR_GROUP_USER_ALREADY_EXISTS,
             CaptchaVerificationFailed: ERROR_CAPTCHA_VERIFICATION_FAILED,
+            InvalidWorkspaceRole: ERROR_INVALID_WORKSPACE_ROLE,
         }
     )
     def post(self, request, data, workspace_id):
@@ -292,6 +296,7 @@ class WorkspaceInvitationView(APIView):
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_USER_INVALID_GROUP_PERMISSIONS",
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_INVALID_WORKSPACE_ROLE",
                 ]
             ),
             404: get_error_schema(["ERROR_GROUP_INVITATION_DOES_NOT_EXIST"]),
@@ -304,6 +309,7 @@ class WorkspaceInvitationView(APIView):
             WorkspaceInvitationDoesNotExist: ERROR_GROUP_INVITATION_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             UserInvalidWorkspacePermissionsError: ERROR_USER_INVALID_GROUP_PERMISSIONS,
+            InvalidWorkspaceRole: ERROR_INVALID_WORKSPACE_ROLE,
         }
     )
     def patch(self, request, data, workspace_invitation_id):
