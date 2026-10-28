@@ -5,6 +5,7 @@ import _ from 'lodash'
 import AuthService from '@baserow/modules/core/services/auth'
 import WorkspaceService from '@baserow/modules/core/services/workspace'
 import {
+  getToken,
   setToken,
   setUserSessionCookie,
   unsetToken,
@@ -233,7 +234,22 @@ export const actions = {
    * cleared.
    */
   async refresh({ commit, getters, dispatch }, token = null) {
-    const refreshToken = token || getters.refreshToken
+    let refreshToken = token || getters.refreshToken
+    if (import.meta.client && !token && !getters.getPreventSetToken) {
+      // Another tab may have rotated the refresh token, which revokes the one
+      // this tab holds. The cookie has the latest one.
+      const cookieToken = await getToken(this.app)
+      let cookieUserId = null
+      try {
+        cookieUserId = jwtDecode(cookieToken).user_id
+      } catch {}
+      if (
+        cookieUserId &&
+        cookieUserId === getters.refreshTokenPayload?.user_id
+      ) {
+        refreshToken = cookieToken
+      }
+    }
     if (!refreshToken) {
       throw new Error('Invalid refresh token')
     }
@@ -241,8 +257,8 @@ export const actions = {
     try {
       const tokenUpdatedAt = new Date().getTime()
       const { data } = await AuthService(this.$client).refresh(refreshToken)
-      // if ROTATE_REFRESH_TOKEN=False in the backend the response will not contain
-      // a new refresh token. In that case, we keep the one we just used.
+      // if BASEROW_ROTATE_REFRESH_TOKENS=false in the backend the response will
+      // not contain a new refresh token. In that case, we keep the one we just used.
       dispatch('setUserData', {
         refresh_token: refreshToken,
         tokenUpdatedAt,
@@ -250,6 +266,7 @@ export const actions = {
       })
       if (!getters.getPreventSetToken && data.refresh_token) {
         await setToken(this.app, getters.refreshToken)
+        await setUserSessionCookie(this.app, getters.signedUserSession)
       }
     } catch (error) {
       if (error.response?.status === 401) {

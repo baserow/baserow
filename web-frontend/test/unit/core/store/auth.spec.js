@@ -1,4 +1,15 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
+import {
+  getToken,
+  setToken,
+  userSessionCookieName,
+} from '@baserow/modules/core/utils/auth'
+
+const encode = (value) =>
+  btoa(JSON.stringify(value))
+    .replace(/=+$/, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
 
 describe('Auth store', () => {
   let testApp = null
@@ -203,5 +214,53 @@ describe('Auth store', () => {
         instance_wide: { premium: false },
       },
     })
+  })
+
+  test('refresh uses the refresh token another tab rotated into the cookie', async () => {
+    const refreshToken = (jti) =>
+      [encode({ alg: 'none' }), encode({ user_id: 256, jti }), ''].join('.')
+
+    store.dispatch('auth/forceSetUserData', {
+      ...fakeUserData,
+      refresh_token: refreshToken('this-tab'),
+    })
+    await setToken(testApp.nuxtApp, refreshToken('other-tab'))
+    testApp.mock
+      .onPost('/user/token-refresh/', {
+        refresh_token: refreshToken('other-tab'),
+      })
+      .reply(200, {
+        ...fakeUserData,
+        refresh_token: refreshToken('rotated'),
+        user_session: 'signed-session',
+      })
+
+    await store.dispatch('auth/refresh')
+
+    expect(store.getters['auth/refreshToken']).toBe(refreshToken('rotated'))
+    expect(await getToken(testApp.nuxtApp)).toBe(refreshToken('rotated'))
+    expect(await getToken(testApp.nuxtApp, userSessionCookieName)).toBe(
+      'signed-session'
+    )
+  })
+
+  test('refresh ignores a cookie of another user', async () => {
+    const refreshToken = (userId) =>
+      [encode({ alg: 'none' }), encode({ user_id: userId }), ''].join('.')
+
+    store.dispatch('auth/forceSetUserData', {
+      ...fakeUserData,
+      refresh_token: refreshToken(256),
+    })
+    await setToken(testApp.nuxtApp, refreshToken(999))
+    testApp.mock
+      .onPost('/user/token-refresh/', { refresh_token: refreshToken(256) })
+      .reply(200, { ...fakeUserData, refresh_token: refreshToken(256) })
+
+    await store.dispatch('auth/refresh')
+
+    expect(testApp.mock.history.post[0].data).toBe(
+      JSON.stringify({ refresh_token: refreshToken(256) })
+    )
   })
 })

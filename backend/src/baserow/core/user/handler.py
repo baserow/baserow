@@ -19,6 +19,9 @@ from itsdangerous import BadSignature, URLSafeSerializer, URLSafeTimedSerializer
 from loguru import logger
 from opentelemetry import trace
 from requests.exceptions import RequestException
+from rest_framework_simplejwt.settings import api_settings as jwt_settings
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.utils import datetime_from_epoch
 
 from baserow.core.auth_provider.exceptions import AuthProviderDisabled
 from baserow.core.auth_provider.handler import PasswordProviderHandler
@@ -82,7 +85,11 @@ from .exceptions import (
 from .registries import user_preference_type_registry
 from .signals import user_password_changed
 from .tasks import share_onboarding_details_with_baserow
-from .utils import normalize_email_address
+from .utils import (
+    SESSION_ID_CLAIM,
+    get_refresh_token_session_hash,
+    normalize_email_address,
+)
 
 User = get_user_model()
 
@@ -917,10 +924,11 @@ class UserHandler:
         hashed_token = generate_hash(refresh_token)
 
         try:
-            BlacklistedToken.objects.create(
-                hashed_token=hashed_token,
-                expires_at=expires_at,
-            )
+            with transaction.atomic():
+                BlacklistedToken.objects.create(
+                    hashed_token=hashed_token,
+                    expires_at=expires_at,
+                )
         except IntegrityError:
             raise RefreshTokenAlreadyBlacklisted
 
@@ -944,6 +952,65 @@ class UserHandler:
 
         hashed_token = generate_hash(refresh_token)
         return self.refresh_token_hash_is_blacklisted(hashed_token)
+
+    def revoke_refresh_token_session(self, refresh_token: RefreshToken):
+        """
+        Revokes every refresh token rotated from the same login as the provided
+        refresh token.
+
+        :param refresh_token: A refresh token of the session that must be revoked.
+        """
+
+        BlacklistedToken.objects.get_or_create(
+            hashed_token=get_refresh_token_session_hash(refresh_token),
+            defaults={"expires_at": datetime_from_epoch(refresh_token["exp"])},
+        )
+
+    def refresh_token_session_is_revoked(self, refresh_token: RefreshToken) -> bool:
+        """
+        :param refresh_token: The refresh token that must be checked.
+        :return: Whether the session of the refresh token has been revoked.
+        """
+
+        return self.refresh_token_hash_is_blacklisted(
+            get_refresh_token_session_hash(refresh_token)
+        )
+
+    def rotate_refresh_token(self, refresh_token: str) -> RefreshToken:
+        """
+        Blacklists the provided refresh token and returns a new one with the same
+        claims and expiry. A token that was blacklisted less than
+        `REFRESH_TOKEN_REUSE_GRACE_PERIOD` ago can be rotated again, so that
+        clients refreshing at the same time don't log each other out. Reusing it
+        after that revokes the whole session, because the token was likely stolen.
+
+        :param refresh_token: The raw refresh token that must be rotated.
+        :raises RefreshTokenAlreadyBlacklisted: When the token or its session has
+            been revoked.
+        :return: The new refresh token.
+        """
+
+        token = RefreshToken(refresh_token)
+        if self.refresh_token_session_is_revoked(token):
+            raise RefreshTokenAlreadyBlacklisted
+
+        blacklisted, created = BlacklistedToken.objects.get_or_create(
+            hashed_token=generate_hash(refresh_token),
+            defaults={"expires_at": datetime_from_epoch(token["exp"])},
+        )
+        if (
+            not created
+            and blacklisted.created_on
+            < datetime.now(tz=timezone.utc) - settings.REFRESH_TOKEN_REUSE_GRACE_PERIOD
+        ):
+            self.revoke_refresh_token_session(token)
+            raise RefreshTokenAlreadyBlacklisted
+
+        token[SESSION_ID_CLAIM] = token.get(SESSION_ID_CLAIM) or token.get(
+            jwt_settings.JTI_CLAIM
+        )
+        token.set_jti()
+        return token
 
     def _get_email_verification_signer(self) -> URLSafeSerializer:
         return URLSafeSerializer(settings.SECRET_KEY, "verify-email")
