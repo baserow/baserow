@@ -358,11 +358,18 @@ export const actions = {
   forceUpdateOrCreateWorkspaceInvitation({ commit }, invitation) {
     commit('ADD_OR_UPDATE_WORKSPACE_INVITATION', invitation)
   },
-  async acceptWorkspaceInvitation({ commit }, invitationId) {
+  /**
+   * Accepts the invitation. The token from the invitation email is required when
+   * the user's email address isn't verified, and accepting with it verifies it.
+   */
+  async acceptWorkspaceInvitation({ commit }, { invitationId, token = null }) {
     const { data: workspace } = await WorkspaceService(
       this.$client
-    ).acceptInvitation(invitationId)
+    ).acceptInvitation(invitationId, token)
     commit('REMOVE_WORKSPACE_INVITATION', invitationId)
+    if (token) {
+      commit('UPDATE_USER_DATA', { user: { email_verified: true } })
+    }
     return workspace
   },
   forceAcceptWorkspaceInvitation({ commit }, invitation) {

@@ -52,6 +52,7 @@ from baserow.core.utils import (
     get_embedded_share_url,
 )
 from baserow.throttling.handler import consume_rate_limit
+from baserow.ws.tasks import broadcast_to_users
 
 from ..telemetry.utils import baserow_trace, baserow_trace_handler
 from .emails import (
@@ -266,11 +267,8 @@ class UserHandler:
         # If we have an invitation to a workspace, then accept it.
         if workspace_invitation_token:
             workspace_user = core_handler.accept_workspace_invitation(
-                user, workspace_invitation
+                user, workspace_invitation, token=workspace_invitation_token
             )
-            profile = user.profile
-            profile.email_verified = True
-            profile.save()
 
         if (
             # If the user signs up and installs a template, then we must create a
@@ -1007,6 +1005,18 @@ class UserHandler:
         user_profile = user.profile
         user_profile.email_verified = True
         user_profile.save()
+
+        # The link is often opened in another tab, so the tabs that are already open
+        # are told as well, to offer what requires a verified email address.
+        transaction.on_commit(
+            lambda: broadcast_to_users.delay(
+                [user.id],
+                {
+                    "type": "user_data_updated",
+                    "user_data": {"user": {"email_verified": True}},
+                },
+            )
+        )
         return user
 
     def send_email_pending_verification(self, user: User) -> bool:

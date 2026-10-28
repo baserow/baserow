@@ -96,7 +96,6 @@ import { reactive } from 'vue'
 import { required, email } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import error from '@baserow/modules/core/mixins/error'
-import WorkspaceService from '@baserow/modules/core/services/workspace'
 
 export default {
   name: 'PasswordLogin',
@@ -216,10 +215,13 @@ export default {
         // successfully signs in.
         let acceptedWorkspace = null
         if (this.invitation?.email === this.values.email) {
-          const { data: workspace } = await WorkspaceService(
-            this.$client
-          ).acceptInvitation(this.invitation.id)
-          acceptedWorkspace = workspace
+          acceptedWorkspace = await this.$store.dispatch(
+            'auth/acceptWorkspaceInvitation',
+            {
+              invitationId: this.invitation.id,
+              token: this.$route.query.workspaceInvitationToken,
+            }
+          )
         }
         this.$i18n.setLocale(data.language)
         if (acceptedWorkspace) {

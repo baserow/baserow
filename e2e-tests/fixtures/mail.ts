@@ -94,3 +94,29 @@ export async function waitForEmail(subject: string): Promise<CapturedEmail> {
 
   return found as CapturedEmail;
 }
+
+const INVITATION_SUBJECT = "You've been invited to collaborate on Baserow";
+
+/**
+ * The token from the newest invitation email sent to the given address, which
+ * an invitee needs to accept the invitation unless their email is verified.
+ * Users created by the fixtures sign up with a password, so they never are.
+ */
+export async function waitForInvitationToken(email: string): Promise<string> {
+  let token: string | undefined;
+
+  await expect(async () => {
+    const emails = await findEmails(INVITATION_SUBJECT);
+    const invitation = emails.find((message) => message.to.includes(email));
+    expect(invitation, `no invitation email for ${email} arrived`).toBeTruthy();
+    // The body is quoted-printable, so undo soft line breaks and escaped `=`.
+    const body = (invitation as CapturedEmail).body
+      .replace(/=\r?\n/g, "")
+      .replace(/=3D/g, "=");
+    token = body.match(/workspace-invitation\/([A-Za-z0-9_.-]+)/)?.[1];
+    expect(token, `no invitation link in the email for ${email}`).toBeTruthy();
+    await deleteEmail((invitation as CapturedEmail).id);
+  }).toPass({ timeout: 20_000 });
+
+  return token as string;
+}

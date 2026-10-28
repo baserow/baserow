@@ -347,10 +347,11 @@ class UserView(APIView):
 
         settings = CoreHandler().get_settings()
 
-        if (
-            data["authenticate"]
-            and settings.email_verification
-            != Settings.EmailVerificationOptions.ENFORCED
+        # Signing up with the token from an invitation email verifies the email
+        # address, so the user can be signed in even if verification is enforced.
+        if data["authenticate"] and (
+            settings.email_verification != Settings.EmailVerificationOptions.ENFORCED
+            or user.profile.email_verified
         ):
             response |= {
                 **generate_session_tokens_for_user(

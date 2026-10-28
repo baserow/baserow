@@ -25,6 +25,10 @@ export class ClientErrorMap {
         $i18n.t('clientHandler.userNotInWorkspaceTitle'),
         $i18n.t('clientHandler.userNotInWorkspaceDescription')
       ),
+      ERROR_GROUP_INVITATION_EMAIL_NOT_VERIFIED: new ResponseErrorMessage(
+        $i18n.t('clientHandler.invitationEmailNotVerifiedTitle'),
+        $i18n.t('clientHandler.invitationEmailNotVerifiedDescription')
+      ),
       ERROR_USER_INVALID_GROUP_PERMISSIONS: new ResponseErrorMessage(
         $i18n.t('clientHandler.invalidWorkspacePermissionsTitle'),
         $i18n.t('clientHandler.invalidWorkspacePermissionsDescription')

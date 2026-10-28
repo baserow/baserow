@@ -5,7 +5,7 @@
       v-if="twoFactorRequired"
       :email="twoFactorEmail"
       :token="twoFaToken"
-      @success="success"
+      @success="twoFactorSuccess"
       @expired="twoFactorExpired"
     />
     <EmailNotVerified
@@ -82,6 +82,7 @@ import {
   addQueryParamsToRedirectUrl,
 } from '@baserow/modules/core/utils/url'
 import TOTPLogin from '@baserow/modules/core/components/auth/TOTPLogin'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick, useNuxtApp } from '#imports'
 
@@ -214,6 +215,28 @@ export default {
       this.twoFactorRequired = true
       this.twoFactorEmail = email
       this.twoFaToken = token
+    },
+    /**
+     * The password login accepts the invitation itself, but it stops before that
+     * when a second factor is required, so the invitation is accepted here.
+     */
+    async twoFactorSuccess() {
+      if (this.invitation?.email === this.twoFactorEmail) {
+        try {
+          const workspace = await this.$store.dispatch(
+            'auth/acceptWorkspaceInvitation',
+            {
+              invitationId: this.invitation.id,
+              token: this.$route.query.workspaceInvitationToken,
+            }
+          )
+          await this.invitationAccepted(workspace)
+          return
+        } catch (error) {
+          notifyIf(error, 'workspace')
+        }
+      }
+      await this.success()
     },
     twoFactorExpired() {
       this.twoFaToken = null
