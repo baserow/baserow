@@ -48,5 +48,52 @@
     },
     "lastViewedItemType": {
         "dashboard": "대시보드"
+    },
+    "shareDashboardLink": {
+        "shareDashboard": "대시보드 공유",
+        "notSharedTitle": "아직 이 대시보드를 공유하지 않았습니다",
+        "notSharedText": "비공개 공유 링크가 있으면 누구나 이 대시보드의 데이터를 볼 수 있습니다.",
+        "createPrivateLink": "비공개 링크 생성",
+        "sharedTitle": "이 대시보드는 현재 비공개 링크로 공유되고 있습니다",
+        "sharedDescription": "링크가 있는 사람은 대시보드를 볼 수 있습니다.",
+        "generateNewUrl": "새 URL 생성",
+        "copyURL": "URL 복사",
+        "disableLink": "공유 링크 비활성화",
+        "restrictWithPassword": "비밀번호로 접근 제한",
+        "passwordProtected": "비밀번호로 접근이 보호됩니다",
+        "changePassword": "비밀번호 변경"
+    },
+    "dashboardRotateSlugModal": {
+        "title": "{dashboardName}의 URL을 새로 생성할까요?",
+        "refreshWarning": "새 URL을 생성하면 이전 URL로는 대시보드에 접근할 수 없습니다. 이전 URL을 공유받은 사람은 모두 대시보드에 접근할 수 없게 됩니다.",
+        "generateNewUrl": "새 URL 생성",
+        "success": "새 URL이 생성되었습니다"
+    },
+    "dashboardEnablePasswordModal": {
+        "description": "공개 링크는 비밀번호를 입력해야만 접근할 수 있습니다. 비밀번호는 8자 이상이어야 하며 암호화되어 저장됩니다.",
+        "title": "비밀번호 입력",
+        "setPassword": "비밀번호 설정",
+        "changeDescription": "비밀번호를 변경하면 이전 비밀번호는 더 이상 사용할 수 없습니다. 비밀번호는 8자 이상이어야 하며 암호화되어 저장됩니다.",
+        "changeTitle": "비밀번호 변경",
+        "changePassword": "비밀번호 변경",
+        "placeholder": "비밀번호"
+    },
+    "dashboardDisablePasswordModal": {
+        "title": "이 공개 링크의 비밀번호 보호를 해제할까요?",
+        "description": "보호를 해제하면 비밀번호가 삭제되며 복구할 수 없습니다.",
+        "disable": "비활성화"
+    },
+    "publicDashboard": {
+        "noWidgets": "이 대시보드에는 아직 위젯이 없습니다.",
+        "reportAbuse": "악용 신고"
+    },
+    "publicDashboardAuth": {
+        "title": "비밀번호 필요",
+        "description": "이 사이트에 접근하려면 비밀번호가 필요합니다.",
+        "passwordLabel": "비밀번호",
+        "passwordPlaceholder": "비밀번호...",
+        "continue": "계속",
+        "incorrectPasswordTitle": "잘못된 비밀번호",
+        "incorrectPasswordText": "입력한 비밀번호가 올바르지 않습니다."
     }
 }
