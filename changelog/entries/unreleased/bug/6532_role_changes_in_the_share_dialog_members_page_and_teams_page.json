@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Role changes can no longer be undone, matching invitations",
+    "message": "Role changes in the share dialog, members page and teams page can no longer be undone",
     "issue_origin": "github",
     "issue_number": 6532,
     "domain": "core",
