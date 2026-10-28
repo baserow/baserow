@@ -1,9 +1,0 @@
-{
-    "type": "bug",
-    "message": "Limit the page size of view row listings",
-    "issue_origin": "github",
-    "issue_number": null,
-    "domain": "database",
-    "bullet_points": [],
-    "created_at": "2026-10-23"
-}
