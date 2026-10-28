@@ -54,6 +54,7 @@ from baserow.contrib.database.fields.utils.field_constraint import (
 )
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.models import ViewDefaultValue
 from baserow.core.db import specific_iterator, sql
 from baserow.core.handler import CoreHandler
 from baserow.core.models import TrashEntry, User
@@ -801,6 +802,10 @@ class FieldHandler:
             SelectOption.objects.filter(field_id=field.id)._raw_delete(
                 using=DEFAULT_DB_ALIAS
             )
+
+        # Write-only fields can't have view default values.
+        if baserow_field_type_changed and to_field_type.write_only:
+            ViewDefaultValue.objects.filter(field_id=field.id).delete()
 
         to_field_type.after_update(
             old_field,
