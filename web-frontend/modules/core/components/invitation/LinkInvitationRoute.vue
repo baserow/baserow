@@ -83,6 +83,7 @@
     />
     <InvitationLinkAdminConfirmModal
       ref="adminConfirmModal"
+      :message="targetType.getInvitationLinkAdminWarning(workspace, target)"
       @confirm="confirmPendingChange"
     />
     <InvitationLinkDeleteModal

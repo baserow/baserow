@@ -57,6 +57,7 @@ if TYPE_CHECKING:
         Template,
         Workspace,
         WorkspaceInvitation,
+        WorkspaceInvitationLink,
         WorkspaceUser,
     )
 
@@ -1057,6 +1058,69 @@ class PermissionManagerTypeRegistry(Registry[PermissionManagerType]):
     already_registered_exception_class = PermissionManagerTypeAlreadyRegistered
 
 
+class InvitationLinkScopeType(Instance, abc.ABC):
+    """
+    Lets a permanent invitation link target one object of the workspace, like a
+    table, instead of the workspace itself. The type is the name of the object scope
+    type of the objects it handles. A link to an object whose scope type isn't
+    registered here can't be used.
+    """
+
+    @abc.abstractmethod
+    def is_usable(self, invitation_link: "WorkspaceInvitationLink") -> bool:
+        """
+        Whether people can join through the link, which they can't anymore once
+        its object is trashed for example.
+
+        :param invitation_link: The link that targets an object of this type.
+        """
+
+    @abc.abstractmethod
+    def get_newcomer_permissions(
+        self, invitation_link: "WorkspaceInvitationLink"
+    ) -> str:
+        """
+        Returns the workspace permissions of someone who joins the workspace through
+        the link. They only get the role of the link on its object.
+
+        :param invitation_link: The link that targets an object of this type.
+        """
+
+    @abc.abstractmethod
+    def get_raised_role(
+        self, user: "AbstractUser", invitation_link: "WorkspaceInvitationLink"
+    ) -> Optional[str]:
+        """
+        Returns the role uid a member of the workspace currently has on the object
+        of the link, if the role of the link would raise it.
+
+        :param user: The member who opened the link.
+        :param invitation_link: The link that targets an object of this type.
+        :return: The current role uid on the object, or None if the role of the link
+            doesn't give the member more than they already have there.
+        """
+
+    @abc.abstractmethod
+    def give_role(
+        self, user: "AbstractUser", invitation_link: "WorkspaceInvitationLink"
+    ):
+        """
+        Gives the member the role of the link on the object of the link.
+
+        :param user: The member who joins through the link.
+        :param invitation_link: The link that targets an object of this type.
+        """
+
+
+class InvitationLinkScopeTypeRegistry(Registry[InvitationLinkScopeType]):
+    """
+    Contains the types of objects inside a workspace that permanent invitation links
+    can target.
+    """
+
+    name = "invitation_link_scope"
+
+
 class ObjectScopeType(Instance, ModelInstanceMixin):
     """
     This type describe an object scope in Baserow. This is useful if you need to know
@@ -1929,6 +1993,9 @@ auth_provider_type_registry = AuthenticationProviderTypeRegistry()
 
 permission_manager_type_registry: PermissionManagerTypeRegistry = (
     PermissionManagerTypeRegistry()
+)
+invitation_link_scope_type_registry: InvitationLinkScopeTypeRegistry = (
+    InvitationLinkScopeTypeRegistry()
 )
 object_scope_type_registry: ObjectScopeTypeRegistry = ObjectScopeTypeRegistry()
 last_viewed_item_type_registry: LastViewedItemTypeRegistry = (

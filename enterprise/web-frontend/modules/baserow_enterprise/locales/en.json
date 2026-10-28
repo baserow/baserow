@@ -352,7 +352,9 @@
     "title": "Share {name}",
     "application": "Application",
     "table": "Table",
-    "view": "View"
+    "view": "View",
+    "linkAdminWarning": "Anyone with this link becomes an admin of {name}, and admins can manage everything in it, including who has access to it and its invite links. Only share it with people you trust.",
+    "linkDeleteWarning": "Are you sure that you want to delete this invite link to {name}? After deleting, it will not be possible to get access through this link. Everyone that you have shared the link with won't be able to use it anymore. People who already joined through it keep their access."
   },
   "shareScope": {
     "pendingNoWorkspaceRole": "No workspace role",

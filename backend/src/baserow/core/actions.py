@@ -28,7 +28,11 @@ from baserow.core.models import (
     WorkspaceInvitationLink,
     WorkspaceUser,
 )
-from baserow.core.registries import ImportExportConfig, application_type_registry
+from baserow.core.registries import (
+    ImportExportConfig,
+    application_type_registry,
+    object_scope_type_registry,
+)
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import ChildProgressBuilder
 
@@ -1297,10 +1301,19 @@ class JoinWorkspaceViaInvitationLinkActionType(ActionType):
             "(%(invitation_link_id)s) as %(permissions)s."
         ),
     )
+    scope_description = ActionTypeDescription(
+        _("Join workspace via invitation link"),
+        _(
+            'Joined "%(group_name)s" (%(group_id)s) through invitation link '
+            '(%(invitation_link_id)s) as %(permissions)s on "%(scope_type_name)s" '
+            "(%(scope_id)s)."
+        ),
+    )
     analytics_params = [
         "invitation_link_id",
         "permissions",
         "workspace_id",
+        "scope_type_name",
     ]
 
     @dataclasses.dataclass
@@ -1309,6 +1322,8 @@ class JoinWorkspaceViaInvitationLinkActionType(ActionType):
         permissions: str
         workspace_id: int
         workspace_name: str
+        scope_type_name: Optional[str] = None
+        scope_id: Optional[int] = None
 
     @classmethod
     def do(
@@ -1321,32 +1336,48 @@ class JoinWorkspaceViaInvitationLinkActionType(ActionType):
         """
 
         workspace = invitation_link.workspace
-        permissions_before = (
-            WorkspaceUser.objects.filter(user=user, workspace=workspace)
-            .values_list("permissions", flat=True)
-            .first()
+        handler = CoreHandler()
+        was_member = WorkspaceUser.objects.filter(
+            user=user, workspace=workspace
+        ).exists()
+        raised_permissions = handler.get_permissions_raised_by_invitation_link(
+            user, invitation_link
         )
-        workspace_user = CoreHandler().join_workspace_via_invitation_link(
+        workspace_user = handler.join_workspace_via_invitation_link(
             user, invitation_link
         )
 
         # Members open the link on their way into the workspace, so only record
         # the visits that changed their membership.
-        if workspace_user.permissions == permissions_before:
+        if was_member and raised_permissions is None:
             return workspace_user
+
+        scope_type_name = None
+        if invitation_link.scope_type_id is not None:
+            scope_type_name = object_scope_type_registry.get_by_model(
+                invitation_link.scope_type.model_class()
+            ).type
 
         cls.register_action(
             user=user,
             params=cls.Params(
                 invitation_link.id,
-                workspace_user.permissions,
+                invitation_link.permissions,
                 workspace.id,
                 workspace.name,
+                scope_type_name,
+                invitation_link.scope_id,
             ),
             scope=cls.scope(),
             workspace=workspace,
         )
         return workspace_user
+
+    @classmethod
+    def get_long_description(cls, params_dict: dict[str, Any], *args, **kwargs) -> str:
+        if params_dict.get("scope_type_name"):
+            return render_action_type_description(cls.scope_description, params_dict)
+        return super().get_long_description(params_dict, *args, **kwargs)
 
     @classmethod
     def scope(cls) -> ActionScopeStr:

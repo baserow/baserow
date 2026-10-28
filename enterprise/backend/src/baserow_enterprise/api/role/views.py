@@ -21,6 +21,10 @@ from baserow.api.errors import (
     ERROR_USER_NOT_IN_GROUP,
 )
 from baserow.api.schemas import get_error_schema
+from baserow.api.workspaces.invitation_links.errors import (
+    ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST,
+    ERROR_WORKSPACE_INVITATION_LINK_SIGNUPS_DISABLED,
+)
 from baserow.api.workspaces.users.errors import ERROR_GROUP_USER_ALREADY_EXISTS
 from baserow.core.action.registries import action_type_registry
 from baserow.core.captcha.exceptions import CaptchaVerificationFailed
@@ -31,6 +35,8 @@ from baserow.core.exceptions import (
     SubjectTypeNotExist,
     UserNotInWorkspace,
     WorkspaceDoesNotExist,
+    WorkspaceInvitationLinkDoesNotExist,
+    WorkspaceInvitationLinkSignupsDisabled,
     WorkspaceUserAlreadyExists,
 )
 from baserow.core.handler import CoreHandler
@@ -66,8 +72,11 @@ from baserow_enterprise.features import RBAC
 from baserow_enterprise.role.actions import (
     BatchAssignRoleActionType,
     CreateScopedInvitationActionType,
+    CreateScopedInvitationLinkActionType,
     DeleteScopedInvitationActionType,
+    DeleteScopedInvitationLinkActionType,
     UpdateScopedInvitationActionType,
+    UpdateScopedInvitationLinkActionType,
 )
 from baserow_enterprise.role.constants import ROLE_ASSIGNABLE_OBJECT_MAP
 from baserow_enterprise.role.handler import RoleAssignmentHandler
@@ -79,12 +88,15 @@ from .exceptions import DuplicateRoleAssignments
 from .serializers import (
     BatchCreateRoleAssignmentSerializer,
     CreateRoleAssignmentSerializer,
+    CreateScopedInvitationLinkSerializer,
     CreateScopedInvitationSerializer,
     EffectiveAccessSerializer,
     GetRoleAssignmentsQueryParametersSerializer,
     OpenApiRoleAssignmentSerializer,
     RoleAssignmentSerializer,
+    ScopedInvitationLinkSerializer,
     ScopedInvitationSerializer,
+    UpdateScopedInvitationLinkSerializer,
     UpdateScopedInvitationSerializer,
 )
 
@@ -739,5 +751,257 @@ class ScopedInvitationView(APIView):
         )
         action_type_registry.get_by_type(DeleteScopedInvitationActionType).do(
             request.user, scoped_invitation
+        )
+        return Response(status=204)
+
+
+class ScopedInvitationLinksView(APIView):
+    """Lists and creates permanent invitation links that give a role on one scope."""
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="workspace_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The workspace the scope belongs to.",
+            ),
+            OpenApiParameter(
+                name="scope_id",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.INT,
+                description="The id of the scope to list the invitation links of.",
+            ),
+            OpenApiParameter(
+                name="scope_type",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.STR,
+                description="The type of the scope to list the invitation links of.",
+            ),
+        ],
+        tags=["Role assignments"],
+        operation_id="list_scoped_invitation_links",
+        description=(
+            "Lists the permanent invitation links that give a role on the given "
+            "scope to everyone who joins through them."
+        ),
+        responses={
+            200: ScopedInvitationLinkSerializer(many=True),
+            400: get_error_schema(
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_REQUEST_BODY_VALIDATION"]
+            ),
+            404: get_error_schema(
+                [
+                    "ERROR_SCOPE_DOES_NOT_EXIST",
+                    "ERROR_GROUP_DOES_NOT_EXIST",
+                    "ERROR_OBJECT_SCOPE_TYPE_DOES_NOT_EXIST",
+                ]
+            ),
+        },
+    )
+    @map_exceptions(
+        {
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
+            ScopeNotExist: ERROR_SCOPE_DOES_NOT_EXIST,
+            ObjectScopeTypeDoesNotExist: ERROR_OBJECT_SCOPE_TYPE_DOES_NOT_EXIST,
+        }
+    )
+    @validate_query_parameters(
+        GetRoleAssignmentsQueryParametersSerializer, return_validated=True
+    )
+    def get(
+        self,
+        request: Request,
+        workspace_id: int,
+        query_params: Dict[str, Any],
+    ) -> Response:
+        workspace = CoreHandler().get_workspace(workspace_id)
+        scope = query_params["scope"]
+
+        handler = RoleAssignmentHandler()
+        handler.check_scoped_invitation_permissions(
+            request.user, workspace, scope, operation="READ"
+        )
+        invitation_links = handler.get_scoped_invitation_links(workspace, scope)
+
+        return Response(
+            ScopedInvitationLinkSerializer(invitation_links, many=True).data
+        )
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="workspace_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The workspace the scope belongs to.",
+            ),
+        ],
+        tags=["Role assignments"],
+        operation_id="create_scoped_invitation_link",
+        description=(
+            "Creates a permanent invitation link that gives the chosen role on one "
+            "scope of the workspace. People who aren't a member yet join the "
+            "workspace without a workspace role. Admins of the workspace and admins "
+            "of the scope can create them. Links can't be created while both new "
+            "signups and signups via workspace invitations are disabled."
+        ),
+        request=CreateScopedInvitationLinkSerializer,
+        responses={
+            200: ScopedInvitationLinkSerializer,
+            400: get_error_schema(
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_WORKSPACE_INVITATION_LINK_SIGNUPS_DISABLED",
+                ]
+            ),
+            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
+            404: get_error_schema(
+                [
+                    "ERROR_SCOPE_DOES_NOT_EXIST",
+                    "ERROR_GROUP_DOES_NOT_EXIST",
+                    "ERROR_OBJECT_SCOPE_TYPE_DOES_NOT_EXIST",
+                    "ERROR_ROLE_DOES_NOT_EXIST",
+                ]
+            ),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            ObjectScopeTypeDoesNotExist: ERROR_OBJECT_SCOPE_TYPE_DOES_NOT_EXIST,
+            ScopeNotExist: ERROR_SCOPE_DOES_NOT_EXIST,
+            RoleNotExist: ERROR_ROLE_DOES_NOT_EXIST,
+            WorkspaceInvitationLinkSignupsDisabled: (
+                ERROR_WORKSPACE_INVITATION_LINK_SIGNUPS_DISABLED
+            ),
+        }
+    )
+    @validate_body(CreateScopedInvitationLinkSerializer, return_validated=True)
+    def post(self, request: Request, workspace_id: int, data) -> Response:
+        workspace = CoreHandler().get_workspace(workspace_id)
+        invitation_link = action_type_registry.get_by_type(
+            CreateScopedInvitationLinkActionType
+        ).do(
+            request.user,
+            workspace,
+            data["scope"],
+            data["permissions"],
+            data.get("name", ""),
+        )
+
+        return Response(ScopedInvitationLinkSerializer(invitation_link).data)
+
+
+class ScopedInvitationLinkView(APIView):
+    """Changes or deletes one permanent invitation link to a scope."""
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="invitation_link_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The invitation link to change.",
+            ),
+        ],
+        tags=["Role assignments"],
+        operation_id="update_scoped_invitation_link",
+        description=(
+            "Changes the name of a permanent invitation link to a scope, or the role "
+            "people get on the scope when they join through it. People who already "
+            "joined keep their role."
+        ),
+        request=UpdateScopedInvitationLinkSerializer,
+        responses={
+            200: ScopedInvitationLinkSerializer,
+            400: get_error_schema(
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_REQUEST_BODY_VALIDATION"]
+            ),
+            404: get_error_schema(
+                [
+                    "ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST",
+                    "ERROR_SCOPE_DOES_NOT_EXIST",
+                    "ERROR_ROLE_DOES_NOT_EXIST",
+                ]
+            ),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            WorkspaceInvitationLinkDoesNotExist: (
+                ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST
+            ),
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            ScopeNotExist: ERROR_SCOPE_DOES_NOT_EXIST,
+            RoleNotExist: ERROR_ROLE_DOES_NOT_EXIST,
+        }
+    )
+    @validate_body(UpdateScopedInvitationLinkSerializer, return_validated=True)
+    def patch(self, request: Request, invitation_link_id: int, data) -> Response:
+        invitation_link = RoleAssignmentHandler().get_scoped_invitation_link(
+            invitation_link_id
+        )
+        invitation_link = action_type_registry.get_by_type(
+            UpdateScopedInvitationLinkActionType
+        ).do(
+            request.user,
+            invitation_link,
+            role=data.get("permissions"),
+            name=data.get("name"),
+        )
+        return Response(ScopedInvitationLinkSerializer(invitation_link).data)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="invitation_link_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The invitation link to delete.",
+            ),
+        ],
+        tags=["Role assignments"],
+        operation_id="delete_scoped_invitation_link",
+        description=(
+            "Deletes a permanent invitation link to a scope, after which it can't be "
+            "used anymore. People who joined through it keep their role."
+        ),
+        responses={
+            204: None,
+            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            404: get_error_schema(
+                [
+                    "ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST",
+                    "ERROR_SCOPE_DOES_NOT_EXIST",
+                ]
+            ),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            WorkspaceInvitationLinkDoesNotExist: (
+                ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST
+            ),
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            ScopeNotExist: ERROR_SCOPE_DOES_NOT_EXIST,
+        }
+    )
+    def delete(self, request: Request, invitation_link_id: int) -> Response:
+        invitation_link = RoleAssignmentHandler().get_scoped_invitation_link(
+            invitation_link_id
+        )
+        action_type_registry.get_by_type(DeleteScopedInvitationLinkActionType).do(
+            request.user, invitation_link
         )
         return Response(status=204)

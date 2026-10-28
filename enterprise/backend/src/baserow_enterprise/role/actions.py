@@ -1,7 +1,7 @@
 import dataclasses
 from collections import defaultdict
 from copy import deepcopy
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
@@ -14,7 +14,7 @@ from baserow.core.action.registries import (
     UndoableActionType,
 )
 from baserow.core.action.scopes import RootActionScopeType, WorkspaceActionScopeType
-from baserow.core.models import Workspace
+from baserow.core.models import Workspace, WorkspaceInvitationLink
 from baserow.core.registries import object_scope_type_registry, subject_type_registry
 from baserow.core.types import ScopeObject
 from baserow_enterprise.role.handler import RoleAssignmentHandler
@@ -407,10 +407,212 @@ class DeleteScopedInvitationActionType(ActionType):
         return RootActionScopeType.value()
 
 
-def _scope_type_name(scoped_invitation: WorkspaceScopedInvitation) -> str:
+class CreateScopedInvitationLinkActionType(ActionType):
+    type = "create_scoped_invitation_link"
+    description = ActionTypeDescription(
+        _("Create scoped invitation link"),
+        _(
+            "Invitation link (%(invitation_link_id)s) created to join "
+            '"%(group_name)s" (%(group_id)s) as %(role_uid)s on "%(scope_type_name)s" '
+            "(%(scope_id)s)."
+        ),
+    )
+    analytics_params = [
+        "invitation_link_id",
+        "workspace_id",
+        "role_uid",
+        "scope_type_name",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        invitation_link_id: int
+        role_uid: str
+        scope_type_name: str
+        scope_id: int
+        workspace_id: int
+        workspace_name: str
+        name: str = ""
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        workspace: Workspace,
+        scope: ScopeObject,
+        role: Role,
+        name: str = "",
+    ) -> WorkspaceInvitationLink:
+        """
+        Creates a permanent link to join the workspace with a role on one of its
+        scopes. Look into `RoleAssignmentHandler.create_scoped_invitation_link` for
+        further details.
+        """
+
+        invitation_link = RoleAssignmentHandler().create_scoped_invitation_link(
+            user, workspace, scope, role, name
+        )
+
+        cls.register_action(
+            user=user,
+            params=cls.Params(
+                invitation_link.id,
+                role.uid,
+                object_scope_type_registry.get_by_model(scope).type,
+                scope.id,
+                workspace.id,
+                workspace.name,
+                name,
+            ),
+            scope=cls.scope(),
+            workspace=workspace,
+        )
+        return invitation_link
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()
+
+
+class UpdateScopedInvitationLinkActionType(ActionType):
+    type = "update_scoped_invitation_link"
+    description = ActionTypeDescription(
+        _("Update scoped invitation link"),
+        _(
+            "Invitation link (%(invitation_link_id)s) to join "
+            '"%(group_name)s" (%(group_id)s) on "%(scope_type_name)s" (%(scope_id)s) '
+            'changed from "%(original_name)s" as %(original_role_uid)s to '
+            '"%(name)s" as %(role_uid)s.'
+        ),
+    )
+    analytics_params = [
+        "invitation_link_id",
+        "workspace_id",
+        "role_uid",
+        "original_role_uid",
+        "scope_type_name",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        invitation_link_id: int
+        role_uid: str
+        original_role_uid: str
+        name: str
+        original_name: str
+        scope_type_name: str
+        scope_id: int
+        workspace_id: int
+        workspace_name: str
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        invitation_link: WorkspaceInvitationLink,
+        role: Optional[Role] = None,
+        name: Optional[str] = None,
+    ) -> WorkspaceInvitationLink:
+        """
+        Changes the name of a link to a scope or the role it gives. Look into
+        `RoleAssignmentHandler.update_scoped_invitation_link` for further details.
+        """
+
+        workspace = invitation_link.workspace
+        original_role_uid = invitation_link.permissions
+        original_name = invitation_link.name
+        invitation_link = RoleAssignmentHandler().update_scoped_invitation_link(
+            user, invitation_link, role=role, name=name
+        )
+
+        cls.register_action(
+            user=user,
+            params=cls.Params(
+                invitation_link.id,
+                invitation_link.permissions,
+                original_role_uid,
+                invitation_link.name,
+                original_name,
+                _scope_type_name(invitation_link),
+                invitation_link.scope_id,
+                workspace.id,
+                workspace.name,
+            ),
+            scope=cls.scope(),
+            workspace=workspace,
+        )
+        return invitation_link
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()
+
+
+class DeleteScopedInvitationLinkActionType(ActionType):
+    type = "delete_scoped_invitation_link"
+    description = ActionTypeDescription(
+        _("Delete scoped invitation link"),
+        _(
+            'Invitation link "%(name)s" (%(invitation_link_id)s) to join '
+            '"%(group_name)s" (%(group_id)s) as %(role_uid)s on "%(scope_type_name)s" '
+            "(%(scope_id)s) deleted."
+        ),
+    )
+    analytics_params = [
+        "invitation_link_id",
+        "workspace_id",
+        "role_uid",
+        "scope_type_name",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        invitation_link_id: int
+        role_uid: str
+        scope_type_name: str
+        scope_id: int
+        workspace_id: int
+        workspace_name: str
+        name: str = ""
+
+    @classmethod
+    def do(cls, user: AbstractUser, invitation_link: WorkspaceInvitationLink):
+        """
+        Deletes a link to a scope. Look into
+        `RoleAssignmentHandler.delete_scoped_invitation_link` for further details.
+        """
+
+        workspace = invitation_link.workspace
+        params = cls.Params(
+            invitation_link.id,
+            invitation_link.permissions,
+            _scope_type_name(invitation_link),
+            invitation_link.scope_id,
+            workspace.id,
+            workspace.name,
+            invitation_link.name,
+        )
+        RoleAssignmentHandler().delete_scoped_invitation_link(user, invitation_link)
+
+        cls.register_action(
+            user=user,
+            params=params,
+            scope=cls.scope(),
+            workspace=workspace,
+        )
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()
+
+
+def _scope_type_name(
+    scoped_invitation: Union[WorkspaceScopedInvitation, WorkspaceInvitationLink],
+) -> str:
     """
-    The object scope type name of the scope an invitation grants a role on, read
-    from the content type so that it is known even when the scope is gone.
+    The object scope type name of the scope an invitation or an invitation link
+    grants a role on, read from the content type so that it is known even when the
+    scope is gone.
     """
 
     return object_scope_type_registry.get_by_model(

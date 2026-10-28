@@ -15,7 +15,7 @@
           <strong>{{ invitationDetails.invited_by }}</strong>
         </template>
         <template #workspace>
-          <strong>{{ invitationDetails.workspace }}</strong>
+          <strong>{{ invitationDestination }}</strong>
         </template>
       </i18n-t>
     </Alert>
@@ -229,6 +229,19 @@ export default {
   computed: {
     invitationDetails() {
       return this.invitation ?? this.invitationLink
+    },
+    /**
+     * The workspace, or the object of the workspace an invitation link gives a
+     * role on, like "Sales in Acme".
+     */
+    invitationDestination() {
+      const details = this.invitationDetails
+      return details.scope_name
+        ? this.$t('invitationLinkJoin.scopeIn', {
+            name: details.scope_name,
+            workspace: details.workspace,
+          })
+        : details.workspace
     },
     registerComponents() {
       return Object.values(this.$registry.getAll('plugin'))

@@ -15,10 +15,19 @@ from django.db.models import (
 )
 
 from baserow.core.cache import local_cache
-from baserow.core.exceptions import PermissionDenied
+from baserow.core.exceptions import (
+    PermissionDenied,
+    WorkspaceInvitationLinkSignupsDisabled,
+)
+from baserow.core.feature_flags import FF_RBAC_IMPROVEMENTS, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.mixins import TrashableModelMixin
-from baserow.core.models import Workspace, WorkspaceInvitation, WorkspaceUser
+from baserow.core.models import (
+    Workspace,
+    WorkspaceInvitation,
+    WorkspaceInvitationLink,
+    WorkspaceUser,
+)
 from baserow.core.object_scopes import CoreObjectScopeType
 from baserow.core.registries import (
     SubjectType,
@@ -1553,11 +1562,13 @@ class RoleAssignmentHandler:
         )
 
     def _get_live_scope(
-        self, scoped_invitation: WorkspaceScopedInvitation
+        self,
+        scoped_invitation: Union[WorkspaceScopedInvitation, WorkspaceInvitationLink],
     ) -> ScopeObject:
         """
-        Returns the scope of a scoped invitation, or raises when it was deleted or
-        trashed in the meantime, because nothing can be managed on it anymore.
+        Returns the scope of a scoped invitation or invitation link, or raises when
+        it was deleted or trashed in the meantime, because nothing can be managed on
+        it anymore.
         """
 
         scope = scoped_invitation.scope
@@ -1722,3 +1733,170 @@ class RoleAssignmentHandler:
             return []
 
         return self.assign_role_batch(invitation.workspace, new_role_assignments)
+
+    def get_scoped_invitation_links(
+        self, workspace: Workspace, scope: ScopeObject
+    ) -> QuerySet[WorkspaceInvitationLink]:
+        """
+        Returns the permanent invitation links that give a role on the given scope.
+
+        :param workspace: The workspace the scope belongs to.
+        :param scope: The scope the links give a role on.
+        :return: The invitation links of the scope.
+        """
+
+        return WorkspaceInvitationLink.objects.filter(
+            workspace=workspace,
+            scope_type=ContentType.objects.get_for_model(scope),
+            scope_id=scope.id,
+        )
+
+    def get_scoped_invitation_link(
+        self, invitation_link_id: int
+    ) -> WorkspaceInvitationLink:
+        """
+        Returns the permanent invitation link with the given id that gives a role on
+        a scope of its workspace.
+
+        :param invitation_link_id: The id of the invitation link.
+        :raises WorkspaceInvitationLinkDoesNotExist: If there is no such link.
+        :return: The invitation link.
+        """
+
+        return CoreHandler().get_workspace_invitation_link(
+            invitation_link_id,
+            base_queryset=WorkspaceInvitationLink.objects.filter(
+                scope_type__isnull=False
+            ).select_related("scope_type"),
+        )
+
+    def create_scoped_invitation_link(
+        self,
+        user: AbstractUser,
+        workspace: Workspace,
+        scope: ScopeObject,
+        role: Role,
+        name: str = "",
+    ) -> WorkspaceInvitationLink:
+        """
+        Creates a permanent link that anyone can use to join the workspace and get
+        the given role on the scope. People who aren't a member yet join without a
+        workspace role. Admins of the workspace and admins of the scope can create
+        them.
+
+        :param user: The user on whose behalf the link is created.
+        :param workspace: The workspace the scope belongs to.
+        :param scope: The application, table or view the link gives a role on.
+        :param role: The role people get on the scope when they join.
+        :param name: A name that reminds the admins what the link is for.
+        :raises FeatureDisabledException: If invitation links aren't enabled.
+        :raises ScopeNotExist: If the scope can't get a role through a link.
+        :raises PermissionDenied: If the user can't manage the roles of the scope.
+        :raises WorkspaceInvitationLinkSignupsDisabled: If the instance settings
+            don't let anyone sign up through the link.
+        :return: The created invitation link.
+        """
+
+        feature_flag_is_enabled(FF_RBAC_IMPROVEMENTS, raise_if_disabled=True)
+
+        self.check_scoped_invitation_permissions(user, workspace, scope)
+
+        if not CoreHandler().invitation_link_signups_allowed():
+            raise WorkspaceInvitationLinkSignupsDisabled(
+                "Invitation links can't be created while signups are disabled."
+            )
+
+        return WorkspaceInvitationLink.objects.create(
+            workspace=workspace,
+            created_by=user,
+            permissions=role.uid,
+            name=name,
+            scope=scope,
+        )
+
+    def update_scoped_invitation_link(
+        self,
+        user: AbstractUser,
+        invitation_link: WorkspaceInvitationLink,
+        role: Optional[Role] = None,
+        name: Optional[str] = None,
+    ) -> WorkspaceInvitationLink:
+        """
+        Changes the name of a link to a scope or the role people get on the scope
+        when joining through it. People who already joined keep their role.
+
+        :param user: The user on whose behalf the link is updated.
+        :param invitation_link: The link that must be updated.
+        :param role: The new role of the link, if it changes.
+        :param name: The new name of the link, if it changes.
+        :raises ScopeNotExist: If the scope was deleted or trashed in the meantime.
+        :raises PermissionDenied: If the user can't manage the roles of the scope.
+        :return: The updated invitation link.
+        """
+
+        scope = self._get_live_scope(invitation_link)
+        self.check_scoped_invitation_permissions(user, invitation_link.workspace, scope)
+
+        update_fields = ["updated_on"]
+        if role is not None:
+            invitation_link.permissions = role.uid
+            update_fields.append("permissions")
+        if name is not None:
+            invitation_link.name = name
+            update_fields.append("name")
+        invitation_link.save(update_fields=update_fields)
+
+        return invitation_link
+
+    def delete_scoped_invitation_link(
+        self, user: AbstractUser, invitation_link: WorkspaceInvitationLink
+    ):
+        """
+        Deletes a link to a scope, after which it can't be used anymore. People who
+        joined through it keep their role.
+
+        :param user: The user on whose behalf the link is deleted.
+        :param invitation_link: The link that must be deleted.
+        :raises ScopeNotExist: If the scope was deleted or trashed in the meantime.
+        :raises PermissionDenied: If the user can't manage the roles of the scope.
+        """
+
+        scope = self._get_live_scope(invitation_link)
+        self.check_scoped_invitation_permissions(user, invitation_link.workspace, scope)
+
+        invitation_link.delete()
+
+    def get_role_raised_by_invitation_link(
+        self, user: AbstractUser, invitation_link: WorkspaceInvitationLink
+    ) -> Optional[str]:
+        """
+        Returns the role a member currently has on the scope of a link, resolved like
+        the permission checks do, if the role of the link gives them everything that
+        role does and more. A role that lacks any operation of the current one never
+        replaces it, so a link can't lower anyone's access.
+
+        :param user: A member of the workspace of the link.
+        :param invitation_link: A link that gives a role on a scope.
+        :return: The uid of the current role on the scope, or None if the link
+            wouldn't raise it.
+        """
+
+        try:
+            link_role = self.get_role_by_uid(invitation_link.permissions)
+        except Role.DoesNotExist:
+            return None
+
+        roles_per_scope = self.get_roles_per_scope(invitation_link.workspace, user)
+        current_roles = self.get_computed_roles(roles_per_scope, invitation_link.scope)
+        current_operations = {
+            operation.name
+            for role in current_roles
+            for operation in role.operations.all()
+        }
+        link_operations = {operation.name for operation in link_role.operations.all()}
+
+        if not link_operations > current_operations:
+            return None
+        if not current_operations:
+            return NO_ACCESS_ROLE_UID
+        return current_roles[0].uid

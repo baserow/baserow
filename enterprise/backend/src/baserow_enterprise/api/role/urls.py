@@ -4,6 +4,8 @@ from .views import (
     BatchRoleAssignmentsView,
     EffectiveAccessView,
     RoleAssignmentsView,
+    ScopedInvitationLinksView,
+    ScopedInvitationLinkView,
     ScopedInvitationsView,
     ScopedInvitationView,
 )
@@ -35,5 +37,15 @@ urlpatterns = [
         r"^invitations/(?P<scoped_invitation_id>[0-9]+)/$",
         ScopedInvitationView.as_view(),
         name="scoped_invitation",
+    ),
+    re_path(
+        r"^(?P<workspace_id>[0-9]+)/invitation-links/$",
+        ScopedInvitationLinksView.as_view(),
+        name="scoped_invitation_links",
+    ),
+    re_path(
+        r"^invitation-links/(?P<invitation_link_id>[0-9]+)/$",
+        ScopedInvitationLinkView.as_view(),
+        name="scoped_invitation_link",
     ),
 ]

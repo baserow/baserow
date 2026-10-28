@@ -319,6 +319,9 @@
     "upgradeTitle": "Change your role in {workspace}",
     "upgradeRole": "You're already a member of this workspace. Your role will change from {from} to {to}.",
     "upgrade": "Change my role",
+    "scopeIn": "{name} in {workspace}",
+    "upgradeScopeTitle": "Change your role on {name}",
+    "upgradeScopeRole": "You're already a member of {workspace}. Your role on {name} will change from {from} to {to}.",
     "failed": "Could not join the workspace",
     "failedMessage": "Something went wrong while joining the workspace. Please try again.",
     "invalidLinkMessage": "This invite link is no longer valid. Ask the person who shared it for a new one."
