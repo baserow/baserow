@@ -644,7 +644,9 @@
         "display": "디스플레이",
         "dropdown": "드롭다운",
         "checkbox": "체크박스",
-        "radio": "라디오"
+        "radio": "라디오",
+        "extraSettings": "추가 설정",
+        "enableSearch": "검색 활성화"
     },
     "dropdown": {
         "empty": "사용 가능한 옵션 없음"
