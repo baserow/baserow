@@ -272,7 +272,11 @@ CHANNEL_LAYERS = {
 # Database
 # https://docs.djangoproject.com/en/2.2/ref/settings/#databases
 if "DATABASE_URL" in os.environ:
-    DATABASES = {"default": dj_database_url.parse(os.getenv("DATABASE_URL"))}
+    DATABASES = {
+        "default": dj_database_url.parse(
+            os.getenv("DATABASE_URL"), conn_health_checks=True
+        )
+    }
 else:
     DATABASES = {
         "default": {
@@ -298,7 +302,7 @@ for key, value in os.environ.items():
     if key.startswith("DATABASE_READ_REPLICA_") and key.endswith("_URL"):
         suffix = key[len("DATABASE_READ_REPLICA_") : -len("_URL")]
         db_key = f"read_{suffix}"
-        DATABASES[db_key] = dj_database_url.parse(value)
+        DATABASES[db_key] = dj_database_url.parse(value, conn_health_checks=True)
         DATABASE_READ_REPLICAS.append(db_key)
     elif key.startswith("DATABASE_READ_") and key.endswith("_NAME"):
         suffix = key[len("DATABASE_READ_") : -len("_NAME")]
@@ -328,7 +332,8 @@ BASEROW_CONN_MAX_AGE = int(os.getenv("BASEROW_CONN_MAX_AGE", 0))
 # Also enable connection health checks by default so Django verifies that a
 # connection is still usable before each request/task, which prevents
 # "connection already closed" errors when connections are dropped by the server,
-# a load balancer, or a connection pooler.
+# a load balancer, or a connection pooler. URL configs are parsed with health
+# checks on, as dj_database_url sets them to False otherwise.
 for _db_key in DATABASES:
     DATABASES[_db_key]["CONN_MAX_AGE"] = BASEROW_CONN_MAX_AGE
     DATABASES[_db_key].setdefault("CONN_HEALTH_CHECKS", True)

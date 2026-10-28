@@ -9,7 +9,6 @@ from django.utils.translation import gettext as _
 from loguru import logger
 from pydantic import Field, create_model
 from pydantic_ai import ModelRetry, RunContext, Tool
-from pydantic_ai.toolsets import FunctionToolset
 
 from baserow.contrib.database.fields.actions import (
     CreateFieldActionType,
@@ -38,7 +37,10 @@ from baserow_enterprise.assistant.tools.shared import (
     require_payload,
     return_permission_error,
 )
-from baserow_enterprise.assistant.tools.toolset import inline_refs
+from baserow_enterprise.assistant.tools.toolset import (
+    AssistantFunctionToolset,
+    inline_refs,
+)
 from baserow_enterprise.assistant.types import TableNavigationType, ViewNavigationType
 from baserow_premium.prompts import get_formula_docs
 
@@ -1311,4 +1313,4 @@ TOOL_FUNCTIONS = [
     generate_formula,
     load_row_tools,
 ]
-database_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)
+database_toolset = AssistantFunctionToolset(TOOL_FUNCTIONS, max_retries=3)

@@ -551,17 +551,36 @@ class PageHandler:
         :return: If the path is unique
         """
 
-        queryset = Page.objects_and_trash if base_queryset is None else base_queryset
+        if self.get_page_with_clashing_path(builder, path, base_queryset) is None:
+            return True
+        if raises:
+            raise PagePathNotUnique(path=path, builder_id=builder.id)
+        return False
 
-        existing_paths = queryset.filter(builder=builder).values_list("path", flat=True)
+    def get_page_with_clashing_path(
+        self,
+        builder: Builder,
+        path: str,
+        base_queryset: QuerySet | None = None,
+    ) -> Page | None:
+        """
+        Finds the page whose path clashes with the given path. Paths clash when
+        they only differ in the names of their parameters.
+
+        :param builder: The builder that the page belongs to.
+        :param path: The path to look for.
+        :param base_queryset: The pages to search, trashed ones included by default.
+        :return: The clashing page, or None if the path is free.
+        """
+
+        queryset = Page.objects_and_trash if base_queryset is None else base_queryset
+        pages = queryset.filter(builder=builder).only("id", "name", "path", "trashed")
 
         path_generalised = self.generalise_path(path)
-        for existing_path in existing_paths:
-            if self.generalise_path(existing_path) == path_generalised:
-                if raises:
-                    raise PagePathNotUnique(path=path, builder_id=builder.id)
-                return False
-        return True
+        for page in pages:
+            if self.generalise_path(page.path) == path_generalised:
+                return page
+        return None
 
     def generalise_path(self, path: str) -> str:
         """
