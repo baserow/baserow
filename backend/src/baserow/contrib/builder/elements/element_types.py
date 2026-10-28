@@ -1376,6 +1376,7 @@ class ImageElementType(ElementType):
         self,
         element: Element,
         prop_name: BaserowFormula,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -1386,7 +1387,12 @@ class ImageElementType(ElementType):
             )
 
         return super().serialize_property(
-            element, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            element,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def deserialize_property(
@@ -1980,6 +1986,7 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
         self,
         element: ChoiceElement,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -1991,7 +1998,12 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
             ]
 
         return super().serialize_property(
-            element, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            element,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def import_serialized(
@@ -2641,6 +2653,7 @@ class MenuElementType(ElementType):
         self,
         element: MenuElement,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -2655,6 +2668,7 @@ class MenuElementType(ElementType):
         return super().serialize_property(
             element,
             prop_name,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,

@@ -2142,6 +2142,7 @@ class LocalBaserowUpsertRowServiceType(
         self,
         service: LocalBaserowUpsertRow,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -2162,7 +2163,12 @@ class LocalBaserowUpsertRowServiceType(
             ]
 
         return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            service,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def _import_field_mapping_field_id(
@@ -3322,6 +3328,7 @@ class LocalBaserowFieldsUpdatedTriggerServiceType(
         self,
         service: LocalBaserowFieldsUpdated,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -3330,7 +3337,12 @@ class LocalBaserowFieldsUpdatedTriggerServiceType(
             return service.field_ids
 
         return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            service,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def deserialize_property(

@@ -184,6 +184,7 @@ class CoreCodeServiceType(CoreServiceType):
         self,
         service: CoreCodeService,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -198,7 +199,12 @@ class CoreCodeServiceType(CoreServiceType):
             ]
 
         return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            service,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def create_instance_from_serialized(

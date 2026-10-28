@@ -96,7 +96,12 @@ class ServiceType(
 
         serialized = {
             key: self.serialize_property(
-                instance, key, files_zip=files_zip, storage=storage, cache=cache
+                instance,
+                key,
+                import_export_config=import_export_config,
+                files_zip=files_zip,
+                storage=storage,
+                cache=cache,
             )
             for key in self.get_property_names()
         }

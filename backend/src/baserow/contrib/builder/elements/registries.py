@@ -414,6 +414,7 @@ class ElementType(
         self,
         element: Element,
         prop_name: str,
+        import_export_config=None,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict] = None,
@@ -432,7 +433,12 @@ class ElementType(
             )
 
         return super().serialize_property(
-            element, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            element,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def deserialize_property(

@@ -253,6 +253,7 @@ class BuilderApplicationType(ApplicationType):
 
         serialized_theme = ThemeHandler().export_theme(
             builder,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=self.cache,

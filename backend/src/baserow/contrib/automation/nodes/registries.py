@@ -233,36 +233,6 @@ class AutomationNodeType(
         values["workflow"] = node.workflow_id
         return values
 
-    def export_serialized(
-        self,
-        node: AutomationNode,
-        import_export_config=None,
-        files_zip=None,
-        storage=None,
-        cache=None,
-    ) -> Dict[str, Any]:
-        """Serialize a node and pass export settings to its service."""
-
-        exclude_sensitive_data = getattr(
-            import_export_config, "exclude_sensitive_data", False
-        )
-
-        return {
-            key: (
-                None
-                if exclude_sensitive_data and key in self.sensitive_fields
-                else self.serialize_property(
-                    node,
-                    key,
-                    import_export_config=import_export_config,
-                    files_zip=files_zip,
-                    storage=storage,
-                    cache=cache,
-                )
-            )
-            for key in self.get_property_names()
-        }
-
     def serialize_property(
         self,
         node: AutomationNode,
@@ -285,6 +255,7 @@ class AutomationNodeType(
         return super().serialize_property(
             node,
             prop_name,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,

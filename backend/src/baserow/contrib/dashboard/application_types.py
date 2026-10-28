@@ -115,7 +115,11 @@ class DashboardApplicationType(ApplicationType):
 
         serialized_widgets = [
             WidgetHandler().export_widget(
-                widget, files_zip=files_zip, storage=storage, cache=self.cache
+                widget,
+                import_export_config=import_export_config,
+                files_zip=files_zip,
+                storage=storage,
+                cache=self.cache,
             )
             for widget in widgets
         ]
