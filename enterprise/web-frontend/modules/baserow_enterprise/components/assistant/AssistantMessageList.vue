@@ -14,17 +14,9 @@
     >
       <div class="assistant__message-content">
         <div class="assistant__message-bubble">
-          <div
-            v-if="waitingForAssistantResponse(message)"
-            class="assistant__typing"
-          >
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
+          <ChatTyping v-if="waitingForAssistantResponse(message)" />
           <template v-else>
-            <div class="assistant__message-text-container">
-              <span v-if="message.reasoning" class="loading"></span>
+            <ChatLoading :loading="message.reasoning">
               <!-- eslint-disable vue/no-v-html -->
               <div
                 class="assistant__message-text"
@@ -35,7 +27,7 @@
                 @click="interceptLinkClick"
                 v-html="formatMessage(message.content)"
               ></div>
-            </div>
+            </ChatLoading>
             <button
               v-if="message.reasoning"
               class="assistant__reasoning-toggle"
@@ -73,6 +65,8 @@
 
 <script>
 import MarkdownIt from 'markdown-it'
+import ChatLoading from '@baserow/modules/core/components/chat/ChatLoading'
+import ChatTyping from '@baserow/modules/core/components/chat/ChatTyping'
 import AssistantMessageSources from './AssistantMessageSources'
 import AssistantMessageActions from './AssistantMessageActions'
 
@@ -87,6 +81,8 @@ const md = new MarkdownIt({
 export default {
   name: 'AssistantMessageList',
   components: {
+    ChatLoading,
+    ChatTyping,
     AssistantMessageSources,
     AssistantMessageActions,
   },
