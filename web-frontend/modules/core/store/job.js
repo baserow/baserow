@@ -189,6 +189,11 @@ export const actions = {
     try {
       const { data } = await JobService(this.$client).fetchAll({ jobIds })
       for (const job of data.jobs) {
+        // A job can leave the store while it's polled, when the user logs out
+        // for instance, and its result mustn't come back then.
+        if (!getters.get(job.id)) {
+          continue
+        }
         await dispatch('forceUpdate', { job, data: job })
       }
     } finally {

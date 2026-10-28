@@ -2,34 +2,19 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
+import {
+  mockTemplateApplications,
+  template,
+} from '@baserow/test/fixtures/templates'
 import TemplateDetails from '@baserow/modules/core/components/template/TemplateDetails'
-
-const template = {
-  id: 5,
-  slug: 'project-tracker',
-  name: 'Project Tracker',
-  workspace_id: 10,
-  open_application: null,
-}
-
-const database = (id, name, order) => ({
-  id,
-  name,
-  order,
-  type: 'database',
-  workspace: { id: 10 },
-  tables: [{ id: id * 10, name: `${name} table`, order: 1, database_id: id }],
-})
+import TemplateInstall from '@baserow/modules/core/components/template/TemplateInstall'
 
 describe('TemplateDetails', () => {
   let testApp = null
 
   beforeEach(() => {
     testApp = new TestApp()
-    // Returned out of order, so the sidebar must sort them by `order`.
-    testApp.mock
-      .onGet(`/applications/workspace/${template.workspace_id}/`)
-      .reply(200, [database(1, 'Second', 2), database(2, 'First', 1)])
+    mockTemplateApplications(testApp.mock)
   })
 
   afterEach(async () => {
@@ -93,25 +78,32 @@ describe('TemplateDetails', () => {
     expect(selectedTables(wrapper)).toEqual(['First table'])
   })
 
-  test('hides the install of a user template', async () => {
+  test('installs a user template', async () => {
     const wrapper = await mountComponent({
       template: { ...template, type: 'user' },
     })
 
-    expect(wrapper.find('.template-details__foot').exists()).toBe(false)
-    expect(wrapper.find('.template-install').exists()).toBe(false)
-  })
-
-  test('updates and deletes only an own template', async () => {
-    const userTemplate = { ...template, type: 'user' }
-    let wrapper = await mountComponent({ template: userTemplate })
-    expect(wrapper.find('.template-details__own-actions').exists()).toBe(false)
-
-    wrapper = await mountComponent({ template: userTemplate, isOwn: true })
-    expect(wrapper.find('.template-install').exists()).toBe(false)
+    expect(wrapper.find('.template-details__foot').exists()).toBe(true)
+    expect(wrapper.find('.template-install').exists()).toBe(true)
 
     await wrapper
-      .find('.template-details__own-actions .button-icon')
+      .find('.template-install__actions .button-icon')
+      .trigger('click')
+    const links = wrapper.findAll('.context__menu-item-link')
+    expect(links).toHaveLength(1)
+    expect(links[0].text()).toContain('templateInstall.copyLink')
+  })
+
+  test('adds the owner actions to the install menu of an own template', async () => {
+    const userTemplate = { ...template, type: 'user' }
+    const wrapper = await mountComponent({
+      template: userTemplate,
+      isOwn: true,
+    })
+    expect(wrapper.find('.template-install__use').exists()).toBe(true)
+
+    await wrapper
+      .find('.template-install__actions .button-icon')
       .trigger('click')
     const links = wrapper.findAll('.context__menu-item-link')
     expect(links.map((link) => link.text())).toStrictEqual([
@@ -134,6 +126,15 @@ describe('TemplateDetails', () => {
     await link.trigger('click')
 
     expect(wrapper.emitted('delete')).toStrictEqual([[userTemplate]])
+  })
+
+  test('installs the latest revision only of an own template', async () => {
+    const userTemplate = { ...template, type: 'user' }
+    const other = await mountComponent({ template: userTemplate })
+    expect(other.findComponent(TemplateInstall).props('latest')).toBe(false)
+
+    const own = await mountComponent({ template: userTemplate, isOwn: true })
+    expect(own.findComponent(TemplateInstall).props('latest')).toBe(true)
   })
 
   test('shows the back link only when asked and emits back', async () => {

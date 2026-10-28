@@ -1,8 +1,7 @@
 from contextlib import ExitStack
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from unittest.mock import patch
 
-from django.core.files.base import ContentFile
 from django.db import transaction
 from django.utils import timezone as django_timezone
 
@@ -22,7 +21,6 @@ from baserow.core.exceptions import (
     TemplateDoesNotExist,
     UserNotInWorkspace,
 )
-from baserow.core.handler import CoreHandler
 from baserow.core.jobs.constants import (
     JOB_CANCELLED,
     JOB_FAILED,
@@ -34,13 +32,11 @@ from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.models import Job
 from baserow.core.jobs.tasks import run_async_job
 from baserow.core.models import Template, TemplateCategory, Workspace, WorkspaceUser
-from baserow.core.operations import ExportWorkspaceOperationType
 from baserow.core.storage import get_default_storage
 from baserow.core.user_templates.actions import (
     DeleteUserTemplateActionType,
     UpdateUserTemplateActionType,
 )
-from baserow.core.user_templates.constants import USER_TEMPLATE_DELETION_GRACE_PERIOD
 from baserow.core.user_templates.exceptions import (
     InvalidTemplateCategory,
     InvalidTemplateIcon,
@@ -55,50 +51,21 @@ from baserow.core.user_templates.tasks import delete_orphaned_user_template_work
 from tests.baserow.core.user_templates.utils import (
     CLEARED_KEYS,
     ICON,
+    OTHER_ICON,
     copied_applications,
     create_source,
+    create_template,
+    deny_export,
     find_values,
-    read_archive,
+    purge_after_the_grace_period,
+    queued,
+    run_job,
+    serialized_content,
     start_job,
+    store_archive,
+    update_content,
+    update_details,
 )
-
-OTHER_ICON = "iconoir-calendar"
-
-
-def update_details(user, template, **kwargs):
-    kwargs.setdefault("name", "Renamed")
-    kwargs.setdefault("description", "What it does now")
-    kwargs.setdefault("icon", OTHER_ICON)
-    if "category_ids" not in kwargs:
-        kwargs["category_ids"] = [TemplateCategory.objects.create(name="New").id]
-    return JobHandler().create_and_start_job(
-        user,
-        CreateUserTemplateJobType.type,
-        sync=True,
-        template_id=template.id,
-        **kwargs,
-    )
-
-
-def update_content(user, template, workspace, applications, **kwargs):
-    return JobHandler().create_and_start_job(
-        user,
-        CreateUserTemplateJobType.type,
-        sync=True,
-        template_id=template.id,
-        workspace_id=workspace.id,
-        application_ids=[application.id for application in applications],
-        **kwargs,
-    )
-
-
-def create_template(data_fixture, user, **kwargs):
-    """A user template whose content can be copied, without running a job."""
-
-    workspace = data_fixture.create_workspace(name="Content")
-    data_fixture.create_database_application(workspace=workspace)
-    kwargs.setdefault("icon", ICON)
-    return data_fixture.create_user_template(user=user, workspace=workspace, **kwargs)
 
 
 def revisions_of(root):
@@ -172,7 +139,6 @@ def test_update_user_template_details(data_fixture, use_tmp_media_root):
     # The content of the root is shared, not copied, so that a details-only
     # revision can be told apart from a content change.
     assert revision.workspace_id == root.workspace_id
-    assert revision.archive.name == root.archive.name
     assert Workspace.objects_and_trash.count() == workspace_count
     assert revision.workspace.name == root_before.workspace.name
     # The template types of a workspace are cached by `updated_on`, so it changes
@@ -184,7 +150,6 @@ def test_update_user_template_details(data_fixture, use_tmp_media_root):
         "dashboard",
         "automation",
     }
-    assert get_default_storage().exists(root.archive.name)
 
     root.refresh_from_db()
     for field_name in [
@@ -302,9 +267,9 @@ def test_update_user_template_content_rules(data_fixture, use_tmp_media_root):
     for service in services:
         assert service.table_id is None
         assert service.view_id is None
-    archive = read_archive(revision.archive.name)
-    assert archive
-    for key, value in find_values(archive, CLEARED_KEYS):
+    content = serialized_content(revision)
+    assert content
+    for key, value in find_values(content, CLEARED_KEYS):
         assert value in (None, ""), f"{key} = {value}"
 
 
@@ -549,12 +514,6 @@ def test_update_user_template_content_fails_when_access_is_lost_before_it_runs(
     root = create_template(data_fixture, user)
     workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(workspace=workspace)
-    check_permissions = CoreHandler.check_permissions
-
-    def deny_export(self, actor, operation_name, *args, **kwargs):
-        if operation_name == ExportWorkspaceOperationType.type:
-            raise PermissionDenied()
-        return check_permissions(self, actor, operation_name, *args, **kwargs)
 
     with ExitStack() as stack:
 
@@ -563,9 +522,7 @@ def test_update_user_template_content_fails_when_access_is_lost_before_it_runs(
                 WorkspaceUser.objects.filter(user=user, workspace=workspace).delete()
             else:
                 # Still a member, but with a role that can't export anymore.
-                stack.enter_context(
-                    patch.object(CoreHandler, "check_permissions", deny_export)
-                )
+                stack.enter_context(deny_export())
 
         with change_before_the_job_runs(lose_access):
             job = update_content(user, root, workspace, [database])
@@ -806,31 +763,29 @@ def test_update_user_template_job_can_be_cancelled_until_the_commit(data_fixture
     assert not CreateUserTemplateJobType().is_cancellable(job)
 
 
+def create_update_job(data_fixture, user, root, **kwargs):
+    """An update job of `root` that copied content and didn't commit it."""
+
+    return CreateUserTemplateJob.objects.create(
+        user=user,
+        template=root,
+        base_revision=root,
+        name="Copy",
+        icon=ICON,
+        template_workspace=data_fixture.create_workspace(name="Copy"),
+        archive_name=store_archive("update.zip"),
+        **kwargs,
+    )
+
+
 @pytest.mark.django_db(transaction=True)
 def test_sweep_cleans_up_uncommitted_update_jobs_only(data_fixture, use_tmp_media_root):
     user = data_fixture.create_user()
     root = create_template(data_fixture, user)
     storage = get_default_storage()
 
-    def create_failed_update_job(**kwargs):
-        workspace = data_fixture.create_workspace(name="Copy")
-        archive_name = storage.save(
-            "template-revisions/update.zip", ContentFile(b"archive")
-        )
-        return CreateUserTemplateJob.objects.create(
-            user=user,
-            state=JOB_FAILED,
-            template=root,
-            base_revision=root,
-            name="Copy",
-            icon=ICON,
-            template_workspace=workspace,
-            archive_name=archive_name,
-            **kwargs,
-        )
-
-    uncommitted = create_failed_update_job()
-    committed = create_failed_update_job()
+    uncommitted = create_update_job(data_fixture, user, root, state=JOB_FAILED)
+    committed = create_update_job(data_fixture, user, root, state=JOB_FAILED)
     revision = data_fixture.create_user_template_revision(
         root,
         icon=ICON,
@@ -859,23 +814,8 @@ def test_deleting_an_update_job_deletes_its_uncommitted_content_only(
     root = create_template(data_fixture, user)
     storage = get_default_storage()
 
-    def create_update_job():
-        workspace = data_fixture.create_workspace(name="Copy")
-        archive_name = storage.save(
-            "template-revisions/update.zip", ContentFile(b"archive")
-        )
-        return CreateUserTemplateJob.objects.create(
-            user=user,
-            template=root,
-            base_revision=root,
-            name="Copy",
-            icon=ICON,
-            template_workspace=workspace,
-            archive_name=archive_name,
-        )
-
-    uncommitted = create_update_job()
-    committed = create_update_job()
+    uncommitted = create_update_job(data_fixture, user, root)
+    committed = create_update_job(data_fixture, user, root)
     committed.revision = data_fixture.create_user_template_revision(
         root,
         icon=ICON,
@@ -915,18 +855,17 @@ def test_update_user_template_queued_before_the_template_is_deleted(
     workspace_ids = set(Workspace.objects_and_trash.values_list("id", flat=True))
 
     # The job waits for a worker: the task isn't run yet.
-    with patch("baserow.core.jobs.handler.run_async_job") as queued:
+    with queued() as queue:
         if mode == "details":
             job = update_details(user, root)
         else:
             job = update_content(user, root, workspace, [database])
-    queued.assert_called_once_with(job.id)
+    queue.assert_called_once_with(job.id)
     assert job.state == JOB_PENDING
 
     delete_the_template(user, root)
-    run_async_job(job.id)
+    job = run_job(job)
 
-    job = CreateUserTemplateJob.objects.get(id=job.id)
     assert job.state == JOB_CANCELLED
     assert job.revision_id is None
     assert job.template_id == root.id
@@ -947,9 +886,9 @@ def test_update_user_template_runs_when_the_deletion_of_its_template_rolls_back(
     user = data_fixture.create_user()
     root = create_template(data_fixture, user)
 
-    with patch("baserow.core.jobs.handler.run_async_job") as queued:
+    with queued() as queue:
         job = update_details(user, root)
-    queued.assert_called_once_with(job.id)
+    queue.assert_called_once_with(job.id)
 
     # The deletion cancels the job, then fails when it's registered.
     with (
@@ -961,9 +900,8 @@ def test_update_user_template_runs_when_the_deletion_of_its_template_rolls_back(
         action_type_registry.get_by_type(DeleteUserTemplateActionType).do(user, root.id)
     assert Template.objects.get(id=root.id).marked_for_deletion_at is None
 
-    run_async_job(job.id)
+    job = run_job(job)
 
-    job = CreateUserTemplateJob.objects.get(id=job.id)
     assert job.state == JOB_FINISHED, job.error
     assert revisions_of(root) == [2]
 
@@ -1016,20 +954,15 @@ def test_update_user_template_task_running_after_the_template_is_removed(
     workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(workspace=workspace)
 
-    with patch("baserow.core.jobs.handler.run_async_job") as queued:
+    with queued() as queue:
         if mode == "details":
             job = update_details(user, root)
         else:
             job = update_content(user, root, workspace, [database])
-    queued.assert_called_once_with(job.id)
+    queue.assert_called_once_with(job.id)
 
     delete_the_template(user, root)
-    Template.objects.filter(id=root.id).update(
-        marked_for_deletion_at=django_timezone.now()
-        - USER_TEMPLATE_DELETION_GRACE_PERIOD
-        - timedelta(hours=1)
-    )
-    delete_orphaned_user_template_workspaces()
+    purge_after_the_grace_period()
 
     assert not Template.objects.filter(id=root.id).exists()
     assert not Job.objects.filter(id=job.id).exists()

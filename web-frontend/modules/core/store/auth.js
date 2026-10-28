@@ -225,6 +225,9 @@ export const actions = {
     await dispatch('workspace/clearAll', {}, { root: true })
     await dispatch('workspace/unselect', {}, { root: true })
     await dispatch('job/clearAll', {}, { root: true })
+    // The install toasts belong to the user's jobs, so a finished one must not
+    // stay for the next user.
+    await dispatch('toast/removeType', 'installTemplate', { root: true })
     await dispatch('notification/reset', {}, { root: true })
     commit('CLEAR_USER_DATA')
   },
