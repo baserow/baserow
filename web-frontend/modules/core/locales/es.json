@@ -107,7 +107,9 @@
         "title": "Invitación",
         "message": "{by} te ha invitado a unirte a {workspace}.",
         "reject": "Rechazar",
-        "accept": "Aceptar"
+        "accept": "Aceptar",
+        "emailNotVerified": "Verifica tu dirección de correo electrónico para aceptar esta invitación, o abre el enlace del correo de invitación.",
+        "sendVerificationEmail": "Enviar correo electrónico de verificación"
     },
     "workspaceMemberModal": {
         "membersModalTitle": "{group} miembros",
@@ -242,7 +244,7 @@
         "title": "Tablero",
         "alertTitle": "¡Necesitamos tu ayuda!",
         "alertText": "Al compartir Baserow, nos ayudas a mejorar el producto y a hacerlo más útil para ti.",
-        "tweetContent": "¡Eche un vistazo a {'@'}baserow, una herramienta de base de datos sin código de código abierto y una alternativa a Airtable!",
+        "tweetContent": "¡Prueba {'@'}baserow, una herramienta de base de datos de código abierto sin código y alternativa a Airtable!",
         "redditTitle": "'Baserow: una base de datos sin código de código abierto",
         "noWorkspaceTitle": "No se encontraron grupos",
         "noWorkspaceText": "No eres miembro de ningún grupo. Las aplicaciones, como las bases de datos, pertenecen a un grupo, por lo que, para crearlas, debe crear un grupo.",
@@ -505,7 +507,8 @@
         "errorJobAlreadyRunningTitle": "Ya está corriendo",
         "errorJobCannotBeCancelledTitle": "No se pudo anular",
         "errorJobCannotBeCancelledDescription": "No es posible cancelar el trabajo porque ya se ha completado.\nPor favor, borra la primera instantánea de la lista para eliminarla.",
-        "stateCanceled": "Cancelado"
+        "stateCanceled": "Cancelado",
+        "errorJobCannotBeCancelledGenericDescription": "No es posible cancelar el trabajo porque ya se ha completado."
     },
     "datetime": {
         "daysAgo": "Hace 0 días | Hace 1 día | Hace {n} días",
@@ -519,7 +522,11 @@
     },
     "InstallTemplateJobType": {
         "installing": "Instalando",
-        "installedTitle": "Plantilla instalada"
+        "installedTitle": "Plantilla instalada",
+        "installedMessage": "{name} se instaló correctamente",
+        "failedTitle": "{name} no se pudo instalar",
+        "installingTitle": "Instalando {name}",
+        "dismiss": "Descartar"
     },
     "duplicateApplicationJobType": {
         "duplicatedTitle": "Aplicación duplicada",
@@ -544,8 +551,12 @@
                 "remove": "Quitar del espacio de trabajo",
                 "copyEmail": "Copiar correo electrónico"
             },
-            "title": "{userAmount} Miembros en {workspaceName}",
-            "inviteMember": "Invitar a un miembro"
+            "title": "{userAmount} miembros en {workspaceName}",
+            "inviteMember": "Invitar a miembros",
+            "emptyDescription": "Invita a personas a colaborar en este espacio de trabajo. Elige un rol para cada persona para controlar qué pueden ver y editar.",
+            "pendingInvitations": "Invitaciones pendientes ({count})",
+            "emptyTitle": "Aún no hay miembros",
+            "search": "Buscar miembros"
         },
         "invitesTable": {
             "columns": {
@@ -622,7 +633,7 @@
         "content": "Parece que no tienes permiso de ver este recurso."
     },
     "restoreToast": {
-        "restore": "Restaurar {type} borrado"
+        "restore": "Restaurar {type} eliminado"
     },
     "undoRedoToast": {
         "undoneText": "La acción está deshecha",
@@ -672,7 +683,7 @@
         "paddingTop": "Acolchado superior"
     },
     "workspaceInvitationAcceptedNotification": {
-        "title": "{sender} ha aceptado su invitación para unirse a {workspaceName}",
+        "title": "{sender} ha aceptado tu invitación a unirse a {workspaceName}",
         "deletedUser": "Un usuario eliminado"
     },
     "workspaceInvitationCreatedNotification": {
@@ -698,7 +709,7 @@
         "clickOrDrop": "Haz clic o suelta tus archivos aquí",
         "errorTooManyFilesTitle": "Demasiados archivos",
         "errorWrongFileTypeTitle": "Tipo de archivo incorrecto",
-        "errorWrongFileTypeMessage": "No se puede cargar un archivo de tipo {type}"
+        "errorWrongFileTypeMessage": "No puedes subir un archivo de tipo {type}"
     },
     "connectingToast": {
         "content": "Intentando restablecer actualizaciones en tiempo real.",
@@ -715,7 +726,7 @@
         "notFound": "No se encontraron usuarios"
     },
     "workspaceInvitationRejectedNotification": {
-        "title": "{sender} ha rechazado su invitación para unirse a {workspaceName}",
+        "title": "{sender} ha rechazado tu invitación a unirse a {workspaceName}",
         "deletedUser": "Un usuario eliminado"
     },
     "versionUpgradeNotification": {
@@ -1586,7 +1597,8 @@
         "agents": "Agentes",
         "user": "Usuario",
         "users": "Usuarios",
-        "anonymousUser": "Usuario anónimo"
+        "anonymousUser": "Usuario anónimo",
+        "members": "Miembros"
     },
     "abuseReportCreatedNotification": {
         "title": "{resourceName} ha sido reportado por abuso por {reporterEmail}",
@@ -1607,10 +1619,15 @@
         "updateTitle": "Editar agente",
         "edit": "Editar agente",
         "createTitle": "Crear agente",
-        "save": "Guardar agente",
+        "save": "Guardar cambios",
         "tabTitle": "Agentes",
         "general": "General",
-        "name": "Nombre"
+        "name": "Nombre",
+        "emptyDescription": "Crea un agente para conectar herramientas de IA a tu espacio de trabajo. Elige su rol y sus equipos para controlar a qué puede acceder.",
+        "roleHelpText": "Empieza con «Sin acceso», luego concede acceso a bases de datos, tablas o vistas específicas según sea necesario.",
+        "emptyTitle": "Aún no hay agentes",
+        "search": "Buscar agentes",
+        "new": "Nuevo"
     },
     "academy": {
         "learnMore": "Aprende más en la academia de Baserow"
@@ -1670,7 +1687,12 @@
         "connectedApps": "Aplicaciones conectadas",
         "expired": "Sesión cerrada",
         "connectedOn": "Conectado el {date}",
-        "disconnect": "Desconectar"
+        "disconnect": "Desconectar",
+        "editToolsDescription": "Elige qué puede hacer en {workspace}. La aplicación recibe el cambio en su próxima solicitud, sin necesidad de volver a iniciar sesión.",
+        "toolsOff": "{count} herramienta desactivada | {count} herramientas desactivadas",
+        "editToolsTitle": "Herramientas para {client}",
+        "editTools": "Editar herramientas",
+        "saveTools": "Guardar"
     },
     "mcpAuthorize": {
         "loopbackWarning": "Esta aplicación inicia sesión a través de tu propia computadora. Cualquier programa en ella podría usar este nombre, así que solo continúa si tú acabas de iniciar el inicio de sesión.",
@@ -1708,16 +1730,163 @@
         "linkTitle": "Invita miembros con un enlace",
         "emailTitle": "Invitar a los miembros por correo electrónico",
         "emailRoute": "Invitación por correo electrónico",
-        "linkRoute": "Crear enlace"
+        "linkRoute": "Crear enlace",
+        "pendingEmptyDescription": "Las invitaciones aparecen aquí hasta que son aceptadas.",
+        "pendingEmptyTitle": "No hay invitaciones pendientes.",
+        "backTo": "Volver a {level}: {title}",
+        "pendingTitle": "Invitaciones pendientes"
     },
     "templateInstall": {
         "copyLink": "Copiar enlace para compartir",
         "use": "Usar esta plantilla",
         "selectWorkspace": "Elegir espacio de trabajo",
-        "more": "Más"
+        "more": "Más",
+        "noWorkspaceAskInvite": "No eres miembro de ningún espacio de trabajo. Una plantilla se instala en un espacio de trabajo, por lo que primero deberás ser invitado a un espacio de trabajo por un administrador.",
+        "noWorkspace": "Una plantilla se instala en un espacio de trabajo. Crea primero un espacio de trabajo, luego instala la plantilla en él.",
+        "workspaceNoPermission": "No tienes permiso para añadir aplicaciones a este espacio de trabajo.",
+        "createWorkspace": "Crear espacio de trabajo"
     },
     "templateDetails": {
         "back": "Volver a Plantillas",
-        "contents": "Qué hay dentro"
+        "contents": "Qué hay dentro",
+        "updateContent": "Actualizar el contenido de la plantilla",
+        "editDetails": "Editar detalles",
+        "delete": "Eliminar"
+    },
+    "updateUserTemplateModal": {
+        "invalidKeptDetails": "El ícono o una categoría de la plantilla ya no se pueden usar. Cámbialos primero con «Editar detalles», luego actualiza el contenido.",
+        "contentDescription": "Reemplaza el contenido de tu plantilla con aplicaciones de uno de tus espacios de trabajo. Sus detalles, enlace y acceso permanecen igual.",
+        "detailsDescription": "Cambia cómo se presenta tu plantilla. El contenido de la plantilla permanece igual.",
+        "cannotBeCancelled": "No es posible cancelar, porque la plantilla ya se ha actualizado.",
+        "failedAfterUpdated": "La plantilla se actualizó, pero algo salió mal después.",
+        "detailsTitle": "Editar plantilla",
+        "contentTitle": "Actualizar contenido",
+        "save": "Guardar cambios",
+        "update": "Actualizar plantilla",
+        "updated": "Plantilla actualizada"
+    },
+    "userTemplateContentForm": {
+        "noticeReferences": "Conexiones a bases de datos que no están incluidas. Los orígenes de datos, filtros y disparadores que las usan deben configurarse de nuevo.",
+        "noticePeople": "Personas: valores de campos de colaborador, asignaciones de roles y el usuario con el que se ejecutan las actualizaciones automáticas de campos de IA.",
+        "noticePasswords": "Valores de campos de contraseña en tus tablas, incluyendo las contraseñas de los usuarios de tu aplicación.",
+        "noticeSecrets": "La mayoría de contraseñas, tokens y claves de API de integraciones y sincronizaciones de datos.",
+        "selectedApplications": "0 aplicaciones seleccionadas | 1 aplicación seleccionada | {count} aplicaciones seleccionadas",
+        "workspaceNoPermission": "No tienes permiso para copiar este espacio de trabajo.",
+        "workspaceEmpty": "No hay nada que copiar en este espacio de trabajo.",
+        "noticeRest": "Todo lo demás se comparte tal como está.",
+        "noticeTitle": "Qué no se copia",
+        "noticePersonalViews": "Vistas personales.",
+        "applications": "Contenido",
+        "workspace": "Espacio de trabajo"
+    },
+    "userTemplateList": {
+        "noContent": "Una plantilla se crea a partir del contenido de un espacio de trabajo. Añade primero una base de datos, una aplicación o una automatización.",
+        "emptyDescription": "Convierte tu trabajo en una plantilla que puedes previsualizar y compartir más adelante.",
+        "noWorkspace": "Una plantilla se crea a partir de un espacio de trabajo. Crea o únete a un espacio de trabajo primero.",
+        "count": "0 plantillas | 1 plantilla | {count} plantillas",
+        "emptyTitle": "Todavía no has creado ninguna plantilla",
+        "errorDescription": "Algo salió mal al cargar tus plantillas.",
+        "errorTitle": "Tus plantillas no se pudieron cargar",
+        "usedTimes": "{count} vez | {count} veces",
+        "updateContent": "Actualizar el contenido de la plantilla",
+        "lastUpdated": "Última actualización",
+        "title": "Tus plantillas",
+        "search": "Buscar plantillas",
+        "newTemplate": "Nueva plantilla",
+        "name": "Nombre",
+        "stateInReview": "En revisión",
+        "editDetails": "Editar detalles",
+        "actions": "Acciones",
+        "retry": "Reintentar",
+        "statePublic": "Público",
+        "stateBlocked": "Bloqueado",
+        "stateRejected": "Rechazado",
+        "statePrivate": "Privado",
+        "visibility": "Visibilidad",
+        "used": "Usado",
+        "delete": "Eliminar"
+    },
+    "deleteUserTemplateModal": {
+        "description": "La plantilla se elimina para todos en esta instancia. Las copias que las personas ya hayan instalado en sus espacios de trabajo no se ven afectadas.",
+        "title": "¿Estás seguro de que quieres eliminar \"{name}\"?",
+        "delete": "Eliminar plantilla"
+    },
+    "inviteInput": {
+        "alreadyInvited": "Ya hay una invitación pendiente. \nPuedes cambiar su rol en la página de Invitaciones en lugar de invitar de nuevo.",
+        "batchLimitExceeded": "Puedes invitar hasta {limit} direcciones de correo electrónico a la vez. Elimina las direcciones adicionales para continuar.",
+        "roleNotForEmails": "No se puede invitar a alguien nuevo con el rol {role}",
+        "noResults": "Escribe una dirección de correo electrónico completa para invitar a alguien.",
+        "alreadyMember": "Ya es miembro de este espacio de trabajo",
+        "inviteEmailDescription": "Se une al espacio de trabajo como {role}",
+        "placeholder": "Escribe o pega direcciones de correo electrónico",
+        "inviteAs": "Invitar a {count} como {role}",
+        "inviteEmail": "Invitar a {email}",
+        "invitedHint": "Invitado",
+        "memberHint": "Miembro",
+        "tabAll": "Todo",
+        "invite": "Invitar"
+    },
+    "createUserTemplateModal": {
+        "contentDescription": "Elige el espacio de trabajo del que tomar el contenido, luego elige qué debe incluir la plantilla.",
+        "cannotBeCancelled": "No es posible cancelar, porque la plantilla ya se ha creado.",
+        "detailsDescription": "Guarda una copia reutilizable de tu trabajo como plantilla privada.",
+        "failedAfterCreated": "La plantilla se creó, pero algo salió mal después.",
+        "contentTitle": "Elegir el contenido de la plantilla",
+        "detailsTitle": "Nueva plantilla",
+        "create": "Crear plantilla",
+        "continue": "Continuar"
+    },
+    "crudTable": {
+        "noResults": "No se encontraron resultados. Intenta ajustar tu búsqueda o filtros.",
+        "emptyPage": "No hay resultados en esta página.",
+        "empty": "Aún no hay elementos",
+        "collapseRow": "Contraer detalles de la fila",
+        "expandRow": "Expandir detalles de la fila",
+        "rowActions": "Acciones de fila"
+    },
+    "templateEmptyState": {
+        "noResultsDescription": "No hay plantillas que coincidan con \"{query}\". Prueba con otra búsqueda.",
+        "noResultsTitle": "No se encontraron plantillas"
+    },
+    "userTemplateDetailsForm": {
+        "descriptionPlaceholder": "¿Para qué sirve esta plantilla?",
+        "categoriesRequired": "Elige al menos una categoría.",
+        "nameRequired": "Se requiere un nombre.",
+        "chooseIcon": "Elegir un icono",
+        "namePlaceholder": "Nombre de la plantilla",
+        "categories": "Categorías",
+        "name": "Nombre",
+        "description": "Descripción"
+    },
+    "mcpToolPicker": {
+        "noTools": "No hay herramientas disponibles.",
+        "tools": "Qué puede hacer",
+        "automationRead": "Leer flujos de trabajo y nodos",
+        "databaseRead": "Leer tablas y filas",
+        "automationEdit": "Crear y cambiar",
+        "databaseEdit": "Crear y cambiar",
+        "readOnly": "Solo lectura",
+        "fullAccess": "Acceso total",
+        "areaAutomation": "Automatizaciones",
+        "automationDelete": "Eliminar",
+        "databaseDelete": "Eliminar",
+        "areaDatabase": "Bases de datos",
+        "overwrites": "Sobrescribe",
+        "deletes": "Elimina",
+        "none": "Ninguno"
+    },
+    "templateIconSelectContext": {
+        "noResults": "No se encontraron iconos",
+        "search": "Buscar iconos"
+    },
+    "createUserTemplateJobType": {
+        "name": "Crear plantilla"
+    },
+    "templateModal": {
+        "officialTemplates": "Plantillas oficiales",
+        "yourTemplates": "Tus plantillas"
+    },
+    "managementPages": {
+        "you": "Tú"
     }
 }
