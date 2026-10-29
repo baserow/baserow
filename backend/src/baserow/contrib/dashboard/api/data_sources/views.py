@@ -17,6 +17,9 @@ from baserow.api.utils import (
     CustomFieldRegistryMappingSerializer,
     DiscriminatorCustomFieldsMappingSerializer,
 )
+from baserow.contrib.dashboard.api.data_sources.serializers import (
+    DashboardDispatchSerializer,
+)
 from baserow.contrib.dashboard.api.errors import ERROR_DASHBOARD_DOES_NOT_EXIST
 from baserow.contrib.dashboard.application_types import DashboardApplicationType
 from baserow.contrib.dashboard.data_sources.actions import (
@@ -217,7 +220,7 @@ class DispatchDashboardDataSourceView(APIView):
         description=(
             "Dispatches the service of the related data source and returns the result."
         ),
-        request=None,
+        request=DashboardDispatchSerializer,
         responses={
             404: get_error_schema(
                 [
@@ -249,8 +252,15 @@ class DispatchDashboardDataSourceView(APIView):
 
         data_source_service = DashboardDataSourceService()
         data_source = data_source_service.handler.get_data_source(data_source_id)
+        serializer = DashboardDispatchSerializer(
+            data=request.data, context={"dashboard": data_source.dashboard}
+        )
+        serializer.is_valid(raise_exception=True)
         dispatch_context = DashboardDispatchContext(
-            request, data_source.dashboard.workspace
+            request,
+            data_source.dashboard.workspace,
+            dashboard=data_source.dashboard,
+            data=serializer.validated_data,
         )
         response = data_source_service.dispatch_data_source(
             request.user, data_source_id, dispatch_context

@@ -1,0 +1,18 @@
+.dashboard-text-filter-widget {
+  padding: 16px;
+  min-height: 0;
+}
+
+.dashboard-text-filter-widget__input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid $palette-neutral-400;
+  border-radius: 4px;
+  background: $palette-neutral-0;
+  color: $palette-neutral-900;
+
+  &:focus {
+    outline: 2px solid $palette-blue-500;
+    outline-offset: 1px;
+  }
+}

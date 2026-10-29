@@ -18,6 +18,7 @@
 </template>
 
 <script>
+import { computed } from 'vue'
 import DashboardHeader from '@baserow/modules/dashboard/components/DashboardHeader'
 import DashboardContent from '@baserow/modules/dashboard/components/DashboardContent'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -25,6 +26,9 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 export default {
   name: 'Dashboard',
   components: { DashboardHeader, DashboardContent },
+  provide() {
+    return { storePrefix: computed(() => this.storePrefix) }
+  },
   props: {
     dashboard: {
       type: Object,

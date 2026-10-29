@@ -134,7 +134,7 @@
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
-import SidebarExpandable from '@baserow/modules/builder/components/SidebarExpandable.vue'
+import SidebarExpandable from '@baserow/modules/core/components/SidebarExpandable.vue'
 import { uuid } from '@baserow/modules/core/utils/string'
 
 export default {

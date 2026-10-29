@@ -1,9 +1,13 @@
+import { WidgetDataProviderType } from '@baserow/modules/dashboard/dataProviderTypes'
 import { DashboardSearchType } from '@baserow/modules/dashboard/searchTypes'
 import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 import dashboardApplicationStore from '@baserow/modules/dashboard/store/dashboardApplication'
 import { DashboardApplicationType } from '@baserow/modules/dashboard/applicationTypes'
 import { DashboardLastViewedItemType } from '@baserow/modules/dashboard/lastViewedItemTypes'
-import { SummaryWidgetType } from '@baserow/modules/dashboard/widgetTypes'
+import {
+  SummaryWidgetType,
+  TextFilterWidgetType,
+} from '@baserow/modules/dashboard/widgetTypes'
 
 export default defineNuxtPlugin({
   name: 'dashboard',
@@ -23,6 +27,11 @@ export default defineNuxtPlugin({
       )
     }
 
+    $registry.registerNamespace('dashboardDataProvider')
+    $registry.register(
+      'dashboardDataProvider',
+      new WidgetDataProviderType(context)
+    )
     $registry.registerNamespace('dashboardWidget')
     $registry.register('application', new DashboardApplicationType(context))
     $registry.register(
@@ -30,6 +39,7 @@ export default defineNuxtPlugin({
       new DashboardLastViewedItemType(context)
     )
     $registry.register('dashboardWidget', new SummaryWidgetType(context))
+    $registry.register('dashboardWidget', new TextFilterWidgetType(context))
 
     searchTypeRegistry.register(new DashboardSearchType(context))
   },
