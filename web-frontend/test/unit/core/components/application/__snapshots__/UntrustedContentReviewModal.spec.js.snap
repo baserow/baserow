@@ -1,0 +1,34 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`shows the import snapshot and enables content only after confirmation 1`] = `
+"<ul class="untrusted-content-report">
+  <li class="untrusted-content-report__item"><i class="untrusted-content-report__icon iconoir-internet" aria-hidden="true"></i>
+    <div class="untrusted-content-report__body">
+      <div class="untrusted-content-report__title">untrustedContentReviewModal.typeIframe
+        <!--v-if-->
+      </div>
+      <div class="untrusted-content-report__detail">untrustedContentReviewModal.page</div>
+      <!--v-if-->
+      <p class="untrusted-content-report__risk">untrustedContentReviewModal.riskIframe</p>
+    </div>
+  </li>
+  <li class="untrusted-content-report__item"><i class="untrusted-content-report__icon iconoir-code" aria-hidden="true"></i>
+    <div class="untrusted-content-report__body">
+      <div class="untrusted-content-report__title">untrustedContentReviewModal.typeCodeNode <span> — Transform data</span></div>
+      <!--v-if-->
+      <!--v-if-->
+      <p class="untrusted-content-report__risk">untrustedContentReviewModal.riskCode</p>
+    </div>
+  </li>
+  <li class="untrusted-content-report__item"><i class="untrusted-content-report__icon iconoir-code" aria-hidden="true"></i>
+    <div class="untrusted-content-report__body">
+      <div class="untrusted-content-report__title">untrustedContentReviewModal.typeScript
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+      <div class="untrusted-content-report__detail">https://example.com/a.js</div>
+      <p class="untrusted-content-report__risk">untrustedContentReviewModal.riskScript</p>
+    </div>
+  </li>
+</ul>"
+`;

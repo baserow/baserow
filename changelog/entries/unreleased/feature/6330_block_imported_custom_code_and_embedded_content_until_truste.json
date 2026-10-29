@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Block imported custom code and embedded content until trusted in apps and workflows",
+    "issue_origin": "github",
+    "issue_number": 6330,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-10-28"
+}

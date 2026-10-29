@@ -4,6 +4,9 @@
       {{ $t('publishActionModal.title') }}
     </h2>
     <Error :error="error"></Error>
+    <Alert v-if="builder.untrusted_content" type="warning">
+      {{ $t('untrustedContentReviewModal.publishBlocked') }}
+    </Alert>
 
     <template v-if="!hasVisibleError">
       <template v-if="domains.length">
@@ -73,9 +76,20 @@
       <div class="align-right">
         <Button
           v-if="domains.length"
+          v-tooltip:[publishTooltipOptions]="
+            builder.untrusted_content
+              ? $t('untrustedContentReviewModal.publishBlocked')
+              : null
+          "
+          tooltip-position="bottom-left"
           size="large"
           :loading="jobIsRunning || loading"
-          :disabled="loading || jobIsRunning || !selectedDomainId"
+          :disabled="
+            loading ||
+            jobIsRunning ||
+            !selectedDomainId ||
+            builder.untrusted_content
+          "
           @click="publishSite()"
         >
           {{ $t('publishActionModal.publish') }}
@@ -123,6 +137,9 @@ export default {
     return { selectedDomainId: null, loading: false, fetchingDomains: false }
   },
   computed: {
+    publishTooltipOptions() {
+      return { contentClasses: 'tooltip__content--expandable' }
+    },
     ...mapGetters({ domains: 'domain/getDomains' }),
     selectedDomain() {
       return this.domains.find((domain) => domain.id === this.selectedDomainId)

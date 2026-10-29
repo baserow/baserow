@@ -22,6 +22,7 @@ from baserow.contrib.builder.operations import (
     ListDomainsBuilderOperationType,
     OrderDomainsBuilderOperationType,
 )
+from baserow.core.exceptions import UntrustedContentCannotBePublished
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.operations import ReadApplicationOperationType
@@ -249,6 +250,9 @@ class DomainService:
             workspace=domain.builder.workspace,
             context=domain,
         )
+
+        if domain.builder.untrusted_content:
+            raise UntrustedContentCannotBePublished()
 
         job = JobHandler().create_and_start_job(
             user,

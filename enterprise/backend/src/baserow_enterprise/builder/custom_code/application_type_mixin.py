@@ -1,4 +1,5 @@
 from baserow.contrib.builder.models import Builder
+from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow_enterprise.builder.custom_code.models import BuilderCustomScript
 from baserow_enterprise.builder.custom_code.types import BuilderCustomCodeDict
 from baserow_enterprise.features import BUILDER_CUSTOM_CODE
@@ -140,6 +141,7 @@ class CustomCodeBuilderApplicationTypeMixin:
         files_zip=None,
         storage=None,
         progress_builder=None,
+        cache=None,
     ) -> BuilderCustomCodeDict:
         """
         Serializes the scripts and the custom_code properties.
@@ -151,6 +153,7 @@ class CustomCodeBuilderApplicationTypeMixin:
             files_zip=files_zip,
             storage=storage,
             progress_builder=progress_builder,
+            cache=cache,
         )
 
         scripts = [
@@ -169,6 +172,7 @@ class CustomCodeBuilderApplicationTypeMixin:
             custom_code={"css": builder.custom_code.css, "js": builder.custom_code.js},
         )
 
+    @deferred_callback_context()
     def import_serialized(
         self,
         workspace,
@@ -178,6 +182,7 @@ class CustomCodeBuilderApplicationTypeMixin:
         files_zip=None,
         storage=None,
         progress_builder=None,
+        cache=None,
     ) -> Builder:
         """
         Handles the scripts and the custom_code properties.
@@ -188,6 +193,8 @@ class CustomCodeBuilderApplicationTypeMixin:
             "custom_code", {"css": "", "js": ""}
         )
 
+        if cache is None:
+            cache = {}
         instance = super().import_serialized(
             workspace,
             serialized_values,
@@ -196,6 +203,7 @@ class CustomCodeBuilderApplicationTypeMixin:
             files_zip=files_zip,
             storage=storage,
             progress_builder=progress_builder,
+            cache=cache,
         )
 
         instance.custom_code.css = serialized_custom_code["css"]
@@ -204,4 +212,19 @@ class CustomCodeBuilderApplicationTypeMixin:
 
         self._create_scripts_in_bulk(instance, serialized_scripts)
 
+        report = cache.setdefault("import_report", [])
+        for code_type in ("css", "js"):
+            if serialized_custom_code.get(code_type):
+                report.append({"type": f"custom_{code_type}"})
+        for script in instance.scripts.all():
+            if script.url:
+                report.append(
+                    {
+                        "type": "external_stylesheet"
+                        if script.type == "stylesheet"
+                        else "external_script",
+                        "id": script.id,
+                        "url": script.url,
+                    }
+                )
         return instance

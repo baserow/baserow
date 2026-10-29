@@ -42,6 +42,10 @@ from baserow.core.db import specific_iterator
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
+from baserow.core.handler import CoreHandler
+from baserow.core.management.commands.export_workspace_applications import (
+    cli_import_export_config,
+)
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
@@ -2423,3 +2427,165 @@ def test_builder_export_passes_config_to_elements_and_theme(
     theme.refresh_from_db()
     assert element.value["formula"] == "Private"
     assert theme.heading_1_font_family is not None
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "config_values,expected_untrusted",
+    [
+        ({}, True),
+        ({"is_user_template": True}, True),
+        ({"is_user_template": True, "is_duplicate": True}, False),
+        ({"is_user_template": True, "is_publishing": True}, False),
+        ({"is_user_template": True, "is_template": True}, False),
+        ({"is_duplicate": True}, False),
+        ({"is_publishing": True}, False),
+        ({"is_template": True}, False),
+    ],
+)
+@pytest.mark.parametrize("already_untrusted", [False, True])
+@pytest.mark.parametrize("has_untrusted_content", [False, True])
+def test_application_content_trust_export_import(
+    data_fixture,
+    config_values,
+    expected_untrusted,
+    already_untrusted,
+    has_untrusted_content,
+):
+    """Only active external content needs consent; internal copies retain restrictions."""
+
+    builder = data_fixture.create_builder_application(
+        untrusted_content=already_untrusted
+    )
+    if has_untrusted_content:
+        page = data_fixture.create_builder_page(builder=builder)
+        data_fixture.create_builder_iframe_element(page=page)
+    expected_untrusted_on_import = expected_untrusted
+    expected_untrusted = (
+        has_untrusted_content if expected_untrusted else already_untrusted
+    )
+    config = ImportExportConfig(include_permission_data=False, **config_values)
+    application_type = BuilderApplicationType()
+    serialized = application_type.export_serialized(builder, config)
+    if expected_untrusted_on_import:
+        # An external import detects it again, so the file never carries it.
+        assert "untrusted_content" not in serialized
+    else:
+        assert serialized["untrusted_content"] is already_untrusted
+    builder.refresh_from_db()
+    assert builder.untrusted_content is already_untrusted
+
+    imported = application_type.import_serialized(
+        builder.workspace, serialized, config, {}
+    )
+    imported.refresh_from_db()
+    assert imported.untrusted_content is expected_untrusted
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("serialized_flag", [None, False])
+def test_external_import_cannot_bypass_content_restrictions(
+    data_fixture, serialized_flag
+):
+    """Both legacy files and files claiming trust need explicit installer consent."""
+
+    builder = data_fixture.create_builder_application()
+    page = data_fixture.create_builder_page(builder=builder)
+    data_fixture.create_builder_iframe_element(page=page)
+    application_type = BuilderApplicationType()
+    config = ImportExportConfig(include_permission_data=False)
+    serialized = application_type.export_serialized(builder, config)
+    if serialized_flag is None:
+        assert "untrusted_content" not in serialized
+    else:
+        serialized["untrusted_content"] = serialized_flag
+
+    imported = application_type.import_serialized(
+        builder.workspace, serialized, config, {}
+    )
+    assert imported.untrusted_content is True
+
+
+@pytest.mark.django_db
+def test_deferred_content_detection_is_isolated_per_builder(data_fixture):
+    """A later safe import/export cannot overwrite an earlier import's detection."""
+
+    from baserow.core.deferred_callbacks import deferred_callback_context
+
+    application_type = BuilderApplicationType()
+    config = ImportExportConfig(include_permission_data=False)
+    unsafe = data_fixture.create_builder_application()
+    page = data_fixture.create_builder_page(builder=unsafe)
+    data_fixture.create_builder_iframe_element(page=page)
+    safe = data_fixture.create_builder_application()
+    serialized_unsafe = application_type.export_serialized(unsafe, config)
+    serialized_safe = application_type.export_serialized(safe, config)
+    serialized_unsafe["untrusted_content"] = False
+
+    with deferred_callback_context():
+        imported_unsafe = application_type.import_serialized(
+            unsafe.workspace, serialized_unsafe, config, {}
+        )
+        imported_safe = application_type.import_serialized(
+            safe.workspace, serialized_safe, config, {}
+        )
+        application_type.export_serialized(safe, config)
+
+    assert imported_unsafe.untrusted_content is True
+    assert imported_safe.untrusted_content is False
+    imported_unsafe.refresh_from_db()
+    imported_safe.refresh_from_db()
+    assert imported_unsafe.untrusted_content is True
+    assert imported_safe.untrusted_content is False
+
+    from baserow.contrib.builder.elements.models import IFrameElement
+
+    imported_iframe = IFrameElement.objects.get(page__builder=imported_unsafe)
+    assert imported_unsafe.import_report == [
+        {
+            "type": "iframe",
+            "id": imported_iframe.id,
+            "page_id": imported_iframe.page_id,
+            "page_name": imported_iframe.page.name,
+        }
+    ]
+    assert imported_iframe.id != page.element_set.get().id
+    assert imported_safe.import_report == []
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "install_config_values",
+    [
+        # Template sync.
+        {"is_template": True, "reduce_disk_space_usage": True},
+        # Template install.
+        {"is_duplicate": True, "is_template": True},
+    ],
+)
+def test_official_template_with_active_content_installs_trusted(
+    data_fixture, install_config_values
+):
+    """
+    Official templates are written by `export_workspace_applications`, an external
+    export, and installed as internal copies that keep the trust of the file.
+    """
+
+    workspace = data_fixture.create_workspace()
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    data_fixture.create_builder_iframe_element(page=page)
+    exported = CoreHandler().export_workspace_applications(
+        workspace, files_buffer=BytesIO(), import_export_config=cli_import_export_config
+    )
+    assert "untrusted_content" not in exported[0]
+
+    applications, _ = CoreHandler().import_applications_to_workspace(
+        data_fixture.create_workspace(),
+        exported,
+        BytesIO(),
+        ImportExportConfig(include_permission_data=False, **install_config_values),
+    )
+
+    installed = Builder.objects.get(id=applications[0].id)
+    assert installed.untrusted_content is False

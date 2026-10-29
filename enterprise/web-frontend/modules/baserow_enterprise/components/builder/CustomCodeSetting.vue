@@ -1,19 +1,31 @@
 <template>
-  <CustomCodeSettingForm
-    ref="settingsForm"
-    :default-values="builder"
-    @values-changed="onValuesChanged"
-  />
+  <div>
+    <ApplicationUntrustedContentAlert
+      :content-owner="builder"
+      :compact="false"
+      :can-trust="
+        $hasPermission('application.update', builder, builder.workspace.id)
+      "
+      :trust-content="trustContent"
+      :message="$t('builderUntrustedContent.warning')"
+    />
+    <CustomCodeSettingForm
+      ref="settingsForm"
+      :default-values="builder"
+      @values-changed="onValuesChanged"
+    />
+  </div>
 </template>
 
 <script>
+import ApplicationUntrustedContentAlert from '@baserow/modules/core/components/application/ApplicationUntrustedContentAlert'
 import error from '@baserow/modules/core/mixins/error'
 import { isSubObject } from '@baserow/modules/core/utils/object'
 import CustomCodeSettingForm from '@baserow_enterprise/components/builder/CustomCodeSettingForm.vue'
 
 export default {
   name: 'CustomCodeSetting',
-  components: { CustomCodeSettingForm },
+  components: { CustomCodeSettingForm, ApplicationUntrustedContentAlert },
   mixins: [error],
   provide() {
     return {
@@ -33,6 +45,12 @@ export default {
     }
   },
   methods: {
+    trustContent() {
+      return this.$store.dispatch('application/update', {
+        application: this.builder,
+        values: { untrusted_content: false },
+      })
+    },
     async updateApplication(values) {
       if (!this.$refs.settingsForm.isFormValid(true)) {
         return

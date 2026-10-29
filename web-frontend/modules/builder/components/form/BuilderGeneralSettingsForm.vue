@@ -27,6 +27,17 @@
         />
       </Dropdown>
     </FormGroup>
+    <div class="margin-top-4">
+      <ApplicationUntrustedContentAlert
+        :content-owner="builder"
+        :compact="false"
+        :can-trust="
+          $hasPermission('application.update', builder, builder.workspace.id)
+        "
+        :trust-content="trustContent"
+        :message="$t('builderUntrustedContent.warning')"
+      />
+    </div>
   </form>
 </template>
 
@@ -34,10 +45,13 @@
 import { FAVICON_IMAGE_FILE_TYPES } from '@baserow/modules/core/enums'
 import DefaultFavicon from '@baserow/modules/core/static/img/favicon_192.png?url'
 
+import ApplicationUntrustedContentAlert from '@baserow/modules/core/components/application/ApplicationUntrustedContentAlert'
+
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
   name: 'BuilderGeneralSettingsForm',
+  components: { ApplicationUntrustedContentAlert },
   mixins: [form],
   props: {
     builder: {
@@ -47,7 +61,10 @@ export default {
   },
   data() {
     return {
-      values: { favicon_file: null, login_page_id: null },
+      values: {
+        favicon_file: null,
+        login_page_id: null,
+      },
       allowedValues: ['favicon_file', 'login_page_id'],
     }
   },
@@ -60,6 +77,14 @@ export default {
     },
     builderPages() {
       return this.$store.getters['page/getVisiblePages'](this.builder)
+    },
+  },
+  methods: {
+    trustContent() {
+      return this.$store.dispatch('application/update', {
+        application: this.builder,
+        values: { untrusted_content: false },
+      })
     },
   },
 }

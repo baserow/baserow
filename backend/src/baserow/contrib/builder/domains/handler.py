@@ -20,7 +20,7 @@ from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.cache import global_cache
 from baserow.core.db import specific_iterator
-from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.exceptions import IdDoesNotExist, UntrustedContentCannotBePublished
 from baserow.core.models import Workspace
 from baserow.core.psycopg import is_unique_violation_error
 from baserow.core.registries import ImportExportConfig, application_type_registry
@@ -265,6 +265,9 @@ class DomainHandler:
         domain = DomainHandler().get_domain(domain.id, for_update=True)
 
         builder = domain.builder
+        if builder.untrusted_content:
+            raise UntrustedContentCannotBePublished()
+
         workspace = builder.workspace
 
         # The pages of the previous publication stop being public, and the domain

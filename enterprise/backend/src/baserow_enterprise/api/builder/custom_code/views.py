@@ -65,7 +65,7 @@ class PublicCustomCodeView(APIView):
 
         builder = BuilderService().get_builder(request.user, builder_id)
 
-        if not LicenseHandler.workspace_has_feature(
+        if builder.untrusted_content or not LicenseHandler.workspace_has_feature(
             BUILDER_CUSTOM_CODE, builder.get_workspace()
         ):
             return HttpResponse("Not found", status=404)

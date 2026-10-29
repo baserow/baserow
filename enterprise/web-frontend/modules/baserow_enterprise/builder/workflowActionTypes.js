@@ -9,6 +9,13 @@ export class CoreCodeWorkflowActionType extends WorkflowActionServiceType {
     return 'code'
   }
 
+  getErrorMessage(workflowAction, applicationContext) {
+    if (applicationContext.builder?.untrusted_content) {
+      return this.app.$i18n.t('builderUntrustedContent.warning')
+    }
+    return super.getErrorMessage(workflowAction, applicationContext)
+  }
+
   get serviceType() {
     return this.app.$registry.get('service', CoreCodeServiceType.getType())
   }

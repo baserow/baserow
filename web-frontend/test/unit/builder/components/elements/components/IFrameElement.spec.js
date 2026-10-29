@@ -5,10 +5,11 @@ describe('IFrameElement', () => {
   const mountComponent = (
     mode,
     elementValues = {},
-    applicationContextMode = mode
+    applicationContextMode = mode,
+    untrustedContent = false
   ) => {
     const page = {}
-    const builder = { id: 1, theme: {} }
+    const builder = { id: 1, theme: {}, untrusted_content: untrustedContent }
     const element = {
       id: 1,
       type: 'iframe',
@@ -164,4 +165,23 @@ describe('IFrameElement', () => {
 
     expect(wrapper.find('iframe').element).toMatchSnapshot()
   })
+  test.each(['editing', 'preview', 'public'])(
+    'blocks embedded HTML and URL iframes in %s mode',
+    async (mode) => {
+      for (const source_type of ['embed', 'url']) {
+        const wrapper = await mountComponent(
+          mode,
+          {
+            source_type,
+            url: { formula: '"https://example.com"' },
+            allow_same_origin: true,
+          },
+          mode,
+          true
+        )
+        expect(wrapper.html()).toMatchSnapshot()
+        expect(wrapper.find('iframe').exists()).toBe(false)
+      }
+    }
+  )
 })

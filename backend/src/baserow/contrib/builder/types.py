@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, TypedDict
+from typing import Dict, List, NotRequired, Optional, TypedDict
 
 from baserow.contrib.builder.pages.types import PagePathParams, PageQueryParams
 from baserow.core.formula import BaserowFormulaObject
@@ -69,6 +69,8 @@ class PageDict(TypedDict):
 
 
 class BuilderDict(TypedDict):
+    # Only internal copies carry it, see the export.
+    untrusted_content: NotRequired[bool]
     id: int
     name: str
     order: int

@@ -330,3 +330,7 @@ class DeadlockException(OperationalError):
     """
 
     message = "The database failed to commit the transaction due to a deadlock."
+
+
+class UntrustedContentCannotBePublished(Exception):
+    """Content must be reviewed and trusted before publication."""
