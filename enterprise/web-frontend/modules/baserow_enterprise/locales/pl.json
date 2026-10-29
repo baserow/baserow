@@ -23,7 +23,7 @@
         "roleTitle": "Domyślna rola",
         "inviteMembers": "Dodaj członków",
         "membersTitle": "Członkowie",
-        "noSubjectsSelected": "Kliknij \"{buttonLabel}\", aby opcjonalnie dodać użytkowników do zespołu.",
+        "noSubjectsSelected": "Nikt nie ma jeszcze dostępu przez ten zespół.",
         "roleHelpText": "Indywidualne role są zawsze nadrzędne w stosunku do ról w zespołach.",
         "submit": "Zapisz"
     },

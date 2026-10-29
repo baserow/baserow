@@ -630,7 +630,7 @@
         "back": "volver al tablero"
     },
     "viewAggregationType": {
-        "emptyCount": "{Empty}",
+        "emptyCount": "(Vacío)",
         "notEmptyCount": "Lleno",
         "emptyPercentage": "Porcentaje vacío",
         "notEmptyPercentage": "Porcentaje lleno",

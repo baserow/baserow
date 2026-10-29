@@ -73,7 +73,7 @@
         "roleTitle": "デフォルトのロール",
         "inviteMembers": "メンバーを追加",
         "membersTitle": "メンバー",
-        "noSubjectsSelected": "必要に応じてチームにユーザーを追加するには、「{buttonLabel}」をクリックしてください。",
+        "noSubjectsSelected": "このチームを通じてアクセスできるユーザーはまだいません。",
         "roleHelpText": "ユーザー個別のロールは、常にチームのロールより優先されます。"
     },
     "editTeamContext": {

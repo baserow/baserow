@@ -45,7 +45,7 @@ exports[`teamSubjects > shows agents in the member selector with purple initials
         <!--v-if-->
       </button></div>
     <div class="col col-6 align-right"><button class="button button--regular" disabled="">
-        <!--v-if--><span class="button__label">memberAssignmentModalFooter.invite</span>
+        <!--v-if--><span class="button__label">memberAssignmentModalFooter.invite - 0</span>
         <!--v-if-->
       </button></div>
   </div>

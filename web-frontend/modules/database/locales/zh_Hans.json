@@ -459,7 +459,7 @@
     },
     "shareViewLink": {
         "shareView": "分享 {viewTypeSharingLinkName}",
-        "shareViewTitle": "创建一个指向 {viewTypeSharingLinkName} 的私有共享链接",
+        "shareViewTitle": "您尚未共享此视图",
         "sharedViewTitle": "此 {viewTypeSharingLinkName} 目前通过私人链接共享",
         "sharedViewDescription": "知道链接的人可以看到 {viewTypeSharingLinkName}。",
         "disableLink": "禁用共享链接",

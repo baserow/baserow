@@ -512,7 +512,7 @@
     },
     "shareViewLink": {
         "shareView": "Deel {viewTypeSharingLinkName}",
-        "shareViewTitle": "Maak een deelbare privé-link naar de {viewTypeSharingLinkName}",
+        "shareViewTitle": "Je hebt de weergave nog niet gedeeld",
         "sharedViewTitle": "Deze {viewTypeSharingLinkName} wordt momenteel gedeeld via een privé-link",
         "sharedViewDescription": "Mensen die de link hebben kunnen de {viewTypeSharingLinkName} zien.",
         "disableLink": "gedeelde link uitschakelen",

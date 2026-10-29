@@ -353,7 +353,7 @@
         "supportPairingHeading": "2. Koppelen met je Slack-app",
         "supportPairingStep1": "Als je app nieuw is: ga naar 'Settings' > 'Install App'. Klik op de groene knop om de app op je werkruimte te installeren.",
         "supportPairingStep2": "Kopieer uw 'Bot Gebruiker OAuth Token' en sla deze op in het veld 'Bot Gebruiker Token' in dit formulier.",
-        "supportPairingStep3": "Tot slot, als je app nieuw is: nodig in Slack je app uit voor het door jou gekozen kanaal met &lt;pre&gt;/invite {'@'}yourAppName yourChannel&lt;/pre&gt;",
+        "supportPairingStep3": "Tot slot, als je app nieuw is: nodig in Slack je app uit voor het door jou gekozen kanaal met {command}",
         "tokenKeepPlaceholder": "Laat leeg om het opgeslagen token te behouden",
         "tokenConfigured": "Er is een token opgeslagen. Laat leeg om het te behouden.",
         "supportSetupStep1Link": "apps pagina"
