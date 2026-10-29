@@ -1,0 +1,313 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`summary sources expose the shared filter control and save permanent conditions 1`] = `
+"<div>
+  <form class="widget-settings-base-form">
+    <div class="form-section">
+      <div class="form-section__title-container">
+        <!--v-if-->
+        <div></div>
+      </div>
+      <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-0" class="control__label control__label--small"><span>widgetSettings.title</span>
+          <!--v-if-->
+          <!--v-if-->
+          <!--v-if-->
+        </label>
+        <div class="control__wrapper">
+          <div class="control__elements">
+            <div class="control__elements-wrapper">
+              <div class="form-input">
+                <!--v-if-->
+                <div class="form-input__wrapper"><input id="v-0-0-0" class="form-input__input" type="text" min="false" max="false" step="false" placeholder="widgetSettings.title" autocomplete="" value="Total">
+                  <!--v-if-->
+                  <!--v-if-->
+                </div>
+                <!--v-if-->
+              </div>
+            </div>
+            <!--v-if-->
+          </div>
+          <!--v-if-->
+        </div>
+      </div>
+      <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-1" class="control__label control__label--small"><span>widgetSettings.description</span><span class="control__required">common.optional</span>
+          <!--v-if-->
+          <!--v-if-->
+        </label>
+        <div class="control__wrapper">
+          <div class="control__elements">
+            <div class="control__elements-wrapper"><textarea class="form-textarea form-textarea--small form-textarea--auto-expendable" rows="1" placeholder="widgetSettings.description..." style="overflow: hidden;" value=""></textarea></div>
+            <!--v-if-->
+          </div>
+          <!--v-if-->
+        </div>
+      </div>
+    </div>
+  </form>
+  <form>
+    <div class="form-section margin-bottom-2">
+      <div class="form-section__title-container">
+        <h3 class="form-section__title">aggregateRowsDataSourceForm.data</h3>
+        <div></div>
+      </div>
+      <div data-form-error="false" class="control control--horizontal control--horizontal-narrow margin-bottom-2"><label for="v-0-0-2" class="control__label control__label--small"><span>aggregateRowsDataSourceForm.sourceFieldLabel</span>
+          <!--v-if-->
+          <!--v-if-->
+          <!--v-if-->
+        </label>
+        <div class="control__wrapper">
+          <div class="control__elements">
+            <div class="control__elements-wrapper">
+              <div id="v-0-0-2" class="dropdown" tabindex="0" role="list"><a class="dropdown__selected">
+                  <!--v-if-->
+                  <!--v-if--><span class="dropdown__selected-text" title="Rows">Rows</span><i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
+                </a>
+                <div class="dropdown__items hidden dropdown__items--fixed">
+                  <div class="select__search"><i class="select__search-icon iconoir-search"></i><input type="text" class="select__search-input" placeholder="action.search" tabindex="0"></div>
+                  <ul class="select__items select__items--no-max-height prevent-scroll" tabindex="-1">
+                    <div class="dropdown-section">
+                      <div class="dropdown-section__title">Database (1)</div>
+                      <li class="select__item select__item--no-options visible active" role="listitem"><a class="select__item-link select__item-link--indented">
+                          <div class="select__item-name">
+                            <!--v-if-->Rows
+                          </div>
+                          <!--v-if-->
+                        </a><i class="select__item-active-icon iconoir-check"></i></li>
+                    </div>
+                  </ul>
+                  <!--v-if-->
+                  <!--v-if-->
+                </div>
+              </div>
+            </div>
+            <!--v-if-->
+          </div>
+          <!--v-if-->
+        </div>
+      </div>
+      <div data-form-error="false" class="control control--horizontal control--horizontal-narrow margin-bottom-2"><label for="v-0-0-7" class="control__label control__label--small"><span>aggregateRowsDataSourceForm.viewFieldLabel</span>
+          <!--v-if-->
+          <!--v-if-->
+          <!--v-if-->
+        </label>
+        <div class="control__wrapper">
+          <div class="control__elements">
+            <div class="control__elements-wrapper">
+              <div id="v-0-0-7" class="dropdown" tabindex="0" role="list"><a class="dropdown__selected">
+                  <!--v-if-->
+                  <!--v-if--><span class="dropdown__selected-text" title="aggregateRowsDataSourceForm.notSelected">aggregateRowsDataSourceForm.notSelected</span><i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
+                </a>
+                <div class="dropdown__items hidden dropdown__items--fixed">
+                  <!--v-if-->
+                  <ul class="select__items select__items--no-max-height prevent-scroll" tabindex="-1">
+                    <li class="select__item select__item--no-options visible active hover" role="listitem"><a class="select__item-link">
+                        <div class="select__item-name">
+                          <!--v-if-->aggregateRowsDataSourceForm.notSelected
+                        </div>
+                        <!--v-if-->
+                      </a><i class="select__item-active-icon iconoir-check"></i></li>
+                  </ul>
+                  <!--v-if-->
+                  <!--v-if-->
+                </div>
+              </div>
+            </div>
+            <!--v-if-->
+          </div>
+          <!--v-if-->
+        </div>
+      </div>
+      <div data-form-error="false" class="control control--horizontal control--horizontal-narrow margin-bottom-2"><label for="v-0-0-8" class="control__label control__label--small"><span>aggregateRowsDataSourceForm.aggregationFieldLabel</span>
+          <!--v-if-->
+          <!--v-if-->
+          <!--v-if-->
+        </label>
+        <div class="control__wrapper">
+          <div class="control__elements">
+            <div class="control__elements-wrapper">
+              <div id="v-0-0-8" class="dropdown" tabindex="0" role="list"><a class="dropdown__selected"><i class="dropdown__selected-icon baserow-icon-hashtag"></i>
+                  <!--v-if--><span class="dropdown__selected-text" title="Amount">Amount</span><i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
+                </a>
+                <div class="dropdown__items hidden">
+                  <div class="select__search"><i class="select__search-icon iconoir-search"></i><input type="text" class="select__search-input" placeholder="action.search" tabindex="0"></div>
+                  <ul class="select__items prevent-scroll" tabindex="-1">
+                    <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                        <div class="select__item-name">
+                          <!--v-if--><i class="select__item-icon iconoir-text"></i>
+                          <!--v-if--><span class="select__item-name-text" title="Name">Name</span>
+                        </div>
+                        <!--v-if-->
+                      </a><i class="select__item-active-icon iconoir-check"></i></li>
+                    <li class="select__item select__item--no-options visible active" role="listitem"><a class="select__item-link">
+                        <div class="select__item-name">
+                          <!--v-if--><i class="select__item-icon baserow-icon-hashtag"></i>
+                          <!--v-if--><span class="select__item-name-text" title="Amount">Amount</span>
+                        </div>
+                        <!--v-if-->
+                      </a><i class="select__item-active-icon iconoir-check"></i></li>
+                  </ul>
+                  <!--v-if-->
+                  <!--v-if-->
+                </div>
+              </div>
+            </div>
+            <!--v-if-->
+          </div>
+          <!--v-if-->
+        </div>
+      </div>
+      <div data-form-error="false" class="control control--horizontal control--horizontal-narrow"><label for="v-0-0-6" class="control__label control__label--small"><span>aggregateRowsDataSourceForm.aggregationTypeLabel</span>
+          <!--v-if-->
+          <!--v-if-->
+          <!--v-if-->
+        </label>
+        <div class="control__wrapper">
+          <div class="control__elements">
+            <div class="control__elements-wrapper">
+              <div id="v-0-0-6" class="dropdown" tabindex="0" role="list"><a class="dropdown__selected">
+                  <!--v-if-->
+                  <!--v-if--><span class="dropdown__selected-text" title="viewAggregationType.sum">viewAggregationType.sum</span><i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
+                </a>
+                <div class="dropdown__items hidden">
+                  <div class="select__search"><i class="select__search-icon iconoir-search"></i><input type="text" class="select__search-input" placeholder="action.search" tabindex="0"></div>
+                  <ul class="select__items prevent-scroll" tabindex="-1">
+                    <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                        <div class="select__item-name">
+                          <!--v-if-->
+                          <!--v-if-->
+                          <!--v-if--><span class="select__item-name-text" title="viewAggregationType.min">viewAggregationType.min</span>
+                        </div>
+                        <!--v-if-->
+                      </a><i class="select__item-active-icon iconoir-check"></i></li>
+                    <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                        <div class="select__item-name">
+                          <!--v-if-->
+                          <!--v-if-->
+                          <!--v-if--><span class="select__item-name-text" title="viewAggregationType.max">viewAggregationType.max</span>
+                        </div>
+                        <!--v-if-->
+                      </a><i class="select__item-active-icon iconoir-check"></i></li>
+                    <li class="select__item select__item--no-options visible active" role="listitem"><a class="select__item-link">
+                        <div class="select__item-name">
+                          <!--v-if-->
+                          <!--v-if-->
+                          <!--v-if--><span class="select__item-name-text" title="viewAggregationType.sum">viewAggregationType.sum</span>
+                        </div>
+                        <!--v-if-->
+                      </a><i class="select__item-active-icon iconoir-check"></i></li>
+                    <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                        <div class="select__item-name">
+                          <!--v-if-->
+                          <!--v-if-->
+                          <!--v-if--><span class="select__item-name-text" title="viewAggregationType.average">viewAggregationType.average</span>
+                        </div>
+                        <!--v-if-->
+                      </a><i class="select__item-active-icon iconoir-check"></i></li>
+                    <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                        <div class="select__item-name">
+                          <!--v-if-->
+                          <!--v-if-->
+                          <!--v-if--><span class="select__item-name-text" title="viewAggregationType.median">viewAggregationType.median</span>
+                        </div>
+                        <!--v-if-->
+                      </a><i class="select__item-active-icon iconoir-check"></i></li>
+                    <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                        <div class="select__item-name">
+                          <!--v-if-->
+                          <!--v-if-->
+                          <!--v-if--><span class="select__item-name-text" title="viewAggregationType.stdDev">viewAggregationType.stdDev</span>
+                        </div>
+                        <!--v-if-->
+                      </a><i class="select__item-active-icon iconoir-check"></i></li>
+                    <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                        <div class="select__item-name">
+                          <!--v-if-->
+                          <!--v-if-->
+                          <!--v-if--><span class="select__item-name-text" title="viewAggregationType.variance">viewAggregationType.variance</span>
+                        </div>
+                        <!--v-if-->
+                      </a><i class="select__item-active-icon iconoir-check"></i></li>
+                    <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                        <div class="select__item-name">
+                          <!--v-if-->
+                          <!--v-if-->
+                          <!--v-if--><span class="select__item-name-text" title="viewAggregationType.count">viewAggregationType.count</span>
+                        </div>
+                        <!--v-if-->
+                      </a><i class="select__item-active-icon iconoir-check"></i></li>
+                    <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                        <div class="select__item-name">
+                          <!--v-if-->
+                          <!--v-if-->
+                          <!--v-if--><span class="select__item-name-text" title="viewAggregationType.emptyCount">viewAggregationType.emptyCount</span>
+                        </div>
+                        <!--v-if-->
+                      </a><i class="select__item-active-icon iconoir-check"></i></li>
+                    <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                        <div class="select__item-name">
+                          <!--v-if-->
+                          <!--v-if-->
+                          <!--v-if--><span class="select__item-name-text" title="viewAggregationType.notEmptyCount">viewAggregationType.notEmptyCount</span>
+                        </div>
+                        <!--v-if-->
+                      </a><i class="select__item-active-icon iconoir-check"></i></li>
+                    <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                        <div class="select__item-name">
+                          <!--v-if-->
+                          <!--v-if-->
+                          <!--v-if--><span class="select__item-name-text" title="viewAggregationType.emptyPercentage">viewAggregationType.emptyPercentage</span>
+                        </div>
+                        <!--v-if-->
+                      </a><i class="select__item-active-icon iconoir-check"></i></li>
+                    <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                        <div class="select__item-name">
+                          <!--v-if-->
+                          <!--v-if-->
+                          <!--v-if--><span class="select__item-name-text" title="viewAggregationType.notEmptyPercentage">viewAggregationType.notEmptyPercentage</span>
+                        </div>
+                        <!--v-if-->
+                      </a><i class="select__item-active-icon iconoir-check"></i></li>
+                    <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                        <div class="select__item-name">
+                          <!--v-if-->
+                          <!--v-if-->
+                          <!--v-if--><span class="select__item-name-text" title="viewAggregationType.uniqueCount">viewAggregationType.uniqueCount</span>
+                        </div>
+                        <!--v-if-->
+                      </a><i class="select__item-active-icon iconoir-check"></i></li>
+                    <li class="select__item select__item--no-options visible disabled" role="listitem"><a class="select__item-link">
+                        <div class="select__item-name">
+                          <!--v-if-->
+                          <!--v-if-->
+                          <!--v-if--><span class="select__item-name-text" title="viewAggregationType.distribution">viewAggregationType.distribution</span>
+                        </div>
+                        <!--v-if-->
+                      </a><i class="select__item-active-icon iconoir-check"></i></li>
+                  </ul>
+                  <!--v-if-->
+                  <!--v-if-->
+                </div>
+              </div>
+            </div>
+            <!--v-if-->
+          </div>
+          <!--v-if-->
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="service-form__filter-buttons"><span class="service-form__filter-title">serviceRefinementForms.refinements</span>
+        <!--v-if--><a class="header__filter-link"><i class="header__filter-icon iconoir-filter"></i><span class="header__filter-name">serviceRefinementForms.filterTabTitle - 0</span></a>
+        <!--v-if-->
+        <!--v-if-->
+        <!--teleport start-->
+        <!--teleport end-->
+        <!--v-if-->
+        <!--v-if-->
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+    </div>
+  </form>
+</div>"
+`;

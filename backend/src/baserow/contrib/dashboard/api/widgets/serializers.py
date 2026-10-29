@@ -29,7 +29,7 @@ class WidgetSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_type(self, instance):
-        return widget_type_registry.get_by_model(instance.specific_class).type
+        return instance.get_type().type
 
     @extend_schema_field(WidgetGridLayoutSerializer)
     def get_grid_layout(self, instance):
@@ -123,3 +123,16 @@ class UpdateWidgetLayoutSerializer(serializers.Serializer):
             "user. It is vertically compacted before being persisted."
         ),
     )
+
+
+class FilterWidgetPublicSerializerMixin(serializers.Serializer):
+    """Expose the public link graph without sharing conditions or formulas."""
+
+    target_widget_ids = serializers.SerializerMethodField()
+
+    @extend_schema_field(serializers.ListField(child=serializers.IntegerField()))
+    def get_target_widget_ids(self, instance):
+        return [
+            link["target_widget_id"]
+            for link in instance.get_type().get_target_filters(instance)
+        ]

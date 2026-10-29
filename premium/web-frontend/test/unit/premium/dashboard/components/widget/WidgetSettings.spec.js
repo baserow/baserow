@@ -119,4 +119,66 @@ describe.each(['chart', 'pie_chart'])('%s filter settings', (type) => {
     await flushPromises()
     expect(savedDataSource.filters[0].value.mode).toBe('simple')
   })
+
+  test('keeps new conditions inside their group after the server replaces temporary IDs', async () => {
+    testApp.mock.onPatch('/dashboard/data-sources/12/').reply(({ data }) => {
+      const values = JSON.parse(data)
+      const groups = values.filter_groups || savedDataSource.filter_groups || []
+      const mapping = new Map(
+        groups.map((group, index) => [group.id, String(20 + index)])
+      )
+      savedDataSource = {
+        ...savedDataSource,
+        ...values,
+        filter_groups: groups.map((group) => ({
+          ...group,
+          id: mapping.get(group.id),
+        })),
+        filters: values.filters.map((filter) => ({
+          ...filter,
+          group:
+            filter.group == null ? null : mapping.get(filter.group) || null,
+        })),
+      }
+      return [200, savedDataSource]
+    })
+    const wrapper = await openFilters()
+    await wrapper
+      .findAll('button')
+      .find(
+        (button) =>
+          button.text() ===
+          'localBaserowTableServiceConditionalForm.addFilterGroup'
+      )
+      .trigger('click')
+    await flushPromises()
+    expect(wrapper.findAll('.filters__item--level-2')).toHaveLength(1)
+    await wrapper
+      .find('.filters__group-item-action--add-filter')
+      .trigger('click')
+    await flushPromises()
+    expect(
+      savedDataSource.filters.map(({ field, group }) => ({ field, group }))
+    ).toMatchInlineSnapshot(`
+      [
+        {
+          "field": 5,
+          "group": null,
+        },
+        {
+          "field": 5,
+          "group": "20",
+        },
+        {
+          "field": 5,
+          "group": "20",
+        },
+      ]
+    `)
+    expect(wrapper.findAll('.filters__item--level-2')).toHaveLength(2)
+    wrapper.unmount()
+    const reloaded = await openFilters()
+    expect(reloaded.findAll('.filters__item--level-2')).toHaveLength(2)
+    expect(reloaded.findAll('.filters__item--level-1')).toHaveLength(1)
+  })
 })

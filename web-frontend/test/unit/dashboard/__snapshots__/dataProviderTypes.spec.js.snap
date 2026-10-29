@@ -1,0 +1,32 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`filter picker exposes titled strings from the selected dashboard store 1`] = `
+{
+  "icon": "iconoir-question-mark",
+  "identifier": "widget_data",
+  "name": "dashboardDataProviderType.widgetData",
+  "nodes": [
+    {
+      "icon": "iconoir-text",
+      "identifier": "2",
+      "name": "Search",
+      "order": null,
+      "type": "string",
+    },
+  ],
+  "order": null,
+  "type": "object",
+}
+`;
+
+exports[`new filter types supply their own formula schema 1`] = `
+{
+  "properties": {
+    "4": {
+      "title": "Minimum",
+      "type": "number",
+    },
+  },
+  "type": "object",
+}
+`;
