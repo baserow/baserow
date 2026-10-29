@@ -72,7 +72,10 @@ class PublicDashboardDataSourceSerializer(PublicServiceSerializer):
         return data
 
     class Meta(PublicServiceSerializer.Meta):
-        fields = PublicServiceSerializer.Meta.fields + ("name", "context_data")
+        fields = PublicServiceSerializer.Meta.fields + (
+            "name",
+            "context_data",
+        )
         extra_kwargs = {
             **PublicServiceSerializer.Meta.extra_kwargs,
             "name": {"read_only": True},
@@ -111,12 +114,17 @@ class PublicDashboardInfoSerializer(serializers.Serializer):
 
     @extend_schema_field(
         DiscriminatorCustomFieldsMappingSerializer(
-            widget_type_registry, WidgetSerializer, many=True
+            widget_type_registry,
+            WidgetSerializer,
+            many=True,
+            extra_params={"public": True},
         )
     )
     def get_widgets(self, instance):
         return [
-            widget_type_registry.get_serializer(widget, WidgetSerializer).data
+            widget.get_type()
+            .get_serializer(widget, WidgetSerializer, extra_params={"public": True})
+            .data
             for widget in self.context["widgets"]
         ]
 

@@ -11,12 +11,13 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 )
 from baserow.core.services.registries import service_type_registry
 
-from .models import SummaryWidget
+from .mixins import DisplayWidgetTypeMixin, FilterWidgetTypeMixin
+from .models import SummaryWidget, TextFilterWidget
 from .registries import WidgetType
 from .types import WidgetGridLayout
 
 
-class SummaryWidgetType(WidgetType):
+class SummaryWidgetType(DisplayWidgetTypeMixin, WidgetType):
     type = "summary"
     model_class = SummaryWidget
     grid_layout = WidgetGridLayout(
@@ -34,7 +35,7 @@ class SummaryWidgetType(WidgetType):
             required=False,
             default=None,
             help_text="References a data source field for the widget.",
-        )
+        ),
     }
     request_serializer_field_names = []
     request_serializer_field_overrides = {}
@@ -58,14 +59,6 @@ class SummaryWidgetType(WidgetType):
             )
             values["data_source"] = data_source
         return values
-
-    def before_trashed(self, instance: Widget):
-        instance.data_source.trashed = True
-        instance.data_source.save()
-
-    def before_restore(self, instance: Widget):
-        instance.data_source.trashed = False
-        instance.data_source.save()
 
     def after_delete(self, instance: Widget):
         DashboardDataSourceHandler().delete_data_source(instance.data_source)
@@ -107,3 +100,41 @@ class SummaryWidgetType(WidgetType):
             storage=storage,
             cache=cache,
         )
+
+
+class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
+    type = "text_filter"
+    model_class = TextFilterWidget
+    allowed_fields = [
+        *WidgetType.allowed_fields,
+        "placeholder",
+        "default_value",
+        "target_filters",
+    ]
+    serializer_field_names = ["placeholder", "default_value", "target_filters"]
+    public_serializer_field_names = [
+        "placeholder",
+        "default_value",
+        *FilterWidgetTypeMixin.public_serializer_field_names,
+    ]
+    grid_layout = WidgetGridLayout(
+        default_width=2,
+        default_height=4,
+        min_width=1,
+        min_height=4,
+        max_width=6,
+        max_height=6,
+    )
+
+    class SerializedDict(WidgetDict):
+        placeholder: str
+        default_value: str
+        target_filters: list
+
+    def get_filter_value(self, widget, values):
+        return values.get(str(widget.id), widget.default_value)
+
+    def validate_filter_value(self, widget, value):
+        if not isinstance(value, str):
+            raise serializers.ValidationError("Expected a string filter value.")
+        return value

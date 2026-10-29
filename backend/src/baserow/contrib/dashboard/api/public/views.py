@@ -17,6 +17,9 @@ from baserow.contrib.dashboard.api.data_sources.errors import (
     ERROR_DASHBOARD_DATA_SOURCE_DOES_NOT_EXIST,
     ERROR_DASHBOARD_DATA_SOURCE_IMPROPERLY_CONFIGURED,
 )
+from baserow.contrib.dashboard.api.data_sources.serializers import (
+    DashboardDispatchSerializer,
+)
 from baserow.contrib.dashboard.api.errors import (
     ERROR_DASHBOARD_DOES_NOT_EXIST,
     ERROR_NO_AUTHORIZATION_TO_PUBLIC_DASHBOARD,
@@ -210,7 +213,7 @@ class PublicDashboardDataSourceDispatchView(APIView):
             "Dispatches the service of the related data source of the publicly "
             "shared dashboard and returns the result."
         ),
-        request=None,
+        request=DashboardDispatchSerializer,
         responses={
             400: get_error_schema(
                 ["ERROR_DASHBOARD_DATA_SOURCE_IMPROPERLY_CONFIGURED"]
@@ -250,5 +253,14 @@ class PublicDashboardDataSourceDispatchView(APIView):
             base_queryset=DashboardDataSource.objects.filter(dashboard=dashboard),
         )
 
-        dispatch_context = DashboardDispatchContext(request, dashboard.workspace)
+        serializer = DashboardDispatchSerializer(
+            data=request.data, context={"dashboard": dashboard}
+        )
+        serializer.is_valid(raise_exception=True)
+        dispatch_context = DashboardDispatchContext(
+            request,
+            dashboard.workspace,
+            dashboard=dashboard,
+            data=serializer.validated_data,
+        )
         return Response(handler.dispatch_data_source(data_source, dispatch_context))

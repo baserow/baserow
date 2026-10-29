@@ -1,0 +1,3 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`TextFilterWidget > renders an accessible input and preserves viewer values across unrelated changes 1`] = `"<div class="dashboard-text-filter-widget"><input class="dashboard-text-filter-widget__input" type="text" aria-label="Search" placeholder="Type here"></div>"`;

@@ -15,7 +15,7 @@
       <div class="filters__field">
         <Dropdown
           :value="filter.field"
-          :disabled="disableFilter"
+          :disabled="disableFilter || filterReadOnly"
           :fixed-items="true"
           @input="$emit('updateFilter', { field: $event })"
         >
@@ -30,7 +30,7 @@
       </div>
       <div class="filters__type">
         <Dropdown
-          :disabled="disableFilter"
+          :disabled="disableFilter || filterReadOnly"
           :value="filter.type"
           :fixed-items="true"
           @input="$emit('updateFilter', { type: $event })"
@@ -68,7 +68,7 @@
             :view="view"
             :is-public-view="isPublicView"
             :fields="fields"
-            :disabled="disableFilter"
+            :disabled="disableFilter || filterReadOnly"
             :read-only="readOnly"
             :placeholder="placeholder"
             @input="$emit('updateFilter', { value: $event })"
@@ -96,6 +96,7 @@
       </div>
     </template>
     <a
+      v-if="!filterReadOnly"
       class="filters__remove"
       :class="{ 'filters__remove--disabled': disableFilter }"
       @click.stop="!disableFilter && $emit('deleteFilter', $event)"
@@ -113,6 +114,8 @@ export default {
   name: 'ViewFieldConditionItem',
   mixins: [viewFilterTypes],
   props: {
+    // Lock filter configuration independently of database-view read permissions.
+    filterReadOnly: { type: Boolean, default: false },
     filter: {
       type: Object,
       required: true,

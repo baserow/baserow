@@ -17,17 +17,18 @@
         <ViewFilterFormOperator
           :index="index"
           :filter-type="filterType"
-          :disable-filter="disableFilter"
+          :disable-filter="disableFilter || filterReadOnly"
           @update-filter-type="$emit('updateFilterType', { value: $event })"
         />
 
         <ViewFieldConditionItem
           :ref="`condition-${filter.id}`"
+          :filter-read-only="filterReadOnly"
           :filter="filter"
           :view="view"
           :is-public-view="isPublicView"
           :fields="fields"
-          :disable-filter="disableFilter"
+          :disable-filter="disableFilter || filterReadOnly"
           :read-only="readOnly"
           :placeholder="placeholder"
           @update-filter="updateFilter({ filter, values: $event })"
@@ -50,12 +51,13 @@
       <ViewFilterFormOperator
         :index="filtersTree.filters.length + groupIndex"
         :filter-type="filterType"
-        :disable-filter="disableFilter"
+        :disable-filter="disableFilter || filterReadOnly"
         @update-filter-type="$emit('updateFilterType', { value: $event })"
       />
       <ViewFieldConditionGroup
+        :filter-read-only="filterReadOnly"
         :group-node="groupNode"
-        :disable-filter="disableFilter"
+        :disable-filter="disableFilter || filterReadOnly"
         :is-public-view="isPublicView"
         :read-only="readOnly"
         :fields="fields"
@@ -149,6 +151,8 @@ export default {
     ViewFieldConditionGroup,
   },
   props: {
+    // Lock filter configuration independently of database-view read permissions.
+    filterReadOnly: { type: Boolean, default: false },
     filters: {
       type: Array,
       required: true,

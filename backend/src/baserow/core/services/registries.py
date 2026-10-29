@@ -717,6 +717,15 @@ class ServiceType(
 
         return created_instance
 
+    def after_import(self, instance, id_mapping, import_formula=None, **kwargs):
+        """Finalize service references and formulas once every import mapping exists."""
+        updated_models = super().after_import(instance, id_mapping, **kwargs)
+        if import_formula is not None:
+            updated_models.update(
+                self.import_formulas(instance, id_mapping, import_formula, **kwargs)
+            )
+        return updated_models
+
     def extract_properties(
         self, service: Service, path: List[str], **kwargs
     ) -> List[str]:

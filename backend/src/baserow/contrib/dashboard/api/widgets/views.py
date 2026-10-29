@@ -57,7 +57,7 @@ from .serializers import (
 
 def serialize_widgets(widgets):
     return [
-        widget_type_registry.get_serializer(widget, WidgetSerializer).data
+        widget.get_type().get_serializer(widget, WidgetSerializer).data
         for widget in widgets
     ]
 
@@ -162,7 +162,7 @@ class WidgetsView(APIView):
         widget = CreateWidgetActionType.do(
             request.user, dashboard_id, widget_type, data
         )
-        serializer = widget_type_registry.get_serializer(widget, WidgetSerializer)
+        serializer = widget.get_type().get_serializer(widget, WidgetSerializer)
         return Response(serializer.data)
 
 
@@ -228,7 +228,7 @@ class WidgetView(APIView):
         updated_widget = UpdateWidgetActionType.do(
             request.user, widget_id, widget_type, data
         )
-        serializer = widget_type_registry.get_serializer(
+        serializer = updated_widget.get_type().get_serializer(
             updated_widget, WidgetSerializer
         )
         return Response(serializer.data)

@@ -32,6 +32,7 @@ from baserow.contrib.integrations.local_baserow.models import (
 )
 from baserow.contrib.integrations.local_baserow.service_filter_groups import (
     LocalBaserowServiceGroupedFiltersAdapter,
+    RuntimeFilterGroupAdapter,
 )
 from baserow.core.formula import BaserowFormulaObject, resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
@@ -404,12 +405,13 @@ class LocalBaserowTableServiceFilterableMixin:
                 "One or more filtered properties no longer exist.",
             )
 
-        # Build the service filters, nesting them into their filter groups (if any)
-        # using the same machinery the database views use. Filters without a group
-        # are combined under the service's top-level `filter_type`, preserving the
-        # behaviour of services which don't use groups.
-        adapter = LocalBaserowServiceGroupedFiltersAdapter(
-            service, model, dispatch_context
+        runtime_filter = dispatch_context.get_runtime_filter(service)
+        adapter = (
+            LocalBaserowServiceGroupedFiltersAdapter(service, model, dispatch_context)
+            if runtime_filter is None
+            else RuntimeFilterGroupAdapter(
+                runtime_filter, service, model, dispatch_context
+            )
         )
         service_filter_builder = AdvancedFilterBuilder(
             adapter

@@ -1,0 +1,31 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renders average result null with field formatting 1`] = `
+"<div class="dashboard-summary-widget">
+  <div class="widget__content dashboard-summary-widget__summary"></div>
+</div>"
+`;
+
+exports[`renders sum result 0 with field formatting 1`] = `
+"<div class="dashboard-summary-widget">
+  <div class="widget__content dashboard-summary-widget__summary">$0.00</div>
+</div>"
+`;
+
+exports[`renders sum result 0 with field formatting 2`] = `
+"<div class="dashboard-summary-widget">
+  <div class="widget__content dashboard-summary-widget__summary">$0.00</div>
+</div>"
+`;
+
+exports[`renders sum result 12.5 with field formatting 1`] = `
+"<div class="dashboard-summary-widget">
+  <div class="widget__content dashboard-summary-widget__summary">$12.50</div>
+</div>"
+`;
+
+exports[`renders sum result null with field formatting 1`] = `
+"<div class="dashboard-summary-widget">
+  <div class="widget__content dashboard-summary-widget__summary">$0.00</div>
+</div>"
+`;

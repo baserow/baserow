@@ -81,6 +81,10 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         self.workspace = workspace
         super().__init__()
 
+    def get_runtime_filter(self, service: Service) -> dict | None:
+        """Return a complete filter tree, or None to use the stored service filter."""
+        return None
+
     def range(self, service: Service) -> tuple[int, int | None]:
         """
         Should return the pagination requested for the given service. Defaults to

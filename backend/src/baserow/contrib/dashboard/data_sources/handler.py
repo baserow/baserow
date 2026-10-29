@@ -307,6 +307,8 @@ class DashboardDataSourceHandler:
                 "The service type is missing."
             )
 
+        if dispatch_context.dashboard is None:
+            dispatch_context.dashboard = data_source.dashboard
         specific_service = ServiceHandler().get_service(data_source.service.id)
         service_dispatch = self.service_handler.dispatch_service(
             specific_service, dispatch_context

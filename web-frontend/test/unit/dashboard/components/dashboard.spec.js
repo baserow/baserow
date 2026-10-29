@@ -1,3 +1,4 @@
+import { inject } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { vi } from 'vitest'
 
@@ -113,4 +114,25 @@ describe('Dashboard', () => {
         .attributes('data-loading')
     ).toBe('false')
   })
+})
+
+test('provides the dashboard store prefix reactively to descendants', async () => {
+  const prefixConsumer = {
+    setup() {
+      return { storePrefix: inject('storePrefix') }
+    },
+    template: '<span data-testid="injected-prefix">{{ storePrefix }}</span>',
+  }
+  const wrapper = mount(Dashboard, {
+    props: { dashboard: { id: 1 }, loading: false, storePrefix: 'template/' },
+    global: {
+      stubs: { DashboardHeader: true, DashboardContent: prefixConsumer },
+    },
+  })
+  expect(wrapper.get('[data-testid="injected-prefix"]').text()).toBe(
+    'template/'
+  )
+  await wrapper.setProps({ storePrefix: '' })
+  expect(wrapper.get('[data-testid="injected-prefix"]').text()).toBe('')
+  wrapper.unmount()
 })

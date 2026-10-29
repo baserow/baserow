@@ -11,7 +11,7 @@
           <ViewFilterFormOperator
             :index="filterIndex"
             :filter-type="groupNode.group.filter_type"
-            :disable-filter="disableFilter"
+            :disable-filter="disableFilter || filterReadOnly"
             @update-filter-type="
               $emit('updateFilterType', {
                 value: $event,
@@ -21,11 +21,12 @@
           />
           <ViewFieldConditionItem
             :ref="`condition-${filter.id}`"
+            :filter-read-only="filterReadOnly"
             :filter="filter"
             :view="view"
             :is-public-view="isPublicView"
             :fields="fields"
-            :disable-filter="disableFilter"
+            :disable-filter="disableFilter || filterReadOnly"
             :read-only="readOnly"
             @update-filter="$emit('updateFilter', { filter, values: $event })"
             @delete-filter="$emit('deleteFilter', { filter, event: $event })"
@@ -48,7 +49,7 @@
       <ViewFilterFormOperator
         :index="groupNode.filters.length + subGroupIndex"
         :filter-type="groupNode.group.filter_type"
-        :disable-filter="disableFilter"
+        :disable-filter="disableFilter || filterReadOnly"
         @update-filter-type="
           $emit('updateFilterType', {
             value: $event,
@@ -57,8 +58,9 @@
         "
       />
       <ViewFieldConditionGroup
+        :filter-read-only="filterReadOnly"
         :group-node="subGroupNode"
-        :disable-filter="disableFilter"
+        :disable-filter="disableFilter || filterReadOnly"
         :is-public-view="isPublicView"
         :read-only="readOnly"
         :fields="fields"
@@ -80,7 +82,10 @@
         </template>
       </ViewFieldConditionGroup>
     </div>
-    <div v-if="!disableFilter" class="filters__group-item-actions">
+    <div
+      v-if="!disableFilter && !filterReadOnly"
+      class="filters__group-item-actions"
+    >
       <ButtonText
         class="filters__group-item-action--add-filter"
         icon="iconoir-plus"
@@ -119,6 +124,8 @@ export default {
     ViewFieldConditionItem,
   },
   props: {
+    // Lock filter configuration independently of database-view read permissions.
+    filterReadOnly: { type: Boolean, default: false },
     // A view is optional, but may be required by some specific
     // field components, such as `ViewFilterTypeLinkRow`.
     view: {

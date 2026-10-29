@@ -1,0 +1,694 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`adding conditions after a permanent group is saved keeps its persistent group ID 1`] = `
+"<div>
+  <!--v-if-->
+  <div class="filters__items filters__items--full-width filters__items">
+    <div class="filters__group-item-wrapper">
+      <div class="filters__operator"><span class="filters__operator-where">viewFilterContext.where</span>
+        <!--v-if-->
+        <!--v-if-->
+      </div>
+      <div class="filters__group-item">
+        <div class="filters__group-item-filters">
+          <div class="filters__item-wrapper">
+            <div class="filters__item filters__item--level-2">
+              <div class="filters__operator"><span class="filters__operator-where">viewFilterContext.where</span>
+                <!--v-if-->
+                <!--v-if-->
+              </div>
+              <div class="filters__condition-item">
+                <div class="filters__field">
+                  <div class="dropdown" tabindex="0" role="list"><a class="dropdown__selected">
+                      <!--v-if-->
+                      <!--v-if--><span class="dropdown__selected-text" title="Name">Name</span><i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
+                    </a>
+                    <div class="dropdown__items hidden dropdown__items--fixed">
+                      <div class="select__search"><i class="select__search-icon iconoir-search"></i><input type="text" class="select__search-input" placeholder="action.search" tabindex="0"></div>
+                      <ul class="select__items select__items--no-max-height prevent-scroll" tabindex="-1">
+                        <li class="select__item select__item--no-options visible active" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="Name">Name</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                      </ul>
+                      <!--v-if-->
+                      <!--v-if-->
+                    </div>
+                  </div>
+                </div>
+                <div class="filters__type">
+                  <div class="dropdown" tabindex="0" role="list"><a class="dropdown__selected">
+                      <!--v-if-->
+                      <!--v-if--><span class="dropdown__selected-text" title="viewFilter.is">viewFilter.is</span><i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
+                    </a>
+                    <div class="dropdown__items hidden dropdown__items--fixed">
+                      <div class="select__search"><i class="select__search-icon iconoir-search"></i><input type="text" class="select__search-input" placeholder="action.search" tabindex="0"></div>
+                      <ul class="select__items select__items--no-max-height prevent-scroll" tabindex="-1">
+                        <li class="select__item select__item--no-options visible active" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.is">viewFilter.is</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.isNot">viewFilter.isNot</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.contains">viewFilter.contains</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.containsNot">viewFilter.containsNot</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.containsWord">viewFilter.containsWord</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.doesntContainWord">viewFilter.doesntContainWord</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.startsWith">viewFilter.startsWith</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.lengthIsLowerThan">viewFilter.lengthIsLowerThan</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.isEmpty">viewFilter.isEmpty</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.isNotEmpty">viewFilter.isNotEmpty</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                      </ul>
+                      <!--v-if-->
+                      <!--v-if-->
+                    </div>
+                  </div>
+                </div>
+                <div class="filters__value filters__value--with-input-field">
+                  <div class="filters__value--formula-input" required="">
+                    <div class="formula-input-field__container">
+                      <div class="formula-input-field__raw-input">
+                        <div class="form-input">
+                          <!--v-if-->
+                          <div class="form-input__wrapper"><input class="form-input__input" type="text" min="false" max="false" step="false" placeholder="localBaserowTableServiceConditionalForm.textFilterInputPlaceholder" autocomplete="" value="">
+                            <!--v-if-->
+                            <!--v-if-->
+                          </div>
+                          <!--v-if-->
+                        </div>
+                      </div>
+                      <!--v-if--><button class="button-icon button-icon--secondary formula-input-field__mode-toggle formula-input-field__mode-toggle" title="formulaInputField.useFormulaMode"><i class="button-icon__icon iconoir-sigma-function"></i></button>
+                    </div>
+                    <!--v-if-->
+                    <!--v-if-->
+                    <teleport-stub to="body">
+                      <div class="node-help-tooltip-context context visibility-hidden" nodes-hierarchy="[object Object],[object Object]">
+                        <!--v-if-->
+                      </div>
+                    </teleport-stub>
+                    <teleport-stub to="body">
+                      <!--v-if-->
+                    </teleport-stub>
+                  </div>
+                  <!--v-if-->
+                  <!--v-if-->
+                </div><a class="filters__remove"><i class="iconoir-bin"></i></a>
+              </div>
+            </div>
+          </div>
+          <div class="filters__item-wrapper">
+            <div class="filters__item filters__item--level-2">
+              <div class="filters__operator">
+                <!--v-if-->
+                <div class="dropdown" tabindex="0" role="list"><a class="dropdown__selected">
+                    <!--v-if-->
+                    <!--v-if--><span class="dropdown__selected-text" title="viewFilterContext.and">viewFilterContext.and</span><i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
+                  </a>
+                  <div class="dropdown__items hidden dropdown__items--fixed">
+                    <!--v-if-->
+                    <ul class="select__items select__items--no-max-height prevent-scroll" tabindex="-1">
+                      <li class="select__item select__item--no-options visible active" role="listitem"><a class="select__item-link">
+                          <div class="select__item-name">
+                            <!--v-if-->
+                            <!--v-if-->
+                            <!--v-if--><span class="select__item-name-text" title="viewFilterContext.and">viewFilterContext.and</span>
+                          </div>
+                          <!--v-if-->
+                        </a><i class="select__item-active-icon iconoir-check"></i></li>
+                      <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                          <div class="select__item-name">
+                            <!--v-if-->
+                            <!--v-if-->
+                            <!--v-if--><span class="select__item-name-text" title="viewFilterContext.or">viewFilterContext.or</span>
+                          </div>
+                          <!--v-if-->
+                        </a><i class="select__item-active-icon iconoir-check"></i></li>
+                    </ul>
+                    <!--v-if-->
+                    <!--v-if-->
+                  </div>
+                </div>
+                <!--v-if-->
+              </div>
+              <div class="filters__condition-item">
+                <div class="filters__field">
+                  <div class="dropdown" tabindex="0" role="list"><a class="dropdown__selected">
+                      <!--v-if-->
+                      <!--v-if--><span class="dropdown__selected-text" title="Name">Name</span><i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
+                    </a>
+                    <div class="dropdown__items hidden dropdown__items--fixed">
+                      <div class="select__search"><i class="select__search-icon iconoir-search"></i><input type="text" class="select__search-input" placeholder="action.search" tabindex="0"></div>
+                      <ul class="select__items select__items--no-max-height prevent-scroll" tabindex="-1">
+                        <li class="select__item select__item--no-options visible active" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="Name">Name</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                      </ul>
+                      <!--v-if-->
+                      <!--v-if-->
+                    </div>
+                  </div>
+                </div>
+                <div class="filters__type">
+                  <div class="dropdown" tabindex="0" role="list"><a class="dropdown__selected">
+                      <!--v-if-->
+                      <!--v-if--><span class="dropdown__selected-text" title="viewFilter.is">viewFilter.is</span><i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
+                    </a>
+                    <div class="dropdown__items hidden dropdown__items--fixed">
+                      <div class="select__search"><i class="select__search-icon iconoir-search"></i><input type="text" class="select__search-input" placeholder="action.search" tabindex="0"></div>
+                      <ul class="select__items select__items--no-max-height prevent-scroll" tabindex="-1">
+                        <li class="select__item select__item--no-options visible active" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.is">viewFilter.is</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.isNot">viewFilter.isNot</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.contains">viewFilter.contains</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.containsNot">viewFilter.containsNot</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.containsWord">viewFilter.containsWord</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.doesntContainWord">viewFilter.doesntContainWord</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.startsWith">viewFilter.startsWith</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.lengthIsLowerThan">viewFilter.lengthIsLowerThan</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.isEmpty">viewFilter.isEmpty</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.isNotEmpty">viewFilter.isNotEmpty</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                      </ul>
+                      <!--v-if-->
+                      <!--v-if-->
+                    </div>
+                  </div>
+                </div>
+                <div class="filters__value filters__value--with-input-field">
+                  <div class="filters__value--formula-input" required="">
+                    <div class="formula-input-field__container">
+                      <div class="formula-input-field__raw-input">
+                        <div class="form-input">
+                          <!--v-if-->
+                          <div class="form-input__wrapper"><input class="form-input__input" type="text" min="false" max="false" step="false" placeholder="localBaserowTableServiceConditionalForm.textFilterInputPlaceholder" autocomplete="" value="">
+                            <!--v-if-->
+                            <!--v-if-->
+                          </div>
+                          <!--v-if-->
+                        </div>
+                      </div>
+                      <!--v-if--><button class="button-icon button-icon--secondary formula-input-field__mode-toggle formula-input-field__mode-toggle" title="formulaInputField.useFormulaMode"><i class="button-icon__icon iconoir-sigma-function"></i></button>
+                    </div>
+                    <!--v-if-->
+                    <!--v-if-->
+                    <teleport-stub to="body">
+                      <div class="node-help-tooltip-context context visibility-hidden" nodes-hierarchy="[object Object],[object Object]">
+                        <!--v-if-->
+                      </div>
+                    </teleport-stub>
+                    <teleport-stub to="body">
+                      <!--v-if-->
+                    </teleport-stub>
+                  </div>
+                  <!--v-if-->
+                  <!--v-if-->
+                </div><a class="filters__remove"><i class="iconoir-bin"></i></a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="filters__group-item-actions"><button class="button-text filters__group-item-action--add-filter"><i class="button-text__icon iconoir-plus"></i>
+            <!--v-if--><span class="button-text__label">localBaserowTableServiceConditionalForm.addFilter</span>
+          </button><button class="button-text filters__group-item-action--add-filter-group"><i class="button-text__icon iconoir-plus"></i>
+            <!--v-if--><span class="button-text__label">localBaserowTableServiceConditionalForm.addFilterGroup</span>
+          </button></div>
+      </div>
+    </div>
+  </div>
+  <div class="filters_footer"><button class="button-text button-text--small button-text--secondary filters__add"><i class="button-text__icon iconoir-plus"></i>
+      <!--v-if--><span class="button-text__label">localBaserowTableServiceConditionalForm.addFilter</span>
+    </button><button class="button-text button-text--small button-text--secondary filters__add"><i class="button-text__icon iconoir-plus"></i>
+      <!--v-if--><span class="button-text__label">localBaserowTableServiceConditionalForm.addFilterGroup</span>
+    </button></div>
+</div>"
+`;
+
+exports[`read-only groups keep constants, formulas and nested conditions locked 1`] = `
+"<div>
+  <!--v-if-->
+  <div class="filters__items filters__items--full-width filters__items">
+    <div class="filters__item-wrapper">
+      <div class="filters__item filters__item--level-1">
+        <div class="filters__operator"><span class="filters__operator-where">viewFilterContext.where</span>
+          <!--v-if-->
+          <!--v-if-->
+        </div>
+        <div class="filters__condition-item">
+          <div class="filters__field">
+            <div class="dropdown dropdown--disabled" tabindex="" role="list"><a class="dropdown__selected">
+                <!--v-if-->
+                <!--v-if--><span class="dropdown__selected-text" title="Name">Name</span><i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
+              </a>
+              <div class="dropdown__items hidden dropdown__items--fixed">
+                <div class="select__search"><i class="select__search-icon iconoir-search"></i><input type="text" class="select__search-input" placeholder="action.search" tabindex="0"></div>
+                <ul class="select__items select__items--no-max-height prevent-scroll" tabindex="-1">
+                  <li class="select__item select__item--no-options visible active" role="listitem"><a class="select__item-link">
+                      <div class="select__item-name">
+                        <!--v-if-->
+                        <!--v-if-->
+                        <!--v-if--><span class="select__item-name-text" title="Name">Name</span>
+                      </div>
+                      <!--v-if-->
+                    </a><i class="select__item-active-icon iconoir-check"></i></li>
+                </ul>
+                <!--v-if-->
+                <!--v-if-->
+              </div>
+            </div>
+          </div>
+          <div class="filters__type">
+            <div class="dropdown dropdown--disabled" tabindex="" role="list"><a class="dropdown__selected">
+                <!--v-if-->
+                <!--v-if--><span class="dropdown__selected-text" title="viewFilter.is">viewFilter.is</span><i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
+              </a>
+              <div class="dropdown__items hidden dropdown__items--fixed">
+                <div class="select__search"><i class="select__search-icon iconoir-search"></i><input type="text" class="select__search-input" placeholder="action.search" tabindex="0"></div>
+                <ul class="select__items select__items--no-max-height prevent-scroll" tabindex="-1">
+                  <li class="select__item select__item--no-options visible active" role="listitem"><a class="select__item-link">
+                      <div class="select__item-name">
+                        <!--v-if-->
+                        <!--v-if-->
+                        <!--v-if--><span class="select__item-name-text" title="viewFilter.is">viewFilter.is</span>
+                      </div>
+                      <!--v-if-->
+                    </a><i class="select__item-active-icon iconoir-check"></i></li>
+                  <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                      <div class="select__item-name">
+                        <!--v-if-->
+                        <!--v-if-->
+                        <!--v-if--><span class="select__item-name-text" title="viewFilter.isNot">viewFilter.isNot</span>
+                      </div>
+                      <!--v-if-->
+                    </a><i class="select__item-active-icon iconoir-check"></i></li>
+                  <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                      <div class="select__item-name">
+                        <!--v-if-->
+                        <!--v-if-->
+                        <!--v-if--><span class="select__item-name-text" title="viewFilter.contains">viewFilter.contains</span>
+                      </div>
+                      <!--v-if-->
+                    </a><i class="select__item-active-icon iconoir-check"></i></li>
+                  <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                      <div class="select__item-name">
+                        <!--v-if-->
+                        <!--v-if-->
+                        <!--v-if--><span class="select__item-name-text" title="viewFilter.containsNot">viewFilter.containsNot</span>
+                      </div>
+                      <!--v-if-->
+                    </a><i class="select__item-active-icon iconoir-check"></i></li>
+                  <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                      <div class="select__item-name">
+                        <!--v-if-->
+                        <!--v-if-->
+                        <!--v-if--><span class="select__item-name-text" title="viewFilter.containsWord">viewFilter.containsWord</span>
+                      </div>
+                      <!--v-if-->
+                    </a><i class="select__item-active-icon iconoir-check"></i></li>
+                  <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                      <div class="select__item-name">
+                        <!--v-if-->
+                        <!--v-if-->
+                        <!--v-if--><span class="select__item-name-text" title="viewFilter.doesntContainWord">viewFilter.doesntContainWord</span>
+                      </div>
+                      <!--v-if-->
+                    </a><i class="select__item-active-icon iconoir-check"></i></li>
+                  <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                      <div class="select__item-name">
+                        <!--v-if-->
+                        <!--v-if-->
+                        <!--v-if--><span class="select__item-name-text" title="viewFilter.startsWith">viewFilter.startsWith</span>
+                      </div>
+                      <!--v-if-->
+                    </a><i class="select__item-active-icon iconoir-check"></i></li>
+                  <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                      <div class="select__item-name">
+                        <!--v-if-->
+                        <!--v-if-->
+                        <!--v-if--><span class="select__item-name-text" title="viewFilter.lengthIsLowerThan">viewFilter.lengthIsLowerThan</span>
+                      </div>
+                      <!--v-if-->
+                    </a><i class="select__item-active-icon iconoir-check"></i></li>
+                  <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                      <div class="select__item-name">
+                        <!--v-if-->
+                        <!--v-if-->
+                        <!--v-if--><span class="select__item-name-text" title="viewFilter.isEmpty">viewFilter.isEmpty</span>
+                      </div>
+                      <!--v-if-->
+                    </a><i class="select__item-active-icon iconoir-check"></i></li>
+                  <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                      <div class="select__item-name">
+                        <!--v-if-->
+                        <!--v-if-->
+                        <!--v-if--><span class="select__item-name-text" title="viewFilter.isNotEmpty">viewFilter.isNotEmpty</span>
+                      </div>
+                      <!--v-if-->
+                    </a><i class="select__item-active-icon iconoir-check"></i></li>
+                </ul>
+                <!--v-if-->
+                <!--v-if-->
+              </div>
+            </div>
+          </div>
+          <div class="filters__value filters__value--with-input-field">
+            <div class="filters__value--formula-input" required="">
+              <div class="formula-input-field__container">
+                <div class="formula-input-field__raw-input">
+                  <div class="form-input form-input--disabled">
+                    <!--v-if-->
+                    <div class="form-input__wrapper"><input class="form-input__input" disabled="" type="text" min="false" max="false" step="false" placeholder="localBaserowTableServiceConditionalForm.textFilterInputPlaceholder" autocomplete="" value="Permanent">
+                      <!--v-if-->
+                      <!--v-if-->
+                    </div>
+                    <!--v-if-->
+                  </div>
+                </div>
+                <!--v-if-->
+                <!--v-if-->
+              </div>
+              <!--v-if-->
+              <!--v-if-->
+              <!--v-if-->
+              <teleport-stub to="body">
+                <!--v-if-->
+              </teleport-stub>
+            </div>
+            <!--v-if-->
+            <!--v-if-->
+          </div>
+          <!--v-if-->
+        </div>
+      </div>
+    </div>
+    <div class="filters__group-item-wrapper">
+      <div class="filters__operator">
+        <!--v-if-->
+        <!--v-if--><span class="filters__operator-text">viewFilterContext.or</span>
+      </div>
+      <div class="filters__group-item">
+        <div class="filters__group-item-filters">
+          <div class="filters__item-wrapper">
+            <div class="filters__item filters__item--level-2">
+              <div class="filters__operator"><span class="filters__operator-where">viewFilterContext.where</span>
+                <!--v-if-->
+                <!--v-if-->
+              </div>
+              <div class="filters__condition-item">
+                <div class="filters__field">
+                  <div class="dropdown dropdown--disabled" tabindex="" role="list"><a class="dropdown__selected">
+                      <!--v-if-->
+                      <!--v-if--><span class="dropdown__selected-text" title="Name">Name</span><i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
+                    </a>
+                    <div class="dropdown__items hidden dropdown__items--fixed">
+                      <div class="select__search"><i class="select__search-icon iconoir-search"></i><input type="text" class="select__search-input" placeholder="action.search" tabindex="0"></div>
+                      <ul class="select__items select__items--no-max-height prevent-scroll" tabindex="-1">
+                        <li class="select__item select__item--no-options visible active" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="Name">Name</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                      </ul>
+                      <!--v-if-->
+                      <!--v-if-->
+                    </div>
+                  </div>
+                </div>
+                <div class="filters__type">
+                  <div class="dropdown dropdown--disabled" tabindex="" role="list"><a class="dropdown__selected">
+                      <!--v-if-->
+                      <!--v-if--><span class="dropdown__selected-text" title="viewFilter.is">viewFilter.is</span><i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
+                    </a>
+                    <div class="dropdown__items hidden dropdown__items--fixed">
+                      <div class="select__search"><i class="select__search-icon iconoir-search"></i><input type="text" class="select__search-input" placeholder="action.search" tabindex="0"></div>
+                      <ul class="select__items select__items--no-max-height prevent-scroll" tabindex="-1">
+                        <li class="select__item select__item--no-options visible active" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.is">viewFilter.is</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.isNot">viewFilter.isNot</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.contains">viewFilter.contains</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.containsNot">viewFilter.containsNot</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.containsWord">viewFilter.containsWord</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.doesntContainWord">viewFilter.doesntContainWord</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.startsWith">viewFilter.startsWith</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.lengthIsLowerThan">viewFilter.lengthIsLowerThan</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.isEmpty">viewFilter.isEmpty</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                            <div class="select__item-name">
+                              <!--v-if-->
+                              <!--v-if-->
+                              <!--v-if--><span class="select__item-name-text" title="viewFilter.isNotEmpty">viewFilter.isNotEmpty</span>
+                            </div>
+                            <!--v-if-->
+                          </a><i class="select__item-active-icon iconoir-check"></i></li>
+                      </ul>
+                      <!--v-if-->
+                      <!--v-if-->
+                    </div>
+                  </div>
+                </div>
+                <div class="filters__value filters__value--with-input-field">
+                  <div class="filters__value--formula-input" required="">
+                    <div class="formula-input-field__container">
+                      <div class="formula-input-field__editor">
+                        <div class="form-input formula-input-field form-input--disabled formula-input-field--disabled" role="textbox" style="--formula-placeholder: 'localBaserowTableServiceConditionalForm.expressionFilterInputPlaceholder';">
+                          <div contenteditable="false" role="textbox" translate="no" class="tiptap ProseMirror">
+                            <div>​AB</div>
+                          </div>
+                        </div>
+                      </div>
+                      <!--v-if-->
+                      <!--v-if-->
+                    </div>
+                    <teleport-stub to="body">
+                      <div class="formula-input-error-context context visibility-hidden" data-formula-input-context="">
+                        <!--v-if-->
+                      </div>
+                    </teleport-stub>
+                    <!--v-if-->
+                    <!--v-if-->
+                    <teleport-stub to="body">
+                      <!--v-if-->
+                    </teleport-stub>
+                  </div>
+                  <!--v-if-->
+                  <!--v-if-->
+                </div>
+                <!--v-if-->
+              </div>
+            </div>
+          </div>
+        </div>
+        <!--v-if-->
+      </div>
+    </div>
+  </div>
+  <!--v-if-->
+</div>"
+`;

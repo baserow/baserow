@@ -7,6 +7,9 @@ from django.urls import include, path
 
 from rest_framework import serializers
 
+from baserow.contrib.dashboard.data_providers import (
+    dashboard_data_provider_type_registry,
+)
 from baserow.contrib.dashboard.data_sources.handler import DashboardDataSourceHandler
 from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.dashboard.types import DashboardDict
@@ -14,7 +17,7 @@ from baserow.contrib.dashboard.widgets.handler import WidgetHandler
 from baserow.contrib.integrations.local_baserow.integration_types import (
     LocalBaserowIntegrationType,
 )
-from baserow.core.formula.registries import DataProviderTypeRegistry
+from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.models import Application, Workspace
@@ -51,8 +54,7 @@ class DashboardApplicationType(ApplicationType):
     request_serializer_field_overrides = {}
     allowed_fields = ["description"]
     supports_integrations = True
-    # Dashboard supports runtime functions, but no data provider references.
-    data_provider_type_registry = DataProviderTypeRegistry()
+    data_provider_type_registry = dashboard_data_provider_type_registry
 
     def get_api_urls(self):
         from .api import urls as api_urls
@@ -153,6 +155,7 @@ class DashboardApplicationType(ApplicationType):
             **serialized_dashboard,
         )
 
+    @deferred_callback_context()
     def import_serialized(
         self,
         workspace: Workspace,
@@ -238,5 +241,20 @@ class DashboardApplicationType(ApplicationType):
                 self.cache,
             )
             widgets_progress.increment()
+
+        def finalize_imported_widgets():
+            """Let every widget type finish importing once all mappings are available."""
+            import_context = {}
+            for widget in WidgetHandler().get_widgets(application):
+                widget_type = widget.get_type()
+                for updated in widget_type.after_import(
+                    widget,
+                    id_mapping,
+                    import_export_config=import_export_config,
+                    import_context=import_context,
+                ):
+                    updated.save()
+
+        deferred_callback_context.register(finalize_imported_widgets)
 
         return application

@@ -95,5 +95,32 @@
   },
   "lastViewedItemType": {
     "dashboard": "Dashboard"
+  },
+  "textFilterWidget": {
+    "name": "Text input",
+    "placeholder": "Placeholder",
+    "defaultValue": "Default value",
+    "targets": "Filtered widgets",
+    "back": "Filtered widgets",
+    "configureFilters": "Configure filters",
+    "readOnly": "Read-only",
+    "combinedFilterHelp": "These groups use the data source’s operator. Default widget filters and contributions from other inputs can only be edited in their own settings.",
+    "emptyBehavior": "When the input is empty",
+    "apply_nothing": "Ignore filter",
+    "apply_alternative": "Alternative filter",
+    "normalGroup": "Filter to apply",
+    "alternativeGroup": "Alternative filter",
+    "alternativeSeparator": "{operator} if the input is empty",
+    "permanentGroup": "Default widget filters",
+    "removeLink": "Remove link",
+    "incompatibleConditions": "Some input conditions are incompatible with the selected source. Update their fields or operators before using this filter.",
+    "configuredTarget": "Configured",
+    "enableTarget": "Filter {widget}",
+    "enableTargetHelp": "Enable this widget to configure how this input filters it.",
+    "configureSourceFirst": "Configure this widget\u2019s data source before enabling filtering.",
+    "unsupportedTarget": "This widget does not have a filterable data source."
+  },
+  "dashboardDataProviderType": {
+    "widgetData": "Filter widgets"
   }
 }

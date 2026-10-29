@@ -1,0 +1,151 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`database read permissions applies to root and nested filter controls 1`] = `
+{
+  "addButtons": 2,
+  "deleteButtons": 5,
+  "dropdowns": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+  ],
+  "misconfigured": "viewFieldConditionItem.filterMisconfigured",
+  "values": [
+    {
+      "disabled": false,
+      "value": "Root",
+    },
+    {
+      "disabled": false,
+      "value": "Outer",
+    },
+    {
+      "disabled": false,
+      "value": "Inner",
+    },
+    {
+      "disabled": false,
+      "value": "Second",
+    },
+  ],
+}
+`;
+
+exports[`disabled applies to root and nested filter controls 1`] = `
+{
+  "addButtons": 0,
+  "deleteButtons": 5,
+  "dropdowns": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+  ],
+  "misconfigured": "viewFieldConditionItem.filterMisconfigured",
+  "values": [
+    {
+      "disabled": true,
+      "value": "Root",
+    },
+    {
+      "disabled": true,
+      "value": "Outer",
+    },
+    {
+      "disabled": true,
+      "value": "Inner",
+    },
+    {
+      "disabled": true,
+      "value": "Second",
+    },
+  ],
+}
+`;
+
+exports[`editable applies to root and nested filter controls 1`] = `
+{
+  "addButtons": 2,
+  "deleteButtons": 5,
+  "dropdowns": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+  ],
+  "misconfigured": "viewFieldConditionItem.filterMisconfigured",
+  "values": [
+    {
+      "disabled": false,
+      "value": "Root",
+    },
+    {
+      "disabled": false,
+      "value": "Outer",
+    },
+    {
+      "disabled": false,
+      "value": "Inner",
+    },
+    {
+      "disabled": false,
+      "value": "Second",
+    },
+  ],
+}
+`;
+
+exports[`read-only filters applies to root and nested filter controls 1`] = `
+{
+  "addButtons": 0,
+  "deleteButtons": 0,
+  "dropdowns": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+  ],
+  "misconfigured": "viewFieldConditionItem.filterMisconfigured",
+  "values": [
+    {
+      "disabled": true,
+      "value": "Root",
+    },
+    {
+      "disabled": true,
+      "value": "Outer",
+    },
+    {
+      "disabled": true,
+      "value": "Inner",
+    },
+    {
+      "disabled": true,
+      "value": "Second",
+    },
+  ],
+}
+`;

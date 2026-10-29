@@ -13,6 +13,8 @@ from baserow.core.mixins import (
     WithRegistry,
 )
 
+from .fields import TargetFiltersField
+
 if TYPE_CHECKING:
     from baserow.contrib.dashboard.models import Dashboard
 
@@ -106,3 +108,15 @@ class SummaryWidget(Widget):
         on_delete=models.PROTECT,
         help_text="Data source for fetching the result to display.",
     )
+
+
+class TextFilterWidget(Widget):
+    """A text input whose viewer value remains local to the browser."""
+
+    target_filters = TargetFiltersField(
+        default=list,
+        db_default=[],
+        blank=True,
+    )
+    placeholder = models.TextField(blank=True, default="", db_default="")
+    default_value = models.TextField(blank=True, default="", db_default="")

@@ -9,6 +9,7 @@ from baserow.contrib.dashboard.data_sources.handler import DashboardDataSourceHa
 from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
 from baserow.contrib.dashboard.types import WidgetDict
 from baserow.contrib.dashboard.widgets.exceptions import WidgetImproperlyConfigured
+from baserow.contrib.dashboard.widgets.mixins import DisplayWidgetTypeMixin
 from baserow.contrib.dashboard.widgets.models import Widget
 from baserow.contrib.dashboard.widgets.registries import WidgetType
 from baserow.contrib.dashboard.widgets.types import UpdatedWidget, WidgetGridLayout
@@ -31,7 +32,7 @@ from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
 
 
-class ChartWidgetType(WidgetType):
+class ChartWidgetType(DisplayWidgetTypeMixin, WidgetType):
     type = "chart"
     model_class = ChartWidget
     grid_layout = WidgetGridLayout(
@@ -167,14 +168,6 @@ class ChartWidgetType(WidgetType):
             values["data_source"] = data_source
         return values
 
-    def before_trashed(self, instance: Widget):
-        instance.data_source.trashed = True
-        instance.data_source.save()
-
-    def before_restore(self, instance: Widget):
-        instance.data_source.trashed = False
-        instance.data_source.save()
-
     def after_delete(self, instance: Widget):
         DashboardDataSourceHandler().delete_data_source(instance.data_source)
 
@@ -259,7 +252,7 @@ class ChartWidgetType(WidgetType):
         )
 
 
-class PieChartWidgetType(WidgetType):
+class PieChartWidgetType(DisplayWidgetTypeMixin, WidgetType):
     type = "pie_chart"
     model_class = PieChartWidget
     grid_layout = WidgetGridLayout(
@@ -394,14 +387,6 @@ class PieChartWidgetType(WidgetType):
             )
             values["data_source"] = data_source
         return values
-
-    def before_trashed(self, instance: Widget):
-        instance.data_source.trashed = True
-        instance.data_source.save()
-
-    def before_restore(self, instance: Widget):
-        instance.data_source.trashed = False
-        instance.data_source.save()
 
     def after_delete(self, instance: Widget):
         DashboardDataSourceHandler().delete_data_source(instance.data_source)
