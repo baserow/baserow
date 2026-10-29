@@ -21,6 +21,23 @@ class InstallTemplateQueryParamSerializer(serializers.Serializer):
     revision_id = serializers.IntegerField(required=False)
 
 
+class DownloadTemplateSerializer(serializers.Serializer):
+    latest = serializers.BooleanField(
+        required=False,
+        default=False,
+        help_text="Whether to download the latest revision of the user template, "
+        "which only its owner may. Otherwise it's the revision the user would "
+        "install.",
+    )
+
+
+class TemplateArchiveSerializer(serializers.Serializer):
+    url = serializers.URLField(
+        help_text="The URL of the archive, which imports like a workspace export."
+    )
+    file_name = serializers.CharField(help_text="The name to save the archive as.")
+
+
 class TemplateSerializer(serializers.ModelSerializer):
     """
     Serializes a template revision. The id, slug and keywords are the template's,

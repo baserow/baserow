@@ -14,8 +14,10 @@
     {{ message }}
     <template v-if="phase === 'finished'" #actions>
       <button
-        v-if="job.url"
+        v-if="toast.data.url"
         class="toast__actions-button toast__actions-button--primary download-template-toast__download"
+        :class="{ 'toast__actions-button--loading': toast.data.downloading }"
+        :disabled="toast.data.downloading"
         @click="downloadArchive"
       >
         {{ $t('downloadTemplateToast.download') }}
@@ -38,9 +40,10 @@ import { useNuxtApp } from '#app'
 import Toast from '@baserow/modules/core/components/toasts/Toast'
 
 const props = defineProps({
-  // A toast of the `downloadTemplate` type. Its data holds the `jobId`, the name
-  // of the template when the download was clicked in this page, and the final
-  // fields of the job once the job is removed from the job store.
+  // A toast of the `downloadTemplate` type. Its data holds the `jobId` of the
+  // build, the name of the template when the download was clicked in this page,
+  // the error of a failed build, the `url` and `file_name` of the archive, and
+  // whether it's being saved.
   toast: {
     type: Object,
     required: true,
@@ -50,14 +53,15 @@ const props = defineProps({
 const store = useStore()
 const { $i18n: i18n, $registry } = useNuxtApp()
 
-// The job while it's in the job store, then the final fields written into the
-// toast when the job ended.
+// The job while it's in the job store, then the fields written into the toast
+// when the job ended.
 const job = computed(
   () => store.getters['job/get'](props.toast.data.jobId) ?? props.toast.data
 )
 
+// A finished build is still running until the archive is handed out.
 const phase = computed(() => {
-  if (job.value.state === 'finished') {
+  if (props.toast.data.url) {
     return 'finished'
   }
   if (job.value.state === 'failed') {
@@ -68,7 +72,7 @@ const phase = computed(() => {
 
 // A download started before the page was loaded has only the name of the file.
 const name = computed(
-  () => props.toast.data.template_name ?? job.value.file_name ?? ''
+  () => props.toast.data.template_name ?? props.toast.data.file_name ?? ''
 )
 
 const toastType = computed(
@@ -119,6 +123,6 @@ function autoClose() {
 async function downloadArchive() {
   await $registry
     .get('job', 'download_user_template')
-    .downloadArchive(job.value)
+    .downloadArchive(props.toast.data, props.toast)
 }
 </script>

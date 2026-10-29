@@ -169,8 +169,8 @@ if it does not exist.
   follows section 2. It copies the revision the user opened, even if the author updates
   the template meanwhile.
 - Download works the same way as downloading a workspace export: a signed archive that
-  another instance can import. A revision's archive is ready when the revision is
-  created.
+  another instance can import. A revision's archive is made the first time someone
+  downloads it, and every later download reuses it until Baserow is upgraded.
 - Installed copies are independent: later changes to the template never affect them.
 
 ### 7. Deletion

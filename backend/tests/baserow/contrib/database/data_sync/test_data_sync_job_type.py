@@ -1,6 +1,8 @@
 from datetime import timedelta
 from unittest.mock import patch
 
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 import pytest
@@ -150,6 +152,31 @@ def test_periodic_runs_do_not_consume_the_users_manual_cap(data_fixture):
             triggered_by=DATA_SYNC_JOB_TRIGGERED_BY_MANUAL,
         )
     )
+
+
+@pytest.mark.django_db
+def test_get_jobs_for_user_query_count_with_foreign_runs(data_fixture):
+    viewer = data_fixture.create_user()
+    data_sync = data_fixture.create_ical_data_sync(
+        user=viewer, ical_url="https://baserow.io/ical.ics"
+    )
+
+    def count_queries(run_count):
+        # Runs of other users, which the viewer sees through the data sync.
+        job_ids = [
+            SyncDataSyncTableJob.objects.create(
+                user=data_fixture.create_user(), data_sync=data_sync
+            ).id
+            for _ in range(run_count)
+        ]
+        with CaptureQueriesContext(connection) as queries:
+            jobs = list(JobHandler.get_jobs_for_user(viewer, None, job_ids))
+        assert sorted(job.id for job in jobs) == job_ids
+        return len(queries)
+
+    # Fills the caches the first listing fills.
+    count_queries(1)
+    assert count_queries(1) == count_queries(5)
 
 
 @pytest.mark.django_db(transaction=True)

@@ -2,7 +2,7 @@ import dataclasses
 import secrets
 import string
 from datetime import timedelta
-from typing import Any, Callable, Dict, Iterable, List, Optional, Set
+from typing import Any, Callable, Dict, Iterable, List, Optional
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -39,6 +39,7 @@ from baserow.core.user.exceptions import UserNotFound
 from baserow.core.user_templates.archive import (
     delete_template_archive_file,
     delete_template_archives,
+    is_valid_template_archive,
     new_template_archive_name,
     template_archive_dir,
 )
@@ -527,50 +528,53 @@ class UserTemplateHandler:
                 get_default_storage(),
                 progress_builder=progress_builder,
             )
-            self._save_template_archive_name(revision, name)
+            saved_name = self._save_template_archive_name(revision, name)
         except Exception:
             # Nothing refers to the file yet.
             delete_template_archive_file(name)
             raise
 
-        revision.archive.name = name
+        if saved_name != name:
+            # Another build saved a valid archive meanwhile, so nothing refers to
+            # this one.
+            delete_template_archive_file(name)
+        revision.archive.name = saved_name
 
-    def _save_template_archive_name(self, revision: Template, name: str) -> None:
+    def _save_template_archive_name(self, revision: Template, name: str) -> str:
         """
-        Saves the name of the archive just built for a revision, and deletes the
-        other archives of the revision, and the replaced one, once that commits.
+        Saves the name of the archive just built for a revision, unless another
+        build saved a valid one meanwhile, and deletes the replaced archive once
+        that commits. The revision is locked, so that overlapping builds keep one
+        valid archive and never delete each other's files.
 
+        :return: The name of the archive the revision refers to now.
         :raises TemplateDoesNotExist: If the revision was deleted.
         """
 
         with transaction.atomic():
-            current_name = (
-                Template.objects.filter(id=revision.id)
+            current_names = list(
+                Template.objects.select_for_update(no_key=True)
+                .filter(id=revision.id)
                 .values_list("archive", flat=True)
-                .first()
             )
-            # Neither `updated_on`, nor `install_count`, are changed.
-            if not Template.objects.filter(id=revision.id).update(archive=name):
+            if not current_names:
                 raise TemplateDoesNotExist(
                     f"The template revision {revision.id} does not exist."
                 )
+            current_name = current_names[0]
+            if current_name and is_valid_template_archive(revision.id, current_name):
+                return current_name
 
-            if current_name and not current_name.startswith(
-                template_archive_dir(revision.id)
-            ):
-                # An archive outside the directory, like a copied one, is kept
-                # while a template refers to it.
+            # Neither `updated_on`, nor `install_count`, are changed.
+            Template.objects.filter(id=revision.id).update(archive=name)
+            if current_name:
+                # Kept while another template refers to it, like a revision that
+                # only changed the details.
                 transaction.on_commit(
                     lambda: self.delete_content_without_template(None, current_name),
                     robust=True,
                 )
-
-            transaction.on_commit(
-                lambda: delete_template_archives(
-                    template_archive_dir(revision.id), keep=[name]
-                ),
-                robust=True,
-            )
+        return name
 
     def install_template_content(
         self,
@@ -848,33 +852,27 @@ class UserTemplateHandler:
 
         return revision
 
-    def get_downloadable_revision_ids(
-        self, user: AbstractUser, revisions: Iterable[Template]
-    ) -> Set[int]:
+    def get_downloadable_revision(
+        self, user: AbstractUser, slug: str, latest: bool = False
+    ) -> Template:
         """
-        Returns the ids of the revisions that the user can download now, which is
-        the revision `get_installable_revision` returns for its template. The
-        access is checked once per template.
+        Returns the revision of a user template whose archive the user downloads,
+        which is the one the user would install, see `get_installable_revision`.
 
-        :param user: The user who downloads.
-        :param revisions: Revisions of templates, with their root selected.
-        :return: The ids of the given revisions the user can download.
+        :param user: The user who downloads the template.
+        :param slug: The slug of the template.
+        :param latest: Whether the latest revision is downloaded.
+        :raises TemplateDoesNotExist: If there is no user template with the slug,
+            or the user may not download it.
+        :raises TemplateBlocked: If the user owns the template and it's blocked.
+        :raises TemplateHasNoContent: If the revision has no application to copy.
+        :return: The revision, with its root selected.
         """
 
-        roots = {}
-        for revision in revisions:
-            root = revision.root or revision
-            roots[root.id] = root
-
-        revision_ids = set()
-        for root in roots.values():
-            if root.marked_for_deletion_at is not None:
-                continue
-            try:
-                revision_ids.add(self.get_installable_revision(user, root).id)
-            except (TemplateDoesNotExist, TemplateBlocked, TemplateHasNoContent):
-                continue
-        return revision_ids
+        root = self.get_user_template_root_by_slug(slug)
+        if root is None:
+            raise TemplateDoesNotExist(f"The template with slug {slug} does not exist.")
+        return self.get_installable_revision(user, root, latest=latest)
 
     def check_install_access(self, user: AbstractUser, revision: Template) -> None:
         """

@@ -84,8 +84,7 @@ class CreateUserTemplateJob(
 class DownloadUserTemplateJob(Job):
     """
     Builds the downloadable archive of a revision of a user template, unless it
-    has a valid one already. Everyone who downloads the revision while the job is
-    pending or running gets this job, so that the archive is built once.
+    has a valid one already.
     """
 
     revision = models.ForeignKey(
@@ -95,6 +94,12 @@ class DownloadUserTemplateJob(Job):
         related_name="+",
         help_text="The revision whose archive is downloaded. Empty once the "
         "template was deleted permanently.",
+    )
+    latest = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Whether the latest revision was asked for, so that its archive "
+        "is asked for the same way once the job is finished.",
     )
 
 

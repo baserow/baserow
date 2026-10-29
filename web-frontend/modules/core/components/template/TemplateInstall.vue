@@ -111,6 +111,7 @@ import { useStore } from 'vuex'
 import { useNuxtApp, useRouter, useRuntimeConfig } from '#app'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { signedInUserCheck } from '@baserow/modules/core/utils/auth'
 import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
 import { useUserTemplateDownload } from '@baserow/modules/core/composables/useUserTemplateDownload'
 import { fetchPermissionsOfWorkspaces } from '@baserow/modules/core/utils/workspace'
@@ -245,6 +246,7 @@ async function use() {
 
   installing.value = true
   const workspaceId = selectedWorkspaceId.value
+  const isSameUser = signedInUserCheck(store)
 
   try {
     const { data } = await TemplateService($client).asyncInstall(
@@ -252,6 +254,10 @@ async function use() {
       props.template.id,
       { latest: props.latest, revisionId: props.template.revision_id ?? null }
     )
+    // The user logged out while installing.
+    if (!isSameUser()) {
+      return
+    }
     // The user stays where they are. The toast shows the progress, unless the
     // sidebar shows it, and then the result. Added before the job, whose end
     // updates the toast.
@@ -262,6 +268,9 @@ async function use() {
     await store.dispatch('job/create', data)
     emit('installed')
   } catch (error) {
+    if (!isSameUser()) {
+      return
+    }
     notifyIf(error, 'template')
     // Another revision was made public, or the owner updated the template in
     // another tab, since it was shown. Nothing was installed.

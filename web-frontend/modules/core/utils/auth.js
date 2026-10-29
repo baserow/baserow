@@ -179,3 +179,15 @@ export const logoutAndRedirectToLogin = async (
 
   await store.dispatch('auth/clearAllStoreUserData')
 }
+
+/**
+ * Remembers who is signed in now. The returned function tells whether that user
+ * is still signed in, so that an answer that comes after a logout, or after a
+ * login as someone else, can be left out.
+ */
+export const signedInUserCheck = (store) => {
+  const userId = store.getters['auth/getUserId']
+  return () =>
+    store.getters['auth/isAuthenticated'] &&
+    store.getters['auth/getUserId'] === userId
+}

@@ -277,6 +277,26 @@ describe('TemplateInstall', () => {
     ).toBeUndefined()
   })
 
+  test('shows nothing when the install answers after a logout', async () => {
+    signIn()
+    let reply = null
+    testApp.mock
+      .onPost(`/templates/install/1/${template.id}/async/`)
+      .reply(() => new Promise((resolve) => (reply = resolve)))
+    const wrapper = await testApp.mount(TemplateInstall, {
+      props: { template, workspace: { id: 1 } },
+    })
+    await clickUse(wrapper)
+
+    await testApp.store.dispatch('auth/forceLogoff')
+    reply([202, { id: 10, type: 'install_template', state: 'started' }])
+    await flushPromises()
+
+    expect(installToasts()).toHaveLength(0)
+    expect(testApp.store.getters['job/getAll']).toHaveLength(0)
+    expect(wrapper.emitted('installed')).toBeUndefined()
+  })
+
   test('tells the user and asks to reload when the template was updated', async () => {
     signIn()
     testApp.dontFailOnErrorResponses()
@@ -310,15 +330,16 @@ describe('TemplateInstall', () => {
       slug: 'crm-a1b2c3',
       name: 'CRM',
     }
-    const runningJob = () => ({
+    const runningJob = (latest = false) => ({
       id: 20,
       type: 'download_user_template',
       state: 'pending',
       progress_percentage: 0,
       human_readable_error: '',
-      url: null,
-      file_name: 'crm.zip',
+      slug: 'crm-a1b2c3',
+      latest,
     })
+    const downloadUrl = '/templates/crm-a1b2c3/download/'
 
     // The copied label is left out of the texts of the menu.
     const mountWithMenu = async (props, { mocks = {} } = {}) => {
@@ -357,7 +378,7 @@ describe('TemplateInstall', () => {
 
     const downloadRequests = () =>
       testApp.mock.history.post
-        .filter((request) => request.url === '/jobs/')
+        .filter((request) => request.url === downloadUrl)
         .map((request) => JSON.parse(request.data))
 
     const downloadToasts = () =>
@@ -390,7 +411,7 @@ describe('TemplateInstall', () => {
       async (latest) => {
         signIn()
         let reply = null
-        testApp.mock.onPost('/jobs/').reply(
+        testApp.mock.onPost(downloadUrl).reply(
           () =>
             new Promise((resolve) => {
               reply = resolve
@@ -408,11 +429,9 @@ describe('TemplateInstall', () => {
 
         // A second click doesn't request it again.
         await clickDownload(wrapper)
-        expect(downloadRequests()).toStrictEqual([
-          { type: 'download_user_template', slug: 'crm-a1b2c3', latest },
-        ])
+        expect(downloadRequests()).toStrictEqual([{ latest }])
 
-        reply([200, runningJob()])
+        reply([202, runningJob(latest)])
         await flushPromises()
 
         expect(downloadToasts().map((toast) => toast.data)).toStrictEqual([
@@ -431,7 +450,7 @@ describe('TemplateInstall', () => {
     test('shows why a template is not downloaded', async () => {
       signIn()
       testApp.dontFailOnErrorResponses()
-      testApp.mock.onPost('/jobs/').reply(400, {
+      testApp.mock.onPost(downloadUrl).reply(400, {
         error: 'ERROR_TEMPLATE_BLOCKED',
         detail: 'The template is blocked.',
       })
@@ -447,6 +466,23 @@ describe('TemplateInstall', () => {
       expect(downloadLink(wrapper).classes()).not.toContain(
         'context__menu-item-link--loading'
       )
+    })
+
+    test('shows nothing when the answer comes after a logout', async () => {
+      signIn()
+      let reply = null
+      testApp.mock
+        .onPost(downloadUrl)
+        .reply(() => new Promise((resolve) => (reply = resolve)))
+      const wrapper = await mountWithMenu({ template: userTemplate })
+      await clickDownload(wrapper)
+
+      await testApp.store.dispatch('auth/forceLogoff')
+      reply([202, runningJob()])
+      await flushPromises()
+
+      expect(downloadToasts()).toHaveLength(0)
+      expect(testApp.store.getters['job/getAll']).toHaveLength(0)
     })
 
     test('sends an anonymous visitor to the login page and back', async () => {

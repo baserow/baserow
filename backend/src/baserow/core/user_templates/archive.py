@@ -8,13 +8,14 @@ import hashlib
 import re
 import uuid
 from os.path import join
-from typing import Iterable
 
 from django.core.cache import cache
 from django.db import connection
 from django.db.migrations.recorder import MigrationRecorder
 from django.db.models import Count, Max
+from django.utils.text import slugify
 
+from baserow.core.context import clear_current_workspace_id, set_current_workspace_id
 from baserow.core.storage import get_default_storage
 from baserow.version import VERSION
 
@@ -117,6 +118,28 @@ def has_valid_archive(revision) -> bool:
     return is_valid_template_archive(revision.id, revision.archive.name or "")
 
 
+def template_archive_url(revision) -> str:
+    """
+    Returns the URL of the archive of a revision. The storage may sign it with the
+    current workspace, so it's made with the workspace of the revision, which only
+    the users who can open the template can open, see secure file serve.
+
+    :param revision: A revision of a user template with a valid archive.
+    """
+
+    try:
+        set_current_workspace_id(revision.workspace_id)
+        return get_default_storage().url(revision.archive.name)
+    finally:
+        clear_current_workspace_id()
+
+
+def template_archive_file_name(revision) -> str:
+    """Returns the name to save the archive of a revision as."""
+
+    return f"{slugify(revision.name) or 'template'}.zip"
+
+
 def delete_template_archive_file(name: str) -> None:
     """Deletes an archive file. One that is gone already counts as deleted."""
 
@@ -125,15 +148,14 @@ def delete_template_archive_file(name: str) -> None:
         storage.delete(name)
 
 
-def delete_template_archives(directory: str, keep: Iterable[str] = ()) -> None:
+def delete_template_archives(directory: str) -> None:
     """
-    Deletes the archives in the directory of a revision, except the ones in `keep`
-    and the ones a template still refers to. The directory itself is removed once
-    it's empty, where the storage has directories. A directory that is gone
-    already counts as deleted, so deleting twice does nothing.
+    Deletes the archives in the directory of a revision, except the ones a
+    template still refers to. The directory itself is removed once it's empty,
+    where the storage has directories. A directory that is gone already counts as
+    deleted, so deleting twice does nothing.
 
     :param directory: The directory of a revision, see `template_archive_dir`.
-    :param keep: The names of the archives to keep.
     :raises ValueError: If the directory isn't the one of a revision.
     """
 
@@ -149,12 +171,9 @@ def delete_template_archives(directory: str, keep: Iterable[str] = ()) -> None:
         return
 
     names = {join(directory, file_name) for file_name in files}
-    kept = (
-        set(keep)
-        | set(
-            Template.objects.filter(archive__in=names).values_list("archive", flat=True)
-        )
-    ) & names
+    kept = names & set(
+        Template.objects.filter(archive__in=names).values_list("archive", flat=True)
+    )
     for name in names - kept:
         delete_template_archive_file(name)
 

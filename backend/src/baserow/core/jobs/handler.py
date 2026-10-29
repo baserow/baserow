@@ -273,16 +273,12 @@ class JobHandler:
         :param job_type_name: The job type we want to launch.
         :param sync: True if you want to execute the job immediately.
 
-        :return: The newly created job, or the already running job the job type
-            returned from `get_existing_job`.
+        :return: The newly created job.
         """
 
         job_type = job_type_registry.get(job_type_name)
         model_class = job_type.model_class
         job_values = job_type.prepare_values(kwargs, user)
-        existing_job = job_type.get_existing_job(user, job_values)
-        if existing_job is not None:
-            return existing_job
         job: AnyJob = model_class(user=user, **job_values)
         job_type.can_schedule_or_raise(job)
         job.save()

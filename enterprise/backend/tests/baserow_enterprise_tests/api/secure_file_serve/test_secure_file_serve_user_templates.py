@@ -7,14 +7,10 @@ import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_403_FORBIDDEN
 
 from baserow.core.context import get_current_workspace_id
-from baserow.core.jobs.constants import JOB_FINISHED
 from baserow.core.models import Template
 from baserow.core.storage import get_default_storage
 from baserow.core.user_templates.archive import new_template_archive_name
-from baserow.core.user_templates.job_types import DownloadUserTemplateJobType
-from baserow.core.user_templates.models import DownloadUserTemplateJob
 from baserow_enterprise.secure_file_serve.constants import SecureFileServePermission
-from tests.baserow.core.user_templates.utils import run_job
 
 ARCHIVE_CONTENT = b"user template archive"
 
@@ -52,30 +48,15 @@ def _create_user_template(data_fixture, owner, *, public=False):
 
 def _get_download_url(api_client, token, template):
     response = api_client.post(
-        reverse("api:jobs:list"),
-        {
-            "type": DownloadUserTemplateJobType.type,
-            "slug": template.slug,
-        },
+        reverse("api:templates:download", kwargs={"slug": template.slug}),
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
-    assert response.status_code == HTTP_200_OK, response.json()
-    job_id = response.json()["id"]
-    # The archive is valid, so the job finishes without building it.
-    job = run_job(DownloadUserTemplateJob.objects.get(id=job_id))
-    assert job.state == JOB_FINISHED
-
-    response = api_client.get(
-        reverse("api:jobs:list"),
-        {"job_ids": str(job_id)},
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
+    # The archive is valid, so it's handed out without a job.
     assert response.status_code == HTTP_200_OK, response.json()
     # The URL is signed with the workspace only while it's made.
     assert get_current_workspace_id() is None
-    (job_json,) = response.json()["jobs"]
-    url = job_json["url"]
+    url = response.json()["url"]
     # Served by the backend, not straight from the media folder.
     assert "/api/files/" in url
     return url

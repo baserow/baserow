@@ -12,17 +12,18 @@ vi.mock('@baserow/modules/core/utils/download', async (importOriginal) => {
   return { ...original, triggerDownload: vi.fn() }
 })
 
-const runningJob = () => ({
+const template = { name: 'Project Tracker', slug: 'project-tracker-a1b2c3' }
+
+const runningJob = (data = {}) => ({
   id: 10,
   type: 'download_user_template',
   state: 'started',
   progress_percentage: 40,
   human_readable_error: '',
-  url: null,
-  file_name: 'project-tracker.zip',
+  slug: template.slug,
+  latest: false,
+  ...data,
 })
-
-const template = { name: 'Project Tracker', slug: 'project-tracker-a1b2c3' }
 
 const archive = {
   url: 'http://localhost:8000/media/template-archives/1/abc_def.zip',
@@ -53,33 +54,51 @@ describe('DownloadTemplateToast', () => {
   const errorToasts = () =>
     store.state.toast.items.filter((toast) => toast.type === 'error')
 
-  // Starts a download the way a click does: the toast first, then the job.
+  // What the download endpoint answers once the job ends.
+  const mockDownload = (slug = template.slug) =>
+    testApp.mock.onPost(`/templates/${slug}/download/`)
+
+  const downloadRequests = () =>
+    testApp.mock.history.post.map((request) => [
+      request.url,
+      JSON.parse(request.data),
+    ])
+
+  // Shows what a click got from the download endpoint.
+  const click = (response, { of = template, latest = false } = {}) =>
+    jobType().startDownload(response, of, { latest })
+
+  const mountToast = async (toast = downloadToasts()[0]) =>
+    await testApp.mount(DownloadTemplateToast, { props: { toast } })
+
+  // A click that got the job building the archive.
   const startDownload = async () => {
-    const job = runningJob()
-    await jobType().addDownloadToast(job, template)
-    await store.dispatch('job/forceCreate', job)
-    return await testApp.mount(DownloadTemplateToast, {
-      props: { toast: downloadToasts()[0] },
-    })
+    await click({ status: 202, data: runningJob() })
+    return await mountToast()
   }
 
-  test('names the template, then saves the archive once and keeps a button for it', async () => {
+  test('names the template, then asks for the archive once the job ends, saves it once and keeps a button for it', async () => {
     const t = vi.spyOn(testApp.nuxtApp.$i18n, 't')
     const wrapper = await startDownload()
+    mockDownload().replyOnce(200, archive)
 
     expect(t).toHaveBeenCalledWith('downloadTemplateToast.preparingMessage', {
       name: template.name,
     })
     expect(triggerDownload).not.toHaveBeenCalled()
 
-    await updateJob(store, 10, { state: 'finished', ...archive })
+    await updateJob(store, 10, { state: 'finished' })
 
+    expect(downloadRequests()).toStrictEqual([
+      [`/templates/${template.slug}/download/`, { latest: false }],
+    ])
     expect(triggerDownload).toHaveBeenCalledTimes(1)
     expect(triggerDownload).toHaveBeenCalledWith(
       archive.url,
       archive.file_name,
       { viaXhr: false }
     )
+    expect(store.getters['job/getAll']).toHaveLength(0)
 
     await wrapper.find('.download-template-toast__download').trigger('click')
     await flushPromises()
@@ -89,6 +108,83 @@ describe('DownloadTemplateToast', () => {
     await wrapper.find('.download-template-toast__dismiss').trigger('click')
 
     expect(downloadToasts()).toHaveLength(0)
+  })
+
+  test('does not hold the polling while the archive is saved, and disables its button meanwhile', async () => {
+    const wrapper = await startDownload()
+    mockDownload().replyOnce(200, archive)
+    let saved = null
+    vi.mocked(triggerDownload).mockReturnValueOnce(
+      new Promise((resolve) => (saved = resolve))
+    )
+
+    await updateJob(store, 10, { state: 'finished' })
+
+    expect(store.getters['job/getAll']).toHaveLength(0)
+    const button = wrapper.find('.download-template-toast__download')
+    expect(button.attributes('disabled')).toBeDefined()
+
+    saved()
+    await flushPromises()
+
+    expect(button.attributes('disabled')).toBeUndefined()
+  })
+
+  test('follows the new job when the archive has to be built again', async () => {
+    const wrapper = await startDownload()
+    mockDownload().replyOnce(202, runningJob({ id: 11 }))
+
+    await updateJob(store, 10, { state: 'finished' })
+
+    expect(downloadToasts().map((toast) => toast.data.jobId)).toStrictEqual([
+      11,
+    ])
+    expect(store.getters['job/getAll'].map((job) => job.id)).toStrictEqual([11])
+    expect(wrapper.find('.download-template-toast__download').exists()).toBe(
+      false
+    )
+    expect(triggerDownload).not.toHaveBeenCalled()
+
+    mockDownload().replyOnce(200, archive)
+    await updateJob(store, 11, { state: 'finished' })
+
+    expect(triggerDownload).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('.download-template-toast__download').exists()).toBe(
+      true
+    )
+  })
+
+  test('saves the archive once when a click gets it ready', async () => {
+    await click({ status: 200, data: archive })
+    const t = vi.spyOn(testApp.nuxtApp.$i18n, 't')
+    const wrapper = await mountToast()
+
+    expect(t).toHaveBeenCalledWith('downloadTemplateToast.readyTitle')
+    expect(triggerDownload).toHaveBeenCalledTimes(1)
+    expect(store.getters['job/getAll']).toHaveLength(0)
+
+    await wrapper.find('.download-template-toast__download').trigger('click')
+    await flushPromises()
+
+    expect(triggerDownload).toHaveBeenCalledTimes(2)
+  })
+
+  test('a click that gets the archive ready ends once it is saved', async () => {
+    let saved = null
+    vi.mocked(triggerDownload).mockReturnValueOnce(
+      new Promise((resolve) => (saved = resolve))
+    )
+    let clicked = false
+
+    click({ status: 200, data: archive }).then(() => (clicked = true))
+    await flushPromises()
+
+    expect(clicked).toBe(false)
+
+    saved()
+    await flushPromises()
+
+    expect(clicked).toBe(true)
   })
 
   test('shows the reason of a failed download in the same toast', async () => {
@@ -112,64 +208,107 @@ describe('DownloadTemplateToast', () => {
     expect(downloadToasts()).toHaveLength(0)
   })
 
+  test('shows why the archive cannot be handed out after the job', async () => {
+    const wrapper = await startDownload()
+    mockDownload().replyOnce(400, {
+      error: 'ERROR_TEMPLATE_BLOCKED',
+      detail: 'The template is blocked.',
+    })
+
+    await updateJob(store, 10, { state: 'finished' })
+
+    expect(errorToasts()).toHaveLength(0)
+    expect(wrapper.find('.toast__message').text()).toBe(
+      'clientHandler.templateBlockedDescription'
+    )
+    expect(triggerDownload).not.toHaveBeenCalled()
+  })
+
+  test.each([
+    [200, archive],
+    [400, { error: 'ERROR_TEMPLATE_BLOCKED', detail: 'Blocked.' }],
+  ])(
+    'changes nothing when the archive answers %i after a logout',
+    async (status, data) => {
+      await startDownload()
+      let reply = null
+      mockDownload().reply(() => new Promise((resolve) => (reply = resolve)))
+
+      // Ends once the archive is answered.
+      const jobEnded = updateJob(store, 10, { state: 'finished' })
+      await flushPromises()
+      await store.dispatch('auth/forceLogoff')
+      reply([status, data])
+      await jobEnded
+
+      expect(triggerDownload).not.toHaveBeenCalled()
+      expect(downloadToasts()[0].data.state).toBeUndefined()
+    }
+  )
+
   test('adds one toast when a click gets a job that already has one', async () => {
     await startDownload()
+    mockDownload().replyOnce(200, archive)
 
-    // Another click got the same job, which was started by this or another user.
-    await jobType().addDownloadToast(runningJob(), template)
-    await store.dispatch('job/create', runningJob())
+    // A repeated click got the job that runs already.
+    await click({ status: 202, data: runningJob() })
 
     expect(downloadToasts()).toHaveLength(1)
     expect(store.getters['job/getAll']).toHaveLength(1)
 
-    await updateJob(store, 10, { state: 'finished', ...archive })
+    await updateJob(store, 10, { state: 'finished' })
 
     expect(triggerDownload).toHaveBeenCalledTimes(1)
   })
 
   test('replaces the ended toasts of the same download when it is clicked again', async () => {
-    await startDownload()
-    await updateJob(store, 10, { state: 'finished', ...archive })
-    await jobType().addDownloadToast({ ...runningJob(), id: 11 }, template)
-    await store.dispatch('job/forceCreate', { ...runningJob(), id: 11 })
-    await updateJob(store, 11, { state: 'failed', human_readable_error: 'x' })
-    // The latest revision of the same template, and a running download.
-    await jobType().addDownloadToast({ ...runningJob(), id: 12 }, template, {
-      latest: true,
-    })
-    await store.dispatch('job/forceCreate', { ...runningJob(), id: 12 })
-    await updateJob(store, 12, { state: 'finished', ...archive })
     const other = { name: 'Roadmap', slug: 'roadmap-g7h8i9' }
-    await jobType().addDownloadToast({ ...runningJob(), id: 13 }, other)
-    await store.dispatch('job/forceCreate', { ...runningJob(), id: 13 })
+    // Ready, failed, ready for the latest revision, and running for another
+    // template.
+    await click({ status: 200, data: archive })
+    await click({ status: 202, data: runningJob({ id: 11 }) })
+    await updateJob(store, 11, { state: 'failed', human_readable_error: 'x' })
+    await click({ status: 200, data: archive }, { latest: true })
+    await click(
+      { status: 202, data: runningJob({ id: 13, slug: other.slug }) },
+      { of: other }
+    )
 
-    await jobType().addDownloadToast({ ...runningJob(), id: 14 }, template)
+    await click({ status: 202, data: runningJob({ id: 14 }) })
 
-    const jobIds = () =>
-      downloadToasts()
-        .map((toast) => toast.data.jobId)
-        .sort()
-    // Only the finished 10 and the failed 11 are replaced by 14.
-    expect(jobIds()).toStrictEqual([12, 13, 14])
+    const shown = () =>
+      downloadToasts().map(({ data }) => [data.slug, data.latest, data.jobId])
+    // The newest toast comes first.
+    const expected = [
+      [template.slug, false, 14],
+      [other.slug, false, 13],
+      [template.slug, true, undefined],
+    ]
+    expect(shown()).toStrictEqual(expected)
 
     // A click that gets the running job of a template keeps its toast.
-    await jobType().addDownloadToast({ ...runningJob(), id: 13 }, other)
+    await click(
+      { status: 202, data: runningJob({ id: 13, slug: other.slug }) },
+      { of: other }
+    )
 
-    expect(jobIds()).toStrictEqual([12, 13, 14])
+    expect(shown()).toStrictEqual(expected)
   })
 
   test('only shows the button for a download started before the page was loaded', async () => {
     // The pending jobs are fetched when the page loads, without their toast.
-    await store.dispatch('job/forceCreate', runningJob())
+    await store.dispatch('job/forceCreate', runningJob({ latest: true }))
+    mockDownload().replyOnce(200, archive)
 
-    await updateJob(store, 10, { state: 'finished', ...archive })
+    await updateJob(store, 10, { state: 'finished' })
 
+    expect(downloadRequests()).toStrictEqual([
+      [`/templates/${template.slug}/download/`, { latest: true }],
+    ])
     expect(triggerDownload).not.toHaveBeenCalled()
     expect(downloadToasts()).toHaveLength(1)
     const t = vi.spyOn(testApp.nuxtApp.$i18n, 't')
-    const wrapper = await testApp.mount(DownloadTemplateToast, {
-      props: { toast: downloadToasts()[0] },
-    })
+    const wrapper = await mountToast()
 
     // Without the template, it's named after the file.
     expect(t).toHaveBeenCalledWith('downloadTemplateToast.readyMessage', {
@@ -184,9 +323,10 @@ describe('DownloadTemplateToast', () => {
 
   test('shows an error when the archive cannot be saved', async () => {
     await startDownload()
+    mockDownload().replyOnce(200, archive)
     vi.mocked(triggerDownload).mockRejectedValueOnce(new Error('403'))
 
-    await updateJob(store, 10, { state: 'finished', ...archive })
+    await updateJob(store, 10, { state: 'finished' })
 
     expect(errorToasts().map((toast) => toast.title)).toStrictEqual([
       'clientHandler.notCompletedTitle',
