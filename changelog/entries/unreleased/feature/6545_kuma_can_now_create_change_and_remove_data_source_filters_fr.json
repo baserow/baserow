@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Kuma can now create, change and remove data source filters from the filter form, the chat and MCP",
+    "issue_origin": "github",
+    "issue_number": 6545,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-10-29"
+}
