@@ -174,7 +174,8 @@
         "localBaserowSummary": "Lokalna instalacja Baserow - {name}, {username}",
         "localBaserowNoUser": "Lokalna instalacja Baserow - nie skonfigurowano",
         "localBaserowSubjectSummary": "Lokalna instalacja Baserow - {type}: {name}",
-        "errorTrashedAgent": "Agent posiadający autoryzację został usunięty"
+        "errorTrashedAgent": "Agent posiadający autoryzację został usunięty",
+        "errorNoUser": "Ta integracja nie została zatwierdzona przez żadnego użytkownika ani agenta."
     },
     "localBaserowAggregateRowsForm": {
         "filterTabTitle": "Filtry",
@@ -191,7 +192,8 @@
     "slackBotIntegrationType": {
         "slackBotSummary": "Bot Slack",
         "slackBotNoToken": "Bot Slack – nie skonfigurowany",
-        "slackBotWarning": "Jakikolwiek użytkownik z uprawnieniami konfiguratora w tej aplikacji może wysyłać wiadomości za pośrednictwem tego bota oraz zamienić jego token. Użyj bota, którego dostęp może być współdzielony."
+        "slackBotWarning": "Jakikolwiek użytkownik z uprawnieniami konfiguratora w tej aplikacji może wysyłać wiadomości za pośrednictwem tego bota oraz zamienić jego token. Użyj bota, którego dostęp może być współdzielony.",
+        "errorNoToken": "Nie ustawiono jeszcze tokenu bota."
     },
     "aiForm": {
         "description": "Skonfiguruj ustawienia dostawcy AI dla tej integracji. Domyślnie dziedziczone są ustawienia AI obszaru roboczego.",
@@ -199,7 +201,8 @@
         "workspaceSettingsDescription": "Ta integracja domyślnie dziedziczy ustawienia dostawcy AI z obszaru roboczego. Nadpisanie dostawcy jest niezależne: ponieważ pola połączenia nigdy nie zawierają dziedziczonych danych uwierzytelniających, podaj osobne dane uwierzytelniające lub hosta.",
         "overrideWorkspaceSettings": "Zmień ustawienia obszaru roboczego dla tego dostawcy",
         "inherited": "Dziedziczony",
-        "overridden": "Zmieniony"
+        "overridden": "Zmieniony",
+        "apiKeyKeepPlaceholder": "Pozostaw puste, aby zachować zapisany klucz API"
     },
     "aiAgentServiceForm": {
         "integrationLabel": "Integracja",
@@ -285,7 +288,8 @@
         "channelNoPrefix": "Usuń \"#\" przed nazwą kanału."
     },
     "smtpIntegrationType": {
-        "smtpSummary": "SMTP - {host}:{port}"
+        "smtpSummary": "SMTP - {host}:{port}",
+        "errorNoHost": "Nie ustawiono jeszcze hosta SMTP."
     },
     "smtpForm": {
         "host": "Host SMTP",
