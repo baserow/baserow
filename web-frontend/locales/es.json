@@ -98,7 +98,15 @@
         "automationDesc": "Automatizar tareas repetitivas y flujos de trabajo.",
         "automationDefaultName": "Automatización sin título",
         "cantSelectAutomationWorkflowTitle": "No se pudo seleccionar la automatización.",
-        "cantSelectAutomationWorkflowDescription": "No se pudo seleccionar la automatización porque no tiene ningún flujo de trabajo. Usa la barra lateral para crear uno."
+        "cantSelectAutomationWorkflowDescription": "No se pudo seleccionar la automatización porque no tiene ningún flujo de trabajo. Usa la barra lateral para crear uno.",
+        "agentDesc": "Crea un agente en tu espacio de trabajo.",
+        "viewDatabase": "Ver base de datos",
+        "viewBuilder": "Ver aplicación",
+        "viewDashboard": "Ver panel",
+        "viewAutomation": "Ver automatización",
+        "viewAgent": "Ver agente",
+        "agent": "Agente",
+        "agents": "Agentes"
     },
     "settingType": {
         "account": "Cuenta",
@@ -234,7 +242,7 @@
         "autonumber": "Campo de sólo lectura que incrementa automáticamente un número por cada nueva fila.",
         "uuid": "Un UUID único y persistente de sólo lectura.",
         "createdBy": "El campo \"Creado por\" es un campo de sólo lectura que muestra el usuario que creó la fila.",
-        "duration": "Acepta una duración basada en el tiempo como una cadena con el formato {format} o como un número que representa el número total de segundos.",
+        "duration": "Acepta una duración basada en tiempo como una cadena en el formato {format} o como un número que representa el número total de segundos.",
         "password": "Un campo de sólo escritura que contiene una contraseña con hash. El valor será \"nulo\" si no se ha establecido, o \"verdadero\" si se ha establecido. Acepta una cadena para establecerla.",
         "formViewEditRow": "Un campo de solo lectura que genera una URL única y firmada que permite editar la fila a través de la vista de formulario vinculada.",
         "button": "Un campo de botón. Al hacer clic en el botón se abre una URL construida a partir de los valores de la fila. La celda no almacena datos y las escrituras son rechazadas.",
@@ -484,7 +492,15 @@
         "fieldDataConstraintTitle": "Violación de restricción de datos del campo",
         "fieldDataConstraintDescription": "No se pudo completar la operación debido a violaciones de restricciones existentes.",
         "userFileDoesNotExistDescription": "El valor hace referencia a una imagen que ya no existe. Elimínala e inténtalo de nuevo.",
-        "userFileDoesNotExistTitle": "La imagen no existe"
+        "userFileDoesNotExistTitle": "La imagen no existe",
+        "invitationEmailNotVerifiedDescription": "Abre el enlace del correo de invitación para aceptarla, o verifica primero tu dirección de correo electrónico.",
+        "templateUpdatedDescription": "La plantilla cambió desde que la abriste. Ahora se muestra la última versión; instálala de nuevo.",
+        "templateBlockedDescription": "La plantilla está bloqueada y no se puede instalar.",
+        "templateHasNoContentDescription": "La plantilla no tiene contenido.",
+        "templateUpdatedTitle": "Esta plantilla fue actualizada",
+        "templateHasNoContentTitle": "Plantilla no tiene contenido",
+        "invitationEmailNotVerifiedTitle": "Invitación no aceptada.",
+        "templateBlockedTitle": "Plantilla bloqueada"
     },
     "importerType": {
         "csv": "Importar un archivo CSV",
