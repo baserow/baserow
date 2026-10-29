@@ -247,8 +247,7 @@ def update_builder(
         if getattr(app, name) != value
     }
     if changes:
-        UpdateApplicationActionType.do(user, app, **changes)
-        app.refresh_from_db()
+        app = UpdateApplicationActionType.do(user, app, **changes)
 
     result: dict[str, Any] = {
         "id": app.id,
