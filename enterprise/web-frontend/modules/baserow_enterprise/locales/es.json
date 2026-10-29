@@ -49,7 +49,10 @@
         "roleHelpText": "Puede anularse con roles en bases de datos y tablas.",
         "subjectsColumn": "Miembros",
         "createdColumn": "Creado en",
-        "roleColumn": "Rol por defecto"
+        "roleColumn": "Rol por defecto",
+        "emptyDescription": "Agrupa a personas y agentes en equipos para gestionar su acceso conjuntamente. Crea un equipo para un departamento o proyecto, luego asigna su rol.",
+        "emptyTitle": "Aún no hay equipos",
+        "search": "Buscar equipos"
     },
     "subjectSampleField": {
         "titleAttr": "{subjectCount} miembros en este equipo."
@@ -97,7 +100,7 @@
         "exportFilename": "Exportación del registro de auditoría administrativa - {date}",
         "cancelledTitle": "Error de exportación",
         "cancelledDescription": "Algo ha ido mal al exportar el registro de auditoría. Por favor, inténtalo de nuevo.",
-        "exportWorkspaceFilename": " • Espacio de trabajo ({workspaceId}) Exportación de registros de auditoría - {date}"
+        "exportWorkspaceFilename": " Espacio de trabajo ({workspaceId}) Exportación de registros de auditoría - {date}"
     },
     "authProviders": {
         "addProvider": "Añadir proveedor",
@@ -144,8 +147,8 @@
         "title": "Editar {name}"
     },
     "deleteAuthProviderModal": {
-        "title": "Borrar {name}",
-        "comment": "¿Realmente quieres borrar este {type}?"
+        "title": "Eliminar {name}",
+        "comment": "¿Realmente quieres eliminar este {type}?"
     },
     "loginWithSaml": {
         "signInWithSaml": "Inicio de sesión con SAML SSO",
@@ -277,7 +280,8 @@
     },
     "membersRoleField": {
         "noAccessHelpText": "Este usuario necesita acceso explícito a los recursos.",
-        "adminHelpText": "Los administradores pueden restringir las funciones de otros administradores."
+        "adminHelpText": "Los administradores pueden restringir las funciones de otros administradores.",
+        "adminFullAccessHelpText": "Los administradores tienen acceso total a todo en este espacio de trabajo. Su rol en una base de datos, tabla o vista no puede reducirse. Para restringir a un administrador, reduce primero su rol en el espacio de trabajo."
     },
     "membersPagePlugin": {
         "roleHelpText": "Puede anularse con roles en bases de datos y tablas."
@@ -988,7 +992,8 @@
     },
     "subjectType": {
         "team": "Equipo",
-        "teams": "Equipos"
+        "teams": "Equipos",
+        "teamMembers": "{count} miembros"
     },
     "assistantDashboardPrompt": {
         "title": "Cuéntanos qué te gustaría crear",
@@ -1010,5 +1015,66 @@
     "selectAgentsList": {
         "selectedAmountLabel": "{count} agentes seleccionados",
         "searchPlaceholder": "Encontrar agentes..."
+    },
+    "shareScope": {
+        "noAccessSelectionDescription": "El miembro, equipo o agente seleccionado ya no tendrá acceso a este {type}, ni a nada dentro de él a menos que se le otorgue un rol allí. | Los {count} miembros, equipos y agentes seleccionados ya no tendrán acceso a este {type}, ni a nada dentro de él a menos que se les otorgue un rol allí.",
+        "scopeAdminHelpText": "Tiene acceso total a este {type} y a todo lo que contiene. Los roles establecidos en cualquier cosa dentro no tienen efecto sobre él. Para restringirlo, reduce primero este rol.",
+        "inheritedAdminHelpText": "Administrador del {level}: siempre tiene acceso total a este {type}. El rol establecido aquí no tiene efecto. Para restringirlo, reduce primero su rol de {level}.",
+        "alreadyInvited": "Ya hay una invitación pendiente en este {type}. \nPuedes cambiar su rol en la lista de abajo en lugar de invitar de nuevo.",
+        "noAccessDescription": "{name} ya no tendrá acceso a este {type}, ni a nada dentro de él a menos que se le dé un rol allí.",
+        "fromLevelExplanation": "Todos conservan su rol en este {level} sobre todo lo que hay dentro, incluyendo este {type}, a menos que se les dé otro rol allí.",
+        "alreadyAdmin": "Administrador del {level}: ya tiene acceso total a este {type}. \nPara restringirlo, reduce primero su rol de {level}.",
+        "workspaceInvitationRequired": "Invitar a nuevas personas requiere el permiso de invitación del espacio de trabajo. Todavía puedes conceder acceso a los miembros existentes del espacio de trabajo.",
+        "alreadyAssigned": "Ya tiene un rol en este {type}. \nPuedes cambiarlo en la lista de abajo.",
+        "fromWorkspaceExplanation": "Todos conservan su rol de espacio de trabajo sobre todo lo que hay dentro del espacio de trabajo, incluyendo este {type}.",
+        "noResults": "Ningún {subjects} coincide. Escribe una dirección de correo electrónico completa para invitar a alguien nuevo.",
+        "inviteEmailDescription": "Obtiene el rol {role} solo en este {type} - sin rol en el espacio de trabajo",
+        "emptyTitle": "Nadie tiene un rol establecido en este {type} aún.",
+        "error": {
+            "description": "Hubo un error al obtener los datos de los miembros.",
+            "title": "No se pudieron obtener los datos"
+        },
+        "noInheritedAccess": "Nadie más tiene acceso a este {type}.",
+        "emptyDescription": "Todos los que están por debajo heredan el acceso de los niveles superiores.",
+        "noWorkspaceRole": "Sin rol de espacio de trabajo - solo este {type}",
+        "agentRoleCount": "{count} agente {role} | {count} agentes {role}",
+        "everyoneWithRoleOn": "Todos los que tienen un rol en {name}",
+        "searchPlaceholder": "Busca {subjects}, o escribe un correo electrónico",
+        "directAccess": "Acceso directo en este {type}",
+        "addAs": "Añadir a {count} como {role}",
+        "noAccessConfirm": "Dar sin acceso",
+        "pendingNoWorkspaceRole": "Sin rol de espacio de trabajo",
+        "manageWorkspaceRoles": "Gestionar roles del espacio de trabajo",
+        "everyoneAt": "Todos en {name}",
+        "inheritedAccess": "También tiene acceso",
+        "manageLevelRoles": "Gestionar roles de {level}",
+        "noAccessTitle": "¿Quitar el acceso?",
+        "noSubjectResults": "Ningún {subjects} coincide.",
+        "searchSubjectsPlaceholder": "Buscar {subjects}",
+        "invitePending": "Invitación pendiente",
+        "roleCount": "{count} {role}",
+        "fromWorkspace": "Desde el espacio de trabajo",
+        "roleHere": "{role} aquí",
+        "fromLevel": "Desde {level}",
+        "inherited": "(heredado)",
+        "adminHint": "Administrador",
+        "add": "Añadir"
+    },
+    "subjectRoleAssignments": {
+        "showMore": "Mostrar {count} rol más | Mostrar {count} roles más",
+        "remove": "Eliminar el rol en {name}",
+        "location": "{type} en {path}",
+        "application": "Aplicación",
+        "table": "Tabla",
+        "view": "Vista"
+    },
+    "inviteModal": {
+        "memberRoute": "Invitar a miembros"
+    },
+    "scopeInvitationTarget": {
+        "title": "Compartir {name}",
+        "view": "Ver",
+        "table": "Tabla",
+        "application": "Aplicación"
     }
 }
