@@ -7,6 +7,7 @@ from baserow.contrib.builder.api.data_sources.views import (
     DispatchDataSourceView,
     GetRecordNamesView,
     MoveDataSourceView,
+    SimulateDispatchDataSourceView,
 )
 
 app_name = "baserow.contrib.builder.api.data_sources"
@@ -26,6 +27,11 @@ urlpatterns = [
         r"data-source/(?P<data_source_id>[0-9]+)/dispatch/$",
         DispatchDataSourceView.as_view(),
         name="dispatch",
+    ),
+    re_path(
+        r"data-source/(?P<data_source_id>[0-9]+)/simulate-dispatch/$",
+        SimulateDispatchDataSourceView.as_view(),
+        name="simulate-dispatch",
     ),
     re_path(
         r"page/(?P<page_id>[0-9]+)/dispatch-data-sources/$",

@@ -61,6 +61,12 @@ export default (client) => {
         config
       )
     },
+    simulateDispatch(dataSourceId, dispatchContext) {
+      return client.post(
+        `builder/data-source/${dataSourceId}/simulate-dispatch/`,
+        { metadata: dispatchContext }
+      )
+    },
     dispatchAll(pageId, params) {
       return client.post(`builder/page/${pageId}/dispatch-data-sources/`, {
         metadata: params,

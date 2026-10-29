@@ -542,6 +542,83 @@ class DispatchDataSourceView(APIView):
         return Response(response)
 
 
+class SimulateDispatchDataSourceView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="data_source_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The id of the data_source you want to test.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=["Builder data sources"],
+        operation_id="simulate_dispatch_builder_page_data_source",
+        description=(
+            "Dispatches the service of the related data_source and stores the "
+            "result as the service's sample data. Returns the updated data_source."
+        ),
+        request=DispatchDataSourceRequestSerializer,
+        responses={
+            200: DiscriminatorCustomFieldsMappingSerializer(
+                service_type_registry, DataSourceSerializer
+            ),
+            400: get_error_schema(
+                [
+                    "ERROR_SERVICE_IMPROPERLY_CONFIGURED",
+                    "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT",
+                    "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT",
+                    "ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR",
+                ]
+            ),
+            404: get_error_schema(
+                [
+                    "ERROR_DATA_SOURCE_DOES_NOT_EXIST",
+                    "ERROR_DATA_DOES_NOT_EXIST",
+                ]
+            ),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            DataSourceDoesNotExist: ERROR_DATA_SOURCE_DOES_NOT_EXIST,
+            ServiceImproperlyConfiguredDispatchException: ERROR_SERVICE_IMPROPERLY_CONFIGURED,
+            InvalidContextDispatchException: ERROR_SERVICE_INVALID_DISPATCH_CONTEXT,
+            InvalidContextContentDispatchException: ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT,
+            UnexpectedDispatchException: ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR,
+            DoesNotExist: ERROR_DATA_DOES_NOT_EXIST,
+        }
+    )
+    def post(self, request, data_source_id: int):
+        """
+        Test the given data_source and store the result as its sample data.
+        """
+
+        data_source = DataSourceHandler().get_data_source(data_source_id)
+
+        dispatch_context = BuilderDispatchContext(
+            request,
+            data_source.page,
+            only_expose_public_allowed_properties=False,
+        )
+
+        data_source = DataSourceService().simulate_dispatch_data_source(
+            request.user, data_source, dispatch_context
+        )
+
+        serializer = service_type_registry.get_serializer(
+            data_source.service,
+            DataSourceSerializer,
+            context={"data_source": data_source},
+        )
+
+        return Response(serializer.data)
+
+
 class DispatchDataSourcesView(APIView):
     permission_classes = (IsAuthenticated,)
 
