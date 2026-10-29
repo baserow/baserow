@@ -882,7 +882,9 @@
         "display": "Visualizar",
         "dropdown": "Desplegable",
         "checkbox": "Casilla de verificación",
-        "radio": "Radio"
+        "radio": "Radio",
+        "extraSettings": "Ajustes adicionales",
+        "enableSearch": "Habilitar búsqueda"
     },
     "choiceOptionSelector": {
         "value": "Valores de las opciones",
