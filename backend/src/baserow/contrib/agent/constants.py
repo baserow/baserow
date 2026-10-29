@@ -42,3 +42,4 @@ UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS = (
     "active Run as identity in Workspace access. Continue helping with requests "
     "that do not need workspace access."
 )
+TOOL_RETRIES = 3

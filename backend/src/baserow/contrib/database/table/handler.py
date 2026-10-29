@@ -41,6 +41,7 @@ from baserow.core.registries import ImportExportConfig, application_type_registr
 from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.usage.registries import USAGE_UNIT_MB
+from baserow.core.user.utils import get_actor_language
 from baserow.core.user_files.models import UserFile
 from baserow.core.utils import ChildProgressBuilder, Progress, find_unused_name, grouper
 
@@ -241,18 +242,6 @@ class TableUsageHandler:
 
 
 @baserow_trace_handler
-def _language_of(actor: AbstractUser) -> str | None:
-    """
-    The language of the names a new table gets. An actor such as an Agent has no
-    profile, so it gets the default language.
-
-    :param actor: Who creates the table.
-    :return: The actor's language, or None for the default.
-    """
-
-    return actor.profile.language if isinstance(actor, AbstractUser) else None
-
-
 class TableHandler:
     @classmethod
     def get_tables(
@@ -420,7 +409,7 @@ class TableHandler:
                 data, first_row_header=first_row_header
             )
         else:
-            with translation.override(_language_of(user)):
+            with translation.override(get_actor_language(user)):
                 if fill_example:
                     fields, data = self.get_example_table_field_and_data()
                 else:
@@ -483,7 +472,7 @@ class TableHandler:
         # Creates a default view
         view_handler = ViewHandler()
 
-        with translation.override(_language_of(user)):
+        with translation.override(get_actor_language(user)):
             view = view_handler.create_view(
                 user, table, GridViewType.type, name=_("Grid")
             )

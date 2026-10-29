@@ -32,7 +32,7 @@ from .exceptions import (
     AgentMessageConflict,
     AgentRunAsSubjectDoesNotExist,
 )
-from .models import AgentApplication, AgentConversation, AgentMessage, AgentTool
+from .models import AgentAllowedTool, AgentApplication, AgentConversation, AgentMessage
 from .registries import agent_tool_type_registry
 from .types import (
     AgentConfiguration,
@@ -94,7 +94,7 @@ class AgentHandler:
             run_as=self.resolve_run_as_subject(
                 agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
             ),
-            tools=self.get_tool_names(agent),
+            allowed_tools=self.get_allowed_tool_names(agent),
             errors=errors,
         )
 
@@ -137,7 +137,7 @@ class AgentHandler:
             readiness = AgentReadinessState.READY
         return readiness, errors
 
-    def get_tool_names(self, agent: AgentApplication) -> list[str]:
+    def get_allowed_tool_names(self, agent: AgentApplication) -> list[str]:
         """
         Return the tools the Agent may call, leaving out tools no longer registered.
 
@@ -145,10 +145,10 @@ class AgentHandler:
         :return: The tool names, in registry order.
         """
 
-        names = set(agent.tools.values_list("name", flat=True))
+        names = set(agent.allowed_tools.values_list("name", flat=True))
         return [name for name in agent_tool_type_registry.get_types() if name in names]
 
-    def set_tools(self, agent: AgentApplication, names: list[str]) -> None:
+    def set_allowed_tools(self, agent: AgentApplication, names: list[str]) -> None:
         """
         Let the Agent call exactly these tools.
 
@@ -156,9 +156,9 @@ class AgentHandler:
         :param names: Registered tool names.
         """
 
-        agent.tools.exclude(name__in=names).delete()
-        AgentTool.objects.bulk_create(
-            [AgentTool(agent=agent, name=name) for name in names],
+        agent.allowed_tools.exclude(name__in=names).delete()
+        AgentAllowedTool.objects.bulk_create(
+            [AgentAllowedTool(agent=agent, name=name) for name in names],
             ignore_conflicts=True,
         )
 
@@ -256,7 +256,7 @@ class AgentHandler:
 
         :param agent: The Agent to update.
         :param values: The configuration values to set, by field name, and
-            ``tools``, the names of all the tools the Agent may call. The caller
+            ``allowed_tools``, the names of all the tools the Agent may call. The caller
             must validate their types, lengths and tool names beforehand, and pass
             the run-as type and id together. Unknown field names are ignored.
         :raises AgentRunAsSubjectDoesNotExist: When the Agent can't act as the
@@ -265,7 +265,7 @@ class AgentHandler:
             resolved resulting configuration.
         """
 
-        tools = values.get("tools")
+        allowed_tools = values.get("allowed_tools")
         allowed_fields = [*self.configuration_fields, *self.run_as_fields]
         values = extract_allowed(values, allowed_fields)
         run_as = [values.get(field) for field in self.run_as_fields]
@@ -273,7 +273,7 @@ class AgentHandler:
             raise AgentRunAsSubjectDoesNotExist()
         original_values = {
             **{field: getattr(agent, field) for field in allowed_fields},
-            "tools": self.get_tool_names(agent),
+            "allowed_tools": self.get_allowed_tool_names(agent),
         }
         changed_fields = []
         for field, value in values.items():
@@ -284,15 +284,17 @@ class AgentHandler:
                 changed_fields.append(field)
         if changed_fields:
             agent.save(update_fields=[*changed_fields, "updated_on"])
-        if tools is not None and set(tools) != set(original_values["tools"]):
-            self.set_tools(agent, tools)
+        if allowed_tools is not None and set(allowed_tools) != set(
+            original_values["allowed_tools"]
+        ):
+            self.set_allowed_tools(agent, allowed_tools)
         configuration = self.get_configuration(agent)
         return AgentConfigurationUpdated(
             agent=agent,
             original_values=original_values,
             new_values={
                 **{field: getattr(agent, field) for field in allowed_fields},
-                "tools": configuration.tools,
+                "allowed_tools": configuration.allowed_tools,
             },
             configuration=configuration,
         )
@@ -635,7 +637,9 @@ class AgentHandler:
             run_as_unavailable=run_as.status
             in {AgentRunAsState.TRASHED, AgentRunAsState.MISSING},
             acting_subject=acting_subject,
-            tool_names=self.get_tool_names(agent) if acting_subject else [],
+            allowed_tool_names=self.get_allowed_tool_names(agent)
+            if acting_subject
+            else [],
             timezone=conversation.owner_user.profile.timezone,
         )
 

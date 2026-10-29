@@ -40,11 +40,11 @@
   </FormGroup>
   <AgentWorkspaceTools
     class="margin-top-3"
-    :tools="configuration.tools"
+    :allowed-tools="configuration.allowed_tools"
     :available-tools="configuration.available_tools"
     :agent-name="agent.name"
     :editable="editable"
-    @update="changeTools"
+    @update="changeAllowedTools"
   />
 </template>
 
@@ -118,8 +118,8 @@ function fetchIdentities(page, search) {
   )
 }
 
-function changeTools(tools) {
-  emit('change', { tools })
+function changeAllowedTools(allowedTools) {
+  emit('change', { allowed_tools: allowedTools })
   emit('flush')
 }
 

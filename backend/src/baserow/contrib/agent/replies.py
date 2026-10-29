@@ -29,6 +29,7 @@ from baserow.core.utils import remove_null_characters
 from .constants import (
     INTERRUPTED_REPLY_NOTE,
     REPLY_REQUEST_LIMIT,
+    TOOL_RETRIES,
     UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS,
 )
 from .models import AgentMessage
@@ -150,7 +151,10 @@ class AgentResponder:
         return instructions
 
     async def _stream(self) -> None:
-        agent = Agent(instructions=self._get_instructions())
+        agent = Agent(
+            instructions=self._get_instructions(),
+            retries={"tools": TOOL_RETRIES},
+        )
         # Kuma enables content tracing for every Agent; conversations are private.
         agent.instrument = False
         async with self._model:
@@ -173,7 +177,7 @@ class AgentResponder:
         """
 
         request = self._request
-        if not request.tool_names:
+        if not request.allowed_tool_names:
             return []
         ctx = ToolContext(
             user=request.acting_subject,
@@ -184,7 +188,7 @@ class AgentResponder:
             FunctionToolset(
                 [
                     agent_tool_type_registry.get(name).get_tool(ctx)
-                    for name in request.tool_names
+                    for name in request.allowed_tool_names
                 ]
             )
         ]

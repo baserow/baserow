@@ -16,7 +16,7 @@ export const CONFIGURATION_FIELD = Object.freeze({
   PROVIDER_TYPE: 'provider_type',
   MODEL_IDENTIFIER: 'model_identifier',
   RUN_AS: 'run_as',
-  TOOLS: 'tools',
+  ALLOWED_TOOLS: 'allowed_tools',
   AVAILABLE_TOOLS: 'available_tools',
 })
 

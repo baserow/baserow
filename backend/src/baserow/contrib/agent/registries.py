@@ -60,6 +60,10 @@ class AgentToolType(Instance):
     """
     A tool an Agent can call: a function shared with the other clients, see
     ``baserow.core.tools``, offered under the name MCP uses for it.
+
+    Agents allow tools by name, so a name is never reused, renaming or removing a
+    tool comes with a migration of the allowed tools, and a tool that starts
+    changing data gets a new name instead of being allowed where only reads were.
     """
 
     function: Callable[..., Any]

@@ -106,7 +106,7 @@ class AgentApplicationType(ApplicationType):
     def after_create(self, instance: AgentApplication, values: dict) -> None:
         """New Agents start with the tools that only read data."""
 
-        AgentHandler().set_tools(
+        AgentHandler().set_allowed_tools(
             instance,
             [
                 tool_type.type
@@ -139,7 +139,7 @@ class AgentApplicationType(ApplicationType):
             instructions=application.instructions,
             provider_type=application.provider_type,
             model_identifier=application.model_identifier,
-            tools=AgentHandler().get_tool_names(application),
+            allowed_tools=AgentHandler().get_allowed_tool_names(application),
         )
         # Identity ids are local references, not portable configuration.
         if (
@@ -186,9 +186,13 @@ class AgentApplicationType(ApplicationType):
         )
         application.save()
         registered = agent_tool_type_registry.get_types()
-        AgentHandler().set_tools(
+        AgentHandler().set_allowed_tools(
             application,
-            [name for name in serialized_values.get("tools", []) if name in registered],
+            [
+                name
+                for name in serialized_values.get("allowed_tools", [])
+                if name in registered
+            ],
         )
         if self._includes_conversations(import_export_config):
             AgentHandler().import_conversations(

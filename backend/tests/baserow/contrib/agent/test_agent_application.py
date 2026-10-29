@@ -93,7 +93,7 @@ def test_new_agent_selects_the_first_enabled_model_and_the_read_tools(
         ("openai", "first-enabled") if models_available else (None, None)
     )
     assert agent.instructions == ""
-    assert AgentHandler().get_tool_names(agent) == [
+    assert AgentHandler().get_allowed_tool_names(agent) == [
         "list_tables",
         "get_table_schema",
         "list_table_rows",

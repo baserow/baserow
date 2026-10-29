@@ -9,46 +9,70 @@ from baserow.contrib.agent.registries import AgentToolType, agent_tool_type_regi
 from baserow.core.models import Agent
 from baserow.core.tools import ToolContext
 
-TOOL_ARGUMENTS = {
-    "list_tables": lambda s: {},
-    "get_table_schema": lambda s: {"table_ids": [s.table.id]},
-    "list_table_rows": lambda s: {"table_id": s.table.id},
-    "list_views": lambda s: {"table_id": s.table.id},
-    "create_tables": lambda s: {
-        "database_id": s.table.database_id,
-        "tables": [{"name": "Projects", "primary_field_name": "Title", "fields": []}],
-    },
-    "create_fields": lambda s: {
-        "table_id": s.table.id,
-        "fields": [{"name": "Notes", "type": "text"}],
-    },
-    "update_fields": lambda s: {"fields": [{"field_id": s.hours.id, "name": "Effort"}]},
-    "delete_fields": lambda s: {"field_ids": [s.hours.id]},
-    "create_views": lambda s: {
-        "table_id": s.table.id,
-        "views": [{"name": "Board", "type": "grid"}],
-    },
-    "create_view_filters": lambda s: {
-        "view_filters": [
-            {
-                "view_id": s.view.id,
-                "filters": [
-                    {
-                        "field_id": s.hours.id,
-                        "type": "number",
-                        "operator": "higher_than",
-                        "value": 1,
-                    }
-                ],
-            }
-        ]
-    },
-    "create_rows": lambda s: {"table_id": s.table.id, "rows": [{"Name": "Plan"}]},
-    "update_rows": lambda s: {
-        "table_id": s.table.id,
-        "rows": [{"id": s.row.id, "Name": "Done"}],
-    },
-    "delete_rows": lambda s: {"table_id": s.table.id, "row_ids": [s.row.id]},
+# Whether each tool changes data, and arguments it succeeds with on workspace_data.
+TOOLS = {
+    "list_tables": (False, lambda s: {}),
+    "get_table_schema": (False, lambda s: {"table_ids": [s.table.id]}),
+    "list_table_rows": (False, lambda s: {"table_id": s.table.id}),
+    "list_views": (False, lambda s: {"table_id": s.table.id}),
+    "create_tables": (
+        True,
+        lambda s: {
+            "database_id": s.table.database_id,
+            "tables": [
+                {"name": "Projects", "primary_field_name": "Title", "fields": []}
+            ],
+        },
+    ),
+    "create_fields": (
+        True,
+        lambda s: {
+            "table_id": s.table.id,
+            "fields": [{"name": "Notes", "type": "text"}],
+        },
+    ),
+    "update_fields": (
+        True,
+        lambda s: {"fields": [{"field_id": s.hours.id, "name": "Effort"}]},
+    ),
+    "delete_fields": (True, lambda s: {"field_ids": [s.hours.id]}),
+    "create_views": (
+        True,
+        lambda s: {
+            "table_id": s.table.id,
+            "views": [{"name": "Board", "type": "grid"}],
+        },
+    ),
+    "create_view_filters": (
+        True,
+        lambda s: {
+            "view_filters": [
+                {
+                    "view_id": s.view.id,
+                    "filters": [
+                        {
+                            "field_id": s.hours.id,
+                            "type": "number",
+                            "operator": "higher_than",
+                            "value": 1,
+                        }
+                    ],
+                }
+            ]
+        },
+    ),
+    "create_rows": (
+        True,
+        lambda s: {"table_id": s.table.id, "rows": [{"Name": "Plan"}]},
+    ),
+    "update_rows": (
+        True,
+        lambda s: {
+            "table_id": s.table.id,
+            "rows": [{"id": s.row.id, "Name": "Done"}],
+        },
+    ),
+    "delete_rows": (True, lambda s: {"table_id": s.table.id, "row_ids": [s.row.id]}),
 }
 
 
@@ -76,13 +100,27 @@ def call_tool(tool_type: AgentToolType, ctx: ToolContext, arguments: dict) -> ob
     )
 
 
+def test_tool_names_and_whether_they_change_data_stay_the_same():
+    """
+    Agents allow tools by name: a rename drops a tool, a reused name allows the new
+    tool, and a read tool that starts changing data does so where only reads were
+    allowed. Change this only with a migration of the allowed tools.
+    """
+
+    assert {
+        tool_type.type: tool_type.changes_data
+        for tool_type in agent_tool_type_registry.get_all()
+    } == {name: changes_data for name, (changes_data, _) in TOOLS.items()}
+
+
 @pytest.mark.django_db
-@pytest.mark.parametrize("name", agent_tool_type_registry.get_types())
+@pytest.mark.parametrize("name", TOOLS)
 def test_every_tool_acts_as_the_agent_identity(workspace_data, name):
+    _, arguments = TOOLS[name]
     result = call_tool(
         agent_tool_type_registry.get(name),
         workspace_data.ctx,
-        TOOL_ARGUMENTS[name](workspace_data),
+        arguments(workspace_data),
     )
 
     assert not (isinstance(result, dict) and "error" in result), result
