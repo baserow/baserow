@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Removes private sample values from templates while preserving their data structure",
+    "issue_origin": "github",
+    "issue_number": 6330,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-10-29"
+}
