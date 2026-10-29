@@ -21,20 +21,32 @@ const REQUIRED_FIELDS = [
   CONFIGURATION_FIELD.PROVIDER_TYPE,
   CONFIGURATION_FIELD.MODEL_IDENTIFIER,
 ]
-const CONFIGURATION_FIELDS = [...REQUIRED_FIELDS, CONFIGURATION_FIELD.RUN_AS]
+// The tools an Agent can be allowed to call are listed with its configuration.
+const CONFIGURATION_FIELDS = [
+  ...REQUIRED_FIELDS,
+  CONFIGURATION_FIELD.RUN_AS,
+  CONFIGURATION_FIELD.TOOLS,
+  CONFIGURATION_FIELD.AVAILABLE_TOOLS,
+]
 
 const emptyConfiguration = () => ({
   instructions: '',
   provider_type: null,
   model_identifier: null,
   run_as: null,
+  tools: [],
+  available_tools: [],
 })
 
-/** Identities are equal by type and id, other values by identity. */
-const isSameValue = (field, a, b) =>
-  field === CONFIGURATION_FIELD.RUN_AS
-    ? a?.type === b?.type && a?.id === b?.id
-    : a === b
+/** Identities match by type and id, and tool lists by their names. */
+const isSameValue = (field, a, b) => {
+  if (field === CONFIGURATION_FIELD.RUN_AS)
+    return a?.type === b?.type && a?.id === b?.id
+  if (field === CONFIGURATION_FIELD.TOOLS) {
+    return a?.length === b?.length && a.every((name) => b.includes(name))
+  }
+  return a === b
+}
 
 /** Page-local Agent configuration, kept out of the shared application store. */
 export function useAgentConfiguration(agent) {
@@ -246,8 +258,9 @@ export function useAgentConfiguration(agent) {
   }
 
   function applyConfiguration(data) {
+    const empty = emptyConfiguration()
     const saved = Object.fromEntries(
-      CONFIGURATION_FIELDS.map((field) => [field, data[field]])
+      CONFIGURATION_FIELDS.map((field) => [field, data[field] ?? empty[field]])
     )
     savedConfiguration.value = saved
     const modelFields = [

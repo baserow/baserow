@@ -38,6 +38,14 @@
       </template>
     </PaginatedDropdown>
   </FormGroup>
+  <AgentWorkspaceTools
+    class="margin-top-3"
+    :tools="configuration.tools"
+    :available-tools="configuration.available_tools"
+    :agent-name="agent.name"
+    :editable="editable"
+    @update="changeTools"
+  />
 </template>
 
 <script setup>
@@ -48,6 +56,7 @@ import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdow
 import AgentApplicationService from '@baserow/modules/agent/services/agentApplication'
 import { getRunAsStatus } from '@baserow/modules/agent/utils/runAs'
 import { RUN_AS_STATUS } from '@baserow/modules/agent/constants'
+import AgentWorkspaceTools from '@baserow/modules/agent/components/configuration/AgentWorkspaceTools'
 
 const NO_WORKSPACE_ACCESS = 'none'
 
@@ -107,6 +116,11 @@ function fetchIdentities(page, search) {
     page,
     search
   )
+}
+
+function changeTools(tools) {
+  emit('change', { tools })
+  emit('flush')
 }
 
 function select({ value, item }) {

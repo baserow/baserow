@@ -64,6 +64,9 @@ class AgentToolType(Instance):
 
     function: Callable[..., Any]
 
+    group: str
+    """The part of the workspace the tool works on, to group tools in the UI."""
+
     changes_data: bool = False
     """True when the tool creates, changes or deletes data. It then runs alone, and
     new Agents start without it."""
