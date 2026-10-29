@@ -329,10 +329,11 @@ def create_data_sources(
     - get_row row_id: "$formula: the id from the page parameter"
     - list_rows search_query: "$formula: the text from the search input"
 
-    ## Filtering with view_id
-    To filter a list_rows data source, create a database table view with the
-    desired filters (using create_views + create_view_filters), then pass
-    its view_id here. The view's filters and sortings are applied automatically.
+    ## Filtering
+    To filter a data source, create it first, then call update_service_filters
+    with its id and the user's filter request. Only pass a view_id to reuse an
+    existing database view the user asked for: its filters and sortings are
+    applied automatically.
     """
 
     user = ctx.deps.user

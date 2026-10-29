@@ -83,13 +83,21 @@ import applicationContext from '@baserow/modules/builder/mixins/applicationConte
 import { required, maxLength, helpers } from '@vuelidate/validators'
 import { DATA_PROVIDERS_ALLOWED_DATA_SOURCES } from '@baserow/modules/builder/enums'
 import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/string'
+import { computed } from 'vue'
 
 export default {
   name: 'DataSourceForm',
   components: { GroupedDropdown, IntegrationDropdown },
   mixins: [form, applicationContext],
   provide() {
-    return { dataProvidersAllowed: DATA_PROVIDERS_ALLOWED_DATA_SOURCES }
+    return {
+      dataProvidersAllowed: DATA_PROVIDERS_ALLOWED_DATA_SOURCES,
+      // Identifies the data source to the filter form, e.g. for Kuma.
+      serviceFilterTarget: computed(() => ({
+        kind: 'builder_data_source',
+        id: this.dataSource?.id,
+      })),
+    }
   },
   props: {
     builder: {

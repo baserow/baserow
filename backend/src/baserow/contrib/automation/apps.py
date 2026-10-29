@@ -290,3 +290,14 @@ class AutomationConfig(AppConfig):
         from baserow.core.search.registries import workspace_search_registry
 
         workspace_search_registry.register(AutomationSearchType())
+
+        from baserow.contrib.automation.nodes.service_filter_target_types import (
+            AutomationNodeServiceFilterTargetType,
+        )
+        from baserow.contrib.integrations.local_baserow.service_filters.registries import (
+            service_filter_target_type_registry,
+        )
+
+        service_filter_target_type_registry.register(
+            AutomationNodeServiceFilterTargetType()
+        )

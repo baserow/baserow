@@ -81,8 +81,16 @@
     min-width: 534px;
   }
 
+  // One centred row, so other items added after the links, like Kuma's, line up
+  // with them. Anything wider wraps onto its own line.
+  .filters_footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
   .filters__add {
-    padding: 12px 0 6px 4px;
+    padding: 9px 0 9px 4px;
   }
 
   .filters__value--with-input-field {

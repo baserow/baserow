@@ -131,6 +131,12 @@ const applicationContext = reactive({
 })
 provide('applicationContext', applicationContext)
 
+// Identifies the node to its service's filter form, e.g. for Kuma.
+provide(
+  'serviceFilterTarget',
+  computed(() => ({ kind: 'automation_node', id: node.value?.id }))
+)
+
 const nodeType = computed(() => {
   return app.$registry.get('node', node.value.type)
 })

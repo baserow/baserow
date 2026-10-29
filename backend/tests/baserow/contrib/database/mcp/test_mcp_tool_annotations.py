@@ -26,6 +26,9 @@ EXPECTED = {
     "add_nodes": (False, False),
     "update_nodes": (False, True),
     "delete_nodes": (False, True),
+    "list_filterable_data_sources": (True, False),
+    "list_service_filters": (True, False),
+    "update_service_filters": (False, True),
     # Disabled tools, annotated so they are ready when enabled.
     "update_table": (False, True),
     "delete_table": (False, True),

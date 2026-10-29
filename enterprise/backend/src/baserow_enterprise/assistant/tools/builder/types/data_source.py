@@ -127,9 +127,9 @@ class DataSourceCreate(BaseModel):
     view_id: int | None = Field(
         default=None,
         description=(
-            "(list_rows) ID of a database table view whose filters and sortings "
-            "will be applied to this data source. Use create_views and "
-            "create_view_filters to set up the view first."
+            "(list_rows) ID of an existing database table view whose filters and "
+            "sortings will be applied to this data source. To filter the data "
+            "source itself, use update_service_filters instead."
         ),
     )
 

@@ -433,12 +433,18 @@ describe('builder realtime data_source_updated relocation', () => {
   const contentPage = { id: 10, builder_id: builderApp.id }
   const sharedPage = { id: 99, builder_id: builderApp.id }
 
+  const elementsByPage = {
+    [contentPage.id]: [{ id: 1, page_id: contentPage.id }],
+    [sharedPage.id]: [{ id: 2, page_id: sharedPage.id }],
+  }
+
   const buildStore = (dataSource) => ({
     getters: {
       'page/getSelected': contentPage,
       'application/get': () => builderApp,
       'page/getSharedPage': () => sharedPage,
       'dataSource/getPagesDataSourceById': () => dataSource,
+      'element/getElementsOrdered': (page) => elementsByPage[page.id],
     },
     dispatch: vi.fn(),
   })
@@ -483,6 +489,29 @@ describe('builder realtime data_source_updated relocation', () => {
         page: contentPage,
         dataSource,
         values: { id: 5, page_id: contentPage.id, name: 'DS' },
+      },
+    ])
+  })
+
+  test('re-dispatches the collection elements of the updated data source', () => {
+    const handlers = getHandlers()
+    const dataSource = { id: 5, page_id: contentPage.id }
+    const store = buildStore(dataSource)
+
+    handlers.data_source_updated(
+      { store },
+      { data_source: { id: 5, page_id: contentPage.id, filters: [] } }
+    )
+
+    expect(dispatchedWith(store, 'element/emitElementEvent')).toEqual([
+      {
+        event: 'DATA_SOURCE_AFTER_UPDATE',
+        elements: [
+          ...elementsByPage[contentPage.id],
+          ...elementsByPage[sharedPage.id],
+        ],
+        dataSourceId: 5,
+        builder: builderApp,
       },
     ])
   })

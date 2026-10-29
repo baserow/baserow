@@ -132,9 +132,12 @@ The following tools are currently enabled:
 | `add_nodes` | Add nodes to a workflow |
 | `update_nodes` | Change node labels, settings and router conditions |
 | `delete_nodes` | Delete (trash) workflow nodes |
+| `list_filterable_data_sources` | List data sources and automation nodes whose filters can change |
+| `list_service_filters` | List a data source's or node's filters and fields |
+| `update_service_filters` | Add, update and delete a data source's or node's filters |
 
-The automation tools are off in the "Read only" preset. Turn them on at
-consent or under **Settings > Connected apps**.
+The automation and data source tools are off in the "Read only" preset. Turn
+them on at consent or under **Settings > Connected apps**.
 
 ## 4. Test scenarios
 
@@ -218,6 +221,23 @@ parser's message, the subject keeps its previous value, and Claude fixes it with
 
 Ask Claude to delete the email node. Expected: `delete_nodes` moves it to the
 trash. Deleting the router while a node is on its branch is refused.
+
+### Data source filters
+
+Turn on the data source tools under **Settings > Connected apps**. Create an
+application with a page at `/task/:id` and a "List multiple rows" data source on
+a table with a Name and an Amount field. Ask Claude: *"Filter the data source on
+my Task page so Name equals the `id` page parameter and Amount is above 10."*
+
+Expected: Claude calls `list_filterable_data_sources`, then
+`list_service_filters` for the field ids, then `update_service_filters` with two
+`add_filter` operations, the Name one a formula `get('page_parameter.id')`. The
+filters appear in the data source's Filter tab of an open editor without a
+reload, and the page's tables show the filtered rows.
+
+Ask Claude to filter on `get('form_data.1')`. Expected: `update_service_filters`
+returns an error saying a data source filter can only read the page parameters
+and the logged in user, and nothing is saved.
 
 ## 5. Verify disabled tools are not exposed
 

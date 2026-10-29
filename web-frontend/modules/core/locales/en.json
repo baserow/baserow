@@ -36,7 +36,10 @@
     "areaAutomation": "Automations",
     "automationRead": "Read workflows and nodes",
     "automationEdit": "Create and change",
-    "automationDelete": "Delete"
+    "automationDelete": "Delete",
+    "areaDataSources": "Data sources",
+    "dataSourcesRead": "Read filters",
+    "dataSourcesEdit": "Change filters"
   },
   "paginator": {
     "page": "Page",
