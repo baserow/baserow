@@ -180,12 +180,17 @@ flowchart TD
     D --> E{Stream slot available?}
     E -->|No| F[Return HTTP 503]
     E -->|Yes| G[Django checks permissions and runs the view]
-    G --> H[Deliver output asynchronously]
+    G --> J{User holds fewer than 10 streams?}
+    J -->|No| K[Return HTTP 429]
+    J -->|Yes| H[Deliver output asynchronously]
     H --> I[Finished or disconnected: clean up]
 ```
 
 - The body is read using Django's normal upload handling before a slot is taken.
   A slow upload never holds a slot.
+- One signed-in user holds at most 10 of a process's slots, so nobody can take
+  them all. Past that, the stream gets HTTP 429 `ERROR_CHAT_STREAM_USER_LIMIT`.
+  The view has already run, so a refused send has still started its run.
 - `BASEROW_ASGI_HTTP_MAX_CONCURRENT_STREAMS` sets the slots per backend process.
   Each follower uses one Redis connection while it waits, so the Redis read pool
   has the same size. For example, 4 processes with 100 slots each can open 400
