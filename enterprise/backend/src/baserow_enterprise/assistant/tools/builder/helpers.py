@@ -68,7 +68,6 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 )
 from baserow.core.actions import UpdateApplicationActionType
 from baserow.core.handler import CoreHandler
-from baserow.core.integrations.actions import CreateIntegrationActionType
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
@@ -241,7 +240,8 @@ def get_local_baserow_integration(user: AbstractUser, builder: Builder) -> Integ
             return integration.specific
 
     local_baserow_type = integration_type_registry.get("local_baserow")
-    return CreateIntegrationActionType.do(
+    # An action would let undo trash it under data sources that still use it.
+    return IntegrationService().create_integration(
         user, local_baserow_type, builder, name="Local Baserow"
     )
 
@@ -1535,6 +1535,7 @@ def create_login_page(
         while not PageHandler().is_page_path_unique(builder, path):
             suffix += 1
             path = f"/login-{suffix}"
+        # Builders skip update actions, so undo would orphan login_page_id.
         page = PageService().create_page(user, builder, "Login", path)
 
     auth_forms = AuthFormElement.objects.filter(page=page)
@@ -1548,5 +1549,4 @@ def create_login_page(
         )
 
     UpdateApplicationActionType.do(user, builder, login_page_id=page.id)
-    builder.refresh_from_db()
     return page
