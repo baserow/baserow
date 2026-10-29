@@ -7,6 +7,7 @@ from genson import SchemaBuilder
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.handler import ServiceHandler
+from baserow.core.services.registries import service_type_registry
 from baserow.core.services.utils import sanitize_sample_data
 
 SAMPLE = {
@@ -130,3 +131,56 @@ def test_application_exports_sanitize_service_samples(
     assert exported["sample_data"] == (CLEAN_SAMPLE if is_user_template else SAMPLE)
     service.refresh_from_db()
     assert service.sample_data == SAMPLE
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "service_type",
+    service_type_registry.get_all(),
+    ids=lambda service_type: service_type.type,
+)
+def test_every_registered_service_sanitizes_template_samples(
+    data_fixture, service_type
+):
+    """Type-specific serializers cannot bypass the shared sample sanitization."""
+
+    service = data_fixture.create_service(
+        service_type.model_class, integration=None, sample_data=deepcopy(SAMPLE)
+    )
+    exported = service_type.export_serialized(
+        service,
+        ImportExportConfig(include_permission_data=False, is_user_template=True),
+    )
+    assert exported["sample_data"] == CLEAN_SAMPLE
+    service.refresh_from_db()
+    assert service.sample_data == SAMPLE
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "service_name", ["http_request", "http_trigger", "iterator", "csv_file_reader"]
+)
+def test_template_samples_preserve_inferred_service_schemas(data_fixture, service_name):
+    """Check both object and array schema consumers with their real service types."""
+
+    service_type = service_type_registry.get(service_name)
+    sample = {
+        "data": {
+            "body": {"email": "alice@example.com", "age": 42},
+            "headers": {"x-private": "private header"},
+            "query_params": {"token": "private token"},
+            "results": [{"email": "alice@example.com", "age": 42}],
+        }
+    }
+    service = data_fixture.create_service(
+        service_type.model_class, integration=None, sample_data=sample
+    )
+    original_schema = service_type.generate_schema(service)
+    assert original_schema is not None
+    exported = service_type.export_serialized(
+        service,
+        ImportExportConfig(include_permission_data=False, is_user_template=True),
+    )
+    assert "alice@example.com" not in str(exported["sample_data"])
+    service.sample_data = exported["sample_data"]
+    assert service_type.generate_schema(service) == original_schema
