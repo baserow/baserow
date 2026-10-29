@@ -10,16 +10,22 @@ class RetryingConnectionPool(ConnectionPool):
     """
     redis-py only retries commands, not taking a connection from the pool, which is
     where a dropped connection reconnects. Without this, every call fails right away
-    during a Redis restart or failover instead of waiting for it within the retry
-    configured on the pool.
+    during a Redis restart or failover instead of waiting for it.
+
+    The separate `checkout_retry` is safe for connection errors, because no command
+    has been sent yet. A command's own retry can't be: a connection that drops
+    before the reply arrives leaves it unknown whether Redis already ran it.
     """
 
+    def __init__(self, *args, checkout_retry=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.checkout_retry = checkout_retry
+
     def get_connection(self, *args, **kwargs):
-        retry = self.connection_kwargs.get("retry")
         get_connection = super().get_connection
-        if retry is None:
+        if self.checkout_retry is None:
             return get_connection(*args, **kwargs)
-        return retry.call_with_retry(
+        return self.checkout_retry.call_with_retry(
             lambda: get_connection(*args, **kwargs), lambda error: None
         )
 

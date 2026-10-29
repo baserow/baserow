@@ -347,24 +347,26 @@ DATABASE_ROUTERS = ["baserow.config.db_routers.ReadReplicaRouter"]
 
 def _django_redis_cache_options():
     # redis-py doesn't retry on pools created from a URL, like django-redis does, so
-    # a dropped connection or a Redis restart or failover would fail the call right
-    # away. The retries wait 2.5 to 5 seconds in total, enough to bridge a restart or
-    # Sentinel failover without stalling requests long when Redis is down.
-    # Read-only errors are retried on a new connection, because after a failover a
-    # proxy can still route to the demoted primary until its health check notices.
-    # Timeouts aren't retried: the command may already have run, and running a
-    # non-idempotent one like RPUSH again duplicates it.
+    # a Redis restart or failover would fail the call right away. The retries wait
+    # 2.5 to 5 seconds in total, enough to bridge a restart or Sentinel failover
+    # without stalling requests long when Redis is down.
+    # Connection errors are only retried while connecting, before a command is sent.
+    # Once sent, a dropped connection or timeout leaves it unknown whether Redis ran
+    # it, and running a non-idempotent one like RPUSH again would duplicate it.
+    # Read-only errors are safe to retry on a new connection, because Redis rejected
+    # the command. After a failover a proxy can still route to the demoted primary
+    # until its health check notices.
+    def retry(*errors):
+        return Retry(EqualJitterBackoff(base=0.5, cap=2), 3, supported_errors=errors)
+
     return {
         "CLIENT_CLASS": "django_redis.client.DefaultClient",
         "CONNECTION_POOL_CLASS": "baserow.core.redis.RetryingConnectionPool",
         "SOCKET_CONNECT_TIMEOUT": 5,
         "SOCKET_TIMEOUT": 10,
         "CONNECTION_POOL_KWARGS": {
-            "retry": Retry(
-                EqualJitterBackoff(base=0.5, cap=2),
-                3,
-                supported_errors=(RedisConnectionError, RedisReadOnlyError),
-            ),
+            "checkout_retry": retry(RedisConnectionError),
+            "retry": retry(RedisReadOnlyError),
         },
     }
 
