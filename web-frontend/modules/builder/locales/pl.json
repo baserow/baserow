@@ -1041,7 +1041,9 @@
         "display": "Wyświetlanie",
         "dropdown": "Lista rozwijana",
         "checkbox": "Pole wyboru",
-        "radio": "Przycisk opcji"
+        "radio": "Przycisk opcji",
+        "extraSettings": "Dodatkowe ustawienia",
+        "enableSearch": "Włącz wyszukiwanie"
     },
     "dropdown": {
         "empty": "Brak opcji do wyboru"
