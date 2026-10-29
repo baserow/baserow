@@ -29,6 +29,7 @@ from baserow.contrib.database.fields.models import (
     SingleSelectField,
 )
 from baserow.contrib.database.fields.models import Field as BaserowField
+from baserow.contrib.database.fields.operations import ListFieldsOperationType
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.table.actions import CreateTableActionType
@@ -48,8 +49,10 @@ from baserow.contrib.database.tools.fields import (
 )
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import PermissionException
+from baserow.core.handler import CoreHandler
 from baserow.core.service import CoreService
 from baserow.core.tools import ToolContext
+from baserow.core.types import PermissionCheck
 
 # ---------------------------------------------------------------------------
 # Types
@@ -650,6 +653,41 @@ def get_database(ctx: ToolContext, database_id: int) -> Database:
     )
 
 
+def get_table(ctx: ToolContext, table_id: int, operation_name: str) -> Table:
+    """
+    Get a table of the context's workspace, checking the operation as its REST
+    endpoint does. A listed table isn't always readable: a member whose only role is
+    on one of its views may only use that view.
+
+    :raises Table.DoesNotExist: When the table isn't listed to the user.
+    :raises PermissionDenied: When the user may not do the operation on it.
+    """
+
+    table = (
+        TableHandler().list_workspace_tables(ctx.user, ctx.workspace).get(id=table_id)
+    )
+    CoreHandler().check_permissions(
+        ctx.user, operation_name, workspace=ctx.workspace, context=table
+    )
+    return table
+
+
+def permitted_tables(
+    ctx: ToolContext, tables: Iterable[Table], operation_name: str
+) -> list[Table]:
+    """
+    The tables on which the user may do the operation, in the given order.
+
+    :param tables: Tables of the context's workspace.
+    """
+
+    checks = [PermissionCheck(ctx.user, operation_name, table) for table in tables]
+    permitted = CoreHandler().check_multiple_permissions(
+        checks, workspace=ctx.workspace
+    )
+    return [check.context for check in checks if permitted[check] is True]
+
+
 def _non_primary_fields(table: TableItemCreate) -> list[FieldItemCreate]:
     """Exclude the field specification represented by the primary field."""
 
@@ -908,14 +946,18 @@ def get_table_schema(
     database_id and fields, the primary field first. A field has its id, name,
     type, primary flag and the settings of its type: select options with their
     IDs, the linked table, the formula and its result type, or a lookup's through
-    and target fields. Tables that don't exist in the workspace are left out.
+    and target fields. Tables that aren't in the workspace, or whose fields the user
+    may not list, are left out.
     """
 
-    tables_by_id = {
-        table.id: table
-        for table in TableHandler()
+    listed = (
+        TableHandler()
         .list_workspace_tables(ctx.user, ctx.workspace)
         .filter(id__in=table_ids)
+    )
+    tables_by_id = {
+        table.id: table
+        for table in permitted_tables(ctx, listed, ListFieldsOperationType.type)
     }
     tables = [tables_by_id[i] for i in dict.fromkeys(table_ids) if i in tables_by_id]
     if not tables:
