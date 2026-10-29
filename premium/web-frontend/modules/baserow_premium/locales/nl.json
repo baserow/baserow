@@ -108,7 +108,7 @@
         "licenceId": "Licentie ID",
         "premium": "Premium",
         "expired": "Verlopen",
-        "validity": "Geldig van {start} tot {einde}",
+        "validity": "Geldig van {start} tot {end}",
         "seats": "plaatsen",
         "premiumFeatures": "Premium functies",
         "applicationUsers": "Applicatie gebruikers"

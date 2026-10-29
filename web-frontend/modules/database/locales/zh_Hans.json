@@ -169,7 +169,7 @@
         "filterType": "- `AND`: 表示行必须匹配所有提供的过滤器。\n- `OR`: 表示行只需要匹配其中一个过滤器。\n\n 这仅适用于两个提供或更多过滤器。",
         "include": "默认情况下，所有字段都包含在响应中。 您可以通过提供 include 查询参数来选择要包含的字段子集。\n\n #### 使用 `user_field_names`：\n\n `include` 应该是要包含在结果中的字段名称的逗号分隔列表 . 例如，如果您提供以下 GET 参数：`include=My Field,-My Field 2`，则仅包含这些字段（除非明确排除）。\n\n 包含逗号的字段名称必须用 引号：`\"名称，\"`。 如果字段名称包含引号，则必须使用 `\\` 字符对其进行转义。 例如：`Name \\\"`。\n\n #### 没有 `user_field_names`：\n\n `include` 应该是逗号分隔的 `field_` 列表，后跟要包含的字段的 id 结果。例如：如果您提供以下 GET 参数 `exclude=field_1,field_2` 则 ID 为 1 和 ID 为 2 的字段将仅包含这些字段（除非它们被明确排除）",
         "exclude": "默认情况下所有字段都包含在响应中。您可以通过提供 exclude 查询参数来选择要排除的字段子集。\n\n #### With `user_field_names`:\n\n ` exclude` 应该是要从结果中排除的字段名称的逗号分隔列表。例如，如果您提供以下 GET 参数：`exclude=My Field,-My Field 2`，则将排除这些字段。\n\n包含逗号的字段名称必须用引号括起来：`\"Name ,\"`。如果字段名称包含引号，则必须使用 `\\` 字符对其进行转义。例如：`Name \\\"` .\n\n #### 没有 `user_field_names`:\n\n `exclude` 应该是一个逗号分隔的 `field_` 列表，后跟要从结果中排除的字段的 id。例如：如果您提供以下 GET 参数 `exclude=field_1,field_2`，则 id 为 `1` 和 id `2` 的字段将被排除。",
-        "viewId": "默认情况下，不应用查询参数中定义的过滤器和排序。您可以通过在 `view_id` GET 参数中提供视图的`id`来添加视图的过滤器和排序。对于例如，如果您提供以下 GET 参数 `view_id=1`，则将应用在 id 为 `1` 的视图中定义的过滤器和排序。您可以在任何给定视图的上下文菜单中找到 `view_id`。它是视图名称后面括号中的数字。\n\n #### 使用 `filter__{field}__{filter}` \n\n 查询参数中提供的过滤器和视图中定义的过滤器都将被应用。 \n\n #### 使用 `order_by` \n\n 如果提供了 `order_by`，则视图中定义的排序将被忽略。"
+        "viewId": "默认情况下，不应用查询参数中定义的过滤器和排序。您可以通过在 `view_id` GET 参数中提供视图的`id`来添加视图的过滤器和排序。对于例如，如果您提供以下 GET 参数 `view_id=1`，则将应用在 id 为 `1` 的视图中定义的过滤器和排序。您可以在任何给定视图的上下文菜单中找到 `view_id`。它是视图名称后面括号中的数字。\n\n #### 使用 `filter__{'{'}field{'}'}__{'{'}filter{'}'}` \n\n 查询参数中提供的过滤器和视图中定义的过滤器都将被应用。 \n\n #### 使用 `order_by` \n\n 如果提供了 `order_by`，则视图中定义的排序将被忽略。"
     },
     "apiDocsIntro": {
         "intro": "{name} 数据库提供了一种将数据与任何外部系统集成的简便方法。API 遵循 REST 语义，使用 JSON 编码对象并依赖标准 HTTP 代码、机器和人类可读错误来指示操作结果.",
@@ -459,7 +459,7 @@
     },
     "shareViewLink": {
         "shareView": "分享 {viewTypeSharingLinkName}",
-        "shareViewTitle": "创建一个指向 {viewTypeSharingLinkName} 的私有共享链接",
+        "shareViewTitle": "您尚未共享此视图",
         "sharedViewTitle": "此 {viewTypeSharingLinkName} 目前通过私人链接共享",
         "sharedViewDescription": "知道链接的人可以看到 {viewTypeSharingLinkName}。",
         "disableLink": "禁用共享链接",

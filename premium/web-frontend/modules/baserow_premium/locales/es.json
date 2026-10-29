@@ -74,7 +74,7 @@
         "editStack": "Editar pila",
         "deleteStack": "Eliminar pila",
         "delete": "Eliminar {name}",
-        "deleteDescription": "¿Está seguro de que desea eliminar la pila {nombre}? Eliminar la pila da como resultado la eliminación de la opción de selección del campo de selección único, lo que podría provocar la pérdida de datos porque los valores de fila se establecerán en vacío."
+        "deleteDescription": "¿Está seguro de que desea eliminar la pila {name}? Eliminar la pila da como resultado la eliminación de la opción de selección del campo de selección único, lo que podría provocar la pérdida de datos porque los valores de fila se establecerán en vacío."
     },
     "kanbanViewHeader": {
         "stackBy": "Apilado por",
@@ -143,7 +143,7 @@
         "disconnectDescription": "¿Estás seguro de que quieres desconectar esta licencia? Si desconectas esta licencia mientras está activa, los usuarios relacionados ya no tendrán acceso al plan. Esto eliminará efectivamente la licencia de esta instancia. Puedes cambiar el ID de instancia de tu suscripción a través de la página de suscripciones en {subscriptions} o contactando a nuestro equipo de soporte en {contact} si estás en el plan Corporativo.",
         "moreSeatsNeededTitle": "Se necesitan más asientos",
         "contactSalesMoreSeats": "Contacta el departamento de ventas para obtener más asientos",
-        "automaticSeatsProgressBarStatus": "{asientos_ocupados} / {asientos} asientos pagados y {recuento_de_usuarios_libres} asientos libres en uso",
+        "automaticSeatsProgressBarStatus": "{seats_taken} / {seats} asientos pagados y {free_users_count} asientos libres en uso",
         "premiumFeatureName": "De primera calidad",
         "enterpriseFeatureName": "Empresa",
         "supportFeatureName": "Soporte",
@@ -241,7 +241,7 @@
         "personal": "Personal"
     },
     "rowCommentMentionNotification": {
-        "title": "{enviador} te mencionó en la fila {fila} en {tabla}",
+        "title": "{sender} te mencionó en la fila {row} en {table}",
         "deletedUser": "Un usuario eliminado"
     },
     "calendarDateSelector": {
@@ -256,11 +256,11 @@
     },
     "calendarViewHeader": {
         "displayBy": "Mostrar por",
-        "displayedBy": "Mostrado por el campo \"{nombreDeCampo}\"",
+        "displayedBy": "Mostrado por el campo \"{fieldName}\"",
         "labels": "Etiquetas"
     },
     "calendarMonthDay": {
-        "hiddenRowsCount": "0 | 1 más... | {cuentaDeFilasEscondidas} más..."
+        "hiddenRowsCount": "0 | 1 más... | {hiddenRowsCount} más..."
     },
     "calendarMonthDayExpanded": {
         "tryAgain": "inténtalo de nuevo"
@@ -274,7 +274,7 @@
         "save": "Guardar"
     },
     "rowCommentNotification": {
-        "title": "{enviador} ha publicado un comentario en la fila {fila} de {tabla}",
+        "title": "{sender} ha publicado un comentario en la fila {row} de {table}",
         "deletedUser": "Un usuario eliminado"
     },
     "RowEditModalCommentNotificationMode": {

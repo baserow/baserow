@@ -349,7 +349,7 @@
         "title": "Verwijder {name}"
     },
     "updateSettingsAuthProviderModal": {
-        "title": "Bewerk {naam}"
+        "title": "Bewerk {name}"
     },
     "memberRolesModal": {
         "memberRolesDatabaseTabTitle": "Database",

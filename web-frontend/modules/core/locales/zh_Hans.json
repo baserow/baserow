@@ -97,13 +97,13 @@
         "passwordRepeat": "重复密码"
     },
     "invitationTitle": "邀请",
-    "invitationMessage": "{invitedBy} 邀请您加入 {group}。",
+    "invitationMessage": "{invitedBy} 邀请您加入 {workspace}。",
     "workspaceForm": {
         "nameLabel": "名称"
     },
     "leaveWorkspaceModal": {
-        "title": "离开{group}",
-        "message": "您确定要离开群组 {group} 吗？ 您将无法再访问相关应用程序，如果您想重新获得访问权限，其中一位管理员必须再次邀请您。 如果您离开该组，它不会被删除。 所有其他成员仍然可以访问它。 如果您是最后一个管理员，则无法离开组，因为这将使其无人维护。",
+        "title": "离开{workspace}",
+        "message": "您确定要离开群组 {workspace} 吗？ 您将无法再访问相关应用程序，如果您想重新获得访问权限，其中一位管理员必须再次邀请您。 如果您离开该组，它不会被删除。 所有其他成员仍然可以访问它。 如果您是最后一个管理员，则无法离开组，因为这将使其无人维护。",
         "leave": "离开群组"
     },
     "dashboardWorkspace": {
@@ -112,7 +112,7 @@
     },
     "workspaceInvitation": {
         "title": "邀请函",
-        "message": "{by} 邀请您加入 {group}。",
+        "message": "{by} 邀请您加入 {workspace}。",
         "reject": "拒绝",
         "accept": "接受"
     },
@@ -182,7 +182,7 @@
         "name": "{user} 已删除 {type} {title} {parent}",
         "restore": "恢复",
         "andMore": "...还有 {count} 条",
-        "unnamed": "未命名 {type} {idid}"
+        "unnamed": "未命名 {type} {id}"
     },
     "trashModal": {
         "emptyTitle": "没有找到组",
@@ -461,7 +461,7 @@
                 "remove": "从组中移除",
                 "copyEmail": "复制电子邮件"
             },
-            "title": "{userAmount} 成员在 {groupName}",
+            "title": "{userAmount} 成员在 {workspaceName}",
             "inviteMember": "邀请为成员"
         },
         "invitesTable": {
@@ -474,7 +474,7 @@
                 "copyEmail": "复制电子邮件",
                 "remove": "取消邀请"
             },
-            "title": "{invitesAmount} 待定邀请在 {groupName}"
+            "title": "{invitesAmount} 待定邀请在 {workspaceName}"
         },
         "invitesTabTitle": "邀请"
     },
@@ -581,7 +581,7 @@
         }
     },
     "changeUserPasswordModal": {
-        "changePassword": "为{usermane}更改密码"
+        "changePassword": "为{username}更改密码"
     },
     "deleteUserModal": {
         "title": "删除{username}",

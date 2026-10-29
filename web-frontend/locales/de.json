@@ -198,7 +198,7 @@
         "maxChars": "Maximal {max} Zeichen.",
         "maxCharsExceeded": "Max. {max} Zeichen (-{over}).",
         "minChars": "Mindestens {min} Zeichen.",
-        "maxImagesExceeded": "Max {max} Bilder ({über} entfernen)."
+        "maxImagesExceeded": "Max {max} Bilder ({over} entfernen)."
     },
     "fieldDocs": {
         "readOnly": "Dies ist ein schreibgeschütztes Feld.",
@@ -207,8 +207,8 @@
         "linkRow": "Akzeptiert ein Array mit den Bezeichnern oder Hauptfeldtextwerten der verbundenen Zeilen der Tabelle id {table}. Alle Bezeichner müssen jedes Mal angegeben werden, wenn die Beziehungen aktualisiert werden. Wenn ein leeres Array angegeben wird, werden alle Relationen gelöscht. Bei Angabe eines Textwerts anstelle eines Bezeichners wird eine Zeile mit dem übereinstimmenden Wert für ihr Hauptfeld gesucht. Wenn mehr als eine Übereinstimmung gefunden wird, wird die erste in der Reihenfolge der Tabelle ausgewählt. Sie können eine Zeichenfolge mit durch Komma getrennten Namen senden. In diesem Fall wird die Zeichenfolge in ein Array von Zeilennamen umgewandelt. Sie können alternativ auch nur die ID einer Zeile senden.",
         "number": "Akzeptiert eine Nummer.",
         "numberPositive": "Akzeptiert eine positive Zahl.",
-        "decimal": "Akzeptiert eine Dezimalzahl mit {Stellen} Dezimalstellen nach dem Punkt.",
-        "decimalPositive": "Akzeptiert eine positive Dezimalzahl mit {Stellen} Dezimalstellen nach dem Punkt.",
+        "decimal": "Akzeptiert eine Dezimalzahl mit {places} Dezimalstellen nach dem Punkt.",
+        "decimalPositive": "Akzeptiert eine positive Dezimalzahl mit {places} Dezimalstellen nach dem Punkt.",
         "rating": "Akzeptiert eine Nummer.",
         "boolean": "Akzeptiert einen Wahrheitswert.",
         "date": "Akzeptiert eine Datumszeit im ISO-Format.",

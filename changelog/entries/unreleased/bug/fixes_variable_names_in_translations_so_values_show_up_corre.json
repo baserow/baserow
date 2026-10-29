@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes variable names in translations so values show up correctly",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-10-23"
+}

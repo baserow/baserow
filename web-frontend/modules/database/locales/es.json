@@ -387,7 +387,7 @@
         "statePreValidation": "Validando datos...",
         "showReport": "Mostrar informe de error",
         "stateCreateTable": "Creando tabla...",
-        "additionalImportTitle": "Importar a {tabla}",
+        "additionalImportTitle": "Importar a {table}",
         "showTable": "mostrar tabla",
         "importButton": "Importar",
         "fieldMappingTitle": "Cartografía de campo",
@@ -519,7 +519,7 @@
     },
     "deleteViewModal": {
         "title": "Eliminar {name}",
-        "description": "¿Está seguro de que desea eliminar la vista {nombre}? Los datos de la tabla se conservarán, pero se eliminarán los filtros, clasificaciones y anchos de campo relacionados con la vista.",
+        "description": "¿Está seguro de que desea eliminar la vista {name}? Los datos de la tabla se conservarán, pero se eliminarán los filtros, clasificaciones y anchos de campo relacionados con la vista.",
         "delete": "Eliminar vista"
     },
     "viewForm": {
@@ -630,7 +630,7 @@
         "back": "volver al tablero"
     },
     "viewAggregationType": {
-        "emptyCount": "{Empty}",
+        "emptyCount": "(Vacío)",
         "notEmptyCount": "Lleno",
         "emptyPercentage": "Porcentaje vacío",
         "notEmptyPercentage": "Porcentaje lleno",
@@ -690,7 +690,7 @@
         "errorRequiresAuthenticationDescription": "Esta base solo puede importarse con autenticación adicional. La opción «Autenticación de sesión» de abajo se ha habilitado para ti. Sigue las instrucciones para copiar los valores de las cookies «__Host-airtable-session» y «__Host-airtable-session.sig» en los campos, e inténtalo de nuevo."
     },
     "viewDecorator": {
-        "decorator": "Color | 1 Color | {recuento} Colores",
+        "decorator": "Color | 1 Color | {count} Colores",
         "hiddenFieldWarning": "Las decoraciones se eliminan para editores y roles inferiores porque pueden hacer referencia a campos ocultos."
     },
     "chooseSingleSelectField": {
@@ -723,15 +723,15 @@
         }
     },
     "apiDocsTableDeleteRows": {
-        "description": "Elimina las filas existentes de {nombre}.",
+        "description": "Elimina las filas existentes de {name}.",
         "items": "Una matriz de identificadores de fila que deben ser eliminados."
     },
     "apiDocsTableUpdateRows": {
-        "description": "Actualiza filas existentes de {nombre}.",
+        "description": "Actualiza filas existentes de {name}.",
         "id": "La identificación de la fila."
     },
     "apiDocsTableCreateRows": {
-        "description": "Crear nuevas filas de {nombre}.",
+        "description": "Crear nuevas filas de {name}.",
         "before": "Si se proporciona, las filas recién creadas se posicionarán antes de la fila con la identificación proporcionada."
     },
     "importer": {
@@ -740,7 +740,7 @@
         "inProgress": "En proceso...",
         "loading": "Cargando el archivo",
         "decoding": "Descodificando datos",
-        "fieldDefaultName": "Campo {conteo}"
+        "fieldDefaultName": "Campo {count}"
     },
     "formViewMeta": {
         "includeRowId": "Utiliza {row_id} para incluir el id de la fila recién creada en el URL."
@@ -782,7 +782,7 @@
         "snapshotDeletedErrorTitle": "Se ha producido un error",
         "snapshotDeletedErrorMessage": "La imagen no ha podido ser eliminada. Favor de intentarlo otra vez mas tarde.",
         "title": "instantáneas",
-        "description": "Las instantáneas son una copia completa de tu {nombre_aplicacion_tipo} del momento en que fueron creadas. Al restaurarlas se creará una duplicación de esos datos. Las instantáneas se eliminan automáticamente al cabo de un año.",
+        "description": "Las instantáneas son una copia completa de tu {applicationTypeName} del momento en que fueron creadas. Al restaurarlas se creará una duplicación de esos datos. Las instantáneas se eliminan automáticamente al cabo de un año.",
         "descriptionLimits": "Puedes tener un máximo de {n} instantáneas por espacio de trabajo. | Puedes tener un máximo de {n} instantáneas por espacio de trabajo. | Puedes tener un máximo de {n} instantáneas por espacio de trabajo.",
         "snapshot": "Imagen",
         "limitReached": "Se ha alcanzado el límite de imágenes máximas.",
@@ -793,7 +793,7 @@
         "nameAlreadyExists": "Ya existe una instantánea con este nombre."
     },
     "deleteSnapshotModal": {
-        "content": "¿Estás seguro de que quieres eliminar permanentemente la imagen instantánea {nombre}?",
+        "content": "¿Estás seguro de que quieres eliminar permanentemente la imagen instantánea {name}?",
         "confirm": "Borrar",
         "title": "Borrar imagen instantánea"
     },
@@ -901,7 +901,7 @@
         "queryParameter": "Parámetro de consulta"
     },
     "viewGroupBy": {
-        "groupBy": "Agrupar | Agrupar por 1 campos | Agrupar por {cuenta} campos"
+        "groupBy": "Agrupar | Agrupar por 1 campos | Agrupar por {count} campos"
     },
     "rowHistorySidebar": {
         "you": "Tú",
@@ -930,7 +930,7 @@
         "layoutSection": "Secciones"
     },
     "collaboratorAddedToRowNotification": {
-        "title": "{sender} te asignó a {nombreDeCampo} en la fila {rowId} en {nombreDeTabla}",
+        "title": "{sender} te asignó a {fieldName} en la fila {rowId} en {tableName}",
         "deletedUser": "Un usuario eliminado",
         "unknownUser": "Un usuario desconocido"
     },
@@ -942,8 +942,8 @@
         "addConditionGroup": "Añadir grupo de condiciones"
     },
     "formSubmittedNotification": {
-        "title": "Se ha enviado {nombreDelFormulario} en la tabla {nombreDeLaTabla}:",
-        "moreValues": "0 | y 1 campo más. | y {cuenta} campos más."
+        "title": "Se ha enviado {formName} en la tabla {tableName}:",
+        "moreValues": "0 | y 1 campo más. | y {count} campos más."
     },
     "fieldDurationSubForm": {
         "durationFormatLabel": "Formato de duración"

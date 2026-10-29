@@ -43,7 +43,7 @@
         "textPlaceholder": "Introducir texto...",
         "levelTitle": "Nivel",
         "textTitle": "Texto",
-        "headingName": "Título {nivel} <h{nivel}>"
+        "headingName": "Título {level} <h{level}>"
     },
     "tableElementForm": {
         "addField": "añadir campo",
@@ -387,7 +387,7 @@
         "columnGapPlaceholder": "Introducir espacio entre columnas...",
         "columnGapTitle": "Espacio entre columnas",
         "columnAmountTitle": "Disposición",
-        "columnAmountName": "sin columnas | 1 columna | {columnaCantidad} columnas",
+        "columnAmountName": "sin columnas | 1 columna | {columnAmount} columnas",
         "verticalAlignment": "Alineación vertical",
         "customWeightsHelper": "Utiliza 0 cuando una columna deba ajustarse únicamente al ancho de su contenido. Las demás columnas repartirán el espacio sobrante.",
         "errorCustomWeightsMinimum": "Los pesos de las columnas deben ser 0 o mayores",
@@ -436,7 +436,7 @@
     },
     "currentRecordDataProviderType": {
         "index": "Índice",
-        "firstPartName": "Fuente de datos: {nombre}",
+        "firstPartName": "Fuente de datos: {name}",
         "schemaProperty": "{prefixName}: {schemaProperty}"
     },
     "pageSidePanelType": {
@@ -454,7 +454,7 @@
         "elementInProgress": "Añadiendo elemento..."
     },
     "domainTypes": {
-        "subDomain": "Subdominio de {dominio}",
+        "subDomain": "Subdominio de {domain}",
         "customName": "Dominio personalizado",
         "subDomainName": "Subdominio"
     },
@@ -681,7 +681,7 @@
         "noEmail": "Sin correo electrónico"
     },
     "userSelector": {
-        "viewAs": "Ver como: {usuario}",
+        "viewAs": "Ver como: {user}",
         "anonymous": "Anónimo",
         "member": "{prefix} miembro"
     },

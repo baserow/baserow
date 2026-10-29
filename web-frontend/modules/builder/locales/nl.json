@@ -1263,7 +1263,7 @@
         "invalidContentMessage": "Een of meer velden bevatten ongeldige waarden.",
         "serviceMisconfiguredTitle": "Onvolledige configuratie",
         "serviceMisconfiguredMessage": "Controleer de configuratie.",
-        "errorWorkflowActionDispatch": "De actie \"{naam}\" is mislukt: ",
+        "errorWorkflowActionDispatch": "De actie \"{name}\" is mislukt: ",
         "errorDataSourceDispatch": "Mislukt bij het laden van \"{name}\" gegevens: "
     },
     "workflowAction": {

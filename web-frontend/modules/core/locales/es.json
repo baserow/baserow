@@ -89,8 +89,8 @@
         "nameLabel": "Nombre"
     },
     "leaveWorkspaceModal": {
-        "title": "Abandonar {group}",
-        "message": "¿Está seguro de que desea abandonar el grupo {group}? Ya no podrá acceder a las aplicaciones relacionadas y, si desea recuperar el acceso, uno de los administradores debe invitarlo nuevamente. Si abandona el grupo, no se eliminará. Todos los demás miembros seguirán teniendo acceso a él. No es posible abandonar un grupo si eres el último administrador porque eso lo dejará sin mantenimiento.",
+        "title": "Abandonar {workspace}",
+        "message": "¿Está seguro de que desea abandonar el grupo {workspace}? Ya no podrá acceder a las aplicaciones relacionadas y, si desea recuperar el acceso, uno de los administradores debe invitarlo nuevamente. Si abandona el grupo, no se eliminará. Todos los demás miembros seguirán teniendo acceso a él. No es posible abandonar un grupo si eres el último administrador porque eso lo dejará sin mantenimiento.",
         "leave": "Dejar grupo"
     },
     "dashboardWorkspace": {
@@ -99,7 +99,7 @@
     },
     "workspaceInvitation": {
         "title": "Invitación",
-        "message": "{by} te ha invitado a unirte a {group}.",
+        "message": "{by} te ha invitado a unirte a {workspace}.",
         "reject": "Rechazar",
         "accept": "Aceptar"
     },
@@ -175,7 +175,7 @@
         "name": "{user} eliminó {type} {title} {parent}",
         "restore": "Restaurar",
         "unnamed": "{type} {id} sin nombre",
-        "andMore": "... y {cuenta} más"
+        "andMore": "... y {count} más"
     },
     "trashModal": {
         "emptyTitle": "No se han encontrado espacios de trabajo",
@@ -449,7 +449,7 @@
         "title": "Borrar cuenta",
         "workspaceNotice": "Los grupos huérfanos se borraran",
         "orphanWorkspaces": "También se borrará permanentemente después del tiempo de gracia",
-        "orphanWorkspaceMemberCount": "compartido con nadie|compartido con un usuario|compartido con {cuenta} usuarios",
+        "orphanWorkspaceMemberCount": "compartido con nadie|compartido con un usuario|compartido con {count} usuarios",
         "password": "Contraseña",
         "passwordConfirm": "Repetir contraseña",
         "repeatPasswordMatchError": "Este campo debe coincidir con el primer campo de contraseña.",
@@ -530,7 +530,7 @@
                 "remove": "Quitar del espacio de trabajo",
                 "copyEmail": "Copiar correo electrónico"
             },
-            "title": "{cuentaDeUsuario} Miembros en {nombreDelEspacioDeTrabajo}",
+            "title": "{userAmount} Miembros en {workspaceName}",
             "inviteMember": "Invitar a un miembro"
         },
         "invitesTable": {
@@ -543,7 +543,7 @@
                 "copyEmail": "Copiar correo electrónico",
                 "remove": "Cancelar la invitación"
             },
-            "title": "{invitacionesCantidad} Invitaciones pendientes en {nombreDeEspacioDeTrabajo}"
+            "title": "{invitesAmount} Invitaciones pendientes en {workspaceName}"
         },
         "membersInviteModal": {
             "title": "Invitar a miembros del espacio de trabajo",
@@ -607,7 +607,7 @@
         "content": "Parece que no tienes permiso de ver este recurso."
     },
     "restoreToast": {
-        "restore": "Restaurar {tipo} borrado"
+        "restore": "Restaurar {type} borrado"
     },
     "undoRedoToast": {
         "undoneText": "La acción está deshecha",
@@ -655,11 +655,11 @@
         "paddingTop": "Acolchado superior"
     },
     "workspaceInvitationAcceptedNotification": {
-        "title": "{enviador} ha aceptado su invitación para unirse a {nombreDeEspacioDeTrabajo}",
+        "title": "{sender} ha aceptado su invitación para unirse a {workspaceName}",
         "deletedUser": "Un usuario eliminado"
     },
     "workspaceInvitationCreatedNotification": {
-        "title": "{enviador} te ha invitado a unirte a {nombreDelEspacioDeTrabajo}",
+        "title": "{sender} te ha invitado a unirte a {workspaceName}",
         "deletedUser": "Un usuario eliminado"
     },
     "notificationPanel": {
@@ -681,7 +681,7 @@
         "clickOrDrop": "Haz clic o suelta tus archivos aquí",
         "errorTooManyFilesTitle": "Demasiados archivos",
         "errorWrongFileTypeTitle": "Tipo de archivo incorrecto",
-        "errorWrongFileTypeMessage": "No se puede cargar un archivo de tipo {tipo}"
+        "errorWrongFileTypeMessage": "No se puede cargar un archivo de tipo {type}"
     },
     "connectingToast": {
         "content": "Intentando restablecer actualizaciones en tiempo real.",
@@ -698,7 +698,7 @@
         "notFound": "No se encontraron usuarios"
     },
     "workspaceInvitationRejectedNotification": {
-        "title": "{enviador} ha rechazado su invitación para unirse a {nombreDeEspacioDeTrabajo}",
+        "title": "{sender} ha rechazado su invitación para unirse a {workspaceName}",
         "deletedUser": "Un usuario eliminado"
     },
     "versionUpgradeNotification": {
