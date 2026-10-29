@@ -172,10 +172,10 @@ class DatabaseWorkflowServiceActionType(
                 storage=storage,
                 cache=cache,
             )
-            # An export travels to snapshots, copies and templates, and what a
-            # click remembered describes this installation's data. Nothing
-            # needs it there: the editor rebuilds it from the next click.
-            exported.pop("sample_data", None)
+            # Templates keep sanitized samples for schema inference. Other copies
+            # rebuild the captured answer from the next click, as before.
+            if not getattr(import_export_config, "is_user_template", False):
+                exported.pop("sample_data", None)
             return exported
 
         return super().serialize_property(

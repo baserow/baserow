@@ -898,10 +898,10 @@ def test_duplicating_a_forward_reference(data_fixture):
 
 
 @pytest.mark.django_db
-def test_export_leaves_behind_what_a_click_remembered(data_fixture):
+@pytest.mark.parametrize("is_user_template", [True, False])
+def test_export_leaves_behind_what_a_click_remembered(data_fixture, is_user_template):
     """
-    An export travels to snapshots, duplicates and templates, and what a click
-    remembered of an external response describes this installation's data.
+    Templates keep only the shape of a captured answer; other exports drop it.
     """
 
     user = data_fixture.create_user()
@@ -915,11 +915,20 @@ def test_export_leaves_behind_what_a_click_remembered(data_fixture):
     )
 
     exported = field_type_registry.get_by_model(button_field).export_serialized(
-        button_field
+        button_field,
+        import_export_config=ImportExportConfig(
+            include_permission_data=False, is_user_template=is_user_template
+        ),
     )
 
     exported_service = exported["workflow_actions"][0]["service"]
-    assert "sample_data" not in exported_service
+    if is_user_template:
+        assert exported_service["sample_data"] == {
+            "data": {"body": {"secret": "Example"}},
+            "status": 0,
+        }
+    else:
+        assert "sample_data" not in exported_service
     assert "tKn-123" not in str(exported)
 
 

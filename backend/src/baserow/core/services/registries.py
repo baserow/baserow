@@ -37,6 +37,7 @@ from baserow.core.registry import (
 )
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.types import DispatchResult, FormulaToResolve
+from baserow.core.services.utils import sanitize_sample_data
 
 from .exceptions import (
     DispatchException,
@@ -89,7 +90,7 @@ class ServiceType(
         storage=None,
         cache=None,
     ) -> Dict[str, Any]:
-        """Redact sensitive values, retaining named rows for reconfiguration."""
+        """Redact sensitive settings and sanitize samples for user templates."""
 
         serialized = {
             key: self.serialize_property(
@@ -115,6 +116,13 @@ class ServiceType(
                     if isinstance(value, list)
                     else None
                 )
+        if getattr(import_export_config, "is_user_template", False):
+            sample_data = serialized.get("sample_data")
+            serialized["sample_data"] = (
+                None
+                if isinstance(sample_data, dict) and "_error" in sample_data
+                else sanitize_sample_data(sample_data)
+            )
         return serialized
 
     # Does this service return a list of record?
