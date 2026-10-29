@@ -521,13 +521,20 @@ class DataSourceHandler:
         return data_sources_dispatch
 
     def dispatch_data_source(
-        self, data_source: DataSource, dispatch_context: BuilderDispatchContext
+        self,
+        data_source: DataSource,
+        dispatch_context: BuilderDispatchContext,
+        update_sample_data: bool = False,
     ) -> Any:
         """
         Dispatch the service related to the data_source.
 
         :param data_source: The data source to be dispatched.
         :param dispatch_context: The context used for the dispatch.
+        :param update_sample_data: Whether to store the result as the sample data
+          of the data source's service. Only this data source's service is
+          updated: the data sources it references are dispatched as usual, and a
+          failure keeps the sample data the service already had.
         :raises ServiceImproperlyConfiguredDispatchException: If the data source is
           not properly configured.
         :return: The result of dispatching the data source.
@@ -561,6 +568,14 @@ class DataSourceHandler:
         if data_source.id not in cache.setdefault("data_source_contents", {}):
             service = data_source.service.specific
             service.get_type().raise_if_deactivated(dispatch_context.workspace)
+
+            # Set on the clone only: the builder context doesn't carry these
+            # properties into its own clones, so the data sources this one
+            # references are not dispatched with them.
+            if update_sample_data:
+                cloned_dispatch_context.use_sample_data = True
+                cloned_dispatch_context.update_sample_data_for = [service]
+                cloned_dispatch_context.keep_sample_data_on_error = True
 
             service_dispatch = self.service_handler.dispatch_service(
                 service, cloned_dispatch_context, application_id=page.builder_id

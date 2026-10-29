@@ -467,6 +467,10 @@ export class CoreCSVFileReaderServiceType extends DataSourceServiceTypeMixin(
     return true
   }
 
+  get hiddenInDataSourcePicker() {
+    return true
+  }
+
   getRecordName(service, record) {
     return record?.name || record?.id || ''
   }

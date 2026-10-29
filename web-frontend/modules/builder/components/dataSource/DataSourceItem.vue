@@ -7,8 +7,8 @@
         :title="dataSource.name"
         size="medium"
         :image="!isInError ? image : null"
-        :icon="isInError ? 'iconoir-warning-circle' : null"
-        :initials="image ? null : '?'"
+        :icon="isInError ? 'iconoir-warning-circle' : icon"
+        :initials="image || icon ? null : '?'"
         :subtitle="subtitle"
         :rounded-icon="false"
         :avatar-color="isInError ? 'red' : 'neutral'"
@@ -95,7 +95,14 @@ export default {
       return this.dataSourceType?.integrationType
     },
     image() {
+      if (this.dataSourceType && !this.integrationType) {
+        // A service without an integration is shown with its own icon.
+        return null
+      }
       return this.integrationType?.image || 'default.png'
+    },
+    icon() {
+      return this.image ? null : this.dataSourceType?.icon
     },
     subtitle() {
       if (this.errorMessage) {

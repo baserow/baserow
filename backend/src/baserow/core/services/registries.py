@@ -551,9 +551,13 @@ class ServiceType(
                     service, resolved_values, dispatch_context
                 )
         except Exception as e:
-            if dispatch_context.use_sample_data and (
-                dispatch_context.update_sample_data_for is None
-                or service in dispatch_context.update_sample_data_for
+            if (
+                dispatch_context.use_sample_data
+                and not dispatch_context.keep_sample_data_on_error
+                and (
+                    dispatch_context.update_sample_data_for is None
+                    or service in dispatch_context.update_sample_data_for
+                )
             ):
                 service.sample_data = {"_error": str(e)}
                 service.save()
@@ -578,14 +582,19 @@ class ServiceType(
                 # data (PostgreSQL refuses a NUL character in a json column,
                 # for one), the caller's transaction must stay usable so it can
                 # record the failure, and the sentinel is stored the same way
-                # it is for a failed dispatch.
+                # it is for a failed dispatch, unless the context asks to keep
+                # the sample data the service already had.
+                previous_sample_data = service.sample_data
                 service.sample_data = sample_data
                 try:
                     with transaction.atomic():
                         service.save()
                 except Exception as e:
-                    service.sample_data = {"_error": str(e)}
-                    service.save()
+                    if dispatch_context.keep_sample_data_on_error:
+                        service.sample_data = previous_sample_data
+                    else:
+                        service.sample_data = {"_error": str(e)}
+                        service.save()
                     raise
             return serialized_data
 
