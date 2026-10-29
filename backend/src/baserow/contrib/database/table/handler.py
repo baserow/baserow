@@ -241,6 +241,18 @@ class TableUsageHandler:
 
 
 @baserow_trace_handler
+def _language_of(actor: AbstractUser) -> str | None:
+    """
+    The language of the names a new table gets. An actor such as an Agent has no
+    profile, so it gets the default language.
+
+    :param actor: Who creates the table.
+    :return: The actor's language, or None for the default.
+    """
+
+    return actor.profile.language if isinstance(actor, AbstractUser) else None
+
+
 class TableHandler:
     @classmethod
     def get_tables(
@@ -408,7 +420,7 @@ class TableHandler:
                 data, first_row_header=first_row_header
             )
         else:
-            with translation.override(user.profile.language):
+            with translation.override(_language_of(user)):
                 if fill_example:
                     fields, data = self.get_example_table_field_and_data()
                 else:
@@ -471,7 +483,7 @@ class TableHandler:
         # Creates a default view
         view_handler = ViewHandler()
 
-        with translation.override(user.profile.language):
+        with translation.override(_language_of(user)):
             view = view_handler.create_view(
                 user, table, GridViewType.type, name=_("Grid")
             )

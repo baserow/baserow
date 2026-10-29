@@ -30,6 +30,7 @@ def test_configuration_audit_log_persists_full_before_and_after_snapshots(
         "model_identifier": agent.model_identifier,
         "run_as_subject_type": None,
         "run_as_subject_id": None,
+        "tools": [],
     }
     changed_values = {
         "instructions": "Updated private instructions",

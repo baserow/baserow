@@ -4,6 +4,7 @@ import pytest
 from freezegun import freeze_time
 
 from baserow.contrib.agent.application_types import AgentApplicationType
+from baserow.contrib.agent.constants import AgentRunAsState
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import (
     AgentApplication,
@@ -87,7 +88,7 @@ def test_duplicate_copies_conversations_with_new_identifiers(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("trashed", [False, True])
-def test_run_as_is_kept_only_by_copies_in_the_same_workspace(
+def test_copies_keep_the_tools_and_only_same_workspace_copies_keep_run_as(
     data_fixture, configured_agent, trashed
 ):
     user = data_fixture.create_user()
@@ -97,6 +98,7 @@ def test_run_as_is_kept_only_by_copies_in_the_same_workspace(
     )
     agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
     agent.save()
+    AgentHandler().set_tools(agent, ["list_tables", "create_rows"])
 
     duplicate = CoreHandler().duplicate_application(user, agent).specific
     imported = AgentApplicationType().import_serialized(
@@ -108,14 +110,17 @@ def test_run_as_is_kept_only_by_copies_in_the_same_workspace(
 
     assert duplicate.run_as_subject_id == identity.id
     assert (imported.run_as_subject_type, imported.run_as_subject_id) == (None, None)
-    assert (
-        AgentHandler().is_run_as_subject_usable(
-            duplicate.run_as_subject_type,
-            duplicate.run_as_subject_id,
-            duplicate.workspace,
-        )
-        is not trashed
+    resolution = AgentHandler().resolve_run_as_subject(
+        duplicate.run_as_subject_type,
+        duplicate.run_as_subject_id,
+        duplicate.workspace,
     )
+    assert resolution.status == (
+        AgentRunAsState.TRASHED if trashed else AgentRunAsState.ACTIVE
+    )
+    assert [AgentHandler().get_tool_names(copy) for copy in (duplicate, imported)] == [
+        ["list_tables", "create_rows"]
+    ] * 2
 
 
 @pytest.mark.django_db
@@ -175,14 +180,20 @@ def test_snapshot_preserves_run_as_through_identity_trash_and_restore(
         identity.id,
     )
     handler = AgentHandler()
-    assert not handler.is_run_as_subject_usable(
-        restored.run_as_subject_type, restored.run_as_subject_id, restored.workspace
+    assert (
+        handler.get_usable_run_as_subject(
+            restored.run_as_subject_type, restored.run_as_subject_id, restored.workspace
+        )
+        is None
     )
 
     identity.trashed = False
     identity.save()
-    assert handler.is_run_as_subject_usable(
-        restored.run_as_subject_type, restored.run_as_subject_id, restored.workspace
+    assert (
+        handler.get_usable_run_as_subject(
+            restored.run_as_subject_type, restored.run_as_subject_id, restored.workspace
+        )
+        == identity
     )
 
 

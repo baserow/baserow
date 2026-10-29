@@ -97,7 +97,7 @@ class AgentService:
 
     @transaction.atomic
     def update_configuration(
-        self, user: AbstractUser, agent_id: int, **values: str | int | None
+        self, user: AbstractUser, agent_id: int, **values: str | int | list[str] | None
     ) -> AgentConfigurationUpdated:
         """
         Save part of the configuration for a user who may update and read it.

@@ -23,6 +23,22 @@ class AgentApplication(Application):
     run_as_subject_id = models.BigIntegerField(null=True, blank=True, db_default=None)
 
 
+class AgentTool(models.Model):
+    """A tool an Agent may call. A missing row means the tool is off."""
+
+    agent = models.ForeignKey(
+        AgentApplication, on_delete=models.CASCADE, related_name="tools"
+    )
+    name = models.CharField(max_length=100)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["agent", "name"], name="agent_tool_unique_name"
+            )
+        ]
+
+
 class AgentConversation(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
     """A conversation with an agent, private to the user who started it."""
 

@@ -17,6 +17,7 @@ from baserow.contrib.agent.models import (
     AgentConversation,
     AgentMessage,
 )
+from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.contrib.agent.types import AgentConfiguration
 from baserow.contrib.agent.validators import AGENT_TEXT_MAX_LENGTH
 
@@ -80,6 +81,11 @@ class AgentConfigurationSerializer(serializers.Serializer):
         help_text="The configured identity and its active, trashed or missing status. "
         "Null means no workspace access was selected."
     )
+    tools = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="The names of the tools the agent may call while it has an "
+        "identity to act as.",
+    )
     errors = serializers.DictField(
         child=serializers.ChoiceField(
             choices=[error.value for error in AgentConfigurationErrorCode]
@@ -122,6 +128,12 @@ class AgentConfigurationUpdateSerializer(
         required=False,
         help_text="The id of the identity the agent's tools act as.",
     )
+    tools = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        help_text="The names of all the tools the agent may call. Tools left out "
+        "are turned off.",
+    )
 
     class Meta:
         model = AgentApplication
@@ -131,6 +143,7 @@ class AgentConfigurationUpdateSerializer(
             "model_identifier",
             "run_as_subject_type",
             "run_as_subject_id",
+            "tools",
         )
         extra_kwargs = {
             "instructions": {
@@ -138,6 +151,22 @@ class AgentConfigurationUpdateSerializer(
                 "trim_whitespace": False,
             },
         }
+
+    def validate_tools(self, names: list[str]) -> list[str]:
+        """
+        Accept only registered tools.
+
+        :param names: The requested tool names.
+        :raises ValidationError: When a name isn't a tool.
+        :return: The names without duplicates.
+        """
+
+        unknown = set(names) - set(agent_tool_type_registry.get_types())
+        if unknown:
+            raise serializers.ValidationError(
+                f"Unknown tools: {', '.join(sorted(unknown))}."
+            )
+        return list(dict.fromkeys(names))
 
     def validate(self, values: dict) -> dict:
         """

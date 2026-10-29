@@ -132,8 +132,8 @@ class UpdateAgentConfigurationActionType(ActionType):
     @dataclass
     class Params:
         agent_id: int
-        original_values: dict[str, str | int | None]
-        new_values: dict[str, str | int | None]
+        original_values: dict[str, str | int | list[str] | None]
+        new_values: dict[str, str | int | list[str] | None]
 
     @classmethod
     def get_analytics_properties(cls, action_params: dict[str, Any]) -> dict[str, Any]:
@@ -148,7 +148,7 @@ class UpdateAgentConfigurationActionType(ActionType):
 
     @classmethod
     def do(
-        cls, user: AbstractUser, agent_id: int, **values: str | int | None
+        cls, user: AbstractUser, agent_id: int, **values: str | int | list[str] | None
     ) -> AgentConfiguration:
         """
         Update the configuration and audit its original and new values.
