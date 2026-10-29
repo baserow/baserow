@@ -11,12 +11,12 @@
       </div>
       <SwitchInput
         small
-        :model-value="tools.length > 0"
+        :model-value="allowedTools.length > 0"
         :disabled="!editable"
         @update:model-value="emit('update', $event ? readTools : [])"
       />
     </div>
-    <template v-if="tools.length">
+    <template v-if="allowedTools.length">
       <SegmentControl
         class="agent-workspace-tools__presets"
         :segments="presets"
@@ -36,8 +36,9 @@
         <span class="agent-workspace-tools__group-count">
           {{
             $t('agent.toolsOn', {
-              count: group.tools.filter((tool) => tools.includes(tool.name))
-                .length,
+              count: group.tools.filter((tool) =>
+                allowedTools.includes(tool.name)
+              ).length,
               total: group.tools.length,
             })
           }}
@@ -48,7 +49,7 @@
     <AgentToolPermissionsModal
       ref="permissions"
       :available-tools="availableTools"
-      :tools="tools"
+      :allowed-tools="allowedTools"
       :agent-name="agentName"
       @save="emit('update', $event)"
     />
@@ -67,7 +68,7 @@ import AgentToolPermissionsModal from '@baserow/modules/agent/components/configu
  * tool permissions modal. Emits `update` with the names of the tools to allow.
  */
 const props = defineProps({
-  tools: { type: Array, required: true },
+  allowedTools: { type: Array, required: true },
   availableTools: { type: Array, required: true },
   agentName: { type: String, required: true },
   editable: Boolean,
@@ -90,8 +91,8 @@ const presets = computed(() => [
 ])
 
 const isExactly = (names) =>
-  names.length === props.tools.length &&
-  names.every((name) => props.tools.includes(name))
+  names.length === props.allowedTools.length &&
+  names.every((name) => props.allowedTools.includes(name))
 const presetIndex = computed(() => {
   if (isExactly(allTools.value)) return 0
   if (isExactly(readTools.value)) return 1

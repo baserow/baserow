@@ -73,7 +73,7 @@ class AgentConfigurationSerializer(serializers.Serializer):
         help_text="The identity the agent's tools act as, or null for no workspace "
         "access. A trashed identity is included so it can be reported."
     )
-    tools = serializers.ListField(
+    allowed_tools = serializers.ListField(
         child=serializers.CharField(),
         help_text="The names of the tools the agent may call while it has an "
         "identity to act as.",
@@ -140,7 +140,7 @@ class AgentConfigurationUpdateSerializer(
         required=False,
         help_text="The id of the identity the agent's tools act as.",
     )
-    tools = serializers.ListField(
+    allowed_tools = serializers.ListField(
         child=serializers.CharField(),
         required=False,
         help_text="The names of all the tools the agent may call. Tools left out "
@@ -155,7 +155,7 @@ class AgentConfigurationUpdateSerializer(
             "model_identifier",
             "run_as_subject_type",
             "run_as_subject_id",
-            "tools",
+            "allowed_tools",
         )
         extra_kwargs = {
             "instructions": {
@@ -164,7 +164,7 @@ class AgentConfigurationUpdateSerializer(
             },
         }
 
-    def validate_tools(self, names: list[str]) -> list[str]:
+    def validate_allowed_tools(self, names: list[str]) -> list[str]:
         """
         Accept only registered tools.
 

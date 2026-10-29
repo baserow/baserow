@@ -9,6 +9,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.settings import api_settings as jwt_settings
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
+from baserow.core.types import Actor
 from baserow.core.utils import generate_hash
 
 
@@ -19,6 +20,18 @@ class UserSessionPayload:
     # Sessions signed before refresh tokens were rotated don't have these.
     session_hash: Optional[str] = None
     expires_at: Optional[int] = None
+
+
+def get_actor_language(actor: Actor) -> str | None:
+    """
+    The language to write in for an actor. An actor such as an Agent has no
+    profile, so it gets the default language.
+
+    :param actor: Who the text is written for.
+    :return: The user's language, or None for the default.
+    """
+
+    return actor.profile.language if isinstance(actor, AbstractUser) else None
 
 
 def normalize_email_address(email):

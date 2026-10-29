@@ -22,7 +22,7 @@ from baserow.contrib.agent.actions import (
     CreateAgentMessageActionType,
 )
 from baserow.contrib.agent.chat_run_type import AgentChatRunType
-from baserow.contrib.agent.constants import INTERRUPTED_REPLY_NOTE
+from baserow.contrib.agent.constants import INTERRUPTED_REPLY_NOTE, TOOL_RETRIES
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import (
     AgentApplication,
@@ -35,6 +35,7 @@ from baserow.contrib.agent.replies import create_reply_model
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.signals import agent_conversation_updated
 from baserow.contrib.agent.types import AgentMessageCreated
+from baserow.contrib.database.table.models import Table
 from baserow.core.chat_runs.journal import ChatRunJournal
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.exceptions import PermissionDenied
@@ -57,6 +58,32 @@ def run_of(conversation: AgentConversation) -> ChatRun:
 def reply_state(reply_id: int) -> tuple[str, str, str]:
     reply = AgentMessage.objects.get(id=reply_id)
     return reply.status, reply.error_code, reply.content
+
+
+def allow_create_rows(
+    data_fixture, agent: AgentApplication, with_identity: bool = True
+) -> Table:
+    """
+    Allow the Agent to create rows, in a new table of its workspace.
+
+    :param agent: The Agent to configure.
+    :param with_identity: Whether the Agent runs as an identity, without which it
+        calls no tool.
+    :return: The table, with a primary ``Name`` field.
+    """
+
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(workspace=agent.workspace)
+    )
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    identity = Identity.objects.create(workspace=agent.workspace, name="Ops")
+    AgentHandler().update_configuration(
+        agent,
+        run_as_subject_type="core.Agent" if with_identity else None,
+        run_as_subject_id=identity.id if with_identity else None,
+        allowed_tools=["create_rows"],
+    )
+    return table
 
 
 @pytest.fixture
@@ -455,22 +482,12 @@ def test_busy_conversations_and_workspaces_are_refused_with_their_errors(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("with_identity", [True, False])
-def test_a_reply_calls_the_enabled_tools_as_the_agent_identity(
+def test_a_reply_calls_the_allowed_tools_as_the_agent_identity(
     data_fixture, configured_agent, mocker, with_identity
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
-    table = data_fixture.create_database_table(
-        database=data_fixture.create_database_application(workspace=agent.workspace)
-    )
-    data_fixture.create_text_field(table=table, name="Name", primary=True)
-    identity = Identity.objects.create(workspace=agent.workspace, name="Ops")
-    AgentHandler().update_configuration(
-        agent,
-        run_as_subject_type="core.Agent" if with_identity else None,
-        run_as_subject_id=identity.id if with_identity else None,
-        tools=["create_rows"],
-    )
+    table = allow_create_rows(data_fixture, agent, with_identity)
     offered = []
 
     async def stream(messages, info):
@@ -497,3 +514,36 @@ def test_a_reply_calls_the_enabled_tools_as_the_agent_identity(
         assert (offered, rows) == ([["create_rows"], ["create_rows"]], ["Plan"])
     else:
         assert (offered, rows) == ([[]], [])
+
+
+@pytest.mark.django_db
+def test_a_reply_recovers_from_invalid_tool_calls(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    table = allow_create_rows(data_fixture, agent)
+    invalid = {"table_id": table.id, "rows": "Plan"}
+    valid = {"table_id": table.id, "rows": [{"Name": "Plan"}]}
+    calls = iter([invalid] * TOOL_RETRIES + [valid])
+
+    async def stream(messages, info):
+        arguments = next(calls, None)
+        if arguments is None:
+            yield "Done."
+        else:
+            yield {
+                0: DeltaToolCall(name="create_rows", json_args=json.dumps(arguments))
+            }
+
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(FunctionModel(stream_function=stream), {}),
+    )
+    created = start(user, agent)
+
+    run_reply(run_of(created.conversation))
+
+    assert reply_state(created.reply.id) == ("completed", "", "Done.")
+    rows = [row.name for row in table.get_model(attribute_names=True).objects.all()]
+    assert rows == ["Plan"]

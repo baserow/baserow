@@ -74,7 +74,7 @@ import { groupAgentTools } from '@baserow/modules/agent/agentTools'
 /** Lets the user pick the tools an Agent may call, saving them only on Done. */
 const props = defineProps({
   availableTools: { type: Array, required: true },
-  tools: { type: Array, required: true },
+  allowedTools: { type: Array, required: true },
   agentName: { type: String, required: true },
 })
 const emit = defineEmits(['save'])
@@ -105,7 +105,7 @@ function toggle(name, allowed) {
 }
 
 function show() {
-  picked.value = new Set(props.tools)
+  picked.value = new Set(props.allowedTools)
   modal.value.show()
 }
 

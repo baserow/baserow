@@ -23,18 +23,18 @@ class AgentApplication(Application):
     run_as_subject_id = models.BigIntegerField(null=True, blank=True, db_default=None)
 
 
-class AgentTool(models.Model):
-    """A tool an Agent may call. A missing row means the tool is off."""
+class AgentAllowedTool(models.Model):
+    """A tool an Agent may call. A missing row means the tool is not allowed."""
 
     agent = models.ForeignKey(
-        AgentApplication, on_delete=models.CASCADE, related_name="tools"
+        AgentApplication, on_delete=models.CASCADE, related_name="allowed_tools"
     )
     name = models.CharField(max_length=100)
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["agent", "name"], name="agent_tool_unique_name"
+                fields=["agent", "name"], name="agent_allowed_tool_unique_name"
             )
         ]
 

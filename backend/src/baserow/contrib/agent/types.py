@@ -17,7 +17,7 @@ class AgentConfiguration(TypedDict):
     model_identifier: str | None
     run_as_subject_type: str | None
     run_as_subject_id: int | None
-    tools: list[str]
+    allowed_tools: list[str]
     errors: dict[str, str]
 
 
@@ -48,7 +48,7 @@ class AgentReplyRequest:
     history: list[AgentMessage]
     acting_subject: Subject | None = None
     """Who the tools act as, or None for no workspace access."""
-    tool_names: list[str] = field(default_factory=list)
+    allowed_tool_names: list[str] = field(default_factory=list)
     """The tools the reply may call, none without an identity to act as."""
     timezone: str | None = None
     """The timezone of the owner, for the dates the tools read and write."""

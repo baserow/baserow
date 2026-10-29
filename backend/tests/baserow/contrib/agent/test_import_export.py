@@ -111,7 +111,7 @@ def test_copies_keep_the_tools_and_only_same_workspace_copies_keep_run_as(
     identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
     agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
     agent.save()
-    AgentHandler().set_tools(agent, ["list_tables", "create_rows"])
+    AgentHandler().set_allowed_tools(agent, ["list_tables", "create_rows"])
 
     duplicate = CoreHandler().duplicate_application(user, agent).specific
     imported = AgentApplicationType().import_serialized(
@@ -123,9 +123,9 @@ def test_copies_keep_the_tools_and_only_same_workspace_copies_keep_run_as(
 
     assert duplicate.run_as_subject_id == identity.id
     assert (imported.run_as_subject_type, imported.run_as_subject_id) == (None, None)
-    assert [AgentHandler().get_tool_names(copy) for copy in (duplicate, imported)] == [
-        ["list_tables", "create_rows"]
-    ] * 2
+    assert [
+        AgentHandler().get_allowed_tool_names(copy) for copy in (duplicate, imported)
+    ] == [["list_tables", "create_rows"]] * 2
 
 
 @pytest.mark.django_db

@@ -241,22 +241,31 @@ def test_run_as_rejects_subjects_the_agent_cannot_act_as(
 
 
 @pytest.mark.django_db
-def test_tools_are_replaced_and_validated(configured_agent, api_client, api_user):
+def test_allowed_tools_are_replaced_and_validated(
+    configured_agent, api_client, api_user
+):
     url = agent_url(configured_agent(user=api_user), "configuration")
 
-    response = api_client.patch(url, {"tools": ["create_rows", "list_table_rows"]})
-    assert response.json()["tools"] == ["list_table_rows", "create_rows"]
+    response = api_client.patch(
+        url, {"allowed_tools": ["create_rows", "list_table_rows"]}
+    )
+    assert response.json()["allowed_tools"] == ["list_table_rows", "create_rows"]
     assert {
-        tool["name"]
-        for tool in response.json()["available_tools"]
-        if not tool["changes_data"]
-    } == {"list_tables", "get_table_schema", "list_table_rows", "list_views"}
+        "name": "create_rows",
+        "group": "database",
+        "changes_data": True,
+    } in response.json()["available_tools"]
 
-    response = api_client.patch(url, {"tools": ["list_tables", "drop_database"]})
+    response = api_client.patch(
+        url, {"allowed_tools": ["list_tables", "drop_database"]}
+    )
     assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
-    assert api_client.get(url).json()["tools"] == ["list_table_rows", "create_rows"]
+    assert api_client.get(url).json()["allowed_tools"] == [
+        "list_table_rows",
+        "create_rows",
+    ]
 
-    assert api_client.patch(url, {"tools": []}).json()["tools"] == []
+    assert api_client.patch(url, {"allowed_tools": []}).json()["allowed_tools"] == []
 
 
 @pytest.mark.django_db
@@ -316,7 +325,7 @@ def test_configuration_is_served_only_by_the_agent_endpoints(
         "provider_type": "openai",
         "model_identifier": "test-model",
         "run_as": None,
-        "tools": [],
+        "allowed_tools": [],
         "available_tools": ANY,
         "errors": {},
     }

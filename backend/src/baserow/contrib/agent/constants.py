@@ -5,3 +5,4 @@ REPLY_REQUEST_LIMIT = 20
 AGENT_NOT_READY = "not_ready"
 AGENT_NOT_ALLOWED = "not_allowed"
 INTERRUPTED_REPLY_NOTE = "[This reply was interrupted and may be incomplete.]"
+TOOL_RETRIES = 3

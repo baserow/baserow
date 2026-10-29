@@ -12,14 +12,14 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='AgentTool',
+            name='AgentAllowedTool',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('name', models.CharField(max_length=100)),
-                ('agent', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='tools', to='agent.agentapplication')),
+                ('agent', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='allowed_tools', to='agent.agentapplication')),
             ],
             options={
-                'constraints': [models.UniqueConstraint(fields=('agent', 'name'), name='agent_tool_unique_name')],
+                'constraints': [models.UniqueConstraint(fields=('agent', 'name'), name='agent_allowed_tool_unique_name')],
             },
         ),
     ]

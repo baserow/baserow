@@ -676,9 +676,9 @@ describe('Agent configuration', () => {
   )
 
   test('allows workspace tools with presets or one by one', async () => {
-    const withTools = (tools) =>
+    const withTools = (allowedTools) =>
       completeConfiguration({
-        tools,
+        allowed_tools: allowedTools,
         available_tools: [
           { name: 'list_tables', group: 'database', changes_data: false },
           { name: 'create_rows', group: 'database', changes_data: true },
@@ -724,9 +724,9 @@ describe('Agent configuration', () => {
     await flushPromises()
 
     expect(savedValues(testApp)).toEqual([
-      { tools: everything },
-      { tools: ['list_tables', 'create_rows'] },
-      { tools: [] },
+      { allowed_tools: everything },
+      { allowed_tools: ['list_tables', 'create_rows'] },
+      { allowed_tools: [] },
     ])
     expect(wrapper.find('.agent-workspace-tools__group').exists()).toBe(false)
   })

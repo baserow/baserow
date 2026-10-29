@@ -26,11 +26,11 @@ from .exceptions import (
     AgentRunAsSubjectDoesNotExist,
 )
 from .models import (
+    AgentAllowedTool,
     AgentApplication,
     AgentConversation,
     AgentMessage,
     AgentReplyTranscript,
-    AgentTool,
 )
 from .registries import agent_tool_type_registry
 from .types import (
@@ -115,7 +115,7 @@ class AgentHandler:
         Return the configuration, its readiness and each blocking field error.
 
         :param agent: The Agent to read.
-        :return: The configuration values with the enabled tools, the readiness and
+        :return: The configuration values with the allowed tools, the readiness and
             the error of each field that keeps the Agent from being ready.
         """
 
@@ -125,12 +125,12 @@ class AgentHandler:
                 field: getattr(agent, field)
                 for field in [*self.configuration_fields, *self.run_as_fields]
             },
-            "tools": self.get_tool_names(agent),
+            "allowed_tools": self.get_allowed_tool_names(agent),
             "readiness": readiness,
             "errors": errors,
         }
 
-    def get_tool_names(self, agent: AgentApplication) -> list[str]:
+    def get_allowed_tool_names(self, agent: AgentApplication) -> list[str]:
         """
         Return the tools the Agent may call, leaving out tools no longer registered.
 
@@ -138,10 +138,10 @@ class AgentHandler:
         :return: The tool names, in registry order.
         """
 
-        names = set(agent.tools.values_list("name", flat=True))
+        names = set(agent.allowed_tools.values_list("name", flat=True))
         return [name for name in agent_tool_type_registry.get_types() if name in names]
 
-    def set_tools(self, agent: AgentApplication, names: list[str]) -> None:
+    def set_allowed_tools(self, agent: AgentApplication, names: list[str]) -> None:
         """
         Let the Agent call exactly these tools.
 
@@ -149,9 +149,9 @@ class AgentHandler:
         :param names: Registered tool names.
         """
 
-        agent.tools.exclude(name__in=names).delete()
-        AgentTool.objects.bulk_create(
-            [AgentTool(agent=agent, name=name) for name in names],
+        agent.allowed_tools.exclude(name__in=names).delete()
+        AgentAllowedTool.objects.bulk_create(
+            [AgentAllowedTool(agent=agent, name=name) for name in names],
             ignore_conflicts=True,
         )
 
@@ -210,7 +210,7 @@ class AgentHandler:
 
         :param agent: The Agent to update.
         :param values: The configuration values to set, by field name, and
-            ``tools``, the names of all the tools the Agent may call. The caller
+            ``allowed_tools``, the names of all the tools the Agent may call. The caller
             must validate their types, lengths and tool names beforehand, and pass
             the run-as type and id together. Unknown field names are ignored.
         :raises AgentRunAsSubjectDoesNotExist: When the Agent can't act as the
@@ -219,7 +219,7 @@ class AgentHandler:
             resulting configuration.
         """
 
-        tools = values.get("tools")
+        allowed_tools = values.get("allowed_tools")
         values = extract_allowed(
             values, [*self.configuration_fields, *self.run_as_fields]
         )
@@ -235,9 +235,11 @@ class AgentHandler:
                 changed_fields.append(field)
         if changed_fields:
             agent.save(update_fields=[*changed_fields, "updated_on"])
-        if tools is not None and set(tools) != set(self.get_tool_names(agent)):
-            self.set_tools(agent, tools)
-            changed_fields.append("tools")
+        if allowed_tools is not None and set(allowed_tools) != set(
+            self.get_allowed_tool_names(agent)
+        ):
+            self.set_allowed_tools(agent, allowed_tools)
+            changed_fields.append("allowed_tools")
         return AgentConfigurationUpdated(
             agent, changed_fields, self.get_configuration(agent)
         )
@@ -560,7 +562,9 @@ class AgentHandler:
             prompt=prompt.content,
             history=list(reversed(history)),
             acting_subject=acting_subject,
-            tool_names=self.get_tool_names(agent) if acting_subject else [],
+            allowed_tool_names=self.get_allowed_tool_names(agent)
+            if acting_subject
+            else [],
             timezone=conversation.owner_user.profile.timezone,
         )
 

@@ -13,7 +13,7 @@ const REQUIRED_FIELDS = ['instructions', 'provider_type', 'model_identifier']
 const CONFIGURATION_FIELDS = [
   ...REQUIRED_FIELDS,
   'run_as',
-  'tools',
+  'allowed_tools',
   'available_tools',
 ]
 
@@ -22,14 +22,14 @@ const emptyConfiguration = () => ({
   provider_type: null,
   model_identifier: null,
   run_as: null,
-  tools: [],
+  allowed_tools: [],
   available_tools: [],
 })
 
 /** Identities match by type and id, and tool lists by their names. */
 const isSameValue = (field, a, b) => {
   if (field === 'run_as') return a?.type === b?.type && a?.id === b?.id
-  if (field === 'tools') {
+  if (field === 'allowed_tools') {
     return a?.length === b?.length && a.every((name) => b.includes(name))
   }
   return a === b
