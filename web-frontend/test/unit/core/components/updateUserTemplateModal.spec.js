@@ -21,6 +21,7 @@ const categories = [
 
 const userTemplate = (values = {}) => ({
   id: 3,
+  revision_id: 3,
   type: 'user',
   name: 'Sprint Tracker',
   description: 'Plan sprints',
@@ -136,6 +137,21 @@ describe('UpdateUserTemplateModal', () => {
       ).toStrictEqual([false, true])
     })
 
+    test('show only the details of a template that is not private or public', async () => {
+      const wrapper = await mountAndShow(
+        'details',
+        userTemplate({ state: 'rejected' })
+      )
+
+      expect(wrapper.find('input').element.value).toBe('Sprint Tracker')
+      expect(
+        wrapper.findComponent({ name: 'UserTemplateVisibilityForm' }).exists()
+      ).toBe(false)
+      expect(
+        wrapper.findComponent({ name: 'UserTemplateContentForm' }).exists()
+      ).toBe(false)
+    })
+
     test('can only be saved when changed', async () => {
       const wrapper = await mountAndShow('details')
 
@@ -241,6 +257,129 @@ describe('UpdateUserTemplateModal', () => {
         'updateUserTemplateModal.invalidKeptDetails'
       )
     })
+  })
+
+  describe('visibility', () => {
+    const chooseVisibility = (wrapper, label) =>
+      wrapper
+        .findAll('.segment-control__button')
+        .find((button) => button.text() === label)
+        .trigger('click')
+
+    test('makes the template public once agreed, without a new revision', async () => {
+      const listed = userTemplate({ state: 'public' })
+      testApp.mock.onPatch('/templates/sprint-tracker/').reply(200, listed)
+      const wrapper = await mountAndShow(
+        'details',
+        userTemplate({ slug: 'sprint-tracker' })
+      )
+
+      await chooseVisibility(wrapper, 'userTemplateVisibilityForm.public')
+      expect(saveButton(wrapper).attributes('disabled')).toBeDefined()
+      await wrapper
+        .find('.user-template-form__consent input[type="checkbox"]')
+        .setValue(true)
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+
+      expect(
+        testApp.mock.history.patch.map(({ data }) => JSON.parse(data))
+      ).toStrictEqual([
+        { listed: true, public_listing_consent: true, revision_id: 3 },
+      ])
+      expect(testApp.mock.history.post).toHaveLength(0)
+      expect(wrapper.emitted('visibility-changed')).toStrictEqual([[listed]])
+      expect(isModalOpen(wrapper)).toBe(false)
+    })
+
+    test('stays private when the template was updated since it was opened', async () => {
+      testApp.dontFailOnErrorResponses()
+      testApp.mock
+        .onPatch('/templates/sprint-tracker/')
+        .reply(400, { error: 'ERROR_TEMPLATE_UPDATED', detail: '' })
+      const wrapper = await mountAndShow(
+        'details',
+        userTemplate({ slug: 'sprint-tracker' })
+      )
+
+      await chooseVisibility(wrapper, 'userTemplateVisibilityForm.public')
+      await wrapper
+        .find('.user-template-form__consent input[type="checkbox"]')
+        .setValue(true)
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+
+      expect(testApp.store.state.toast.items[0]).toMatchObject({
+        type: 'error',
+        message: 'makeTemplatePublicModal.updated',
+      })
+      expect(wrapper.emitted('outdated')).toStrictEqual([[3]])
+      expect(isModalOpen(wrapper)).toBe(false)
+    })
+
+    test('makes the template public with the new details by the job', async () => {
+      testApp.mock
+        .onPost('/jobs/')
+        .reply(200, runningJob({ name: 'Sprints', make_public: true }))
+      const wrapper = await mountAndShow(
+        'details',
+        userTemplate({ slug: 'sprint-tracker' })
+      )
+
+      await chooseVisibility(wrapper, 'userTemplateVisibilityForm.public')
+      await wrapper
+        .find('.user-template-form__consent input[type="checkbox"]')
+        .setValue(true)
+      await wrapper.find('input').setValue('Sprints')
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+
+      expect(testApp.mock.history.patch).toHaveLength(0)
+      expect(JSON.parse(testApp.mock.history.post[0].data)).toMatchObject({
+        name: 'Sprints',
+        make_public: true,
+        public_listing_consent: true,
+      })
+
+      await updateJob(testApp.store, 7, { state: 'failed', revision: 8 })
+
+      expect(testApp.store.state.toast.items[0]).toMatchObject({
+        type: 'warning',
+        title: 'updateUserTemplateModal.failedPublicAfterUpdated',
+      })
+    })
+
+    test('makes the template private before sending the details', async () => {
+      const requests = []
+      testApp.mock.onPatch('/templates/sprint-tracker/').reply(({ data }) => {
+        requests.push(JSON.parse(data))
+        return [200, userTemplate()]
+      })
+      testApp.mock.onPost('/jobs/').reply(() => {
+        requests.push('job')
+        return [200, runningJob()]
+      })
+      const wrapper = await mountAndShow(
+        'details',
+        userTemplate({ slug: 'sprint-tracker', state: 'public' })
+      )
+
+      await chooseVisibility(wrapper, 'userTemplateVisibilityForm.private')
+      await wrapper.find('input').setValue('Sprints')
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+
+      expect(requests).toStrictEqual([{ listed: false }, 'job'])
+    })
+
+    test.each(['blocked', 'in_review'])(
+      "can't be changed for a %s template",
+      async (state) => {
+        const wrapper = await mountAndShow('details', userTemplate({ state }))
+
+        expect(wrapper.find('.segment-control').exists()).toBe(false)
+      }
+    )
   })
 
   describe('content', () => {
@@ -548,6 +687,9 @@ describe('UpdateUserTemplateModal', () => {
       expect(title(wrapper)).toBe('updateUserTemplateModal.detailsTitle')
       expect(wrapper.find('input').element.value).toBe('Sprints')
       expect(wrapper.findComponent({ name: 'ProgressBar' }).exists()).toBe(true)
+      expect(
+        wrapper.findComponent({ name: 'UserTemplateContentForm' }).exists()
+      ).toBe(false)
     })
 
     test("doesn't show the job of another template", async () => {

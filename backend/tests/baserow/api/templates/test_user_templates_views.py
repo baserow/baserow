@@ -52,7 +52,8 @@ def test_list_own_templates(api_client, data_fixture):
             name="Older",
             categories=[category_1],
         )
-    # The latest revision is shown, with the id, slug and dates of the template.
+    # The latest revision is shown, with the id, slug and creation of the
+    # template, and dated by the revision.
     source_workspace = data_fixture.create_workspace(user=user)
     with freeze_time("2026-10-02 10:00"):
         latest = data_fixture.create_user_template_revision(
@@ -95,8 +96,9 @@ def test_list_own_templates(api_client, data_fixture):
             "source_workspace_id": source_workspace.id,
             "source_application_ids": [3, 1],
             "install_count": 0,
+            "author_name": user.first_name,
             "created_on": "2026-10-01T10:00:00Z",
-            "updated_on": "2026-10-01T10:00:00Z",
+            "updated_on": "2026-10-02T10:00:00Z",
         }
     ]
 
@@ -347,8 +349,9 @@ def test_list_templates_with_flag_off(api_client, data_fixture, settings):
     assert [t["id"] for t in response.json()["results"]] == [official.id]
 
 
-def test_list_templates_with_an_invalid_parameter(api_client, data_fixture):
-    response = list_templates(api_client, type="other")
+@pytest.mark.parametrize("params", [{"type": "other"}, {"cursor": "1_2"}])
+def test_list_templates_with_an_invalid_parameter(api_client, data_fixture, params):
+    response = list_templates(api_client, **params)
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_QUERY_PARAMETER_VALIDATION"
@@ -414,6 +417,7 @@ def test_get_user_template_shows_its_public_revision(api_client, data_fixture):
             "workspace_id": latest.workspace_id,
             "is_default": False,
             "open_application": 7,
+            "author_name": owner.first_name,
         }
 
 
@@ -663,6 +667,64 @@ def test_update_user_template_job_request_modes(api_client, data_fixture):
         "icon",
     ]
     assert not CreateUserTemplateJob.objects.exists()
+
+
+CONSENTED = {"make_public": True, "public_listing_consent": True}
+
+
+@pytest.mark.parametrize(
+    "mode,data,error",
+    [
+        ("create", {"make_public": True}, "ERROR_PUBLIC_LISTING_CONSENT_REQUIRED"),
+        ("create", CONSENTED, None),
+        ("details", {"make_public": True}, "ERROR_PUBLIC_LISTING_CONSENT_REQUIRED"),
+        ("details", CONSENTED, None),
+        ("content", CONSENTED, "ERROR_REQUEST_BODY_VALIDATION"),
+        ("content", {"make_public": False}, None),
+    ],
+)
+def test_user_template_job_make_public_request(
+    api_client, data_fixture, mode, data, error
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+
+    if mode == "create":
+        response = create_job(api_client, token, workspace, [database], **data)
+    elif mode == "details":
+        template = create_own_template(data_fixture, user)
+        data_fixture.create_database_application(workspace=template.workspace)
+        response = update_job(
+            api_client,
+            token,
+            template,
+            name="Renamed",
+            description="",
+            icon="iconoir-calendar",
+            category_ids=[TemplateCategory.objects.create(name="Cat").id],
+            **data,
+        )
+    else:
+        template = create_own_template(data_fixture, user)
+        response = update_job(
+            api_client,
+            token,
+            template,
+            workspace_id=workspace.id,
+            application_ids=[database.id],
+            **data,
+        )
+
+    response_json = response.json()
+    if error:
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert response_json["error"] == error
+        assert not CreateUserTemplateJob.objects.exists()
+    else:
+        assert response.status_code == HTTP_200_OK, response_json
+        assert response_json["make_public"] is data["make_public"]
+        assert "public_listing_consent" not in response_json
 
 
 @pytest.mark.django_db
@@ -1022,3 +1084,218 @@ def test_delete_user_template_query_count_is_linear_in_its_jobs(
     # Each update job is locked and cancelled on its own, the rest is constant.
     no_job, one_job, three_jobs = query_counts
     assert three_jobs - no_job == 3 * (one_job - no_job)
+
+
+def patch_template(api_client, token, slug, **data):
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"} if token else {}
+    return api_client.patch(
+        reverse("api:templates:item", kwargs={"slug": slug}),
+        data,
+        format="json",
+        **headers,
+    )
+
+
+def make_visibility(api_client, token, listed, slug):
+    consent = {"public_listing_consent": True} if listed else {}
+    return patch_template(api_client, token, slug, listed=listed, **consent)
+
+
+def is_public(template):
+    return Template.objects.get(id=template.id).public_revision_id is not None
+
+
+# The state each `listed` value starts from and ends in.
+VISIBILITY = {
+    True: ("private", "public"),
+    False: ("public", "private"),
+}
+
+
+@pytest.mark.parametrize(
+    "listed,actor,status,error",
+    [
+        (True, "owner", HTTP_200_OK, None),
+        (False, "owner", HTTP_200_OK, None),
+        (True, "other", HTTP_404_NOT_FOUND, "ERROR_TEMPLATE_DOES_NOT_EXIST"),
+        (True, "anonymous", HTTP_401_UNAUTHORIZED, None),
+    ],
+)
+def test_make_visibility_actors(api_client, data_fixture, listed, actor, status, error):
+    before, after = VISIBILITY[listed]
+    owner, owner_token = data_fixture.create_user_and_token()
+    _, other_token = data_fixture.create_user_and_token()
+    template = create_own_template(data_fixture, owner, before)
+    token = {"other": other_token, "anonymous": None}.get(actor, owner_token)
+
+    response = make_visibility(api_client, token, listed, template.slug)
+
+    assert response.status_code == status
+    if error:
+        assert response.json()["error"] == error
+    if status == HTTP_200_OK:
+        assert response.json()["id"] == template.id
+        assert response.json()["state"] == after
+    final = after if status == HTTP_200_OK else before
+    assert is_public(template) == (final == "public")
+
+
+@pytest.mark.parametrize(
+    "actor,status,error",
+    [
+        ("owner", HTTP_400_BAD_REQUEST, "ERROR_PUBLIC_LISTING_CONSENT_REQUIRED"),
+        # A stranger can't tell from the answer that the private template exists.
+        ("other", HTTP_404_NOT_FOUND, "ERROR_TEMPLATE_DOES_NOT_EXIST"),
+    ],
+)
+def test_make_public_requires_consent(api_client, data_fixture, actor, status, error):
+    owner, owner_token = data_fixture.create_user_and_token()
+    _, other_token = data_fixture.create_user_and_token()
+    template = create_own_template(data_fixture, owner)
+    token = owner_token if actor == "owner" else other_token
+    response = patch_template(api_client, token, template.slug, listed=True)
+
+    assert response.status_code == status
+    assert response.json()["error"] == error
+    assert not is_public(template)
+
+
+def test_update_template_requires_listed(api_client, data_fixture):
+    owner, token = data_fixture.create_user_and_token()
+    template = create_own_template(data_fixture, owner)
+
+    response = patch_template(api_client, token, template.slug)
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+
+
+def test_make_public_without_content(api_client, data_fixture):
+    owner, token = data_fixture.create_user_and_token()
+    template = create_own_template(data_fixture, owner)
+    Template.objects.filter(id=template.id).update(workspace=None)
+
+    response = make_visibility(api_client, token, True, template.slug)
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_TEMPLATE_HAS_NO_CONTENT"
+    assert not is_public(template)
+
+
+@pytest.mark.parametrize("shown", ["old", "latest"])
+def test_make_public_lists_the_revision_shown(api_client, data_fixture, shown):
+    owner, token = data_fixture.create_user_and_token()
+    template = create_own_template(data_fixture, owner)
+    latest = data_fixture.create_user_template_revision(
+        template, workspace=template.workspace
+    )
+    revision_id = {"old": template.id, "latest": latest.id}[shown]
+
+    response = patch_template(
+        api_client,
+        token,
+        template.slug,
+        listed=True,
+        public_listing_consent=True,
+        revision_id=revision_id,
+    )
+
+    if shown == "old":
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert response.json()["error"] == "ERROR_TEMPLATE_UPDATED"
+        assert not is_public(template)
+    else:
+        assert response.status_code == HTTP_200_OK
+        assert Template.objects.get(id=template.id).public_revision_id == latest.id
+
+
+def test_listed_templates_fields_and_paging(api_client, data_fixture):
+    author, token = data_fixture.create_user_and_token(
+        first_name="Ada", email="ada@example.com"
+    )
+    other = data_fixture.create_user()
+
+    def create_listed(name):
+        template = create_own_template(data_fixture, author, name=name)
+        revision = data_fixture.create_user_template_revision(template, name=name)
+        Template.objects.filter(id=template.id).update(install_count=4)
+        data_fixture.set_user_template_state(template, "public", revision=revision)
+        return revision
+
+    revision = create_listed("CRM")
+    with CaptureQueriesContext(connection) as one_template:
+        response = list_templates(api_client, type="user", listed="true")
+    [result] = response.json()["results"]
+    assert result["author_name"] == "Ada"
+    assert datetime.fromisoformat(result["updated_on"]) == revision.created_on
+    owner_only = (
+        "state",
+        "reason",
+        "source_workspace_id",
+        "source_application_ids",
+        "install_count",
+    )
+    assert [result[key] for key in owner_only] == [None] * 5
+    assert "ada@example.com" not in response.content.decode()
+
+    others = [create_listed(name) for name in ("Tasks", "Notes")]
+    Template.objects.filter(id__in=[o.id for o in others]).update(
+        created_on=revision.created_on
+    )
+    with CaptureQueriesContext(connection) as three_templates:
+        response = list_templates(api_client, listed="true")
+    assert response.json()["count"] == 3
+    assert len(three_templates) == len(one_template)
+
+    # Each page continues after the previous one: equal dates are split by id,
+    # the viewer's own come first, and a template made private in between doesn't
+    # skip the next one.
+    newest_of_others = create_own_template(data_fixture, other, state="public")
+    page = list_templates(api_client, token, listed="true", limit=1).json()
+    revision_ids = [page["results"][0]["revision_id"]]
+    Template.objects.filter(id=others[1].root_id).update(public_revision=None)
+    while page["next_cursor"] is not None:
+        page = list_templates(
+            api_client, token, listed="true", limit=1, cursor=page["next_cursor"]
+        ).json()
+        revision_ids += [result["revision_id"] for result in page["results"]]
+    assert revision_ids == [
+        others[1].id,
+        others[0].id,
+        revision.id,
+        newest_of_others.id,
+    ]
+    response = list_templates(api_client, listed="true", search="task")
+    assert [t["name"] for t in response.json()["results"]] == ["Tasks"]
+
+
+def test_listed_template_categories(api_client, data_fixture):
+    owner = data_fixture.create_user()
+    listed, private, empty = [
+        data_fixture.create_template_category(name=name)
+        for name in ("Listed", "Private", "Empty")
+    ]
+    create_own_template(data_fixture, owner, state="public", categories=[listed])
+    create_own_template(data_fixture, owner, categories=[private])
+
+    response = list_templates(api_client, view="listed_categories")
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == [{"id": listed.id, "name": "Listed"}]
+
+
+def test_listed_templates_combine_with_the_other_filters(api_client, data_fixture):
+    owner, token = data_fixture.create_user_and_token()
+    own = create_own_template(data_fixture, owner, state="public")
+    create_own_template(data_fixture, owner)
+    create_own_template(data_fixture, data_fixture.create_user(), state="public")
+    official = data_fixture.create_template()
+
+    def listed_ids(**params):
+        response = list_templates(api_client, token, listed="true", **params)
+        assert response.status_code == HTTP_200_OK
+        return [t["id"] for t in response.json()["results"]]
+
+    assert listed_ids(owned="true") == [own.id]
+    assert listed_ids(type="official") == [official.id]
+    assert official.id in listed_ids()

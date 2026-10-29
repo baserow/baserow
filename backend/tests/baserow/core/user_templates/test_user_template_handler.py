@@ -403,11 +403,15 @@ def test_list_own_templates(data_fixture):
     older = data_fixture.create_user_template(user=user)
     newer = data_fixture.create_user_template(user=user)
     same_time = data_fixture.create_user_template(user=user)
-    Template.objects.filter(id=older.id).update(updated_on=now - timedelta(days=2))
-    Template.objects.filter(id__in=[newer.id, same_time.id]).update(updated_on=now)
-
     data_fixture.create_user_template_revision(newer)
     newer_latest = data_fixture.create_user_template_revision(newer)
+    Template.objects.filter(id=older.id).update(created_on=now - timedelta(days=2))
+    Template.objects.filter(id__in=[newer.id, same_time.id]).update(
+        created_on=now - timedelta(days=1)
+    )
+    Template.objects.filter(id__in=[newer_latest.id, same_time.id]).update(
+        created_on=now
+    )
     data_fixture.create_user_template(user=other_user)
     marked = data_fixture.create_user_template(user=user, marked_for_deletion_at=now)
     data_fixture.create_user_template_revision(marked)
@@ -417,11 +421,11 @@ def test_list_own_templates(data_fixture):
         CoreHandler().list_templates(user, template_type="user", owned=True)
     )
 
-    # The latest revision of each template, ordered by the template itself.
-    assert templates == [same_time, newer_latest, older]
+    # The latest revision of each template, ordered by its creation, then by id.
+    assert templates == [newer_latest, same_time, older]
     assert [template.get_root() for template in templates] == [
-        same_time,
         newer,
+        same_time,
         older,
     ]
 
@@ -444,6 +448,52 @@ def test_list_templates_owned_by_an_anonymous_user(data_fixture):
     data_fixture.create_template()
 
     assert list(CoreHandler().list_templates(AnonymousUser(), owned=True)) == []
+
+
+@pytest.mark.django_db
+def test_list_listed_templates(data_fixture):
+    user = data_fixture.create_user()
+    official = data_fixture.create_template()
+    data_fixture.create_user_template(user=user)
+    own = data_fixture.create_user_template(user=user)
+    # The listed revision of the actor's own template isn't its root.
+    listed_revision = data_fixture.create_user_template_revision(own)
+    data_fixture.set_user_template_state(own, "public", revision=listed_revision)
+    other = data_fixture.set_user_template_state(
+        data_fixture.create_user_template(), "public"
+    )
+    data_fixture.create_user_template_revision(own)
+    for state in ["public_blocked", "marked"]:
+        template = data_fixture.create_user_template()
+        data_fixture.set_user_template_state(template, "public")
+        data_fixture.set_user_template_state(template, state)
+
+    def listed(actor):
+        return list(CoreHandler().list_templates(actor, "user", listed=True))
+
+    # The listed revision, not the latest one, and the actor's own first.
+    assert listed(user) == [listed_revision, other]
+    assert listed(AnonymousUser()) == [other, listed_revision]
+    # Everybody can open an official template.
+    assert official in CoreHandler().list_templates(user, listed=True)
+
+
+@pytest.mark.django_db
+def test_listed_category_filter_uses_listed_revision(data_fixture):
+    before, after = (data_fixture.create_template_category() for _ in range(2))
+    template = data_fixture.create_user_template(category=before)
+    revision = data_fixture.create_user_template_revision(template, category=after)
+    data_fixture.set_user_template_state(template, "public", revision=revision)
+
+    def listed(category):
+        return list(
+            CoreHandler().list_templates(
+                AnonymousUser(), listed=True, category_id=category.id
+            )
+        )
+
+    assert listed(before) == []
+    assert listed(after) == [revision]
 
 
 @pytest.mark.django_db

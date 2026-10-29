@@ -131,6 +131,11 @@
                   v-tooltip:[TOOLTIP_OPTIONS]="template.reason || null"
                   :color="getState(template).color"
                   rounded
+                  ><i
+                    v-if="getState(template).icon"
+                    class="user-template-list__state-icon"
+                    :class="getState(template).icon"
+                  ></i
                   >{{ getState(template).label }}</Badge
                 >
               </div>
@@ -182,6 +187,30 @@
                   {{ $t('userTemplateList.updateContent') }}
                 </a>
               </li>
+              <li
+                v-if="focusedTemplate?.state === 'private'"
+                class="context__menu-item"
+              >
+                <a
+                  class="context__menu-item-link"
+                  @click.prevent="changeVisibility('make-public')"
+                >
+                  <i class="context__menu-item-icon iconoir-eye-empty"></i>
+                  {{ $t('userTemplateList.makePublic') }}
+                </a>
+              </li>
+              <li
+                v-else-if="focusedTemplate?.state === 'public'"
+                class="context__menu-item"
+              >
+                <a
+                  class="context__menu-item-link"
+                  @click.prevent="changeVisibility('make-private')"
+                >
+                  <i class="context__menu-item-icon iconoir-eye-off"></i>
+                  {{ $t('userTemplateList.makePrivate') }}
+                </a>
+              </li>
               <li class="context__menu-item context__menu-item--with-separator">
                 <a
                   class="context__menu-item-link"
@@ -230,11 +259,31 @@ const PAGE_SIZE = 20
 const TOOLTIP_OPTIONS = { contentClasses: 'tooltip__content--expandable' }
 
 const STATES = {
-  private: { color: 'neutral', label: 'userTemplateList.statePrivate' },
-  in_review: { color: 'yellow', label: 'userTemplateList.stateInReview' },
-  rejected: { color: 'red', label: 'userTemplateList.stateRejected' },
-  blocked: { color: 'red', label: 'userTemplateList.stateBlocked' },
-  public: { color: 'green', label: 'userTemplateList.statePublic' },
+  private: {
+    color: 'neutral',
+    icon: 'iconoir-eye-off',
+    label: 'userTemplateList.statePrivate',
+  },
+  in_review: {
+    color: 'yellow',
+    icon: 'iconoir-clock',
+    label: 'userTemplateList.stateInReview',
+  },
+  rejected: {
+    color: 'red',
+    icon: 'iconoir-eye-off',
+    label: 'userTemplateList.stateRejected',
+  },
+  blocked: {
+    color: 'red',
+    icon: 'iconoir-warning-triangle',
+    label: 'userTemplateList.stateBlocked',
+  },
+  public: {
+    color: 'green',
+    icon: 'iconoir-eye-empty',
+    label: 'userTemplateList.statePublic',
+  },
 }
 
 /**
@@ -244,8 +293,8 @@ const STATES = {
 function getState(template) {
   const state = STATES[template.state]
   return state
-    ? { color: state.color, label: $i18n.t(state.label) }
-    : { color: 'neutral', label: template.state }
+    ? { ...state, label: $i18n.t(state.label) }
+    : { color: 'neutral', icon: null, label: template.state }
 }
 
 const props = defineProps({
@@ -259,7 +308,16 @@ const props = defineProps({
 })
 
 // `delete` asks to delete a template, which `remove` then drops from the list.
-const emit = defineEmits(['selected', 'create', 'edit', 'delete'])
+// `make-public` and `make-private` ask to change whether a template is listed,
+// which `replace` then shows.
+const emit = defineEmits([
+  'selected',
+  'create',
+  'edit',
+  'delete',
+  'make-public',
+  'make-private',
+])
 
 const { $client, $i18n, $priorityBus, $store } = useNuxtApp()
 
@@ -400,6 +458,25 @@ function askToDelete() {
   emit('delete', template)
 }
 
+function changeVisibility(event) {
+  const template = focusedTemplate.value
+  actionsContext.value.hide()
+  emit(event, template)
+}
+
+/**
+ * Shows the changed state of a loaded template in its row. Its position doesn't
+ * change, because the visibility doesn't change when the template was updated.
+ *
+ * @param {object} template The template as listed in the user's templates.
+ */
+function replace(template) {
+  const index = templates.value.findIndex(({ id }) => id === template.id)
+  if (index !== -1) {
+    templates.value.splice(index, 1, template)
+  }
+}
+
 /**
  * Drops a deleted template from the loaded ones without loading them again. When
  * it isn't loaded, for example because a refresh dropped the later pages, the first
@@ -450,5 +527,5 @@ onBeforeUnmount(() => {
   $priorityBus.$off('start-search', searchStarted)
 })
 
-defineExpose({ refresh, remove })
+defineExpose({ refresh, remove, replace })
 </script>

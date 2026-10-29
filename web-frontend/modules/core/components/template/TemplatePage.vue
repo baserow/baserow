@@ -16,18 +16,45 @@
       @outdated="templateOutdated"
     />
     <TemplateList
-      v-show="!selectedTemplate"
+      v-show="!selectedTemplate && tab === 'official'"
       :categories="data.categories"
-      :active="!selectedTemplate"
+      :active="!selectedTemplate && tab === 'official'"
       class="templates__body"
       @selected="selectTemplate"
-    />
+    >
+      <template #head>
+        <SegmentControl
+          :segments="tabs"
+          :active-index="tabIndex"
+          type="pills"
+          @update:active-index="tab = tabs[$event].value"
+        />
+      </template>
+    </TemplateList>
+    <!-- Mounted when its tab is opened, so that it's only loaded when needed. -->
+    <SharedTemplateList
+      v-if="tab === 'shared'"
+      v-show="!selectedTemplate"
+      :active="!selectedTemplate"
+      class="templates__body"
+      @selected="selectSharedTemplate"
+    >
+      <template #head>
+        <SegmentControl
+          :segments="tabs"
+          :active-index="tabIndex"
+          type="pills"
+          @update:active-index="tab = tabs[$event].value"
+        />
+      </template>
+    </SharedTemplateList>
   </div>
 </template>
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
+import SharedTemplateList from '@baserow/modules/core/components/template/SharedTemplateList'
 import TemplateDetails from '@baserow/modules/core/components/template/TemplateDetails'
 import TemplateList from '@baserow/modules/core/components/template/TemplateList'
 import Toasts from '@baserow/modules/core/components/toasts/Toasts'
@@ -39,7 +66,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 const route = useRoute()
 const router = useRouter()
 const nuxtApp = useNuxtApp()
-const { $client, $store, $priorityBus } = nuxtApp
+const { $client, $i18n, $store, $priorityBus } = nuxtApp
 
 const slug = route.params.slug
 
@@ -82,6 +109,26 @@ if (error.value) {
 // of the template page.
 const showList = ref(false)
 const currentSlug = ref(slug)
+// The shared templates opened from the list by slug. They aren't part of the
+// official categories.
+const sharedTemplates = ref({})
+
+const tab = ref('official')
+const tabs = computed(() => [
+  {
+    value: 'official',
+    label: $i18n.t('templateModal.officialTemplates'),
+    icon: 'baserow-icon-templates',
+  },
+  {
+    value: 'shared',
+    label: $i18n.t('templateModal.sharedTemplates'),
+    icon: 'iconoir-group',
+  },
+])
+const tabIndex = computed(() =>
+  tabs.value.findIndex(({ value }) => value === tab.value)
+)
 
 const selectedTemplate = computed(() => {
   if (showList.value) {
@@ -92,9 +139,11 @@ const selectedTemplate = computed(() => {
     return data.value.template
   }
   return (
+    sharedTemplates.value[currentSlug.value] ??
     data.value.categories
       .flatMap((category) => category.templates)
-      .find((t) => t.slug === currentSlug.value) ?? null
+      .find((t) => t.slug === currentSlug.value) ??
+    null
   )
 })
 
@@ -114,25 +163,40 @@ function selectTemplate(template) {
   router.push({ name: 'template', params: { slug: template.slug } })
 }
 
-const selectedTemplateCategories = computed(() =>
-  data.value.categories.filter((category) =>
+function selectSharedTemplate(template) {
+  sharedTemplates.value[template.slug] = template
+  selectTemplate(template)
+}
+
+const selectedTemplateCategories = computed(() => {
+  // A user template lists its own categories, which the linked one lacks.
+  if (selectedTemplate.value.type === 'user') {
+    return selectedTemplate.value.categories ?? []
+  }
+  return data.value.categories.filter((category) =>
     category.templates.some((t) => t.id === selectedTemplate.value.id)
   )
-)
+})
 
 /**
- * An install was refused because another revision of the linked template was
- * made public since the page was loaded. The page shows it, so that the user
- * sees what they install. The templates of the list are official ones, which
- * aren't updated this way.
+ * An install was refused because another revision of the shown user template
+ * was made public since it was loaded. The page shows it, so that the user sees
+ * what they install. Official templates aren't updated this way.
  */
 async function templateOutdated() {
+  const { slug } = selectedTemplate.value
   try {
-    const { data: template } = await TemplateService($client).fetch(
-      data.value.template.slug
-    )
-    // The data isn't deeply reactive.
-    data.value = { ...data.value, template }
+    const { data: template } = await TemplateService($client).fetch(slug)
+    if (slug === data.value.template.slug) {
+      // The data isn't deeply reactive.
+      data.value = { ...data.value, template }
+    } else {
+      // The template's own categories aren't part of the response.
+      sharedTemplates.value[slug] = {
+        ...sharedTemplates.value[slug],
+        ...template,
+      }
+    }
   } catch (e) {
     notifyIf(e, 'template')
   }

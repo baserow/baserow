@@ -99,8 +99,6 @@ def test_update_user_template_details(data_fixture, use_tmp_media_root):
     ]
     root = start_job(user, source["workspace"], applications, name="Mine").template
     root.private_link_token = "secret-token"
-    root.review_state = Template.ReviewState.APPROVED
-    root.public_revision = root
     root.save()
     root_before = Template.objects.get(id=root.id)
     category = data_fixture.create_template_category()
@@ -165,7 +163,6 @@ def test_update_user_template_details(data_fixture, use_tmp_media_root):
         "workspace_id",
     ]:
         assert getattr(root, field_name) == getattr(root_before, field_name)
-    assert root.updated_on > root_before.updated_on
 
     action_done.assert_called_once()
     action_kwargs = action_done.call_args.kwargs
@@ -321,6 +318,34 @@ def test_update_user_template_details_of_a_later_revision(
     revision_3 = Template.objects.get(root=root, version=3)
     assert revision_3.metadata == {"source_workspace_id": 1}
     assert revision_3.workspace.application_set.count() == 2
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_update_user_template_details_makes_the_template_public(
+    data_fixture, use_tmp_media_root
+):
+    user = data_fixture.create_user()
+    root = create_template(data_fixture, user)
+    submit = UserTemplateHandler.submit_revision
+
+    with (
+        patch.object(
+            UserTemplateHandler, "submit_revision", autospec=True, side_effect=submit
+        ) as submit_revision,
+        patch("baserow.core.action.signals.action_done.send") as action_done,
+    ):
+        job = update_details(user, root, make_public=True, public_listing_consent=True)
+
+    assert job.state == JOB_FINISHED, job.error
+    # Only the new revision is listed, so the old details never are.
+    revision = Template.objects.get(root=root)
+    assert [call.args[2].id for call in submit_revision.call_args_list] == [revision.id]
+    assert Template.objects.get(id=root.id).public_revision_id == revision.id
+    assert [call.kwargs["action_type"].type for call in action_done.call_args_list] == [
+        "update_user_template",
+        "update_user_template_visibility",
+    ]
 
 
 @pytest.mark.import_export_workspace

@@ -3,6 +3,7 @@ import { flushPromises, shallowMount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
+import { heldBack } from '@baserow/test/helpers/heldBack'
 import TemplateModal from '@baserow/modules/core/components/template/TemplateModal'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
 
@@ -85,6 +86,8 @@ describe('TemplateModal navigation', () => {
     showUpdateModal = vi.fn()
     showDeleteModal = vi.fn()
     removeFromList = vi.fn()
+    replaceInList = vi.fn()
+    refreshSharedList = vi.fn()
     await testApp.afterEach()
   })
 
@@ -95,10 +98,19 @@ describe('TemplateModal navigation', () => {
     TemplateDetails: defineComponent({
       name: 'TemplateDetails',
       props: ['template', 'categories', 'workspace', 'showBack', 'isOwn'],
-      emits: ['back', 'installed', 'outdated', 'edit', 'delete'],
+      emits: [
+        'back',
+        'installed',
+        'outdated',
+        'edit',
+        'delete',
+        'make-public',
+        'make-private',
+      ],
       template: `<div class="details">
         {{ template.name }}: {{ categories.map((c) => c.name).join(',') }}
         <a class="details__back" @click="$emit('back')" />
+        <a class="details__make-private" @click="$emit('make-private', template)" />
         <a class="details__edit" @click="$emit('edit', 'details')" />
         <a class="details__delete" @click="$emit('delete', template)" />
         <a class="details__outdated" @click="$emit('outdated')" />
@@ -113,16 +125,41 @@ describe('TemplateModal navigation', () => {
         <a class="list__recipe-book" @click="$emit('selected', categories[1].templates[0])" />
       </div>`,
     }),
+    SharedTemplateList: defineComponent({
+      name: 'SharedTemplateList',
+      props: ['active'],
+      emits: ['selected'],
+      template: `<div class="shared-list">
+        <slot name="head" />
+        <a class="shared-list__sprint-tracker" @click="$emit('selected', sprintTracker)" />
+        <a class="shared-list__own" @click="$emit('selected', { ...sprintTracker, state: 'public' })" />
+      </div>`,
+      setup: () => ({ sprintTracker }),
+      methods: {
+        refresh() {
+          refreshSharedList()
+        },
+      },
+    }),
     UserTemplateList: defineComponent({
       name: 'UserTemplateList',
       props: ['active'],
-      emits: ['selected', 'create', 'edit', 'delete'],
+      emits: [
+        'selected',
+        'create',
+        'edit',
+        'delete',
+        'make-public',
+        'make-private',
+      ],
       template: `<div class="own-list">
         <slot name="head" />
         <a class="own-list__sprint-tracker" @click="$emit('selected', sprintTracker)" />
         <a class="own-list__create" @click="$emit('create')" />
         <a class="own-list__edit" @click="$emit('edit', sprintTracker, 'content')" />
         <a class="own-list__delete" @click="$emit('delete', sprintTracker)" />
+        <a class="own-list__make-public" @click="$emit('make-public', sprintTracker)" />
+        <a class="own-list__make-private" @click="$emit('make-private', sprintTracker)" />
       </div>`,
       setup: () => ({ sprintTracker }),
       methods: {
@@ -131,6 +168,9 @@ describe('TemplateModal navigation', () => {
         },
         remove(...args) {
           removeFromList(...args)
+        },
+        replace(...args) {
+          replaceInList(...args)
         },
       },
     }),
@@ -148,7 +188,7 @@ describe('TemplateModal navigation', () => {
     UpdateUserTemplateModal: defineComponent({
       name: 'UpdateUserTemplateModal',
       props: ['template', 'mode', 'categories'],
-      emits: ['updated', 'hidden'],
+      emits: ['updated', 'visibility-changed', 'hidden'],
       data: () => ({ jobIsRunning: false, updateLoading: false }),
       methods: {
         show() {
@@ -175,6 +215,8 @@ describe('TemplateModal navigation', () => {
   let showUpdateModal = vi.fn()
   let showDeleteModal = vi.fn()
   let removeFromList = vi.fn()
+  let replaceInList = vi.fn()
+  let refreshSharedList = vi.fn()
 
   const mountAndShow = async (...args) => {
     const wrapper = await testApp.mount(TemplateModal, {
@@ -293,7 +335,7 @@ describe('TemplateModal navigation', () => {
     const ownList = (wrapper) => wrapper.find('.own-list')
 
     const openOwnTab = async (wrapper) => {
-      await tabs(wrapper)[1].trigger('click')
+      await tabs(wrapper)[2].trigger('click')
       await flushPromises()
     }
 
@@ -332,6 +374,7 @@ describe('TemplateModal navigation', () => {
 
       expect(tabs(wrapper).map((tab) => tab.text())).toStrictEqual([
         'templateModal.officialTemplates',
+        'templateModal.sharedTemplates',
         'templateModal.yourTemplates',
       ])
       // The own templates are only loaded when their tab is opened.
@@ -353,6 +396,111 @@ describe('TemplateModal navigation', () => {
       expect(wrapper.find('.list').isVisible()).toBe(true)
       // Kept mounted, so that it doesn't load again.
       expect(ownList(wrapper).isVisible()).toBe(false)
+    })
+
+    it('open a shared template, which is reloaded when its install is outdated', async () => {
+      testApp.authenticate({ id: 1 })
+      const wrapper = await mountAndShow()
+      await tabs(wrapper)[1].trigger('click')
+      const sharedList = () =>
+        wrapper.findComponent({ name: 'SharedTemplateList' })
+      expect(sharedList().props('active')).toBe(true)
+
+      await wrapper.find('.shared-list__sprint-tracker').trigger('click')
+
+      const details = wrapper.findComponent({ name: 'TemplateDetails' })
+      expect(details.props('isOwn')).toBe(false)
+      expect(wrapper.find('.details').text()).toBe('Sprint Tracker: Agile')
+
+      testApp.mock.onGet(`/templates/${sprintTracker.slug}/`).reply(200, {
+        id: sprintTracker.id,
+        type: 'user',
+        slug: sprintTracker.slug,
+        name: 'Sprint Tracker v2',
+        workspace_id: 103,
+      })
+      await wrapper.find('.details__outdated').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.find('.details').text()).toBe('Sprint Tracker v2: Agile')
+
+      // Not kept mounted, so that it shows the changes made in the other tabs.
+      await wrapper.find('.details__back').trigger('click')
+      await tabs(wrapper)[0].trigger('click')
+      expect(sharedList().exists()).toBe(false)
+    })
+
+    it("keep the opened template when a shared template's reload answers late", async () => {
+      testApp.authenticate({ id: 1 })
+      const reload = heldBack()
+      testApp.mock
+        .onGet(`/templates/${sprintTracker.slug}/`)
+        .reply(reload.reply)
+      const wrapper = await mountAndShow()
+      await tabs(wrapper)[1].trigger('click')
+      await wrapper.find('.shared-list__sprint-tracker').trigger('click')
+
+      await wrapper.find('.details__outdated').trigger('click')
+      // Not the recipe book, which has the shared template's id here.
+      await wrapper.vm.show('project-tracker')
+      reload.send([200, { ...sprintTracker, name: 'Sprint Tracker v2' }])
+      await flushPromises()
+
+      expect(wrapper.find('.details').text()).toBe('Project Tracker: Business')
+    })
+
+    it('make an own template public, whose modal takes the search shortcut', async () => {
+      testApp.authenticate({ id: 1 })
+      const wrapper = await mountAndShow()
+      await openOwnTab(wrapper)
+      const ownListComponent = () =>
+        wrapper.findComponent({ name: 'UserTemplateList' })
+
+      await wrapper.find('.own-list__make-public').trigger('click')
+      await flushPromises()
+
+      const makePublicModal = wrapper.findComponent({
+        name: 'MakeTemplatePublicModal',
+      })
+      expect(makePublicModal.props('template')).toStrictEqual(sprintTracker)
+      expect(ownListComponent().props('active')).toBe(false)
+
+      makePublicModal.findComponent({ name: 'Modal' }).vm.hide()
+      await flushPromises()
+
+      expect(ownListComponent().props('active')).toBe(true)
+    })
+
+    it("open the user's own shared template as theirs", async () => {
+      testApp.authenticate({ id: 1 })
+      const wrapper = await mountAndShow()
+      await tabs(wrapper)[1].trigger('click')
+
+      await wrapper.find('.shared-list__own').trigger('click')
+
+      const details = wrapper.findComponent({ name: 'TemplateDetails' })
+      expect(details.props('isOwn')).toBe(true)
+    })
+
+    it('make an opened own template private once, and show the change', async () => {
+      testApp.authenticate({ id: 1 })
+      const reply = heldBack()
+      testApp.mock
+        .onPatch(`/templates/${sprintTracker.slug}/`)
+        .reply(reply.reply)
+      const wrapper = await mountAndShow()
+      await openOwnTab(wrapper)
+      await wrapper.find('.own-list__sprint-tracker').trigger('click')
+
+      await wrapper.find('.details__make-private').trigger('click')
+      await wrapper.find('.details__make-private').trigger('click')
+      const changed = { ...sprintTracker, name: 'Private', state: 'private' }
+      reply.send([200, changed])
+      await flushPromises()
+
+      expect(testApp.mock.history.patch).toHaveLength(1)
+      expect(replaceInList).toHaveBeenCalledWith(changed)
+      expect(wrapper.find('.details').text()).toBe('Private: Agile')
     })
 
     it('open an own template with its categories and go back', async () => {

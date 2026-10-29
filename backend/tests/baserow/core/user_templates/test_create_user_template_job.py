@@ -688,6 +688,54 @@ def test_create_user_template_job_keeps_the_template_on_error_after_the_commit(
     assert template.workspace.application_set.count() == 1
 
 
+def test_create_user_template_job_makes_the_template_public(data_fixture):
+    source = create_source(data_fixture)
+    user = source["user"]
+
+    with patch("baserow.core.action.signals.action_done.send") as action_done:
+        job = start_job(
+            user,
+            source["workspace"],
+            [source["database"]],
+            make_public=True,
+            public_listing_consent=True,
+        )
+
+    assert job.state == JOB_FINISHED
+    template = Template.objects.get()
+    assert template.public_revision_id == job.revision_id == template.id
+    assert template.review_state == Template.ReviewState.APPROVED
+    assert [
+        (call.kwargs["action_type"].type, call.kwargs["user"])
+        for call in action_done.call_args_list
+    ] == [("create_user_template", user), ("update_user_template_visibility", user)]
+
+
+def test_create_user_template_job_keeps_the_template_private_if_publishing_fails(
+    data_fixture,
+):
+    source = create_source(data_fixture)
+
+    with patch.object(
+        UserTemplateHandler, "submit_revision", side_effect=RuntimeError("Fails")
+    ):
+        with pytest.raises(RuntimeError):
+            start_job(
+                source["user"],
+                source["workspace"],
+                [source["database"]],
+                make_public=True,
+                public_listing_consent=True,
+            )
+
+    job = CreateUserTemplateJob.objects.get()
+    assert job.state == JOB_FAILED
+    template = Template.objects.get()
+    assert job.revision_id == template.id
+    assert template.public_revision_id is None
+    assert template.workspace.application_set.count() == 1
+
+
 def test_create_user_template_job_logs_a_failed_clean_up_after_a_cancel(data_fixture):
     source = create_source(data_fixture)
 

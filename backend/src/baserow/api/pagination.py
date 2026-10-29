@@ -1,5 +1,5 @@
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from functools import cached_property
 from typing import Optional, Protocol
 
@@ -17,10 +17,14 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_400_BAD_REQUEST
 
 from baserow.core.db import get_approximate_row_count
-from baserow.core.pagination import KeysetCursor
+from baserow.core.pagination import (
+    KEYSET_CURSOR_EPOCH,
+    KeysetCursor,
+    RankedKeysetCursor,
+)
 
-_KEYSET_CURSOR_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 _KEYSET_CURSOR_RE = re.compile(r"(\d+)_(\d+)")
+_RANKED_KEYSET_CURSOR_RE = re.compile(r"(\d+)_(.*)")
 
 
 def encode_keyset_cursor(cursor: Optional[KeysetCursor]) -> Optional[str]:
@@ -34,7 +38,7 @@ def encode_keyset_cursor(cursor: Optional[KeysetCursor]) -> Optional[str]:
 
     if cursor is None:
         return None
-    microseconds = (cursor.value - _KEYSET_CURSOR_EPOCH) // timedelta(microseconds=1)
+    microseconds = (cursor.value - KEYSET_CURSOR_EPOCH) // timedelta(microseconds=1)
     return f"{microseconds}_{cursor.id}"
 
 
@@ -49,10 +53,40 @@ class KeysetCursorField(serializers.CharField):
             raise serializers.ValidationError("Invalid cursor.")
         microseconds, id = match.groups()
         try:
-            value = _KEYSET_CURSOR_EPOCH + timedelta(microseconds=int(microseconds))
+            value = KEYSET_CURSOR_EPOCH + timedelta(microseconds=int(microseconds))
         except OverflowError:
             raise serializers.ValidationError("Invalid cursor.")
         return KeysetCursor(value=value, id=int(id))
+
+
+def encode_ranked_keyset_cursor(
+    cursor: Optional[RankedKeysetCursor],
+) -> Optional[str]:
+    """
+    :param cursor: The cursor of the next page.
+    :return: The opaque string for the API, the rank before what
+        `encode_keyset_cursor` produces, `None` when there is no next page.
+    """
+
+    if cursor is None:
+        return None
+    position = encode_keyset_cursor(KeysetCursor(value=cursor.value, id=cursor.id))
+    return f"{cursor.rank}_{position}"
+
+
+class RankedKeysetCursorField(KeysetCursorField):
+    """
+    Accepts what `encode_ranked_keyset_cursor` produced and returns the
+    `RankedKeysetCursor`.
+    """
+
+    def to_internal_value(self, data) -> RankedKeysetCursor:
+        match = _RANKED_KEYSET_CURSOR_RE.fullmatch(str(data))
+        if match is None:
+            raise serializers.ValidationError("Invalid cursor.")
+        rank, position = match.groups()
+        cursor = super().to_internal_value(position)
+        return RankedKeysetCursor(rank=int(rank), value=cursor.value, id=cursor.id)
 
 
 class Pageable(Protocol):
