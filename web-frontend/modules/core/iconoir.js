@@ -1,10 +1,6 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import pathe from 'pathe'
 
-// Icons that are used, but that the code doesn't mention with the `iconoir-`
-// prefix, because `HelpIcon` adds the prefix to its `icon` prop.
-const ICONOIR_ICONS_WITHOUT_PREFIX_IN_CODE = ['chat-bubble-question']
-
 /**
  * Changes the stroke-width of the iconoir svg files because this way, we don't
  * have to fork the repository and change it there.
@@ -27,8 +23,12 @@ export function getLocalModuleDirectories(options) {
     .map((modulePath) => pathe.dirname(modulePath))
 }
 
+/**
+ * Icons must be mentioned with their full class, like `iconoir-info-empty`,
+ * because a name that's put together at runtime can't be found.
+ */
 export function findUsedIconoirIcons(directories, ignoredDirectory) {
-  const icons = new Set(ICONOIR_ICONS_WITHOUT_PREFIX_IN_CODE)
+  const icons = new Set()
   const visit = (directory) => {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       const entryPath = pathe.join(directory, entry.name)
