@@ -522,7 +522,7 @@
     },
     "deleteViewModal": {
         "title": "Eliminar {name}",
-        "description": "¿Está seguro de que desea eliminar la vista {name}? Los datos de la tabla se conservarán, pero se eliminarán los filtros, clasificaciones y anchos de campo relacionados con la vista.",
+        "description": "¿Estás seguro de que quieres eliminar la vista {name}? Los datos de la tabla se conservarán, pero los filtros, los ordenamientos y los anchos de los campos relacionados con la vista se eliminarán.",
         "delete": "Eliminar vista"
     },
     "viewForm": {
@@ -733,7 +733,7 @@
         "items": "Una matriz de identificadores de fila que deben ser eliminados."
     },
     "apiDocsTableUpdateRows": {
-        "description": "Actualiza filas existentes de {name}.",
+        "description": "Actualiza las filas existentes de {name}.",
         "id": "La identificación de la fila."
     },
     "apiDocsTableCreateRows": {
@@ -788,7 +788,7 @@
         "snapshotDeletedErrorTitle": "Se ha producido un error",
         "snapshotDeletedErrorMessage": "La imagen no ha podido ser eliminada. Favor de intentarlo otra vez mas tarde.",
         "title": "instantáneas",
-        "description": "Las instantáneas son una copia completa de tu {applicationTypeName} del momento en que fueron creadas. Al restaurarlas se creará una duplicación de esos datos. Las instantáneas se eliminan automáticamente al cabo de un año.",
+        "description": "Las instantáneas son una copia completa de tu {applicationTypeName} del momento en que fueron creadas. Se creará una duplicación de esos datos al restaurar. Las instantáneas se eliminan automáticamente después de un año.",
         "descriptionLimits": "Puedes tener un máximo de {n} instantáneas por espacio de trabajo. | Puedes tener un máximo de {n} instantáneas por espacio de trabajo. | Puedes tener un máximo de {n} instantáneas por espacio de trabajo.",
         "snapshot": "Imagen",
         "limitReached": "Se ha alcanzado el límite de imágenes máximas.",
@@ -907,7 +907,7 @@
         "queryParameter": "Parámetro de consulta"
     },
     "viewGroupBy": {
-        "groupBy": "Agrupar | Agrupar por 1 campos | Agrupar por {count} campos"
+        "groupBy": "Agrupar | Agrupar por 1 campo | Agrupar por {count} campos"
     },
     "rowHistorySidebar": {
         "you": "Tú",
@@ -938,7 +938,7 @@
         "layout": "Diseño de grupo"
     },
     "collaboratorAddedToRowNotification": {
-        "title": "{sender} te asignó a {fieldName} en la fila {rowId} en {tableName}",
+        "title": "{sender} te ha asignado a {fieldName} en la fila {rowId} en {tableName}",
         "deletedUser": "Un usuario eliminado",
         "unknownUser": "Un usuario desconocido"
     },
@@ -950,7 +950,7 @@
         "addConditionGroup": "Añadir grupo de condiciones"
     },
     "formSubmittedNotification": {
-        "title": "Se ha enviado {formName} en la tabla {tableName}:",
+        "title": "{formName} se ha enviado en la tabla {tableName}:",
         "moreValues": "0 | y 1 campo más. | y {count} campos más."
     },
     "fieldDurationSubForm": {
