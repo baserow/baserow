@@ -41,6 +41,14 @@ class Migration(LockTimeoutMigration):
                         to="core.template",
                     ),
                 ),
+                (
+                    "latest",
+                    models.BooleanField(
+                        db_default=False,
+                        default=False,
+                        help_text="Whether the latest revision was asked for, so that its archive is asked for the same way once the job is finished.",
+                    ),
+                ),
             ],
             options={
                 "abstract": False,

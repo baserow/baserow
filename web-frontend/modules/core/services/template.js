@@ -36,6 +36,13 @@ export default (client) => {
         { params }
       )
     },
+    /**
+     * Responds with the archive of a user template (200), or with the job that
+     * builds it (202), after which the archive is asked for again.
+     */
+    download(slug, { latest = false } = {}) {
+      return client.post(`/templates/${slug}/download/`, { latest })
+    },
     delete(slug) {
       return client.delete(`/templates/${slug}/`)
     },

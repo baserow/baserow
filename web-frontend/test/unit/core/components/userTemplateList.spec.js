@@ -55,6 +55,8 @@ describe('UserTemplateList', () => {
   beforeEach(async () => {
     testApp = new TestApp()
     requests = []
+    // The templates are listed to their signed-in owner.
+    testApp.authenticate({ id: 1, preferences: {}, completed_onboarding: true })
     const { store } = testApp
     await store.dispatch('workspace/forceCreate', { id: 1, name: 'Acme' })
     await store.dispatch('application/forceCreate', {
@@ -420,15 +422,17 @@ describe('UserTemplateList', () => {
     state: 'pending',
     progress_percentage: 0,
     human_readable_error: '',
-    url: null,
-    file_name: `${template.slug}.zip`,
+    slug: template.slug,
+    latest: true,
   })
+
+  const downloadUrl = /^\/templates\/([\w-]+)\/download\/$/
 
   // Replies to the download request of each template, when the test resolves it.
   const holdDownloadRequests = () => {
     const replies = {}
-    testApp.mock.onPost('/jobs/').reply((config) => {
-      const { slug } = JSON.parse(config.data)
+    testApp.mock.onPost(downloadUrl).reply((config) => {
+      const slug = config.url.match(downloadUrl)[1]
       return new Promise((resolve) => {
         replies[slug] = resolve
       })
@@ -438,8 +442,11 @@ describe('UserTemplateList', () => {
 
   const downloadRequests = () =>
     testApp.mock.history.post
-      .filter((request) => request.url === '/jobs/')
-      .map((request) => JSON.parse(request.data))
+      .filter((request) => downloadUrl.test(request.url))
+      .map((request) => ({
+        slug: request.url.match(downloadUrl)[1],
+        ...JSON.parse(request.data),
+      }))
 
   const downloadToasts = () =>
     testApp.store.state.toast.items.filter(
@@ -478,14 +485,10 @@ describe('UserTemplateList', () => {
 
     // The user's own template, so its latest revision.
     expect(downloadRequests()).toStrictEqual([
-      {
-        type: 'download_user_template',
-        slug: 'growth-playbook-a1b2c3',
-        latest: true,
-      },
+      { slug: 'growth-playbook-a1b2c3', latest: true },
     ])
 
-    replies['growth-playbook-a1b2c3']([200, downloadJob(20, templates[1])])
+    replies['growth-playbook-a1b2c3']([202, downloadJob(20, templates[1])])
     await flushPromises()
 
     expect(downloadToasts()).toHaveLength(1)
@@ -513,7 +516,7 @@ describe('UserTemplateList', () => {
     await actionButtons[0].trigger('click')
     expect(context.isOpen()).toBe(true)
 
-    replies['growth-playbook-a1b2c3']([200, downloadJob(20, templates[1])])
+    replies['growth-playbook-a1b2c3']([202, downloadJob(20, templates[1])])
     await flushPromises()
 
     expect(downloadToasts()).toHaveLength(1)

@@ -1,17 +1,20 @@
 import { ref } from 'vue'
+import { useStore } from 'vuex'
 import { useNuxtApp } from '#app'
 
-import JobService from '@baserow/modules/core/services/job'
+import TemplateService from '@baserow/modules/core/services/template'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { signedInUserCheck } from '@baserow/modules/core/utils/auth'
 
 /**
- * Downloads the archive of a user template. A click starts the job that prepares
- * the archive, or gets the one that already prepares it, and its toast saves the
- * file when it's ready. The requests are tracked per template, so that one row's
- * request doesn't block or show on another row.
+ * Downloads the archive of a user template. A click gets the archive when it's
+ * ready, or the job that builds it, whose toast saves the file once it's built.
+ * The requests are tracked per template, so that one row's request doesn't block
+ * or show on another row. An answer that comes after a logout shows nothing.
  */
 export function useUserTemplateDownload() {
-  const { $client, $registry, $store } = useNuxtApp()
+  const store = useStore()
+  const { $client, $registry } = useNuxtApp()
 
   // The ids of the templates whose download is being requested.
   const downloadingIds = ref(new Set())
@@ -29,18 +32,21 @@ export function useUserTemplateDownload() {
       return false
     }
     downloadingIds.value.add(template.id)
+    const isSameUser = signedInUserCheck(store)
     try {
-      const { data: job } = await JobService($client).create(
-        'download_user_template',
-        { slug: template.slug, latest }
-      )
-      // Toast first, so that the job's end finds it to update.
+      const response = await TemplateService($client).download(template.slug, {
+        latest,
+      })
+      if (!isSameUser()) {
+        return true
+      }
       await $registry
         .get('job', 'download_user_template')
-        .addDownloadToast(job, template, { latest })
-      await $store.dispatch('job/create', job)
+        .startDownload(response, template, { latest })
     } catch (error) {
-      notifyIf(error, 'template')
+      if (isSameUser()) {
+        notifyIf(error, 'template')
+      }
     } finally {
       downloadingIds.value.delete(template.id)
     }

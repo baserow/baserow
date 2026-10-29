@@ -11,7 +11,11 @@ from rest_framework.views import APIView
 from baserow.api.applications.serializers import (
     PolymorphicApplicationResponseSerializer,
 )
-from baserow.api.decorators import map_exceptions, validate_query_parameters
+from baserow.api.decorators import (
+    map_exceptions,
+    validate_body,
+    validate_query_parameters,
+)
 from baserow.api.errors import (
     ERROR_GROUP_DOES_NOT_EXIST,
     ERROR_USER_NOT_IN_GROUP,
@@ -27,8 +31,10 @@ from baserow.api.schemas import (
 )
 from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.api.templates.serializers import (
+    DownloadTemplateSerializer,
     InstallTemplateQueryParamSerializer,
     ListTemplatesQueryParamSerializer,
+    TemplateArchiveSerializer,
     TemplateCategoriesSerializer,
     TemplateListItemSerializer,
     TemplateSerializer,
@@ -48,11 +54,19 @@ from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
 from baserow.core.models import Template, TemplateCategory
 from baserow.core.user_templates.actions import DeleteUserTemplateActionType
+from baserow.core.user_templates.archive import (
+    has_valid_archive,
+    template_archive_file_name,
+    template_archive_url,
+)
 from baserow.core.user_templates.exceptions import (
     TemplateBlocked,
     TemplateHasNoContent,
     TemplateUpdated,
 )
+from baserow.core.user_templates.handler import UserTemplateHandler
+from baserow.core.user_templates.job_types import DownloadUserTemplateJobType
+from baserow.core.user_templates.models import DownloadUserTemplateJob
 
 from .errors import (
     ERROR_TEMPLATE_BLOCKED,
@@ -427,5 +441,85 @@ class AsyncInstallTemplateView(APIView):
             revision_id=query_params.get("revision_id"),
         )
 
+        serializer = job_type_registry.get_serializer(job, JobSerializer)
+        return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
+
+
+class DownloadUserTemplateView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        tags=["Templates"],
+        operation_id="download_template",
+        parameters=[
+            OpenApiParameter(
+                name="slug",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.STR,
+                description="The slug of the user template to download.",
+            ),
+        ],
+        description=(
+            "Responds with the URL of the archive of a user template, which imports "
+            "like a workspace export. The archive is built on the first download: "
+            "while there is none, a job that builds it is started instead, or the "
+            "one of the user that builds it already is responded with. Once the "
+            "job is finished, the archive is asked for again.\n\n"
+            "A user template can be downloaded by whoever can install it, and the "
+            "archive holds the revision that would be installed."
+        ),
+        request=DownloadTemplateSerializer,
+        responses={
+            200: TemplateArchiveSerializer,
+            202: DownloadUserTemplateJobType().response_serializer_class,
+            400: get_error_schema(
+                [
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_TEMPLATE_BLOCKED",
+                    "ERROR_TEMPLATE_HAS_NO_CONTENT",
+                    "ERROR_MAX_JOB_COUNT_EXCEEDED",
+                ]
+            ),
+            404: get_error_schema(["ERROR_TEMPLATE_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            TemplateDoesNotExist: ERROR_TEMPLATE_DOES_NOT_EXIST,
+            TemplateBlocked: ERROR_TEMPLATE_BLOCKED,
+            TemplateHasNoContent: ERROR_TEMPLATE_HAS_NO_CONTENT,
+            MaxJobCountExceeded: ERROR_MAX_JOB_COUNT_EXCEEDED,
+        }
+    )
+    @validate_body(DownloadTemplateSerializer, return_validated=True)
+    @transaction.atomic
+    def post(self, request, slug, data):
+        """Responds with the archive of a user template, or the job building it."""
+
+        latest = data["latest"]
+        revision = UserTemplateHandler().get_downloadable_revision(
+            request.user, slug, latest=latest
+        )
+        if has_valid_archive(revision):
+            archive = {
+                "url": template_archive_url(revision),
+                "file_name": template_archive_file_name(revision),
+            }
+            return Response(TemplateArchiveSerializer(archive).data)
+
+        # A repeated click gets the build that runs already.
+        job = (
+            DownloadUserTemplateJob.objects.filter(user=request.user, revision=revision)
+            .is_pending_or_running()
+            .select_related("revision__root")
+            .first()
+        )
+        if job is None:
+            job = JobHandler().create_and_start_job(
+                request.user,
+                DownloadUserTemplateJobType.type,
+                slug=slug,
+                latest=latest,
+            )
         serializer = job_type_registry.get_serializer(job, JobSerializer)
         return Response(serializer.data, status=status.HTTP_202_ACCEPTED)

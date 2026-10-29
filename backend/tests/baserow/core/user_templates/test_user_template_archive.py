@@ -1,13 +1,15 @@
+import threading
 from unittest.mock import patch
 
 from django.core.files.base import ContentFile
-from django.db import connection
+from django.db import connection, transaction
 from django.db.migrations.recorder import MigrationRecorder
 
 import pytest
 
 from baserow.core.exceptions import TemplateDoesNotExist
 from baserow.core.import_export.handler import ImportExportHandler
+from baserow.core.jobs.constants import JOB_FINISHED
 from baserow.core.models import Template
 from baserow.core.storage import get_default_storage
 from baserow.core.user_templates.archive import (
@@ -15,14 +17,15 @@ from baserow.core.user_templates.archive import (
     delete_template_archives,
     get_template_archive_stamp,
     has_valid_archive,
+    new_template_archive_name,
     template_archive_dir,
 )
 from baserow.core.user_templates.handler import UserTemplateHandler
-from baserow.core.utils import Progress
 from tests.baserow.core.user_templates.utils import (
     add_password_data,
     assert_password_data_left_out,
     create_template_with_content,
+    download,
     import_archive,
     install_marks,
     store_archive,
@@ -76,11 +79,12 @@ def test_build_template_archive(data_fixture):
     )
     add_password_data(data_fixture, table, view)
     updated_on = Template.objects.get(id=template.id).updated_on
-    progress = Progress(100)
 
-    name = build(template, progress_builder=progress.create_child_builder(100))
+    # The real build, through the job, like a download.
+    job = download(owner, template)
 
-    assert progress.progress == 100
+    assert (job.state, job.progress_percentage) == (JOB_FINISHED, 100)
+    name = Template.objects.get(id=template.id).archive.name
     assert name.startswith(
         f"template-archives/{template.id}/{get_template_archive_stamp()}_"
     )
@@ -119,6 +123,70 @@ def test_build_template_archive_replaces_the_archive_of_another_version(
     assert name != old_name
     assert template_archive_names(template) == [name]
     assert Template.objects.get(id=template.id).archive.name == name
+
+
+@install_marks
+def test_build_template_archive_keeps_a_valid_archive_saved_meanwhile(data_fixture):
+    template, _, _ = create_template_with_content(data_fixture)
+    storage = get_default_storage()
+    # The file of another build that is still being written.
+    other_build = storage.save(
+        f"{template_archive_dir(template.id)}other.zip", ContentFile(b"other")
+    )
+    write_archive = ImportExportHandler.write_applications_archive
+    saved = []
+
+    def write_while_another_build_saves(self, *args, **kwargs):
+        write_archive(self, *args, **kwargs)
+        saved.append(store_template_archive(Template.objects.get(id=template.id)))
+
+    with patch.object(
+        ImportExportHandler, WRITE_ARCHIVE, write_while_another_build_saves
+    ):
+        name = build(template)
+
+    assert name == saved[0]
+    assert Template.objects.get(id=template.id).archive.name == saved[0]
+    assert template_archive_names(template) == sorted([saved[0], other_build])
+
+
+@install_marks
+def test_save_template_archive_name_waits_for_a_build_that_saves(data_fixture):
+    template, _, _ = create_template_with_content(data_fixture)
+    storage = get_default_storage()
+    other_name, own_name = (
+        storage.save(new_template_archive_name(template.id), ContentFile(b"zip"))
+        for _ in range(2)
+    )
+    saving = threading.Event()
+    saved = threading.Event()
+    result = []
+
+    # Another build saves its archive in a transaction that is still open.
+    def other_build_saves():
+        with transaction.atomic():
+            Template.objects.filter(id=template.id).update(archive=other_name)
+            saving.set()
+            saved.wait(timeout=10)
+        connection.close()
+
+    def this_build_saves():
+        handler = UserTemplateHandler()
+        result.append(handler._save_template_archive_name(template, own_name))
+        connection.close()
+
+    other = threading.Thread(target=other_build_saves)
+    other.start()
+    assert saving.wait(timeout=10)
+    this = threading.Thread(target=this_build_saves)
+    this.start()
+    this.join(timeout=1)
+    saved.set()
+    other.join(timeout=10)
+    this.join(timeout=10)
+
+    assert result == [other_name]
+    assert Template.objects.get(id=template.id).archive.name == other_name
 
 
 @install_marks
@@ -206,16 +274,15 @@ def test_delete_template_archives_keeps_the_ones_a_template_refers_to(
     template = data_fixture.create_user_template()
     directory = template_archive_dir(template.id)
     storage = get_default_storage()
-    kept = storage.save(f"{directory}kept.zip", ContentFile(b"kept"))
     stray = storage.save(f"{directory}stray.zip", ContentFile(b"stray"))
     # Another template refers to it, like one copied from it.
     referred = store_template_archive(template)
     other = data_fixture.create_user_template(archive=referred)
     Template.objects.filter(id=template.id).update(archive="")
 
-    delete_template_archives(directory, keep=[kept])
+    delete_template_archives(directory)
 
-    assert template_archive_names(template) == sorted([kept, referred])
+    assert template_archive_names(template) == [referred]
     assert not storage.exists(stray)
 
     other.delete()

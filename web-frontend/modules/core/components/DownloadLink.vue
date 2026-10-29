@@ -68,7 +68,10 @@ export default {
           if (this.onError) {
             this.onError(error)
           } else {
-            throw error
+            this.$store.dispatch('toast/error', {
+              title: this.$t('clientHandler.notCompletedTitle'),
+              message: this.$t('clientHandler.notCompletedDescription'),
+            })
           }
         })
       }
