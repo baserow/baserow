@@ -170,7 +170,8 @@
         "localBaserowSummary": "Baserow local - {name}, {username}",
         "localBaserowWarning": "Al autorizar tu cuenta, cualquier persona con permisos de edición en la aplicación tendrá acceso total a los datos a los que tú tienes acceso. Puedes crear un segundo usuario, asignarle los permisos adecuados y utilizar ese usuario.",
         "errorTrashedAgent": "El agente autorizado ha sido eliminado a la papelera",
-        "localBaserowSubjectSummary": "Baserow Local - {type}: {name}"
+        "localBaserowSubjectSummary": "Baserow Local - {type}: {name}",
+        "errorNoUser": "Ningún usuario o agente ha autorizado esta integración."
     },
     "integrationsCommon": {
         "singleRow": "una sola fila",
@@ -179,7 +180,7 @@
     "localBaserowAggregateRowsForm": {
         "searchTabTitle": "Buscar",
         "aggregationFieldLabel": "Campo",
-        "aggregationTypeLabel": "Añadir",
+        "aggregationTypeLabel": "Agregación",
         "noTableChosenForFiltering": "Seleccione una tabla para comenzar a utilizar filtros de fuente de datos.",
         "filterTabTitle": "Filtros",
         "searchFieldPlaceHolder": "Introduzca un término de búsqueda..."
@@ -187,7 +188,8 @@
     "slackBotIntegrationType": {
         "slackBotSummary": "Bot de Slack",
         "slackBotNoToken": "Bot de Slack – No configurado",
-        "slackBotWarning": "Cualquiera que pueda construir en esta aplicación puede enviar mensajes a través de este bot, y puede reemplazar su token. Usa un bot cuyo acceso te gustaría compartir."
+        "slackBotWarning": "Cualquiera que pueda construir en esta aplicación puede enviar mensajes a través de este bot, y puede reemplazar su token. Usa un bot cuyo acceso te gustaría compartir.",
+        "errorNoToken": "No se ha establecido ningún token de bot."
     },
     "aiIntegrationType": {
         "inheritingWorkspace": "Configuración heredada de IA del espacio de trabajo",
@@ -199,7 +201,8 @@
         "workspaceSettingsDescription": "Esta integración hereda los ajustes del proveedor de IA de tu espacio de trabajo por defecto. Una anulación del proveedor es autónoma: incluye sus propias credenciales o host, porque los campos de conexión nunca se combinan con credenciales heredadas.",
         "overrideWorkspaceSettings": "Sobrescribe la configuración del espacio de trabajo para este proveedor",
         "inherited": "Heredado",
-        "overridden": "Sobrescrito"
+        "overridden": "Sobrescrito",
+        "apiKeyKeepPlaceholder": "Déjalo en blanco para conservar la clave de API guardada"
     },
     "aiAgentServiceForm": {
         "integrationLabel": "Integración",
@@ -285,7 +288,8 @@
         "channelNoPrefix": "Elimina el ‘#’ antes del nombre del canal."
     },
     "smtpIntegrationType": {
-        "smtpSummary": "SMTP - {host}:{port}"
+        "smtpSummary": "SMTP - {host}:{port}",
+        "errorNoHost": "No se ha establecido ningún host SMTP."
     },
     "smtpForm": {
         "host": "Servidor SMTP",
