@@ -38,7 +38,8 @@ class TemplateUpdated(Exception):
     """
     Raised when a user template is installed while another revision than the one
     the user was shown is installable, because another revision was made public
-    or its owner updated it since.
+    or its owner updated it since. Also when its owner makes it public while
+    another revision than the one they were shown would be listed.
     """
 
 
@@ -46,4 +47,11 @@ class TemplateBlocked(Exception):
     """
     Raised when the owner of a user template that an admin blocked tries to install
     it.
+    """
+
+
+class UserTemplatePublicListingConsentRequired(Exception):
+    """
+    Raised when a user template is made public without its author agreeing that
+    it's listed, with their name, for everybody on the instance.
     """

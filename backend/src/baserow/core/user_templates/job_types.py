@@ -17,6 +17,7 @@ from baserow.api.templates.errors import (
     ERROR_INVALID_TEMPLATE_CATEGORY,
     ERROR_INVALID_TEMPLATE_ICON,
     ERROR_NO_APPLICATIONS_SELECTED,
+    ERROR_PUBLIC_LISTING_CONSENT_REQUIRED,
     ERROR_TEMPLATE_DOES_NOT_EXIST,
     ERROR_TEMPLATE_HAS_NO_CONTENT,
 )
@@ -36,6 +37,7 @@ from baserow.core.jobs.registries import JobType
 from baserow.core.user_templates.actions import (
     CreateUserTemplateActionType,
     UpdateUserTemplateActionType,
+    UpdateUserTemplateVisibilityActionType,
 )
 from baserow.core.user_templates.constants import (
     USER_TEMPLATE_DESCRIPTION_MAX_LENGTH,
@@ -47,6 +49,7 @@ from baserow.core.user_templates.exceptions import (
     NoApplicationsSelected,
     TemplateChangedDuringUpdate,
     TemplateHasNoContent,
+    UserTemplatePublicListingConsentRequired,
 )
 from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.user_templates.models import CreateUserTemplateJob
@@ -128,6 +131,9 @@ class CreateUserTemplateJobType(JobType):
         NoApplicationsSelected: ERROR_NO_APPLICATIONS_SELECTED,
         TemplateDoesNotExist: ERROR_TEMPLATE_DOES_NOT_EXIST,
         TemplateHasNoContent: ERROR_TEMPLATE_HAS_NO_CONTENT,
+        UserTemplatePublicListingConsentRequired: (
+            ERROR_PUBLIC_LISTING_CONSENT_REQUIRED
+        ),
     }
 
     job_exceptions_map = {
@@ -145,7 +151,12 @@ class CreateUserTemplateJobType(JobType):
     }
 
     # Which fields are required depends on the mode, see `_validate_mode`.
-    request_serializer_field_names = ["template_id", *TEMPLATE_FIELD_NAMES]
+    request_serializer_field_names = [
+        "template_id",
+        *TEMPLATE_FIELD_NAMES,
+        "make_public",
+        "public_listing_consent",
+    ]
     request_serializer_field_overrides = {
         **_get_id_field_overrides(response=False),
         "template_id": serializers.IntegerField(
@@ -173,10 +184,30 @@ class CreateUserTemplateJobType(JobType):
             help_text="The iconoir class name of the icon of the template. Required, "
             "unless the content of a template is updated.",
         ),
+        # Without a default, so that an update request without it is accepted.
+        "make_public": serializers.BooleanField(
+            required=False,
+            help_text="Whether the template is made public once it's created, or "
+            "once its details are updated. Needs `public_listing_consent`. Can't be "
+            "true when updating the content of a template.",
+        ),
+        # Not write only: the jobs endpoint reads the request from the serializer's
+        # `data`, which leaves write only fields out.
+        "public_listing_consent": serializers.BooleanField(
+            required=False,
+            help_text="Whether the author agrees that the template and their name "
+            "are listed for everybody on this instance. Required to be true with "
+            "`make_public`. It's recorded in the audit log.",
+        ),
     }
 
     # The request is sent back, so that the wizard can show a running job again.
-    serializer_field_names = [*TEMPLATE_FIELD_NAMES, "template", "revision"]
+    serializer_field_names = [
+        *TEMPLATE_FIELD_NAMES,
+        "make_public",
+        "template",
+        "revision",
+    ]
     serializer_field_overrides = {
         **_get_id_field_overrides(response=True),
         "template": serializers.PrimaryKeyRelatedField(
@@ -238,6 +269,9 @@ class CreateUserTemplateJobType(JobType):
         # update or delete.
         feature_flag_is_enabled(FF_USER_TEMPLATES, raise_if_disabled=True)
         self._validate_mode(values, CREATE_REQUIRED_FIELDS)
+        make_public = values.get("make_public", False)
+        if make_public and not values.get("public_listing_consent"):
+            raise UserTemplatePublicListingConsentRequired()
         workspace = CoreHandler().get_workspace(values["workspace_id"])
         application_ids = values.get("application_ids") or []
         applications = UserTemplateService().get_exportable_applications(
@@ -255,6 +289,7 @@ class CreateUserTemplateJobType(JobType):
             "description": values.get("description", ""),
             "icon": values["icon"],
             "category_ids": [category.id for category in categories],
+            "make_public": make_public,
         }
 
     def _prepare_update_values(
@@ -265,10 +300,17 @@ class CreateUserTemplateJobType(JobType):
 
         if values.get("workspace_id") is not None:
             self._validate_mode(values, ["application_ids"], DETAILS_FIELDS)
+            # Only an update of the details can make the template public, so that
+            # it's listed with the new details right away.
+            if values.get("make_public"):
+                self._validate_mode(values, [], ["make_public"])
         else:
             self._validate_mode(values, DETAILS_FIELDS, ["application_ids"])
 
         root = service.get_own_template(user, values["template_id"])
+        make_public = values.get("make_public", False)
+        if make_public and not values.get("public_listing_consent"):
+            raise UserTemplatePublicListingConsentRequired()
         base_revision = handler.get_latest_revision(root)
         update_values = {"template": root, "base_revision": base_revision}
 
@@ -306,6 +348,7 @@ class CreateUserTemplateJobType(JobType):
             "description": values["description"],
             "icon": values["icon"],
             "category_ids": [category.id for category in categories],
+            "make_public": make_public,
         }
 
     def run(self, job: CreateUserTemplateJob, progress: Progress):
@@ -328,17 +371,28 @@ class CreateUserTemplateJobType(JobType):
         }
         try:
             if not is_update:
-                return action_type_registry.get_by_type(
+                template = action_type_registry.get_by_type(
                     CreateUserTemplateActionType
                 ).do(job.user, job.source_workspace, job.application_ids, **kwargs)
-            return action_type_registry.get_by_type(UpdateUserTemplateActionType).do(
-                job.user,
-                job.template,
-                job.base_revision,
-                job.source_workspace if copies_from_workspace else None,
-                job.application_ids,
-                **kwargs,
-            )
+            else:
+                template = action_type_registry.get_by_type(
+                    UpdateUserTemplateActionType
+                ).do(
+                    job.user,
+                    job.template,
+                    job.base_revision,
+                    job.source_workspace if copies_from_workspace else None,
+                    job.application_ids,
+                    **kwargs,
+                )
+            if job.make_public:
+                # After the revision is committed, so that only the new revision is
+                # listed, and the template stays private when making it public
+                # fails. The consent was checked by `prepare_values`.
+                action_type_registry.get_by_type(
+                    UpdateUserTemplateVisibilityActionType
+                ).do(job.user, job.template_id, True, public_listing_consent=True)
+            return template
         except BaseException:
             try:
                 # The revision is only set when its transaction committed, and so

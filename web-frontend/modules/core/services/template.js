@@ -10,6 +10,35 @@ export default (client) => {
       }
       return client.get('/templates/', { params })
     },
+    /**
+     * Lists the public user templates of everyone on this instance, the viewer's
+     * own first. The page continues after the `cursor`, the `next_cursor` of the
+     * previous page.
+     */
+    fetchListed({
+      cursor = null,
+      limit = 20,
+      search = '',
+      categoryId = null,
+    } = {}) {
+      const params = { view: 'flat', type: 'user', listed: true, limit }
+      if (cursor !== null) {
+        params.cursor = cursor
+      }
+      if (search) {
+        params.search = search
+      }
+      if (categoryId !== null) {
+        params.category = categoryId
+      }
+      return client.get('/templates/', { params })
+    },
+    // The categories holding at least one public user template.
+    fetchListedCategories() {
+      return client.get('/templates/', {
+        params: { view: 'listed_categories' },
+      })
+    },
     fetch(slug) {
       return client.get(`/templates/${slug}/`)
     },
@@ -38,6 +67,18 @@ export default (client) => {
     },
     delete(slug) {
       return client.delete(`/templates/${slug}/`)
+    },
+    /**
+     * Makes a template of the user public or private. A template is only made
+     * public if `revisionId`, the revision the user was shown, is still its
+     * latest one.
+     */
+    setListed(slug, listed, revisionId = null) {
+      return client.patch(`/templates/${slug}/`, {
+        listed,
+        ...(listed && { public_listing_consent: true }),
+        ...(listed && revisionId !== null && { revision_id: revisionId }),
+      })
     },
   }
 }

@@ -46,6 +46,11 @@
             :show-errors="detailsSubmitted"
             @update:model-value="Object.assign(values, $event)"
           />
+          <UserTemplateVisibilityForm
+            :model-value="visibility"
+            class="margin-top-2"
+            @update:model-value="Object.assign(values, $event)"
+          />
         </div>
 
         <div class="user-template-modal__footer">
@@ -53,7 +58,11 @@
             <Button type="secondary" @click="hide()">
               {{ $t('action.cancel') }}
             </Button>
-            <Button type="primary" @click="goToContent">
+            <Button
+              type="primary"
+              :disabled="!visibilityValid"
+              @click="goToContent"
+            >
               {{ $t('createUserTemplateModal.continue') }}
             </Button>
           </div>
@@ -133,10 +142,15 @@ import { CreateUserTemplateJobType } from '@baserow/modules/core/jobTypes'
 import { DEFAULT_TEMPLATE_ICON } from '@baserow/modules/core/utils/templateIcons'
 import UserTemplateContentForm from '@baserow/modules/core/components/template/UserTemplateContentForm'
 import UserTemplateDetailsForm from '@baserow/modules/core/components/template/UserTemplateDetailsForm'
+import UserTemplateVisibilityForm from '@baserow/modules/core/components/template/UserTemplateVisibilityForm'
 
 export default {
   name: 'CreateUserTemplateModal',
-  components: { UserTemplateContentForm, UserTemplateDetailsForm },
+  components: {
+    UserTemplateContentForm,
+    UserTemplateDetailsForm,
+    UserTemplateVisibilityForm,
+  },
   mixins: [modal, error, job],
   props: {
     // The categories an author can pick from, each with an `id` and a `name`. An
@@ -166,6 +180,14 @@ export default {
     content() {
       const { workspaceId, applicationIds } = this.values
       return { workspaceId, applicationIds }
+    },
+    visibility() {
+      const { makePublic, publicListingConsent } = this.values
+      return { makePublic, publicListingConsent }
+    },
+    // Public only once the author agreed to be listed.
+    visibilityValid() {
+      return !this.values.makePublic || this.values.publicListingConsent
     },
     canCreate() {
       return (
@@ -202,6 +224,8 @@ export default {
         // The content form selects a workspace when it's shown.
         workspaceId: null,
         applicationIds: [],
+        makePublic: false,
+        publicListingConsent: false,
       }
     },
     reset() {
@@ -230,11 +254,13 @@ export default {
         categoryIds: [...runningJob.category_ids],
         workspaceId: runningJob.workspace_id,
         applicationIds: [...runningJob.application_ids],
+        makePublic: runningJob.make_public,
+        publicListingConsent: runningJob.make_public,
       }
     },
     goToContent() {
       this.detailsSubmitted = true
-      if (!this.$refs.detailsForm.isValid()) {
+      if (!this.$refs.detailsForm.isValid() || !this.visibilityValid) {
         return
       }
       this.step = 'content'
@@ -259,6 +285,8 @@ export default {
             description: this.values.description,
             icon: this.values.icon,
             category_ids: this.values.categoryIds,
+            make_public: this.values.makePublic,
+            public_listing_consent: this.values.publicListingConsent,
           }
         )
         await this.createAndMonitorJob(data)
@@ -276,9 +304,12 @@ export default {
     onJobFailed() {
       if (this.job.revision) {
         // It failed after the template was created, which is kept. It's handled
-        // as created, so that the author doesn't create it again.
+        // as created, so that the author doesn't create it again. Then making it
+        // public is what failed, if that was asked.
         this.$store.dispatch('toast/warning', {
-          title: this.$t('createUserTemplateModal.failedAfterCreated'),
+          title: this.job.make_public
+            ? this.$t('createUserTemplateModal.failedPublicAfterCreated')
+            : this.$t('createUserTemplateModal.failedAfterCreated'),
         })
         this.onJobFinished()
         return

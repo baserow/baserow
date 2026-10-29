@@ -79,6 +79,14 @@ class CreateUserTemplateJob(
             "The latest revision when an update was scheduled. Empty when creating."
         ),
     )
+    make_public = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text=(
+            "Whether the template is made public once its revision is committed. "
+            "The author agreed to its public listing in the request."
+        ),
+    )
 
 
 class UserTemplateContentToDelete(models.Model):

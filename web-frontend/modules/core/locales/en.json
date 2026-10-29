@@ -575,21 +575,35 @@
     "contents": "What’s inside",
     "editDetails": "Edit details",
     "updateContent": "Update template content",
-    "delete": "Delete"
+    "delete": "Delete",
+    "you": "You",
+    "private": "Only you can see this template",
+    "makePublic": "Make public",
+    "makePrivate": "Make private"
   },
   "templateModal": {
     "officialTemplates": "Official templates",
+    "sharedTemplates": "Shared templates",
     "yourTemplates": "Your templates"
   },
   "createUserTemplateModal": {
     "detailsTitle": "New template",
-    "detailsDescription": "Save a reusable copy of your work as a private template.",
+    "detailsDescription": "Publish a reusable copy of your work for other people in this instance.",
     "continue": "Continue",
     "contentTitle": "Choose template content",
     "contentDescription": "Choose the workspace to take the content from, then pick what the template should include.",
     "create": "Create template",
     "cannotBeCancelled": "It’s not possible to cancel, because the template has already been created.",
-    "failedAfterCreated": "The template was created, but something went wrong afterwards."
+    "failedAfterCreated": "The template was created, but something went wrong afterwards.",
+    "failedPublicAfterCreated": "The template was created, but it couldn’t be made public, so it stays private. You can make it public from “Your templates”."
+  },
+  "userTemplateVisibilityForm": {
+    "visibility": "Visibility",
+    "private": "Private",
+    "privateDescription": "Hidden from the template browser. Only you can see and install it.",
+    "public": "Public",
+    "publicDescription": "This instance does not review templates, so it appears in the browser straight away.",
+    "consent": "Listed in the template browser for everyone on this instance. You also acknowledge that your account name {author} is shared as author."
   },
   "updateUserTemplateModal": {
     "detailsTitle": "Edit template",
@@ -600,6 +614,7 @@
     "update": "Update template",
     "updated": "Template updated",
     "failedAfterUpdated": "The template was updated, but something went wrong afterwards.",
+    "failedPublicAfterUpdated": "The template was updated, but it couldn’t be made public, so it stays private. You can make it public from “Your templates”.",
     "cannotBeCancelled": "It’s not possible to cancel, because the template has already been updated.",
     "invalidKeptDetails": "The icon or a category of the template can’t be used anymore. Change them with “Edit details” first, then update the content."
   },
@@ -607,6 +622,14 @@
     "title": "Are you sure you want to delete “{name}”?",
     "description": "The template is removed for everyone in this instance. Copies people already installed in their workspaces are not affected.",
     "delete": "Delete template"
+  },
+  "makeTemplatePublicModal": {
+    "title": "Make “{name}” public?",
+    "description": "“{name}” will be listed in the template browser for everyone on this instance, and your account name, {author}, is shared as author. You can make it private again later.",
+    "makePublic": "Make public",
+    "updated": "The template changed since you opened it, so it stays private. Check the latest version, then make it public again.",
+    "madePublicTitle": "“{name}” is now public",
+    "madePublicDescription": "Listed in the template browser for everyone in this instance."
   },
   "userTemplateDetailsForm": {
     "name": "Name",
@@ -646,8 +669,8 @@
     "lastUpdated": "Last updated",
     "used": "Used",
     "usedTimes": "{count} time | {count} times",
-    "emptyTitle": "You have not created any template yet",
-    "emptyDescription": "Turn your work into a template that you can preview and share later.",
+    "emptyTitle": "You have not shared any template yet",
+    "emptyDescription": "Turn your work into a template anyone in this instance can install with one click.",
     "noWorkspace": "A template is created from a workspace. Create or join a workspace first.",
     "noContent": "A template is created from the content of a workspace. Add a database, an application or an automation first.",
     "statePrivate": "Private",
@@ -661,7 +684,19 @@
     "actions": "Actions",
     "editDetails": "Edit details",
     "updateContent": "Update template content",
+    "makePublic": "Make public",
+    "makePrivate": "Make private",
     "delete": "Delete"
+  },
+  "sharedTemplateList": {
+    "title": "Shared templates",
+    "you": "You",
+    "emptyTitle": "No shared templates yet",
+    "emptyCategoryTitle": "No shared templates in this category",
+    "emptyDescription": "Templates that people on this instance make public are listed here.",
+    "errorTitle": "Shared templates couldn't be loaded",
+    "errorDescription": "Something went wrong while loading the shared templates.",
+    "retry": "Retry"
   },
   "trashSidebar": {
     "unnamedWorkspace": "Unnamed workspace {id}",

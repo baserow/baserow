@@ -32,6 +32,7 @@ const runningJob = (values = {}) => ({
   description: 'Plan sprints',
   icon: 'iconoir-agile',
   category_ids: [2],
+  make_public: false,
   template: null,
   ...values,
 })
@@ -377,6 +378,8 @@ describe('CreateUserTemplateModal', () => {
       description: 'Plan sprints',
       icon: 'iconoir-view-grid',
       category_ids: [2],
+      make_public: false,
+      public_listing_consent: false,
     })
     expect(wrapper.findComponent({ name: 'ProgressBar' }).exists()).toBe(true)
     expect(wrapper.findComponent({ name: 'Dropdown' }).props('disabled')).toBe(
@@ -396,6 +399,70 @@ describe('CreateUserTemplateModal', () => {
     )
     expect(selectedApplicationIds(wrapper)).toStrictEqual([11])
     expect(createButton(wrapper).attributes('disabled')).toBeUndefined()
+  })
+
+  const chooseVisibility = async (wrapper, label) => {
+    await wrapper
+      .findAll('.segment-control__button')
+      .find((b) => b.text() === label)
+      .trigger('click')
+    await flushPromises()
+  }
+
+  const agreeToPublicListing = async (wrapper) => {
+    await wrapper
+      .find('.user-template-form__consent input[type="checkbox"]')
+      .setValue(true)
+    await flushPromises()
+  }
+
+  test('makes the template public only once the author agreed', async () => {
+    let request = null
+    testApp.mock.onPost('/jobs/').reply((config) => {
+      request = JSON.parse(config.data)
+      return [200, runningJob({ make_public: true })]
+    })
+    const wrapper = await mountAndShow()
+    await fillDetails(wrapper)
+
+    await chooseVisibility(wrapper, 'userTemplateVisibilityForm.public')
+    expect(continueButton(wrapper).attributes('disabled')).toBeDefined()
+
+    await agreeToPublicListing(wrapper)
+    await continueButton(wrapper).trigger('click')
+    await flushPromises()
+    await createButton(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(request).toMatchObject({
+      make_public: true,
+      public_listing_consent: true,
+    })
+  })
+
+  test('stays private when Private is chosen after agreeing to Public', async () => {
+    let request = null
+    testApp.mock.onPost('/jobs/').reply((config) => {
+      request = JSON.parse(config.data)
+      return [200, runningJob()]
+    })
+    const wrapper = await mountAndShow()
+    await fillDetails(wrapper)
+
+    await chooseVisibility(wrapper, 'userTemplateVisibilityForm.public')
+    await agreeToPublicListing(wrapper)
+    await chooseVisibility(wrapper, 'userTemplateVisibilityForm.private')
+    expect(wrapper.find('.user-template-form__consent').exists()).toBe(false)
+
+    await continueButton(wrapper).trigger('click')
+    await flushPromises()
+    await createButton(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(request).toMatchObject({
+      make_public: false,
+      public_listing_consent: false,
+    })
   })
 
   test('closes when the template is created', async () => {
@@ -438,27 +505,35 @@ describe('CreateUserTemplateModal', () => {
     expect(createButton(wrapper).attributes('disabled')).toBeUndefined()
   })
 
-  test('is handled as created when it failed after the template was created', async () => {
-    testApp.mock.onPost('/jobs/').reply(200, runningJob())
-    const wrapper = await mountAndShow()
-    await goToContent(wrapper)
+  test.each([
+    [false, 'createUserTemplateModal.failedAfterCreated'],
+    [true, 'createUserTemplateModal.failedPublicAfterCreated'],
+  ])(
+    'is handled as created when it failed after the template was created (public %s)',
+    async (makePublic, title) => {
+      testApp.mock
+        .onPost('/jobs/')
+        .reply(200, runningJob({ make_public: makePublic }))
+      const wrapper = await mountAndShow()
+      await goToContent(wrapper)
 
-    await createButton(wrapper).trigger('click')
-    await flushPromises()
-    await updateJob(testApp.store, 7, {
-      state: 'failed',
-      human_readable_error: 'Failed',
-      template: 3,
-      revision: 3,
-    })
+      await createButton(wrapper).trigger('click')
+      await flushPromises()
+      await updateJob(testApp.store, 7, {
+        state: 'failed',
+        human_readable_error: 'Failed',
+        template: 3,
+        revision: 3,
+      })
 
-    expect(wrapper.emitted('created')).toHaveLength(1)
-    expect(wrapper.findComponent({ name: 'Modal' }).vm.open).toBe(false)
-    expect(testApp.store.state.toast.items[0]).toMatchObject({
-      type: 'warning',
-      title: 'createUserTemplateModal.failedAfterCreated',
-    })
-  })
+      expect(wrapper.emitted('created')).toHaveLength(1)
+      expect(wrapper.findComponent({ name: 'Modal' }).vm.open).toBe(false)
+      expect(testApp.store.state.toast.items[0]).toMatchObject({
+        type: 'warning',
+        title,
+      })
+    }
+  )
 
   test('explains a refused cancel', async () => {
     testApp.mock.onPost('/jobs/').reply(200, runningJob({ state: 'started' }))
@@ -577,7 +652,10 @@ describe('CreateUserTemplateModal', () => {
   })
 
   test('shows a running job again', async () => {
-    await testApp.store.dispatch('job/forceCreate', runningJob())
+    await testApp.store.dispatch(
+      'job/forceCreate',
+      runningJob({ make_public: true })
+    )
     const wrapper = await mountAndShow()
 
     expect(wrapper.find('.user-template-modal__title').text()).toBe(
@@ -600,6 +678,8 @@ describe('CreateUserTemplateModal', () => {
       categoryIds: [2],
       workspaceId: 1,
       applicationIds: [11],
+      makePublic: true,
+      publicListingConsent: true,
     })
   })
 

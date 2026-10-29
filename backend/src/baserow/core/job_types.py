@@ -270,7 +270,9 @@ class InstallTemplateJobType(JobType):
         }
 
     def enhance_queryset(self, queryset):
-        return queryset.select_related("workspace", "template__root")
+        return queryset.select_related(
+            "workspace", "template__author", "template__root__author"
+        )
 
     def transaction_atomic_context(self, job: InstallTemplateJob):
         # The export of a user template runs its own transactions, so `run` opens

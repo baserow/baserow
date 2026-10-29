@@ -17,6 +17,14 @@ const categories = [
   { id: 1, name: 'Business', templates: [projectTracker] },
   { id: 2, name: 'Personal', templates: [recipeBook] },
 ]
+// A shared template, which lists its own categories.
+const crm = {
+  id: 5,
+  type: 'user',
+  slug: 'crm-a1b2c3',
+  name: 'CRM',
+  categories: [{ id: 3, name: 'Sales' }],
+}
 
 describe('TemplatePage', () => {
   let testApp = null
@@ -34,10 +42,11 @@ describe('TemplatePage', () => {
     TemplateDetails: defineComponent({
       name: 'TemplateDetails',
       props: ['template', 'categories', 'showBack'],
-      emits: ['back'],
+      emits: ['back', 'outdated'],
       template: `<div class="details">
         {{ template.name }}: {{ categories.map((c) => c.name).join(',') }}
         <a class="details__back" @click="$emit('back')" />
+        <a class="details__outdated" @click="$emit('outdated')" />
       </div>`,
     }),
     TemplateList: defineComponent({
@@ -45,8 +54,18 @@ describe('TemplatePage', () => {
       props: ['categories', 'active'],
       emits: ['selected'],
       template: `<div class="list">
+        <slot name="head" />
         <a class="list__recipe-book" @click="$emit('selected', categories[1].templates[0])" />
       </div>`,
+    }),
+    SharedTemplateList: defineComponent({
+      name: 'SharedTemplateList',
+      emits: ['selected'],
+      template: `<div class="shared-list">
+        <slot name="head" />
+        <a class="shared-list__crm" @click="$emit('selected', crm)" />
+      </div>`,
+      setup: () => ({ crm }),
     }),
   }
 
@@ -97,6 +116,38 @@ describe('TemplatePage', () => {
 
     expect(wrapper.find('.details').text()).toBe('Recipe Book: Personal')
     expect(wrapper.find('.list').isVisible()).toBe(false)
+  })
+
+  test('opens a shared template from the shared tab', async () => {
+    const wrapper = await mountPage('project-tracker')
+
+    await wrapper.find('.details__back').trigger('click')
+    expect(wrapper.find('.shared-list').exists()).toBe(false)
+
+    await wrapper.findAll('.segment-control__button')[1].trigger('click')
+    expect(wrapper.find('.list').isVisible()).toBe(false)
+
+    await wrapper.find('.shared-list__crm').trigger('click')
+    const router = useRouter()
+    await vi.waitFor(() =>
+      expect(router.currentRoute.value.params.slug).toBe('crm-a1b2c3')
+    )
+    await flushPromises()
+
+    expect(wrapper.find('.details').text()).toBe('CRM: Sales')
+    expect(wrapper.find('.shared-list').isVisible()).toBe(false)
+
+    // Reloaded when its install is outdated, keeping its own categories.
+    testApp.mock
+      .onGet('/templates/crm-a1b2c3/')
+      .reply(200, { id: 5, type: 'user', slug: 'crm-a1b2c3', name: 'CRM 2' })
+    await wrapper.find('.details__outdated').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.details').text()).toBe('CRM 2: Sales')
+
+    await wrapper.find('.details__back').trigger('click')
+
+    expect(wrapper.find('.shared-list').isVisible()).toBe(true)
   })
 
   test('shows the template of the URL when it changes', async () => {

@@ -160,8 +160,6 @@ def test_install_user_template_job(data_fixture, queued_install):
         queued_install.target,
         queued_install.root,
     )
-    updated_on = root.updated_on
-
     job = run_job(queued_install.job)
 
     assert job.state == JOB_FINISHED
@@ -179,8 +177,6 @@ def test_install_user_template_job(data_fixture, queued_install):
         ) == [f"{application.name} row"]
     root.refresh_from_db()
     assert root.install_count == 1
-    # The count is bumped without saving the root, which orders the lists.
-    assert root.updated_on == updated_on
     # The content is copied directly, without an export.
     assert not ImportExportResource.objects_and_trash.exists()
 

@@ -341,8 +341,10 @@ class UserTemplateHandler:
             revision.categories.set(categories)
             # See `create_template_root`.
             workspace.save(update_fields=["updated_on"])
-            # Moves the template to the top of the list of its owner.
-            root.save(update_fields=["updated_on"])
+            # An edit of a public template replaces the listed revision. A
+            # blocked template stays as it is until it's unblocked.
+            if self._is_public(root):
+                self.submit_revision(root, revision)
 
         return revision
 
@@ -518,8 +520,7 @@ class UserTemplateHandler:
             user, applications, revision
         )
 
-        # Only user templates count their installs. An update keeps the
-        # `updated_on` of the root, which orders the lists, and doesn't lose a
+        # Only user templates count their installs. An update doesn't lose a
         # concurrent install.
         Template.objects.filter(pk=revision.family_id).update(
             install_count=F("install_count") + 1
@@ -638,6 +639,46 @@ class UserTemplateHandler:
             .order_by("-version")
             .first()
         )
+
+    def submit_revision(self, root: Template, revision: Template) -> Template:
+        """
+        Submits a revision of a user template to be listed, which makes it the
+        public revision of the template. This is the only place that makes a
+        user template public: making it public, an edit of a public template and
+        a template created as public all go through it. It approves the revision
+        right away, without an admin review.
+
+        The caller checks the owner and that the revision has content, and holds
+        the lock of the root.
+
+        :param root: The root of the template, locked.
+        :param revision: The revision to list, the root itself for revision 1.
+        :return: The listed revision.
+        """
+
+        now = timezone.now()
+        revision.review_state = Template.ReviewState.APPROVED
+        revision.submitted_on = now
+        revision.reviewed_on = now
+        revision.reviewed_by = None
+        revision.save(
+            update_fields=["review_state", "submitted_on", "reviewed_on", "reviewed_by"]
+        )
+        root.public_revision = revision
+        root.save(update_fields=["public_revision"])
+        return revision
+
+    def withdraw_listing(self, root: Template) -> None:
+        """
+        Takes a user template out of the listing, which makes it private again. Its
+        revision stays approved. The caller checks the owner and holds the lock of
+        the root.
+
+        :param root: The root of the template, locked.
+        """
+
+        root.public_revision = None
+        root.save(update_fields=["public_revision"])
 
     def _is_public(self, root: Template) -> bool:
         """Whether the template has a public revision and isn't blocked."""
