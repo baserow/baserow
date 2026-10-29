@@ -13,6 +13,10 @@ from django.core.exceptions import ImproperlyConfigured
 
 import dj_database_url
 from corsheaders.defaults import default_headers
+from redis.backoff import EqualJitterBackoff
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import ReadOnlyError as RedisReadOnlyError
+from redis.retry import Retry
 
 from baserow.config.settings.utils import (
     Setting,
@@ -255,6 +259,11 @@ CELERY_REDBEAT_LOCK_TIMEOUT = os.getenv(
 )
 
 CELERY_RESULT_BACKEND = REDIS_URL
+# Like the broker transport options above, so a dropped connection is detected
+# instead of blocking until Celery's default 120 second socket timeout.
+CELERY_REDIS_SOCKET_TIMEOUT = 30
+CELERY_REDIS_SOCKET_CONNECT_TIMEOUT = 30
+CELERY_REDIS_BACKEND_HEALTH_CHECK_INTERVAL = 25
 CELERY_RESULT_EXPIRES = int(
     # default 1 hour
     os.getenv("CELERY_RESULT_EXPIRES") or 3600
@@ -341,19 +350,45 @@ for _db_key in DATABASES:
 DATABASE_ROUTERS = ["baserow.config.db_routers.ReadReplicaRouter"]
 
 
+def _django_redis_cache_options():
+    # redis-py doesn't retry on pools created from a URL, like django-redis does, so
+    # a Redis restart or failover would fail the call right away. The retries wait
+    # 2.5 to 5 seconds in total, enough to bridge a restart or Sentinel failover
+    # without stalling requests long when Redis is down.
+    # Connection errors are only retried while connecting, before a command is sent.
+    # Once sent, a dropped connection or timeout leaves it unknown whether Redis ran
+    # it, and running a non-idempotent one like RPUSH again would duplicate it.
+    # Read-only errors are safe to retry on a new connection, because Redis rejected
+    # the command. After a failover a proxy can still route to the demoted primary
+    # until its health check notices.
+    def retry(*errors):
+        return Retry(EqualJitterBackoff(base=0.5, cap=2), 3, supported_errors=errors)
+
+    return {
+        "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        "CONNECTION_POOL_CLASS": "baserow.core.redis.RetryingConnectionPool",
+        "SOCKET_CONNECT_TIMEOUT": 5,
+        "SOCKET_TIMEOUT": 10,
+        "CONNECTION_POOL_KWARGS": {
+            "checkout_retry": retry(RedisConnectionError),
+            "retry": retry(RedisReadOnlyError),
+        },
+    }
+
+
 GENERATED_MODEL_CACHE_NAME = "generated-models"
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": REDIS_URL,
-        "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
+        "OPTIONS": _django_redis_cache_options(),
         "KEY_PREFIX": "baserow-default-cache",
         "VERSION": VERSION,
     },
     GENERATED_MODEL_CACHE_NAME: {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": REDIS_URL,
-        "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
+        "OPTIONS": _django_redis_cache_options(),
         "KEY_PREFIX": f"baserow-{GENERATED_MODEL_CACHE_NAME}-cache",
         "VERSION": None,
     },
@@ -2131,7 +2166,7 @@ if CACHALOT_ENABLED:
     CACHES[CACHALOT_CACHE] = {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": REDIS_URL,
-        "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
+        "OPTIONS": _django_redis_cache_options(),
         "KEY_PREFIX": f"baserow-{CACHALOT_CACHE}-cache",
         "VERSION": VERSION,
     }
