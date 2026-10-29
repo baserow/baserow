@@ -1,0 +1,264 @@
+// The prompt sits in a row of links, like the "Add filter" links of a filter form.
+// While idle, and after a change, the divider and the link join that row, and
+// Kuma's summary takes the full width below it. The card takes the full width of
+// the row. The host lays the row out as a centred, wrapping flex row.
+.kuma-inline-prompt {
+  display: contents;
+}
+
+.kuma-inline-prompt--open {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+  padding-top: 12px;
+}
+
+.kuma-inline-prompt__divider {
+  display: inline-block;
+  width: 1px;
+  height: 16px;
+  margin: 0 12px 0 8px;
+  background-color: $palette-neutral-300;
+}
+
+.kuma-inline-prompt__sparks {
+  color: $palette-cyan-600;
+  font-size: 16px;
+}
+
+// Kuma's own look: a small cyan pill, so it reads as the assistant at a glance.
+.kuma-inline-prompt__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px 0 8px;
+  border: 1px solid $palette-cyan-100;
+  background-color: $palette-cyan-50;
+  font-size: 13px;
+  font-weight: 500;
+  color: $palette-cyan-900;
+  cursor: pointer;
+
+  @include rounded($rounded-2xl);
+
+  &:hover {
+    border-color: $palette-cyan-200;
+  }
+
+  .kuma-inline-prompt__sparks {
+    font-size: 14px;
+  }
+}
+
+.kuma-inline-prompt__card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid $palette-cyan-600;
+  background-color: $white;
+  box-shadow: 0 0 0 3px $palette-cyan-50;
+
+  @include rounded($rounded-md);
+}
+
+.kuma-inline-prompt__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 28px;
+  padding: 10px 12px 0 14px;
+}
+
+.kuma-inline-prompt__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+}
+
+.kuma-inline-prompt__textarea.form-textarea {
+  border: 0;
+  padding: 8px 14px;
+  box-shadow: none;
+  font-size: 13px;
+  line-height: 20px;
+
+  &:focus {
+    border: 0;
+    box-shadow: none;
+  }
+}
+
+.kuma-inline-prompt__request {
+  margin: 0;
+  padding: 8px 14px 12px;
+  font-size: 13px;
+  line-height: 20px;
+  color: $palette-neutral-900;
+  white-space: pre-wrap;
+}
+
+.kuma-inline-prompt__suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 14px 10px;
+}
+
+.kuma-inline-prompt__suggestion {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid $palette-neutral-300;
+  background-color: $palette-neutral-25;
+  font-size: 12px;
+  color: $palette-neutral-1100;
+  cursor: pointer;
+
+  @include rounded($rounded-2xl);
+
+  &:hover {
+    border-color: $palette-neutral-500;
+    background-color: $white;
+  }
+}
+
+.kuma-inline-prompt__notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 14px 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 18px;
+
+  @include rounded($rounded);
+
+  i {
+    flex: 0 0 auto;
+    margin-top: 1px;
+    font-size: 16px;
+  }
+}
+
+.kuma-inline-prompt__notice--warning {
+  background-color: $palette-yellow-50;
+  color: $palette-yellow-1100;
+
+  i {
+    color: $palette-yellow-700;
+  }
+}
+
+.kuma-inline-prompt__notice--error {
+  background-color: $palette-red-50;
+  color: $palette-red-900;
+
+  i {
+    color: $palette-red-700;
+  }
+}
+
+.kuma-inline-prompt__working {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 14px 14px;
+  padding: 10px 12px;
+  background-color: $palette-cyan-50;
+  font-size: 13px;
+  color: $palette-cyan-900;
+
+  @include rounded($rounded);
+}
+
+.kuma-inline-prompt__dots {
+  display: flex;
+  gap: 4px;
+
+  span {
+    width: 6px;
+    height: 6px;
+    border-radius: 3px;
+    background-color: $palette-cyan-600;
+    animation: kuma-inline-prompt-pulse 1.2s ease-in-out infinite;
+
+    &:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    &:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    span {
+      animation: none;
+    }
+  }
+}
+
+@keyframes kuma-inline-prompt-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+.kuma-inline-prompt__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px 10px 14px;
+  border-top: 1px solid $palette-neutral-200;
+  background-color: $palette-neutral-25;
+  border-radius: 0 0 6px 6px;
+}
+
+.kuma-inline-prompt__hint {
+  font-size: 12px;
+  color: $palette-neutral-900;
+}
+
+.kuma-inline-prompt__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kuma-inline-prompt__done {
+  display: flex;
+  flex-basis: 100%;
+  margin-top: 12px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 8px 8px 14px;
+  border: 1px solid $palette-neutral-200;
+  background-color: $palette-neutral-25;
+  font-size: 13px;
+  color: $palette-neutral-1200;
+
+  @include rounded($rounded-md);
+}
+
+.kuma-inline-prompt__done-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kuma-inline-prompt__done-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}

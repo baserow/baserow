@@ -8,9 +8,12 @@ GROUP_DATABASE_DELETE = "database_delete"
 GROUP_AUTOMATION_READ = "automation_read"
 GROUP_AUTOMATION_EDIT = "automation_edit"
 GROUP_AUTOMATION_DELETE = "automation_delete"
+GROUP_DATA_SOURCES_READ = "data_sources_read"
+GROUP_DATA_SOURCES_EDIT = "data_sources_edit"
 
 AREA_DATABASE = "database"
 AREA_AUTOMATION = "automation"
+AREA_DATA_SOURCES = "data_sources"
 
 
 class MCPToolGroup(Instance):
@@ -81,6 +84,20 @@ class AutomationDeleteMCPToolGroup(MCPToolGroup):
     title = "Delete in automations"
     area = AREA_AUTOMATION
     order = 60
+
+
+class DataSourcesReadMCPToolGroup(MCPToolGroup):
+    type = GROUP_DATA_SOURCES_READ
+    title = "Read data source filters"
+    area = AREA_DATA_SOURCES
+    order = 70
+
+
+class DataSourcesEditMCPToolGroup(MCPToolGroup):
+    type = GROUP_DATA_SOURCES_EDIT
+    title = "Edit data source filters"
+    area = AREA_DATA_SOURCES
+    order = 80
 
 
 mcp_tool_group_registry = MCPToolGroupRegistry()

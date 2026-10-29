@@ -75,7 +75,7 @@ For an execution request, `<tool_catalog>` is already filtered for the user's av
 
 LIMITATIONS_AND_SOURCES = f"""\
 <limitations>
-Cannot create/modify/delete: workspace user accounts, workspaces, dashboards, widgets, snapshots, webhooks, integrations, workspace roles or permissions. Application user sources and their login roles are supported by setup_user_source. Workflow tools create drafts and handle their integration references; do not ask for an integration ID absent from their schema.
+Cannot create/modify/delete: workspace user accounts, workspaces, dashboards, widgets, snapshots, webhooks, integrations, workspace roles or permissions. The filters of an existing dashboard chart's data source can be changed with update_service_filters; summary widgets have no filters. Application user sources and their login roles are supported by setup_user_source. Workflow tools create drafts and handle their integration references; do not ask for an integration ID absent from their schema.
 Docs: search_user_docs when catalogued | API: {settings.PUBLIC_BACKEND_URL}/api/schema.json | Web: https://baserow.io | Community: https://community.baserow.io
 </limitations>
 """

@@ -414,7 +414,9 @@ TOOL_VISIBILITY: dict[str, frozenset[AgentMode]] = {
     "list_elements": frozenset({APPLICATION, EXPLAIN}),
     "list_nodes": frozenset({AUTOMATION, EXPLAIN}),
     "list_pages": frozenset({APPLICATION, EXPLAIN}),
+    "list_filterable_data_sources": EVERYWHERE,
     "list_rows": EVERYWHERE,
+    "list_service_filters": EVERYWHERE,
     "list_tables": EVERYWHERE,
     "list_views": EVERYWHERE,
     "list_workflows": frozenset({AUTOMATION, EXPLAIN}),
@@ -433,6 +435,7 @@ TOOL_VISIBILITY: dict[str, frozenset[AgentMode]] = {
     "update_fields": frozenset({DATABASE}),
     "update_nodes": frozenset({AUTOMATION}),
     "update_page": frozenset({APPLICATION}),
+    "update_service_filters": EVERYWHERE - {EXPLAIN},
 }
 
 

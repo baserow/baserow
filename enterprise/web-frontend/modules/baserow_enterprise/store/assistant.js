@@ -487,6 +487,28 @@ export const getters = {
           uiContext.page = { id: page.id, name: page.name }
         }
       }
+
+      // The selected element tells which data source "this table" refers to.
+      // An element inside a collection reads from that collection's data source.
+      try {
+        const element = rootGetters['element/getSelected'](application)
+        if (element) {
+          const elementPage = rootGetters['page/getById'](
+            application,
+            element.page_id
+          )
+          const dataSourceElement = rootGetters['element/getAncestors'](
+            elementPage,
+            element,
+            { includeSelf: true, parentFirst: true }
+          ).find(({ data_source_id: dataSourceId }) => dataSourceId)
+          uiContext.element = {
+            id: element.id,
+            type: element.type,
+            data_source_id: dataSourceElement?.data_source_id ?? null,
+          }
+        }
+      } catch {}
     }
 
     return uiContext

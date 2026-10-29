@@ -123,6 +123,9 @@ Some tools are currently disabled (`enabled = False`) and hidden from MCP client
 | `add_nodes` | enabled | Add nodes to a workflow (shared with Kuma) |
 | `update_nodes` | enabled | Change node labels, settings and router conditions (shared with Kuma) |
 | `delete_nodes` | enabled | Delete (trash) workflow nodes (shared with Kuma) |
+| `list_filterable_data_sources` | enabled | List the application and dashboard data sources and automation nodes reading rows from a table (shared with Kuma) |
+| `list_service_filters` | enabled | List a data source's or node's filters, with its fields' filter types and select options (shared with Kuma) |
+| `update_service_filters` | enabled | Add, update and delete a data source's or node's filters and filter groups |
 | `update_table` | disabled | Rename a table |
 | `delete_table` | disabled | Delete (trash) a table |
 
@@ -138,6 +141,8 @@ list_databases
 ```
 
 The automation tools are in their own groups (`automation_read`, `automation_edit`, `automation_delete`) and are not part of the "Read only" preset, so a user turns them on at consent or later under Settings. A value that takes a formula is stored as written when it is a valid formula and quoted when it is a literal. A formula is invalid when it doesn't parse, or reads a `previous_node` path the node doesn't output (the paths `list_nodes` shows). An invalid formula comes back in `formula_errors` for the client to fix with `update_nodes`: on a new node the value is left empty, on an update it keeps what it had. A formula can name a node created earlier in the same call by its ref, as in `get('previous_node.trigger.0.id')`. Over MCP no model is called; Kuma repairs those values with its formula generator after the nodes are committed.
+
+The data source filter tools are in their own groups (`data_sources_read`, `data_sources_edit`), also outside the "Read only" preset. They work on builder data sources, dashboard data sources and automation nodes that list, get or aggregate rows (`baserow/contrib/integrations/local_baserow/service_filters/`). Each owner registers a `ServiceFilterTargetType` that finds it, checks permissions, checks its formula values and saves through its own undoable action. `update_service_filters` takes structured operations (`add_filter`, `update_filter`, `delete_filter`, group operations, `set_filter_type`) and applies all of them or none. A builder data source's formula values may only read the page parameters and the user; an automation node's only the nodes running before it; a dashboard's are raw values, and it has no filter groups. Kuma uses the same functions, but turns the user's words into operations with its own agent first, both in the chat and from "Create with Kuma" in the filter form.
 
 ## Adding a new tool
 

@@ -154,3 +154,14 @@ class DashboardConfig(AppConfig):
         from .search_types import DashboardSearchType
 
         workspace_search_registry.register(DashboardSearchType())
+
+        from baserow.contrib.dashboard.data_sources.service_filter_target_types import (
+            DashboardDataSourceServiceFilterTargetType,
+        )
+        from baserow.contrib.integrations.local_baserow.service_filters.registries import (
+            service_filter_target_type_registry,
+        )
+
+        service_filter_target_type_registry.register(
+            DashboardDataSourceServiceFilterTargetType()
+        )

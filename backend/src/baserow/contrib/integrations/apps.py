@@ -105,4 +105,22 @@ class IntegrationsConfig(AppConfig):
 
         settings_data_registry.register(InstanceSMTPSettingsDataType())
 
+        from baserow.contrib.integrations.local_baserow.mcp.service_filters import (
+            ListFilterableDataSourcesMcpTool,
+            ListServiceFiltersMcpTool,
+            UpdateServiceFiltersMcpTool,
+        )
+        from baserow.core.mcp.groups import (
+            DataSourcesEditMCPToolGroup,
+            DataSourcesReadMCPToolGroup,
+            mcp_tool_group_registry,
+        )
+        from baserow.core.mcp.registries import mcp_tool_registry
+
+        mcp_tool_group_registry.register(DataSourcesReadMCPToolGroup())
+        mcp_tool_group_registry.register(DataSourcesEditMCPToolGroup())
+        mcp_tool_registry.register(ListFilterableDataSourcesMcpTool())
+        mcp_tool_registry.register(ListServiceFiltersMcpTool())
+        mcp_tool_registry.register(UpdateServiceFiltersMcpTool())
+
         import baserow.contrib.integrations.signals  # noqa: F403, F401

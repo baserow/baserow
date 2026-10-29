@@ -83,6 +83,7 @@ def _tool_routes() -> dict[str, _ToolRoute]:
     from .database.tools import TOOL_FUNCTIONS as database_tools
     from .navigation.tools import navigate
     from .search_user_docs.tools import search_user_docs
+    from .services.tools import TOOL_FUNCTIONS as service_tools
 
     all_modes = frozenset(AgentMode)
     domain_modes = all_modes - {AgentMode.EXPLAIN}
@@ -99,6 +100,9 @@ def _tool_routes() -> dict[str, _ToolRoute]:
     ]
     automation_reads = [
         tool for tool in automation_tools if tool.__name__.startswith("list_")
+    ]
+    service_reads = [
+        tool for tool in service_tools if tool.__name__.startswith("list_")
     ]
 
     return {
@@ -124,6 +128,10 @@ def _tool_routes() -> dict[str, _ToolRoute]:
         **_routes_for(
             (create_builders, update_builder), AgentMode.DATABASE, domain_modes
         ),
+        # Data sources and nodes reading rows from a table live in every domain:
+        # application and dashboard data sources, and automation nodes.
+        **_routes_for(service_tools, AgentMode.APPLICATION, domain_modes),
+        **_routes_for(service_reads, AgentMode.APPLICATION, all_modes),
         # Docs questions arrive in any mode; a deferred tool needs a tool search first.
         **_routes_for((search_user_docs,), AgentMode.EXPLAIN, all_modes),
     }

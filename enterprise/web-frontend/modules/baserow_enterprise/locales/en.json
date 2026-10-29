@@ -957,5 +957,32 @@
     "title": "Tell us what you want to create",
     "placeholder": "Create company asset tracker",
     "build": "Build it"
+  },
+  "kumaInlinePrompt": {
+    "createWithKuma": "Create with Kuma AI",
+    "working": "Working…",
+    "workingHint": "Usually takes a few seconds",
+    "keyboardHint": "Enter to send · Shift + Enter for a new line",
+    "tryAgain": "Try again",
+    "tryAgainHint": "Edit your request and try again",
+    "undo": "Undo",
+    "close": "Close",
+    "dismiss": "Dismiss"
+  },
+  "serviceFilterKumaPrompt": {
+    "title": "Create a filter with Kuma AI",
+    "placeholder": "Describe the rows to show, e.g. only tasks that are done",
+    "submit": "Create filter",
+    "working": "Reading the table and writing your filter…",
+    "unsavedChanges": "Kuma works from the saved filters. Save your filter changes, or close this and undo them, before asking Kuma.",
+    "unsavedTable": "Kuma works from the saved table. Save the new table, or close this and pick the saved one again, before asking Kuma.",
+    "suggestion_pageParameter": "Use a page parameter",
+    "suggestion_pageParameter_prompt": "Only show rows where [field] equals the [name] page parameter",
+    "suggestion_user": "Only the logged-in user's rows",
+    "suggestion_user_prompt": "Only show the rows that belong to the logged-in user",
+    "suggestion_previousNode": "Use a previous step's value",
+    "suggestion_previousNode_prompt": "Only rows where [field] equals the [field] of the trigger",
+    "suggestion_change": "Change or remove a filter",
+    "suggestion_change_prompt": "Change the [field] filter to "
   }
 }

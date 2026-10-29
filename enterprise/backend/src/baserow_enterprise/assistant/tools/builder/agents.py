@@ -83,6 +83,17 @@ class BuilderFormulaContext:
         elements = ElementHandler().get_elements(self.page, use_cache=False)
         self._load_form_data(elements)
 
+    def load_data_source_filter_context(self) -> None:
+        """
+        Load only the data providers a data source filter value may use.
+
+        Data sources can't read form data or a current record, and reading other
+        data sources is left out to avoid dependency cycles between them.
+        """
+
+        self._load_page_parameters()
+        self._load_user_context()
+
     # -- Private loaders ----------------------------------------------------
 
     def _load_data_sources(self) -> None:

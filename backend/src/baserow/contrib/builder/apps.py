@@ -455,3 +455,14 @@ class BuilderConfig(AppConfig):
         from .search_types import BuilderSearchType
 
         workspace_search_registry.register(BuilderSearchType())
+
+        from baserow.contrib.builder.data_sources.service_filter_target_types import (
+            BuilderDataSourceServiceFilterTargetType,
+        )
+        from baserow.contrib.integrations.local_baserow.service_filters.registries import (
+            service_filter_target_type_registry,
+        )
+
+        service_filter_target_type_registry.register(
+            BuilderDataSourceServiceFilterTargetType()
+        )
