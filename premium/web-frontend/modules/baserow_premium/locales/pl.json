@@ -391,7 +391,8 @@
     "chart": {
         "true": "prawda",
         "false": "fałsz",
-        "other": "Inne"
+        "other": "Inne",
+        "empty": "Pusty"
     },
     "generateAIValuesModal": {
         "title": "Wygeneruj wszystkie wartości AI",
@@ -443,13 +444,21 @@
         "doughnutChart": "Pierścieniowy",
         "polarAreaChart": "Biegunowy",
         "aggregationTypeLabel": "Podsumowanie",
-        "aggregationFieldLabel": "Pole"
+        "aggregationFieldLabel": "Pole",
+        "seriesColor": "Kolor",
+        "automaticColor": "Automatyczne pokolorowanie"
     },
     "aggregationGroupByForm": {
         "groupByNone": "Brak",
         "groupByRowId": "ID wiersza",
         "groupByFieldLabel": "Pogrupuj wg.",
-        "rowIdDisabledTooltip": "Grupowanie wg. ID wiersza jest obecnie niemożliwe, ponieważ pole główne może zawierać wiele wartości."
+        "rowIdDisabledTooltip": "Grupowanie wg. ID wiersza jest obecnie niemożliwe, ponieważ pole główne może zawierać wiele wartości.",
+        "groupedByField": "Pogrupowane wg. {field}",
+        "bucketLimit": "Maksymalna liczba segmentów",
+        "bucketLimitHelp": "Obejmuje segment \"Inne”. Pozostaw puste, aby wykorzystać maksymalną wartość serwera ({max}).",
+        "modeLabel": "Pogrupuj zaznaczone elementy",
+        "completeSelection": "Zakończ zaznaczanie",
+        "eachOption": "Każda z zaznaczonych opcji"
     },
     "aggregationSortByForm": {
         "none": "Brak",
@@ -471,5 +480,8 @@
     "aiProviderModelFeature": {
         "aiFields": "Pola AI",
         "aiFieldsDescription": "Wygeneruj wartości w polach AI."
+    },
+    "premiumDashboardShareOptions": {
+        "hideLogo": "Usuń logo Baserow z pulpitu"
     }
 }
