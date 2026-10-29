@@ -9,18 +9,31 @@ import AgentApplicationService from '@baserow/modules/agent/services/agentApplic
 import { selectAgentApplication } from '@baserow/modules/agent/middleware/selectAgentApplication'
 
 const REQUIRED_FIELDS = ['instructions', 'provider_type', 'model_identifier']
-const CONFIGURATION_FIELDS = [...REQUIRED_FIELDS, 'run_as']
+// The tools an Agent can be allowed to call are listed with its configuration.
+const CONFIGURATION_FIELDS = [
+  ...REQUIRED_FIELDS,
+  'run_as',
+  'tools',
+  'available_tools',
+]
 
 const emptyConfiguration = () => ({
   instructions: '',
   provider_type: null,
   model_identifier: null,
   run_as: null,
+  tools: [],
+  available_tools: [],
 })
 
-/** Identities are equal by type and id, other values by identity. */
-const isSameValue = (field, a, b) =>
-  field === 'run_as' ? a?.type === b?.type && a?.id === b?.id : a === b
+/** Identities match by type and id, and tool lists by their names. */
+const isSameValue = (field, a, b) => {
+  if (field === 'run_as') return a?.type === b?.type && a?.id === b?.id
+  if (field === 'tools') {
+    return a?.length === b?.length && a.every((name) => b.includes(name))
+  }
+  return a === b
+}
 
 /** Page-local Agent configuration, kept out of the shared application store. */
 export function useAgentConfiguration(agent) {
@@ -230,8 +243,9 @@ export function useAgentConfiguration(agent) {
   }
 
   function applyConfiguration(data) {
+    const empty = emptyConfiguration()
     const saved = Object.fromEntries(
-      CONFIGURATION_FIELDS.map((field) => [field, data[field]])
+      CONFIGURATION_FIELDS.map((field) => [field, data[field] ?? empty[field]])
     )
     savedConfiguration.value = saved
     const modelFields = ['provider_type', 'model_identifier']

@@ -1,3 +1,5 @@
+from unittest.mock import ANY
+
 from django.urls import reverse
 
 import pytest
@@ -244,6 +246,11 @@ def test_tools_are_replaced_and_validated(configured_agent, api_client, api_user
 
     response = api_client.patch(url, {"tools": ["create_rows", "list_table_rows"]})
     assert response.json()["tools"] == ["list_table_rows", "create_rows"]
+    assert {
+        tool["name"]
+        for tool in response.json()["available_tools"]
+        if not tool["changes_data"]
+    } == {"list_tables", "get_table_schema", "list_table_rows", "list_views"}
 
     response = api_client.patch(url, {"tools": ["list_tables", "drop_database"]})
     assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
@@ -310,6 +317,7 @@ def test_configuration_is_served_only_by_the_agent_endpoints(
         "model_identifier": "test-model",
         "run_as": None,
         "tools": [],
+        "available_tools": ANY,
         "errors": {},
     }
     assert response.json() == configuration

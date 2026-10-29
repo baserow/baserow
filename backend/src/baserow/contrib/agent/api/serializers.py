@@ -56,6 +56,12 @@ class AgentRunAsSerializer(serializers.Serializer):
     trashed = serializers.BooleanField()
 
 
+class AgentToolSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    group = serializers.CharField()
+    changes_data = serializers.BooleanField()
+
+
 class AgentConfigurationSerializer(serializers.Serializer):
     # Settings readers need readiness from the same snapshot as the editable values,
     # including after PATCH. Application payloads expose readiness to all readers.
@@ -72,9 +78,31 @@ class AgentConfigurationSerializer(serializers.Serializer):
         help_text="The names of the tools the agent may call while it has an "
         "identity to act as.",
     )
+    available_tools = serializers.SerializerMethodField(
+        help_text="Every tool an agent can be allowed to call, with its group and "
+        "whether it changes data."
+    )
     errors = serializers.DictField(
         child=serializers.ChoiceField(choices=["required", "unavailable"])
     )
+
+    @extend_schema_field(AgentToolSerializer(many=True))
+    def get_available_tools(self, configuration: AgentConfiguration) -> list[dict]:
+        """
+        List the registered tools.
+
+        :param configuration: The configuration being serialized.
+        :return: Each tool's name, group and whether it changes data.
+        """
+
+        return [
+            {
+                "name": tool_type.type,
+                "group": tool_type.group,
+                "changes_data": tool_type.changes_data,
+            }
+            for tool_type in agent_tool_type_registry.get_all()
+        ]
 
     @extend_schema_field(AgentRunAsSerializer(allow_null=True))
     def get_run_as(self, configuration: AgentConfiguration) -> dict | None:

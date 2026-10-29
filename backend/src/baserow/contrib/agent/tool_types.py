@@ -3,75 +3,79 @@ from baserow.contrib.database.tools import fields, rows, tables, views
 from .registries import AgentToolType
 
 
-class ListTablesAgentToolType(AgentToolType):
+class DatabaseAgentToolType(AgentToolType):
+    group = "database"
+
+
+class ListTablesAgentToolType(DatabaseAgentToolType):
     type = "list_tables"
     function = tables.list_tables
 
 
-class GetTableSchemaAgentToolType(AgentToolType):
+class GetTableSchemaAgentToolType(DatabaseAgentToolType):
     type = "get_table_schema"
     function = tables.get_table_schema
 
 
-class ListTableRowsAgentToolType(AgentToolType):
+class ListTableRowsAgentToolType(DatabaseAgentToolType):
     type = "list_table_rows"
     function = rows.list_table_rows
 
 
-class ListViewsAgentToolType(AgentToolType):
+class ListViewsAgentToolType(DatabaseAgentToolType):
     type = "list_views"
     function = views.list_views
 
 
-class CreateTablesAgentToolType(AgentToolType):
+class CreateTablesAgentToolType(DatabaseAgentToolType):
     type = "create_tables"
     function = tables.create_tables
     changes_data = True
 
 
-class CreateFieldsAgentToolType(AgentToolType):
+class CreateFieldsAgentToolType(DatabaseAgentToolType):
     type = "create_fields"
     function = fields.create_fields
     changes_data = True
 
 
-class UpdateFieldsAgentToolType(AgentToolType):
+class UpdateFieldsAgentToolType(DatabaseAgentToolType):
     type = "update_fields"
     function = fields.update_fields
     changes_data = True
 
 
-class DeleteFieldsAgentToolType(AgentToolType):
+class DeleteFieldsAgentToolType(DatabaseAgentToolType):
     type = "delete_fields"
     function = fields.delete_fields
     changes_data = True
 
 
-class CreateViewsAgentToolType(AgentToolType):
+class CreateViewsAgentToolType(DatabaseAgentToolType):
     type = "create_views"
     function = views.create_views
     changes_data = True
 
 
-class CreateViewFiltersAgentToolType(AgentToolType):
+class CreateViewFiltersAgentToolType(DatabaseAgentToolType):
     type = "create_view_filters"
     function = views.create_view_filters
     changes_data = True
 
 
-class CreateRowsAgentToolType(AgentToolType):
+class CreateRowsAgentToolType(DatabaseAgentToolType):
     type = "create_rows"
     function = rows.create_rows
     changes_data = True
 
 
-class UpdateRowsAgentToolType(AgentToolType):
+class UpdateRowsAgentToolType(DatabaseAgentToolType):
     type = "update_rows"
     function = rows.update_rows
     changes_data = True
 
 
-class DeleteRowsAgentToolType(AgentToolType):
+class DeleteRowsAgentToolType(DatabaseAgentToolType):
     type = "delete_rows"
     function = rows.delete_rows
     changes_data = True
