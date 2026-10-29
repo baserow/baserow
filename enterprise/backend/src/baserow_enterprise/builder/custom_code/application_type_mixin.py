@@ -147,6 +147,15 @@ class CustomCodeBuilderApplicationTypeMixin:
         Serializes the scripts and the custom_code properties.
         """
 
+        builder_dict = super().export_serialized(
+            builder,
+            import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            progress_builder=progress_builder,
+            cache=cache,
+        )
+
         scripts = [
             {
                 "type": s.type,
@@ -156,24 +165,6 @@ class CustomCodeBuilderApplicationTypeMixin:
             }
             for s in builder.scripts.all()
         ]
-
-        if cache is None:
-            cache = {}
-        if (
-            builder.custom_code.css
-            or builder.custom_code.js
-            or any(script["url"] for script in scripts)
-        ):
-            cache["has_untrusted_content"] = True
-
-        builder_dict = super().export_serialized(
-            builder,
-            import_export_config,
-            files_zip=files_zip,
-            storage=storage,
-            progress_builder=progress_builder,
-            cache=cache,
-        )
 
         return BuilderCustomCodeDict(
             **builder_dict,

@@ -301,7 +301,7 @@ def test_code_action_and_node_detect_untrusted_content_during_copy(
     config_values,
     external,
 ):
-    """Code actions/nodes mark their application's cache without trusting file metadata."""
+    """Code actions/nodes are detected on import without trusting file metadata."""
 
     from baserow.core.registries import ImportExportConfig
 
@@ -326,7 +326,10 @@ def test_code_action_and_node_detect_untrusted_content_during_copy(
     serialized_owner = (
         serialized if application_kind == "builder" else serialized["workflows"][0]
     )
-    assert serialized_owner["untrusted_content"] is external
+    if external:
+        assert "untrusted_content" not in serialized_owner
+    else:
+        assert serialized_owner["untrusted_content"] is False
     assert "import_report" not in serialized_owner
     serialized_owner["import_report"] = [{"type": "invalid", "id": -1}]
     serialized_owner["untrusted_content"] = False
@@ -377,10 +380,7 @@ def test_workflow_content_detection_does_not_leak_to_siblings(
     application_type = automation.get_type()
     serialized = application_type.export_serialized(automation, config)
     assert "untrusted_content" not in serialized
-    assert {w["name"]: w["untrusted_content"] for w in serialized["workflows"]} == {
-        "Code": True,
-        "Clean": False,
-    }
+    assert all("untrusted_content" not in w for w in serialized["workflows"])
     for workflow in serialized["workflows"]:
         workflow["untrusted_content"] = False
     with deferred_callback_context():

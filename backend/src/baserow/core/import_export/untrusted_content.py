@@ -2,12 +2,7 @@ from baserow.core.deferred_callbacks import register_deferred_callback
 
 
 class UntrustedContentTypeMixin:
-    """Marks active content in the cache belonging to one content owner copy."""
-
-    def export_serialized(self, *args, **kwargs):
-        if (cache := kwargs.get("cache")) is not None:
-            cache["has_untrusted_content"] = True
-        return super().export_serialized(*args, **kwargs)
+    """Records imported active content in the report of its content owner copy."""
 
     def import_serialized(
         self,

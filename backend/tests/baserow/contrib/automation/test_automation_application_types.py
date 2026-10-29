@@ -106,7 +106,6 @@ def test_automation_export_serialized(data_fixture):
                 "name": workflow.name,
                 "order": workflow.order,
                 "state": workflow.state,
-                "untrusted_content": False,
                 "notification_recipient_emails": [],
                 "nodes": [
                     {
@@ -393,10 +392,15 @@ def test_automation_content_trust_export_import(
         automation=automation, untrusted_content=already_untrusted
     )
     config = ImportExportConfig(include_permission_data=False, **config_values)
+    is_external = expected_untrusted
     expected_untrusted = already_untrusted and not expected_untrusted
     application_type = AutomationApplicationType()
     serialized = application_type.export_serialized(automation, config)
-    assert serialized["workflows"][0]["untrusted_content"] is expected_untrusted
+    if is_external:
+        # An external import detects it again, so the file never carries it.
+        assert "untrusted_content" not in serialized["workflows"][0]
+    else:
+        assert serialized["workflows"][0]["untrusted_content"] is already_untrusted
     workflow.refresh_from_db()
     assert workflow.untrusted_content is already_untrusted
 
@@ -420,7 +424,7 @@ def test_external_automation_import_without_code_stays_trusted(
     config = ImportExportConfig(include_permission_data=False)
     serialized = application_type.export_serialized(automation, config)
     if serialized_flag is None:
-        serialized["workflows"][0].pop("untrusted_content")
+        assert "untrusted_content" not in serialized["workflows"][0]
     else:
         serialized["workflows"][0]["untrusted_content"] = serialized_flag
     imported = application_type.import_serialized(

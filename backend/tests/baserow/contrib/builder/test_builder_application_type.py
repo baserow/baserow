@@ -42,6 +42,10 @@ from baserow.core.db import specific_iterator
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
+from baserow.core.handler import CoreHandler
+from baserow.core.management.commands.export_workspace_applications import (
+    cli_import_export_config,
+)
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
@@ -782,7 +786,6 @@ def test_builder_application_export(data_fixture):
         "name": builder.name,
         "order": builder.order,
         "type": "builder",
-        "untrusted_content": False,
         "favicon_file": None,
         "login_page": page_2_serialized,
         "breakpoints": {"mobile": 640, "tablet": 1024},
@@ -2457,13 +2460,18 @@ def test_application_content_trust_export_import(
     if has_untrusted_content:
         page = data_fixture.create_builder_page(builder=builder)
         data_fixture.create_builder_iframe_element(page=page)
+    expected_untrusted_on_import = expected_untrusted
     expected_untrusted = (
         has_untrusted_content if expected_untrusted else already_untrusted
     )
     config = ImportExportConfig(include_permission_data=False, **config_values)
     application_type = BuilderApplicationType()
     serialized = application_type.export_serialized(builder, config)
-    assert serialized["untrusted_content"] is expected_untrusted
+    if expected_untrusted_on_import:
+        # An external import detects it again, so the file never carries it.
+        assert "untrusted_content" not in serialized
+    else:
+        assert serialized["untrusted_content"] is already_untrusted
     builder.refresh_from_db()
     assert builder.untrusted_content is already_untrusted
 
@@ -2488,7 +2496,7 @@ def test_external_import_cannot_bypass_content_restrictions(
     config = ImportExportConfig(include_permission_data=False)
     serialized = application_type.export_serialized(builder, config)
     if serialized_flag is None:
-        serialized.pop("untrusted_content")
+        assert "untrusted_content" not in serialized
     else:
         serialized["untrusted_content"] = serialized_flag
 
@@ -2512,8 +2520,6 @@ def test_deferred_content_detection_is_isolated_per_builder(data_fixture):
     safe = data_fixture.create_builder_application()
     serialized_unsafe = application_type.export_serialized(unsafe, config)
     serialized_safe = application_type.export_serialized(safe, config)
-    assert serialized_unsafe["untrusted_content"] is True
-    assert serialized_safe["untrusted_content"] is False
     serialized_unsafe["untrusted_content"] = False
 
     with deferred_callback_context():
@@ -2545,3 +2551,41 @@ def test_deferred_content_detection_is_isolated_per_builder(data_fixture):
     ]
     assert imported_iframe.id != page.element_set.get().id
     assert imported_safe.import_report == []
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "install_config_values",
+    [
+        # Template sync.
+        {"is_template": True, "reduce_disk_space_usage": True},
+        # Template install.
+        {"is_duplicate": True, "is_template": True},
+    ],
+)
+def test_official_template_with_active_content_installs_trusted(
+    data_fixture, install_config_values
+):
+    """
+    Official templates are written by `export_workspace_applications`, an external
+    export, and installed as internal copies that keep the trust of the file.
+    """
+
+    workspace = data_fixture.create_workspace()
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    data_fixture.create_builder_iframe_element(page=page)
+    exported = CoreHandler().export_workspace_applications(
+        workspace, files_buffer=BytesIO(), import_export_config=cli_import_export_config
+    )
+    assert "untrusted_content" not in exported[0]
+
+    applications, _ = CoreHandler().import_applications_to_workspace(
+        data_fixture.create_workspace(),
+        exported,
+        BytesIO(),
+        ImportExportConfig(include_permission_data=False, **install_config_values),
+    )
+
+    installed = Builder.objects.get(id=applications[0].id)
+    assert installed.untrusted_content is False

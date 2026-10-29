@@ -401,7 +401,7 @@ def test_only_custom_code_content_requires_trust_on_import(
     application_type = builder.get_type()
     serialized = application_type.export_serialized(builder, config)
     expected = content not in ["empty", "empty_script"]
-    assert serialized["untrusted_content"] is expected
+    assert "untrusted_content" not in serialized
     serialized["untrusted_content"] = False
 
     imported = application_type.import_serialized(

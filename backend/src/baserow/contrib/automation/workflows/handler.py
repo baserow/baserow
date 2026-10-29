@@ -467,7 +467,6 @@ class AutomationWorkflowHandler:
         :return: The serialized version.
         """
 
-        cache = {**(cache or {}), "has_untrusted_content": False}
         serialized_nodes = [
             AutomationNodeHandler().export_node(
                 n,
@@ -479,12 +478,7 @@ class AutomationWorkflowHandler:
             for n in AutomationNodeHandler().get_nodes(workflow=workflow)
         ]
 
-        return AutomationWorkflowDict(
-            untrusted_content=(
-                cache["has_untrusted_content"]
-                if self._is_external_import_export(import_export_config)
-                else workflow.untrusted_content
-            ),
+        serialized = AutomationWorkflowDict(
             id=workflow.id,
             name=workflow.name,
             order=workflow.order,
@@ -502,6 +496,12 @@ class AutomationWorkflowHandler:
                 )
             ),
         )
+        # Internal copies keep the restriction. An external import detects it again
+        # from the imported content, and official templates are exported externally
+        # but installed as internal copies, so a file must never carry it.
+        if not self._is_external_import_export(import_export_config):
+            serialized["untrusted_content"] = workflow.untrusted_content
+        return serialized
 
     def _ops_count_for_import_workflow(
         self,

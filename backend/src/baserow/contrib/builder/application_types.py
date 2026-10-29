@@ -292,7 +292,7 @@ class BuilderApplicationType(ApplicationType):
                 cache=cache,
             )
 
-        return BuilderDict(
+        serialized = BuilderDict(
             pages=serialized_pages,
             integrations=serialized_integrations,
             theme=serialized_theme,
@@ -300,13 +300,14 @@ class BuilderApplicationType(ApplicationType):
             favicon_file=serialized_favicon_file,
             login_page=serialized_login_page,
             breakpoints=builder.breakpoints,
-            untrusted_content=(
-                cache.get("has_untrusted_content", False)
-                if self._is_external_import_export(import_export_config)
-                else builder.untrusted_content
-            ),
             **serialized_builder,
         )
+        # Internal copies keep the restriction. An external import detects it again
+        # from the imported content, and official templates are exported externally
+        # but installed as internal copies, so a file must never carry it.
+        if not self._is_external_import_export(import_export_config):
+            serialized["untrusted_content"] = builder.untrusted_content
+        return serialized
 
     def import_integrations_serialized(
         self,
