@@ -136,7 +136,7 @@ class UpdateAgentConfigurationActionType(ActionType):
     @classmethod
     @transaction.atomic
     def do(
-        cls, user: AbstractUser, agent_id: int, **values: str | int | None
+        cls, user: AbstractUser, agent_id: int, **values: str | int | list[str] | None
     ) -> AgentConfiguration:
         """
         Update the configuration and audit the changed field names, never values.

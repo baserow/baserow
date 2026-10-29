@@ -70,7 +70,7 @@ class AgentService:
 
     @transaction.atomic
     def update_configuration(
-        self, user: AbstractUser, agent_id: int, **values: str | int | None
+        self, user: AbstractUser, agent_id: int, **values: str | int | list[str] | None
     ) -> AgentConfigurationUpdated:
         """
         Save part of the configuration for a user who may update and read it.
@@ -142,7 +142,8 @@ class AgentService:
     def _require_ready(self, agent: AgentApplication) -> None:
         """Reject new content without leaking privileged setting diagnostics."""
 
-        if self.handler.get_configuration(agent)["readiness"] != "ready":
+        readiness, _ = self.handler.get_readiness(agent)
+        if readiness != "ready":
             raise AgentNotReady
 
     def can_read_conversation(self, user: AbstractUser, conversation_id: int) -> bool:

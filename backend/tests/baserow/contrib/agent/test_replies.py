@@ -1,4 +1,5 @@
 import asyncio
+import json
 from uuid import uuid4
 
 from django.contrib.auth.models import AbstractUser
@@ -12,7 +13,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelHTTPError
 from pydantic_ai.messages import ModelMessagesTypeAdapter
-from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.models.function import DeltaToolCall, FunctionModel
 from pydantic_ai.models.instrumented import InstrumentationSettings
 from pydantic_ai.models.openai import OpenAIResponsesModel
 
@@ -38,6 +39,7 @@ from baserow.core.chat_runs.journal import ChatRunJournal
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
+from baserow.core.models import Agent as Identity
 from baserow.core.models import WorkspaceUser
 from baserow.core.trash.handler import TrashHandler
 
@@ -449,3 +451,49 @@ def test_busy_conversations_and_workspaces_are_refused_with_their_errors(
     )
     assert AgentConversation.objects.count() == ChatRun.objects.count() == 1
     assert AgentMessage.objects.count() == 2
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("with_identity", [True, False])
+def test_a_reply_calls_the_enabled_tools_as_the_agent_identity(
+    data_fixture, configured_agent, mocker, with_identity
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(workspace=agent.workspace)
+    )
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    identity = Identity.objects.create(workspace=agent.workspace, name="Ops")
+    AgentHandler().update_configuration(
+        agent,
+        run_as_subject_type="core.Agent" if with_identity else None,
+        run_as_subject_id=identity.id if with_identity else None,
+        tools=["create_rows"],
+    )
+    offered = []
+
+    async def stream(messages, info):
+        offered.append([tool.name for tool in info.function_tools])
+        if info.function_tools and len(messages) == 1:
+            arguments = {"table_id": table.id, "rows": [{"Name": "Plan"}]}
+            yield {
+                0: DeltaToolCall(name="create_rows", json_args=json.dumps(arguments))
+            }
+        else:
+            yield "Done."
+
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(FunctionModel(stream_function=stream), {}),
+    )
+    created = start(user, agent)
+
+    run_reply(run_of(created.conversation))
+
+    assert reply_state(created.reply.id) == ("completed", "", "Done.")
+    rows = [row.name for row in table.get_model(attribute_names=True).objects.all()]
+    if with_identity:
+        assert (offered, rows) == ([["create_rows"], ["create_rows"]], ["Plan"])
+    else:
+        assert (offered, rows) == ([[]], [])

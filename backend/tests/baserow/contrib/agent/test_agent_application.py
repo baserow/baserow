@@ -5,6 +5,7 @@ from django.utils import timezone
 
 import pytest
 
+from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 from baserow.core.exceptions import FeatureDisabledException
@@ -64,7 +65,9 @@ def test_agent_creation_requires_feature_flag(data_fixture, settings, enabled):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("models_available", [True, False])
-def test_new_agent_selects_the_first_enabled_model(data_fixture, models_available):
+def test_new_agent_selects_the_first_enabled_model_and_the_read_tools(
+    data_fixture, models_available
+):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     provider = AIProviderConfig.objects.create(
@@ -90,6 +93,12 @@ def test_new_agent_selects_the_first_enabled_model(data_fixture, models_availabl
         ("openai", "first-enabled") if models_available else (None, None)
     )
     assert agent.instructions == ""
+    assert AgentHandler().get_tool_names(agent) == [
+        "list_tables",
+        "get_table_schema",
+        "list_table_rows",
+        "list_views",
+    ]
 
 
 @pytest.mark.import_export_workspace
