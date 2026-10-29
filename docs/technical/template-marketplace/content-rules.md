@@ -88,7 +88,7 @@ workspace export; see #6116.
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
 | Builder, automation, dashboard | `ServiceType.export_serialized` recursively replaces `sample_data` values with placeholders for user templates, preserving keys, JSON types and structure for schema inference. Stored errors are removed. Ordinary exports retain samples. Property names are retained and may still contain user-provided information. | done | WAB |
-| Database (button field) | User templates retain the centrally sanitized samples for schema inference; `DatabaseWorkflowServiceActionType.serialize_property` drops `sample_data` for other exports | done | core/database |
+| Database (button field) | Button services use the same shared export rules: sanitized samples for user templates and original samples for other exports | done | core/database |
 
 ## Passwords
 

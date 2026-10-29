@@ -899,9 +899,9 @@ def test_duplicating_a_forward_reference(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("is_user_template", [True, False])
-def test_export_leaves_behind_what_a_click_remembered(data_fixture, is_user_template):
+def test_button_export_uses_shared_sample_sanitization(data_fixture, is_user_template):
     """
-    Templates keep only the shape of a captured answer; other exports drop it.
+    Buttons follow the shared service sample rules for every export type.
     """
 
     user = data_fixture.create_user()
@@ -928,16 +928,15 @@ def test_export_leaves_behind_what_a_click_remembered(data_fixture, is_user_temp
             "status": 0,
         }
     else:
-        assert "sample_data" not in exported_service
-    assert "tKn-123" not in str(exported)
+        assert exported_service["sample_data"] == service.sample_data
+    if is_user_template:
+        assert "tKn-123" not in str(exported)
 
 
 @pytest.mark.django_db
-def test_duplicating_a_field_leaves_the_remembered_answer_behind(data_fixture):
+def test_duplicating_a_field_preserves_service_samples(data_fixture):
     """
-    Duplicating goes through the same export and import as a snapshot, so a
-    copy must arrive with the request configured and with nothing this
-    installation's endpoint happened to answer.
+    Duplicating a button preserves its request configuration and captured schema.
     """
 
     user = data_fixture.create_user()
@@ -960,7 +959,7 @@ def test_duplicating_a_field_leaves_the_remembered_answer_behind(data_fixture):
     assert len(copied_actions) == 1
     copied_service = copied_actions[0].service.specific
     assert copied_service.url["formula"] == "'http://example.notexist/'"
-    assert copied_service.sample_data is None
+    assert copied_service.sample_data == service.sample_data
 
 
 def _button_with_authorized_request(data_fixture, table):

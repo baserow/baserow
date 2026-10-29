@@ -165,18 +165,13 @@ class DatabaseWorkflowServiceActionType(
     ) -> Any:
         if prop_name == "service":
             service = workflow_action.service.specific
-            exported = service.get_type().export_serialized(
+            return service.get_type().export_serialized(
                 service,
                 import_export_config=import_export_config,
                 files_zip=files_zip,
                 storage=storage,
                 cache=cache,
             )
-            # Templates keep sanitized samples for schema inference. Other copies
-            # rebuild the captured answer from the next click, as before.
-            if not getattr(import_export_config, "is_user_template", False):
-                exported.pop("sample_data", None)
-            return exported
 
         return super().serialize_property(
             workflow_action,
