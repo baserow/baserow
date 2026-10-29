@@ -14,13 +14,19 @@
         :disabled="loading"
         @input="sourceViewChanged($event)"
       >
-        <DropdownItem
-          v-for="sourceViewItem in sourceViews"
-          :key="sourceViewItem.id"
-          :name="sourceViewItem.name"
-          :value="sourceViewItem.id"
-          :icon="sourceViewItem._.type.iconClass"
-        ></DropdownItem>
+        <DropdownSection
+          v-for="group in sourceViewGroups"
+          :key="group.ownershipType.getType()"
+          :title="group.ownershipType.getName()"
+        >
+          <DropdownItem
+            v-for="sourceViewItem in group.views"
+            :key="sourceViewItem.id"
+            :name="sourceViewItem.name"
+            :value="sourceViewItem.id"
+            :icon="sourceViewItem._.type.iconClass"
+          ></DropdownItem>
+        </DropdownSection>
       </Dropdown>
     </div>
     <div class="flex margin-bottom-2">
@@ -114,6 +120,18 @@ export default {
         this.view,
         this.database.workspace.id
       )
+    },
+    sourceViewGroups() {
+      // Grouped and ordered by ownership type like the views context.
+      return Object.values(this.$registry.getAll('viewOwnershipType'))
+        .sort((a, b) => a.getListViewTypeSort() - b.getListViewTypeSort())
+        .map((ownershipType) => ({
+          ownershipType,
+          views: this.sourceViews
+            .filter((view) => view.ownership_type === ownershipType.getType())
+            .sort((a, b) => a.order - b.order),
+        }))
+        .filter((group) => group.views.length > 0)
     },
     sourceView() {
       return this.sourceViews.find((view) => view.id === this.sourceViewId)

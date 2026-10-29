@@ -17,6 +17,7 @@ describe('CopyViewConfigurationModal', () => {
       table_id: 10,
       filter_type: 'AND',
       filters_disabled: false,
+      ownership_type: 'collaborative',
     }
     testApp.store.dispatch('view/forceCreate', {
       data: { id: 1, type: 'grid', name: 'Source grid', ...baseValues },
@@ -96,6 +97,35 @@ describe('CopyViewConfigurationModal', () => {
       ...element(wrapper).querySelectorAll('.select__item-name-text'),
     ].map((node) => node.textContent.trim())
     expect(names).toEqual(['Source grid', 'Gallery'])
+  })
+
+  test('the dropdown groups personal views before collaborative ones', async () => {
+    testApp.store.dispatch('view/forceCreate', {
+      data: {
+        id: 5,
+        type: 'grid',
+        name: 'Personal grid',
+        table_id: 10,
+        filter_type: 'AND',
+        filters_disabled: false,
+        ownership_type: 'personal',
+      },
+    })
+    const wrapper = await mountModal()
+    wrapper.vm.show()
+    await flushPromises()
+
+    const titles = [
+      ...element(wrapper).querySelectorAll('.dropdown-section__title'),
+    ].map((node) => node.textContent.trim())
+    expect(titles).toEqual([
+      'viewOwnershipType.personal',
+      'viewOwnershipType.collaborative',
+    ])
+    const names = [
+      ...element(wrapper).querySelectorAll('.select__item-name-text'),
+    ].map((node) => node.textContent.trim())
+    expect(names).toEqual(['Personal grid', 'Source grid', 'Gallery'])
   })
 
   test('a grid destination renders every option of the view type', async () => {

@@ -153,3 +153,125 @@ def test_builder_can_copy_configuration(enterprise_data_fixture):
     ViewHandler().copy_view_configuration(user2, source_view, dest_view, ["filters"])
 
     assert dest_view.viewfilter_set.count() == 1
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@pytest.mark.parametrize("role_uid", ["EDITOR", "VIEWER"])
+def test_can_copy_configuration_from_collaborative_into_own_personal_view(
+    enterprise_data_fixture, role_uid
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+    user2 = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    field = enterprise_data_fixture.create_text_field(table=table)
+
+    source_view = enterprise_data_fixture.create_grid_view(table=table)
+    enterprise_data_fixture.create_view_filter(
+        view=source_view, field=field, type="equal", value="a"
+    )
+    enterprise_data_fixture.create_view_sort(view=source_view, field=field)
+    personal_view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type="personal", owned_by=user2
+    )
+    other_collaborative_view = enterprise_data_fixture.create_grid_view(table=table)
+
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=Role.objects.get(uid=role_uid), scope=workspace
+    )
+
+    ViewHandler().copy_view_configuration(
+        user2,
+        source_view,
+        personal_view,
+        ["field_visibility", "view_settings", "filters", "sorts", "group_bys"],
+    )
+
+    assert personal_view.viewfilter_set.count() == 1
+    assert personal_view.viewsort_set.count() == 1
+
+    # The user can read the collaborative view's configuration, but not
+    # configure a collaborative view.
+    with pytest.raises(PermissionDenied):
+        ViewHandler().copy_view_configuration(
+            user2, source_view, other_collaborative_view, ["filters"]
+        )
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@pytest.mark.parametrize("role_uid,can_copy", [("EDITOR", True), ("VIEWER", False)])
+def test_copy_default_row_values_into_own_personal_view_requires_reading_them(
+    enterprise_data_fixture, role_uid, can_copy
+):
+    """
+    Only editors and up can read the default row values of a collaborative view,
+    so a viewer must not be able to copy them into their personal view either.
+    """
+
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+    user2 = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+
+    source_view = enterprise_data_fixture.create_grid_view(table=table)
+    personal_view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type="personal", owned_by=user2
+    )
+
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=Role.objects.get(uid=role_uid), scope=workspace
+    )
+
+    if can_copy:
+        ViewHandler().copy_view_configuration(
+            user2, source_view, personal_view, ["default_row_values"]
+        )
+    else:
+        with pytest.raises(PermissionDenied):
+            ViewHandler().copy_view_configuration(
+                user2, source_view, personal_view, ["default_row_values"]
+            )
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_editor_cannot_copy_filters_from_restricted_into_own_personal_view(
+    enterprise_data_fixture,
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+    user2 = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    field = enterprise_data_fixture.create_text_field(table=table)
+
+    restricted_view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+    enterprise_data_fixture.create_view_filter(
+        view=restricted_view, field=field, type="equal", value="secret"
+    )
+    personal_view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type="personal", owned_by=user2
+    )
+
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=Role.objects.get(uid="EDITOR"), scope=workspace
+    )
+
+    with pytest.raises(PermissionDenied):
+        ViewHandler().copy_view_configuration(
+            user2, restricted_view, personal_view, ["filters"]
+        )
+
+    assert personal_view.viewfilter_set.count() == 0
