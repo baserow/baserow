@@ -271,7 +271,7 @@ import CustomStyleButton from '@baserow/modules/builder/components/elements/comp
 import ServiceSchemaPropertySelector from '@baserow/modules/core/components/services/ServiceSchemaPropertySelector'
 import DataSourceDropdown from '@baserow/modules/builder/components/dataSource/DataSourceDropdown'
 import PropertyOptionForm from '@baserow/modules/builder/components/elements/components/forms/general/settings/PropertyOptionForm'
-import SidebarExpandable from '@baserow/modules/builder/components/SidebarExpandable.vue'
+import SidebarExpandable from '@baserow/modules/core/components/SidebarExpandable.vue'
 import { DATA_SCOPES } from '@baserow/modules/builder/constants'
 
 export default {

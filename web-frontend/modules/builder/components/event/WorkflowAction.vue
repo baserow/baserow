@@ -49,7 +49,7 @@
 </template>
 
 <script>
-import SidebarExpandable from '@baserow/modules/builder/components/SidebarExpandable.vue'
+import SidebarExpandable from '@baserow/modules/core/components/SidebarExpandable.vue'
 import SampleDataViewer from '@baserow/modules/core/components/SampleDataViewer'
 import _ from 'lodash'
 import { notifyIf } from '@baserow/modules/core/utils/error'

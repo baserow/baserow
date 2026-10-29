@@ -7,7 +7,6 @@ from baserow.contrib.dashboard.api.data_sources.serializers import (
 from baserow.contrib.dashboard.api.widgets.serializers import WidgetSerializer
 from baserow.contrib.dashboard.data_sources import signals as data_source_signals
 from baserow.contrib.dashboard.widgets import signals as widget_signals
-from baserow.contrib.dashboard.widgets.registries import widget_type_registry
 from baserow.core.services.registries import service_type_registry
 from baserow.ws.registries import page_registry
 
@@ -21,9 +20,7 @@ def widget_created(
 ):
     def send_ws_message():
         page_type = page_registry.get("dashboard")
-        widget_serializer = widget_type_registry.get_serializer(
-            widget, WidgetSerializer
-        )
+        widget_serializer = widget.get_type().get_serializer(widget, WidgetSerializer)
         payload = {
             "type": "widget_created",
             "dashboard_id": widget.dashboard.id,
@@ -49,9 +46,7 @@ def widget_updated(
 ):
     def send_ws_message():
         page_type = page_registry.get("dashboard")
-        widget_serializer = widget_type_registry.get_serializer(
-            widget, WidgetSerializer
-        )
+        widget_serializer = widget.get_type().get_serializer(widget, WidgetSerializer)
         payload = {
             "type": "widget_updated",
             "dashboard_id": widget.dashboard.id,
@@ -75,9 +70,7 @@ def widget_deleted(
 ):
     def send_ws_message():
         page_type = page_registry.get("dashboard")
-        widget_serializer = widget_type_registry.get_serializer(
-            widget, WidgetSerializer
-        )
+        widget_serializer = widget.get_type().get_serializer(widget, WidgetSerializer)
         payload = {
             "type": "widget_deleted",
             "dashboard_id": widget.dashboard.id,

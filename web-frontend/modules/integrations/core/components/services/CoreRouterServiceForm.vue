@@ -104,7 +104,7 @@
 <script>
 import form from '@baserow/modules/core/mixins/form'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
-import SidebarExpandable from '@baserow/modules/builder/components/SidebarExpandable.vue'
+import SidebarExpandable from '@baserow/modules/core/components/SidebarExpandable.vue'
 import {
   getNextAvailableNameInSequence,
   uuid,

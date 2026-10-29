@@ -16,6 +16,7 @@
 </template>
 
 <script>
+import { computed } from 'vue'
 import _ from 'lodash'
 import DashboardFormulaInput from '@baserow/modules/dashboard/components/DashboardFormulaInput'
 import WidgetSettingsBaseForm from '@baserow/modules/dashboard/components/widget/WidgetSettingsBaseForm'
@@ -28,6 +29,10 @@ export default {
     return {
       formulaComponent: DashboardFormulaInput,
       dataProvidersAllowed: [],
+      dashboardFormulaContext: computed(() => ({
+        dashboard: this.dashboard,
+        storePrefix: this.storePrefix,
+      })),
     }
   },
   props: {

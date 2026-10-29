@@ -1,0 +1,402 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`TextFilterWidgetSettings > renders literal settings and saves clearing through the widget store 1`] = `
+"<div class="form-section">
+  <div class="form-section__title-container">
+    <!--v-if-->
+    <div></div>
+  </div>
+  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-0" class="control__label control__label--small"><span>textFilterWidget.placeholder</span><span class="control__required">common.optional</span>
+      <!--v-if-->
+      <!--v-if-->
+    </label>
+    <div class="control__wrapper">
+      <div class="control__elements">
+        <div class="control__elements-wrapper">
+          <div class="form-input">
+            <!--v-if-->
+            <div class="form-input__wrapper"><input id="v-0-0-0" class="form-input__input" type="text" min="false" max="false" step="false" placeholder="" autocomplete="" value="Type here">
+              <!--v-if-->
+              <!--v-if-->
+            </div>
+            <!--v-if-->
+          </div>
+        </div>
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+    </div>
+  </div>
+  <div data-form-error="false" class="control"><label for="v-0-0-1" class="control__label control__label--small"><span>textFilterWidget.defaultValue</span><span class="control__required">common.optional</span>
+      <!--v-if-->
+      <!--v-if-->
+    </label>
+    <div class="control__wrapper">
+      <div class="control__elements">
+        <div class="control__elements-wrapper">
+          <div class="form-input">
+            <!--v-if-->
+            <div class="form-input__wrapper"><input id="v-0-0-1" class="form-input__input" type="text" min="false" max="false" step="false" placeholder="" autocomplete="" value="Initial">
+              <!--v-if-->
+              <!--v-if-->
+            </div>
+            <!--v-if-->
+          </div>
+        </div>
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+    </div>
+  </div>
+  <div data-form-error="false" class="control margin-top-2"><label for="v-0-0-2" class="control__label control__label--small"><span>textFilterWidget.targets</span><span class="control__required">common.optional</span>
+      <!--v-if-->
+      <!--v-if-->
+    </label>
+    <div class="control__wrapper">
+      <div class="control__elements">
+        <div class="control__elements-wrapper"></div>
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+    </div>
+  </div>
+  <!--v-if-->
+</div>"
+`;
+
+exports[`configures a target inside the input sidebar and keeps template saves isolated > normal group modal 1`] = `
+"<div class="form-section">
+  <div class="form-section__title-container">
+    <!--v-if-->
+    <div></div>
+  </div>
+  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-0" class="control__label control__label--small"><span>textFilterWidget.placeholder</span><span class="control__required">common.optional</span>
+      <!--v-if-->
+      <!--v-if-->
+    </label>
+    <div class="control__wrapper">
+      <div class="control__elements">
+        <div class="control__elements-wrapper">
+          <div class="form-input">
+            <!--v-if-->
+            <div class="form-input__wrapper"><input id="v-0-0-0" class="form-input__input" type="text" min="false" max="false" step="false" placeholder="" autocomplete="" value="">
+              <!--v-if-->
+              <!--v-if-->
+            </div>
+            <!--v-if-->
+          </div>
+        </div>
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+    </div>
+  </div>
+  <div data-form-error="false" class="control"><label for="v-0-0-1" class="control__label control__label--small"><span>textFilterWidget.defaultValue</span><span class="control__required">common.optional</span>
+      <!--v-if-->
+      <!--v-if-->
+    </label>
+    <div class="control__wrapper">
+      <div class="control__elements">
+        <div class="control__elements-wrapper">
+          <div class="form-input">
+            <!--v-if-->
+            <div class="form-input__wrapper"><input id="v-0-0-1" class="form-input__input" type="text" min="false" max="false" step="false" placeholder="" autocomplete="" value="">
+              <!--v-if-->
+              <!--v-if-->
+            </div>
+            <!--v-if-->
+          </div>
+        </div>
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+    </div>
+  </div>
+  <div data-form-error="false" class="control margin-top-2"><label for="v-0-0-2" class="control__label control__label--small"><span>textFilterWidget.targets</span><span class="control__required">common.optional</span>
+      <!--v-if-->
+      <!--v-if-->
+    </label>
+    <div class="control__wrapper">
+      <div class="control__elements">
+        <div class="control__elements-wrapper">
+          <div class="sidebar-expandable__wrapper dashboard-widget-filter-target" force-expanded="true">
+            <div class="expandable expandable--expanded sidebar-expandable dashboard-widget-filter-target">
+              <div class="expandable__header">
+                <div class="sidebar-expandable__header">
+                  <!--v-if-->
+                  <div class="sidebar-expandable__header-title">
+                    <div class="switch switch--small switch--active switch--color-green" role="switch" aria-label="textFilterWidget.enableTarget" aria-checked="true" aria-disabled="false" tabindex="0">
+                      <!--v-if-->
+                    </div><span class="dashboard-widget-filter-target__name">Revenue</span>
+                  </div><i class="iconoir-nav-arrow-down"></i>
+                </div>
+              </div>
+              <div class="expandable__content">
+                <div class="sidebar-expandable__content">
+                  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-4" class="control__label control__label--small"><span>textFilterWidget.emptyBehavior</span><span class="control__required">common.optional</span>
+                      <!--v-if-->
+                      <!--v-if-->
+                    </label>
+                    <div class="control__wrapper">
+                      <div class="control__elements">
+                        <div class="control__elements-wrapper">
+                          <div id="v-0-0-4" class="dropdown" tabindex="0" role="list"><a class="dropdown__selected">
+                              <!--v-if-->
+                              <!--v-if--><span class="dropdown__selected-text" title="textFilterWidget.apply_nothing">textFilterWidget.apply_nothing</span><i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
+                            </a>
+                            <div class="dropdown__items hidden">
+                              <div class="select__search"><i class="select__search-icon iconoir-search"></i><input type="text" class="select__search-input" placeholder="action.search" tabindex="0"></div>
+                              <ul class="select__items prevent-scroll" tabindex="-1">
+                                <li class="select__item select__item--no-options visible active" role="listitem"><a class="select__item-link">
+                                    <div class="select__item-name">
+                                      <!--v-if-->
+                                      <!--v-if-->
+                                      <!--v-if--><span class="select__item-name-text" title="textFilterWidget.apply_nothing">textFilterWidget.apply_nothing</span>
+                                    </div>
+                                    <!--v-if-->
+                                  </a><i class="select__item-active-icon iconoir-check"></i></li>
+                                <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                                    <div class="select__item-name">
+                                      <!--v-if-->
+                                      <!--v-if-->
+                                      <!--v-if--><span class="select__item-name-text" title="textFilterWidget.apply_alternative">textFilterWidget.apply_alternative</span>
+                                    </div>
+                                    <!--v-if-->
+                                  </a><i class="select__item-active-icon iconoir-check"></i></li>
+                              </ul>
+                              <!--v-if-->
+                              <!--v-if-->
+                            </div>
+                          </div>
+                        </div>
+                        <!--v-if-->
+                      </div>
+                      <!--v-if-->
+                    </div>
+                  </div>
+                  <!--v-if-->
+                  <div class="service-form__filter-buttons"><span class="service-form__filter-title">serviceRefinementForms.refinements</span><a class="header__filter-link active active--success" role="button" tabindex="0" aria-label="textFilterWidget.configureFilters"><i class="header__filter-icon iconoir-filter"></i><span class="header__filter-name">serviceRefinementForms.filterTabTitle - 1</span></a></div>
+                </div>
+                <!--v-if-->
+              </div>
+            </div>
+          </div>
+          <div class="sidebar-expandable__wrapper dashboard-widget-filter-target" force-expanded="false">
+            <div class="expandable sidebar-expandable dashboard-widget-filter-target">
+              <div class="expandable__header">
+                <div class="sidebar-expandable__header">
+                  <!--v-if-->
+                  <div class="sidebar-expandable__header-title">
+                    <div class="switch switch--small switch--color-green" role="switch" aria-label="textFilterWidget.enableTarget" aria-checked="false" aria-disabled="false" tabindex="0">
+                      <!--v-if-->
+                    </div><span class="dashboard-widget-filter-target__name">Costs</span>
+                  </div><i class="iconoir-nav-arrow-right"></i>
+                </div>
+              </div>
+              <!--v-if-->
+            </div>
+          </div>
+          <div class="sidebar-expandable__wrapper dashboard-widget-filter-target" force-expanded="false">
+            <div class="expandable sidebar-expandable dashboard-widget-filter-target">
+              <div class="expandable__header">
+                <div class="sidebar-expandable__header">
+                  <!--v-if-->
+                  <div class="sidebar-expandable__header-title">
+                    <div class="switch switch--small switch--disabled switch--color-green" role="switch" aria-label="textFilterWidget.enableTarget" aria-checked="false" aria-disabled="true" tabindex="-1">
+                      <!--v-if-->
+                    </div><span class="dashboard-widget-filter-target__name">New widget</span>
+                  </div><i class="iconoir-nav-arrow-right"></i>
+                </div>
+              </div>
+              <!--v-if-->
+            </div>
+          </div>
+          <div class="sidebar-expandable__wrapper dashboard-widget-filter-target" force-expanded="false">
+            <div class="expandable sidebar-expandable dashboard-widget-filter-target">
+              <div class="expandable__header">
+                <div class="sidebar-expandable__header">
+                  <!--v-if-->
+                  <div class="sidebar-expandable__header-title">
+                    <div class="switch switch--small switch--color-green" role="switch" aria-label="textFilterWidget.enableTarget" aria-checked="false" aria-disabled="false" tabindex="0">
+                      <!--v-if-->
+                    </div><span class="dashboard-widget-filter-target__name">Chart</span>
+                  </div><i class="iconoir-nav-arrow-right"></i>
+                </div>
+              </div>
+              <!--v-if-->
+            </div>
+          </div>
+        </div>
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+    </div>
+  </div>
+  <teleport-stub to="body">
+    <div class="modal__wrapper">
+      <div class="modal__box modal__box--wide">
+        <!--v-if-->
+        <div class="dashboard-widget-filters">
+          <h2 class="box__title">textFilterWidget.configureFilters</h2>
+          <div class="dashboard-widget-filters__target">Revenue</div>
+          <div class="dashboard-widget-filters__description">textFilterWidget.combinedFilterHelp</div>
+          <!--v-if-->
+          <section class="dashboard-widget-filters__group dashboard-widget-filters__group--readonly">
+            <div class="dashboard-widget-filters__group-header">
+              <h3 class="dashboard-widget-filters__group-title">textFilterWidget.permanentGroup</h3><span class="dashboard-widget-filters__readonly"><i class="iconoir-lock"></i>textFilterWidget.readOnly</span>
+            </div>
+            <div class="dashboard-widget-filters__group-body">
+              <div class="readonly-group" fields="" dashboard="[object Object]">permanent</div>
+            </div>
+          </section>
+          <div class="dashboard-widget-filters__operator"><span>AND</span></div>
+          <section class="dashboard-widget-filters__group">
+            <div class="dashboard-widget-filters__group-header">
+              <h3 class="dashboard-widget-filters__group-title">Search</h3>
+            </div>
+            <div class="dashboard-widget-filters__group-body"><button class="edit-group" fields="" dashboard="[object Object]">dynamic</button></div>
+          </section>
+          <!--v-if-->
+          <div class="actions actions--right dashboard-widget-filters__footer"><button class="button button--regular button--secondary">
+              <!--v-if--><span class="button__label">action.close</span>
+              <!--v-if-->
+            </button></div>
+        </div>
+        <div class="modal__actions"><a class="modal__close"><i class="iconoir-cancel"></i></a></div>
+      </div>
+    </div>
+  </teleport-stub>
+</div>"
+`;
+
+exports[`configures a target inside the input sidebar and keeps template saves isolated 1`] = `
+"<div class="form-section">
+  <div class="form-section__title-container">
+    <!--v-if-->
+    <div></div>
+  </div>
+  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-0" class="control__label control__label--small"><span>textFilterWidget.placeholder</span><span class="control__required">common.optional</span>
+      <!--v-if-->
+      <!--v-if-->
+    </label>
+    <div class="control__wrapper">
+      <div class="control__elements">
+        <div class="control__elements-wrapper">
+          <div class="form-input">
+            <!--v-if-->
+            <div class="form-input__wrapper"><input id="v-0-0-0" class="form-input__input" type="text" min="false" max="false" step="false" placeholder="" autocomplete="" value="">
+              <!--v-if-->
+              <!--v-if-->
+            </div>
+            <!--v-if-->
+          </div>
+        </div>
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+    </div>
+  </div>
+  <div data-form-error="false" class="control"><label for="v-0-0-1" class="control__label control__label--small"><span>textFilterWidget.defaultValue</span><span class="control__required">common.optional</span>
+      <!--v-if-->
+      <!--v-if-->
+    </label>
+    <div class="control__wrapper">
+      <div class="control__elements">
+        <div class="control__elements-wrapper">
+          <div class="form-input">
+            <!--v-if-->
+            <div class="form-input__wrapper"><input id="v-0-0-1" class="form-input__input" type="text" min="false" max="false" step="false" placeholder="" autocomplete="" value="">
+              <!--v-if-->
+              <!--v-if-->
+            </div>
+            <!--v-if-->
+          </div>
+        </div>
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+    </div>
+  </div>
+  <div data-form-error="false" class="control margin-top-2"><label for="v-0-0-2" class="control__label control__label--small"><span>textFilterWidget.targets</span><span class="control__required">common.optional</span>
+      <!--v-if-->
+      <!--v-if-->
+    </label>
+    <div class="control__wrapper">
+      <div class="control__elements">
+        <div class="control__elements-wrapper">
+          <div class="sidebar-expandable__wrapper dashboard-widget-filter-target" force-expanded="true">
+            <div class="expandable expandable--expanded sidebar-expandable dashboard-widget-filter-target">
+              <div class="expandable__header">
+                <div class="sidebar-expandable__header">
+                  <!--v-if-->
+                  <div class="sidebar-expandable__header-title">
+                    <div class="switch switch--small switch--color-green" role="switch" aria-label="textFilterWidget.enableTarget" aria-checked="false" aria-disabled="false" tabindex="0">
+                      <!--v-if-->
+                    </div><span class="dashboard-widget-filter-target__name">Revenue</span>
+                  </div><i class="iconoir-nav-arrow-down"></i>
+                </div>
+              </div>
+              <div class="expandable__content">
+                <div class="sidebar-expandable__content">
+                  <p class="margin-bottom-2">textFilterWidget.enableTargetHelp</p>
+                </div>
+                <!--v-if-->
+              </div>
+            </div>
+          </div>
+          <div class="sidebar-expandable__wrapper dashboard-widget-filter-target" force-expanded="false">
+            <div class="expandable sidebar-expandable dashboard-widget-filter-target">
+              <div class="expandable__header">
+                <div class="sidebar-expandable__header">
+                  <!--v-if-->
+                  <div class="sidebar-expandable__header-title">
+                    <div class="switch switch--small switch--color-green" role="switch" aria-label="textFilterWidget.enableTarget" aria-checked="false" aria-disabled="false" tabindex="0">
+                      <!--v-if-->
+                    </div><span class="dashboard-widget-filter-target__name">Costs</span>
+                  </div><i class="iconoir-nav-arrow-right"></i>
+                </div>
+              </div>
+              <!--v-if-->
+            </div>
+          </div>
+          <div class="sidebar-expandable__wrapper dashboard-widget-filter-target" force-expanded="false">
+            <div class="expandable sidebar-expandable dashboard-widget-filter-target">
+              <div class="expandable__header">
+                <div class="sidebar-expandable__header">
+                  <!--v-if-->
+                  <div class="sidebar-expandable__header-title">
+                    <div class="switch switch--small switch--disabled switch--color-green" role="switch" aria-label="textFilterWidget.enableTarget" aria-checked="false" aria-disabled="true" tabindex="-1">
+                      <!--v-if-->
+                    </div><span class="dashboard-widget-filter-target__name">New widget</span>
+                  </div><i class="iconoir-nav-arrow-right"></i>
+                </div>
+              </div>
+              <!--v-if-->
+            </div>
+          </div>
+          <div class="sidebar-expandable__wrapper dashboard-widget-filter-target" force-expanded="false">
+            <div class="expandable sidebar-expandable dashboard-widget-filter-target">
+              <div class="expandable__header">
+                <div class="sidebar-expandable__header">
+                  <!--v-if-->
+                  <div class="sidebar-expandable__header-title">
+                    <div class="switch switch--small switch--color-green" role="switch" aria-label="textFilterWidget.enableTarget" aria-checked="false" aria-disabled="false" tabindex="0">
+                      <!--v-if-->
+                    </div><span class="dashboard-widget-filter-target__name">Chart</span>
+                  </div><i class="iconoir-nav-arrow-right"></i>
+                </div>
+              </div>
+              <!--v-if-->
+            </div>
+          </div>
+        </div>
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+    </div>
+  </div>
+  <teleport-stub to="body">
+    <!--v-if-->
+  </teleport-stub>
+</div>"
+`;

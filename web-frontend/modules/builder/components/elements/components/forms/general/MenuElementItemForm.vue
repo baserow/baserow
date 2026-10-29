@@ -166,7 +166,7 @@ import {
   uuid,
 } from '@baserow/modules/core/utils/string'
 import { LINK_VARIANTS } from '@baserow/modules/builder/enums'
-import SidebarExpandable from '@baserow/modules/builder/components/SidebarExpandable.vue'
+import SidebarExpandable from '@baserow/modules/core/components/SidebarExpandable.vue'
 import { MenuElementType } from '@baserow/modules/builder/elementTypes'
 
 export default {

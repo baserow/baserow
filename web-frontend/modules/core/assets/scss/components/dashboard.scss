@@ -174,3 +174,120 @@ $dashboard-resources-row-min-width: 1044px;
 .dashboard__help {
   @include absolute(auto, 32px, 0, auto);
 }
+
+.dashboard-widget-filters {
+  color: $palette-neutral-1200;
+
+  .filters_footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid $palette-neutral-200;
+  }
+}
+
+.dashboard-widget-filters__target {
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.dashboard-widget-filters__description {
+  margin-bottom: 24px;
+  color: $palette-neutral-900;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.dashboard-widget-filters__group {
+  border: 1px solid $palette-neutral-300;
+  border-radius: 8px;
+  background-color: $white;
+}
+
+.dashboard-widget-filters__group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid $palette-neutral-200;
+}
+
+.dashboard-widget-filters__group-title {
+  margin: 0;
+  color: $palette-neutral-1200;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.dashboard-widget-filters__readonly {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: $palette-neutral-100;
+  color: $palette-neutral-900;
+  font-size: 11px;
+  line-height: 18px;
+}
+
+.dashboard-widget-filters__group-body {
+  padding: 16px;
+}
+
+.dashboard-widget-filters__group--readonly {
+  background-color: $palette-neutral-50;
+
+  .dropdown__selected,
+  .filters__value input:disabled {
+    color: $palette-neutral-900;
+  }
+}
+
+.dashboard-widget-filters__operator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+  color: $palette-neutral-900;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 20px;
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background-color: $palette-neutral-200;
+  }
+}
+
+.dashboard-widget-filters__footer {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid $palette-neutral-200;
+}
+
+.dashboard-widget-filter-target {
+  .sidebar-expandable__content {
+    padding-bottom: 16px;
+  }
+
+  .switch {
+    flex-shrink: 0;
+  }
+}
+
+.dashboard-widget-filter-target__name {
+  min-width: 0;
+  flex: 1;
+
+  @extend %ellipsis;
+}

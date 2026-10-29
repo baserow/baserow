@@ -47,13 +47,16 @@
 .sidebar-expandable__handle {
   width: 10px;
   height: 16px;
-  background-image: radial-gradient($color-neutral-400 40%, transparent 40%);
+  background-image: radial-gradient($palette-neutral-400 40%, transparent 40%);
   background-size: 5px 5px;
   background-repeat: repeat;
   cursor: grab;
 
   &:hover {
-    background-image: radial-gradient($color-neutral-500 40%, transparent 40%);
+    background-image: radial-gradient(
+      $palette-neutral-500 40%,
+      transparent 40%
+    );
   }
 }
 
