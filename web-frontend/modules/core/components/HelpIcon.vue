@@ -44,12 +44,13 @@ export default {
       },
     },
     /**
-     * Iconoir icon name without iconoir- prefix.
+     * The full icon class, like `iconoir-info-empty`, so that the production
+     * build finds the icon and includes it.
      * */
     icon: {
       type: String,
       required: false,
-      default: 'chat-bubble-question',
+      default: 'iconoir-chat-bubble-question',
     },
     /**
      * Additional css classes for tooltip icon
@@ -86,7 +87,7 @@ export default {
     iconClass() {
       const clsNames = this.tooltipClasses ? [this.tooltipClasses] : []
       if (this.icon) {
-        clsNames.push(`iconoir-${this.icon}`)
+        clsNames.push(this.icon)
       }
       return clsNames.join(' ')
     },

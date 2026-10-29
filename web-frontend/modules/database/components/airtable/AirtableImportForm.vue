@@ -33,7 +33,7 @@
             'tooltip__content--expandable',
             'tooltip__content--expandable-plain-text',
           ]"
-          :icon="'info-empty'"
+          :icon="'iconoir-info-empty'"
         />
       </Checkbox>
     </div>
@@ -47,7 +47,7 @@
             'tooltip__content--expandable',
             'tooltip__content--expandable-plain-text',
           ]"
-          :icon="'info-empty'"
+          :icon="'iconoir-info-empty'"
         />
       </Checkbox>
     </div>

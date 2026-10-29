@@ -14,6 +14,12 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { createRequire } from 'node:module'
 
 import head from './head'
+import {
+  patchIconoirStrokeWidth,
+  getLocalModuleDirectories,
+  findUsedIconoirIcons,
+  removeUnusedIconoirIcons,
+} from './iconoir'
 
 import { locales } from '../../config/locales.js'
 
@@ -188,17 +194,30 @@ export default defineNuxtModule({
       path: resolve('./middleware/redirectCompletedOnboarding'),
     })
 
-    // Changes the stroke-width of the iconoir svg files because this way, we don't
-    // have to fork the repository and change it there.
     const iconoirCssPath = require.resolve('iconoir/css/iconoir.css')
-    const patchedIconoirPath = resolve('./assets/scss/vendor/iconoir.scss')
+    // A production build writes a separate file, so that it doesn't replace the
+    // full set of a dev server that's running at the same time.
+    const patchedIconoirPath = resolve(
+      nuxt.options.dev
+        ? './assets/scss/vendor/iconoir.scss'
+        : './assets/scss/vendor/iconoir.subset.scss'
+    )
 
     mkdirSync(pathe.dirname(patchedIconoirPath), { recursive: true })
-    const originalIconoirCss = readFileSync(iconoirCssPath, 'utf-8')
-    const patchedIconoirCss = originalIconoirCss.replace(
-      /stroke-width="1\.5"/g,
-      'stroke-width="2.0"'
+    let patchedIconoirCss = patchIconoirStrokeWidth(
+      readFileSync(iconoirCssPath, 'utf-8')
     )
+    // A production build only keeps the icons used in the code of the Baserow
+    // modules, including additional modules. The dev server keeps all of them, so
+    // that a newly used icon doesn't require a restart.
+    if (!nuxt.options.dev) {
+      // The previously generated files contain all icon names.
+      const usedIcons = findUsedIconoirIcons(
+        getLocalModuleDirectories(nuxt.options),
+        pathe.dirname(patchedIconoirPath)
+      )
+      patchedIconoirCss = removeUnusedIconoirIcons(patchedIconoirCss, usedIcons)
+    }
     writeFileSync(patchedIconoirPath, patchedIconoirCss, 'utf-8')
 
     // Alias the npm import to our patched file

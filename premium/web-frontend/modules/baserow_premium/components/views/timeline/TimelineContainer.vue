@@ -12,9 +12,11 @@
           type="secondary"
           class="timeline-container__header-timescale"
           size="large"
-          :icon="`iconoir-nav-arrow-${
-            $refs.timescaleContext?.isOpen() ? 'up' : 'down'
-          }`"
+          :icon="
+            $refs.timescaleContext?.isOpen()
+              ? 'iconoir-nav-arrow-up'
+              : 'iconoir-nav-arrow-down'
+          "
           @click="toggleTimescaleContext"
         >
           {{ $t(`timelineTimescaleContext.${view.timescale}`) }}

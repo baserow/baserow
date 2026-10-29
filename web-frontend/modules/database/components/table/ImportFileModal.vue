@@ -76,7 +76,7 @@
               <label class="control__label control__label--small">
                 {{ $t('importFileModal.useUpsertField') }}
                 <HelpIcon
-                  :icon="'info-empty'"
+                  :icon="'iconoir-info-empty'"
                   :tooltip="$t('importFileModal.upsertTooltip')"
                 />
               </label>
