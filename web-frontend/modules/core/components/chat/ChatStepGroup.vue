@@ -1,8 +1,8 @@
 <template>
   <div
     class="chat-step-group"
-    :class="{ 'chat-step-group--running': status === 'running' }"
-    :aria-busy="status === 'running'"
+    :class="{ 'chat-step-group--running': status === STEP_STATUS.RUNNING }"
+    :aria-busy="status === STEP_STATUS.RUNNING"
   >
     <button
       v-if="lines.length"
@@ -13,7 +13,7 @@
     >
       <span
         :class="
-          status === 'running'
+          status === STEP_STATUS.RUNNING
             ? 'chat-step-group__spinner'
             : statusIcons[status]
         "
@@ -33,7 +33,7 @@
     <div v-else class="chat-step-group__header">
       <span
         :class="
-          status === 'running'
+          status === STEP_STATUS.RUNNING
             ? 'chat-step-group__spinner'
             : statusIcons[status]
         "
@@ -58,6 +58,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import { STEP_STATUS } from '@baserow/modules/core/chatRuns/constants'
 
 defineProps({
   title: { type: String, required: true },
@@ -68,14 +69,15 @@ defineProps({
 
 const expanded = ref(true)
 const statusIcons = {
-  done: 'iconoir-check-circle chat-step-group__icon--done',
-  failed: 'iconoir-warning-triangle chat-step-group__icon--failed',
-  stopped: 'iconoir-minus-circle chat-step-group__icon--stopped',
+  [STEP_STATUS.DONE]: 'iconoir-check-circle chat-step-group__icon--done',
+  [STEP_STATUS.FAILED]:
+    'iconoir-warning-triangle chat-step-group__icon--failed',
+  [STEP_STATUS.STOPPED]: 'iconoir-minus-circle chat-step-group__icon--stopped',
 }
 const statusLabels = {
-  running: 'toolPresentation.statusRunning',
-  done: 'toolPresentation.statusDone',
-  failed: 'toolPresentation.statusFailed',
-  stopped: 'toolPresentation.statusStopped',
+  [STEP_STATUS.RUNNING]: 'toolPresentation.statusRunning',
+  [STEP_STATUS.DONE]: 'toolPresentation.statusDone',
+  [STEP_STATUS.FAILED]: 'toolPresentation.statusFailed',
+  [STEP_STATUS.STOPPED]: 'toolPresentation.statusStopped',
 }
 </script>

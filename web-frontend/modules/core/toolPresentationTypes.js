@@ -1,11 +1,20 @@
 import { Registerable } from '@baserow/modules/core/registry'
+import { STEP_STATUS } from '@baserow/modules/core/chatRuns/constants'
 
-const STATUSES = new Set(['running', 'done', 'failed', 'stopped'])
+export const WORKSPACE_TOOL_GROUP = 'workspace'
+
+const STATUSES = new Set(Object.values(STEP_STATUS))
+const STATUS_PRIORITY = [
+  STEP_STATUS.RUNNING,
+  STEP_STATUS.FAILED,
+  STEP_STATUS.STOPPED,
+  STEP_STATUS.DONE,
+]
 const FALLBACK_LABELS = {
-  running: 'Using a tool',
-  done: 'Tool completed',
-  failed: 'Tool failed',
-  stopped: 'Tool interrupted',
+  [STEP_STATUS.RUNNING]: 'Using a tool',
+  [STEP_STATUS.DONE]: 'Tool completed',
+  [STEP_STATUS.FAILED]: 'Tool failed',
+  [STEP_STATUS.STOPPED]: 'Tool interrupted',
 }
 
 /**
@@ -54,7 +63,7 @@ function genericText(t, key, fallback) {
 /** Resolve a safe activity without letting an unknown or broken type break chat. */
 export function toolActivity(step, registry, t) {
   const data = record(step)
-  const status = STATUSES.has(data.status) ? data.status : 'stopped'
+  const status = STATUSES.has(data.status) ? data.status : STEP_STATUS.STOPPED
   const fallback = {
     id: data.id,
     title: genericText(
@@ -103,7 +112,7 @@ export function groupToolSteps(steps, registry, t) {
   const groups = []
   for (const step of Array.isArray(steps) ? steps : []) {
     const activity = toolActivity(step, registry, t)
-    if (activity.group !== 'workspace') {
+    if (activity.group !== WORKSPACE_TOOL_GROUP) {
       groups.push({ ...activity, lines: [] })
       continue
     }
@@ -119,14 +128,14 @@ export function groupToolSteps(steps, registry, t) {
       groups.push(group)
     }
     group.lines.push(activity)
-    group.status = ['running', 'failed', 'stopped', 'done'].find((status) =>
+    group.status = STATUS_PRIORITY.find((status) =>
       group.lines.some((line) => line.status === status)
     )
     group.title = genericText(
       t,
-      group.status === 'running'
+      group.status === STEP_STATUS.RUNNING
         ? 'toolPresentation.workspaceRunning'
-        : group.status === 'done'
+        : group.status === STEP_STATUS.DONE
           ? 'toolPresentation.workspaceDone'
           : 'toolPresentation.workspace',
       'Workspace activity'

@@ -43,7 +43,10 @@ import ChatMessage from '@baserow/modules/core/components/chat/ChatMessage'
 import ChatTyping from '@baserow/modules/core/components/chat/ChatTyping'
 import ChatStepGroup from '@baserow/modules/core/components/chat/ChatStepGroup'
 import { groupToolSteps } from '@baserow/modules/core/toolPresentationTypes'
-import { isTerminalStatus } from '@baserow/modules/core/chatRuns/constants'
+import {
+  isTerminalStatus,
+  STEP_STATUS,
+} from '@baserow/modules/core/chatRuns/constants'
 import { injectNow } from '@baserow/modules/core/composables/useNow'
 import { getHumanAgoLabel } from '@baserow/modules/core/utils/date'
 import { replyOutcome } from '@baserow/modules/agent/utils/replies'
@@ -81,7 +84,7 @@ const groups = computed(() =>
   own.value ? [] : groupToolSteps(shown.value.steps, $registry, t)
 )
 const toolRunning = computed(() =>
-  shown.value.steps?.some((step) => step.status === 'running')
+  shown.value.steps?.some((step) => step.status === STEP_STATUS.RUNNING)
 )
 const outcome = computed(() => replyOutcome(shown.value))
 </script>

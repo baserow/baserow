@@ -11,6 +11,13 @@ export const RUN_FINISHED = 'run.finished'
 export const RUN_BASELINE = 'run.baseline'
 export const RUN_HEARTBEAT = 'run.heartbeat'
 
+export const STEP_STATUS = Object.freeze({
+  RUNNING: 'running',
+  DONE: 'done',
+  FAILED: 'failed',
+  STOPPED: 'stopped',
+})
+
 export const RUN_STATUS = {
   QUEUED: 'queued',
   RUNNING: 'running',
