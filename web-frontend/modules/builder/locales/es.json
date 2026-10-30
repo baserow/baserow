@@ -968,7 +968,7 @@
         "empty": "No hay opciones disponibles"
     },
     "collectionElementForm": {
-        "noSchemaPropertyMessage": "Elige una propiedad de origen de datos para usarla como el origen de los datos para tu elemento.",
+        "noSchemaPropertyMessage": "Elige una propiedad en la fuente de datos que se utilizará como la lista de datos de tu elemento.",
         "noDataSourceMessage": "Elige una fuente de datos con varias filas para enumerar todos los resultados, o un origen para los datos de una sola fila para elegir una propiedad dentro de esta fila.",
         "propertyOptionLabel": "Acciones del usuario"
     },
@@ -984,7 +984,7 @@
         "noProperties": "No hay propiedades disponibles"
     },
     "dataSourceDropdown": {
-        "label": "Origen de los datos",
+        "label": "Fuente de datos",
         "noDataSources": "Sin origen para los datos disponibles",
         "shared": "compartido",
         "pageOnly": "esta página",
@@ -1017,7 +1017,7 @@
     "propertyOptionForm": {
         "sortHeading": "Ordenar",
         "searchHeading": "Búsqueda",
-        "formDescription": "Elige qué propiedades dentro de la página de origen de datos de este elemento pueden filtrar, ordenar y buscar los visitantes.",
+        "formDescription": "Elige qué propiedades dentro de la página de la fuente de datos de este elemento pueden filtrar, ordenar y buscar los visitantes.",
         "fieldHeading": "Campo",
         "filterHeading": "Filtro",
         "optionUnavailable": "No disponible",
@@ -1058,8 +1058,8 @@
     },
     "builderLoginPageForm": {
         "pageDropdownLabel": "Página de inicio de sesión",
-        "pageDropdownPlaceholder": "Seleccione una página",
-        "pageDropdownDescription": "Seleccione la página de inicio de sesión a la que deben redirigirse los usuarios que no hayan iniciado sesión cuando intenten acceder a una página restringida."
+        "pageDropdownPlaceholder": "Selecciona una página",
+        "pageDropdownDescription": "Selecciona la página de inicio de sesión a la que deben redirigirse los usuarios que no hayan iniciado sesión cuando intenten acceder a una página restringida."
     },
     "multiPageContainerElementForm": {
         "behaviour": "Comportamiento",
