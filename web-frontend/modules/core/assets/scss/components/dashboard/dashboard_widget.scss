@@ -233,4 +233,30 @@ body.dashboard-widget-grid--resizing * {
   &__item--snap-resizing .vgl-item__resizer {
     color: $palette-blue-500;
   }
+
+  .vgl-item:has(> .dashboard-widget--plain) > .vgl-item__resizer {
+    bottom: 0;
+    width: 12px;
+    height: 12px;
+
+    &::before {
+      inset: 0;
+      width: 12px;
+      height: 12px;
+    }
+  }
+
+  .dashboard-widget-grid__item--compact:has(> .dashboard-widget--plain)
+    > .vgl-item__resizer {
+    right: 4px;
+    bottom: 10px;
+  }
+}
+
+.dashboard-widget.dashboard-widget--plain {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
 }

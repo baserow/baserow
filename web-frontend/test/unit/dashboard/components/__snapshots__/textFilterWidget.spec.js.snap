@@ -1,3 +1,25 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`TextFilterWidget > renders an accessible input and preserves viewer values across unrelated changes 1`] = `"<div class="dashboard-text-filter-widget"><input class="dashboard-text-filter-widget__input" type="text" aria-label="Search" placeholder="Type here"></div>"`;
+exports[`TextFilterWidget > renders an accessible input and preserves viewer values across unrelated changes 1`] = `
+"<div data-form-error="false" class="control dashboard-text-filter-widget"><label for="v-0-0-0" class="control__label control__label--small"><span>Search</span>
+    <!--v-if-->
+    <!--v-if-->
+    <!--v-if-->
+  </label>
+  <div class="control__wrapper">
+    <div class="control__elements">
+      <div class="control__elements-wrapper">
+        <div class="form-input form-input--icon-left form-input--suffix dashboard-text-filter-widget__input dashboard-text-filter-widget__input--active"><i class="form-input__icon form-input__icon-left iconoir-filter"></i>
+          <div class="form-input__wrapper"><input id="v-0-0-0" class="form-input__input" type="text" min="false" max="false" step="false" placeholder="Type here" autocomplete="" value="Initial">
+            <!--v-if-->
+            <!--v-if-->
+          </div>
+          <div class="form-input__suffix"></div>
+        </div>
+      </div>
+      <!--v-if-->
+    </div>
+    <!--v-if-->
+  </div>
+</div>"
+`;

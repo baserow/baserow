@@ -44,12 +44,13 @@
         :is-draggable="canManipulateLayout"
         :is-resizable="canManipulateLayout"
         :class="{
+          'dashboard-widget-grid__item--compact': layoutItem.h === 2,
           'dashboard-widget-grid__item--snap-resizing':
             isResizingWidget(layoutItem),
         }"
         :style="getGridItemResizeStyle(layoutItem)"
         :data-testid="`dashboard-widget-grid-item-${layoutItem.i}`"
-        drag-allow-from=".widget__header"
+        drag-allow-from=".widget__header, .dashboard-text-filter-widget > .control__label"
         drag-ignore-from=".widget__header-context-menu, a, button"
         @pointerdown.capture="startResize(layoutItem, $event)"
         @pointerup.capture="clearResizeState"

@@ -71,6 +71,10 @@ export class WidgetType extends Registerable {
     return true
   }
 
+  get hasCard() {
+    return true
+  }
+
   isAvailable() {
     return true
   }
@@ -174,6 +178,10 @@ export class SummaryWidgetType extends DataSourceWidgetType {
 }
 
 export class FilterWidgetType extends WidgetType {
+  get hasCard() {
+    return false
+  }
+
   get isFilterWidget() {
     return true
   }

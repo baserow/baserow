@@ -119,11 +119,11 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
     ]
     grid_layout = WidgetGridLayout(
         default_width=2,
-        default_height=4,
+        default_height=2,
         min_width=1,
-        min_height=4,
+        min_height=2,
         max_width=6,
-        max_height=6,
+        max_height=3,
     )
 
     class SerializedDict(WidgetDict):
