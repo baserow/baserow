@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock
 from uuid import uuid4
 
 from django.http import StreamingHttpResponse
+from django.urls import reverse
 
 import pytest
 from asgiref.sync import SyncToAsync
@@ -86,9 +87,10 @@ async def test_atomic_append_replay_limits_and_blocked_followers(monkeypatch):
 
 
 async def test_hundred_http_followers_leave_rest_and_threads_available(monkeypatch):
-    monkeypatch.setattr(streaming, "_paths", [])
-    streaming.register_async_stream_path(r"/chat/stream/")
+    monkeypatch.setattr(streaming, "_url_names", {})
+    streaming.register_async_stream_path("api:chat_runs:stream")
     run = SimpleNamespace(id=uuid4())
+    stream_path = reverse("api:chat_runs:stream", kwargs={"run_id": run.id})
     writer = ChatRunBuffer(run.id)
     await writer.append([("run.started", {})])
     threads_before = set(threading.enumerate())
@@ -97,7 +99,7 @@ async def test_hundred_http_followers_leave_rest_and_threads_available(monkeypat
     queues = [asyncio.Queue() for _ in range(100)]
     tasks = []
 
-    def scope(index=None, path="/chat/stream/"):
+    def scope(index=None, path=stream_path):
         return {
             "type": "http",
             "http_version": "1.1",

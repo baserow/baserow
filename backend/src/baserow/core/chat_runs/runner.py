@@ -82,9 +82,10 @@ def _finish(
             if not handler.lock_running_run(run.id):
                 return None
             message = run_type.persist_outcome(run, outcome)
-            if not handler.finish_run(
+            finished = handler.finish_run(
                 run.id, outcome.status, outcome.error_code, message
-            ):
+            )
+            if finished is None:
                 raise _RunEndedElsewhere()
     except _RunEndedElsewhere:
         return None
@@ -94,7 +95,7 @@ def _finish(
         )
     else:
         try:
-            return serialize_run(handler.get_run(run.id))
+            return serialize_run(finished)
         except Exception as exc:
             logger.error(
                 "Could not serialize outcome of chat run {} ({})",
@@ -108,10 +109,9 @@ def _finish(
     with transaction.atomic():
         if not handler.lock_running_run(run.id):
             return None
-        handler.finish_run(
+        failed = handler.finish_run(
             run.id, ChatRunStatus.FAILED, ChatRunErrorCode.PERSIST_FAILED
         )
-        failed = handler.get_run(run.id)
         try:
             with transaction.atomic():
                 run_type.ensure_interruption_warning(failed)

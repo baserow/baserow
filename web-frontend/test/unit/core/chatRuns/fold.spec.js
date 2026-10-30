@@ -46,6 +46,26 @@ describe('foldRunEvent', () => {
       [['run.finished', { status: 'failed', error_code: 'timeout', message }]],
       { status: 'failed', errorCode: 'timeout', message },
     ],
+    [
+      'a baseline replaces the output',
+      [
+        delta(0, 'Hel'),
+        [
+          'run.baseline',
+          { segment: 0, text: 'Hello', progress: { text: 'Reading' } },
+        ],
+      ],
+      { segment: 0, text: 'Hello', progress: 'Reading' },
+    ],
+    [
+      'an empty baseline clears the output',
+      [
+        delta(0, 'Hel'),
+        ['progress', { text: 'Reading' }],
+        ['run.baseline', { segment: null, text: '', progress: null }],
+      ],
+      { segment: -1, text: '', progress: '' },
+    ],
   ])('%s', (_, events, expected) => {
     expect(fold(events)).toMatchObject(expected)
   })

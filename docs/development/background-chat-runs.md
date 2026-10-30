@@ -81,7 +81,7 @@ independently.
 | Celery: watch for Stop | The runner starts `journal.keep_alive`, which calls `ChatRunHandler.renew_lease` through `sync_to_async`. It sets `journal.stop_requested` when cancellation is requested. The adapter observes it and lets running tools finish. |
 | Celery: save the answer | When `execute` returns a `ChatRunOutcome`, the runner calls `_finish` through `sync_to_async`. `_finish` calls the adapter's `persist_outcome` and the handler's `finish_run` in one transaction. After commit, the runner calls `journal.publish_finished`. |
 | HTTP: stream output | The view returns an iterator without running it. On the HTTP event loop, `_send_response` consumes the product's iterator, which consumes `follow_run`. The follower calls `ChatRunBuffer.read` to wait for Redis output. |
-| HTTP: check durable state | `follow_run` calls `_read_state` through `sync_to_async`. When the stream opens, it calls `ChatRunService.snapshot`, which checks `can_read` once. Later reads skip that check and happen only on `run.finished` or after 5 s without output. Each read calls `serialize_outcome`, which also supplies the final saved result. |
+| HTTP: check durable state | `follow_run` calls `_read_state` through `sync_to_async`. When the stream opens, the core view checks `can_read` through `ChatRunService.get_run` and passes the serialized run to `follow_run` as `initial_state`. Later reads skip that check and happen only on `run.finished` or after 5 s without output. Each read calls `serialize_outcome`, which also supplies the final saved result. |
 
 `async_to_sync` and `sync_to_async` bridge synchronous and async code within the
 current process. They do not enqueue Celery tasks. The journal's flushing and
@@ -137,13 +137,30 @@ The three access checks are separate on purpose: someone may be allowed to see
 a run but not stop it. `can_follow_chat` checks websocket subscriptions; HTTP
 output followers use `can_read`.
 
-For streaming, register the view's path with `register_async_stream_path` from
-`baserow.config.streaming`. The view returns an async `StreamingHttpResponse` over
-`follow_run(run, user, cursor)`. Check authentication, permissions and the cursor
-before returning HTTP 200. Once streaming starts, the status cannot change.
+Each run type limits only its own active runs. By default a user can have two
+at once; override `get_max_active_runs_per_user` (None for no limit) or
+`get_max_active_runs_per_workspace` to change that. At a limit, `create_run`
+raises `ChatRunLimitReached`, which the product turns into its own error.
 
-On the frontend, register a `ChatRunType` from `chatRuns/chatRunType.js`. It
-opens the product's stream and turns its records into what the UI shows.
+Core serves `GET /api/chat-runs/<run_id>/stream/?cursor=` for every run type. Its
+URL name is registered with the stream router through `register_async_stream_path`
+from `baserow.config.streaming`, and deployments route `/api/chat-runs/` to the
+ASGI service. A product needs no stream path or view of its own. The endpoint
+relays every buffered event to anyone `can_read` admits, so a run type must only
+emit output that every reader of the run may see.
+
+On the frontend, register a `ChatRunType` from `chatRuns/chatRunType.js`. By
+default it reads that stream and handles the resume baseline: the record that
+rebuilds the output before the cursor a follower resumes from. The product only
+folds its own events into what the UI shows, in `foldEvent`.
+
+To follow runs that other tabs start, a product subscribes to one chat per run
+type with `chatRuns/subscribeToChat` and releases it with
+`chatRuns/unsubscribeFromChat`. Websocket lifecycle messages are not replayed, so
+the store calls the type's `refreshChat` when the subscription is confirmed again
+after a reconnect. While no output arrives, an open stream sends a
+`run.heartbeat` record about every 5 seconds; the store restarts a stream that
+sends nothing for 15 seconds.
 
 ## When things go wrong
 

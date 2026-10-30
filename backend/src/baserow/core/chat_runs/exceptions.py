@@ -14,7 +14,7 @@ class ChatRunAlreadyActive(Exception):
 
 
 class ChatRunLimitReached(Exception):
-    """Raised when a user already has the maximum number of active runs."""
+    """Raised when a user or a workspace has its maximum of active runs of a type."""
 
 
 class ChatRunDoesNotExist(Exception):

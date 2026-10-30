@@ -7,6 +7,7 @@ from freezegun import freeze_time
 from health_check.exceptions import ServiceWarning
 from health_check.plugins import plugin_dir
 
+from baserow.config import streaming
 from baserow.core import tasks
 from baserow.core.chat_runs.constants import PRUNE_INTERVAL, SWEEP_INTERVAL
 from baserow.core.chat_runs.health_checks import ChatRunsHealthCheck
@@ -29,6 +30,7 @@ def test_engine_model_tasks_health_and_discovery_belong_to_core():
     assert execute_chat_run.ignore_result
     assert isinstance(page_registry.get("chat_runs"), ChatRunsPageType)
     assert ChatRunsHealthCheck in [entry[0] for entry in plugin_dir._registry]
+    assert streaming._url_names["api:chat_runs:stream"] == ("GET",)
     sender = MagicMock()
     tasks.setup_periodic_chat_run_tasks(sender)
     scheduled = [

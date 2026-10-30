@@ -4,7 +4,9 @@ import {
   MAX_RECONNECT_ATTEMPTS,
   MAX_FINISHED_FOLLOWERS,
   RUN_FINISHED,
+  RUN_HEARTBEAT,
   STATUS_CHECK_MS,
+  STREAM_IDLE_MS,
   isTerminalStatus,
 } from '@baserow/modules/core/chatRuns/constants'
 import {
@@ -31,6 +33,15 @@ function stopRuntime(store, runId) {
   current.controller?.abort()
   current.controller = null
 }
+/** End a stream that delivered nothing for too long, so it can reconnect. */
+function restartIfSilent(store, runId) {
+  const { controller, lastRecordAt } = runtime(store, runId)
+  if (!controller || Date.now() - lastRecordAt < STREAM_IDLE_MS) return
+  controller.abort()
+  // An adopted stream belongs to the product's request, not to `connect`.
+  store.dispatch('chatRuns/streamEnded', { runId, controller })
+}
+/** Read the status of a follower without a stream; an open stream reports it. */
 function scheduleStatus(store, runId) {
   const follower = store.state.chatRuns.followers[runId]
   if (!import.meta.client || !follower || follower.finished) return
@@ -38,10 +49,13 @@ function scheduleStatus(store, runId) {
   if (current.suspended) return
   clearTimeout(current.timer)
   current.timer = setTimeout(() => {
-    if (store.getters['auth/isAuthenticated']) {
-      store.dispatch('chatRuns/checkStatus', runId)
-    } else {
+    if (!store.getters['auth/isAuthenticated']) {
       stopRuntime(store, runId)
+    } else if (follower.streaming) {
+      restartIfSilent(store, runId)
+      scheduleStatus(store, runId)
+    } else {
+      store.dispatch('chatRuns/checkStatus', runId)
     }
   }, STATUS_CHECK_MS)
 }
@@ -49,8 +63,14 @@ const pageParameters = ({ runType, chatId }) => ({
   run_type: runType,
   chat_id: chatId,
 })
+// A confirmation from another socket means lifecycle messages may have been missed.
+const subscriptionSockets = new WeakMap()
+function sockets(store) {
+  if (!subscriptionSockets.has(store)) subscriptionSockets.set(store, new Map())
+  return subscriptionSockets.get(store)
+}
 
-export const state = () => ({ followers: {}, subscription: null })
+export const state = () => ({ followers: {}, subscriptions: {} })
 
 export const mutations = {
   ADD_FOLLOWER(state, follower) {
@@ -62,25 +82,39 @@ export const mutations = {
   REMOVE_FOLLOWER(state, runId) {
     delete state.followers[runId]
   },
-  SET_SUBSCRIPTION(state, subscription) {
-    state.subscription = subscription
+  SET_SUBSCRIPTION(state, { runType, chatId }) {
+    state.subscriptions[runType] = chatId
+  },
+  REMOVE_SUBSCRIPTION(state, runType) {
+    delete state.subscriptions[runType]
   },
 }
 
 export const actions = {
-  subscribeToChat({ state, commit }, subscription) {
+  /** Follow the runs other tabs start in one chat per run type. */
+  subscribeToChat({ state, commit }, { runType, chatId }) {
+    const current = state.subscriptions[runType]
+    if (current === chatId) return
     const realtime = this.app.$realtime
-    const current = state.subscription
-    if (
-      current?.runType === subscription.runType &&
-      current?.chatId === subscription.chatId
-    ) {
-      realtime.subscribeToPage(CHAT_RUNS_PAGE, pageParameters(subscription))
-      return
+    if (current !== undefined) {
+      realtime.unsubscribe(
+        CHAT_RUNS_PAGE,
+        pageParameters({ runType, chatId: current })
+      )
     }
-    if (current) realtime.unsubscribe(CHAT_RUNS_PAGE, pageParameters(current))
-    realtime.subscribe(CHAT_RUNS_PAGE, pageParameters(subscription))
-    commit('SET_SUBSCRIPTION', subscription)
+    realtime.subscribe(CHAT_RUNS_PAGE, pageParameters({ runType, chatId }))
+    sockets(this).set(runType, realtime.connected ? realtime.socket : null)
+    commit('SET_SUBSCRIPTION', { runType, chatId })
+  },
+
+  unsubscribeFromChat({ state, commit }, { runType, chatId }) {
+    if (state.subscriptions[runType] !== chatId) return
+    this.app.$realtime.unsubscribe(
+      CHAT_RUNS_PAGE,
+      pageParameters({ runType, chatId })
+    )
+    sockets(this).delete(runType)
+    commit('REMOVE_SUBSCRIPTION', runType)
   },
 
   /** Register a run, optionally adopting the original send's already-open stream. */
@@ -117,10 +151,12 @@ export const actions = {
       const previous = runtime(this, runId).controller
       if (previous && previous !== controller) previous.abort()
       runtime(this, runId).controller = controller
+      runtime(this, runId).lastRecordAt = Date.now()
       commit('UPDATE_FOLLOWER', { runId, values: { streaming: true } })
     }
     scheduleStatus(this, runId)
-    if (attach && !follower.streaming) dispatch('checkStatus', runId)
+    // The stream ends at once with the saved result of a run that already ended.
+    if (attach && !follower.streaming) dispatch('connect', runId)
   },
 
   /** Open only a read-only follower; reconnect never calls a product send API. */
@@ -138,6 +174,7 @@ export const actions = {
     }
     const controller = new AbortController()
     runtime(this, runId).controller = controller
+    runtime(this, runId).lastRecordAt = Date.now()
     commit('UPDATE_FOLLOWER', {
       runId,
       values: {
@@ -146,8 +183,8 @@ export const actions = {
       },
     })
     const type = this.$registry.get('chatRunType', follower.runType)
-    // The promise remains owned here after the UI closes. Status checks continue
-    // even while an HTTP connection is alive but the Redis buffer is unavailable.
+    let refused = false
+    // The promise remains owned here after the UI closes.
     Promise.resolve()
       .then(() =>
         type.openStream(
@@ -158,21 +195,30 @@ export const actions = {
       )
       .catch((error) => {
         if (runtimes.get(this)?.get(runId)?.controller !== controller) return
-        if ([401, 403, 404].includes(error.response?.status)) {
+        const status = error.response?.status
+        if ([401, 403, 404].includes(status)) {
           dispatch('unavailable', runId)
         }
+        refused = status === 503
       })
-      .finally(() => dispatch('streamEnded', { runId, controller }))
+      .finally(() => dispatch('streamEnded', { runId, controller, refused }))
   },
 
-  streamEnded({ state, commit, dispatch }, { runId, controller }) {
+  streamEnded(
+    { state, commit, dispatch },
+    { runId, controller, refused = false }
+  ) {
     const follower = state.followers[runId]
     if (!follower) return
     const current = runtime(this, runId)
     if (current.controller !== controller) return
     current.controller = null
     commit('UPDATE_FOLLOWER', { runId, values: { streaming: false } })
-    if (!follower.finished && !current.suspended) {
+    if (follower.finished || current.suspended) return
+    // A server out of stream slots asks to retry later, not at once.
+    if (refused) {
+      scheduleStatus(this, runId)
+    } else {
       dispatch('checkStatus', runId)
     }
   },
@@ -189,10 +235,12 @@ export const actions = {
     ) {
       return
     }
+    current.lastRecordAt = Date.now()
     const type = this.$registry.get('chatRunType', follower.runType)
     const metadata = type.getRecordMetadata(record) || {}
     if (metadata.id && metadata.id !== runId) return
     const event = type.getRecordEvent(record)
+    if (event?.kind === RUN_HEARTBEAT) return
     // A terminal record comes from the committed primary outcome, even when the
     // temporary buffer or its cursor has become unusable.
     if (event?.kind === RUN_FINISHED) {
@@ -344,13 +392,20 @@ export const actions = {
     }
   },
 
-  refresh({ state, commit, dispatch }, runId) {
-    const follower = state.followers[runId]
-    if (!follower || follower.finished) return
-    // User focus/reopen permits another bounded attachment attempt. A missing
-    // replay buffer still waits for the durable answer instead of looping.
-    commit('UPDATE_FOLLOWER', { runId, values: { reconnectAttempts: 0 } })
-    return dispatch('checkStatus', runId)
+  /** Focus or a regained network permits another bounded attempt to stream. */
+  resumeFollowers({ state, commit, dispatch }) {
+    for (const { runId, finished, streaming } of Object.values(
+      state.followers
+    )) {
+      if (finished) continue
+      // Timers pause while a computer sleeps, so check the silence on waking.
+      if (streaming) {
+        restartIfSilent(this, runId)
+        continue
+      }
+      commit('UPDATE_FOLLOWER', { runId, values: { reconnectAttempts: 0 } })
+      dispatch('connect', runId)
+    }
   },
 
   unavailable({ commit, dispatch }, runId) {
@@ -365,38 +420,38 @@ export const actions = {
   /** Lightweight discovery only: output always arrives through HTTP. */
   handleChanged({ state, dispatch }, { runId, runType, chatId }) {
     const follower = state.followers[runId]
-    if (follower) return dispatch('checkStatus', runId)
-    const subscription = state.subscription
-    if (subscription?.runType === runType && subscription?.chatId === chatId) {
+    if (follower) {
+      // An open stream brings the change itself, unless it lost the output.
+      if (!follower.streaming || follower.replayUnavailable) {
+        return dispatch('checkStatus', runId)
+      }
+      return
+    }
+    if (state.subscriptions[runType] === chatId) {
       return dispatch('follow', { runId, runType, chatId })
     }
   },
 
-  handlePageAdd({ getters, dispatch }, { run_type: runType, chat_id: chatId }) {
+  /** Recover what a resubscription after a websocket reconnect may have missed. */
+  handlePageAdd(
+    { state, getters, dispatch },
+    { run_type: runType, chat_id: chatId }
+  ) {
+    if (state.subscriptions[runType] !== Number(chatId)) return
+    const socket = this.app.$realtime.socket
+    if (sockets(this).get(runType) === socket) return
+    sockets(this).set(runType, socket)
     for (const follower of getters.getFollowersOfChat(
       runType,
       Number(chatId)
     )) {
-      if (!follower.finished) dispatch('checkStatus', follower.runId)
-    }
-    dispatch('refreshSubscription')
-  },
-
-  refreshSubscription({ state, getters, dispatch }, { retry = false } = {}) {
-    const current = state.subscription
-    if (current) {
-      if (retry) {
-        for (const follower of getters.getFollowersOfChat(
-          current.runType,
-          current.chatId
-        )) {
-          if (!follower.finished) dispatch('refresh', follower.runId)
-        }
+      if (!follower.finished && !follower.streaming) {
+        dispatch('checkStatus', follower.runId)
       }
-      return this.$registry
-        .get('chatRunType', current.runType)
-        .refreshChat(current.chatId)
     }
+    return this.$registry
+      .get('chatRunType', runType)
+      .refreshChat(Number(chatId))
   },
 
   async cancelRun({ state, commit, dispatch }, runId) {
@@ -405,7 +460,8 @@ export const actions = {
     commit('UPDATE_FOLLOWER', { runId, values: { stopRequested: true } })
     try {
       await chatRunsService(this.$client).cancel(runId)
-      await dispatch('checkStatus', runId)
+      // An open stream brings the cancellation and the end itself.
+      if (!follower.streaming) await dispatch('checkStatus', runId)
     } catch (error) {
       commit('UPDATE_FOLLOWER', { runId, values: { stopRequested: false } })
       throw error

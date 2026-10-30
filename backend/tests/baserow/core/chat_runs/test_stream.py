@@ -57,6 +57,7 @@ async def test_resume_baseline_survives_appends_and_suppresses_catchup_effects(
         text = await anext(follower)
         assert baseline["kind"] == "run.baseline"
         assert baseline["data"]["text"] == "Hello"
+        assert baseline["cursor"] == prefix[-1]["cursor"]
         assert navigation["kind"] == "navigation"
         assert navigation["replayed"]
         assert text["data"]["text"] == " there"

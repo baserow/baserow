@@ -95,6 +95,7 @@ class ChatRunJournal:
         self._stop_reason: ChatRunStopReason | None = None
         self._stopped = asyncio.Event()
         self._wake = asyncio.Event()
+        self._flushed_at = float("-inf")
         self._flush_lock = asyncio.Lock()
         self._loop = asyncio.get_running_loop()
         self._loop_thread_id = threading.get_ident()
@@ -154,6 +155,7 @@ class ChatRunJournal:
             self._pending_bytes = 0
             try:
                 await self.buffer.append(batch)
+                self._flushed_at = self._loop.time()
             except Exception:
                 # A timeout can mean the append committed. Never retry it, and
                 # never append an incomplete suffix after an eviction/outage.
@@ -265,7 +267,11 @@ class ChatRunJournal:
             return
         self._pending.append((kind, data))
         self._pending_bytes += size
-        if flush_now:
+        # Output after a quiet moment goes out at once; the rest waits for the timer.
+        if flush_now or (
+            not self._flush_lock.locked()
+            and self._loop.time() - self._flushed_at >= FLUSH_INTERVAL_SECONDS
+        ):
             self._wake.set()
 
     def _add_text(self, text: str, variant: str | None = None) -> None:
