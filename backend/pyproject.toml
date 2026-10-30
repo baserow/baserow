@@ -75,7 +75,7 @@ dependencies = [
     "opentelemetry-sdk==1.39.1",
     "opentelemetry-semantic-conventions==0.60b1",
     "opentelemetry-util-http==0.60b1",
-    "Brotli==1.2.0",
+    "Brotli==1.2.1",
     "loguru==0.7.3",
     "django-cachalot==2.8.0",
     "celery-singleton==0.3.1",
