@@ -302,7 +302,8 @@
         "workspaceSettingsDescription": "Tato integrace ve výchozím nastavení dědí nastavení poskytovatele AI z pracovního prostoru. Přepsání poskytovatele je samostatné: uveďte vlastní přihlašovací údaje nebo hostitele, protože připojovací pole se nikdy nekombinují se zděděnými přihlašovacími údaji.",
         "overrideWorkspaceSettings": "Přepsat nastavení pracovního prostoru pro tohoto poskytovatele",
         "inherited": "Zděděno",
-        "overridden": "Přepsáno"
+        "overridden": "Přepsáno",
+        "apiKeyKeepPlaceholder": "Chcete-li zachovat uložený klíč API, nechte prázdné"
     },
     "aiAgentServiceForm": {
         "integrationLabel": "Připojení",
