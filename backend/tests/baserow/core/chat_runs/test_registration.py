@@ -1,8 +1,6 @@
 from unittest.mock import MagicMock
-from uuid import uuid4
 
 from django.apps import apps
-from django.urls import reverse
 
 import pytest
 from freezegun import freeze_time
@@ -32,11 +30,7 @@ def test_engine_model_tasks_health_and_discovery_belong_to_core():
     assert execute_chat_run.ignore_result
     assert isinstance(page_registry.get("chat_runs"), ChatRunsPageType)
     assert ChatRunsHealthCheck in [entry[0] for entry in plugin_dir._registry]
-    stream = reverse("api:chat_runs:stream", kwargs={"run_id": uuid4()})
-    assert any(
-        methods == ("GET",) and pattern.fullmatch(stream)
-        for pattern, methods in streaming._paths
-    )
+    assert streaming._url_names["api:chat_runs:stream"] == ("GET",)
     sender = MagicMock()
     tasks.setup_periodic_chat_run_tasks(sender)
     scheduled = [

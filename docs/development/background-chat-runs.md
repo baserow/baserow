@@ -143,7 +143,7 @@ at once; override `get_max_active_runs_per_user` (None for no limit) or
 raises `ChatRunLimitReached`, which the product turns into its own error.
 
 Core serves `GET /api/chat-runs/<run_id>/stream/?cursor=` for every run type. Its
-path is registered with the stream router through `register_async_stream_path`
+URL name is registered with the stream router through `register_async_stream_path`
 from `baserow.config.streaming`, and deployments route `/api/chat-runs/` to the
 ASGI service. A product needs no stream path or view of its own. The endpoint
 relays every buffered event to anyone `can_read` admits, so a run type must only

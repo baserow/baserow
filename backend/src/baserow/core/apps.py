@@ -741,9 +741,7 @@ class CoreConfig(AppConfig):
 
         plugin_dir.register(ChatRunsHealthCheck)
         page_registry.register(ChatRunsPageType())
-        register_async_stream_path(
-            r"^/api/chat-runs/[0-9a-fA-F-]+/stream/$", methods=("GET",)
-        )
+        register_async_stream_path("api:chat_runs:stream", methods=("GET",))
 
         import baserow.core.import_export.tasks  # noqa: F403, F401
         import baserow.core.integrations.receivers  # noqa: F403, F401
