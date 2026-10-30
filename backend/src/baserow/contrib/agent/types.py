@@ -1,8 +1,9 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal, TypedDict
 from uuid import UUID
 
 from baserow.core.models import Workspace
+from baserow.core.types import Subject
 
 from .models import AgentApplication, AgentConversation, AgentMessage
 
@@ -16,6 +17,7 @@ class AgentConfiguration(TypedDict):
     model_identifier: str | None
     run_as_subject_type: str | None
     run_as_subject_id: int | None
+    allowed_tools: list[str]
     errors: dict[str, str]
 
 
@@ -44,6 +46,12 @@ class AgentReplyRequest:
     model_identifier: str
     prompt: str
     history: list[AgentMessage]
+    acting_subject: Subject | None = None
+    """Who the tools act as, or None for no workspace access."""
+    allowed_tool_names: list[str] = field(default_factory=list)
+    """The tools the reply may call, none without an identity to act as."""
+    timezone: str | None = None
+    """The timezone of the owner, for the dates the tools read and write."""
 
 
 @dataclass(frozen=True)

@@ -10,6 +10,7 @@ from baserow.contrib.agent.api.serializers import AgentApplicationSerializer
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication
 from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
+from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
 from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
@@ -63,7 +64,7 @@ class AgentApplicationType(ApplicationType):
         # Ids from another instance or template could match unrelated identities.
         if not import_export_config.is_duplicate or import_export_config.is_template:
             return None, None
-        if workspace is None or AgentHandler().is_run_as_subject_usable(
+        if workspace is None or AgentHandler().get_usable_run_as_subject(
             *run_as, workspace
         ):
             return run_as
@@ -97,6 +98,18 @@ class AgentApplicationType(ApplicationType):
             user, workspace, init_with_data=init_with_data, **kwargs
         )
 
+    def after_create(self, instance: AgentApplication, values: dict) -> None:
+        """New Agents start with the tools that only read data."""
+
+        AgentHandler().set_allowed_tools(
+            instance,
+            [
+                tool_type.type
+                for tool_type in agent_tool_type_registry.get_all()
+                if not tool_type.changes_data
+            ],
+        )
+
     def export_serialized(
         self,
         application: AgentApplication,
@@ -123,6 +136,7 @@ class AgentApplicationType(ApplicationType):
             model_identifier=application.model_identifier,
             run_as_subject_type=application.run_as_subject_type,
             run_as_subject_id=application.run_as_subject_id,
+            allowed_tools=AgentHandler().get_allowed_tool_names(application),
         )
         if self._includes_conversations(import_export_config):
             serialized["conversations"] = AgentHandler().export_conversations(
@@ -158,6 +172,15 @@ class AgentApplicationType(ApplicationType):
             self._imported_run_as(workspace, serialized_values, import_export_config)
         )
         application.save()
+        registered = agent_tool_type_registry.get_types()
+        AgentHandler().set_allowed_tools(
+            application,
+            [
+                name
+                for name in serialized_values.get("allowed_tools", [])
+                if name in registered
+            ],
+        )
         if self._includes_conversations(import_export_config):
             AgentHandler().import_conversations(
                 application, serialized_values.get("conversations", [])

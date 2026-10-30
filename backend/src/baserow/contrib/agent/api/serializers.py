@@ -13,6 +13,7 @@ from baserow.contrib.agent.models import (
     AgentConversation,
     AgentMessage,
 )
+from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.contrib.agent.types import AgentConfiguration, AgentReadinessState
 from baserow.contrib.agent.validators import AGENT_TEXT_MAX_LENGTH
 from baserow.core.registries import subject_type_registry
@@ -42,9 +43,10 @@ class AgentApplicationSerializer(serializers.ModelSerializer):
         provider_state = self.context.get("ai_provider_states", {}).get(
             instance.workspace_id
         )
-        return AgentHandler().get_configuration(
+        readiness, _ = AgentHandler().get_readiness(
             instance, provider_state=provider_state
-        )["readiness"]
+        )
+        return readiness
 
 
 class AgentRunAsSerializer(serializers.Serializer):
@@ -52,6 +54,12 @@ class AgentRunAsSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     name = serializers.CharField()
     trashed = serializers.BooleanField()
+
+
+class AgentToolSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    group = serializers.CharField()
+    changes_data = serializers.BooleanField()
 
 
 class AgentConfigurationSerializer(serializers.Serializer):
@@ -65,9 +73,36 @@ class AgentConfigurationSerializer(serializers.Serializer):
         help_text="The identity the agent's tools act as, or null for no workspace "
         "access. A trashed identity is included so it can be reported."
     )
+    allowed_tools = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="The names of the tools the agent may call while it has an "
+        "identity to act as.",
+    )
+    available_tools = serializers.SerializerMethodField(
+        help_text="Every tool an agent can be allowed to call, with its group and "
+        "whether it changes data."
+    )
     errors = serializers.DictField(
         child=serializers.ChoiceField(choices=["required", "unavailable"])
     )
+
+    @extend_schema_field(AgentToolSerializer(many=True))
+    def get_available_tools(self, configuration: AgentConfiguration) -> list[dict]:
+        """
+        List the registered tools.
+
+        :param configuration: The configuration being serialized.
+        :return: Each tool's name, group and whether it changes data.
+        """
+
+        return [
+            {
+                "name": tool_type.type,
+                "group": tool_type.group,
+                "changes_data": tool_type.changes_data,
+            }
+            for tool_type in agent_tool_type_registry.get_all()
+        ]
 
     @extend_schema_field(AgentRunAsSerializer(allow_null=True))
     def get_run_as(self, configuration: AgentConfiguration) -> dict | None:
@@ -105,6 +140,12 @@ class AgentConfigurationUpdateSerializer(
         required=False,
         help_text="The id of the identity the agent's tools act as.",
     )
+    allowed_tools = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        help_text="The names of all the tools the agent may call. Tools left out "
+        "are turned off.",
+    )
 
     class Meta:
         model = AgentApplication
@@ -114,6 +155,7 @@ class AgentConfigurationUpdateSerializer(
             "model_identifier",
             "run_as_subject_type",
             "run_as_subject_id",
+            "allowed_tools",
         )
         extra_kwargs = {
             "instructions": {
@@ -121,6 +163,22 @@ class AgentConfigurationUpdateSerializer(
                 "trim_whitespace": False,
             },
         }
+
+    def validate_allowed_tools(self, names: list[str]) -> list[str]:
+        """
+        Accept only registered tools.
+
+        :param names: The requested tool names.
+        :raises ValidationError: When a name isn't a tool.
+        :return: The names without duplicates.
+        """
+
+        unknown = set(names) - set(agent_tool_type_registry.get_types())
+        if unknown:
+            raise serializers.ValidationError(
+                f"Unknown tools: {', '.join(sorted(unknown))}."
+            )
+        return list(dict.fromkeys(names))
 
     def validate(self, values: dict) -> dict:
         """

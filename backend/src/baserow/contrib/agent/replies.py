@@ -2,17 +2,23 @@ import asyncio
 from typing import TYPE_CHECKING
 
 from loguru import logger
-from pydantic_ai import Agent
+from pydantic_ai import Agent, AgentRunResultEvent
 from pydantic_ai.messages import (
+    AgentStreamEvent,
+    FunctionToolCallEvent,
     ModelMessage,
     ModelMessagesTypeAdapter,
     ModelRequest,
     ModelResponse,
+    PartDeltaEvent,
+    PartStartEvent,
     TextPart,
+    TextPartDelta,
     UserPromptPart,
 )
 from pydantic_ai.models import Model
 from pydantic_ai.run import AgentRunResult
+from pydantic_ai.toolsets import FunctionToolset
 from pydantic_ai.usage import UsageLimits
 from pydantic_core import to_jsonable_python
 
@@ -20,10 +26,12 @@ from baserow.core.chat_runs.constants import ChatRunErrorCode, ChatRunStopReason
 from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+from baserow.core.tools import ToolContext
 from baserow.core.utils import remove_null_characters
 
-from .constants import INTERRUPTED_REPLY_NOTE, REPLY_REQUEST_LIMIT
+from .constants import INTERRUPTED_REPLY_NOTE, REPLY_REQUEST_LIMIT, TOOL_RETRIES
 from .models import AgentMessage
+from .registries import agent_tool_type_registry
 from .types import AgentReplyRequest, AgentReplyResult
 
 if TYPE_CHECKING:
@@ -112,6 +120,7 @@ class AgentResponder:
         self._model = model
         self._model_settings = model_settings
         self._text = ""
+        self._parts: dict[int, str] = {}
         self._result: AgentRunResult[str] | None = None
 
     async def answer(self) -> ChatRunOutcome:
@@ -132,21 +141,74 @@ class AgentResponder:
         return self._outcome(work)
 
     async def _stream(self) -> None:
-        agent = Agent(instructions=self._request.instructions)
+        agent = Agent(
+            instructions=self._request.instructions,
+            retries={"tools": TOOL_RETRIES},
+        )
         # Kuma enables content tracing for every Agent; conversations are private.
         agent.instrument = False
         async with self._model:
-            async with agent.run_stream(
+            async with agent.run_stream_events(
                 self._request.prompt,
                 message_history=build_history(self._request.history),
                 model=self._model,
                 model_settings=self._model_settings,
                 usage_limits=UsageLimits(request_limit=REPLY_REQUEST_LIMIT),
-            ) as result:
-                async for text in result.stream_text(debounce_by=None):
-                    self._text = text
-                    self._journal.emit_text(text)
-                self._result = result.result
+                toolsets=self._toolsets(),
+            ) as events:
+                async for event in events:
+                    self._on_event(event)
+
+    def _toolsets(self) -> list[FunctionToolset]:
+        """
+        The tools the reply may call, acting as the Agent's identity.
+
+        :return: One toolset, or none when the reply may call no tool.
+        """
+
+        request = self._request
+        if not request.allowed_tool_names:
+            return []
+        ctx = ToolContext(
+            user=request.acting_subject,
+            workspace=request.workspace,
+            timezone=request.timezone,
+        )
+        return [
+            FunctionToolset(
+                [
+                    agent_tool_type_registry.get(name).get_tool(ctx)
+                    for name in request.allowed_tool_names
+                ]
+            )
+        ]
+
+    def _on_event(self, event: AgentStreamEvent | AgentRunResultEvent) -> None:
+        """
+        Stream the text of the model's latest response and keep the final result.
+
+        :param event: An event of the run.
+        """
+
+        if isinstance(event, AgentRunResultEvent):
+            self._result = event.result
+            return
+        if isinstance(event, FunctionToolCallEvent):
+            # The next response replaces what the model wrote before calling a tool.
+            self._parts = {}
+            return
+        if isinstance(event, PartStartEvent) and isinstance(event.part, TextPart):
+            self._parts[event.index] = event.part.content
+        elif isinstance(event, PartDeltaEvent) and isinstance(
+            event.delta, TextPartDelta
+        ):
+            self._parts[event.index] = (
+                self._parts.get(event.index, "") + event.delta.content_delta
+            )
+        else:
+            return
+        self._text = "".join(self._parts[index] for index in sorted(self._parts))
+        self._journal.emit_text(self._text)
 
     def _outcome(self, work: asyncio.Task) -> ChatRunOutcome:
         result = self._reply_result()

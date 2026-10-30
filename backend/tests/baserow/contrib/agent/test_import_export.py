@@ -4,6 +4,7 @@ import pytest
 from freezegun import freeze_time
 
 from baserow.contrib.agent.application_types import AgentApplicationType
+from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import (
     AgentApplication,
     AgentConversation,
@@ -102,7 +103,7 @@ def test_duplicate_copies_conversations_with_new_identifiers(
 
 
 @pytest.mark.django_db
-def test_run_as_is_kept_only_by_copies_in_the_same_workspace(
+def test_copies_keep_the_tools_and_only_same_workspace_copies_keep_run_as(
     data_fixture, configured_agent
 ):
     user = data_fixture.create_user()
@@ -110,6 +111,7 @@ def test_run_as_is_kept_only_by_copies_in_the_same_workspace(
     identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
     agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
     agent.save()
+    AgentHandler().set_allowed_tools(agent, ["list_tables", "create_rows"])
 
     duplicate = CoreHandler().duplicate_application(user, agent).specific
     imported = AgentApplicationType().import_serialized(
@@ -121,6 +123,9 @@ def test_run_as_is_kept_only_by_copies_in_the_same_workspace(
 
     assert duplicate.run_as_subject_id == identity.id
     assert (imported.run_as_subject_type, imported.run_as_subject_id) == (None, None)
+    assert [
+        AgentHandler().get_allowed_tool_names(copy) for copy in (duplicate, imported)
+    ] == [["list_tables", "create_rows"]] * 2
 
 
 @pytest.mark.django_db

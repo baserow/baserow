@@ -675,6 +675,62 @@ describe('Agent configuration', () => {
     }
   )
 
+  test('allows workspace tools with presets or one by one', async () => {
+    const withTools = (allowedTools) =>
+      completeConfiguration({
+        allowed_tools: allowedTools,
+        available_tools: [
+          { name: 'list_tables', group: 'database', changes_data: false },
+          { name: 'create_rows', group: 'database', changes_data: true },
+          { name: 'delete_rows', group: 'database', changes_data: true },
+        ],
+      })
+    const everything = ['list_tables', 'create_rows', 'delete_rows']
+    mockConfiguration(testApp, withTools(['list_tables']))
+    mockSaves(
+      testApp,
+      withTools(everything),
+      withTools(['list_tables', 'create_rows']),
+      withTools([])
+    )
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    await flushPromises()
+    const tools = () => wrapper.get('.agent-workspace-tools')
+    const inModal = (selector, text) =>
+      [...document.body.querySelectorAll(selector)].find((element) =>
+        element.textContent.includes(text)
+      )
+    expect(tools().get('.segment-control__button--active').text()).toBe(
+      'agent.toolsReadOnly'
+    )
+
+    await tools()
+      .findAll('.segment-control__button')
+      .find((button) => button.text() === 'agent.toolsEverything')
+      .trigger('click')
+    await flushPromises()
+    await tools().get('.agent-workspace-tools__group').trigger('click')
+    await flushPromises()
+    inModal('.agent-tool-permissions__tool', 'agent.toolDeleteRows')
+      .querySelector('input')
+      .click()
+    inModal(
+      '.agent-tool-permissions__actions button',
+      'agent.toolsDone'
+    ).click()
+    await flushPromises()
+    await tools().get('.switch').trigger('click')
+    await flushPromises()
+
+    expect(savedValues(testApp)).toEqual([
+      { allowed_tools: everything },
+      { allowed_tools: ['list_tables', 'create_rows'] },
+      { allowed_tools: [] },
+    ])
+    expect(wrapper.find('.agent-workspace-tools__group').exists()).toBe(false)
+  })
+
   test('renames the Agent through the application with the trimmed name', async () => {
     mockRename(testApp, { ...agentData, name: 'Support' })
     const wrapper = await mount()
