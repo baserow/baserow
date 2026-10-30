@@ -295,6 +295,7 @@
     "notFound": "Option not found"
   },
   "fieldmultipleCollaboratorsDropdown": {
+    "agents": "Agents",
     "notFound": "Collaborator not found"
   },
   "fieldDateSubForm": {

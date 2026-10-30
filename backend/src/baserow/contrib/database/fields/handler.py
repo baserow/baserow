@@ -57,7 +57,7 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import ViewDefaultValue
 from baserow.core.db import specific_iterator, sql
 from baserow.core.handler import CoreHandler
-from baserow.core.models import TrashEntry, User
+from baserow.core.models import Agent, TrashEntry, User
 from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.trash.exceptions import RelatedTableTrashedException
 from baserow.core.trash.handler import TrashHandler
@@ -221,6 +221,13 @@ class FieldHandler:
                     "first_name"
                 ),
                 to_attr="available_collaborators",
+            ),
+            Prefetch(
+                "table__database__workspace__agents",
+                queryset=Agent.objects.filter(
+                    user__isnull=False, user__profile__to_be_deleted=False
+                ).select_related("user"),
+                to_attr="collaborator_agents",
             ),
             "select_options",
             "field_constraints",

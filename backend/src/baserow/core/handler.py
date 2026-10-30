@@ -803,7 +803,12 @@ class CoreHandler:
             Prefetch(
                 "workspace__workspaceuser_set",
                 queryset=workspaceusers_with_user_and_profile,
-            )
+            ),
+            Prefetch(
+                "workspace__agents",
+                queryset=Agent.objects.filter(user__isnull=False),
+                to_attr="collaborator_agents",
+            ),
         )
         return workspaceuser_workspaces
 

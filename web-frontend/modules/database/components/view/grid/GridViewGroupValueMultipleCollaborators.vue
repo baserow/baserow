@@ -13,19 +13,23 @@
             getCollaboratorName(item, $store)
           }}</span>
         </div>
-        <div class="grid-view__group-value-collaborator-initials">
-          {{ getCollaboratorNameInitials(item, $store) }}
-        </div>
+        <CollaboratorAvatar
+            :field="field"
+          class="grid-view__group-value-collaborator-initials"
+          :collaborator="item"
+        />
       </template>
     </div>
   </div>
 </template>
 
 <script>
+import CollaboratorAvatar from '@baserow/modules/core/components/CollaboratorAvatar'
 import collaboratorName from '@baserow/modules/database/mixins/collaboratorName'
 
 export default {
   name: 'GridViewGroupValueMultipleCollaborators',
+  components: { CollaboratorAvatar },
   mixins: [collaboratorName],
   props: {
     value: {

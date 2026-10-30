@@ -16,7 +16,7 @@ const mountHistory = (item, usersById = {}) => {
     getters: {
       'automationHistory/getNodeHistories': () => null,
       'workspace/getAll': [{ id: 1 }],
-      'workspace/getUserById': (id) => usersById[id] ?? null,
+      'workspace/getCollaboratorById': (id) => usersById[id] ?? null,
     },
   }
   return mountSuspended(WorkflowHistory, {

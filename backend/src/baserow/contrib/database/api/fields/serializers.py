@@ -30,6 +30,7 @@ from baserow.contrib.database.fields.utils.duration import (
     postgres_interval_to_seconds,
     prepare_duration_value_for_db,
 )
+from baserow.core.handler import CoreHandler
 from baserow.core.utils import split_comma_separated_string
 
 
@@ -602,6 +603,12 @@ class CollaboratorSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     name = serializers.CharField(source="first_name", read_only=True)
 
+    def to_representation(self, instance):
+        result = super().to_representation(instance)
+        if getattr(instance, "is_agent", False):
+            result["agent"] = True
+        return result
+
 
 class CollaboratorRequestSerializer(serializers.ListSerializer):
     child = CollaboratorField()
@@ -625,13 +632,21 @@ class AvailableCollaboratorsSerializer(serializers.ListField):
             return []
 
         workspace = instance.table.database.workspace
-        if not hasattr(workspace, "available_collaborators"):
-            workspace.available_collaborators = workspace.users.order_by("first_name")
+        if hasattr(workspace, "available_collaborators"):
+            collaborators = list(workspace.available_collaborators)
+            for agent in workspace.collaborator_agents:
+                agent.user.is_agent = True
+                collaborators.append(agent.user)
+            collaborators.sort(key=lambda user: (user.first_name, user.id))
+        else:
+            collaborators = (
+                CoreHandler()
+                .get_workspace_collaborators(workspace)
+                .filter(profile__to_be_deleted=False)
+                .order_by("first_name", "id")
+            )
 
-        return [
-            CollaboratorSerializer(user).data
-            for user in workspace.available_collaborators
-        ]
+        return [CollaboratorSerializer(user).data for user in collaborators]
 
 
 class DuplicateFieldParamsSerializer(serializers.Serializer):

@@ -64,10 +64,20 @@
           :color="''"
         ></FieldCollaboratorDropdownItem>
         <FieldCollaboratorDropdownItem
-          v-for="collaborator in results"
+          v-for="collaborator in people"
           :key="collaborator.id"
           :name="collaborator.name"
           :value="collaborator.id"
+        ></FieldCollaboratorDropdownItem>
+        <li v-if="agents.length" class="select-collaborators__group">
+          {{ $t('fieldmultipleCollaboratorsDropdown.agents') }}
+        </li>
+        <FieldCollaboratorDropdownItem
+          v-for="collaborator in agents"
+          :key="collaborator.id"
+          :name="collaborator.name"
+          :value="collaborator.id"
+          agent
         ></FieldCollaboratorDropdownItem>
       </ul>
       <div v-if="isNotFound" class="select__description">
@@ -102,6 +112,12 @@ export default {
     },
   },
   computed: {
+    people() {
+      return this.results.filter((collaborator) => !this.isAgent(collaborator))
+    },
+    agents() {
+      return this.results.filter((collaborator) => this.isAgent(collaborator))
+    },
     isNotFound() {
       return this.results.length === 0 && this.query !== ''
     },
@@ -112,6 +128,13 @@ export default {
     },
   },
   methods: {
+    isAgent(collaborator) {
+      return (
+        collaborator.agent ||
+        this.$store.getters['workspace/getCollaboratorById'](collaborator.id)
+          ?.agent
+      )
+    },
     filterItems(search) {
       return this.collaborators.filter((collaborator) => {
         return collaborator.name.toLowerCase().includes(search.toLowerCase())

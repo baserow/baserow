@@ -6,18 +6,22 @@
           getCollaboratorName(value, $store)
         }}</span>
       </div>
-      <div class="field-last-modified-by__initials">
-        {{ getCollaboratorNameInitials(value, $store) }}
-      </div>
+      <CollaboratorAvatar
+            :field="field"
+        class="field-last-modified-by__initials"
+        :collaborator="value"
+      />
     </div>
   </div>
 </template>
 
 <script>
+import CollaboratorAvatar from '@baserow/modules/core/components/CollaboratorAvatar'
 import collaboratorName from '@baserow/modules/database/mixins/collaboratorName'
 
 export default {
   name: 'FunctionalGridViewFieldLastModifiedBy',
+  components: { CollaboratorAvatar },
   mixins: [collaboratorName],
   props: {
     value: {

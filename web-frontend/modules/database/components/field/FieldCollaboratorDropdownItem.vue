@@ -13,7 +13,10 @@
       @click="select(value, disabled)"
       @mousemove="hover(value, disabled)"
     >
-      <div class="select-collaborators__initials">{{ initial(name) }}</div>
+      <CollaboratorAvatar
+        class="select-collaborators__initials"
+        :collaborator="{ id: value, name, agent }"
+      />
       <div class="select-collaborators__dropdown-option">
         {{ name }}
       </div>
@@ -22,15 +25,15 @@
 </template>
 
 <script>
+import CollaboratorAvatar from '@baserow/modules/core/components/CollaboratorAvatar'
 import dropdownItem from '@baserow/modules/core/mixins/dropdownItem'
 
 export default {
   name: 'FieldCollaboratorDropdownItem',
+  components: { CollaboratorAvatar },
   mixins: [dropdownItem],
-  methods: {
-    initial(name) {
-      return name.slice(0, 1).toUpperCase()
-    },
+  props: {
+    agent: { type: Boolean, default: false },
   },
 }
 </script>

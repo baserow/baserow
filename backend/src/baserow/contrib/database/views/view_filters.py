@@ -72,7 +72,7 @@ from baserow.contrib.database.formula.types.formula_types import (
     BaserowFormulaURLType,
 )
 from baserow.core.datetime import get_timezones
-from baserow.core.models import WorkspaceUser
+from baserow.core.handler import CoreHandler
 
 from .registries import ViewFilterType
 
@@ -1532,14 +1532,10 @@ class MultipleCollaboratorsHasViewFilterType(ManyToManyHasBaseViewFilter):
 
             id_mapping[self.COLLABORATORS_KEY] = defaultdict(list)
 
-            workspaceusers_from_workspace = WorkspaceUser.objects.filter(
-                workspace_id=workspace_id
-            ).select_related("user")
+            collaborators = CoreHandler().get_workspace_collaborators(workspace_id)
 
-            for workspaceuser in workspaceusers_from_workspace:
-                id_mapping[self.COLLABORATORS_KEY][str(workspaceuser.user.id)] = (
-                    workspaceuser.user.email
-                )
+            for user in collaborators:
+                id_mapping[self.COLLABORATORS_KEY][str(user.id)] = user.email
 
         return id_mapping[self.COLLABORATORS_KEY].get(value, "")
 
@@ -1550,13 +1546,9 @@ class MultipleCollaboratorsHasViewFilterType(ManyToManyHasBaseViewFilter):
 
         if self.COLLABORATORS_KEY not in id_mapping:
             id_mapping[self.COLLABORATORS_KEY] = defaultdict(list)
-            workspaceusers_from_workspace = WorkspaceUser.objects.filter(
-                workspace_id=workspace_id
-            ).select_related("user")
-            for workspaceuser in workspaceusers_from_workspace:
-                id_mapping[self.COLLABORATORS_KEY][str(workspaceuser.user.email)] = str(
-                    workspaceuser.user.id
-                )
+            collaborators = CoreHandler().get_workspace_collaborators(workspace_id)
+            for user in collaborators:
+                id_mapping[self.COLLABORATORS_KEY][str(user.email)] = str(user.id)
         return id_mapping[self.COLLABORATORS_KEY].get(value, "")
 
 
@@ -1601,14 +1593,10 @@ class UserIsViewFilterType(ViewFilterType):
 
             id_mapping[self.USER_KEY] = defaultdict(list)
 
-            workspaceusers_from_workspace = WorkspaceUser.objects.filter(
-                workspace_id=workspace_id
-            ).select_related("user")
+            collaborators = CoreHandler().get_workspace_collaborators(workspace_id)
 
-            for workspaceuser in workspaceusers_from_workspace:
-                id_mapping[self.USER_KEY][str(workspaceuser.user.id)] = (
-                    workspaceuser.user.email
-                )
+            for user in collaborators:
+                id_mapping[self.USER_KEY][str(user.id)] = user.email
 
         return id_mapping[self.USER_KEY].get(value, "")
 
@@ -1619,13 +1607,9 @@ class UserIsViewFilterType(ViewFilterType):
 
         if self.USER_KEY not in id_mapping:
             id_mapping[self.USER_KEY] = defaultdict(list)
-            workspaceusers_from_workspace = WorkspaceUser.objects.filter(
-                workspace_id=workspace_id
-            ).select_related("user")
-            for workspaceuser in workspaceusers_from_workspace:
-                id_mapping[self.USER_KEY][str(workspaceuser.user.email)] = str(
-                    workspaceuser.user.id
-                )
+            collaborators = CoreHandler().get_workspace_collaborators(workspace_id)
+            for user in collaborators:
+                id_mapping[self.USER_KEY][str(user.email)] = str(user.id)
         return id_mapping[self.USER_KEY].get(value, "")
 
 

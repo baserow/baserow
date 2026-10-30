@@ -1890,6 +1890,8 @@ class BaserowFormulaMultipleCollaboratorsType(
         return field_type.get_response_serializer_field(instance, **kwargs)
 
     def get_export_value(self, value, field_object, rich_value=False):
+        from baserow.core.handler import CoreHandler
+
         _, field_type = super().get_baserow_field_instance_and_type()
 
         cache_key = f"_baserow_cache_{field_object['name']}_relations"
@@ -1898,13 +1900,18 @@ class BaserowFormulaMultipleCollaboratorsType(
             setattr(
                 field,
                 cache_key,
-                {usr.id: usr for usr in field.table.database.workspace.users.all()},
+                {
+                    usr.id: usr
+                    for usr in CoreHandler().get_workspace_collaborators(
+                        field.table.database.workspace_id
+                    )
+                },
             )
 
         # Replace the JSON object with the actual user object, so we have
         # access to the user's email.
         users = getattr(field, cache_key)
-        value = [users[item["id"]] for item in value]
+        value = [users[item["id"]] for item in value if item["id"] in users]
 
         return field_type.get_export_value(value, field_object, rich_value=rich_value)
 
