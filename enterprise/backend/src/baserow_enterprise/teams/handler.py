@@ -22,7 +22,6 @@ from baserow_enterprise.signals import (
     team_deleted,
     team_subject_created,
     team_subject_deleted,
-    team_subject_restored,
     team_updated,
 )
 from baserow_enterprise.teams.exceptions import (
@@ -338,14 +337,6 @@ class TeamHandler:
             user, team.id, base_queryset=self.get_teams_sample_queryset()
         )
 
-    def delete_team_by_id(self, user: AbstractUser, team_id: int):
-        """
-        Deletes a team by id, only if the user has admin permissions for the workspace.
-        """
-
-        locked_team = self.get_team_for_update(user, team_id)
-        self.delete_team(user, locked_team)
-
     def delete_team(self, user: AbstractUser, team: TeamForUpdate):
         """
         Deletes an existing team if the user has admin permissions for the workspace.
@@ -360,19 +351,6 @@ class TeamHandler:
         TrashHandler.trash(user, team.workspace, None, team)
 
         team_deleted.send(self, team_id=team.id, team=team, user=user)
-
-    def restore_team_by_id(self, user: AbstractUser, team_id: int) -> Team:
-        """
-        Responsible for calling `restore_item` in `TrashHandler`, and once
-        complete, re-fetching the newly restored `Team` so we can send a
-        `team_restored` signal.
-        """
-
-        team = self.get_team(user, team_id, base_queryset=Team.objects_and_trash)
-        LicenseHandler.raise_if_user_doesnt_have_feature(TEAMS, user, team.workspace)
-        TrashHandler.restore_item(user, "team", team_id)
-        team.refresh_from_db()
-        return team
 
     def get_teamsubject_subject_qs(self, subject, base_queryset=None) -> QuerySet:
         """Return visible memberships belonging to a subject."""
@@ -500,14 +478,9 @@ class TeamHandler:
         subject_lookup: Dict[str, Union[str, int]],
         subject_natural_key: str,
         team: Team,
-        pk: Optional[int] = None,
     ) -> TeamSubject:
         """
         Creates a new subject for a given team.
-
-        If a `pk` is provided, we'll create a `TeamSubject` with an
-        `id` of this value. This is used by the `TeamSubject` action
-        redo to re-create a subject with the same PK.
         """
 
         LicenseHandler.raise_if_user_doesnt_have_feature(TEAMS, user, team.workspace)
@@ -543,14 +516,11 @@ class TeamHandler:
         if not subject_type.is_in_workspace(subject, team.workspace):
             raise TeamSubjectNotInGroup()
 
-        signal = team_subject_created
-        create_kwargs = {"team": team, "subject": subject}
-        if pk:
-            create_kwargs["id"] = pk
-            signal = team_subject_restored
-        subject = TeamSubject.objects.create(**create_kwargs)
+        subject = TeamSubject.objects.create(team=team, subject=subject)
 
-        signal.send(self, subject_id=subject.id, subject=subject, user=user)
+        team_subject_created.send(
+            self, subject_id=subject.id, subject=subject, user=user
+        )
 
         return subject
 

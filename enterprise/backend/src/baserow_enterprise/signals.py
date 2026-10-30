@@ -24,7 +24,6 @@ team_restored = Signal()
 
 team_subject_created = Signal()
 team_subject_deleted = Signal()
-team_subject_restored = Signal()
 
 role_assignment_created = Signal()
 role_assignment_updated = Signal()
