@@ -30,6 +30,7 @@ from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 from baserow_enterprise.assistant.types import BuilderPageNavigationType
 
 from . import agents, helpers
+from .errors import item_error
 from .registries import assistant_element_type_registry
 from .types import (
     ActionCreate,
@@ -184,6 +185,7 @@ def create_pages(
     helpers.ensure_distinct_paths([p for p in pages if p.name.lower() not in existing])
     created_pages: list[PageItem] = []
     skipped_pages: list[PageItem] = []
+    errors: list[str] = []
 
     with transaction.atomic():
         for page_create in pages:
@@ -195,7 +197,13 @@ def create_pages(
             tool_helpers.update_status(
                 _("Creating page %(name)s...") % {"name": page_create.name}
             )
-            page = helpers.create_page(user, builder, page_create)
+            try:
+                with transaction.atomic():
+                    page = helpers.create_page(user, builder, page_create)
+            except Exception as exc:
+                raise_if_permission_denied(exc)
+                errors.append(f"{page_create.name}: {item_error(exc)}")
+                continue
             created_pages.append(PageItem.from_orm(page))
 
     if created_pages:
@@ -214,6 +222,8 @@ def create_pages(
     }
     if skipped_pages:
         result["existing_pages"] = [p.model_dump() for p in skipped_pages]
+    if errors:
+        result["errors"] = errors
     if created_pages:
         result["next_steps"] = (
             "Pages created. Add the requested content now. Draft sensible headings, "
@@ -348,6 +358,7 @@ def create_data_sources(
     ref_to_id: dict[str, int] = {}
     created: list[dict] = []
     ds_pairs: list[tuple] = []
+    errors: list[str] = []
 
     with transaction.atomic():
         for ds_create in data_sources:
@@ -364,9 +375,15 @@ def create_data_sources(
             tool_helpers.update_status(
                 _("Creating data source '%(name)s'...") % {"name": ds_create.name}
             )
-            orm_ds, ds_id = helpers.create_data_source(
-                user, page, ds_create, integration
-            )
+            try:
+                with transaction.atomic():
+                    orm_ds, ds_id = helpers.create_data_source(
+                        user, page, ds_create, integration
+                    )
+            except Exception as exc:
+                raise_if_permission_denied(exc)
+                errors.append(f"{ds_create.ref}: {item_error(exc)}")
+                continue
             ref_to_id[ds_create.ref] = ds_id
             ds_pairs.append((orm_ds, ds_create))
             created.append(
@@ -379,7 +396,9 @@ def create_data_sources(
             )
 
     # Formula generation (separate transactions)
-    errors = agents.update_data_source_formulas(user, page, ds_pairs, tool_helpers)
+    errors.extend(
+        agents.update_data_source_formulas(user, page, ds_pairs, tool_helpers)
+    )
 
     _track_data_source_refs(tool_helpers, page_id, ref_to_id)
 
@@ -438,19 +457,28 @@ def update_data_source(
         orm_ds, ds_type = helpers.update_data_source(user, page, data_source)
 
     # Handle formula generation for $formula: fields (separate transaction)
+    errors: list[str] = []
+    updated_fields = data_source.get_updated_field_names()
     formulas = data_source.get_formulas_to_update(orm_ds, None)
     if formulas:
-        agents.update_single_data_source_formulas(
+        applied, errors = agents.update_single_data_source_formulas(
             user, page, orm_ds, data_source, tool_helpers
         )
+        updated_fields = [
+            field
+            for field in updated_fields
+            if field not in formulas or field in applied
+        ]
 
-    updated_fields = data_source.get_updated_field_names()
-    return {
-        "status": "ok",
+    result: dict[str, Any] = {
+        "status": "partial" if errors else "ok",
         "data_source_id": data_source.data_source_id,
         "service_type": ds_type,
         "updated_fields": updated_fields,
     }
+    if errors:
+        result["errors"] = errors
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -522,18 +550,20 @@ def _create_elements_internal(
         for el_create in elements:
             tool_helpers.raise_if_cancelled()
             try:
-                element, el_id, action_pairs = helpers.create_element(
-                    user,
-                    page,
-                    el_create,
-                    ref_to_id,
-                    ds_ref_to_id,
-                    shared_page_refs,
-                    before_element_id,
-                )
+                with transaction.atomic():
+                    element, el_id, action_pairs = helpers.create_element(
+                        user,
+                        page,
+                        el_create,
+                        ref_to_id,
+                        ds_ref_to_id,
+                        shared_page_refs,
+                        before_element_id,
+                    )
             except Exception as exc:
                 raise_if_permission_denied(exc)
-                errors.append(f"{el_create.ref}: {exc}")
+                helpers.forget_page_graphs(page)
+                errors.append(f"{el_create.ref}: {item_error(exc)}")
                 continue
             ref_to_id[el_create.ref] = el_id
             element_mapping[el_create.ref] = (element, el_create)
@@ -1157,12 +1187,16 @@ def create_actions(
                 _("Creating %(type)s action...") % {"type": action_create.type}
             )
             try:
-                orm_action, action_id = helpers.create_workflow_action(
-                    user, page, action_create, el_refs, ds_refs, integration
-                )
+                with transaction.atomic():
+                    orm_action, action_id = helpers.create_workflow_action(
+                        user, page, action_create, el_refs, ds_refs, integration
+                    )
             except Exception as exc:
                 raise_if_permission_denied(exc)
-                errors.append(f"{action_create.type} on {action_create.element}: {exc}")
+                errors.append(
+                    f"{action_create.type} on {action_create.element}: "
+                    f"{item_error(exc)}"
+                )
                 continue
             action_pairs.append((orm_action, action_create))
             created.append(
@@ -1267,9 +1301,10 @@ def _setup_data_sources(
                 _("Creating data source '%(name)s'...") % {"name": ds_create.name}
             )
             try:
-                orm_ds, ds_id = helpers.create_data_source(
-                    user, page, ds_create, integration
-                )
+                with transaction.atomic():
+                    orm_ds, ds_id = helpers.create_data_source(
+                        user, page, ds_create, integration
+                    )
                 ds_ref_to_id[ds_create.ref] = ds_id
                 ds_pairs.append((orm_ds, ds_create))
                 created.append(
@@ -1282,7 +1317,7 @@ def _setup_data_sources(
                 )
             except Exception as exc:
                 raise_if_permission_denied(exc)
-                errors.append(f"data_source {ds_create.ref}: {exc}")
+                errors.append(f"data_source {ds_create.ref}: {item_error(exc)}")
     errors.extend(
         agents.update_data_source_formulas(user, page, ds_pairs, tool_helpers)
     )
@@ -1327,15 +1362,16 @@ def _setup_elements(
         for el_create in elements:
             tool_helpers.raise_if_cancelled()
             try:
-                element, el_id, action_pairs = helpers.create_element(
-                    user,
-                    page,
-                    el_create,
-                    el_ref_to_id,
-                    ds_ref_to_id,
-                    shared_page_refs,
-                    None,
-                )
+                with transaction.atomic():
+                    element, el_id, action_pairs = helpers.create_element(
+                        user,
+                        page,
+                        el_create,
+                        el_ref_to_id,
+                        ds_ref_to_id,
+                        shared_page_refs,
+                        None,
+                    )
                 el_ref_to_id[el_create.ref] = el_id
                 element_mapping[el_create.ref] = (element, el_create)
                 table_action_pairs.extend(action_pairs)
@@ -1344,7 +1380,8 @@ def _setup_elements(
                 )
             except Exception as exc:
                 raise_if_permission_denied(exc)
-                errors.append(f"element {el_create.ref}: {exc}")
+                helpers.forget_page_graphs(page)
+                errors.append(f"element {el_create.ref}: {item_error(exc)}")
     errors.extend(
         agents.update_element_formulas(
             user, page, elements, element_mapping, tool_helpers
@@ -1394,14 +1431,15 @@ def _setup_actions(
                 _("Creating %(type)s action...") % {"type": action_create.type}
             )
             try:
-                orm_action, action_id = helpers.create_workflow_action(
-                    user,
-                    page,
-                    action_create,
-                    el_ref_to_id,
-                    ds_ref_to_id,
-                    integration,
-                )
+                with transaction.atomic():
+                    orm_action, action_id = helpers.create_workflow_action(
+                        user,
+                        page,
+                        action_create,
+                        el_ref_to_id,
+                        ds_ref_to_id,
+                        integration,
+                    )
                 action_pairs.append((orm_action, action_create))
                 created.append(
                     {
@@ -1414,7 +1452,8 @@ def _setup_actions(
             except Exception as exc:
                 raise_if_permission_denied(exc)
                 errors.append(
-                    f"action {action_create.type} on {action_create.element}: {exc}"
+                    f"action {action_create.type} on {action_create.element}: "
+                    f"{item_error(exc)}"
                 )
     errors.extend(
         agents.update_workflow_action_formulas(user, page, action_pairs, tool_helpers)

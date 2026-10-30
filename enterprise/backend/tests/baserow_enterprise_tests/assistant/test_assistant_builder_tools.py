@@ -129,7 +129,7 @@ def mock_formula_generators(monkeypatch):
     )
     monkeypatch.setattr(
         "baserow_enterprise.assistant.tools.builder.agents.update_single_data_source_formulas",
-        noop,
+        lambda *args, **kwargs: ([], []),
     )
 
 
@@ -3838,18 +3838,21 @@ def test_create_pages_returns_a_taken_path_to_the_model(data_fixture):
     builder = data_fixture.create_builder_application(user=user, workspace=workspace)
     taken = data_fixture.create_builder_page(builder=builder, name="Home", path="/")
 
-    with pytest.raises(ToolInputError, match=f"page {taken.id}"):
-        create_pages(
-            make_test_ctx(user, workspace),
-            application_id=builder.id,
-            pages=[
-                PageCreate(name="About", path="/about"),
-                PageCreate(name="Start", path="/"),
-            ],
-            thought="Create the pages",
-        )
+    result = create_pages(
+        make_test_ctx(user, workspace),
+        application_id=builder.id,
+        pages=[
+            PageCreate(name="About", path="/about"),
+            PageCreate(name="Start", path="/"),
+        ],
+        thought="Create the pages",
+    )
 
-    assert not Page.objects.filter(builder=builder, path="/about").exists()
+    assert result["errors"] == [
+        f"Start: The path '/' is already used by page {taken.id} ('Home'). This "
+        "page was not created. Pick another path."
+    ]
+    assert Page.objects.filter(builder=builder, path="/about").exists()
 
 
 @pytest.mark.django_db
@@ -3905,13 +3908,17 @@ def test_create_pages_names_a_trashed_page_that_holds_the_path(data_fixture):
         builder=builder, name="Old about", path="/about", trashed=True
     )
 
-    with pytest.raises(ToolInputError, match=f"page {trashed.id} .* in the trash"):
-        create_pages(
-            make_test_ctx(user, workspace),
-            application_id=builder.id,
-            pages=[PageCreate(name="About", path="/about")],
-            thought="Create the page",
-        )
+    result = create_pages(
+        make_test_ctx(user, workspace),
+        application_id=builder.id,
+        pages=[PageCreate(name="About", path="/about")],
+        thought="Create the page",
+    )
+
+    assert (
+        f"page {trashed.id} ('Old about'), which is in the trash"
+        in (result["errors"][0])
+    )
 
 
 @pytest.mark.django_db
@@ -3954,8 +3961,8 @@ def test_update_page_returns_an_invalid_path_to_the_model(data_fixture):
     with pytest.raises(ToolInputError, match="Nothing was changed"):
         update_page(
             make_test_ctx(user, workspace),
-            page=PageUpdate(page_id=page.id, path="/product/:slug"),
-            thought="Rename the parameter",
+            page=PageUpdate(page_id=page.id, path="/product/:id/:id"),
+            thought="Repeat the parameter",
         )
 
     page.refresh_from_db()

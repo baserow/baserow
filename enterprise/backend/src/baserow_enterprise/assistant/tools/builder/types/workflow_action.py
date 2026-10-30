@@ -254,7 +254,23 @@ def _open_page_formulas(action: "ActionCreate", orm_action, context) -> dict[str
     return formulas
 
 
+def _notification_formulas(
+    action: "ActionCreate", orm_action, context
+) -> dict[str, str]:
+    """Get formulas for a notification's title and description."""
+
+    return {
+        name: formula_desc(value)
+        for name, value in [
+            ("title", action.title),
+            ("description", action.description),
+        ]
+        if value and needs_formula(value)
+    }
+
+
 _GET_FORMULAS: dict[str, Any] = {
+    "notification": _notification_formulas,
     "create_row": _row_formulas,
     "update_row": _row_formulas,
     "delete_row": _row_formulas,
@@ -328,7 +344,27 @@ def _update_open_page_formulas(
     specific.save(update_fields=["page_parameters", "query_parameters"])
 
 
+def _update_notification_formulas(
+    action: "ActionCreate",
+    orm_action: "BuilderWorkflowAction",
+    formulas: dict[str, str],
+) -> None:
+    """Apply generated formulas to a notification's title and description."""
+
+    specific = orm_action.specific
+    fields = [name for name in ("title", "description") if name in formulas]
+    for name in fields:
+        setattr(
+            specific,
+            name,
+            formula_object(formulas[name], mode=BASEROW_FORMULA_MODE_ADVANCED),
+        )
+    if fields:
+        specific.save(update_fields=fields)
+
+
 _UPDATE_FORMULAS: dict[str, Any] = {
+    "notification": _update_notification_formulas,
     "create_row": _update_row_formulas,
     "update_row": _update_row_formulas,
     "delete_row": _update_row_formulas,

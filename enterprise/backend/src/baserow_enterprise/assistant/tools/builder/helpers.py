@@ -34,6 +34,10 @@ from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.operations import ListPagesBuilderOperationType
+from baserow.contrib.builder.pages.constants import (
+    PAGE_PATH_PARAM_PREFIX,
+    PATH_PARAM_REGEX,
+)
 from baserow.contrib.builder.pages.exceptions import (
     DuplicatePageParams,
     DuplicatePathParamsInPath,
@@ -60,6 +64,7 @@ from baserow.contrib.builder.workflow_actions.service import (
     BuilderWorkflowActionService,
 )
 from baserow.contrib.database.fields.models import Field
+from baserow.core.cache import local_cache
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
@@ -88,6 +93,7 @@ from .types import (
     PageItem,
     PageUpdate,
 )
+from .types.page import PagePathParam, with_path_parameters
 
 if TYPE_CHECKING:
     pass
@@ -145,6 +151,25 @@ def on_page(page: Page) -> Q:
     """
 
     return Q(page=page) | Q(page__builder_id=page.builder_id, page__shared=True)
+
+
+def forget_page_graphs(page: Page) -> None:
+    """
+    Drop the request's cached graphs of ``page`` and of its builder's shared page,
+    and reload both graphs. Called after an element's savepoint rolled back: the
+    cached graphs still hold the rolled back element, and their row locks were
+    released with the savepoint. The builder caches its shared page, which shared
+    elements created in the batch use as their ``page``.
+    """
+
+    for graph_page in (page, page.builder.shared_page):
+        handler_class = graph_page.get_graph_handler()
+        local_cache.delete(f"cached_graph_{graph_page._meta.label}_{graph_page.id}")
+        local_cache.delete(handler_class.generate_point_map_cache_key(graph_page))
+        local_cache.delete(
+            handler_class.generate_previous_position_map_cache_key(graph_page)
+        )
+        graph_page.refresh_from_db(fields=["graph"])
 
 
 def check_data_source_on_page(page: Page, data_source_id: int) -> None:
@@ -285,7 +310,10 @@ def list_workflow_actions(user: AbstractUser, page: Page) -> list[ActionItem]:
 
 
 def _taken_path_error(
-    builder: Builder, path: str, page_id: int | None = None
+    builder: Builder,
+    path: str,
+    page_id: int | None = None,
+    outcome: str = "Nothing was changed in this call.",
 ) -> ToolInputError:
     """
     Describe a path that another page of the builder already uses.
@@ -293,6 +321,7 @@ def _taken_path_error(
     :param builder: The builder application the path must be unique in.
     :param path: The path that is already used.
     :param page_id: The page that asked for the path, which is not a clash.
+    :param outcome: What the call did about it.
     :return: The error to raise, naming the page that uses the path.
     """
 
@@ -313,8 +342,7 @@ def _taken_path_error(
     else:
         owner = f"page {page.id} ('{page.name}')"
     return ToolInputError(
-        f"The path '{path}' is already used by {owner}. Nothing was changed in "
-        "this call. Pick another path."
+        f"The path '{path}' is already used by {owner}. {outcome} Pick another path."
     )
 
 
@@ -358,7 +386,10 @@ def create_page(user: AbstractUser, builder: Builder, page_create: PageCreate) -
             query_params=[p.model_dump() for p in page_create.query_params],
         )
     except PagePathNotUnique:
-        raise _taken_path_error(builder, page_create.path)
+        # create_pages saves the other pages of the call.
+        raise _taken_path_error(
+            builder, page_create.path, outcome="This page was not created."
+        )
 
     # PageService.create_page doesn't accept visibility/role kwargs,
     # so we update them separately if non-default.
@@ -395,6 +426,27 @@ def update_page(
 
     page = get_page(user, workspace, page_update.page_id)
     kwargs = page_update.to_update_kwargs()
+    if "path" in kwargs and "path_params" not in kwargs:
+        # Parameters the new path keeps keep their type; new ones are text.
+        names = {
+            token.removeprefix(PAGE_PATH_PARAM_PREFIX)
+            for token in PATH_PARAM_REGEX.findall(kwargs["path"])
+        }
+        try:
+            path_params = with_path_parameters(
+                kwargs["path"],
+                [
+                    PagePathParam(**param)
+                    for param in page.path_params
+                    if param["name"] in names
+                ],
+            )
+        except ValueError as exc:
+            raise ToolInputError(f"{exc} Nothing was changed in this call.") from exc
+        kwargs["path_params"] = [param.model_dump() for param in path_params]
+        # The handler checks the query params against the path params only when
+        # they're given.
+        kwargs.setdefault("query_params", page.query_params)
     if kwargs:
         try:
             PageService().update_page(user, page, **kwargs)
@@ -424,6 +476,42 @@ def update_page(
 # ---------------------------------------------------------------------------
 
 
+def check_view_on_table(service_kwargs: dict, table: Any) -> None:
+    """
+    Check that the view in ``service_kwargs``, if any, is a view of ``table``, and
+    pass it on as ``view_id`` so the service type checks it again.
+
+    :raises ToolInputError: When the view belongs to another table.
+    """
+
+    view = service_kwargs.pop("view", None)
+    if view is None:
+        return
+    if table is None or view.table_id != table.id:
+        raise ToolInputError(
+            f"View with ID {view.id} is not a view of the data source's table. "
+            "Use list_views on that table to find valid view IDs. No changes were "
+            "applied."
+        )
+    service_kwargs["view_id"] = view.id
+
+
+def check_fields_in_table(table: Any, field_ids: list[int]) -> None:
+    """
+    :raises ToolInputError: When one of ``field_ids`` isn't a field of ``table``.
+    """
+
+    found = set(
+        Field.objects.filter(table=table, id__in=field_ids).values_list("id", flat=True)
+    )
+    missing = [field_id for field_id in field_ids if field_id not in found]
+    if missing:
+        raise ToolInputError(
+            f"Field with ID {missing[0]} not found in the data source's table. "
+            "Use get_tables_schema to find valid field IDs. No changes were applied."
+        )
+
+
 def create_data_source(
     user: AbstractUser,
     page: Page,
@@ -435,6 +523,9 @@ def create_data_source(
     service_type = service_type_registry.get(ds_create.get_service_type())
     service_kwargs = ds_create.to_service_kwargs(user, page.builder.workspace)
     service_kwargs["integration"] = integration
+    check_view_on_table(service_kwargs, service_kwargs["table"])
+    sortings = ds_create.get_sortings()
+    check_fields_in_table(service_kwargs["table"], [s["field_id"] for s in sortings])
 
     data_source = DataSourceService().create_data_source(
         user=user,
@@ -444,8 +535,6 @@ def create_data_source(
         **service_kwargs,
     )
 
-    # Add sortings
-    sortings = ds_create.get_sortings()
     if sortings:
         from baserow.contrib.integrations.local_baserow.models import (
             LocalBaserowTableServiceSort,
@@ -504,6 +593,11 @@ def update_data_source(
         service_type_registry.get_by_model(ds.service.specific) if ds.service else None
     )
     kwargs = ds_update.to_update_kwargs(user, workspace)
+    if "view" in kwargs:
+        service = ds.service.specific if ds.service else None
+        check_view_on_table(
+            kwargs, kwargs.get("table", getattr(service, "table", None))
+        )
     if kwargs:
         ds = (
             DataSourceService()
@@ -565,8 +659,6 @@ def create_element(
             use_shared_page = True
 
     target_page = page.builder.shared_page if use_shared_page else page
-    if use_shared_page:
-        shared_page_refs.add(element_create.ref)
 
     # Resolve data source ref to integer ID early so that to_orm_kwargs
     # (e.g. _convert_table_fields) can look up the data source's table fields.
@@ -585,14 +677,27 @@ def create_element(
         check_data_source_on_page(page, int(element_create.data_source))
 
     kwargs = element_create.to_orm_kwargs(user, target_page)
-    check_page_links(page.builder, kwargs)
+    # A header or footer names its pages and the pages of its menu items apart
+    # from the kwargs, so they are checked with them.
+    header_links = [
+        {"navigate_to_page_id": page_id}
+        for page_id in [
+            *(element_create.page_ids or []),
+            *(item.page_id for item in element_create.menu_items or []),
+        ]
+    ]
+    check_page_links(page.builder, [kwargs, header_links])
+    if element_create.page_ids:
+        kwargs["pages"] = list(
+            Page.objects.filter(builder=page.builder, id__in=element_create.page_ids)
+        )
 
     # Resolve parent
     if isinstance(parent, int):
         kwargs["parent_element_id"] = parent
     elif isinstance(parent, str):
         if parent not in ref_to_id_map:
-            raise ValueError(
+            raise ToolInputError(
                 f"Parent ref '{parent}' not found. "
                 "Define parent elements before children."
             )
@@ -661,6 +766,10 @@ def create_element(
     )
 
     action_pairs = element_create.post_create(user, element, target_page)
+    # Added once the element exists, so a failed one doesn't send the children of a
+    # later element with the same ref to the shared page.
+    if use_shared_page:
+        shared_page_refs.add(element_create.ref)
     return element, element.id, action_pairs
 
 
@@ -1059,7 +1168,7 @@ def create_workflow_action(
         element_id = el
     elif isinstance(el, str):
         if el not in element_ref_to_id_map:
-            raise ValueError(f"Element ref '{el}' not found.")
+            raise ToolInputError(f"Element ref '{el}' not found.")
         element_id = element_ref_to_id_map[el]
     else:
         raise ValueError("element is required for workflow actions.")
@@ -1181,7 +1290,7 @@ def add_field_mapping_to_action(
     action_type = action.get_type().type
 
     if action_type not in ("create_row", "update_row"):
-        raise ValueError(
+        raise ToolInputError(
             f"Cannot add field mappings to '{action_type}'. "
             "Only create_row and update_row support field mappings."
         )

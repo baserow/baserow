@@ -2,9 +2,13 @@ from typing import Any
 
 from django.contrib.auth.models import AbstractUser
 
-from baserow.core.models import Workspace
+from baserow.core.models import Application, Workspace
 from baserow.core.service import CoreService
 from baserow_enterprise.assistant.tools.builder.themes import builder_uses_theme
+from baserow_enterprise.assistant.tools.shared import (
+    ToolInputError,
+    raise_if_permission_denied,
+)
 
 from .types import BuilderItem, BuilderItemCreate, builder_type_registry
 
@@ -106,3 +110,48 @@ def list_builder_items(user: AbstractUser, workspace: Workspace) -> list[Builder
         except KeyError:
             continue
     return builders
+
+
+def get_application(
+    user: AbstractUser, workspace: Workspace, application_id: int
+) -> Application:
+    """
+    Get an application of the workspace, as its specific type.
+
+    :param user: The acting user.
+    :param workspace: The workspace the application must belong to.
+    :param application_id: The ID of the application to fetch.
+    :returns: The matching application.
+    :raises ToolInputError: When the application is not in the workspace.
+    """
+
+    try:
+        application = CoreService().get_application(
+            user,
+            application_id,
+            base_queryset=Application.objects.filter(workspace=workspace),
+        )
+    except Exception as exc:
+        raise_if_permission_denied(exc)
+        raise ToolInputError(
+            f"Application with ID {application_id} not found in this workspace. "
+            "Use list_builders to find valid application IDs."
+        )
+    return application.specific
+
+
+def check_login_page(application: Application, page_id: int) -> None:
+    """
+    :raises ToolInputError: When ``page_id`` isn't a page of ``application``, or is
+        its shared page.
+    """
+
+    from baserow.contrib.builder.pages.models import Page
+
+    if not Page.objects.filter(
+        builder_id=application.id, shared=False, id=page_id
+    ).exists():
+        raise ToolInputError(
+            f"Page with ID {page_id} not found in this application. "
+            "Use list_pages to find valid page IDs. No changes were applied."
+        )
