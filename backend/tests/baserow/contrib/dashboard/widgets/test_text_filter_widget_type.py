@@ -145,7 +145,7 @@ def test_text_widget_creation_undo_redo(data_fixture):
         "text_filter",
         {"title": "Search", "placeholder": "Enter text", "default_value": "Initial"},
     )
-    assert (widget.grid_width, widget.grid_height) == (2, 4)
+    assert (widget.grid_width, widget.grid_height) == (2, 2)
     scopes = [ApplicationActionScopeType.value(application_id=dashboard.id)]
     undone = ActionHandler.undo(user, scopes, "create-text-widget")
     assert_undo_redo_actions_are_valid(undone, [CreateWidgetActionType])
