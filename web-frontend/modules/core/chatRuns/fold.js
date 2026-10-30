@@ -6,6 +6,7 @@ import {
   RUN_STARTED,
   RUN_STATUS,
   STEP,
+  STEP_STATUS,
   TEXT_DELTA,
 } from '@baserow/modules/core/chatRuns/constants'
 
@@ -69,7 +70,9 @@ export function foldRunEvent(view, event) {
         steps:
           data.message?.steps ??
           view.steps.map((step) =>
-            step.status === 'running' ? { ...step, status: 'stopped' } : step
+            step.status === STEP_STATUS.RUNNING
+              ? { ...step, status: STEP_STATUS.STOPPED }
+              : step
           ),
       }
     case RUN_BASELINE:

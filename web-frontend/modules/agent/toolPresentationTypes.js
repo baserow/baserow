@@ -1,4 +1,8 @@
-import { ToolPresentationType } from '@baserow/modules/core/toolPresentationTypes'
+import { STEP_STATUS } from '@baserow/modules/core/chatRuns/constants'
+import {
+  ToolPresentationType,
+  WORKSPACE_TOOL_GROUP,
+} from '@baserow/modules/core/toolPresentationTypes'
 
 const countIsKnown = (count) => Number.isSafeInteger(count) && count >= 0
 
@@ -13,7 +17,7 @@ class DatabaseToolPresentationType extends ToolPresentationType {
   }
 
   get group() {
-    return this.constructor.definition.read ? 'workspace' : null
+    return this.constructor.definition.read ? WORKSPACE_TOOL_GROUP : null
   }
 
   get labelKey() {
@@ -30,20 +34,27 @@ class DatabaseToolPresentationType extends ToolPresentationType {
 
   getActivity({ status, input, facts }, t) {
     const { counted, table } = this.constructor.definition
-    if (status !== 'running' && status !== 'done') return this.getLabel(t)
-    const count = status === 'running' ? input.requested_count : facts.count
+    if (status !== STEP_STATUS.RUNNING && status !== STEP_STATUS.DONE) {
+      return this.getLabel(t)
+    }
+    const count =
+      status === STEP_STATUS.RUNNING ? input.requested_count : facts.count
     // Requested counts never establish how many records were actually changed.
-    if (status === 'done' && counted === true && !countIsKnown(count)) {
+    if (
+      status === STEP_STATUS.DONE &&
+      counted === true &&
+      !countIsKnown(count)
+    ) {
       return this.getLabel(t)
     }
     const hasCount =
       (counted === true || counted === status) && countIsKnown(count)
     const hasTable =
-      status === 'done' &&
+      status === STEP_STATUS.DONE &&
       table &&
       typeof facts.table === 'string' &&
       facts.table.trim()
-    const key = `${this.labelKey}${status === 'running' ? 'Running' : 'Done'}${hasCount ? 'Count' : ''}${hasTable ? 'Table' : ''}`
+    const key = `${this.labelKey}${status === STEP_STATUS.RUNNING ? 'Running' : 'Done'}${hasCount ? 'Count' : ''}${hasTable ? 'Table' : ''}`
     return t(
       key,
       {
@@ -65,7 +76,7 @@ export class GetTableSchemaToolPresentationType extends DatabaseToolPresentation
     label: 'GetTableSchema',
     read: true,
     table: true,
-    counted: 'running',
+    counted: STEP_STATUS.RUNNING,
   }
 }
 
@@ -75,7 +86,7 @@ export class ListTableRowsToolPresentationType extends DatabaseToolPresentationT
     label: 'ListTableRows',
     read: true,
     table: true,
-    counted: 'done',
+    counted: STEP_STATUS.DONE,
   }
 }
 

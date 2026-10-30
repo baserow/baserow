@@ -195,6 +195,7 @@ import { useI18n } from 'vue-i18n'
 import { useNuxtApp } from '#app'
 import agentOrb from '@baserow/modules/agent/assets/images/agent-orb.svg?url'
 import ChatComposer from '@baserow/modules/core/components/chat/ChatComposer'
+import { STEP_STATUS } from '@baserow/modules/core/chatRuns/constants'
 import { toolActivity } from '@baserow/modules/core/toolPresentationTypes'
 import { provideNow } from '@baserow/modules/core/composables/useNow'
 import AgentConversationList from '@baserow/modules/agent/components/AgentConversationList'
@@ -257,7 +258,7 @@ const replyRunning = computed(() => Boolean(state.replyFollower))
 const composerActivity = computed(() => {
   if (!replyRunning.value) return ''
   const runningStep = state.replyFollower.view.steps?.findLast(
-    (step) => step.status === 'running'
+    (step) => step.status === STEP_STATUS.RUNNING
   )
   if (runningStep) return `${toolActivity(runningStep, $registry, t).title}…`
   return t(state.replyFollower.view.text ? 'agent.writing' : 'agent.thinking')

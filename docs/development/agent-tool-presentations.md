@@ -40,7 +40,8 @@ Agent tools define these summaries with `AgentToolType.get_step_input(arguments)
 and `get_step_facts(ctx, arguments, result)`. Invalid or unavailable summaries
 remain empty. Summary extraction must never change whether execution succeeds.
 
-The statuses are `running`, `done`, `failed` and `stopped`. `stopped` means the
+The frontend uses `STEP_STATUS` from `modules/core/chatRuns/constants.js` for
+the statuses `running`, `done`, `failed` and `stopped`. `stopped` means the
 outcome is uncertain; a write may already have completed. It does not imply
 rollback. Missing history steps are supported and produce no activity cards.
 
@@ -52,6 +53,7 @@ This example shows a future email action's presentation only; it does not send m
 
 ```javascript
 import { ToolPresentationType } from "@baserow/modules/core/toolPresentationTypes";
+import { STEP_STATUS } from "@baserow/modules/core/chatRuns/constants";
 
 class EmailToolPresentationType extends ToolPresentationType {
     static getType() {
@@ -63,11 +65,11 @@ class EmailToolPresentationType extends ToolPresentationType {
     }
 
     getActivity({ status, facts }, t) {
-        if (status === "running") return t("emailTool.sending");
-        if (status === "done" && facts.delivery === "sent") {
+        if (status === STEP_STATUS.RUNNING) return t("emailTool.sending");
+        if (status === STEP_STATUS.DONE && facts.delivery === "sent") {
             return t("emailTool.sent");
         }
-        if (status === "done" && facts.delivery === "queued") {
+        if (status === STEP_STATUS.DONE && facts.delivery === "queued") {
             return t("emailTool.queued");
         }
         return this.getLabel(t);
@@ -87,7 +89,8 @@ export default defineNuxtPlugin({
 ```
 
 The base also provides `icon`, `getDescription(t)` and `group`. Leave `group` as
-`null` for actions. Only workspace reads should return `'workspace'`.
+`null` for actions. Only workspace reads should return `WORKSPACE_TOOL_GROUP`
+from `modules/core/toolPresentationTypes.js`.
 `groupToolSteps(steps, registry, t)` groups consecutive workspace reads and gives
 each write or action its own card, even when an action is read-only.
 `ChatStepGroup` renders the resulting title, status and optional activity lines.
