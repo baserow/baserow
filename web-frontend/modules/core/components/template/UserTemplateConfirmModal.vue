@@ -6,7 +6,7 @@
     :close-button="false"
     @hidden="emit('hidden')"
   >
-    <div class="user-template-modal">
+    <form class="user-template-modal" @submit.prevent="confirm">
       <div class="user-template-modal__head">
         <h2 class="user-template-modal__title">{{ title }}</h2>
         <button
@@ -25,20 +25,20 @@
 
       <div class="user-template-modal__footer">
         <div class="user-template-modal__footer-actions">
-          <Button type="secondary" @click="hide()">
+          <Button type="secondary" button-type="button" @click="hide()">
             {{ $t('action.cancel') }}
           </Button>
           <Button
             :type="danger ? 'danger' : 'primary'"
+            button-type="submit"
             :loading="loading"
-            :disabled="loading"
-            @click="confirm"
+            :disabled="loading || confirmDisabled"
           >
             {{ confirmLabel }}
           </Button>
         </div>
       </div>
-    </div>
+    </form>
   </Modal>
 </template>
 
@@ -48,11 +48,10 @@ import { computed, reactive, ref } from 'vue'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 /**
- * Asks the author to confirm a change of their template, then sends its request,
- * once per template.
+ * Asks to confirm a change of a template, then sends its request, once per
+ * template.
  */
 const props = defineProps({
-  // The user's template as listed in their templates.
   template: {
     type: Object,
     required: true,
@@ -66,6 +65,13 @@ const props = defineProps({
     required: true,
   },
   danger: {
+    type: Boolean,
+    required: false,
+    default: false,
+  },
+  // Whether the request can't be sent yet, for example while a required field
+  // in the slot is empty.
+  confirmDisabled: {
     type: Boolean,
     required: false,
     default: false,
@@ -100,7 +106,7 @@ function hide(...args) {
 async function confirm() {
   const template = props.template
   const { id } = template
-  if (pending.has(id)) {
+  if (pending.has(id) || props.confirmDisabled) {
     return
   }
   pending.add(id)

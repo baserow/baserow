@@ -132,7 +132,8 @@ describe('TemplateDetails', () => {
   test.each([
     ['private', 'templateDetails.makePublic', 'make-public'],
     ['public', 'templateDetails.makePrivate', 'make-private'],
-    ['rejected', null, null],
+    ['rejected', 'templateDetails.makePrivate', 'make-private'],
+    ['blocked', null, null],
   ])(
     'offers the visibility change of a %s own template',
     async (state, label, event) => {
@@ -174,6 +175,34 @@ describe('TemplateDetails', () => {
 
     const other = await mountComponent({ template: { ...shown, state: null } })
     expect(other.find('.template-details__author-name').text()).toBe('Ada')
+  })
+
+  test('submits a rejected own template for review or withdraws it', async () => {
+    const userTemplate = {
+      ...template,
+      type: 'user',
+      state: 'rejected',
+      needs_review: true,
+    }
+    const wrapper = await mountComponent({
+      template: userTemplate,
+      isOwn: true,
+    })
+
+    await wrapper
+      .find('.template-install__actions .button-icon')
+      .trigger('click')
+    const links = wrapper.findAll('.context__menu-item-link')
+    expect(links.map((link) => link.text()).slice(2, 4)).toStrictEqual([
+      'templateDetails.submitForReview',
+      'templateDetails.makePrivate',
+    ])
+
+    await links[2].trigger('click')
+    await links[3].trigger('click')
+
+    expect(wrapper.emitted('make-public')).toStrictEqual([[userTemplate]])
+    expect(wrapper.emitted('make-private')).toStrictEqual([[userTemplate]])
   })
 
   test('installs the latest revision only of an own template', async () => {

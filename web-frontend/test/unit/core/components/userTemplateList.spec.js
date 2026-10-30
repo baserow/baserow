@@ -136,6 +136,26 @@ describe('UserTemplateList', () => {
     expect(wrapper.find('.template-empty-state').exists()).toBe(false)
   })
 
+  test.each([
+    ['in_review', true, 'stateInReview', true],
+    ['rejected', true, 'stateRejected', true],
+    ['public', true, 'statePublic', false],
+    ['in_review', false, 'stateInReview', false],
+  ])(
+    'shows that a %s template (listed: %s) is still listed',
+    async (state, listed, label, shown) => {
+      mockPages(page([userTemplate(1, 'Sprint Tracker', state, { listed })]))
+      const wrapper = await mountComponent()
+
+      expect(
+        wrapper.findAll('.badge').map((badge) => badge.text())
+      ).toStrictEqual([
+        `userTemplateList.${label}`,
+        ...(shown ? ['userTemplateList.stateListed'] : []),
+      ])
+    }
+  )
+
   test('shows how many times each template was used', async () => {
     mockPages(
       page([
@@ -585,12 +605,25 @@ describe('UserTemplateList', () => {
   })
 
   test.each([
-    ['private', 'userTemplateList.makePublic', 'make-public'],
-    ['public', 'userTemplateList.makePrivate', 'make-private'],
+    ['private', false, ['userTemplateList.makePublic'], 'make-public'],
+    ['private', true, ['userTemplateList.submitForReview'], 'make-public'],
+    ['in_review', false, ['userTemplateList.makePrivate'], 'make-private'],
+    [
+      'rejected',
+      true,
+      ['userTemplateList.submitForReview', 'userTemplateList.makePrivate'],
+      'make-public',
+    ],
+    ['public', false, ['userTemplateList.makePrivate'], 'make-private'],
+    // Listed with a rejected change: only a new change is reviewed again.
+    ['rejected', false, ['userTemplateList.makePrivate'], 'make-private'],
+    ['blocked', false, [], null],
   ])(
-    'offers to change the visibility of a %s template',
-    async (state, item, event) => {
-      const template = userTemplate(1, 'Sprint Tracker', state)
+    'offers to change the visibility of a %s template (needs review: %s)',
+    async (state, needsReview, items, event) => {
+      const template = userTemplate(1, 'Sprint Tracker', state, {
+        needs_review: needsReview,
+      })
       mockPages(page([template]))
       const wrapper = await mountComponent()
 
@@ -602,17 +635,17 @@ describe('UserTemplateList', () => {
       expect(links.map((link) => link.text())).toStrictEqual([
         'userTemplateList.editDetails',
         'userTemplateList.updateContent',
-        item,
+        ...items,
         'userTemplateList.download',
         'userTemplateList.delete',
       ])
-
-      await links[2].trigger('click')
-      await flushPromises()
-
-      expect(wrapper.emitted(event)).toStrictEqual([[template]])
-      // The modal makes the change, not the list.
-      expect(testApp.mock.history.patch).toHaveLength(0)
+      if (event) {
+        await links[2].trigger('click')
+        await flushPromises()
+        expect(wrapper.emitted(event)).toStrictEqual([[template]])
+        // The modal makes the change, not the list.
+        expect(testApp.mock.history.patch).toHaveLength(0)
+      }
     }
   )
 

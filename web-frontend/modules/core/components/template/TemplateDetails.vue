@@ -102,22 +102,20 @@
                   {{ $t('templateDetails.updateContent') }}
                 </a>
               </li>
-              <li
-                v-if="visibilityAction === 'make-public'"
-                class="context__menu-item"
-              >
+              <li v-if="canMakePublic(template)" class="context__menu-item">
                 <a
                   class="context__menu-item-link"
                   @click.prevent="changeVisibility('make-public', hide)"
                 >
                   <i class="context__menu-item-icon iconoir-eye-empty"></i>
-                  {{ $t('templateDetails.makePublic') }}
+                  {{
+                    template.needs_review
+                      ? $t('templateDetails.submitForReview')
+                      : $t('templateDetails.makePublic')
+                  }}
                 </a>
               </li>
-              <li
-                v-else-if="visibilityAction === 'make-private'"
-                class="context__menu-item"
-              >
+              <li v-if="canMakePrivate(template)" class="context__menu-item">
                 <a
                   class="context__menu-item-link"
                   @click.prevent="changeVisibility('make-private', hide)"
@@ -151,7 +149,8 @@ import { computed } from 'vue'
 import { useNuxtApp } from '#app'
 
 import {
-  getVisibilityAction,
+  canMakePrivate,
+  canMakePublic,
   isOwnTemplate,
 } from '@baserow/modules/core/utils/userTemplate'
 import TemplatePreview from '@baserow/modules/core/components/template/TemplatePreview'
@@ -211,8 +210,6 @@ function edit(mode, hideMenu) {
 
 // Also when opened from the public templates.
 const isOwner = computed(() => isOwnTemplate(props.template))
-
-const visibilityAction = computed(() => getVisibilityAction(props.template))
 
 function changeVisibility(event, hideMenu) {
   hideMenu()

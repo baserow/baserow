@@ -6,6 +6,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from baserow.core.handler import CoreHandler
 from baserow.core.models import Template, TemplateCategory
 from baserow.core.user_templates.constants import UserTemplateState
 from baserow.core.user_templates.handler import UserTemplateHandler
@@ -194,6 +195,15 @@ class TemplateListItemSerializer(TemplateDetailSerializer):
         help_text="Why the template was rejected or blocked, if given. Only shown "
         "to its owner."
     )
+    needs_review = serializers.SerializerMethodField(
+        help_text="Whether making the template public sends it to the review of "
+        "an instance admin, because approval is required or one rejected it. Only "
+        "shown to its owner."
+    )
+    listed = serializers.SerializerMethodField(
+        help_text="Whether a revision of the template is listed for everybody, also "
+        "while a later one is in review or rejected. Only shown to its owner."
+    )
     source_workspace_id = serializers.SerializerMethodField(
         help_text="The workspace the applications of the latest revision were "
         "copied from, if known. Only shown to its owner."
@@ -211,6 +221,8 @@ class TemplateListItemSerializer(TemplateDetailSerializer):
             "categories",
             "state",
             "reason",
+            "needs_review",
+            "listed",
             "source_workspace_id",
             "source_application_ids",
             "install_count",
@@ -227,6 +239,14 @@ class TemplateListItemSerializer(TemplateDetailSerializer):
             return None
         return UserTemplateHandler().get_template_metadata(instance)
 
+    def _require_approval(self) -> bool:
+        # Read once per response, for display only.
+        if "require_approval" not in self.context:
+            self.context["require_approval"] = (
+                CoreHandler().get_settings().user_templates_require_approval
+            )
+        return self.context["require_approval"]
+
     @extend_schema_field(
         serializers.ChoiceField(choices=UserTemplateState.choices, allow_null=True)
     )
@@ -238,6 +258,18 @@ class TemplateListItemSerializer(TemplateDetailSerializer):
     def get_reason(self, instance):
         _, reason = self._get_owner_state(instance)
         return reason
+
+    @extend_schema_field(serializers.BooleanField(allow_null=True))
+    def get_needs_review(self, instance):
+        if not self._is_owner(instance):
+            return None
+        return UserTemplateHandler().needs_review(instance, self._require_approval())
+
+    @extend_schema_field(serializers.BooleanField(allow_null=True))
+    def get_listed(self, instance):
+        if not self._is_owner(instance):
+            return None
+        return UserTemplateHandler().is_listed(instance)
 
     @extend_schema_field(OpenApiTypes.INT)
     def get_source_workspace_id(self, instance):

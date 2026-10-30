@@ -40,7 +40,11 @@ from tqdm import tqdm
 from baserow.core.cache import get_cached_settings, set_cached_settings
 from baserow.core.db import specific_queryset
 from baserow.core.deferred_callbacks import deferred_callback_context
-from baserow.core.feature_flags import FF_RBAC_IMPROVEMENTS, feature_flag_is_enabled
+from baserow.core.feature_flags import (
+    FF_RBAC_IMPROVEMENTS,
+    FF_USER_TEMPLATES,
+    feature_flag_is_enabled,
+)
 from baserow.core.registries import plugin_registry
 from baserow.core.user.utils import normalize_email_address
 from baserow.core.user_templates.constants import USER_TEMPLATE_SEEDED_ID_MAPPINGS
@@ -223,12 +227,17 @@ class CoreHandler:
         :param settings_instance: If already fetched, the settings instance can be
             provided to avoid fetching the values for a second time.
         :param kwargs: An dict containing the settings that need to be updated.
+        :raises FeatureDisabledException: If `user_templates_require_approval` is
+            changed with the user templates feature disabled.
         :return: The update settings instance.
         """
 
         CoreHandler().check_permissions(
             user, UpdateSettingsOperationType.type, context=settings_instance
         )
+
+        if "user_templates_require_approval" in kwargs:
+            feature_flag_is_enabled(FF_USER_TEMPLATES, raise_if_disabled=True)
 
         if not settings_instance:
             settings_instance = self.get_settings()
@@ -247,6 +256,7 @@ class CoreHandler:
                 "email_verification",
                 "verify_import_signature",
                 "allow_reporting_abuse",
+                "user_templates_require_approval",
             ],
             settings_instance,
         )
@@ -2559,7 +2569,9 @@ class CoreHandler:
                 if actor.is_authenticated
                 else templates.none()
             )
-        templates = templates.listed() if listed else templates.latest_revisions()
+        templates = (
+            templates.listed() if listed else templates.latest_revisions()
+        ).with_review_state()
 
         # A revision isn't changed after it's created, an official template is.
         # A listed revision is dated by when it was listed, see `submit_revision`.

@@ -114,7 +114,12 @@ class APIListingView(
 
     @staticmethod
     def get_extend_schema_parameters(
-        name, serializer_class, search_fields, sort_field_mapping, extra_parameters=None
+        name,
+        serializer_class,
+        search_fields,
+        sort_field_mapping,
+        extra_parameters=None,
+        extra_responses=None,
     ):
         """
         Returns the schema properties that can be used in in the @extend_schema
@@ -195,6 +200,7 @@ class APIListingView(
                     ]
                 ),
                 401: None,
+                **(extra_responses or {}),
             },
         }
 

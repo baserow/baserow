@@ -26,13 +26,16 @@
       </div>
 
       <div class="user-template-modal__body">
-        <p class="user-template-modal__description">
-          {{
-            activeMode === 'details'
-              ? $t('updateUserTemplateModal.detailsDescription')
-              : $t('updateUserTemplateModal.contentDescription')
-          }}
+        <p
+          v-if="activeMode === 'details'"
+          class="user-template-modal__description"
+        >
+          {{ $t('updateUserTemplateModal.detailsDescription') }}
         </p>
+        <Alert v-if="reviewNotice" type="info-neutral" class="margin-bottom-2">
+          <template #title>{{ $t(reviewNotice.title) }}</template>
+          <p>{{ $t(reviewNotice.text) }}</p>
+        </Alert>
         <UserTemplateDetailsForm
           v-if="activeMode === 'details'"
           ref="detailsForm"
@@ -46,6 +49,8 @@
           v-if="showVisibility"
           :model-value="visibility"
           :disabled="jobIsRunning || updateLoading"
+          :needs-review="Boolean(template.needs_review) || requireApproval"
+          :listed="Boolean(template.listed)"
           class="margin-top-2"
           @update:model-value="Object.assign(values, $event)"
         />
@@ -126,7 +131,7 @@ import UserTemplateContentForm from '@baserow/modules/core/components/template/U
 import UserTemplateDetailsForm from '@baserow/modules/core/components/template/UserTemplateDetailsForm'
 import UserTemplateVisibilityForm from '@baserow/modules/core/components/template/UserTemplateVisibilityForm'
 import TemplateService from '@baserow/modules/core/services/template'
-import { getVisibilityAction } from '@baserow/modules/core/utils/userTemplate'
+import { canChangeVisibilityInDetails } from '@baserow/modules/core/utils/userTemplate'
 
 // The notifications of the jobs that ended, by job of the store. The same template
 // can be updated from more than one mounted modal, which all follow the same job,
@@ -206,7 +211,7 @@ export default {
     showVisibility() {
       return (
         this.activeMode === 'details' &&
-        getVisibilityAction({ state: this.shownState }) !== null &&
+        canChangeVisibilityInDetails({ state: this.shownState }) &&
         !this.jobIsRunning &&
         !this.jobIsFinished
       )
@@ -249,6 +254,44 @@ export default {
         this.values.icon !== initial.icon ||
         sorted(this.values.categoryIds) !== sorted(initial.categoryIds)
       )
+    },
+    requireApproval() {
+      return Boolean(
+        this.$store.getters['settings/get'].user_templates_require_approval
+      )
+    },
+    // An update of a listed template goes to review when approval is on, and
+    // also with approval off after an admin rejected an earlier update. One of a
+    // template in review replaces the version in review. One of a rejected
+    // template that isn't listed stays rejected until the author submits it
+    // again. A template made private isn't reviewed.
+    reviewNotice() {
+      const { listed, state } = this.template
+      if (state === 'in_review') {
+        return {
+          title: 'updateUserTemplateModal.inReviewTitle',
+          text: listed
+            ? 'updateUserTemplateModal.inReviewListedText'
+            : 'updateUserTemplateModal.inReviewText',
+        }
+      }
+      if (
+        listed &&
+        (this.requireApproval || state !== 'public') &&
+        (!this.showVisibility || this.values.makePublic)
+      ) {
+        return {
+          title: 'updateUserTemplateModal.reviewTitle',
+          text: 'updateUserTemplateModal.reviewText',
+        }
+      }
+      if (state === 'rejected') {
+        return {
+          title: 'updateUserTemplateModal.rejectedTitle',
+          text: 'updateUserTemplateModal.rejectedText',
+        }
+      }
+      return null
     },
     canUpdate() {
       const valid =
