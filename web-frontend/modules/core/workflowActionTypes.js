@@ -51,7 +51,7 @@ export class WorkflowActionType extends Registerable {
     return path
   }
 
-  get returnsList() {
+  returnsList(workflowAction) {
     return false
   }
 

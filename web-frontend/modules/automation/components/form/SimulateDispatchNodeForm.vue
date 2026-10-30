@@ -95,7 +95,7 @@ const sampleData = computed(() => {
   if (sample.value?._error) {
     return sample.value._error
   }
-  if (nodeType.value.returnsList && sample.value?.data) {
+  if (nodeType.value.returnsList(props.node) && sample.value?.data) {
     return sample.value.data.results
   }
   return sample.value?.data

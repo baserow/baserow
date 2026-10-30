@@ -156,6 +156,10 @@ class UpdateDataSourceActionType(UndoableActionType):
         )
         return updated.data_source
 
+    # The recorded values which belong to the data source rather than to its
+    # service.
+    data_source_value_names = ["name", "page_id"]
+
     @classmethod
     def scope(cls, page: Page):
         return data_source_action_scope(page)
@@ -178,7 +182,25 @@ class UpdateDataSourceActionType(UndoableActionType):
         data_source = DataSourceHandler().get_data_source_for_update(
             params.data_source_id
         )
+        service_type = cls._service_type(params)
         kwargs = dict(values)
+
+        if (
+            service_type is not None
+            and data_source.service is not None
+            and data_source.service.specific.get_type().type != service_type.type
+        ):
+            # The data source changed type since, which replaced its service: the
+            # values recorded for the previous service don't apply to this one.
+            service_type = None
+            kwargs = {
+                key: value
+                for key, value in kwargs.items()
+                if key in cls.data_source_value_names
+            }
+            if not kwargs:
+                return
+
         # `page_id` captures a page move (e.g. toggling a data source as shared). The
         # service update expects a `page` instance, so resolve it back here.
         page_id = kwargs.pop("page_id", None)
@@ -187,7 +209,7 @@ class UpdateDataSourceActionType(UndoableActionType):
         DataSourceService().update_data_source(
             user,
             data_source,
-            service_type=cls._service_type(params),
+            service_type=service_type,
             **kwargs,
         )
 

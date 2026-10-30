@@ -1,7 +1,6 @@
 from typing import Any, Dict, List
 
 from django.contrib.auth.models import AbstractUser, AnonymousUser
-from django.db import transaction
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -399,9 +398,21 @@ class PublicDataSourcesView(APIView):
                 data_source.service,
                 PublicDataSourceSerializer,
                 context={"data_source": data_source, "allowed_fields": allowed_fields},
+                # A type without an integration, like an HTTP request, holds what
+                # an integration would, like the author's headers: visitors only
+                # get its public fields.
+                extra_params={
+                    "public": data_source.service.get_type().integration_type is None
+                },
             ).data
             for data_source in data_sources
-            if data_source.service and data_source.service.integration_id
+            if data_source.service
+            # A data source of a type which needs an integration isn't set up
+            # until it has one. Other types, like an HTTP request, never do.
+            and (
+                data_source.service.integration_id
+                or data_source.service.get_type().integration_type is None
+            )
         ]
 
 
@@ -542,7 +553,6 @@ class PublicDispatchDataSourceView(APIView):
             ),
         },
     )
-    @transaction.atomic
     @map_exceptions(
         {
             DoesNotExist: ERROR_DATA_DOES_NOT_EXIST,
@@ -602,7 +612,6 @@ class PublicDispatchDataSourcesView(APIView):
             ),
         },
     )
-    @transaction.atomic
     @map_exceptions(
         {
             PageDoesNotExist: ERROR_PAGE_DOES_NOT_EXIST,

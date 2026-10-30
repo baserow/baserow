@@ -153,10 +153,12 @@ export default {
       return this.$registry.get('service', this.selectedDataSource.type)
     },
     selectedDataSourceReturnsList() {
-      return this.selectedDataSourceType?.returnsList
+      return this.selectedDataSourceType?.returnsList(this.selectedDataSource)
     },
     selectedDataSourceSupportsPagination() {
-      return Boolean(this.selectedDataSourceType?.supportsPagination)
+      return Boolean(
+        this.selectedDataSourceType?.supportsPagination(this.selectedDataSource)
+      )
     },
     maxItemPerPage() {
       if (!this.selectedDataSourceType) {

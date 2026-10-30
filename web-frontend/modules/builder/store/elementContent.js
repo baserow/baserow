@@ -162,7 +162,7 @@ const actions = {
         })
       }
 
-      if (serviceType.returnsList) {
+      if (serviceType.returnsList(dataSource)) {
         // The service type returns a list of results, we'll set the content
         // using the results key and set the range for future paging.
         commit('SET_CONTENT', {

@@ -1,0 +1,65 @@
+.http-data-source-form {
+  display: flex;
+  flex-direction: column;
+
+  // The tab links have their own top padding: together they space the tabs
+  // like the other form groups.
+  gap: 8px;
+
+  // The data source form spaces the test result below.
+  .tab {
+    padding-bottom: 0;
+  }
+}
+
+.http-data-source-form__request {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.http-data-source-form__method {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid $palette-neutral-400;
+  background-color: $palette-neutral-50;
+  color: $palette-neutral-1200;
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 500;
+
+  @include rounded($rounded);
+}
+
+.http-data-source-form__url {
+  flex: 1;
+  min-width: 0;
+}
+
+.http-data-source-form__test {
+  flex-shrink: 0;
+}
+
+.http-data-source-form__help {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-900;
+}
+
+.http-data-source-form__help--above {
+  margin: 0 0 12px;
+}
+
+.http-data-source-form__shapes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.http-data-source-form__timeout {
+  max-width: 160px;
+}

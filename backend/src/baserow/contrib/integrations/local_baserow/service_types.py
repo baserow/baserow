@@ -240,15 +240,15 @@ class LocalBaserowServiceType(ServiceType):
         self, service: ServiceSubClass, properties: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Responsible for returning the JSON Schema object based on the
-        `returns_list` attribute set on this service type.
+        Responsible for returning the JSON Schema object based on whether the
+        service returns a list.
 
         :param service: The service we are generating a schema for.
         :param properties: A dictionary of properties which describe this service.
         :return: A JSON Schema formatted dictionary.
         """
 
-        if self.returns_list:
+        if self.returns_list(service):
             return {
                 "items": {"type": "object", "properties": properties},
                 "title": self.get_schema_name(service),
@@ -412,7 +412,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             for field_obj in table_model.get_field_objects() or []
         }
 
-        if self.returns_list:
+        if self._returns_list:
             return {
                 **dispatch_result,
                 "results": [
@@ -2661,7 +2661,7 @@ class LocalBaserowUpsertRowsServiceType(LocalBaserowTableServiceType):
     """
 
     dispatch_types = [DispatchTypes.ACTION]
-    returns_list = True
+    _returns_list = True
     rows_help_text = ""
     batch_operation_name = ""
     include_id = False
@@ -3106,9 +3106,9 @@ class LocalBaserowRowsSignalTriggerServiceType(
 
     # Local Baserow signal services (e.g. rows created, updated, deleted)
     # all return an array of rows, even if only a single row is affected.
-    # We set `returns_list` to `True` so that when we generate the schema,
+    # We set `_returns_list` to `True` so that when we generate the schema,
     # the `type` is set to `array` instead of `object`.
-    returns_list = True
+    _returns_list = True
 
     def start_listening(self, on_event: Callable):
         super().start_listening(on_event)

@@ -133,7 +133,7 @@ export class DataSourceDataProviderType extends DataProviderType {
 
     const serviceType = this.app.$registry.get('service', dataSource.type)
 
-    if (serviceType.returnsList) {
+    if (serviceType.returnsList(dataSource)) {
       // if it returns a list let's consume the next path token which is the row
       if (rest.length >= 2) {
         const [row, ...afterRow] = rest
@@ -166,7 +166,7 @@ export class DataSourceDataProviderType extends DataProviderType {
 
     const serviceType = this.app.$registry.get('service', dataSource.type)
 
-    if (serviceType.returnsList) {
+    if (serviceType.returnsList(dataSource)) {
       return dataSourceContents[dataSource.id]?.results
     } else {
       return dataSourceContents[dataSource.id]
@@ -886,7 +886,7 @@ export class PreviousActionDataProviderType extends DataProviderType {
 
     let dispatchResult = content[workflowActionId]
     let preparedPath
-    if (actionType.returnsList) {
+    if (actionType.returnsList(workflowAction)) {
       dispatchResult = dispatchResult.results
       if (rest.length >= 2) {
         const [row, ...afterRow] = rest

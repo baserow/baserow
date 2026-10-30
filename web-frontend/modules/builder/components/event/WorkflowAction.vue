@@ -113,7 +113,10 @@ export default {
       if (sample?._error) {
         return sample._error
       }
-      if (this.workflowActionType.returnsList && sample?.data) {
+      if (
+        this.workflowActionType.returnsList(this.workflowAction) &&
+        sample?.data
+      ) {
         return sample.data.results
       }
       return sample?.data || null

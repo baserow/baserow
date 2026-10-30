@@ -196,15 +196,13 @@ export default {
       if (this.localDataSources === null) {
         return null
       }
-      return this.localDataSources.filter(
-        (dataSource) =>
-          this.$registry.get('service', dataSource.type).returnsList
+      return this.localDataSources.filter((dataSource) =>
+        this.$registry.get('service', dataSource.type).returnsList(dataSource)
       )
     },
     listSharedDataSources() {
-      return this.sharedDataSources.filter(
-        (dataSource) =>
-          this.$registry.get('service', dataSource.type).returnsList
+      return this.sharedDataSources.filter((dataSource) =>
+        this.$registry.get('service', dataSource.type).returnsList(dataSource)
       )
     },
   },

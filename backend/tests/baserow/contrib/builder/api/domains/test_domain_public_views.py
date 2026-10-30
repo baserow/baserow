@@ -22,6 +22,7 @@ from baserow.contrib.builder.preview import (
     get_builder_preview_cookie_name,
 )
 from baserow.contrib.database.views.models import SORT_ORDER_ASC
+from baserow.contrib.integrations.core.models import CoreHTTPDataSourceService
 from baserow.core.exceptions import PermissionException
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
@@ -631,6 +632,51 @@ def test_get_data_source_of_public_builder(api_client, data_fixture):
 
     assert response.status_code == HTTP_200_OK
     assert len(response_json) == 3
+
+
+@pytest.mark.django_db
+def test_get_data_sources_without_an_integration_of_public_builder(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    builder_from = data_fixture.create_builder_application(user=user)
+    builder_to = data_fixture.create_builder_application(user=user, workspace=None)
+    page = data_fixture.create_builder_page(builder=builder_to, user=user)
+    data_fixture.create_builder_custom_domain(
+        published_to=page.builder, builder=builder_from
+    )
+    # A type which never has an integration.
+    http_data_source = data_fixture.create_builder_data_source(
+        page=page,
+        service=data_fixture.create_service(
+            CoreHTTPDataSourceService, url="'https://example.notexist'"
+        ),
+    )
+    service = http_data_source.service
+    service.headers.create(key="Authorization", value="'Bearer secret'")
+    service.query_params.create(key="api_key", value="'secret'")
+    service.sample_data = {"data": {"name": "secret"}}
+    service.save()
+    # A type which isn't set up until it has one.
+    data_fixture.create_builder_data_source(
+        page=page,
+        service=data_fixture.create_local_baserow_get_row_service(integration=None),
+    )
+
+    response = api_client.get(
+        reverse("api:builder:domains:list_data_sources", kwargs={"page_id": page.id}),
+        format="json",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert [(item["id"], item["type"]) for item in response.json()] == [
+        (http_data_source.id, "http_get")
+    ]
+    # A visitor never gets the request, which can hold the author's secrets.
+    assert "secret" not in response.content.decode()
+    assert not {"url", "headers", "query_params", "sample_data"} & set(
+        response.json()[0]
+    )
 
 
 @pytest.mark.django_db

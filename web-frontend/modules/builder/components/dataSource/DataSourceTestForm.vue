@@ -1,42 +1,75 @@
 <template>
   <div class="data-source-test-form">
     <Button
-      :loading="isLoading"
-      :disabled="isLoading"
+      v-if="showButton"
+      :loading="tester.isLoading"
+      :disabled="tester.isLoading"
       class="data-source-test-form__button"
       type="secondary"
-      @click="testDataSource()"
+      @click="tester.test()"
     >
       {{ buttonLabel }}
     </Button>
 
-    <SampleDataViewer
-      v-if="testError"
-      :sample-data="testError"
-      is-error
-      :modal-title="sampleDataModalTitle"
-      :modal-subtitle="$t('dataSourceTestForm.sampleDataModalSubTitle')"
+    <section class="data-source-test-form__result">
+      <div class="data-source-test-form__result-header">
+        <div class="data-source-test-form__result-title">
+          {{ $t('dataSourceTestForm.lastResponse') }}
+          <Badge v-if="tester.error" color="red" size="small" rounded indicator>
+            {{ $t('dataSourceTestForm.failed') }}
+          </Badge>
+          <Badge
+            v-else-if="tester.hasSampleData"
+            color="green"
+            size="small"
+            rounded
+            indicator
+          >
+            {{ $t('dataSourceTestForm.succeeded') }}
+          </Badge>
+        </div>
+        <ButtonText
+          v-if="tester.error || tester.hasSampleData"
+          icon="iconoir-expand"
+          size="small"
+          @click="$refs.sampleDataModal.show()"
+        >
+          {{ $t('dataSourceTestForm.openInFull') }}
+        </ButtonText>
+      </div>
+      <pre
+        v-if="tester.error"
+        class="data-source-test-form__code data-source-test-form__code--error"
+        >{{ tester.error }}</pre
+      >
+      <pre
+        v-else-if="tester.hasSampleData"
+        class="data-source-test-form__code"
+        >{{ formattedSampleData }}</pre
+      >
+      <p v-else class="data-source-test-form__empty">
+        {{ $t('dataSourceTestForm.testDescription') }}
+      </p>
+    </section>
+
+    <SampleDataModal
+      ref="sampleDataModal"
+      :sample-data="tester.error || tester.sampleData"
+      :title="sampleDataModalTitle"
+      :subtitle="$t('dataSourceTestForm.sampleDataModalSubTitle')"
     />
-    <SampleDataViewer
-      v-else-if="hasSampleData"
-      :sample-data="sampleData"
-      :modal-title="sampleDataModalTitle"
-      :modal-subtitle="$t('dataSourceTestForm.sampleDataModalSubTitle')"
-    />
-    <Alert v-else type="info-neutral" class="margin-bottom-0">
-      <p>{{ $t('dataSourceTestForm.testDescription') }}</p>
-    </Alert>
   </div>
 </template>
 
 <script setup>
-import { computed, inject, ref } from 'vue'
-import { useStore } from 'vuex'
-import SampleDataViewer from '@baserow/modules/core/components/SampleDataViewer'
-import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
+import { computed, inject } from 'vue'
+import SampleDataModal from '@baserow/modules/core/components/SampleDataModal'
+import { useDataSourceTest } from '@baserow/modules/builder/composables/useDataSourceTest'
 
-const { $i18n, $registry } = useNuxtApp()
-const store = useStore()
+// A long answer is cut short here, the modal shows all of it.
+const MAX_FORMATTED_LENGTH = 10000
+
+const { $i18n } = useNuxtApp()
 
 const applicationContext = inject('applicationContext')
 
@@ -49,29 +82,42 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  /**
+   * Called before the test, to save what the form changed: the test
+   * dispatches the saved data source. Resolves to false when the test must
+   * not run, like when the form isn't valid.
+   */
+  beforeTest: {
+    type: Function,
+    required: false,
+    default: null,
+  },
+  /**
+   * Whether to show a Test button. A service form which has a Test button of
+   * its own shares the test through `dataSourceTest` and hides this one.
+   */
+  showButton: {
+    type: Boolean,
+    required: false,
+    default: true,
+  },
 })
 
-const isLoading = ref(false)
+// Shared with the service form when the data source form provides it.
+const tester =
+  inject('dataSourceTest', null) ??
+  useDataSourceTest({
+    dataSource: () => props.dataSource,
+    page: () => props.page,
+    applicationContext: () => applicationContext,
+    beforeTest: () => props.beforeTest?.(),
+  })
 
-// The error of the last test. The data source keeps the sample data of its
-// last successful test, so the error is only known from the response.
-const testError = ref(null)
-
-const serviceType = computed(() =>
-  $registry.get('service', props.dataSource.type)
-)
-
-const sample = computed(() => serviceType.value.getSampleData(props.dataSource))
-
-const hasSampleData = computed(() =>
-  Boolean(sample.value && !sample.value._error)
-)
-
-const sampleData = computed(() => {
-  if (serviceType.value.returnsList && sample.value?.data) {
-    return sample.value.data.results
-  }
-  return sample.value?.data
+const formattedSampleData = computed(() => {
+  const formatted = JSON.stringify(tester.sampleData, null, 2) ?? ''
+  return formatted.length > MAX_FORMATTED_LENGTH
+    ? `${formatted.slice(0, MAX_FORMATTED_LENGTH)}…`
+    : formatted
 })
 
 const sampleDataModalTitle = computed(() =>
@@ -81,32 +127,8 @@ const sampleDataModalTitle = computed(() =>
 )
 
 const buttonLabel = computed(() =>
-  hasSampleData.value
+  tester.hasSampleData
     ? $i18n.t('dataSourceTestForm.buttonLabelTestAgain')
     : $i18n.t('dataSourceTestForm.buttonLabelTest')
 )
-
-const testDataSource = async () => {
-  isLoading.value = true
-  testError.value = null
-
-  const dispatchContext = DataProviderType.getAllDataSourceDispatchContext(
-    $registry.getAll('builderDataProvider'),
-    { ...applicationContext, page: props.page }
-  )
-
-  try {
-    await store.dispatch('dataSource/simulateDispatch', {
-      page: props.page,
-      dataSourceId: props.dataSource.id,
-      dispatchContext,
-    })
-  } catch (error) {
-    testError.value =
-      error.response?.data?.detail ||
-      $i18n.t('dataSourceTestForm.unexpectedError')
-  } finally {
-    isLoading.value = false
-  }
-}
 </script>

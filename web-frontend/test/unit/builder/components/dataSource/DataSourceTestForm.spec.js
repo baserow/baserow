@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import { reactive } from 'vue'
 import { flushPromises } from '@vue/test-utils'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import MockAdapter from 'axios-mock-adapter'
@@ -6,16 +7,15 @@ import MockAdapter from 'axios-mock-adapter'
 import DataSourceTestForm from '@baserow/modules/builder/components/dataSource/DataSourceTestForm'
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 
-const SampleDataViewerStub = {
-  name: 'SampleDataViewer',
+const SampleDataModalStub = {
+  name: 'SampleDataModal',
   props: {
     sampleData: { type: [Object, Array, String], default: null },
-    isError: { type: Boolean, default: false },
-    modalTitle: { type: String, default: '' },
-    modalSubtitle: { type: String, default: '' },
+    title: { type: String, default: '' },
+    subtitle: { type: String, default: '' },
   },
-  template:
-    '<div class="sample-data-viewer" :class="{ \'sample-data-viewer--error\': isError }">{{ JSON.stringify(sampleData) }}</div>',
+  methods: { show() {} },
+  template: '<div class="sample-data-modal-stub" />',
 }
 
 describe('DataSourceTestForm', () => {
@@ -37,12 +37,12 @@ describe('DataSourceTestForm', () => {
     vi.restoreAllMocks()
   })
 
-  const mountComponent = (page) =>
+  const mountComponent = (page, extraProps = {}, provide = {}) =>
     mountSuspended(DataSourceTestForm, {
-      props: { dataSource: page.dataSources[0], page },
+      props: { dataSource: page.dataSources[0], page, ...extraProps },
       global: {
-        provide: { applicationContext: { builder: { id: 1 } } },
-        stubs: { SampleDataViewer: SampleDataViewerStub },
+        provide: { applicationContext: { builder: { id: 1 } }, ...provide },
+        stubs: { SampleDataModal: SampleDataModalStub },
       },
     })
 
@@ -62,8 +62,10 @@ describe('DataSourceTestForm', () => {
   test('asks to test a data source that has no sample data', async () => {
     const wrapper = await mountComponent(createPage(null))
 
-    expect(wrapper.find('.sample-data-viewer').exists()).toBe(false)
-    expect(wrapper.text()).toContain('dataSourceTestForm.testDescription')
+    expect(wrapper.find('.data-source-test-form__code').exists()).toBe(false)
+    expect(wrapper.find('.data-source-test-form__empty').text()).toBe(
+      'dataSourceTestForm.testDescription'
+    )
     expect(wrapper.text()).toContain('dataSourceTestForm.buttonLabelTest')
   })
 
@@ -87,9 +89,10 @@ describe('DataSourceTestForm', () => {
       dataSource: store.getters['dataSource/getPageDataSourceById'](page, 7),
     })
 
-    const viewer = wrapper.find('.sample-data-viewer')
-    expect(viewer.text()).toBe('{"name":"Lamp"}')
-    expect(viewer.classes()).not.toContain('sample-data-viewer--error')
+    const code = wrapper.find('.data-source-test-form__code')
+    expect(JSON.parse(code.text())).toEqual({ name: 'Lamp' })
+    expect(code.classes()).not.toContain('data-source-test-form__code--error')
+    expect(wrapper.text()).toContain('dataSourceTestForm.succeeded')
     expect(wrapper.text()).toContain('dataSourceTestForm.buttonLabelTestAgain')
   })
 
@@ -104,8 +107,72 @@ describe('DataSourceTestForm', () => {
     await wrapper.find('button').trigger('click')
     await flushPromises()
 
-    const viewer = wrapper.find('.sample-data-viewer')
-    expect(viewer.text()).toBe('"Row 999 does not exist."')
-    expect(viewer.classes()).toContain('sample-data-viewer--error')
+    const code = wrapper.find('.data-source-test-form__code')
+    expect(code.text()).toBe('Row 999 does not exist.')
+    expect(code.classes()).toContain('data-source-test-form__code--error')
+    expect(wrapper.text()).toContain('dataSourceTestForm.failed')
+  })
+
+  test('runs beforeTest first, and skips the test when it says so', async () => {
+    const page = createPage(null)
+    const calls = []
+    mock.onPost('builder/data-source/7/simulate-dispatch/').reply(() => {
+      calls.push('test')
+      return [200, page.dataSources[0]]
+    })
+
+    const allowed = await mountComponent(page, {
+      beforeTest: async () => {
+        calls.push('save')
+        return true
+      },
+    })
+    await allowed.find('button').trigger('click')
+    await flushPromises()
+    expect(calls).toEqual(['save', 'test'])
+
+    calls.length = 0
+    const refused = await mountComponent(page, {
+      beforeTest: async () => false,
+    })
+    await refused.find('button').trigger('click')
+    await flushPromises()
+    expect(calls).toEqual([])
+  })
+
+  test('shows the error of a failed save before the test', async () => {
+    const page = createPage(null)
+    const wrapper = await mountComponent(page, {
+      beforeTest: () =>
+        Promise.reject({ response: { data: { detail: 'Invalid timeout.' } } }),
+    })
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('.data-source-test-form__code').text()).toBe(
+      'Invalid timeout.'
+    )
+  })
+
+  test('shows a shared test without a button of its own', async () => {
+    const page = createPage(null)
+    const dataSourceTest = reactive({
+      isLoading: false,
+      error: null,
+      hasSampleData: true,
+      sampleData: [{ id: 1 }],
+      test: vi.fn(),
+    })
+
+    const wrapper = await mountComponent(
+      page,
+      { showButton: false },
+      { dataSourceTest }
+    )
+
+    expect(wrapper.text()).not.toContain('dataSourceTestForm.buttonLabel')
+    expect(
+      JSON.parse(wrapper.find('.data-source-test-form__code').text())
+    ).toEqual([{ id: 1 }])
   })
 })
