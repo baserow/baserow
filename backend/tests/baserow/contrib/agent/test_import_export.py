@@ -50,6 +50,7 @@ def conversation_values(agent: AgentApplication) -> list[tuple]:
                     message.content,
                     message.status,
                     message.error_code,
+                    message.steps,
                     transcript_values(message),
                     message.created_on,
                     message.updated_on,
@@ -87,6 +88,17 @@ def test_duplicate_copies_conversations_with_new_identifiers(
             role=AgentMessage.Role.ASSISTANT,
             status=ChatRunStatus.FAILED,
             error_code="timeout",
+            steps=[
+                {
+                    "id": "call_1",
+                    "tool": "list_tables",
+                    "presentation_type": "list_tables",
+                    "status": "done",
+                    "changes_data": False,
+                    "input": {},
+                    "facts": {},
+                }
+            ],
         )
         AgentReplyTranscript.objects.create(
             reply=reply,
@@ -215,9 +227,30 @@ def test_a_copy_never_carries_a_reply_in_progress(data_fixture, configured_agent
         agent=agent,
         role=AgentMessage.Role.ASSISTANT,
         status=ChatRunStatus.RUNNING,
+        steps=[{"id": "call_1", "status": "running"}],
     )
 
     copied = CoreHandler().duplicate_application(owner, agent).specific
 
     reply = AgentMessage.objects.get(conversation__agent=copied)
     assert (reply.status, reply.error_code) == ("failed", "interrupted")
+    assert reply.steps == [{"id": "call_1", "status": "stopped"}]
+
+
+@pytest.mark.django_db
+def test_old_conversation_payloads_without_steps_still_import(
+    data_fixture, configured_agent
+):
+    owner = data_fixture.create_user()
+    agent = configured_agent(user=owner)
+    data_fixture.create_agent_message(user=owner, agent=agent)
+    serialized = export_internal(agent)
+    for conversation in serialized["conversations"]:
+        for message in conversation["messages"]:
+            del message["steps"]
+
+    copied = AgentApplicationType().import_serialized(
+        agent.workspace, serialized, INTERNAL_CONFIG, {}
+    )
+
+    assert AgentMessage.objects.get(conversation__agent=copied).steps is None

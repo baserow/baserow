@@ -11,6 +11,7 @@ from baserow.core.ai_provider.resolution import ScopedAIProviderState
 from baserow.core.chat_runs.constants import ChatRunErrorCode
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ACTIVE_CHAT_RUN_STATUSES, ChatRunStatus
+from baserow.core.chat_runs.steps import stop_running_steps
 from baserow.core.exceptions import SubjectTypeNotExist
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
@@ -601,7 +602,10 @@ class AgentHandler:
         reply.error_code = error_code
         content = remove_null_characters(result.text if result else "")
         reply.content = content if content.strip() else ""
-        reply.save(update_fields=["status", "error_code", "content", "updated_on"])
+        reply.steps = remove_null_characters(result.steps) if result else None
+        reply.save(
+            update_fields=["status", "error_code", "content", "steps", "updated_on"]
+        )
         if result is not None and result.provider_type:
             AgentReplyTranscript.objects.update_or_create(
                 reply=reply,
@@ -692,6 +696,7 @@ class AgentHandler:
                         "content": message.content,
                         "status": message.status,
                         "error_code": message.error_code,
+                        "steps": message.steps,
                         "transcript": self._export_transcript(message),
                         "created_on": message.created_on.isoformat(),
                         "updated_on": message.updated_on.isoformat(),
@@ -769,6 +774,8 @@ class AgentHandler:
                         content=serialized_message["content"],
                         status=status,
                         error_code=error_code,
+                        steps=stop_running_steps(serialized_message.get("steps") or [])
+                        or None,
                     )
                 )
                 message_data.append(serialized_message)

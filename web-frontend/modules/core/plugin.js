@@ -161,6 +161,7 @@ export default defineNuxtPlugin({
 
     registry.registerNamespace('plugin')
     registry.registerNamespace('chatRunType')
+    registry.registerNamespace('toolPresentation')
     registry.registerNamespace('permissionManager')
     registry.registerNamespace('application')
     registry.registerNamespace('authProvider')

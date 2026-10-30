@@ -24,6 +24,7 @@ from pydantic_core import to_jsonable_python
 
 from baserow.core.chat_runs.constants import ChatRunErrorCode, ChatRunStopReason
 from baserow.core.chat_runs.models import ChatRunStatus
+from baserow.core.chat_runs.steps import ChatRunSteps
 from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.tools import ToolContext
@@ -122,6 +123,30 @@ class AgentResponder:
         self._text = ""
         self._parts: dict[int, str] = {}
         self._result: AgentRunResult[str] | None = None
+        self._steps = ChatRunSteps(journal, self._describe_call)
+
+    def _describe_call(self, name: str, arguments: dict) -> dict:
+        """
+        Describe allowed tools without retaining their raw arguments.
+
+        :param name: The called tool's execution name.
+        :param arguments: Its arguments.
+        :return: The presentation identity, mutation flag and safe input summary.
+        """
+
+        if name not in self._request.allowed_tool_names:
+            return {"presentation_type": name, "changes_data": False, "input": {}}
+        tool = agent_tool_type_registry.get(name)
+        try:
+            summary = tool.get_step_input(arguments)
+        except Exception:
+            logger.exception("Agent tool {} step input failed", name)
+            summary = {}
+        return {
+            "presentation_type": tool.presentation_type,
+            "changes_data": tool.changes_data,
+            "input": summary,
+        }
 
     async def answer(self) -> ChatRunOutcome:
         """
@@ -190,6 +215,7 @@ class AgentResponder:
         :param event: An event of the run.
         """
 
+        self._steps.on_event(event)
         if isinstance(event, AgentRunResultEvent):
             self._result = event.result
             return
@@ -237,11 +263,13 @@ class AgentResponder:
         :return: The text and the execution details of the reply.
         """
 
+        steps = self._steps.finish() or None
         if self._result is None:
             return AgentReplyResult(
                 text=self._text,
                 provider_type=self._request.provider_type,
                 model_identifier=self._request.model_identifier,
+                steps=steps,
             )
         return AgentReplyResult(
             text=remove_null_characters(self._result.output),
@@ -251,4 +279,5 @@ class AgentResponder:
                 self._result.new_messages(), mode="json"
             ),
             usage=to_jsonable_python(self._result.usage),
+            steps=steps,
         )

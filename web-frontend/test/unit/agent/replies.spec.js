@@ -40,6 +40,16 @@ const announcement = (wrapper) =>
 const liveReply = (wrapper) => wrapper.get('.chat-message__bubble[aria-live]')
 const typing = (wrapper) => wrapper.find('.chat-typing').exists()
 const spinning = (wrapper) => wrapper.find('.chat-loading__spinner').exists()
+const toolStep = (id, tool, status, extra = {}) => ({
+  id,
+  tool,
+  presentation_type: tool,
+  status,
+  changes_data: tool === 'create_rows',
+  input: {},
+  facts: {},
+  ...extra,
+})
 
 describe('Agent replies', () => {
   let testApp, mount, api, streams, cursor
@@ -130,6 +140,77 @@ describe('Agent replies', () => {
     expect(send(wrapper).element.disabled).toBe(false)
     expect(announcement(wrapper)).toBe('')
     expect(messageReads()).toEqual([])
+  })
+
+  test('shows live tool activity and replaces it with the saved outcome', async () => {
+    const wrapper = await startReply()
+    const running = toolStep('call-1', 'create_rows', 'running', {
+      input: { requested_count: 3 },
+    })
+
+    await receive('run-1', 'step', running)
+
+    expect(wrapper.get('.chat-step-group').attributes('aria-busy')).toBe('true')
+    expect(wrapper.get('.chat-step-group__title').text()).toContain('3')
+    expect(typing(wrapper)).toBe(false)
+    expect(activity(wrapper).text()).toContain(
+      'agent.toolCreateRowsRunningCount'
+    )
+    expect(activity(wrapper).text()).toContain('3')
+
+    const done = {
+      ...running,
+      status: 'done',
+      facts: { count: 2, table: 'Tasks' },
+    }
+    await finish(
+      'run-1',
+      'completed',
+      reply('completed', 'Added rows', { steps: [done] })
+    )
+
+    expect(wrapper.findAll('.chat-step-group')).toHaveLength(1)
+    expect(wrapper.get('.chat-step-group').attributes('aria-busy')).toBe(
+      'false'
+    )
+    expect(wrapper.get('.chat-step-group__title').text()).toContain('2')
+    expect(
+      wrapper.find('.chat-step-group .iconoir-check-circle').exists()
+    ).toBe(true)
+    expect(activity(wrapper).classes()).not.toContain(
+      'chat-composer__activity--visible'
+    )
+  })
+
+  test('reloads grouped reads and failed calls from saved message steps', async () => {
+    withConversation([
+      prompt,
+      reply('completed', 'Finished', {
+        steps: [
+          toolStep('a', 'list_tables', 'done'),
+          toolStep('b', 'get_table_schema', 'done', {
+            facts: { table: 'Tasks' },
+          }),
+          toolStep('c', 'create_rows', 'failed'),
+        ],
+      }),
+    ])
+    const wrapper = await mount()
+    await selectConversation(wrapper, existingConversation.title)
+
+    expect(wrapper.findAll('.chat-step-group')).toHaveLength(2)
+    expect(
+      wrapper.find('.chat-step-group .iconoir-warning-triangle').exists()
+    ).toBe(true)
+    const reads = wrapper.findAll('.chat-step-group')[0]
+    expect(reads.get('button').classes()).not.toContain('button')
+    expect(reads.get('.chat-step-group__title').text()).toBe(
+      'Workspace activity'
+    )
+    expect(reads.findAll('li')).toHaveLength(2)
+    await reads.get('button').trigger('click')
+    expect(reads.findAll('li')).toHaveLength(0)
+    expect(api.stream).not.toHaveBeenCalled()
   })
 
   test('keeps Stop while the configuration stops being ready', async () => {

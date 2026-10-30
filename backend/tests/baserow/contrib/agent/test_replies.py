@@ -1,5 +1,6 @@
 import asyncio
 import json
+from unittest.mock import ANY
 from uuid import uuid4
 
 from django.contrib.auth.models import AbstractUser
@@ -31,6 +32,7 @@ from baserow.contrib.agent.models import (
     AgentReplyTranscript,
 )
 from baserow.contrib.agent.operations import ReadAgentConversationsOperationType
+from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.contrib.agent.replies import create_reply_model
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.signals import agent_conversation_updated
@@ -224,8 +226,10 @@ def test_the_model_gets_the_instructions_and_recent_history(
     ],
 )
 def test_unfinished_replies_persist_partial_text_without_private_error_details(
-    reply_run, mocker, logs, reason, status, error_code
+    reply_run, data_fixture, mocker, logs, reason, status, error_code
 ):
+    agent = AgentConversation.objects.get(id=reply_run.chat_id).agent
+    table = allow_create_rows(data_fixture, agent)
     emit_text = ChatRunJournal.emit_text
 
     def emit_and_stop(journal, text):
@@ -236,6 +240,16 @@ def test_unfinished_replies_persist_partial_text_without_private_error_details(
     mocker.patch.object(ChatRunJournal, "emit_text", emit_and_stop)
 
     async def stream(messages, info):
+        if len(messages) == 1:
+            yield {
+                0: DeltaToolCall(
+                    name="create_rows",
+                    json_args=json.dumps(
+                        {"table_id": table.id, "rows": [{"Name": "Private row value"}]}
+                    ),
+                )
+            }
+            return
         yield "Hel"
         if reason is None:
             raise ModelHTTPError(429, "m", body="Private provider details")
@@ -250,6 +264,11 @@ def test_unfinished_replies_persist_partial_text_without_private_error_details(
 
     reply_id = reply_run.context["reply_id"]
     assert reply_state(reply_id) == (status, error_code, "Hel")
+    steps = AgentMessage.objects.get(id=reply_id).steps
+    assert [(step["status"], step["facts"]) for step in steps] == [
+        ("done", {"table": table.name, "count": 1})
+    ]
+    assert "Private row value" not in json.dumps(steps)
     transcript = AgentReplyTranscript.objects.get(reply_id=reply_id)
     assert (
         transcript.provider_type,
@@ -296,6 +315,18 @@ def test_lost_and_unstarted_runs_end_their_reply(reply_run, mocker):
     events = [
         {"kind": "text.delta", "data": {"segment": 0, "text": "Hel"}},
         {"kind": "text.delta", "data": {"segment": 0, "text": "lo"}},
+        {
+            "kind": "step",
+            "data": {
+                "id": "call_1",
+                "tool": "create_rows",
+                "presentation_type": "create_rows",
+                "status": "running",
+                "changes_data": True,
+                "input": {"requested_count": 3},
+                "facts": {},
+            },
+        },
     ]
     updated = mocker.spy(agent_conversation_updated, "send")
 
@@ -309,6 +340,8 @@ def test_lost_and_unstarted_runs_end_their_reply(reply_run, mocker):
     ]
     assert updated.call_count == 2
     assert not AgentReplyTranscript.objects.exists()
+    assert saved[0]["steps"] == [{**events[-1]["data"], "status": "stopped"}]
+    assert saved[1]["steps"] is None
 
 
 @pytest.mark.django_db
@@ -481,14 +514,23 @@ def test_busy_conversations_and_workspaces_are_refused_with_their_errors(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("with_identity", [True, False])
+@pytest.mark.parametrize(
+    "with_identity,valid_facts", [(True, True), (True, False), (False, True)]
+)
 def test_a_reply_calls_the_allowed_tools_as_the_agent_identity(
-    data_fixture, configured_agent, mocker, with_identity
+    data_fixture, configured_agent, mocker, with_identity, valid_facts
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
     table = allow_create_rows(data_fixture, agent, with_identity)
     offered = []
+    emitted = mocker.spy(ChatRunJournal, "emit")
+    if not valid_facts:
+        mocker.patch.object(
+            agent_tool_type_registry.get("create_rows"),
+            "get_step_facts",
+            return_value={"count": object()},
+        )
 
     async def stream(messages, info):
         offered.append([tool.name for tool in info.function_tools])
@@ -509,6 +551,29 @@ def test_a_reply_calls_the_allowed_tools_as_the_agent_identity(
     run_reply(run_of(created.conversation))
 
     assert reply_state(created.reply.id) == ("completed", "", "Done.")
+    steps = AgentMessage.objects.get(id=created.reply.id).steps
+    if with_identity:
+        assert steps == [
+            {
+                "id": ANY,
+                "tool": "create_rows",
+                "presentation_type": "create_rows",
+                "status": "done",
+                "changes_data": True,
+                "input": {"requested_count": 1},
+                "facts": {"table": table.name, "count": 1} if valid_facts else {},
+            }
+        ]
+        streamed = [
+            call.args[2] for call in emitted.call_args_list if call.args[1] == "step"
+        ]
+        assert [step["status"] for step in streamed] == ["running", "done"]
+        assert streamed[-1] == steps[0]
+        run = run_of(created.conversation)
+        assert run.outcome["steps"] == steps
+        assert AgentMessage.objects.get(id=created.reply.id).transcript.model_messages
+    else:
+        assert steps is None
     rows = [row.name for row in table.get_model(attribute_names=True).objects.all()]
     if with_identity:
         assert (offered, rows) == ([["create_rows"], ["create_rows"]], ["Plan"])
@@ -547,3 +612,6 @@ def test_a_reply_recovers_from_invalid_tool_calls(
     assert reply_state(created.reply.id) == ("completed", "", "Done.")
     rows = [row.name for row in table.get_model(attribute_names=True).objects.all()]
     assert rows == ["Plan"]
+    steps = AgentMessage.objects.get(id=created.reply.id).steps
+    assert [step["status"] for step in steps] == ["failed"] * TOOL_RETRIES + ["done"]
+    assert all(step["input"] == {} and step["facts"] == {} for step in steps[:-1])

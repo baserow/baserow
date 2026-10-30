@@ -82,6 +82,7 @@ class AgentMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
     # Only the agent's replies have one.
     status = models.CharField(max_length=16, choices=ChatRunStatus.choices, null=True)
     error_code = models.CharField(max_length=64, blank=True, default="", db_default="")
+    steps = models.JSONField(null=True)
 
     class Meta:
         ordering = ("-id",)
