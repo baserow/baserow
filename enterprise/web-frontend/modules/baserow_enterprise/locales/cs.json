@@ -1011,6 +1011,26 @@
         "error": {
             "title": "Data se nepodařilo načíst",
             "description": "Při načítání údajů o členech došlo k chybě."
-        }
+        },
+        "roleHere": "{role} zde",
+        "adminHint": "Správce",
+        "agentRoleCount": "{count} agent s rolí {role} | {count} agenti s rolí {role} | {count} agentů s rolí {role}",
+        "noInheritedAccess": "Nikdo jiný nemá přístup k tomuto {type}.",
+        "everyoneWithRoleOn": "Všichni s rolí u {name}",
+        "fromLevel": "Z úrovně {level}",
+        "fromLevelExplanation": "Všichni si zachovávají svou roli na úrovni {level} pro vše uvnitř, včetně tohoto {type}, pokud jim tam není přiřazena jiná role.",
+        "manageLevelRoles": "Spravovat role úrovně {level}",
+        "noAccessTitle": "Odebrat přístup?",
+        "noAccessDescription": "{name} už nebude mít přístup k tomuto {type} ani k ničemu v něm, pokud zde nebude přiřazena role.",
+        "noAccessSelectionDescription": "Vybraný člen, tým nebo agent už nebude mít přístup k tomuto {type} ani k ničemu v něm, pokud zde nebude přiřazena role. | Vybraným {count} členům, týmům ani agentům už nebude umožněn přístup k tomuto {type} ani k ničemu v něm, pokud jim tam nebude přiřazena role. | Vybraným {count} členům, týmům ani agentům už nebude umožněn přístup k tomuto {type} ani k ničemu v něm, pokud jim tam nebude přiřazena role.",
+        "noAccessConfirm": "Odebrat přístup"
+    },
+    "subjectRoleAssignments": {
+        "location": "{type} v {path}",
+        "application": "Aplikace",
+        "table": "Tabulka",
+        "view": "Zobrazení",
+        "remove": "Odebrat roli u {name}",
+        "showMore": "Zobrazit ještě {count} roli | Zobrazit ještě {count} role | Zobrazit ještě {count} rolí"
     }
 }
