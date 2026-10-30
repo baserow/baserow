@@ -10,10 +10,18 @@
         </div>
       </div>
       <SwitchInput
+        class="agent-workspace-tools__switch"
         small
+        role="switch"
+        :tabindex="editable ? 0 : -1"
+        :aria-label="$t('agent.workspaceTools')"
+        :aria-checked="allowedTools.length > 0"
+        :aria-disabled="!editable"
         :model-value="allowedTools.length > 0"
         :disabled="!editable"
-        @update:model-value="emit('update', $event ? readTools : [])"
+        @update:model-value="setEnabled"
+        @keydown.enter.prevent="setEnabled(!allowedTools.length)"
+        @keydown.space.prevent="setEnabled(!allowedTools.length)"
       />
     </div>
     <template v-if="allowedTools.length">
@@ -24,12 +32,15 @@
         size="small"
         @update:active-index="choosePreset"
       />
-      <a
+      <button
         v-for="group in groups"
         :key="group.type"
+        type="button"
         class="agent-workspace-tools__group"
         :class="{ 'agent-workspace-tools__group--disabled': !editable }"
-        @click="editable && permissions.show()"
+        :disabled="!editable"
+        aria-haspopup="dialog"
+        @click="permissions.show()"
       >
         <i :class="group.icon"></i>
         <span class="agent-workspace-tools__group-name">{{ group.label }}</span>
@@ -44,13 +55,14 @@
           }}
         </span>
         <i class="iconoir-nav-arrow-right"></i>
-      </a>
+      </button>
     </template>
     <AgentToolPermissionsModal
       ref="permissions"
       :available-tools="availableTools"
       :allowed-tools="allowedTools"
       :agent-name="agentName"
+      :editable="editable"
       @save="emit('update', $event)"
     />
   </div>
@@ -104,5 +116,10 @@ function choosePreset(index) {
   if (index === 0) emit('update', allTools.value)
   else if (index === 1) emit('update', readTools.value)
   else permissions.value.show()
+}
+
+function setEnabled(enabled) {
+  if (!props.editable) return
+  emit('update', enabled ? readTools.value : [])
 }
 </script>

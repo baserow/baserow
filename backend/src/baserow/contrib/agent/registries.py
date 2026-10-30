@@ -1,12 +1,16 @@
 import asyncio
 import inspect
+from dataclasses import replace
 from typing import Any, Callable, get_type_hints
 
 from asgiref.sync import sync_to_async
 from loguru import logger
 from pydantic_ai import Tool
 
+from baserow.core.cache import local_cache
+from baserow.core.exceptions import PermissionDenied
 from baserow.core.mcp.exceptions import INTERNAL_ERROR_MESSAGE, to_mcp_error
+from baserow.core.registries import subject_type_registry
 from baserow.core.registry import Instance, Registry
 from baserow.core.tools import ToolContext
 
@@ -25,11 +29,22 @@ def _call_tool(
     """
 
     try:
-        return function(ctx, **arguments)
+        # A reply can span permission changes. Each call gets current authority,
+        # while retaining the identity and tool selection made for that reply.
+        with local_cache.context():
+            subject_type = subject_type_registry.get_by_model(ctx.user)
+            subject = subject_type_registry.get_subject(subject_type.type, ctx.user.pk)
+            if subject is None or not subject_type.is_in_workspace(
+                subject, ctx.workspace
+            ):
+                raise PermissionDenied()
+            return function(replace(ctx, user=subject), **arguments)
     except Exception as exc:
         message = to_mcp_error(exc)
         if message is None:
-            logger.exception("Agent tool {} failed", function.__name__)
+            logger.error(
+                "Agent tool {} failed ({})", function.__name__, type(exc).__name__
+            )
             message = INTERNAL_ERROR_MESSAGE
         return {"error": message}
 
