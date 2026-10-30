@@ -620,6 +620,61 @@ describe('Agent configuration', () => {
     expect(body().text()).toContain('agent.noWorkspaceAccessHelper')
   })
 
+  const investor = {
+    type: 'core.Agent',
+    id: 7,
+    name: 'Investor',
+    trashed: false,
+  }
+
+  test.each([
+    ['assigns an identity', null, investor, 'Investor'],
+    ['clears the identity', investor, null, 'agent.noWorkspaceAccess'],
+    [
+      'changes the identity',
+      investor,
+      { ...investor, id: 8, name: 'Support' },
+      'Support',
+    ],
+    [
+      'renames the identity',
+      investor,
+      { ...investor, name: 'Renamed investor' },
+      'Renamed investor',
+    ],
+  ])(
+    'refreshes the run-as label when another editor %s',
+    async (_, previous, next, expectedLabel) => {
+      useFakeTimers()
+      testApp.mock.onGet('/subjects/').reply(200, page([]))
+      mockConfiguration(testApp, completeConfiguration({ run_as: previous }))
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.workspaceAccess')
+      await wrapper
+        .get('.agent-configuration .dropdown__selected')
+        .trigger('click')
+      const search = wrapper.get('.agent-configuration .select__search-input')
+      await search.setValue('Inv')
+      search.element.focus()
+      mockConfiguration(testApp, completeConfiguration({ run_as: next }))
+
+      await remoteUpdate(testApp, agent)
+
+      expect(
+        wrapper.get('.agent-configuration .dropdown__selected-text').text()
+      ).toBe(expectedLabel)
+      expect(
+        wrapper.get('.agent-configuration .control__helper-text').text()
+      ).toContain(next ? 'agent.runAsHelper' : 'agent.noWorkspaceAccessHelper')
+      expect(
+        wrapper.get('.agent-configuration .dropdown__items').classes()
+      ).not.toContain('hidden')
+      expect(search.element.value).toBe('Inv')
+      expect(document.activeElement).toBe(search.element)
+      expect(savedValues(testApp)).toEqual([])
+    }
+  )
+
   test('renames the Agent through the application with the trimmed name', async () => {
     mockRename(testApp, { ...agentData, name: 'Support' })
     const wrapper = await mount()
