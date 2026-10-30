@@ -44,12 +44,17 @@ export default {
   },
   computed: {
     loginUrl() {
-      const { workspaceInvitationToken } = this.$route.query
+      const { workspaceInvitationToken, invitationLinkSlug } = this.$route.query
       const parsedUrl = new URL(this.redirectUrl)
       if (workspaceInvitationToken) {
         parsedUrl.searchParams.append(
           'workspace_invitation_token',
           workspaceInvitationToken
+        )
+      } else if (invitationLinkSlug) {
+        parsedUrl.searchParams.append(
+          'workspace_invitation_link_slug',
+          invitationLinkSlug
         )
       }
       return parsedUrl.toString()

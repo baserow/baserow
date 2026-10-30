@@ -1029,6 +1029,20 @@ class PermissionManagerType(abc.ABC, Instance):
 
         return None
 
+    def is_workspace_role_upgrade(
+        self, current_role_uid: str, new_role_uid: str, workspace: "Workspace"
+    ) -> Optional[bool]:
+        """
+        Return whether the new role gives a workspace member everything their
+        current role does and more, or None to defer to the next permission manager.
+
+        :param current_role_uid: The role uid the member currently has.
+        :param new_role_uid: The role uid the member would get instead.
+        :param workspace: The workspace the roles are given in.
+        """
+
+        return None
+
 
 class PermissionManagerTypeRegistry(Registry[PermissionManagerType]):
     """

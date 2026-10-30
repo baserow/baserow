@@ -177,6 +177,7 @@ export const actions = {
       workspaceInvitationToken = null,
       templateId = null,
       captchaToken = '',
+      workspaceInvitationLinkSlug = null,
     }
   ) {
     const { data } = await AuthService(this.$client).register(
@@ -187,7 +188,8 @@ export const actions = {
       true,
       workspaceInvitationToken,
       templateId,
-      captchaToken
+      captchaToken,
+      workspaceInvitationLinkSlug
     )
 
     if (data.refresh_token) {

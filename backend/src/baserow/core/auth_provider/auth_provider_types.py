@@ -182,6 +182,11 @@ class AuthProviderType(BaseAuthProviderType):
             password=None,
             language=user_info.language,
             workspace_invitation_token=user_info.workspace_invitation_token,
+            workspace_invitation_link_slug=user_info.workspace_invitation_link_slug,
+            # Signing in with an identity provider can happen without any click,
+            # so the link only allows the signup and the user confirms joining on
+            # the page of the link that they return to.
+            join_invitation_link_workspace=False,
             auth_provider=auth_provider,
             email_verified=user_info.email_verified,
         )

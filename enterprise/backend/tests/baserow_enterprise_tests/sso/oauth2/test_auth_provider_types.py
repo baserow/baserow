@@ -637,6 +637,7 @@ def test_get_user_info_from_oauth_json_response(
     session = SessionBase()
     query_params = {
         "workspace_invitation_token": "testgrouptoken",
+        "workspace_invitation_link_slug": "testlinkslug",
         "language": "es",
         "original": "templates",
     }
@@ -654,6 +655,10 @@ def test_get_user_info_from_oauth_json_response(
     assert (
         user_info.workspace_invitation_token
         == query_params["workspace_invitation_token"]
+    )
+    assert (
+        user_info.workspace_invitation_link_slug
+        == query_params["workspace_invitation_link_slug"]
     )
     assert user_info.language == query_params["language"]
     assert original == query_params["original"]

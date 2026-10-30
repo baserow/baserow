@@ -203,6 +203,7 @@ class CoreConfig(AppConfig):
         from .object_scopes import (
             ApplicationObjectScopeType,
             CoreObjectScopeType,
+            WorkspaceInvitationLinkObjectScopeType,
             WorkspaceInvitationObjectScopeType,
             WorkspaceObjectScopeType,
             WorkspaceUserObjectScopeType,
@@ -213,6 +214,7 @@ class CoreConfig(AppConfig):
         object_scope_type_registry.register(ApplicationObjectScopeType())
         object_scope_type_registry.register(WorkspaceObjectScopeType())
         object_scope_type_registry.register(WorkspaceInvitationObjectScopeType())
+        object_scope_type_registry.register(WorkspaceInvitationLinkObjectScopeType())
         object_scope_type_registry.register(SnapshotObjectScopeType())
         object_scope_type_registry.register(WorkspaceUserObjectScopeType())
 
@@ -241,15 +243,18 @@ class CoreConfig(AppConfig):
         )
         from .operations import (
             CreateApplicationsWorkspaceOperationType,
+            CreateInvitationLinkWorkspaceOperationType,
             CreateInvitationsWorkspaceOperationType,
             CreateWorkspaceOperationType,
             DeleteApplicationOperationType,
+            DeleteWorkspaceInvitationLinkOperationType,
             DeleteWorkspaceInvitationOperationType,
             DeleteWorkspaceOperationType,
             DeleteWorkspaceUserOperationType,
             DuplicateApplicationOperationType,
             ExportWorkspaceOperationType,
             ListApplicationsWorkspaceOperationType,
+            ListInvitationLinksWorkspaceOperationType,
             ListInvitationsWorkspaceOperationType,
             ListWorkspacesOperationType,
             ListWorkspaceUsersWorkspaceOperationType,
@@ -261,6 +266,7 @@ class CoreConfig(AppConfig):
             RestoreWorkspaceOperationType,
             UpdateApplicationOperationType,
             UpdateSettingsOperationType,
+            UpdateWorkspaceInvitationLinkOperationType,
             UpdateWorkspaceInvitationType,
             UpdateWorkspaceOperationType,
             UpdateWorkspaceUserOperationType,
@@ -291,6 +297,10 @@ class CoreConfig(AppConfig):
         operation_type_registry.register(ReadInvitationWorkspaceOperationType())
         operation_type_registry.register(ListWorkspacesOperationType())
         operation_type_registry.register(UpdateWorkspaceInvitationType())
+        operation_type_registry.register(ListInvitationLinksWorkspaceOperationType())
+        operation_type_registry.register(CreateInvitationLinkWorkspaceOperationType())
+        operation_type_registry.register(UpdateWorkspaceInvitationLinkOperationType())
+        operation_type_registry.register(DeleteWorkspaceInvitationLinkOperationType())
         operation_type_registry.register(ReadWorkspaceOperationType())
         operation_type_registry.register(ExportWorkspaceOperationType())
         operation_type_registry.register(UpdateWorkspaceOperationType())
@@ -325,13 +335,16 @@ class CoreConfig(AppConfig):
             CreateInitialWorkspaceActionType,
             CreateWorkspaceActionType,
             CreateWorkspaceInvitationActionType,
+            CreateWorkspaceInvitationLinkActionType,
             DeleteApplicationActionType,
             DeleteWorkspaceActionType,
             DeleteWorkspaceInvitationActionType,
+            DeleteWorkspaceInvitationLinkActionType,
             DuplicateApplicationActionType,
             ExportApplicationsActionType,
             ImportApplicationsActionType,
             InstallTemplateActionType,
+            JoinWorkspaceViaInvitationLinkActionType,
             LeaveWorkspaceActionType,
             OrderApplicationsActionType,
             OrderWorkspacesActionType,
@@ -339,6 +352,7 @@ class CoreConfig(AppConfig):
             UpdateApplicationActionType,
             UpdateWorkspaceActionType,
             UpdateWorkspaceInvitationActionType,
+            UpdateWorkspaceInvitationLinkActionType,
         )
 
         action_type_registry.register(CreateWorkspaceActionType())
@@ -354,6 +368,10 @@ class CoreConfig(AppConfig):
         action_type_registry.register(CreateWorkspaceInvitationActionType())
         action_type_registry.register(DeleteWorkspaceInvitationActionType())
         action_type_registry.register(AcceptWorkspaceInvitationActionType())
+        action_type_registry.register(CreateWorkspaceInvitationLinkActionType())
+        action_type_registry.register(UpdateWorkspaceInvitationLinkActionType())
+        action_type_registry.register(DeleteWorkspaceInvitationLinkActionType())
+        action_type_registry.register(JoinWorkspaceViaInvitationLinkActionType())
         action_type_registry.register(RejectWorkspaceInvitationActionType())
         action_type_registry.register(UpdateWorkspaceInvitationActionType())
         action_type_registry.register(LeaveWorkspaceActionType())

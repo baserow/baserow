@@ -88,6 +88,27 @@ class DeleteWorkspaceInvitationOperationType(InvitationWorkspaceOperationType):
     type = "invitation.delete"
 
 
+class ListInvitationLinksWorkspaceOperationType(WorkspaceCoreOperationType):
+    type = "workspace.list_invitation_links"
+    object_scope_name = "workspace_invitation_link"
+
+
+class CreateInvitationLinkWorkspaceOperationType(WorkspaceCoreOperationType):
+    type = "workspace.create_invitation_link"
+
+
+class InvitationLinkWorkspaceOperationType(CoreOperationType, ABC):
+    context_scope_name = "workspace_invitation_link"
+
+
+class UpdateWorkspaceInvitationLinkOperationType(InvitationLinkWorkspaceOperationType):
+    type = "invitation_link.update"
+
+
+class DeleteWorkspaceInvitationLinkOperationType(InvitationLinkWorkspaceOperationType):
+    type = "invitation_link.delete"
+
+
 class WorkspaceUserOperationType(OperationType, ABC):
     context_scope_name = "workspace_user"
 

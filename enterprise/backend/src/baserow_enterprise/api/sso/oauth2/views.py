@@ -18,7 +18,11 @@ from baserow.core.auth_provider.exceptions import (
     UnverifiedEmailFromProvider,
 )
 from baserow.core.auth_provider.handler import AuthProviderHandler
-from baserow.core.exceptions import WorkspaceInvitationEmailMismatch
+from baserow.core.exceptions import (
+    FeatureDisabledException,
+    WorkspaceInvitationEmailMismatch,
+    WorkspaceInvitationLinkDoesNotExist,
+)
 from baserow.core.user.exceptions import DeactivatedUserException, DisabledSignupError
 from baserow_enterprise.api.sso.serializers import SsoLoginRequestSerializer
 from baserow_enterprise.api.sso.utils import (
@@ -54,6 +58,13 @@ class OAuth2LoginView(APIView):
                 type=OpenApiTypes.STR,
                 description="The invitation token sent to the "
                 "user to join a specific workspace.",
+            ),
+            OpenApiParameter(
+                name="workspace_invitation_link_slug",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.STR,
+                description="The slug of the workspace invitation link that a new "
+                "user signs up through.",
             ),
         ],
         tags=["Auth"],
@@ -133,6 +144,8 @@ class OAuth2CallbackView(APIView):
             DifferentAuthProvider: SsoErrorCode.DIFFERENT_PROVIDER,
             UnverifiedEmailFromProvider: SsoErrorCode.UNVERIFIED_EMAIL,
             WorkspaceInvitationEmailMismatch: SsoErrorCode.GROUP_INVITATION_EMAIL_MISMATCH,
+            WorkspaceInvitationLinkDoesNotExist: SsoErrorCode.INVITATION_LINK_INVALID,
+            FeatureDisabledException: SsoErrorCode.INVITATION_LINK_INVALID,
             DisabledSignupError: SsoErrorCode.SIGNUP_DISABLED,
         }
     )

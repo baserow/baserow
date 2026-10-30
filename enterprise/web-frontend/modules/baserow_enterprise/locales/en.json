@@ -312,6 +312,7 @@
     "errorUnverifiedEmail": "the identity provider has not verified your email address. Please verify your email with the provider and try again.",
     "errorWorkspaceInvitationEmailMismatch": "your email address does not match with the invitation.",
     "errorSignupDisabled": "sign up has been disabled by the administrator.",
+    "errorInvitationLinkInvalid": "the invite link is no longer valid.",
     "errorApplicationUserLimitReached": "Login is temporarily unavailable. Please contact the website owner or try again later."
   },
   "roles": {

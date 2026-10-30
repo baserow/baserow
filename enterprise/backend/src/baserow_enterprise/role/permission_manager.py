@@ -72,6 +72,21 @@ class RolePermissionManagerType(PermissionManagerType):
             return False
         return not role.hidden and role.workspace_id in (None, workspace.id)
 
+    def is_workspace_role_upgrade(self, current_role_uid, new_role_uid, workspace):
+        if not self.is_enabled(workspace):
+            return None
+        handler = RoleAssignmentHandler()
+        current_role = handler.get_role_by_uid(current_role_uid, use_fallback=True)
+        try:
+            new_role = handler.get_role_by_uid(new_role_uid)
+        except Role.DoesNotExist:
+            return False
+        # Comparing operations also ranks roles that aren't default roles. A role
+        # that lacks any operation of the current one is not an upgrade.
+        return self.get_role_operations(new_role) > self.get_role_operations(
+            current_role
+        )
+
     def get_role_operations(self, role: Role) -> List[str]:
         """
         Return the operation name list for the role with the given role_id.

@@ -33,6 +33,9 @@ describe('InviteModal', () => {
     testApp = new TestApp()
     mockServer = testApp.mockServer
     mockServer.mock.onGet('/workspaces/invitations/workspace/1/').reply(200, [])
+    mockServer.mock
+      .onGet('/workspaces/invitation-links/workspace/1/')
+      .reply(200, [])
   })
 
   afterEach(() => {
@@ -372,6 +375,7 @@ describe('InviteModal', () => {
     const wrapper = await mountAndShow()
 
     await getNavLinks(wrapper)[1].trigger('click')
+    await flushPromises()
 
     expect(getNavLinks(wrapper)[1].classes()).toContain('active')
     expect(wrapper.findComponent(LinkInvitationRoute).exists()).toBe(true)

@@ -211,6 +211,9 @@ class BaseOAuth2AuthProviderMixin:
                 workspace_invitation_token=request_data.get(
                     "workspace_invitation_token", None
                 ),
+                workspace_invitation_link_slug=request_data.get(
+                    "workspace_invitation_link_slug", None
+                ),
                 language=request_data.get("language", None),
                 email_verified=self._extract_email_verified(oauth_response_data),
             ),
@@ -639,6 +642,9 @@ class OpenIdConnectAuthProviderTypeMixin:
                 email=email,
                 workspace_invitation_token=request_data.get(
                     "workspace_invitation_token", None
+                ),
+                workspace_invitation_link_slug=request_data.get(
+                    "workspace_invitation_link_slug", None
                 ),
                 language=request_data.get("language", None),
                 email_verified=email_verified,
