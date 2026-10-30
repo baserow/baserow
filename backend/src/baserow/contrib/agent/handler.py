@@ -11,6 +11,7 @@ from baserow.core.ai_provider.resolution import ScopedAIProviderState
 from baserow.core.chat_runs.constants import ChatRunErrorCode
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ACTIVE_CHAT_RUN_STATUSES, ChatRunStatus
+from baserow.core.chat_runs.steps import stop_running_steps
 from baserow.core.exceptions import SubjectTypeNotExist
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
@@ -39,6 +40,7 @@ from .types import (
     AgentConfigurationUpdated,
     AgentMessageCreated,
     AgentReplyRequest,
+    AgentReplyResult,
     AgentRunAsResolution,
 )
 
@@ -662,17 +664,17 @@ class AgentHandler:
         reply_id: int,
         status: str,
         error_code: str,
-        text: str | None,
+        result: AgentReplyResult | None,
     ) -> AgentMessage | None:
         """
-        Save how a reply ended, with its text, unless the reply no longer exists.
-        NUL characters are dropped because PostgreSQL can't store them, and blank
-        text is saved empty.
+        Save how a reply ended, with its text and activity, unless the reply no longer
+        exists. NUL characters are dropped because PostgreSQL can't store them, and
+        blank text is saved empty.
 
         :param reply_id: The id of the reply.
         :param status: The final status: completed, cancelled or failed.
         :param error_code: Why the reply failed, or an empty string.
-        :param text: What the reply produced, or None when it never started.
+        :param result: What the reply produced, or None when it never started.
         :return: The saved reply with its conversation, or None when it no longer
             exists.
         """
@@ -687,9 +689,12 @@ class AgentHandler:
             return None
         reply.status = status
         reply.error_code = error_code
-        content = remove_null_characters(text or "")
+        content = remove_null_characters(result.text if result else "")
         reply.content = content if content.strip() else ""
-        reply.save(update_fields=["status", "error_code", "content", "updated_on"])
+        reply.steps = remove_null_characters(result.steps) if result else None
+        reply.save(
+            update_fields=["status", "error_code", "content", "steps", "updated_on"]
+        )
         reply.conversation.save(update_fields=["updated_on"])
         return reply
 
@@ -764,6 +769,7 @@ class AgentHandler:
                         "content": message.content,
                         "status": message.status,
                         "error_code": message.error_code,
+                        "steps": message.steps,
                         "created_on": message.created_on.isoformat(),
                         "updated_on": message.updated_on.isoformat(),
                     }
@@ -827,6 +833,8 @@ class AgentHandler:
                         content=serialized_message["content"],
                         status=status,
                         error_code=error_code,
+                        steps=stop_running_steps(serialized_message.get("steps") or [])
+                        or None,
                     )
                 )
                 message_data.append(serialized_message)

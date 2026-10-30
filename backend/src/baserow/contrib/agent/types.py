@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from uuid import UUID
 
+from baserow.core.chat_runs.types import ChatRunStep
 from baserow.core.models import Workspace
 from baserow.core.types import Subject
 
@@ -69,3 +70,9 @@ class AgentReplyRequest:
     """The tools the reply may call, none without an identity to act as."""
     timezone: str | None = None
     """The timezone of the owner, for the dates the tools read and write."""
+
+
+@dataclass(frozen=True)
+class AgentReplyResult:
+    text: str
+    steps: list[ChatRunStep] | None = None

@@ -70,6 +70,7 @@
 </template>
 
 <script setup>
+import { useNuxtApp } from '#app'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SegmentControl from '@baserow/modules/core/components/SegmentControl'
@@ -89,9 +90,12 @@ const props = defineProps({
 })
 const emit = defineEmits(['update'])
 const { t } = useI18n()
+const { $registry } = useNuxtApp()
 
 const permissions = ref(null)
-const groups = computed(() => groupAgentTools(props.availableTools, t))
+const groups = computed(() =>
+  groupAgentTools(props.availableTools, $registry, t)
+)
 const allTools = computed(() => props.availableTools.map((tool) => tool.name))
 const readTools = computed(() =>
   props.availableTools

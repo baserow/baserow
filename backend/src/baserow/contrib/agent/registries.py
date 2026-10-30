@@ -1,11 +1,12 @@
 import asyncio
 import inspect
+import json
 from dataclasses import replace
 from typing import Any, Callable, get_type_hints
 
 from asgiref.sync import sync_to_async
 from loguru import logger
-from pydantic_ai import Tool
+from pydantic_ai import Tool, ToolReturn
 
 from baserow.core.cache import local_cache
 from baserow.core.db import with_usable_db_connection
@@ -18,18 +19,19 @@ from baserow.core.tools import ToolContext
 
 @with_usable_db_connection
 def _call_tool(
-    function: Callable[..., Any], ctx: ToolContext, arguments: dict[str, Any]
+    tool_type: "AgentToolType", ctx: ToolContext, arguments: dict[str, Any]
 ) -> Any:
     """
     Run a shared tool, answering an error the model can explain instead of failing
     the reply.
 
-    :param function: The shared tool.
+    :param tool_type: The shared tool and its presentation.
     :param ctx: Who the tool acts for.
     :param arguments: The validated arguments.
     :return: What the tool returned, or an ``error`` message.
     """
 
+    function = type(tool_type).function
     try:
         # Identity and tool selection belong to the generation: settings edits
         # apply to the next one, and Stop ends the current one. Refresh only the
@@ -42,7 +44,23 @@ def _call_tool(
             ):
                 raise PermissionDenied()
             subject_type.track_usage(subject)
-            return function(replace(ctx, user=subject), **arguments)
+            ctx = replace(ctx, user=subject)
+            result = function(ctx, **arguments)
+            if isinstance(result, dict) and "error" in result:
+                return result
+            try:
+                facts = tool_type.get_step_facts(ctx, arguments, result)
+                if not isinstance(facts, dict):
+                    raise TypeError("Step facts must be a dictionary")
+                facts = json.loads(json.dumps(facts, allow_nan=False))
+            except Exception as exc:
+                logger.error(
+                    "Agent tool {} step facts failed ({})",
+                    tool_type.type,
+                    type(exc).__name__,
+                )
+                facts = {}
+            return ToolReturn(return_value=result, metadata=facts)
     except Exception as exc:
         message = to_mcp_error(exc)
         if message is None:
@@ -54,20 +72,22 @@ def _call_tool(
 
 
 async def _run_tool(
-    function: Callable[..., Any], ctx: ToolContext, arguments: dict[str, Any]
+    tool_type: "AgentToolType", ctx: ToolContext, arguments: dict[str, Any]
 ) -> Any:
     """
     Run a shared tool without blocking the reply's event loop. A stop waits for the
     running tool, so a reply never ends while its tool still changes data.
 
-    :param function: The shared tool.
+    :param tool_type: The shared tool and its presentation.
     :param ctx: Who the tool acts for.
     :param arguments: The validated arguments.
     :return: What the tool returned, or an ``error`` message.
     """
 
     # On the worker's own thread, so tools share its connection and never leak one.
-    running = asyncio.ensure_future(sync_to_async(_call_tool)(function, ctx, arguments))
+    running = asyncio.ensure_future(
+        sync_to_async(_call_tool)(tool_type, ctx, arguments)
+    )
     try:
         return await asyncio.shield(running)
     except asyncio.CancelledError:
@@ -94,6 +114,36 @@ class AgentToolType(Instance):
     """True when the tool creates, changes or deletes data. It then runs alone, and
     new Agents start without it."""
 
+    @property
+    def presentation_type(self) -> str:
+        """The stable frontend presentation key, independent of execution identity."""
+
+        return self.type
+
+    def get_step_input(self, arguments: dict[str, Any]) -> dict[str, Any]:
+        """
+        Summarize a call without exposing its raw arguments.
+
+        :param arguments: The tool's arguments.
+        :return: Safe display values, none by default.
+        """
+
+        return {}
+
+    def get_step_facts(
+        self, ctx: ToolContext, arguments: dict[str, Any], result: Any
+    ) -> dict[str, Any]:
+        """
+        Describe a successful call without exposing its complete result.
+
+        :param ctx: Who acted and where, after the tool checked permissions.
+        :param arguments: The validated arguments.
+        :param result: The successful tool result.
+        :return: Confirmed display values, none by default.
+        """
+
+        return {}
+
     def get_tool(self, ctx: ToolContext) -> Tool:
         """
         Build the tool for one reply, acting for the given context.
@@ -111,7 +161,7 @@ class AgentToolType(Instance):
         ]
 
         async def call(**arguments: Any) -> Any:
-            return await _run_tool(function, ctx, arguments)
+            return await _run_tool(self, ctx, arguments)
 
         call.__signature__ = inspect.Signature(parameters)
         call.__annotations__ = {

@@ -1,0 +1,120 @@
+{
+  "tools": [
+    {
+      "name": "list_tables",
+      "presentation_type": "list_tables",
+      "arguments": {},
+      "input": {},
+      "facts": {}
+    },
+    {
+      "name": "get_table_schema",
+      "presentation_type": "get_table_schema",
+      "arguments": { "table_ids": [1] },
+      "input": { "requested_count": 1 },
+      "facts": { "table": "Tasks" }
+    },
+    {
+      "name": "list_table_rows",
+      "presentation_type": "list_table_rows",
+      "arguments": { "table_id": 1 },
+      "input": {},
+      "facts": { "table": "Tasks", "count": 1 }
+    },
+    {
+      "name": "list_views",
+      "presentation_type": "list_views",
+      "arguments": { "table_id": 1 },
+      "input": {},
+      "facts": { "table": "Tasks" }
+    },
+    {
+      "name": "create_tables",
+      "presentation_type": "create_tables",
+      "arguments": {
+        "database_id": 1,
+        "tables": [
+          { "name": "Projects", "primary_field_name": "Title", "fields": [] }
+        ]
+      },
+      "input": { "requested_count": 1 },
+      "facts": { "table": "Projects", "count": 1 }
+    },
+    {
+      "name": "create_fields",
+      "presentation_type": "create_fields",
+      "arguments": {
+        "table_id": 1,
+        "fields": [{ "name": "Notes", "type": "text" }]
+      },
+      "input": { "requested_count": 1 },
+      "facts": { "table": "Tasks", "count": 1 }
+    },
+    {
+      "name": "update_fields",
+      "presentation_type": "update_fields",
+      "arguments": { "fields": [{ "field_id": 1, "name": "Effort" }] },
+      "input": { "requested_count": 1 },
+      "facts": { "count": 1 }
+    },
+    {
+      "name": "delete_fields",
+      "presentation_type": "delete_fields",
+      "arguments": { "field_ids": [1] },
+      "input": { "requested_count": 1 },
+      "facts": { "count": 1 }
+    },
+    {
+      "name": "create_views",
+      "presentation_type": "create_views",
+      "arguments": {
+        "table_id": 1,
+        "views": [{ "name": "Board", "type": "grid" }]
+      },
+      "input": { "requested_count": 1 },
+      "facts": { "table": "Tasks", "count": 1 }
+    },
+    {
+      "name": "create_view_filters",
+      "presentation_type": "create_view_filters",
+      "arguments": {
+        "view_filters": [
+          {
+            "view_id": 1,
+            "filters": [
+              {
+                "field_id": 1,
+                "type": "number",
+                "operator": "higher_than",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      },
+      "input": { "requested_count": 1 },
+      "facts": { "count": 1 }
+    },
+    {
+      "name": "create_rows",
+      "presentation_type": "create_rows",
+      "arguments": { "table_id": 1, "rows": [{ "Name": "Plan" }] },
+      "input": { "requested_count": 1 },
+      "facts": { "table": "Tasks", "count": 1 }
+    },
+    {
+      "name": "update_rows",
+      "presentation_type": "update_rows",
+      "arguments": { "table_id": 1, "rows": [{ "id": 1, "Name": "Done" }] },
+      "input": { "requested_count": 1 },
+      "facts": { "table": "Tasks", "count": 1 }
+    },
+    {
+      "name": "delete_rows",
+      "presentation_type": "delete_rows",
+      "arguments": { "table_id": 1, "row_ids": [1] },
+      "input": { "requested_count": 1 },
+      "facts": { "table": "Tasks", "count": 1 }
+    }
+  ]
+}

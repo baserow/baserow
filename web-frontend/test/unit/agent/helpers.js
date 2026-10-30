@@ -235,7 +235,14 @@ export const conversation = (
 export const message = (
   uuid,
   content,
-  { id, role = 'user', status = null, errorCode = '', runId = null } = {}
+  {
+    id,
+    role = 'user',
+    status = null,
+    errorCode = '',
+    runId = null,
+    steps = null,
+  } = {}
 ) => ({
   id,
   uuid,
@@ -245,6 +252,7 @@ export const message = (
   status,
   error_code: errorCode,
   run_id: runId,
+  steps,
 })
 
 export const acceptConversation = (config) => {

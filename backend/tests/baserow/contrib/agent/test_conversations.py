@@ -71,6 +71,7 @@ def test_first_message_creates_a_private_conversation(
             "status": None,
             "error_code": "",
             "run_id": None,
+            "steps": None,
         },
         "reply": {
             "id": reply.id,
@@ -81,6 +82,7 @@ def test_first_message_creates_a_private_conversation(
             "status": "running",
             "error_code": "",
             "run_id": run_id,
+            "steps": None,
         },
     }
     assert conversation.owner_user == api_user
