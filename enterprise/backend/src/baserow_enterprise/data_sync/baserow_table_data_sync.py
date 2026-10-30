@@ -47,6 +47,7 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.db import specific_iterator, specific_queryset
 from baserow.core.handler import CoreHandler
+from baserow.core.registries import subject_type_registry
 from baserow.core.utils import ChildProgressBuilder
 from baserow_enterprise.features import DATA_SYNC
 from baserow_premium.fields.field_types import AIFieldType
@@ -229,7 +230,8 @@ class LocalBaserowTableDataSyncType(DataSyncType):
     def prepare_values(self, user, values):
         # The user that creates the data sync is automatically the one on whose
         # behalf the data is synced in the future.
-        values["authorized_user_id"] = user.id
+        stored_user = subject_type_registry.user_for_actor(user)
+        values["authorized_user_id"] = stored_user.id if stored_user else None
         return values
 
     def prepare_sync_job_values(self, instance):
@@ -245,17 +247,22 @@ class LocalBaserowTableDataSyncType(DataSyncType):
         # authorized user to the user on whos behalf the table is synced so that it
         # will work.
         if instance.authorized_user is None:
-            instance.authorized_user = user
+            instance.authorized_user = subject_type_registry.user_for_actor(user)
             instance.save()
 
     def _get_table_and_view(self, instance):
+        actor = (
+            subject_type_registry.actor_for_user(instance.authorized_user)
+            if instance.authorized_user
+            else None
+        )
         try:
             table = TableHandler().get_table(instance.source_table_id)
         except TableDoesNotExist:
             raise SyncError("The source table doesn't exist.")
 
         if not CoreHandler().check_permissions(
-            instance.authorized_user,
+            actor,
             ReadDatabaseRowOperationType.type,
             workspace=table.database.workspace,
             context=table,
@@ -270,7 +277,7 @@ class LocalBaserowTableDataSyncType(DataSyncType):
                 view = (
                     ViewHandler()
                     .get_view_as_user(
-                        instance.authorized_user,
+                        actor,
                         instance.source_table_view_id,
                         table_id=table.id,
                     )

@@ -20,6 +20,7 @@ from baserow.contrib.database.data_sync.operations import SyncTableOperationType
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
+from baserow.core.registries import subject_type_registry
 from baserow_enterprise.data_sync.models import (
     DATA_SYNC_INTERVAL_DAILY,
     DATA_SYNC_INTERVAL_HOURLY,
@@ -74,7 +75,7 @@ class EnterpriseDataSyncHandler:
             defaults={
                 "interval": interval,
                 "when": when,
-                "authorized_user": user,
+                "authorized_user": subject_type_registry.user_for_actor(user),
                 "automatically_deactivated": False,
             },
         )
@@ -207,7 +208,11 @@ class EnterpriseDataSyncHandler:
             )
             return False
 
-        authorized_user = periodic_data_sync.authorized_user
+        authorized_user = (
+            subject_type_registry.actor_for_user(periodic_data_sync.authorized_user)
+            if periodic_data_sync.authorized_user
+            else None
+        )
         data_sync_id = periodic_data_sync.data_sync_id
 
         # The job runs outside a transaction.

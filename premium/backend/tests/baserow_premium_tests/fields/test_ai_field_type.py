@@ -2246,3 +2246,31 @@ def test_ai_field_type_public_serialization_never_exposes_the_prompt(
         "ai_output_type": "text",
         "long_text_enable_rich_text": False,
     }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("enable_on_create", [True, False])
+def test_legacy_agent_never_stores_its_id_as_the_auto_update_user(
+    premium_data_fixture, enable_on_create
+):
+    premium_data_fixture.register_fake_generate_ai_type()
+    table = premium_data_fixture.create_database_table()
+    agent = premium_data_fixture.create_agent(workspace=table.database.workspace)
+    agent.user = None
+    agent.save(update_fields=["user"])
+
+    ai_field = FieldHandler().create_field(
+        agent,
+        table,
+        "ai",
+        name="AI",
+        ai_generative_ai_type="test_generative_ai",
+        ai_generative_ai_model="test_1",
+        ai_prompt="'Describe this row'",
+        ai_auto_update=enable_on_create,
+    )
+    if not enable_on_create:
+        ai_field = FieldHandler().update_field(agent, ai_field, ai_auto_update=True)
+
+    assert ai_field.ai_auto_update
+    assert ai_field.ai_auto_update_user_id is None

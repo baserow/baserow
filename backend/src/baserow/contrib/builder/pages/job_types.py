@@ -53,7 +53,7 @@ class DuplicatePageJobType(JobType):
 
     def run(self, job, progress):
         new_page_clone = action_type_registry.get_by_type(DuplicatePageActionType).do(
-            job.user,
+            job.actor,
             job.original_page,
             progress_builder=progress.create_child_builder(
                 represents_progress=progress.total

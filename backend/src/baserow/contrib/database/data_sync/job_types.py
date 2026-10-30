@@ -33,6 +33,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.models import JobQuerySet
 from baserow.core.jobs.registries import JobType
+from baserow.core.registries import subject_type_registry
 
 from .actions import SyncDataSyncTableActionType
 from .handler import DataSyncHandler
@@ -118,9 +119,10 @@ class SyncDataSyncTableJobType(JobType):
         unfiltered listing can't trigger unbounded permission checks.
         """
 
+        stored_user = subject_type_registry.user_for_actor(user)
         foreign_data_syncs = list(
             DataSync.objects.filter(
-                id__in=queryset.exclude(user=user)
+                id__in=queryset.exclude(user=stored_user)
                 .exclude(data_sync_id=None)
                 .values("data_sync_id")
             ).select_related("table__database__workspace")[
@@ -128,7 +130,7 @@ class SyncDataSyncTableJobType(JobType):
             ]
         )
         if len(foreign_data_syncs) > MAX_FOREIGN_DATA_SYNCS_TO_SCOPE:
-            return queryset.filter(user=user)
+            return queryset.filter(user=stored_user)
 
         data_syncs_by_workspace = defaultdict(list)
         for data_sync in foreign_data_syncs:
@@ -156,7 +158,9 @@ class SyncDataSyncTableJobType(JobType):
                 if data_sync.table_id in allowed_table_ids
             ]
 
-        return queryset.filter(Q(user=user) | Q(data_sync_id__in=allowed_data_sync_ids))
+        return queryset.filter(
+            Q(user=stored_user) | Q(data_sync_id__in=allowed_data_sync_ids)
+        )
 
     def _get_running_jobs(self, job: SyncDataSyncTableJob) -> JobQuerySet:
         # Server-driven periodic runs must not consume the user's manual cap.
@@ -228,7 +232,7 @@ class SyncDataSyncTableJobType(JobType):
 
         if not data_sync.table.trashed:
             table_updated.send(
-                self, table=data_sync.table, user=job.user, force_table_refresh=False
+                self, table=data_sync.table, user=job.actor, force_table_refresh=False
             )
 
     def on_cancelled(self, job: SyncDataSyncTableJob) -> None:
@@ -266,7 +270,7 @@ class SyncDataSyncTableJobType(JobType):
                     )
                     return
 
-                TableHandler().delete_table(job.user, table)
+                TableHandler().delete_table(job.actor, table)
         except Exception:
             logger.exception(
                 f"Failed to delete table for cancelled data sync job {job.id}."
@@ -313,7 +317,7 @@ class SyncDataSyncTableJobType(JobType):
             return
 
         data_sync = action_type_registry.get_by_type(SyncDataSyncTableActionType).do(
-            job.user,
+            job.actor,
             data_sync,
             progress_builder=progress.create_child_builder(
                 represents_progress=progress.total

@@ -43,7 +43,7 @@ class CreateSnapshotJobType(JobType):
 
     def transaction_atomic_context(self, job: CreateSnapshotJob):
         application = CoreService().get_application(
-            job.user, job.snapshot.snapshot_from_application.id
+            job.actor, job.snapshot.snapshot_from_application.id
         )
         application_type = application_type_registry.get_by_model(application)
         return application_type.export_safe_transaction_context(application)
@@ -52,7 +52,7 @@ class CreateSnapshotJobType(JobType):
         from .actions import CreateSnapshotActionType
 
         action_type_registry.get(CreateSnapshotActionType.type).do(
-            job.user, job.snapshot, progress
+            job.actor, job.snapshot, progress
         )
 
     def before_delete(self, job):
@@ -86,5 +86,5 @@ class RestoreSnapshotJobType(JobType):
         from .actions import RestoreSnapshotActionType
 
         action_type_registry.get(RestoreSnapshotActionType.type).do(
-            job.user, job.snapshot, progress
+            job.actor, job.snapshot, progress
         )

@@ -18,7 +18,11 @@ from baserow.core.formula.registries import DataProviderTypeRegistry
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.models import Application, Workspace
-from baserow.core.registries import ApplicationType, ImportExportConfig
+from baserow.core.registries import (
+    ApplicationType,
+    ImportExportConfig,
+    subject_type_registry,
+)
 from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import ChildProgressBuilder
@@ -70,7 +74,7 @@ class DashboardApplicationType(ApplicationType):
                 LocalBaserowIntegrationType.type
             ),
             application=application,
-            authorized_subject_type="auth.User",
+            authorized_subject_type=subject_type_registry.get_by_model(user).type,
             authorized_subject_id=user.id,
         )
 

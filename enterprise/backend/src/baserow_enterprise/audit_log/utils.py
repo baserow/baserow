@@ -5,6 +5,7 @@ from django.contrib.auth.models import AbstractUser
 from rest_framework.exceptions import PermissionDenied
 
 from baserow.core.handler import CoreHandler
+from baserow.core.registries import subject_type_registry
 from baserow_enterprise.audit_log.operations import (
     ListWorkspaceAuditLogEntriesOperationType,
 )
@@ -22,8 +23,10 @@ def check_for_license_and_permissions_or_raise(
 
     if workspace_id is not None:
         workspace = CoreHandler().get_workspace(workspace_id)
-        LicenseHandler.raise_if_user_doesnt_have_feature(AUDIT_LOG, user, workspace)
-        if not user.is_staff:
+        LicenseHandler.raise_if_user_doesnt_have_feature(
+            AUDIT_LOG, subject_type_registry.user_for_actor(user), workspace
+        )
+        if not getattr(user, "is_staff", False):
             CoreHandler().check_permissions(
                 user,
                 ListWorkspaceAuditLogEntriesOperationType.type,
@@ -31,6 +34,8 @@ def check_for_license_and_permissions_or_raise(
                 context=workspace,
             )
     else:
-        LicenseHandler.raise_if_user_doesnt_have_feature_instance_wide(AUDIT_LOG, user)
-        if not user.is_staff:
+        LicenseHandler.raise_if_user_doesnt_have_feature_instance_wide(
+            AUDIT_LOG, subject_type_registry.user_for_actor(user)
+        )
+        if not getattr(user, "is_staff", False):
             raise PermissionDenied()

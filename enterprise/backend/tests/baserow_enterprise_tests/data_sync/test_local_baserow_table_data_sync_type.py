@@ -1962,3 +1962,17 @@ def test_sync_ensure_primary_field_always_exists(enterprise_data_fixture):
     row_id_field.refresh_from_db()
     assert row_id_field.primary is True
     assert data_sync.table.field_set.filter(primary=True).count() == 1
+
+
+@pytest.mark.django_db
+def test_legacy_agent_never_stores_its_id_as_a_local_sync_user(enterprise_data_fixture):
+    from baserow_enterprise.data_sync.baserow_table_data_sync import (
+        LocalBaserowTableDataSyncType,
+    )
+
+    agent = enterprise_data_fixture.create_agent()
+    agent.user = None
+    agent.save(update_fields=["user"])
+    sync_type = LocalBaserowTableDataSyncType()
+
+    assert sync_type.prepare_values(agent, {})["authorized_user_id"] is None

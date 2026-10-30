@@ -48,6 +48,7 @@ from baserow.core.generative_ai.exceptions import (
     ModelDoesNotBelongToType,
 )
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+from baserow.core.registries import subject_type_registry
 from baserow.core.utils import grouper
 from baserow_premium.api.fields.exceptions import (
     ERROR_GENERATIVE_AI_DOES_NOT_SUPPORT_FILE_FIELD,
@@ -630,7 +631,10 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             table=table,
         )
         if allowed_field_values.get("ai_auto_update"):
-            allowed_field_values["ai_auto_update_user_id"] = user.id if user else None
+            stored_user = subject_type_registry.user_for_actor(user)
+            allowed_field_values["ai_auto_update_user_id"] = (
+                stored_user.id if stored_user else None
+            )
         if ai_output_type != TextAIFieldOutputType.type:
             allowed_field_values["long_text_enable_rich_text"] = False
 
@@ -672,7 +676,10 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         if to_field_values.get("ai_auto_update") and (
             update_field is None or not update_field.ai_auto_update
         ):
-            to_field_values["ai_auto_update_user_id"] = user.id if user else None
+            stored_user = subject_type_registry.user_for_actor(user)
+            to_field_values["ai_auto_update_user_id"] = (
+                stored_user.id if stored_user else None
+            )
 
         # Cleared, not kept, so switching back to text can't make a primary field rich.
         if ai_output_type != TextAIFieldOutputType.type:

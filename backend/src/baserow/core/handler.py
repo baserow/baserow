@@ -30,7 +30,7 @@ from baserow.core.cache import get_cached_settings, set_cached_settings
 from baserow.core.db import specific_queryset
 from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.registries import plugin_registry
-from baserow.core.user.utils import normalize_email_address
+from baserow.core.user.utils import language_for_actor, normalize_email_address
 from baserow.core.user_templates.constants import USER_TEMPLATE_SEEDED_ID_MAPPINGS
 
 from .context import clear_current_workspace_id, set_current_workspace_id
@@ -2581,7 +2581,7 @@ class CoreHandler:
         :return: The newly created workspace.
         """
 
-        with translation.override(user.profile.language):
+        with translation.override(language_for_actor(user)):
             workspace_user = self.create_workspace(
                 user=user, name=_("%(name)s's workspace") % {"name": user.first_name}
             )

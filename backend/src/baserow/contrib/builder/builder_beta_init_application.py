@@ -21,8 +21,10 @@ from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import Table
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.registries import integration_type_registry
+from baserow.core.registries import subject_type_registry
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
+from baserow.core.user.utils import language_for_actor
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
@@ -41,7 +43,7 @@ class BuilderApplicationTypeInitApplication:
         self.user = user
         self.application = application
 
-        with translation.override(user.profile.language):
+        with translation.override(language_for_actor(user)):
             self.homepage_name = _("Homepage")
             self.examples_name = _("Examples")
             self.customers_table_name = _("Customers")
@@ -91,7 +93,7 @@ class BuilderApplicationTypeInitApplication:
         return IntegrationHandler().create_integration(
             integration_type_registry.get("local_baserow"),
             self.application,
-            authorized_subject_type="auth.User",
+            authorized_subject_type=subject_type_registry.get_by_model(self.user).type,
             authorized_subject_id=self.user.id,
             name=self.first_integration_name,
         )

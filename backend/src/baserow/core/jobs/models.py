@@ -7,6 +7,8 @@ from django.core.cache import cache
 from django.db import models
 
 from baserow.core.mixins import CreatedAndUpdatedOnMixin, PolymorphicContentTypeMixin
+from baserow.core.registries import subject_type_registry
+from baserow.core.types import Actor
 
 from .cache import job_progress_key
 from .constants import JOB_CANCELLED, JOB_FAILED, JOB_FINISHED, JOB_PENDING, JOB_STARTED
@@ -73,6 +75,14 @@ class Job(CreatedAndUpdatedOnMixin, PolymorphicContentTypeMixin, models.Model):
     )
 
     objects = JobQuerySet.as_manager()
+
+    @property
+    def actor(self) -> Actor:
+        """
+        :return: The actor whose stored user owns this job.
+        """
+
+        return subject_type_registry.actor_for_user(self.user)
 
     def get_from_cache(self) -> dict | None:
         """

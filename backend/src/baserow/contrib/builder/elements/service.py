@@ -42,6 +42,7 @@ from baserow.core.graph.handler import BaseGraphHandler
 from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
 from baserow.core.handler import CoreHandler
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.user.utils import language_for_actor
 
 if TYPE_CHECKING:
     from baserow.contrib.builder.models import Builder
@@ -196,7 +197,7 @@ class ElementService:
         self._validate_place_in_container(position, output)
         element_type.validate_position(page, reference_element, output, position)
 
-        with translation.override(user.profile.language):
+        with translation.override(language_for_actor(user)):
             new_element = self.handler.create_element(
                 element_type,
                 page,

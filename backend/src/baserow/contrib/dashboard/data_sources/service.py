@@ -25,6 +25,7 @@ from baserow.core.services.registries import (
     ServiceType,
     service_type_registry,
 )
+from baserow.core.user.utils import language_for_actor
 
 from .exceptions import DashboardDataSourceDoesNotExist, ServiceConfigurationNotAllowed
 from .signals import (
@@ -143,7 +144,7 @@ class DashboardDataSourceService:
         prepared_values = service_type.prepare_values(kwargs, user)
 
         if name is None:
-            with translation.override(user.profile.language):
+            with translation.override(language_for_actor(user)):
                 name = self.handler.find_unused_data_source_name(
                     dashboard, _("Data source")
                 )

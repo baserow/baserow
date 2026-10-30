@@ -41,6 +41,7 @@ from baserow.core.registries import ImportExportConfig, application_type_registr
 from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.usage.registries import USAGE_UNIT_MB
+from baserow.core.user.utils import language_for_actor
 from baserow.core.user_files.models import UserFile
 from baserow.core.utils import ChildProgressBuilder, Progress, find_unused_name, grouper
 
@@ -408,7 +409,7 @@ class TableHandler:
                 data, first_row_header=first_row_header
             )
         else:
-            with translation.override(user.profile.language):
+            with translation.override(language_for_actor(user)):
                 if fill_example:
                     fields, data = self.get_example_table_field_and_data()
                 else:
@@ -471,7 +472,7 @@ class TableHandler:
         # Creates a default view
         view_handler = ViewHandler()
 
-        with translation.override(user.profile.language):
+        with translation.override(language_for_actor(user)):
             view = view_handler.create_view(
                 user, table, GridViewType.type, name=_("Grid")
             )

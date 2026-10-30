@@ -246,7 +246,7 @@ class GenerateAIValuesJobType(JobType):
         set_db_alias(DEFAULT_DB_ALIAS)
         clear_ai_provider_state_cache()
 
-        user = job.user
+        user = job.actor
 
         ai_field = self._get_field(job.field_id)
         table = ai_field.table
@@ -254,7 +254,7 @@ class GenerateAIValuesJobType(JobType):
         model = table.get_model()
         row_handler = RowHandler()
         CoreHandler().check_permissions(
-            job.user,
+            job.actor,
             ListFieldsOperationType.type,
             workspace=workspace,
             context=ai_field.table,

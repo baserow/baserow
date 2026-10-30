@@ -51,7 +51,11 @@ from baserow.core.models import (
     Workspace,
 )
 from baserow.core.operations import ExportWorkspaceOperationType
-from baserow.core.registries import ImportExportConfig, application_type_registry
+from baserow.core.registries import (
+    ImportExportConfig,
+    application_type_registry,
+    subject_type_registry,
+)
 from baserow.core.signals import application_created, application_imported
 from baserow.core.storage import (
     ExportZipFile,
@@ -578,7 +582,9 @@ class ImportExportHandler:
             raise InvalidFileStreamError("The provided stream is not readable.")
 
         resource = ImportExportResource.objects.create(
-            created_by=user, original_name=file_name, size=stream_size(stream)
+            created_by=subject_type_registry.user_for_actor(user),
+            original_name=file_name,
+            size=stream_size(stream),
         )
 
         self.validate_uploaded_file(stream=stream)
@@ -1221,7 +1227,7 @@ class ImportExportHandler:
         """
 
         resource = ImportExportResource.objects.filter(
-            id=resource_id, created_by=user
+            id=resource_id, created_by=subject_type_registry.user_for_actor(user)
         ).first()
         if not resource:
             raise ImportExportResourceDoesNotExist("Resource does not exist.")
