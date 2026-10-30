@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Published workflows now stop when their workspace is deleted, instead of continuing to run and preventing other scheduled workflows from running.",
+    "message": "Published workflows now stop when their workspace is moved to the trash, instead of continuing to run and preventing other scheduled workflows from running.",
     "issue_origin": "github",
     "issue_number": null,
     "domain": "automation",

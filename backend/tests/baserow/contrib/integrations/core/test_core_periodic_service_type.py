@@ -486,15 +486,15 @@ def test_periodic_services_that_start_no_workflow_add_no_queries(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.parametrize("deleted", ["workflow", "workspace"])
+@pytest.mark.parametrize("trashed", ["workflow", "workspace"])
 @patch("baserow.contrib.automation.workflows.handler.start_workflow_celery_task")
-def test_deleting_a_workflow_or_its_workspace_stops_its_published_copy(
-    mock_start_workflow_celery_task, data_fixture, deleted
+def test_trashing_a_workflow_or_its_workspace_stops_its_published_copy(
+    mock_start_workflow_celery_task, data_fixture, trashed
 ):
     """
-    A published copy has no workspace of its own, so deleting its workflow, or the
-    workspace the workflow is in, deletes the copy too. Otherwise it would keep
-    running, and fail to, because its workflow can no longer be found.
+    A published copy has no workspace of its own, so moving its workflow, or the
+    workspace the workflow is in, to the trash deletes the copy. Otherwise it would
+    keep running, and fail to, because its workflow can no longer be found.
     """
 
     user = data_fixture.create_user()
@@ -515,21 +515,21 @@ def test_deleting_a_workflow_or_its_workspace_stops_its_published_copy(
         return workflow
 
     with freeze_time("2025-02-15 10:00:00"):
-        deleted_workflow = publish_periodic_workflow()
+        trashed_workflow = publish_periodic_workflow()
         kept_workflow = publish_periodic_workflow()
 
-    # Publishing caches that the workflows had no published copy yet. The deletion
+    # Publishing caches that the workflows had no published copy yet. Trashing
     # happens in a later request, which starts with an empty cache.
     local_cache.clear()
 
     with transaction.atomic():
-        if deleted == "workspace":
-            CoreHandler().delete_workspace(user, deleted_workflow.automation.workspace)
+        if trashed == "workspace":
+            CoreHandler().delete_workspace(user, trashed_workflow.automation.workspace)
         else:
-            AutomationWorkflowHandler().delete_workflow(user, deleted_workflow)
+            AutomationWorkflowHandler().delete_workflow(user, trashed_workflow)
 
     assert not AutomationWorkflow.objects.filter(
-        automation__published_from=deleted_workflow
+        automation__published_from=trashed_workflow
     ).exists()
     kept_published_workflow = AutomationWorkflowHandler().get_published_workflow(
         kept_workflow
