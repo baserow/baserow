@@ -22,11 +22,20 @@ from baserow.contrib.database.rows.actions import (
     DeleteRowsActionType,
     UpdateRowsActionType,
 )
+from baserow.contrib.database.rows.operations import (
+    DeleteDatabaseRowOperationType,
+    UpdateDatabaseRowOperationType,
+)
 from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.table.operations import (
+    CreateRowDatabaseTableOperationType,
+    ListRowsDatabaseTableOperationType,
+)
 from baserow.contrib.database.tools import fields as shared_fields
 from baserow.contrib.database.tools import tables as shared_tables
 from baserow.contrib.database.tools import views as shared_views
-from baserow.core.exceptions import PermissionException
+from baserow.core.exceptions import PermissionDenied, PermissionException
+from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
 from baserow.core.service import CoreService
 from baserow_enterprise.assistant.deps import AssistantDeps, ResourceChanges
@@ -332,6 +341,12 @@ def list_rows(
     tool_helpers = ctx.deps.tool_helpers
 
     table = helpers.get_table(user, workspace, table_id)
+    CoreHandler().check_permissions(
+        user,
+        ListRowsDatabaseTableOperationType.type,
+        workspace=workspace,
+        context=table,
+    )
 
     tool_helpers.update_status(
         _("Listing rows in %(table_name)s ") % {"table_name": table.name}
@@ -897,9 +912,7 @@ def generate_formula(
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
-    database_tables = helpers.filter_tables(user, workspace).filter(
-        database_id=database_id
-    )
+    database_tables = helpers.readable_database_tables(user, workspace, database_id)
     database_tables_schema = [
         t.model_dump() for t in helpers.get_tables_schema(database_tables, True)
     ]
@@ -1223,6 +1236,13 @@ def _refresh_row_tools(ctx: RunContext[AssistantDeps]) -> None:
 # ---------------------------------------------------------------------------
 
 
+_ROW_OPERATION_NAMES = {
+    "create": CreateRowDatabaseTableOperationType.type,
+    "update": UpdateDatabaseRowOperationType.type,
+    "delete": DeleteDatabaseRowOperationType.type,
+}
+
+
 def load_row_tools(
     ctx: RunContext[AssistantDeps],
     table_ids: Annotated[
@@ -1260,15 +1280,33 @@ def load_row_tools(
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
-    tables = helpers.filter_tables(user, workspace).filter(id__in=table_ids)
+    tables = list(helpers.filter_tables(user, workspace).filter(id__in=table_ids))
     if not tables:
         return (
             "No valid tables found for the given IDs. "
             "Make sure the table IDs are correct."
         )
 
+    # The loaded tools describe every field, so only permitted operations load.
+    permitted_table_ids = {
+        operation: {
+            table.id
+            for table in shared_tables.permitted_tables(
+                ctx.deps.tool_context(), tables, operation_name
+            )
+        }
+        for operation, operation_name in _ROW_OPERATION_NAMES.items()
+        if operation in operations
+    }
     new_tools: list[Tool] = []
     for table in tables:
+        permitted = [
+            operation
+            for operation, ids in permitted_table_ids.items()
+            if table.id in ids
+        ]
+        if not permitted:
+            continue
         table_tools = _build_row_tools(
             user,
             workspace,
@@ -1276,13 +1314,9 @@ def load_row_tools(
             table,
             resource_changes=ctx.deps.resource_changes,
         )
-
-        if "create" in operations:
-            new_tools.append(table_tools["create"])
-        if "update" in operations:
-            new_tools.append(table_tools["update"])
-        if "delete" in operations:
-            new_tools.append(table_tools["delete"])
+        new_tools.extend(table_tools[operation] for operation in permitted)
+    if permitted_table_ids and not new_tools:
+        raise PermissionDenied()
 
     # Replaced by name: reloads must see schema changes, and add_tool rejects dupes.
     new_names = {t.name for t in new_tools}

@@ -1,97 +1,52 @@
+from typing import Any
+
+from pydantic import BaseModel
+
 from baserow.contrib.database.mcp import services
-from baserow.contrib.database.mcp.rows.schemas import (
-    CreateRowsInput,
-    DeleteRowsInput,
-    ListRowsInput,
-    UpdateRowsInput,
-)
+from baserow.contrib.database.tools import rows
 from baserow.core.mcp.groups import (
     GROUP_DATABASE_DELETE,
     GROUP_DATABASE_EDIT,
     GROUP_DATABASE_READ,
 )
 from baserow.core.mcp.models import MCPEndpoint
-from baserow.core.mcp.registries import MCPTool
+from baserow.core.mcp.registries import FunctionMCPTool
 
 
-class ListRowsMcpTool(MCPTool):
-    """
-    List rows from a table with optional search and pagination.
-    Returns rows with user-facing field names as keys.
-    """
+class RowChangeMcpTool(FunctionMCPTool):
+    """Reports the row errors a client causes with the REST API's message."""
 
+    def _sync_call(self, endpoint: MCPEndpoint, args: BaseModel) -> Any:
+        with services.input_errors():
+            return super()._sync_call(endpoint, args)
+
+
+class ListRowsMcpTool(FunctionMCPTool):
     type = "list_table_rows"
     group = GROUP_DATABASE_READ
     title = "List rows"
     read_only = True
-    input_schema = ListRowsInput
-
-    def _sync_call(self, endpoint: MCPEndpoint, args: ListRowsInput) -> dict:
-        return services.list_rows(
-            endpoint.user,
-            endpoint.workspace,
-            args.table_id,
-            search=args.search or "",
-            page=args.page,
-            size=args.size,
-        )
+    function = rows.list_table_rows
 
 
-class CreateRowsMcpTool(MCPTool):
-    """
-    Create one or more rows in a table.
-    Call get_table_schema first to learn the field names and types.
-    Use user-facing field names as keys, not internal field IDs.
-    """
-
+class CreateRowsMcpTool(RowChangeMcpTool):
     type = "create_rows"
     group = GROUP_DATABASE_EDIT
     title = "Create rows"
-    input_schema = CreateRowsInput
-
-    def _sync_call(self, endpoint: MCPEndpoint, args: CreateRowsInput) -> list[dict]:
-        return services.create_rows(
-            endpoint.user, endpoint.workspace, args.table_id, args.rows
-        )
+    function = rows.create_rows
 
 
-class UpdateRowsMcpTool(MCPTool):
-    """
-    Update one or more existing rows in a table.
-    Each row must include 'id' plus the fields to update.
-    Call get_table_schema first to learn the field names.
-    Use user-facing field names as keys, not internal field IDs.
-    """
-
+class UpdateRowsMcpTool(RowChangeMcpTool):
     type = "update_rows"
     group = GROUP_DATABASE_EDIT
     title = "Update rows"
     destructive = True
-    input_schema = UpdateRowsInput
-
-    def _sync_call(self, endpoint: MCPEndpoint, args: UpdateRowsInput) -> list[dict]:
-        return services.update_rows(
-            endpoint.user,
-            endpoint.workspace,
-            args.table_id,
-            [r.model_dump() for r in args.rows],
-        )
+    function = rows.update_rows
 
 
-class DeleteRowsMcpTool(MCPTool):
-    """
-    Delete one or more rows from a table by ID.
-    Use list_table_rows to find row IDs first.
-    """
-
+class DeleteRowsMcpTool(RowChangeMcpTool):
     type = "delete_rows"
     group = GROUP_DATABASE_DELETE
     title = "Delete rows"
     destructive = True
-    input_schema = DeleteRowsInput
-
-    def _sync_call(self, endpoint: MCPEndpoint, args: DeleteRowsInput) -> str:
-        services.delete_rows(
-            endpoint.user, endpoint.workspace, args.table_id, args.row_ids
-        )
-        return "Rows successfully deleted."
+    function = rows.delete_rows
