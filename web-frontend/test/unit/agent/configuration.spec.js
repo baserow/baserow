@@ -675,16 +675,117 @@ describe('Agent configuration', () => {
     }
   )
 
+  const withTools = (allowedTools) =>
+    completeConfiguration({
+      allowed_tools: allowedTools,
+      available_tools: [
+        { name: 'list_tables', group: 'database', changes_data: false },
+        { name: 'create_rows', group: 'database', changes_data: true },
+        { name: 'delete_rows', group: 'database', changes_data: true },
+      ],
+    })
+
+  test.each(['Enter', ' '])(
+    'enables workspace tools with %s and opens named tool permissions',
+    async (key) => {
+      mockConfiguration(testApp, withTools([]))
+      mockSaves(
+        testApp,
+        withTools(['list_tables']),
+        withTools(['list_tables', 'create_rows'])
+      )
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.workspaceAccess')
+      const tools = wrapper.get('.agent-workspace-tools')
+      const toggle = tools.get('[role="switch"]')
+      expect(toggle.attributes('aria-label')).toBe('agent.workspaceTools')
+      expect(toggle.attributes('aria-checked')).toBe('false')
+      expect(toggle.element.tabIndex).toBe(0)
+      toggle.element.focus()
+      expect(document.activeElement).toBe(toggle.element)
+
+      await toggle.trigger('keydown', { key })
+      await flushPromises()
+
+      expect(toggle.attributes('aria-checked')).toBe('true')
+      const group = tools.get('button.agent-workspace-tools__group')
+      group.element.focus()
+      expect(document.activeElement).toBe(group.element)
+      await group.trigger('click')
+      await flushPromises()
+      const inputs = [
+        ...document.body.querySelectorAll(
+          '.agent-tool-permissions__tool input'
+        ),
+      ]
+      expect(inputs.map((input) => input.labels[0].textContent.trim())).toEqual(
+        ['agent.toolListTables', 'agent.toolCreateRows', 'agent.toolDeleteRows']
+      )
+      inputs[1].click()
+      ;[
+        ...document.body.querySelectorAll(
+          '.agent-tool-permissions__actions button'
+        ),
+      ]
+        .find((button) => button.textContent.includes('agent.toolsDone'))
+        .click()
+      await flushPromises()
+
+      expect(savedValues(testApp)).toEqual([
+        { allowed_tools: ['list_tables'] },
+        { allowed_tools: ['list_tables', 'create_rows'] },
+      ])
+    }
+  )
+
+  test('keeps workspace tool controls inactive for a read-only member', async () => {
+    allowed.value = (operation) => operation !== 'application.update'
+    mockConfiguration(testApp, withTools(['list_tables']))
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    const tools = wrapper.get('.agent-workspace-tools')
+    const toggle = tools.get('[role="switch"]')
+    expect(toggle.attributes('aria-disabled')).toBe('true')
+    expect(toggle.element.tabIndex).toBe(-1)
+    expect(
+      tools.get('button.agent-workspace-tools__group').element.disabled
+    ).toBe(true)
+
+    await toggle.trigger('keydown', { key: 'Enter' })
+    await toggle.trigger('keydown', { key: ' ' })
+    await tools.get('.segment-control__button').trigger('click')
+    await flushPromises()
+
+    expect(toggle.attributes('aria-checked')).toBe('true')
+    expect(savedValues(testApp)).toEqual([])
+  })
+
+  test('disables an open tool permissions modal when edit access is revoked', async () => {
+    mockConfiguration(testApp, withTools(['list_tables']))
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    await wrapper.get('.agent-workspace-tools__group').trigger('click')
+    await flushPromises()
+
+    allowed.value = (operation) => operation !== 'application.update'
+    await flushPromises()
+
+    const inputs = [
+      ...document.body.querySelectorAll('.agent-tool-permissions__tool input'),
+    ]
+    expect(inputs).toHaveLength(3)
+    expect(inputs.every((input) => input.disabled)).toBe(true)
+    const done = [
+      ...document.body.querySelectorAll(
+        '.agent-tool-permissions__actions button'
+      ),
+    ].find((button) => button.textContent.includes('agent.toolsDone'))
+    expect(done.disabled).toBe(true)
+    done.click()
+    expect(savedValues(testApp)).toEqual([])
+  })
+
   test('allows workspace tools with presets or one by one', async () => {
-    const withTools = (allowedTools) =>
-      completeConfiguration({
-        allowed_tools: allowedTools,
-        available_tools: [
-          { name: 'list_tables', group: 'database', changes_data: false },
-          { name: 'create_rows', group: 'database', changes_data: true },
-          { name: 'delete_rows', group: 'database', changes_data: true },
-        ],
-      })
     const everything = ['list_tables', 'create_rows', 'delete_rows']
     mockConfiguration(testApp, withTools(['list_tables']))
     mockSaves(

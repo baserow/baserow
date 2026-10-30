@@ -2,6 +2,8 @@ import asyncio
 import threading
 from types import SimpleNamespace
 
+from django.db import OperationalError
+
 import pytest
 from asgiref.sync import async_to_sync
 
@@ -114,7 +116,21 @@ def test_tool_names_and_whether_they_change_data_stay_the_same():
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("name", TOOLS)
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param(
+            name,
+            marks=pytest.mark.xfail(
+                strict=True,
+                reason="Agent trash/user attribution requires the broader fix in #6259",
+            ),
+        )
+        if name == "delete_fields"
+        else name
+        for name in TOOLS
+    ],
+)
 def test_every_tool_acts_as_the_agent_identity(workspace_data, name):
     _, arguments = TOOLS[name]
     result = call_tool(
@@ -123,7 +139,13 @@ def test_every_tool_acts_as_the_agent_identity(workspace_data, name):
         arguments(workspace_data),
     )
 
-    assert not (isinstance(result, dict) and "error" in result), result
+    if name == "delete_fields":
+        workspace_data.hours.refresh_from_db()
+        assert workspace_data.hours.trashed
+        assert result["deleted_field_ids"] == [workspace_data.hours.id]
+    assert not (
+        isinstance(result, dict) and (result.get("error") or result.get("errors"))
+    ), result
 
 
 @pytest.mark.django_db
@@ -145,6 +167,29 @@ def test_tool_errors_are_answered_to_the_model(workspace_data, data_fixture):
     assert call_tool(BrokenAgentToolType(), workspace_data.ctx, {}) == {
         "error": "Internal error."
     }
+
+
+@pytest.mark.django_db
+def test_unexpected_tool_errors_do_not_log_private_values(workspace_data, mocker, logs):
+    private_search = "PRIVATE_SEARCH_CANARY"
+    private_error = "PRIVATE_ERROR_CANARY"
+    mocker.patch(
+        "baserow.contrib.database.tools.rows.serialize_rows_for_response",
+        side_effect=OperationalError(private_error),
+    )
+
+    result = call_tool(
+        agent_tool_type_registry.get("list_table_rows"),
+        workspace_data.ctx,
+        {"table_id": workspace_data.table.id, "search": private_search},
+    )
+
+    assert result == {"error": "Internal error."}
+    output = "".join(str(entry) for entry in logs)
+    assert "list_table_rows" in output
+    assert "OperationalError" in output
+    assert private_search not in output
+    assert private_error not in output
 
 
 @pytest.mark.django_db

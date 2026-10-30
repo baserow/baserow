@@ -48,9 +48,12 @@
               </div>
             </div>
             <Checkbox
+              class="agent-tool-permissions__allow"
               :model-value="picked.has(tool.name)"
+              :disabled="!editable"
               @update:model-value="toggle(tool.name, $event)"
-            />
+              >{{ tool.label }}</Checkbox
+            >
           </div>
         </div>
       </div>
@@ -58,7 +61,7 @@
         <Button type="secondary" @click="modal.hide()">
           {{ $t('action.cancel') }}
         </Button>
-        <Button type="primary" @click="done">
+        <Button type="primary" :disabled="!editable" @click="done">
           {{ $t('agent.toolsDone') }}
         </Button>
       </div>
@@ -76,6 +79,7 @@ const props = defineProps({
   availableTools: { type: Array, required: true },
   allowedTools: { type: Array, required: true },
   agentName: { type: String, required: true },
+  editable: { type: Boolean, required: true },
 })
 const emit = defineEmits(['save'])
 const { t } = useI18n()
@@ -98,6 +102,7 @@ function kindsOf(group) {
 }
 
 function toggle(name, allowed) {
+  if (!props.editable) return
   const next = new Set(picked.value)
   if (allowed) next.add(name)
   else next.delete(name)
@@ -110,6 +115,7 @@ function show() {
 }
 
 function done() {
+  if (!props.editable) return
   emit(
     'save',
     props.availableTools
