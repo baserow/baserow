@@ -113,12 +113,33 @@ export function resizeWidgetGridLayout(layout, widgetId, width, height) {
 }
 
 /**
- * Uses saved six-column coordinates at every viewport size and in both modes.
+ * Projects narrow viewing layouts into rows without changing saved geometry.
+ * Editing and wide viewing use the canonical six-column coordinates.
  */
-export function createWidgetGridLayout(widgets) {
+export function createWidgetGridLayout(
+  widgets,
+  columns = DASHBOARD_GRID_COLUMNS
+) {
+  let x = 0
+  let y = 0
+  let rowHeight = 0
+
   return sortWidgetsByGridPosition(widgets).reduce((layout, widget) => {
     const item = getCanonicalLayoutItem(widget)
-    item.y = firstAvailableRow(layout, item, item.y)
+    if (columns === DASHBOARD_GRID_COLUMNS) {
+      item.y = firstAvailableRow(layout, item, item.y)
+    } else {
+      item.w = item.w > DASHBOARD_GRID_COLUMNS / 2 ? columns : 1
+      if (x + item.w > columns) {
+        y += rowHeight
+        x = 0
+        rowHeight = 0
+      }
+      item.x = x
+      item.y = y
+      x += item.w
+      rowHeight = Math.max(rowHeight, item.h)
+    }
     layout.push(item)
     return layout
   }, [])

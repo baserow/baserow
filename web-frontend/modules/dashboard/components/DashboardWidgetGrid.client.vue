@@ -25,7 +25,7 @@
       :col-num="columns"
       :row-height="gridRowHeight"
       :margin="[gridGap, gridGap]"
-      :vertical-compact="true"
+      :vertical-compact="columns === DASHBOARD_GRID_COLUMNS"
       :is-draggable="canManipulateLayout"
       :is-resizable="canManipulateLayout"
       :use-style-cursor="false"
@@ -118,12 +118,18 @@ export default {
       layoutReadyFrame: null,
       layout: [],
       resizeState: null,
-      columns: DASHBOARD_GRID_COLUMNS,
+      DASHBOARD_GRID_COLUMNS,
       gridGap: GRID_GAP,
       gridRowHeight: GRID_ROW_HEIGHT,
     }
   },
   computed: {
+    columns() {
+      if (this.isEditMode || this.dimensions.width >= 1100) {
+        return DASHBOARD_GRID_COLUMNS
+      }
+      return this.dimensions.width >= 700 ? 2 : 1
+    },
     widgets() {
       return this.$store.getters[
         `${this.storePrefix}dashboardApplication/getWidgets`
@@ -151,6 +157,9 @@ export default {
     },
   },
   watch: {
+    columns() {
+      this.syncLayoutFromWidgets()
+    },
     isEditMode() {
       // Leaving edit mode cancels any unfinished pointer operation.
       this.isInteracting = false
@@ -231,7 +240,7 @@ export default {
       )
     },
     syncLayoutFromWidgets() {
-      this.layout = createWidgetGridLayout(this.widgets)
+      this.layout = createWidgetGridLayout(this.widgets, this.columns)
     },
     markLayoutReady() {
       if (this.layoutReadyFrame !== null) {
