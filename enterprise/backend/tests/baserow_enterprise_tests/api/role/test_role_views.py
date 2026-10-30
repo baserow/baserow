@@ -624,7 +624,7 @@ def test_batch_assign_role_duplicates(data_fixture, api_client):
 
 
 @pytest.mark.django_db
-def test_batch_assign_role_is_undoable(api_client, data_fixture):
+def test_batch_assign_role_is_not_undoable(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     user_2 = data_fixture.create_user()
     user_3 = data_fixture.create_user()
@@ -633,17 +633,6 @@ def test_batch_assign_role_is_undoable(api_client, data_fixture):
     session_id = "TEST"
 
     url = reverse("api:enterprise:role:batch", kwargs={"workspace_id": workspace.id})
-
-    initial_role_user_2 = (
-        RoleAssignmentHandler()
-        .get_current_role_assignment(user_2, workspace=workspace)
-        .role
-    )
-    initial_role_user_3 = (
-        RoleAssignmentHandler()
-        .get_current_role_assignment(user_3, workspace=workspace)
-        .role
-    )
 
     role_assignments = [
         {
@@ -662,47 +651,70 @@ def test_batch_assign_role_is_undoable(api_client, data_fixture):
         },
     ]
 
-    api_client.post(
+    response = api_client.post(
         url,
         {"items": role_assignments},
         format="json",
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
         HTTP_CLIENTSESSIONID=session_id,
     )
+    assert response.status_code == HTTP_200_OK
 
-    assert (
-        RoleAssignmentHandler()
-        .get_current_role_assignment(user_2, workspace=workspace)
-        .role
-        == role
-    )
-    assert (
-        RoleAssignmentHandler()
-        .get_current_role_assignment(user_3, workspace=workspace)
-        .role
-        == role
-    )
-
-    api_client.patch(
+    response = api_client.patch(
         reverse("api:user:undo"),
         {"scopes": {"root": True, "workspace": workspace.id}},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
         HTTP_CLIENTSESSIONID=session_id,
     )
+    assert response.json()["actions"] == []
+
+    for subject in [user_2, user_3]:
+        assert (
+            RoleAssignmentHandler()
+            .get_current_role_assignment(subject, workspace=workspace)
+            .role
+            == role
+        )
+
+
+@pytest.mark.django_db
+def test_assign_role_is_not_undoable(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    user_2 = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user, members=[user_2])
+    role = Role.objects.get(uid="ADMIN")
+    session_id = "TEST"
+
+    response = api_client.post(
+        reverse("api:enterprise:role:list", kwargs={"workspace_id": workspace.id}),
+        {
+            "scope_id": workspace.id,
+            "scope_type": "workspace",
+            "subject_id": user_2.id,
+            "subject_type": UserSubjectType.type,
+            "role": role.uid,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+        HTTP_CLIENTSESSIONID=session_id,
+    )
+    assert response.status_code == HTTP_200_OK
+
+    response = api_client.patch(
+        reverse("api:user:undo"),
+        {"scopes": {"root": True, "workspace": workspace.id}},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+        HTTP_CLIENTSESSIONID=session_id,
+    )
+    assert response.json()["actions"] == []
 
     assert (
         RoleAssignmentHandler()
         .get_current_role_assignment(user_2, workspace=workspace)
         .role
-        == initial_role_user_2
-    )
-
-    assert (
-        RoleAssignmentHandler()
-        .get_current_role_assignment(user_3, workspace=workspace)
-        .role
-        == initial_role_user_3
+        == role
     )
 
 
