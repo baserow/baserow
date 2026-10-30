@@ -40,7 +40,7 @@
     },
     "editTeamContext": {
         "edit": "Editar equipo",
-        "remove": "Borrar equipo"
+        "remove": "Eliminar equipo"
     },
     "teamsTable": {
         "title": "{teamCount} equipos en {workspaceName}",
@@ -68,21 +68,21 @@
     "auditLog": {
         "title": "Registro de auditoría",
         "filterUserTitle": "Usuario",
-        "filterWorkspaceTitle": "Grupo",
+        "filterWorkspaceTitle": "Espacio de trabajo",
         "filterActionTypeTitle": "Tipo de evento",
         "filterFromTimestampTitle": "De fecha",
         "filterFromTimestamp": "De fecha",
         "filterToTimestampTitle": "Hasta la fecha",
         "filterToTimestamp": "Hasta la fecha",
         "user": "Actor",
-        "workspace": "Grupo",
+        "workspace": "Espacio de trabajo",
         "actionType": "Tipo de evento",
         "description": "Descripción",
         "timestamp": "Marca de tiempo",
         "exportModalTitle": "Exportar a CSV",
         "clearFilters": "Limpiar",
         "allUsers": "Todos los usuarios",
-        "allWorkspaces": "Todos los grupos",
+        "allWorkspaces": "Todos los espacios de trabajo",
         "allActionTypes": "Todos los tipos de eventos",
         "ip_address": "Dirección IP",
         "exportToCsv": "Exportar a CSV",
@@ -116,7 +116,7 @@
     },
     "editAuthProviderMenuContext": {
         "edit": "Editar",
-        "delete": "Borrar"
+        "delete": "Eliminar"
     },
     "samlSettingsForm": {
         "domainPlaceholder": "Insertar el nombre de dominio de la empresa...",
@@ -378,7 +378,7 @@
         "deactivated": "Disponible en los planes Avanzado y Empresa"
     },
     "localBaserowUserSourceForm": {
-        "description": "Cada fila de la tabla es una cuenta de usuario. Seleccione los campos coincidentes en la tabla. El campo de correo electrónico se utilizará para identificar.",
+        "description": "Cada fila en la tabla es una cuenta de usuario. Por favor, selecciona los campos coincidentes en la tabla. El campo de correo electrónico se usará para identificar.",
         "emailFieldLabel": "Selecciona el campo de correo electrónico",
         "noFields": "No hay campos",
         "nameFieldLabel": "Seleccionar campo de nombre",
@@ -460,7 +460,7 @@
     "githubIssuesDataSync": {
         "repo": "Repositorio",
         "repoHelper": "El nombre del repositorio. Típicamente en la esquina superior izquierda `owner / repo`",
-        "apiTokenHelper": "Se puede generar aquí https://github.com/settings/tokens haciendo clic en `Generate new token`, seleccione `All repositories`, luego en `Repository permissions` ponga `Issues` en `read-only`.",
+        "apiTokenHelper": "Se puede generar aquí https://github.com/settings/tokens haciendo clic en `Generate new token`, selecciona `All repositories`, luego bajo `Repository permissions` establece `Issues` en `read-only`.",
         "owner": "Propietario",
         "ownerHelper": "Nombre de usuario o propietario del repositorio. Típicamente en la esquina superior izquierda `owner / repo`",
         "apiToken": "Token API"
@@ -471,7 +471,7 @@
         "projectId": "ID del proyecto",
         "accessToken": "Clave de acceso",
         "projectIdHelper": "El ID del proyecto desde el que quieres sincronizar las incidencias. Puedes encontrarlo yendo a la página de tu proyecto (por ejemplo, https://gitlab.com/baserow/baserow), haz clic en los tres puntos de la esquina superior derecha y, a continuación, en 'Copiar ID de proyecto: 12345678'.",
-        "accessTokenHelper": "Se puede generar aquí https://gitlab.com/-/user_settings/personal_access_tokens haciendo clic en `Add new token`, seleccione `read_api`."
+        "accessTokenHelper": "Se puede generar aquí https://gitlab.com/-/user_settings/personal_access_tokens haciendo clic en `Add new token`, selecciona `read_api`."
     },
     "exportWorkspaceModalWarning": {
         "message": "Ten en cuenta que una exportación no incluirá ningún permiso establecido en la aplicación y sus tablas."
