@@ -181,7 +181,7 @@
         "searchTabTitle": "Buscar",
         "aggregationFieldLabel": "Campo",
         "aggregationTypeLabel": "Agregación",
-        "noTableChosenForFiltering": "Seleccione una tabla para comenzar a utilizar filtros de fuente de datos.",
+        "noTableChosenForFiltering": "Elige una tabla para empezar a usar filtros de fuente de datos.",
         "filterTabTitle": "Filtros",
         "searchFieldPlaceHolder": "Introduzca un término de búsqueda..."
     },
@@ -202,7 +202,7 @@
         "overrideWorkspaceSettings": "Sobrescribe la configuración del espacio de trabajo para este proveedor",
         "inherited": "Heredado",
         "overridden": "Sobrescrito",
-        "apiKeyKeepPlaceholder": "Déjalo en blanco para conservar la clave de API guardada"
+        "apiKeyKeepPlaceholder": "Deja en blanco para conservar la clave de API guardada"
     },
     "aiAgentServiceForm": {
         "integrationLabel": "Integración",
@@ -229,8 +229,8 @@
         "sortTabTitle": "Ordenar | 1 Orden | {count} Ordenamientos",
         "searchTabTitle": "Buscar | 1 Búsqueda | {count} Búsquedas",
         "searchFieldPlaceHolder": "Introduce un término de búsqueda…",
-        "noTableChosenForFiltering": "Elige una tabla para comenzar a usar filtros de origen de datos.",
-        "noTableChosenForSorting": "Elige una tabla para comenzar a usar ordenamientos de origen de datos.",
+        "noTableChosenForFiltering": "Elige una tabla para comenzar a usar filtros de la fuente de datos.",
+        "noTableChosenForSorting": "Elige una tabla para comenzar a usar ordenamientos de la fuente de datos.",
         "refinements": "Configuración detallada",
         "noTableChosenForGrouping": "Elige una tabla para empezar a usar grupos de fuentes de datos.",
         "groupTabTitle": "Agrupar por | 1 grupo | {count} grupos"
@@ -252,7 +252,7 @@
         "supportPairingStep2": "Copia tu «Token OAuth de usuario bot» y almacénalo en el campo «Token de usuario bot» de este formulario.",
         "supportPairingStep3": "Finalmente, si tu aplicación es nueva: en Slack, invita tu aplicación al canal que hayas elegido con",
         "supportSetupStep1Link": "página de aplicaciones",
-        "tokenConfigured": "Hay un token guardado. Déjalo en blanco para conservarlo.",
+        "tokenConfigured": "Hay un token guardado. Deja en blanco para conservarlo.",
         "tokenKeepPlaceholder": "Deja en blanco para conservar el token guardado"
     },
     "coreHTTPRequestServiceForm": {
@@ -301,7 +301,7 @@
         "usernamePlaceholder": "tu-correo{'@'}ejemplo.com",
         "password": "Contraseña",
         "passwordPlaceholder": "tu-contraseña",
-        "passwordConfigured": "Hay una contraseña guardada. Déjalo en blanco para conservarla.",
+        "passwordConfigured": "Hay una contraseña guardada. Deja en blanco para conservarla.",
         "passwordKeepPlaceholder": "Deja en blanco para conservar la contraseña guardada",
         "securitySsl": "SSL/TLS (normalmente puerto 465)",
         "securityStartTls": "STARTTLS (normalmente puerto 587)",
@@ -347,7 +347,7 @@
     },
     "coreIterationServiceForm": {
         "source": "Fuente",
-        "sourcePlaceholder": "Selecciona una fuente…"
+        "sourcePlaceholder": "Elige una fuente…"
     },
     "periodicForm": {
         "intervalLabel": "Intervalo",
