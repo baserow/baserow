@@ -126,18 +126,21 @@
                   </div>
                 </div>
               </div>
-              <div class="user-template-list__cell">
+              <div class="user-template-list__cell user-template-list__state">
                 <Badge
-                  v-tooltip:[TOOLTIP_OPTIONS]="template.reason || null"
-                  :color="getState(template).color"
+                  v-tooltip:[REASON_TOOLTIP_OPTIONS]="template.reason || null"
+                  :color="getState(template.state, $i18n.t).color"
                   rounded
                   ><i
-                    v-if="getState(template).icon"
+                    v-if="getState(template.state, $i18n.t).icon"
                     class="user-template-list__state-icon"
-                    :class="getState(template).icon"
+                    :class="getState(template.state, $i18n.t).icon"
                   ></i
-                  >{{ getState(template).label }}</Badge
+                  >{{ getState(template.state, $i18n.t).label }}</Badge
                 >
+                <Badge v-if="showsListed(template)" color="neutral" rounded>{{
+                  $t('userTemplateList.stateListed')
+                }}</Badge>
               </div>
               <div class="user-template-list__cell user-template-list__updated">
                 {{ getHumanAgoLabel($i18n.t, template.updated_on) }}
@@ -188,7 +191,7 @@
                 </a>
               </li>
               <li
-                v-if="focusedTemplate?.state === 'private'"
+                v-if="canMakePublic(focusedTemplate)"
                 class="context__menu-item"
               >
                 <a
@@ -196,11 +199,15 @@
                   @click.prevent="changeVisibility('make-public')"
                 >
                   <i class="context__menu-item-icon iconoir-eye-empty"></i>
-                  {{ $t('userTemplateList.makePublic') }}
+                  {{
+                    focusedTemplate.needs_review
+                      ? $t('userTemplateList.submitForReview')
+                      : $t('userTemplateList.makePublic')
+                  }}
                 </a>
               </li>
               <li
-                v-else-if="focusedTemplate?.state === 'public'"
+                v-if="canMakePrivate(focusedTemplate)"
                 class="context__menu-item"
               >
                 <a
@@ -238,49 +245,23 @@ import { getHumanAgoLabel } from '@baserow/modules/core/utils/date'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
 import TemplateEmptyState from '@baserow/modules/core/components/template/TemplateEmptyState'
+import {
+  canMakePrivate,
+  canMakePublic,
+  getState,
+  showsListed,
+} from '@baserow/modules/core/components/template/userTemplateStates'
 
 const PAGE_SIZE = 20
 
 // The tooltips hold sentences, which don't fit in one line.
 const TOOLTIP_OPTIONS = { contentClasses: 'tooltip__content--expandable' }
-
-const STATES = {
-  private: {
-    color: 'neutral',
-    icon: 'iconoir-eye-off',
-    label: 'userTemplateList.statePrivate',
-  },
-  in_review: {
-    color: 'yellow',
-    icon: 'iconoir-clock',
-    label: 'userTemplateList.stateInReview',
-  },
-  rejected: {
-    color: 'red',
-    icon: 'iconoir-eye-off',
-    label: 'userTemplateList.stateRejected',
-  },
-  blocked: {
-    color: 'red',
-    icon: 'iconoir-warning-triangle',
-    label: 'userTemplateList.stateBlocked',
-  },
-  public: {
-    color: 'green',
-    icon: 'iconoir-eye-empty',
-    label: 'userTemplateList.statePublic',
-  },
-}
-
-/**
- * A state that this version doesn't know is shown as it is, so that the list
- * still works when a new state is added.
- */
-function getState(template) {
-  const state = STATES[template.state]
-  return state
-    ? { ...state, label: $i18n.t(state.label) }
-    : { color: 'neutral', icon: null, label: template.state }
+// A reason can hold a long word, such as a link, which must wrap too.
+const REASON_TOOLTIP_OPTIONS = {
+  contentClasses: [
+    'tooltip__content--expandable',
+    'user-template-list__reason',
+  ],
 }
 
 const props = defineProps({

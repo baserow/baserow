@@ -128,6 +128,34 @@ describe('TemplateDetails', () => {
     expect(wrapper.emitted('delete')).toStrictEqual([[userTemplate]])
   })
 
+  test('submits a rejected own template for review or withdraws it', async () => {
+    const userTemplate = {
+      ...template,
+      type: 'user',
+      state: 'rejected',
+      needs_review: true,
+    }
+    const wrapper = await mountComponent({
+      template: userTemplate,
+      isOwn: true,
+    })
+
+    await wrapper
+      .find('.template-install__actions .button-icon')
+      .trigger('click')
+    const links = wrapper.findAll('.context__menu-item-link')
+    expect(links.map((link) => link.text()).slice(2, 4)).toStrictEqual([
+      'templateDetails.submitForReview',
+      'templateDetails.makePrivate',
+    ])
+
+    await links[2].trigger('click')
+    await links[3].trigger('click')
+
+    expect(wrapper.emitted('make-public')).toStrictEqual([[userTemplate]])
+    expect(wrapper.emitted('make-private')).toStrictEqual([[userTemplate]])
+  })
+
   test('installs the latest revision only of an own template', async () => {
     const userTemplate = { ...template, type: 'user' }
     const other = await mountComponent({ template: userTemplate })

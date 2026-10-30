@@ -416,29 +416,41 @@ describe('CreateUserTemplateModal', () => {
     await flushPromises()
   }
 
-  test('makes the template public only once the author agreed', async () => {
-    let request = null
-    testApp.mock.onPost('/jobs/').reply((config) => {
-      request = JSON.parse(config.data)
-      return [200, runningJob({ make_public: true })]
-    })
-    const wrapper = await mountAndShow()
-    await fillDetails(wrapper)
+  test.each([
+    [false, 'publicDescription'],
+    [true, 'publicReviewDescription'],
+  ])(
+    'makes the template public only once the author agreed (approval: %s)',
+    async (requireApproval, description) => {
+      testApp.store.commit('settings/UPDATE_SETTINGS', {
+        user_templates_require_approval: requireApproval,
+      })
+      let request = null
+      testApp.mock.onPost('/jobs/').reply((config) => {
+        request = JSON.parse(config.data)
+        return [200, runningJob({ make_public: true })]
+      })
+      const wrapper = await mountAndShow()
+      await fillDetails(wrapper)
 
-    await chooseVisibility(wrapper, 'userTemplateVisibilityForm.public')
-    expect(continueButton(wrapper).attributes('disabled')).toBeDefined()
+      await chooseVisibility(wrapper, 'userTemplateVisibilityForm.public')
+      expect(wrapper.text()).toContain(
+        `userTemplateVisibilityForm.${description}`
+      )
+      expect(continueButton(wrapper).attributes('disabled')).toBeDefined()
 
-    await agreeToPublicListing(wrapper)
-    await continueButton(wrapper).trigger('click')
-    await flushPromises()
-    await createButton(wrapper).trigger('click')
-    await flushPromises()
+      await agreeToPublicListing(wrapper)
+      await continueButton(wrapper).trigger('click')
+      await flushPromises()
+      await createButton(wrapper).trigger('click')
+      await flushPromises()
 
-    expect(request).toMatchObject({
-      make_public: true,
-      public_listing_consent: true,
-    })
-  })
+      expect(request).toMatchObject({
+        make_public: true,
+        public_listing_consent: true,
+      })
+    }
+  )
 
   test('stays private when Private is chosen after agreeing to Public', async () => {
     let request = null

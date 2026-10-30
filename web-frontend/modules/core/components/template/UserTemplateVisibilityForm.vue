@@ -5,7 +5,11 @@
     required
     :helper-text="
       modelValue.makePublic
-        ? $t('userTemplateVisibilityForm.publicDescription')
+        ? listed
+          ? $t('userTemplateVisibilityForm.listedDescription')
+          : needsReview
+            ? $t('userTemplateVisibilityForm.publicReviewDescription')
+            : $t('userTemplateVisibilityForm.publicDescription')
         : $t('userTemplateVisibilityForm.privateDescription')
     "
   >
@@ -45,6 +49,16 @@ const props = defineProps({
   modelValue: {
     type: Object,
     required: true,
+  },
+  // Public goes to review first instead of being listed right away.
+  needsReview: {
+    type: Boolean,
+    default: false,
+  },
+  // The template is listed already, so Public keeps it listed.
+  listed: {
+    type: Boolean,
+    default: false,
   },
 })
 

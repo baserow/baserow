@@ -122,6 +122,41 @@ describe('UpdateUserTemplateModal', () => {
   const isModalOpen = (wrapper) =>
     wrapper.findComponent({ name: 'Modal' }).vm.open
 
+  const chooseVisibility = (wrapper, label) =>
+    wrapper
+      .findAll('.segment-control__button')
+      .find((button) => button.text() === label)
+      .trigger('click')
+
+  test.each([
+    ['public', true, true, 'review'],
+    ['public', true, false, null],
+    ['public', true, true, null, 'userTemplateVisibilityForm.private'],
+    ['rejected', true, false, 'review'],
+    // Stays rejected until it's submitted again.
+    ['rejected', false, true, 'rejected'],
+    ['in_review', false, true, 'inReview'],
+    ['in_review', true, true, 'inReviewListed'],
+  ])(
+    'tells what an update of a %s template (listed: %s, approval: %s) does to its review',
+    async (state, listed, requireApproval, notice, visibility = null) => {
+      testApp.store.commit('settings/UPDATE_SETTINGS', {
+        user_templates_require_approval: requireApproval,
+      })
+      const wrapper = await mountAndShow(
+        'details',
+        userTemplate({ state, listed })
+      )
+      if (visibility) {
+        await chooseVisibility(wrapper, visibility)
+      }
+
+      expect(
+        wrapper.findAll('.alert p').map((text) => text.text())
+      ).toStrictEqual(notice ? [`updateUserTemplateModal.${notice}Text`] : [])
+    }
+  )
+
   describe('details', () => {
     test('are prefilled from the template', async () => {
       const wrapper = await mountAndShow('details')
@@ -260,12 +295,6 @@ describe('UpdateUserTemplateModal', () => {
   })
 
   describe('visibility', () => {
-    const chooseVisibility = (wrapper, label) =>
-      wrapper
-        .findAll('.segment-control__button')
-        .find((button) => button.text() === label)
-        .trigger('click')
-
     test('makes the template public once agreed, without a new revision', async () => {
       const listed = userTemplate({ state: 'public' })
       testApp.mock.onPatch('/templates/sprint-tracker/').reply(200, listed)
@@ -371,6 +400,35 @@ describe('UpdateUserTemplateModal', () => {
 
       expect(requests).toStrictEqual([{ listed: false }, 'job'])
     })
+
+    test.each([
+      [
+        { state: 'private', needs_review: true },
+        false,
+        'publicReviewDescription',
+      ],
+      [{ state: 'private' }, true, 'publicReviewDescription'],
+      [{ state: 'public', listed: true }, true, 'listedDescription'],
+    ])(
+      'describes Public for a %o template (approval: %s)',
+      async (values, requireApproval, description) => {
+        testApp.store.commit('settings/UPDATE_SETTINGS', {
+          user_templates_require_approval: requireApproval,
+        })
+        const wrapper = await mountAndShow('details', userTemplate(values))
+
+        await chooseVisibility(wrapper, 'userTemplateVisibilityForm.public')
+
+        const descriptions = [
+          'publicDescription',
+          'publicReviewDescription',
+          'listedDescription',
+        ].filter((key) =>
+          wrapper.text().includes(`userTemplateVisibilityForm.${key}`)
+        )
+        expect(descriptions).toStrictEqual([description])
+      }
+    )
 
     test.each(['blocked', 'in_review'])(
       "can't be changed for a %s template",

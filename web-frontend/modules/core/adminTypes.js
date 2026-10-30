@@ -1,4 +1,5 @@
 import { Registerable } from '@baserow/modules/core/registry'
+import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
 
 /**
  * An admin type is visible in the sidebar under the admin menu item. All
@@ -171,6 +172,38 @@ export class WorkspacesAdminType extends AdminType {
 
   getOrder() {
     return 3
+  }
+}
+
+export class TemplatesAdminType extends AdminType {
+  static getType() {
+    return 'templates'
+  }
+
+  getIconClass() {
+    return 'iconoir-box'
+  }
+
+  getName() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('adminType.templates')
+  }
+
+  getCategory() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('sidebar.adminContentCategory')
+  }
+
+  getRouteName() {
+    return 'admin-templates'
+  }
+
+  getOrder() {
+    return 45
+  }
+
+  isVisible() {
+    return this.app.$featureFlagIsEnabled(FF_USER_TEMPLATES)
   }
 }
 

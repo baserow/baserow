@@ -39,6 +39,7 @@ class SettingsSerializer(serializers.ModelSerializer):
             "email_verification",
             "verify_import_signature",
             "allow_reporting_abuse",
+            "user_templates_require_approval",
             "inbound_email_enabled",
             "email_delivery_enabled",
         )
@@ -53,6 +54,13 @@ class SettingsSerializer(serializers.ModelSerializer):
             "email_verification": {"required": False},
             "verify_import_signature": {"required": False},
             "allow_reporting_abuse": {"required": False},
+            "user_templates_require_approval": {
+                "required": False,
+                "help_text": "Whether a user template made public, and every edit "
+                "of a listed one, is listed only once an instance admin approves "
+                "it. Switching it off approves every template in review. Can only "
+                "be changed with the user templates feature enabled.",
+            },
         }
 
     def get_inbound_email_enabled(self, instance) -> bool:

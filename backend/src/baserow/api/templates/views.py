@@ -320,13 +320,16 @@ class TemplateView(APIView):
         ],
         description=(
             "Updates a user template owned by the user. With `listed` true, its "
-            "latest revision is listed, with the name of its author, for everybody "
-            "on this instance, who can open it. Signed-in users can install it. "
-            "The author must agree to that with `public_listing_consent`, and can "
-            "pass the `revision_id` they were shown, so that a newer one isn't "
-            "listed. With `listed` false, it isn't listed anymore, and only its "
-            "owner can open and install it. Asking for the visibility it has "
-            "changes nothing."
+            "latest revision goes to review, and once an instance admin approves "
+            "it, it's listed, with the name of its author, for everybody on this "
+            "instance, who can open it. Signed-in users can install it. It's "
+            "listed right away only when approval isn't required and no admin "
+            "rejected the template. The author must agree to that with "
+            "`public_listing_consent`, and can pass the `revision_id` they were "
+            "shown, so that a newer one isn't listed. Making a template in review "
+            "public changes nothing. With `listed` false, it isn't listed anymore "
+            "and is withdrawn from the review, and only its owner can open and "
+            "install it. Asking for the visibility it has changes nothing."
         ),
         request=UpdateTemplateSerializer,
         responses={

@@ -372,8 +372,10 @@ class CoreConfig(AppConfig):
         action_type_registry.register(RestoreSnapshotActionType())
 
         from baserow.core.user_templates.actions import (
+            ApproveUserTemplateAdminActionType,
             CreateUserTemplateActionType,
             DeleteUserTemplateActionType,
+            RejectUserTemplateAdminActionType,
             UpdateUserTemplateActionType,
             UpdateUserTemplateVisibilityActionType,
         )
@@ -382,6 +384,8 @@ class CoreConfig(AppConfig):
         action_type_registry.register(UpdateUserTemplateActionType())
         action_type_registry.register(DeleteUserTemplateActionType())
         action_type_registry.register(UpdateUserTemplateVisibilityActionType())
+        action_type_registry.register(ApproveUserTemplateAdminActionType())
+        action_type_registry.register(RejectUserTemplateAdminActionType())
 
         from baserow.core.trash.actions import (
             EmptyTrashActionType,

@@ -1,0 +1,73 @@
+.templates-admin-name {
+  @include flex-align-items(12px);
+
+  max-width: 360px;
+}
+
+.templates-admin-name__icon {
+  display: flex;
+  flex: 0 0 32px;
+  justify-content: center;
+  align-items: center;
+  height: 32px;
+  font-size: 14px;
+  color: $palette-neutral-900;
+  border: solid 1px $palette-neutral-200;
+  border-radius: 6px;
+}
+
+.templates-admin-name__text {
+  min-width: 0;
+}
+
+.templates-admin-name__title {
+  @include flex-align-items(8px);
+}
+
+.templates-admin-name__name {
+  @extend %ellipsis;
+
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.templates-admin-name__description {
+  @extend %ellipsis;
+
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-900;
+}
+
+.templates-admin-author {
+  @include flex-align-items(8px);
+}
+
+.templates-admin-author__name {
+  @extend %ellipsis;
+}
+
+.templates-admin-author--deleted {
+  color: $palette-neutral-900;
+}
+
+.templates-admin-actions {
+  @include flex-align-items(8px);
+
+  justify-content: flex-end;
+}
+
+.templates-admin-reason {
+  @extend %ellipsis;
+
+  max-width: 360px;
+}
+
+.templates-admin-reason__tooltip {
+  overflow-wrap: anywhere;
+}
+
+.templates-admin-tabs {
+  padding: 0 24px;
+  margin-bottom: 20px;
+}

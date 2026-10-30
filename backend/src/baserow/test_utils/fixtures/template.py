@@ -75,8 +75,9 @@ class TemplateFixtures:
     def set_user_template_state(self, template, state, revision=None):
         """
         Puts a user template in `state`: "private", "shared", "public", "blocked",
-        "public_blocked" or "marked" for deletion. The shared or public revision
-        is `revision`, the template itself by default.
+        "public_blocked", "marked" for deletion, "in_review", "rejected" or
+        "withdrawn_rejected" (withdrawn after a rejection). The shared, public or
+        reviewed revision is `revision`, the template itself by default.
         """
 
         revision = revision or template
@@ -88,12 +89,30 @@ class TemplateFixtures:
             "blocked": {"blocked_at": now},
             "public_blocked": {"public_revision": revision, "blocked_at": now},
             "marked": {"marked_for_deletion_at": now},
+            "in_review": {},
+            "rejected": {},
+            "withdrawn_rejected": {},
         }[state]
+        review = {
+            "in_review": {
+                "review_state": Template.ReviewState.PENDING,
+                "submitted_on": now,
+            },
+            "rejected": {
+                "review_state": Template.ReviewState.REJECTED,
+                "reject_reason": "Reason",
+                "reviewed_on": now,
+            },
+            "withdrawn_rejected": {
+                "review_state": Template.ReviewState.WITHDRAWN,
+                "reject_reason": "Reason",
+            },
+        }.get(state, {})
         if "public_revision" in changes:
             # Only an approved revision can be public.
-            Template.objects.filter(id=revision.id).update(
-                review_state=Template.ReviewState.APPROVED
-            )
+            review = {"review_state": Template.ReviewState.APPROVED}
+        if review:
+            Template.objects.filter(id=revision.id).update(**review)
         Template.objects.filter(id=template.id).update(**changes)
         template.refresh_from_db()
         return template

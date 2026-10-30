@@ -9,7 +9,7 @@
     <div class="user-template-modal">
       <div class="user-template-modal__head">
         <h2 class="user-template-modal__title">
-          {{ $t('makeTemplatePublicModal.title', { name: template.name }) }}
+          {{ $t(copy.title, { name: template.name }) }}
         </h2>
         <button
           type="button"
@@ -23,7 +23,7 @@
 
       <div class="user-template-modal__body">
         <i18n-t
-          keypath="makeTemplatePublicModal.description"
+          :keypath="copy.description"
           tag="p"
           class="user-template-modal__description margin-bottom-0"
         >
@@ -40,7 +40,7 @@
             {{ $t('action.cancel') }}
           </Button>
           <Button :loading="loading" :disabled="loading" @click="confirm">
-            {{ $t('makeTemplatePublicModal.makePublic') }}
+            {{ $t(copy.button) }}
           </Button>
         </div>
       </div>
@@ -83,6 +83,24 @@ const pending = reactive(new Set())
 
 const loading = computed(() => pending.has(props.template.id))
 
+// A template goes to review when approval is on or an admin rejected it, see
+// `needs_review`.
+const copy = computed(() =>
+  props.template.needs_review
+    ? {
+        title: 'makeTemplatePublicModal.resubmitTitle',
+        description: props.template.listed
+          ? 'makeTemplatePublicModal.resubmitListedDescription'
+          : 'makeTemplatePublicModal.resubmitDescription',
+        button: 'makeTemplatePublicModal.submitForReview',
+      }
+    : {
+        title: 'makeTemplatePublicModal.title',
+        description: 'makeTemplatePublicModal.description',
+        button: 'makeTemplatePublicModal.makePublic',
+      }
+)
+
 // The author of the user's own templates is the user.
 const authorName = computed(() => $store.getters['auth/getName'])
 
@@ -107,12 +125,15 @@ async function confirm() {
       revisionId
     )
     emit('made-public', data)
-    $store.dispatch('toast/success', {
-      title: $i18n.t('makeTemplatePublicModal.madePublicTitle', {
-        name: data.name,
-      }),
-      message: $i18n.t('makeTemplatePublicModal.madePublicDescription'),
-    })
+    // A template sent to review isn't listed yet.
+    if (data.state === 'public') {
+      $store.dispatch('toast/success', {
+        title: $i18n.t('makeTemplatePublicModal.madePublicTitle', {
+          name: data.name,
+        }),
+        message: $i18n.t('makeTemplatePublicModal.madePublicDescription'),
+      })
+    }
     if (props.template.id === id) {
       hide()
     }

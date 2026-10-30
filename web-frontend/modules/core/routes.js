@@ -123,6 +123,11 @@ export const routes = [
         file: path.resolve(__dirname, 'pages/admin/workspaces.vue'),
       },
       {
+        name: 'admin-templates',
+        path: '/admin/templates',
+        file: path.resolve(__dirname, 'pages/admin/templates.vue'),
+      },
+      {
         name: 'settings',
         path: '/workspace/:workspaceId/settings',
         file: path.resolve(__dirname, 'pages/settings.vue'),

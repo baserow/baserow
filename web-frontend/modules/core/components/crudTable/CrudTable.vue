@@ -1,9 +1,18 @@
 <template>
   <div class="data-table" :class="$attrs.class">
     <header class="data-table__header">
-      <h1 class="data-table__title">
-        <slot name="title" :count="totalCount" :loading="initialLoading"></slot>
-      </h1>
+      <div class="data-table__heading">
+        <h1 class="data-table__title">
+          <slot
+            name="title"
+            :count="totalCount"
+            :loading="initialLoading"
+          ></slot>
+        </h1>
+        <p v-if="$slots.subtitle" class="data-table__subtitle">
+          <slot name="subtitle"></slot>
+        </p>
+      </div>
       <div class="data-table__actions">
         <CrudTableSearch
           v-if="enableSearch"
@@ -112,7 +121,9 @@
                 <p v-else-if="totalCount > 0">
                   {{ $t('crudTable.emptyPage') }}
                 </p>
-                <p v-else>{{ $t('crudTable.noResults') }}</p>
+                <slot v-else name="no-results">
+                  <p>{{ $t('crudTable.noResults') }}</p>
+                </slot>
                 <div
                   v-if="showEmptyCollectionState && $slots['primary-action']"
                   class="data-table__empty-action"
@@ -206,9 +217,11 @@ import isObject from 'lodash/isObject'
  *
  * Slots:
  *  #title: Header title, with the result count and initial loading state.
+ *  #subtitle: Optional line below the title.
  *  #header-right-side: Additional controls beside the search.
  *  #primary-action: Main action, also shown in the unfiltered empty state.
  *  #empty: Empty state when no search or filters are active.
+ *  #no-results: Empty state when the search or the filters match nothing.
  *  #menus: Placed in the footer and expected to only contain Contexts and Modals.
  *          Receives updateRow, deleteRow and refresh to synchronize table data.
  *  #rows: Can optionally replace the rows in the table (including expansion).

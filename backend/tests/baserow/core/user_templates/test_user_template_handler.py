@@ -537,72 +537,47 @@ def test_get_latest_revision(data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_template_state_of_a_revision(data_fixture):
+@pytest.mark.parametrize(
+    "revision_states,state,reason,needs_review",
+    [
+        (["private"], UserTemplateState.PRIVATE, None, False),
+        (["in_review"], UserTemplateState.IN_REVIEW, None, False),
+        (["rejected"], UserTemplateState.REJECTED, "Reason", True),
+        # An edit of a rejected template is still rejected.
+        (["rejected", "private"], UserTemplateState.REJECTED, "Reason", True),
+        (["withdrawn_rejected"], UserTemplateState.PRIVATE, None, True),
+        (["private", "in_review"], UserTemplateState.IN_REVIEW, None, False),
+        (["public", "private"], UserTemplateState.PUBLIC, None, False),
+        (["rejected", "public"], UserTemplateState.PUBLIC, None, False),
+        # An edit of a listed template in review or rejected shows that, while
+        # the listed revision stays listed.
+        (["public", "in_review"], UserTemplateState.IN_REVIEW, None, False),
+        (["public", "rejected"], UserTemplateState.REJECTED, "Reason", True),
+        (["rejected", "blocked"], UserTemplateState.BLOCKED, "Spam", False),
+        (["public_blocked"], UserTemplateState.BLOCKED, "Spam", False),
+    ],
+)
+def test_get_template_state(data_fixture, revision_states, state, reason, needs_review):
     handler = UserTemplateHandler()
-    root = data_fixture.create_user_template(
-        review_state=Template.ReviewState.REJECTED, reject_reason="Not useful"
-    )
-    revision = data_fixture.create_user_template_revision(
-        root, review_state=Template.ReviewState.PENDING
-    )
+    root = data_fixture.create_user_template(blocked_reason="Spam")
+    revision = root
+    for index, revision_state in enumerate(revision_states):
+        if index:
+            revision = data_fixture.create_user_template_revision(root)
+        data_fixture.set_user_template_state(root, revision_state, revision)
 
-    # The review is the revision's own.
-    assert handler.get_template_state(root) == (
-        UserTemplateState.REJECTED,
-        "Not useful",
-    )
-    assert handler.get_template_state(revision) == (UserTemplateState.IN_REVIEW, None)
-
-    # Whether it's public or blocked is the template's, so its root's.
-    root.review_state = Template.ReviewState.APPROVED
-    root.public_revision = root
-    root.save()
-    revision = Template.objects.get(id=revision.id)
-    assert handler.get_template_state(revision) == (UserTemplateState.PUBLIC, None)
-
-    root.blocked_at = timezone.now()
-    root.blocked_reason = "Spam"
-    root.save()
-    revision = Template.objects.get(id=revision.id)
-    assert handler.get_template_state(revision) == (
-        UserTemplateState.BLOCKED,
-        "Spam",
-    )
-
-
-@pytest.mark.django_db
-def test_get_template_state(data_fixture):
-    handler = UserTemplateHandler()
-    template = data_fixture.create_user_template()
-
-    assert handler.get_template_state(template) == (UserTemplateState.PRIVATE, None)
-
-    template.review_state = Template.ReviewState.PENDING
-    assert handler.get_template_state(template) == (
-        UserTemplateState.IN_REVIEW,
-        None,
-    )
-
-    template.review_state = Template.ReviewState.REJECTED
-    template.reject_reason = "Not useful"
-    assert handler.get_template_state(template) == (
-        UserTemplateState.REJECTED,
-        "Not useful",
-    )
-
-    template.review_state = Template.ReviewState.APPROVED
-    template.public_revision = template
-    assert handler.get_template_state(template) == (UserTemplateState.PUBLIC, None)
-
-    template.blocked_at = timezone.now()
-    template.blocked_reason = "Spam"
-    assert handler.get_template_state(template) == (
-        UserTemplateState.BLOCKED,
-        "Spam",
-    )
-
-    template.blocked_reason = ""
-    assert handler.get_template_state(template) == (UserTemplateState.BLOCKED, None)
+    # The state the admin list filters and sorts on is the same, in SQL.
+    annotated = handler.list_templates_for_admin().get(id=revision.id)
+    assert annotated.admin_state == state
+    for latest in [handler.get_latest_revision(root), annotated]:
+        assert handler.get_template_state(latest) == (state, reason)
+        assert handler.needs_review(latest, require_approval=False) is needs_review
+        # With approval on, a private template needs a review too.
+        assert handler.needs_review(latest, require_approval=True) is (
+            needs_review or state == UserTemplateState.PRIVATE
+        )
+        # A blocked template isn't listed, even with a public revision.
+        assert handler.is_listed(latest) is ("public" in revision_states)
 
 
 @pytest.mark.django_db
