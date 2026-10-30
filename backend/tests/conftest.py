@@ -62,10 +62,6 @@ def _table_checksums(cursor, tables):
 
 def _take_post_migrate_snapshot(connection):
     with connection.cursor() as cursor:
-        cursor.execute("SELECT current_setting('is_superuser') = 'on'")
-        if not cursor.fetchone()[0]:
-            # `session_replication_role` can only be changed by a superuser.
-            return None
         tables = _non_empty_tables(cursor, _list_tables(cursor))
         return _table_checksums(cursor, tables)
 
@@ -88,9 +84,9 @@ def _fast_flush(connection, snapshot):
         if _table_checksums(cursor, kept) != snapshot:
             return False
         emptied = [table for table in tables if table not in snapshot]
-        # Foreign key triggers are skipped so that the rows can be deleted in any
-        # order. Every table that still has rows is emptied, so nothing dangles.
-        cursor.execute("SET LOCAL session_replication_role = replica")
+        # The rows can be deleted in any order because Django creates every foreign
+        # key as DEFERRABLE INITIALLY DEFERRED: the constraints are only checked at
+        # commit, when every table that still had rows has been emptied.
         for table in emptied:
             cursor.execute(f'DELETE FROM "{table}"')
 
