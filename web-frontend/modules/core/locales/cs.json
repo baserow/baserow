@@ -106,7 +106,9 @@
         "title": "Pozvánka",
         "message": "{by} vás pozval(a) do pracovního prostoru {workspace}.",
         "reject": "Odmítnout",
-        "accept": "Přijmout"
+        "accept": "Přijmout",
+        "emailNotVerified": "Chcete-li přijmout tuto pozvánku, ověřte svou e-mailovou adresu nebo otevřete odkaz v e-mailu s pozvánkou.",
+        "sendVerificationEmail": "Odeslat ověřovací e-mail"
     },
     "workspaceMemberModal": {
         "membersModalTitle": "",
@@ -437,7 +439,11 @@
     },
     "InstallTemplateJobType": {
         "installedTitle": "Šablona je nainstalována",
-        "installing": "Probíhá instalace"
+        "installing": "Probíhá instalace",
+        "installingTitle": "Probíhá instalace {name}",
+        "installedMessage": "Úspěšně nainstalováno: {name}",
+        "failedTitle": "{name} se nepodařilo nainstalovat",
+        "dismiss": "Zavřít"
     },
     "notificationPanel": {
         "noNotificationTitle": "Nemáte žádná oznámení",
@@ -508,7 +514,8 @@
             },
             "emptyTitle": "Zatím žádní členové",
             "emptyDescription": "Pozvěte lidi ke spolupráci v tomto pracovním prostoru. Pro každou osobu zvolte roli, abyste určili, co může zobrazit a upravovat.",
-            "search": "Hledat členy"
+            "search": "Hledat členy",
+            "pendingInvitations": "Čekající pozvánky ({count})"
         },
         "invitesTable": {
             "title": "{invitesAmount} čekajících pozvánek v pracovním prostoru {workspaceName}",
@@ -1617,20 +1624,26 @@
         "linkEmptyDescription": "Můžete vytvořit více odkazů s různými rolemi.",
         "pendingTitle": "Čekající pozvánky",
         "pendingEmptyTitle": "Žádné pozvánky nečekají.",
-        "pendingEmptyDescription": "Pozvánky se zde zobrazují, dokud nejsou přijaty."
+        "pendingEmptyDescription": "Pozvánky se zde zobrazují, dokud nejsou přijaty.",
+        "backTo": "Zpět na {level}: {title}"
     },
     "templateInstall": {
         "use": "Použít tuto šablonu",
         "selectWorkspace": "Vyberte pracovní prostor",
         "more": "Více",
-        "copyLink": "Kopírovat odkaz ke sdílení"
+        "copyLink": "Kopírovat odkaz ke sdílení",
+        "workspaceNoPermission": "Nemáte oprávnění přidávat aplikace do tohoto pracovního prostoru.",
+        "noWorkspace": "Šablona se instaluje do pracovního prostoru. Nejprve vytvořte pracovní prostor a poté do něj nainstalujte šablonu.",
+        "noWorkspaceAskInvite": "Nejste členem žádného pracovního prostoru. Šablona se instaluje do pracovního prostoru, takže vás do něj musí nejprve pozvat správce.",
+        "createWorkspace": "Vytvořit pracovní prostor"
     },
     "templateDetails": {
         "back": "Zpět na šablony",
         "contents": "Co obsahuje",
         "actions": "Akce",
         "editDetails": "Upravit podrobnosti",
-        "updateContent": "Aktualizovat obsah šablony"
+        "updateContent": "Aktualizovat obsah šablony",
+        "delete": "Odstranit"
     },
     "mcpOAuthConnections": {
         "title": "Připojit nástroj AI",
@@ -1666,7 +1679,11 @@
         "areaDatabase": "Databáze",
         "databaseRead": "Číst tabulky a řádky",
         "databaseEdit": "Vytvářet a měnit",
-        "databaseDelete": "Odstranit"
+        "databaseDelete": "Odstranit",
+        "areaAutomation": "Automatizace",
+        "automationRead": "Číst pracovní postupy a uzly",
+        "automationEdit": "Vytvářet a měnit",
+        "automationDelete": "Odstraňovat"
     },
     "createUserTemplateJobType": {
         "name": "Vytvořit šablonu"
@@ -1682,7 +1699,9 @@
         "alreadyInvited": "Pozvánka již čeká.\nMísto dalšího pozvání můžete její roli změnit na stránce Pozvánky.",
         "alreadyMember": "Již je členem tohoto pracovního prostoru",
         "roleNotForEmails": "Novou osobu nelze pozvat s rolí {role}",
-        "noResults": "Chcete-li někoho pozvat, zadejte celou e-mailovou adresu."
+        "noResults": "Chcete-li někoho pozvat, zadejte celou e-mailovou adresu.",
+        "invitedHint": "Pozvánka odeslána",
+        "memberHint": "Člen"
     },
     "templateEmptyState": {
         "noResultsTitle": "Nebyly nalezeny žádné šablony",
@@ -1735,7 +1754,8 @@
         "noticePersonalViews": "Osobní pohledy.",
         "noticeReferences": "Připojení k databázím, které nejsou zahrnuty. Zdroje dat, filtry a spouštěče, které je používají, je třeba znovu nastavit.",
         "noticeRest": "Vše ostatní je sdíleno beze změny.",
-        "selectedApplications": "0 vybraných aplikací | 1 vybraná aplikace | {count} vybraných aplikací"
+        "selectedApplications": "0 vybraných aplikací | 1 vybraná aplikace | {count} vybraných aplikací",
+        "noticePasswords": "Hodnoty polí s heslem ve vašich tabulkách včetně hesel uživatelů vašich aplikací."
     },
     "templateIconSelectContext": {
         "search": "Hledat ikony",
@@ -1763,7 +1783,10 @@
         "retry": "Zkusit znovu",
         "actions": "Akce",
         "editDetails": "Upravit podrobnosti",
-        "updateContent": "Aktualizovat obsah šablony"
+        "updateContent": "Aktualizovat obsah šablony",
+        "used": "Použito",
+        "usedTimes": "{count}krát | {count}krát | {count}krát",
+        "delete": "Odstranit"
     },
     "crudTable": {
         "empty": "Zatím žádné položky",
@@ -1775,5 +1798,10 @@
     },
     "managementPages": {
         "you": "Vy"
+    },
+    "deleteUserTemplateModal": {
+        "title": "Opravdu chcete odstranit „{name}“?",
+        "description": "Šablona bude odstraněna pro všechny v této instanci. Kopie, které si lidé už nainstalovali do svých pracovních prostorů, tím nebudou ovlivněny.",
+        "delete": "Odstranit šablonu"
     }
 }
