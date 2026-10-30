@@ -8,17 +8,19 @@ import ApplicationService from '@baserow/modules/core/services/application'
 import AgentApplicationService from '@baserow/modules/agent/services/agentApplication'
 import { selectAgentApplication } from '@baserow/modules/agent/middleware/selectAgentApplication'
 
-const CONFIGURATION_FIELDS = [
-  'instructions',
-  'provider_type',
-  'model_identifier',
-]
+const REQUIRED_FIELDS = ['instructions', 'provider_type', 'model_identifier']
+const CONFIGURATION_FIELDS = [...REQUIRED_FIELDS, 'run_as']
 
 const emptyConfiguration = () => ({
   instructions: '',
   provider_type: null,
   model_identifier: null,
+  run_as: null,
 })
+
+/** Identities are equal by type and id, other values by identity. */
+const isSameValue = (field, a, b) =>
+  field === 'run_as' ? a?.type === b?.type && a?.id === b?.id : a === b
 
 /** Page-local Agent configuration, kept out of the shared application store. */
 export function useAgentConfiguration(agent) {
@@ -91,7 +93,7 @@ export function useAgentConfiguration(agent) {
     if (!canReadConfiguration.value || !saved) return {}
 
     const errors = {}
-    for (const field of CONFIGURATION_FIELDS) {
+    for (const field of REQUIRED_FIELDS) {
       if (!(configuration[field] || '').trim()) {
         errors[field] = 'required'
       } else if (
@@ -244,7 +246,7 @@ export function useAgentConfiguration(agent) {
     }
     for (const field of CONFIGURATION_FIELDS) {
       if (!(field in pendingConfiguration)) configuration[field] = saved[field]
-      if (configuration[field] === saved[field]) {
+      if (isSameValue(field, configuration[field], saved[field])) {
         delete pendingConfiguration[field]
       }
     }
@@ -296,7 +298,7 @@ export function useAgentConfiguration(agent) {
           : value
       configuration[field] = normalized
       if (
-        savedConfiguration.value?.[field] === normalized &&
+        isSameValue(field, savedConfiguration.value?.[field], normalized) &&
         !(field in inFlightConfiguration)
       ) {
         delete pendingConfiguration[field]

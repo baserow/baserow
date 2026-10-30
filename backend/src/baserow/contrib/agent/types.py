@@ -14,6 +14,8 @@ class AgentConfiguration(TypedDict):
     instructions: str
     provider_type: str | None
     model_identifier: str | None
+    run_as_subject_type: str | None
+    run_as_subject_id: int | None
     errors: dict[str, str]
 
 

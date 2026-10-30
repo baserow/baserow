@@ -19,6 +19,7 @@ import {
   modelError,
   nameInput,
   openSection,
+  page,
   providerDropdown,
   savedValues,
   saving,
@@ -567,7 +568,7 @@ describe('Agent configuration', () => {
     mockConfiguration(testApp, incompleteConfiguration('model_identifier'))
     const wrapper = await mount()
 
-    const [instructionsSection, settingsSection] = wrapper.findAll(
+    const [instructionsSection, , settingsSection] = wrapper.findAll(
       '.menu-list__item-button'
     )
 
@@ -576,6 +577,103 @@ describe('Agent configuration', () => {
       'agent.fieldError'
     )
   })
+
+  test('runs as a chosen identity or with no workspace access', async () => {
+    testApp.mock.onGet('/subjects/').reply(
+      200,
+      page([
+        {
+          id: 'core.Agent:7',
+          subject_id: 7,
+          subject_type: 'core.Agent',
+          name: 'Investor',
+        },
+      ])
+    )
+    const investor = { type: 'core.Agent', id: 7, name: 'Investor' }
+    mockSaves(
+      testApp,
+      completeConfiguration({ run_as: { ...investor, trashed: false } }),
+      completeConfiguration({ run_as: null })
+    )
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    const body = () => wrapper.get('.agent-configuration__body')
+    const select = async (name) => {
+      await body().get('.dropdown__selected').trigger('click')
+      await flushPromises()
+      await body()
+        .findAll('.select__item-link')
+        .find((item) => item.text().includes(name))
+        .trigger('click')
+      await flushPromises()
+    }
+
+    await select('Investor')
+    expect(body().text()).toContain('agent.runAsHelper')
+    await select('agent.noWorkspaceAccess')
+
+    expect(savedValues(testApp)).toEqual([
+      { run_as_subject_type: 'core.Agent', run_as_subject_id: 7 },
+      { run_as_subject_type: null, run_as_subject_id: null },
+    ])
+    expect(body().text()).toContain('agent.noWorkspaceAccessHelper')
+  })
+
+  const investor = {
+    type: 'core.Agent',
+    id: 7,
+    name: 'Investor',
+    trashed: false,
+  }
+
+  test.each([
+    ['assigns an identity', null, investor, 'Investor'],
+    ['clears the identity', investor, null, 'agent.noWorkspaceAccess'],
+    [
+      'changes the identity',
+      investor,
+      { ...investor, id: 8, name: 'Support' },
+      'Support',
+    ],
+    [
+      'renames the identity',
+      investor,
+      { ...investor, name: 'Renamed investor' },
+      'Renamed investor',
+    ],
+  ])(
+    'refreshes the run-as label when another editor %s',
+    async (_, previous, next, expectedLabel) => {
+      useFakeTimers()
+      testApp.mock.onGet('/subjects/').reply(200, page([]))
+      mockConfiguration(testApp, completeConfiguration({ run_as: previous }))
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.workspaceAccess')
+      await wrapper
+        .get('.agent-configuration .dropdown__selected')
+        .trigger('click')
+      const search = wrapper.get('.agent-configuration .select__search-input')
+      await search.setValue('Inv')
+      search.element.focus()
+      mockConfiguration(testApp, completeConfiguration({ run_as: next }))
+
+      await remoteUpdate(testApp, agent)
+
+      expect(
+        wrapper.get('.agent-configuration .dropdown__selected-text').text()
+      ).toBe(expectedLabel)
+      expect(
+        wrapper.get('.agent-configuration .control__helper-text').text()
+      ).toContain(next ? 'agent.runAsHelper' : 'agent.noWorkspaceAccessHelper')
+      expect(
+        wrapper.get('.agent-configuration .dropdown__items').classes()
+      ).not.toContain('hidden')
+      expect(search.element.value).toBe('Inv')
+      expect(document.activeElement).toBe(search.element)
+      expect(savedValues(testApp)).toEqual([])
+    }
+  )
 
   test('renames the Agent through the application with the trimmed name', async () => {
     mockRename(testApp, { ...agentData, name: 'Support' })
@@ -711,7 +809,7 @@ describe('Agent configuration', () => {
       .trigger('click')
     await flushPromises()
 
-    expect(wrapper.findAll('.menu-list__item-button')).toHaveLength(2)
+    expect(wrapper.findAll('.menu-list__item-button')).toHaveLength(3)
   })
 
   test('warns when model availability cannot be loaded until retry', async () => {

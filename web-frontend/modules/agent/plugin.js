@@ -6,6 +6,7 @@ import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 import {
   InstructionsAgentConfigurationSectionType,
   SettingsAgentConfigurationSectionType,
+  WorkspaceAccessAgentConfigurationSectionType,
 } from '@baserow/modules/agent/configurationSectionTypes'
 
 export default defineNuxtPlugin({
@@ -18,6 +19,10 @@ export default defineNuxtPlugin({
     nuxtApp.$registry.register(
       'agentConfigurationSection',
       new InstructionsAgentConfigurationSectionType(context)
+    )
+    nuxtApp.$registry.register(
+      'agentConfigurationSection',
+      new WorkspaceAccessAgentConfigurationSectionType(context)
     )
     nuxtApp.$registry.register(
       'agentConfigurationSection',

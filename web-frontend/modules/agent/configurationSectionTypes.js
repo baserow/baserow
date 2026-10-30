@@ -2,9 +2,11 @@ import { markRaw } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
 import AgentInstructionsSection from '@baserow/modules/agent/components/configuration/AgentInstructionsSection'
 import AgentSettingsSection from '@baserow/modules/agent/components/configuration/AgentSettingsSection'
+import AgentWorkspaceAccessSection from '@baserow/modules/agent/components/configuration/AgentWorkspaceAccessSection'
 
 const InstructionsSection = markRaw(AgentInstructionsSection)
 const SettingsSection = markRaw(AgentSettingsSection)
+const WorkspaceAccessSection = markRaw(AgentWorkspaceAccessSection)
 
 /**
  * A section in the Agent configuration sidebar. Plugins can register additional
@@ -89,6 +91,32 @@ export class InstructionsAgentConfigurationSectionType extends AgentConfiguratio
   }
 }
 
+export class WorkspaceAccessAgentConfigurationSectionType extends AgentConfigurationSectionType {
+  static getType() {
+    return 'workspace_access'
+  }
+
+  get name() {
+    return this.$t('agent.workspaceAccess')
+  }
+
+  get description() {
+    return this.$t('agent.workspaceAccessDescription')
+  }
+
+  get icon() {
+    return 'baserow-icon-agent'
+  }
+
+  get component() {
+    return WorkspaceAccessSection
+  }
+
+  getOrder() {
+    return 30
+  }
+}
+
 export class SettingsAgentConfigurationSectionType extends AgentConfigurationSectionType {
   static getType() {
     return 'settings'
@@ -124,6 +152,6 @@ export class SettingsAgentConfigurationSectionType extends AgentConfigurationSec
   }
 
   getOrder() {
-    return 20
+    return 90
   }
 }
