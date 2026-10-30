@@ -2,12 +2,16 @@ from datetime import datetime, timezone
 from unittest.mock import call, patch
 from zoneinfo import ZoneInfo
 
-from django.db import transaction
+from django.db import connection, transaction
+from django.test.utils import CaptureQueriesContext
 
 import pytest
+from celery.exceptions import SoftTimeLimitExceeded
 from freezegun import freeze_time
 from pytest_unordered import unordered
 
+from baserow.contrib.automation.history.models import AutomationWorkflowHistory
+from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeMisconfiguredService,
 )
@@ -27,6 +31,8 @@ from baserow.contrib.integrations.core.service_types import (
     CorePeriodicTriggerServiceType,
 )
 from baserow.contrib.integrations.core.utils import calculate_next_periodic_run
+from baserow.core.cache import local_cache
+from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
@@ -338,6 +344,210 @@ def test_call_multiple_periodic_services_that_are_due(
     )
 
 
+def _create_live_periodic_workflows(data_fixture, count):
+    automation = data_fixture.create_automation_application(
+        user=data_fixture.create_user()
+    )
+    workflows = []
+    for _ in range(count):
+        workflow = data_fixture.create_automation_workflow(
+            automation=automation, state=WorkflowState.LIVE, create_trigger=False
+        )
+        data_fixture.create_core_periodic_trigger_node(
+            workflow=workflow,
+            service=data_fixture.create_core_periodic_service(
+                interval=PERIODIC_INTERVAL_MINUTE,
+                minute=5,
+                next_run_at=datetime(2025, 2, 15, 10, 5, tzinfo=timezone.utc),
+            ),
+        )
+        workflows.append(workflow)
+    return workflows
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.contrib.automation.workflows.handler.start_workflow_celery_task")
+def test_a_periodic_service_that_fails_doesnt_stop_the_others(
+    mock_start_workflow_celery_task, data_fixture
+):
+    """
+    Every periodic service that is due is called in the same task, so a workflow
+    that fails to start mustn't stop the workflows of the other services. Here it
+    fails once its history is created and its start is queued, which are both
+    rolled back with it.
+    """
+
+    failing_workflow, working_workflow = _create_live_periodic_workflows(
+        data_fixture, 2
+    )
+
+    reset_workflow_temporary_states = (
+        AutomationWorkflowHandler.reset_workflow_temporary_states
+    )
+
+    def reset_or_fail(handler, workflow):
+        if workflow.id == failing_workflow.id:
+            raise RuntimeError("The workflow can't be started.")
+        return reset_workflow_temporary_states(handler, workflow)
+
+    with (
+        patch.object(
+            AutomationWorkflowHandler,
+            "reset_workflow_temporary_states",
+            reset_or_fail,
+        ),
+        freeze_time("2025-02-15 10:05:30"),
+        transaction.atomic(),
+    ):
+        service_type_registry.get(
+            CorePeriodicTriggerServiceType.type
+        ).call_periodic_services_that_are_due()
+
+    history = AutomationWorkflowHistory.objects.get()
+    assert history.original_workflow_id == working_workflow.id
+    mock_start_workflow_celery_task.delay.assert_called_once_with(
+        history.workflow_id, history.id
+    )
+
+    # The failing service is rescheduled too, so that it's only tried again at its
+    # next run rather than every time the due services are called.
+    for workflow in [failing_workflow, working_workflow]:
+        service = CorePeriodicService.objects.get(
+            automation_workflow_node__workflow=workflow
+        )
+        assert service.next_run_at == datetime(2025, 2, 15, 10, 10, tzinfo=timezone.utc)
+        assert service.last_periodic_run == datetime(
+            2025, 2, 15, 10, 5, tzinfo=timezone.utc
+        )
+
+
+@pytest.mark.django_db(transaction=True)
+@patch(
+    "baserow.contrib.automation.workflows.handler.AutomationWorkflowHandler.async_start_workflow",
+    side_effect=SoftTimeLimitExceeded(),
+)
+def test_periodic_services_stop_when_the_task_is_out_of_time(
+    mock_async_start_workflow, data_fixture
+):
+    """
+    Running out of time isn't a failure of one workflow, so it stops the task
+    rather than being skipped like one.
+    """
+
+    _create_live_periodic_workflows(data_fixture, 2)
+
+    with (
+        pytest.raises(SoftTimeLimitExceeded),
+        freeze_time("2025-02-15 10:05:30"),
+        transaction.atomic(),
+    ):
+        service_type_registry.get(
+            CorePeriodicTriggerServiceType.type
+        ).call_periodic_services_that_are_due()
+
+    assert mock_async_start_workflow.call_count == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_periodic_services_that_start_no_workflow_add_no_queries(data_fixture):
+    """
+    Draft services have no next run, so they're due every time the due services
+    are called. Calling them mustn't cost more queries the more of them there are.
+    """
+
+    automation = data_fixture.create_automation_application(
+        user=data_fixture.create_user()
+    )
+    periodic_service_type = service_type_registry.get(
+        CorePeriodicTriggerServiceType.type
+    )
+
+    def count_queries_with_draft_services(count):
+        for _ in range(count):
+            data_fixture.create_core_periodic_trigger_node(
+                workflow=data_fixture.create_automation_workflow(
+                    automation=automation,
+                    state=WorkflowState.DRAFT,
+                    create_trigger=False,
+                ),
+                service=data_fixture.create_core_periodic_service(
+                    interval=PERIODIC_INTERVAL_MINUTE, minute=5, next_run_at=None
+                ),
+            )
+        with (
+            freeze_time("2025-02-15 10:05:30"),
+            transaction.atomic(),
+            CaptureQueriesContext(connection) as queries,
+        ):
+            periodic_service_type.call_periodic_services_that_are_due()
+        return len(queries.captured_queries)
+
+    assert count_queries_with_draft_services(1) == count_queries_with_draft_services(19)
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("deleted", ["workflow", "workspace"])
+@patch("baserow.contrib.automation.workflows.handler.start_workflow_celery_task")
+def test_deleting_a_workflow_or_its_workspace_stops_its_published_copy(
+    mock_start_workflow_celery_task, data_fixture, deleted
+):
+    """
+    A published copy has no workspace of its own, so deleting its workflow, or the
+    workspace the workflow is in, deletes the copy too. Otherwise it would keep
+    running, and fail to, because its workflow can no longer be found.
+    """
+
+    user = data_fixture.create_user()
+
+    def publish_periodic_workflow():
+        automation = data_fixture.create_automation_application(
+            user=user, workspace=data_fixture.create_workspace(user=user)
+        )
+        workflow = data_fixture.create_automation_workflow(
+            automation=automation, create_trigger=False
+        )
+        data_fixture.create_core_periodic_trigger_node(
+            workflow=workflow,
+            service_kwargs={"interval": PERIODIC_INTERVAL_MINUTE, "minute": 5},
+        )
+        with transaction.atomic():
+            AutomationWorkflowHandler().publish(workflow)
+        return workflow
+
+    with freeze_time("2025-02-15 10:00:00"):
+        deleted_workflow = publish_periodic_workflow()
+        kept_workflow = publish_periodic_workflow()
+
+    # Publishing caches that the workflows had no published copy yet. The deletion
+    # happens in a later request, which starts with an empty cache.
+    local_cache.clear()
+
+    with transaction.atomic():
+        if deleted == "workspace":
+            CoreHandler().delete_workspace(user, deleted_workflow.automation.workspace)
+        else:
+            AutomationWorkflowHandler().delete_workflow(user, deleted_workflow)
+
+    assert not AutomationWorkflow.objects.filter(
+        automation__published_from=deleted_workflow
+    ).exists()
+    kept_published_workflow = AutomationWorkflowHandler().get_published_workflow(
+        kept_workflow
+    )
+
+    with freeze_time("2025-02-15 10:05:30"):
+        with transaction.atomic():
+            service_type_registry.get(
+                CorePeriodicTriggerServiceType.type
+            ).call_periodic_services_that_are_due()
+
+    history = AutomationWorkflowHistory.objects.get()
+    assert history.workflow_id == kept_published_workflow.id
+    mock_start_workflow_celery_task.delay.assert_called_once_with(
+        kept_published_workflow.id, history.id
+    )
+
+
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize(
     "service_kwargs,frozen_time,should_be_called",
@@ -365,7 +575,7 @@ def test_call_periodic_services_that_are_due(
         tzinfo=timezone.utc, second=0, microsecond=0
     )
 
-    def check_service_count(services, event_payload):
+    def check_service_count(services, event_payload, **kwargs):
         if should_be_called:
             assert len(services) == 1
             next_run_at = calculate_next_periodic_run(

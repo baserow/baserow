@@ -1,10 +1,13 @@
 from typing import Any, Callable, Dict, Iterable, Optional
 
 from django.contrib.auth.models import AbstractUser
-from django.db import router
+from django.db import router, transaction
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+
+from celery.exceptions import SoftTimeLimitExceeded
+from loguru import logger
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.nodes.constants import ERROR_POLICY_FIELDS
@@ -102,6 +105,7 @@ from baserow.core.services.exceptions import (
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
 from baserow.core.services.types import DispatchResult
+from baserow.core.utils import exception_capturer
 
 
 class AutomationActionNodeType(AutomationNodeType):
@@ -755,10 +759,20 @@ class AutomationTriggerNodeType(AutomationNodeType):
         services: Iterable[Service],
         event_payload: Dict | None | Callable = None,
         user: Optional[AbstractUser] = None,
+        isolate_failures: bool = False,
     ):
-        from baserow.contrib.automation.workflows.handler import (
-            AutomationWorkflowHandler,
-        )
+        """
+        Starts the workflow of every trigger whose service the event applies to.
+
+        :param services: The services the event applies to.
+        :param event_payload: The event payload, or a callable returning the payload
+            for a given service.
+        :param user: The user who caused the event, if any.
+        :param isolate_failures: Whether a workflow that fails to start is rolled
+            back and skipped, so that the other workflows still start. Otherwise the
+            failure is raised.
+        :return: The histories of the started workflows.
+        """
 
         triggers = list(
             self.model_class.objects.filter(
@@ -788,30 +802,90 @@ class AutomationTriggerNodeType(AutomationNodeType):
 
         histories = []
         for trigger in triggers:
-            # If we've received a callable payload, call it with the specific service,
-            # this can give us a payload that is specific to the trigger's service.
-            service_payload = (
-                event_payload(service_map[trigger.service_id])
-                if callable(event_payload)
-                else event_payload
-            )
-
-            workflow = trigger.workflow
-            history = AutomationWorkflowHandler().async_start_workflow(
-                workflow,
-                service_payload,
-                # Read before the reset below clears it.
-                triggered_by=AutomationWorkflowHandler().get_test_run_triggered_by(
-                    workflow
-                ),
+            service = service_map[trigger.service_id]
+            history = (
+                self._start_workflow_in_savepoint(trigger, service, event_payload)
+                if isolate_failures
+                else self._start_workflow(trigger, service, event_payload)
             )
             if history is not None:
                 histories.append(history)
 
-            # We don't want subsequent events to trigger a new test run
-            AutomationWorkflowHandler().reset_workflow_temporary_states(workflow)
-
         return histories
+
+    def _start_workflow_in_savepoint(
+        self,
+        trigger: AutomationTriggerNode,
+        service: Service,
+        event_payload: Dict | None | Callable = None,
+    ):
+        """
+        Starts the workflow of one trigger in a savepoint. If it fails, everything
+        it did is rolled back and the failure is logged rather than raised.
+
+        :param trigger: The trigger node whose workflow is started.
+        :param service: The trigger's service.
+        :param event_payload: The event payload, or a callable returning the payload
+            for a given service.
+        :return: The history of the started workflow, if one was created.
+        """
+
+        try:
+            with transaction.atomic():
+                return self._start_workflow(trigger, service, event_payload)
+        except SoftTimeLimitExceeded:
+            # The task is out of time, so it must stop rather than carry on with
+            # the next trigger until the hard time limit kills it.
+            raise
+        except Exception as e:
+            logger.exception(
+                "Could not start workflow {} from trigger {}.",
+                trigger.workflow_id,
+                trigger.id,
+            )
+            exception_capturer(e)
+            return None
+
+    def _start_workflow(
+        self,
+        trigger: AutomationTriggerNode,
+        service: Service,
+        event_payload: Dict | None | Callable = None,
+    ):
+        """
+        Starts the workflow of one trigger that the event applies to.
+
+        :param trigger: The trigger node whose workflow is started.
+        :param service: The trigger's service.
+        :param event_payload: The event payload, or a callable returning the payload
+            for a given service.
+        :return: The history of the started workflow, if one was created.
+        """
+
+        from baserow.contrib.automation.workflows.handler import (
+            AutomationWorkflowHandler,
+        )
+
+        # If we've received a callable payload, call it with the specific service,
+        # this can give us a payload that is specific to the trigger's service.
+        service_payload = (
+            event_payload(service) if callable(event_payload) else event_payload
+        )
+
+        workflow = trigger.workflow
+        history = AutomationWorkflowHandler().async_start_workflow(
+            workflow,
+            service_payload,
+            # Read before the reset below clears it.
+            triggered_by=AutomationWorkflowHandler().get_test_run_triggered_by(
+                workflow
+            ),
+        )
+
+        # We don't want subsequent events to trigger a new test run
+        AutomationWorkflowHandler().reset_workflow_temporary_states(workflow)
+
+        return history
 
 
 class LocalBaserowRowsCreatedTriggerNodeType(AutomationTriggerNodeType):
