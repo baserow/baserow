@@ -14,13 +14,13 @@
         "snapshots": "Instantáneas",
         "rename": "Renombrar",
         "duplicate": "Duplicar",
-        "delete": "Borrar"
+        "delete": "Eliminar"
     },
     "sidebar": {
-        "createWorkspace": "Crea un grupo",
+        "createWorkspace": "Crear espacio de trabajo",
         "inviteOthers": "Invitar a otros",
         "logoff": "Cerrar sesión",
-        "errorNoWorkspace": "No tienes ningún grupo.",
+        "errorNoWorkspace": "No tienes ningún espacio de trabajo.",
         "admin": "Admin",
         "dashboard": "Tablero",
         "trash": "Papelera",
@@ -96,8 +96,8 @@
     },
     "leaveWorkspaceModal": {
         "title": "Abandonar {workspace}",
-        "message": "¿Está seguro de que desea abandonar el grupo {workspace}? Ya no podrá acceder a las aplicaciones relacionadas y, si desea recuperar el acceso, uno de los administradores debe invitarlo nuevamente. Si abandona el grupo, no se eliminará. Todos los demás miembros seguirán teniendo acceso a él. No es posible abandonar un grupo si eres el último administrador porque eso lo dejará sin mantenimiento.",
-        "leave": "Dejar grupo"
+        "message": "¿Estás seguro de que quieres abandonar el espacio de trabajo {workspace}? Ya no podrás acceder a las aplicaciones relacionadas y si quieres recuperar el acceso, uno de los administradores tendrá que invitarte de nuevo. Si abandonas el espacio de trabajo, este no se eliminará. Todos los demás miembros seguirán teniendo acceso a él. No es posible abandonar un espacio de trabajo si eres el último administrador, porque eso lo dejaría sin mantenimiento.",
+        "leave": "Abandonar espacio de trabajo"
     },
     "dashboardWorkspace": {
         "showMembers": "Miembros",
@@ -136,7 +136,7 @@
         "renameWorkspace": "Renombrar espacio de trabajo",
         "members": "Miembros",
         "viewTrash": "Ver papelera",
-        "leaveWorkspace": "Salir del área de trabajo",
+        "leaveWorkspace": "Abandonar espacio de trabajo",
         "deleteWorkspace": "Eliminar espacio de trabajo",
         "auditLog": "Registro de auditoría",
         "settings": "Ajustes",
@@ -144,11 +144,11 @@
         "importWorkspace": "Importar datos"
     },
     "createWorkspaceModal": {
-        "createNew": "Crear grupo nuevo",
-        "add": "Añadir grupo",
-        "defaultName": "Grupo sin titulo",
+        "createNew": "Crear nuevo espacio de trabajo",
+        "add": "Añadir espacio de trabajo",
+        "defaultName": "Espacio de trabajo sin título",
         "permissionDeniedTitle": "Permiso denegado",
-        "permissionDeniedBody": "No tienes los permisos necesarios para crear un grupo nuevo."
+        "permissionDeniedBody": "No tienes los permisos necesarios para crear un espacio de trabajo nuevo."
     },
     "templateCategories": {
         "search": "Buscar plantillas",
@@ -158,7 +158,7 @@
     },
     "templateHeader": {
         "use": "Usar esta plantilla",
-        "selectWorkspace": "Elegir espacio de trabajo"
+        "selectWorkspace": "Elige un espacio de trabajo"
     },
     "trashSidebar": {
         "title": "Papelera",
@@ -177,7 +177,7 @@
         "titleIsNotTrashed": "¿Estás seguro de que quieres vaciar la papelera de {name}?",
         "messageIsTrashed": "Esto lo eliminará permanentemente junto con todo su contenido. Después de lo cual no se pueden recuperar.",
         "messageIsNotTrashed": "Esto eliminará permanentemente los elementos enumerados. Después de lo cual no se pueden recuperar.",
-        "buttonIsTrashed": "Borrar permanentemente",
+        "buttonIsTrashed": "Eliminar permanentemente",
         "buttonIsNotTrashed": "Vacío"
     },
     "trashEntry": {
@@ -344,15 +344,15 @@
         "settingAllowSignupsViaWorkspaceInvitationsName": "Permitir suscripciones a través de invitaciones grupales",
         "settingAllowSignupsViaWorkspaceInvitationDescription": "Incluso si la creación de nuevas cuentas está deshabilitada, esta opción permite que los usuarios invitados directamente sigan creando una cuenta.",
         "userDeletionGraceDelay": "Eliminación de usuarios",
-        "settingUserDeletionGraceDelay": "Borrar el plazo de gracia",
+        "settingUserDeletionGraceDelay": "Eliminar el plazo de gracia",
         "settingUserDeletionGraceDelayDescription": "Este es el número de días sin iniciar sesión después de los cuales una cuenta programada para ser eliminada se borra permanentemente.",
         "invalidAccountDeletionGraceDelay": "Este valor es obligatorio y debe ser un entero positivo menor que 32000",
-        "settingAllowNonStaffCreateWorkspaceOperation": "Permitir a todos crear nuevos grupos",
-        "settingAllowNonStaffCreateWorkspaceOperationDescription": "Por defecto, todos pueden crear grupos nuevos. Desactívalo para que sólo el equipo pueda crear nuevos grupos.",
-        "settingAllowNonStaffCreateWorkspaceOperationWarning": "A los nuevos usuarios se les creará automáticamente un grupo en el que serán administradores.",
+        "settingAllowNonStaffCreateWorkspaceOperation": "Permitir a todos crear nuevos espacios de trabajo",
+        "settingAllowNonStaffCreateWorkspaceOperationDescription": "Por defecto, todos pueden crear nuevos espacios de trabajo. Deshabilita esto para permitir solo al personal crear nuevos espacios de trabajo.",
+        "settingAllowNonStaffCreateWorkspaceOperationWarning": "Los nuevos usuarios tendrán un espacio de trabajo creado automáticamente para ellos, donde son administradores.",
         "maintenance": "Mantenimiento",
-        "settingTrackWorkspaceUsage": "Seguimiento del uso del grupo",
-        "settingTrackWorkspaceUsageDescription": "Activa un trabajo nocturno que cuenta el uso de filas y archivos por grupo, mostrado en la página de administración de grupos premium.",
+        "settingTrackWorkspaceUsage": "Rastrear uso del espacio de trabajo",
+        "settingTrackWorkspaceUsageDescription": "Habilita una tarea nocturna que cuenta el uso de filas y archivos por espacio de trabajo, mostrado en la página de administración de espacios de trabajo premium.",
         "userSettings": "Usuario",
         "emailVerificationDescription": "Controla si las direcciones de correo electrónico deben ser verificadas.",
         "emailVerificationNoVerification": "Ninguna verificación",
@@ -462,24 +462,24 @@
         "fields": "Campos"
     },
     "deleteAccountSettings": {
-        "title": "Borrar cuenta",
+        "title": "Eliminar cuenta",
         "workspaceNotice": "Los grupos huérfanos se borraran",
-        "orphanWorkspaces": "También se borrará permanentemente después del tiempo de gracia",
+        "orphanWorkspaces": "También se eliminará permanentemente después del tiempo de gracia",
         "orphanWorkspaceMemberCount": "compartido con nadie|compartido con un usuario|compartido con {count} usuarios",
         "password": "Contraseña",
         "passwordConfirm": "Repetir contraseña",
         "repeatPasswordMatchError": "Este campo debe coincidir con el primer campo de contraseña.",
-        "submitButton": "Borrar cuenta",
+        "submitButton": "Eliminar cuenta",
         "errorInvalidPasswordTitle": "Contraseña inválida",
         "errorInvalidPasswordMessage": "No se ha podido eliminar tu cuenta porque tu contraseña no es válida.",
         "errorUserIsLastAdminTitle": "Último administrador",
         "errorUserIsLastAdminMessage": "No se ha podido eliminar tu cuenta porque eres el último administrador de esta instancia de Baserow.",
         "accountDeletedSuccessTitle": "Eliminación de la cuenta programada",
         "accountDeletedSuccessMessage": "Se ha programado la eliminación de tu cuenta.",
-        "workspaceLoadingError": "La comprobación de los grupos ha fallado",
-        "workspaceLoadingErrorDescription": "La comprobación de los grupos a eliminar ha fallado, favor de actualizar la página.",
+        "workspaceLoadingError": "La comprobación de los espacios de trabajo ha fallado",
+        "workspaceLoadingErrorDescription": "La comprobación de los espacios de trabajo que se van a eliminar falló, por favor actualiza la página.",
         "description": "Puedes programar la eliminación de tu cuenta introduciendo tu contraseña y haciendo clic en el botón. Tu cuenta será eliminada permanentemente después de {days} días. Mientras tanto, si vuelves a conectarte, se cancelará la eliminación de tu cuenta.",
-        "workspaceNoticeDescription": "Cuando tu cuenta se elimina permanentemente, todos los grupos y datos asociados para los que eres el último usuario activo con permisos de administrador también se eliminarán. Los grupos que se muestran a continuación son los que se borrarán porque tú eres el único administrador. Para evitar que se borren, primero dale a otro usuario permisos de administrador antes de borrar tu cuenta."
+        "workspaceNoticeDescription": "Cuando tu cuenta sea eliminada permanentemente, todos los espacios de trabajo y los datos asociados para los cuales eres el último usuario activo con permisos de administrador también serán eliminados. Los espacios de trabajo mostrados abajo son aquellos que serán eliminados porque eres el único administrador. Para evitar que sean eliminados, primero debes dar permisos de administrador a otro usuario antes de eliminar tu cuenta."
     },
     "clearingNotification": {
         "title": "Borrando...",
@@ -574,8 +574,8 @@
             "title": "Invitar a miembros del espacio de trabajo",
             "errors": {
                 "userAlreadyInWorkspace": {
-                    "title": "El usuario ya está en el grupo.",
-                    "text": "No es posible enviar una invitación cuando el usuario ya es miembro del grupo."
+                    "title": "El usuario ya está en el espacio de trabajo.",
+                    "text": "No es posible enviar una invitación cuando el usuario ya es miembro del espacio de trabajo."
                 },
                 "tooManyInvitations": {
                     "text": "Has enviado demasiadas invitaciones. Por favor, inténtalo de nuevo más tarde.",
@@ -603,7 +603,7 @@
     },
     "removeFromWorkspaceModal": {
         "confirmation": "¿Estás seguro de que quieres eliminar a {name} de {workspaceName}? Esta acción no se puede deshacer.",
-        "title": "Confirmar la eliminación del grupo",
+        "title": "Confirmar expulsión del espacio de trabajo",
         "remove": "Quitar"
     },
     "permissionsUpdatedNotification": {
@@ -701,7 +701,7 @@
     },
     "clearAllNotificationsConfirmModal": {
         "title": "¿Estás seguro de que quieres borrar todas las notificaciones?",
-        "message": "Todas las notificaciones se borrarán permanentemente y no podrás volver a verlas."
+        "message": "Todas las notificaciones se eliminarán permanentemente y no podrás volver a verlas."
     },
     "uploadFileDropzone": {
         "errorTooManyFilesMessage": "Sólo puedes cargar un único archivo",
@@ -1040,7 +1040,7 @@
     },
     "user": {
         "isStaff": "Es staff",
-        "isWorkspaceAdmin": "Es administrador de grupo",
+        "isWorkspaceAdmin": "Es administrador del espacio de trabajo",
         "active": "Activo",
         "deactivated": "Desactivado"
     },
@@ -1051,7 +1051,7 @@
         "aiProviders": "Proveedores de IA"
     },
     "workspacesAdminTable": {
-        "allWorkspaces": "Todos los grupos",
+        "allWorkspaces": "Todos los espacios de trabajo",
         "id": "ID",
         "name": "Nombre",
         "members": "Miembros",
@@ -1064,13 +1064,13 @@
         "freeUsers": "Usuarios gratuitos"
     },
     "editWorkspaceContext": {
-        "delete": "Eliminado permanentemente"
+        "delete": "Eliminar permanentemente"
     },
     "deleteWorkspaceModal": {
         "title": "Eliminar {name}",
-        "confirmation": "¿Está seguro de que desea eliminar el grupo: {name}?",
-        "comment": "El grupo se eliminará de forma permanente, incluidas las aplicaciones relacionadas. No es posible deshacer esta acción.",
-        "delete": "Eliminar grupo {name}"
+        "confirmation": "¿Estás seguro de que quieres eliminar el espacio de trabajo: {name}?",
+        "comment": "El espacio de trabajo se eliminará permanentemente, incluyendo las aplicaciones relacionadas. No es posible deshacer esta acción.",
+        "delete": "Eliminar el espacio de trabajo {name}"
     },
     "activeUsers": {
         "newUsers": "Nuevos usuarios",
@@ -1089,7 +1089,7 @@
     },
     "editUserContext": {
         "changePassword": "Cambiar la contraseña",
-        "delete": "Borrar permanentemente",
+        "delete": "Eliminar permanentemente",
         "impersonate": "Suplantar"
     },
     "changePasswordForm": {
@@ -1134,7 +1134,7 @@
         "title": "Tablero",
         "totals": "Totales",
         "totalUsers": "Usuarios totales",
-        "totalWorkspaces": "Grupos totales",
+        "totalWorkspaces": "Espacios de trabajo totales",
         "totalApplications": "Aplicaciones totales",
         "newUsers": "Nuevos usuarios",
         "newUsers24h": "Nuevos usuarios últimas 24 horas",
@@ -1739,7 +1739,7 @@
     "templateInstall": {
         "copyLink": "Copiar enlace para compartir",
         "use": "Usar esta plantilla",
-        "selectWorkspace": "Elegir espacio de trabajo",
+        "selectWorkspace": "Elige un espacio de trabajo",
         "more": "Más",
         "noWorkspaceAskInvite": "No eres miembro de ningún espacio de trabajo. Una plantilla se instala en un espacio de trabajo, por lo que primero deberás ser invitado a un espacio de trabajo por un administrador.",
         "noWorkspace": "Una plantilla se instala en un espacio de trabajo. Crea primero un espacio de trabajo, luego instala la plantilla en él.",
