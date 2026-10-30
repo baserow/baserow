@@ -54,8 +54,8 @@ class AutomationWorkflowHistory(AutomationHistory):
 
     # Who started the run, as a subject rather than a user foreign key so an
     # agent can be recorded too. The id is only meaningful together with the
-    # type, since user and agent ids can overlap. The name is kept so the entry
-    # still reads after the subject is deleted.
+    # type, which also distinguishes anonymous and token actors. The stored name
+    # remains readable after the subject is deleted.
     triggered_by_id = models.PositiveIntegerField(
         null=True,
         help_text="The id of the subject who started this run. Null when an "

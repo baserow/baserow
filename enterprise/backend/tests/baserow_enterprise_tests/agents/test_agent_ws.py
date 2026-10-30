@@ -145,7 +145,7 @@ def test_team_changes_broadcast_current_agent_teams(
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
-def test_human_team_changes_do_not_broadcast_an_agent_with_the_same_id(
+def test_human_team_changes_do_not_broadcast_an_agent(
     data_fixture, enterprise_data_fixture, enable_enterprise, synced_roles
 ):
     """Only agent memberships should trigger agent metadata broadcasts."""
@@ -153,7 +153,7 @@ def test_human_team_changes_do_not_broadcast_an_agent_with_the_same_id(
     member = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin, members=[member])
     team = enterprise_data_fixture.create_team(workspace=workspace)
-    Agent.objects.create(id=member.id, workspace=workspace, name="Same ID")
+    Agent.objects.create(workspace=workspace, name="Agent")
     with patch("baserow.ws.signals.broadcast_to_permitted_users.delay") as broadcast:
         TeamHandler().create_subject(admin, {"id": member.id}, "auth.User", team)
     broadcast.assert_not_called()

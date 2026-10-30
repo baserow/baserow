@@ -46,9 +46,10 @@ def test_agent_pagination_with_duplicate_names(data_fixture, api_client, sorts):
 
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    agents = Agent.objects.bulk_create(
-        [Agent(workspace=workspace, name=f"Agent {i % 3}") for i in range(400)]
-    )
+    agents = [
+        data_fixture.create_agent(workspace=workspace, name=f"Agent {i % 3}")
+        for i in range(400)
+    ]
     expected = sorted(agents, key=lambda agent: agent.id)
     if sorts:
         expected.sort(key=lambda agent: agent.name, reverse=sorts == "-name")

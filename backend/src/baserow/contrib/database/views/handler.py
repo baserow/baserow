@@ -123,7 +123,7 @@ from baserow.core.public_sharing import (
     encode_public_access_token,
     is_public_access_token_valid,
 )
-from baserow.core.registries import ImportExportConfig
+from baserow.core.registries import ImportExportConfig, subject_type_registry
 from baserow.core.telemetry.utils import baserow_trace, baserow_trace_handler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import PermissionCheck
@@ -1046,7 +1046,10 @@ class ViewHandler:
         last_order = model_class.get_last_order(table)
 
         instance = model_class.objects.create(
-            table=table, order=last_order, owned_by=user, **view_values
+            table=table,
+            order=last_order,
+            owned_by=subject_type_registry.user_for_actor(user),
+            **view_values,
         )
 
         if instance.public:

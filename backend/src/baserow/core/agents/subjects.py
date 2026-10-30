@@ -20,6 +20,15 @@ class AgentSubjectType(SubjectType):
 
     has_direct_workspace_roles = True
 
+    def get_user(self, subject: Agent) -> AbstractUser | None:
+        return subject.user
+
+    def get_actor_for_user(self, user: AbstractUser) -> Agent | None:
+        if user.is_active:
+            return None
+        # A legacy Agent can carry a person's number, so only follow the user link.
+        return Agent.objects_and_trash.filter(user=user).first()
+
     def track_usage(self, subject: Agent) -> None:
         """Track agent service usage by updating its last-active timestamp."""
 

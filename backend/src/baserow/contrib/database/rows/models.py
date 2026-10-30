@@ -9,7 +9,7 @@ from baserow.core.subjects import UserSubjectType
 class RowHistory(models.Model):
     # Reuse the former user columns so existing entries become User actors without a
     # data migration. The actor type must always be used together with the actor ID
-    # because User and Agent primary keys can overlap.
+    # because anonymous and token actors also have their own id namespaces.
     actor_id = models.PositiveIntegerField(
         db_column="user_id",
         null=True,

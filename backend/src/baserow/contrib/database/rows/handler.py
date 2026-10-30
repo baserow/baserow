@@ -84,7 +84,7 @@ from baserow.core.exceptions import (
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.psycopg import is_index_row_size_error, is_unique_violation_error, sql
-from baserow.core.registries import OperationType
+from baserow.core.registries import OperationType, subject_type_registry
 from baserow.core.telemetry.utils import baserow_trace, baserow_trace_handler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.trash.registries import trash_item_type_registry
@@ -125,13 +125,6 @@ from .types import (
     RowsForUpdate,
     UpdatedRowsData,
 )
-
-
-def user_for_row_audit_columns(actor):
-    """Return a real user for generated-table user foreign keys."""
-
-    return actor if isinstance(actor, AbstractUser) and actor.id else None
-
 
 if TYPE_CHECKING:
     from django.db.backends.utils import CursorWrapper
@@ -1264,7 +1257,7 @@ class RowHandler:
         if signal_params is None:
             signal_params = {}
 
-        audit_user = user_for_row_audit_columns(user)
+        audit_user = subject_type_registry.user_for_actor(user)
 
         unique_orders = self.get_unique_orders_before_row(
             before_row, model, amount=len(rows_values)
@@ -2348,7 +2341,7 @@ class RowHandler:
         if model is None:
             model = table.get_model()
 
-        audit_user = user_for_row_audit_columns(user)
+        audit_user = subject_type_registry.user_for_actor(user)
 
         if values_already_prepared:
             # Row IDs are removed below, so do not mutate the caller's dictionaries.
@@ -3048,9 +3041,7 @@ class RowHandler:
         )
 
         workspace = table.database.workspace
-        TrashHandler.trash(
-            user_for_row_audit_columns(user), workspace, table.database, row
-        )
+        TrashHandler.trash(user, workspace, table.database, row)
         rows_deleted_counter.add(1)
 
         (
@@ -3267,7 +3258,7 @@ class RowHandler:
             trashed_rows.rows = rows
 
             TrashHandler.trash(
-                user_for_row_audit_columns(user),
+                user,
                 workspace,
                 table.database,
                 trashed_rows,

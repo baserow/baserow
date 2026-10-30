@@ -30,7 +30,8 @@ class IgnoreMissingForwardManyToOneDescriptor(ForwardManyToOneDescriptor):
         otherwise.
         """
 
-        return self.field.remote_field.model.objects.all()
+        # References must resolve rows hidden by the default manager.
+        return self.field.remote_field.model._base_manager.all()
 
     def get_object(self, instance):
         """

@@ -162,7 +162,7 @@ class UserHandler:
             language = kwargs.pop("language") or settings.LANGUAGE_CODE
 
         email = normalize_email_address(email)
-        user_query = User.objects.filter(Q(email=email) | Q(username=email))
+        user_query = User.objects_and_agents.filter(Q(email=email) | Q(username=email))
         if user_query.exists():
             user = user_query.first()
             if user.is_active:
@@ -649,7 +649,9 @@ class UserHandler:
         new_email = normalize_email_address(new_email)
 
         # Check if a user with the new email already exists
-        if User.objects.filter(Q(email=new_email) | Q(username=new_email)).exists():
+        if User.objects_and_agents.filter(
+            Q(email=new_email) | Q(username=new_email)
+        ).exists():
             raise UserAlreadyExist(f"A user with email {new_email} already exists.")
 
         signer = self.get_change_email_signer()
@@ -694,7 +696,7 @@ class UserHandler:
         # Check again if a user with the new email already exists because it could be
         # that a new user was created in the meantime.
         if (
-            User.objects.filter(Q(email=new_email) | Q(username=new_email))
+            User.objects_and_agents.filter(Q(email=new_email) | Q(username=new_email))
             .exclude(id=user.id)
             .exists()
         ):

@@ -773,3 +773,40 @@ def test_admin_check_license(api_client, data_fixture):
         assert response_json["id"] == license_2.id
         assert response_json["license_id"] == "2"
         assert len(response_json["users"]) == 0
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_agent_users_are_not_offered_or_assigned_license_seats(
+    api_client, data_fixture
+):
+    staff, token = data_fixture.create_user_and_token(is_staff=True)
+    agent = data_fixture.create_agent()
+    license = License.objects.create(license=VALID_TWO_SEAT_LICENSE.decode())
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    response = api_client.get(
+        reverse("api:premium:license:lookup_users", kwargs={"id": license.id}),
+        **headers,
+    )
+    assert response.status_code == HTTP_200_OK
+    assert [user["id"] for user in response.json()["results"]] == [staff.id]
+    response = api_client.post(
+        reverse(
+            "api:premium:license:user",
+            kwargs={"id": license.id, "user_id": agent.user_id},
+        ),
+        **headers,
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_USER_NOT_FOUND"
+    assert not LicenseUser.objects.filter(user=agent.user).exists()
+
+
+@pytest.mark.django_db
+def test_agent_users_are_not_counted_as_free_license_users(data_fixture):
+    from baserow_premium.license.license_types import PremiumLicenseType
+
+    data_fixture.create_user()
+    data_fixture.create_agent()
+    license = License.objects.create(license=VALID_TWO_SEAT_LICENSE.decode())
+    assert PremiumLicenseType().get_seat_usage_summary(license).free_users_count == 1

@@ -128,8 +128,7 @@ class TeamHandler:
             )
             case_params.extend(type_params)
 
-            # Restrict the join by content type because subject IDs can overlap
-            # between the different subject tables.
+            # Content type also distinguishes legacy Agents and other subjects.
             subject_joins.append(
                 f"LEFT OUTER JOIN {quote_name(model_meta.db_table)} {table_alias} "
                 f"ON ({table_alias}.id = sub.subject_id AND {type_condition})"

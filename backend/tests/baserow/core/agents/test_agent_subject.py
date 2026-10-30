@@ -145,9 +145,7 @@ def test_membership_cache_batches_and_isolates_subjects_and_trash(
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     other_workspace = data_fixture.create_workspace()
-    agent = Agent.objects.create(
-        id=user.id, workspace=workspace, name="Trashed", trashed=True
-    )
+    agent = Agent.objects.create(workspace=workspace, name="Trashed", trashed=True)
     manager = WorkspaceMemberOnlyPermissionManagerType()
 
     with local_cache.context():

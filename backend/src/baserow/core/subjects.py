@@ -48,6 +48,9 @@ class UserSubjectType(SubjectType):
             None, workspace_user, permissions=permissions
         )
 
+    def get_user(self, subject: AbstractUser) -> AbstractUser | None:
+        return subject if subject.id else None
+
     def get_type_display_name(self):
         return "User"
 

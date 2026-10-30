@@ -15,7 +15,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser, AnonymousUser
 from django.core.files.storage import Storage
 from django.db import OperationalError, transaction
-from django.db.models import Count, Model, Prefetch, Q, QuerySet
+from django.db.models import Count, Exists, Model, OuterRef, Prefetch, Q, QuerySet
 from django.db.models.functions import Coalesce
 from django.utils import translation
 from django.utils.translation import gettext as _
@@ -61,6 +61,7 @@ from .exceptions import (
 from .models import (
     WORKSPACE_USER_PERMISSION_ADMIN,
     WORKSPACE_USER_PERMISSION_MEMBER,
+    Agent,
     Application,
     Settings,
     Template,
@@ -1580,21 +1581,32 @@ class CoreHandler:
 
         return workspace_user
 
+    def get_workspace_collaborators(self, workspace: Workspace | int) -> QuerySet[User]:
+        """
+        Gets members and agent users that can be credited, assigned or mentioned.
+
+        :param workspace: The workspace or its id.
+        :return: Users belonging to members or non-trashed Agents.
+        """
+
+        agents = Agent.objects.filter(workspace=workspace, user__isnull=False)
+        return User.objects_and_agents.filter(
+            Q(
+                id__in=WorkspaceUser.objects.filter(workspace=workspace).values(
+                    "user_id"
+                )
+            )
+            | Q(id__in=agents.values("user_id"))
+        ).annotate(is_agent=Exists(agents.filter(user_id=OuterRef("pk"))))
+
     @classmethod
     def get_user_email_mapping(
         cls, workspace_id: int, only_emails: list[Email]
     ) -> UserEmailMapping:
-        workspace_users = WorkspaceUser.objects.filter(
-            workspace_id=workspace_id
-        ).select_related("user")
-
+        collaborators = cls().get_workspace_collaborators(workspace_id)
         if only_emails:
-            workspace_users = workspace_users.filter(user__email__in=only_emails)
-
-        return {
-            workspace_user.user.email: workspace_user.user
-            for workspace_user in workspace_users
-        }
+            collaborators = collaborators.filter(email__in=only_emails)
+        return {user.email: user for user in collaborators}
 
     def get_application(
         self,

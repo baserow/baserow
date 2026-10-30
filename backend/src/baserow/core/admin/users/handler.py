@@ -111,7 +111,7 @@ class UserAdminHandler:
             user.first_name = name
         if username is not None:
             email = normalize_email_address(username)
-            user_query = User.objects.filter(
+            user_query = User.objects_and_agents.filter(
                 Q(email=email) | Q(username=email), ~Q(id=user.id)
             )
             if email != user.email and user_query.exists():

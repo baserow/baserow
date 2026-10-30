@@ -17,6 +17,7 @@ from baserow.core.exceptions import (
     is_max_lock_exceeded_exception,
 )
 from baserow.core.models import Application, TrashEntry, Workspace
+from baserow.core.registries import subject_type_registry
 from baserow.core.trash.exceptions import (
     CannotDeleteAlreadyDeletedItem,
     CannotRestoreChildBeforeParent,
@@ -98,7 +99,9 @@ class TrashHandler:
                 _check_parent_id_valid(parent_trash_item_id, trash_item_type)
                 try:
                     trash_entry = TrashEntry.objects.create(
-                        user_who_trashed=requesting_user,
+                        user_who_trashed=subject_type_registry.user_for_actor(
+                            requesting_user
+                        ),
                         workspace=workspace,
                         application=application,
                         trash_item_type=trash_item_type.type,
