@@ -312,12 +312,21 @@ class DataSourceView(APIView):
             if service_type_from_query != service_type_from_service:
                 change_service_type = True
 
-        if service_type:
+        # When the type changes, the values are for the service of the new type,
+        # so that's the serializer which validates them. Otherwise a value only
+        # the new type has would be dropped.
+        validation_service_type = (
+            service_type_from_query
+            if change_service_type and service_type_from_query
+            else service_type
+        )
+
+        if validation_service_type:
             # We have a service type so either we have a service or a type in the query
             # We need to validate the incoming data against the serializer related to
             # the given type
             data = validate_data_custom_fields(
-                service_type.type,
+                validation_service_type.type,
                 service_type_registry,
                 request.data,
                 base_serializer_class=UpdateDataSourceSerializer,
@@ -505,7 +514,6 @@ class DispatchDataSourceView(APIView):
             ),
         },
     )
-    @transaction.atomic
     @map_exceptions(
         {
             DataSourceDoesNotExist: ERROR_DATA_SOURCE_DOES_NOT_EXIST,
@@ -645,7 +653,6 @@ class DispatchDataSourcesView(APIView):
             ),
         },
     )
-    @transaction.atomic
     @map_exceptions(
         {
             PageDoesNotExist: ERROR_PAGE_DOES_NOT_EXIST,
@@ -767,7 +774,7 @@ class GetRecordNamesView(APIView):
         service_type = service.get_type()
 
         # Check that the data source service is a ListServiceType
-        if not service_type.returns_list:
+        if not service_type.returns_list(service):
             raise ServiceImproperlyConfiguredDispatchException(
                 "This data source does not provide a list service"
             )

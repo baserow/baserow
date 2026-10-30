@@ -10,8 +10,8 @@ describe('Premium integrations service types', () => {
 
     expect(serviceType).toBeDefined()
     expect(serviceType.isDataSource).toBe(true)
-    expect(serviceType.returnsList).toBe(true)
-    expect(serviceType.supportsPagination).toBe(false)
+    expect(serviceType.returnsList({})).toBe(true)
+    expect(serviceType.supportsPagination({})).toBe(false)
     expect(serviceType.getIdProperty()).toBe('id')
     expect(serviceType.parseRecordId('Selected')).toBe('Selected')
     expect(serviceType.parseRecordId('')).toBeNull()
