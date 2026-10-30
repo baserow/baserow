@@ -11,6 +11,7 @@
     required
   >
     <PaginatedDropdown
+      ref="runAsDropdown"
       :value="selected"
       :fetch-page="fetchIdentities"
       :add-empty-item="false"
@@ -45,7 +46,7 @@
 </template>
 
 <script setup>
-import { computed, inject } from 'vue'
+import { computed, inject, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
 import SubjectService from '@baserow/modules/core/services/subject'
@@ -61,6 +62,7 @@ const emit = defineEmits(['change', 'flush'])
 const { $client } = useNuxtApp()
 const { t } = useI18n()
 const agent = inject('agentApplication')
+const runAsDropdown = ref(null)
 
 const trashed = computed(() => Boolean(props.configuration.run_as?.trashed))
 const selected = computed(() => {
@@ -70,6 +72,9 @@ const selected = computed(() => {
 const initialName = computed(
   () => props.configuration.run_as?.name ?? t('agent.noWorkspaceAccess')
 )
+
+// Refresh the cached label after the dropdown receives its updated prop.
+watch(initialName, () => runAsDropdown.value?.clear(), { flush: 'post' })
 
 function fetchIdentities(page, search) {
   return SubjectService($client).list(agent.value.workspace.id, {
