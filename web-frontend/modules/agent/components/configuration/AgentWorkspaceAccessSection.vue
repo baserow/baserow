@@ -43,6 +43,14 @@
       }}
     </template>
   </FormGroup>
+  <AgentWorkspaceTools
+    class="margin-top-3"
+    :allowed-tools="configuration.allowed_tools"
+    :available-tools="configuration.available_tools"
+    :agent-name="agent.name"
+    :editable="editable"
+    @update="changeAllowedTools"
+  />
 </template>
 
 <script setup>
@@ -50,6 +58,7 @@ import { computed, inject, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
 import SubjectService from '@baserow/modules/core/services/subject'
+import AgentWorkspaceTools from '@baserow/modules/agent/components/configuration/AgentWorkspaceTools'
 
 const NO_WORKSPACE_ACCESS = 'none'
 
@@ -82,6 +91,11 @@ function fetchIdentities(page, search) {
     search,
     subjectTypes: 'core.Agent',
   })
+}
+
+function changeAllowedTools(allowedTools) {
+  emit('change', { allowed_tools: allowedTools })
+  emit('flush')
 }
 
 function select({ value, item }) {

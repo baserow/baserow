@@ -28,7 +28,23 @@ class AgentConfig(AppConfig):
             ReadAgentConfigurationOperationType,
             ReadAgentConversationsOperationType,
         )
+        from .registries import agent_tool_type_registry
         from .search_types import AgentSearchType
+        from .tool_types import (
+            CreateFieldsAgentToolType,
+            CreateRowsAgentToolType,
+            CreateTablesAgentToolType,
+            CreateViewFiltersAgentToolType,
+            CreateViewsAgentToolType,
+            DeleteFieldsAgentToolType,
+            DeleteRowsAgentToolType,
+            GetTableSchemaAgentToolType,
+            ListTableRowsAgentToolType,
+            ListTablesAgentToolType,
+            ListViewsAgentToolType,
+            UpdateFieldsAgentToolType,
+            UpdateRowsAgentToolType,
+        )
 
         application_type_registry.register(AgentApplicationType())
         workspace_search_registry.register(AgentSearchType())
@@ -47,6 +63,22 @@ class AgentConfig(AppConfig):
         ):
             action_type_registry.register(action())
         chat_run_type_registry.register(AgentChatRunType())
+        for tool_type in (
+            ListTablesAgentToolType,
+            GetTableSchemaAgentToolType,
+            ListTableRowsAgentToolType,
+            ListViewsAgentToolType,
+            CreateTablesAgentToolType,
+            CreateFieldsAgentToolType,
+            UpdateFieldsAgentToolType,
+            DeleteFieldsAgentToolType,
+            CreateViewsAgentToolType,
+            CreateViewFiltersAgentToolType,
+            CreateRowsAgentToolType,
+            UpdateRowsAgentToolType,
+            DeleteRowsAgentToolType,
+        ):
+            agent_tool_type_registry.register(tool_type())
 
         import baserow.contrib.agent.receivers  # noqa: F401
         import baserow.contrib.agent.ws.signals  # noqa: F401
