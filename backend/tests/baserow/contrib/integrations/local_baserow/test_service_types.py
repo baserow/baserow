@@ -1143,14 +1143,14 @@ def test_local_baserow_service_type_get_schema_for_return_type():
     cls.model_class = Mock()
     properties = {"1": {"field": "value"}}
 
-    cls.returns_list = True
+    cls._returns_list = True
     assert cls().get_schema_for_return_type(mock_service, properties) == {
         "type": "array",
         "items": {"properties": properties, "type": "object"},
         "title": "Service123Schema",
     }
 
-    cls.returns_list = False
+    cls._returns_list = False
     assert cls().get_schema_for_return_type(mock_service, properties) == {
         "type": "object",
         "properties": properties,

@@ -37,7 +37,7 @@ from baserow.core.registry import (
 )
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.types import DispatchResult, FormulaToResolve
-from baserow.core.services.utils import sanitize_sample_data
+from baserow.core.services.utils import sample_data_skeleton, sanitize_sample_data
 
 from .exceptions import (
     DispatchException,
@@ -120,15 +120,47 @@ class ServiceType(
             import_export_config, "exclude_sensitive_data", False
         ):
             sample_data = serialized.get("sample_data")
-            serialized["sample_data"] = (
-                None
-                if isinstance(sample_data, dict) and "_error" in sample_data
-                else sanitize_sample_data(sample_data)
-            )
+            if isinstance(sample_data, dict) and "_error" in sample_data:
+                serialized["sample_data"] = None
+            elif self.sample_data_is_sensitive:
+                serialized["sample_data"] = self.sample_data_skeleton(sample_data)
+            else:
+                serialized["sample_data"] = sanitize_sample_data(sample_data)
         return serialized
 
-    # Does this service return a list of record?
-    returns_list = False
+    def sample_data_skeleton(
+        self, sample_data: Optional[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """
+        The sample data of an external export. A sample is a real response, which
+        can hold anything the service read, so only its shape is kept: enough
+        for the schema, and the formulas built on it, to survive the import.
+        The other dispatch result fields, like the status or the output uid,
+        say how the dispatch went rather than what it read, and stay as they
+        are.
+
+        :param sample_data: The sample data of the service.
+        :return: The sample data with its `data` emptied, or `None` when there
+            is no sample or only a stored failure.
+        """
+
+        if not isinstance(sample_data, dict) or "_error" in sample_data:
+            return None
+
+        if "data" not in sample_data:
+            return sample_data
+
+        return {**sample_data, "data": sample_data_skeleton(sample_data["data"])}
+
+    # Whether the sample data holds what the service read from somewhere the
+    # export doesn't include, such as an API response. Where the sample data of
+    # other services is replaced by placeholders, only the shape of such sample
+    # data is kept, which also shortens its lists to one item.
+    sample_data_is_sensitive = False
+
+    # Whether this type's services return a list of records. A type whose services
+    # can return either says so per service in `returns_list`.
+    _returns_list = False
 
     # Whether dispatching this service sends to an endpoint it is configured
     # with, such as HTTP, email, Slack or an AI provider. A file reader that
@@ -284,12 +316,17 @@ class ServiceType(
         :param instance: The to be deleted service instance.
         """
 
-    def get_context_data(self, service: ServiceSubClass):
+    def get_context_data(
+        self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
+    ):
         """
         Return the context data for this service.
 
         This can be overridden by child classes to provide extra context data,
         to complement this service results.
+
+        :param service: The service we want the context data for.
+        :param allowed_fields: The properties which are allowed to be included.
         """
 
         return None
@@ -629,7 +666,7 @@ class ServiceType(
         if result is None:
             return None
 
-        if self.returns_list:
+        if self.returns_list(service):
             return {
                 **result,
                 "results": [
@@ -639,6 +676,17 @@ class ServiceType(
             }
         else:
             return self.remove_unused_field_names(result, allowed_field_names)
+
+    def returns_list(self, service: Service) -> bool:
+        """
+        Whether the given service returns a list of records. By default it's the
+        same for all the services of this type.
+
+        :param service: The specific service.
+        :return: True if the service returns a list of records.
+        """
+
+        return self._returns_list
 
     def get_schema_name(self, service: Service) -> str:
         """
@@ -765,7 +813,7 @@ ServiceTypeSubClass = TypeVar("ServiceTypeSubClass", bound=ServiceType)
 class ListServiceTypeMixin:
     """A mixin for services that return lists."""
 
-    returns_list = True
+    _returns_list = True
 
     def prepare_record_ids(self, record_ids: List[Any]) -> List[int]:
         """

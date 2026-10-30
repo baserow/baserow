@@ -1,0 +1,91 @@
+.http-response-picker {
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px 0;
+  border: 1px solid $palette-neutral-200;
+
+  @include rounded($rounded);
+}
+
+.http-response-picker__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 4px;
+  padding-right: 8px;
+  font-size: 13px;
+  line-height: 28px;
+  cursor: pointer;
+
+  @include rounded($rounded);
+
+  &:hover {
+    background-color: $palette-neutral-100;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+    outline-offset: -2px;
+  }
+}
+
+.http-response-picker__row--selected,
+.http-response-picker__row--selected:hover {
+  background-color: $palette-blue-50;
+}
+
+.http-response-picker__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: $palette-neutral-600;
+  cursor: pointer;
+}
+
+.http-response-picker__key {
+  flex-shrink: 0;
+  max-width: 50%;
+  font-family: monospace;
+  color: $palette-neutral-1200;
+
+  @extend %ellipsis;
+}
+
+.http-response-picker__value {
+  flex: 1;
+  min-width: 0;
+  font-family: monospace;
+  color: $palette-neutral-600;
+
+  @extend %ellipsis;
+}
+
+.http-response-picker__tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: $palette-neutral-900;
+}
+
+.http-response-picker__tag--selected {
+  font-weight: 500;
+  color: $palette-blue-800;
+}
+
+// Only the row under the pointer, or with the focus, offers to be chosen.
+.http-response-picker__tag--select {
+  visibility: hidden;
+  color: $palette-blue-800;
+
+  .http-response-picker__row:hover &,
+  .http-response-picker__row:focus-visible & {
+    visibility: visible;
+  }
+}

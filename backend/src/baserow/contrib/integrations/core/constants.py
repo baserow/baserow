@@ -70,3 +70,17 @@ PERIODIC_INTERVAL_CHOICES = [
 PERIODIC_TIMEZONE_DEFAULT = "UTC"
 
 SMTP_EMAIL_TIMEOUT = 30
+
+# An HTTP data source is dispatched while a page loads, so it waits less than
+# the action does.
+HTTP_DATA_SOURCE_TIMEOUT_DEFAULT = 10
+HTTP_DATA_SOURCE_TIMEOUT_MAX = 30
+
+# The records an HTTP list data source returns per page. The whole response is
+# fetched either way, these only bound what a collection element shows at once.
+HTTP_DATA_SOURCE_DEFAULT_RESULT_LIMIT = 20
+HTTP_DATA_SOURCE_MAX_RESULT_LIMIT = 100
+
+# The items of each list kept in the response an HTTP list data source stores
+# when tested: enough to show the shape of the response and choose the list.
+HTTP_DATA_SOURCE_SAMPLE_RESPONSE_LIST_LENGTH = 3
