@@ -86,7 +86,7 @@
     },
     "kanbanViewStakedBy": {
         "title": "Campo de grupo",
-        "chooseField": "¿Por qué campo de selección único deben apilarse las cartas?",
+        "chooseField": "¿Por qué campo de selección única deberían apilarse las tarjetas?",
         "addSelectField": "agregar un solo campo de selección"
     },
     "kanbanViewStack": {
@@ -103,7 +103,7 @@
         "exports": "Exportación JSON y XML",
         "admin": "Funcionalidad de administración",
         "rowColoring": "Coloración de fila",
-        "getLicense": "obtener una licencia",
+        "getLicense": "Obtener una licencia",
         "baserowInstanceId": "Su ID de instancia de Baserow es:",
         "registerLicense": "Registrar licencia",
         "licenceId": "ID de licencia",
@@ -144,7 +144,7 @@
         "moreSeatsNeededTitle": "Se necesitan más asientos",
         "contactSalesMoreSeats": "Contacta el departamento de ventas para obtener más asientos",
         "automaticSeatsProgressBarStatus": "{seats_taken} / {seats} asientos pagados y {free_users_count} asientos gratuitos en uso",
-        "premiumFeatureName": "De primera calidad",
+        "premiumFeatureName": "Premium",
         "enterpriseFeatureName": "Empresa",
         "supportFeatureName": "Soporte",
         "applicationUsers": "Usuarios de la aplicación",
@@ -156,7 +156,7 @@
         "colorAlwaysApply": "Puedes añadir condiciones haciendo clic en el botón \"Añadir condición\".",
         "addColor": "Añadir color",
         "title": "Colores",
-        "deleteColor": "Borrar color",
+        "deleteColor": "Eliminar color",
         "colorAlwaysApplyTitle": "Este color se aplica por defecto.",
         "addConditionGroup": "Añadir grupo de condiciones"
     },
@@ -170,12 +170,12 @@
     },
     "decoratorValueProviderType": {
         "singleSelectColor": "Selección individual",
-        "singleSelectColorDescription": "Colorear las filas igual que un solo valor de selección",
+        "singleSelectColorDescription": "Colorear las filas según el valor de una selección única",
         "conditionalColor": "Condiciones",
         "conditionalColorDescription": "Colorea las filas cuando coinciden con las condiciones"
     },
     "singleSelectColorValueProviderForm": {
-        "chooseAColor": "¿Por cual campo de selección individual debe colorearse la fila?"
+        "chooseAColor": "¿Según qué campo de selección única se debería colorear la fila?"
     },
     "redirectToBaserowModal": {
         "title": "Redirigido a https://baserow.io",
@@ -233,7 +233,7 @@
     },
     "shareLinkOptions": {
         "baserowLogo": {
-            "label": "Esconder el logo de Baserow en la vista compartida",
+            "label": "Ocultar el logo de Baserow en la vista compartida",
             "premiumModalName": "eliminación del logo público"
         },
         "allowPublicExportLabel": "Permitir exportación en vista compartida"
