@@ -166,11 +166,13 @@ jobs:
         with:
           filters: |
             backend:
+              - 'tests/cases/agent_tools.json'
               - 'backend/**'
               - 'premium/backend/**'
               - 'enterprise/backend/**'
               - '.github/workflows/ci.yml'
             frontend:
+              - 'tests/cases/agent_tools.json'
               - 'web-frontend/**'
               - 'premium/web-frontend/**'
               - 'enterprise/web-frontend/**'

@@ -164,7 +164,7 @@
             :sending="Boolean(state.currentDraft?.sending)"
             :running="replyRunning"
             :stopping="Boolean(state.replyFollower?.stopRequested)"
-            :activity="composerActivity ? $t(composerActivity) : ''"
+            :activity="composerActivity"
             :send-label="$t(state.sendError ? 'action.retry' : 'agent.send')"
             :stop-label="$t('agent.stop')"
             @update:model-value="state.updateMessage"
@@ -198,8 +198,11 @@
 
 <script setup>
 import { computed, nextTick, provide, reactive, ref, toRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useNuxtApp } from '#app'
 import agentOrb from '@baserow/modules/agent/assets/images/agent-orb.svg?url'
 import ChatComposer from '@baserow/modules/core/components/chat/ChatComposer'
+import { toolActivity } from '@baserow/modules/core/toolPresentationTypes'
 import { provideNow } from '@baserow/modules/core/composables/useNow'
 import AgentConversationList from '@baserow/modules/agent/components/AgentConversationList'
 import AgentMessage from '@baserow/modules/agent/components/AgentMessage'
@@ -209,6 +212,8 @@ import { useAgentConversations } from '@baserow/modules/agent/composables/useAge
 import { replyOutcome } from '@baserow/modules/agent/utils/replies'
 
 const props = defineProps({ agent: { type: Object, required: true } })
+const { $registry } = useNuxtApp()
+const { t } = useI18n()
 const agent = toRef(props, 'agent')
 const configuration = useAgentConfiguration(agent)
 const state = reactive({
@@ -247,8 +252,12 @@ const fieldLabels = {
 }
 const replyRunning = computed(() => Boolean(state.replyFollower))
 const composerActivity = computed(() => {
-  if (!replyRunning.value) return null
-  return state.replyFollower.view.text ? 'agent.writing' : 'agent.thinking'
+  if (!replyRunning.value) return ''
+  const runningStep = state.replyFollower.view.steps?.findLast(
+    (step) => step.status === 'running'
+  )
+  if (runningStep) return `${toolActivity(runningStep, $registry, t).title}…`
+  return t(state.replyFollower.view.text ? 'agent.writing' : 'agent.thinking')
 })
 watch(
   () => state.replyFollower,
@@ -341,6 +350,7 @@ watch(
     () => state.selectedUuid,
     () => state.currentHistory?.items.at(-1)?.uuid,
     () => state.replyFollower?.view.text,
+    () => state.replyFollower?.view.steps,
   ],
   async ([selection], [previousSelection, previousLast]) => {
     const container = historyElement.value

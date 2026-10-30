@@ -2,6 +2,7 @@ import { AgentApplicationType } from '@baserow/modules/agent/applicationTypes'
 import { AgentChatRunType } from '@baserow/modules/agent/chatRunTypes'
 import { AgentLastViewedItemType } from '@baserow/modules/agent/lastViewedItemTypes'
 import { AgentApplicationSearchType } from '@baserow/modules/agent/searchTypes'
+import { agentToolPresentationTypes } from '@baserow/modules/agent/toolPresentationTypes'
 import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 import {
   InstructionsAgentConfigurationSectionType,
@@ -15,6 +16,12 @@ export default defineNuxtPlugin({
   setup(nuxtApp) {
     const context = { app: nuxtApp }
 
+    for (const ToolPresentation of agentToolPresentationTypes) {
+      nuxtApp.$registry.register(
+        'toolPresentation',
+        new ToolPresentation(context)
+      )
+    }
     nuxtApp.$registry.registerNamespace('agentConfigurationSection')
     nuxtApp.$registry.register(
       'agentConfigurationSection',

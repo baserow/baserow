@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Literal, TypedDict
 from uuid import UUID
 
+from baserow.core.chat_runs.types import ChatRunStep
 from baserow.core.models import Workspace
 from baserow.core.types import Subject
 
@@ -61,3 +62,4 @@ class AgentReplyResult:
     model_identifier: str | None = None
     model_messages: list[dict] | None = None
     usage: dict | None = None
+    steps: list[ChatRunStep] | None = None

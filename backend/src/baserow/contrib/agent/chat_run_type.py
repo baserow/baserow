@@ -10,6 +10,7 @@ from pydantic_ai.models import Model
 from baserow.core.chat_runs.constants import ChatRunErrorCode
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
 from baserow.core.chat_runs.registries import ChatRunType
+from baserow.core.chat_runs.steps import stop_running_steps
 from baserow.core.chat_runs.stream import fold_output
 from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.exceptions import PermissionException
@@ -88,11 +89,16 @@ class AgentChatRunType(ChatRunType):
     def on_run_lost(
         self, run: ChatRun, events: list[dict[str, Any]] | None = None
     ) -> dict | None:
-        """Keep the text the user already saw."""
+        """Keep the text and activity the user already saw."""
 
-        text = fold_output(events)["text"] if events else ""
+        output = fold_output(events or [])
         return self._finish_reply(
-            run, run.status, run.error_code, AgentReplyResult(text=text)
+            run,
+            run.status,
+            run.error_code,
+            AgentReplyResult(
+                text=output["text"], steps=stop_running_steps(output["steps"]) or None
+            ),
         )
 
     def on_run_not_started(self, run: ChatRun) -> dict | None:

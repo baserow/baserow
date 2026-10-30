@@ -16,6 +16,7 @@ from baserow.contrib.agent.models import (
 from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.contrib.agent.types import AgentConfiguration, AgentReadinessState
 from baserow.contrib.agent.validators import AGENT_TEXT_MAX_LENGTH
+from baserow.core.chat_runs.constants import ChatRunStepStatus
 from baserow.core.registries import subject_type_registry
 
 READINESS_CHOICES = get_args(AgentReadinessState)
@@ -58,6 +59,7 @@ class AgentRunAsSerializer(serializers.Serializer):
 
 class AgentToolSerializer(serializers.Serializer):
     name = serializers.CharField()
+    presentation_type = serializers.CharField()
     group = serializers.CharField()
     changes_data = serializers.BooleanField()
 
@@ -98,6 +100,7 @@ class AgentConfigurationSerializer(serializers.Serializer):
         return [
             {
                 "name": tool_type.type,
+                "presentation_type": tool_type.presentation_type,
                 "group": tool_type.group,
                 "changes_data": tool_type.changes_data,
             }
@@ -216,7 +219,18 @@ class AgentConversationSerializer(serializers.ModelSerializer):
         return self.context.get("conversation_runs", {}).get(conversation.id)
 
 
+class AgentMessageStepSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    tool = serializers.CharField()
+    presentation_type = serializers.CharField(required=False)
+    status = serializers.ChoiceField(choices=list(ChatRunStepStatus))
+    changes_data = serializers.BooleanField()
+    input = serializers.DictField(required=False)
+    facts = serializers.DictField()
+
+
 class AgentMessageSerializer(serializers.ModelSerializer):
+    steps = AgentMessageStepSerializer(many=True, allow_null=True, read_only=True)
     run_id = serializers.SerializerMethodField(
         help_text=(
             "The run writing this reply, to follow its output: set while it runs "
@@ -235,6 +249,7 @@ class AgentMessageSerializer(serializers.ModelSerializer):
             "status",
             "error_code",
             "run_id",
+            "steps",
         )
         read_only_fields = ("id",)
 

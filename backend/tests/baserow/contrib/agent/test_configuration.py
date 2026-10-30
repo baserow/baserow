@@ -252,6 +252,7 @@ def test_allowed_tools_are_replaced_and_validated(
     assert response.json()["allowed_tools"] == ["list_table_rows", "create_rows"]
     assert {
         "name": "create_rows",
+        "presentation_type": "create_rows",
         "group": "database",
         "changes_data": True,
     } in response.json()["available_tools"]

@@ -1742,5 +1742,19 @@
   },
   "managementPages": {
     "you": "You"
+  },
+  "toolPresentation": {
+    "tool": "Tool",
+    "running": "Using a tool",
+    "done": "Tool completed",
+    "failed": "Tool failed",
+    "stopped": "Tool interrupted",
+    "statusRunning": "Running",
+    "statusDone": "Completed",
+    "statusFailed": "Failed",
+    "statusStopped": "Interrupted; changes may have completed",
+    "workspaceRunning": "Looking at your workspace",
+    "workspaceDone": "Looked at your workspace",
+    "workspace": "Workspace activity"
   }
 }

@@ -67,6 +67,7 @@
 </template>
 
 <script setup>
+import { useNuxtApp } from '#app'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { groupAgentTools } from '@baserow/modules/agent/agentTools'
@@ -79,10 +80,13 @@ const props = defineProps({
 })
 const emit = defineEmits(['save'])
 const { t } = useI18n()
+const { $registry } = useNuxtApp()
 
 const modal = ref(null)
 const picked = ref(new Set())
-const groups = computed(() => groupAgentTools(props.availableTools, t))
+const groups = computed(() =>
+  groupAgentTools(props.availableTools, $registry, t)
+)
 
 function kindsOf(group) {
   return [

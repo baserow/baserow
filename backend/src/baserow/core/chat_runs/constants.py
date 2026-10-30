@@ -9,9 +9,19 @@ class ChatRunEventKind(StrEnum):
     RUN_STARTED = "run.started"
     TEXT_DELTA = "text.delta"
     PROGRESS = "progress"
+    STEP = "step"
     RUN_CANCEL_REQUESTED = "run.cancel_requested"
     RUN_FINISHED = "run.finished"
     RUN_HEARTBEAT = "run.heartbeat"
+
+
+class ChatRunStepStatus(StrEnum):
+    """How a tool call progressed, independently of its enclosing run."""
+
+    RUNNING = "running"
+    DONE = "done"
+    FAILED = "failed"
+    STOPPED = "stopped"
 
 
 class ChatRunErrorCode(StrEnum):
