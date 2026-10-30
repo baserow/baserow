@@ -1,4 +1,5 @@
 from typing import get_args
+from uuid import UUID
 
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
@@ -71,16 +72,44 @@ class AgentConfigurationUpdateSerializer(
 
 
 class AgentConversationSerializer(serializers.ModelSerializer):
+    run_id = serializers.SerializerMethodField(
+        help_text="The run writing a reply in this conversation, or null."
+    )
+
     class Meta:
         model = AgentConversation
-        fields = ("uuid", "title", "created_on", "updated_on")
+        fields = ("id", "uuid", "title", "created_on", "updated_on", "run_id")
+
+    @extend_schema_field(serializers.UUIDField(allow_null=True))
+    def get_run_id(self, conversation: AgentConversation) -> UUID | None:
+        return self.context.get("conversation_runs", {}).get(conversation.id)
 
 
 class AgentMessageSerializer(serializers.ModelSerializer):
+    run_id = serializers.SerializerMethodField(
+        help_text=(
+            "The run writing this reply, to follow its output: set while it runs "
+            "and in the response that started it."
+        )
+    )
+
     class Meta:
         model = AgentMessage
-        fields = ("id", "uuid", "role", "content", "created_on")
+        fields = (
+            "id",
+            "uuid",
+            "role",
+            "content",
+            "created_on",
+            "status",
+            "error_code",
+            "run_id",
+        )
         read_only_fields = ("id",)
+
+    @extend_schema_field(serializers.UUIDField(allow_null=True))
+    def get_run_id(self, message: AgentMessage) -> UUID | None:
+        return self.context.get("active_runs", {}).get(message.id)
 
 
 class AgentMessageContentSerializer(
@@ -110,6 +139,7 @@ class AgentMessageCreateSerializer(AgentMessageContentSerializer):
 class AgentMessageCreatedSerializer(serializers.Serializer):
     conversation = AgentConversationSerializer()
     message = AgentMessageSerializer()
+    reply = AgentMessageSerializer(allow_null=True)
 
 
 class AgentConversationPagination(PageNumberPagination):

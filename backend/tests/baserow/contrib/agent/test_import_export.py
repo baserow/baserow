@@ -9,6 +9,7 @@ from baserow.contrib.agent.models import (
     AgentConversation,
     AgentMessage,
 )
+from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.handler import CoreHandler
 from baserow.core.job_types import DuplicateApplicationJobType
 from baserow.core.jobs.handler import JobHandler
@@ -31,7 +32,14 @@ def conversation_values(agent: AgentApplication) -> list[tuple]:
             conversation.created_on,
             conversation.updated_on,
             [
-                (message.role, message.content, message.created_on, message.updated_on)
+                (
+                    message.role,
+                    message.content,
+                    message.status,
+                    message.error_code,
+                    message.created_on,
+                    message.updated_on,
+                )
                 for message in conversation.messages.order_by("id")
             ],
         )
@@ -60,6 +68,12 @@ def test_duplicate_copies_conversations_with_new_identifiers(
         conversation = data_fixture.create_agent_conversation(user=owner, agent=agent)
         for role in AgentMessage.Role.values:
             data_fixture.create_agent_message(conversation=conversation, role=role)
+        data_fixture.create_agent_message(
+            conversation=conversation,
+            role=AgentMessage.Role.ASSISTANT,
+            status=ChatRunStatus.FAILED,
+            error_code="timeout",
+        )
 
     copied = CoreHandler().duplicate_application(copier, agent).specific
 
@@ -143,3 +157,20 @@ def test_duplicate_agent_job_rolls_back_failed_conversation_import(
     assert list(AgentApplication.objects.all()) == [agent]
     assert AgentConversation.objects.count() == 1
     assert AgentMessage.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_a_copy_never_carries_a_reply_in_progress(data_fixture, configured_agent):
+    owner = data_fixture.create_user()
+    agent = configured_agent(user=owner)
+    data_fixture.create_agent_message(
+        user=owner,
+        agent=agent,
+        role=AgentMessage.Role.ASSISTANT,
+        status=ChatRunStatus.RUNNING,
+    )
+
+    copied = CoreHandler().duplicate_application(owner, agent).specific
+
+    reply = AgentMessage.objects.get(conversation__agent=copied)
+    assert (reply.status, reply.error_code) == ("failed", "interrupted")

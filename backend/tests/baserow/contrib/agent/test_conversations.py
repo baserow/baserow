@@ -24,12 +24,11 @@ from baserow.contrib.agent.models import AgentConversation, AgentMessage
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.signals import agent_conversation_updated
 from baserow.core.action.models import Action
+from baserow.core.chat_runs.handler import ChatRunHandler
+from baserow.core.chat_runs.models import ChatRun
+from baserow.core.exceptions import FeatureDisabledException
 
-from .utils import agent_url
-
-
-def new_conversation(content="Hello\nworld"):
-    return {"uuid": str(uuid4()), "message_uuid": str(uuid4()), "content": content}
+from .utils import agent_url, new_conversation, run_reply
 
 
 def message_request(agent, view, conversation):
@@ -51,14 +50,17 @@ def test_first_message_creates_a_private_conversation(
 
     response = api_client.post(agent_url(agent, "conversations"), payload)
     conversation = AgentConversation.objects.get()
-    message = AgentMessage.objects.get()
+    message, reply = AgentMessage.objects.order_by("id")
+    run_id = str(ChatRun.objects.get().id)
 
     assert response.json() == {
         "conversation": {
+            "id": conversation.id,
             "uuid": payload["uuid"],
             "title": "Hello world " + "x" * 238,
             "created_on": ANY,
             "updated_on": ANY,
+            "run_id": run_id,
         },
         "message": {
             "id": message.id,
@@ -66,6 +68,19 @@ def test_first_message_creates_a_private_conversation(
             "role": "user",
             "content": payload["content"],
             "created_on": ANY,
+            "status": None,
+            "error_code": "",
+            "run_id": None,
+        },
+        "reply": {
+            "id": reply.id,
+            "uuid": str(reply.uuid),
+            "role": "assistant",
+            "content": "",
+            "created_on": ANY,
+            "status": "running",
+            "error_code": "",
+            "run_id": run_id,
         },
     }
     assert conversation.owner_user == api_user
@@ -78,6 +93,29 @@ def test_first_message_creates_a_private_conversation(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("existing", [False, True])
+def test_agents_answer_nothing_while_the_feature_is_off(
+    data_fixture, configured_agent, settings, existing
+):
+    """An Agent imported while the feature is off must not call its provider."""
+
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    conversation = data_fixture.create_agent_conversation(user=user, agent=agent)
+    settings.FEATURE_FLAGS = []
+
+    with pytest.raises(FeatureDisabledException):
+        if existing:
+            AgentService().create_message(
+                user, agent.id, conversation.uuid, uuid4(), "Hi"
+            )
+        else:
+            AgentService().create_conversation(user, agent.id, uuid4(), uuid4(), "Hi")
+
+    assert not ChatRun.objects.exists()
+
+
+@pytest.mark.django_db
 def test_failed_first_message_leaves_no_conversation_or_action(
     data_fixture, configured_agent, mocker
 ):
@@ -86,7 +124,7 @@ def test_failed_first_message_leaves_no_conversation_or_action(
     registered = mocker.spy(
         CreateAgentConversationActionType, "send_action_done_signal"
     )
-    mocker.patch.object(AgentHandler, "create_message", side_effect=RuntimeError)
+    mocker.patch.object(ChatRunHandler, "start_run", side_effect=RuntimeError)
 
     with pytest.raises(RuntimeError):
         CreateAgentConversationActionType.do(user, agent.id, uuid4(), uuid4(), "Hi")
@@ -105,6 +143,7 @@ def test_retries_return_the_accepted_message_and_conflicts_are_rejected(
     payload = new_conversation()
     url = agent_url(agent, "conversations")
     first = api_client.post(url, payload)
+    run_reply(ChatRun.objects.get())
     messages_url = agent_url(agent, "messages", conversation_uuid=payload["uuid"])
     append = {"uuid": str(uuid4()), "content": "Next"}
     second = api_client.post(messages_url, append)
@@ -112,12 +151,19 @@ def test_retries_return_the_accepted_message_and_conflicts_are_rejected(
     agent.instructions = ""
     agent.save()
 
-    for target, body, accepted in [
-        (url, payload, first),
-        (messages_url, append, second),
+    for target, body, accepted, changed in [
+        (
+            url,
+            payload,
+            first,
+            {"status": "completed", "content": "Hello from the agent", "run_id": None},
+        ),
+        (messages_url, append, second, {}),
     ]:
-        retried = api_client.post(target, body)
-        assert retried.json()["message"] == accepted.json()["message"]
+        retried = api_client.post(target, body).json()
+        assert retried["message"] == accepted.json()["message"]
+        # The reply is live state: the first one finished since its response.
+        assert retried["reply"] == {**accepted.json()["reply"], **changed}
     for target, body in [
         (url, {**payload, "content": "Different"}),
         (url, {**payload, "message_uuid": str(uuid4())}),
@@ -126,9 +172,41 @@ def test_retries_return_the_accepted_message_and_conflicts_are_rejected(
         response = api_client.post(target, body)
         assert response.status_code == 409
         assert response.json()["error"] == "ERROR_AGENT_MESSAGE_CONFLICT"
-    assert AgentMessage.objects.count() == 2
+    assert (
+        AgentMessage.objects.filter(role="user").count() == ChatRun.objects.count() == 2
+    )
     created.assert_called_once()
     appended.assert_called_once()
+
+
+@pytest.mark.django_db
+def test_retrying_legacy_messages_only_returns_their_own_reply(
+    data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    conversation = data_fixture.create_agent_conversation(user=user, agent=agent)
+    first, second = [
+        data_fixture.create_agent_message(conversation=conversation, content=content)
+        for content in ["First", "Following"]
+    ]
+    reply = data_fixture.create_agent_message(
+        conversation=conversation,
+        role="assistant",
+        content="Answer",
+        status="completed",
+    )
+    service = AgentService()
+
+    for message, expected_reply in [(first, None), (second, reply)]:
+        retried = service.create_message(
+            user, agent.id, conversation.uuid, message.uuid, message.content
+        )
+
+        assert retried.message == message
+        assert retried.reply == expected_reply
+        assert retried.run_id is None
+        assert not retried.created
 
 
 @pytest.mark.django_db
@@ -309,7 +387,7 @@ def test_concurrent_creation_with_one_uuid_in_two_agents_creates_one_conversatio
         results = list(pool.map(create, [first.id, second.id]))
 
     assert sorted(results) == ["created", "missing"]
-    assert AgentConversation.objects.count() == AgentMessage.objects.count() == 1
+    assert (AgentConversation.objects.count(), AgentMessage.objects.count()) == (1, 2)
 
 
 @pytest.mark.django_db
@@ -345,6 +423,8 @@ def test_independent_conversations_accept_messages_concurrently(
         barrier.wait(timeout=5)
 
     mocker.patch.object(AgentService, "_require_ready", both_reach_readiness)
+    # An eager reply would also check readiness and wait at the barrier.
+    mocker.patch.object(ChatRunHandler, "_enqueue")
 
     def send(index):
         close_old_connections()
@@ -365,7 +445,9 @@ def test_independent_conversations_accept_messages_concurrently(
         message_ids = list(pool.map(send, range(2)))
 
     assert len(set(message_ids)) == 2
-    assert AgentMessage.objects.count() == 2
+    assert (
+        AgentMessage.objects.filter(role="user").count() == ChatRun.objects.count() == 2
+    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -383,6 +465,8 @@ def test_concurrent_retries_accept_one_message(
         )
     barrier = Barrier(2)
     updated = mocker.spy(agent_conversation_updated, "send")
+    # An eager reply would wait at the barrier and notify again when it ends.
+    mocker.patch.object(ChatRunHandler, "_enqueue")
     if view == "conversations":
         original = AgentService._require_ready
 
@@ -419,7 +503,8 @@ def test_concurrent_retries_accept_one_message(
     assert sorted(results) == (
         ["conflict", "created"] if conflicting_content else ["created", "retried"]
     )
-    assert AgentConversation.objects.count() == AgentMessage.objects.count() == 1
+    assert AgentConversation.objects.count() == ChatRun.objects.count() == 1
+    assert AgentMessage.objects.filter(role="user").count() == 1
     updated.assert_called_once()
 
 

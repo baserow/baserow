@@ -4,6 +4,8 @@ from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 from django.db.models import QuerySet
 
+from baserow.core.exceptions import PermissionDenied
+from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.signals import application_updated
@@ -19,7 +21,12 @@ from .operations import (
     ReadAgentConversationsOperationType,
 )
 from .signals import agent_conversation_updated
-from .types import AgentConfiguration, AgentConfigurationUpdated, AgentMessageCreated
+from .types import (
+    AgentConfiguration,
+    AgentConfigurationUpdated,
+    AgentMessageCreated,
+    AgentReplyRequest,
+)
 from .validators import validate_message_content
 
 
@@ -110,9 +117,9 @@ class AgentService:
 
     def list_messages(
         self, user: AbstractUser, agent_id: int, conversation_uuid: UUID
-    ) -> QuerySet[AgentMessage]:
+    ) -> tuple[AgentConversation, QuerySet[AgentMessage]]:
         """
-        Return the messages of one of the user's conversations.
+        Return one of the user's conversations with its messages.
 
         :param user: The user reading the conversation.
         :param agent_id: The id of the agent.
@@ -121,21 +128,73 @@ class AgentService:
             agent.
         :raises AgentConversationDoesNotExist: When the user has no conversation with
             this uuid in the agent.
-        :return: The messages, newest first.
+        :return: The conversation, and its messages newest first.
         """
 
         agent = self._get_authorized_agent(
             user, agent_id, ReadAgentConversationsOperationType.type
         )
-        return self.handler.get_conversation(
-            agent, user, conversation_uuid
-        ).messages.all()
+        conversation = self.handler.get_conversation(agent, user, conversation_uuid)
+        return conversation, conversation.messages.all()
 
     def _require_ready(self, agent: AgentApplication) -> None:
         """Reject new content without leaking privileged setting diagnostics."""
 
         if self.handler.get_configuration(agent)["readiness"] != "ready":
             raise AgentNotReady
+
+    def can_read_conversation(self, user: AbstractUser, conversation_id: int) -> bool:
+        """
+        Check that the user owns the conversation in an untrashed Agent and may
+        still read the agent's conversations.
+
+        :param user: The user asking.
+        :param conversation_id: The id of the conversation.
+        :return: Whether the user may read the conversation.
+        """
+
+        conversation = (
+            self.handler.get_accessible_conversations(user)
+            .select_related("agent__workspace")
+            .filter(id=conversation_id)
+            .first()
+        )
+        if conversation is None:
+            return False
+        return CoreHandler().check_permissions(
+            user,
+            ReadAgentConversationsOperationType.type,
+            workspace=conversation.agent.workspace,
+            context=conversation.agent,
+            raise_permission_exceptions=False,
+        )
+
+    def prepare_reply(self, reply_id: int) -> AgentReplyRequest:
+        """
+        Load what a reply answers, checking again that the conversation's owner may
+        still send it: access and configuration can change while the reply waits.
+
+        :param reply_id: The id of the reply.
+        :raises AgentConversationDoesNotExist: When the reply no longer exists.
+        :raises PermissionException: When the agent or its workspace is trashed, or
+            the owner left the workspace or may no longer send messages to the agent.
+        :raises AgentNotReady: When the agent's configuration is no longer ready.
+        :return: The instructions, the model, the prompt and the earlier messages.
+        """
+
+        reply = self.handler.get_reply(reply_id)
+        agent = reply.conversation.agent
+        # Workspace membership is part of the permission check below.
+        if agent.trashed or agent.workspace is None or agent.workspace.trashed:
+            raise PermissionDenied
+        CoreHandler().check_permissions(
+            reply.conversation.owner_user,
+            CreateAgentMessageOperationType.type,
+            workspace=agent.workspace,
+            context=agent,
+        )
+        self._require_ready(agent)
+        return self.handler.get_reply_request(reply)
 
     @transaction.atomic
     def create_conversation(
@@ -154,6 +213,8 @@ class AgentService:
         :param uuid: The uuid of the conversation.
         :param message_uuid: The uuid of the first message.
         :param content: The content of the first message.
+        :raises FeatureDisabledException: When Agents are disabled, so an imported
+            Agent can't call its provider.
         :raises PermissionException: When the user may not start conversations with
             the agent.
         :raises ValidationError: When the content is blank or too long.
@@ -162,9 +223,13 @@ class AgentService:
         :raises AgentMessageConflict: When the uuid was accepted with another first
             message.
         :raises AgentNotReady: When the agent isn't ready for a new conversation.
-        :return: The conversation and its first message, and whether they are new.
+        :raises ChatRunLimitReached: When the workspace has its maximum of replies
+            running.
+        :return: The conversation, its first message and its reply, and whether they
+            are new.
         """
 
+        feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
         agent = self._get_authorized_agent(
             user,
             agent_id,
@@ -183,7 +248,7 @@ class AgentService:
         )
         if result.created:
             agent_conversation_updated.send(
-                self, conversation=result.conversation, user=user
+                self, conversation=result.conversation, user=user, run_id=result.run_id
             )
         return result
 
@@ -204,6 +269,8 @@ class AgentService:
         :param conversation_uuid: The uuid of the conversation.
         :param uuid: The uuid of the message.
         :param content: The content of the message.
+        :raises FeatureDisabledException: When Agents are disabled, so an imported
+            Agent can't call its provider.
         :raises PermissionException: When the user may not send messages to the
             agent.
         :raises AgentConversationDoesNotExist: When the user has no conversation with
@@ -211,9 +278,15 @@ class AgentService:
         :raises ValidationError: When the content is blank or too long.
         :raises AgentMessageConflict: When the uuid was accepted with other content.
         :raises AgentNotReady: When the agent isn't ready for a new message.
-        :return: The conversation and the message, and whether the message is new.
+        :raises ChatRunAlreadyActive: When the agent is still replying in this
+            conversation.
+        :raises ChatRunLimitReached: When the workspace has its maximum of replies
+            running.
+        :return: The conversation, the message and its reply, and whether the message
+            is new.
         """
 
+        feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
         agent = self._get_authorized_agent(
             user, agent_id, CreateAgentMessageOperationType.type
         )
@@ -230,6 +303,6 @@ class AgentService:
         result = self.handler.create_message(conversation, uuid, content)
         if result.created:
             agent_conversation_updated.send(
-                self, conversation=result.conversation, user=user
+                self, conversation=result.conversation, user=user, run_id=result.run_id
             )
         return result
