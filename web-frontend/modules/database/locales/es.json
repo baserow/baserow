@@ -622,7 +622,7 @@
     "apiDocsDatabase": {
         "pageTitle": "Documentación de la API de la base de datos de {name}",
         "back": "Volver a la vista general",
-        "openDatabase": "base de datos abierta"
+        "openDatabase": "abrir base de datos"
     },
     "apiDocsComponent": {
         "title": "REST API",
