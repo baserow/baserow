@@ -287,4 +287,53 @@ describe('LocalBaserowTableServiceConditionalForm', () => {
       },
     ])
   })
+
+  test('renders the plugin components after the add links', async () => {
+    const FooterStub = defineComponent({
+      name: 'FooterStub',
+      template: '<span class="footer-stub" />',
+    })
+    const registry = testApp.getRegistry()
+    const getAll = registry.getAll.bind(registry)
+    vi.spyOn(registry, 'getAll').mockImplementation((namespace) =>
+      namespace === 'plugin'
+        ? {
+            ...getAll('plugin'),
+            footer: { getServiceFilterFooterComponents: () => [FooterStub] },
+          }
+        : getAll(namespace)
+    )
+
+    const wrapper = await mountComponent()
+
+    const footer = wrapper.find('.filters_footer')
+    expect(footer.find('.footer-stub').exists()).toBe(true)
+    expect(footer.element.lastElementChild.classList).toContain('footer-stub')
+  })
+
+  test('freezes the filters and the add buttons on request', async () => {
+    const wrapper = await mountComponent({
+      modelValue: [
+        {
+          id: 1,
+          field: 1,
+          type: 'equal',
+          value: { formula: 'a', mode: 'raw' },
+          group: null,
+        },
+      ],
+    })
+
+    wrapper.vm.frozen = true
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.filters__items').attributes('inert')).toBeDefined()
+    expect(
+      wrapper.findAll('.filters__add').map((b) => b.attributes('disabled'))
+    ).toEqual(['', ''])
+
+    wrapper.vm.frozen = false
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.filters__items').attributes('inert')).toBeUndefined()
+  })
 })

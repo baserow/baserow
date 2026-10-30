@@ -1,3 +1,4 @@
+import { ELEMENT_EVENTS } from '@baserow/modules/builder/enums'
 import { generateHash } from '@baserow/modules/core/utils/hashing'
 
 /**
@@ -316,6 +317,17 @@ export const registerRealtimeEvents = (realtime) => {
       page: ctx.page,
       dataSource,
       values: data.data_source,
+    })
+
+    // Collection elements bound to the data source must fetch their content
+    // again, e.g. after Kuma changed its filters.
+    store.dispatch('element/emitElementEvent', {
+      event: ELEMENT_EVENTS.DATA_SOURCE_AFTER_UPDATE,
+      elements: ctx.pages
+        .filter(Boolean)
+        .flatMap((page) => store.getters['element/getElementsOrdered'](page)),
+      dataSourceId: dataSource.id,
+      builder: ctx.builder,
     })
   })
 

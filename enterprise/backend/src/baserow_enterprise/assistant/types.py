@@ -51,6 +51,18 @@ class PageUIContext(BaseModel):
     name: str
 
 
+class ElementUIContext(BaseModel):
+    id: int
+    type: str
+    data_source_id: Optional[int] = Field(
+        default=None,
+        description=(
+            "The data source the element reads from: its own, or the one of the "
+            "collection element containing it."
+        ),
+    )
+
+
 class WorkflowUIContext(BaseModel):
     id: str
     name: str
@@ -70,6 +82,7 @@ class UIContext(BaseModel):
     # application builder context
     application: Optional[ApplicationUIContext] = None
     page: Optional[PageUIContext] = None
+    element: Optional[ElementUIContext] = None
     # automation context
     automation: Optional[ApplicationUIContext] = None
     workflow: Optional[WorkflowUIContext] = None

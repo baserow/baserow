@@ -174,6 +174,48 @@ describe('McpToolPicker', () => {
     expect(area.text()).not.toContain('Read automations')
   })
 
+  test('labels the data source groups and area', async () => {
+    const dataSourceGroups = [
+      {
+        type: 'data_sources_read',
+        title: 'Read data source filters',
+        area: 'data_sources',
+        read_only_preset: false,
+      },
+      {
+        type: 'data_sources_edit',
+        title: 'Edit data source filters',
+        area: 'data_sources',
+        read_only_preset: false,
+      },
+    ]
+    const dataSourceTools = [
+      ['list_service_filters', 'data_sources_read'],
+      ['update_service_filters', 'data_sources_edit'],
+    ].map(([name, group]) => ({
+      name,
+      title: name,
+      read_only: group === 'data_sources_read',
+      destructive: group === 'data_sources_edit',
+      group,
+    }))
+    const { wrapper } = await mount({
+      groups: dataSourceGroups,
+      tools: dataSourceTools,
+    })
+    const area = wrapper.find('[data-test="mcp-tool-picker-area-data_sources"]')
+    const group = (key) =>
+      wrapper.find(`[data-test="mcp-tool-picker-group-${key}"]`)
+    expect(area.text()).toContain('mcpToolPicker.areaDataSources')
+    expect(group('data_sources_read').text()).toContain(
+      'mcpToolPicker.dataSourcesRead'
+    )
+    expect(group('data_sources_edit').text()).toContain(
+      'mcpToolPicker.dataSourcesEdit'
+    )
+    expect(area.text()).not.toContain('Read data source filters')
+  })
+
   test('shows the ticked tools from the model value', async () => {
     const { wrapper } = await mount({ modelValue: ['create_rows'] })
     expect(ticked(wrapper)).toEqual(['create_rows'])

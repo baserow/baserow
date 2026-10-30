@@ -13,6 +13,7 @@ import { DatabaseApplicationType } from '@baserow/modules/database/applicationTy
 import AssistantSidebarItem from '@baserow_enterprise/components/assistant/AssistantSidebarItem'
 import AssistantPanel from '@baserow_enterprise/components/assistant/AssistantPanel'
 import AssistantDashboardPrompt from '@baserow_enterprise/components/assistant/AssistantDashboardPrompt'
+import ServiceFilterKumaPrompt from '@baserow_enterprise/components/assistant/ServiceFilterKumaPrompt'
 import { isAssistantConfigured } from '@baserow_enterprise/utils/assistant'
 import DateDependencyMenuItem from '@baserow_enterprise/components/dateDependency/DateDependencyMenuItem'
 import DateDependencyFieldTypeIcon from '@baserow_enterprise/components/dateDependency/DateDependencyFieldTypeIcon'
@@ -66,6 +67,10 @@ export class EnterprisePlugin extends BaserowPlugin {
 
   getRightSidebarWorkspaceComponents(workspace) {
     return isAssistantConfigured(this.app, workspace) ? [AssistantPanel] : []
+  }
+
+  getServiceFilterFooterComponents() {
+    return [ServiceFilterKumaPrompt]
   }
 
   getGridViewFieldTypeIconsBefore(workspace, view, field) {
