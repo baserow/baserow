@@ -3,6 +3,10 @@ from baserow.contrib.dashboard.data_sources.operations import (
     ListDashboardDataSourcesOperationType,
     ReadDashboardDataSourceOperationType,
 )
+from baserow.contrib.dashboard.filters.operations import (
+    ListDashboardFiltersOperationType,
+    ReadDashboardFilterOperationType,
+)
 from baserow.contrib.dashboard.widgets.operations import (
     ListWidgetsOperationType,
     ReadWidgetOperationType,
@@ -19,6 +23,8 @@ class AllowIfTemplatePermissionManagerType(CoreAllowIfTemplatePermissionManagerT
     """
 
     DASHBOARD_OPERATION_ALLOWED_ON_TEMPLATES = [
+        ListDashboardFiltersOperationType.type,
+        ReadDashboardFilterOperationType.type,
         ReadWidgetOperationType.type,
         ListWidgetsOperationType.type,
         ReadDashboardDataSourceOperationType.type,

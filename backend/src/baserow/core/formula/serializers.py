@@ -15,7 +15,10 @@ from baserow.core.formula.parser.formula_validation_visitor import (
     BaserowFormulaValidationVisitor,
 )
 from baserow.core.formula.parser.parser import get_parse_tree_for_formula
-from baserow.core.formula.registries import formula_runtime_function_registry
+from baserow.core.formula.registries import (
+    DataProviderTypeRegistry,
+    formula_runtime_function_registry,
+)
 from baserow.core.formula.types import (
     BASEROW_FORMULA_FORMAT_PLAIN,
     BASEROW_FORMULA_FORMATS,
@@ -93,8 +96,10 @@ class FormulaSerializerField(serializers.JSONField):
         self,
         *args,
         allowed_formats: Optional[List[BaserowFormulaFormat]] = None,
+        data_provider_type_registry: Optional[DataProviderTypeRegistry] = None,
         **kwargs,
     ):
+        self.data_provider_type_registry = data_provider_type_registry
         self.allowed_formats = list(allowed_formats or [BASEROW_FORMULA_FORMAT_PLAIN])
         if len(self.allowed_formats) > 1:
             # Only the fields that accept a format mention it in the API docs.
@@ -163,25 +168,25 @@ class FormulaSerializerField(serializers.JSONField):
         if not data["formula"] or data["mode"] == BASEROW_FORMULA_MODE_RAW:
             return data
 
-        # Inspect the `context` for an `ApplicationType`, we'll need to
-        # determine what this application type's data provider registry is,
-        # so we can validate the formula
-        context = self.context or {}
-        if context.get("application_type") is None:
-            raise ValidationError(
-                "The formula serializer field requires an application type "
-                "context to validate the formula arguments.",
-                code="missing_context",
-            )
+        # A field can restrict its providers independently of the application's
+        # other formulas. Existing fields use their application registry.
+        provider_registry = self.data_provider_type_registry
+        if provider_registry is None:
+            application_type = (self.context or {}).get("application_type")
+            if application_type is None:
+                raise ValidationError(
+                    "The formula serializer field requires an application type "
+                    "context to validate the formula arguments.",
+                    code="missing_context",
+                )
+            provider_registry = application_type().data_provider_type_registry
 
         try:
             tree = get_parse_tree_for_formula(data["formula"])
             try:
                 BaserowFormulaValidationVisitor(
                     formula_runtime_function_registry,
-                    data_provider_type_registry=self.context.get(
-                        "application_type"
-                    )().data_provider_type_registry,
+                    data_provider_type_registry=provider_registry,
                 ).visit(tree)
             except (
                 BaserowFormulaSyntaxError,

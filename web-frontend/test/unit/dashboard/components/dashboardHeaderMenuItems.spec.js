@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import { vi } from 'vitest'
 
 import DashboardHeaderMenuItems from '@baserow/modules/dashboard/components/DashboardHeaderMenuItems'
+import Button from '@baserow/modules/core/components/Button'
 
 function mountDashboardHeaderMenuItems({ canEdit }) {
   const dispatch = vi.fn()
@@ -13,6 +14,7 @@ function mountDashboardHeaderMenuItems({ canEdit }) {
       },
     },
     global: {
+      components: { Button },
       mocks: {
         $hasPermission: () => canEdit,
         $store: { dispatch },
@@ -40,7 +42,7 @@ describe('DashboardHeaderMenuItems', () => {
       true
     )
 
-    await wrapper.get('.header__filter-link').trigger('click')
+    await wrapper.get('button').trigger('click')
 
     expect(dispatch).toHaveBeenCalledWith('dashboardApplication/toggleEditMode')
   })

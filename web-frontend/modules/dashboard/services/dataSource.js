@@ -7,7 +7,10 @@ export default (client) => {
       return client.patch(`/dashboard/data-sources/${dataSourceId}/`, values)
     },
     dispatch(dataSourceId) {
-      return client.post(`/dashboard/data-sources/${dataSourceId}/dispatch/`)
+      return client.post(
+        `/dashboard/data-sources/${dataSourceId}/dispatch/`,
+        {}
+      )
     },
   }
 }

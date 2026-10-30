@@ -6,10 +6,26 @@ from baserow.contrib.dashboard.api.data_sources.serializers import (
 )
 from baserow.contrib.dashboard.api.widgets.serializers import WidgetSerializer
 from baserow.contrib.dashboard.data_sources import signals as data_source_signals
+from baserow.contrib.dashboard.filters.signals import dashboard_filters_updated
 from baserow.contrib.dashboard.widgets import signals as widget_signals
 from baserow.contrib.dashboard.widgets.registries import widget_type_registry
 from baserow.core.services.registries import service_type_registry
 from baserow.ws.registries import page_registry
+
+
+@receiver(dashboard_filters_updated)
+def filters_updated(sender, dashboard, user=None, order_only=False, **kwargs):
+    def send_ws_message():
+        payload = {"type": "dashboard_filters_updated", "dashboard_id": dashboard.id}
+        if order_only:
+            payload["order_only"] = True
+        page_registry.get("dashboard").broadcast(
+            payload,
+            dashboard_id=dashboard.id,
+            ignore_web_socket_id=getattr(user, "web_socket_id", None),
+        )
+
+    transaction.on_commit(send_ws_message)
 
 
 @receiver(widget_signals.widget_created)

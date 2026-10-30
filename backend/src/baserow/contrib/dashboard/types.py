@@ -41,3 +41,4 @@ class DashboardDict(TypedDict):
     widgets: list[WidgetDict]
     integrations: list[IntegrationDict]
     data_sources: list[DashboardDataSourceDict]
+    filters: list[dict]

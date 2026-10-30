@@ -117,10 +117,10 @@ def test_dashboard_export_serialized_with_pie_chart_widget_config(premium_data_f
     series_2 = LocalBaserowTableServiceAggregationSeries.objects.create(
         service=service, field=field_2, aggregation_type="min", order=1
     )
-    series_conf_1 = PieChartSeriesConfig.objects.create(
+    PieChartSeriesConfig.objects.create(
         widget=dashboard_widget, series=series_1, series_chart_type="PIE"
     )
-    series_conf_2 = PieChartSeriesConfig.objects.create(
+    PieChartSeriesConfig.objects.create(
         widget=dashboard_widget, series=series_2, series_chart_type="DOUGHNUT"
     )
 
@@ -134,6 +134,7 @@ def test_dashboard_export_serialized_with_pie_chart_widget_config(premium_data_f
 
     serialized = json.loads(json.dumps(serialized))
     assert serialized == {
+        "filters": [],
         "id": dashboard.id,
         "name": dashboard.name,
         "description": "Dashboard description",

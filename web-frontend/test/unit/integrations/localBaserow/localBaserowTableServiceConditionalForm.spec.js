@@ -1,8 +1,9 @@
 import { defineComponent } from 'vue'
+import { TestApp } from '@baserow/test/helpers/testApp'
 
 import LocalBaserowTableServiceConditionalForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowTableServiceConditionalForm'
 import ViewFieldConditionsForm from '@baserow/modules/database/components/view/ViewFieldConditionsForm.vue'
-import { TestApp } from '@baserow/test/helpers/testApp'
+import ApplicationBuilderFormulaInput from '@baserow/modules/builder/components/ApplicationBuilderFormulaInput.vue'
 
 const ViewFieldConditionsFormStub = defineComponent({
   name: 'ViewFieldConditionsForm',
@@ -65,6 +66,80 @@ describe('LocalBaserowTableServiceConditionalForm', () => {
 
   const fields = [{ id: 1, name: 'Name', type: 'text', primary: true }]
 
+  test.each(['empty', 'not_empty'])(
+    'preserves the %s controller when changing its target field',
+    async (operator) => {
+      const wrapper = await mountComponent(
+        {
+          fields: [...fields, { id: 2, name: 'Country', type: 'text' }],
+          modelValue: [
+            {
+              id: 'filter-1',
+              field: 1,
+              type: 'equal',
+              value: { formula: "get('dashboard_filter.1')", mode: 'simple' },
+            },
+          ],
+        },
+        {
+          provide: {
+            resolveServiceFilterOperator: () => ({
+              type: operator,
+              help: 'Set in Country',
+            }),
+            formulaComponent: FormulaInputStub,
+          },
+        }
+      )
+      expect(wrapper.get('.filters__type .dropdown__selected').text()).toBe(
+        operator === 'empty' ? 'viewFilter.isEmpty' : 'viewFilter.isNotEmpty'
+      )
+      expect(wrapper.get('.filters__type .dropdown').classes()).toContain(
+        'dropdown--disabled'
+      )
+      expect(wrapper.find('.formula-input-field__mode-toggle').exists()).toBe(
+        true
+      )
+      expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+      await wrapper.get('.filters__type').trigger('focus')
+      expect(document.body.querySelector('.tooltip').textContent).toBe(
+        'Set in Country'
+      )
+      await wrapper.get('.filters__type').trigger('blur')
+      await wrapper.get('.filters__field .dropdown__selected').trigger('click')
+      await wrapper
+        .get('.filters__field .select__item-name-text[title="Country"]')
+        .trigger('click')
+      expect(wrapper.emitted('update:modelValue').at(-1)[0]).toEqual([
+        {
+          id: 'filter-1',
+          field: 2,
+          type: 'equal',
+          value: { formula: "get('dashboard_filter.1')", mode: 'simple' },
+        },
+      ])
+    }
+  )
+
+  test('keeps ordinary source operators editable without a controller', async () => {
+    const wrapper = await mountComponent({
+      modelValue: [
+        {
+          id: 'filter-1',
+          field: 1,
+          type: 'equal',
+          value: { formula: 'France', mode: 'raw' },
+        },
+      ],
+    })
+    expect(wrapper.get('.filters__type .dropdown__selected').text()).toBe(
+      'viewFilter.is'
+    )
+    expect(wrapper.get('.filters__type .dropdown').classes()).not.toContain(
+      'dropdown--disabled'
+    )
+  })
+
   async function mountComponent(props = {}, global = {}) {
     return await testApp.mount(LocalBaserowTableServiceConditionalForm, {
       props: {
@@ -77,6 +152,52 @@ describe('LocalBaserowTableServiceConditionalForm', () => {
       global,
     })
   }
+
+  test('keeps Builder date conditions on the existing input contract', async () => {
+    const page = { id: 1, elements: [], dataSources: [], _: {} }
+    const builder = { id: 1, pages: [page] }
+    const filter = {
+      id: 'filter-1',
+      field: 1,
+      type: 'date_is',
+      value: { formula: 'Asia/Dubai?2026-10-01?exact_date', mode: 'raw' },
+    }
+    const wrapper = await mountComponent(
+      {
+        fields: [{ id: 1, name: 'Date', type: 'date', date_format: 'ISO' }],
+        modelValue: [filter],
+      },
+      {
+        provide: {
+          applicationContext: { builder, page, mode: 'editing' },
+          elementPage: page,
+          formulaComponent: ApplicationBuilderFormulaInput,
+          dataProvidersAllowed: [],
+        },
+      }
+    )
+    const input = wrapper.get('.filters__value-input input')
+    await input.setValue('2026-10-26')
+    const updated = [
+      {
+        ...filter,
+        value: { formula: 'Asia/Dubai?2026-10-26?exact_date', mode: 'raw' },
+      },
+    ]
+    expect(wrapper.emitted('update:modelValue')).toEqual([[updated]])
+    await wrapper.setProps({ modelValue: updated })
+    await input.setValue('invalid')
+    await input.setValue('')
+    expect(wrapper.emitted('update:modelValue')).toEqual([[updated]])
+    await input.setValue('invalid')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('update:modelValue').at(-1)[0]).toEqual([
+      {
+        ...filter,
+        value: { formula: 'Asia/Dubai?invalid?exact_date', mode: 'raw' },
+      },
+    ])
+  })
 
   test('adding a filter group emits a new group and a seeded filter', async () => {
     const wrapper = await mountComponent()

@@ -2,6 +2,9 @@ from typing import TYPE_CHECKING, Optional
 
 from django.http import HttpRequest
 
+from baserow.contrib.dashboard.data_providers import (
+    dashboard_data_provider_type_registry,
+)
 from baserow.core.services.dispatch_context import DispatchContext
 
 if TYPE_CHECKING:
@@ -14,13 +17,16 @@ class DashboardDispatchContext(DispatchContext):
         "request",
         "widget",
         "workspace",
+        "dashboard",
     ]
+    data_provider_registry = dashboard_data_provider_type_registry
 
     def __init__(
         self,
         request: HttpRequest,
         workspace: Optional["Workspace"] = None,
         widget: Optional["Widget"] = None,
+        dashboard=None,
     ):
         """Create a context for dispatching a dashboard data source."""
 
@@ -33,5 +39,11 @@ class DashboardDispatchContext(DispatchContext):
 
         self.request = request
         self.widget = widget
+        self.dashboard = dashboard or (widget.dashboard if widget else None)
 
         super().__init__(workspace)
+
+    def get_service_filter_q(self, service_filter, model):
+        from baserow.contrib.dashboard.filters.runtime import get_dashboard_filter_q
+
+        return get_dashboard_filter_q(service_filter, model, self)

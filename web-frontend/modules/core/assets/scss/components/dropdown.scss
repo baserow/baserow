@@ -19,6 +19,13 @@
   @include rounded($rounded);
   @include flex-align-items(4px);
 
+  .dropdown--custom-content & {
+    background: transparent;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
   &:hover {
     text-decoration: none;
     border-color: $palette-neutral-500;
@@ -48,6 +55,17 @@
   min-width: 0;
 }
 
+.dropdown--with-suffix .dropdown__selected {
+  padding-right: 40px;
+}
+
+.dropdown__suffix {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
 .dropdown__selected-icon {
   margin-right: 4px;
   color: $color-neutral-600;
@@ -74,6 +92,11 @@
 
 .dropdown--loading .dropdown__selected {
   cursor: wait;
+}
+
+.dropdown--custom-content .dropdown__selected:focus-visible {
+  outline: 2px solid $palette-blue-500;
+  outline-offset: 2px;
 }
 
 .dropdown__items {

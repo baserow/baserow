@@ -88,19 +88,20 @@ def test_local_baserow_table_service_filterable_mixin_get_table_queryset(
     ] == [alessia.id, alex.id, alexandra.id]
 
     # Adhoc filter ensures that we also filter on "Alexa", which matches Alexandra.
-    dispatch_context = Mock()
-    dispatch_context.filters.return_value = json.dumps(
-        {
-            "groups": [],
-            "filter_type": "AND",
-            "filters": [
-                {
-                    "field": field.id,
-                    "type": ContainsViewFilterType.type,
-                    "value": "Alexa",
-                }
-            ],
-        }
+    dispatch_context = FakeDispatchContext(
+        filters=json.dumps(
+            {
+                "groups": [],
+                "filter_type": "AND",
+                "filters": [
+                    {
+                        "field": field.id,
+                        "type": ContainsViewFilterType.type,
+                        "value": "Alexa",
+                    }
+                ],
+            }
+        )
     )
 
     assert [

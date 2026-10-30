@@ -115,7 +115,22 @@ describe('Dashboard application store', () => {
     const widgetRequest = deferred()
     const dataSourceRequest = deferred()
     const commit = applyCommit(dashboardState)
-    const dispatch = vi.fn((action) => {
+    const dispatch = vi.fn((action, payload) => {
+      if (action === 'fetchFilters') return Promise.resolve([])
+      if (
+        action === 'fetchCurrentFilters' ||
+        action === 'preloadFilterOptions'
+      ) {
+        return actions[action](
+          {
+            state: dashboardState,
+            commit,
+            dispatch,
+            rootGetters: { 'auth/getUserId': 1 },
+          },
+          payload
+        )
+      }
       if (action === 'fetchWidgets') return widgetRequest.promise
       if (action === 'fetchNewDataSources') return dataSourceRequest.promise
       throw new Error(`Unexpected action: ${action}`)

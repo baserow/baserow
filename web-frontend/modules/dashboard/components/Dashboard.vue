@@ -4,8 +4,10 @@
       :dashboard="dashboard"
       :loading="loading"
       :is-creating-widget="isCreatingWidget"
+      :is-creating-filter="isCreatingFilter"
       :store-prefix="storePrefix"
       @widget-variation-selected="createWidget"
+      @create-filter="createFilter"
     />
     <DashboardContent
       :dashboard="dashboard"
@@ -43,9 +45,27 @@ export default {
   data() {
     return {
       isCreatingWidget: false,
+      isCreatingFilter: false,
     }
   },
   methods: {
+    async createFilter() {
+      if (this.isCreatingFilter) {
+        return
+      }
+
+      this.isCreatingFilter = true
+      try {
+        await this.$store.dispatch(
+          `${this.storePrefix}dashboardApplication/createFilter`,
+          { label: this.$t('dashboardFilter.defaultLabel'), type: 'text' }
+        )
+      } catch (error) {
+        notifyIf(error, 'dashboard')
+      } finally {
+        this.isCreatingFilter = false
+      }
+    },
     async createWidget(widgetVariation) {
       if (this.isCreatingWidget) {
         return

@@ -9,6 +9,7 @@ import { findScrollableParent } from '@baserow/modules/core/utils/dom'
  *
  * Optionally a handle selector can be provided by doing
  * `v-sortable="{ id: item.id, update: order, handle: '.child-element' }"`.
+ * Set `direction: 'horizontal'` for left-to-right items that can wrap onto rows.
  *
  * Example:
  *
@@ -36,6 +37,43 @@ import { findScrollableParent } from '@baserow/modules/core/utils/dom'
 let parent
 let scrollableParent
 let indicator
+
+const horizontalPosition = (elements, event) => {
+  const rows = []
+  elements.forEach((element) => {
+    const rect = element.getBoundingClientRect()
+    let row = rows[rows.length - 1]
+    if (!row || rect.top >= row.bottom) {
+      row = { top: rect.top, bottom: rect.bottom, items: [] }
+      rows.push(row)
+    }
+    row.top = Math.min(row.top, rect.top)
+    row.bottom = Math.max(row.bottom, rect.bottom)
+    row.items.push({ element, rect })
+  })
+
+  const rowIndex = rows.findIndex(
+    (row, index) =>
+      !rows[index + 1] || event.clientY < (row.bottom + rows[index + 1].top) / 2
+  )
+  const row = rows[rowIndex]
+  const index = row.items.findIndex(
+    ({ rect }) => event.clientX < rect.left + rect.width / 2
+  )
+  const next = row.items[index]
+  const previous = row.items[index === -1 ? row.items.length - 1 : index - 1]
+
+  return {
+    before: next?.element ?? rows[rowIndex + 1]?.items[0].element ?? null,
+    left: next
+      ? previous
+        ? (previous.rect.right + next.rect.left) / 2
+        : next.rect.left
+      : previous.rect.right,
+    top: row.top,
+    height: row.bottom - row.top,
+  }
+}
 
 export default {
   /**
@@ -113,6 +151,7 @@ export default {
     el.sortableMarginRight = binding.value.marginRight
     el.sortableMarginTop = binding.value.marginTop
     el.sortableMarginTopLast = binding.value.marginTopLast
+    el.sortableDirection = binding.value.direction
   },
   /**
    * Called when the user moves the mouse when the dragging of the element has
@@ -158,51 +197,60 @@ export default {
 
     const parentRect = parent.getBoundingClientRect()
 
-    // Using the mouse position and the position of the items we can calculate
-    // before which item the dragging item must be placed. If the position of the
-    // mouse is above the vertical center of the element, it must be placed before
-    // that item.
-    let before = null
-    let beforeRect = {}
-    for (let i = 0; i < all.length; i++) {
-      beforeRect = all[i].getBoundingClientRect()
-      if (event.clientY < beforeRect.top + beforeRect.height / 2) {
-        before = all[i]
-        break
+    if (el.sortableDirection === 'horizontal') {
+      const position = horizontalPosition(all, event)
+      el.sortableBeforeElement = position.before
+      indicator.style.width = '3px'
+      indicator.style.height = `${position.height}px`
+      indicator.style.left = `${position.left - parentRect.left + parent.scrollLeft - 1.5}px`
+      indicator.style.top = `${position.top - parentRect.top + parent.scrollTop}px`
+    } else {
+      // Using the mouse position and the position of the items we can calculate
+      // before which item the dragging item must be placed. If the position of the
+      // mouse is above the vertical center of the element, it must be placed before
+      // that item.
+      let before = null
+      let beforeRect = {}
+      for (let i = 0; i < all.length; i++) {
+        beforeRect = all[i].getBoundingClientRect()
+        if (event.clientY < beforeRect.top + beforeRect.height / 2) {
+          before = all[i]
+          break
+        }
       }
+
+      // Save the element where the dragging item must be placed before so that the
+      // new order can be calculated when the user releases the mouse.
+      el.sortableBeforeElement = before
+
+      // Calculate the target indicator position based on the position of the
+      // beforeElement. If the beforeElement is null, it means that the dragging
+      // element must be moved to the end.
+      const elementRect = el.getBoundingClientRect()
+      const afterRect = all[all.length - 1].getBoundingClientRect()
+      // Allow callers to nudge the indicator differently for the trailing
+      // position (when the dragged element will land at the very end of the
+      // list) compared to between-items positions, since there is no natural
+      // gap below the last item to centre the indicator in.
+      const verticalMargin = before
+        ? el.sortableMarginTop || 0
+        : (el.sortableMarginTopLast ?? el.sortableMarginTop ?? 0)
+      const top =
+        (before
+          ? beforeRect.top - indicator.clientHeight / 2
+          : afterRect.top + afterRect.height) -
+        parentRect.top +
+        parent.scrollTop +
+        verticalMargin
+      const left = elementRect.left - parentRect.left
+      indicator.style.left = left + (el.sortableMarginLeft || 0) + 'px'
+      indicator.style.width =
+        elementRect.width -
+        (el.sortableMarginLeft || 0) -
+        (el.sortableMarginRight || 0) +
+        'px'
+      indicator.style.top = top + 'px'
     }
-
-    // Save the element where the dragging item must be placed before so that the
-    // new order can be calculated when the user releases the mouse.
-    el.sortableBeforeElement = before
-
-    // Calculate the target indicator position based on the position of the
-    // beforeElement. If the beforeElement is null, it means that the dragging
-    // element must be moved to the end.
-    const elementRect = el.getBoundingClientRect()
-    const afterRect = all[all.length - 1].getBoundingClientRect()
-    // Allow callers to nudge the indicator differently for the trailing
-    // position (when the dragged element will land at the very end of the
-    // list) compared to between-items positions, since there is no natural
-    // gap below the last item to centre the indicator in.
-    const verticalMargin = before
-      ? el.sortableMarginTop || 0
-      : (el.sortableMarginTopLast ?? el.sortableMarginTop ?? 0)
-    const top =
-      (before
-        ? beforeRect.top - indicator.clientHeight / 2
-        : afterRect.top + afterRect.height) -
-      parentRect.top +
-      parent.scrollTop +
-      verticalMargin
-    const left = elementRect.left - parentRect.left
-    indicator.style.left = left + (el.sortableMarginLeft || 0) + 'px'
-    indicator.style.width =
-      elementRect.width -
-      (el.sortableMarginLeft || 0) -
-      (el.sortableMarginRight || 0) +
-      'px'
-    indicator.style.top = top + 'px'
 
     // If the user is not already auto scrolling, which happens while dragging and
     // moving the element close to the end of the view port at the top or bottom

@@ -17,6 +17,25 @@ import LocalBaserowFieldsUpdatedTriggerServiceForm from '@baserow/modules/integr
 import LocalBaserowGetRowForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowGetRowForm'
 import LocalBaserowListRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowListRowsForm'
 import LocalBaserowAggregateRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowAggregateRowsForm'
+import pick from 'lodash/pick'
+
+/** Shared table/filter inputs; callers add their service-specific inputs. */
+export function getLocalBaserowTableDispatchInputs(service) {
+  return {
+    configuration: pick(service, [
+      'type',
+      'integration_id',
+      'table_id',
+      'view_id',
+      'filter_type',
+      'filters',
+      'filter_groups',
+    ]),
+    formulas: (service.filters ?? [])
+      .filter((condition) => condition.field != null && !condition.trashed)
+      .map((condition) => condition.value),
+  }
+}
 
 export class LocalBaserowTableServiceType extends ServiceType {
   get integrationType() {
@@ -374,6 +393,18 @@ export class LocalBaserowListRowsServiceType extends DataSourceLocalBaserowTable
 export class LocalBaserowAggregateRowsServiceType extends DataSourceLocalBaserowTableServiceType {
   static getType() {
     return 'local_baserow_aggregate_rows'
+  }
+
+  getDispatchInputs(service) {
+    const { configuration, formulas } =
+      getLocalBaserowTableDispatchInputs(service)
+    return {
+      configuration: {
+        ...configuration,
+        ...pick(service, ['field_id', 'aggregation_type', 'search_query']),
+      },
+      formulas: [...formulas, service.search_query].filter(Boolean),
+    }
   }
 
   get name() {

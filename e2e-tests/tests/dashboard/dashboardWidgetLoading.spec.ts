@@ -40,7 +40,8 @@ test("keeps unconfigured widgets visible while creating another widget", async (
   );
 
   try {
-    await page.getByRole("button", { name: "Add widget", exact: true }).click();
+    await page.getByRole("button", { name: "Add new…", exact: true }).click();
+    await page.getByTestId("create-dashboard-widget").click();
     const creationResponse = page.waitForResponse(
       (response) =>
         response.request().method() === "POST" &&

@@ -53,6 +53,7 @@ def test_get_dashboard_data_sources(api_client, data_fixture):
         "schema": None,
         "search_query": {"formula": "", "mode": "simple", "version": "0.1"},
         "table_id": None,
+        "table_schema": None,
         "type": "local_baserow_aggregate_rows",
         "view_id": None,
         "sample_data": None,
@@ -73,10 +74,48 @@ def test_get_dashboard_data_sources(api_client, data_fixture):
         "schema": None,
         "search_query": {"formula": "", "mode": "simple", "version": "0.1"},
         "table_id": None,
+        "table_schema": None,
         "type": "local_baserow_list_rows",
         "view_id": None,
         "sample_data": None,
     }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("has_table_access", [True, False])
+def test_aggregate_source_exposes_only_accessible_table_fields_for_formulas(
+    api_client, data_fixture, has_table_access
+):
+    user, token = data_fixture.create_user_and_token()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table, fields, _ = data_fixture.build_table(
+        user=user if has_table_access else data_fixture.create_user(),
+        name="Orders",
+        columns=[("Country", "text"), ("Amount", "number")],
+        rows=[["France", 100]],
+    )
+    data_fixture.create_dashboard_local_baserow_aggregate_rows_data_source(
+        dashboard=dashboard, table=table, field=fields[1], aggregation_type="sum"
+    )
+    response = api_client.get(
+        reverse(
+            "api:dashboard:data_sources:list", kwargs={"dashboard_id": dashboard.id}
+        ),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 200, response.json()
+    source = response.json()[0]
+    assert source["schema"]["properties"]["result"]
+    table_schema = source["table_schema"]
+    if not has_table_access:
+        assert table_schema is None
+        return
+    assert table_schema["title"] == "Orders"
+    assert table_schema["type"] == "array"
+    properties = table_schema["items"]["properties"]
+    assert properties[fields[0].db_column]["title"] == "Country"
+    assert properties[fields[1].db_column]["title"] == "Amount"
+    assert "result" not in properties
 
 
 @pytest.mark.django_db
@@ -608,7 +647,7 @@ def test_dispatch_data_source_improperly_configured(api_client, data_fixture):
         ("raw", "20", HTTP_200_OK),
         ("simple", "20", HTTP_200_OK),
         ("advanced", "10 + 10", HTTP_200_OK),
-        ("advanced", "get('data_source.1')", HTTP_400_BAD_REQUEST),
+        ("advanced", "get('unknown_provider.1')", HTTP_400_BAD_REQUEST),
         ("advanced", "add(10)", HTTP_400_BAD_REQUEST),
     ],
 )

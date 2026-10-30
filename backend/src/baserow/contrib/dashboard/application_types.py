@@ -7,14 +7,19 @@ from django.urls import include, path
 
 from rest_framework import serializers
 
+from baserow.contrib.dashboard.data_providers import (
+    dashboard_data_provider_type_registry,
+)
 from baserow.contrib.dashboard.data_sources.handler import DashboardDataSourceHandler
+from baserow.contrib.dashboard.filters.handler import DashboardFilterHandler
+from baserow.contrib.dashboard.filters.models import DashboardFilter
+from baserow.contrib.dashboard.formula_importer import import_formula
 from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.dashboard.types import DashboardDict
 from baserow.contrib.dashboard.widgets.handler import WidgetHandler
 from baserow.contrib.integrations.local_baserow.integration_types import (
     LocalBaserowIntegrationType,
 )
-from baserow.core.formula.registries import DataProviderTypeRegistry
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.models import Application, Workspace
@@ -51,8 +56,7 @@ class DashboardApplicationType(ApplicationType):
     request_serializer_field_overrides = {}
     allowed_fields = ["description"]
     supports_integrations = True
-    # Dashboard supports runtime functions, but no data provider references.
-    data_provider_type_registry = DataProviderTypeRegistry()
+    data_provider_type_registry = dashboard_data_provider_type_registry
 
     def get_api_urls(self):
         from .api import urls as api_urls
@@ -84,6 +88,11 @@ class DashboardApplicationType(ApplicationType):
 
         for widget in widgets:
             TrashHandler.permanently_delete(widget)
+
+        for dashboard_filter in DashboardFilter.objects_and_trash.filter(
+            dashboard=dashboard
+        ):
+            TrashHandler.permanently_delete(dashboard_filter)
 
     def export_serialized(
         self,
@@ -150,6 +159,10 @@ class DashboardApplicationType(ApplicationType):
             integrations=serialized_integrations,
             data_sources=serialized_data_sources,
             widgets=serialized_widgets,
+            filters=[
+                DashboardFilterHandler().export_filter(f)
+                for f in DashboardFilterHandler().get_filters(dashboard)
+            ],
             **serialized_dashboard,
         )
 
@@ -172,6 +185,7 @@ class DashboardApplicationType(ApplicationType):
         serialized_integrations = serialized_values.pop("integrations")
         serialized_data_sources = serialized_values.pop("data_sources")
         serialized_widgets = serialized_values.pop("widgets")
+        serialized_filters = serialized_values.pop("filters", [])
 
         # A full application import must remap integrations and data sources,
         # including when none were exported. Copies within the same dashboard
@@ -217,8 +231,9 @@ class DashboardApplicationType(ApplicationType):
             )
             integrations_progress.increment()
 
+        imported_sources = []
         for serialized_data_source in serialized_data_sources:
-            DashboardDataSourceHandler().import_data_source(
+            source = DashboardDataSourceHandler().import_data_source(
                 cast(Dashboard, application),
                 serialized_data_source,
                 id_mapping,
@@ -226,6 +241,7 @@ class DashboardApplicationType(ApplicationType):
                 storage,
                 self.cache,
             )
+            imported_sources.append(source)
             data_source_progress.increment()
 
         for serialized_widget in serialized_widgets:
@@ -238,5 +254,24 @@ class DashboardApplicationType(ApplicationType):
                 self.cache,
             )
             widgets_progress.increment()
+
+        for serialized_filter in serialized_filters:
+            DashboardFilterHandler().import_filter(
+                application, serialized_filter, id_mapping
+            )
+
+        # All IDs must exist before rewriting forward references and option formulas.
+        for source in imported_sources:
+            if source.service_id:
+                service = source.service.specific
+                for updated in service.get_type().import_formulas(
+                    service, id_mapping, import_formula
+                ):
+                    updated.save()
+        for configuration in DashboardFilterHandler().get_filters(application):
+            configuration.formula_value = import_formula(
+                configuration.formula_value, id_mapping
+            )
+            configuration.save()
 
         return application

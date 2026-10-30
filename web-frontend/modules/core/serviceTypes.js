@@ -140,6 +140,15 @@ export class ServiceType extends Registerable {
   }
 
   /**
+   * Describe the configuration and formulas that affect dispatch results.
+   * Return null for formulas when their dependencies cannot be enumerated, so
+   * consumers conservatively invalidate on any formula-context change.
+   */
+  getDispatchInputs(service) {
+    return { configuration: service, formulas: null }
+  }
+
+  /**
    * Returns sample data for the given service.
    */
   getSampleData(service) {

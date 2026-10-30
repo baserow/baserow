@@ -39,38 +39,13 @@ export default {
     NodeViewWrapper,
   },
   mixins: [formulaComponent],
-  inject: ['nodesHierarchy'],
+  inject: {
+    nodesHierarchy: {},
+    parseFormulaPath: { default: () => _.toPath },
+  },
   computed: {
     isInvalid() {
-      const allRootNodes = this.nodesHierarchy.flatMap(
-        (category) => category.nodes || []
-      )
-
-      let currentLevelNodes = allRootNodes
-      let lastNode = null
-
-      for (const identifier of this.rawPathParts) {
-        let nodeFound = null
-        if (currentLevelNodes) {
-          nodeFound = currentLevelNodes.find(
-            (node) => (node.identifier || node.name) === identifier
-          )
-        }
-
-        if (nodeFound) {
-          currentLevelNodes = nodeFound.nodes
-          lastNode = nodeFound
-        } else if (
-          lastNode &&
-          lastNode.type === 'array' &&
-          (/^\d+$/.test(identifier) || identifier === '*')
-        ) {
-          currentLevelNodes = lastNode.nodes
-        } else {
-          return true
-        }
-      }
-      return false
+      return this.resolvedPath.some((part) => !part.valid)
     },
     path() {
       return this.node.attrs.path
@@ -79,43 +54,45 @@ export default {
       return this.node.attrs.isSelected
     },
     rawPathParts() {
-      return _.toPath(this.path)
+      return this.parseFormulaPath(this.path)
     },
     pathParts() {
+      return this.resolvedPath.map((part) => part.name)
+    },
+    resolvedPath() {
       const allRootNodes = this.nodesHierarchy.flatMap(
         (category) => category.nodes || []
       )
 
       let currentLevelNodes = allRootNodes
       let lastNode = null
-      const translatedParts = []
 
-      for (const identifier of this.rawPathParts) {
-        let nodeFound = null
-        if (currentLevelNodes) {
-          nodeFound = currentLevelNodes.find(
+      return this.rawPathParts.map((identifier) => {
+        const nodeFound =
+          currentLevelNodes?.find(
             (node) => (node.identifier || node.name) === identifier
-          )
-        }
+          ) || lastNode?.getChildNode?.(identifier)
 
         if (nodeFound) {
-          translatedParts.push(nodeFound.name)
           currentLevelNodes = nodeFound.nodes
           lastNode = nodeFound
+          return { name: nodeFound.name, valid: true }
         } else if (
           lastNode &&
           lastNode.type === 'array' &&
           (/^\d+$/.test(identifier) || identifier === '*')
         ) {
-          translatedParts.push(
-            identifier === '*' ? `[${this.$t('common.all')}]` : identifier
-          )
-        } else {
-          translatedParts.push(identifier)
-          currentLevelNodes = null
+          currentLevelNodes = lastNode.nodes
+          return {
+            name:
+              identifier === '*' ? `[${this.$t('common.all')}]` : identifier,
+            valid: true,
+          }
         }
-      }
-      return translatedParts
+        currentLevelNodes = null
+        lastNode = null
+        return { name: identifier, valid: false }
+      })
     },
   },
 }

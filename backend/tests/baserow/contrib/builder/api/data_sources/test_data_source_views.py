@@ -1131,6 +1131,46 @@ def test_delete_data_source_data_source_not_exist(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "operator,formula,expected",
+    [
+        ("equal", "'Apple'", [0]),
+        ("equal", "to_array('Apple,Banana')", []),
+        ("not_equal", "to_array('Apple,Banana')", [0, 1, 2]),
+        ("empty", "''", []),
+        ("not_empty", "''", [0, 1, 2]),
+    ],
+)
+def test_builder_conditions_keep_their_existing_value_semantics(
+    api_client, data_fixture, data_source_fixture, operator, formula, expected
+):
+    fixture = data_source_fixture
+    source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=fixture["page"],
+        integration=fixture["integration"],
+        table=fixture["table"],
+    )
+    data_fixture.create_local_baserow_table_service_filter(
+        service=source.service,
+        field=fixture["fields"][0],
+        type=operator,
+        value=BaserowFormulaObject.create(formula),
+    )
+    response = api_client.post(
+        reverse(
+            "api:builder:data_source:dispatch", kwargs={"data_source_id": source.id}
+        ),
+        {},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {fixture['token']}",
+    )
+    assert response.status_code == 200, response.json()
+    assert [row["id"] for row in response.json()["results"]] == [
+        fixture["rows"][index].id for index in expected
+    ]
+
+
+@pytest.mark.django_db
 def test_dispatch_data_source(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table, fields, rows = data_fixture.build_table(

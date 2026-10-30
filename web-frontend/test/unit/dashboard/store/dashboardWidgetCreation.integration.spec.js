@@ -33,6 +33,7 @@ describe('dashboardApplication store', () => {
       },
     })
 
+    mock.onGet(`/dashboard/${dashboardId}/filters/`).reply(200, [])
     mock.onGet(`/dashboard/${dashboardId}/widgets/`).reply(200, [])
     mock.onGet(`/dashboard/${dashboardId}/data-sources/`).replyOnce(200, [])
     await store.dispatch('dashboardApplication/fetchInitial', {

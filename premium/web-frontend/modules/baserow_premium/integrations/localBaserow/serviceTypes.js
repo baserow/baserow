@@ -1,7 +1,11 @@
-import { DataSourceLocalBaserowTableServiceType } from '@baserow/modules/integrations/localBaserow/serviceTypes'
+import {
+  DataSourceLocalBaserowTableServiceType,
+  getLocalBaserowTableDispatchInputs,
+} from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import LocalBaserowGroupedAggregateRowsForm from '@baserow_premium/integrations/localBaserow/components/services/LocalBaserowGroupedAggregateRowsForm'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import { GroupedAggregateRowsDataSourcePaidFeature } from '@baserow_premium/paidFeatures'
+import pick from 'lodash/pick'
 
 export const BUILDER_GROUPED_AGGREGATE_ROWS_FEATURE =
   'builder_grouped_aggregate_rows'
@@ -9,6 +13,23 @@ export const BUILDER_GROUPED_AGGREGATE_ROWS_FEATURE =
 export class LocalBaserowGroupedAggregateRowsServiceType extends DataSourceLocalBaserowTableServiceType {
   static getType() {
     return 'local_baserow_grouped_aggregate_rows'
+  }
+
+  getDispatchInputs(service) {
+    const { configuration, formulas } =
+      getLocalBaserowTableDispatchInputs(service)
+    return {
+      configuration: {
+        ...configuration,
+        ...pick(service, [
+          'aggregation_series',
+          'aggregation_group_bys',
+          'aggregation_sorts',
+          'bucket_limit',
+        ]),
+      },
+      formulas,
+    }
   }
 
   get name() {

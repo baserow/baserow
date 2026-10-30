@@ -1,3 +1,6 @@
+import { nextTick } from 'vue'
+import { flushPromises } from '@vue/test-utils'
+import { EditorContent } from '@tiptap/vue-3'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { RuntimeFunctionCollection } from '@baserow/modules/core/functionCollection'
 import { ToTipTapVisitor } from '@baserow/modules/core/formula/tiptap/toTipTapVisitor'
@@ -213,6 +216,60 @@ describe('FormulaInputField validates on display', () => {
   })
 })
 
+describe('FormulaInputField external values', () => {
+  let testApp = null
+
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(async () => {
+    await testApp.afterEach()
+  })
+
+  it.each(['simple', 'advanced'])(
+    'updates displayed props silently while still emitting edits in %s mode',
+    async (mode) => {
+      const wrapper = await testApp.mount(FormulaInputField, {
+        props: { value: "'France'", mode },
+      })
+      await nextTick()
+      expect(wrapper.get('.tiptap').text()).toContain('France')
+      expect(wrapper.emitted('input')).toBeUndefined()
+
+      await wrapper.setProps({ value: "'Belgium'" })
+
+      expect(wrapper.get('.tiptap').text()).toContain('Belgium')
+      expect(wrapper.get('.tiptap').text()).not.toContain('France')
+      expect(wrapper.emitted('input')).toBeUndefined()
+
+      const editor = wrapper.getComponent(EditorContent).props('editor')
+      editor.commands.undo()
+      await nextTick()
+
+      expect(wrapper.get('.tiptap').text()).toContain('Belgium')
+      expect(wrapper.get('.tiptap').text()).not.toContain('France')
+      expect(wrapper.emitted('input')).toBeUndefined()
+
+      editor.commands.selectAll()
+      await wrapper.get('.tiptap').trigger('paste', {
+        clipboardData: {
+          getData: (type) =>
+            type === 'text/plain'
+              ? mode === 'advanced'
+                ? "'Canada'"
+                : 'Canada'
+              : '',
+        },
+      })
+
+      expect(wrapper.get('.tiptap').text()).toContain('Canada')
+      expect(wrapper.get('.tiptap').text()).not.toContain('Belgium')
+      expect(wrapper.emitted('input')).toEqual([["'Canada'"]])
+    }
+  )
+})
+
 describe('FormulaInputField mode changes', () => {
   let testApp = null
 
@@ -239,19 +296,29 @@ describe('FormulaInputField mode changes', () => {
     expect(wrapper.emitted('input').at(-1)).toEqual([''])
   })
 
-  it('keeps a basic formula when switching to expert mode', async () => {
+  it('keeps basic text as a literal when switching to expert mode', async () => {
     const wrapper = await testApp.mount(FormulaInputField, {
-      props: { value: 'now()', mode: 'simple' },
+      props: { value: "'now()'", mode: 'simple' },
     })
+    expect(wrapper.get('.tiptap').text()).toContain('now()')
 
-    wrapper.vm.handleModeChange('advanced')
-    await wrapper.setProps({ mode: 'advanced' })
-    await wrapper.vm.$nextTick()
-
-    expect(wrapper.find('.formula-input-field--formula-empty').exists()).toBe(
-      false
+    await wrapper.get('.tiptap').trigger('click')
+    await nextTick()
+    const modeToggle = document.querySelector(
+      '.formula-input-explorer-context__footer .button-text'
     )
-    expect(wrapper.emitted('input').at(-1)).toEqual(['now()'])
+    expect(modeToggle.textContent).toContain(
+      'formulaInputExplorerContext.useAdvancedInput'
+    )
+    modeToggle.click()
+
+    expect(wrapper.emitted('update:mode')).toEqual([['advanced']])
+    await wrapper.setProps({ mode: 'advanced' })
+    await flushPromises()
+
+    expect(wrapper.get('.tiptap').text()).toContain("'now()'")
+    expect(wrapper.find('.function-formula-component').exists()).toBe(false)
+    expect(wrapper.emitted('input')).toEqual([["'now()'"]])
   })
 
   async function mountField(props = {}, slots = {}) {

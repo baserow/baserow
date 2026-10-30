@@ -55,6 +55,11 @@ class LocalBaserowServiceGroupedFiltersAdapter(GroupedFiltersAdapter):
         view_filter_type = view_filter_type_registry.get(service_filter.type)
 
         try:
+            context_filter = self.dispatch_context.get_service_filter_q(
+                service_filter, self.model
+            )
+            if context_filter is not None:
+                return context_filter
             resolved_value = ensure_string(
                 resolve_formula(
                     service_filter.value,

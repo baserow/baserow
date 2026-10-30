@@ -17,9 +17,11 @@
 
 <script>
 import _ from 'lodash'
+import { computed } from 'vue'
 import DashboardFormulaInput from '@baserow/modules/dashboard/components/DashboardFormulaInput'
 import WidgetSettingsBaseForm from '@baserow/modules/dashboard/components/widget/WidgetSettingsBaseForm'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { getReferencedDashboardFilterId } from '@baserow/modules/dashboard/utils/filter'
 
 export default {
   name: 'WidgetSettings',
@@ -27,7 +29,25 @@ export default {
   provide() {
     return {
       formulaComponent: DashboardFormulaInput,
-      dataProvidersAllowed: [],
+      dataProvidersAllowed: ['dashboard_filter'],
+      resolveServiceFilterOperator: (formula) => {
+        const id = getReferencedDashboardFilterId(formula)
+        const filter = this.$store.getters[
+          `${this.storePrefix}dashboardApplication/getFilters`
+        ].find((filter) => filter.id === id)
+        return filter
+          ? {
+              type: filter.operator || 'equal',
+              help: this.$t('dashboardFilter.operatorControlledBy', {
+                filter: filter.label,
+              }),
+            }
+          : null
+      },
+      dashboardApplicationContext: computed(() => ({
+        dashboard: this.dashboard,
+        storePrefix: this.storePrefix,
+      })),
     }
   },
   props: {

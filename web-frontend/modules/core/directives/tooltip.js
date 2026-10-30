@@ -298,6 +298,10 @@ export default {
 
     el.addEventListener('mouseenter', el.tooltipMouseEnterEvent)
     el.addEventListener('mouseleave', el.tooltipMoveLeaveEvent)
+    if (binding.modifiers?.focus) {
+      el.addEventListener('focus', el.tooltipMouseEnterEvent)
+      el.addEventListener('blur', el.tooltipClose)
+    }
   },
 
   /**
@@ -316,6 +320,8 @@ export default {
     if (el._tooltipEventsAdded) {
       el.removeEventListener('mouseenter', el.tooltipMouseEnterEvent)
       el.removeEventListener('mouseleave', el.tooltipMoveLeaveEvent)
+      el.removeEventListener('focus', el.tooltipMouseEnterEvent)
+      el.removeEventListener('blur', el.tooltipClose)
       el._tooltipEventsAdded = false
     }
 

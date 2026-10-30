@@ -145,6 +145,14 @@ class DispatchContext(RuntimeFormulaContext, ABC):
 
         return None
 
+    def get_service_filter_q(self, service_filter, model):
+        """
+        Optionally resolve a condition controlled by this application's context.
+        Return None to use the service's stored operator and formula as usual.
+        """
+
+        return None
+
     def searchable_fields(self) -> List[str]:
         """
         Responsible for returning the on-demand searchable fields, depending

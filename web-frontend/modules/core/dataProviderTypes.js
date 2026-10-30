@@ -152,6 +152,8 @@ export class DataProviderType extends Registerable {
    *
    * Make sure to implement `getDataContent`, `getDataSchema` and `getContextDataSchema`
    * for every data provider if they should show data in the data explorer.
+   * Nodes can expose `getChildNode(identifier)`, returning a node or null, to resolve
+   * saved formula selectors that should not appear as choices in the explorer.
    *
    * @param {Object} applicationContext the application context.
    * @returns {{identifier: string, name: string, nodes: []}}

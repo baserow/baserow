@@ -6,7 +6,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from baserow.api.decorators import map_exceptions, validate_data_custom_fields
+from baserow.api.decorators import (
+    map_exceptions,
+    validate_data_custom_fields,
+)
 from baserow.api.schemas import (
     CLIENT_SESSION_ID_SCHEMA_PARAMETER,
     CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
@@ -101,7 +104,7 @@ class DashboardDataSourcesView(APIView):
                 service_type_registry.get_serializer(
                     data_source.service,
                     DashboardDataSourceSerializer,
-                    context={"data_source": data_source},
+                    context={"data_source": data_source, "request": request},
                 ).data
             )
             for data_source in data_sources
@@ -194,7 +197,7 @@ class DashboardDataSourceView(APIView):
         serializer = service_type_registry.get_serializer(
             data_source_updated.service,
             DashboardDataSourceSerializer,
-            context={"data_source": data_source_updated},
+            context={"data_source": data_source_updated, "request": request},
         )
         return Response(serializer.data)
 
@@ -215,7 +218,8 @@ class DispatchDashboardDataSourceView(APIView):
         tags=["Dashboard data sources"],
         operation_id="dispatch_dashboard_data_source",
         description=(
-            "Dispatches the service of the related data source and returns the result."
+            "Dispatches the service of the related data source and returns the result. "
+            "Shared dashboard filter selections are used by its configured conditions."
         ),
         request=None,
         responses={
@@ -250,7 +254,9 @@ class DispatchDashboardDataSourceView(APIView):
         data_source_service = DashboardDataSourceService()
         data_source = data_source_service.handler.get_data_source(data_source_id)
         dispatch_context = DashboardDispatchContext(
-            request, data_source.dashboard.workspace
+            request,
+            data_source.dashboard.workspace,
+            dashboard=data_source.dashboard,
         )
         response = data_source_service.dispatch_data_source(
             request.user, data_source_id, dispatch_context

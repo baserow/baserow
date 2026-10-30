@@ -9,7 +9,7 @@ const app = {
 }
 
 describe('SummaryWidgetType', () => {
-  const widget = { data_source_id: 42 }
+  const widget = { id: 1, data_source_id: 42 }
   const widgetType = new SummaryWidgetType({ app })
 
   test('owns data-source loading and configuration state', () => {
