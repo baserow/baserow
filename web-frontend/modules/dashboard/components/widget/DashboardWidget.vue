@@ -6,13 +6,18 @@
       'dashboard-widget--selected': isSelected,
       'dashboard-widget--selectable': isSelectable,
       'dashboard-widget--layout-editable': isLayoutEditable,
+      'dashboard-widget--plain': !widgetType.hasCard,
     }"
     @click="selectWidgetIfAllowed(widget.id)"
   >
-    <div v-if="isSelected && isEditMode" class="dashboard-widget__name">
+    <div
+      v-if="widgetType.hasCard && isSelected && isEditMode"
+      class="dashboard-widget__name"
+    >
       {{ widgetType.name }}
     </div>
     <div
+      v-if="widgetType.hasCard"
       class="widget__header"
       :class="{
         'widget__header--edit-mode': isEditMode,
@@ -48,7 +53,15 @@
       :widget="widget"
       :store-prefix="storePrefix"
       :loading="isLoading"
-    />
+    >
+      <template v-if="!widgetType.hasCard && isEditMode" #actions>
+        <WidgetContextMenu
+          :widget="widget"
+          :dashboard="dashboard"
+          @delete-widget="$emit('delete-widget', $event)"
+        />
+      </template>
+    </component>
   </div>
 </template>
 

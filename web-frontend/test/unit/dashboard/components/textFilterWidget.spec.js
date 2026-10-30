@@ -1,11 +1,8 @@
 import { nextTick } from 'vue'
-import { TextFilterWidgetType } from '@baserow/modules/dashboard/widgetTypes'
-import { mount } from '@vue/test-utils'
-import { createStore } from 'vuex'
-import dashboardApplication from '@baserow/modules/dashboard/store/dashboardApplication'
+import { TestApp } from '@baserow/test/helpers/testApp'
 import TextFilterWidget from '@baserow/modules/dashboard/components/widget/TextFilterWidget'
 
-let wrapper
+let wrapper, testApp
 const widget = {
   id: 1,
   type: 'text_filter',
@@ -13,21 +10,19 @@ const widget = {
   placeholder: 'Type here',
   default_value: 'Initial',
 }
-afterEach(() => wrapper?.unmount())
+beforeEach(() => {
+  testApp = new TestApp()
+})
+afterEach(() => testApp.afterEach())
 
 describe('TextFilterWidget', () => {
   test('renders an accessible input and preserves viewer values across unrelated changes', async () => {
-    const store = createStore({ modules: { dashboardApplication } })
-    const widgetType = new TextFilterWidgetType({
-      app: { $store: store, $i18n: { t: (key) => key } },
-    })
-    store.$registry = { get: () => widgetType }
+    const store = testApp.store
     await store.dispatch('dashboardApplication/forceSetWidgets', [
       { ...widget },
     ])
-    wrapper = mount(TextFilterWidget, {
+    wrapper = await testApp.mount(TextFilterWidget, {
       props: { widget: { ...widget } },
-      global: { plugins: [store] },
     })
     expect(wrapper.html()).toMatchSnapshot()
     const input = wrapper.get('input')
