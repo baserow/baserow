@@ -2089,9 +2089,13 @@ class CorePeriodicTriggerServiceType(TriggerServiceTypeMixin, CoreServiceType):
             periodic_services_dispatched.append(dispatched_service)
             return self._get_dispatch_payload(dispatched_service)
 
+        # Every service that is due is called in the same transaction, so a
+        # workflow that fails to start is isolated rather than rolling back all the
+        # others with it.
         self.on_event(
             periodic_services_due,
             _get_service_payload,
+            isolate_failures=True,
         )
 
         if periodic_services_dispatched:
