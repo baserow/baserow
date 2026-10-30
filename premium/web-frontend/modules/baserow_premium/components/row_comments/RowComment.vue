@@ -60,7 +60,9 @@
         ref="editor"
         v-model="message"
         :editable="editing"
-        :mentionable-users="workspace.users"
+        :mentionable-users="
+          $store.getters['workspace/getCollaborators'](workspace.id)
+        "
         :enter-stop-edit="true"
         @stop-edit="stopEdit(true)"
       />

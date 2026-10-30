@@ -4,6 +4,8 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 import RowEditFieldMultipleCollaborators from '@baserow/modules/database/components/row/RowEditFieldMultipleCollaborators'
 import FieldCollaboratorDropdown from '@baserow/modules/database/components/field/FieldCollaboratorDropdown'
 import RowCardFieldMultipleCollaborators from '@baserow/modules/database/components/card/RowCardFieldMultipleCollaborators'
+import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor'
+import RichTextEditorMentionsList from '@baserow/modules/core/components/editor/RichTextEditorMentionsList'
 
 describe('Agent collaborators', () => {
   let testApp
@@ -131,5 +133,37 @@ describe('Agent collaborators', () => {
     })
     expect(wrapper.find('.baserow-icon-agent').exists()).toBe(true)
     expect(wrapper.text()).toBe('Ops')
+  })
+
+  test('an open editor updates a renamed Agent mention without saving content', async () => {
+    const wrapper = await testApp.mount(RichTextEditor, {
+      props: {
+        modelValue: 'Ask @30',
+        enableRichTextFormatting: true,
+        mentionableUsers:
+          testApp.store.getters['workspace/getCollaborators'](1),
+      },
+    })
+    expect(wrapper.find('[data-type="mention"]').text()).toBe('@Ops')
+    await wrapper.setProps({
+      mentionableUsers: [{ user_id: 30, name: 'Support', agent: true }],
+    })
+    expect(wrapper.find('[data-type="mention"]').text()).toBe('@Support')
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+  })
+
+  test('the mention picker finds and selects an Agent', async () => {
+    const command = vi.fn()
+    const wrapper = await testApp.mount(RichTextEditorMentionsList, {
+      props: {
+        users: testApp.store.getters['workspace/getCollaborators'](1),
+        query: 'ops',
+        command,
+      },
+    })
+    expect(wrapper.findAll('li')).toHaveLength(1)
+    expect(wrapper.find('.baserow-icon-agent').exists()).toBe(true)
+    await wrapper.find('li').trigger('click')
+    expect(command).toHaveBeenCalledWith({ id: 30, label: 'Ops' })
   })
 })

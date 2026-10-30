@@ -67,7 +67,9 @@ export default {
       return this.$store.getters['workspace/get'](this.workspaceId)
     },
     mentionableUsers() {
-      return this.enableMentions && this.workspace ? this.workspace.users : null
+      return this.enableMentions && this.workspace
+        ? this.$store.getters['workspace/getCollaborators'](this.workspace.id)
+        : null
     },
   },
   watch: {

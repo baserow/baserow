@@ -15,6 +15,7 @@ from baserow.contrib.database.fields.field_types import (
 from baserow.contrib.database.rows.handler import RowM2MChangeTracker
 from baserow.contrib.database.rows.signals import rows_created, rows_updated
 from baserow.contrib.database.table.models import RichTextFieldMention
+from baserow.core.handler import CoreHandler
 from baserow.core.notifications.handler import (
     NotificationHandler,
     UserNotificationsGrouper,
@@ -238,7 +239,9 @@ class UserMentionInRichTextFieldNotificationType(
         table = model.baserow_table
 
         workspace_user_ids = set(
-            table.database.workspace.users.values_list("id", flat=True)
+            CoreHandler()
+            .get_workspace_collaborators(table.database.workspace_id)
+            .values_list("id", flat=True)
         )
 
         rich_text_fields_updated = [

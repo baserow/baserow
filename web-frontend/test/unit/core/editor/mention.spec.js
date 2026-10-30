@@ -43,3 +43,13 @@ describe('rich-text mention rendering', () => {
     expect(html).not.toContain('Tom & Jerry')
   })
 })
+
+test('renders an Agent mention with its current collaborator name', () => {
+  const html = parseMarkdown('Ask @42', {
+    workspaceUsers: [{ id: 42, user_id: 42, name: 'Ops Agent', agent: true }],
+  })
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const mention = doc.querySelector('[data-type="mention"]')
+  expect(mention.getAttribute('data-id')).toBe('42')
+  expect(mention.textContent).toBe('@Ops Agent')
+})

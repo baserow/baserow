@@ -14,6 +14,7 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
+from baserow.contrib.database.table.models import RichTextFieldMention
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.agents.handler import AgentHandler
 from baserow.core.handler import CoreHandler
@@ -153,6 +154,21 @@ def test_available_collaborators_include_agents_without_per_agent_queries(
     for _ in range(3):
         data_fixture.create_agent(workspace=agent.workspace)
     assert serialize()[1] == query_count
+
+
+@pytest.mark.django_db
+def test_rich_text_mentions_keep_agents_without_notifying_them(
+    agent_table, data_fixture
+):
+    person, agent, table = agent_table
+    field = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=True
+    )
+    row = RowHandler().create_row(person, table, {field.id: f"Hello @{agent.user_id}"})
+    assert RichTextFieldMention.objects.filter(
+        row_id=row.id, field=field, user=agent.user
+    ).exists()
+    assert not NotificationRecipient.objects.filter(recipient=agent.user).exists()
 
 
 @pytest.mark.django_db
