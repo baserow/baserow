@@ -1,7 +1,14 @@
+from baserow.core.agents.handler import AgentHandler
 from baserow.core.models import Workspace, WorkspaceInvitation, WorkspaceUser
 
 
 class WorkspaceFixtures:
+    def create_agent(self, workspace=None, **kwargs):
+        if workspace is None:
+            workspace = self.create_workspace()
+        kwargs.setdefault("name", self.fake.name())
+        return AgentHandler().create_agent(workspace, **kwargs)
+
     def create_workspace(self, **kwargs):
         user = kwargs.pop("user", None)
         users = kwargs.pop("users", [])

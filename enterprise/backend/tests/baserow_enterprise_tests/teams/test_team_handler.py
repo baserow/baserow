@@ -246,17 +246,17 @@ def test_update_team_removes_all_duplicate_memberships(
     retained = []
     if agents_enabled:
         agent = Agent.objects.create(
-            id=member.id,
             workspace=workspace,
             name="Agent",
             role_uid="NO_ROLE_LOW_PRIORITY",
         )
         subject = agent if subject_type == "core.Agent" else member
         retained_type = "auth.User" if subject_type == "core.Agent" else "core.Agent"
+        retained_subject = member if subject_type == "core.Agent" else agent
         retained_membership = handler.create_subject(
-            admin, {"id": member.id}, retained_type, team
+            admin, {"id": retained_subject.id}, retained_type, team
         )
-        retained = [{"subject_id": member.id, "subject_type": retained_type}]
+        retained = [{"subject_id": retained_subject.id, "subject_type": retained_type}]
 
     for _ in range(2):
         handler.create_subject(admin, {"id": subject.id}, subject_type, team)

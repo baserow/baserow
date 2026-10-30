@@ -6,6 +6,7 @@ from opentelemetry import trace
 from rest_framework import serializers
 
 from baserow.core.db import transaction_atomic
+from baserow.core.registries import subject_type_registry
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
@@ -126,7 +127,7 @@ class JobType(
         :return: The queryset restricted to what the user may see.
         """
 
-        return queryset.filter(user=user)
+        return queryset.filter(user=subject_type_registry.user_for_actor(user))
 
     def enhance_queryset(self, queryset: JobQuerySet) -> JobQuerySet:
         """

@@ -81,6 +81,7 @@ from baserow.core.operations import (
     ExportWorkspaceOperationType,
     ListApplicationsWorkspaceOperationType,
 )
+from baserow.core.registries import subject_type_registry
 from baserow.core.service import CoreService
 from baserow.core.user_templates.exceptions import (
     TemplateBlocked,
@@ -127,7 +128,7 @@ class DuplicateApplicationJobType(JobType):
     def transaction_atomic_context(self, job: "DuplicateApplicationJob"):
         application = (
             CoreService()
-            .get_application(job.user, job.original_application_id)
+            .get_application(job.actor, job.original_application_id)
             .specific
         )
         application_type = application.get_type()
@@ -146,7 +147,7 @@ class DuplicateApplicationJobType(JobType):
         new_application_clone = action_type_registry.get_by_type(
             DuplicateApplicationActionType
         ).do(
-            job.user,
+            job.actor,
             job.original_application,
             progress_builder=progress.create_child_builder(
                 represents_progress=progress.total
@@ -295,7 +296,7 @@ class InstallTemplateJobType(JobType):
 
         installed_applications = action_type_registry.get_by_type(
             InstallTemplateActionType
-        ).do(job.user, job.workspace, job.template, progress_builder=progress_builder)
+        ).do(job.actor, job.workspace, job.template, progress_builder=progress_builder)
 
         job.installed_applications = [app.id for app in installed_applications]
         job.save(update_fields=("installed_applications",))
@@ -314,13 +315,13 @@ class InstallTemplateJobType(JobType):
 
         # The access may have changed since the job was requested.
         CoreHandler().check_permissions(
-            job.user,
+            job.actor,
             CreateApplicationsWorkspaceOperationType.type,
             workspace=job.workspace,
             context=job.workspace,
         )
         user_template_handler = UserTemplateHandler()
-        user_template_handler.check_install_access(job.user, job.template)
+        user_template_handler.check_install_access(job.actor, job.template)
 
         progress = ChildProgressBuilder.build(progress_builder, child_total=100)
         try:
@@ -332,7 +333,7 @@ class InstallTemplateJobType(JobType):
                 installed_applications = action_type_registry.get_by_type(
                     InstallTemplateActionType
                 ).do(
-                    job.user,
+                    job.actor,
                     job.workspace,
                     job.template,
                     progress_builder=progress.create_child_builder(
@@ -496,7 +497,7 @@ class ExportApplicationsJobType(JobType):
 
     def run(self, job: ExportApplicationsJob, progress: Progress):
         applications = self.fetch_applications(
-            job.user, job.workspace, job.application_ids
+            job.actor, job.workspace, job.application_ids
         )
 
         progress_builder = progress.create_child_builder(
@@ -504,7 +505,7 @@ class ExportApplicationsJobType(JobType):
         )
 
         resource = action_type_registry.get_by_type(ExportApplicationsActionType).do(
-            job.user,
+            job.actor,
             workspace=job.workspace,
             applications=applications,
             only_structure=job.only_structure,
@@ -576,7 +577,8 @@ class ImportApplicationsJobType(JobType):
         workspace = ImportExportHandler().get_workspace_or_raise(user, workspace_id)
 
         resource = ImportExportResource.objects.filter(
-            id=values.get("resource_id"), created_by=user
+            id=values.get("resource_id"),
+            created_by=subject_type_registry.user_for_actor(user),
         ).first()
 
         if not resource:
@@ -596,7 +598,7 @@ class ImportApplicationsJobType(JobType):
 
     def run(self, job: ImportApplicationsJob, progress: Progress):
         workspace = ImportExportHandler().get_workspace_or_raise(
-            job.user, job.workspace_id
+            job.actor, job.workspace_id
         )
 
         progress_builder = progress.create_child_builder(
@@ -606,7 +608,7 @@ class ImportApplicationsJobType(JobType):
         imported_applications = action_type_registry.get_by_type(
             ImportApplicationsActionType
         ).do(
-            job.user,
+            job.actor,
             workspace=workspace,
             resource=job.resource,
             application_ids=job.application_ids,

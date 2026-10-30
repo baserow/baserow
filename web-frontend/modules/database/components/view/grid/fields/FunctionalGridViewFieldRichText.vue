@@ -99,7 +99,10 @@ export default {
       return parseMarkdown(markdown, {
         openLinkOnClick: false,
         enableImages: false,
-        workspaceUsers: enableMentions && workspace ? workspace.users : null,
+        workspaceUsers:
+          enableMentions && workspace
+            ? this.$store.getters['workspace/getCollaborators'](workspace.id)
+            : null,
         loggedUserId,
       })
     },

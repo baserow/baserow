@@ -9,7 +9,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
-from django.db import models
+from django.db import models, transaction
 from django.db.models import (
     Exists,
     F,
@@ -464,6 +464,29 @@ class WorkspaceUser(
         return cls.get_highest_order_of_queryset(queryset) + 1
 
 
+AGENT_USER_EMAIL_DOMAIN = "agents.invalid"
+
+
+def create_agent_user(name: str) -> User:
+    """
+    Creates the non-authenticating user stored for an Agent in user foreign keys.
+
+    :param name: The Agent's name.
+    :return: The saved agent user.
+    """
+
+    email = f"agent-{uuid.uuid4().hex}@{AGENT_USER_EMAIL_DOMAIN}"
+    user = User(username=email, email=email, first_name=name[:150], is_active=False)
+    user.set_unusable_password()
+    user.save()
+    UserProfile.objects.create(
+        user=user,
+        timezone="UTC",
+        email_notification_frequency=UserProfile.EmailNotificationFrequencyOptions.NEVER,
+    )
+    return user
+
+
 class Agent(
     HierarchicalModelMixin,
     TrashableModelMixin,
@@ -484,12 +507,38 @@ class Agent(
         db_default=WORKSPACE_USER_PERMISSION_MEMBER,
     )
     last_active = models.DateTimeField(null=True, blank=True, db_default=None)
+    user = models.OneToOneField(
+        User,
+        null=True,
+        on_delete=models.PROTECT,
+        related_name="agent",
+        help_text="The user this agent is stored as in user foreign keys. "
+        "Its id is the agent's id.",
+    )
 
     def get_parent(self):
         return self.workspace
 
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            return super().save(*args, **kwargs)
+        if self.pk is not None or self.user_id is not None:
+            raise ValueError("An agent takes its id from the agent user it creates.")
+        with transaction.atomic():
+            self.user = create_agent_user(self.name)
+            self.pk = self.user_id
+            # An UPDATE could silently overwrite a legacy Agent holding this id.
+            kwargs["force_insert"] = True
+            return super().save(*args, **kwargs)
+
     class Meta:
         ordering = ("name", "id")
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(user__isnull=True) | Q(user=F("id")),
+                name="core_agent_id_is_user_id",
+            )
+        ]
 
 
 class WorkspaceInvitation(

@@ -36,6 +36,7 @@ from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.services.registries import DispatchTypes, ServiceType
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import PermissionCheck
+from baserow.core.user.utils import language_for_actor
 
 if TYPE_CHECKING:
     from baserow.contrib.builder.models import Builder
@@ -166,7 +167,7 @@ class DataSourceService:
             prepared_values = kwargs
 
         if name is None:
-            with translation.override(user.profile.language):
+            with translation.override(language_for_actor(user)):
                 name = self.handler.find_unused_data_source_name(page, _("Data source"))
 
         try:

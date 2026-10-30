@@ -506,3 +506,29 @@ def test_0133_adds_template_metadata_and_lets_revisions_share_a_workspace(
 
     NewTemplate.objects.update(public_revision=None)
     NewTemplate.objects.all().delete()
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0134_keeps_new_user_ids_above_legacy_agent_ids(
+    migrator, teardown_table_metadata
+):
+    old_state = migrator.migrate([("core", "0133_template_shared_content")])
+    Workspace = old_state.apps.get_model("core", "Workspace")
+    OldAgent = old_state.apps.get_model("core", "Agent")
+    OldUser = old_state.apps.get_model("auth", "User")
+    workspace = Workspace.objects.create(name="ws")
+    person = OldUser.objects.create(username="p@example.com", email="p@example.com")
+    legacy = OldAgent.objects.create(
+        id=person.id + 10, workspace=workspace, name="Legacy", trashed=True
+    )
+    new_state = migrator.migrate([("core", "0134_agent_user")])
+    NewAgent = new_state.apps.get_model("core", "Agent")
+    NewUser = new_state.apps.get_model("auth", "User")
+    later = NewUser.objects.create(username="l@example.com", email="l@example.com")
+    assert NewAgent._base_manager.get(id=legacy.id).user_id is None
+    assert later.id > legacy.id
+
+    reversed_state = migrator.migrate([("core", "0133_template_shared_content")])
+    ReversedAgent = reversed_state.apps.get_model("core", "Agent")
+    assert ReversedAgent._base_manager.get(id=legacy.id).name == "Legacy"
+    assert "user" not in {field.name for field in ReversedAgent._meta.fields}

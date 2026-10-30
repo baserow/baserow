@@ -73,7 +73,7 @@ class DuplicateAutomationWorkflowJobType(JobType):
 
     def run(self, job, progress):
         new_workflow_clone = DuplicateAutomationWorkflowActionType.do(
-            job.user,
+            job.actor,
             job.original_automation_workflow,
             progress_builder=progress.create_child_builder(
                 represents_progress=progress.total
@@ -120,4 +120,6 @@ class PublishAutomationWorkflowJobType(JobType):
             AutomationWorkflowService,
         )
 
-        AutomationWorkflowService().publish(job.user, job.automation_workflow, progress)
+        AutomationWorkflowService().publish(
+            job.actor, job.automation_workflow, progress
+        )

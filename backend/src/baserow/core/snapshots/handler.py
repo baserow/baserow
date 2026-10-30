@@ -18,7 +18,11 @@ from baserow.core.handler import CoreHandler
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.models import Job
 from baserow.core.models import Application, Snapshot, Workspace
-from baserow.core.registries import ImportExportConfig, application_type_registry
+from baserow.core.registries import (
+    ImportExportConfig,
+    application_type_registry,
+    subject_type_registry,
+)
 from baserow.core.signals import application_created
 from baserow.core.snapshots.exceptions import (
     MaximumSnapshotsReached,
@@ -200,7 +204,7 @@ class SnapshotHandler:
             Snapshot.objects.restorable()
             .filter(
                 snapshot_from_application=application,
-                created_by=performed_by,
+                created_by=subject_type_registry.user_for_actor(performed_by),
                 name=name,
             )
             .exists()
@@ -209,7 +213,7 @@ class SnapshotHandler:
 
         snapshot = Snapshot.objects.create(
             snapshot_from_application=application,
-            created_by=performed_by,
+            created_by=subject_type_registry.user_for_actor(performed_by),
             name=name,
         )
 
@@ -384,7 +388,9 @@ class SnapshotHandler:
         application = snapshot.snapshot_from_application.specific
 
         CoreHandler().check_permissions(
-            snapshot.created_by,
+            subject_type_registry.actor_for_user(snapshot.created_by)
+            if snapshot.created_by
+            else None,
             CreateSnapshotApplicationOperationType.type,
             workspace=workspace,
             context=application,
@@ -448,7 +454,9 @@ class SnapshotHandler:
 
         workspace = snapshot.snapshot_from_application.workspace
         CoreHandler().check_permissions(
-            snapshot.created_by,
+            subject_type_registry.actor_for_user(snapshot.created_by)
+            if snapshot.created_by
+            else None,
             RestoreApplicationSnapshotOperationType.type,
             workspace=workspace,
             context=snapshot,

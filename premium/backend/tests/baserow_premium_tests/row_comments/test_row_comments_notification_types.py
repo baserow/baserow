@@ -258,7 +258,7 @@ def test_email_notifications_are_created_correctly(
     expected_context = {
         "notifications": [
             {
-                "title": f"User 1 mentioned you in row {str(row)} in {table.name}.",
+                "title": f"User 1 mentioned you in row {row!s} in {table.name}.",
                 "description": "@User 2",
                 "url": notification_url,
             }
@@ -285,7 +285,7 @@ def test_user_receive_notification_if_subscribed_for_comments_on_a_row(
     user_2, token_2 = premium_data_fixture.create_user_and_token(
         has_active_premium_license=True
     )
-    commenter, commenter_token = premium_data_fixture.create_user_and_token(
+    commenter, _commenter_token = premium_data_fixture.create_user_and_token(
         has_active_premium_license=True
     )
     workspace = premium_data_fixture.create_workspace(users=[user_1, user_2, commenter])
@@ -644,7 +644,7 @@ def test_row_comment_notification_type_can_be_rendered_as_email(
 
     assert (
         RowCommentNotificationType.get_notification_title_for_email(notification, {})
-        == f"{commenter.first_name} posted a comment in row {str(rows[0])} in {table.name}."
+        == f"{commenter.first_name} posted a comment in row {rows[0]!s} in {table.name}."
     )
     assert (
         RowCommentNotificationType.get_notification_description_for_email(
@@ -693,3 +693,19 @@ def test_can_get_row_comment_notification_mode_from_row_metadata(
     response = get_row_from_api_with_metadata()
     assert response.status_code == HTTP_200_OK
     assert response.json()["metadata"]["row_comments_notification_mode"] == "all"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_comment_can_mention_an_agent_without_notifying_it(premium_data_fixture):
+    user = premium_data_fixture.create_user(has_active_premium_license=True)
+    table, _, rows = premium_data_fixture.build_table(
+        columns=[("text", "text")], rows=["first row"], user=user
+    )
+    agent = premium_data_fixture.create_agent(workspace=table.database.workspace)
+    message = premium_data_fixture.create_comment_message_with_mentions([agent.user])
+
+    comment = RowCommentHandler.create_comment(user, table.id, rows[0].id, message)
+
+    assert list(comment.mentions.all()) == [agent.user]
+    assert not NotificationRecipient.objects.filter(recipient=agent.user).exists()

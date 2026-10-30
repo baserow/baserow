@@ -39,9 +39,7 @@ def prepare_files_for_db(
     :param actor: The subject dispatching the service.
     """
 
-    uploading_user = (
-        actor if subject_type_registry.get_by_model(actor).is_interactive_user else None
-    )
+    uploading_user = subject_type_registry.user_for_actor(actor)
 
     # It must be an array
     data = ensure_array(value)

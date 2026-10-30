@@ -34,8 +34,8 @@ class AuditLogEntry(CreatedAndUpdatedOnMixin, models.Model):
 
     # Reuse the former user columns so existing entries are immediately available
     # through the actor fields and old application versions remain ZDM-compatible.
-    # This is safe only while actor_type is always used with actor_id (User and Agent
-    # primary keys can overlap), auth.User remains the database default for writes
+    # Always pair actor_type with actor_id for anonymous, token and legacy actors.
+    # auth.User remains the database default for writes
     # made by an old version, and actor names fit the existing user_email column.
     actor_id = models.PositiveIntegerField(db_column="user_id", null=True)
     actor_type = models.CharField(max_length=255, db_default=UserSubjectType.type)

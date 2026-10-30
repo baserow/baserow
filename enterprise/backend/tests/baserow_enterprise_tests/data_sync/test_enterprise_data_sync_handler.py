@@ -1155,3 +1155,55 @@ def test_sync_periodic_data_sync_unexpected_error_counts_as_failed_run(
     job = SyncDataSyncTableJob.objects.get()
     assert job.state == JOB_FAILED
     assert job.triggered_by == DATA_SYNC_JOB_TRIGGERED_BY_PERIODIC
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_agent_periodic_sync_runs_as_the_agent(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+    source = enterprise_data_fixture.create_database_table()
+    field = enterprise_data_fixture.create_text_field(table=source, primary=True)
+    source.get_model().objects.create(**{field.db_column: "Synced"})
+    agent = enterprise_data_fixture.create_agent(workspace=source.database.workspace)
+    data_sync = DataSyncHandler().create_data_sync_table(
+        agent,
+        source.database,
+        type_name="local_baserow_table",
+        synced_properties=["id", field.db_column],
+        table_name="Agent sync",
+        source_table_id=source.id,
+    )
+    assert data_sync.authorized_user == agent.user
+    periodic = EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
+        agent, data_sync, "DAILY", time(hour=12)
+    )
+    assert periodic.authorized_user == agent.user
+
+    assert EnterpriseDataSyncHandler.sync_periodic_data_sync(periodic.id)
+
+    job = SyncDataSyncTableJob.objects.get()
+    assert job.finished
+    assert job.user == agent.user
+    assert job.actor == agent
+    assert job.triggered_by == DATA_SYNC_JOB_TRIGGERED_BY_PERIODIC
+    assert data_sync.table.get_model().objects.count() == 1
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_legacy_agent_never_stores_its_id_as_a_periodic_sync_user(
+    enterprise_data_fixture,
+):
+    enterprise_data_fixture.enable_enterprise()
+    data_sync = enterprise_data_fixture.create_ical_data_sync()
+    agent = enterprise_data_fixture.create_agent(
+        workspace=data_sync.table.database.workspace
+    )
+    agent.user = None
+    agent.save(update_fields=["user"])
+
+    periodic = EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
+        agent, data_sync, "DAILY", time(hour=12)
+    )
+
+    assert periodic.authorized_user_id is None

@@ -67,7 +67,25 @@ def test_agent_events_only_reach_users_allowed_to_list_agents(
     assert broadcast.call_args.kwargs["ignore_web_socket_id"] == (
         None if event == "restore" else "origin"
     )
-    workspace_broadcast.delay.assert_not_called()
+    workspace_broadcast.delay.assert_called_once()
+    workspace_id, public_payload = workspace_broadcast.delay.call_args.args
+    assert workspace_id == workspace.id
+    assert public_payload["workspace_id"] == workspace.id
+    assert public_payload["type"] == expected_type.replace(
+        "agent_", "workspace_agent_", 1
+    )
+    if event == "delete":
+        assert public_payload == {
+            "type": "workspace_agent_deleted",
+            "workspace_id": workspace.id,
+            "agent_id": agent.id,
+        }
+    else:
+        assert public_payload["agent"] == {
+            "id": agent.id,
+            "user_id": agent.user_id,
+            "name": "Updated private agent" if event == "update" else agent.name,
+        }
 
 
 @pytest.mark.django_db(transaction=True)
@@ -145,7 +163,7 @@ def test_team_changes_broadcast_current_agent_teams(
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
-def test_human_team_changes_do_not_broadcast_an_agent_with_the_same_id(
+def test_human_team_changes_do_not_broadcast_an_agent(
     data_fixture, enterprise_data_fixture, enable_enterprise, synced_roles
 ):
     """Only agent memberships should trigger agent metadata broadcasts."""
@@ -153,7 +171,7 @@ def test_human_team_changes_do_not_broadcast_an_agent_with_the_same_id(
     member = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin, members=[member])
     team = enterprise_data_fixture.create_team(workspace=workspace)
-    Agent.objects.create(id=member.id, workspace=workspace, name="Same ID")
+    Agent.objects.create(workspace=workspace, name="Agent")
     with patch("baserow.ws.signals.broadcast_to_permitted_users.delay") as broadcast:
         TeamHandler().create_subject(admin, {"id": member.id}, "auth.User", team)
     broadcast.assert_not_called()

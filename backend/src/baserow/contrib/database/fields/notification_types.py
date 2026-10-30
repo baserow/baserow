@@ -12,12 +12,10 @@ from baserow.contrib.database.fields.field_types import (
     LongTextFieldType,
     MultipleCollaboratorsFieldType,
 )
-from baserow.contrib.database.rows.handler import (
-    RowM2MChangeTracker,
-    user_for_row_audit_columns,
-)
+from baserow.contrib.database.rows.handler import RowM2MChangeTracker
 from baserow.contrib.database.rows.signals import rows_created, rows_updated
 from baserow.contrib.database.table.models import RichTextFieldMention
+from baserow.core.handler import CoreHandler
 from baserow.core.notifications.handler import (
     NotificationHandler,
     UserNotificationsGrouper,
@@ -241,7 +239,9 @@ class UserMentionInRichTextFieldNotificationType(
         table = model.baserow_table
 
         workspace_user_ids = set(
-            table.database.workspace.users.values_list("id", flat=True)
+            CoreHandler()
+            .get_workspace_collaborators(table.database.workspace_id)
+            .values_list("id", flat=True)
         )
 
         rich_text_fields_updated = [
@@ -379,14 +379,13 @@ def notify_users_when_rows_created(
     m2m_change_tracker=None,
     **kwargs,
 ):
-    notification_sender = user_for_row_audit_columns(user)
     if m2m_change_tracker is not None:
         CollaboratorAddedToRowNotificationType.create_notifications_grouped_by_user(
-            notification_sender, m2m_change_tracker, rows
+            user, m2m_change_tracker, rows
         )
 
     UserMentionInRichTextFieldNotificationType.create_notifications_grouped_by_user(
-        notification_sender, rows
+        user, rows
     )
 
 
@@ -402,12 +401,11 @@ def notify_users_when_rows_updated(
     m2m_change_tracker=None,
     **kwargs,
 ):
-    notification_sender = user_for_row_audit_columns(user)
     if m2m_change_tracker is not None:
         CollaboratorAddedToRowNotificationType.create_notifications_grouped_by_user(
-            notification_sender, m2m_change_tracker, rows
+            user, m2m_change_tracker, rows
         )
 
     UserMentionInRichTextFieldNotificationType.create_notifications_grouped_by_user(
-        notification_sender, rows, updated_field_ids
+        user, rows, updated_field_ids
     )

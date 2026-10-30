@@ -30,6 +30,7 @@ from baserow.core.exceptions import UntrustedContentCannotBePublished
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.models import Job
+from baserow.core.registries import subject_type_registry
 from baserow.core.utils import ChildProgressBuilder, Progress
 
 
@@ -136,11 +137,13 @@ class AutomationWorkflowService:
         )
 
         workflow = self.handler.create_workflow(automation, name)
+        if notification_recipient_ids is None:
+            stored_user = subject_type_registry.user_for_actor(user)
+            notification_recipient_ids = (
+                [stored_user.id] if stored_user and stored_user.is_active else []
+            )
         recipients = self._validate_notification_recipients(
-            automation.workspace,
-            [user.id]
-            if notification_recipient_ids is None
-            else notification_recipient_ids,
+            automation.workspace, notification_recipient_ids
         )
         if recipients is not None:
             workflow.notification_recipients.set(recipients)

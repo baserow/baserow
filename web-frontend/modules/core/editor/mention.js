@@ -70,6 +70,7 @@ export const createMention = ({
   loggedUserId = null,
   suggestion = undefined,
 } = {}) => {
+  const getUsers = () => (typeof users === 'function' ? users() : users) || []
   const extension = TiptapMention.extend({
     markdownTokenName: 'mention',
     markdownTokenizer: {
@@ -99,7 +100,7 @@ export const createMention = ({
       },
     },
     parseMarkdown(token, helpers) {
-      const user = users.find(
+      const user = getUsers().find(
         ({ user_id: userId }) => userId === parseInt(token.userId)
       )
       if (!user) {
@@ -118,8 +119,8 @@ export const createMention = ({
   const options = {
     renderHTML: ({ options: mentionOptions, node }) => {
       const userId = parseInt(node.attrs.id)
-      const user = users.find(({ user_id: id }) => id === userId)
-      const label = node.attrs.label ?? user?.name ?? node.attrs.id
+      const user = getUsers().find(({ user_id: id }) => id === userId)
+      const label = user?.name ?? node.attrs.label ?? node.attrs.id
       const classes = ['rich-text-editor__mention']
       if (userId === loggedUserId) {
         classes.push('rich-text-editor__mention--current-user')

@@ -189,8 +189,8 @@ class ButtonFieldDispatchJobType(JobType):
         return nullcontext()
 
     def run(self, job: ButtonFieldDispatchJob, progress: Progress) -> None:
-        # Reading `job.user` restores the clicker's IP and session ids on it.
-        user = job.user
+        # The job restores the clicker's IP and session ids before resolving its actor.
+        user = job.actor
         # The cleanup fails a job this old and frees its cell, so another click
         # may already be running the same actions.
         if job.created_on < timezone.now() - timedelta(

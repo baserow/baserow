@@ -70,7 +70,7 @@ class DuplicateFieldJobType(JobType):
             DuplicateFieldActionType
         )
         new_field_clone, updated_fields = duplicate_field_action_type.do(
-            job.user,
+            job.actor,
             job.original_field,
             job.duplicate_data,
             progress.create_child_builder(represents_progress=progress.total),

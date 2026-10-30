@@ -39,7 +39,7 @@ pytestmark = pytest.mark.enable_signals(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_agent_row_create_collaborator_notification_has_no_user_sender(data_fixture):
+def test_agent_row_create_collaborator_notification_credits_the_agent(data_fixture):
     owner = data_fixture.create_user()
     collaborator = data_fixture.create_user()
     workspace = data_fixture.create_workspace(members=[owner, collaborator])
@@ -64,11 +64,11 @@ def test_agent_row_create_collaborator_notification_has_no_user_sender(data_fixt
     notification = Notification.objects.get(
         type=CollaboratorAddedToRowNotificationType.type
     )
-    assert notification.sender is None
+    assert notification.sender == agent.user
 
 
 @pytest.mark.django_db(transaction=True)
-def test_agent_row_update_mention_notification_has_no_user_sender(data_fixture):
+def test_agent_row_update_mention_notification_credits_the_agent(data_fixture):
     owner = data_fixture.create_user()
     mentioned_user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(members=[owner, mentioned_user])
@@ -95,12 +95,12 @@ def test_agent_row_update_mention_notification_has_no_user_sender(data_fixture):
     notification = Notification.objects.get(
         type=UserMentionInRichTextFieldNotificationType.type
     )
-    assert notification.sender is None
+    assert notification.sender == agent.user
     assert (
         UserMentionInRichTextFieldNotificationType.get_notification_title_for_email(
             notification, {}
         )
-        == f"An unknown user mentioned you in {rich_text_field.name} in row "
+        == f"{agent.name} mentioned you in {rich_text_field.name} in row "
         f"{row} in {table.name}."
     )
 

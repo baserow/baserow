@@ -12,7 +12,10 @@ export default ({ users }) => ({
       onStart: (props) => {
         component = new VueRenderer(RichTextEditorMentionsList, {
           editor: props.editor,
-          props: { users, ...props },
+          props: {
+            ...props,
+            users: (typeof users === 'function' ? users() : users) || [],
+          },
         })
 
         if (!props.clientRect) {
@@ -32,7 +35,10 @@ export default ({ users }) => ({
       },
 
       onUpdate(props) {
-        component.updateProps(props)
+        component.updateProps({
+          ...props,
+          users: (typeof users === 'function' ? users() : users) || [],
+        })
 
         if (!props.clientRect) {
           return

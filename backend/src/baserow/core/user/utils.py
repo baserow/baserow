@@ -9,6 +9,8 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.settings import api_settings as jwt_settings
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
+from baserow.core.registries import subject_type_registry
+from baserow.core.types import Actor
 from baserow.core.utils import generate_hash
 
 
@@ -174,3 +176,15 @@ def prepare_user_tokens_payload(
         session_tokens["user_session"] = sign_user_session(user_id, str(refresh_token))
 
     return session_tokens
+
+
+def language_for_actor(actor: Actor | None) -> str | None:
+    """
+    Returns the language of the user an actor is stored as.
+
+    :param actor: The acting subject, or None.
+    :return: Its profile language, or None to use the default language.
+    """
+
+    user = subject_type_registry.user_for_actor(actor)
+    return user.profile.language if user is not None else None

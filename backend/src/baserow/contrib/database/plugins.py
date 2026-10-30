@@ -7,6 +7,7 @@ from django.utils.translation import override
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import Plugin
+from baserow.core.user.utils import language_for_actor
 
 from .table.handler import TableHandler
 
@@ -38,7 +39,7 @@ class DatabasePlugin(Plugin):
         table_handler = TableHandler()
         row_handler = RowHandler()
 
-        with override(user.profile.language):
+        with override(language_for_actor(user)):
             database = core_handler.create_application(
                 user,
                 workspace,

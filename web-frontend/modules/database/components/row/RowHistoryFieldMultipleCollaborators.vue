@@ -17,20 +17,24 @@
         >
           {{ name(item) }}
         </div>
-        <div class="row-history-field-multiple-collaborators__initials">
-          {{ initials(name(item)) }}
-        </div>
+        <CollaboratorAvatar
+            :field="field"
+          class="row-history-field-multiple-collaborators__initials"
+          :collaborator="item"
+        />
       </li>
     </ul>
   </div>
 </template>
 
 <script>
+import CollaboratorAvatar from '@baserow/modules/core/components/CollaboratorAvatar'
 import collaboratorName from '@baserow/modules/database/mixins/collaboratorName'
 import _ from 'lodash'
 
 export default {
   name: 'RowHistoryFieldMultipleCollaborators',
+  components: { CollaboratorAvatar },
   mixins: [collaboratorName],
   props: {
     entry: {
@@ -81,9 +85,6 @@ export default {
         item = { id: item }
       }
       return this.getCollaboratorName(item, this.store)
-    },
-    initials(name) {
-      return name.slice(0, 1).toUpperCase()
     },
   },
 }

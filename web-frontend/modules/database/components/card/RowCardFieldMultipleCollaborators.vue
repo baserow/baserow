@@ -11,9 +11,12 @@
             class="field-multiple-collaborators__name background-color--light-gray"
             >{{ getCollaboratorName(item, $store) }}</span
           >
-          <div v-if="value" class="field-multiple-collaborators__initials">
-            {{ getCollaboratorNameInitials(item, $store) }}
-          </div>
+          <CollaboratorAvatar
+            v-if="value"
+            :field="field"
+            class="field-multiple-collaborators__initials"
+            :collaborator="item"
+          />
         </template>
       </div>
     </div>
@@ -21,10 +24,12 @@
 </template>
 
 <script>
+import CollaboratorAvatar from '@baserow/modules/core/components/CollaboratorAvatar'
 import collaboratorName from '@baserow/modules/database/mixins/collaboratorName'
 
 export default {
   name: 'RowCardFieldMultipleCollaborators',
+  components: { CollaboratorAvatar },
   height: 30,
   mixins: [collaboratorName],
   props: {

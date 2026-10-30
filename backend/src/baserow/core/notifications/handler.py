@@ -15,6 +15,7 @@ from opentelemetry import trace
 
 from baserow.core.emails import NotificationsSummaryEmail
 from baserow.core.models import User, UserProfile, Workspace
+from baserow.core.registries import subject_type_registry
 from baserow.core.telemetry.utils import baserow_trace
 from baserow.core.utils import (
     atomic_if_not_already,
@@ -418,7 +419,7 @@ class NotificationHandler:
 
         return Notification(
             type=notification_type,
-            sender=sender if sender and sender.is_authenticated else None,
+            sender=subject_type_registry.user_for_actor(sender),
             data=data or {},
             workspace=workspace,
             **kwargs,
@@ -588,7 +589,9 @@ class NotificationHandler:
 
         # Prefetch the user profiles if possible to avoid N+1 queries later
         if isinstance(recipients, QuerySet) and issubclass(recipients.model, User):
-            recipients = recipients.select_related("profile")
+            recipients = recipients.filter(is_active=True).select_related("profile")
+        else:
+            recipients = [recipient for recipient in recipients if recipient.is_active]
 
         notification_recipients = NotificationRecipient.objects.bulk_create(
             [
@@ -689,6 +692,7 @@ class NotificationHandler:
 
         filtered_users = User.objects.filter(
             user_filters_q,
+            is_active=True,
             **{
                 f"notificationrecipient__{k}": v
                 for k, v in NOTIFICATIONS_WITH_EMAIL_SCHEDULED_FILTERS.items()
@@ -825,7 +829,9 @@ class UserNotificationsGrouper:
     def create_all_notifications_and_trigger_task(self, batch_size=2500):
         all_recipients = {
             u.id: u
-            for u in User.objects.filter(id__in=self.user_ids).select_related("profile")
+            for u in User.objects.filter(
+                id__in=self.user_ids, is_active=True
+            ).select_related("profile")
         }
 
         created_notifications = Notification.objects.bulk_create(
@@ -842,6 +848,7 @@ class UserNotificationsGrouper:
                         queued=True,
                     )
                     for recipient_id in self.recipients_ids[i]
+                    if recipient_id in all_recipients
                 ]
             )
 

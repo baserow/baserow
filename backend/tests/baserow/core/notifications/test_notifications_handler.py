@@ -983,3 +983,24 @@ def test_email_notifications_per_user_limit_with_multiple_users(
         assert u2_email.get_subject() == "You have 4 new notifications - Baserow"
         assert u2_email.get_context()["new_notifications_count"] == 4
         assert u2_email.get_context()["unlisted_notifications_count"] == 1
+
+
+@pytest.mark.django_db
+def test_deactivation_prevents_an_already_scheduled_notification_email(
+    data_fixture, mailoutbox
+):
+    user = data_fixture.create_user(email_notification_frequency="instant")
+    with custom_notification_types_registered() as (notification_type, _):
+        recipients = NotificationHandler.create_direct_notification_for_users(
+            notification_type.type, [user]
+        )
+        assert recipients[0].email_scheduled
+        user.is_active = False
+        user.save(update_fields=["is_active"])
+
+        result = NotificationHandler.send_unread_notifications_by_email_to_users_matching_filters(
+            Q()
+        )
+
+    assert result.users_with_notifications == []
+    assert mailoutbox == []

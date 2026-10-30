@@ -1,4 +1,5 @@
 import workspaceStore from '@baserow/modules/core/store/workspace'
+import { RealTimeHandler } from '@baserow/modules/core/plugins/realTimeHandler'
 import authStore from '@baserow/modules/core/store/auth'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { expect, test, vi } from 'vitest'
@@ -19,6 +20,39 @@ describe('Workspace store', () => {
 
   afterEach(() => {
     testApp.afterEach()
+  })
+
+  test('workspace Agent events keep collaborators current without adding members', async () => {
+    await store.dispatch('workspace/forceCreate', {
+      id: 1,
+      users: [{ id: 10, user_id: 20, name: 'Person' }],
+      agents: [],
+    })
+    const events = {}
+    RealTimeHandler.prototype.registerCoreEvents.call({
+      registerEvent: (name, handler) => {
+        events[name] = handler
+      },
+    })
+    const context = { store }
+    events.workspace_agent_created(context, {
+      workspace_id: 1,
+      agent: { id: 30, user_id: 30, name: 'Ops' },
+    })
+    expect(store.getters['workspace/getCollaborators'](1)).toEqual([
+      expect.objectContaining({ user_id: 20, name: 'Person' }),
+      expect.objectContaining({ user_id: 30, name: 'Ops', agent: true }),
+    ])
+    events.workspace_agent_updated(context, {
+      workspace_id: 1,
+      agent: { id: 30, user_id: 30, name: 'Support' },
+    })
+    expect(store.getters['workspace/getCollaboratorById'](30).name).toBe(
+      'Support'
+    )
+    expect(store.getters['workspace/get'](1).users).toHaveLength(1)
+    events.workspace_agent_deleted(context, { workspace_id: 1, agent_id: 30 })
+    expect(store.getters['workspace/getCollaboratorById'](30)).toBeUndefined()
   })
 
   test('forceAddWorkspaceUser adds user to a workspace', async () => {

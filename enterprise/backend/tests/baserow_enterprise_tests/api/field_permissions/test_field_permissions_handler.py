@@ -1116,7 +1116,7 @@ def test_custom_field_permissions_for_agents(
     table = enterprise_data_fixture.create_database_table(database=database)
     field = enterprise_data_fixture.create_text_field(table=table)
     agent = Agent.objects.create(
-        id=admin.id, workspace=workspace, name="Selected", role_uid=role_uid
+        workspace=workspace, name="Selected", role_uid=role_uid
     )
     unselected = Agent.objects.create(
         workspace=workspace, name="Unselected", role_uid="EDITOR"

@@ -1,5 +1,4 @@
 from dataclasses import asdict, dataclass
-from typing import List, Optional
 
 from django.dispatch import receiver
 from django.utils.translation import gettext as _
@@ -98,7 +97,7 @@ class RowCommentNotificationType(EmailNotificationTypeMixin, NotificationType):
     @classmethod
     def notify_subscribed_users(
         cls, row_comment, row, users_to_notify
-    ) -> Optional[List[NotificationRecipient]]:
+    ) -> list[NotificationRecipient] | None:
         """
         Creates a notification for each user that is subscribed to receive comments on
         the row on which the comment was created.
@@ -158,9 +157,12 @@ def on_row_comment_created(sender, row_comment, row, user, mentions, **kwargs):
 
     table_id = row_comment.table_id
     row_id = row_comment.row_id
-    if not RowCommentsNotificationMode.objects.filter(
-        user=user, table_id=table_id, row_id=row_id
-    ).exists():
+    if (
+        user.is_active
+        and not RowCommentsNotificationMode.objects.filter(
+            user=user, table_id=table_id, row_id=row_id
+        ).exists()
+    ):
         RowCommentHandler.update_row_comments_notification_mode(
             user,
             table_id,

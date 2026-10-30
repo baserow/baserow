@@ -243,7 +243,7 @@ def test_local_baserow_delete_row_service_dispatch_data_as_agent(data_fixture):
 
     assert not model.objects.filter(id=row.id).exists()
     trash_entry = TrashEntry.objects.get(trash_item_type="rows")
-    assert trash_entry.user_who_trashed is None
+    assert trash_entry.user_who_trashed == agent.user
 
 
 @pytest.mark.django_db

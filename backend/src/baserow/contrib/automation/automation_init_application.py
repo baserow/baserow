@@ -8,6 +8,7 @@ from baserow.contrib.integrations.local_baserow.integration_types import (
     LocalBaserowIntegrationType,
 )
 from baserow.core.integrations.service import IntegrationService
+from baserow.core.user.utils import language_for_actor
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
@@ -25,7 +26,7 @@ class AutomationApplicationTypeInitApplication:
         self.user = user
         self.application = application
 
-        with translation.override(user.profile.language):
+        with translation.override(language_for_actor(user)):
             self.workflow_name = _("Workflow")
             self.integration_name = _("Local Baserow")
 

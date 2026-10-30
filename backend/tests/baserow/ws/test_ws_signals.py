@@ -759,3 +759,39 @@ def test_job_started(mock_broadcast_to_users, data_fixture):
             "updated_on": "2024-01-01T12:00:00Z",
         },
     }
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.signals.broadcast_to_group")
+def test_workspace_agent_events_share_only_collaborator_details(
+    broadcast, data_fixture
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    agent = AgentService().create_agent(user, workspace, name="Writer")
+    assert broadcast.delay.call_args.args == (
+        workspace.id,
+        {
+            "type": "workspace_agent_created",
+            "workspace_id": workspace.id,
+            "agent": {"id": agent.id, "user_id": agent.user_id, "name": "Writer"},
+        },
+    )
+    AgentService().update_agent(user, agent, name="Editor")
+    assert broadcast.delay.call_args.args[1] == {
+        "type": "workspace_agent_updated",
+        "workspace_id": workspace.id,
+        "agent": {"id": agent.id, "user_id": agent.user_id, "name": "Editor"},
+    }
+    AgentService().delete_agent(user, agent)
+    assert broadcast.delay.call_args.args[1] == {
+        "type": "workspace_agent_deleted",
+        "workspace_id": workspace.id,
+        "agent_id": agent.id,
+    }
+    TrashHandler.restore_item(user, "agent", agent.id)
+    assert broadcast.delay.call_args.args[1] == {
+        "type": "workspace_agent_created",
+        "workspace_id": workspace.id,
+        "agent": {"id": agent.id, "user_id": agent.user_id, "name": "Editor"},
+    }

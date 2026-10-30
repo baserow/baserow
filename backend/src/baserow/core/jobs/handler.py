@@ -2,7 +2,6 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Type
 
 from django.conf import settings
-from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
@@ -10,6 +9,8 @@ from django.db.models import Q, QuerySet
 
 from celery.exceptions import SoftTimeLimitExceeded
 
+from baserow.core.registries import subject_type_registry
+from baserow.core.types import Actor
 from baserow.core.utils import Progress
 
 from .constants import JOB_CANCELLED
@@ -110,7 +111,7 @@ class JobHandler:
     @classmethod
     def get_job(
         cls,
-        user: AbstractUser,
+        user: Actor,
         job_id: int,
         job_model: Optional[Type[AnyJob]] = None,
         base_queryset: Optional[QuerySet] = None,
@@ -125,8 +126,8 @@ class JobHandler:
         :return: the job.
         """
 
-        # Numeric IDs are only meaningful within the same principal type.
-        if not isinstance(user, get_user_model()) or user.pk is None:
+        stored_user = subject_type_registry.user_for_actor(user)
+        if stored_user is None:
             raise JobDoesNotExist(f"The job with id {job_id} does not exist.")
 
         if not job_model:
@@ -136,14 +137,14 @@ class JobHandler:
             base_queryset = job_model.objects
 
         try:
-            return base_queryset.select_related("user").get(id=job_id, user_id=user.id)
+            return base_queryset.select_related("user").get(id=job_id, user=stored_user)
         except job_model.DoesNotExist:
             raise JobDoesNotExist(f"The job with id {job_id} does not exist.")
 
     @classmethod
     def get_jobs_for_user(
         cls,
-        user: AbstractUser,
+        user: Actor,
         filter_states: Optional[List[str]],
         filter_ids: Optional[List[int]],
         base_model: Optional[Type[AnyJob]] = None,
@@ -165,7 +166,7 @@ class JobHandler:
         if base_model is None:
             base_model = Job
 
-        if not isinstance(user, get_user_model()) or user.pk is None:
+        if subject_type_registry.user_for_actor(user) is None:
             return base_model.objects.none()
 
         def get_job_states_filter(states):
@@ -218,13 +219,14 @@ class JobHandler:
             job_type = job_type_registry.get_by_model(base_model)
             return job_type.scope_queryset_to_user(user, queryset)
 
+        stored_user = subject_type_registry.user_for_actor(user)
         if not filter_ids:
-            return queryset.filter(user=user)
+            return queryset.filter(user=stored_user)
 
-        visible_q = Q(user=user)
+        visible_q = Q(user=stored_user)
         foreign_content_type_ids = list(
             Job.objects.filter(id__in=filter_ids)
-            .exclude(user=user)
+            .exclude(user=stored_user)
             .values_list("content_type_id", flat=True)
             .distinct()
         )
@@ -263,7 +265,7 @@ class JobHandler:
         return model_class.objects.filter().is_pending_or_running()
 
     def create_and_start_job(
-        self, user: AbstractUser, job_type_name: str, sync=False, **kwargs
+        self, user: Actor, job_type_name: str, sync=False, **kwargs
     ) -> Job:
         """
         Creates a new job and schedule the asynchronous task.
@@ -277,8 +279,11 @@ class JobHandler:
 
         job_type = job_type_registry.get(job_type_name)
         model_class = job_type.model_class
+        stored_user = subject_type_registry.user_for_actor(user)
+        if stored_user is None:
+            raise ValueError("An actor must have a stored user to start a job.")
         job_values = job_type.prepare_values(kwargs, user)
-        job: AnyJob = model_class(user=user, **job_values)
+        job: AnyJob = model_class(user=stored_user, **job_values)
         job_type.can_schedule_or_raise(job)
         job.save()
         job_type.after_job_creation(job, kwargs)

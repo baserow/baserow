@@ -13,8 +13,8 @@ def enable_enterprise_and_roles(enable_enterprise, synced_roles):
 
 
 @pytest.mark.django_db
-def test_agent_cannot_access_human_personal_view_with_matching_id(data_fixture):
-    """A matching integer ID must not make an agent the owner of a user view."""
+def test_agent_cannot_access_human_personal_view(data_fixture):
+    """An Agent cannot become the owner of a person's personal view."""
 
     owner = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=owner)
@@ -31,7 +31,6 @@ def test_agent_cannot_access_human_personal_view_with_matching_id(data_fixture):
         ownership_type=OWNERSHIP_TYPE_COLLABORATIVE,
     )
     agent = Agent.objects.create(
-        id=owner.id,
         workspace=workspace,
         name="Viewer agent",
         role_uid="VIEWER",

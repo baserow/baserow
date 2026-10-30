@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from baserow.core.agents.exceptions import AgentDoesNotExist
 from baserow.core.agents.registries import agent_extension_type_registry
+from baserow.core.agents.users import rename_agent_user
 from baserow.core.cache import global_cache
 from baserow.core.models import Agent, Workspace
 from baserow.core.trash.handler import TrashHandler
@@ -79,6 +80,8 @@ class AgentHandler:
                 update_fields.append(key)
         if update_fields:
             agent.save(update_fields=[*update_fields, "updated_on"])
+        if "name" in update_fields:
+            rename_agent_user(agent)
         return agent
 
     def update_last_active(self, agent: Agent) -> Agent:

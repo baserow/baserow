@@ -30,6 +30,7 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.view_types import GridViewType
 from baserow.core.db import specific_queryset
 from baserow.core.handler import CoreHandler
+from baserow.core.user.utils import language_for_actor
 from baserow.core.utils import (
     ChildProgressBuilder,
     extract_allowed,
@@ -258,7 +259,7 @@ class DataSyncHandler:
         DataSyncSyncedProperty.objects.bulk_create(properties_to_create)
 
         # Create default view.
-        with translation.override(user.profile.language):
+        with translation.override(language_for_actor(user)):
             ViewHandler().create_view(user, table, GridViewType.type, name=_("Grid"))
 
         # Create the table schema in the database.

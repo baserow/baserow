@@ -70,7 +70,7 @@ class UsersAdminView(AdminListingView):
                 "two_factor_auth_provider",
                 queryset=specific_queryset(TwoFactorAuthProviderModel.objects.all()),
             ),
-        ).all()
+        )
 
     @extend_schema(
         tags=["Admin"],

@@ -1,0 +1,12 @@
+{
+    "type": "feature",
+    "message": "Credit, assign and mention Agents, and let them run jobs and scheduled updates",
+    "issue_origin": "github",
+    "issue_number": 6259,
+    "domain": "core",
+    "bullet_points": [
+        "Agents created before this release keep their roles, integrations and automations, but must be deleted and recreated to receive credits or row assignments. New Agents receive new ids.",
+        "Deactivated users no longer receive notifications or notification emails."
+    ],
+    "created_at": "2026-10-30"
+}

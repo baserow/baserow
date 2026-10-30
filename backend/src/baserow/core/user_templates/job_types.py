@@ -330,9 +330,9 @@ class CreateUserTemplateJobType(JobType):
             if not is_update:
                 return action_type_registry.get_by_type(
                     CreateUserTemplateActionType
-                ).do(job.user, job.source_workspace, job.application_ids, **kwargs)
+                ).do(job.actor, job.source_workspace, job.application_ids, **kwargs)
             return action_type_registry.get_by_type(UpdateUserTemplateActionType).do(
-                job.user,
+                job.actor,
                 job.template,
                 job.base_revision,
                 job.source_workspace if copies_from_workspace else None,

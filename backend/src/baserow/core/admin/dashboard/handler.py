@@ -30,7 +30,7 @@ class AdminDashboardHandler:
         Example:
 
         self.get_counts_from_delta_range(
-            queryset=User.objects,
+            queryset=User.objects.all(),
             date_field_name="date_joined",
             delta_mapping={
                 "24_hours": timedelta(hours=24)
@@ -103,7 +103,7 @@ class AdminDashboardHandler:
 
     def get_new_user_counts(self, delta_mapping, now=None, include_previous=False):
         return self.get_counts_from_delta_range(
-            queryset=User.objects,
+            queryset=User.objects.all(),
             date_field_name="date_joined",
             delta_mapping=delta_mapping,
             now=now,

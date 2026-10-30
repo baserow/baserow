@@ -6,6 +6,8 @@ import {
   SingleSelectFieldType,
   MultipleSelectFieldType,
   MultipleCollaboratorsFieldType,
+  CreatedByFieldType,
+  LastModifiedByFieldType,
 } from '@baserow/modules/database/fieldTypes'
 import { firstBy } from 'thenby'
 import { TestApp } from '@baserow/test/helpers/testApp'
@@ -231,6 +233,70 @@ describe('MultipleCollaboratorsFieldType sorting', () => {
 
   afterEach(() => {
     testApp.afterEach()
+  })
+
+  test.each([CreatedByFieldType, LastModifiedByFieldType])(
+    '%s uses the renamed Agent in audit-column sort and copy',
+    async (FieldType) => {
+      await testApp.store.dispatch('workspace/forceCreate', {
+        id: 1,
+        users: [{ user_id: 1, name: 'Person' }],
+        agents: [{ id: 2, user_id: 2, name: 'Agent' }],
+      })
+      const type = new FieldType({ app: testApp.getApp() })
+      const agent = { id: 2, name: 'Stale name' }
+      const rows = [{ v: { id: 1, name: 'Person' } }, { v: agent }]
+      rows.sort(type.getSort('v', 'ASC'))
+      expect(rows[0].v.id).toBe(2)
+      expect(type.prepareValueForCopy({}, agent)).toBe('Agent')
+    }
+  )
+
+  test('linked collaborator values use the member or Agent user id', async () => {
+    await testApp.store.dispatch('workspace/forceCreate', {
+      id: 1,
+      users: [
+        { id: 10, user_id: 20, name: 'Person', email: 'person@example.com' },
+      ],
+      agents: [{ id: 30, user_id: 30, name: 'Ops' }],
+    })
+    const type = new MultipleCollaboratorsFieldType({ app: testApp.getApp() })
+    expect(type.parseFromLinkedRowItemValue({}, 'person@example.com')).toEqual({
+      id: 20,
+      name: 'Person',
+    })
+    expect(type.parseFromLinkedRowItemValue({}, 'Ops')).toEqual({
+      id: 30,
+      name: 'Ops',
+    })
+    expect(type.parseFromLinkedRowItemValue({}, 'missing')).toBeNull()
+    expect(
+      type.prepareValueForPaste(
+        { available_collaborators: [{ id: 20, name: 'Person' }] },
+        'Ops, Person',
+        undefined
+      )
+    ).toEqual([{ id: 20, name: 'Person' }])
+  })
+
+  test('sort and copy resolve Agent names and missing collaborators safely', async () => {
+    await testApp.store.dispatch('workspace/forceCreate', {
+      id: 1,
+      users: [{ user_id: 1, name: 'Zoe' }],
+      agents: [{ id: 2, user_id: 2, name: 'Agent' }],
+    })
+    const type = new MultipleCollaboratorsFieldType({ app: testApp.getApp() })
+    const rows = [
+      { v: [{ id: 1, name: 'Old name' }] },
+      { v: [{ id: 2, name: 'Old Agent name' }] },
+      { v: [{ id: 3, name: 'Gone' }] },
+    ]
+    rows.sort(type.getSort('v', 'ASC'))
+    expect(rows.map((row) => row.v[0].id)).toEqual([2, 3, 1])
+    expect(type.prepareValueForCopy({}, rows[0].v)).toBe('Agent')
+    expect(type.prepareValueForPaste({}, 'Agent, missing', undefined)).toEqual([
+      { id: 2, name: 'Agent' },
+    ])
   })
 
   test('sort matches backend', () => {

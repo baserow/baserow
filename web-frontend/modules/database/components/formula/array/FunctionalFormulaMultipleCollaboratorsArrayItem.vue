@@ -13,19 +13,23 @@
             getCollaboratorName(item, $store)
           }}</span>
         </div>
-        <div class="field-multiple-collaborators__initials">
-          {{ getCollaboratorNameInitials(item, $store) }}
-        </div>
+        <CollaboratorAvatar
+            :field="field"
+          class="field-multiple-collaborators__initials"
+          :collaborator="item"
+        />
       </template>
     </div>
   </span>
 </template>
 
 <script>
+import CollaboratorAvatar from '@baserow/modules/core/components/CollaboratorAvatar'
 import collaboratorName from '@baserow/modules/database/mixins/collaboratorName'
 
 export default {
   name: 'FunctionalFormulaMultipleCollaboratorsArrayItem',
+  components: { CollaboratorAvatar },
   mixins: [collaboratorName],
   props: {
     value: {

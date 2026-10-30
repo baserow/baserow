@@ -1,6 +1,16 @@
 export default {
   computed: {
     workspaceCollaborators() {
+      const workspace = this.$store.getters['workspace/get'](this.workspaceId)
+      if (workspace) {
+        return this.$store.getters['workspace/getCollaborators'](workspace.id)
+          .filter((collaborator) => !collaborator.to_be_deleted)
+          .map((collaborator) => ({
+            id: collaborator.user_id,
+            name: collaborator.name,
+            ...(collaborator.agent ? { agent: true } : {}),
+          }))
+      }
       return this.field.available_collaborators
     },
     availableCollaborators() {

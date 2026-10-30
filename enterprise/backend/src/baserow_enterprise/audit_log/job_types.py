@@ -25,6 +25,7 @@ from baserow.core.action.registries import action_type_registry
 from baserow.core.jobs.registries import JobType
 from baserow.core.registries import subject_type_registry
 from baserow.core.storage import get_default_storage
+from baserow.core.user.utils import language_for_actor
 from baserow.core.utils import ChildProgressBuilder
 
 from .models import AuditLogEntry, AuditLogExportJob
@@ -330,14 +331,14 @@ class AuditLogExportJobType(JobType):
         :progress: The progress object that can be used to update the progress bar.
         """
 
-        check_for_license_and_permissions_or_raise(job.user, job.filter_workspace_id)
+        check_for_license_and_permissions_or_raise(job.actor, job.filter_workspace_id)
 
         queryset = self.get_filtered_queryset(job)
 
         filename = f"{uuid4()}.csv"
         storage_location = ExportHandler.export_file_path(filename)
         with _create_storage_dir_if_missing_and_open(storage_location) as file:
-            with translation_override(job.user.profile.language):
+            with translation_override(language_for_actor(job.actor)):
                 self.write_audit_log_rows(job, file, queryset, progress)
 
         job.exported_file_name = filename

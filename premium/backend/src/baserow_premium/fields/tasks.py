@@ -8,6 +8,7 @@ from celery_singleton import DuplicateTaskError, Singleton
 from baserow.celery_singleton_backend import SingletonAutoRescheduleFlag
 from baserow.config.celery import app
 from baserow.core.jobs.handler import JobHandler
+from baserow.core.registries import subject_type_registry
 from baserow_premium.fields.exceptions import AIFieldPromptInvalidError
 from baserow_premium.fields.job_types import GenerateAIValuesJobType
 from baserow_premium.fields.models import AIField, AIFieldScheduledUpdate
@@ -93,7 +94,7 @@ def generate_scheduled_ai_field_generation(field_id: int):
     # multiple concurrent job runs for the same field.
     try:
         jh.create_and_start_job(
-            user,
+            subject_type_registry.actor_for_user(user),
             GenerateAIValuesJobType.type,
             field_id=field_id,
             is_auto_update=True,

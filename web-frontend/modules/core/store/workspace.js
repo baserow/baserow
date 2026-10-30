@@ -7,6 +7,7 @@ import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
 
 export function populateWorkspace(workspace) {
+  workspace.agents ??= []
   workspace._ = {
     loading: false,
     selected: false,
@@ -176,6 +177,27 @@ export const mutations = {
     const user = state.items[workspaceIndex].users[usersIndex]
     state.userIdsInSelected.delete(user.user_id)
     state.items[workspaceIndex].users.splice(usersIndex, 1)
+  },
+  UPSERT_WORKSPACE_AGENT(state, { workspaceId, agent }) {
+    const workspace = state.items.find((item) => item.id === workspaceId)
+    if (!workspace) {
+      return
+    }
+    workspace.agents ??= []
+    const existing = workspace.agents.find((item) => item.id === agent.id)
+    if (existing) {
+      Object.assign(existing, agent)
+    } else {
+      workspace.agents.push(agent)
+    }
+  },
+  DELETE_WORKSPACE_AGENT(state, { workspaceId, agentId }) {
+    const workspace = state.items.find((item) => item.id === workspaceId)
+    if (workspace?.agents) {
+      workspace.agents = workspace.agents.filter(
+        (agent) => agent.id !== agentId
+      )
+    }
   },
   UPDATE_AGENTS_COUNT(state, { workspaceId, delta }) {
     const workspace = state.items.find((item) => item.id === workspaceId)
@@ -705,6 +727,35 @@ export const getters = {
   },
   isUserIdMemberOfSelectedWorkspace: (state) => (userId) => {
     return state.userIdsInSelected.has(parseInt(userId))
+  },
+  getCollaboratorsByWorkspace(state) {
+    const collaborators = {}
+    for (const workspace of state.items) {
+      collaborators[workspace.id] = [
+        ...(workspace.users || []),
+        ...(workspace.agents || []).map((agent) => ({
+          ...agent,
+          user_id: agent.user_id ?? agent.id,
+          agent: true,
+        })),
+      ]
+    }
+    return collaborators
+  },
+  getAllCollaborators(state, getters) {
+    return Object.fromEntries(
+      Object.values(getters.getCollaboratorsByWorkspace)
+        .flat()
+        .map((collaborator) => [collaborator.user_id, collaborator])
+    )
+  },
+  getCollaborators: (state, getters) => (workspaceId) => {
+    return workspaceId === undefined
+      ? Object.values(getters.getAllCollaborators)
+      : getters.getCollaboratorsByWorkspace[workspaceId] || []
+  },
+  getCollaboratorById: (state, getters) => (userId) => {
+    return getters.getAllCollaborators[userId]
   },
   getAllUsers(state) {
     const users = {}

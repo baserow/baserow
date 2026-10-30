@@ -139,7 +139,7 @@ class AirtableImportJobType(JobType):
         database = action_type_registry.get(
             ImportDatabaseFromAirtableActionType.type
         ).do(
-            job.user,
+            job.actor,
             job.workspace,
             job.airtable_share_id,
             job.skip_files,

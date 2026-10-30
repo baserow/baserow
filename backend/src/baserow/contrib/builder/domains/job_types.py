@@ -44,4 +44,4 @@ class PublishDomainJobType(JobType):
     def run(self, job: PublishDomainJob, progress):
         from .service import DomainService
 
-        DomainService().publish(job.user, job.domain, progress)
+        DomainService().publish(job.actor, job.domain, progress)

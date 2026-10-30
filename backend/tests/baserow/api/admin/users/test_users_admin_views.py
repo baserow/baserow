@@ -1241,3 +1241,32 @@ def test_admin_impersonate_tokens_are_marked_and_stay_marked_after_refresh(
     # The user's own tokens carry no such claim.
     own = str(RefreshToken.for_user(user_to_impersonate).access_token)
     assert IMPERSONATED_BY_CLAIM not in AccessToken(own)
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_admin_user_endpoints_exclude_agent_users(api_client, data_fixture):
+    staff, token = data_fixture.create_user_and_token(is_staff=True)
+    agent = data_fixture.create_agent()
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    response = api_client.get(reverse("api:admin:users:list"), **headers)
+    assert response.status_code == HTTP_200_OK
+    assert [user["id"] for user in response.json()["results"]] == [staff.id]
+
+    edit_url = reverse("api:admin:users:edit", kwargs={"user_id": agent.user_id})
+    responses = [
+        api_client.patch(edit_url, {"is_active": True}, format="json", **headers),
+        api_client.delete(edit_url, **headers),
+        api_client.delete(
+            reverse(
+                "api:admin:users:two_factor_auth", kwargs={"user_id": agent.user_id}
+            ),
+            **headers,
+        ),
+    ]
+    assert all(response.status_code == HTTP_400_BAD_REQUEST for response in responses)
+    assert all(
+        response.json()["error"] == "USER_ADMIN_UNKNOWN_USER" for response in responses
+    )
+    agent.user.refresh_from_db()
+    assert not agent.user.is_active

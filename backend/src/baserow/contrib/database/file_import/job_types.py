@@ -162,7 +162,7 @@ class FileImportJobType(JobType):
         if job.table is not None and configuration.get("import_fields") is None:
             configuration["import_fields"] = [
                 field.id
-                for field in RowHandler().get_import_fields(job.user, job.table)
+                for field in RowHandler().get_import_fields(job.actor, job.table)
             ]
 
         data_file = ContentFile(
@@ -233,7 +233,7 @@ class FileImportJobType(JobType):
                 new_table, error_report = action_type_registry.get_by_type(
                     CreateTableActionType
                 ).do(
-                    job.user,
+                    job.actor,
                     job.database,
                     name=job.name,
                     data=data["data"],
@@ -247,7 +247,7 @@ class FileImportJobType(JobType):
                 _, error_report = action_type_registry.get_by_type(
                     ImportRowsActionType
                 ).do(
-                    job.user,
+                    job.actor,
                     table=job.table,
                     data=data,
                     progress=progress,

@@ -39,7 +39,8 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.exceptions import ViewNotInTable
 from baserow.contrib.database.views.models import GridView, GridViewFieldOptions
-from baserow.core.exceptions import PermissionDenied
+from baserow.core.cache import local_cache
+from baserow.core.exceptions import PermissionDenied, UserNotInWorkspace
 from baserow.test_utils.helpers import (
     get_form_view_edit_row_url,
     setup_interesting_test_table,
@@ -1244,3 +1245,30 @@ def test_csv_is_escaped(get_storage_mock, data_fixture):
     bom = "\ufeff"
     expected = bom + "id,text_field\r\n1,'=1+2\r\n"
     assert contents == expected
+
+
+@pytest.mark.django_db
+@patch("baserow.core.storage.get_default_storage")
+def test_agent_export_jobs_store_the_agent_user_and_keep_agent_permissions(
+    get_storage_mock, data_fixture
+):
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
+    table = data_fixture.create_database_table()
+    text = data_fixture.create_text_field(table=table, name="Text", primary=True)
+    agent = data_fixture.create_agent(workspace=table.database.workspace)
+    table.get_model().objects.create(**{text.db_column: "Agent export"})
+
+    job, contents = run_export_job_with_mock_storage(table, None, storage_mock, agent)
+
+    assert job.user == agent.user
+    assert job.state == EXPORT_JOB_FINISHED_STATUS
+    assert "Agent export" in contents
+
+    pending = ExportHandler.create_pending_export_job(
+        agent, table, None, {"exporter_type": "csv"}
+    )
+    agent.trashed = True
+    agent.save(update_fields=["trashed"])
+    with local_cache.context(), pytest.raises(UserNotInWorkspace):
+        ExportHandler.run_export_job(pending)

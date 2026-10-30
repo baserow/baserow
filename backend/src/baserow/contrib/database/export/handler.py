@@ -28,6 +28,7 @@ from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.handler import CoreHandler
+from baserow.core.registries import subject_type_registry
 from baserow.core.storage import (
     _create_storage_dir_if_missing_and_open,
     get_default_storage,
@@ -126,13 +127,13 @@ class ExportHandler:
         if view and view.table.id != table.id:
             raise ViewNotInTable()
 
-        _cancel_unfinished_jobs(user)
+        _cancel_unfinished_jobs(subject_type_registry.user_for_actor(user))
 
         _raise_if_invalid_view_or_table_for_exporter(exporter_type, view)
         _raise_if_invalid_order_by_or_filters(table, view, export_options)
 
         job = ExportJob.objects.create(
-            user=user,
+            user=subject_type_registry.user_for_actor(user),
             table=table,
             view=view,
             exporter_type=exporter_type,
@@ -159,7 +160,11 @@ class ExportHandler:
         # Ensure the user still has permissions when the export job runs.
         table = job.table
         view = job.view
-        ExportHandler._raise_if_no_export_permissions(job.user, table, view)
+        ExportHandler._raise_if_no_export_permissions(
+            subject_type_registry.actor_for_user(job.user) if job.user else None,
+            table,
+            view,
+        )
         try:
             return _mark_job_as_finished(_open_file_and_run_export(job))
         except ExportJobCanceledException:
@@ -334,7 +339,10 @@ def _register_action(job):
     from .actions import ExportTableActionType
 
     action_type_registry.get(ExportTableActionType.type).do(
-        job.user, job.table, export_type=job.exporter_type, view=job.view
+        subject_type_registry.actor_for_user(job.user) if job.user else None,
+        job.table,
+        export_type=job.exporter_type,
+        view=job.view,
     )
 
 

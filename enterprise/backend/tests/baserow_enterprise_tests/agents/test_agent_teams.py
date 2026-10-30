@@ -346,9 +346,7 @@ def test_agent_team_memberships_survive_trash_restore_and_team_edits(
     member = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user, members=[member])
     team = enterprise_data_fixture.create_team(workspace=workspace)
-    # Overlapping IDs must not hide the human when the agent is trashed.
     agent = Agent.objects.create(
-        id=member.id,
         workspace=workspace,
         name="Writer",
         role_uid="NO_ROLE_LOW_PRIORITY",
@@ -419,7 +417,7 @@ def test_agent_team_memberships_survive_trash_restore_and_team_edits(
 def test_permanent_agent_deletion_cleans_access_records(
     data_fixture, enterprise_data_fixture, team_trashed
 ):
-    """Permanent deletion prevents generic access records applying to a reused ID."""
+    """Permanent deletion clears generic access records and new Agents get fresh ids."""
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     team = enterprise_data_fixture.create_team(workspace=workspace)
@@ -453,8 +451,9 @@ def test_permanent_agent_deletion_cleans_access_records(
     assert not RoleAssignment.objects.filter(id=assignment_id).exists()
 
     reused_agent = Agent.objects.create(
-        id=agent_id, workspace=workspace, name="Reused", role_uid="NO_ACCESS"
+        workspace=workspace, name="New", role_uid="NO_ACCESS"
     )
+    assert reused_agent.id != agent_id
     assert not TeamSubject.objects_and_trash.filter(
         subject_type=agent_content_type, subject_id=reused_agent.id
     ).exists()

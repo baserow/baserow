@@ -184,7 +184,7 @@ from baserow.core.formula import BaserowFormulaException
 from baserow.core.formula.parser.exceptions import FormulaFunctionTypeDoesNotExist
 from baserow.core.handler import CoreHandler
 from baserow.core.import_export.utils import file_chunk_generator
-from baserow.core.models import UserFile, WorkspaceUser
+from baserow.core.models import UserFile
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import (
     ExportZipFile,
@@ -4721,9 +4721,11 @@ class FileFieldType(FieldType):
             return values
 
         def get_random_objects_iterator(limit=10000):
-            user_ids = WorkspaceUser.objects.filter(
-                workspace=instance.table.database.workspace_id
-            ).values_list("user_id", flat=True)
+            user_ids = (
+                CoreHandler()
+                .get_workspace_collaborators(instance.table.database.workspace_id)
+                .values_list("id", flat=True)
+            )
             qs = UserFile.objects.filter(uploaded_by_id__in=user_ids).order_by("?")
             if count > limit:
                 return qs.iterator(chunk_size=limit)
@@ -7809,7 +7811,8 @@ class MultipleCollaboratorsFieldType(
                 return value
 
             users_by_id = {
-                user.id: user for user in get_user_model().objects.filter(id__in=value)
+                user.id: user
+                for user in get_user_model().objects_and_agents.filter(id__in=value)
             }
             users = [
                 users_by_id[user_id] for user_id in value if user_id in users_by_id
@@ -7843,9 +7846,12 @@ class MultipleCollaboratorsFieldType(
 
         user_ids = [v["id"] if isinstance(v, dict) else v for v in value]
         workspace = instance.table.database.workspace
-        workspace_users_count = WorkspaceUser.objects.filter(
-            user_id__in=user_ids, workspace_id=workspace.id
-        ).count()
+        workspace_users_count = (
+            CoreHandler()
+            .get_workspace_collaborators(workspace)
+            .filter(id__in=user_ids)
+            .count()
+        )
 
         if workspace_users_count != len(user_ids):
             raise AllProvidedCollaboratorIdsMustBeValidUsers(user_ids)
@@ -7867,9 +7873,12 @@ class MultipleCollaboratorsFieldType(
 
         workspace = instance.table.database.workspace
 
-        selected_ids = WorkspaceUser.objects.filter(
-            user_id__in=all_user_ids, workspace_id=workspace.id
-        ).values_list("user_id", flat=True)
+        selected_ids = (
+            CoreHandler()
+            .get_workspace_collaborators(workspace)
+            .filter(id__in=all_user_ids)
+            .values_list("id", flat=True)
+        )
 
         if len(selected_ids) != len(all_user_ids):
             invalid_ids = sorted(list(all_user_ids - set(selected_ids)))
@@ -7992,9 +8001,9 @@ class MultipleCollaboratorsFieldType(
             "db_constraint": False,
         }
         additional_filters = {
-            "id__in": WorkspaceUser.objects.filter(
-                workspace_id=instance.table.database.workspace_id
-            ).values_list("user_id", flat=True)
+            "id__in": CoreHandler()
+            .get_workspace_collaborators(instance.table.database.workspace_id)
+            .values_list("id", flat=True)
         }
 
         MultipleSelectManyToManyField(
@@ -8042,12 +8051,8 @@ class MultipleCollaboratorsFieldType(
             # containing a mapping of the row ids to collaborator emails.
             cache[cache_entry] = defaultdict(list)
 
-            workspaceusers_from_workspace = WorkspaceUser.objects.filter(
-                workspace_id=workspace_id
-            ).select_related("user")
-
-            for workspaceuser in workspaceusers_from_workspace:
-                cache[cache_entry][workspaceuser.user.email] = workspaceuser.user.id
+            for user in CoreHandler().get_workspace_collaborators(workspace_id):
+                cache[cache_entry][user.email] = user.id
 
         through_model = row._meta.get_field(field_name).remote_field.through
         through_model_fields = through_model._meta.get_fields()
@@ -8078,9 +8083,9 @@ class MultipleCollaboratorsFieldType(
         cache_entry = f"collaborator_id_to_email_export_{workspace_id}"
         if cache_entry not in cache:
             cache[cache_entry] = dict(
-                WorkspaceUser.objects.filter(workspace_id=workspace_id).values_list(
-                    "user_id", "user__email"
-                )
+                CoreHandler()
+                .get_workspace_collaborators(workspace_id)
+                .values_list("id", "email")
             )
 
         id_to_email = cache[cache_entry]
@@ -8097,19 +8102,17 @@ class MultipleCollaboratorsFieldType(
         cache_key = f"collaborator_email_to_id_import_{workspace_id}"
         if cache_key not in cache:
             cache[cache_key] = {
-                workspace_user["user__email"]: workspace_user
-                for workspace_user in WorkspaceUser.objects.filter(
-                    workspace_id=workspace_id
-                )
-                .select_related("user")
-                .values("user__email", "user__first_name", "user_id")
+                user["email"]: user
+                for user in CoreHandler()
+                .get_workspace_collaborators(workspace_id)
+                .values("email", "first_name", "id")
             }
 
         email_to_id = cache[cache_key]
         return [
             {
-                "id": email_to_id[email]["user_id"],
-                "name": email_to_id[email]["user__first_name"],
+                "id": email_to_id[email]["id"],
+                "name": email_to_id[email]["first_name"],
             }
             for email in value
             if isinstance(email, str) and email in email_to_id
@@ -8124,9 +8127,11 @@ class MultipleCollaboratorsFieldType(
 
         if cache_entry_name not in cache:
             table = Table.objects.get(id=instance.table_id)
-            workspaceusers_ids = WorkspaceUser.objects.filter(
-                workspace=table.database.workspace_id
-            ).values_list("user_id", flat=True)
+            workspaceusers_ids = (
+                CoreHandler()
+                .get_workspace_collaborators(table.database.workspace_id)
+                .values_list("id", flat=True)
+            )
             cache[cache_entry_name] = list(workspaceusers_ids)
 
         collaborators = cache[cache_entry_name]
@@ -8271,7 +8276,11 @@ class MultipleCollaboratorsFieldType(
     def get_group_by_display_values(self, field, field_name, raw_values):
         ids = {uid for value in raw_values for uid in (value or [])}
         names = (
-            dict(User.objects.filter(id__in=ids).values_list("id", "first_name"))
+            dict(
+                User.objects_and_agents.filter(id__in=ids).values_list(
+                    "id", "first_name"
+                )
+            )
             if ids
             else {}
         )

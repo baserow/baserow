@@ -353,6 +353,16 @@ def applications_reordered(sender, workspace, order, user, **kwargs):
 def agent_created(sender, agent, user=None, **kwargs):
     """Notify permitted users when an agent is created or restored."""
 
+    if agent.user_id is not None:
+        payload = {
+            "type": "workspace_agent_created",
+            "workspace_id": agent.workspace_id,
+            "agent": {"id": agent.id, "user_id": agent.user_id, "name": agent.name},
+        }
+        transaction.on_commit(
+            lambda: broadcast_to_group.delay(agent.workspace_id, payload)
+        )
+
     transaction.on_commit(
         lambda: broadcast_to_permitted_users.delay(
             agent.workspace_id,
@@ -373,6 +383,16 @@ def agent_created(sender, agent, user=None, **kwargs):
 def agent_updated(sender, agent, user, **kwargs):
     """Notify users who can list agents about updated agent details."""
 
+    if agent.user_id is not None:
+        payload = {
+            "type": "workspace_agent_updated",
+            "workspace_id": agent.workspace_id,
+            "agent": {"id": agent.id, "user_id": agent.user_id, "name": agent.name},
+        }
+        transaction.on_commit(
+            lambda: broadcast_to_group.delay(agent.workspace_id, payload)
+        )
+
     transaction.on_commit(
         lambda: broadcast_to_permitted_users.delay(
             agent.workspace_id,
@@ -392,6 +412,16 @@ def agent_updated(sender, agent, user, **kwargs):
 @receiver(agent_signals.agent_deleted)
 def agent_deleted(sender, agent, user, **kwargs):
     """Notify users who can list agents that an agent was deleted."""
+
+    if agent.user_id is not None:
+        payload = {
+            "type": "workspace_agent_deleted",
+            "workspace_id": agent.workspace_id,
+            "agent_id": agent.id,
+        }
+        transaction.on_commit(
+            lambda: broadcast_to_group.delay(agent.workspace_id, payload)
+        )
 
     transaction.on_commit(
         lambda: broadcast_to_permitted_users.delay(

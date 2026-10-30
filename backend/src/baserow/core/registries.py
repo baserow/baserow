@@ -1411,6 +1411,26 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
 
         pass
 
+    def get_user(self, subject: Subject) -> Optional["AbstractUser"]:
+        """
+        The user stored for this subject in user foreign keys.
+
+        :param subject: The acting subject.
+        :return: The user, or None when the subject has none.
+        """
+
+        return None
+
+    def get_actor_for_user(self, user: "AbstractUser") -> Optional[Subject]:
+        """
+        The subject a stored user acts as, when this type owns that user.
+
+        :param user: A user read from a user foreign key.
+        :return: The subject, or None when this type does not own the user.
+        """
+
+        return None
+
     def get_workspace_subjects(self, workspace: "Workspace", include_trash=False):
         """Return the subjects whose direct roles belong to a workspace.
 
@@ -1584,6 +1604,32 @@ class SubjectTypeRegistry(Registry[SubjectType], ModelRegistryMixin[Any, Subject
 
     name = "subject"
     does_not_exist_exception_class = SubjectTypeNotExist
+
+    def user_for_actor(self, actor: Optional[Actor]) -> Optional["AbstractUser"]:
+        """
+        The user to store for whoever performs an operation.
+
+        :param actor: The actor, or None.
+        :return: The stored user, or None when the actor has none.
+        """
+
+        if actor is None:
+            return None
+        return self.get_by_model(actor).get_user(actor)
+
+    def actor_for_user(self, user: "AbstractUser") -> Actor:
+        """
+        The actor a user read from a user foreign key acts as.
+
+        :param user: The stored user.
+        :return: The subject owning the user, or the user itself.
+        """
+
+        for subject_type in self.get_all():
+            actor = subject_type.get_actor_for_user(user)
+            if actor is not None:
+                return actor
+        return user
 
     def get_serializer(self, model_instance, **kwargs) -> Serializer:
         """
