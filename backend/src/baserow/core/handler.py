@@ -71,6 +71,7 @@ from .exceptions import (
     WorkspaceUserIsLastAdmin,
     is_max_lock_exceeded_exception,
 )
+from .feature_flags import FF_USER_TEMPLATES, feature_flag_is_enabled
 from .models import (
     WORKSPACE_USER_PERMISSION_ADMIN,
     WORKSPACE_USER_PERMISSION_MEMBER,
@@ -213,12 +214,17 @@ class CoreHandler:
         :param settings_instance: If already fetched, the settings instance can be
             provided to avoid fetching the values for a second time.
         :param kwargs: An dict containing the settings that need to be updated.
+        :raises FeatureDisabledException: If `user_templates_require_approval` is
+            changed with the user templates feature disabled.
         :return: The update settings instance.
         """
 
         CoreHandler().check_permissions(
             user, UpdateSettingsOperationType.type, context=settings_instance
         )
+
+        if "user_templates_require_approval" in kwargs:
+            feature_flag_is_enabled(FF_USER_TEMPLATES, raise_if_disabled=True)
 
         if not settings_instance:
             settings_instance = self.get_settings()
@@ -237,6 +243,7 @@ class CoreHandler:
                 "email_verification",
                 "verify_import_signature",
                 "allow_reporting_abuse",
+                "user_templates_require_approval",
             ],
             settings_instance,
         )
@@ -2200,7 +2207,11 @@ class CoreHandler:
                 if actor.is_authenticated
                 else templates.none()
             )
-        templates = templates.listed() if listed else templates.latest_revisions()
+        templates = (
+            templates.listed()
+            if listed
+            else templates.latest_revisions().with_review_state()
+        )
 
         # A revision isn't changed after it's created, an official template is.
         # The ones from before these fields existed come last.

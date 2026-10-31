@@ -93,6 +93,8 @@ def test_list_own_templates(api_client, data_fixture):
             ],
             "state": "rejected",
             "reason": "Not a template.",
+            "needs_review": True,
+            "listed": False,
             "source_workspace_id": source_workspace.id,
             "source_application_ids": [3, 1],
             "install_count": 0,
@@ -118,9 +120,10 @@ def test_list_own_templates_shows_state_of_the_latest_revision(
 
     response = list_own_templates(api_client, token)
 
+    # An edit of a rejected template is still rejected.
     assert response.status_code == HTTP_200_OK
     result = response.json()["results"][0]
-    assert (result["state"], result["reason"]) == ("private", None)
+    assert (result["state"], result["reason"]) == ("rejected", "Not a template.")
 
     template.blocked_at = django_timezone.now()
     template.save()
@@ -182,6 +185,8 @@ def test_list_templates_hides_the_state_from_others(api_client, data_fixture):
     owner_only = (
         "state",
         "reason",
+        "needs_review",
+        "listed",
         "source_workspace_id",
         "source_application_ids",
         "install_count",
@@ -193,7 +198,7 @@ def test_list_templates_hides_the_state_from_others(api_client, data_fixture):
         results = response.json()["results"]
         assert len(results) == 2
         assert {tuple(t[key] for key in owner_only) for t in results} == {
-            (None, None, None, None, None)
+            (None, None, None, None, None, None, None)
         }
 
     response = list_templates(api_client, owner_token, type="user")
@@ -247,6 +252,8 @@ def test_list_own_templates_paging(api_client, data_fixture):
     assert response_json["count"] == 25
     assert [t["id"] for t in response_json["results"]] == expected_ids[:20]
     assert response_json["next"] is not None
+    # Approval is on by default: making any of them public needs a review.
+    assert {t["needs_review"] for t in response_json["results"]} == {True}
 
     response = list_own_templates(api_client, token, limit=20, offset=20)
     assert response.status_code == HTTP_200_OK
@@ -302,6 +309,8 @@ def test_list_own_templates_search(api_client, data_fixture):
 
 
 def test_list_own_templates_query_count_is_constant(api_client, data_fixture):
+    # Every instance has its settings row, which is read once per request.
+    data_fixture.update_settings()
     user, token = data_fixture.create_user_and_token()
     categories = [data_fixture.create_template_category() for _ in range(2)]
 
@@ -1123,6 +1132,7 @@ VISIBILITY = {
 )
 def test_make_visibility_actors(api_client, data_fixture, listed, actor, status, error):
     before, after = VISIBILITY[listed]
+    data_fixture.update_settings(user_templates_require_approval=False)
     owner, owner_token = data_fixture.create_user_and_token()
     _, other_token = data_fixture.create_user_and_token()
     template = create_own_template(data_fixture, owner, before)
@@ -1136,6 +1146,8 @@ def test_make_visibility_actors(api_client, data_fixture, listed, actor, status,
     if status == HTTP_200_OK:
         assert response.json()["id"] == template.id
         assert response.json()["state"] == after
+        # Approval is off: making it public again lists it at once.
+        assert response.json()["needs_review"] is False
     final = after if status == HTTP_200_OK else before
     assert is_public(template) == (final == "public")
 
@@ -1157,6 +1169,18 @@ def test_make_public_requires_consent(api_client, data_fixture, actor, status, e
 
     assert response.status_code == status
     assert response.json()["error"] == error
+    assert not is_public(template)
+
+
+def test_make_public_goes_to_review(api_client, data_fixture):
+    data_fixture.update_settings(user_templates_require_approval=True)
+    owner, token = data_fixture.create_user_and_token()
+    template = create_own_template(data_fixture, owner)
+
+    response = make_visibility(api_client, token, True, template.slug)
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["state"] == "in_review"
     assert not is_public(template)
 
 
@@ -1184,6 +1208,7 @@ def test_make_public_without_content(api_client, data_fixture):
 
 @pytest.mark.parametrize("shown", ["old", "latest"])
 def test_make_public_lists_the_revision_shown(api_client, data_fixture, shown):
+    data_fixture.update_settings(user_templates_require_approval=False)
     owner, token = data_fixture.create_user_and_token()
     template = create_own_template(data_fixture, owner)
     latest = data_fixture.create_user_template_revision(
@@ -1207,6 +1232,20 @@ def test_make_public_lists_the_revision_shown(api_client, data_fixture, shown):
     else:
         assert response.status_code == HTTP_200_OK
         assert Template.objects.get(id=template.id).public_revision_id == latest.id
+
+
+def test_owner_sees_a_listed_template_in_review(api_client, data_fixture):
+    owner, token = data_fixture.create_user_and_token()
+    edited = create_own_template(data_fixture, owner, "public")
+    revision = data_fixture.create_user_template_revision(edited)
+    data_fixture.set_user_template_state(edited, "in_review", revision)
+
+    rows = list_own_templates(api_client, token).json()["results"]
+
+    # The edit is in review, while the approved version stays listed.
+    assert [(r["id"], r["state"], r["listed"]) for r in rows] == [
+        (edited.id, "in_review", True)
+    ]
 
 
 def test_listed_templates_fields_and_paging(api_client, data_fixture):

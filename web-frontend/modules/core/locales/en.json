@@ -195,7 +195,8 @@
     "adminSettings": "Admin settings",
     "general": "General",
     "people": "People",
-    "licenses": "Licenses"
+    "licenses": "Licenses",
+    "adminContentCategory": "Content"
   },
   "accountForm": {
     "nameLabel": "Your name",
@@ -608,7 +609,8 @@
     "you": "You",
     "private": "Only you can see this template",
     "makePublic": "Make public",
-    "makePrivate": "Make private"
+    "makePrivate": "Make private",
+    "submitForReview": "Submit for review"
   },
   "templateModal": {
     "officialTemplates": "Official templates",
@@ -632,20 +634,28 @@
     "privateDescription": "Hidden from the template browser. Only you can see and install it.",
     "public": "Public",
     "publicDescription": "This instance does not review templates, so it appears in the browser straight away.",
+    "publicReviewDescription": "A public template is reviewed by an admin before it appears in the browser.",
+    "listedDescription": "Listed in the template browser. You can make it private again later.",
     "consent": "Listed in the template browser for everyone on this instance. You also acknowledge that your account name {author} is shared as author."
   },
   "updateUserTemplateModal": {
     "detailsTitle": "Edit template",
     "detailsDescription": "Change how your template is presented. The template content stays as it is.",
     "contentTitle": "Update content",
-    "contentDescription": "Replace the content of your template with applications from one of your workspaces. Its details, link and access stay the same.",
     "save": "Save changes",
     "update": "Update template",
     "updated": "Template updated",
     "failedAfterUpdated": "The template was updated, but something went wrong afterwards.",
     "failedPublicAfterUpdated": "The template was updated, but it couldn’t be made public, so it stays private. You can make it public from “Your templates”.",
     "cannotBeCancelled": "It’s not possible to cancel, because the template has already been updated.",
-    "invalidKeptDetails": "The icon or a category of the template can’t be used anymore. Change them with “Edit details” first, then update the content."
+    "invalidKeptDetails": "The icon or a category of the template can’t be used anymore. Change them with “Edit details” first, then update the content.",
+    "reviewTitle": "Saving sends this template back to review",
+    "reviewText": "The approved version stays listed in the template browser until an admin approves the changes.",
+    "inReviewTitle": "This template is in review",
+    "inReviewText": "Saving replaces the version in review, so an admin reviews your changes instead.",
+    "inReviewListedText": "Saving replaces the version in review. The approved version stays listed in the template browser until an admin approves the changes.",
+    "rejectedTitle": "Saving doesn’t send this template back to review",
+    "rejectedText": "It stays rejected. Submit it for review again once your changes are ready."
   },
   "deleteUserTemplateModal": {
     "title": "Are you sure you want to delete “{name}”?",
@@ -658,7 +668,11 @@
     "makePublic": "Make public",
     "updated": "The template changed since you opened it, so it stays private. Check the latest version, then make it public again.",
     "madePublicTitle": "“{name}” is now public",
-    "madePublicDescription": "Listed in the template browser for everyone in this instance."
+    "madePublicDescription": "Listed in the template browser for everyone in this instance.",
+    "resubmitTitle": "Submit “{name}” for review?",
+    "resubmitDescription": "“{name}” will be listed in the template browser for everyone on this instance once an instance admin approves it, and your account name, {author}, is shared as author. You can make it private again later.",
+    "resubmitListedDescription": "The approved version of “{name}” stays listed in the template browser until an instance admin approves this one, which then replaces it.",
+    "submitForReview": "Submit for review"
   },
   "userTemplateDetailsForm": {
     "name": "Name",
@@ -707,6 +721,7 @@
     "stateRejected": "Rejected",
     "stateBlocked": "Blocked",
     "statePublic": "Public",
+    "stateListed": "Listed",
     "errorTitle": "Your templates couldn't be loaded",
     "errorDescription": "Something went wrong while loading your templates.",
     "retry": "Retry",
@@ -715,6 +730,7 @@
     "updateContent": "Update template content",
     "makePublic": "Make public",
     "makePrivate": "Make private",
+    "submitForReview": "Submit for review",
     "delete": "Delete"
   },
   "sharedTemplateList": {
@@ -996,7 +1012,9 @@
     "settingsVerifyImportSignature": "Verify import signature",
     "settingsVerifyImportSignatureDescription": "When enabled, the signature of the imported data is verified to ensure the data has not been tampered with.",
     "settingAllowReportingAbuseName": "Allow reporting abuse",
-    "settingAllowReportingAbuseDescription": "When enabled, visitors of publicly shared views and forms can report them for abuse, and all instance admins are notified about the report."
+    "settingAllowReportingAbuseDescription": "When enabled, visitors of publicly shared views and forms can report them for abuse, and all instance admins are notified about the report.",
+    "settingUserTemplatesRequireApprovalName": "Templates need approval",
+    "settingUserTemplatesRequireApprovalDescription": "When enabled, a template made public is listed in the template browser only after an instance admin approves it, and so is every change to a listed template. Turning it off approves every template waiting for review."
   },
   "formSidebar": {
     "fields": "Fields",
@@ -1376,6 +1394,7 @@
     "dashboard": "Dashboard",
     "users": "Users",
     "workspaces": "Workspaces",
+    "templates": "Templates",
     "aiProviders": "AI providers"
   },
   "aiProviderAdmin": {
@@ -1497,6 +1516,40 @@
     "dateJoined": "Signed up",
     "active": "Active",
     "twoFactorAuth": "2FA"
+  },
+  "templatesAdmin": {
+    "title": "Templates",
+    "subtitle": "Every template published or submitted on this instance.",
+    "inReview": "In review",
+    "published": "Published",
+    "rejectedTab": "Rejected",
+    "tabCount": "{name} · {count}",
+    "inReviewEmpty": "No templates in review.",
+    "publishedEmpty": "No published templates.",
+    "rejectedEmpty": "No rejected templates.",
+    "template": "Template",
+    "author": "Author",
+    "reason": "Reason",
+    "updatedOn": "Last updated",
+    "deletedAuthor": "A deleted user",
+    "approve": "Approve",
+    "reject": "Reject",
+    "approved": "“{name}” approved",
+    "rejected": "“{name}” rejected",
+    "changedTitle": "The template changed",
+    "changedDescription": "The template changed since the page was loaded. The list shows it as it is now.",
+    "alreadyApprovedTitle": "“{name}” already approved",
+    "alreadyApprovedDescription": "It was approved since the page was loaded, most likely by another admin. The list shows it as it is now.",
+    "alreadyRejectedTitle": "“{name}” already rejected",
+    "alreadyRejectedDescription": "It was rejected since the page was loaded, most likely by another admin. The list shows it as it is now."
+  },
+  "rejectTemplateModal": {
+    "title": "Reject “{name}”?",
+    "description": "The author sees this reason on their template. It stays out of the browser until you approve it.",
+    "editDescription": "Only the latest change is rejected. The approved version stays listed in the template browser, and its author sees the reason.",
+    "reasonLabel": "Reason",
+    "reasonPlaceholder": "Why the template can't be listed",
+    "reject": "Reject template"
   },
   "editUserContext": {
     "changePassword": "Change password",

@@ -102,22 +102,20 @@
                   {{ $t('templateDetails.updateContent') }}
                 </a>
               </li>
-              <li
-                v-if="template.state === 'private'"
-                class="context__menu-item"
-              >
+              <li v-if="canMakePublic(template)" class="context__menu-item">
                 <a
                   class="context__menu-item-link"
                   @click.prevent="changeVisibility('make-public', hide)"
                 >
                   <i class="context__menu-item-icon iconoir-eye-empty"></i>
-                  {{ $t('templateDetails.makePublic') }}
+                  {{
+                    template.needs_review
+                      ? $t('templateDetails.submitForReview')
+                      : $t('templateDetails.makePublic')
+                  }}
                 </a>
               </li>
-              <li
-                v-else-if="template.state === 'public'"
-                class="context__menu-item"
-              >
+              <li v-if="canMakePrivate(template)" class="context__menu-item">
                 <a
                   class="context__menu-item-link"
                   @click.prevent="changeVisibility('make-private', hide)"
@@ -150,6 +148,10 @@ import { useNuxtApp } from '#app'
 import { isOwnTemplate } from '@baserow/modules/core/utils/userTemplate'
 import TemplatePreview from '@baserow/modules/core/components/template/TemplatePreview'
 import TemplateInstall from '@baserow/modules/core/components/template/TemplateInstall'
+import {
+  canMakePrivate,
+  canMakePublic,
+} from '@baserow/modules/core/components/template/userTemplateStates'
 
 const props = defineProps({
   template: {

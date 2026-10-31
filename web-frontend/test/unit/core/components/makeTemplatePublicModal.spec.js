@@ -27,9 +27,9 @@ describe('MakeTemplatePublicModal', () => {
     await testApp.afterEach()
   })
 
-  const mountAndShow = async () => {
+  const mountAndShow = async (props = { template }) => {
     const wrapper = await testApp.mount(MakeTemplatePublicModal, {
-      props: { template },
+      props,
       global: {
         stubs: { Modal: ModalStub },
         // Shows the parameters, so that the names in the text can be checked.
@@ -71,6 +71,42 @@ describe('MakeTemplatePublicModal', () => {
     })
     expect(wrapper.findComponent({ name: 'Modal' }).vm.open).toBe(false)
   })
+
+  test.each([
+    [false, 'once an instance admin approves it'],
+    // An earlier version is listed until this one is approved.
+    [true, 'stays listed'],
+  ])(
+    'asks to submit a template that an admin rejected for review (listed: %s)',
+    async (listed, description) => {
+      const row = { ...template, state: 'in_review' }
+      testApp.mock.onPatch('/templates/sprint-tracker/').reply(200, row)
+      const wrapper = await mountAndShow({
+        template: {
+          ...template,
+          state: 'rejected',
+          needs_review: true,
+          listed,
+        },
+      })
+
+      expect(wrapper.find('.user-template-modal__title').text()).toBe(
+        'makeTemplatePublicModal.resubmitTitle {"name":"Sprint Tracker"}'
+      )
+      expect(
+        wrapper.find('.user-template-modal__description').text()
+      ).toContain(description)
+
+      await button(wrapper, 'makeTemplatePublicModal.submitForReview').trigger(
+        'click'
+      )
+      await flushPromises()
+
+      expect(wrapper.emitted('made-public')).toStrictEqual([[row]])
+      // It isn't listed until an admin approves it.
+      expect(testApp.store.state.toast.items).toHaveLength(0)
+    }
+  )
 
   test('sends one request when clicked twice, and stays open for another template', async () => {
     const reply = heldBack()

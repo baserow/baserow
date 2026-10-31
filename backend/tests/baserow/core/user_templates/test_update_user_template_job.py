@@ -325,6 +325,7 @@ def test_update_user_template_details_of_a_later_revision(
 def test_update_user_template_details_makes_the_template_public(
     data_fixture, use_tmp_media_root
 ):
+    data_fixture.update_settings(user_templates_require_approval=False)
     user = data_fixture.create_user()
     root = create_template(data_fixture, user)
     submit = UserTemplateHandler.submit_revision

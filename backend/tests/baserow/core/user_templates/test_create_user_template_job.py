@@ -149,12 +149,16 @@ def test_create_user_template_job(data_fixture):
     action_kwargs = action_done.call_args.kwargs
     assert action_kwargs["action_type"].type == "create_user_template"
     assert action_kwargs["workspace"] == workspace
-    assert action_kwargs["action_params"] == {
+    # The applications share their order, so their ids come in any order.
+    assert {
+        **action_kwargs["action_params"],
+        "application_ids": sorted(action_kwargs["action_params"]["application_ids"]),
+    } == {
         "template_id": template.id,
         "template_name": "Mine",
         "workspace_id": workspace.id,
         "workspace_name": workspace.name,
-        "application_ids": [application.id for application in applications],
+        "application_ids": sorted(application.id for application in applications),
     }
 
 
@@ -688,7 +692,11 @@ def test_create_user_template_job_keeps_the_template_on_error_after_the_commit(
     assert template.workspace.application_set.count() == 1
 
 
-def test_create_user_template_job_makes_the_template_public(data_fixture):
+@pytest.mark.parametrize("require_approval", [True, False])
+def test_create_user_template_job_makes_the_template_public(
+    data_fixture, require_approval
+):
+    data_fixture.update_settings(user_templates_require_approval=require_approval)
     source = create_source(data_fixture)
     user = source["user"]
 
@@ -703,8 +711,13 @@ def test_create_user_template_job_makes_the_template_public(data_fixture):
 
     assert job.state == JOB_FINISHED
     template = Template.objects.get()
-    assert template.public_revision_id == job.revision_id == template.id
-    assert template.review_state == Template.ReviewState.APPROVED
+    assert job.revision_id == template.id
+    if require_approval:
+        assert template.public_revision_id is None
+        assert template.review_state == Template.ReviewState.PENDING
+    else:
+        assert template.public_revision_id == template.id
+        assert template.review_state == Template.ReviewState.APPROVED
     assert [
         (call.kwargs["action_type"].type, call.kwargs["user"])
         for call in action_done.call_args_list

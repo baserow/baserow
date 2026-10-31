@@ -19,6 +19,10 @@
   color: $palette-neutral-1200;
 }
 
+.data-table__heading {
+  min-width: 0;
+}
+
 .data-table__title {
   @extend %ellipsis;
 
@@ -26,6 +30,13 @@
   line-height: 24px;
   font-weight: 600;
   margin: 0;
+}
+
+.data-table__subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: $palette-neutral-900;
 }
 
 .data-table__actions {

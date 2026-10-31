@@ -57,7 +57,7 @@
 
 .user-template-list__row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 120px 140px 100px 24px;
+  grid-template-columns: minmax(0, 1fr) 144px 140px 84px 24px;
   align-items: center;
   gap: 16px;
   padding: 12px 16px;
@@ -124,6 +124,13 @@
   -webkit-box-orient: vertical;
 }
 
+// A state can show next to "Listed", which wraps when a translation is longer.
+.user-template-list__state {
+  @include flex-align-items(4px);
+
+  flex-wrap: wrap;
+}
+
 .user-template-list__updated {
   font-size: 13px;
   color: $palette-neutral-900;
@@ -148,4 +155,8 @@
   margin-right: 4px;
   font-size: 12px;
   vertical-align: -1px;
+}
+
+.user-template-list__reason {
+  overflow-wrap: anywhere;
 }

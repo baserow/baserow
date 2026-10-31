@@ -11,12 +11,16 @@ from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models import (
+    Case,
     Exists,
     F,
     OuterRef,
     Q,
     QuerySet,
+    Subquery,
     UniqueConstraint,
+    Value,
+    When,
 )
 from django.db.models.functions import Coalesce
 from django.db.models.manager import BaseManager
@@ -29,6 +33,7 @@ from baserow.core.jobs.mixins import (
 )
 from baserow.core.jobs.models import Job
 from baserow.core.user_files.models import UserFile
+from baserow.core.user_templates.constants import UserTemplateState
 
 from .abuse_reports.models import AbuseReport
 from .action.models import Action
@@ -631,6 +636,32 @@ def _root_q(**lookups) -> Q:
     )
 
 
+def review_state_expression() -> Case:
+    """
+    The state of a user template, for rows annotated with
+    `TemplateQuerySet.with_review_state`, so that it can be filtered and sorted
+    on. The same rule as `UserTemplateHandler.get_template_state`: keep both in
+    line.
+    """
+
+    return Case(
+        When(_root_q(blocked_at__isnull=False), then=Value(UserTemplateState.BLOCKED)),
+        When(
+            review_state=Template.ReviewState.PENDING,
+            then=Value(UserTemplateState.IN_REVIEW),
+        ),
+        When(
+            review_decided_state=Template.ReviewState.REJECTED,
+            then=Value(UserTemplateState.REJECTED),
+        ),
+        When(
+            _root_q(public_revision__isnull=False),
+            then=Value(UserTemplateState.PUBLIC),
+        ),
+        default=Value(UserTemplateState.PRIVATE),
+    )
+
+
 class TemplateQuerySet(QuerySet):
     def official(self):
         return self.filter(_official_template_q())
@@ -686,6 +717,40 @@ class TemplateQuerySet(QuerySet):
         """
 
         return self.filter(_root_q(**lookups))
+
+    def with_review_state(self):
+        """
+        Annotates every row with what the state of its template reads from the
+        reviews of its revisions, see `UserTemplateHandler.get_template_state`:
+        `review_decided_state` and `review_decided_reason` of the highest revision
+        that was ever submitted, and `review_open_rejection`, whether an admin
+        rejected the template since it was last approved.
+        """
+
+        revisions = Template.objects.filter(
+            Q(id=OuterRef("review_family_id")) | Q(root_id=OuterRef("review_family_id"))
+        ).order_by("-version")
+        decided = revisions.exclude(review_state=Template.ReviewState.NOT_SUBMITTED)
+        # A rejected revision keeps its reason when it's resubmitted or withdrawn,
+        # so the rejection stays open until a later revision is approved.
+        settled = revisions.filter(
+            Q(review_state=Template.ReviewState.APPROVED) | ~Q(reject_reason="")
+        )
+        return self.alias(
+            review_family_id=Coalesce("root_id", "id"),
+            review_settled_state=Subquery(settled.values("review_state")[:1]),
+        ).annotate(
+            review_decided_state=Subquery(decided.values("review_state")[:1]),
+            review_decided_reason=Subquery(decided.values("reject_reason")[:1]),
+            review_open_rejection=Case(
+                When(
+                    Q(review_settled_state__isnull=True)
+                    | Q(review_settled_state=Template.ReviewState.APPROVED),
+                    then=Value(False),
+                ),
+                default=Value(True),
+            ),
+        )
 
     def official_or_owned(self, actor):
         """

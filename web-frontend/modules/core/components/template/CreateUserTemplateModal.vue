@@ -48,6 +48,7 @@
           />
           <UserTemplateVisibilityForm
             :model-value="visibility"
+            :needs-review="requireApproval"
             class="margin-top-2"
             @update:model-value="Object.assign(values, $event)"
           />
@@ -184,6 +185,12 @@ export default {
     visibility() {
       const { makePublic, publicListingConsent } = this.values
       return { makePublic, publicListingConsent }
+    },
+    // A new template made public goes to an instance admin's review first.
+    requireApproval() {
+      return Boolean(
+        this.$store.getters['settings/get'].user_templates_require_approval
+      )
     },
     // Public only once the author agreed to be listed.
     visibilityValid() {

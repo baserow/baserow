@@ -1,8 +1,9 @@
 from unittest.mock import patch
 
-from django.db import DEFAULT_DB_ALIAS
+from django.db import DEFAULT_DB_ALIAS, connection
 from django.shortcuts import reverse
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 from rest_framework.status import (
@@ -13,6 +14,7 @@ from rest_framework.status import (
 )
 
 from baserow.api.settings.registries import SettingsDataRegistry, SettingsDataType
+from baserow.core.cache import invalidate_cached_settings, set_cached_settings
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Settings
 
@@ -422,3 +424,88 @@ def test_allow_reporting_abuse_setting(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     assert response.json()["allow_reporting_abuse"] is False
     assert CoreHandler().get_settings().allow_reporting_abuse is False
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "flag,value,status,listed",
+    [
+        (True, False, HTTP_200_OK, True),
+        (True, True, HTTP_200_OK, False),
+        (False, False, HTTP_403_FORBIDDEN, False),
+    ],
+)
+def test_user_templates_require_approval_setting(
+    api_client, data_fixture, settings, flag, value, status, listed
+):
+    if not flag:
+        settings.FEATURE_FLAGS = []
+    token = data_fixture.create_user_and_token(is_staff=True)[1]
+    waiting = data_fixture.set_user_template_state(
+        data_fixture.create_user_template(), "in_review"
+    )
+    response = api_client.get(reverse("api:settings:get"))
+    assert response.json()["user_templates_require_approval"] is True
+
+    response = api_client.patch(
+        reverse("api:settings:update"),
+        {"user_templates_require_approval": value},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == status
+    if status == HTTP_403_FORBIDDEN:
+        assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
+    expected = value if status == HTTP_200_OK else True
+    assert CoreHandler().get_settings().user_templates_require_approval is expected
+    waiting.refresh_from_db()
+    assert (waiting.public_revision_id == waiting.id) is listed
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("stored", [True, False])
+def test_switching_approval_off_reads_the_stored_setting(
+    api_client, data_fixture, settings, stored
+):
+    # The cached settings can be stale: switching approval off approves the
+    # waiting templates only when the stored setting was on.
+    settings.BASEROW_CACHE_TTL_SECONDS = 600
+    token = data_fixture.create_user_and_token(is_staff=True)[1]
+    waiting = data_fixture.set_user_template_state(
+        data_fixture.create_user_template(), "in_review"
+    )
+    stale = data_fixture.update_settings(user_templates_require_approval=stored)
+    stale.user_templates_require_approval = not stored
+    set_cached_settings(stale)
+
+    with CaptureQueriesContext(connection) as queries:
+        response = api_client.patch(
+            reverse("api:settings:update"),
+            {"user_templates_require_approval": False},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+    invalidate_cached_settings()
+
+    assert response.status_code == HTTP_200_OK
+    waiting.refresh_from_db()
+    assert (waiting.public_revision_id == waiting.id) is stored
+    # Read under a row lock, so a concurrent switch waits for this one.
+    sql = [query["sql"] for query in queries.captured_queries]
+    read = next(
+        i for i, q in enumerate(sql) if "core_settings" in q and "FOR UPDATE" in q
+    )
+    update = next(
+        i for i, q in enumerate(sql) if q.startswith('UPDATE "core_settings"')
+    )
+    assert read < update
+    if stored:
+        # The settings row is updated before any template is locked, so a
+        # concurrent submit either sees approval off or is approved here.
+        first_lock = next(
+            i
+            for i, q in enumerate(sql)
+            if 'FROM "core_template"' in q and "FOR UPDATE" in q
+        )
+        assert update < first_lock
