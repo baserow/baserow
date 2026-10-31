@@ -3,6 +3,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from django.core.cache import cache
+from django.core.files.base import ContentFile
 from django.db import connection, transaction
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
@@ -26,10 +27,12 @@ from baserow.core.models import (
 )
 from baserow.core.storage import get_default_storage
 from baserow.core.user_templates import tasks
+from baserow.core.user_templates.archive import template_archive_dir
 from baserow.core.user_templates.constants import USER_TEMPLATE_DELETION_GRACE_PERIOD
 from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.user_templates.models import (
     CreateUserTemplateJob,
+    DownloadUserTemplateJob,
     UserTemplateContentToDelete,
 )
 from baserow.core.user_templates.tasks import delete_orphaned_user_template_workspaces
@@ -38,6 +41,8 @@ from tests.baserow.core.user_templates.utils import (
     create_content,
     long_ago,
     purge,
+    store_template_archive,
+    template_archive_names,
 )
 
 pytestmark = [
@@ -294,6 +299,47 @@ def test_purge_waits_for_the_jobs_of_the_template(data_fixture, create_job):
     assert not type(job).objects.filter(id=job.id).exists()
 
 
+@patch("baserow.core.user_templates.handler.USER_TEMPLATE_PURGE_BATCH_SIZE", 1)
+def test_purge_waits_for_the_downloads_of_the_template(data_fixture):
+    family = create_family(data_fixture)
+    add_template_archives(family)
+    job = DownloadUserTemplateJob.objects.create(
+        user=data_fixture.create_user(),
+        state=JOB_STARTED,
+        revision=family["family"][-1],
+    )
+    other = create_family(data_fixture, revisions=1)
+
+    purge()
+
+    assert_family_kept(family)
+    assert_family_removed(other)
+
+    DownloadUserTemplateJob.objects.filter(id=job.id).update(state=JOB_FINISHED)
+    purge()
+
+    assert_family_removed(family)
+    assert_template_archives_removed(family)
+    # The job is kept, like any job of the user, without the deleted revision.
+    job.refresh_from_db()
+    assert job.state == JOB_FINISHED
+    assert job.revision_id is None
+
+
+def test_purge_of_a_template_sees_a_download_started_after_it_was_picked(
+    data_fixture,
+):
+    family = create_family(data_fixture)
+    DownloadUserTemplateJob.objects.create(
+        user=data_fixture.create_user(), state=JOB_PENDING, revision=family["root"]
+    )
+
+    # The jobs are read again once they're locked.
+    assert not UserTemplateHandler()._delete_marked_template(family["root"].id)
+
+    assert_family_kept(family)
+
+
 def test_purge_sees_a_failed_job_started_before_it_locks_the_jobs(data_fixture):
     family = create_family(data_fixture)
     job = create_pending_update_job(family)
@@ -405,6 +451,45 @@ def test_purge_retries_content_whose_deletion_failed(data_fixture):
 
     assert_family_removed(family)
     assert not UserTemplateContentToDelete.objects.exists()
+
+
+def add_template_archives(family):
+    """
+    Gives the revisions of the family the archives their downloads built: the
+    last one refers to its archive, the others have a file a build left behind.
+    """
+
+    names = []
+    for revision in family["family"][:-1]:
+        names.append(
+            get_default_storage().save(
+                f"{template_archive_dir(revision.id)}left.zip", ContentFile(b"left")
+            )
+        )
+    # It shares the content of the revision before, which keeps its archive.
+    names.append(store_template_archive(family["family"][-1]))
+    return names
+
+
+def assert_template_archives_removed(family):
+    for revision in family["family"]:
+        assert not get_default_storage().exists(template_archive_dir(revision.id))
+
+
+def test_purge_removes_the_archives_of_every_revision(data_fixture):
+    family = create_family(data_fixture)
+    other = create_family(data_fixture, marked_for_deletion_at=timezone.now())
+    add_template_archives(family)
+    other_names = add_template_archives(other)
+
+    purge()
+
+    assert_family_removed(family)
+    assert_template_archives_removed(family)
+    assert not UserTemplateContentToDelete.objects.exists()
+    assert sum(
+        (template_archive_names(revision) for revision in other["family"]), []
+    ) == sorted(other_names)
 
 
 def test_purge_continues_after_a_template_fails(data_fixture):

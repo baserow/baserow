@@ -81,6 +81,28 @@ class CreateUserTemplateJob(
     )
 
 
+class DownloadUserTemplateJob(Job):
+    """
+    Builds the downloadable archive of a revision of a user template, unless it
+    has a valid one already.
+    """
+
+    revision = models.ForeignKey(
+        Template,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        help_text="The revision whose archive is downloaded. Empty once the "
+        "template was deleted permanently.",
+    )
+    latest = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Whether the latest revision was asked for, so that its archive "
+        "is asked for the same way once the job is finished.",
+    )
+
+
 class UserTemplateContentToDelete(models.Model):
     """
     The workspace and archive copied by a create job that was deleted before they

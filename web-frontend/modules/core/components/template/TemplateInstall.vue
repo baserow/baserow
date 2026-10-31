@@ -62,13 +62,38 @@
     <Context ref="contextRef">
       <ul class="context__menu">
         <slot name="menu-items" :hide="hideContext"></slot>
-        <li v-if="showCopyLink" class="context__menu-item">
+        <li
+          v-if="showCopyLink"
+          class="context__menu-item"
+          :class="{ 'context__menu-item--with-separator': hasMenuItems }"
+        >
           <a class="context__menu-item-link" @click.prevent="copyLink">
             <i class="context__menu-item-icon iconoir-link"></i>
             {{ $t('templateInstall.copyLink') }}
             <Copied ref="copiedRef"></Copied>
           </a>
         </li>
+        <li
+          v-if="
+            template.type === 'user' && $featureFlagIsEnabled(FF_USER_TEMPLATES)
+          "
+          class="context__menu-item"
+          :class="{
+            'context__menu-item--with-separator': hasMenuItems && !showCopyLink,
+          }"
+        >
+          <a
+            class="context__menu-item-link"
+            :class="{
+              'context__menu-item-link--loading': isDownloading(template),
+            }"
+            @click.prevent="downloadTemplate"
+          >
+            <i class="context__menu-item-icon iconoir-download"></i>
+            {{ $t('templateInstall.download') }}
+          </a>
+        </li>
+        <slot name="menu-items-end" :hide="hideContext"></slot>
       </ul>
     </Context>
     <CreateWorkspaceModal
@@ -81,11 +106,14 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, useSlots } from 'vue'
 import { useStore } from 'vuex'
 import { useNuxtApp, useRouter, useRuntimeConfig } from '#app'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { signedInUserCheck } from '@baserow/modules/core/utils/auth'
+import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
+import { useUserTemplateDownload } from '@baserow/modules/core/composables/useUserTemplateDownload'
 import { fetchPermissionsOfWorkspaces } from '@baserow/modules/core/utils/workspace'
 import TemplateService from '@baserow/modules/core/services/template'
 import CreateWorkspaceModal from '@baserow/modules/core/components/workspace/CreateWorkspaceModal'
@@ -107,9 +135,7 @@ const props = defineProps({
     required: false,
     default: true,
   },
-  // Whether the latest revision of a user template is installed, which only its
-  // owner may. Otherwise it's the public revision, or the owner's latest one
-  // while it isn't public.
+  // The latest revision, owner only. Otherwise the one the user would install.
   latest: {
     type: Boolean,
     required: false,
@@ -121,6 +147,7 @@ const props = defineProps({
 // be loaded again.
 const emit = defineEmits(['installed', 'outdated'])
 
+const slots = useSlots()
 const store = useStore()
 const router = useRouter()
 const config = useRuntimeConfig()
@@ -131,6 +158,10 @@ const contextRef = ref(null)
 const copiedRef = ref(null)
 const createWorkspaceModal = ref(null)
 const installing = ref(false)
+const { isDownloading, download } = useUserTemplateDownload()
+
+// A separator goes after the slot items, when there are any.
+const hasMenuItems = computed(() => !!slots['menu-items'])
 
 const isAuthenticated = computed(() => store.getters['auth/isAuthenticated'])
 
@@ -201,16 +232,21 @@ async function loadPermissions() {
 
 onMounted(loadPermissions)
 
+// Sends the user back to this template's page after logging in.
+async function goToLogin() {
+  const original = templateRoute().fullPath
+  await router.push({ name: 'login', query: { original } })
+}
+
 async function use() {
   if (!isAuthenticated.value) {
-    // Sends the user back to this template's page after logging in.
-    const original = templateRoute().fullPath
-    await router.push({ name: 'login', query: { original } })
+    await goToLogin()
     return
   }
 
   installing.value = true
   const workspaceId = selectedWorkspaceId.value
+  const isSameUser = signedInUserCheck(store)
 
   try {
     const { data } = await TemplateService($client).asyncInstall(
@@ -218,6 +254,10 @@ async function use() {
       props.template.id,
       { latest: props.latest, revisionId: props.template.revision_id ?? null }
     )
+    // The user logged out while installing.
+    if (!isSameUser()) {
+      return
+    }
     // The user stays where they are. The toast shows the progress, unless the
     // sidebar shows it, and then the result. Added before the job, whose end
     // updates the toast.
@@ -228,6 +268,9 @@ async function use() {
     await store.dispatch('job/create', data)
     emit('installed')
   } catch (error) {
+    if (!isSameUser()) {
+      return
+    }
     notifyIf(error, 'template')
     // Another revision was made public, or the owner updated the template in
     // another tab, since it was shown. Nothing was installed.
@@ -245,7 +288,22 @@ function workspaceCreated(workspace) {
 }
 
 function hideContext() {
-  contextRef.value.hide()
+  // The component can be gone after a request, for example when the modal closed.
+  contextRef.value?.hide()
+}
+
+/**
+ * The menu stays open, showing the loading state, until the download started.
+ */
+async function downloadTemplate() {
+  if (!isAuthenticated.value) {
+    await goToLogin()
+    return
+  }
+  const template = props.template
+  if (await download(template, { latest: props.latest })) {
+    hideContext()
+  }
 }
 
 function templateRoute() {

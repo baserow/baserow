@@ -473,7 +473,10 @@ class CoreConfig(AppConfig):
             InstallTemplateJobType,
         )
         from .snapshots.job_types import CreateSnapshotJobType, RestoreSnapshotJobType
-        from .user_templates.job_types import CreateUserTemplateJobType
+        from .user_templates.job_types import (
+            CreateUserTemplateJobType,
+            DownloadUserTemplateJobType,
+        )
 
         job_type_registry.register(DuplicateApplicationJobType())
         job_type_registry.register(InstallTemplateJobType())
@@ -482,6 +485,7 @@ class CoreConfig(AppConfig):
         job_type_registry.register(ExportApplicationsJobType())
         job_type_registry.register(ImportApplicationsJobType())
         job_type_registry.register(CreateUserTemplateJobType())
+        job_type_registry.register(DownloadUserTemplateJobType())
 
         from baserow.api.notifications.user_data_types import (
             UnreadUserNotificationsCountPermissionsDataType,
@@ -598,6 +602,15 @@ class CoreConfig(AppConfig):
         post_migrate.connect(start_sync_templates_task_after_migrate, sender=self)
         # Create all operations from registry
         post_migrate.connect(sync_operations_after_migrate, sender=self)
+
+        from baserow.core.user_templates.archive import clear_template_archive_stamp
+
+        # The archives of user templates built before a migration are stale.
+        post_migrate.connect(
+            clear_template_archive_stamp,
+            sender=self,
+            dispatch_uid="baserow_core_user_template_archive_stamp",
+        )
 
         if settings.CACHALOT_ENABLED:
             pre_migrate.connect(lambda *a, **kw: clear_cachalot_cache(), sender=self)

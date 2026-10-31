@@ -487,6 +487,29 @@ def test_get_latest_revision(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "kind", ["root", "official", "official_without_type", "marked", "unknown"]
+)
+def test_get_user_template_root_by_slug(data_fixture, kind):
+    root = data_fixture.create_user_template()
+    # Revisions have no slug.
+    data_fixture.create_user_template_revision(root)
+    slugs = {
+        "root": root.slug,
+        "official": data_fixture.create_template().slug,
+        "official_without_type": data_fixture.create_template(type=None).slug,
+        "marked": data_fixture.create_user_template(
+            marked_for_deletion_at=timezone.now()
+        ).slug,
+        "unknown": "unknown",
+    }
+
+    found = UserTemplateHandler().get_user_template_root_by_slug(slugs[kind])
+
+    assert found == (root if kind == "root" else None)
+
+
+@pytest.mark.django_db
 def test_get_template_state_of_a_revision(data_fixture):
     handler = UserTemplateHandler()
     root = data_fixture.create_user_template(

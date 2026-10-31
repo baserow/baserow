@@ -2,6 +2,9 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import { Registerable } from '@baserow/modules/core/registry'
 import SidebarApplicationPendingJob from '@baserow/modules/core/components/sidebar/SidebarApplicationPendingJob'
 import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
+import { triggerDownload } from '@baserow/modules/core/utils/download'
+import { signedInUserCheck } from '@baserow/modules/core/utils/auth'
+import TemplateService from '@baserow/modules/core/services/template'
 
 /**
  * The job type base class that can be extended when creating a plugin
@@ -318,6 +321,206 @@ export class CreateUserTemplateJobType extends JobType {
   getName() {
     const { $i18n: i18n } = this.app
     return i18n.t('createUserTemplateJobType.name')
+  }
+}
+
+/**
+ * Builds the archive of a user template when the download endpoint has none
+ * ready. Once the job is finished, the endpoint is asked for the archive again.
+ * The toast of the download follows the job and saves the archive once.
+ */
+export class DownloadUserTemplateJobType extends JobType {
+  static getType() {
+    return 'download_user_template'
+  }
+
+  getName() {
+    return 'downloadUserTemplate'
+  }
+
+  /**
+   * Shows the answer of the download endpoint to a click: the archive, which is
+   * saved at once, or the job that builds it, which the toast follows.
+   */
+  async startDownload({ status, data }, template, { latest = false } = {}) {
+    const store = this.app.$store
+    if (status === 202) {
+      // A repeated click gets the job that runs already, with its toast.
+      if (!this.findDownloadToast(data.id)) {
+        await this.addDownloadToast(template, latest, {
+          jobId: data.id,
+          autoDownload: true,
+        })
+      }
+      await store.dispatch('job/create', data)
+      return
+    }
+    const toast = await this.addDownloadToast(template, latest, {
+      state: 'finished',
+      url: data.url,
+      file_name: data.file_name,
+    })
+    // Awaited, so that the clicked item stays busy while the file is fetched.
+    await this.downloadArchive(data, toast)
+  }
+
+  async onJobDone(job) {
+    let toast
+    try {
+      toast = await this.updateDownloadToast(job.id)
+    } finally {
+      await this.app.$store.dispatch('job/forceDelete', job)
+    }
+    await this.fetchArchive(toast, job)
+  }
+
+  async onJobFailed(job) {
+    try {
+      await this.updateDownloadToast(job.id, {
+        state: job.state,
+        human_readable_error: job.human_readable_error,
+      })
+    } finally {
+      await this.app.$store.dispatch('job/forceDelete', job)
+    }
+  }
+
+  findDownloadToast(jobId) {
+    return this.app.$store.state.toast.items.find(
+      (toast) =>
+        toast.type === 'downloadTemplate' && toast.data?.jobId === jobId
+    )
+  }
+
+  /**
+   * Shows the toast of a download, and returns it. It replaces the ended toasts
+   * of the same download.
+   */
+  async addDownloadToast(template, latest, data) {
+    const store = this.app.$store
+    const ended = store.state.toast.items.filter(
+      (toast) =>
+        toast.type === 'downloadTemplate' &&
+        toast.data?.slug === template.slug &&
+        toast.data?.latest === latest &&
+        ['finished', 'failed'].includes(toast.data?.state)
+    )
+    for (const toast of ended) {
+      await store.dispatch('toast/remove', toast)
+    }
+    await store.dispatch('toast/add', {
+      type: 'downloadTemplate',
+      data: {
+        template_name: template.name,
+        slug: template.slug,
+        latest,
+        ...data,
+      },
+    })
+    // A new toast is added first.
+    return store.state.toast.items[0]
+  }
+
+  /**
+   * Writes the data into the toast of the job, or shows one if there is none,
+   * because the download was started before the page was loaded.
+   */
+  async updateDownloadToast(jobId, data = {}) {
+    const store = this.app.$store
+    const toast = this.findDownloadToast(jobId)
+    if (toast) {
+      await store.dispatch('toast/update', { toast, data })
+    } else {
+      await store.dispatch('toast/add', {
+        type: 'downloadTemplate',
+        data: { jobId, ...data },
+      })
+    }
+    return this.findDownloadToast(jobId)
+  }
+
+  /**
+   * Asks the download endpoint for the archive that the finished job built. Only
+   * a download clicked in this page saves it by itself, once. If the archive is
+   * gone again, the toast follows the job that builds it anew.
+   */
+  async fetchArchive(toast, { slug, latest }) {
+    const { $client: client, $i18n: i18n, $store: store } = this.app
+    const fail = (message) =>
+      store.dispatch('toast/update', {
+        toast,
+        data: { state: 'failed', human_readable_error: message },
+      })
+    // The template was deleted permanently.
+    if (!slug) {
+      await fail(i18n.t('clientHandler.notCompletedDescription'))
+      return
+    }
+    const isSameUser = signedInUserCheck(store)
+    let response
+    try {
+      response = await TemplateService(client).download(slug, { latest })
+    } catch (error) {
+      if (!error.handler) {
+        throw error
+      }
+      error.handler.handled()
+      if (isSameUser()) {
+        await fail(error.handler.getMessage('template').message)
+      }
+      return
+    }
+    // The user logged out while asking.
+    if (!isSameUser()) {
+      return
+    }
+    const { status, data } = response
+    if (status === 202) {
+      await store.dispatch('toast/update', { toast, data: { jobId: data.id } })
+      await store.dispatch('job/create', data)
+      return
+    }
+    const { autoDownload } = toast.data
+    await store.dispatch('toast/update', {
+      toast,
+      data: {
+        state: 'finished',
+        url: data.url,
+        file_name: data.file_name,
+        autoDownload: false,
+      },
+    })
+    // Not awaited, so that the polling of the jobs doesn't wait for the file.
+    if (autoDownload) {
+      this.downloadArchive(data, toast)
+    }
+  }
+
+  /**
+   * Saves the archive, the way `DownloadLink` saves a file. The toast shows that
+   * the file is being fetched, so that it isn't fetched twice at once.
+   */
+  async downloadArchive({ url, file_name: filename }, toast) {
+    const { $config: config, $i18n: i18n, $store: store } = this.app
+    if (!url) {
+      return
+    }
+    const setDownloading = (downloading) =>
+      store.dispatch('toast/update', { toast, data: { downloading } })
+    await setDownloading(true)
+    try {
+      await triggerDownload(url, filename, {
+        viaXhr: `${config.public.downloadFileViaXhr}` === '1',
+      })
+    } catch (error) {
+      // The file couldn't be fetched from the storage.
+      await store.dispatch('toast/error', {
+        title: i18n.t('clientHandler.notCompletedTitle'),
+        message: i18n.t('clientHandler.notCompletedDescription'),
+      })
+    } finally {
+      await setDownloading(false)
+    }
   }
 }
 

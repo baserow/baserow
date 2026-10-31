@@ -17,6 +17,7 @@ from baserow.api.templates.errors import (
     ERROR_INVALID_TEMPLATE_CATEGORY,
     ERROR_INVALID_TEMPLATE_ICON,
     ERROR_NO_APPLICATIONS_SELECTED,
+    ERROR_TEMPLATE_BLOCKED,
     ERROR_TEMPLATE_DOES_NOT_EXIST,
     ERROR_TEMPLATE_HAS_NO_CONTENT,
 )
@@ -32,11 +33,14 @@ from baserow.core.handler import CoreHandler
 from baserow.core.jobs.constants import JOB_CANCELLED
 from baserow.core.jobs.exceptions import JobCancelled
 from baserow.core.jobs.handler import JobHandler
+from baserow.core.jobs.models import JobQuerySet
 from baserow.core.jobs.registries import JobType
+from baserow.core.models import Template
 from baserow.core.user_templates.actions import (
     CreateUserTemplateActionType,
     UpdateUserTemplateActionType,
 )
+from baserow.core.user_templates.archive import has_valid_archive
 from baserow.core.user_templates.constants import (
     USER_TEMPLATE_DESCRIPTION_MAX_LENGTH,
     USER_TEMPLATE_ICON_MAX_LENGTH,
@@ -45,11 +49,15 @@ from baserow.core.user_templates.exceptions import (
     InvalidTemplateCategory,
     InvalidTemplateIcon,
     NoApplicationsSelected,
+    TemplateBlocked,
     TemplateChangedDuringUpdate,
     TemplateHasNoContent,
 )
 from baserow.core.user_templates.handler import UserTemplateHandler
-from baserow.core.user_templates.models import CreateUserTemplateJob
+from baserow.core.user_templates.models import (
+    CreateUserTemplateJob,
+    DownloadUserTemplateJob,
+)
 from baserow.core.user_templates.service import UserTemplateService
 from baserow.core.utils import Progress
 
@@ -416,3 +424,115 @@ class CreateUserTemplateJobType(JobType):
             logger.exception(
                 f"Deleting the content of create user template job {job.id} failed."
             )
+
+
+class DownloadUserTemplateJobType(JobType):
+    """
+    Builds the archive of the revision of a user template that the user would
+    install, so that it can be imported into another workspace. The archive is
+    built on the first download, and reused until Baserow is upgraded, see
+    `has_valid_archive`. The download endpoint of the template hands it out, and
+    starts this job when there is no valid archive yet.
+    """
+
+    type = "download_user_template"
+    model_class = DownloadUserTemplateJob
+    max_count = 1
+
+    api_exceptions_map = {
+        TemplateDoesNotExist: ERROR_TEMPLATE_DOES_NOT_EXIST,
+        TemplateBlocked: ERROR_TEMPLATE_BLOCKED,
+        TemplateHasNoContent: ERROR_TEMPLATE_HAS_NO_CONTENT,
+    }
+
+    job_exceptions_map = {
+        # Also lost access before the run, and the revision deleted during the
+        # build.
+        TemplateDoesNotExist: ERROR_TEMPLATE_DOES_NOT_EXIST[2],
+        TemplateBlocked: ERROR_TEMPLATE_BLOCKED[2],
+        TemplateHasNoContent: "The content of the template was removed.",
+    }
+
+    request_serializer_field_names = ["slug", "latest"]
+    request_serializer_field_overrides = {
+        "slug": serializers.CharField(
+            max_length=50, help_text="The slug of the user template to download."
+        ),
+        "latest": serializers.BooleanField(
+            default=False,
+            help_text="Whether to download the latest revision of the user "
+            "template, which only its owner may. Otherwise it's the revision the "
+            "user would install.",
+        ),
+    }
+
+    serializer_field_names = ["slug", "latest"]
+    serializer_field_overrides = {
+        # Null once the template was deleted permanently.
+        "slug": serializers.CharField(
+            source="revision.get_root.slug",
+            read_only=True,
+            allow_null=True,
+            help_text="The slug of the downloaded user template, to ask for its "
+            "archive once the job is finished.",
+        ),
+    }
+
+    def transaction_atomic_context(self, job: DownloadUserTemplateJob):
+        """
+        Each application exports in its own `repeatable_read` transaction.
+        """
+
+        return nullcontext()
+
+    def prepare_values(
+        self, values: Dict[str, Any], user: AbstractUser
+    ) -> Dict[str, Any]:
+        latest = values.get("latest", False)
+        revision = UserTemplateHandler().get_downloadable_revision(
+            user, values["slug"], latest=latest
+        )
+        return {"revision": revision, "latest": latest}
+
+    def run(self, job: DownloadUserTemplateJob, progress: Progress):
+        revision = job.revision
+        if revision is None:
+            raise TemplateDoesNotExist("The template was deleted.")
+        # The access may have changed since the job was requested, like install.
+        self._check_access(job, revision)
+        # A repeated download reuses the archive.
+        if has_valid_archive(revision):
+            progress.increment(progress.total)
+            return
+        try:
+            UserTemplateHandler().build_template_archive(
+                revision,
+                progress_builder=progress.create_child_builder(
+                    represents_progress=progress.total
+                ),
+            )
+        except TemplateDoesNotExist:
+            # Saving the job with the deleted revision would fail.
+            job.revision = None
+            raise
+        # The access may have been lost while the archive was built. The archive
+        # stays for later downloads, but this job doesn't hand it out.
+        revision.get_root().refresh_from_db(
+            fields=["owner", "public_revision", "blocked_at", "marked_for_deletion_at"]
+        )
+        job.user.refresh_from_db(fields=["is_active"])
+        self._check_access(job, revision)
+
+    def _check_access(self, job: DownloadUserTemplateJob, revision: Template):
+        """
+        Checks the access like install does, but unlike install, a download fails
+        once the template is marked for deletion too, so that its archive isn't
+        handed out after the owner deleted it.
+        """
+
+        if revision.get_root().marked_for_deletion_at is not None:
+            raise TemplateDoesNotExist("The template was deleted.")
+        UserTemplateHandler().check_install_access(job.user, revision)
+
+    def enhance_queryset(self, queryset: JobQuerySet) -> JobQuerySet:
+        return queryset.select_related("revision__root")

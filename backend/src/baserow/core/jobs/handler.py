@@ -225,6 +225,7 @@ class JobHandler:
         foreign_content_type_ids = list(
             Job.objects.filter(id__in=filter_ids)
             .exclude(user=user)
+            .order_by()
             .values_list("content_type_id", flat=True)
             .distinct()
         )
