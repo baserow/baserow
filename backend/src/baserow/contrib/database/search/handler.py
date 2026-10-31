@@ -331,9 +331,10 @@ class SearchHandler:
         )
 
         try:
-            with transaction.atomic():
-                with connection.schema_editor() as se:
-                    se.create_model(search_table_model)
+            # Unlike `connection.schema_editor()`, this one also exits its transaction
+            # if a deferred statement, like creating the index, fails.
+            with safe_django_schema_editor() as se:
+                se.create_model(search_table_model)
         except ProgrammingError as exc:
             if isinstance(
                 exc.__cause__, (errors.DuplicateTable, errors.DuplicateObject)
