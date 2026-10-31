@@ -28,6 +28,7 @@
           />
         </FormGroup>
         <FormGroup
+          v-if="!serviceType || serviceType.integrationType"
           :label="$t('dataSourceForm.integrationLabel')"
           small-label
           required
@@ -58,7 +59,7 @@
         </FormGroup>
       </div>
     </div>
-    <template v-if="!create && integration">
+    <template v-if="!create && (integration || hasNoIntegration)">
       <component
         :is="serviceType.formComponent"
         ref="subForm"
@@ -66,9 +67,14 @@
         :service="dataSource"
         :service-type="serviceType"
         :default-values="defaultValues"
-        :context-data="integration.context_data"
-        :databases="integration.context_data?.databases || []"
+        :context-data="integration?.context_data"
+        :databases="integration?.context_data?.databases || []"
         @values-changed="emitChange($event)"
+      />
+      <DataSourceTestForm
+        v-if="serviceType.canBeTested"
+        :data-source="dataSource"
+        :page="page"
       />
     </template>
   </div>
@@ -78,15 +84,16 @@
 import { useVuelidate } from '@vuelidate/core'
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
 import GroupedDropdown from '@baserow/modules/core/components/GroupedDropdown'
+import DataSourceTestForm from '@baserow/modules/builder/components/dataSource/DataSourceTestForm'
 import form from '@baserow/modules/core/mixins/form'
 import applicationContext from '@baserow/modules/builder/mixins/applicationContext'
-import { required, maxLength, helpers } from '@vuelidate/validators'
+import { required, requiredIf, maxLength, helpers } from '@vuelidate/validators'
 import { DATA_PROVIDERS_ALLOWED_DATA_SOURCES } from '@baserow/modules/builder/enums'
 import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/string'
 
 export default {
   name: 'DataSourceForm',
-  components: { GroupedDropdown, IntegrationDropdown },
+  components: { GroupedDropdown, IntegrationDropdown, DataSourceTestForm },
   mixins: [form, applicationContext],
   provide() {
     return { dataProvidersAllowed: DATA_PROVIDERS_ALLOWED_DATA_SOURCES }
@@ -155,12 +162,22 @@ export default {
       return this.$registry.getOrderedList('service')
     },
     dataSourceServiceTypes() {
-      return this.serviceTypes.filter(({ isDataSource }) => isDataSource)
+      return this.serviceTypes.filter(
+        ({ isDataSource, hiddenInDataSourcePicker }) =>
+          isDataSource && !hiddenInDataSourcePicker
+      )
     },
     serviceType() {
       return this.values.type
         ? this.$registry.get('service', this.values.type)
         : null
+    },
+    /**
+     * Whether the selected service type works without an integration, like an
+     * HTTP request, in which case there's no integration to choose.
+     */
+    hasNoIntegration() {
+      return Boolean(this.serviceType && !this.serviceType.integrationType)
     },
     existingNames() {
       return this.$store.getters['dataSource/getPageDataSources'](this.page)
@@ -197,29 +214,62 @@ export default {
           ),
         ])
     },
+    /**
+     * The service types without an integration, grouped by their own group
+     * (e.g. HTTP), in the order the groups first appear.
+     */
+    serviceTypesPerGroup() {
+      const groups = new Map()
+      this.dataSourceServiceTypes
+        .filter((serviceType) => !serviceType.integrationType)
+        .forEach((serviceType) => {
+          const group = serviceType.group
+          if (!groups.has(group.id)) {
+            groups.set(group.id, { group, serviceTypes: [] })
+          }
+          groups.get(group.id).serviceTypes.push(serviceType)
+        })
+      return [...groups.values()]
+    },
     serviceTypeOptions() {
-      return this.serviceTypesPerIntegration
-        .map(([integrationType, serviceTypes]) => ({
+      const integrationGroups = this.serviceTypesPerIntegration.map(
+        ([integrationType, serviceTypes]) => ({
           id: `integration-${integrationType.getType()}`,
           label: integrationType.name,
           image: integrationType.image,
           icon: integrationType.iconClass,
           iconColor: integrationType.iconColor,
-          children: serviceTypes.map((serviceType) => ({
-            id: `service-${serviceType.getType()}`,
-            label: serviceType.name,
-            value: serviceType.getType(),
-            icon: serviceType.icon,
-            iconColor: serviceType.iconColor,
-            description: serviceType.description,
-            disabled: this.isServiceTypeDeactivated(serviceType),
-            disabledReason: this.getServiceTypeDeactivatedReason(serviceType),
-          })),
-        }))
-        .filter(({ children }) => children.length > 0)
+          children: serviceTypes.map(this.getServiceTypeOption),
+        })
+      )
+      const otherGroups = this.serviceTypesPerGroup.map(
+        ({ group, serviceTypes }) => ({
+          id: group.id,
+          label: group.label,
+          image: group.image,
+          icon: group.icon,
+          iconColor: group.iconColor,
+          children: serviceTypes.map(this.getServiceTypeOption),
+        })
+      )
+      return [...integrationGroups, ...otherGroups].filter(
+        ({ children }) => children.length > 0
+      )
     },
   },
   methods: {
+    getServiceTypeOption(serviceType) {
+      return {
+        id: `service-${serviceType.getType()}`,
+        label: serviceType.name,
+        value: serviceType.getType(),
+        icon: serviceType.icon,
+        iconColor: serviceType.iconColor,
+        description: serviceType.description,
+        disabled: this.isServiceTypeDeactivated(serviceType),
+        disabledReason: this.getServiceTypeDeactivatedReason(serviceType),
+      }
+    },
     getFormValues(deep = false) {
       const values = Object.assign(
         {},
@@ -284,7 +334,7 @@ export default {
         integration_id: {
           required: helpers.withMessage(
             this.$t('error.requiredField'),
-            required
+            requiredIf(() => !this.hasNoIntegration)
           ),
         },
         type: {

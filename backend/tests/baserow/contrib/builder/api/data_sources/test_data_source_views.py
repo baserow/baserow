@@ -1182,6 +1182,69 @@ def test_dispatch_data_source(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "row_id,expected_status,expected_error",
+    [
+        ("2", HTTP_200_OK, None),
+        ("999", HTTP_400_BAD_REQUEST, "ERROR_SERVICE_IMPROPERLY_CONFIGURED"),
+    ],
+)
+def test_simulate_dispatch_data_source(
+    api_client, data_fixture, row_id, expected_status, expected_error
+):
+    user, token = data_fixture.create_user_and_token()
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Name", "text"),
+            ("My Color", "text"),
+        ],
+        rows=[
+            ["BMW", "Blue"],
+            ["Audi", "Orange"],
+        ],
+    )
+    view = data_fixture.create_grid_view(user, table=table)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=builder
+    )
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        user=user,
+        page=page,
+        integration=integration,
+        view=view,
+        table=table,
+        row_id=row_id,
+    )
+
+    url = reverse(
+        "api:builder:data_source:simulate-dispatch",
+        kwargs={"data_source_id": data_source.id},
+    )
+
+    response = api_client.post(
+        url,
+        {},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == expected_status
+    data_source.service.refresh_from_db()
+    if expected_error:
+        assert response.json()["error"] == expected_error
+        assert data_source.service.sample_data is None
+    else:
+        assert response.json()["id"] == data_source.id
+        assert response.json()["sample_data"]["data"]["id"] == rows[1].id
+        assert data_source.service.sample_data["data"]["id"] == rows[1].id
+
+
+@pytest.mark.django_db
 def test_dispatch_data_source_with_refinements_referencing_trashed_field(
     api_client, data_fixture
 ):

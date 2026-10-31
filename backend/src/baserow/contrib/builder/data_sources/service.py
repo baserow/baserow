@@ -30,7 +30,10 @@ from baserow.contrib.builder.data_sources.types import (
 )
 from baserow.contrib.builder.pages.exceptions import PageNotInBuilder
 from baserow.contrib.builder.pages.models import Page
-from baserow.core.exceptions import CannotCalculateIntermediateOrder
+from baserow.core.exceptions import (
+    CannotCalculateIntermediateOrder,
+    PermissionException,
+)
 from baserow.core.handler import CoreHandler
 from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.services.registries import DispatchTypes, ServiceType
@@ -401,6 +404,44 @@ class DataSourceService:
             raise result
 
         return result
+
+    def simulate_dispatch_data_source(
+        self,
+        user,
+        data_source: DataSource,
+        dispatch_context: BuilderDispatchContext,
+    ) -> DataSource:
+        """
+        Dispatch the service of the data source and store the result as the
+        service's sample data, so that service types building their schema from
+        it can offer its properties. A failed dispatch raises and keeps the
+        sample data the service had.
+
+        :param user: The user testing the data source.
+        :param data_source: The data source to test.
+        :param dispatch_context: The context used for the dispatch.
+        :raises PermissionException: If the builder is published, as published
+            copies must not change their sample data.
+        :return: The data source with its updated service.
+        """
+
+        CoreHandler().check_permissions(
+            user,
+            UpdateDataSourceOperationType.type,
+            workspace=data_source.page.builder.workspace,
+            context=data_source,
+        )
+
+        if data_source.page.builder.is_published:
+            raise PermissionException()
+
+        self.handler.dispatch_data_source(
+            data_source, dispatch_context, update_sample_data=True
+        )
+
+        data_source_updated.send(self, data_source=data_source, user=user)
+
+        return data_source
 
     def move_data_source(
         self,

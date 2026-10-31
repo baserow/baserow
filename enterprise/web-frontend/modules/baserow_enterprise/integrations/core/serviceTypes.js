@@ -123,6 +123,10 @@ export class CoreXLSFileReaderServiceType extends DataSourceServiceTypeMixin(
     return true
   }
 
+  get hiddenInDataSourcePicker() {
+    return true
+  }
+
   getRecordName(service, record) {
     return record?.name || record?.id || ''
   }
