@@ -144,6 +144,17 @@ def test_create_workspace_search_table_exits_its_transaction_if_the_index_fails(
 
 
 @pytest.mark.django_db
+def test_create_workspace_search_tables_with_a_clashing_unique_together_name():
+    # Django names the `unique_together` constraint of both these workspaces
+    # `database_search_workspac_field_id_row_id_075cdc27_uniq`.
+    SearchHandler.create_workspace_search_table_if_not_exists(196341)
+    SearchHandler.create_workspace_search_table_if_not_exists(252798)
+
+    assert SearchHandler.workspace_search_table_exists(196341)
+    assert SearchHandler.workspace_search_table_exists(252798)
+
+
+@pytest.mark.django_db
 def test_delete_workspace_search_table(data_fixture):
     workspace = data_fixture.create_workspace()
     SearchHandler.create_workspace_search_table_if_not_exists(workspace.id)

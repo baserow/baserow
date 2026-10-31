@@ -48,6 +48,7 @@ from baserow.contrib.database.search.expressions import LocalisedSearchVector
 from baserow.contrib.database.search.models import (
     AbstractSearchValue,
     PendingSearchValueUpdate,
+    get_search_constraints,
     get_search_indexes,
 )
 from baserow.contrib.database.search.regexes import (
@@ -143,7 +144,7 @@ def _generate_search_table_model(
             "db_table": table_name,
             "app_label": app_label,
             "indexes": get_search_indexes(workspace_id),
-            "unique_together": [("field_id", "row_id")],
+            "constraints": get_search_constraints(workspace_id),
         },
     )
 

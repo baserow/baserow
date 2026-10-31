@@ -114,3 +114,18 @@ def get_search_indexes(workspace_id: int) -> list[models.Index]:
         )
     ]
     return indexes
+
+
+def get_search_constraints(workspace_id: int) -> list[models.UniqueConstraint]:
+    """
+    Build constraints with names related to a workspace. The name Django generates
+    for `unique_together` is truncated to the same prefix and an 8-character hash
+    for most workspace ids, which isn't unique enough across all workspaces.
+    """
+
+    return [
+        models.UniqueConstraint(
+            fields=("field_id", "row_id"),
+            name=f"database_workspace_{workspace_id}_field_row_uniq",
+        )
+    ]
