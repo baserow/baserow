@@ -41,18 +41,20 @@ class Migration(LockTimeoutMigration):
                         to="core.template",
                     ),
                 ),
-                (
-                    "latest",
-                    models.BooleanField(
-                        db_default=False,
-                        default=False,
-                        help_text="Whether the latest revision was asked for, so that its archive is asked for the same way once the job is finished.",
-                    ),
-                ),
             ],
             options={
                 "abstract": False,
             },
             bases=("core.job",),
+        ),
+        migrations.AlterField(
+            model_name="usertemplatecontenttodelete",
+            name="archive_name",
+            field=models.CharField(
+                blank=True,
+                default="",
+                help_text="The name of the stored archive of the template, or the directory of a revision's archives, which ends with a `/`.",
+                max_length=255,
+            ),
         ),
     ]

@@ -509,7 +509,7 @@
     "templateHasNoContentTitle": "Template has no content",
     "templateHasNoContentDescription": "The template has no content.",
     "templateUpdatedTitle": "This template was updated",
-    "templateUpdatedDescription": "The template changed since you opened it. The latest version is shown now; install it again."
+    "templateUpdatedDescription": "The template changed since you opened it. Try again with its latest version."
   },
   "importerType": {
     "csv": "Import a CSV file",

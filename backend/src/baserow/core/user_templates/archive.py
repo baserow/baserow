@@ -8,6 +8,7 @@ import hashlib
 import re
 import uuid
 from os.path import join
+from typing import TYPE_CHECKING, Any
 
 from django.core.cache import cache
 from django.db import connection
@@ -19,6 +20,9 @@ from baserow.core.context import clear_current_workspace_id, set_current_workspa
 from baserow.core.storage import get_default_storage
 from baserow.version import VERSION
 
+if TYPE_CHECKING:
+    from baserow.core.models import Template
+
 TEMPLATE_ARCHIVES_DIRECTORY = "template-archives"
 TEMPLATE_ARCHIVE_DIR_REGEX = re.compile(rf"^{TEMPLATE_ARCHIVES_DIRECTORY}/\d+/$")
 TEMPLATE_ARCHIVE_STAMP_CACHE_KEY = "user_template_archive_stamp"
@@ -26,14 +30,26 @@ TEMPLATE_ARCHIVE_STAMP_LENGTH = 12
 
 
 def _template_archive_stamp_cache_key() -> str:
-    # A new version is a new key, so that a cache that wasn't cleared after an
-    # upgrade can't hand out the stamp of the previous version.
+    """
+    Returns the cache key of the stamp. A new version is a new key, so that a
+    cache that wasn't cleared after an upgrade can't hand out the stamp of the
+    previous version.
+
+    :return: The cache key.
+    """
+
     return f"{TEMPLATE_ARCHIVE_STAMP_CACHE_KEY}:{VERSION}"
 
 
 def _has_migrations_table() -> bool:
-    # Tests create the database without migrations. Cheaper than
-    # `MigrationRecorder.has_table`, which lists every table.
+    """
+    Whether the table of the applied migrations exists, which it doesn't when
+    tests create the database without migrations. Cheaper than
+    `MigrationRecorder.has_table`, which lists every table.
+
+    :return: Whether the table exists.
+    """
+
     with connection.cursor() as cursor:
         cursor.execute(
             "SELECT to_regclass(%s) IS NOT NULL",
@@ -71,23 +87,36 @@ def get_template_archive_stamp() -> str:
     return stamp
 
 
-def clear_template_archive_stamp(*args, **kwargs) -> None:
+def clear_template_archive_stamp(*args: Any, **kwargs: Any) -> None:
     """
     Clears the cached stamp, so that the next one counts the migrations just
     applied. It's connected to `post_migrate`.
+
+    :param args: The arguments of the signal, unused.
+    :param kwargs: The keyword arguments of the signal, unused.
     """
 
     cache.delete(_template_archive_stamp_cache_key())
 
 
 def template_archive_dir(revision_id: int) -> str:
-    """Returns the directory holding the archives of a revision."""
+    """
+    Returns the directory holding the archives of a revision.
+
+    :param revision_id: The id of the revision.
+    :return: The name of the directory, which ends with a `/`.
+    """
 
     return f"{TEMPLATE_ARCHIVES_DIRECTORY}/{revision_id}/"
 
 
 def new_template_archive_name(revision_id: int) -> str:
-    """Returns a name for a new archive of a revision, stamped with this version."""
+    """
+    Returns a name for a new archive of a revision, stamped with this version.
+
+    :param revision_id: The id of the revision.
+    :return: A name in the directory of the revision, see `template_archive_dir`.
+    """
 
     return (
         f"{template_archive_dir(revision_id)}"
@@ -101,30 +130,36 @@ def is_valid_template_archive(revision_id: int, name: str) -> bool:
     revision by the current version, and the file exists. An archive of another
     revision is never valid, even when a revision that only changed the details
     refers to it.
+
+    :param revision_id: The id of the revision.
+    :param name: The name of the stored archive.
+    :return: Whether the archive can be handed out.
     """
 
     prefix = f"{template_archive_dir(revision_id)}{get_template_archive_stamp()}_"
     return name.startswith(prefix) and get_default_storage().exists(name)
 
 
-def has_valid_archive(revision) -> bool:
+def has_valid_archive(revision: "Template") -> bool:
     """
     Whether the stored archive of a revision can be handed out, see
     `is_valid_template_archive`.
 
     :param revision: The revision of a user template.
+    :return: Whether the archive can be handed out.
     """
 
     return is_valid_template_archive(revision.id, revision.archive.name or "")
 
 
-def template_archive_url(revision) -> str:
+def template_archive_url(revision: "Template") -> str:
     """
     Returns the URL of the archive of a revision. The storage may sign it with the
     current workspace, so it's made with the workspace of the revision, which only
     the users who can open the template can open, see secure file serve.
 
     :param revision: A revision of a user template with a valid archive.
+    :return: The URL of the archive.
     """
 
     try:
@@ -134,14 +169,23 @@ def template_archive_url(revision) -> str:
         clear_current_workspace_id()
 
 
-def template_archive_file_name(revision) -> str:
-    """Returns the name to save the archive of a revision as."""
+def template_archive_file_name(revision: "Template") -> str:
+    """
+    Returns the name to save the archive of a revision as, from its name.
+
+    :param revision: A revision of a user template.
+    :return: The file name, `template.zip` when the name has no usable character.
+    """
 
     return f"{slugify(revision.name) or 'template'}.zip"
 
 
 def delete_template_archive_file(name: str) -> None:
-    """Deletes an archive file. One that is gone already counts as deleted."""
+    """
+    Deletes an archive file. One that is gone already counts as deleted.
+
+    :param name: The name of the stored archive.
+    """
 
     storage = get_default_storage()
     if storage.exists(name):

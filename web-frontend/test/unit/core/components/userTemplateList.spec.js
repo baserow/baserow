@@ -13,6 +13,7 @@ const userTemplate = (id, name, state = 'private', extra = {}) => ({
   slug: `${name.toLowerCase().replace(/ /g, '-')}-a1b2c3`,
   description: `${name} description`,
   icon: 'iconoir-table',
+  revision_id: id + 10,
   workspace_id: 100 + id,
   open_application: null,
   categories: [],
@@ -423,7 +424,8 @@ describe('UserTemplateList', () => {
     progress_percentage: 0,
     human_readable_error: '',
     slug: template.slug,
-    latest: true,
+    revision_id: template.revision_id,
+    template_name: template.name,
   })
 
   const downloadUrl = /^\/templates\/([\w-]+)\/download\/$/
@@ -468,7 +470,7 @@ describe('UserTemplateList', () => {
     await flushPromises()
   }
 
-  test('downloads the latest revision of a row, then closes its actions', async () => {
+  test('downloads the shown revision of a row, then closes its actions', async () => {
     const templates = [
       userTemplate(1, 'Sprint Tracker'),
       userTemplate(2, 'Growth Playbook'),
@@ -483,9 +485,8 @@ describe('UserTemplateList', () => {
       .trigger('click')
     await clickDownload(wrapper)
 
-    // The user's own template, so its latest revision.
     expect(downloadRequests()).toStrictEqual([
-      { slug: 'growth-playbook-a1b2c3', latest: true },
+      { slug: 'growth-playbook-a1b2c3', revision_id: 12 },
     ])
 
     replies['growth-playbook-a1b2c3']([202, downloadJob(20, templates[1])])

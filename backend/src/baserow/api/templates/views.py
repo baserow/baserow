@@ -1,3 +1,5 @@
+from typing import Any, Dict
+
 from django.db import transaction
 from django.db.models import Exists, OuterRef, Prefetch
 
@@ -5,6 +7,7 @@ from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import PolymorphicProxySerializer, extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -465,8 +468,10 @@ class DownloadUserTemplateView(APIView):
             "while there is none, a job that builds it is started instead, or the "
             "one of the user that builds it already is responded with. Once the "
             "job is finished, the archive is asked for again.\n\n"
-            "A user template can be downloaded by whoever can install it, and the "
-            "archive holds the revision that would be installed."
+            "A user template can be downloaded by whoever can install it. Its "
+            "owner may download any revision of it, anyone else only the public "
+            "one: when another revision than the one shown was made public since, "
+            "`ERROR_TEMPLATE_UPDATED` is responded with."
         ),
         request=DownloadTemplateSerializer,
         responses={
@@ -477,6 +482,7 @@ class DownloadUserTemplateView(APIView):
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_TEMPLATE_BLOCKED",
                     "ERROR_TEMPLATE_HAS_NO_CONTENT",
+                    "ERROR_TEMPLATE_UPDATED",
                     "ERROR_MAX_JOB_COUNT_EXCEEDED",
                 ]
             ),
@@ -488,17 +494,24 @@ class DownloadUserTemplateView(APIView):
             TemplateDoesNotExist: ERROR_TEMPLATE_DOES_NOT_EXIST,
             TemplateBlocked: ERROR_TEMPLATE_BLOCKED,
             TemplateHasNoContent: ERROR_TEMPLATE_HAS_NO_CONTENT,
+            TemplateUpdated: ERROR_TEMPLATE_UPDATED,
             MaxJobCountExceeded: ERROR_MAX_JOB_COUNT_EXCEEDED,
         }
     )
     @validate_body(DownloadTemplateSerializer, return_validated=True)
     @transaction.atomic
-    def post(self, request, slug, data):
-        """Responds with the archive of a user template, or the job building it."""
+    def post(self, request: Request, slug: str, data: Dict[str, Any]) -> Response:
+        """
+        Responds with the archive of a user template, or the job building it.
 
-        latest = data["latest"]
+        :param request: The request of the user who downloads the template.
+        :param slug: The slug of the template.
+        :param data: The validated body, with the `revision_id` the user was shown.
+        :return: The URL of the archive, or the job that builds it.
+        """
+
         revision = UserTemplateHandler().get_downloadable_revision(
-            request.user, slug, latest=latest
+            request.user, slug, data["revision_id"]
         )
         if has_valid_archive(revision):
             archive = {
@@ -519,7 +532,7 @@ class DownloadUserTemplateView(APIView):
                 request.user,
                 DownloadUserTemplateJobType.type,
                 slug=slug,
-                latest=latest,
+                revision_id=revision.id,
             )
         serializer = job_type_registry.get_serializer(job, JobSerializer)
         return Response(serializer.data, status=status.HTTP_202_ACCEPTED)

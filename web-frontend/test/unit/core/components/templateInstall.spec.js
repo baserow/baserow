@@ -327,17 +327,19 @@ describe('TemplateInstall', () => {
     const userTemplate = {
       id: 5,
       type: 'user',
+      revision_id: 9,
       slug: 'crm-a1b2c3',
       name: 'CRM',
     }
-    const runningJob = (latest = false) => ({
+    const runningJob = () => ({
       id: 20,
       type: 'download_user_template',
       state: 'pending',
       progress_percentage: 0,
       human_readable_error: '',
       slug: 'crm-a1b2c3',
-      latest,
+      revision_id: 9,
+      template_name: 'CRM',
     })
     const downloadUrl = '/templates/crm-a1b2c3/download/'
 
@@ -406,46 +408,60 @@ describe('TemplateInstall', () => {
       ])
     })
 
-    test.each([false, true])(
-      'starts the download job with its toast, then closes the menu (latest: %s)',
-      async (latest) => {
-        signIn()
-        let reply = null
-        testApp.mock.onPost(downloadUrl).reply(
-          () =>
-            new Promise((resolve) => {
-              reply = resolve
-            })
-        )
-        const wrapper = await mountWithMenu({ template: userTemplate, latest })
+    test('starts the download job of the shown revision with its toast, then closes the menu', async () => {
+      signIn()
+      let reply = null
+      testApp.mock.onPost(downloadUrl).reply(
+        () =>
+          new Promise((resolve) => {
+            reply = resolve
+          })
+      )
+      const wrapper = await mountWithMenu({ template: userTemplate })
 
-        await clickDownload(wrapper)
+      await clickDownload(wrapper)
 
-        // While the job is requested the item shows it, and the menu stays open.
-        expect(downloadLink(wrapper).classes()).toContain(
-          'context__menu-item-link--loading'
-        )
-        expect(menuIsOpen(wrapper)).toBe(true)
+      // While the job is requested the item shows it, and the menu stays open.
+      expect(downloadLink(wrapper).classes()).toContain(
+        'context__menu-item-link--loading'
+      )
+      expect(menuIsOpen(wrapper)).toBe(true)
 
-        // A second click doesn't request it again.
-        await clickDownload(wrapper)
-        expect(downloadRequests()).toStrictEqual([{ latest }])
+      // A second click doesn't request it again.
+      await clickDownload(wrapper)
+      expect(downloadRequests()).toStrictEqual([{ revision_id: 9 }])
 
-        reply([202, runningJob(latest)])
-        await flushPromises()
+      reply([202, runningJob()])
+      await flushPromises()
 
-        expect(downloadToasts().map((toast) => toast.data)).toStrictEqual([
-          {
-            jobId: 20,
-            template_name: 'CRM',
-            slug: 'crm-a1b2c3',
-            latest,
-            autoDownload: true,
-          },
-        ])
-        expect(menuIsOpen(wrapper)).toBe(false)
-      }
-    )
+      expect(downloadToasts().map((toast) => toast.data)).toStrictEqual([
+        {
+          jobId: 20,
+          template_name: 'CRM',
+          revision_id: 9,
+          autoDownload: true,
+        },
+      ])
+      expect(menuIsOpen(wrapper)).toBe(false)
+    })
+
+    test('asks to reload when the shown revision is no longer public', async () => {
+      signIn()
+      testApp.dontFailOnErrorResponses()
+      testApp.mock.onPost(downloadUrl).reply(400, {
+        error: 'ERROR_TEMPLATE_UPDATED',
+        detail: 'The template was updated after it was opened.',
+      })
+      const wrapper = await mountWithMenu({ template: userTemplate })
+
+      await clickDownload(wrapper)
+
+      expect(errorToasts().map((toast) => toast.title)).toStrictEqual([
+        'clientHandler.templateUpdatedTitle',
+      ])
+      expect(wrapper.emitted('outdated')).toHaveLength(1)
+      expect(downloadToasts()).toHaveLength(0)
+    })
 
     test('shows why a template is not downloaded', async () => {
       signIn()

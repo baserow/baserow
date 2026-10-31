@@ -1,4 +1,4 @@
-from contextlib import nullcontext
+from contextlib import AbstractContextManager, nullcontext
 from functools import partial
 from typing import Any, Dict, Iterable
 
@@ -20,6 +20,7 @@ from baserow.api.templates.errors import (
     ERROR_TEMPLATE_BLOCKED,
     ERROR_TEMPLATE_DOES_NOT_EXIST,
     ERROR_TEMPLATE_HAS_NO_CONTENT,
+    ERROR_TEMPLATE_UPDATED,
 )
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import (
@@ -52,6 +53,7 @@ from baserow.core.user_templates.exceptions import (
     TemplateBlocked,
     TemplateChangedDuringUpdate,
     TemplateHasNoContent,
+    TemplateUpdated,
 )
 from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.user_templates.models import (
@@ -428,8 +430,8 @@ class CreateUserTemplateJobType(JobType):
 
 class DownloadUserTemplateJobType(JobType):
     """
-    Builds the archive of the revision of a user template that the user would
-    install, so that it can be imported into another workspace. The archive is
+    Builds the archive of the revision of a user template that the user was
+    shown, so that it can be imported into another workspace. The archive is
     built on the first download, and reused until Baserow is upgraded, see
     `has_valid_archive`. The download endpoint of the template hands it out, and
     starts this job when there is no valid archive yet.
@@ -443,6 +445,7 @@ class DownloadUserTemplateJobType(JobType):
         TemplateDoesNotExist: ERROR_TEMPLATE_DOES_NOT_EXIST,
         TemplateBlocked: ERROR_TEMPLATE_BLOCKED,
         TemplateHasNoContent: ERROR_TEMPLATE_HAS_NO_CONTENT,
+        TemplateUpdated: ERROR_TEMPLATE_UPDATED,
     }
 
     job_exceptions_map = {
@@ -453,20 +456,19 @@ class DownloadUserTemplateJobType(JobType):
         TemplateHasNoContent: "The content of the template was removed.",
     }
 
-    request_serializer_field_names = ["slug", "latest"]
+    request_serializer_field_names = ["slug", "revision_id"]
     request_serializer_field_overrides = {
         "slug": serializers.CharField(
             max_length=50, help_text="The slug of the user template to download."
         ),
-        "latest": serializers.BooleanField(
-            default=False,
-            help_text="Whether to download the latest revision of the user "
-            "template, which only its owner may. Otherwise it's the revision the "
-            "user would install.",
+        "revision_id": serializers.IntegerField(
+            help_text="The id of the revision of the user template that the user "
+            "was shown. Its owner may download any revision, anyone else only the "
+            "public one.",
         ),
     }
 
-    serializer_field_names = ["slug", "latest"]
+    serializer_field_names = ["slug", "revision_id", "template_name"]
     serializer_field_overrides = {
         # Null once the template was deleted permanently.
         "slug": serializers.CharField(
@@ -476,11 +478,28 @@ class DownloadUserTemplateJobType(JobType):
             help_text="The slug of the downloaded user template, to ask for its "
             "archive once the job is finished.",
         ),
+        "revision_id": serializers.IntegerField(
+            read_only=True,
+            allow_null=True,
+            help_text="The id of the downloaded revision, to ask for its archive "
+            "once the job is finished.",
+        ),
+        "template_name": serializers.CharField(
+            source="revision.name",
+            read_only=True,
+            allow_null=True,
+            help_text="The name of the downloaded revision.",
+        ),
     }
 
-    def transaction_atomic_context(self, job: DownloadUserTemplateJob):
+    def transaction_atomic_context(
+        self, job: DownloadUserTemplateJob
+    ) -> AbstractContextManager:
         """
         Each application exports in its own `repeatable_read` transaction.
+
+        :param job: The job that runs.
+        :return: A context that opens no transaction.
         """
 
         return nullcontext()
@@ -488,17 +507,41 @@ class DownloadUserTemplateJobType(JobType):
     def prepare_values(
         self, values: Dict[str, Any], user: AbstractUser
     ) -> Dict[str, Any]:
-        latest = values.get("latest", False)
-        revision = UserTemplateHandler().get_downloadable_revision(
-            user, values["slug"], latest=latest
-        )
-        return {"revision": revision, "latest": latest}
+        """
+        Resolves the revision to download, see `get_downloadable_revision`.
 
-    def run(self, job: DownloadUserTemplateJob, progress: Progress):
+        :param values: The validated request, with `slug` and `revision_id`.
+        :param user: The user who downloads the template.
+        :raises TemplateDoesNotExist: If the user may not download the template.
+        :raises TemplateBlocked: If the user owns the template and it's blocked.
+        :raises TemplateUpdated: If the revision isn't the public one anymore.
+        :raises TemplateHasNoContent: If the revision has no application to copy.
+        :return: The values the job is created with.
+        """
+
+        revision = UserTemplateHandler().get_downloadable_revision(
+            user, values["slug"], values["revision_id"]
+        )
+        return {"revision": revision}
+
+    def run(self, job: DownloadUserTemplateJob, progress: Progress) -> None:
+        """
+        Builds the archive of the revision, unless a valid one exists already.
+        The access is checked before, as it may have changed since the job was
+        requested. It isn't checked after the build, as the job doesn't hand the
+        archive out: the download endpoint checks the access again.
+
+        :param job: The job that runs.
+        :param progress: The progress of the job.
+        :raises TemplateDoesNotExist: If the revision was deleted, the template
+            marked for deletion, or the user lost access.
+        :raises TemplateBlocked: If the user owns the template and it's blocked.
+        :raises TemplateHasNoContent: If the content of the revision was removed.
+        """
+
         revision = job.revision
         if revision is None:
             raise TemplateDoesNotExist("The template was deleted.")
-        # The access may have changed since the job was requested, like install.
         self._check_access(job, revision)
         # A repeated download reuses the archive.
         if has_valid_archive(revision):
@@ -515,19 +558,18 @@ class DownloadUserTemplateJobType(JobType):
             # Saving the job with the deleted revision would fail.
             job.revision = None
             raise
-        # The access may have been lost while the archive was built. The archive
-        # stays for later downloads, but this job doesn't hand it out.
-        revision.get_root().refresh_from_db(
-            fields=["owner", "public_revision", "blocked_at", "marked_for_deletion_at"]
-        )
-        job.user.refresh_from_db(fields=["is_active"])
-        self._check_access(job, revision)
 
-    def _check_access(self, job: DownloadUserTemplateJob, revision: Template):
+    def _check_access(self, job: DownloadUserTemplateJob, revision: Template) -> None:
         """
         Checks the access like install does, but unlike install, a download fails
         once the template is marked for deletion too, so that its archive isn't
-        handed out after the owner deleted it.
+        built after the owner deleted it.
+
+        :param job: The job that runs.
+        :param revision: The revision to download, with its root selected.
+        :raises TemplateDoesNotExist: If the template is marked for deletion, or
+            the user lost access.
+        :raises TemplateBlocked: If the user owns the template and it's blocked.
         """
 
         if revision.get_root().marked_for_deletion_at is not None:
@@ -535,4 +577,12 @@ class DownloadUserTemplateJobType(JobType):
         UserTemplateHandler().check_install_access(job.user, revision)
 
     def enhance_queryset(self, queryset: JobQuerySet) -> JobQuerySet:
+        """
+        Loads the revision and its root with the jobs, for the name of the
+        template in the response.
+
+        :param queryset: The download jobs.
+        :return: The jobs with their revision and its root.
+        """
+
         return queryset.select_related("revision__root")

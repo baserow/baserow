@@ -386,9 +386,9 @@ function edit(mode) {
  * another row was opened in the meantime, that one stays open.
  */
 async function downloadTemplate() {
-  // The user's own templates, so their latest revision.
+  // The user's own templates, so their latest revision is shown.
   const template = focusedTemplate.value
-  const downloaded = await download(template, { latest: true })
+  const downloaded = await download(template)
   if (downloaded && focusedTemplate.value?.id === template.id) {
     actionsContext.value?.hide()
   }

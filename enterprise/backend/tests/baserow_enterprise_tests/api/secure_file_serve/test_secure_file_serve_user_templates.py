@@ -49,6 +49,7 @@ def _create_user_template(data_fixture, owner, *, public=False):
 def _get_download_url(api_client, token, template):
     response = api_client.post(
         reverse("api:templates:download", kwargs={"slug": template.slug}),
+        {"revision_id": template.id},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )

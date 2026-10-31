@@ -12,8 +12,8 @@ from baserow.core.jobs.registries import job_type_registry
 from baserow.core.models import Template
 from baserow.core.user_templates.archive import (
     clear_template_archive_stamp,
-    has_valid_archive,
 )
+from baserow.core.user_templates.exceptions import TemplateUpdated
 from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.user_templates.models import DownloadUserTemplateJob
 from tests.baserow.core.user_templates.utils import (
@@ -150,22 +150,35 @@ def test_download_job_fails_when_access_is_lost_before_it_runs(
 
 
 @pytest.mark.django_db
-def test_download_job_fails_when_access_is_lost_while_it_builds(data_fixture):
-    user = data_fixture.create_user()
-    template = create_public_template(data_fixture, data_fixture.create_user())
-    # The access is read from the root, not from the downloaded revision.
+@pytest.mark.parametrize(
+    "actor,shown,error",
+    [
+        # The owner may download a revision that isn't the public one.
+        ("owner", "old", None),
+        ("owner", "other_template", TemplateDoesNotExist),
+        ("user", "public", None),
+        ("user", "old", TemplateUpdated),
+    ],
+)
+def test_get_downloadable_revision(data_fixture, actor, shown, error):
+    owner = data_fixture.create_user()
+    template = create_template(data_fixture, owner)
     revision = add_revision(data_fixture, template)
     data_fixture.set_user_template_state(template, "public", revision=revision)
-    job = request_download(user, template)
-    assert job.revision_id == revision.id
+    user = owner if actor == "owner" else data_fixture.create_user()
+    shown = {
+        "old": template,
+        "public": revision,
+        "other_template": create_template(data_fixture, data_fixture.create_user()),
+    }[shown]
 
-    with fake_build(
-        side_effect=lambda _: lose_access(data_fixture, "private", template, user)
-    ) as build:
-        job = run_job(job)
+    def get():
+        return UserTemplateHandler().get_downloadable_revision(
+            user, template.slug, shown.id
+        )
 
-    assert (job.state, job.error_code) == (JOB_FAILED, TemplateDoesNotExist.__name__)
-    assert build.call_count == 1
-    assert job.revision_id == revision.id
-    # The archive is kept, so that a later download with access reuses it.
-    assert has_valid_archive(Template.objects.get(id=revision.id))
+    if error is None:
+        assert get().id == shown.id
+    else:
+        with pytest.raises(error):
+            get()

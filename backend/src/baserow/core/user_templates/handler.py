@@ -10,7 +10,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
 from django.core.files import File
 from django.db import IntegrityError, transaction
-from django.db.models import F, Q
+from django.db.models import F, Q, QuerySet
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.text import slugify
@@ -57,6 +57,7 @@ from baserow.core.user_templates.exceptions import (
     TemplateChangedDuringUpdate,
     TemplateHasNoContent,
     TemplateSlugGenerationFailed,
+    TemplateUpdated,
 )
 from baserow.core.user_templates.types import TemplateMetadata
 from baserow.core.utils import ChildProgressBuilder
@@ -474,7 +475,9 @@ class UserTemplateHandler:
         """
         Returns the applications holding the content of a revision, in their order.
 
+        :param revision: The revision of a user template.
         :raises TemplateHasNoContent: If the revision has no application.
+        :return: The applications in the workspace of the revision.
         """
 
         applications = (
@@ -547,8 +550,11 @@ class UserTemplateHandler:
         that commits. The revision is locked, so that overlapping builds keep one
         valid archive and never delete each other's files.
 
-        :return: The name of the archive the revision refers to now.
+        :param revision: The revision the archive was built for.
+        :param name: The name of the archive just built.
         :raises TemplateDoesNotExist: If the revision was deleted.
+        :return: The name of the archive the revision refers to now, which is
+            `name` unless another build saved a valid one first.
         """
 
         with transaction.atomic():
@@ -747,8 +753,12 @@ class UserTemplateHandler:
 
         return self._get_user_template_roots().filter(slug=slug).first()
 
-    def _get_user_template_roots(self):
-        """The roots of the user templates that aren't marked for deletion."""
+    def _get_user_template_roots(self) -> QuerySet[Template]:
+        """
+        Returns the roots of the user templates that aren't marked for deletion.
+
+        :return: A queryset of the roots.
+        """
 
         return Template.objects.user().filter(
             root__isnull=True, marked_for_deletion_at__isnull=True
@@ -842,29 +852,45 @@ class UserTemplateHandler:
         else:
             revision = self.get_latest_revision(root)
 
+        self._check_has_content(revision)
+        return revision
+
+    def _check_has_content(self, revision: Template) -> None:
+        """
+        Checks that a revision of a user template has content to copy.
+
+        :param revision: The revision, with its root selected.
+        :raises TemplateHasNoContent: If the revision has no application to copy.
+        """
+
         if (
             not revision.has_content
             or not Application.objects.filter(
                 workspace_id=revision.workspace_id
             ).exists()
         ):
-            raise TemplateHasNoContent(f"The template {root.id} has no content.")
-
-        return revision
+            raise TemplateHasNoContent(
+                f"The template {revision.family_id} has no content."
+            )
 
     def get_downloadable_revision(
-        self, user: AbstractUser, slug: str, latest: bool = False
+        self, user: AbstractUser, slug: str, revision_id: int
     ) -> Template:
         """
         Returns the revision of a user template whose archive the user downloads,
-        which is the one the user would install, see `get_installable_revision`.
+        which is the revision the user was shown. Its owner may download any
+        revision of the template, anyone else only the public one, with the same
+        access as install, see `get_installable_revision`.
 
         :param user: The user who downloads the template.
         :param slug: The slug of the template.
-        :param latest: Whether the latest revision is downloaded.
+        :param revision_id: The id of the revision the user was shown.
         :raises TemplateDoesNotExist: If there is no user template with the slug,
-            or the user may not download it.
+            the user may not download it, or its owner asks for a revision of
+            another template.
         :raises TemplateBlocked: If the user owns the template and it's blocked.
+        :raises TemplateUpdated: If the user doesn't own the template and the
+            revision isn't the public one anymore.
         :raises TemplateHasNoContent: If the revision has no application to copy.
         :return: The revision, with its root selected.
         """
@@ -872,7 +898,23 @@ class UserTemplateHandler:
         root = self.get_user_template_root_by_slug(slug)
         if root is None:
             raise TemplateDoesNotExist(f"The template with slug {slug} does not exist.")
-        return self.get_installable_revision(user, root, latest=latest)
+        access = self._check_install_access(user, root)
+        if access != "owner" and revision_id != root.public_revision_id:
+            raise TemplateUpdated(
+                f"The template {root.id} was updated after revision {revision_id} "
+                "was shown."
+            )
+        revision = (
+            Template.objects.filter(Q(id=root.id) | Q(root=root), id=revision_id)
+            .select_related("root")
+            .first()
+        )
+        if revision is None:
+            raise TemplateDoesNotExist(
+                f"The revision {revision_id} of the template {root.id} does not exist."
+            )
+        self._check_has_content(revision)
+        return revision
 
     def check_install_access(self, user: AbstractUser, revision: Template) -> None:
         """

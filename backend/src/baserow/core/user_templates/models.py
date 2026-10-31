@@ -95,12 +95,6 @@ class DownloadUserTemplateJob(Job):
         help_text="The revision whose archive is downloaded. Empty once the "
         "template was deleted permanently.",
     )
-    latest = models.BooleanField(
-        default=False,
-        db_default=False,
-        help_text="Whether the latest revision was asked for, so that its archive "
-        "is asked for the same way once the job is finished.",
-    )
 
 
 class UserTemplateContentToDelete(models.Model):
@@ -108,6 +102,8 @@ class UserTemplateContentToDelete(models.Model):
     The workspace and archive copied by a create job that was deleted before they
     were, or of a user template that was removed permanently. It keeps track of
     them until their deletion succeeds, so that the sweep retries a failed one.
+    The archive is either one file, or the directory of a removed revision with
+    all the archives built for it, see `template_archive_dir`.
     """
 
     workspace_id = models.PositiveIntegerField(
@@ -121,5 +117,8 @@ class UserTemplateContentToDelete(models.Model):
         max_length=255,
         blank=True,
         default="",
-        help_text="The name of the stored archive of the template.",
+        help_text=(
+            "The name of the stored archive of the template, or the directory of "
+            "a revision's archives, which ends with a `/`."
+        ),
     )

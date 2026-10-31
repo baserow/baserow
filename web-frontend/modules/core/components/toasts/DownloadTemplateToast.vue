@@ -33,7 +33,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useStore } from 'vuex'
 import { useNuxtApp } from '#app'
 
@@ -41,9 +41,9 @@ import Toast from '@baserow/modules/core/components/toasts/Toast'
 
 const props = defineProps({
   // A toast of the `downloadTemplate` type. Its data holds the `jobId` of the
-  // build, the name of the template when the download was clicked in this page,
-  // the error of a failed build, the `url` and `file_name` of the archive, and
-  // whether it's being saved.
+  // build, the name and `revision_id` of the downloaded revision, the `state`
+  // once the build ended, the error of a failed build, the `url` and
+  // `file_name` of the archive, and whether it's being saved.
   toast: {
     type: Object,
     required: true,
@@ -70,7 +70,8 @@ const phase = computed(() => {
   return 'running'
 })
 
-// A download started before the page was loaded has only the name of the file.
+// A download started before the page was loaded is named after its job, which is
+// unnamed once its template was deleted.
 const name = computed(
   () => props.toast.data.template_name ?? props.toast.data.file_name ?? ''
 )
@@ -112,6 +113,26 @@ const message = computed(() => {
 function remove() {
   store.dispatch('toast/remove', props.toast)
 }
+
+// The job can leave the store without ending, when the jobs are fetched again
+// after it ended out of sight for instance. The archive is asked for then, like
+// at the end of the job, which shows it or follows the job that builds it anew.
+watch(
+  () => store.getters['job/get'](props.toast.data.jobId),
+  (current, previous) => {
+    const ended = ['finished', 'failed'].includes(props.toast.data.state)
+    if (!previous || current || ended) {
+      return
+    }
+    if (store.getters['auth/isAuthenticated']) {
+      $registry
+        .get('job', 'download_user_template')
+        .fetchArchive(props.toast, previous)
+    } else {
+      remove()
+    }
+  }
+)
 
 // A running download and the ready archive stay until dismissed.
 function autoClose() {

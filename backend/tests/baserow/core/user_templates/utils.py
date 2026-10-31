@@ -159,17 +159,23 @@ def install(user, workspace, template, latest=False):
     return run_job(request_install(user, workspace, template, latest))
 
 
-def request_download(user, template, latest=False):
-    """Requests a download without running it, like a job waiting in the queue."""
+def request_download(user, template, revision=None):
+    """
+    Requests a download of `revision`, the template itself by default, without
+    running it, like a job waiting in the queue.
+    """
 
     with queued():
         return JobHandler().create_and_start_job(
-            user, DownloadUserTemplateJobType.type, slug=template.slug, latest=latest
+            user,
+            DownloadUserTemplateJobType.type,
+            slug=template.slug,
+            revision_id=(revision or template).id,
         )
 
 
-def download(user, template, latest=False):
-    return run_job(request_download(user, template, latest))
+def download(user, template, revision=None):
+    return run_job(request_download(user, template, revision))
 
 
 def create_template_with_content(data_fixture, user=None, **kwargs):

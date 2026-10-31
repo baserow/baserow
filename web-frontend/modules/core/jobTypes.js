@@ -325,6 +325,14 @@ export class CreateUserTemplateJobType extends JobType {
 }
 
 /**
+ * Whether the download of a toast ended: its archive is shown, or it failed. A
+ * finished job whose archive is still being asked for hasn't ended yet.
+ */
+function isEndedToast(toast) {
+  return Boolean(toast.data?.url) || toast.data?.state === 'failed'
+}
+
+/**
  * Builds the archive of a user template when the download endpoint has none
  * ready. Once the job is finished, the endpoint is asked for the archive again.
  * The toast of the download follows the job and saves the archive once.
@@ -340,14 +348,15 @@ export class DownloadUserTemplateJobType extends JobType {
 
   /**
    * Shows the answer of the download endpoint to a click: the archive, which is
-   * saved at once, or the job that builds it, which the toast follows.
+   * saved at once, or the job that builds it, which the toast follows. A click
+   * while the archive of the same revision is being saved does nothing.
    */
-  async startDownload({ status, data }, template, { latest = false } = {}) {
+  async startDownload({ status, data }, template) {
     const store = this.app.$store
     if (status === 202) {
       // A repeated click gets the job that runs already, with its toast.
       if (!this.findDownloadToast(data.id)) {
-        await this.addDownloadToast(template, latest, {
+        await this.addDownloadToast(template, {
           jobId: data.id,
           autoDownload: true,
         })
@@ -355,11 +364,32 @@ export class DownloadUserTemplateJobType extends JobType {
       await store.dispatch('job/create', data)
       return
     }
-    const toast = await this.addDownloadToast(template, latest, {
+    const current = this.findRevisionToast(template.revision_id)
+    if (current?.data.downloading) {
+      return
+    }
+    const archive = {
       state: 'finished',
       url: data.url,
       file_name: data.file_name,
-    })
+    }
+    let toast
+    if (current && !isEndedToast(current)) {
+      // Its job finished, but the archive wasn't asked for yet. This click saves
+      // it, so the job isn't followed anymore: its end would save it again, or
+      // bring the toast back once dismissed.
+      await store.dispatch('toast/update', {
+        toast: current,
+        data: { ...archive, autoDownload: false },
+      })
+      const job = store.getters['job/get'](current.data.jobId)
+      if (job) {
+        await store.dispatch('job/forceDelete', job)
+      }
+      toast = current
+    } else {
+      toast = await this.addDownloadToast(template, archive)
+    }
     // Awaited, so that the clicked item stays busy while the file is fetched.
     await this.downloadArchive(data, toast)
   }
@@ -367,7 +397,8 @@ export class DownloadUserTemplateJobType extends JobType {
   async onJobDone(job) {
     let toast
     try {
-      toast = await this.updateDownloadToast(job.id)
+      // Ended, so that the toast stays while the archive is asked for.
+      toast = await this.updateDownloadToast(job, { state: job.state })
     } finally {
       await this.app.$store.dispatch('job/forceDelete', job)
     }
@@ -376,13 +407,21 @@ export class DownloadUserTemplateJobType extends JobType {
 
   async onJobFailed(job) {
     try {
-      await this.updateDownloadToast(job.id, {
+      await this.updateDownloadToast(job, {
         state: job.state,
         human_readable_error: job.human_readable_error,
       })
     } finally {
       await this.app.$store.dispatch('job/forceDelete', job)
     }
+  }
+
+  async onJobCancelled(job) {
+    const toast = this.findDownloadToast(job.id)
+    if (toast) {
+      await this.app.$store.dispatch('toast/remove', toast)
+    }
+    await this.app.$store.dispatch('job/forceDelete', job)
   }
 
   findDownloadToast(jobId) {
@@ -393,17 +432,27 @@ export class DownloadUserTemplateJobType extends JobType {
   }
 
   /**
-   * Shows the toast of a download, and returns it. It replaces the ended toasts
-   * of the same download.
+   * Returns the toast of a download of the revision, if there is one.
    */
-  async addDownloadToast(template, latest, data) {
+  findRevisionToast(revisionId) {
+    return this.app.$store.state.toast.items.find(
+      (toast) =>
+        toast.type === 'downloadTemplate' &&
+        toast.data?.revision_id === revisionId
+    )
+  }
+
+  /**
+   * Shows the toast of a download, and returns it. It replaces the ended toasts
+   * of the same revision.
+   */
+  async addDownloadToast(template, data) {
     const store = this.app.$store
     const ended = store.state.toast.items.filter(
       (toast) =>
         toast.type === 'downloadTemplate' &&
-        toast.data?.slug === template.slug &&
-        toast.data?.latest === latest &&
-        ['finished', 'failed'].includes(toast.data?.state)
+        toast.data?.revision_id === template.revision_id &&
+        isEndedToast(toast)
     )
     for (const toast of ended) {
       await store.dispatch('toast/remove', toast)
@@ -412,8 +461,7 @@ export class DownloadUserTemplateJobType extends JobType {
       type: 'downloadTemplate',
       data: {
         template_name: template.name,
-        slug: template.slug,
-        latest,
+        revision_id: template.revision_id,
         ...data,
       },
     })
@@ -423,28 +471,34 @@ export class DownloadUserTemplateJobType extends JobType {
 
   /**
    * Writes the data into the toast of the job, or shows one if there is none,
-   * because the download was started before the page was loaded.
+   * because the download was started before the page was loaded. That one is
+   * named after the job, which leaves the store once it ended.
    */
-  async updateDownloadToast(jobId, data = {}) {
+  async updateDownloadToast(job, data = {}) {
     const store = this.app.$store
-    const toast = this.findDownloadToast(jobId)
+    const toast = this.findDownloadToast(job.id)
     if (toast) {
       await store.dispatch('toast/update', { toast, data })
     } else {
       await store.dispatch('toast/add', {
         type: 'downloadTemplate',
-        data: { jobId, ...data },
+        data: {
+          jobId: job.id,
+          template_name: job.template_name,
+          revision_id: job.revision_id,
+          ...data,
+        },
       })
     }
-    return this.findDownloadToast(jobId)
+    return this.findDownloadToast(job.id)
   }
 
   /**
-   * Asks the download endpoint for the archive that the finished job built. Only
-   * a download clicked in this page saves it by itself, once. If the archive is
-   * gone again, the toast follows the job that builds it anew.
+   * Asks the download endpoint for the archive of the revision that the finished
+   * job built. Only a download clicked in this page saves it by itself, once. If
+   * the archive is gone again, the toast follows the job that builds it anew.
    */
-  async fetchArchive(toast, { slug, latest }) {
+  async fetchArchive(toast, { slug, revision_id: revisionId }) {
     const { $client: client, $i18n: i18n, $store: store } = this.app
     const fail = (message) =>
       store.dispatch('toast/update', {
@@ -452,14 +506,14 @@ export class DownloadUserTemplateJobType extends JobType {
         data: { state: 'failed', human_readable_error: message },
       })
     // The template was deleted permanently.
-    if (!slug) {
+    if (!slug || !revisionId) {
       await fail(i18n.t('clientHandler.notCompletedDescription'))
       return
     }
     const isSameUser = signedInUserCheck(store)
     let response
     try {
-      response = await TemplateService(client).download(slug, { latest })
+      response = await TemplateService(client).download(slug, revisionId)
     } catch (error) {
       if (!error.handler) {
         throw error
@@ -476,7 +530,10 @@ export class DownloadUserTemplateJobType extends JobType {
     }
     const { status, data } = response
     if (status === 202) {
-      await store.dispatch('toast/update', { toast, data: { jobId: data.id } })
+      await store.dispatch('toast/update', {
+        toast,
+        data: { jobId: data.id, state: data.state },
+      })
       await store.dispatch('job/create', data)
       return
     }

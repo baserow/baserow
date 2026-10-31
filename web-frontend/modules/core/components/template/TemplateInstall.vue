@@ -135,7 +135,9 @@ const props = defineProps({
     required: false,
     default: true,
   },
-  // The latest revision, owner only. Otherwise the one the user would install.
+  // Whether the latest revision of a user template is installed, which only its
+  // owner may. Otherwise it's the public revision, or the owner's latest one
+  // while it isn't public.
   latest: {
     type: Boolean,
     required: false,
@@ -301,7 +303,8 @@ async function downloadTemplate() {
     return
   }
   const template = props.template
-  if (await download(template, { latest: props.latest })) {
+  const onOutdated = () => emit('outdated')
+  if (await download(template, { onOutdated })) {
     hideContext()
   }
 }

@@ -40,8 +40,10 @@ export default (client) => {
      * Responds with the archive of a user template (200), or with the job that
      * builds it (202), after which the archive is asked for again.
      */
-    download(slug, { latest = false } = {}) {
-      return client.post(`/templates/${slug}/download/`, { latest })
+    download(slug, revisionId) {
+      return client.post(`/templates/${slug}/download/`, {
+        revision_id: revisionId,
+      })
     },
     delete(slug) {
       return client.delete(`/templates/${slug}/`)

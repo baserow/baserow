@@ -22,12 +22,10 @@ class InstallTemplateQueryParamSerializer(serializers.Serializer):
 
 
 class DownloadTemplateSerializer(serializers.Serializer):
-    latest = serializers.BooleanField(
-        required=False,
-        default=False,
-        help_text="Whether to download the latest revision of the user template, "
-        "which only its owner may. Otherwise it's the revision the user would "
-        "install.",
+    revision_id = serializers.IntegerField(
+        help_text="The id of the revision of the user template that the user was "
+        "shown. Its owner may download any revision, anyone else only the public "
+        "one."
     )
 
 
