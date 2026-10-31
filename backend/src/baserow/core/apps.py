@@ -375,11 +375,13 @@ class CoreConfig(AppConfig):
             CreateUserTemplateActionType,
             DeleteUserTemplateActionType,
             UpdateUserTemplateActionType,
+            UpdateUserTemplateVisibilityActionType,
         )
 
         action_type_registry.register(CreateUserTemplateActionType())
         action_type_registry.register(UpdateUserTemplateActionType())
         action_type_registry.register(DeleteUserTemplateActionType())
+        action_type_registry.register(UpdateUserTemplateVisibilityActionType())
 
         from baserow.core.trash.actions import (
             EmptyTrashActionType,

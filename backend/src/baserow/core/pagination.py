@@ -1,7 +1,10 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 from django.db.models import BooleanField, Expression, F, Func, Value
+
+# The earliest moment a cursor can hold.
+KEYSET_CURSOR_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
 class RowLessThan(Func):
@@ -50,4 +53,28 @@ class KeysetCursor:
 
         return RowLessThan(
             (F(field_name), F("id")), (Value(self.value), Value(self.id))
+        )
+
+
+@dataclass(frozen=True)
+class RankedKeysetCursor:
+    """
+    Like `KeysetCursor`, in a listing ordered by a rank before the moment and the
+    id, all descending.
+    """
+
+    rank: int
+    value: datetime
+    id: int
+
+    def get_filter(self, rank_name: str, field_name: str) -> Expression:
+        """
+        :param rank_name: The rank the listing is ordered by first.
+        :param field_name: The moment the listing is ordered by, before the id.
+        :return: The filter keeping only what follows the cursor.
+        """
+
+        return RowLessThan(
+            (F(rank_name), F(field_name), F("id")),
+            (Value(self.rank), Value(self.value), Value(self.id)),
         )

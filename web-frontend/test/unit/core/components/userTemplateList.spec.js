@@ -439,6 +439,62 @@ describe('UserTemplateList', () => {
     expect(wrapper.emitted('selected')).toBeUndefined()
   })
 
+  test.each([
+    ['private', 'userTemplateList.makePublic', 'make-public'],
+    ['public', 'userTemplateList.makePrivate', 'make-private'],
+    ['blocked', null, null],
+  ])(
+    'offers to change the visibility of a %s template',
+    async (state, item, event) => {
+      const template = userTemplate(1, 'Sprint Tracker', state)
+      mockPages(page([template]))
+      const wrapper = await mountComponent()
+
+      await wrapper
+        .find('.user-template-list__actions .button-icon')
+        .trigger('click')
+      const links = wrapper.findAll('.context__menu-item-link')
+
+      expect(links.map((link) => link.text())).toStrictEqual(
+        [
+          'userTemplateList.editDetails',
+          'userTemplateList.updateContent',
+          item,
+          'userTemplateList.delete',
+        ].filter(Boolean)
+      )
+      if (event) {
+        await links[2].trigger('click')
+        expect(wrapper.emitted(event)).toStrictEqual([[template]])
+        expect(testApp.mock.history.post).toHaveLength(0)
+      }
+    }
+  )
+
+  test('replaces a row in place', async () => {
+    mockPages(
+      page([
+        userTemplate(1, 'Sprint Tracker', 'public'),
+        userTemplate(2, 'Launch Plan', 'public'),
+      ])
+    )
+    const wrapper = await mountComponent()
+
+    wrapper.vm.replace(userTemplate(2, 'Launch Plan', 'private'))
+    await flushPromises()
+
+    expect(rowNames(wrapper)).toStrictEqual(['Sprint Tracker', 'Launch Plan'])
+    expect(
+      wrapper.findAll('.badge').map((badge) => badge.text())
+    ).toStrictEqual([
+      'userTemplateList.statePublic',
+      'userTemplateList.statePrivate',
+    ])
+    expect(wrapper.find('.user-template-list__state-icon').classes()).toContain(
+      'iconoir-eye-empty'
+    )
+  })
+
   test('drops only the removed template without loading again', async () => {
     mockPages(
       page(

@@ -40,3 +40,9 @@ ERROR_TEMPLATE_UPDATED = (
     HTTP_400_BAD_REQUEST,
     "The template was updated after it was opened.",
 )
+ERROR_PUBLIC_LISTING_CONSENT_REQUIRED = (
+    "ERROR_PUBLIC_LISTING_CONSENT_REQUIRED",
+    HTTP_400_BAD_REQUEST,
+    "Making a template public needs its author to agree that it's listed, with "
+    "their name, for everybody on this instance.",
+)

@@ -70,6 +70,7 @@ def test_list_templates(api_client, data_fixture):
                     "workspace_id": template_1.workspace_id,
                     "is_default": True,
                     "open_application": None,
+                    "author_name": None,
                 }
             ],
         },
@@ -89,6 +90,7 @@ def test_list_templates(api_client, data_fixture):
                     "workspace_id": template_2.workspace_id,
                     "is_default": False,
                     "open_application": 1,
+                    "author_name": None,
                 },
                 {
                     "id": template_3.id,
@@ -102,6 +104,7 @@ def test_list_templates(api_client, data_fixture):
                     "workspace_id": template_3.workspace_id,
                     "is_default": False,
                     "open_application": None,
+                    "author_name": None,
                 },
             ],
         },
@@ -121,6 +124,7 @@ def test_list_templates(api_client, data_fixture):
                     "workspace_id": template_3.workspace_id,
                     "is_default": False,
                     "open_application": None,
+                    "author_name": None,
                 }
             ],
         },

@@ -17,6 +17,7 @@ from baserow.contrib.database.fields.models import PasswordField
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.models import ViewDefaultValue
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowAggregateRows
+from baserow.core.action.registries import action_type_registry
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
@@ -27,6 +28,7 @@ from baserow.core.jobs.tasks import run_async_job
 from baserow.core.models import Template, TemplateCategory
 from baserow.core.operations import ExportWorkspaceOperationType
 from baserow.core.storage import get_default_storage
+from baserow.core.user_templates.actions import UpdateUserTemplateVisibilityActionType
 from baserow.core.user_templates.constants import USER_TEMPLATE_DELETION_GRACE_PERIOD
 from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.user_templates.job_types import CreateUserTemplateJobType
@@ -158,6 +160,14 @@ def create_template(data_fixture, user, **kwargs):
     data_fixture.create_database_application(workspace=workspace)
     kwargs.setdefault("icon", ICON)
     return data_fixture.create_user_template(user=user, workspace=workspace, **kwargs)
+
+
+def make_public(user, template):
+    """Makes the template public, with the consent of its author."""
+
+    return action_type_registry.get_by_type(UpdateUserTemplateVisibilityActionType).do(
+        user, template.id, True, public_listing_consent=True
+    )
 
 
 def store_archive(name="template.zip"):

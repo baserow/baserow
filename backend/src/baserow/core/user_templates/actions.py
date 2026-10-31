@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Callable, Iterable, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional
 
 from django.contrib.auth.models import AbstractUser
 from django.db import transaction
@@ -9,6 +9,7 @@ from baserow.core.action.registries import (
     ActionScopeStr,
     ActionType,
     ActionTypeDescription,
+    render_action_type_description,
 )
 from baserow.core.action.scopes import (
     WORKSPACE_ACTION_CONTEXT,
@@ -318,6 +319,84 @@ class DeleteUserTemplateActionType(ActionType):
             cls.register_action(user, params, cls.scope())
 
         return root
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()
+
+
+class UpdateUserTemplateVisibilityActionType(ActionType):
+    type = "update_user_template_visibility"
+    description = ActionTypeDescription(
+        _("Change template visibility"),
+        _(
+            'Template "%(template_name)s" (%(template_id)s) made public with '
+            "revision %(revision_id)s, with the consent of the author to list it "
+            "and their name"
+        ),
+    )
+    analytics_params = ["template_id", "revision_id", "listed"]
+
+    @dataclasses.dataclass
+    class Params:
+        template_id: int
+        template_name: str
+        revision_id: int
+        listed: bool
+        # Recorded so the audit log shows that the author agreed to the listing.
+        public_listing_consent: bool
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        template_id: int,
+        listed: bool,
+        *,
+        public_listing_consent: bool,
+        revision_id: Optional[int] = None,
+    ) -> Template:
+        """
+        Makes a user template owned by the user public or private, see
+        `UserTemplateService.update_visibility`. Asking for the visibility it has
+        changes nothing and isn't recorded. This action is not undoable.
+
+        :param user: The user changing the visibility of the template.
+        :param template_id: The id of the template, which is its root.
+        :param listed: Whether the template is made public.
+        :param public_listing_consent: Whether the user agreed that the template
+            and their name are listed for everybody on the instance.
+        :param revision_id: The id of the revision the user was shown, see
+            `UserTemplateService.update_visibility`.
+        :return: The latest revision of the template.
+        """
+
+        # The create job makes a template public outside of a transaction.
+        with transaction.atomic():
+            revision, changed_revision_id = UserTemplateService().update_visibility(
+                user, template_id, listed, public_listing_consent, revision_id
+            )
+            if changed_revision_id is not None:
+                params = cls.Params(
+                    template_id=template_id,
+                    template_name=revision.name,
+                    revision_id=changed_revision_id,
+                    listed=listed,
+                    public_listing_consent=public_listing_consent,
+                )
+                cls.register_action(user, params, cls.scope())
+
+        return revision
+
+    @classmethod
+    def get_long_description(cls, params_dict: Dict[str, Any], *args, **kwargs) -> str:
+        if not params_dict.get("listed"):
+            description = ActionTypeDescription(
+                cls.description.short,
+                _('Template "%(template_name)s" (%(template_id)s) made private'),
+            )
+            return render_action_type_description(description, params_dict)
+        return super().get_long_description(params_dict, *args, **kwargs)
 
     @classmethod
     def scope(cls) -> ActionScopeStr:

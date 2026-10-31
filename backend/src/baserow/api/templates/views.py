@@ -3,7 +3,7 @@ from django.db.models import Exists, OuterRef, Prefetch
 
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import PolymorphicProxySerializer, extend_schema
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -11,7 +11,11 @@ from rest_framework.views import APIView
 from baserow.api.applications.serializers import (
     PolymorphicApplicationResponseSerializer,
 )
-from baserow.api.decorators import map_exceptions, validate_query_parameters
+from baserow.api.decorators import (
+    map_exceptions,
+    validate_body,
+    validate_query_parameters,
+)
 from baserow.api.errors import (
     ERROR_GROUP_DOES_NOT_EXIST,
     ERROR_USER_NOT_IN_GROUP,
@@ -19,7 +23,10 @@ from baserow.api.errors import (
 from baserow.api.jobs.errors import ERROR_MAX_JOB_COUNT_EXCEEDED
 from baserow.api.jobs.serializers import JobSerializer
 from baserow.api.mixins import SearchableViewMixin
-from baserow.api.pagination import LimitOffsetPagination
+from baserow.api.pagination import (
+    LimitOffsetPagination,
+    encode_ranked_keyset_cursor,
+)
 from baserow.api.schemas import (
     CLIENT_SESSION_ID_SCHEMA_PARAMETER,
     CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
@@ -30,8 +37,10 @@ from baserow.api.templates.serializers import (
     InstallTemplateQueryParamSerializer,
     ListTemplatesQueryParamSerializer,
     TemplateCategoriesSerializer,
+    TemplateCategorySerializer,
     TemplateListItemSerializer,
     TemplateSerializer,
+    UpdateTemplateSerializer,
 )
 from baserow.core.action.registries import action_type_registry
 from baserow.core.actions import InstallTemplateActionType
@@ -47,20 +56,43 @@ from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
 from baserow.core.models import Template, TemplateCategory
-from baserow.core.user_templates.actions import DeleteUserTemplateActionType
+from baserow.core.pagination import RankedKeysetCursor
+from baserow.core.user_templates.actions import (
+    DeleteUserTemplateActionType,
+    UpdateUserTemplateVisibilityActionType,
+)
 from baserow.core.user_templates.exceptions import (
     TemplateBlocked,
     TemplateHasNoContent,
     TemplateUpdated,
+    UserTemplatePublicListingConsentRequired,
 )
 
 from .errors import (
+    ERROR_PUBLIC_LISTING_CONSENT_REQUIRED,
     ERROR_TEMPLATE_BLOCKED,
     ERROR_TEMPLATE_DOES_NOT_EXIST,
     ERROR_TEMPLATE_FILE_DOES_NOT_EXIST,
     ERROR_TEMPLATE_HAS_NO_CONTENT,
     ERROR_TEMPLATE_UPDATED,
 )
+
+
+def get_template_id(slug: str) -> int:
+    """
+    Returns the id of the template with the slug, which only its root has.
+
+    :raises TemplateDoesNotExist: If no template has the slug.
+    """
+
+    template_id = (
+        Template.objects.filter(slug=slug, root__isnull=True)
+        .values_list("id", flat=True)
+        .first()
+    )
+    if template_id is None:
+        raise TemplateDoesNotExist(f"The template with slug {slug} does not exist.")
+    return template_id
 
 
 class TemplatesView(APIView, SearchableViewMixin):
@@ -75,10 +107,11 @@ class TemplatesView(APIView, SearchableViewMixin):
                 name="view",
                 location=OpenApiParameter.QUERY,
                 type=OpenApiTypes.STR,
-                enum=["flat"],
-                description="`flat` responds with a paginated list of templates. "
-                "Otherwise, the response is the list of categories with their "
-                "official templates, which is deprecated.",
+                enum=["flat", "listed_categories"],
+                description="`flat` responds with a paginated list of templates, "
+                "`listed_categories` with the categories of the public user "
+                "templates. Otherwise, the response is the list of categories with "
+                "their official templates, which is deprecated.",
             ),
             OpenApiParameter(
                 name="type",
@@ -102,6 +135,21 @@ class TemplatesView(APIView, SearchableViewMixin):
                 "this value. Only with `view=flat`.",
             ),
             OpenApiParameter(
+                name="listed",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.BOOL,
+                description="Only the templates everybody can open, each as "
+                "everybody sees it: a user template shows its public revision. The "
+                "authenticated user's own come first. Only with `view=flat`.",
+            ),
+            OpenApiParameter(
+                name="category",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.INT,
+                description="Only templates in the category with this id. Only with "
+                "`view=flat`.",
+            ),
+            OpenApiParameter(
                 name="limit",
                 location=OpenApiParameter.QUERY,
                 type=OpenApiTypes.INT,
@@ -115,6 +163,16 @@ class TemplatesView(APIView, SearchableViewMixin):
                 description="The offset of the templates to return. Only with "
                 "`view=flat`.",
             ),
+            OpenApiParameter(
+                name="cursor",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.STR,
+                description="The `next_cursor` of the previous page. Only the "
+                "templates after the last one of that page are returned, even when "
+                "templates were listed, edited or made private in between; "
+                "`offset` and `count` then count from there. Only with "
+                "`view=flat`.",
+            ),
         ],
         description=(
             "Lists the templates. The template's `workspace_id` can be used for "
@@ -123,11 +181,14 @@ class TemplatesView(APIView, SearchableViewMixin):
             "that workspace are accessible to whoever can list the template.\n\n"
             "The `view` query parameter selects the shape of the response:\n\n"
             "- `view=flat`: a paginated list of the official templates and the user "
-            "templates the caller can open, most recently updated first, filtered "
-            "with `type`, `owned` and `search`. A user template shows its latest "
-            "revision. `state`, `reason`, `source_workspace_id`, "
+            "templates the caller can open, most recently changed first, filtered "
+            "with `type`, `owned`, `listed`, `category` and `search`. A user "
+            "template shows the latest revision the caller can open, or its public "
+            "revision with `listed=true`. `state`, `reason`, `source_workspace_id`, "
             "`source_application_ids` and `install_count` are only set for the "
             "owner of a user template.\n"
+            "- `view=listed_categories`: the categories holding at least one public "
+            "user template, ignoring the other query parameters.\n"
             "- Any other or no `view` (deprecated): a list of the template "
             "categories, each with its official templates, ignoring the other query "
             "parameters. Categories holding only user templates are left out."
@@ -138,9 +199,17 @@ class TemplatesView(APIView, SearchableViewMixin):
                 serializers=[
                     get_example_pagination_serializer_class(
                         TemplateListItemSerializer,
+                        additional_fields={
+                            "next_cursor": serializers.CharField(
+                                allow_null=True,
+                                help_text="The `cursor` of the next page, null "
+                                "when no templates follow.",
+                            )
+                        },
                         serializer_name="TemplatePagination",
                     ),
                     TemplateCategoriesSerializer(many=True),
+                    TemplateCategorySerializer(many=True),
                 ],
                 resource_type_field_name=None,
                 many=False,
@@ -155,8 +224,11 @@ class TemplatesView(APIView, SearchableViewMixin):
         they always did.
         """
 
-        if request.GET.get("view") == "flat":
+        view = request.GET.get("view")
+        if view == "flat":
             return self._get_flat(request)
+        if view == "listed_categories":
+            return self._get_listed_categories(request)
 
         # Hide the categories holding only user templates. Empty ones stay listed.
         official_templates = Template.objects.official()
@@ -167,12 +239,19 @@ class TemplatesView(APIView, SearchableViewMixin):
         serializer = TemplateCategoriesSerializer(categories, many=True)
         return Response(serializer.data)
 
-    @validate_query_parameters(ListTemplatesQueryParamSerializer)
+    def _get_listed_categories(self, request):
+        categories = CoreHandler().list_listed_template_categories(request.user)
+        return Response(TemplateCategorySerializer(categories, many=True).data)
+
+    @validate_query_parameters(ListTemplatesQueryParamSerializer, return_validated=True)
     def _get_flat(self, request, query_params):
         templates = CoreHandler().list_templates(
             request.user,
             template_type=query_params.get("type"),
             owned=query_params["owned"],
+            listed=query_params["listed"],
+            category_id=query_params.get("category"),
+            after=query_params.get("cursor"),
         )
         templates = self.apply_search(query_params.get("search"), templates)
 
@@ -180,11 +259,19 @@ class TemplatesView(APIView, SearchableViewMixin):
         paginator.default_limit = 20
         paginator.max_limit = 100
         page = paginator.paginate_queryset(templates, request, self)
-        return paginator.get_paginated_response(
+        response = paginator.get_paginated_response(
             TemplateListItemSerializer(
                 page, many=True, context={"request": request}
             ).data
         )
+        next_cursor = None
+        if page and paginator.get_next_link() is not None:
+            last = page[-1]
+            next_cursor = RankedKeysetCursor(
+                rank=last.list_rank, value=last.list_changed_on, id=last.id
+            )
+        response.data["next_cursor"] = encode_ranked_keyset_cursor(next_cursor)
+        return response
 
 
 class TemplateView(APIView):
@@ -222,6 +309,69 @@ class TemplateView(APIView):
 
     @extend_schema(
         tags=["Templates"],
+        operation_id="update_template",
+        parameters=[
+            OpenApiParameter(
+                name="slug",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.STR,
+                description="The slug of the template to update.",
+            ),
+        ],
+        description=(
+            "Updates a user template owned by the user. With `listed` true, its "
+            "latest revision is listed, with the name of its author, for everybody "
+            "on this instance, who can open it. Signed-in users can install it. "
+            "The author must agree to that with `public_listing_consent`, and can "
+            "pass the `revision_id` they were shown, so that a newer one isn't "
+            "listed. With `listed` false, it isn't listed anymore, and only its "
+            "owner can open and install it. Asking for the visibility it has "
+            "changes nothing."
+        ),
+        request=UpdateTemplateSerializer,
+        responses={
+            200: TemplateListItemSerializer,
+            400: get_error_schema(
+                [
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_PUBLIC_LISTING_CONSENT_REQUIRED",
+                    "ERROR_TEMPLATE_HAS_NO_CONTENT",
+                    "ERROR_TEMPLATE_UPDATED",
+                ]
+            ),
+            401: None,
+            404: get_error_schema(["ERROR_TEMPLATE_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            TemplateDoesNotExist: ERROR_TEMPLATE_DOES_NOT_EXIST,
+            UserTemplatePublicListingConsentRequired: (
+                ERROR_PUBLIC_LISTING_CONSENT_REQUIRED
+            ),
+            TemplateHasNoContent: ERROR_TEMPLATE_HAS_NO_CONTENT,
+            TemplateUpdated: ERROR_TEMPLATE_UPDATED,
+        }
+    )
+    @validate_body(UpdateTemplateSerializer)
+    def patch(self, request, data, slug):
+        """Makes a user template owned by the user public or private."""
+
+        revision = action_type_registry.get_by_type(
+            UpdateUserTemplateVisibilityActionType
+        ).do(
+            request.user,
+            get_template_id(slug),
+            data["listed"],
+            public_listing_consent=data["public_listing_consent"],
+            revision_id=data.get("revision_id"),
+        )
+        return Response(
+            TemplateListItemSerializer(revision, context={"request": request}).data
+        )
+
+    @extend_schema(
+        tags=["Templates"],
         operation_id="delete_template",
         parameters=[
             OpenApiParameter(
@@ -253,17 +403,8 @@ class TemplateView(APIView):
     def delete(self, request, slug):
         """Deletes a user template owned by the user, or any one by an admin."""
 
-        # Only the root of a template has a slug.
-        template_id = (
-            Template.objects.filter(slug=slug, root__isnull=True)
-            .values_list("id", flat=True)
-            .first()
-        )
-        if template_id is None:
-            raise TemplateDoesNotExist(f"The template with slug {slug} does not exist.")
-
         action_type_registry.get_by_type(DeleteUserTemplateActionType).do(
-            request.user, template_id
+            request.user, get_template_id(slug)
         )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
