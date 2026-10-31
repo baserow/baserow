@@ -10,7 +10,9 @@ Status is `done` when the current code already enforces the rule for a user-temp
 copy made as described below, `in #N` when an open pull request enforces it, and `to do`
 otherwise. Owner is the team that owns the code: `core/database`, or `WAB` (builder,
 automation, dashboard, integrations). Statuses reflect the code as of October 2026; rows
-are added as new cases come up.
+are added as new cases come up. The WAB fixes tracked in
+[issue #6330](https://github.com/baserow/baserow/issues/6330#issuecomment-6295816218)
+are reflected below.
 
 ## How a user-template copy is made
 
@@ -22,22 +24,22 @@ of the template workspace and needs no rule of its own.
 | --- | --- | --- |
 | `ImportExportConfig.exclude_sensitive_data` | `True` | Every `sensitive_fields` entry is exported as `None` |
 | `ImportExportConfig.include_permission_data` | `False` | Role assignments are not exported |
-| `ImportExportConfig.is_user_template` | `True` (to add) | The flag every module keys template-specific rules on |
+| `ImportExportConfig.is_user_template` | `True` | The flag every module keys template-specific rules on |
 | `id_mapping["import_workspace_id"]` | the template workspace | People and workspace checks resolve against a memberless workspace |
 | `ImportExportConfig.workspace_for_user_references` | unset, or the template workspace | Same, for database user references |
 
 The template workspace has no members, so every reference mapped by email or username
 resolves to nobody; many people rules are `done` only because of this. Existing flags
 such as `is_duplicate` are ambiguous: key every template-specific rule on
-`is_user_template`. Enforce secrets on the export side; several export paths don't
-receive the config yet (rows marked "Pass the config through").
+`is_user_template`. Enforce secrets on the export side; the Builder, Automation and
+Dashboard export paths pass the config through to their integrations and services.
 
 ## Integration credentials
 
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
 | Integrations | `IntegrationHandler.import_integration` receives no config; pass it through if an import-side rule needs it | to do | WAB |
-| Dashboard | Pass the config through `DashboardApplicationType.export_serialized` to `export_integration` | to do | WAB |
+| Dashboard | `DashboardApplicationType.export_serialized` passes the config to `IntegrationHandler.export_integration` | done | WAB |
 | Integrations | `sensitive_fields` on `SMTPIntegrationType`, `SlackBotIntegrationType`, `AIIntegrationType` (`ai_settings`) | done | WAB |
 | Builder, automation | `BuilderApplicationType.export_serialized` and `AutomationApplicationType.export_serialized` pass the config to `IntegrationHandler.export_integration` | done | WAB |
 | Database (button field) | `DatabaseApplicationType.export_serialized` passes the config to `IntegrationHandler.export_integration`, which applies `sensitive_fields` | done | core/database |
@@ -50,17 +52,17 @@ workspace export; see #6116.
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
 | Integrations | `CoreResponseServiceType` must mark `headers` sensitive | to do | WAB |
-| Builder | Pass the config through `PageHandler.export_page` to data sources, workflow actions and their services; see #6115 | to do | WAB |
-| Automation | Pass the config through `AutomationNodeType.serialize_property` to the node service; see #6115 | to do | WAB |
-| Dashboard | Pass the config through `DashboardDataSourceHandler.export_data_source` to the data source service | to do | WAB |
-| Integrations | `sensitive_fields` declared on `CoreHTTPRequestServiceType` (headers, query parameters, form data, body) and `CoreSMTPEmailServiceType`; applied only where the config reaches the service export, today the button field (builder and automation: rows above) | done | WAB |
-| Database (button field) | `DatabaseWorkflowServiceActionType.export_serialized` blanks the service's sensitive values | done | core/database |
+| Builder | `PageHandler.export_page` passes the config to data sources, workflow actions and their services; see #6115 | done | WAB |
+| Automation | `AutomationNodeType.serialize_property` passes the config to the node service; see #6115 | done | WAB |
+| Dashboard | `DashboardDataSourceHandler.export_data_source` passes the config to the data source service | done | WAB |
+| Integrations | `sensitive_fields` declared on `CoreHTTPRequestServiceType` (headers, query parameters, form data, body) and `CoreSMTPEmailServiceType`; applied by the shared service export across Builder, Automation, Dashboard and database button fields | done | WAB |
+| Database (button field) | `DatabaseWorkflowServiceActionType.serialize_property` delegates to the shared service export, which blanks sensitive values | done | core/database |
 
 ## Login provider secrets
 
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
-| Builder | Pass the config through `UserSourceHandler.export_user_source` to auth providers | to do | WAB |
+| Builder | `UserSourceHandler.export_user_source` passes the config through `UserSourceType.serialize_property` to auth providers | done | WAB |
 | Enterprise SSO | `OpenIdConnectAppAuthProviderType` must mark `secret` sensitive | to do | WAB |
 | Enterprise SSO | `SamlAppAuthProviderType` must remove `metadata` and reset `is_verified` | to do | WAB |
 
@@ -87,8 +89,8 @@ workspace export; see #6116.
 
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
-| Builder, automation, dashboard | `sample_data` of every service removed, in one place in `baserow.core.services` | to do | WAB |
-| Database (button field) | `DatabaseWorkflowServiceActionType.serialize_property` drops `sample_data` | done | core/database |
+| Builder, automation, dashboard | `ServiceType.export_serialized` recursively replaces `sample_data` values with placeholders for user templates, preserving keys, JSON types and structure for schema inference. Stored errors are removed. Ordinary exports retain samples. Property names are retained and may still contain user-provided information. | done | WAB |
+| Database (button field) | Button services use the same shared export rules: sanitized samples for user templates and original samples for other exports | done | core/database |
 
 ## Passwords
 
@@ -136,7 +138,7 @@ raw id, or `.get(id, id)`, is not allowed.
 | Integrations | `LocalBaserowFieldsUpdatedTriggerServiceType.deserialize_property` (`field_ids`) keeps raw ids when no field was copied | to do | WAB |
 | Premium | `LocalBaserowGroupedAggregateRowsUserServiceType.create_instance_from_serialized` keeps series, group by and sort field ids when no field was copied | to do | WAB |
 | Enterprise | `LocalBaserowUserSourceType.deserialize_property` keeps `table_id` and field ids when no table was copied | to do | WAB |
-| Dashboard | `DashboardDataSourceHandler.import_data_source` resolves the integration with `.get(id, id)` | to do | WAB |
+| Dashboard | `DashboardDataSourceHandler.import_data_source` uses `IntegrationHandler.get_integration_for_import` with `keep_unmapped=False`, clearing unmapped integrations | done | WAB |
 | Enterprise | `LocalBaserowTableDataSyncType.import_serialized` must clear an unmapped source table and remap or clear `source_table_view_id` | to do | core/database |
 | Integrations | `CoreStartWorkflowServiceType.import_workflow_id` refuses a workflow outside `import_workspace_id` | done | WAB |
 
@@ -173,14 +175,14 @@ Button field row actions use the Local Baserow service types above and follow th
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
 | Builder frontend | Template preview always sandboxes IFrame embeds, including Repeat items (`sandboxPermissions` in `IFrameElement.vue`) | to do | core/database |
-| Builder | Installed copies keep embedded HTML off until the installer turns it on (per-application untrusted content flag) | done | WAB |
-| Builder | `IFrameElementType` forces `allow_same_origin` off in the template and in installs | to do | WAB |
+| Builder | `IFrameElementType` records imported iframe elements in the import report; `IFrameElement.vue` blocks them while the application has `untrusted_content`, until the installer reviews and trusts it | done | WAB |
+| Builder | `allow_same_origin` is preserved; imported iframe content requires application-level review instead of forcing this setting off | done | WAB |
 
 ## Custom code
 
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
-| Enterprise builder | `CustomCodeBuilderApplicationTypeMixin.import_serialized` and `CoreCodeActionType` respect the per-application untrusted content flag, off in installed copies | done | WAB |
+| Enterprise builder | `CustomCodeBuilderApplicationTypeMixin.import_serialized` records custom code and external scripts in the import report; `PublicCustomCodeView` and `CoreCodeActionType.dispatch` block custom code while the application has `untrusted_content` | done | WAB |
 | Builder frontend | The template allowlist has no `ReadApplicationOperationType`, so the builder preview and `PublicCustomCodeView` refuse template viewers; custom code is only added by `PublicPageContent.vue` | done | WAB |
 | Builder | `DispatchBuilderWorkflowActionOperationType` is not on the template allowlist, so `CoreCodeActionType` never runs in the preview | done | WAB |
 

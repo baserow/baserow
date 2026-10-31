@@ -902,7 +902,7 @@ test.describe("Button field, external actions", () => {
 
   // H. Copies
 
-  test("a copied field keeps the request but not the answer", async ({
+  test("a copied field keeps the request and captured answer", async ({
     page,
   }) => {
     // Two clicks and a duplication job, each waiting on a real request.
@@ -918,25 +918,34 @@ test.describe("Button field, external actions", () => {
       expect(saved.service.sample_data).toBeTruthy();
     }).toPass({ timeout: 20_000 });
 
+    const original = await getWorkflowAction(g.user, duplicateAction);
     const copy = await duplicateField(g.user, g.fieldByName["Duplicate"]);
 
     const copied = await listWorkflowActions(g.user, copy);
     expect(copied).toHaveLength(1);
     expect(copied[0].type).toBe("http_request");
-    // What a click remembered describes this installation's data, and a copy,
-    // which an export can carry anywhere, is where it must not follow.
-    expect(copied[0].service.sample_data).toBeNull();
+    expect(copied[0].service.url).toEqual(original.service.url);
+    expect(copied[0].service.sample_data).toEqual(original.service.sample_data);
 
-    // The copy is a working button, not a broken one: it answers for itself
-    // the first time somebody clicks it.
+    // Preserving a captured answer must not prevent a fresh request on click.
     await gridFor(page, clicker);
     // Found by name rather than by an offset from the original: the copy sorts
     // after every field the setup made, so any field added to `beforeAll`
     // later would sit between the two and be clicked instead.
-    await grid
+    const copiedButton = grid
       .fieldCellAt(0, await columnIndexOf(page, copy.name))
-      .locator("button")
-      .click();
+      .locator("button");
+    const accepted = page.waitForResponse(
+      (r) =>
+        r.url().includes("/workflow_actions/dispatch/") &&
+        r.request().method() === "POST"
+    );
+    await copiedButton.click();
+    expect((await accepted).status()).toBe(202);
+    await expect(copiedButton).not.toHaveClass(/button--loading/, {
+      timeout: 30_000,
+    });
+    await expect(page.locator(".toast")).toHaveCount(0);
     await expect(async () => {
       const after = await listWorkflowActions(g.user, copy);
       expect(after[0].service.sample_data).toBeTruthy();

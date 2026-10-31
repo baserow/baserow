@@ -165,18 +165,13 @@ class DatabaseWorkflowServiceActionType(
     ) -> Any:
         if prop_name == "service":
             service = workflow_action.service.specific
-            exported = service.get_type().export_serialized(
+            return service.get_type().export_serialized(
                 service,
                 import_export_config=import_export_config,
                 files_zip=files_zip,
                 storage=storage,
                 cache=cache,
             )
-            # An export travels to snapshots, copies and templates, and what a
-            # click remembered describes this installation's data. Nothing
-            # needs it there: the editor rebuilds it from the next click.
-            exported.pop("sample_data", None)
-            return exported
 
         return super().serialize_property(
             workflow_action,

@@ -898,10 +898,10 @@ def test_duplicating_a_forward_reference(data_fixture):
 
 
 @pytest.mark.django_db
-def test_export_leaves_behind_what_a_click_remembered(data_fixture):
+@pytest.mark.parametrize("is_user_template", [True, False])
+def test_button_export_uses_shared_sample_sanitization(data_fixture, is_user_template):
     """
-    An export travels to snapshots, duplicates and templates, and what a click
-    remembered of an external response describes this installation's data.
+    Buttons follow the shared service sample rules for every export type.
     """
 
     user = data_fixture.create_user()
@@ -915,20 +915,28 @@ def test_export_leaves_behind_what_a_click_remembered(data_fixture):
     )
 
     exported = field_type_registry.get_by_model(button_field).export_serialized(
-        button_field
+        button_field,
+        import_export_config=ImportExportConfig(
+            include_permission_data=False, is_user_template=is_user_template
+        ),
     )
 
     exported_service = exported["workflow_actions"][0]["service"]
-    assert "sample_data" not in exported_service
-    assert "tKn-123" not in str(exported)
+    if is_user_template:
+        assert exported_service["sample_data"] == {
+            "data": {"body": {"secret": "Example"}},
+            "status": 0,
+        }
+    else:
+        assert exported_service["sample_data"] == service.sample_data
+    if is_user_template:
+        assert "tKn-123" not in str(exported)
 
 
 @pytest.mark.django_db
-def test_duplicating_a_field_leaves_the_remembered_answer_behind(data_fixture):
+def test_duplicating_a_field_preserves_service_samples(data_fixture):
     """
-    Duplicating goes through the same export and import as a snapshot, so a
-    copy must arrive with the request configured and with nothing this
-    installation's endpoint happened to answer.
+    Duplicating a button preserves its request configuration and captured schema.
     """
 
     user = data_fixture.create_user()
@@ -951,7 +959,7 @@ def test_duplicating_a_field_leaves_the_remembered_answer_behind(data_fixture):
     assert len(copied_actions) == 1
     copied_service = copied_actions[0].service.specific
     assert copied_service.url["formula"] == "'http://example.notexist/'"
-    assert copied_service.sample_data is None
+    assert copied_service.sample_data == service.sample_data
 
 
 def _button_with_authorized_request(data_fixture, table):
