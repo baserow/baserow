@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Search now works in workspaces whose search data could not be stored because of a name clash with another workspace.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-10-31"
+}
