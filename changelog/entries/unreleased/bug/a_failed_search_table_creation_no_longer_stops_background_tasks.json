@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "A search table that fails to be created no longer stops background tasks, such as exports and search updates, from running.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-10-31"
+}
