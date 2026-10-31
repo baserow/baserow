@@ -15,6 +15,19 @@ def setup(settings):
         value['engine'] = 'some custom engine'
     """
 
+    settings.BASEROW_SEMANTIC_SEARCH_CHUNK_SIZE = int(
+        os.getenv("BASEROW_SEMANTIC_SEARCH_CHUNK_SIZE", "") or 1000
+    )
+    settings.BASEROW_SEMANTIC_SEARCH_CHUNK_OVERLAP = int(
+        os.getenv("BASEROW_SEMANTIC_SEARCH_CHUNK_OVERLAP", "") or 150
+    )
+    settings.BASEROW_SEMANTIC_SEARCH_MAX_CHUNKS_PER_CELL = int(
+        os.getenv("BASEROW_SEMANTIC_SEARCH_MAX_CHUNKS_PER_CELL", "") or 30
+    )
+    settings.BASEROW_SEMANTIC_SEARCH_TASK_TIME_BUDGET_SECONDS = int(
+        os.getenv("BASEROW_SEMANTIC_SEARCH_TASK_TIME_BUDGET_SECONDS", "") or 240
+    )
+
     settings.BASEROW_ENTERPRISE_USER_SOURCE_COUNTING_TASK_INTERVAL_MINUTES = int(
         os.getenv("BASEROW_ENTERPRISE_USER_SOURCE_COUNTING_TASK_INTERVAL_MINUTES", "")
         or 15

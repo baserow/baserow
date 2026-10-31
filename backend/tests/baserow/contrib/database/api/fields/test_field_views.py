@@ -1467,6 +1467,8 @@ def test_change_primary_field_field_with_primary(api_client, data_fixture):
                 "immutable_type": False,
                 "database_id": field_1.table.database.id,
                 "workspace_id": field_1.table.database.workspace.id,
+                "semantic_search_enabled": False,
+                "semantic_search_status": None,
             }
         ],
         "text_default": "",
@@ -1474,6 +1476,8 @@ def test_change_primary_field_field_with_primary(api_client, data_fixture):
         "immutable_type": False,
         "database_id": table_a.database.id,
         "workspace_id": table_a.database.workspace.id,
+        "semantic_search_enabled": False,
+        "semantic_search_status": None,
     }
 
 
