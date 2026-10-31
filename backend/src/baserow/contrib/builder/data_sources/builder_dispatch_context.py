@@ -42,8 +42,9 @@ class BuilderDispatchContext(DispatchContext):
         "workspace",
     ]
 
-    # The answer and the body have always had a whole timeout each here, so
-    # an external request keeps both until #6117 settles a stricter one.
+    # The answer and the body have always had a whole timeout each in a workflow
+    # action, so its external request keeps both until #6117 settles a stricter
+    # one.
     external_request_timeouts = 2
 
     def __init__(
@@ -76,6 +77,13 @@ class BuilderDispatchContext(DispatchContext):
         self.page = page
         self.workflow_action = workflow_action
         self.data_source = data_source
+
+        if workflow_action is None:
+            # Dispatching data sources only reads, so a request one sends waits
+            # outside the transaction instead of holding it open, for at most
+            # its own timeout: a page waits for its data sources one by one.
+            self.sends_external_calls_outside_transaction = True
+            self.external_request_timeouts = 1
 
         # Overrides the `request` GET offset/count values.
         self.offset = offset

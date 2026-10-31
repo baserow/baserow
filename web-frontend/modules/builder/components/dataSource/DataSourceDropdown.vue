@@ -111,7 +111,7 @@ export default {
         return dataSource.name
       }
       const service = this.$registry.get('service', dataSource.type)
-      const suffix = service.returnsList
+      const suffix = service.returnsList(dataSource)
         ? this.$t('integrationsCommon.multipleRows')
         : this.$t('integrationsCommon.singleRow')
       return `${dataSource.name} (${suffix})`

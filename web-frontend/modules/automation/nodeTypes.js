@@ -210,8 +210,8 @@ export class NodeType extends Registerable {
     return this.serviceType.formComponent
   }
 
-  get returnsList() {
-    return Boolean(this.serviceType.returnsList)
+  returnsList(node) {
+    return Boolean(this.serviceType.returnsList(node?.service))
   }
 
   /**

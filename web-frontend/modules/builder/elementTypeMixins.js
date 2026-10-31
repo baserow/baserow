@@ -489,7 +489,10 @@ export const CollectionElementTypeMixin = (Base) =>
       const serviceType = this.app.$registry.get('service', dataSource.type)
 
       // If the data source type doesn't return a list, we should have a schema_property
-      if (!serviceType.returnsList && !parentWithDataSource.schema_property) {
+      if (
+        !serviceType.returnsList(dataSource) &&
+        !parentWithDataSource.schema_property
+      ) {
         return this.app.$i18n.t('elementType.errorSchemaPropertyMissing')
       }
 

@@ -43,6 +43,11 @@ from baserow.contrib.integrations.core.api.webhooks.views import CoreHTTPTrigger
 from baserow.contrib.integrations.core.constants import (
     BODY_TYPE,
     CSV_FILE_READER_INPUT_TYPE,
+    HTTP_DATA_SOURCE_DEFAULT_RESULT_LIMIT,
+    HTTP_DATA_SOURCE_MAX_RESULT_LIMIT,
+    HTTP_DATA_SOURCE_SAMPLE_RESPONSE_LIST_LENGTH,
+    HTTP_DATA_SOURCE_TIMEOUT_DEFAULT,
+    HTTP_DATA_SOURCE_TIMEOUT_MAX,
     HTTP_METHOD,
     PERIODIC_INTERVAL_CHOICES,
     PERIODIC_INTERVAL_MINUTE,
@@ -63,6 +68,7 @@ from baserow.contrib.integrations.core.integration_types import SMTPIntegrationT
 from baserow.contrib.integrations.core.models import (
     CoreCSVFileReaderService,
     CoreGotoService,
+    CoreHTTPDataSourceService,
     CoreHTTPRequestService,
     CoreHTTPTriggerService,
     CoreInboundEmailTriggerService,
@@ -116,6 +122,7 @@ from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
     AddressNotAllowedDispatchException,
     InvalidContextContentDispatchException,
+    RemoteBusyDispatchException,
     RemoteRefusedDispatchException,
     RuntimeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
@@ -718,6 +725,80 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             for match in RE_FORMULA_FUNCTION.finditer(formula)
         )
 
+    def _send_request(
+        self,
+        service: CoreHTTPRequestService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+        http_method: str,
+        **body_kwargs,
+    ):
+        """
+        Sends the request with the service's resolved URL, headers and query
+        params, and returns the response, its body already read.
+
+        :raises request_exceptions.Timeout: When the service's timeout passes,
+            so that each caller decides what a timeout means for it.
+        """
+
+        headers = {"user-agent": f"Baserow/{BASEROW_VERSION}/HTTPRequestService"} | {
+            h.key: resolved_values[f"header_{h.id}"] for h in service.headers.all()
+        }
+        query_params = {
+            q.key: resolved_values[f"param_{q.id}"] for q in service.query_params.all()
+        }
+
+        # One deadline for the whole exchange, every redirect and every body
+        # included. Requests' own timeout starts again on every hop and every
+        # byte, so on its own it does not bound a click, or the lock that
+        # guards its row.
+        deadline = (
+            time.monotonic()
+            + service.timeout * dispatch_context.external_request_timeouts
+        )
+        try:
+            return send_http_request(
+                method=http_method,
+                url=resolved_values["url"],
+                headers=headers,
+                params=query_params,
+                deadline=deadline,
+                operation_timeout=service.timeout,
+                **body_kwargs,
+            )
+        except ServiceImproperlyConfiguredDispatchException:
+            # Too big. The message names no address, so it travels as it is
+            # rather than as an unknown error.
+            raise
+        except UnacceptableAddressException as e:
+            # Refused before anything was sent, so a caller counting outbound
+            # traffic must not count it.
+            raise AddressNotAllowedDispatchException(
+                f"Invalid URL: {resolved_values['url']}"
+            ) from e
+        except ConnectionError as e:
+            # A lookup, refused or reset connection: transient, so retryable.
+            raise RuntimeDispatchException(
+                f"Invalid URL: {resolved_values['url']}"
+            ) from e
+        except request_exceptions.Timeout:
+            raise
+        except request_exceptions.RequestException as e:
+            # Dropped connection, broken chunked encoding and the like, which a
+            # later attempt may not hit again.
+            raise RuntimeDispatchException(str(e)) from e
+        except Exception as e:
+            # Not `logger.exception`: loguru prints the frame locals beside the
+            # traceback, and this frame holds the URL, every resolved header
+            # and the body. Only the class of the failure is logged.
+            logger.error(
+                "Error while dispatching HTTP request: {exception}. The "
+                "failure itself is not logged: it names the address and what "
+                "was sent with it.",
+                exception=type(e).__name__,
+            )
+            raise UnexpectedDispatchException(f"Unknown error: {str(e)}") from e
+
     def dispatch_data(
         self,
         service: CoreHTTPRequestService,
@@ -757,46 +838,14 @@ class CoreHTTPRequestServiceType(CoreServiceType):
         elif service.body_type == BODY_TYPE.RAW:  # Raw payload
             body_dict["data"] = body_content
 
-        headers = {"user-agent": f"Baserow/{BASEROW_VERSION}/HTTPRequestService"} | {
-            h.key: resolved_values[f"header_{h.id}"] for h in service.headers.all()
-        }
-        query_params = {
-            q.key: resolved_values[f"param_{q.id}"] for q in service.query_params.all()
-        }
-
-        # One deadline for the whole exchange, every redirect and every body
-        # included. Requests' own timeout starts again on every hop and every
-        # byte, so on its own it does not bound a click, or the lock that
-        # guards its row.
-        deadline = (
-            time.monotonic()
-            + service.timeout * dispatch_context.external_request_timeouts
-        )
         try:
-            response = send_http_request(
-                method=service.http_method,
-                url=resolved_values["url"],
-                headers=headers,
-                params=query_params,
-                deadline=deadline,
-                operation_timeout=service.timeout,
+            response = self._send_request(
+                service,
+                resolved_values,
+                dispatch_context,
+                service.http_method,
                 **body_dict,
             )
-        except ServiceImproperlyConfiguredDispatchException:
-            # Too big. The message names no address, so it travels as it is
-            # rather than as an unknown error.
-            raise
-        except UnacceptableAddressException as e:
-            # Refused before anything was sent, so a caller counting outbound
-            # traffic must not count it.
-            raise AddressNotAllowedDispatchException(
-                f"Invalid URL: {resolved_values['url']}"
-            ) from e
-        except ConnectionError as e:
-            # A lookup, refused or reset connection: transient, so retryable.
-            raise RuntimeDispatchException(
-                f"Invalid URL: {resolved_values['url']}"
-            ) from e
         except request_exceptions.Timeout:
             return {
                 "data": {
@@ -807,21 +856,6 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                     "status_code": 504,
                 }
             }
-        except request_exceptions.RequestException as e:
-            # Dropped connection, broken chunked encoding and the like, which a
-            # later attempt may not hit again.
-            raise RuntimeDispatchException(str(e)) from e
-        except Exception as e:
-            # Not `logger.exception`: loguru prints the frame locals beside the
-            # traceback, and this frame holds the URL, every resolved header
-            # and the body. Only the class of the failure is logged.
-            logger.error(
-                "Error while dispatching HTTP request: {exception}. The "
-                "failure itself is not logged: it names the address and what "
-                "was sent with it.",
-                exception=type(e).__name__,
-            )
-            raise UnexpectedDispatchException(f"Unknown error: {str(e)}") from e
 
         # Preserve the original keys for existing formulas and add normalized
         # aliases so new formulas don't depend on the server's casing.
@@ -869,6 +903,568 @@ class CoreHTTPRequestServiceType(CoreServiceType):
         data: Any,
     ) -> DispatchResult:
         return DispatchResult(data=data["data"])
+
+
+class CoreHTTPDataSourceServiceType(ListServiceTypeMixin, CoreHTTPRequestServiceType):
+    """
+    An HTTP request used as a data source. It always sends a GET without a
+    body. Its result is the parsed JSON body of the response, or, when the service
+    returns a list, the records of the list found at `list_path` in it.
+    """
+
+    type = "http_get"
+    model_class = CoreHTTPDataSourceService
+    dispatch_types = [DispatchTypes.DATA]
+
+    # The URL stays for the same reason as on the action.
+    sensitive_fields = ["headers", "query_params"]
+
+    # The sample data is the response of the API.
+    sample_data_is_sensitive = True
+
+    allowed_fields = ["url", "timeout", "returns_list", "list_path"]
+
+    _serializer_field_names = [
+        "url",
+        "headers",
+        "query_params",
+        "timeout",
+        "returns_list",
+        "list_path",
+    ]
+
+    request_serializer_field_names = [
+        "url",
+        "headers",
+        "query_params",
+        "timeout",
+        "returns_list",
+        "list_path",
+    ]
+
+    # A published page reads the records differently when they're a list.
+    public_serializer_field_names = ["returns_list"]
+
+    class SerializedDict(ServiceDict):
+        url: str
+        headers: List[Dict[str, str]]
+        query_params: List[Dict[str, str]]
+        timeout: int
+        returns_list: bool
+        list_path: str
+
+    # The property holding a record's position in the list, for records which
+    # don't all have an `id` of their own.
+    position_id_property = "_id"
+
+    simple_formula_fields = ["url"]
+
+    @property
+    def serializer_field_overrides(self):
+        overrides = super().serializer_field_overrides
+        return {
+            "url": overrides["url"],
+            "headers": overrides["headers"],
+            "query_params": overrides["query_params"],
+            # The model's default is the action's, which Django doesn't let a
+            # child model override.
+            "timeout": serializers.IntegerField(
+                required=False,
+                min_value=1,
+                max_value=HTTP_DATA_SOURCE_TIMEOUT_MAX,
+                default=HTTP_DATA_SOURCE_TIMEOUT_DEFAULT,
+                help_text=CoreHTTPRequestService._meta.get_field("timeout").help_text,
+            ),
+            "returns_list": serializers.BooleanField(
+                required=False,
+                default=False,
+                help_text=CoreHTTPDataSourceService._meta.get_field(
+                    "returns_list"
+                ).help_text,
+            ),
+            "list_path": serializers.CharField(
+                required=False,
+                allow_blank=True,
+                max_length=255,
+                help_text=CoreHTTPDataSourceService._meta.get_field(
+                    "list_path"
+                ).help_text,
+            ),
+        }
+
+    def returns_list(self, service: CoreHTTPDataSourceService) -> bool:
+        return service.returns_list
+
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: Optional[CoreHTTPDataSourceService] = None,
+    ) -> Dict[str, Any]:
+        # A new service, or one replacing a service of another type, starts with
+        # the data source timeout rather than the model's.
+        if "timeout" not in values and (
+            instance is None or type(instance) is not self.model_class
+        ):
+            values = {**values, "timeout": HTTP_DATA_SOURCE_TIMEOUT_DEFAULT}
+
+        return super().prepare_values(values, user, instance)
+
+    def after_update(
+        self,
+        instance: CoreHTTPDataSourceService,
+        values: Dict,
+        changes: Dict[str, Tuple],
+    ):
+        super().after_update(instance, values, changes)
+
+        # The sample data was made for the previous shape or list path. It's made
+        # again from the response kept with it, or the data source has to be
+        # tested again when there's none.
+        if "returns_list" in changes or (
+            "list_path" in changes and instance.returns_list
+        ):
+            returned_list = changes.get("returns_list", (instance.returns_list,))[0]
+            tested = self.get_tested_response(instance, returned_list)
+            instance.sample_data = (
+                self._sample_data_from_response(
+                    instance, tested["response"], instance.sample_data
+                )
+                if tested
+                else None
+            )
+            instance.save(update_fields=["sample_data"])
+
+    def get_tested_response(
+        self, service: CoreHTTPDataSourceService, returned_list: bool
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Returns the response the last test of the service stored, as
+        `{"response": ...}` since a response can be null, or None when there is
+        none.
+
+        :param service: The service whose sample data holds the response.
+        :param returned_list: Whether the service returned a list when it was
+            tested: the response is then kept next to the records read from it.
+        """
+
+        sample_data = self.get_sample_data(service, None)
+        if not sample_data or "data" not in sample_data:
+            return None
+        data = sample_data["data"]
+        if not returned_list:
+            return {"response": data}
+        if not isinstance(data, dict) or "response" not in data:
+            return None
+        return {"response": data["response"]}
+
+    def _sample_data_from_response(
+        self,
+        service: CoreHTTPDataSourceService,
+        response: Any,
+        tested_sample_data: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Returns the sample data a test of the service would have stored for the
+        response, or None when the response doesn't fit the service.
+        """
+
+        if not service.returns_list:
+            return {**tested_sample_data, "data": response}
+
+        try:
+            records = self._to_records(self._get_list(response, service.list_path))
+        except ServiceImproperlyConfiguredDispatchException:
+            return None
+
+        count = self.get_default_result_limit(service)
+        return {
+            **tested_sample_data,
+            "data": {
+                "results": records[:count],
+                "has_next_page": len(records) > count,
+                "response": self._sample_response(response),
+            },
+        }
+
+    def get_schema_name(self, service: CoreHTTPDataSourceService) -> str:
+        return f"HTTPDataSource{service.id}Schema"
+
+    def _sample_data_schema(
+        self, service: CoreHTTPDataSourceService
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Builds a schema from the response the last test stored, or returns None
+        when there is no usable one.
+        """
+
+        sample_data = self.get_sample_data(service, None)
+        if not sample_data or "data" not in sample_data:
+            return None
+
+        schema_builder = SchemaBuilder()
+        schema_builder.add_object(sample_data["data"])
+        schema = schema_builder.to_schema()
+        schema.pop("$schema", None)
+        return schema
+
+    def _filter_properties(
+        self, schema: Dict[str, Any], allowed_fields: Optional[List[str]]
+    ) -> Dict[str, Any]:
+        if allowed_fields is None or "properties" not in schema:
+            return schema
+
+        paths = [self._to_used_path(name) for name in allowed_fields]
+        if any(not path for path in paths):
+            # The whole value is used.
+            return schema
+
+        allowed = {path[0] for path in paths}
+        return {
+            **schema,
+            "properties": {
+                key: value
+                for key, value in schema["properties"].items()
+                if key in allowed
+            },
+        }
+
+    def generate_schema(
+        self,
+        service: CoreHTTPDataSourceService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        if service.returns_list:
+            return self._list_schema(service, allowed_fields)
+
+        schema = self._sample_data_schema(service)
+        if schema is None:
+            return None
+
+        return {
+            **self._filter_properties(schema, allowed_fields),
+            "title": self.get_schema_name(service),
+        }
+
+    def _list_schema(
+        self,
+        service: CoreHTTPDataSourceService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        sample_data = self.get_sample_data(service, None)
+        if not sample_data or "results" not in (sample_data.get("data") or {}):
+            return None
+
+        schema_builder = SchemaBuilder()
+        schema_builder.add_object(sample_data["data"]["results"])
+        schema = schema_builder.to_schema()
+        schema.pop("$schema", None)
+
+        if "items" not in schema:
+            # An empty list says nothing about its records.
+            return None
+
+        return {
+            **schema,
+            "items": self._filter_properties(schema["items"], allowed_fields),
+            "title": self.get_schema_name(service),
+        }
+
+    def formulas_to_resolve(
+        self, service: CoreHTTPDataSourceService
+    ) -> list[FormulaToResolve]:
+        formulas = [
+            FormulaToResolve("url", service.url, ensure_string, 'property "URL"'),
+        ]
+
+        for header in service.headers.all():
+            formulas.append(
+                FormulaToResolve(
+                    f"header_{header.id}",
+                    header.value,
+                    ensure_string,
+                    f'header "{header.key}"',
+                ),
+            )
+
+        for param in service.query_params.all():
+            formulas.append(
+                FormulaToResolve(
+                    f"param_{param.id}",
+                    param.value,
+                    ensure_string,
+                    f'query parameter "{param.key}"',
+                ),
+            )
+
+        return formulas
+
+    def _fetch_body(
+        self,
+        service: CoreHTTPDataSourceService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Any:
+        """
+        Sends the GET request and returns its parsed JSON body.
+
+        :raises RuntimeDispatchException: When the request timed out.
+        :raises RemoteBusyDispatchException: When the server answered with a 5xx
+            or a 429, which a later attempt may not get.
+        :raises RemoteRefusedDispatchException: When the server answered with
+            any other status outside 2xx, or with a body that isn't JSON.
+        """
+
+        if not resolved_values["url"]:
+            raise ServiceImproperlyConfiguredDispatchException("The URL is missing.")
+
+        # A data source's errors reach the visitors of a published page, so
+        # unlike the action's they name neither the address nor what the
+        # request library said about it: either can carry the query string,
+        # and the credential in it.
+        try:
+            response = self._send_request(
+                service, resolved_values, dispatch_context, HTTP_METHOD.GET
+            )
+        except request_exceptions.Timeout as e:
+            raise RuntimeDispatchException(
+                f"The request timed out after {service.timeout} seconds."
+            ) from e
+        except AddressNotAllowedDispatchException as e:
+            raise AddressNotAllowedDispatchException(
+                "The address of the request is not allowed."
+            ) from e
+        except RuntimeDispatchException as e:
+            raise RuntimeDispatchException(
+                f"The server could not be reached: {type(e.__cause__).__name__}."
+            ) from e
+        except UnexpectedDispatchException as e:
+            raise UnexpectedDispatchException(
+                f"The request could not be sent: {type(e.__cause__).__name__}."
+            ) from e
+
+        status_code = response.status_code
+        if status_code == 429 or status_code >= 500:
+            raise RemoteBusyDispatchException(
+                f"The server answered with status {status_code}."
+            )
+        if not 200 <= status_code < 300:
+            raise RemoteRefusedDispatchException(
+                f"The server answered with status {status_code}."
+            )
+
+        try:
+            body = response.json()
+        except (ValueError, UnicodeDecodeError) as e:
+            # `requests`' JSONDecodeError is a ValueError.
+            raise RemoteRefusedDispatchException(
+                "The response is not valid JSON."
+            ) from e
+
+        # PostgreSQL refuses a NUL character in the json column the sample data
+        # is stored in.
+        return remove_null_characters(body)
+
+    def dispatch_data(
+        self,
+        service: CoreHTTPDataSourceService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Any:
+        body = self._fetch_body(service, resolved_values, dispatch_context)
+        if not service.returns_list:
+            return body
+
+        records = self._to_records(self._get_list(body, service.list_path))
+        # A test stores the result as the sample data, which then also keeps the
+        # response the records were read from, to choose another list in it.
+        is_test = dispatch_context.use_sample_data and (
+            dispatch_context.update_sample_data_for is None
+            or service in dispatch_context.update_sample_data_for
+        )
+
+        if (
+            dispatch_context.only_record_id is not None
+            and dispatch_context.is_adhoc_refinable(service)
+        ):
+            wanted = str(dispatch_context.only_record_id)
+            records = [
+                record for record in records if str(self._record_id(record)) == wanted
+            ]
+
+        offset, count = dispatch_context.range(service)
+        if count is None:
+            count = self.get_default_result_limit(service)
+        count = min(count, self.get_max_result_limit(service))
+
+        data = {
+            "results": records[offset : offset + count],
+            "has_next_page": len(records) > offset + count,
+        }
+        if is_test:
+            data["response"] = self._sample_response(body)
+        return data
+
+    def dispatch_transform(self, data: Any) -> DispatchResult:
+        return DispatchResult(data=data)
+
+    def extract_properties(
+        self, service: CoreHTTPDataSourceService, path: List[str], **kwargs
+    ) -> List[str]:
+        # The values of a response nest, so the whole path a page uses is kept:
+        # showing `user.name` must not make the rest of the user public. The
+        # path is stored as JSON, as a key of the response can have a dot.
+        return [json.dumps([str(part) for part in path])]
+
+    def _to_used_path(self, property_name: str) -> List[str]:
+        """
+        Returns the path of a property a page uses. Elements also add property
+        names of their own, such as the property a repeat iterates over, which
+        are the path of a single key.
+        """
+
+        try:
+            path = json.loads(property_name)
+        except (TypeError, ValueError):
+            path = None
+        if isinstance(path, list) and all(isinstance(part, str) for part in path):
+            return path
+        return [str(property_name)]
+
+    def _keep_used(self, value: Any, paths: List[List[str]]) -> Any:
+        """
+        Returns the parts of the value the paths lead to. An item of a list
+        which no path leads to becomes None, so that the others keep their
+        index.
+
+        In a list, `*` leads to every item, an index to one, and any other key
+        to that key in every item: the way the records of a repeat over the
+        list are read.
+        """
+
+        if any(not path for path in paths):
+            return value
+
+        if isinstance(value, dict):
+            kept = {}
+            for key, item in value.items():
+                rests = [path[1:] for path in paths if path[0] in (key, "*")]
+                if rests:
+                    kept[key] = self._keep_used(item, rests)
+            return kept
+
+        if isinstance(value, list):
+            kept = []
+            for index, item in enumerate(value):
+                rests = [
+                    path[1:] if path[0] in ("*", str(index)) else path
+                    for path in paths
+                    if path[0] in ("*", str(index)) or not path[0].isdigit()
+                ]
+                kept.append(self._keep_used(item, rests) if rests else None)
+            return kept
+
+        # A single value has none of the properties the paths lead to.
+        return None
+
+    def sanitize_result(self, service, result, allowed_field_names):
+        paths = [self._to_used_path(name) for name in allowed_field_names]
+        if not service.returns_list:
+            return self._keep_used(result, paths)
+
+        if result is None:
+            return None
+
+        # The position is what tells records apart when they have no `id`.
+        paths.append([self.position_id_property])
+        return {
+            **result,
+            "results": [self._keep_used(record, paths) for record in result["results"]],
+        }
+
+    def prepare_record_ids(self, record_ids: List[Any]) -> List[Any]:
+        # An API's ids can be strings as much as numbers.
+        return [
+            record_id if isinstance(record_id, int) else str(record_id)
+            for record_id in record_ids
+            if record_id not in ("", None)
+        ]
+
+    def get_max_result_limit(self, service: CoreHTTPDataSourceService):
+        return HTTP_DATA_SOURCE_MAX_RESULT_LIMIT
+
+    def get_default_result_limit(self, service: CoreHTTPDataSourceService):
+        return HTTP_DATA_SOURCE_DEFAULT_RESULT_LIMIT
+
+    def _get_list(self, body: Any, list_path: str) -> List[Any]:
+        """
+        Returns the list at the dotted `list_path` of the body, the body itself
+        when the path is blank.
+        """
+
+        value = body
+        list_path = (list_path or "").strip()
+        for part in list_path.split(".") if list_path else []:
+            if isinstance(value, dict) and part in value:
+                value = value[part]
+            elif isinstance(value, list) and part.isdigit() and int(part) < len(value):
+                value = value[int(part)]
+            else:
+                raise ServiceImproperlyConfiguredDispatchException(
+                    f'The path "{list_path}" was not found in the response.'
+                )
+
+        if not isinstance(value, list):
+            where = f'at "{list_path}"' if list_path else "as the response"
+            raise ServiceImproperlyConfiguredDispatchException(
+                f"Expected a list {where}, got {type(value).__name__}."
+            )
+
+        return value
+
+    def _to_records(self, items: List[Any]) -> List[Dict[str, Any]]:
+        """
+        Makes a record of each item. An item that isn't an object becomes one
+        with a `value`. When not every record has an `id`, each gets its position
+        as `_id` instead.
+        """
+
+        records = [
+            item if isinstance(item, dict) else {"value": item} for item in items
+        ]
+
+        if all(record.get("id") is not None for record in records):
+            return records
+
+        return [
+            {**record, self.position_id_property: index}
+            for index, record in enumerate(records)
+        ]
+
+    def _record_id(self, record: Dict[str, Any]) -> Any:
+        """
+        Returns what identifies the record, the way the frontend reads it: its
+        position when it was given one, so that in a list of records with and
+        without an `id` a position never matches another record's `id`.
+        """
+
+        position = record.get(self.position_id_property)
+        return position if position is not None else record.get("id")
+
+    def _sample_response(self, value: Any) -> Any:
+        """
+        Returns the response with only the first items of each of its lists:
+        what the form needs to show its shape and choose the list in it.
+        """
+
+        if isinstance(value, dict):
+            return {key: self._sample_response(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [
+                self._sample_response(item)
+                for item in value[:HTTP_DATA_SOURCE_SAMPLE_RESPONSE_LIST_LENGTH]
+            ]
+        return value
 
 
 class CoreSMTPEmailServiceType(CoreServiceType):

@@ -47,7 +47,7 @@ class PreviousNodeProviderType(AutomationDataProviderType):
 
         service = previous_node.service.specific
 
-        if service.get_type().returns_list:
+        if service.get_type().returns_list(service):
             previous_node_result = previous_node_result["results"]
             if len(rest) >= 2:
                 prepared_path = [
@@ -171,7 +171,7 @@ class CurrentNodeDataProviderType(AutomationDataProviderType):
         service = node.service.specific
         service_type = service.get_type()
 
-        if service_type.returns_list:
+        if service_type.returns_list(service):
             result = result["results"]
             if len(path) >= 2:
                 prepared_path = [

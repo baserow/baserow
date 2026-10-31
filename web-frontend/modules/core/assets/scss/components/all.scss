@@ -188,6 +188,8 @@
 @import 'services/service_form';
 @import 'services/webhook_service_form';
 @import 'services/inbound_email_trigger_service_form';
+@import 'services/http_data_source_service_form';
+@import 'services/http_response_picker';
 @import 'editable';
 @import 'notification_panel';
 @import 'color_picker';

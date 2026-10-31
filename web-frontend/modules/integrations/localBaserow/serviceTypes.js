@@ -36,7 +36,9 @@ export class LocalBaserowTableServiceType extends ServiceType {
 
   getSchemaProperties(service) {
     const schema = this.getDataSchema(service)
-    return this.returnsList ? schema?.items?.properties : schema?.properties
+    return this.returnsList(service)
+      ? schema?.items?.properties
+      : schema?.properties
   }
 
   getSchemaProperty(service, propertyName) {
@@ -144,7 +146,7 @@ export class LocalBaserowTableServiceType extends ServiceType {
     let humanName = field
 
     if (schema && typeof field === 'string' && field.startsWith('field_')) {
-      if (this.returnsList) {
+      if (this.returnsList(service)) {
         if (schema.items?.properties?.[field]?.title) {
           humanName = schema.items.properties[field].title
         }
@@ -327,7 +329,7 @@ export class LocalBaserowListRowsServiceType extends DataSourceLocalBaserowTable
     return LocalBaserowAdhocHeader
   }
 
-  get returnsList() {
+  returnsList(service) {
     return true
   }
 
@@ -514,7 +516,7 @@ export class LocalBaserowUpsertRowsServiceType extends WorkflowActionServiceType
     )
   }
 
-  get returnsList() {
+  returnsList(service) {
     return true
   }
 
@@ -648,7 +650,7 @@ export class LocalBaserowDeleteRowServiceType extends WorkflowActionServiceTypeM
 export class LocalBaserowRowsSignalTriggerServiceType extends TriggerServiceTypeMixin(
   LocalBaserowTableServiceType
 ) {
-  get returnsList() {
+  returnsList(service) {
     return true
   }
 

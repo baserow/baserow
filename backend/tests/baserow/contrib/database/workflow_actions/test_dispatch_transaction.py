@@ -193,6 +193,7 @@ def test_only_services_that_reach_outside_are_external():
 
     assert external == {
         "http_request",
+        "http_get",
         "smtp_email",
         "slack_write_message",
         "ai_agent",

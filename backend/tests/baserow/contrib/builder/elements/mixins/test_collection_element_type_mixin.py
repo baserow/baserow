@@ -208,7 +208,7 @@ def test_mixin_prepare_value_for_db():
     element.data_source.service = MagicMock()
 
     service_type = MagicMock()
-    service_type.returns_list = False
+    service_type.returns_list.return_value = False
 
     element.data_source.service.get_type.return_value = service_type
 
@@ -220,7 +220,7 @@ def test_mixin_prepare_value_for_db():
             element,
         )
 
-    service_type.returns_list = True
+    service_type.returns_list.return_value = True
     service_type.get_max_result_limit.return_value = 10
 
     with pytest.raises(RequestBodyValidationException):

@@ -39,7 +39,7 @@ class AIAgentServiceType(ServiceType):
     integration_type = AIIntegrationType.type
     dispatch_types = [DispatchTypes.ACTION]
     is_external = True
-    returns_list = False
+    _returns_list = False
 
     allowed_fields = [
         "integration_id",

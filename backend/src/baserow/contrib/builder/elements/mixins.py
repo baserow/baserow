@@ -359,8 +359,8 @@ class CollectionElementTypeMixin:
                 schema_property = values.get("schema_property", None)
                 data_source = DataSourceHandler().get_data_source(data_source_id)
                 if data_source.service:
-                    service_type = data_source.service.specific.get_type()
-                    if service_type.returns_list and schema_property:
+                    service = data_source.service.specific
+                    if service.get_type().returns_list(service) and schema_property:
                         raise DRFValidationError(
                             "Data sources which return multiple rows cannot be "
                             "used in conjunction with the schema property."
@@ -405,7 +405,9 @@ class CollectionElementTypeMixin:
             if (
                 data_source
                 and data_source.service
-                and data_source.service.get_type().returns_list
+                and data_source.service.get_type().returns_list(
+                    data_source.service.specific
+                )
             ):
                 max_count = data_source.service.get_type().get_max_result_limit(
                     data_source.service.specific

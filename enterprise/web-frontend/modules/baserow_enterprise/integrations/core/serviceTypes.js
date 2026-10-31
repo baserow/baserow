@@ -119,7 +119,7 @@ export class CoreXLSFileReaderServiceType extends DataSourceServiceTypeMixin(
     return getFilesGroup(this.app)
   }
 
-  get returnsList() {
+  returnsList(service) {
     return true
   }
 

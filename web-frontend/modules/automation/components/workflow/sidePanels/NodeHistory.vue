@@ -411,9 +411,11 @@ const showNodeResultModal = async () => {
       nodeHistoryId,
     })
     let result = store.getters['automationHistory/getNodeResult'](nodeHistoryId)
+    // The node itself may be gone: its type decides, as the types of
+    // automation nodes return the same for all their services.
     if (result?._error) {
       result = result._error
-    } else if (nodeType.value.returnsList && result?.results) {
+    } else if (nodeType.value.returnsList() && result?.results) {
       result = result.results
     }
     resolvedSampleData.value = result

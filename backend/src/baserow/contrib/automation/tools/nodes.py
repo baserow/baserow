@@ -168,7 +168,7 @@ def output_schema(node: AutomationNode) -> dict[str, Any]:
     if schema.get("type") == "array":
         schema = schema.get("items") or {}
     path = f"previous_node.{node.id}"
-    if service_type.returns_list:
+    if service_type.returns_list(service):
         path += ".0"
     return {"formula_path": path, "properties": _compact_properties(schema)}
 
