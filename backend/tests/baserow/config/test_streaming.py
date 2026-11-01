@@ -3,6 +3,7 @@ import json
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
+from django.core.exceptions import ImproperlyConfigured
 from django.http import JsonResponse, StreamingHttpResponse
 from django.urls import reverse
 
@@ -13,7 +14,8 @@ from baserow.config import streaming
 from baserow.config.streaming import AsyncStreamingHTTPRouter
 
 
-def _scope(path="/stream/", method="POST", origin=None):
+def _scope(path=None, method="POST", origin=None):
+    path = path or reverse("api:chat_runs:stream", kwargs={"run_id": uuid4()})
     return {
         "type": "http",
         "http_version": "1.1",
@@ -29,10 +31,21 @@ def _scope(path="/stream/", method="POST", origin=None):
     }
 
 
-def _router(monkeypatch, path="/stream/", methods=("POST",)):
-    monkeypatch.setattr(streaming, "_paths", [])
-    streaming.register_async_stream_path(path, methods=methods)
+def _router(monkeypatch, url_name="api:chat_runs:stream", methods=("POST",)):
+    monkeypatch.setattr(streaming, "_url_names", {})
+    streaming.register_async_stream_path(url_name, methods=methods)
     return AsyncStreamingHTTPRouter(AsyncMock(), max_streams=1)
+
+
+def test_url_regex_matches_only_the_named_url():
+    stream = streaming._url_regex("api:chat_runs:stream")
+    run_id = uuid4()
+    assert stream.fullmatch(reverse("api:chat_runs:stream", kwargs={"run_id": run_id}))
+    assert not stream.fullmatch(
+        reverse("api:chat_runs:detail", kwargs={"run_id": run_id})
+    )
+    with pytest.raises(ImproperlyConfigured):
+        streaming._url_regex("api:chat_runs:missing")
 
 
 @pytest.mark.asyncio
@@ -131,7 +144,7 @@ async def test_unfinished_body_does_not_hold_a_stream_slot(monkeypatch):
 async def test_request_body_size_limit_applies_to_stream_paths(monkeypatch, settings):
     settings.DATA_UPLOAD_MAX_MEMORY_SIZE = 10
     path = reverse("api:user:token_auth")
-    router = _router(monkeypatch, path)
+    router = _router(monkeypatch, "api:user:token_auth")
     body = json.dumps({"email": "a" * 20, "password": "b"}).encode()
     scope = _scope(path)
     scope["headers"] += [
@@ -169,7 +182,7 @@ async def test_detached_preparation_preserves_real_django_authentication_and_cor
     monkeypatch,
 ):
     path = reverse("api:chat_runs:detail", kwargs={"run_id": uuid4()})
-    router = _router(monkeypatch, path, methods=("GET",))
+    router = _router(monkeypatch, "api:chat_runs:detail", methods=("GET",))
     incoming = asyncio.Queue()
     await incoming.put({"type": "http.request", "body": b"{}"})
     output = []

@@ -1,5 +1,6 @@
 import urllib
 from contextlib import contextmanager
+from typing import Any, Dict
 
 from django.conf import settings
 from django.db.models import QuerySet
@@ -113,6 +114,8 @@ class OpenIdConnectAppAuthProviderType(
 
     public_serializer_field_names = ["name", "base_url"]
 
+    sensitive_fields = ["secret"]
+
     class SerializedDict(
         OpenIdConnectAuthProviderTypeMixin.OpenIdConnectSerializedDict,
         AppAuthProviderTypeDict,
@@ -148,6 +151,35 @@ class OpenIdConnectAppAuthProviderType(
                 instance=auth_provider,
             )
         return super().before_update(user, auth_provider, **values)
+
+    def deserialize_property(
+        self,
+        prop_name: str,
+        value: Any,
+        id_mapping: Dict[str, Dict[int, int]],
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ) -> Any:
+        """
+        The `secret` is `None` when the provider was exported without its sensitive
+        data, but the model field doesn't accept null values, so it's imported as an
+        empty string and must be set again by the user.
+        """
+
+        if prop_name == "secret" and value is None:
+            return ""  # nosec B105
+
+        return super().deserialize_property(
+            prop_name,
+            value,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
 
     def get_pytest_params(self, pytest_data_fixture) -> dict:
         """

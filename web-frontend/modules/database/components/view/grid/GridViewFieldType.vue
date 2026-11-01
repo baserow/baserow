@@ -68,7 +68,7 @@
             'tooltip__content--expandable',
             'tooltip__content--expandable-plain-text',
           ]"
-          :icon="'info-empty'"
+          :icon="'iconoir-info-empty'"
           :tooltip-duration="0.2"
         />
 

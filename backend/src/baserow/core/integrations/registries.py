@@ -186,6 +186,7 @@ class IntegrationType(
         self,
         integration: Integration,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -194,7 +195,12 @@ class IntegrationType(
             return str(integration.order)
 
         return super().serialize_property(
-            integration, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            integration,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def import_serialized(

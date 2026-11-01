@@ -43,6 +43,24 @@
       </div>
     </FormGroup>
 
+    <div class="margin-top-2">
+      <ApplicationUntrustedContentAlert
+        :key="workflow.id"
+        :content-owner="workflow"
+        :compact="false"
+        :can-trust="
+          !disabled &&
+          $hasPermission(
+            'automation.workflow.update',
+            workflow,
+            automation.workspace.id
+          )
+        "
+        :trust-content="trustContent"
+        :message="$t('automationHeader.untrustedContentWarning')"
+      />
+    </div>
+
     <MemberAssignmentModal
       ref="workflowDisabledRecipientsModal"
       :members="workspaceMembers"
@@ -66,6 +84,7 @@ import { useForm } from '@baserow/modules/core/composables/useForm'
 import WorkspaceService from '@baserow/modules/core/services/workspace'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import MemberAssignmentModal from '@baserow/modules/core/components/workspace/MemberAssignmentModal'
+import ApplicationUntrustedContentAlert from '@baserow/modules/core/components/application/ApplicationUntrustedContentAlert'
 import { clone } from '@baserow/modules/core/utils/object'
 
 defineOptions({
@@ -109,6 +128,13 @@ const values = reactive({
   notification_recipient_ids: [],
 })
 const allowedValues = ['name', 'notification_recipient_ids']
+
+const trustContent = () =>
+  store.dispatch('automationWorkflow/update', {
+    automation: props.automation,
+    workflow: props.workflow,
+    values: { untrusted_content: false },
+  })
 
 const rules = computed(() => ({
   values: {

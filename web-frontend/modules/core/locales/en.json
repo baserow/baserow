@@ -1,4 +1,33 @@
 {
+  "untrustedContentReviewModal": {
+    "title": "Review imported content",
+    "publishBlocked": "Review and trust the imported content before publishing.",
+    "description": "Imported content is blocked to protect your data and visitors. Only enable it if you trust its source and have reviewed what it does.",
+    "contents": "Content found during import",
+    "riskIframe": "Embeds another page or HTML that may display misleading content or collect information entered by visitors.",
+    "riskCode": "Runs code that may read, change, or send data to external services using the workflow’s configured access.",
+    "riskScript": "Runs JavaScript in visitors’ browsers that may access page data or send information to external services.",
+    "riskStyles": "Changes the page’s appearance and may hide or disguise content. External stylesheets also contact a third-party server.",
+    "riskUnknown": "May run code or load external resources. Review its configuration before enabling it.",
+    "confirmation": "This list is a snapshot from import and may have changed. Trusting enables all current custom content. Publish again to enable it in the published version.",
+    "trust": "Trust content",
+    "empty": "No active content was recorded at import. Review the current content in the editor before trusting it.",
+    "page": "Page: {name}",
+    "typeIframe": "Iframe",
+    "typeCodeAction": "Code action",
+    "typeCodeNode": "Code node",
+    "typeCss": "Custom CSS",
+    "typeJs": "Custom JavaScript",
+    "typeScript": "External script",
+    "typeStylesheet": "External stylesheet",
+    "typeUnknown": "Active content",
+    "errorTitle": "Could not trust content",
+    "errorMessage": "The content is still blocked. Check your permissions and try again."
+  },
+  "applicationUntrustedContentAlert": {
+    "title": "Untrusted content blocked",
+    "review": "Review and trust"
+  },
   "mcpAuthorize": {
     "title": "Connect {client}",
     "titleFrom": "Connect {client} from {host}",

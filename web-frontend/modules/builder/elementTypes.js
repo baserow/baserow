@@ -2180,6 +2180,9 @@ export class IFrameElementType extends ElementType {
    * otherwise return false.
    */
   getErrorMessage(element, applicationContext) {
+    if (applicationContext.builder?.untrusted_content) {
+      return this.app.$i18n.t('builderUntrustedContent.warning')
+    }
     if (
       element.source_type === IFRAME_SOURCE_TYPES.URL &&
       !element.url.formula

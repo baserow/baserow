@@ -1,5 +1,6 @@
 import {
   PROGRESS,
+  RUN_BASELINE,
   RUN_CANCEL_REQUESTED,
   RUN_FINISHED,
   RUN_STARTED,
@@ -56,6 +57,13 @@ export function foldRunEvent(view, event) {
         message: data.message ?? null,
         text: data.message?.content ?? view.text,
         progress: '',
+      }
+    case RUN_BASELINE:
+      return {
+        ...view,
+        segment: data.segment ?? -1,
+        text: data.text || '',
+        progress: data.progress?.text || '',
       }
     default:
       return view

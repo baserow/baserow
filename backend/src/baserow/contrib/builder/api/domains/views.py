@@ -17,6 +17,7 @@ from baserow.api.decorators import (
     validate_body,
     validate_body_custom_fields,
 )
+from baserow.api.errors import ERROR_UNTRUSTED_CONTENT_CANNOT_BE_PUBLISHED
 from baserow.api.jobs.errors import ERROR_MAX_JOB_COUNT_EXCEEDED
 from baserow.api.jobs.serializers import JobSerializer
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
@@ -49,7 +50,10 @@ from baserow.contrib.builder.domains.registries import domain_type_registry
 from baserow.contrib.builder.domains.service import DomainService
 from baserow.contrib.builder.exceptions import BuilderDoesNotExist
 from baserow.contrib.builder.handler import BuilderHandler
-from baserow.core.exceptions import ApplicationDoesNotExist
+from baserow.core.exceptions import (
+    ApplicationDoesNotExist,
+    UntrustedContentCannotBePublished,
+)
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.registries import job_type_registry
 
@@ -334,6 +338,7 @@ class AsyncPublishDomainView(APIView):
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_MAX_JOB_COUNT_EXCEEDED",
+                    "ERROR_UNTRUSTED_CONTENT_CANNOT_BE_PUBLISHED",
                 ]
             ),
             404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
@@ -342,6 +347,7 @@ class AsyncPublishDomainView(APIView):
     @transaction.atomic
     @map_exceptions(
         {
+            UntrustedContentCannotBePublished: ERROR_UNTRUSTED_CONTENT_CANNOT_BE_PUBLISHED,
             ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
             DomainDoesNotExist: ERROR_DOMAIN_DOES_NOT_EXIST,
             MaxJobCountExceeded: ERROR_MAX_JOB_COUNT_EXCEEDED,

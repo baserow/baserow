@@ -113,6 +113,7 @@ from baserow.core.formula.validator import (
     ensure_numeric,
     ensure_string_or_integer,
 )
+from baserow.core.import_export.untrusted_content import UntrustedContentTypeMixin
 from baserow.core.registry import Instance, T
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.user_files.handler import UserFileHandler
@@ -1374,6 +1375,7 @@ class ImageElementType(ElementType):
         self,
         element: Element,
         prop_name: BaserowFormula,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -1384,7 +1386,12 @@ class ImageElementType(ElementType):
             )
 
         return super().serialize_property(
-            element, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            element,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def deserialize_property(
@@ -1978,6 +1985,7 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
         self,
         element: ChoiceElement,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -1989,7 +1997,12 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
             ]
 
         return super().serialize_property(
-            element, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            element,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def import_serialized(
@@ -2162,7 +2175,15 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
         return value
 
 
-class IFrameElementType(ElementType):
+class IFrameElementType(UntrustedContentTypeMixin, ElementType):
+    def get_import_report_entry(self, instance):
+        return {
+            "type": "iframe",
+            "id": instance.id,
+            "page_id": instance.page_id,
+            "page_name": instance.page.name,
+        }
+
     display_name = _("Iframe")
     type = "iframe"
     model_class = IFrameElement
@@ -2639,6 +2660,7 @@ class MenuElementType(ElementType):
         self,
         element: MenuElement,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -2653,6 +2675,7 @@ class MenuElementType(ElementType):
         return super().serialize_property(
             element,
             prop_name,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,

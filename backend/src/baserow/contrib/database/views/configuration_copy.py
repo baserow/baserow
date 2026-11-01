@@ -9,7 +9,13 @@ from baserow.contrib.database.views.operations import (
     CreateViewFilterOperationType,
     CreateViewGroupByOperationType,
     CreateViewSortOperationType,
+    ListViewDecorationOperationType,
+    ListViewFilterOperationType,
+    ListViewGroupByOperationType,
+    ListViewSortOperationType,
     ReadViewDefaultValuesOperationType,
+    ReadViewFieldOptionsOperationType,
+    ReadViewOperationType,
     UpdateViewDefaultValuesOperationType,
     UpdateViewFieldOptionsOperationType,
     UpdateViewOperationType,
@@ -28,6 +34,7 @@ from .exceptions import (
     DecoratorValueProviderTypeDoesNotExist,
 )
 from .models import (
+    OWNERSHIP_TYPE_COLLABORATIVE,
     View,
     ViewDecoration,
     ViewDefaultValue,
@@ -53,13 +60,35 @@ class ViewConfigurationCopyCategoryType(Instance):
 
     operation_types: List[Type[OperationType]] = []
     """
-    The operations a user needs on a view to copy this category from or into it.
-    They're checked symmetrically on the source and the destination because copying
-    is a configure level act, and because the view ownership managers hide
-    configuration from users that lack these same write operations, restricted views
-    hide the filters from users without `CreateViewFilterOperationType` for example,
-    so a read operation alone would leak configuration that the interface hides.
+    The operations a user needs on a view to copy this category into it, and from
+    it unless `get_source_operation_types` allows a read operation instead. They're
+    checked on the source too because copying is a configure level act, and because
+    the view ownership managers hide configuration from users that lack these same
+    write operations, restricted views hide the filters from users without
+    `CreateViewFilterOperationType` for example, so a read operation alone would leak
+    configuration that the interface hides.
     """
+
+    read_operation_types: List[Type[OperationType]] = []
+    """
+    The operations a user needs to read this category on a view, checked instead of
+    `operation_types` on a collaborative source view.
+    """
+
+    def get_source_operation_types(self, view: View) -> List[Type[OperationType]]:
+        """
+        Collaborative views show their configuration to everyone who can read them,
+        so reading it is enough to copy it, into an own personal view for example.
+        Other ownership types can hide their configuration, so they require the
+        `operation_types`.
+
+        :param view: The view that the configuration is copied from.
+        :return: The operations a user needs on the view to copy this category.
+        """
+
+        if view.ownership_type == OWNERSHIP_TYPE_COLLABORATIVE:
+            return self.read_operation_types
+        return self.operation_types
 
     def is_supported(self, view_type: ViewType) -> bool:
         """
@@ -184,6 +213,7 @@ class FieldOptionsCopyCategoryType(ViewConfigurationCopyCategoryType):
 
     field_option_key = None
     operation_types = [UpdateViewFieldOptionsOperationType]
+    read_operation_types = [ReadViewFieldOptionsOperationType]
 
     def is_supported(self, view_type: ViewType) -> bool:
         return self.field_option_key in view_type.field_options_allowed_fields
@@ -255,6 +285,7 @@ class ViewSettingsViewConfigurationCopyCategoryType(ViewConfigurationCopyCategor
 
     type = "view_settings"
     operation_types = [UpdateViewOperationType]
+    read_operation_types = [ReadViewOperationType]
 
     def is_supported(self, view_type: ViewType) -> bool:
         return len(view_type.copyable_view_attributes) > 0
@@ -302,6 +333,7 @@ class FiltersViewConfigurationCopyCategoryType(ViewConfigurationCopyCategoryType
         # For the `filter_type` and `filters_disabled` view attributes.
         UpdateViewOperationType,
     ]
+    read_operation_types = [ListViewFilterOperationType]
 
     def is_supported(self, view_type: ViewType) -> bool:
         return view_type.can_filter
@@ -389,6 +421,7 @@ class FiltersViewConfigurationCopyCategoryType(ViewConfigurationCopyCategoryType
 class SortsViewConfigurationCopyCategoryType(ViewConfigurationCopyCategoryType):
     type = "sorts"
     operation_types = [CreateViewSortOperationType]
+    read_operation_types = [ListViewSortOperationType]
 
     def is_supported(self, view_type: ViewType) -> bool:
         return view_type.can_sort
@@ -439,6 +472,7 @@ class SortsViewConfigurationCopyCategoryType(ViewConfigurationCopyCategoryType):
 class GroupBysViewConfigurationCopyCategoryType(ViewConfigurationCopyCategoryType):
     type = "group_bys"
     operation_types = [CreateViewGroupByOperationType]
+    read_operation_types = [ListViewGroupByOperationType]
 
     def is_supported(self, view_type: ViewType) -> bool:
         return view_type.can_group_by
@@ -496,6 +530,7 @@ class DefaultRowValuesViewConfigurationCopyCategoryType(
         ReadViewDefaultValuesOperationType,
         UpdateViewDefaultValuesOperationType,
     ]
+    read_operation_types = [ReadViewDefaultValuesOperationType]
 
     def is_supported(self, view_type: ViewType) -> bool:
         return view_type.can_set_default_values
@@ -548,6 +583,7 @@ class DefaultRowValuesViewConfigurationCopyCategoryType(
 class DecorationsViewConfigurationCopyCategoryType(ViewConfigurationCopyCategoryType):
     type = "decorations"
     operation_types = [CreateViewDecorationOperationType]
+    read_operation_types = [ListViewDecorationOperationType]
 
     def is_supported(self, view_type: ViewType) -> bool:
         return view_type.can_decorate

@@ -105,7 +105,7 @@
                   'tooltip__content--expandable',
                   'tooltip__content--expandable-plain-text',
                 ]"
-                icon="info-empty"
+                icon="iconoir-info-empty"
               />
             </div>
           </div>

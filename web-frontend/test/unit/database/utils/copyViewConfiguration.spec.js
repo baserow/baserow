@@ -153,6 +153,31 @@ describe('getEnabledCopyOptionKeys', () => {
     )
   })
 
+  test('a collaborative source only requires the read operations', () => {
+    const source = { id: 1, type: 'grid', ownership_type: 'collaborative' }
+    const dest = { id: 2, type: 'grid', ownership_type: 'personal' }
+    // Like an editor, who can only read the configuration of the
+    // collaborative source, but can configure their own personal view.
+    const app = {
+      $hasPermission: (operation, context) =>
+        context.id === dest.id ||
+        operation === 'database.table.view.list_filter',
+    }
+
+    const filtersOption = new FiltersCopyOptionType({ app })
+    expect(filtersOption.isEnabled(source, dest, 1)).toBe(true)
+    expect(
+      filtersOption.isEnabled(
+        { ...source, ownership_type: 'personal' },
+        dest,
+        1
+      )
+    ).toBe(false)
+
+    const sortsOption = new SortsCopyOptionType({ app })
+    expect(sortsOption.isEnabled(source, dest, 1)).toBe(false)
+  })
+
   test('destination options are sorted by order', () => {
     const registry = testApp.getRegistry()
     const options = getDestinationCopyOptions(registry, view('grid'))

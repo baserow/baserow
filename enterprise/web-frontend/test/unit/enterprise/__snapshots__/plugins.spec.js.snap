@@ -1,0 +1,15 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Test enterprise Baserow plugin > getBuilderApplicationHeaderAddition > blocks all custom code and external assets in preview until trusted 1`] = `
+{
+  "link": [],
+  "script": [],
+}
+`;
+
+exports[`Test enterprise Baserow plugin > getBuilderApplicationHeaderAddition > blocks all custom code and external assets in public until trusted 1`] = `
+{
+  "link": [],
+  "script": [],
+}
+`;

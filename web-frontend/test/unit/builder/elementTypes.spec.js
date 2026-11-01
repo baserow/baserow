@@ -2718,3 +2718,18 @@ describe('elementTypes tests', () => {
     })
   })
 })
+
+test('blocked iframes show a trust error before their configuration is evaluated', () => {
+  const type = useNuxtApp().$registry.get('element', 'iframe')
+  const context = { builder: { untrusted_content: true } }
+  expect(type.getErrorMessage({}, context)).toBe(
+    'builderUntrustedContent.warning'
+  )
+  context.builder.untrusted_content = false
+  expect(
+    type.getErrorMessage(
+      { source_type: IFRAME_SOURCE_TYPES.URL, url: { formula: '' } },
+      context
+    )
+  ).toBe('elementType.errorIframeUrlMissing')
+})

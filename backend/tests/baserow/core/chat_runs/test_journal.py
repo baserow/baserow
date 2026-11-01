@@ -42,6 +42,36 @@ async def test_text_rewrites_are_new_segments_and_nuls_are_removed(output_buffer
 
 
 @pytest.mark.asyncio
+async def test_output_after_a_quiet_moment_is_written_at_once_then_batched(
+    output_buffer, monkeypatch
+):
+    monkeypatch.setattr(journal_module, "FLUSH_INTERVAL_SECONDS", 60)
+    appending, release = asyncio.Event(), asyncio.Event()
+
+    async def slow_append(batch):
+        appending.set()
+        await release.wait()
+
+    output_buffer.append.side_effect = slow_append
+    journal = ChatRunJournal(SimpleNamespace(id=uuid4()))
+    flusher = asyncio.create_task(journal.keep_flushing())
+    journal.emit_text("Hel")
+    await asyncio.wait_for(appending.wait(), 1)
+    journal.emit_text("Hello")
+    released_at = asyncio.get_running_loop().time()
+    release.set()
+    await asyncio.sleep(0.05)
+    output_buffer.append.assert_awaited_once_with(
+        [("text.delta", {"segment": 0, "text": "Hel"})]
+    )
+    assert journal._pending == [("text.delta", {"segment": 0, "text": "lo"})]
+    assert journal._flushed_at >= released_at
+    flusher.cancel()
+    with suppress(asyncio.CancelledError):
+        await flusher
+
+
+@pytest.mark.asyncio
 async def test_output_failure_drops_bounded_queue_without_stopping_or_retrying(
     output_buffer,
 ):

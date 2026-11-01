@@ -327,35 +327,6 @@ class BuilderWorkflowServiceActionType(
         service_type = service_type_registry.get_by_model(pytest_params["service"])
         return {"service": service_type.export_serialized(pytest_params["service"])}
 
-    def export_serialized(
-        self,
-        workflow_action: WorkflowAction,
-        import_export_config=None,
-        files_zip=None,
-        storage=None,
-        cache=None,
-    ):
-        """Serialize the action and pass export settings to its service."""
-
-        exclude_sensitive_data = getattr(
-            import_export_config, "exclude_sensitive_data", False
-        )
-        return {
-            key: (
-                None
-                if exclude_sensitive_data and key in self.sensitive_fields
-                else self.serialize_property(
-                    workflow_action,
-                    key,
-                    import_export_config=import_export_config,
-                    files_zip=files_zip,
-                    storage=storage,
-                    cache=cache,
-                )
-            )
-            for key in self.get_property_names()
-        }
-
     def serialize_property(
         self,
         workflow_action: WorkflowAction,
@@ -383,6 +354,7 @@ class BuilderWorkflowServiceActionType(
         return super().serialize_property(
             workflow_action,
             prop_name,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,

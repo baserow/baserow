@@ -229,6 +229,7 @@ class ChartWidgetType(WidgetType):
         self,
         instance: Widget,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -251,6 +252,7 @@ class ChartWidgetType(WidgetType):
         return super().serialize_property(
             instance,
             prop_name,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,
@@ -455,6 +457,7 @@ class PieChartWidgetType(WidgetType):
         self,
         instance: Widget,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -477,6 +480,7 @@ class PieChartWidgetType(WidgetType):
         return super().serialize_property(
             instance,
             prop_name,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,

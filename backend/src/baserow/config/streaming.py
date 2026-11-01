@@ -7,12 +7,13 @@ from contextlib import suppress
 from typing import IO
 
 from django.core import signals
-from django.core.exceptions import RequestAborted
+from django.core.exceptions import ImproperlyConfigured, RequestAborted
 from django.core.handlers.asgi import ASGIHandler, ASGIRequest
 from django.core.handlers.base import BaseHandler
 from django.db import connections
 from django.http import JsonResponse
 from django.middleware.security import SecurityMiddleware
+from django.urls import URLPattern, URLResolver, get_resolver
 
 from asgiref.sync import sync_to_async
 from corsheaders.middleware import CorsMiddleware
@@ -21,22 +22,57 @@ from loguru import logger
 from baserow.config.db_routers import clear_db_state
 from baserow.middleware import BaserowCredentialedCorsMiddleware
 
-_paths: list[tuple[re.Pattern, tuple[str, ...]]] = []
+_url_names: dict[str, tuple[str, ...]] = {}
 _handler: BaseHandler | None = None
 
 
 def register_async_stream_path(
-    pattern: str, methods: tuple[str, ...] = ("POST",)
+    url_name: str, methods: tuple[str, ...] = ("POST",)
 ) -> None:
-    """Register a streaming URL during app startup, before requests arrive.
+    """Register a named streaming URL during app startup, before requests arrive.
 
     The router still calls the product's normal Django view, which remains
     responsible for authentication, permissions and request validation.
+
+    :param url_name: The namespaced Django URL name, e.g. ``api:chat_runs:stream``.
+    :param methods: The HTTP methods to stream; other methods use the REST path.
     """
 
-    entry = (re.compile(pattern), methods)
-    if entry not in _paths:
-        _paths.append(entry)
+    _url_names[url_name] = methods
+
+
+def _url_regex(url_name: str) -> re.Pattern:
+    """Compile the full path regex of a named URL from the URLconf.
+
+    ``reverse`` only builds one concrete URL, so this walks the resolver tree and
+    joins the patterns leading to the name, matching any of its arguments.
+    """
+
+    *namespaces, name = url_name.split(":")
+
+    def find(
+        entries: list[URLPattern | URLResolver], namespaces: list[str], prefix: str
+    ) -> str | None:
+        for entry in entries:
+            regex = prefix + entry.pattern.regex.pattern.removeprefix("^")
+            if isinstance(entry, URLPattern):
+                if not namespaces and entry.name == name:
+                    return regex
+                continue
+            if entry.namespace is None:
+                remaining = namespaces
+            elif namespaces[:1] == [entry.namespace]:
+                remaining = namespaces[1:]
+            else:
+                continue
+            if found := find(entry.url_patterns, remaining, regex):
+                return found
+        return None
+
+    regex = find(get_resolver().url_patterns, namespaces, "/")
+    if regex is None:
+        raise ImproperlyConfigured(f"No URL named {url_name!r} to stream.")
+    return re.compile(regex)
 
 
 def _prepare(scope: dict, body_file: IO[bytes]):
@@ -127,11 +163,15 @@ class AsyncStreamingHTTPRouter:
         self.fallback = fallback
         self.max_streams = max_streams
         self.active = 0
+        # Not at registration: the URLconf includes registry URLs filled by ready().
+        self.paths = [
+            (_url_regex(url_name), methods) for url_name, methods in _url_names.items()
+        ]
 
     async def __call__(self, scope, receive, send):
         if not any(
             scope["method"] in methods and pattern.fullmatch(scope["path"])
-            for pattern, methods in _paths
+            for pattern, methods in self.paths
         ):
             return await self.fallback(scope, receive, send)
         try:

@@ -491,6 +491,7 @@ def test_export_prepared_values(data_fixture):
         "allow_test_run_until": None,
         "state": WorkflowState.DRAFT,
         "notification_recipients": [],
+        "untrusted_content": False,
     }
 
 
@@ -767,6 +768,7 @@ def test_update_workflow_correctly_pauses_published_workflow(data_fixture):
         "allow_test_run_until": None,
         "state": WorkflowState.DRAFT,
         "notification_recipients": [],
+        "untrusted_content": False,
     }
     assert updated.new_values == {
         "name": "foo",
@@ -774,6 +776,7 @@ def test_update_workflow_correctly_pauses_published_workflow(data_fixture):
         # The original workflow should indeed be unaffected
         "state": WorkflowState.DRAFT,
         "notification_recipients": [],
+        "untrusted_content": False,
     }
 
     published_workflow.refresh_from_db()
