@@ -9,9 +9,11 @@ import pytest
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.builder.data_sources.models import DataSource
+from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.core.cache import local_cache
 from baserow.core.services.models import Service
 from baserow_enterprise.assistant.tools.builder.errors import item_error
 from baserow_enterprise.assistant.tools.builder.tools import (
@@ -426,3 +428,36 @@ def test_a_bug_in_create_data_sources_is_not_reported_as_an_item_error(
             ],
             thought="test",
         )
+
+
+@pytest.mark.django_db
+def test_failed_element_leaves_no_ghost_in_the_cached_elements(site, monkeypatch):
+    post_create = ElementItemCreate.post_create
+
+    def fail_for_bad(self, user, orm_element, page):
+        if self.ref == "bad":
+            # A hook that reads the page's elements fills the request cache.
+            ElementHandler().get_elements(page)
+            ElementHandler().get_builder_elements(page.builder)
+            raise ValueError("post create failed")
+        return post_create(self, user, orm_element, page)
+
+    monkeypatch.setattr(ElementItemCreate, "post_create", fail_for_bad)
+    with local_cache.context():
+        create_display_elements(
+            site["ctx"],
+            page_id=site["page"].id,
+            elements=[
+                DisplayElementCreate(ref="first", type="heading", value="First"),
+                DisplayElementCreate(ref="bad", type="heading", value="Bad"),
+            ],
+            thought="test",
+        )
+        cached = [e.id for e in ElementHandler().get_elements(site["page"])]
+        cached_in_builder = [
+            e.id for e in ElementHandler().get_builder_elements(site["builder"])
+        ]
+
+    saved = list(Element.objects.filter(page=site["page"]).values_list("id", flat=True))
+    assert cached == saved
+    assert cached_in_builder == saved

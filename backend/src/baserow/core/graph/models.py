@@ -18,6 +18,10 @@ if TYPE_CHECKING:
     from baserow.core.models import TrashEntry
 
 
+def _graph_cache_key(instance) -> str:
+    return f"cached_graph_{instance._meta.label}_{instance.id}"
+
+
 class GraphModelMixin(models.Model):
     """
     A mixin that can be used to add a point graph to a model. The graph is stored as
@@ -48,10 +52,7 @@ class GraphModelMixin(models.Model):
         """
 
         handler_class = self.get_graph_handler()
-        handler = local_cache.get(
-            f"cached_graph_{self._meta.label}_{self.id}",
-            lambda: handler_class(self),
-        )
+        handler = local_cache.get(_graph_cache_key(self), lambda: handler_class(self))
         if handler.instance is not self:
             # Another page object (same DB row, different Python object) seeded
             # the cache first.  Share the same graph dict so that subsequent
@@ -59,6 +60,25 @@ class GraphModelMixin(models.Model):
             self.graph = handler.instance.graph
             handler.instance = self
         return handler
+
+    def reload_graph(self) -> None:
+        """
+        Read the graph again from the database and drop the request's cached
+        graph handler and point maps. For after a savepoint that changed the graph
+        rolled back: the cache still holds the undone changes, and the row lock the
+        handler took went with the savepoint.
+
+        The graph dict is refreshed in place, so every object sharing it (see
+        `get_graph`) reads the reloaded graph.
+        """
+
+        handler_class = self.get_graph_handler()
+        local_cache.delete(_graph_cache_key(self))
+        local_cache.delete(handler_class.generate_point_map_cache_key(self))
+        local_cache.delete(handler_class.generate_previous_position_map_cache_key(self))
+        stored = type(self)._base_manager.only("graph").get(pk=self.pk).graph
+        self.graph.clear()
+        self.graph.update(stored)
 
     def print_graph(self, message=None, original=False):
         """

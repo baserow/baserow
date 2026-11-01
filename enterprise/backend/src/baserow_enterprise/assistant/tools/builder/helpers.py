@@ -64,7 +64,6 @@ from baserow.contrib.builder.workflow_actions.service import (
     BuilderWorkflowActionService,
 )
 from baserow.contrib.database.fields.models import Field
-from baserow.core.cache import local_cache
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
@@ -155,21 +154,14 @@ def on_page(page: Page) -> Q:
 
 def forget_page_graphs(page: Page) -> None:
     """
-    Drop the request's cached graphs of ``page`` and of its builder's shared page,
-    and reload both graphs. Called after an element's savepoint rolled back: the
-    cached graphs still hold the rolled back element, and their row locks were
-    released with the savepoint. The builder caches its shared page, which shared
-    elements created in the batch use as their ``page``.
+    Reload the graphs of ``page`` and of its builder's shared page and drop their
+    cached elements, after an element's savepoint rolled back. The request's
+    caches still hold the rolled back element.
     """
 
     for graph_page in (page, page.builder.shared_page):
-        handler_class = graph_page.get_graph_handler()
-        local_cache.delete(f"cached_graph_{graph_page._meta.label}_{graph_page.id}")
-        local_cache.delete(handler_class.generate_point_map_cache_key(graph_page))
-        local_cache.delete(
-            handler_class.generate_previous_position_map_cache_key(graph_page)
-        )
-        graph_page.refresh_from_db(fields=["graph"])
+        graph_page.reload_graph()
+        ElementHandler().invalidate_element_cache(graph_page)
 
 
 def check_data_source_on_page(page: Page, data_source_id: int) -> None:

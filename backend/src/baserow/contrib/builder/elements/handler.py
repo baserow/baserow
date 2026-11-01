@@ -378,6 +378,8 @@ class ElementHandler:
 
         local_cache.delete(self._get_elements_cache_key(page, True))
         local_cache.delete(self._get_elements_cache_key(page, False))
+        local_cache.delete(self._get_builder_elements_cache_key(page.builder_id, True))
+        local_cache.delete(self._get_builder_elements_cache_key(page.builder_id, False))
         local_cache.delete(BaseGraphHandler.generate_point_map_cache_key(page))
         local_cache.delete(
             BaseGraphHandler.generate_previous_position_map_cache_key(page)

@@ -682,3 +682,42 @@ def test_page_point_map_is_shared_between_handlers(data_fixture):
         ElementHandler().update_element(element, value="'Updated heading'")
         assert graph.get_point(element.id).value["formula"] == "'Updated heading'"
         assert other_graph.get_point(element.id).value["formula"] == "'Updated heading'"
+
+
+@pytest.mark.django_db
+def test_reload_graph_drops_an_element_a_savepoint_rolled_back(data_fixture):
+    from django.db import transaction
+
+    from baserow.contrib.builder.elements.service import ElementService
+    from baserow.contrib.builder.pages.models import Page
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    heading_type = element_type_registry.get("heading")
+
+    def create():
+        return ElementService().create_element(user, heading_type, page)
+
+    with local_cache.context(), transaction.atomic():
+        kept = create()
+        same_row = Page.objects.get(id=page.id)
+        same_row.get_graph()  # Shares the cached graph with `page`.
+        try:
+            with transaction.atomic():
+                create()
+                raise ValueError("rolled back")
+        except ValueError:
+            pass
+
+        page.reload_graph()
+
+        stored = Page.objects.get(id=page.id).graph
+        assert page.graph == stored
+        assert same_row.graph == stored
+        # The next change saves no trace of the rolled back element.
+        last = create()
+
+    graph = Page.objects.get(id=page.id).graph
+    assert sorted(key for key in graph if key != "0") == sorted(
+        [str(kept.id), str(last.id)]
+    )
