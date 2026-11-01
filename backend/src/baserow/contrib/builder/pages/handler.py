@@ -6,6 +6,8 @@ from django.core.files.storage import Storage
 from django.db import IntegrityError, transaction
 from django.db.models import QuerySet
 
+from rest_framework.exceptions import ValidationError as DRFValidationError
+
 from baserow.contrib.builder.compat.graph_migrator import (
     ElementToMigrate,
     PageGraphMigrator,
@@ -445,6 +447,57 @@ class PageHandler:
         return find_unused_name(
             [page_path], existing_paths, max_length=255, suffix="/{0}"
         )
+
+    def raise_if_page_links_outside_builder(self, builder: Builder, values: Any):
+        """
+        Check that every `navigate_to_page_id` in the values of an element or
+        workflow action, nested ones such as menu items and table columns included,
+        names a page of the builder.
+
+        :param builder: The builder the element or workflow action is in.
+        :param values: The values it's created or updated with.
+        :raises ValidationError: When one names a page of another builder.
+        """
+
+        page_ids = set()
+
+        def add(page_id: Any) -> None:
+            try:
+                page_ids.add(int(page_id))
+            except (TypeError, ValueError):
+                raise DRFValidationError(
+                    f"{page_id!r} is not a page id.", code="invalid_page_id"
+                )
+
+        def collect(value: Any) -> None:
+            if isinstance(value, dict):
+                page_id = value.get("navigate_to_page_id")
+                # A link to a custom URL keeps a page id it doesn't use.
+                if page_id not in (None, "") and value.get("navigation_type") != (
+                    "custom"
+                ):
+                    add(page_id)
+                for item in value.values():
+                    collect(item)
+            elif isinstance(value, (list, tuple)):
+                for item in value:
+                    collect(item)
+
+        collect(values)
+        if not page_ids:
+            return
+        # The editor sends links to a trashed page back.
+        found = set(
+            Page.objects_and_trash.filter(builder=builder, id__in=page_ids).values_list(
+                "id", flat=True
+            )
+        )
+        missing = page_ids - found
+        if missing:
+            raise DRFValidationError(
+                f"The page with id {min(missing)} doesn't exist.",
+                code="invalid_page_id",
+            )
 
     def get_path_param_names(self, path: str) -> List[str]:
         """

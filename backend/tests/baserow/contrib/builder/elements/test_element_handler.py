@@ -721,3 +721,36 @@ def test_reload_graph_drops_an_element_a_savepoint_rolled_back(data_fixture):
     assert sorted(key for key in graph if key != "0") == sorted(
         [str(kept.id), str(last.id)]
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("element", ["link", "menu"])
+def test_element_refuses_a_link_to_another_builders_page(data_fixture, element):
+    from rest_framework.exceptions import ValidationError
+
+    from baserow.contrib.builder.elements.service import ElementService
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    elsewhere = data_fixture.create_builder_page(user=user)
+    values = {
+        "link": {"navigation_type": "page", "navigate_to_page_id": elsewhere.id},
+        "menu": {
+            "menu_items": [
+                {
+                    "type": "link",
+                    "name": "Elsewhere",
+                    "navigation_type": "page",
+                    "navigate_to_page_id": elsewhere.id,
+                }
+            ]
+        },
+    }[element]
+    element_type = element_type_registry.get(element)
+
+    with pytest.raises(ValidationError):
+        ElementService().create_element(user, element_type, page, **values)
+
+    own = ElementService().create_element(user, element_type, page)
+    with pytest.raises(ValidationError):
+        ElementService().update_element(user, own, **values)

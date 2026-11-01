@@ -17,6 +17,9 @@ from baserow.contrib.builder.workflow_actions.models import (
     BuilderWorkflowAction,
     EventTypes,
 )
+from baserow.contrib.builder.workflow_actions.registries import (
+    builder_workflow_action_type_registry,
+)
 from baserow.contrib.builder.workflow_actions.service import (
     BuilderWorkflowActionService,
 )
@@ -470,4 +473,26 @@ def test_dispatch_action_checks_element_visibility_whatever_the_managers_order(
     with pytest.raises(PermissionDenied):
         BuilderWorkflowActionService().dispatch_action(
             AnonymousUser(), workflow_action, dispatch_context
+        )
+
+
+@pytest.mark.django_db
+def test_open_page_action_refuses_another_builders_page(data_fixture):
+    from rest_framework.exceptions import ValidationError
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    button = data_fixture.create_builder_button_element(page=page)
+    elsewhere = data_fixture.create_builder_page(user=user)
+    open_page = builder_workflow_action_type_registry.get("open_page")
+
+    with pytest.raises(ValidationError):
+        BuilderWorkflowActionService().create_workflow_action(
+            user,
+            open_page,
+            page=page,
+            element=button,
+            event="click",
+            navigation_type="page",
+            navigate_to_page_id=elsewhere.id,
         )
