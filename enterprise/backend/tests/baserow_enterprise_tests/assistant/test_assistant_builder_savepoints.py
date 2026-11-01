@@ -383,3 +383,46 @@ def test_failed_shared_element_does_not_make_its_ref_shared(site):
     created = {e["ref"]: e["id"] for e in result["created_elements"]}
     heading = Element.objects.get(id=created["h"])
     assert heading.page_id == site["page"].id
+
+
+@pytest.mark.django_db
+def test_a_bug_in_create_pages_is_not_reported_as_an_item_error(site, monkeypatch):
+    def broken(*args, **kwargs):
+        raise AttributeError("'Page' object has no attribute 'order'")
+
+    monkeypatch.setattr(
+        "baserow_enterprise.assistant.tools.builder.helpers.create_page", broken
+    )
+
+    with pytest.raises(AttributeError):
+        create_pages(
+            site["ctx"],
+            application_id=site["builder"].id,
+            pages=[PageCreate(name="First", path="/first")],
+            thought="test",
+        )
+
+
+@pytest.mark.django_db
+def test_a_bug_in_create_data_sources_is_not_reported_as_an_item_error(
+    site, monkeypatch
+):
+    def broken(*args, **kwargs):
+        raise AttributeError("'Service' object has no attribute 'table'")
+
+    monkeypatch.setattr(
+        "baserow_enterprise.assistant.tools.builder.helpers.create_data_source",
+        broken,
+    )
+
+    with pytest.raises(AttributeError):
+        create_data_sources(
+            site["ctx"],
+            page_id=site["page"].id,
+            data_sources=[
+                DataSourceCreate(
+                    ref="a", name="A", type="list_rows", table_id=site["table"].id
+                )
+            ],
+            thought="test",
+        )

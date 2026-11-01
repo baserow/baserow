@@ -5,9 +5,13 @@ API's.
 
 from typing import Any
 
+from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ValidationError as DjangoValidationError
+
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.api.utils import apply_exception_mapping
+from baserow_enterprise.assistant.tools.shared import ToolInputError
 
 
 def _user_error_mapping() -> dict[type[Exception], Any]:
@@ -74,3 +78,23 @@ def item_error(exc: Exception) -> str:
     if isinstance(exc, DRFValidationError):
         return _validation_messages(exc.detail)
     return user_error_message(exc) or str(exc)
+
+
+def is_input_error(exc: Exception) -> bool:
+    """
+    Whether ``exc`` comes from an item's input, so it is reported with the item.
+    Anything else is a bug and is raised.
+    """
+
+    return (
+        isinstance(
+            exc,
+            (
+                ToolInputError,
+                DRFValidationError,
+                DjangoValidationError,
+                ObjectDoesNotExist,
+            ),
+        )
+        or user_error_message(exc) is not None
+    )

@@ -30,7 +30,7 @@ from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 from baserow_enterprise.assistant.types import BuilderPageNavigationType
 
 from . import agents, helpers
-from .errors import item_error
+from .errors import is_input_error, item_error
 from .registries import assistant_element_type_registry
 from .types import (
     ActionCreate,
@@ -208,6 +208,8 @@ def create_pages(
                     page = helpers.create_page(user, builder, page_create)
             except Exception as exc:
                 raise_if_permission_denied(exc)
+                if not is_input_error(exc):
+                    raise
                 errors.append(f"{page_create.name}: {item_error(exc)}")
                 continue
             created_pages.append(PageItem.from_orm(page))
@@ -388,6 +390,8 @@ def create_data_sources(
                     )
             except Exception as exc:
                 raise_if_permission_denied(exc)
+                if not is_input_error(exc):
+                    raise
                 errors.append(f"{ds_create.ref}: {item_error(exc)}")
                 continue
             ref_to_id[ds_create.ref] = ds_id
