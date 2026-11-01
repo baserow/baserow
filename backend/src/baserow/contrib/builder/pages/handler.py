@@ -147,6 +147,7 @@ class PageHandler:
 
         self.is_page_path_valid(path, path_params, raises=True)
         self.is_page_path_unique(builder, path, raises=True)
+        self.validate_query_params(path, path_params, query_params)
 
         try:
             page = Page.objects.create(
@@ -209,12 +210,12 @@ class PageHandler:
                 ),  # We don't want to conflict with the current page
                 raises=True,
             )
-        if "query_params" in kwargs:
-            query_params = kwargs.get("query_params")
+        # New path params can clash with the query params the page keeps.
+        if "query_params" in kwargs or "path_params" in kwargs:
             self.validate_query_params(
                 kwargs.get("path", page.path),
                 kwargs.get("path_params", page.path_params),
-                query_params,
+                kwargs.get("query_params", page.query_params),
             )
 
         for key, value in kwargs.items():
