@@ -103,7 +103,7 @@ def list_pages(
     DO NOT USE when: You already have the page IDs you need.
     """
 
-    from baserow.core.user_sources.handler import UserSourceHandler
+    from baserow.core.user_sources.service import UserSourceService
 
     user = ctx.deps.user
     workspace = ctx.deps.workspace
@@ -116,9 +116,15 @@ def list_pages(
 
     pages = helpers.list_pages(user, builder)
 
-    user_sources = UserSourceHandler().get_user_sources(builder)
+    try:
+        user_sources = UserSourceService().get_user_sources(user, builder)
+    except PermissionException:
+        # Only application editors may list them.
+        user_sources = []
     user_source_data = []
+    roles: set[str] = set()
     for us in user_sources:
+        roles.update(us.get_type().get_roles(us))
         entry = {"id": us.id, "name": us.name}
         specific = us.specific if hasattr(us, "specific") else us
         if hasattr(specific, "table_id"):
@@ -130,7 +136,7 @@ def list_pages(
         "pages": [p.model_dump() for p in pages],
         "login_page_id": builder.login_page_id,
         "user_sources": user_source_data,
-        "available_roles": UserSourceHandler().get_all_roles_for_application(builder),
+        "available_roles": sorted(roles),
         "next_steps": (
             "For a requested new page, use create_pages with this application_id "
             "first, then use its returned page ID in setup_page or element tools. "

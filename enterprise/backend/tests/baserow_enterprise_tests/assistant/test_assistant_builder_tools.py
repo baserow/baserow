@@ -269,6 +269,32 @@ def test_list_pages(data_fixture, has_page):
     assert "existing page" in result["next_steps"]
 
 
+@pytest.mark.django_db
+def test_list_pages_shows_user_sources_only_to_who_may_list_them(
+    data_fixture, monkeypatch
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    data_fixture.create_user_source_with_first_type(application=builder)
+    ctx = make_test_ctx(user, workspace)
+
+    assert len(list_pages(ctx, application_id=builder.id, thought="t")["user_sources"])
+
+    check_permissions = CoreHandler.check_permissions
+
+    def deny_listing_user_sources(self, actor, operation_name, *args, **kwargs):
+        if operation_name == "application.list_user_sources":
+            raise PermissionDenied()
+        return check_permissions(self, actor, operation_name, *args, **kwargs)
+
+    monkeypatch.setattr(CoreHandler, "check_permissions", deny_listing_user_sources)
+    result = list_pages(ctx, application_id=builder.id, thought="t")
+
+    assert result["user_sources"] == []
+    assert result["available_roles"] == []
+
+
 @pytest.mark.django_db(transaction=True)
 def test_create_pages(data_fixture):
     user = data_fixture.create_user()
