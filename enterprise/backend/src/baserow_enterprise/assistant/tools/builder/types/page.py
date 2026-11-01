@@ -8,10 +8,6 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
-from baserow.contrib.builder.pages.constants import (
-    PAGE_PATH_PARAM_PREFIX,
-    PATH_PARAM_REGEX,
-)
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow_enterprise.assistant.types import BaseModel
 
@@ -33,19 +29,23 @@ class PageQueryParam(BaseModel):
 
 
 def with_path_parameters(
-    path: str, path_params: list[PagePathParam]
+    path: str, path_params: list[PagePathParam], drop_unused: bool = False
 ) -> list[PagePathParam]:
     """
     Add the parameters of ``path`` missing from ``path_params``, as text.
 
+    :param drop_unused: Leave out the given parameters the path doesn't name,
+        instead of refusing them.
     :raises ValueError: When the parameters don't match the ones in the path.
     """
 
+    names = PageHandler().get_path_param_names(path)
+    if drop_unused:
+        path_params = [param for param in path_params if param.name in names]
     path_params = list(path_params)
-    names = {parameter.name for parameter in path_params}
-    for token in dict.fromkeys(PATH_PARAM_REGEX.findall(path)):
-        name = token.removeprefix(PAGE_PATH_PARAM_PREFIX)
-        if name not in names:
+    given = {parameter.name for parameter in path_params}
+    for name in dict.fromkeys(names):
+        if name not in given:
             path_params.append(PagePathParam(name=name))
     if not PageHandler().is_page_path_valid(
         path, [parameter.model_dump() for parameter in path_params]

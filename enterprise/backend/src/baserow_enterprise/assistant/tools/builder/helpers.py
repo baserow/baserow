@@ -34,10 +34,6 @@ from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.operations import ListPagesBuilderOperationType
-from baserow.contrib.builder.pages.constants import (
-    PAGE_PATH_PARAM_PREFIX,
-    PATH_PARAM_REGEX,
-)
 from baserow.contrib.builder.pages.exceptions import (
     DuplicatePageParams,
     DuplicatePathParamsInPath,
@@ -434,18 +430,11 @@ def update_page(
     kwargs = page_update.to_update_kwargs()
     if "path" in kwargs and "path_params" not in kwargs:
         # Parameters the new path keeps keep their type; new ones are text.
-        names = {
-            token.removeprefix(PAGE_PATH_PARAM_PREFIX)
-            for token in PATH_PARAM_REGEX.findall(kwargs["path"])
-        }
         try:
             path_params = with_path_parameters(
                 kwargs["path"],
-                [
-                    PagePathParam(**param)
-                    for param in page.path_params
-                    if param["name"] in names
-                ],
+                [PagePathParam(**param) for param in page.path_params],
+                drop_unused=True,
             )
         except ValueError as exc:
             raise ToolInputError(f"{exc} Nothing was changed in this call.") from exc

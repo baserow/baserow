@@ -446,6 +446,19 @@ class PageHandler:
             [page_path], existing_paths, max_length=255, suffix="/{0}"
         )
 
+    def get_path_param_names(self, path: str) -> List[str]:
+        """
+        The names of the parameters in a path, in order and with repeats.
+
+        :param path: A page path, such as `/products/:id`.
+        :return: The parameter names, such as `["id"]`.
+        """
+
+        return [
+            token.removeprefix(PAGE_PATH_PARAM_PREFIX)
+            for token in PATH_PARAM_REGEX.findall(path)
+        ]
+
     def is_page_path_valid(
         self, path: str, path_params: PagePathParams, raises: bool = False
     ) -> bool:

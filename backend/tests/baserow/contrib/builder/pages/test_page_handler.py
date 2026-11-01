@@ -1051,3 +1051,12 @@ def test_import_elements_folds_two_non_default_outputs_sharing_a_head(
         str(imported_first.id): {"next": {"": [imported_second.id]}},
         str(imported_second.id): {},
     }
+
+
+def test_get_path_param_names():
+    assert PageHandler().get_path_param_names("/item/:id/:slug/:id") == [
+        "id",
+        "slug",
+        "id",
+    ]
+    assert PageHandler().get_path_param_names("/about") == []
