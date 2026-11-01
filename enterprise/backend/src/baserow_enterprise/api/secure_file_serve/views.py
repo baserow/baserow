@@ -23,22 +23,12 @@ from baserow_premium.license.handler import LicenseHandler
 
 from .errors import ERROR_SECURE_FILE_SERVE_EXCEPTION
 
-# Types a browser can't run script from. Everything else is downloaded. Both spellings
-# are listed where the system mime.types file can change what mimetypes returns.
+# Types that can't run script on the Baserow origin. Everything else is downloaded.
+# Audio and video are left out because the CSP below leaves a dead player when they
+# are opened directly. <audio> and <video> ignore the attachment and still play them.
 INLINE_SAFE_CONTENT_TYPES = frozenset(
     {
         "application/pdf",
-        "audio/aac",
-        "audio/flac",
-        "audio/mp4",
-        "audio/mp4a-latm",
-        "audio/mpeg",
-        "audio/ogg",
-        "audio/wav",
-        "audio/webm",
-        "audio/x-aac",
-        "audio/x-flac",
-        "audio/x-wav",
         "image/avif",
         "image/bmp",
         "image/gif",
@@ -47,14 +37,7 @@ INLINE_SAFE_CONTENT_TYPES = frozenset(
         "image/tiff",
         "image/vnd.microsoft.icon",
         "image/webp",
-        "image/x-icon",
-        "image/x-ms-bmp",
         "text/plain",
-        "video/mp4",
-        "video/ogg",
-        "video/quicktime",
-        "video/webm",
-        "video/x-m4v",
     }
 )
 

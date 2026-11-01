@@ -1,3 +1,4 @@
+import mimetypes
 from io import BytesIO
 from unittest.mock import patch
 
@@ -19,6 +20,7 @@ from rest_framework.status import (
 
 from baserow.core.context import clear_current_workspace_id, set_current_workspace_id
 from baserow.core.storage import get_default_storage
+from baserow_enterprise.api.secure_file_serve.views import INLINE_SAFE_CONTENT_TYPES
 from baserow_enterprise.secure_file_serve.constants import SecureFileServePermission
 
 
@@ -1049,6 +1051,16 @@ SECURE_FILE_SERVE_SETTINGS = {
 }
 
 
+# Python's own table, which is what the production image uses as it has no mime.types.
+BUILTIN_MIME_TYPES = mimetypes.MimeTypes(filenames=())
+
+
+@pytest.fixture
+def builtin_mime_types():
+    with patch("mimetypes.guess_type", BUILTIN_MIME_TYPES.guess_type):
+        yield
+
+
 def get_stored_file(api_client, stored_name, query=""):
     # Stores under the exact name, because the upload handler lowercases extensions
     # and the view must also cope with names from other writers, like exports.
@@ -1080,12 +1092,21 @@ def get_stored_file(api_client, stored_name, query=""):
         "script.js",
         "data.json",
         "data.csv",
+        "notes.md",
         "unknown.foo",
         "no_extension",
+        # The CSP leaves a dead player when these are opened directly.
+        "clip.mp4",
+        "clip.webm",
+        "clip.mov",
+        "sound.mp3",
+        "sound.ogg",
+        "sound.wav",
+        "sound.opus",
     ],
 )
 def test_files_not_safe_to_display_are_served_as_attachment(
-    enable_enterprise, api_client, use_tmp_media_root, stored_name
+    enable_enterprise, api_client, use_tmp_media_root, builtin_mime_types, stored_name
 ):
     response = get_stored_file(api_client, stored_name)
 
@@ -1105,18 +1126,34 @@ def test_files_not_safe_to_display_are_served_as_attachment(
         ("photo.gif", "image/gif"),
         ("photo.webp", "image/webp"),
         ("document.pdf", "application/pdf"),
-        ("clip.mp4", "video/mp4"),
-        ("clip.webm", "video/webm"),
-        ("clip.mov", "video/quicktime"),
-        ("sound.mp3", "audio/mpeg"),
-        ("sound.ogg", "audio/ogg"),
         ("notes.txt", "text/plain"),
     ],
 )
 def test_files_safe_to_display_are_served_inline(
-    enable_enterprise, api_client, use_tmp_media_root, stored_name, content_type
+    enable_enterprise,
+    api_client,
+    use_tmp_media_root,
+    builtin_mime_types,
+    stored_name,
+    content_type,
 ):
     response = get_stored_file(api_client, stored_name)
+
+    assert response.status_code == HTTP_200_OK
+    assert response.headers["Content-Type"] == content_type
+    assert response.headers["Content-Disposition"].startswith("inline;")
+
+
+@pytest.mark.django_db
+@override_settings(**SECURE_FILE_SERVE_SETTINGS)
+@pytest.mark.parametrize("content_type", sorted(INLINE_SAFE_CONTENT_TYPES))
+def test_every_inline_safe_content_type_is_reachable_and_served_inline(
+    enable_enterprise, api_client, use_tmp_media_root, builtin_mime_types, content_type
+):
+    extension = BUILTIN_MIME_TYPES.guess_extension(content_type)
+    assert extension is not None, f"No file name resolves to {content_type}"
+
+    response = get_stored_file(api_client, f"file{extension}")
 
     assert response.status_code == HTTP_200_OK
     assert response.headers["Content-Type"] == content_type

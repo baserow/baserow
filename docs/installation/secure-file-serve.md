@@ -55,6 +55,11 @@ in your Baserow instance:
   ensure proper access control.
 - **Publicly Shared Files**: Depending on the configured permission level, files that 
   are publicly shared through applications, views, or APIs may become inaccessible.
+- **Files Opened Directly**: Images, PDFs and plain text files display in the browser.
+  Everything else downloads, including HTML, SVG, CSV, JSON, Markdown, audio, video and
+  files without an extension. Images, audio and video shown inside Baserow are not
+  affected. Every file is also served with a `sandbox` Content-Security-Policy, the same
+  one used for `/media/`, so a displayed file can't run script on the Baserow origin.
 
 ## Steps to Enable
 
