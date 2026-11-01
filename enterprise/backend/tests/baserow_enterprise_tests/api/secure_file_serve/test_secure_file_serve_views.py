@@ -2,6 +2,7 @@ from io import BytesIO
 from unittest.mock import patch
 
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.shortcuts import reverse
 from django.test.utils import override_settings
@@ -1034,3 +1035,160 @@ def test_exporting_csv_writes_file_to_storage_and_its_served_by_the_backend_with
 
         response = api_client.get(json["url"].replace("http://localhost:8000", ""))
         assert response.status_code == HTTP_403_FORBIDDEN
+
+
+SECURE_FILE_SERVE_SETTINGS = {
+    "DEBUG": True,
+    "BASEROW_SERVE_FILES_THROUGH_BACKEND": True,
+    "BASEROW_SERVE_FILES_THROUGH_BACKEND_PERMISSION": SecureFileServePermission.DISABLED,
+    "STORAGES": {
+        "default": {
+            "BACKEND": "baserow_enterprise.secure_file_serve.storage.EnterpriseFileStorage"
+        }
+    },
+}
+
+
+def get_stored_file(api_client, stored_name, query=""):
+    # Stores under the exact name, because the upload handler lowercases extensions
+    # and the view must also cope with names from other writers, like exports.
+    storage = get_default_storage()
+    name = storage.save(f"user_files/{stored_name}", ContentFile(b"<svg onload=x>"))
+    url = storage.url(name).replace("http://localhost:8000", "")
+    return api_client.get(url + query)
+
+
+@pytest.mark.django_db
+@override_settings(**SECURE_FILE_SERVE_SETTINGS)
+@pytest.mark.parametrize(
+    "stored_name",
+    [
+        "page.html",
+        "page.HTML",
+        "page.htm",
+        "page.xhtml",
+        "page.xht",
+        "image.svg",
+        "image.SVG",
+        "image.svgz",
+        "data.xml",
+        # Other types a browser may render as a document.
+        "style.xsl",
+        "feed.rdf",
+        "archive.mht",
+        "page.html.gz",
+        "script.js",
+        "data.json",
+        "data.csv",
+        "unknown.foo",
+        "no_extension",
+    ],
+)
+def test_files_not_safe_to_display_are_served_as_attachment(
+    enable_enterprise, api_client, use_tmp_media_root, stored_name
+):
+    response = get_stored_file(api_client, stored_name)
+
+    assert response.status_code == HTTP_200_OK
+    assert response.headers["Content-Disposition"].startswith("attachment;")
+
+
+@pytest.mark.django_db
+@override_settings(**SECURE_FILE_SERVE_SETTINGS)
+@pytest.mark.parametrize(
+    "stored_name,content_type",
+    [
+        ("photo.png", "image/png"),
+        ("photo.PNG", "image/png"),
+        ("photo.jpg", "image/jpeg"),
+        ("photo.jpeg", "image/jpeg"),
+        ("photo.gif", "image/gif"),
+        ("photo.webp", "image/webp"),
+        ("document.pdf", "application/pdf"),
+        ("clip.mp4", "video/mp4"),
+        ("clip.webm", "video/webm"),
+        ("clip.mov", "video/quicktime"),
+        ("sound.mp3", "audio/mpeg"),
+        ("sound.ogg", "audio/ogg"),
+        ("notes.txt", "text/plain"),
+    ],
+)
+def test_files_safe_to_display_are_served_inline(
+    enable_enterprise, api_client, use_tmp_media_root, stored_name, content_type
+):
+    response = get_stored_file(api_client, stored_name)
+
+    assert response.status_code == HTTP_200_OK
+    assert response.headers["Content-Type"] == content_type
+    assert response.headers["Content-Disposition"].startswith("inline;")
+
+
+@pytest.mark.django_db
+@override_settings(**SECURE_FILE_SERVE_SETTINGS)
+@pytest.mark.parametrize("stored_name", ["photo.png", "page.html"])
+def test_dl_query_param_forces_attachment_with_requested_filename(
+    enable_enterprise, api_client, use_tmp_media_root, stored_name
+):
+    response = get_stored_file(api_client, stored_name, "?dl=report.png")
+
+    assert response.status_code == HTTP_200_OK
+    assert (
+        response.headers["Content-Disposition"] == 'attachment; filename="report.png"'
+    )
+
+
+@pytest.mark.django_db
+@override_settings(**SECURE_FILE_SERVE_SETTINGS)
+def test_dl_query_param_cannot_inject_response_headers(
+    enable_enterprise, api_client, use_tmp_media_root
+):
+    response = get_stored_file(
+        api_client, "photo.png", "?dl=a%0D%0ASet-Cookie:%20x=1%22;%20filename=%22b"
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert "Set-Cookie" not in response.headers
+    assert response.headers["Content-Disposition"] == (
+        "attachment; filename*=utf-8''a%0D%0ASet-Cookie%3A%20x%3D1%22%3B%20filename%3D%22b"
+    )
+
+
+@pytest.mark.django_db
+@override_settings(**SECURE_FILE_SERVE_SETTINGS)
+@pytest.mark.parametrize(
+    "stored_name,query",
+    [
+        ("photo.png", ""),
+        ("page.html", ""),
+        ("page.html", "?dl=page.html"),
+    ],
+)
+def test_served_files_cannot_be_sniffed_or_run_script(
+    enable_enterprise, api_client, use_tmp_media_root, stored_name, query
+):
+    response = get_stored_file(api_client, stored_name, query)
+
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["Content-Security-Policy"].startswith("sandbox;")
+
+
+@pytest.mark.django_db
+@override_settings(**SECURE_FILE_SERVE_SETTINGS)
+def test_uploaded_html_is_not_served_inline(
+    enable_enterprise, enterprise_data_fixture, api_client, use_tmp_media_root
+):
+    _, token = enterprise_data_fixture.create_user_and_token()
+
+    response = api_client.post(
+        reverse("api:user_files:upload_file"),
+        data={"file": SimpleUploadedFile("pwn.html", b"<script>alert(1)</script>")},
+        format="multipart",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK, response.json()
+
+    response = api_client.get(
+        response.json()["url"].replace("http://localhost:8000", "")
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.headers["Content-Disposition"].startswith("attachment;")

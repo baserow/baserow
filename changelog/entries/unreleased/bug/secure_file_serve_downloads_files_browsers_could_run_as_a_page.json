@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Secure file serve now downloads HTML, SVG and other files that could run script in the browser",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-11-01"
+}
