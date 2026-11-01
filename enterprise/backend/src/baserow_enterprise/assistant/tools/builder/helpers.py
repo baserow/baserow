@@ -1214,6 +1214,9 @@ def add_field_mapping_to_action(
 ) -> dict[str, Any]:
     """Add or update a field mapping on a create_row/update_row workflow action."""
 
+    from baserow.contrib.builder.workflow_actions.actions import (
+        UpdateBuilderWorkflowActionActionType,
+    )
     from baserow.contrib.integrations.local_baserow.models import (
         LocalBaserowTableServiceFieldMapping,
     )
@@ -1264,25 +1267,33 @@ def add_field_mapping_to_action(
             "Use get_tables_schema to find the table's field IDs."
         )
 
-    existing = LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(
-        service=service, field_id=field_id
-    ).first()
-
-    if existing:
-        existing.value = formula_object(
-            value_formula, mode=BASEROW_FORMULA_MODE_ADVANCED
-        )
-        existing.enabled = True
-        existing.save()
-        status = "updated"
-    else:
-        LocalBaserowTableServiceFieldMapping.objects.create(
-            service=service,
-            field_id=field_id,
-            value=formula_object(value_formula, mode=BASEROW_FORMULA_MODE_ADVANCED),
-            enabled=True,
-        )
-        status = "created"
+    # The service replaces its whole list of mappings, mappings on trashed fields
+    # included.
+    value = formula_object(value_formula, mode=BASEROW_FORMULA_MODE_ADVANCED)
+    field_mappings = []
+    status = "created"
+    for mapping in LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(
+        service=service
+    ):
+        if mapping.field_id == field_id:
+            status = "updated"
+            field_mappings.append(
+                {"field_id": field_id, "enabled": True, "value": value}
+            )
+        else:
+            field_mappings.append(
+                {
+                    "field_id": mapping.field_id,
+                    "enabled": mapping.enabled,
+                    "value": mapping.value,
+                }
+            )
+    if status == "created":
+        field_mappings.append({"field_id": field_id, "enabled": True, "value": value})
+    action = UpdateBuilderWorkflowActionActionType.do(
+        user, action, service={"field_mappings": field_mappings}
+    )
+    service = action.service.specific
 
     mappings = [
         {

@@ -1908,6 +1908,44 @@ def test_add_action_field_mapping_updates_existing(data_fixture):
     assert result["field_mappings"][0]["field_id"] == name_field.id
 
 
+@pytest.mark.django_db
+def test_add_action_field_mapping_goes_through_the_action_type(data_fixture):
+    from baserow.contrib.builder.workflow_actions.actions import (
+        UpdateBuilderWorkflowActionActionType,
+    )
+    from baserow.core.action.models import Action
+    from baserow_enterprise.assistant.tools.builder.tools import (
+        add_action_field_mapping,
+    )
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Form", path="/form")
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    email_field = data_fixture.create_text_field(table=table, name="Email")
+    ctx = make_test_ctx(user, workspace)
+    action = _create_row_action_on_form(ctx, page, table, name_field)
+
+    result = add_action_field_mapping(
+        ctx,
+        action_id=action.id,
+        field_id=email_field.id,
+        value_formula="'a@b.c'",
+        thought="test",
+    )
+
+    assert result["status"] == "created"
+    assert sorted(m["field_id"] for m in result["field_mappings"]) == sorted(
+        [name_field.id, email_field.id]
+    )
+    assert Action.objects.filter(
+        type=UpdateBuilderWorkflowActionActionType.type
+    ).exists()
+
+
 def _create_row_action_on_form(ctx, page, table, field) -> BuilderWorkflowAction:
     from baserow_enterprise.assistant.tools.builder.types import FieldValueMapping
 
