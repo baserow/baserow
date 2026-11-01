@@ -13,7 +13,11 @@ import pytest
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.actions import UpdateElementActionType
 from baserow.contrib.builder.elements.models import Element
+from baserow.contrib.builder.workflow_actions.actions import (
+    UpdateBuilderWorkflowActionActionType,
+)
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.core.action.models import Action
 from baserow.core.formula import BaserowFormulaObject
 from baserow_enterprise.assistant.tools.builder.tools import (
     create_actions,
@@ -30,6 +34,7 @@ from baserow_enterprise.assistant.tools.builder.types import (
     ElementUpdate,
 )
 from baserow_enterprise.assistant.tools.builder.types.workflow_action import (
+    FieldValueMapping,
     ParameterMapping,
 )
 
@@ -356,3 +361,54 @@ def test_open_page_change_made_while_generating_is_kept(
     action = BuilderWorkflowAction.objects.get(page=site["page"]).specific
     assert [p["name"] for p in action.query_parameters] == ["q"]
     assert formula(action.page_parameters[0]["value"]) == "get('page_parameter.id')"
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("action_type", ["notification", "open_page", "create_row"])
+def test_generated_action_formulas_are_saved_through_the_action_type(
+    data_fixture, site, monkeypatch, action_type
+):
+    button = data_fixture.create_builder_button_element(page=site["page"])
+    name_field = site["table"].field_set.get(name="Name")
+    use_generator(monkeypatch, generated("get('page_parameter.id')"))
+    action = {
+        "notification": ActionCreate(
+            type="notification",
+            element=button.id,
+            event="click",
+            title="$formula: the id in the URL",
+        ),
+        "open_page": ActionCreate(
+            type="open_page",
+            element=button.id,
+            event="click",
+            navigate_to_page_id=site["page"].id,
+            page_parameters=[
+                ParameterMapping(name="id", value="$formula: the id in the URL")
+            ],
+        ),
+        "create_row": ActionCreate(
+            type="create_row",
+            element=button.id,
+            event="click",
+            table_id=site["table"].id,
+            field_values=[
+                FieldValueMapping(
+                    field_id=name_field.id, value="$formula: the id in the URL"
+                )
+            ],
+        ),
+    }[action_type]
+
+    create_actions(site["ctx"], page_id=site["page"].id, actions=[action], thought="t")
+
+    saved = BuilderWorkflowAction.objects.get(page=site["page"]).specific
+    value = {
+        "notification": lambda: saved.title,
+        "open_page": lambda: saved.page_parameters[0]["value"],
+        "create_row": lambda: saved.service.specific.field_mappings.get().value,
+    }[action_type]()
+    assert formula(value) == "get('page_parameter.id')"
+    assert Action.objects.filter(
+        type=UpdateBuilderWorkflowActionActionType.type
+    ).exists()

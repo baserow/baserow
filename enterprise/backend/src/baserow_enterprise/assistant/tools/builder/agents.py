@@ -22,8 +22,12 @@ from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.mixins import CollectionElementTypeMixin
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.pages.models import Page
-from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
-from baserow.contrib.builder.workflow_actions.signals import workflow_action_updated
+from baserow.contrib.builder.workflow_actions.actions import (
+    UpdateBuilderWorkflowActionActionType,
+)
+from baserow.contrib.builder.workflow_actions.handler import (
+    BuilderWorkflowActionHandler,
+)
 from baserow.core.exceptions import PermissionException
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
@@ -806,20 +810,19 @@ def update_workflow_action_formulas(
                 )
                 try:
                     generated = _generate_formulas(generate_formulas, formulas, context)
-                    if generated:
-                        with transaction.atomic():
-                            # Loaded again so changes made while the model ran
-                            # are kept.
-                            fresh_action = (
-                                BuilderWorkflowAction.objects.select_for_update(
-                                    of=("self",)
-                                ).get(id=orm_action.id)
+                    with transaction.atomic():
+                        # Loaded again so changes made while the model ran are
+                        # kept.
+                        fresh_action = (
+                            BuilderWorkflowActionHandler().get_workflow_action(
+                                orm_action.id
                             )
-                            action_create.update_with_formulas(fresh_action, generated)
-                    orm_action.refresh_from_db()
-                    workflow_action_updated.send(
-                        None, workflow_action=orm_action, user=user
-                    )
+                        )
+                        values = action_create.formula_values(fresh_action, generated)
+                        if values:
+                            UpdateBuilderWorkflowActionActionType.do(
+                                user, fresh_action, **values
+                            )
                 except Exception as exc:
                     raise_if_permission_denied(exc)
                     logger.error(
