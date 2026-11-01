@@ -2935,6 +2935,30 @@ def test_update_element_style_reset(data_fixture):
     assert el.style_background_color == "#ffffffff"
 
 
+@pytest.mark.django_db
+def test_update_element_style_reset_uses_the_model_defaults(data_fixture):
+    from baserow.contrib.builder.elements.models import Element
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+    heading = data_fixture.create_builder_heading_element(page=page)
+    Element.objects.filter(id=heading.id).update(style_width_child="small")
+    ctx = make_test_ctx(user, workspace)
+
+    update_element_style(
+        ctx,
+        page_id=page.id,
+        style=ElementStyleUpdate(element_id=heading.id, reset=True),
+        thought="test",
+    )
+
+    heading.refresh_from_db()
+    default = Element._meta.get_field("style_width_child").get_default()
+    assert heading.style_width_child == default
+
+
 @pytest.mark.django_db(transaction=True)
 def test_update_element_style_reset_with_overrides(data_fixture):
     """reset=True + padding=50 → padding=50 all sides, rest at defaults."""

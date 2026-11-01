@@ -2098,30 +2098,18 @@ class ImageStyleOverride(BaseModel):
 # Style update model
 # ---------------------------------------------------------------------------
 
-_STYLE_DEFAULTS: dict[str, Any] = {
-    "style_border_top_color": "border",
-    "style_border_top_size": 0,
-    "style_border_bottom_color": "border",
-    "style_border_bottom_size": 0,
-    "style_border_left_color": "border",
-    "style_border_left_size": 0,
-    "style_border_right_color": "border",
-    "style_border_right_size": 0,
-    "style_padding_top": 10,
-    "style_padding_bottom": 10,
-    "style_padding_left": 20,
-    "style_padding_right": 20,
-    "style_margin_top": 0,
-    "style_margin_bottom": 0,
-    "style_margin_left": 0,
-    "style_margin_right": 0,
-    "style_border_radius": 0,
-    "style_background_radius": 0,
-    "style_background": "none",
-    "style_background_color": "#ffffffff",
-    "style_background_mode": "fill",
-    "style_width": "normal",
-}
+
+def _style_defaults() -> dict[str, Any]:
+    """The default of every style field of an element, read from the model."""
+
+    from baserow.contrib.builder.elements.models import Element
+
+    return {
+        field.name: field.get_default()
+        for field in Element._meta.concrete_fields
+        if field.name.startswith("style_")
+    }
+
 
 # Maps (element_type, tool_block_name) → styles JSON key.
 # The styles JSON key is the serializer's `property_name`, which varies per
@@ -2243,7 +2231,7 @@ class ElementStyleUpdate(BaseModel):
         kwargs: dict[str, Any] = {}
 
         if self.reset:
-            kwargs.update(_STYLE_DEFAULTS)
+            kwargs.update(_style_defaults())
             kwargs["styles"] = {}
 
         # Box model — uniform or per-side
