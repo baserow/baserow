@@ -5,6 +5,7 @@ from django.utils.translation import gettext as _
 
 from pydantic import Field
 from pydantic_ai import ModelRetry, RunContext
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.core.actions import (
     CreateApplicationActionType,
@@ -12,7 +13,7 @@ from baserow.core.actions import (
 )
 from baserow.core.tools import applications as shared_applications
 from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps
-from baserow_enterprise.assistant.tools.shared import require_payload
+from baserow_enterprise.assistant.tools.shared import ToolInputError, require_payload
 from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 
 from . import helpers
@@ -245,10 +246,15 @@ def update_builder(
         for name, value in requested_changes.items()
         if getattr(app, name) != value
     }
-    if changes.get("login_page_id") is not None:
-        helpers.check_login_page(app, changes["login_page_id"])
     if changes:
-        UpdateApplicationActionType.do(user, app, **changes)
+        try:
+            UpdateApplicationActionType.do(user, app, **changes)
+        except DRFValidationError as exc:
+            # The builder refuses a login page it doesn't own.
+            raise ToolInputError(
+                f"{' '.join(str(message) for message in exc.detail)} Use list_pages "
+                "to find valid page IDs. No changes were applied."
+            ) from exc
         app.refresh_from_db()
 
     result: dict[str, Any] = {

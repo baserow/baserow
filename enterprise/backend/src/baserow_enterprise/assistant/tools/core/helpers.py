@@ -138,20 +138,3 @@ def get_application(
             "Use list_builders to find valid application IDs."
         )
     return application.specific
-
-
-def check_login_page(application: Application, page_id: int) -> None:
-    """
-    :raises ToolInputError: When ``page_id`` isn't a page of ``application``, or is
-        its shared page.
-    """
-
-    from baserow.contrib.builder.pages.models import Page
-
-    if not Page.objects.filter(
-        builder_id=application.id, shared=False, id=page_id
-    ).exists():
-        raise ToolInputError(
-            f"Page with ID {page_id} not found in this application. "
-            "Use list_pages to find valid page IDs. No changes were applied."
-        )

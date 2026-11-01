@@ -368,7 +368,7 @@ def test_update_builder_refuses_a_login_page_outside_the_builder(
         builder.shared_page.id,
         999999,
     ]:
-        with pytest.raises(ToolInputError, match=f"Page with ID {page_id}"):
+        with pytest.raises(ToolInputError, match=f"login page with id {page_id} "):
             update_builder(
                 ctx,
                 builder_id=builder.id,
