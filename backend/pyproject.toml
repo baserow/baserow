@@ -87,7 +87,7 @@ dependencies = [
     "sentry-sdk==2.52.0",
     "typing_extensions>=4.14.1",
     "icalendar==6.3.2",
-    "jira2markdown==0.5",
+    "jira2markdown==0.5.3",
     "atlassian-python-api==4.0.7",
     "openpyxl==3.1.5",
     "zipstream-ng==1.9.0",
