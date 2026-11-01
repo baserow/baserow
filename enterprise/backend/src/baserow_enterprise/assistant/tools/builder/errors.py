@@ -51,23 +51,27 @@ def user_error_message(exc: Exception) -> str | None:
     return detail or str(exc) or error.removeprefix("ERROR_").replace("_", " ").lower()
 
 
-def _validation_messages(detail: Any) -> str:
-    """The messages of a DRF ``ValidationError`` detail, with the field they're on."""
-
+def _detail_messages(detail: Any) -> str:
     if isinstance(detail, dict):
         return " ".join(
-            f"{field}: {_validation_messages(value)}" for field, value in detail.items()
+            f"{field}: {_detail_messages(value)}" for field, value in detail.items()
         )
     if isinstance(detail, (list, tuple)):
-        return " ".join(_validation_messages(value) for value in detail)
+        return " ".join(_detail_messages(value) for value in detail)
     return str(detail)
+
+
+def validation_messages(exc: DRFValidationError) -> str:
+    """The messages of a DRF ``ValidationError``, with the field they're on."""
+
+    return _detail_messages(exc.detail)
 
 
 def item_error(exc: Exception) -> str:
     """The message reported for one item of a batch that failed with ``exc``."""
 
     if isinstance(exc, DRFValidationError):
-        return _validation_messages(exc.detail)
+        return validation_messages(exc)
     return user_error_message(exc) or str(exc)
 
 

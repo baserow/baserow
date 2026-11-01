@@ -12,6 +12,8 @@ from django.contrib.auth.models import AbstractUser
 from django.db import DatabaseError, transaction
 from django.db.models import Q, QuerySet
 
+from rest_framework.exceptions import ValidationError as DRFValidationError
+
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.data_sources.operations import (
@@ -67,6 +69,7 @@ from baserow.core.integrations.service import IntegrationService
 from baserow.core.models import Workspace
 from baserow.core.service import CoreService
 from baserow.core.services.registries import service_type_registry
+from baserow_enterprise.assistant.tools.builder.errors import validation_messages
 from baserow_enterprise.assistant.tools.shared import (
     ToolInputError,
     raise_if_permission_denied,
@@ -481,61 +484,50 @@ def check_view_on_table(service_kwargs: dict, table: Any) -> None:
     service_kwargs["view_id"] = view.id
 
 
-def check_fields_in_table(table: Any, field_ids: list[int]) -> None:
-    """
-    :raises ToolInputError: When one of ``field_ids`` isn't a field of ``table``.
-    """
-
-    found = set(
-        Field.objects.filter(table=table, id__in=field_ids).values_list("id", flat=True)
-    )
-    missing = [field_id for field_id in field_ids if field_id not in found]
-    if missing:
-        raise ToolInputError(
-            f"Field with ID {missing[0]} not found in the data source's table. "
-            "Use get_tables_schema to find valid field IDs. No changes were applied."
-        )
-
-
 def create_data_source(
     user: AbstractUser,
     page: Page,
     ds_create: DataSourceCreate,
     integration: Integration,
 ) -> tuple[Any, int]:
-    """Create a data source on a page."""
+    """
+    Create a data source on a page.
+
+    :raises ToolInputError: When a sort names a field of another table.
+    """
 
     service_type = service_type_registry.get(ds_create.get_service_type())
     service_kwargs = ds_create.to_service_kwargs(user, page.builder.workspace)
     service_kwargs["integration"] = integration
     check_view_on_table(service_kwargs, service_kwargs["table"])
     sortings = ds_create.get_sortings()
-    check_fields_in_table(service_kwargs["table"], [s["field_id"] for s in sortings])
-
-    data_source = DataSourceService().create_data_source(
-        user=user,
-        page=page,
-        name=ds_create.name,
-        service_type=service_type,
-        **service_kwargs,
-    )
-
-    if sortings:
-        from baserow.contrib.integrations.local_baserow.models import (
-            LocalBaserowTableServiceSort,
+    with transaction.atomic():
+        data_source = DataSourceService().create_data_source(
+            user=user,
+            page=page,
+            name=ds_create.name,
+            service_type=service_type,
+            **service_kwargs,
         )
 
-        LocalBaserowTableServiceSort.objects.bulk_create(
-            [
-                LocalBaserowTableServiceSort(
-                    service=data_source.service,
-                    field_id=s["field_id"],
-                    order_by=s["order_by"],
-                    order=i,
+        if sortings:
+            try:
+                data_source = (
+                    DataSourceService()
+                    .update_data_source(
+                        user,
+                        data_source,
+                        service_type=service_type,
+                        service_sorts=sortings,
+                    )
+                    .data_source
                 )
-                for i, s in enumerate(sortings)
-            ]
-        )
+            except DRFValidationError as exc:
+                # The service refuses a sort on a field of another table.
+                raise ToolInputError(
+                    f"{validation_messages(exc)} Use get_tables_schema to find valid "
+                    "field IDs. No changes were applied."
+                ) from exc
 
     return data_source, data_source.id
 
