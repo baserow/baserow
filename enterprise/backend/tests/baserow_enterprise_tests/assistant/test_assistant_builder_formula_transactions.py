@@ -412,3 +412,50 @@ def test_generated_action_formulas_are_saved_through_the_action_type(
     assert Action.objects.filter(
         type=UpdateBuilderWorkflowActionActionType.type
     ).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_generated_table_column_formulas_are_saved_through_the_action_type(
+    data_fixture, site, monkeypatch
+):
+    from baserow.contrib.builder.elements.models import TableElement
+    from baserow_enterprise.assistant.tools.builder.tools import (
+        create_collection_elements,
+    )
+    from baserow_enterprise.assistant.tools.builder.types import (
+        CollectionElementCreate,
+    )
+    from baserow_enterprise.assistant.tools.builder.types.element import (
+        TableFieldConfig,
+    )
+
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=site["page"], table=site["table"]
+    )
+    name_field = site["table"].field_set.get(name="Name")
+    use_generator(
+        monkeypatch, generated(f"get('current_record.field_{name_field.id}')")
+    )
+
+    create_collection_elements(
+        site["ctx"],
+        page_id=site["page"].id,
+        elements=[
+            CollectionElementCreate(
+                ref="t",
+                type="table",
+                data_source=data_source.id,
+                fields=[
+                    TableFieldConfig(name="Shout", value="$formula: the name shouted")
+                ],
+            )
+        ],
+        thought="t",
+    )
+
+    table = TableElement.objects.get(page=site["page"])
+    column = table.fields.get(name="Shout")
+    assert formula(column.config["value"]) == (
+        f"get('current_record.field_{name_field.id}')"
+    )
+    assert Action.objects.filter(type=UpdateElementActionType.type).exists()

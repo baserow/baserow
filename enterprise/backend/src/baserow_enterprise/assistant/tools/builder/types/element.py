@@ -717,23 +717,34 @@ def _update_table_formulas(
     orm_element: "Element",
     formulas: dict[str, str],
 ) -> None:
-    """Update collection field configs for table elements."""
-    if not formulas:
-        return
+    """Update the column configs of a table element with generated formulas."""
 
-    collection_fields = list(orm_element.fields.order_by("order"))
+    from baserow.contrib.builder.elements.actions import UpdateElementActionType
+
+    # The element replaces its whole list of columns.
+    columns = [
+        {
+            "uid": str(column.uid),
+            "name": column.name,
+            "type": column.type,
+            "config": dict(column.config),
+            "styles": column.styles,
+        }
+        for column in orm_element.fields.order_by("order")
+    ]
+    changed = False
     for key, formula in formulas.items():
         parts = key.split(".")
         if len(parts) != 3 or parts[0] != "fields":
             continue
         index = int(parts[1])
-        config_key = parts[2]
-        if 0 <= index < len(collection_fields):
-            cf = collection_fields[index]
-            cf.config[config_key] = formula_object(
+        if 0 <= index < len(columns):
+            columns[index]["config"][parts[2]] = formula_object(
                 formula, mode=BASEROW_FORMULA_MODE_ADVANCED
             )
-            cf.save(update_fields=["config"])
+            changed = True
+    if changed:
+        UpdateElementActionType.do(user, orm_element, {"fields": columns})
 
 
 _UPDATE_FORMULAS: dict[str, Any] = {
