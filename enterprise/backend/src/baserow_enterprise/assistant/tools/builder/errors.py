@@ -11,7 +11,10 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.api.utils import apply_exception_mapping
-from baserow_enterprise.assistant.tools.shared import ToolInputError
+from baserow_enterprise.assistant.tools.shared import (
+    ToolInputError,
+    validation_messages,
+)
 
 
 def _user_error_mapping() -> dict[type[Exception], Any]:
@@ -49,22 +52,6 @@ def user_error_message(exc: Exception) -> str | None:
     if error is None:
         return None
     return detail or str(exc) or error.removeprefix("ERROR_").replace("_", " ").lower()
-
-
-def _detail_messages(detail: Any) -> str:
-    if isinstance(detail, dict):
-        return " ".join(
-            f"{field}: {_detail_messages(value)}" for field, value in detail.items()
-        )
-    if isinstance(detail, (list, tuple)):
-        return " ".join(_detail_messages(value) for value in detail)
-    return str(detail)
-
-
-def validation_messages(exc: DRFValidationError) -> str:
-    """The messages of a DRF ``ValidationError``, with the field they're on."""
-
-    return _detail_messages(exc.detail)
 
 
 def item_error(exc: Exception) -> str:

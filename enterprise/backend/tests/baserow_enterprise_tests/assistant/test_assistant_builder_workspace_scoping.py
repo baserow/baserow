@@ -9,6 +9,7 @@ from typing import Any
 from django.db import transaction
 
 import pytest
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.models import Element
@@ -207,7 +208,9 @@ def test_create_element_rejects_ids_from_other_workspace(data_fixture, two_works
             {},
             {},
         )
-    with pytest.raises(ToolInputError, match=f"Page with ID {w['page'].id}"):
+    with pytest.raises(
+        DRFValidationError, match=f"page with id {w['page'].id} doesn't exist"
+    ):
         helpers.create_element(
             user,
             here_page,
@@ -289,7 +292,9 @@ def test_create_action_rejects_ids_from_other_workspace(two_workspaces):
             {},
             {},
         )
-    with pytest.raises(ToolInputError, match=f"Page with ID {w['page'].id}"):
+    with pytest.raises(
+        DRFValidationError, match=f"page with id {w['page'].id} doesn't exist"
+    ):
         helpers.create_workflow_action(
             user,
             here_page,
@@ -403,7 +408,9 @@ def test_header_refuses_pages_of_another_builder(data_fixture, two_workspaces):
             menu_items=[MenuItemCreate(name="Away", page_id=sibling_page.id)],
         ),
     ]:
-        with pytest.raises(ToolInputError, match="Page with ID"):
+        with pytest.raises(
+            (ToolInputError, DRFValidationError), match="(?i)page with id"
+        ):
             helpers.create_element(user, here_page, header, {}, {})
 
     assert Element.objects.filter(page=shared_page).count() == count

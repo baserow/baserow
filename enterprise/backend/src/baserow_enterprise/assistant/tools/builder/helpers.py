@@ -69,10 +69,10 @@ from baserow.core.integrations.service import IntegrationService
 from baserow.core.models import Workspace
 from baserow.core.service import CoreService
 from baserow.core.services.registries import service_type_registry
-from baserow_enterprise.assistant.tools.builder.errors import validation_messages
 from baserow_enterprise.assistant.tools.shared import (
     ToolInputError,
     raise_if_permission_denied,
+    validation_messages,
 )
 
 from .registries import assistant_element_type_registry
@@ -177,33 +177,20 @@ def check_data_source_on_page(page: Page, data_source_id: int) -> None:
         )
 
 
-def check_page_links(builder: Builder, values: Any) -> None:
+def check_pages_in_builder(builder: Builder, page_ids: list[int]) -> None:
     """
-    Check that every ``navigate_to_page_id`` in ``values``, including those of
-    nested menu items, is a page of ``builder``.
+    Check the pages a header or footer is shown on. The element would leave out a
+    page of another builder without saying so.
 
-    :raises ToolInputError: When one names a page of another application.
+    :raises ToolInputError: When one is a page of another application.
     """
 
-    page_ids = set()
-
-    def collect(value: Any) -> None:
-        if isinstance(value, dict):
-            if value.get("navigate_to_page_id") is not None:
-                page_ids.add(value["navigate_to_page_id"])
-            for item in value.values():
-                collect(item)
-        elif isinstance(value, (list, tuple)):
-            for item in value:
-                collect(item)
-
-    collect(values)
     found = set(
         Page.objects.filter(builder=builder, id__in=page_ids).values_list(
             "id", flat=True
         )
     )
-    missing = sorted(page_ids - found, key=str)
+    missing = [page_id for page_id in page_ids if page_id not in found]
     if missing:
         raise ToolInputError(
             f"Page with ID {missing[0]} not found in this application. "
@@ -654,17 +641,8 @@ def create_element(
         check_data_source_on_page(page, int(element_create.data_source))
 
     kwargs = element_create.to_orm_kwargs(user, target_page)
-    # A header or footer names its pages and the pages of its menu items apart
-    # from the kwargs, so they are checked with them.
-    header_links = [
-        {"navigate_to_page_id": page_id}
-        for page_id in [
-            *(element_create.page_ids or []),
-            *(item.page_id for item in element_create.menu_items or []),
-        ]
-    ]
-    check_page_links(page.builder, [kwargs, header_links])
     if element_create.page_ids:
+        check_pages_in_builder(page.builder, element_create.page_ids)
         kwargs["pages"] = list(
             Page.objects.filter(builder=page.builder, id__in=element_create.page_ids)
         )
@@ -731,18 +709,20 @@ def create_element(
         reference_element_id = None
         position = "south"
 
-    element = CreateElementActionType.do(
-        user,
-        element_type,
-        target_page,
-        {
-            "reference_element_id": reference_element_id,
-            "position": position,
-            **kwargs,
-        },
-    )
-
-    action_pairs = element_create.post_create(user, element, target_page)
+    # A post-create hook can still be refused, e.g. a menu linking to another
+    # application, and then nothing of the element is kept.
+    with transaction.atomic():
+        element = CreateElementActionType.do(
+            user,
+            element_type,
+            target_page,
+            {
+                "reference_element_id": reference_element_id,
+                "position": position,
+                **kwargs,
+            },
+        )
+        action_pairs = element_create.post_create(user, element, target_page)
     # Added once the element exists, so a failed one doesn't send the children of a
     # later element with the same ref to the shared page.
     if use_shared_page:
@@ -933,7 +913,6 @@ def update_element(
         ) | set(element_update.get_formula_dependent_fields(element_type))
         for field in deferred_fields:
             kwargs.pop(field, None)
-        check_page_links(page.builder, kwargs)
         if kwargs:
             element = UpdateElementActionType.do(user, element, kwargs)
         after_update_result = hooks.after_update(user, element, element_update)
@@ -989,7 +968,6 @@ def save_child_menu(
     :raises PermissionDenied: When the user can't update or create the menu.
     """
 
-    check_page_links(container.page.builder, menu_items)
     if menu is not None:
         return UpdateElementActionType.do(user, menu, {"menu_items": menu_items})
     # A new menu has no sub-links yet, and creating one doesn't take children.
@@ -1181,8 +1159,6 @@ def create_workflow_action(
     elif isinstance(ds, int):
         check_data_source_on_page(page, ds)
         kwargs["data_source_id"] = ds
-    check_page_links(page.builder, kwargs)
-
     action = BuilderWorkflowActionService().create_workflow_action(
         user, action_type, **kwargs
     )
