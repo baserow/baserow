@@ -1,9 +1,0 @@
-{
-    "type": "bug",
-    "message": "SSO logins now reject callbacks that were not started by the same browser",
-    "issue_origin": "github",
-    "issue_number": null,
-    "domain": "core",
-    "bullet_points": [],
-    "created_at": "2026-11-01"
-}

@@ -28,10 +28,7 @@ from baserow_enterprise.api.sso.utils import (
     redirect_user_on_success,
 )
 from baserow_enterprise.sso.exceptions import AuthFlowError
-from baserow_enterprise.sso.utils import (
-    consume_oauth_state_or_raise,
-    is_sso_feature_active,
-)
+from baserow_enterprise.sso.utils import is_sso_feature_active
 
 
 class OAuth2LoginView(APIView):
@@ -164,8 +161,8 @@ class OAuth2CallbackView(APIView):
         )
         logger.debug("OAuth2 callback session data: {0}", request.session._session)
 
-        consume_oauth_state_or_raise(
-            request.session, request.query_params.get("state", None)
+        provider.get_type().consume_oauth_state_or_raise(
+            provider, request.session, request.query_params.get("state", None)
         )
 
         code = request.query_params.get("code", None)

@@ -36,7 +36,6 @@ from baserow_enterprise.integrations.common.sso.oauth2.app_auth_provider_types i
     OpenIdConnectAppAuthProviderType,
 )
 from baserow_enterprise.sso.exceptions import AuthFlowError
-from baserow_enterprise.sso.utils import consume_oauth_state_or_raise
 
 
 class OAuth2LoginView(APIView):
@@ -200,7 +199,7 @@ class OAuth2CallbackView(APIView):
         in.
         """
 
-        auth_provider_id = request.session.pop("oauth_2_provider_id", None)
+        auth_provider_id = request.session.get("oauth_2_provider_id", None)
         if not auth_provider_id:
             raise AuthProviderModelNotFound("Missing auth provider id.")
 
@@ -240,9 +239,11 @@ class OAuth2CallbackView(APIView):
             },
             on_error=on_error,
         ):
-            consume_oauth_state_or_raise(
-                request.session, request.query_params.get("state", None)
+            provider.get_type().consume_oauth_state_or_raise(
+                provider, request.session, request.query_params.get("state", None)
             )
+            # Kept until here so that a stale tab can't fail the login of another one.
+            del request.session["oauth_2_provider_id"]
 
             code = request.query_params.get("code", None)
 
