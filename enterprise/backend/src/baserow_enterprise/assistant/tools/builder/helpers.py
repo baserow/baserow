@@ -801,11 +801,10 @@ def move_element(
         reference_element_id = before.id
     else:
         # before_id=None means "move to end" — append after the current last element.
-        from baserow.core.cache import local_cache
-
-        element.page.refresh_from_db()
-        with local_cache.context():
-            last_ref, _, _ = element.page.get_graph().get_last_position()
+        # The lock reads the latest graph, as the move does.
+        graph = element.page.get_graph()
+        graph.lock_for_update()
+        last_ref, _, _ = graph.get_last_position()
 
         if last_ref is not None and last_ref.id == element.id:
             # Already at the end — no-op.

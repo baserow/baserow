@@ -1093,11 +1093,13 @@ def move_elements(
                 }
             )
         except PermissionException:
+            helpers.forget_page_graphs(page)
             errors.append(
                 f"Permission denied for element {element_move.element_id}; it was not moved. "
                 "Do not retry the denied operation."
             )
         except Exception as exc:
+            helpers.forget_page_graphs(page)
             errors.append(f"element {element_move.element_id}: {exc}")
 
     result: dict[str, Any] = {"moved_elements": moved}
