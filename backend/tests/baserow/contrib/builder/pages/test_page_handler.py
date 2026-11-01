@@ -537,6 +537,28 @@ def test_is_page_path_unique_with_trashed_page(data_fixture):
 
 
 @pytest.mark.django_db
+def test_get_page_with_clashing_path(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    data_fixture.create_builder_page(builder=builder, path="/")
+    product = data_fixture.create_builder_page(builder=builder, path="/product/:id")
+    trashed = data_fixture.create_builder_page(builder=builder, path="/old")
+    TrashHandler.trash(user, builder.workspace, builder, trashed)
+    handler = PageHandler()
+
+    assert handler.get_page_with_clashing_path(builder, "/product/:id") == product
+    assert handler.get_page_with_clashing_path(builder, "/product/:slug") == product
+    assert handler.get_page_with_clashing_path(builder, "/old") == trashed
+    assert handler.get_page_with_clashing_path(builder, "/new") is None
+    assert (
+        handler.get_page_with_clashing_path(
+            builder, "/old", base_queryset=Page.objects.all()
+        )
+        is None
+    )
+
+
+@pytest.mark.django_db
 def test_create_page_page_path_not_unique_with_trashed_page(data_fixture):
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user=user)

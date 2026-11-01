@@ -1,7 +1,14 @@
 <template>
   <div class="iframe-element">
     <p
-      v-if="
+      v-if="builder.untrusted_content"
+      class="iframe-element__empty"
+      :style="{ height: `${element.height}px` }"
+    >
+      {{ $t('iframeElementForm.untrustedContent') }}
+    </p>
+    <p
+      v-else-if="
         (element.source_type === IFRAME_SOURCE_TYPES.URL && !resolvedURL) ||
         (element.source_type === IFRAME_SOURCE_TYPES.EMBED && !resolvedEmbed)
       "

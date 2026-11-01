@@ -25,6 +25,10 @@ export class AgentApplicationType extends ApplicationType {
     return this.app.$i18n.t('applicationType.agents')
   }
 
+  getViewLabel() {
+    return this.app.$i18n.t('applicationType.viewAgent')
+  }
+
   getDescription() {
     return this.app.$i18n.t('applicationType.agentDesc')
   }

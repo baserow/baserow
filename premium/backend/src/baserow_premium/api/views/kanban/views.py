@@ -148,6 +148,7 @@ class KanbanViewView(APIView):
                     "ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST",
                     "ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD",
                     "ERROR_FILTERS_PARAM_VALIDATION_ERROR",
+                    "ERROR_PAGE_SIZE_LIMIT",
                 ]
             ),
             404: get_error_schema(["ERROR_KANBAN_DOES_NOT_EXIST"]),
@@ -332,6 +333,7 @@ class PublicKanbanViewView(APIView):
                     "ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD",
                     "ERROR_FILTER_FIELD_NOT_FOUND",
                     "ERROR_FILTERS_PARAM_VALIDATION_ERROR",
+                    "ERROR_PAGE_SIZE_LIMIT",
                 ]
             ),
             404: get_error_schema(["ERROR_KANBAN_DOES_NOT_EXIST"]),

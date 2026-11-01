@@ -1,4 +1,5 @@
 import { getClient } from "../client";
+import { waitForInvitationToken } from "./mail";
 import { User } from "./user";
 import { Workspace } from "./workspace";
 
@@ -17,5 +18,6 @@ export async function addWorkspaceMember(
   );
   await getClient(member).post(
     `workspaces/invitations/${inviteResponse.data.id}/accept/`,
+    { token: await waitForInvitationToken(member.email) },
   );
 }

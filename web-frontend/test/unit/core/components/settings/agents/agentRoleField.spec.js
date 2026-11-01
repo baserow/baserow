@@ -7,7 +7,7 @@ import AgentRoleField from '@baserow/modules/core/components/settings/agents/Age
 const workspace = { id: 12 }
 const agent = { id: 34, name: 'Row writer', role_uid: 'MEMBER' }
 const roles = [
-  { uid: 'MEMBER', name: 'Member', icon: 'iconoir-group' },
+  { uid: 'MEMBER', name: 'Member', icon: 'baserow-icon-team' },
   { uid: 'ADMIN', name: 'Admin', icon: 'iconoir-crown' },
 ]
 const column = { additionalProps: { roles, workspace } }

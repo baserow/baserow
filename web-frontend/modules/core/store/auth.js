@@ -5,6 +5,7 @@ import _ from 'lodash'
 import AuthService from '@baserow/modules/core/services/auth'
 import WorkspaceService from '@baserow/modules/core/services/workspace'
 import {
+  getToken,
   setToken,
   setUserSessionCookie,
   unsetToken,
@@ -224,6 +225,9 @@ export const actions = {
     await dispatch('workspace/clearAll', {}, { root: true })
     await dispatch('workspace/unselect', {}, { root: true })
     await dispatch('job/clearAll', {}, { root: true })
+    // The install toasts belong to the user's jobs, so a finished one must not
+    // stay for the next user.
+    await dispatch('toast/removeType', 'installTemplate', { root: true })
     await dispatch('notification/reset', {}, { root: true })
     commit('CLEAR_USER_DATA')
   },
@@ -233,7 +237,22 @@ export const actions = {
    * cleared.
    */
   async refresh({ commit, getters, dispatch }, token = null) {
-    const refreshToken = token || getters.refreshToken
+    let refreshToken = token || getters.refreshToken
+    if (import.meta.client && !token && !getters.getPreventSetToken) {
+      // Another tab may have rotated the refresh token, which revokes the one
+      // this tab holds. The cookie has the latest one.
+      const cookieToken = await getToken(this.app)
+      let cookieUserId = null
+      try {
+        cookieUserId = jwtDecode(cookieToken).user_id
+      } catch {}
+      if (
+        cookieUserId &&
+        cookieUserId === getters.refreshTokenPayload?.user_id
+      ) {
+        refreshToken = cookieToken
+      }
+    }
     if (!refreshToken) {
       throw new Error('Invalid refresh token')
     }
@@ -241,8 +260,8 @@ export const actions = {
     try {
       const tokenUpdatedAt = new Date().getTime()
       const { data } = await AuthService(this.$client).refresh(refreshToken)
-      // if ROTATE_REFRESH_TOKEN=False in the backend the response will not contain
-      // a new refresh token. In that case, we keep the one we just used.
+      // if BASEROW_ROTATE_REFRESH_TOKENS=false in the backend the response will
+      // not contain a new refresh token. In that case, we keep the one we just used.
       dispatch('setUserData', {
         refresh_token: refreshToken,
         tokenUpdatedAt,
@@ -250,6 +269,7 @@ export const actions = {
       })
       if (!getters.getPreventSetToken && data.refresh_token) {
         await setToken(this.app, getters.refreshToken)
+        await setUserSessionCookie(this.app, getters.signedUserSession)
       }
     } catch (error) {
       if (error.response?.status === 401) {
@@ -358,11 +378,18 @@ export const actions = {
   forceUpdateOrCreateWorkspaceInvitation({ commit }, invitation) {
     commit('ADD_OR_UPDATE_WORKSPACE_INVITATION', invitation)
   },
-  async acceptWorkspaceInvitation({ commit }, invitationId) {
+  /**
+   * Accepts the invitation. The token from the invitation email is required when
+   * the user's email address isn't verified, and accepting with it verifies it.
+   */
+  async acceptWorkspaceInvitation({ commit }, { invitationId, token = null }) {
     const { data: workspace } = await WorkspaceService(
       this.$client
-    ).acceptInvitation(invitationId)
+    ).acceptInvitation(invitationId, token)
     commit('REMOVE_WORKSPACE_INVITATION', invitationId)
+    if (token) {
+      commit('UPDATE_USER_DATA', { user: { email_verified: true } })
+    }
     return workspace
   },
   forceAcceptWorkspaceInvitation({ commit }, invitation) {

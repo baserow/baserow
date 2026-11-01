@@ -100,14 +100,15 @@
   flex: 0 0 170px;
 }
 
-// Takes the place of what is below the input while it is searched.
+// Anchored below the input without replacing the access summary.
 .invite-input__results {
-  margin-top: 16px;
+  overflow: hidden;
 }
 
 .invite-input__tabs {
   display: flex;
   gap: 20px;
+  padding: 0 12px;
   border-bottom: 1px solid $palette-neutral-200;
 }
 
@@ -130,7 +131,7 @@
   }
 }
 
-// Brings back what the results took the place of.
+// Closes the suggestions while keeping the current search and selections.
 .invite-input__close {
   display: flex;
   align-items: center;
@@ -145,8 +146,10 @@
 }
 
 .invite-input__list {
-  margin: 12px 0 0 0;
-  padding: 0;
+  max-height: 260px;
+  margin: 0;
+  padding: 4px 0;
+  overflow-y: auto;
   list-style: none;
 }
 
@@ -155,7 +158,7 @@
   align-items: center;
   gap: 12px;
   min-height: 56px;
-  padding: 8px 0;
+  padding: 8px 12px;
   cursor: pointer;
 
   & + & {
@@ -197,7 +200,7 @@
 }
 
 .invite-input__empty {
-  padding: 16px 0;
+  padding: 16px 12px;
   font-size: 13px;
   color: $palette-neutral-900;
 }

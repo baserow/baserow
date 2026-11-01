@@ -396,7 +396,7 @@ describe('ManageAgentModal', () => {
     const teamsSetting = {
       ...generalSetting,
       component: { template: '<div class="teams-settings" />' },
-      icon: 'iconoir-community',
+      icon: 'baserow-icon-team',
       name: 'Teams',
       getType: () => 'teams',
       getInitialValues: () => ({ team_ids: [3] }),

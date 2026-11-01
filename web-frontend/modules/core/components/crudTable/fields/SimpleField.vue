@@ -1,5 +1,5 @@
 <template>
-  <div :title="row[column.key]">
+  <div class="data-table__text-field" :title="row[column.key]">
     {{ row[column.key] }}
   </div>
 </template>

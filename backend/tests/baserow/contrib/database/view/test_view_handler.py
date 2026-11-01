@@ -86,6 +86,7 @@ from baserow.core.db import get_collation_name
 from baserow.core.exceptions import PermissionDenied, UserNotInWorkspace
 from baserow.core.registries import ImportExportConfig
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.user_templates.handler import user_template_copy_config
 from baserow.core.utils import MirrorDict
 from baserow.test_utils.helpers import setup_interesting_test_table
 
@@ -4895,6 +4896,139 @@ def test_export_import_view_with_default_values(data_fixture):
 
 
 @pytest.mark.django_db
+def test_update_view_default_values_rejects_write_only_fields(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    password_field = data_fixture.create_password_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    for item in [
+        {"field": password_field.id, "enabled": True, "value": "secret"},
+        {"field": password_field.id, "enabled": False},
+    ]:
+        with pytest.raises(ValidationError):
+            ViewHandler().update_view_default_values(
+                user=user,
+                view=view,
+                items=[{"field": text_field.id, "enabled": True}, item],
+            )
+
+    assert not ViewDefaultValue.objects.filter(view=view).exists()
+
+
+@pytest.mark.django_db
+def test_changing_field_to_write_only_type_deletes_its_view_default_values(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    note_field = data_fixture.create_text_field(table=table)
+    secret_field = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    ViewHandler().update_view_default_values(
+        user=user,
+        view=view,
+        items=[
+            {"field": note_field.id, "enabled": True, "value": "keep me"},
+            {"field": secret_field.id, "enabled": True, "value": "abc"},
+        ],
+    )
+
+    FieldHandler().update_field(user, secret_field, new_type_name="password")
+
+    assert list(
+        ViewDefaultValue.objects.filter(view=view).values_list("field_id", flat=True)
+    ) == [note_field.id]
+
+
+@pytest.mark.django_db
+def test_row_creation_ignores_default_values_of_write_only_fields(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    password_field = data_fixture.create_password_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    ViewDefaultValue.objects.create(
+        view=view, field=text_field, value="keep me", field_type="text"
+    )
+    # Stored before password fields lost their default values.
+    ViewDefaultValue.objects.create(
+        view=view, field=password_field, value="secret", field_type="password"
+    )
+
+    row = RowHandler().create_row(user, table, {}, view=view)
+
+    assert getattr(row, text_field.db_column) == "keep me"
+    assert getattr(row, password_field.db_column) is None
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "config",
+    [user_template_copy_config(), ImportExportConfig(include_permission_data=True)],
+    ids=["user_template", "other"],
+)
+def test_export_import_leaves_out_default_values_of_write_only_fields(
+    data_fixture, config
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    note_field = data_fixture.create_text_field(table=table, name="Note")
+    secret_field = data_fixture.create_password_field(table=table, name="Secret")
+    was_secret_field = data_fixture.create_text_field(table=table, name="Was secret")
+    view = data_fixture.create_grid_view(user=user, table=table)
+    ViewDefaultValue.objects.create(
+        view=view, field=note_field, value="keep me", field_type="text"
+    )
+    # Stored before password fields lost their default values, the second one
+    # while its field was still a password field.
+    stale_default_values = {
+        secret_field: {"value": "secret", "field_type": "password"},
+        was_secret_field: {"value": "was secret", "field_type": "password"},
+    }
+    for field, values in stale_default_values.items():
+        ViewDefaultValue.objects.create(view=view, field=field, **values)
+    view = View.objects.get(id=view.id).specific
+    view_type = view_type_registry.get_by_model(view)
+
+    serialized = view_type.export_serialized(view, config, {})
+
+    assert serialized["default_row_values"] == {
+        str(note_field.id): {
+            "field_id": note_field.id,
+            "enabled": True,
+            "value": "keep me",
+            "function": None,
+            "field_type": "text",
+        }
+    }
+
+    # An export made before password fields lost their default values.
+    for field, values in stale_default_values.items():
+        serialized["default_row_values"][str(field.id)] = {
+            "field_id": field.id,
+            "enabled": True,
+            "function": None,
+            **values,
+        }
+    id_mapping = {
+        "workspace_id": table.database.workspace.id,
+        "database_fields": MirrorDict(),
+        "database_field_select_options": MirrorDict(),
+    }
+    imported_view = view_type.import_serialized(
+        table, serialized, config, id_mapping, {}
+    )
+
+    assert list(
+        ViewDefaultValue.objects.filter(view=imported_view).values_list(
+            "field_id", "value"
+        )
+    ) == [(note_field.id, "keep me")]
+
+
+@pytest.mark.django_db
 def test_update_view_default_values_twice(data_fixture):
     """Updating default values a second time should work without errors."""
 
@@ -5279,7 +5413,7 @@ def test_export_import_default_values_for_all_field_types(data_fixture):
         field_type = field_object["type"]
         field_name = f"field_{field.id}"
 
-        if field.read_only or field_type.read_only:
+        if field.read_only or field_type.read_only or field_type.write_only:
             continue
 
         if field_name not in row_data:

@@ -5,25 +5,12 @@ import pytest
 from baserow.core.jobs.constants import JOB_CANCELLED, JOB_FINISHED
 from baserow.core.jobs.exceptions import JobNotCancellable
 from baserow.core.jobs.handler import JobHandler
-from baserow.core.models import Template, TemplateCategory
+from baserow.core.models import Template
 from baserow.core.user_templates.actions import CreateUserTemplateActionType
 from baserow.core.user_templates.handler import UserTemplateHandler
-from baserow.core.user_templates.job_types import CreateUserTemplateJobType
 from baserow.core.user_templates.models import CreateUserTemplateJob
 from baserow_enterprise.audit_log.models import AuditLogEntry
-
-
-def start_job(user, database):
-    return JobHandler().create_and_start_job(
-        user,
-        CreateUserTemplateJobType.type,
-        sync=True,
-        workspace_id=database.workspace_id,
-        application_ids=[database.id],
-        name="My template",
-        icon="iconoir-view-grid",
-        category_ids=[TemplateCategory.objects.create(name="Cat").id],
-    )
+from tests.baserow.core.user_templates.utils import start_job
 
 
 @pytest.mark.import_export_workspace
@@ -34,7 +21,7 @@ def test_create_user_template_job_is_audit_logged(
     user = enterprise_data_fixture.create_user()
     database = enterprise_data_fixture.create_database_application(user=user)
 
-    job = start_job(user, database)
+    job = start_job(user, database.workspace, [database])
 
     assert job.state == JOB_FINISHED
     entry = AuditLogEntry.objects.get(action_type=CreateUserTemplateActionType.type)
@@ -58,7 +45,7 @@ def test_create_user_template_job_cancelled_at_the_end_is_not_audit_logged(
     with patch.object(
         UserTemplateHandler, "create_template_root", cancel_after_creating
     ):
-        job = start_job(user, database)
+        job = start_job(user, database.workspace, [database])
 
     assert job.state == JOB_CANCELLED
     assert not Template.objects.exists()
@@ -83,7 +70,7 @@ def test_create_user_template_job_refused_cancel_keeps_the_audit_log_entry(
         return template
 
     with patch.object(CreateUserTemplateActionType, "do", cancel_after_creating):
-        job = start_job(user, database)
+        job = start_job(user, database.workspace, [database])
 
     assert job.state == JOB_FINISHED
     entry = AuditLogEntry.objects.get(action_type=CreateUserTemplateActionType.type)

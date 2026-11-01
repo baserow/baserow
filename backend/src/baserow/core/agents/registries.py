@@ -6,6 +6,9 @@ class AgentExtensionType(Instance):
 
     request_fields = {}
     response_fields = {}
+    # Fields `annotate_serialized_agents` adds to the agents of a list response,
+    # declared for the API documentation only.
+    list_response_fields = {}
 
     def enhance_queryset(self, queryset, workspace):
         return queryset
@@ -25,6 +28,20 @@ class AgentExtensionType(Instance):
     def get_default_role_uid(self, workspace):
         return None
 
+    def annotate_serialized_agents(self, workspace, agents, serialized_agents, user):
+        """
+        Adds data to the serialized agents of a list response, for data that depends
+        on the user requesting it and is cheaper to compute for a whole page at once.
+
+        :param workspace: The workspace the agents are in.
+        :param agents: The agents of the page.
+        :param serialized_agents: The serialized agents, in the same order.
+        :param user: The user requesting the list.
+        :return: The serialized agents, annotated.
+        """
+
+        return serialized_agents
+
 
 class AgentExtensionTypeRegistry(Registry[AgentExtensionType]):
     name = "agent_extension"
@@ -41,6 +58,13 @@ class AgentExtensionTypeRegistry(Registry[AgentExtensionType]):
         ]
         answers = [answer for answer in answers if answer is not None]
         return any(answers) if answers else role_uid in {"ADMIN", "MEMBER"}
+
+    def annotate_serialized_agents(self, workspace, agents, serialized_agents, user):
+        for extension in self.get_all():
+            serialized_agents = extension.annotate_serialized_agents(
+                workspace, agents, serialized_agents, user
+            )
+        return serialized_agents
 
     def get_default_role_uid(self, workspace):
         for extension in self.get_all():

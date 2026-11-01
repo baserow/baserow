@@ -103,15 +103,17 @@
   border-top: solid 1px $palette-neutral-200;
 }
 
-.template-details__own-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
 .template-install {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.template-install__no-workspace {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: $palette-neutral-900;
 }
 
 .template-install__actions {
@@ -119,7 +121,8 @@
   gap: 8px;
 }
 
-.template-install__use {
+.template-install__use,
+.template-install__create-workspace {
   flex: 1 1 auto;
   min-width: 0;
 }

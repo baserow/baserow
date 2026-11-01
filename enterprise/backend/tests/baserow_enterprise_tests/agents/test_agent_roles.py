@@ -12,7 +12,6 @@ from baserow.core.agents.service import AgentService
 from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Agent
-from baserow.test_utils.helpers import assert_undo_redo_actions_are_valid
 from baserow_enterprise.agents.agent_extension_types import EnterpriseAgentExtensionType
 from baserow_enterprise.role.actions import BatchAssignRoleActionType
 from baserow_enterprise.role.handler import RoleAssignmentHandler
@@ -131,8 +130,8 @@ def test_stale_agent_workspace_role_is_ignored(
 @pytest.mark.django_db
 @pytest.mark.undo_redo
 @pytest.mark.parametrize("new_role_uid", ["ADMIN", None])
-def test_agent_workspace_role_undo_redo(data_fixture, new_role_uid):
-    """Workspace assignment and removal restore the canonical prior role on undo."""
+def test_agent_workspace_role_cannot_be_undone(data_fixture, new_role_uid):
+    """Workspace assignment and removal stay in place when the user undoes."""
     session_id = "agent-roles"
     user = data_fixture.create_user(session_id=session_id)
     workspace = data_fixture.create_workspace(user=user)
@@ -142,15 +141,8 @@ def test_agent_workspace_role_undo_redo(data_fixture, new_role_uid):
     action_type_registry.get_by_type(BatchAssignRoleActionType).do(
         user, [NewRoleAssignment(agent, role, workspace)], workspace
     )
-    agent.refresh_from_db()
-    assert agent.role_uid == (new_role_uid or "NO_ACCESS")
     scopes = [WorkspaceActionScopeType.value(workspace_id=workspace.id)]
-    undone = ActionHandler.undo(user, scopes, session_id)
-    assert_undo_redo_actions_are_valid(undone, [BatchAssignRoleActionType])
-    agent.refresh_from_db()
-    assert agent.role_uid == "VIEWER"
-    redone = ActionHandler.redo(user, scopes, session_id)
-    assert_undo_redo_actions_are_valid(redone, [BatchAssignRoleActionType])
+    assert ActionHandler.undo(user, scopes, session_id) == []
     agent.refresh_from_db()
     assert agent.role_uid == (new_role_uid or "NO_ACCESS")
     assert not RoleAssignment.objects.exists()

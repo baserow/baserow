@@ -390,8 +390,8 @@ class CreateUserTemplateJobType(JobType):
 
     def _track_content(self, job: CreateUserTemplateJob, **content) -> None:
         """
-        Stores the workspace and the archive on the job as soon as they exist, so
-        that the cleanup finds them whatever happens next.
+        Stores the template workspace on the job as soon as it exists, so that the
+        cleanup finds it whatever happens next.
         """
 
         for field_name, value in content.items():

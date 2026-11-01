@@ -27,3 +27,18 @@ class UserTemplateState(models.TextChoices):
     REJECTED = "rejected", "Rejected"
     BLOCKED = "blocked", "Blocked"
     PUBLIC = "public", "Public"
+
+
+# The views mapping is created together with the mappings of its children, see
+# `ViewType.import_serialized`, so they're seeded together too.
+USER_TEMPLATE_SEEDED_ID_MAPPINGS = (
+    "database_tables",
+    "database_fields",
+    "database_views",
+    "database_view_filters",
+    "database_view_filter_groups",
+    "database_view_sortings",
+    "database_view_group_bys",
+    "database_view_decorations",
+    "automation_workflows",
+)

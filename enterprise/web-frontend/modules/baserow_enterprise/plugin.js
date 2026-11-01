@@ -26,9 +26,12 @@ import {
   SamlAuthProviderType,
 } from '@baserow_enterprise/authProviderTypes'
 import { TeamsWorkspaceSettingsPageType } from '@baserow_enterprise/workspaceSettingsPageTypes'
-import { EnterpriseTeamsAgentExtensionType } from '@baserow_enterprise/agentExtensionTypes'
+import {
+  EnterpriseRolesAgentExtensionType,
+  EnterpriseTeamsAgentExtensionType,
+} from '@baserow_enterprise/agentExtensionTypes'
 import { EnterpriseTeamsAgentSettingsType } from '@baserow_enterprise/agentSettingsTypes'
-import { TeamSubjectType } from '@baserow_enterprise/subjectTypes'
+import { TeamSubjectType } from '@baserow_enterprise/subjectTypes.jsx'
 import { ScopeInvitationTargetType } from '@baserow_enterprise/invitationTargetTypes'
 import { MemberInvitationRouteType } from '@baserow_enterprise/invitationRouteTypes'
 import { EnterpriseMembersPagePluginType } from '@baserow_enterprise/membersPagePluginTypes'
@@ -176,6 +179,10 @@ export default defineNuxtPlugin({
     $registry.register(
       'agentExtension',
       new EnterpriseTeamsAgentExtensionType(context)
+    )
+    $registry.register(
+      'agentExtension',
+      new EnterpriseRolesAgentExtensionType(context)
     )
     $registry.register(
       'agentSettings',

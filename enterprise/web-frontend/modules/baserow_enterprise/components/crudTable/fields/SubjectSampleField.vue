@@ -8,15 +8,14 @@
   >
     <div v-if="!row[column.key].length">-</div>
 
-    <Avatar
+    <component
+      :is="getSubjectType(sample.subject_type).avatarComponent"
       v-for="(sample, index) in row[column.key]"
       :key="index"
       class="subject-sample-field-list__avatar"
-      rounded
       size="large"
-      :color="getSubjectType(sample.subject_type).avatarColor"
-      :initials="nameAbbreviation(sample.subject_label)"
-    ></Avatar>
+      :subject="{ name: sample.subject_label }"
+    />
 
     <div
       v-if="row.subject_count > 10"
@@ -28,8 +27,6 @@
 </template>
 
 <script>
-import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
-
 export default {
   name: 'SubjectSampleField',
   props: {
@@ -43,7 +40,6 @@ export default {
     },
   },
   methods: {
-    nameAbbreviation,
     getSubjectType(type) {
       return this.$registry.get('subject', type)
     },

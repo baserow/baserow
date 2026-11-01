@@ -1,4 +1,5 @@
 import addPublicAuthTokenHeader from '@baserow/modules/database/utils/publicView'
+import { fetchRowsInChunks } from '@baserow/modules/database/utils/view'
 import {
   LINKED_ITEMS_DEFAULT_LOAD_COUNT,
   LINKED_ITEMS_LOAD_ALL,
@@ -102,6 +103,14 @@ export default (client) => {
 
       const url = publicUrl ? 'public/rows/' : ''
       return client.get(`/database/views/grid/${gridId}/${url}`, config)
+    },
+    /**
+     * Same as `fetchRows`, but splits a `limit` above `chunkSize` into several
+     * requests because the backend rejects page sizes above the row page size
+     * limit.
+     */
+    fetchRowsInChunks(params) {
+      return fetchRowsInChunks((chunk) => this.fetchRows(chunk), params)
     },
     fetchCount({
       gridId,

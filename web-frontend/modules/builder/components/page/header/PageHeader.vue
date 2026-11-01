@@ -8,6 +8,15 @@
     ></SkeletonBlock>
     <template v-else>
       <PageHeaderMenuItems />
+      <ApplicationUntrustedContentAlert
+        :key="builder.id"
+        :content-owner="builder"
+        :can-trust="
+          $hasPermission('application.update', builder, builder.workspace.id)
+        "
+        :trust-content="trustContent"
+        :message="$t('builderUntrustedContent.warning')"
+      />
       <DeviceSelector
         :device-type-selected="deviceTypeSelected"
         @selected="actionSetDeviceTypeSelected"
@@ -18,6 +27,7 @@
 </template>
 
 <script>
+import ApplicationUntrustedContentAlert from '@baserow/modules/core/components/application/ApplicationUntrustedContentAlert'
 import DeviceSelector from '@baserow/modules/builder/components/page/header/DeviceSelector'
 import PageHeaderMenuItems from '@baserow/modules/builder/components/page/header/PageHeaderMenuItems'
 import PageActions from '@baserow/modules/builder/components/page/header/PageActions'
@@ -26,10 +36,12 @@ import { mapActions, mapGetters } from 'vuex'
 export default {
   name: 'PageHeader',
   components: {
+    ApplicationUntrustedContentAlert,
     PageHeaderMenuItems,
     DeviceSelector,
     PageActions,
   },
+  inject: ['builder'],
   props: {
     loading: {
       type: Boolean,
@@ -52,6 +64,12 @@ export default {
     }
   },
   methods: {
+    trustContent() {
+      return this.$store.dispatch('application/update', {
+        application: this.builder,
+        values: { untrusted_content: false },
+      })
+    },
     ...mapActions({
       actionSetDeviceTypeSelected: 'page/setDeviceTypeSelected',
     }),

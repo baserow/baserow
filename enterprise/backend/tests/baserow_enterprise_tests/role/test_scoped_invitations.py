@@ -185,7 +185,7 @@ def test_accepting_invitation_assigns_scoped_roles(data_fixture):
     handler.create_scoped_invitation(
         user, workspace, "foo@bar.com", role("VIEWER"), table_b
     )
-    invitee = data_fixture.create_user(email="foo@bar.com")
+    invitee = data_fixture.create_user(email="foo@bar.com", email_verified=True)
 
     CoreHandler().accept_workspace_invitation(invitee, scoped_invitation.invitation)
 
@@ -225,7 +225,7 @@ def test_accepting_invitation_skips_trashed_scope(data_fixture):
         user, workspace, "foo@bar.com", role("VIEWER"), table_b
     )
     TrashHandler.trash(user, workspace, database, table_b)
-    invitee = data_fixture.create_user(email="foo@bar.com")
+    invitee = data_fixture.create_user(email="foo@bar.com", email_verified=True)
 
     CoreHandler().accept_workspace_invitation(invitee, scoped_invitation.invitation)
 

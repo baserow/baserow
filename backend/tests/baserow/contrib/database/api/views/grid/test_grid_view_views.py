@@ -3490,6 +3490,67 @@ def test_get_public_grid_view(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"size": 201},
+        {"size": 201, "exclude_count": "true"},
+        {"limit": 201},
+        {"limit": 201, "exclude_count": "true"},
+    ],
+)
+def test_list_rows_page_size_is_limited(api_client, data_fixture, settings, params):
+    settings.ROW_PAGE_SIZE_LIMIT = 200
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    grid = data_fixture.create_grid_view(table=table)
+
+    url = reverse("api:database:views:grid:list", kwargs={"view_id": grid.id})
+    response = api_client.get(url, params, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_PAGE_SIZE_LIMIT"
+
+    within_limit = {
+        key: 200 if key in ("size", "limit") else value for key, value in params.items()
+    }
+    response = api_client.get(url, within_limit, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_200_OK
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("params", [{}, {"exclude_count": "true"}, {"page": 1}])
+def test_list_rows_default_page_size_respects_limit(
+    api_client, data_fixture, settings, params
+):
+    settings.ROW_PAGE_SIZE_LIMIT = 2
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    grid = data_fixture.create_grid_view(table=table)
+    model = table.get_model()
+    for _ in range(3):
+        model.objects.create()
+
+    url = reverse("api:database:views:grid:list", kwargs={"view_id": grid.id})
+    response = api_client.get(url, params, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_200_OK
+    assert len(response.json()["results"]) == 2
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("params", [{"size": 201}, {"limit": 201}])
+def test_list_public_rows_page_size_is_limited(
+    api_client, data_fixture, settings, params
+):
+    settings.ROW_PAGE_SIZE_LIMIT = 200
+    grid = data_fixture.create_grid_view(public=True)
+
+    url = reverse("api:database:views:grid:public_rows", kwargs={"slug": grid.slug})
+    response = api_client.get(url, params)
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_PAGE_SIZE_LIMIT"
+
+
+@pytest.mark.django_db
 def test_list_rows_public_doesnt_show_hidden_columns(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)

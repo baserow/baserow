@@ -15,7 +15,7 @@ export class EnterpriseTeamsAgentSettingsType extends AgentSettingsType {
   }
 
   get icon() {
-    return 'iconoir-community'
+    return 'baserow-icon-team'
   }
 
   get component() {

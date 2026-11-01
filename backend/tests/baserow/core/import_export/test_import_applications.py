@@ -9,15 +9,10 @@ import pytest
 
 from baserow.core.deferred_callbacks import register_deferred_callback
 from baserow.core.import_export.exceptions import (
-    ImportExportResourceDoesNotExist,
     ImportExportResourceInvalidFile,
 )
-from baserow.core.import_export.handler import (
-    USER_TEMPLATE_SEEDED_ID_MAPPINGS,
-    ImportExportHandler,
-)
+from baserow.core.import_export.handler import ImportExportHandler
 from baserow.core.models import Application
-from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import get_default_storage
 from baserow.test_utils.zip_helpers import (
     add_file_to_zip,
@@ -382,98 +377,3 @@ def test_import_cleans_up_on_checksum_failure(
         )
 
     assert not storage.exists(import_tmp_path)
-
-
-def export_from_this_instance(data_fixture, user, storage):
-    workspace = data_fixture.create_workspace(user=user)
-    builder = data_fixture.create_builder_application(workspace=workspace)
-    config = ImportExportConfig(include_permission_data=False)
-    resource = ImportExportHandler().export_workspace_applications(
-        [builder], config, storage=storage
-    )
-    return resource, config
-
-
-@pytest.mark.import_export_workspace
-@pytest.mark.django_db(transaction=True)
-@pytest.mark.parametrize("is_user_template", [True, False])
-def test_import_applications_from_export_seeds_id_mappings_of_user_templates(
-    data_fixture, use_tmp_media_root, is_user_template
-):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace()
-    storage = get_default_storage()
-    resource, config = export_from_this_instance(data_fixture, user, storage)
-    config.is_user_template = is_user_template
-    import_application = ImportExportHandler.import_application
-    id_mappings = []
-
-    def capture_id_mapping(self, workspace, id_mapping, *args, **kwargs):
-        id_mappings.append(dict(id_mapping))
-        return import_application(self, workspace, id_mapping, *args, **kwargs)
-
-    with patch.object(ImportExportHandler, "import_application", capture_id_mapping):
-        ImportExportHandler().import_applications_from_export(
-            user, workspace, resource, config, storage=storage
-        )
-
-    [id_mapping] = id_mappings
-    if is_user_template:
-        assert {
-            key: id_mapping.get(key) for key in USER_TEMPLATE_SEEDED_ID_MAPPINGS
-        } == {key: {} for key in USER_TEMPLATE_SEEDED_ID_MAPPINGS}
-    else:
-        assert not set(USER_TEMPLATE_SEEDED_ID_MAPPINGS) & set(id_mapping)
-
-
-@pytest.mark.import_export_workspace
-@pytest.mark.django_db(transaction=True)
-def test_import_applications_from_export_cleans_up_when_the_import_fails(
-    data_fixture, use_tmp_media_root
-):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace()
-    storage = get_default_storage()
-    resource, config = export_from_this_instance(data_fixture, user, storage)
-    handler = ImportExportHandler()
-    import_tmp_path = handler.export_file_path(str(resource.uuid))
-
-    with patch.object(
-        ImportExportHandler,
-        "import_multiple_applications",
-        side_effect=ValueError("Fails mid-import"),
-    ):
-        with pytest.raises(ValueError):
-            handler.import_applications_from_export(
-                user, workspace, resource, config, storage=storage
-            )
-
-    assert not storage.exists(import_tmp_path)
-    # The export itself is left to the caller.
-    assert storage.exists(handler.export_file_path(resource.get_archive_name()))
-
-
-@pytest.mark.import_export_workspace
-@pytest.mark.django_db(transaction=True)
-def test_import_applications_from_export_refuses_an_invalid_or_missing_export(
-    data_fixture, use_tmp_media_root
-):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace()
-    storage = get_default_storage()
-    resource, config = export_from_this_instance(data_fixture, user, storage)
-    handler = ImportExportHandler()
-
-    storage.delete(handler.export_file_path(resource.get_archive_name()))
-    with pytest.raises(ImportExportResourceDoesNotExist):
-        handler.import_applications_from_export(
-            user, workspace, resource, config, storage=storage
-        )
-
-    resource.is_valid = False
-    with pytest.raises(ImportExportResourceInvalidFile):
-        handler.import_applications_from_export(
-            user, workspace, resource, config, storage=storage
-        )
-
-    assert not Application.objects.filter(workspace=workspace).exists()

@@ -2,7 +2,12 @@ import { createHash, randomBytes } from "crypto";
 import { APIRequestContext } from "@playwright/test";
 import { expect, test } from "../baserowTest";
 import { baserowConfig } from "../../playwright.config";
-import { createUser, deleteUser, User } from "../../fixtures/user";
+import {
+  createUser,
+  deleteUser,
+  getBrowserRefreshToken,
+  User,
+} from "../../fixtures/user";
 import { createWorkspace, Workspace } from "../../fixtures/workspace";
 
 const backendUrl = baserowConfig.PUBLIC_BACKEND_URL.replace(/\/$/, "");
@@ -113,7 +118,7 @@ test("An MCP client connects with OAuth and is disconnected in settings", async 
     });
   });
 
-  await page.goto(`${frontendUrl}?token=${user.refreshToken}`);
+  await page.goto(`${frontendUrl}?token=${await getBrowserRefreshToken(user)}`);
   // The backend validates the request and redirects to the consent page.
   await goto(authorizeUrl, { waitUntil: "hydration" });
 

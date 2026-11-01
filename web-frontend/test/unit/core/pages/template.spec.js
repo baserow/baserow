@@ -34,17 +34,23 @@ describe('template page', () => {
       },
     })
 
-  it('renders the new template page when user_templates is enabled', async () => {
-    const wrapper = await mountPage(true)
+  it.each([
+    [
+      'renders the new template page when user_templates is enabled',
+      true,
+      'TemplatePage',
+      'LegacyTemplatePage',
+    ],
+    [
+      'renders the legacy template page when user_templates is disabled',
+      false,
+      'LegacyTemplatePage',
+      'TemplatePage',
+    ],
+  ])('%s', async (_title, enabled, shown, hidden) => {
+    const wrapper = await mountPage(enabled)
 
-    expect(wrapper.find('.TemplatePage').exists()).toBe(true)
-    expect(wrapper.find('.LegacyTemplatePage').exists()).toBe(false)
-  })
-
-  it('renders the legacy template page when user_templates is disabled', async () => {
-    const wrapper = await mountPage(false)
-
-    expect(wrapper.find('.LegacyTemplatePage').exists()).toBe(true)
-    expect(wrapper.find('.TemplatePage').exists()).toBe(false)
+    expect(wrapper.find(`.${shown}`).exists()).toBe(true)
+    expect(wrapper.find(`.${hidden}`).exists()).toBe(false)
   })
 })

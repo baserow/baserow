@@ -5,21 +5,14 @@ from django.conf import settings
 from django.db import InterfaceError, OperationalError
 from django.db.models import Q
 
-from celery_singleton import DuplicateTaskError, Singleton
-from django_cte import With
+from celery_singleton import Singleton
 from loguru import logger
 
-from baserow.celery_singleton_backend import SingletonAutoRescheduleFlag
 from baserow.config.celery import app
-from baserow.contrib.database.search.models import PendingSearchValueUpdate
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 
 PERIODIC_CHECK_MINUTES = 15
 PERIODIC_CHECK_TIME_LIMIT = 60 * PERIODIC_CHECK_MINUTES  # 15 minutes.
-
-
-def _get_singleton_autoreschedule_flag(table_id: int) -> SingletonAutoRescheduleFlag:
-    return SingletonAutoRescheduleFlag(f"database_search_data_lock_{table_id}")
 
 
 # Transient connection drops (e.g. managed-Postgres failover or pooler restart)
@@ -61,44 +54,70 @@ def schedule_update_search_data(
         will be updated in the search data.
     """
 
-    from baserow.contrib.database.search.handler import SearchHandler
+    from baserow.contrib.database.search.registries import search_data_updater_registry
     from baserow.contrib.database.table.handler import TableHandler
 
-    if not SearchHandler.full_text_enabled():
-        return
+    table = None
+    types_to_schedule = []
+    for search_data_updater_type in search_data_updater_registry.get_all():
+        if not search_data_updater_type.should_queue():
+            continue
 
-    # If any specific update is requested, queue it so it can be processed later.
-    new_pending_updates = False
-    if field_ids or row_ids:
+        # If any specific update is requested, queue it so it can be processed later.
+        new_pending_updates = False
+        if field_ids or row_ids:
+            if table is None:
+                try:
+                    table = TableHandler().get_table(table_id)
+                except TableDoesNotExist:
+                    logger.warning(f"Table with id {table_id} doesn't exist.")
+                    return
+            new_pending_updates = search_data_updater_type.queue(
+                table, field_ids, row_ids
+            )
+            if not new_pending_updates:
+                continue
+        # Without changes, like from the periodic check, only the types with pending
+        # updates are started.
+        elif not search_data_updater_type.has_pending_updates(table_id):
+            continue
+
+        types_to_schedule.append((search_data_updater_type, new_pending_updates))
+
+    # Scheduled after all changes are queued, so that a failing broker can't prevent
+    # another type from queuing them. The periodic check starts the tasks that
+    # couldn't be scheduled.
+    for search_data_updater_type, new_pending_updates in types_to_schedule:
         try:
-            table = TableHandler().get_table(table_id)
-        except TableDoesNotExist:
-            logger.warning(f"Table with id {table_id} doesn't exist.")
-            return
+            search_data_updater_type.schedule(table_id, new_pending_updates)
+        except Exception:  # noqa: BLE001
+            logger.exception(
+                "Could not schedule the {} update of table {}.",
+                search_data_updater_type.type,
+                table_id,
+            )
 
-        SearchHandler.queue_pending_search_update(
-            table=table, field_ids=field_ids, row_ids=row_ids
-        )
-        new_pending_updates = True
 
-    try:
-        # debounce the task to avoid multiple calls in a short time
-        update_search_data.s(table_id).apply_async(
-            countdown=settings.PG_FULLTEXT_SEARCH_UPDATE_DATA_THROTTLE_SECONDS
-        )
-    except DuplicateTaskError:
-        # There are new updates pending to be processed, make sure the flag is set
-        # so the task will be re-scheduled at the end of the current run.
-        if new_pending_updates:
-            flag = _get_singleton_autoreschedule_flag(table_id)
-            flag.set()
+@app.task(queue="export")
+def schedule_search_data_updater_task(search_data_updater_type: str, table_id: int):
+    """
+    Schedules the update task of one search data updater, without starting the update
+    tasks of the other types.
+
+    :param search_data_updater_type: The type of the search data updater.
+    :param table_id: The table of which the pending updates are processed.
+    """
+
+    from baserow.contrib.database.search.registries import search_data_updater_registry
+
+    search_data_updater_registry.get(search_data_updater_type).schedule(table_id)
 
 
 @app.task(
     queue="export",
     base=Singleton,
     unique_on="table_id",
-    raise_on_duplicate=False,
+    raise_on_duplicate=True,
     lock_expiry=settings.CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT,
     soft_time_limit=settings.CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT,
     time_limit=settings.CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT,
@@ -112,59 +131,16 @@ def update_search_data(table_id: int):
     process multiple updates on the same rows/fields in a short time.
 
     :param table_id: The ID of the table to update the search data for.
-    :raises TableDoesNotExist: If the table with the given ID does not exist.
     """
 
-    from baserow.contrib.database.search.handler import SearchHandler
-    from baserow.contrib.database.table.handler import TableHandler
-
-    if not SearchHandler.full_text_enabled():
-        logger.warning(
-            "Task called, but full-text-search is disabled. This should not happen."
-        )
-        return
-
-    try:
-        table = TableHandler().get_table(table_id)
-    except TableDoesNotExist:
-        logger.warning(f"Table with id {table_id} doesn't exist.")
-        return
-
-    # Make sure the search table exists for the workspace first.
-    workspace_id = table.database.workspace_id
-    SearchHandler.create_workspace_search_table_if_not_exists(workspace_id)
-
-    # Ensure every table field exists in the search table.
-    # Used during migrations or when explicitly reinitializing search data.
-    SearchHandler.initialize_missing_search_data(table)
-
-    # Make sure newer updates will re-schedule this task at the end if needed.
-    flag = _get_singleton_autoreschedule_flag(table_id)
-    flag.clear()
-
-    # Leave a safety margin so the task can finish cleanly before the hard limit.
-    hard_limit = settings.CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT
-    if hard_limit <= 30:
-        logger.warning(
-            "CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT={}s is at or below the 30s "
-            "safety margin; the task may be killed before it can finish.",
-            hard_limit,
-        )
-    time_budget = max(1, hard_limit - 30)
-    completed = SearchHandler.process_search_data_updates(
-        table, time_budget_seconds=time_budget
+    from baserow.contrib.database.search.registries import search_data_updater_registry
+    from baserow.contrib.database.search.search_data_updater_types import (
+        FullTextSearchDataUpdaterType,
     )
 
-    # Reschedule if there are still pending updates (time budget exhausted)
-    # or if new updates were queued during processing.
-    if not completed or flag.is_set():
-        logger.debug(
-            "Rescheduling search update task for table {} (completed={}, flag={}).",
-            table_id,
-            completed,
-            flag.is_set(),
-        )
-        schedule_update_search_data.delay(table_id)
+    search_data_updater_registry.get(FullTextSearchDataUpdaterType.type).update(
+        table_id
+    )
 
 
 @app.task(
@@ -185,33 +161,29 @@ def periodic_check_pending_search_data():
     """
 
     from baserow.contrib.database.search.handler import SearchHandler
-    from baserow.contrib.database.table.models import Field
+    from baserow.contrib.database.search.registries import search_data_updater_registry
 
-    if not SearchHandler.full_text_enabled():
-        return
+    if SearchHandler.full_text_enabled():
+        # Remove pending update entries for data that's already been deleted. Since
+        # those records have been permanently deleted from the database, nothing
+        # should try to update their search vectors, so this call won’t interfere
+        # with any running tasks.
+        SearchHandler.process_search_data_marked_for_deletion()
 
-    # Remove pending update entries for data that's already been deleted. Since those
-    # records have been permanently deleted from the database, nothing should try to
-    # update their search vectors, so this call won’t interfere with any running tasks.
-    SearchHandler.process_search_data_marked_for_deletion()
-
-    # Delete any stale pending update that is waiting for too long.
-    cutoff_time = datetime.now(tz=timezone.utc) - timedelta(
-        hours=settings.HOURS_UNTIL_TRASH_PERMANENTLY_DELETED
-    )
-    SearchHandler.delete_pending_updates(Q(updated_on__lt=cutoff_time))
+        # Delete any stale pending update that is waiting for too long.
+        cutoff_time = datetime.now(tz=timezone.utc) - timedelta(
+            hours=settings.HOURS_UNTIL_TRASH_PERMANENTLY_DELETED
+        )
+        SearchHandler.delete_pending_updates(Q(updated_on__lt=cutoff_time))
 
     # Verify if there are any pending updates to process and try to re-schedule the
-    # singleton table task in case the original one stopped before completing.
-    cte = With(PendingSearchValueUpdate.objects.values("field_id").distinct())
-    table_ids_with_pending_updates = (
-        cte.join(
-            Field.objects_and_trash.filter(table__database__workspace_id__isnull=False),
-            id=cte.col.field_id,
-        )
-        .with_cte(cte)
-        .values_list("table_id", flat=True)
-        .distinct()
+    # singleton table tasks in case the original one stopped before completing.
+    table_ids_with_pending_updates = sorted(
+        {
+            table_id
+            for search_data_updater_type in search_data_updater_registry.get_all()
+            for table_id in search_data_updater_type.get_table_ids_with_pending_updates()
+        }
     )
     for table_id in table_ids_with_pending_updates:
         # A transient DB error on one table shouldn't skip the remaining tables;

@@ -472,7 +472,9 @@ def test_delete_workspace_invitation(api_client, data_fixture):
 
 @pytest.mark.django_db
 def test_accept_workspace_invitation(api_client, data_fixture):
-    user_1, token_1 = data_fixture.create_user_and_token(email="test1@test.nl")
+    user_1, token_1 = data_fixture.create_user_and_token(
+        email="test1@test.nl", email_verified=True
+    )
     user_2, token_2 = data_fixture.create_user_and_token(email="test2@test.nl")
     workspace_1 = data_fixture.create_workspace()
     invitation = data_fixture.create_workspace_invitation(
@@ -519,6 +521,96 @@ def test_accept_workspace_invitation(api_client, data_fixture):
     assert response_json["order"] == 1
     assert WorkspaceInvitation.objects.all().count() == 0
     assert WorkspaceUser.objects.all().count() == 1
+
+
+@pytest.mark.django_db
+@override_settings(CELERY_EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend")
+def test_accept_workspace_invitation_requires_token_or_verified_email(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token(email="test1@test.nl")
+    workspace = data_fixture.create_workspace()
+    invitation = data_fixture.create_workspace_invitation(
+        workspace=workspace, email="test1@test.nl", permissions="ADMIN"
+    )
+    other_invitation = data_fixture.create_workspace_invitation(
+        workspace=workspace, email="other@test.nl"
+    )
+    signer = CoreHandler().get_workspace_invitation_signer()
+    url = reverse(
+        "api:workspaces:invitations:accept",
+        kwargs={"workspace_invitation_id": invitation.id},
+    )
+
+    for body in [
+        {},
+        {"token": "invalid"},
+        {"token": signer.dumps(other_invitation.id)},
+    ]:
+        response = api_client.post(
+            url, body, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+        )
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert response.json()["error"] == "ERROR_GROUP_INVITATION_EMAIL_NOT_VERIFIED"
+        assert not WorkspaceUser.objects.filter(user=user).exists()
+
+    response = api_client.post(
+        url,
+        {"token": signer.dumps(invitation.id)},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["permissions"] == "ADMIN"
+    user.profile.refresh_from_db()
+    assert user.profile.email_verified is True
+
+
+@pytest.mark.django_db
+def test_accept_workspace_invitation_without_token_when_email_verified(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token(
+        email="test1@test.nl", email_verified=True
+    )
+    invitation = data_fixture.create_workspace_invitation(email="test1@test.nl")
+
+    response = api_client.post(
+        reverse(
+            "api:workspaces:invitations:accept",
+            kwargs={"workspace_invitation_id": invitation.id},
+        ),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert WorkspaceUser.objects.filter(
+        user=user, workspace=invitation.workspace
+    ).exists()
+
+
+@pytest.mark.django_db
+@override_settings(
+    CELERY_EMAIL_BACKEND="django.core.mail.backends.console.EmailBackend"
+)
+def test_accept_workspace_invitation_without_token_when_emails_are_not_delivered(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token(email="test1@test.nl")
+    invitation = data_fixture.create_workspace_invitation(email="test1@test.nl")
+
+    response = api_client.post(
+        reverse(
+            "api:workspaces:invitations:accept",
+            kwargs={"workspace_invitation_id": invitation.id},
+        ),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert WorkspaceUser.objects.filter(
+        user=user, workspace=invitation.workspace
+    ).exists()
+    user.profile.refresh_from_db()
+    assert user.profile.email_verified is False
 
 
 @pytest.mark.django_db

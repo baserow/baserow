@@ -11,15 +11,13 @@ from freezegun import freeze_time
 from rest_framework.status import (
     HTTP_200_OK,
     HTTP_202_ACCEPTED,
+    HTTP_204_NO_CONTENT,
     HTTP_402_PAYMENT_REQUIRED,
     HTTP_403_FORBIDDEN,
 )
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.utils import datetime_from_epoch
 
 from baserow.core.context import clear_current_workspace_id, set_current_workspace_id
 from baserow.core.storage import get_default_storage
-from baserow.core.user.handler import UserHandler
 from baserow_enterprise.secure_file_serve.constants import SecureFileServePermission
 
 
@@ -379,8 +377,12 @@ def test_sign_out_prevents_file_download(
     assert response.status_code == HTTP_200_OK
 
     # If the user signs out, the cookie is invalidated and the url cannot be accessed
-    expires_at = datetime_from_epoch(RefreshToken(refresh_token)["exp"])
-    UserHandler().blacklist_refresh_token(refresh_token, expires_at)
+    response = api_client.post(
+        reverse("api:user:token_blacklist"),
+        {"refresh_token": refresh_token},
+        format="json",
+    )
+    assert response.status_code == HTTP_204_NO_CONTENT
 
     with patch("baserow.core.storage.get_default_storage", new=storage):
         token = enterprise_data_fixture.generate_token(user)

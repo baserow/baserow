@@ -59,7 +59,6 @@ import {
 
 import {
   MembersWorkspaceSettingsPageType,
-  InvitesWorkspaceSettingsPageType,
   AgentsWorkspaceSettingsPageType,
 } from '@baserow/modules/core/workspaceSettingsPageTypes'
 import {
@@ -83,7 +82,7 @@ import {
   AgentSubjectType,
   AnonymousUserSubjectType,
   UserSubjectType,
-} from '@baserow/modules/core/subjectTypes'
+} from '@baserow/modules/core/subjectTypes.jsx'
 import {
   EmailInvitationRouteType,
   LinkInvitationRouteType,
@@ -290,10 +289,6 @@ export default defineNuxtPlugin({
     registry.register(
       'workspaceSettingsPage',
       new MembersWorkspaceSettingsPageType(context)
-    )
-    registry.register(
-      'workspaceSettingsPage',
-      new InvitesWorkspaceSettingsPageType(context)
     )
     registry.register(
       'workspaceSettingsPage',

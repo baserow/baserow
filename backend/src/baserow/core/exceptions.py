@@ -98,6 +98,13 @@ class CannotChangeYourOwnWorkspaceRole(Exception):
     """
 
 
+class InvalidWorkspaceRole(Exception):
+    """
+    Raised when a workspace role is not one of the roles available in the
+    workspace.
+    """
+
+
 class ApplicationDoesNotExist(Exception):
     """Raised when trying to get an application that does not exist."""
 
@@ -193,6 +200,13 @@ class WorkspaceInvitationEmailMismatch(Exception):
     """
 
 
+class WorkspaceInvitationEmailNotVerified(Exception):
+    """
+    Raised when a workspace invitation is accepted without the token from the
+    invitation email by a user whose email address is not verified.
+    """
+
+
 class TemplateDoesNotExist(Exception):
     """
     Raised when the requested template does not exist in the database.
@@ -263,6 +277,20 @@ class DuplicateApplicationMaxLocksExceededException(
     )
 
 
+class InstallTemplateMaxLocksExceededException(MaxLocksPerTransactionExceededException):
+    """
+    A user template is installed in a single transaction, so a template with a lot
+    of tables can exceed the `max_locks_per_transaction` value set in Postgres.
+    This exception is raised when we detect the scenario.
+    """
+
+    message = (
+        "Baserow attempted to install a template, but exceeded the maximum "
+        "number of PostgreSQL locks per transaction. Please read "
+        "https://baserow.io/docs/technical/postgresql-locks"
+    )
+
+
 class LastAdminOfWorkspace(Exception):
     """
     Raised when somebody tries to remove the last admin of a workspace.
@@ -302,3 +330,7 @@ class DeadlockException(OperationalError):
     """
 
     message = "The database failed to commit the transaction due to a deadlock."
+
+
+class UntrustedContentCannotBePublished(Exception):
+    """Content must be reviewed and trusted before publication."""

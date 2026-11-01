@@ -39,14 +39,6 @@ describe('SubjectType', () => {
     expect(subjectType.getPluralTypeDisplayName()).toBe(expected)
   })
 
-  test.each([
-    [new UserSubjectType(context), 'blue'],
-    [new AnonymousUserSubjectType(context), 'blue'],
-    [new AgentSubjectType(context), 'purple'],
-  ])('provides its avatar color', (subjectType, expected) => {
-    expect(subjectType.avatarColor).toBe(expected)
-  })
-
   test.each([[new UserSubjectType(context)], [new AgentSubjectType(context)]])(
     'holds its roles directly',
     (subjectType) => {
@@ -120,9 +112,7 @@ describe('SubjectType invite options', () => {
       email: 'mark@x.com',
       subtitle: 'mark@x.com',
       search: 'Mark Delgado mark@x.com',
-      initials: 'MD',
-      icon: 'iconoir-user',
-      color: 'blue',
+      avatarComponent: expect.any(Function),
     })
     expect(subjectType.getBadge()).toBeNull()
   })
@@ -135,9 +125,7 @@ describe('SubjectType invite options', () => {
         name: 'Smith',
         subtitle: 'Agent',
         search: 'Smith',
-        initials: '',
-        icon: 'baserow-icon-agent',
-        color: 'purple',
+        avatarComponent: expect.any(Function),
       }
     )
     expect(subjectType.getSubtitle({ id: 4 })).toBeNull()

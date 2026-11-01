@@ -62,7 +62,7 @@ export class RBACPaidFeature extends PaidFeature {
   }
 
   getIconClass() {
-    return 'iconoir-community'
+    return 'baserow-icon-team'
   }
 
   getName() {

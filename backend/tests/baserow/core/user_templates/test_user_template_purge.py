@@ -3,7 +3,6 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from django.core.cache import cache
-from django.core.files.base import ContentFile
 from django.db import connection, transaction
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
@@ -34,28 +33,17 @@ from baserow.core.user_templates.models import (
     UserTemplateContentToDelete,
 )
 from baserow.core.user_templates.tasks import delete_orphaned_user_template_workspaces
-from tests.baserow.core.user_templates.utils import ICON
+from tests.baserow.core.user_templates.utils import (
+    ICON,
+    create_content,
+    long_ago,
+    purge,
+)
 
 pytestmark = [
     pytest.mark.django_db(transaction=True),
     pytest.mark.usefixtures("use_tmp_media_root"),
 ]
-
-
-def long_ago():
-    return timezone.now() - USER_TEMPLATE_DELETION_GRACE_PERIOD - timedelta(hours=1)
-
-
-def store_archive(name="template.zip"):
-    return get_default_storage().save(
-        f"template-revisions/{name}", ContentFile(b"archive")
-    )
-
-
-def create_content(data_fixture, name="Content"):
-    workspace = data_fixture.create_workspace(name=name)
-    data_fixture.create_database_application(workspace=workspace)
-    return workspace, store_archive()
 
 
 def create_family(data_fixture, *, marked_for_deletion_at=None, revisions=2):
@@ -173,10 +161,6 @@ def assert_family_removed(family):
         assert not get_default_storage().exists(archive)
     for job_id in job_ids:
         assert cache.get(job_progress_key(job_id)) is None
-
-
-def purge():
-    UserTemplateHandler().delete_marked_templates()
 
 
 def test_purge_removes_a_deleted_template_after_the_grace_period(data_fixture):

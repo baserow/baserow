@@ -852,7 +852,7 @@ def test_accept_workspace_invitation(data_fixture):
     workspace_invitation = data_fixture.create_workspace_invitation(
         email="test@test.nl", permissions="MEMBER", workspace=workspace
     )
-    user_1 = data_fixture.create_user(email="test@test.nl")
+    user_1 = data_fixture.create_user(email="test@test.nl", email_verified=True)
     user_2 = data_fixture.create_user(email="test2@test.nl")
 
     handler = CoreHandler()
@@ -900,7 +900,7 @@ def test_accept_workspace_invitation(data_fixture):
 def test_accept_workspace_invitation_does_not_downgrade_last_admin(data_fixture):
     # Accepting a stale MEMBER invitation must not demote an existing admin.
     workspace = data_fixture.create_workspace()
-    user = data_fixture.create_user(email="admin@test.nl")
+    user = data_fixture.create_user(email="admin@test.nl", email_verified=True)
     data_fixture.create_user_workspace(
         workspace=workspace, user=user, permissions="ADMIN"
     )

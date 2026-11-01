@@ -19,7 +19,10 @@ from django.utils.translation import gettext as _
 from baserow.contrib.database.api.serializers import DatabaseSerializer
 from baserow.contrib.database.db.schema import safe_django_schema_editor
 from baserow.contrib.database.fields.field_cache import FieldCache
-from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.registries import (
+    field_extension_registry,
+    field_type_registry,
+)
 from baserow.contrib.database.fields.utils.field_constraint import (
     build_django_field_constraints,
 )
@@ -205,6 +208,14 @@ class DatabaseApplicationType(ApplicationType):
                     for field_object in model._field_objects.values():
                         field_name = field_object["name"]
                         field_type = field_object["type"]
+                        # A user template never carries the values of write-only
+                        # fields, like password hashes, so they are exported empty.
+                        if (
+                            import_export_config.is_user_template
+                            and field_type.write_only
+                        ):
+                            serialized_row[field_name] = None
+                            continue
                         serialized_row[field_name] = (
                             field_type.get_export_serialized_value(
                                 row, field_name, table_cache, files_zip, storage
@@ -313,7 +324,14 @@ class DatabaseApplicationType(ApplicationType):
             database.table_set.all()
             .select_related("data_sync")
             .prefetch_related(
-                Prefetch("field_set", queryset=specific_queryset(Field.objects.all())),
+                Prefetch(
+                    "field_set",
+                    queryset=specific_queryset(
+                        field_extension_registry.enhance_fields_queryset(
+                            Field.objects.all()
+                        )
+                    ),
+                ),
                 "field_set__select_options",
                 Prefetch(
                     "view_set",

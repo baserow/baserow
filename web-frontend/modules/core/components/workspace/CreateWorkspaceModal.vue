@@ -37,6 +37,15 @@ export default {
   name: 'CreateWorkspaceModal',
   components: { WorkspaceForm },
   mixins: [modal, error],
+  props: {
+    // Whether to go to the new workspace once it's created. When false, the user
+    // stays on the current page and `created` is emitted once, with the workspace.
+    navigate: {
+      type: Boolean,
+      required: false,
+      default: true,
+    },
+  },
   emits: ['created'],
   setup() {
     const nuxtApp = useNuxtApp()
@@ -63,6 +72,11 @@ export default {
         const workspace = await this.$store.dispatch('workspace/create', values)
         await this.$store.dispatch('workspace/select', workspace)
         this.loading = false
+        if (!this.navigate) {
+          this.hide()
+          this.$emit('created', workspace)
+          return
+        }
         this.$emit('created', workspace)
         await this.$router.push({
           name: 'workspace',

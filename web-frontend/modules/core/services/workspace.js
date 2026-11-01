@@ -65,8 +65,11 @@ export default (client) => {
       rejectInvitation(invitationId) {
         return client.post(`/workspaces/invitations/${invitationId}/reject/`)
       },
-      acceptInvitation(invitationId) {
-        return client.post(`/workspaces/invitations/${invitationId}/accept/`)
+      acceptInvitation(invitationId, token = null) {
+        return client.post(
+          `/workspaces/invitations/${invitationId}/accept/`,
+          token ? { token } : {}
+        )
       },
       createInitialWorkspace(values) {
         return client.post('/workspaces/create-initial-workspace/', values)

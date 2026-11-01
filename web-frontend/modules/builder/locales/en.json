@@ -1,4 +1,7 @@
 {
+  "builderUntrustedContent": {
+    "warning": "Custom code and embedded content are blocked. Review the import report before trusting the content."
+  },
   "common": {
     "dateFormatTitle": "Date format",
     "dateFormatEU": "European",
@@ -350,6 +353,7 @@
     "uploadFileButton": "Upload file"
   },
   "iframeElementForm": {
+    "untrustedContent": "Embedded content is blocked. Use Review and trust in the application header or General settings to review and enable it.",
     "missingValue": "Missing IFrame source...",
     "emptyValue": "Empty IFrame source...",
     "editorPreviewPlaceholder": "This iframe isn't displayed in the editor.\nUse Preview to check how it appears in your application.",

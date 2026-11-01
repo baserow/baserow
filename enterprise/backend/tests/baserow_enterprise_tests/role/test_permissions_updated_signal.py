@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
+from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 from baserow_enterprise.teams.handler import TeamHandler
@@ -140,7 +141,7 @@ def test_permissions_updated_signal_role_team_restored(
     TeamHandler().delete_team(user, team)
     mock_broadcast_to_users.delay.reset_mock()
 
-    TeamHandler().restore_team_by_id(user, team.id)
+    TrashHandler.restore_item(user, "team", team.id)
 
     mock_broadcast_to_users.delay.assert_called_once()
     args = mock_broadcast_to_users.delay.call_args

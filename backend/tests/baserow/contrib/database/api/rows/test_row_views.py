@@ -5097,7 +5097,8 @@ def test_create_row_with_interesting_table_default_values(api_client, data_fixtu
         field_type = field_object["type"]
         field_name = f"field_{field.id}"
 
-        if field.read_only or field_type.read_only:
+        # Write-only fields, like password, can't have a default value.
+        if field.read_only or field_type.read_only or field_type.write_only:
             continue
 
         if field_name not in row_data:
@@ -5167,13 +5168,6 @@ def test_create_row_with_interesting_table_default_values(api_client, data_fixtu
         created_value = created_row[field_name]
         sent_value = input_values_by_field_name[field_name]
         ft = field_type_by_id[field_id]
-
-        # Password: response is a boolean indicating whether a password is set.
-        if ft == "password":
-            assert created_value is True, (
-                f"{field_name}: expected password to be set (True)"
-            )
-            continue
 
         # File: compare by the sorted list of file names.
         if ft == "file":

@@ -197,6 +197,6 @@ export class CollaborativeViewOwnershipType extends ViewOwnershipType {
   }
 
   getIconClass() {
-    return 'iconoir-group'
+    return 'baserow-icon-team'
   }
 }

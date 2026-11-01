@@ -122,6 +122,20 @@ export const getToken = async (
   })
 }
 
+/**
+ * Returns the id of the login session a refresh token belongs to. A rotated refresh
+ * token carries it in the `session_id` claim, the first one of a login uses its own
+ * id.
+ */
+export const getRefreshTokenSessionId = (token) => {
+  try {
+    const payload = jwtDecode(token)
+    return payload.session_id || payload.jti || null
+  } catch {
+    return null
+  }
+}
+
 export const getTokenIfEnoughTimeLeft = async (
   appOrContext,
   key = cookieTokenName,

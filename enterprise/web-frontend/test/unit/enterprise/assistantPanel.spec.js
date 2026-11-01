@@ -89,4 +89,17 @@ describe('AssistantPanel', () => {
 
     expect(service.sendMessage).not.toHaveBeenCalled()
   })
+
+  test('does not fetch chats when the selected workspace goes away', async () => {
+    const wrapper = await testApp.mount(AssistantPanel, {
+      props: { workspace },
+    })
+
+    // The selected workspace getter returns an empty object when none is selected.
+    await wrapper.setProps({ workspace: {} })
+    await flushPromises()
+
+    expect(service.fetchChats).toHaveBeenCalledOnce()
+    expect(service.fetchChats).toHaveBeenCalledWith(workspace.id)
+  })
 })

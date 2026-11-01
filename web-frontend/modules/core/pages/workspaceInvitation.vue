@@ -43,9 +43,10 @@ if (invitation.value) {
   ) {
     try {
       // Accept the invitation - returns the workspace data
-      const { data: workspace } = await WorkspaceService(
-        $client
-      ).acceptInvitation(inv.id)
+      const workspace = await store.dispatch('auth/acceptWorkspaceInvitation', {
+        invitationId: inv.id,
+        token,
+      })
 
       // Clear workspace loaded state so it gets refetched on next page
       store.commit('workspace/SET_LOADED', false)

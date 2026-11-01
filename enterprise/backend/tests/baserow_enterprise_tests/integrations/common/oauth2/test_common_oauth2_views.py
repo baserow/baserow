@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.utils.timezone import now
 
 import pytest
+import responses
 from rest_framework.status import HTTP_302_FOUND
 
 from baserow.core.auth_provider.types import UserInfo
@@ -128,3 +129,90 @@ def test_oauth2_callback_redirects_with_error_over_application_user_limit(
     # before the limit check would have been committed. The first time user must not
     # have been auto-provisioned.
     assert UserModel.objects.count() == count_before
+
+
+@pytest.mark.django_db
+@responses.activate
+@override_settings(DEBUG=True)
+@pytest.mark.parametrize("email_verified", [False, "false"])
+@pytest.mark.parametrize(
+    "email_attr_key,expected_email,expected_error",
+    [
+        # AWS Cognito setup identifying app users by their id signs them in even
+        # though their email is unverified.
+        ("sub", "cognito-sub", None),
+        ("email", None, "errorUnverifiedEmail"),
+    ],
+)
+def test_oauth2_callback_email_verified_only_applies_to_email_identifier(
+    email_attr_key,
+    expected_email,
+    expected_error,
+    email_verified,
+    api_client,
+    data_fixture,
+):
+    data = populate_local_baserow_test_data(data_fixture)
+    user_source = data["user_source"]
+    application_url = user_source.application.get_type().get_application_urls(
+        user_source.application.specific
+    )[0]
+    provider = OpenIdConnectAppAuthProviderModel.objects.create(
+        user_source=user_source,
+        name="cognito",
+        base_url="https://idp.example.com",
+        client_id="clientid",
+        secret="secret",
+        authorization_url="https://idp.example.com/oauth2/authorize",
+        access_token_url="https://idp.example.com/oauth2/token",
+        user_info_url="https://idp.example.com/oauth2/userInfo",
+        email_attr_key=email_attr_key,
+    )
+    responses.add(
+        responses.POST,
+        provider.access_token_url,
+        json={"access_token": "testtoken", "token_type": "Bearer"},
+    )
+    responses.add(
+        responses.GET,
+        provider.user_info_url,
+        json={
+            "sub": "cognito-sub",
+            "email": "unverified@example.com",
+            "email_verified": email_verified,
+            "name": "App user",
+        },
+    )
+
+    session = api_client.session
+    session["oauth_2_provider_id"] = provider.id
+    OpenIdConnectAppAuthProviderType().push_request_data_to_session(
+        session, {"original": application_url}
+    )
+    session.save()
+    api_client.cookies[settings.SESSION_COOKIE_NAME] = session.session_key
+
+    response = api_client.get(
+        reverse(
+            "api:user_sources:sso_oauth2_openid_connect:callback",
+            kwargs={"user_source_uid": user_source.uid},
+        ),
+        {"code": "testcode"},
+    )
+
+    assert response.status_code == HTTP_302_FOUND
+    assert response["Location"].startswith(application_url)
+    query_params = dict(parse_qsl(urlparse(response["Location"]).query))
+    user_emails = list(
+        data["user_table"]
+        .get_model()
+        .objects.values_list(f"field_{data['fields'][0].id}", flat=True)
+    )
+    if expected_error:
+        assert query_params[f"oidc_error__{user_source.id}"] == expected_error
+        assert f"user_source_oidc_token__{user_source.id}" not in query_params
+        assert "unverified@example.com" not in user_emails
+    else:
+        assert f"oidc_error__{user_source.id}" not in query_params
+        assert f"user_source_oidc_token__{user_source.id}" in query_params
+        assert expected_email in user_emails

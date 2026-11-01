@@ -61,6 +61,17 @@ class RolePermissionManagerType(PermissionManagerType):
             )
         return None
 
+    def is_workspace_role_uid_valid(self, role_uid, workspace):
+        if not self.is_enabled(workspace):
+            return None
+        # Resolve through the role handler so aliases such as MEMBER -> BUILDER are
+        # accepted the same way they are resolved during permission checks.
+        try:
+            role = RoleAssignmentHandler().get_role_by_uid(role_uid)
+        except Role.DoesNotExist:
+            return False
+        return not role.hidden and role.workspace_id in (None, workspace.id)
+
     def get_role_operations(self, role: Role) -> List[str]:
         """
         Return the operation name list for the role with the given role_id.

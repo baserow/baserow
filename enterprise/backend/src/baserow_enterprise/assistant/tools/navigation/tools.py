@@ -5,9 +5,9 @@ from django.utils.translation import gettext as _
 
 from pydantic import Field
 from pydantic_ai import RunContext
-from pydantic_ai.toolsets import FunctionToolset
 
 from baserow_enterprise.assistant.deps import AssistantDeps
+from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 
 from .types import AnyNavigationRequestType
 
@@ -50,4 +50,4 @@ def navigate(
 
 
 TOOL_FUNCTIONS = [navigate]
-navigation_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)
+navigation_toolset = AssistantFunctionToolset(TOOL_FUNCTIONS, max_retries=3)

@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import connection
 from django.db.models import CharField, Prefetch, Value
 from django.db.models.expressions import ExpressionWrapper
@@ -98,6 +99,21 @@ def test_specific_iterator(data_fixture, django_assert_num_queries):
 
         assert isinstance(specific_objects[5], LongTextField)
         assert specific_objects[5].id == long_text_field_3.id
+
+
+@pytest.mark.django_db
+def test_specific_iterator_with_missing_reverse_one_to_one(
+    data_fixture, django_assert_num_queries
+):
+    field = data_fixture.create_text_field()
+    base_queryset = Field.objects.filter(id=field.id).select_related(
+        "duplicated_from_jobs"
+    )
+
+    with django_assert_num_queries(2):
+        specific_field = list(specific_iterator(base_queryset))[0]
+        with pytest.raises(ObjectDoesNotExist):
+            specific_field.duplicated_from_jobs
 
 
 @pytest.mark.django_db

@@ -28,6 +28,42 @@ exports[`IFrameElement > allows restricted capabilities for external URLs in pub
 />
 `;
 
+exports[`IFrameElement > blocks embedded HTML and URL iframes in editing mode 1`] = `
+"<div class="iframe-element">
+  <p class="iframe-element__empty" style="height: 300px;">iframeElementForm.untrustedContent</p>
+</div>"
+`;
+
+exports[`IFrameElement > blocks embedded HTML and URL iframes in editing mode 2`] = `
+"<div class="iframe-element">
+  <p class="iframe-element__empty" style="height: 300px;">iframeElementForm.untrustedContent</p>
+</div>"
+`;
+
+exports[`IFrameElement > blocks embedded HTML and URL iframes in preview mode 1`] = `
+"<div class="iframe-element">
+  <p class="iframe-element__empty" style="height: 300px;">iframeElementForm.untrustedContent</p>
+</div>"
+`;
+
+exports[`IFrameElement > blocks embedded HTML and URL iframes in preview mode 2`] = `
+"<div class="iframe-element">
+  <p class="iframe-element__empty" style="height: 300px;">iframeElementForm.untrustedContent</p>
+</div>"
+`;
+
+exports[`IFrameElement > blocks embedded HTML and URL iframes in public mode 1`] = `
+"<div class="iframe-element">
+  <p class="iframe-element__empty" style="height: 300px;">iframeElementForm.untrustedContent</p>
+</div>"
+`;
+
+exports[`IFrameElement > blocks embedded HTML and URL iframes in public mode 2`] = `
+"<div class="iframe-element">
+  <p class="iframe-element__empty" style="height: 300px;">iframeElementForm.untrustedContent</p>
+</div>"
+`;
+
 exports[`IFrameElement > does not sandbox user-provided content in preview mode 1`] = `
 <iframe
   class="iframe-element__iframe"

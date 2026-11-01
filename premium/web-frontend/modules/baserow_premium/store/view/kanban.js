@@ -25,6 +25,14 @@ import {
   updateRowMetadataType,
 } from '@baserow/modules/database/utils/row'
 
+// The backend rejects page sizes above the configured row page size limit.
+function getRequestSize(getters, $config) {
+  return Math.min(
+    getters.getBufferRequestSize,
+    $config.public.baserowRowPageSizeLimit
+  )
+}
+
 export function populateRow(row, metadata = {}, fullyLoaded = true) {
   row._ = {
     metadata: getRowMetadata(row, metadata),
@@ -244,11 +252,11 @@ export const actions = {
     commit('SET_ADHOC_FILTERING', adhocFiltering)
     commit('SET_ADHOC_SORTING', adhocSorting)
     commit('SET_LAST_KANBAN_ID', kanbanId)
-    const { $client } = this
+    const { $client, $config } = this
     const view = rootGetters['view/get'](kanbanId)
     const { data } = await KanbanService($client).fetchRows({
       kanbanId,
-      limit: getters.getBufferRequestSize,
+      limit: getRequestSize(getters, $config),
       offset: 0,
       includeFieldOptions,
       selectOptions: [],
@@ -281,19 +289,19 @@ export const actions = {
     { dispatch, commit, getters, rootGetters },
     { selectOptionId }
   ) {
-    const { $client } = this
+    const { $client, $config } = this
     const kanbanId = getters.getLastKanbanId
     const stack = getters.getStack(selectOptionId)
     const view = rootGetters['view/get'](kanbanId)
     const { data } = await KanbanService($client).fetchRows({
       kanbanId,
-      limit: getters.getBufferRequestSize,
+      limit: getRequestSize(getters, $config),
       offset: 0,
       includeFieldOptions: false,
       selectOptions: [
         {
           id: selectOptionId,
-          limit: getters.getBufferRequestSize,
+          limit: getRequestSize(getters, $config),
           offset: stack.results.length,
         },
       ],

@@ -266,6 +266,7 @@ const loading = computed(() => {
 })
 const isInError = computed(() => {
   return nodeType.value.isInError({
+    workflow: workflow.value,
     service: props.node.service,
     workspace: workspace.value,
     application: automation.value,
@@ -279,6 +280,7 @@ const isInError = computed(() => {
  */
 const errorMessage = computed(() => {
   return nodeType.value.getErrorMessage({
+    workflow: workflow.value,
     service: props.node.service,
     node: props.node,
     workspace: workspace.value,

@@ -85,6 +85,8 @@ class FormViewFieldOptionsSerializer(serializers.ModelSerializer):
 
 
 class PublicFormViewFieldSerializer(FieldSerializer):
+    include_field_extensions = False
+
     class Meta:
         model = Field
         fields = (
@@ -95,6 +97,8 @@ class PublicFormViewFieldSerializer(FieldSerializer):
 
 
 class PublicFormViewFieldOptionsSerializer(FieldSerializer):
+    include_field_extensions = False
+
     field = serializers.SerializerMethodField(
         help_text="The properties of the related field. These can be used to construct "
         "the correct input. Additional properties could be added depending on the "

@@ -9,11 +9,11 @@ from dataclasses import dataclass
 from typing import Any, Callable, Literal, Type
 
 from django.core.exceptions import ValidationError
-from django.db.models import Q
 
 from pydantic import ConfigDict, Field, create_model
 from pydantic_ai import ModelRetry
 
+from baserow.contrib.database.fields.field_filters import FilterBuilder
 from baserow.contrib.database.fields.field_types import LinkRowFieldType
 from baserow.contrib.database.fields.models import SelectOption as OrmSelectOption
 from baserow.contrib.database.table.models import (
@@ -21,6 +21,7 @@ from baserow.contrib.database.table.models import (
     GeneratedTableModel,
     Table,
 )
+from baserow.contrib.database.views.view_filters import NotEmptyViewFilterType
 from baserow_enterprise.assistant.types import BaseModel
 
 from .base import format_date, format_datetime, parse_date, parse_datetime
@@ -141,11 +142,30 @@ def _link_row_field_def(orm_field, orm_field_type):
         return FieldDefinition()
 
     linked_pk = linked_primary_key.db_column
-    examples = list(
-        linked_model.objects.exclude(
-            Q(**{f"{linked_pk}__isnull": True}) | Q(**{f"{linked_pk}__exact": ""})
-        ).values_list("id", linked_pk)[:10]
+    queryset = linked_model.objects.only("id", linked_pk).enhance_by_fields(
+        only_field_ids=[linked_primary_key.id]
     )
+    # Skip rows without a primary value, as the "is not empty" filter does, for
+    # the field types that filter supports. FilterBuilder.apply_to_queryset is not
+    # used because its DISTINCT makes Postgres read the whole table.
+    not_empty = NotEmptyViewFilterType()
+    if not_empty.field_is_compatible(linked_primary_key):
+        q, annotations = (
+            FilterBuilder()
+            .filter(
+                not_empty.get_filter(
+                    linked_pk,
+                    None,
+                    linked_model._meta.get_field(linked_pk),
+                    linked_primary_key,
+                )
+            )
+            .get_filters_and_annotations()
+        )
+        queryset = queryset.annotate(**annotations).filter(q)
+    # The readable value, as from_django_orm shows it. Not every field type
+    # accepts it back, so the description points to the IDs as well.
+    examples = [(row.id, str(row)) for row in queryset[:10]]
 
     def to_django_orm(value):
         if isinstance(value, (str, int)):
@@ -177,7 +197,8 @@ def _link_row_field_def(orm_field, orm_field_type):
     desc += (
         f" Linked table ID: {orm_field.link_row_table_id}. "
         "Names must exactly match existing rows; this does not create linked rows. "
-        "Use the examples below or list_rows on the linked table to find valid values."
+        "IDs always work. Use the examples below or list_rows on the linked table "
+        "to find them."
     )
     if examples:
         desc += (

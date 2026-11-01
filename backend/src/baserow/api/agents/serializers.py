@@ -36,6 +36,19 @@ class AgentSerializer(serializers.ModelSerializer):
         )
 
 
+class AgentListSerializer(AgentSerializer):
+    """
+    An agent of the list of agents, for the API documentation, with the fields the
+    agent extensions add to every agent of a list response.
+    """
+
+    def get_fields(self):
+        fields = super().get_fields()
+        for extension in agent_extension_type_registry.get_all():
+            fields.update(deepcopy(extension.list_response_fields))
+        return fields
+
+
 class AgentRequestSerializer(
     UnknownFieldRaisesExceptionSerializerMixin, serializers.Serializer
 ):

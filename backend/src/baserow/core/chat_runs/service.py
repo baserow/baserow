@@ -38,11 +38,11 @@ def serialize_run(run: ChatRun) -> dict:
 class ChatRunService:
     """Permission-checked HTTP access to the synchronous lifecycle handler.
 
-    Status and cancel views call this service directly. The async ``follow_run``
-    response calls ``snapshot`` through its synchronous database bridge when a
-    stream opens or reconnects. Later status reads bypass this service. Reading
-    and cancelling use independent adapter permission hooks; none of these calls
-    executes the run's AI work.
+    Status, cancel and stream views call this service directly. The stream view
+    passes the run it read to ``follow_run``, which calls ``snapshot`` through its
+    synchronous database bridge only when a stream opens without it. Later status
+    reads bypass this service. Reading and cancelling use independent adapter
+    permission hooks; none of these calls executes the run's AI work.
     """
 
     def get_run(self, user: AbstractUser, run_id: UUID, *, cancel=False) -> ChatRun:

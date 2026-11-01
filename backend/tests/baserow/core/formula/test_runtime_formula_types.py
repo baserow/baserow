@@ -2748,6 +2748,12 @@ def test_runtime_number_format_execute(args, expected):
     assert result == expected
 
 
+def test_runtime_number_format_execute_caps_decimal_places():
+    parsed_args = RuntimeNumberFormat().parse_args([42, 1000])
+    result = RuntimeNumberFormat().execute({}, parsed_args)
+    assert result == "42." + "0" * 100
+
+
 @pytest.mark.parametrize(
     "args,expected",
     [

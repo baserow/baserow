@@ -3,6 +3,10 @@ from typing import Dict
 from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     BuilderWorkflowServiceActionType,
 )
+from baserow.core.import_export.untrusted_content import UntrustedContentTypeMixin
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow_enterprise.builder.workflow_actions.models import (
     CoreCodeWorkflowAction,
     CoreXLSFileReaderWorkflowAction,
@@ -15,7 +19,16 @@ from baserow_enterprise.integrations.core.service_types import (
 from baserow_premium.license.handler import LicenseHandler
 
 
-class CoreCodeActionType(BuilderWorkflowServiceActionType):
+class CoreCodeActionType(UntrustedContentTypeMixin, BuilderWorkflowServiceActionType):
+    def get_import_report_entry(self, instance):
+        return {
+            "type": "builder_code_action",
+            "id": instance.id,
+            "page_id": instance.page_id,
+            "page_name": instance.page.name,
+            "element_id": instance.element_id,
+        }
+
     type = "code"
     model_class = CoreCodeWorkflowAction
     service_type = CoreCodeServiceType.type
@@ -29,6 +42,13 @@ class CoreCodeActionType(BuilderWorkflowServiceActionType):
 
     def raise_if_deactivated(self, workspace) -> None:
         LicenseHandler.raise_if_workspace_doesnt_have_feature(CODE_RUNNER, workspace)
+
+    def dispatch(self, workflow_action, dispatch_context):
+        if workflow_action.page.builder.untrusted_content:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "Custom code is disabled until the application content is trusted."
+            )
+        return super().dispatch(workflow_action, dispatch_context)
 
 
 class CoreXLSFileReaderActionType(BuilderWorkflowServiceActionType):

@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`teamSubjects > shows agents in the member selector with purple initials 1`] = `
+exports[`teamSubjects > shows agents in the member selector with their avatar component 1`] = `
 "<div class="select-members-list">
   <div>
     <div class="form-input">
@@ -30,9 +30,9 @@ exports[`teamSubjects > shows agents in the member selector with purple initials
             </svg></div>
           <!--v-if-->
         </label>
-        <div class="avatar avatar--rounded avatar--medium avatar--purple margin-left-1">
+        <div class="avatar avatar--medium avatar--purple agent-avatar margin-left-1"><i class="baserow-icon-agent avatar__icon"></i>
           <!--v-if-->
-          <!--v-if--><span class="avatar__initials">W</span>
+          <!--v-if-->
         </div><span class="margin-left-1">Writer</span>
       </div>
       <div>Agent</div>
@@ -59,9 +59,9 @@ exports[`teamSubjects > shows users and agents at the same size in the teams tab
     <!--v-if-->
     <!--v-if--><span class="avatar__initials">A</span>
   </div>
-  <div class="avatar avatar--rounded avatar--large avatar--purple subject-sample-field-list__avatar">
+  <div class="avatar avatar--large avatar--purple agent-avatar subject-sample-field-list__avatar"><i class="baserow-icon-agent avatar__icon"></i>
     <!--v-if-->
-    <!--v-if--><span class="avatar__initials">W</span>
+    <!--v-if-->
   </div>
   <!--v-if-->
 </div>"

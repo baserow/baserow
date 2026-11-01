@@ -20,6 +20,14 @@ export class InvitationTargetType extends Registerable {
     throw new Error('The roles of an invitation target type must be set.')
   }
 
+  /** The target level shown in Back navigation, such as "table" or "workspace". */
+  getNavigationLabel(workspace, target) {
+    return (
+      this.getTitle(workspace, target) ||
+      this.$t('common.workspace').toLowerCase()
+    )
+  }
+
   /**
    * An optional title shown above every route of the modal, for targets that
    * need a header of their own such as "Share Projects". Null leaves the header

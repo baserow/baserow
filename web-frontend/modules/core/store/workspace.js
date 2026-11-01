@@ -474,9 +474,12 @@ export const actions = {
       // Navigate to the all workspaces homepage if selected because any of those
       // related pages can't be accessed anymore.
       await dispatch('unselect', workspace)
-      await this.$router.push({ name: 'all-workspaces' })
-      await pageFinished(this.app)
-      await nextTick()
+      // Pushing the current route doesn't navigate, so the page never finishes.
+      if (this.$router.currentRoute.value.name !== 'all-workspaces') {
+        await this.$router.push({ name: 'all-workspaces' })
+        await pageFinished(this.app)
+        await nextTick()
+      }
     }
 
     commit('DELETE_ITEM', workspace.id)
@@ -625,13 +628,16 @@ export const actions = {
    * Forcefully deletes a workspace user in the list of workspace's users. If the
    * workspace user is the current user, the whole workspace is removed.
    */
-  forceDeleteWorkspaceUser(
-    { commit, rootGetters },
+  async forceDeleteWorkspaceUser(
+    { commit, dispatch, getters, rootGetters },
     { workspaceId, id, values }
   ) {
     const userId = rootGetters['auth/getUserId']
     if (values.user_id === userId) {
-      commit('DELETE_ITEM', { id: workspaceId })
+      const workspace = getters.get(workspaceId)
+      if (workspace !== undefined) {
+        await dispatch('forceDelete', workspace)
+      }
     } else {
       commit('DELETE_WORKSPACE_USER', { workspaceId, id })
     }

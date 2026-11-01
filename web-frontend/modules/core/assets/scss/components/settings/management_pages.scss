@@ -2,9 +2,18 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+  width: 100%;
+
+  > :not(.management-name-field__name) {
+    flex-shrink: 0;
+  }
 }
 
 .management-name-field__name {
+  @extend %ellipsis;
+
+  min-width: 0;
   font-weight: 500;
 }
 
@@ -23,4 +32,53 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+// Fixed column widths keep expanded object names from moving the management
+// table columns. Keep selectors and counts aligned, with help after the count.
+.management-table {
+  // Size text columns against the available panel, including sidebar resizing,
+  // rather than the browser viewport. Keep the same basis when scrolling.
+  container-type: inline-size;
+
+  .data-table__table-cell-content:has(.member-role-field__link) {
+    gap: 12px;
+
+    > :first-child,
+    .member-role-field__link {
+      flex-shrink: 0;
+    }
+
+    .members-role-field {
+      display: contents;
+    }
+
+    .help-icon {
+      order: 2;
+      flex-shrink: 0;
+    }
+
+    .data-table__expand {
+      order: 1;
+    }
+  }
+
+  .management-table__boolean {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: $palette-blue-500;
+  }
+}
+
+@media screen and (max-width: 980px) {
+  // A pinned name would cover controls when scrolling a narrow management table.
+  .management-table .data-table__table-cell--sticky-left {
+    left: auto;
+  }
+}
+
+// Base agent text widths on the visible table area, even during horizontal scroll.
+.management-table--agents .data-table__body {
+  container-type: inline-size;
 }

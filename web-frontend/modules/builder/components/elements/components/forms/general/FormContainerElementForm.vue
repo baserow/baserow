@@ -15,6 +15,7 @@
       <InjectedFormulaInput
         v-model="values.submit_button_label"
         :placeholder="$t('formContainerElementForm.submitButtonPlaceholder')"
+        :application-context-additions="submitButtonFormulaContext"
       />
     </FormGroup>
     <FormGroup
@@ -34,6 +35,7 @@
 
 <script>
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput.vue'
+import { DATA_SCOPES } from '@baserow/modules/builder/constants'
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
 import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 
@@ -43,6 +45,9 @@ export default {
   mixins: [elementForm],
   data() {
     return {
+      submitButtonFormulaContext: {
+        dataScope: DATA_SCOPES.INCLUDE_TARGET_ELEMENT,
+      },
       values: {
         submit_button_label: {},
         reset_initial_values_post_submission: false,

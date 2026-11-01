@@ -102,7 +102,7 @@ export class MemberRoleType extends RoleType {
   }
 
   getIconClass() {
-    return 'iconoir-group'
+    return 'baserow-icon-team'
   }
 
   getName() {

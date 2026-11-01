@@ -49,6 +49,7 @@ def test_get_automation_application(api_client, data_fixture):
                 "automation_id": automation.id,
                 "id": workflow.id,
                 "name": "test",
+                "untrusted_content": False,
                 "order": 1,
                 "allow_test_run_until": None,
                 "simulate_until_node_id": None,
@@ -57,6 +58,7 @@ def test_get_automation_application(api_client, data_fixture):
                 "notification_recipient_ids": [],
                 "graph": {"0": trigger.id, str(trigger.id): {}},
                 "immediate_dispatch": False,
+                "import_report": [],
             }
         ],
     }
@@ -106,6 +108,7 @@ def test_list_automation_applications(api_client, data_fixture):
                     "automation_id": automation.id,
                     "id": workflow.id,
                     "name": "test",
+                    "untrusted_content": False,
                     "order": 1,
                     "allow_test_run_until": None,
                     "simulate_until_node_id": None,
@@ -114,6 +117,7 @@ def test_list_automation_applications(api_client, data_fixture):
                     "notification_recipient_ids": [],
                     "graph": {"0": trigger.id, str(trigger.id): {}},
                     "immediate_dispatch": False,
+                    "import_report": [],
                 }
             ],
         }

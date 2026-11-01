@@ -426,7 +426,7 @@ class ViewType(
             id_mapping["database_views"] = {}
             # Must be kept in sync with
             # `src/baserow/contrib/database/table/handler.py::duplicate_table`
-            # and `USER_TEMPLATE_SEEDED_ID_MAPPINGS` in the import export handler.
+            # and `USER_TEMPLATE_SEEDED_ID_MAPPINGS` in the user templates constants.
             id_mapping["database_view_filters"] = {}
             id_mapping["database_view_filter_groups"] = {}
             id_mapping["database_view_sortings"] = {}
@@ -652,6 +652,8 @@ class ViewType(
         ``specific_iterator`` if not already set by the caller. The value is
         passed through the field type's ``export_serialized_default_value``
         hook so that internal IDs can be converted to portable representations.
+        Write-only fields can't have default values, so an entry stored for one,
+        or stored while its field was one, is left out.
         """
 
         from baserow.contrib.database.fields.models import Field
@@ -670,13 +672,24 @@ class ViewType(
                 for f in specific_iterator(Field.objects.filter(table_id=table_id))
             }
         fields_by_id = cache[cache_key]
+        write_only_types = {
+            t.type for t in field_type_registry.get_all() if t.write_only
+        }
 
         serialized_values = {}
         for default_value in default_values:
             value = default_value.value
             field = fields_by_id.get(default_value.field_id)
-            if field is not None and value is not None:
-                field_type = field_type_registry.get_by_model(field.specific_class)
+            field_type = (
+                field_type_registry.get_by_model(field.specific_class)
+                if field is not None
+                else None
+            )
+            if (
+                field_type is not None and field_type.write_only
+            ) or default_value.field_type in write_only_types:
+                continue
+            if field_type is not None and value is not None:
                 value = field_type.export_serialized_default_value(
                     value, field, workspace_id, cache
                 )
@@ -709,10 +722,14 @@ class ViewType(
         objects.
         """
 
+        from baserow.contrib.database.fields.registries import field_type_registry
         from baserow.contrib.database.views.models import ViewDefaultValue
 
         workspace_id = table.database.workspace_id
         model = table.get_model()
+        write_only_types = {
+            t.type for t in field_type_registry.get_all() if t.write_only
+        }
         records = []
 
         for _old_field_id, default_value_data in default_row_values.items():
@@ -726,6 +743,11 @@ class ViewType(
 
             field_obj = model._field_objects[new_field_id]
             field_type = field_obj["type"]
+            if (
+                field_type.write_only
+                or default_value_data.get("field_type") in write_only_types
+            ):
+                continue
             field_type_str = field_type.type
 
             value = default_value_data.get("value")

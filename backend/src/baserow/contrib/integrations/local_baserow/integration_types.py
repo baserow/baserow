@@ -140,6 +140,7 @@ class LocalBaserowIntegrationType(IntegrationType):
         self,
         integration: Integration,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -158,7 +159,12 @@ class LocalBaserowIntegrationType(IntegrationType):
             return integration.authorized_subject_id
 
         return super().serialize_property(
-            integration, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            integration,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def export_serialized(

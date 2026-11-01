@@ -95,12 +95,13 @@ describe('TemplateModal navigation', () => {
     TemplateDetails: defineComponent({
       name: 'TemplateDetails',
       props: ['template', 'categories', 'workspace', 'showBack', 'isOwn'],
-      emits: ['back', 'installed', 'edit', 'delete'],
+      emits: ['back', 'installed', 'outdated', 'edit', 'delete'],
       template: `<div class="details">
         {{ template.name }}: {{ categories.map((c) => c.name).join(',') }}
         <a class="details__back" @click="$emit('back')" />
         <a class="details__edit" @click="$emit('edit', 'details')" />
         <a class="details__delete" @click="$emit('delete', template)" />
+        <a class="details__outdated" @click="$emit('outdated')" />
       </div>`,
     }),
     TemplateList: defineComponent({
@@ -296,6 +297,20 @@ describe('TemplateModal navigation', () => {
       await flushPromises()
     }
 
+    // Answers the own templates with the given ones, the rest with the
+    // categories.
+    const mockOwnTemplates = (results) =>
+      testApp.mock
+        .onGet('/templates/')
+        .reply(({ params }) =>
+          params?.owned
+            ? [
+                200,
+                { count: results.length, next: null, previous: null, results },
+              ]
+            : [200, categories]
+        )
+
     it('are hidden for anonymous users', async () => {
       const wrapper = await mountAndShow()
 
@@ -413,19 +428,7 @@ describe('TemplateModal navigation', () => {
       const updated = { ...sprintTracker, name: 'Sprints', workspace_id: 202 }
       // Another template was updated after it in the meantime.
       const recipeTracker = { ...sprintTracker, id: 3, name: 'Recipe Tracker' }
-      testApp.mock.onGet('/templates/').reply(({ params }) =>
-        params?.owned
-          ? [
-              200,
-              {
-                count: 2,
-                next: null,
-                previous: null,
-                results: [recipeTracker, updated],
-              },
-            ]
-          : [200, categories]
-      )
+      mockOwnTemplates([recipeTracker, updated])
       const wrapper = await mountAndShow()
       await openOwnTab(wrapper)
       await wrapper.find('.own-list__sprint-tracker').trigger('click')
@@ -446,6 +449,32 @@ describe('TemplateModal navigation', () => {
       expect(refreshList).toHaveBeenCalledTimes(1)
       expect(wrapper.find('.details').text()).toBe('Sprints: Agile')
       // Mounted again, so that the preview loads the new workspace.
+      const newDetails = wrapper.findComponent({ name: 'TemplateDetails' })
+      expect(newDetails.vm).not.toBe(details.vm)
+      expect(newDetails.props('template')).toStrictEqual(updated)
+    })
+
+    it('reload an own template whose install was refused as it was updated', async () => {
+      testApp.authenticate({ id: 1 })
+      // Updated in another tab after its preview was opened.
+      const updated = {
+        ...sprintTracker,
+        name: 'Sprints',
+        workspace_id: 202,
+        revision_id: 12,
+      }
+      mockOwnTemplates([updated])
+      const wrapper = await mountAndShow()
+      await openOwnTab(wrapper)
+      await wrapper.find('.own-list__sprint-tracker').trigger('click')
+      const details = wrapper.findComponent({ name: 'TemplateDetails' })
+
+      await wrapper.find('.details__outdated').trigger('click')
+      await flushPromises()
+
+      expect(refreshList).toHaveBeenCalledTimes(1)
+      expect(wrapper.find('.details').text()).toBe('Sprints: Agile')
+      // Mounted again, so that the preview loads the new revision.
       const newDetails = wrapper.findComponent({ name: 'TemplateDetails' })
       expect(newDetails.vm).not.toBe(details.vm)
       expect(newDetails.props('template')).toStrictEqual(updated)

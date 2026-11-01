@@ -3079,7 +3079,9 @@ export class RuntimeNumberFormat extends RuntimeFormulaFunction {
 
   execute(context, args) {
     const value = args[0]
-    const decimalPlaces = args.length > 1 ? Math.max(Math.trunc(args[1]), 0) : 0
+    // `toFixed` throws a RangeError above 100 decimal places.
+    const decimalPlaces =
+      args.length > 1 ? Math.min(Math.max(Math.trunc(args[1]), 0), 100) : 0
     const thousandSep = args.length > 2 ? args[2] : ','
     const decimalSep = args.length > 3 ? args[3] : '.'
 

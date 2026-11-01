@@ -361,10 +361,11 @@ export class FieldType extends Registerable {
    * Indicates whether this field type is compatible with the default values
    * feature. By default all writable field types are compatible. Override and
    * return `false` for field types whose row-edit component or write behaviour
-   * is incompatible with default value setting (e.g. the AI field).
+   * is incompatible with default value setting (e.g. the AI field). Write-only
+   * field types are never compatible.
    */
   canBeDefaultValue() {
-    return true
+    return !this.isWriteOnlyField()
   }
 
   /**
@@ -4973,7 +4974,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
   }
 
   static getIconClass() {
-    return 'iconoir-community'
+    return 'baserow-icon-team'
   }
 
   parseFromLinkedRowItemValue(field, value) {

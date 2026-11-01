@@ -39,6 +39,7 @@
       </template>
       <ul class="user-template-form__notice-list">
         <li>{{ $t('userTemplateContentForm.noticeSecrets') }}</li>
+        <li>{{ $t('userTemplateContentForm.noticePasswords') }}</li>
         <li>{{ $t('userTemplateContentForm.noticePeople') }}</li>
         <li>{{ $t('userTemplateContentForm.noticePersonalViews') }}</li>
         <li>{{ $t('userTemplateContentForm.noticeReferences') }}</li>

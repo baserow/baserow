@@ -195,6 +195,7 @@ class LocalBaserowTableServiceFilterableMixin:
         self,
         service: ServiceSubClass,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -214,7 +215,12 @@ class LocalBaserowTableServiceFilterableMixin:
             return self.serialize_filter_groups(service)
 
         return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            service,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def deserialize_filters(self, value, id_mapping, import_export_config=None):
@@ -461,8 +467,10 @@ class LocalBaserowTableServiceFilterableMixin:
             deserialized_filters = AdHocFilters.deserialize_dispatch_filters(
                 dispatch_filters
             )
-            # Next we pluck out the field IDs which the filters point to.
-            field_ids = list(set([f["field"] for f in deserialized_filters["filters"]]))
+            adhoc_filters = AdHocFilters.from_dict(deserialized_filters)
+            # Next we pluck out the field IDs which the filters point to,
+            # including the filters nested in groups.
+            field_ids = adhoc_filters.get_api_filters_field_ids()
             # In bulk fetch the field records.
             fields = Field.objects.filter(pk__in=field_ids).only("id")
             # Extract the field db columns names.
@@ -471,7 +479,8 @@ class LocalBaserowTableServiceFilterableMixin:
             dispatch_context.validate_filter_search_sort_fields(
                 field_names, ServiceAdhocRefinements.FILTER
             )
-            adhoc_filters = AdHocFilters.from_dict(deserialized_filters)
+            # Only the validated fields can be filtered on.
+            adhoc_filters.only_filter_by_field_ids = [field.id for field in fields]
             queryset = adhoc_filters.apply_to_queryset(model, queryset)
         return queryset
 
@@ -735,6 +744,7 @@ class LocalBaserowTableServiceSortableMixin:
         self,
         service: ServiceSubClass,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -751,7 +761,12 @@ class LocalBaserowTableServiceSortableMixin:
             return self.serialize_sortings(service)
 
         return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            service,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def deserialize_sorts(self, value, id_mapping, import_export_config=None):

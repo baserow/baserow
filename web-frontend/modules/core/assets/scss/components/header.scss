@@ -288,3 +288,41 @@
   gap: 12px;
   padding-right: 24px;
 }
+
+.header__alert {
+  align-self: center;
+  min-width: 160px;
+  margin: 0 12px;
+
+  .alert__wrapper {
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+  }
+
+  .alert__icon {
+    flex-shrink: 0;
+  }
+
+  .alert__content {
+    min-width: 0;
+  }
+
+  .alert__message {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 0;
+    line-height: 18px;
+    white-space: nowrap;
+
+    a {
+      flex-shrink: 0;
+    }
+  }
+}
+
+.header__alert-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

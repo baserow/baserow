@@ -1,4 +1,5 @@
 from django.db.models import Max
+from django.utils import timezone
 
 from baserow.core.models import Template, TemplateCategory
 
@@ -70,3 +71,41 @@ class TemplateFixtures:
             ) + 1
 
         return self.create_template(type=root.type, root=root, slug="", **kwargs)
+
+    def set_user_template_state(self, template, state, revision=None):
+        """
+        Puts a user template in `state`: "private", "shared", "public", "blocked",
+        "public_blocked" or "marked" for deletion. The shared or public revision
+        is `revision`, the template itself by default.
+        """
+
+        revision = revision or template
+        now = timezone.now()
+        changes = {
+            "private": {},
+            "shared": {"shared_revision": revision},
+            "public": {"public_revision": revision},
+            "blocked": {"blocked_at": now},
+            "public_blocked": {"public_revision": revision, "blocked_at": now},
+            "marked": {"marked_for_deletion_at": now},
+        }[state]
+        if "public_revision" in changes:
+            # Only an approved revision can be public.
+            Template.objects.filter(id=revision.id).update(
+                review_state=Template.ReviewState.APPROVED
+            )
+        Template.objects.filter(id=template.id).update(**changes)
+        template.refresh_from_db()
+        return template
+
+    def create_template_table(self, workspace, name="Content", row="Row"):
+        """
+        A database named `name` in the workspace of a template, with a table whose
+        primary text field "Name" holds `row`.
+        """
+
+        database = self.create_database_application(workspace=workspace, name=name)
+        table = self.create_database_table(database=database, name=f"{name} table")
+        field = self.create_text_field(table=table, primary=True, name="Name")
+        table.get_model().objects.create(**{field.db_column: row})
+        return table

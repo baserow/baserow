@@ -15,6 +15,25 @@ from baserow.core.notifications.models import Notification
 from baserow.core.notifications.registries import notification_type_registry
 from baserow.core.registries import email_context_registry
 
+# An installation with no SMTP server keeps a backend that writes the message
+# somewhere local and reports that it sent it.
+NON_DELIVERING_EMAIL_BACKENDS = ("console", "dummy", "locmem", "filebased")
+
+
+def can_deliver_emails() -> bool:
+    """
+    Whether emails sent by this instance reach their recipient. `EMAIL_HOST` falls
+    back to Django's own "localhost", so having a host says nothing about whether
+    this installation can send. What the backend does with a message does, and a
+    backend that isn't named at all can't send anything.
+    """
+
+    backend = getattr(settings, "CELERY_EMAIL_BACKEND", None) or ""
+    segments = backend.split(".")
+    return bool(backend) and not any(
+        name in segments for name in NON_DELIVERING_EMAIL_BACKENDS
+    )
+
 
 def prevent_autolink(value):
     """

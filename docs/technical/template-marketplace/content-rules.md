@@ -173,14 +173,14 @@ Button field row actions use the Local Baserow service types above and follow th
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
 | Builder frontend | Template preview always sandboxes IFrame embeds, including Repeat items (`sandboxPermissions` in `IFrameElement.vue`) | to do | core/database |
-| Builder | Installed copies keep embedded HTML off until the installer turns it on (per-application untrusted content flag) | to do | WAB |
+| Builder | Installed copies keep embedded HTML off until the installer turns it on (per-application untrusted content flag) | done | WAB |
 | Builder | `IFrameElementType` forces `allow_same_origin` off in the template and in installs | to do | WAB |
 
 ## Custom code
 
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
-| Enterprise builder | `CustomCodeBuilderApplicationTypeMixin.import_serialized` and `CoreCodeActionType` respect the per-application untrusted content flag, off in installed copies | to do | WAB |
+| Enterprise builder | `CustomCodeBuilderApplicationTypeMixin.import_serialized` and `CoreCodeActionType` respect the per-application untrusted content flag, off in installed copies | done | WAB |
 | Builder frontend | The template allowlist has no `ReadApplicationOperationType`, so the builder preview and `PublicCustomCodeView` refuse template viewers; custom code is only added by `PublicPageContent.vue` | done | WAB |
 | Builder | `DispatchBuilderWorkflowActionOperationType` is not on the template allowlist, so `CoreCodeActionType` never runs in the preview | done | WAB |
 

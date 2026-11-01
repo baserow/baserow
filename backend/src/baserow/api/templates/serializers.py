@@ -16,6 +16,11 @@ class ListTemplatesQueryParamSerializer(serializers.Serializer):
     search = serializers.CharField(required=False, allow_blank=True)
 
 
+class InstallTemplateQueryParamSerializer(serializers.Serializer):
+    latest = serializers.BooleanField(required=False, default=False)
+    revision_id = serializers.IntegerField(required=False)
+
+
 class TemplateSerializer(serializers.ModelSerializer):
     """
     Serializes a template revision. The id, slug and keywords are the template's,
@@ -23,6 +28,12 @@ class TemplateSerializer(serializers.ModelSerializer):
     """
 
     id = serializers.IntegerField(source="family_id", read_only=True)
+    revision_id = serializers.IntegerField(
+        source="id",
+        read_only=True,
+        help_text="The id of the serialized revision. Sent with an install, so that "
+        "the template isn't installed if it was updated since.",
+    )
     type = serializers.SerializerMethodField(
         help_text="Whether it's an official or a user template."
     )
@@ -38,6 +49,7 @@ class TemplateSerializer(serializers.ModelSerializer):
         model = Template
         fields = (
             "id",
+            "revision_id",
             "type",
             "name",
             "slug",
@@ -76,8 +88,9 @@ class TemplateCategorySerializer(serializers.ModelSerializer):
 class TemplateListItemSerializer(TemplateSerializer):
     """
     The latest revision of a template in the flat list. The dates are the
-    template's, so they are read from its root. `state`, `reason` and the source
-    are only shown to the owner of a user template, and are null otherwise.
+    template's, so they are read from its root. `state`, `reason`, the source and
+    `install_count` are only shown to the owner of a user template, and are null
+    otherwise.
     """
 
     created_on = serializers.DateTimeField(source="get_root.created_on", read_only=True)
@@ -99,6 +112,9 @@ class TemplateListItemSerializer(TemplateSerializer):
         help_text="The applications the latest revision was copied from. Only shown "
         "to its owner."
     )
+    install_count = serializers.SerializerMethodField(
+        help_text="How many times the template was installed. Only shown to its owner."
+    )
 
     class Meta(TemplateSerializer.Meta):
         fields = TemplateSerializer.Meta.fields + (
@@ -107,6 +123,7 @@ class TemplateListItemSerializer(TemplateSerializer):
             "reason",
             "source_workspace_id",
             "source_application_ids",
+            "install_count",
             "created_on",
             "updated_on",
         )
@@ -152,3 +169,10 @@ class TemplateListItemSerializer(TemplateSerializer):
     def get_source_application_ids(self, instance):
         metadata = self._get_owner_metadata(instance)
         return None if metadata is None else metadata.get("source_application_ids", [])
+
+    @extend_schema_field(serializers.IntegerField(allow_null=True))
+    def get_install_count(self, instance):
+        if not self._is_owner(instance):
+            return None
+        # Counted on the root, which the list selects with every revision.
+        return instance.get_root().install_count

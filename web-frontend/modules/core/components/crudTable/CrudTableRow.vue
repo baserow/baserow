@@ -31,7 +31,9 @@
             @refresh="$emit('refresh', $event)"
           />
           <button
-            v-if="expandable && col.key === (expandColumnKey || columns[0].key)"
+            v-if="
+              expandable && col.key === (expandColumnKey || columns[0]?.key)
+            "
             type="button"
             class="data-table__expand"
             :aria-label="

@@ -26,6 +26,7 @@ from baserow.contrib.automation.workflows.signals import (
     automation_workflows_reordered,
 )
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
+from baserow.core.exceptions import UntrustedContentCannotBePublished
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.models import Job
@@ -299,6 +300,9 @@ class AutomationWorkflowService:
             workspace=workflow.automation.workspace,
             context=workflow.automation,
         )
+
+        if workflow.untrusted_content:
+            raise UntrustedContentCannotBePublished()
 
         job = JobHandler().create_and_start_job(
             user,

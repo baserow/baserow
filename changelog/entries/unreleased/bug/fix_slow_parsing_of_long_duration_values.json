@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix slow parsing of long duration values",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-10-23"
+}

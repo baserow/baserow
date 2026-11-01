@@ -1,4 +1,5 @@
 import { Registerable } from '@baserow/modules/core/registry'
+import { CollaborativeViewOwnershipType } from '@baserow/modules/database/viewOwnershipTypes'
 
 /**
  * One copyable piece of view configuration. The actual copying is done by the
@@ -19,14 +20,36 @@ export class CopyViewConfigurationOptionType extends Registerable {
   }
 
   /**
-   * The backend checks the same operations on both views, so without them the
-   * copy request would be rejected, and the ownership managers hide
-   * configuration from users that lack these write operations, restricted
-   * views hide the filters from users without `create_filter` for example.
+   * The backend checks these operations on the destination and on a
+   * non-collaborative source view, so without them the copy request would be
+   * rejected, and the ownership managers hide configuration from users that
+   * lack these write operations, restricted views hide the filters from users
+   * without `create_filter` for example.
    * Must mirror the backend category type's `operation_types`.
    */
   getPermissionOperations() {
     return []
+  }
+
+  /**
+   * The operations needed to read this option on a view. Must mirror the
+   * backend category type's `read_operation_types`.
+   */
+  getReadPermissionOperations() {
+    return []
+  }
+
+  /**
+   * Collaborative views show their configuration to everyone who can read
+   * them, so reading it is enough to copy it, into an own personal view for
+   * example. Other ownership types can hide their configuration, so they
+   * require the `getPermissionOperations`.
+   */
+  getSourcePermissionOperations(sourceView) {
+    return sourceView.ownership_type ===
+      CollaborativeViewOwnershipType.getType()
+      ? this.getReadPermissionOperations()
+      : this.getPermissionOperations()
   }
 
   /**
@@ -35,10 +58,13 @@ export class CopyViewConfigurationOptionType extends Registerable {
    * the workspace, a required license for example.
    */
   isEnabled(sourceView, destView, workspaceId) {
-    return this.getPermissionOperations().every(
-      (operation) =>
-        this.app.$hasPermission(operation, sourceView, workspaceId) &&
+    return (
+      this.getSourcePermissionOperations(sourceView).every((operation) =>
+        this.app.$hasPermission(operation, sourceView, workspaceId)
+      ) &&
+      this.getPermissionOperations().every((operation) =>
         this.app.$hasPermission(operation, destView, workspaceId)
+      )
     )
   }
 
@@ -68,6 +94,10 @@ export class FieldVisibilityCopyOptionType extends CopyViewConfigurationOptionTy
     return ['database.table.view.update_field_options']
   }
 
+  getReadPermissionOperations() {
+    return ['database.table.view.read_field_options']
+  }
+
   getOrder() {
     return 10
   }
@@ -92,6 +122,10 @@ export class FieldOrderCopyOptionType extends CopyViewConfigurationOptionType {
 
   getPermissionOperations() {
     return ['database.table.view.update_field_options']
+  }
+
+  getReadPermissionOperations() {
+    return ['database.table.view.read_field_options']
   }
 
   getOrder() {
@@ -120,6 +154,10 @@ export class FieldWidthsCopyOptionType extends CopyViewConfigurationOptionType {
     return ['database.table.view.update_field_options']
   }
 
+  getReadPermissionOperations() {
+    return ['database.table.view.read_field_options']
+  }
+
   getOrder() {
     return 30
   }
@@ -144,6 +182,10 @@ export class ViewSettingsCopyOptionType extends CopyViewConfigurationOptionType 
 
   getPermissionOperations() {
     return ['database.table.view.update']
+  }
+
+  getReadPermissionOperations() {
+    return ['database.table.view.read']
   }
 
   getOrder() {
@@ -207,6 +249,10 @@ export class FiltersCopyOptionType extends CopyViewConfigurationOptionType {
     ]
   }
 
+  getReadPermissionOperations() {
+    return ['database.table.view.list_filter']
+  }
+
   getOrder() {
     return 50
   }
@@ -223,6 +269,10 @@ export class SortsCopyOptionType extends CopyViewConfigurationOptionType {
 
   getPermissionOperations() {
     return ['database.table.view.create_sort']
+  }
+
+  getReadPermissionOperations() {
+    return ['database.table.view.list_sort']
   }
 
   getOrder() {
@@ -243,6 +293,10 @@ export class GroupBysCopyOptionType extends CopyViewConfigurationOptionType {
     return ['database.table.view.create_group_by']
   }
 
+  getReadPermissionOperations() {
+    return ['database.table.view.list_group_bys']
+  }
+
   getOrder() {
     return 70
   }
@@ -259,6 +313,10 @@ export class DecorationsCopyOptionType extends CopyViewConfigurationOptionType {
 
   getPermissionOperations() {
     return ['database.table.view.create_decoration']
+  }
+
+  getReadPermissionOperations() {
+    return ['database.table.view.list_decoration']
   }
 
   getOrder() {
@@ -300,6 +358,10 @@ export class DefaultRowValuesCopyOptionType extends CopyViewConfigurationOptionT
       'database.table.view.read_default_values',
       'database.table.view.update_default_values',
     ]
+  }
+
+  getReadPermissionOperations() {
+    return ['database.table.view.read_default_values']
   }
 
   getOrder() {

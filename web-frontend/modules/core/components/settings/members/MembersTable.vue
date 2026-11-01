@@ -1,14 +1,28 @@
 <template>
   <div>
     <CrudTable
+      v-bind="tableLayout"
       ref="crudTable"
+      class="management-table"
       :service="service"
       :columns="columns"
       row-id-key="id"
       :search-placeholder="$t('membersSettings.membersTable.search')"
+      :row-expandable="rowExpansion?.isExpandable"
+      :expand-column-key="rowExpansion?.columnKey"
       @row-context="onRowContext"
       @edit-role-context="onEditRoleContext"
     >
+      <template v-if="rowExpansion" #row-expansion-toggle="{ row }">
+        {{ rowExpansion.getToggleLabel(row) }}
+      </template>
+      <template v-if="rowExpansion" #expanded-row="slotProps">
+        <component
+          :is="rowExpansion.component"
+          v-bind="{ ...slotProps, ...rowExpansion.getProps(slotProps.row) }"
+          :workspace="workspace"
+        />
+      </template>
       <template #title>
         {{
           $t('membersSettings.membersTable.title', {
@@ -20,7 +34,7 @@
       <template #empty>
         <div class="placeholder">
           <div class="placeholder__icon">
-            <i class="iconoir-group" aria-hidden="true"></i>
+            <i class="baserow-icon-team" aria-hidden="true"></i>
           </div>
           <h2 class="placeholder__header">
             {{ $t('membersSettings.membersTable.emptyTitle') }}
@@ -30,15 +44,24 @@
           </p>
         </div>
       </template>
+      <template #header-right-side>
+        <Button
+          v-if="canInvite && pendingInvitationsCount > 0"
+          type="secondary"
+          size="large"
+          icon="iconoir-mail"
+          @click="$refs.inviteModal.show()"
+        >
+          {{
+            $t('membersSettings.membersTable.pendingInvitations', {
+              count: pendingInvitationsCount,
+            })
+          }}
+        </Button>
+      </template>
       <template #primary-action>
         <Button
-          v-if="
-            $hasPermission(
-              'workspace.create_invitation',
-              workspace,
-              workspace.id
-            )
-          "
+          v-if="canInvite"
           type="primary"
           size="large"
           icon="iconoir-plus"
@@ -63,22 +86,12 @@
         ></EditRoleContext>
       </template>
     </CrudTable>
-    <InviteModal
-      ref="inviteModal"
-      :workspace="workspace"
-      @invite-submitted="
-        $router.push({
-          name: 'settings-invites',
-          params: {
-            workspaceId: workspace.id,
-          },
-        })
-      "
-    />
+    <InviteModal ref="inviteModal" :workspace="workspace" />
   </div>
 </template>
 
 <script>
+import { getManagementTableLayout } from '@baserow/modules/core/utils/managementTable'
 import { mapGetters } from 'vuex'
 import { clone } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -89,7 +102,7 @@ import WorkspaceService from '@baserow/modules/core/services/workspace'
 import ManagementNameField from '@baserow/modules/core/components/settings/ManagementNameField'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
 import SimpleField from '@baserow/modules/core/components/crudTable/fields/SimpleField'
-import TwoFactorAuthField from '@baserow/modules/core/components/crudTable/fields/TwoFactorAuthField'
+import MemberTwoFactorAuthField from '@baserow/modules/core/components/settings/members/MemberTwoFactorAuthField'
 import MoreField from '@baserow/modules/core/components/crudTable/fields/MoreField'
 import MemberRoleField from '@baserow/modules/core/components/settings/members/MemberRoleField'
 import InviteModal from '@baserow/modules/core/components/invitation/InviteModal'
@@ -114,10 +127,31 @@ export default {
     return {
       editMember: {},
       editRoleMember: {},
+      pendingInvitationsCount: 0,
     }
   },
   computed: {
+    tableLayout() {
+      return getManagementTableLayout(
+        this.columns,
+        this.rowExpansion?.columnKey || 'permissions'
+      )
+    },
     ...mapGetters({ userId: 'auth/getUserId' }),
+    canInvite() {
+      return this.$hasPermission(
+        'workspace.create_invitation',
+        this.workspace,
+        this.workspace.id
+      )
+    },
+    canListInvitations() {
+      return this.$hasPermission(
+        'workspace.list_invitations',
+        this.workspace,
+        this.workspace.id
+      )
+    },
     membersCount() {
       return getWorkspaceMembersCount(
         this.workspace,
@@ -145,6 +179,23 @@ export default {
     membersPagePlugins() {
       return Object.values(this.$registry.getAll('membersPagePlugins'))
     },
+    /**
+     * How a member's row expands into more rows, as given by the first active
+     * plugin offering it, or null.
+     */
+    rowExpansion() {
+      for (const plugin of this.membersPagePlugins) {
+        if (!plugin.isDeactivated(this.workspace.id)) {
+          const expansion = plugin.getRowExpansion({
+            workspace: this.workspace,
+          })
+          if (expansion) {
+            return expansion
+          }
+        }
+      }
+      return null
+    },
     columns() {
       let columns = [
         new CrudTableColumn(
@@ -154,7 +205,11 @@ export default {
           true,
           true,
           false,
-          { userId: this.userId }
+          {
+            userId: this.userId,
+            avatarComponent: this.$registry.get('subject', 'auth.User')
+              .avatarComponent,
+          }
         ),
         new CrudTableColumn(
           'email',
@@ -178,7 +233,7 @@ export default {
         new CrudTableColumn(
           'two_factor_auth',
           this.$t('membersSettings.membersTable.columns.2fa'),
-          TwoFactorAuthField,
+          MemberTwoFactorAuthField,
           false
         ),
         new CrudTableColumn(null, null, MoreField, false, false, true),
@@ -194,7 +249,48 @@ export default {
       return columns
     },
   },
+  watch: {
+    'workspace.id'() {
+      this.fetchPendingInvitationsCount()
+    },
+  },
+  beforeMount() {
+    this.$bus.$on('invite-submitted', this.refreshPendingInvitationsCount)
+    this.$bus.$on('invite-updated', this.refreshPendingInvitationsCount)
+    this.$bus.$on('invite-deleted', this.refreshPendingInvitationsCount)
+  },
+  mounted() {
+    this.fetchPendingInvitationsCount()
+  },
+  beforeUnmount() {
+    this.$bus.$off('invite-submitted', this.refreshPendingInvitationsCount)
+    this.$bus.$off('invite-updated', this.refreshPendingInvitationsCount)
+    this.$bus.$off('invite-deleted', this.refreshPendingInvitationsCount)
+  },
   methods: {
+    /**
+     * The pending invitations are managed in the invite modal, so they're only
+     * counted for those who can both open it and list them.
+     */
+    async fetchPendingInvitationsCount() {
+      if (!this.canInvite || !this.canListInvitations) {
+        this.pendingInvitationsCount = 0
+        return
+      }
+      try {
+        const { data } = await WorkspaceService(
+          this.$client
+        ).fetchAllInvitations(this.workspace.id)
+        this.pendingInvitationsCount = data.length
+      } catch (error) {
+        notifyIf(error, 'workspace')
+      }
+    },
+    refreshPendingInvitationsCount(invitation) {
+      if (invitation.workspace === this.workspace.id) {
+        this.fetchPendingInvitationsCount()
+      }
+    },
     onRowContext({ row, event, target }) {
       event.preventDefault()
       if (target === undefined) {

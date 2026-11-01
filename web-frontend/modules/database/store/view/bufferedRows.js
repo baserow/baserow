@@ -6,6 +6,7 @@ import { GroupTaskQueue } from '@baserow/modules/core/utils/queue'
 import {
   calculateSingleRowSearchMatches,
   extractRowMetadata,
+  fetchRowsInChunks,
   getFilters,
   getOrderBy,
   getRowSortFunction,
@@ -148,6 +149,14 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
     // checks if there is an un-fetched row before and after in one loop.
     return { offset, limit: Math.min(limit, maxRequestSize) }
   }
+
+  // The backend rejects page sizes above the configured row page size limit, so
+  // larger ranges are fetched in several requests.
+  const fetchRows = ($client, $config, params) =>
+    fetchRowsInChunks((chunk) => service($client).fetchRows(chunk), {
+      chunkSize: $config.public.baserowRowPageSizeLimit,
+      ...params,
+    })
 
   const state = () => ({
     // If another visible rows action has been dispatched whilst a previous action
@@ -333,7 +342,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       commit('SET_ADHOC_FILTERING', adhocFiltering)
       commit('SET_ADHOC_SORTING', adhocSorting)
       const view = rootGetters['view/get'](viewId)
-      const { data } = await service($client).fetchRows({
+      const { data } = await fetchRows($client, $config, {
         viewId,
         offset: 0,
         limit: getters.getRequestSize,
@@ -417,7 +426,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       commit('SET_FETCHING', true)
       lastRequestController = new AbortController()
       try {
-        const { data } = await service($client).fetchRows({
+        const { data } = await fetchRows($client, $config, {
           viewId,
           offset: rangeToFetch.offset,
           limit: rangeToFetch.limit,
@@ -526,7 +535,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
           )
 
           // Only fetch visible rows if there are any.
-          const { data } = await service($client).fetchRows({
+          const { data } = await fetchRows($client, $config, {
             viewId,
             offset: rangeToFetch.offset,
             limit: rangeToFetch.limit,

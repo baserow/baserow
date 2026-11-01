@@ -382,6 +382,16 @@
     "fromWorkspace": "From workspace",
     "fromWorkspaceExplanation": "Everyone keeps their workspace role on everything inside the workspace, including this {type}.",
     "manageWorkspaceRoles": "Manage workspace roles",
+    "agentRoleCount": "{count} {role} agent | {count} {role} agents",
+    "noInheritedAccess": "No one else has access to this {type}.",
+    "everyoneWithRoleOn": "Everyone with a role on {name}",
+    "fromLevel": "From {level}",
+    "fromLevelExplanation": "Everyone keeps their role on this {level} on everything inside it, including this {type}, unless they're given another role there.",
+    "manageLevelRoles": "Manage {level} roles",
+    "noAccessTitle": "Give no access?",
+    "noAccessDescription": "{name} will no longer have access to this {type}, nor to anything inside it unless they're given a role there.",
+    "noAccessSelectionDescription": "The selected member, team or agent will no longer have access to this {type}, nor to anything inside it unless given a role there. | The {count} selected members, teams and agents will no longer have access to this {type}, nor to anything inside it unless given a role there.",
+    "noAccessConfirm": "Give no access",
     "error": {
       "title": "Could not fetch data",
       "description": "An error occurred while fetching the member data."
@@ -394,6 +404,14 @@
   "memberRolesTableContexItem": {
     "label": "Manage members",
     "additionalRoles": "Additional roles"
+  },
+  "subjectRoleAssignments": {
+    "location": "{type} in {path}",
+    "application": "Application",
+    "table": "Table",
+    "view": "View",
+    "remove": "Remove the role on {name}",
+    "showMore": "Show {count} more role | Show {count} more roles"
   },
   "subjectType": {
     "team": "Team",

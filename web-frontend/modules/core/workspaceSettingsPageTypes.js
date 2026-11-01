@@ -82,42 +82,6 @@ export class MembersWorkspaceSettingsPageType extends WorkspaceSettingsPageType 
   }
 }
 
-export class InvitesWorkspaceSettingsPageType extends WorkspaceSettingsPageType {
-  getOrder() {
-    return 20
-  }
-
-  static getType() {
-    return 'invites'
-  }
-
-  getName() {
-    const { $i18n: i18n } = this.app
-    return i18n.t('membersSettings.invitesTabTitle')
-  }
-
-  /**
-   * Responsible for returning whether the user has access to the
-   * invitations table by checking their `workspace.list_invitations` permission.
-   */
-  hasPermission(workspace) {
-    return this.app.$hasPermission(
-      'workspace.list_invitations',
-      workspace,
-      workspace.id
-    )
-  }
-
-  getRoute(workspace) {
-    return {
-      name: 'settings-invites',
-      params: {
-        workspaceId: workspace.id,
-      },
-    }
-  }
-}
-
 export class AgentsWorkspaceSettingsPageType extends WorkspaceSettingsPageType {
   getOrder() {
     return 40

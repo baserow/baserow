@@ -77,19 +77,6 @@ SUPPORTED_MANIFEST_VERSIONS = frozenset({EXPORT_FORMAT_VERSION})
 MANIFEST_NAME = "manifest.json"
 SIGNATURE_NAME = "manifest_signature.json"
 INDENT = settings.DEBUG and 4 or None
-# The views mapping is created together with the mappings of its children, see
-# `ViewType.import_serialized`, so they're seeded together too.
-USER_TEMPLATE_SEEDED_ID_MAPPINGS = (
-    "database_tables",
-    "database_fields",
-    "database_views",
-    "database_view_filters",
-    "database_view_filter_groups",
-    "database_view_sortings",
-    "database_view_group_bys",
-    "database_view_decorations",
-    "automation_workflows",
-)
 
 
 class ImportExportHandler:
@@ -886,12 +873,6 @@ class ImportExportHandler:
 
         imported_applications = []
         id_mapping: Dict[str, Any] = {}
-        if import_export_config.is_user_template:
-            # A user template is installed without the applications outside of it.
-            # The guards only clear unmapped references when their mapping exists,
-            # which isn't the case when the referenced application isn't imported.
-            for key in USER_TEMPLATE_SEEDED_ID_MAPPINGS:
-                id_mapping.setdefault(key, {})
         next_application_order_value = Application.get_last_order(workspace)
 
         # Sort the serialized applications so that we import:
@@ -1216,78 +1197,6 @@ class ImportExportHandler:
         self.clean_storage(import_tmp_path, storage)
         self.clean_storage(import_file_path, storage)
         progress.set_progress(100)
-
-        return imported_applications
-
-    def import_applications_from_export(
-        self,
-        user: AbstractUser,
-        workspace: Workspace,
-        resource: ImportExportResource,
-        import_export_config: ImportExportConfig,
-        storage: Optional[Storage] = None,
-        progress_builder: Optional[ChildProgressBuilder] = None,
-    ) -> List[Application]:
-        """
-        Imports the applications of an export made on this instance into a
-        workspace, with the given configuration. Unlike
-        `import_workspace_applications`, no signal is sent, so the caller decides
-        what the import means. The temporary files are extracted where the
-        resource cleanup looks for them, and the resource itself is left to the
-        caller.
-
-        :param user: The user on whose behalf the applications are imported.
-        :param workspace: The workspace into which the applications are imported.
-        :param resource: The resource created by `export_workspace_applications`.
-        :param import_export_config: Configuration options for the import.
-        :param storage: The storage instance to use for file operations.
-            If not provided, the default storage will be used.
-        :param progress_builder: A progress builder that allows for publishing
-            progress.
-        :raises ImportExportResourceDoesNotExist: If the export file does not exist.
-        :raises ImportExportResourceInvalidFile: If the export file is invalid.
-        :return: A list of imported applications.
-        """
-
-        progress = ChildProgressBuilder.build(progress_builder, child_total=100)
-        storage = storage or get_default_storage()
-
-        if not resource.is_valid:
-            raise ImportExportResourceInvalidFile("Export file is invalid.")
-
-        export_file_path = self.export_file_path(resource.get_archive_name())
-        import_tmp_path = self.export_file_path(str(resource.uuid))
-
-        if not storage.exists(export_file_path):
-            raise ImportExportResourceDoesNotExist(
-                f"The file {export_file_path} does not exist."
-            )
-
-        try:
-            with storage.open(export_file_path, "rb") as zip_file_handle:
-                with ZipFile(zip_file_handle, "r") as zip_file:
-                    manifest_data = self._extract_and_validate_zip(
-                        resource,
-                        zip_file,
-                        import_tmp_path,
-                        storage,
-                        progress.create_child_builder(represents_progress=10),
-                    )
-                    imported_applications = self.import_multiple_applications(
-                        user,
-                        workspace,
-                        manifest_data,
-                        import_tmp_path,
-                        import_export_config,
-                        zip_file,
-                        storage,
-                        progress_builder=progress.create_child_builder(
-                            represents_progress=90
-                        ),
-                    )
-        finally:
-            if storage.exists(import_tmp_path):
-                self.clean_storage(import_tmp_path, storage)
 
         return imported_applications
 

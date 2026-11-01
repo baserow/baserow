@@ -92,6 +92,7 @@ from baserow.core.deferred_callbacks import (
     is_deferred_callback_context_active,
     register_deferred_callback,
 )
+from baserow.core.emails import can_deliver_emails
 from baserow.core.exceptions import PermissionException
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import (
@@ -399,6 +400,7 @@ class CoreHTTPRequestServiceType(CoreServiceType):
         self,
         service: CoreHTTPRequestService,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -435,7 +437,12 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             ]
 
         return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            service,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def create_instance_from_serialized(
@@ -984,10 +991,6 @@ class CoreSMTPEmailServiceType(CoreServiceType):
             ),
         }
 
-    # An installation with no SMTP server keeps a backend that writes the
-    # message somewhere local and reports that it sent it.
-    NON_DELIVERING_EMAIL_BACKENDS = ("console", "dummy", "locmem", "filebased")
-
     # Why this installation cannot send through its own server. Returned as a
     # code rather than a sentence, so each caller can word it for its own
     # reader and translate it.
@@ -1028,15 +1031,7 @@ class CoreSMTPEmailServiceType(CoreServiceType):
         if not self.instance_smtp_is_available():
             return self.INSTANCE_SMTP_NO_SERVER
 
-        # `EMAIL_HOST` falls back to Django's own "localhost", so having a host
-        # says nothing about whether this installation can send. What it does
-        # with a message it is given does, and a backend it does not name at
-        # all is one the service could not ask for.
-        backend = getattr(settings, "CELERY_EMAIL_BACKEND", None) or ""
-        segments = backend.split(".")
-        if not backend or any(
-            name in segments for name in self.NON_DELIVERING_EMAIL_BACKENDS
-        ):
+        if not can_deliver_emails():
             return self.INSTANCE_SMTP_NO_SERVER
         return None
 
@@ -1351,6 +1346,7 @@ class CoreRouterServiceType(CoreServiceType):
         self,
         service: CoreRouterService,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -1376,7 +1372,12 @@ class CoreRouterServiceType(CoreServiceType):
             ]
 
         return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            service,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def formulas_to_resolve(self, service: CoreRouterService) -> list[FormulaToResolve]:
@@ -2088,9 +2089,13 @@ class CorePeriodicTriggerServiceType(TriggerServiceTypeMixin, CoreServiceType):
             periodic_services_dispatched.append(dispatched_service)
             return self._get_dispatch_payload(dispatched_service)
 
+        # Every service that is due is called in the same transaction, so a
+        # workflow that fails to start is isolated rather than rolling back all the
+        # others with it.
         self.on_event(
             periodic_services_due,
             _get_service_payload,
+            isolate_failures=True,
         )
 
         if periodic_services_dispatched:
@@ -2231,6 +2236,7 @@ class CoreResponseServiceType(CoreServiceType):
         self,
         service: CoreResponseService,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -2245,7 +2251,12 @@ class CoreResponseServiceType(CoreServiceType):
             ]
 
         return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            service,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def create_instance_from_serialized(
@@ -2471,6 +2482,7 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
         self,
         service: CoreHTTPTriggerService,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -2489,7 +2501,12 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
             return str(service.uid)
 
         return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            service,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def process_webhook_request(
@@ -2626,16 +2643,19 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
         **kwargs,
     ):
         """
-        Handle the is_public field during import based on publishing context.
+        Handle the is_public and uid fields during import based on publishing
+        context.
         """
 
-        if import_export_config:
-            if import_export_config.is_publishing:
-                serialized_values["is_public"] = True
-            if import_export_config.is_duplicate:
-                # Ensure that duplicating a service (e.g. installing a template)
-                # results in a new unique uuid.
-                serialized_values["uid"] = str(uuid.uuid4())
+        if import_export_config and import_export_config.is_publishing:
+            # Publishing must keep the uid so the published URL is the one
+            # shown next to the draft.
+            serialized_values["is_public"] = True
+        else:
+            # Every other import (duplicating, installing a template,
+            # importing an exported application) gets its own URL, since the
+            # newest service with a uid receives that URL's requests.
+            serialized_values["uid"] = str(uuid.uuid4())
 
         return super().import_serialized(
             parent,

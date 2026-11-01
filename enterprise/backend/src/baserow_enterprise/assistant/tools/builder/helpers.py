@@ -9,7 +9,7 @@ from collections import Counter
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from django.contrib.auth.models import AbstractUser
-from django.db import transaction
+from django.db import DatabaseError, transaction
 from django.db.models import Q, QuerySet
 
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
@@ -34,6 +34,16 @@ from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.operations import ListPagesBuilderOperationType
+from baserow.contrib.builder.pages.exceptions import (
+    DuplicatePageParams,
+    DuplicatePathParamsInPath,
+    InvalidPagePathParamType,
+    InvalidQueryParamName,
+    PagePathNotUnique,
+    PathParamNotDefined,
+    PathParamNotInPath,
+    SharedPageIsReadOnly,
+)
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.pages.operations import ReadPageOperationType
@@ -274,18 +284,81 @@ def list_workflow_actions(user: AbstractUser, page: Page) -> list[ActionItem]:
 # ---------------------------------------------------------------------------
 
 
+def _taken_path_error(
+    builder: Builder, path: str, page_id: int | None = None
+) -> ToolInputError:
+    """
+    Describe a path that another page of the builder already uses.
+
+    :param builder: The builder application the path must be unique in.
+    :param path: The path that is already used.
+    :param page_id: The page that asked for the path, which is not a clash.
+    :return: The error to raise, naming the page that uses the path.
+    """
+
+    try:
+        page = PageHandler().get_page_with_clashing_path(
+            builder, path, base_queryset=Page.objects_and_trash.exclude(id=page_id)
+        )
+    except DatabaseError:
+        # The clash can surface as an IntegrityError that aborts the transaction.
+        page = None
+    if page is None:
+        owner = "another page"
+    elif page.trashed:
+        owner = (
+            f"page {page.id} ('{page.name}'), which is in the trash and keeps the "
+            "path until it is permanently deleted"
+        )
+    else:
+        owner = f"page {page.id} ('{page.name}')"
+    return ToolInputError(
+        f"The path '{path}' is already used by {owner}. Nothing was changed in "
+        "this call. Pick another path."
+    )
+
+
+def ensure_distinct_paths(pages: list[PageCreate]) -> None:
+    """
+    Check that pages created together do not share a path.
+
+    :param pages: The pages one call creates.
+    :raises ToolInputError: When two of them use clashing paths.
+    """
+
+    handler = PageHandler()
+    pages_by_path: dict[str, PageCreate] = {}
+    for page in pages:
+        generalised = handler.generalise_path(page.path)
+        if generalised in pages_by_path:
+            other = pages_by_path[generalised]
+            raise ToolInputError(
+                f"Pages '{other.name}' at '{other.path}' and '{page.name}' at "
+                f"'{page.path}' use the same path, as parameter names do not make "
+                "paths different. Nothing was created. Give each page its own path."
+            )
+        pages_by_path[generalised] = page
+
+
 def create_page(user: AbstractUser, builder: Builder, page_create: PageCreate) -> Page:
-    """Create a page in a builder application."""
+    """
+    Create a page in a builder application.
+
+    :raises ToolInputError: When another page already uses the path.
+    """
 
     svc = PageService()
-    page = svc.create_page(
-        user,
-        builder,
-        page_create.name,
-        page_create.path,
-        path_params=[p.model_dump() for p in page_create.path_params],
-        query_params=[p.model_dump() for p in page_create.query_params],
-    )
+    try:
+        page = svc.create_page(
+            user,
+            builder,
+            page_create.name,
+            page_create.path,
+            path_params=[p.model_dump() for p in page_create.path_params],
+            query_params=[p.model_dump() for p in page_create.query_params],
+        )
+    except PagePathNotUnique:
+        raise _taken_path_error(builder, page_create.path)
 
     # PageService.create_page doesn't accept visibility/role kwargs,
     # so we update them separately if non-default.
@@ -316,12 +389,32 @@ def update_page(
     Update an existing page by ID.
 
     Returns the updated page.
+
+    :raises ToolInputError: When the new path or parameters are not valid.
     """
 
     page = get_page(user, workspace, page_update.page_id)
     kwargs = page_update.to_update_kwargs()
     if kwargs:
-        PageService().update_page(user, page, **kwargs)
+        try:
+            PageService().update_page(user, page, **kwargs)
+        except PagePathNotUnique:
+            raise _taken_path_error(
+                page.builder, kwargs.get("path", page.path), page_id=page.id
+            )
+        except SharedPageIsReadOnly:
+            raise ToolInputError(
+                f"Page {page.id} is the shared page, which can't be changed."
+            )
+        except (
+            PathParamNotInPath,
+            PathParamNotDefined,
+            DuplicatePathParamsInPath,
+            InvalidPagePathParamType,
+            InvalidQueryParamName,
+            DuplicatePageParams,
+        ) as exc:
+            raise ToolInputError(f"{exc}. Nothing was changed in this call.")
         page.refresh_from_db()
     return page
 
@@ -1343,16 +1436,37 @@ def create_login_page(
     user: AbstractUser, builder: Builder, user_source_id: int
 ) -> Page:
     """
-    Create a login page with an auth_form element and set it as the
-    builder's login page.
+    Set up the builder's login page with an auth_form element for the user
+    source. A page the model already created at /login is used when anonymous
+    visitors can see it, so links to it keep working. Otherwise a Login page is
+    created at the first free /login path.
     """
 
-    page = PageService().create_page(user, builder, "Login", "/login")
+    from baserow_enterprise.builder.elements.models import AuthFormElement
 
-    auth_form_type = element_type_registry.get("auth_form")
-    CreateElementActionType.do(
-        user, auth_form_type, page, {"user_source_id": user_source_id}
-    )
+    page = Page.objects.filter(
+        builder=builder,
+        path="/login",
+        shared=False,
+        visibility=Page.VISIBILITY_TYPES.ALL,
+    ).first()
+    if page is None:
+        path = "/login"
+        suffix = 0
+        while not PageHandler().is_page_path_unique(builder, path):
+            suffix += 1
+            path = f"/login-{suffix}"
+        page = PageService().create_page(user, builder, "Login", path)
+
+    auth_forms = AuthFormElement.objects.filter(page=page)
+    # A form without a user source can't log anyone in, so it gets this one.
+    for auth_form in auth_forms.filter(user_source__isnull=True):
+        UpdateElementActionType.do(user, auth_form, {"user_source_id": user_source_id})
+    if not auth_forms.filter(user_source_id=user_source_id).exists():
+        auth_form_type = element_type_registry.get("auth_form")
+        CreateElementActionType.do(
+            user, auth_form_type, page, {"user_source_id": user_source_id}
+        )
 
     CoreHandler().update_application(user, builder, login_page_id=page.id)
     builder.refresh_from_db()

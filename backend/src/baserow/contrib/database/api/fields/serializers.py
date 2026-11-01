@@ -22,7 +22,10 @@ from baserow.contrib.database.fields.constants import (
     BASEROW_BOOLEAN_FIELD_TRUE_VALUES,
 )
 from baserow.contrib.database.fields.models import Field, FieldConstraint
-from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.registries import (
+    field_extension_registry,
+    field_type_registry,
+)
 from baserow.contrib.database.fields.utils.duration import (
     postgres_interval_to_seconds,
     prepare_duration_value_for_db,
@@ -37,6 +40,8 @@ class FieldConstraintSerializer(serializers.ModelSerializer):
 
 
 class FieldSerializer(serializers.ModelSerializer):
+    include_field_extensions = True
+
     type = serializers.SerializerMethodField(help_text="The type of the related field.")
     read_only = serializers.SerializerMethodField(
         help_text="Indicates whether the field is a read only field. If true, "
@@ -209,6 +214,7 @@ class RelatedFieldsSerializer(serializers.Serializer):
 
     @extend_schema_field(FieldSerializer(many=True))
     def get_related_fields(self, instance):
+        field_extension_registry.prefetch_fields(self.related_fields_list)
         return [
             field_type_registry.get_serializer(f, FieldSerializer).data
             for f in self.related_fields_list
@@ -231,6 +237,8 @@ class SelectOptionSerializer(serializers.Serializer):
 
 
 class CreateFieldSerializer(serializers.ModelSerializer):
+    include_field_extensions = True
+
     type = serializers.ChoiceField(
         choices=lazy(field_type_registry.get_types, list)(), required=True
     )
@@ -253,6 +261,8 @@ class CreateFieldSerializer(serializers.ModelSerializer):
 
 
 class UpdateFieldSerializer(serializers.ModelSerializer):
+    include_field_extensions = True
+
     type = serializers.ChoiceField(
         choices=lazy(field_type_registry.get_types, list)(), required=False
     )

@@ -1,4 +1,33 @@
 {
+  "untrustedContentReviewModal": {
+    "title": "Review imported content",
+    "publishBlocked": "Review and trust the imported content before publishing.",
+    "description": "Imported content is blocked to protect your data and visitors. Only enable it if you trust its source and have reviewed what it does.",
+    "contents": "Content found during import",
+    "riskIframe": "Embeds another page or HTML that may display misleading content or collect information entered by visitors.",
+    "riskCode": "Runs code that may read, change, or send data to external services using the workflow’s configured access.",
+    "riskScript": "Runs JavaScript in visitors’ browsers that may access page data or send information to external services.",
+    "riskStyles": "Changes the page’s appearance and may hide or disguise content. External stylesheets also contact a third-party server.",
+    "riskUnknown": "May run code or load external resources. Review its configuration before enabling it.",
+    "confirmation": "This list is a snapshot from import and may have changed. Trusting enables all current custom content. Publish again to enable it in the published version.",
+    "trust": "Trust content",
+    "empty": "No active content was recorded at import. Review the current content in the editor before trusting it.",
+    "page": "Page: {name}",
+    "typeIframe": "Iframe",
+    "typeCodeAction": "Code action",
+    "typeCodeNode": "Code node",
+    "typeCss": "Custom CSS",
+    "typeJs": "Custom JavaScript",
+    "typeScript": "External script",
+    "typeStylesheet": "External stylesheet",
+    "typeUnknown": "Active content",
+    "errorTitle": "Could not trust content",
+    "errorMessage": "The content is still blocked. Check your permissions and try again."
+  },
+  "applicationUntrustedContentAlert": {
+    "title": "Untrusted content blocked",
+    "review": "Review and trust"
+  },
   "mcpAuthorize": {
     "title": "Connect {client}",
     "titleFrom": "Connect {client} from {host}",
@@ -143,7 +172,11 @@
   },
   "InstallTemplateJobType": {
     "installing": "Installing",
-    "installedTitle": "Template installed"
+    "installedTitle": "Template installed",
+    "installingTitle": "Installing {name}",
+    "installedMessage": "Successfully installed {name}",
+    "failedTitle": "{name} couldn't be installed",
+    "dismiss": "Dismiss"
   },
   "sidebar": {
     "createWorkspace": "Create workspace",
@@ -406,9 +439,12 @@
     "title": "Invitation",
     "message": "{by} has invited you to join {workspace}.",
     "reject": "Reject",
-    "accept": "Accept"
+    "accept": "Accept",
+    "emailNotVerified": "Verify your email address to accept this invitation, or open the link in the invitation email.",
+    "sendVerificationEmail": "Send verification email"
   },
   "inviteModal": {
+    "backTo": "Back to {level}: {title}",
     "emailRoute": "Email invite",
     "linkRoute": "Create link",
     "emailTitle": "Invite members by email",
@@ -560,13 +596,16 @@
   "templateInstall": {
     "use": "Use this template",
     "selectWorkspace": "Choose workspace",
+    "workspaceNoPermission": "You don't have permission to add applications to this workspace.",
     "more": "More",
-    "copyLink": "Copy sharing link"
+    "copyLink": "Copy sharing link",
+    "noWorkspace": "A template is installed into a workspace. Create a workspace first, then install the template into it.",
+    "noWorkspaceAskInvite": "You aren't a member of any workspace. A template is installed into a workspace, so you will need to be invited to a workspace by an administrator first.",
+    "createWorkspace": "Create workspace"
   },
   "templateDetails": {
     "back": "Back to Templates",
     "contents": "What’s inside",
-    "actions": "Actions",
     "editDetails": "Edit details",
     "updateContent": "Update template content",
     "delete": "Delete"
@@ -619,6 +658,7 @@
     "applications": "Content",
     "noticeTitle": "What is not copied",
     "noticeSecrets": "Most passwords, tokens and API keys of integrations and data syncs.",
+    "noticePasswords": "Values of password fields in your tables, including the passwords of your application users.",
     "noticePeople": "People: collaborator field values, role assignments and the user that automatic AI field updates run as.",
     "noticePersonalViews": "Personal views.",
     "noticeReferences": "Connections to databases that are not included. Data sources, filters and triggers using them need to be set up again.",
@@ -637,6 +677,8 @@
     "name": "Name",
     "visibility": "Visibility",
     "lastUpdated": "Last updated",
+    "used": "Used",
+    "usedTimes": "{count} time | {count} times",
     "emptyTitle": "You have not created any template yet",
     "emptyDescription": "Turn your work into a template that you can preview and share later.",
     "noWorkspace": "A template is created from a workspace. Create or join a workspace first.",
@@ -1030,10 +1072,10 @@
   },
   "membersSettings": {
     "membersTabTitle": "Members",
-    "invitesTabTitle": "Invites",
     "membersTable": {
       "title": "{userAmount} members in {workspaceName}",
       "inviteMember": "Invite members",
+      "pendingInvitations": "Pending invitations ({count})",
       "emptyTitle": "No members yet",
       "emptyDescription": "Invite people to collaborate in this workspace. Choose a role for each person to control what they can view and edit.",
       "columns": {
@@ -1051,20 +1093,6 @@
         "remove": "Remove from workspace"
       },
       "search": "Search members"
-    },
-    "invitesTable": {
-      "title": "{invitesAmount} pending invites in {workspaceName}",
-      "emptyTitle": "No pending invites",
-      "emptyDescription": "Invite people to join this workspace. You can track and manage their invitations here until they accept.",
-      "columns": {
-        "email": "Email",
-        "role": "Default role"
-      },
-      "actions": {
-        "copyEmail": "Copy email",
-        "remove": "Cancel invite"
-      },
-      "search": "Search invites"
     },
     "membersInviteModal": {
       "errors": {

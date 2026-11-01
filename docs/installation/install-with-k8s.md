@@ -88,6 +88,21 @@ spec:
                 name: backend-asgi
                 port:
                   number: 80
+          # AI replies stream from these paths, and only the ASGI service can stream them.
+          - pathType: Prefix
+            path: "/assistant/"
+            backend:
+              service:
+                name: backend-asgi
+                port:
+                  number: 80
+          - pathType: Prefix
+            path: "/api/chat-runs/"
+            backend:
+              service:
+                name: backend-asgi
+                port:
+                  number: 80
           - pathType: Prefix
             path: "/"
             backend:

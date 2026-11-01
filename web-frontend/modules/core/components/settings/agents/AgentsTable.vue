@@ -1,12 +1,26 @@
 <template>
   <CrudTable
+    v-bind="tableLayout"
     ref="table"
+    class="management-table management-table--agents"
     :service="service"
     :columns="columns"
     row-id-key="id"
     :search-placeholder="$t('agents.search')"
+    :row-expandable="rowExpansion?.isExpandable"
+    :expand-column-key="rowExpansion?.columnKey"
     @row-context="openContext"
   >
+    <template v-if="rowExpansion" #row-expansion-toggle="{ row }">
+      {{ rowExpansion.getToggleLabel(row) }}
+    </template>
+    <template v-if="rowExpansion" #expanded-row="slotProps">
+      <component
+        :is="rowExpansion.component"
+        v-bind="{ ...slotProps, ...rowExpansion.getProps(slotProps.row) }"
+        :workspace="workspace"
+      />
+    </template>
     <template #title="{ count }">{{
       $t('agents.title', { count, workspace: workspace.name })
     }}</template>
@@ -51,6 +65,7 @@
 </template>
 
 <script>
+import { getManagementTableLayout } from '@baserow/modules/core/utils/managementTable'
 import CrudTable from '@baserow/modules/core/components/crudTable/CrudTable'
 import ManagementNameField from '@baserow/modules/core/components/settings/ManagementNameField'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
@@ -69,6 +84,34 @@ export default {
     return { focusedAgentId: null }
   },
   computed: {
+    tableLayout() {
+      const layout = getManagementTableLayout(this.columns, 'role_uid')
+      layout.columnWidths.name = 'max(200px, 40cqw)'
+      layout.columnWidths.role_uid = 'auto'
+      layout.columnWidths.teams = 'clamp(80px, 10cqw, 120px)'
+      layout.columnWidths.last_active = 'clamp(96px, 10cqw, 160px)'
+      layout.minTableWidth = '800px'
+      return layout
+    },
+    /**
+     * How an agent's row expands into more rows, as given by the first active
+     * extension offering it, or null.
+     */
+    rowExpansion() {
+      for (const extension of Object.values(
+        this.$registry.getAll('agentExtension')
+      )) {
+        if (extension.isActive(this.workspace)) {
+          const expansion = extension.getRowExpansion({
+            workspace: this.workspace,
+          })
+          if (expansion) {
+            return expansion
+          }
+        }
+      }
+      return null
+    },
     focusedAgent() {
       // Resolve the selection by ID so realtime updates reach the editor prop.
       return this.$store.getters['agent/get'](this.focusedAgentId) || null
@@ -127,13 +170,10 @@ export default {
           true,
           true,
           false,
-          { icon: 'baserow-icon-agent', color: 'purple' }
-        ),
-        new CrudTableColumn(
-          'last_active',
-          this.$t('agents.lastActive'),
-          AgentLastActiveField,
-          true
+          {
+            avatarComponent: this.$registry.get('subject', 'core.Agent')
+              .avatarComponent,
+          }
         ),
         new CrudTableColumn(
           'role_uid',
@@ -157,6 +197,14 @@ export default {
           })
         }
       }
+      columns.push(
+        new CrudTableColumn(
+          'last_active',
+          this.$t('agents.lastActive'),
+          AgentLastActiveField,
+          true
+        )
+      )
       if (this.canManage)
         columns.push(
           new CrudTableColumn(null, null, MoreField, false, false, true)

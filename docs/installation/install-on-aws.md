@@ -402,7 +402,7 @@ IP:
 
 1. `backend-asgi` on port `8000`/`HTTP` with a health check using URL `/api/_health/`
    for
-   our websocket service.
+   our websocket service and streamed AI replies.
 2. `backend-wsgi` on port `8000`/`HTTP` with a health check using URL `/api/_health/`
    for
    our backend API service.
@@ -412,7 +412,7 @@ IP:
 *The trailing slash on the health check endpoints is required!*
 
 Now make the ALB with a HTTP port 80 listener routing to the `web-frontend` group.
-Then once it is made go to this listener and configure it with four different rules
+Then once it is made go to this listener and configure it with five different rules
 routing to each of the separate groups.
 
 1. The default rule to catch all other requests which forwards to the `web-frontend`
@@ -420,7 +420,11 @@ routing to each of the separate groups.
 2. A path condition of `/ws/*` which forwards to the `backend-asgi` group.
 3. A path condition of `/mcp` or `/mcp/*` which forwards to the `backend-asgi` group.
    The MCP server is only served by the ASGI service.
-4. A path condition of `/api/*`, `/oauth/*`, `/.well-known/oauth-authorization-server*`
+4. A path condition of `/assistant/*` or `/api/chat-runs/*` which forwards to the
+   `backend-asgi` group. AI replies stream from these paths, and only the ASGI
+   service can stream them. Give this rule a lower priority number than the
+   `/api/*` rule, so it is evaluated first.
+5. A path condition of `/api/*`, `/oauth/*`, `/.well-known/oauth-authorization-server*`
    or `/.well-known/oauth-protected-resource*` which forwards to the `backend-wsgi`
    group.
 

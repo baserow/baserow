@@ -24,6 +24,7 @@ const workspace = { id: 12, _: { roles } }
 function createApp(client = {}) {
   return {
     $client: client,
+    $bus: { $emit: vi.fn() },
     $i18n: {
       t: (key, params) => {
         if (key === 'scopeInvitationTarget.title') {
@@ -107,8 +108,16 @@ describe('ScopeInvitationTargetType', () => {
   })
 
   test('sends a scoped invitation through the role endpoint', async () => {
-    const client = { post: vi.fn().mockResolvedValue({ data: { id: 3 } }) }
-    const targetType = new ScopeInvitationTargetType({ app: createApp(client) })
+    const scopedInvitation = {
+      id: 3,
+      invitation_id: 8,
+      email: 'foo@bar.com',
+    }
+    const client = {
+      post: vi.fn().mockResolvedValue({ data: scopedInvitation }),
+    }
+    const app = createApp(client)
+    const targetType = new ScopeInvitationTargetType({ app })
 
     const result = await targetType.sendInvitation(
       workspace,
@@ -116,12 +125,18 @@ describe('ScopeInvitationTargetType', () => {
       { email: 'foo@bar.com', permissions: 'VIEWER', captchaToken: '' }
     )
 
-    expect(result).toEqual({ id: 3 })
+    expect(result).toEqual(scopedInvitation)
     expect(client.post).toHaveBeenCalledWith('/role/12/invitations/', {
       email: 'foo@bar.com',
       role: 'VIEWER',
       scope_id: 5,
       scope_type: 'database_table',
+    })
+    // The members page recounts its pending invitations on this event.
+    expect(app.$bus.$emit).toHaveBeenCalledWith('invite-submitted', {
+      id: 8,
+      workspace: 12,
+      email: 'foo@bar.com',
     })
   })
 })

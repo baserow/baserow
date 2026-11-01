@@ -77,6 +77,15 @@ class UserWorkspaceInvitationSerializer(serializers.ModelSerializer):
         return object.email_exists if hasattr(object, "email_exists") else None
 
 
+class AcceptWorkspaceInvitationSerializer(serializers.Serializer):
+    token = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="The token from the invitation email. Required when the email "
+        "address of the user is not verified.",
+    )
+
+
 class GetWorkspaceInvitationsViewQuerySerializer(serializers.Serializer):
     search = serializers.CharField(required=False, default=None)
     sorts = serializers.CharField(required=False, default=None)

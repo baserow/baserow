@@ -30,7 +30,7 @@
           'tooltip__content--expandable',
           'tooltip__content--expandable-plain-text',
         ]"
-        icon="info-empty"
+        icon="iconoir-info-empty"
       />
       <span v-if="hasAfterLabelSlot" class="control__after-label">
         <slot name="after-label" />

@@ -66,6 +66,18 @@ describe('TemplatePage', () => {
     expect(wrapper.find('.list').isVisible()).toBe(false)
   })
 
+  test('shows the toasts, as it has no app layout', async () => {
+    const wrapper = await mountPage('project-tracker')
+
+    await testApp.store.dispatch('toast/add', {
+      type: 'installTemplate',
+      data: { jobId: 10, template_name: 'Project Tracker' },
+    })
+    await flushPromises()
+
+    expect(wrapper.find('.install-template-toast').exists()).toBe(true)
+  })
+
   test('goes back to the list and opens another template from it', async () => {
     const wrapper = await mountPage('project-tracker')
 
@@ -102,6 +114,77 @@ describe('TemplatePage', () => {
     await flushPromises()
 
     expect(wrapper.find('.details').text()).toBe('Project Tracker: Business')
+  })
+
+  test('reloads the preview when the install of the shown revision is refused', async () => {
+    // The user opened revision 8, then the owner made revision 9 public.
+    const crm = {
+      id: 5,
+      revision_id: 8,
+      type: 'user',
+      slug: 'crm-a1b2c3',
+      name: 'CRM',
+      workspace_id: 108,
+    }
+    const newRevision = {
+      ...crm,
+      revision_id: 9,
+      name: 'CRM 2',
+      workspace_id: 109,
+    }
+    const database = (workspaceId, name) => ({
+      id: workspaceId,
+      name,
+      order: 1,
+      type: 'database',
+      workspace: { id: workspaceId },
+      tables: [],
+    })
+    testApp.authenticate({ id: 1, preferences: {}, completed_onboarding: true })
+    testApp.dontFailOnErrorResponses()
+    testApp.mock.onGet('/workspaces/').reply(200, [{ id: 1, name: 'First' }])
+    testApp.mock.onGet('/applications/').reply(200, [])
+    testApp.mock.onGet('/workspaces/1/permissions/').reply(200, [])
+    testApp.mock
+      .onGet('/templates/crm-a1b2c3/')
+      .replyOnce(200, crm)
+      .onGet('/templates/crm-a1b2c3/')
+      .replyOnce(200, newRevision)
+    testApp.mock.onGet('/templates/').reply(200, categories)
+    testApp.mock
+      .onGet('/applications/workspace/108/')
+      .reply(200, [database(108, 'Leads')])
+      .onGet('/applications/workspace/109/')
+      .reply(200, [database(109, 'Leads and deals')])
+    testApp.mock.onPost('/templates/install/1/5/async/').reply(400, {
+      error: 'ERROR_TEMPLATE_UPDATED',
+      detail: 'The template was updated after it was opened.',
+    })
+    // The real details and install button, so that the refusal reaches the page.
+    const wrapper = await testApp.mount(TemplatePage, {
+      route: '/template/crm-a1b2c3',
+      global: {
+        stubs: { TemplateList: stubs.TemplateList, TableTemplate: true },
+      },
+    })
+    await flushPromises()
+    const applicationNames = () =>
+      wrapper.findAll('.tree__link-text').map((link) => link.text())
+
+    expect(wrapper.find('.template-details__name').text()).toBe('CRM')
+    expect(applicationNames()).toStrictEqual(['Leads'])
+
+    await wrapper.find('.template-install__use').trigger('click')
+    await flushPromises()
+
+    expect(testApp.mock.history.post.map((r) => r.params)).toStrictEqual([
+      { revision_id: 8 },
+    ])
+    expect(
+      testApp.mock.history.get.filter((r) => r.url === '/templates/crm-a1b2c3/')
+    ).toHaveLength(2)
+    expect(wrapper.find('.template-details__name').text()).toBe('CRM 2')
+    expect(applicationNames()).toStrictEqual(['Leads and deals'])
   })
 
   test('lets the list claim the search shortcut only while it is shown', async () => {

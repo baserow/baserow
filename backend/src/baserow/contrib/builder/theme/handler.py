@@ -4,6 +4,7 @@ from zipfile import ZipFile
 from django.core.files.storage import Storage
 
 from baserow.contrib.builder.models import Builder
+from baserow.core.registries import ImportExportConfig
 
 from .registries import theme_config_block_registry
 
@@ -28,10 +29,12 @@ class ThemeHandler:
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict[str, any]] = None,
+        import_export_config: ImportExportConfig | None = None,
     ) -> Dict[str, Any]:
         """
         Serializes the theme blocks of the given builder.
 
+        :param import_export_config: Export settings passed to nested objects.
         :param builder: The builder instance of the theme to serialize.
         :param files_zip: The zip file where the files must be stored.
         :param storage: The storage where the files must be stored.
@@ -48,6 +51,7 @@ class ThemeHandler:
             serialized_theme.update(
                 **theme_config_block_type.export_serialized(
                     theme_config_block,
+                    import_export_config=import_export_config,
                     files_zip=files_zip,
                     storage=storage,
                     cache=cache,

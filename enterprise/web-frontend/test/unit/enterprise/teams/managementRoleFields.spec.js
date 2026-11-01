@@ -2,7 +2,6 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { describe, expect, test, vi } from 'vitest'
 import MembersRoleField from '@baserow_enterprise/components/MembersRoleField'
 import TeamRoleField from '@baserow_enterprise/components/crudTable/fields/TeamRoleField'
-import InvitesRoleField from '@baserow_enterprise/components/InvitesRoleField'
 import { NoRoleLowPriorityRoleType } from '@baserow_enterprise/roleTypes'
 import RolesService from '@baserow/modules/core/services/roles'
 
@@ -25,7 +24,6 @@ describe('Enterprise management role controls', () => {
     [MembersRoleField, true, 42, false],
     [TeamRoleField, false, 42, true],
     [TeamRoleField, true, 42, false],
-    [InvitesRoleField, true, 42, false],
   ])(
     '%s preserves permission=%s and current user=%s',
     async (component, permitted, currentUserId, disabled) => {

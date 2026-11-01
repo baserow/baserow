@@ -56,10 +56,10 @@ def execute_chat_run(self: Task, run_id: str) -> None:
     except chat_run_type_registry.does_not_exist_exception_class:
         logger.error("The chat run {} has the unknown type {}", run.id, run.run_type)
         with transaction.atomic():
-            if handler.finish_run(
+            ended = handler.finish_run(
                 run.id, ChatRunStatus.FAILED, ChatRunErrorCode.FAILED
-            ):
-                ended = handler.get_run(run.id)
+            )
+            if ended is not None:
                 transaction.on_commit(
                     lambda: handler._publish_terminal(ended), robust=True
                 )

@@ -16,13 +16,13 @@ from baserow.core.models import Workspace
 
 from .constants import (
     LEASE_DURATION,
-    MAX_ACTIVE_RUNS_PER_USER,
     NOT_STARTED_AFTER,
     RUN_RETENTION,
     SWEEP_BATCH_SIZE,
     SWEEP_INTERVAL,
     USER_RUNS_LOCK_NAMESPACE,
     WAITING_WARNING_AFTER,
+    WORKSPACE_RUNS_LOCK_NAMESPACE,
     ChatRunErrorCode,
     ChatRunEventKind,
 )
@@ -65,20 +65,41 @@ class ChatRunHandler:
         created_by: AbstractUser | None,
         context: dict[str, Any],
     ) -> ChatRun:
-        """Call inside the transaction saving the triggering product message."""
+        """Call inside the transaction saving the triggering product message.
 
+        :param run_type: The registered type of the run.
+        :param chat_id: The product chat the run answers.
+        :param workspace: The workspace the run belongs to.
+        :param created_by: The user who sent the message, or None for a system run:
+            no per-user limit applies, the workspace limit still does.
+        :param context: The product data the run needs.
+        :raises ChatRunAlreadyActive: When the chat already has an active run.
+        :raises ChatRunLimitReached: When the user or the workspace already has the
+            maximum number of active runs of this type.
+        :return: The new queued run.
+        """
+
+        kind = chat_run_type_registry.get(run_type)
+        user_limit = kind.get_max_active_runs_per_user() if created_by else None
+        workspace_limit = kind.get_max_active_runs_per_workspace(workspace)
         with transaction.atomic():
-            if created_by is not None:
-                self._lock_user_runs(created_by.id)
+            # A fixed lock order keeps concurrent sends from deadlocking.
+            if workspace_limit is not None:
+                self._lock_runs(WORKSPACE_RUNS_LOCK_NAMESPACE, workspace.id)
+            if user_limit is not None:
+                self._lock_runs(USER_RUNS_LOCK_NAMESPACE, created_by.id)
             active_id = self._active_run_id(run_type, chat_id)
             if active_id:
                 raise ChatRunAlreadyActive(active_id)
-            if (
-                created_by is not None
-                and self.runs.filter(
-                    created_by=created_by, status__in=ACTIVE_CHAT_RUN_STATUSES
-                ).count()
-                >= MAX_ACTIVE_RUNS_PER_USER
+            active_runs = self.runs.filter(
+                run_type=run_type, status__in=ACTIVE_CHAT_RUN_STATUSES
+            )
+            limits = [
+                (user_limit, active_runs.filter(created_by=created_by)),
+                (workspace_limit, active_runs.filter(workspace=workspace)),
+            ]
+            if any(
+                limit is not None and runs.count() >= limit for limit, runs in limits
             ):
                 raise ChatRunLimitReached()
             run = ChatRun(
@@ -169,12 +190,9 @@ class ChatRunHandler:
             )
             self.fail_not_started_run(run_id)
 
-    def _lock_user_runs(self, user_id: int) -> None:
+    def _lock_runs(self, namespace: int, key: int) -> None:
         with connection.cursor() as cursor:
-            cursor.execute(
-                "SELECT pg_advisory_xact_lock(%s, %s)",
-                [USER_RUNS_LOCK_NAMESPACE, user_id],
-            )
+            cursor.execute("SELECT pg_advisory_xact_lock(%s, %s)", [namespace, key])
 
     def _active_run_id(self, run_type: str, chat_id: int) -> UUID | None:
         return (
@@ -220,19 +238,21 @@ class ChatRunHandler:
         return run
 
     def renew_lease(self, run_id: UUID) -> LeaseRenewal:
-        """Called through a sync bridge by the worker's journal keep-alive loop."""
+        """Extend a running run's lease, telling the worker whether Stop was requested.
 
-        renewed = self.runs.filter(id=run_id, status=ChatRunStatus.RUNNING).update(
-            lease_expires_at=timezone.now() + LEASE_DURATION
-        )
-        requested = (
-            self.runs.filter(id=run_id)
-            .values_list("cancel_requested_at", flat=True)
-            .first()
-            if renewed
-            else None
-        )
-        return LeaseRenewal(bool(renewed), requested is not None)
+        :param run_id: The id of the run.
+        :return: Whether the run still runs, and whether Stop was requested.
+        """
+
+        running = self.runs.filter(id=run_id, status=ChatRunStatus.RUNNING)
+        expires_at = timezone.now() + LEASE_DURATION
+        if running.filter(cancel_requested_at__isnull=True).update(
+            lease_expires_at=expires_at
+        ):
+            return LeaseRenewal(alive=True, cancel_requested=False)
+        # Only Stop or an ended run makes the common renewal miss.
+        stopping = bool(running.update(lease_expires_at=expires_at))
+        return LeaseRenewal(alive=stopping, cancel_requested=stopping)
 
     def request_cancel(self, run_id: UUID) -> ChatRunStatus:
         """Called by the HTTP service; running workers observe Stop on renewal."""
@@ -267,11 +287,18 @@ class ChatRunHandler:
         status: ChatRunStatus,
         error_code: str = "",
         message: dict | None = None,
-    ) -> bool:
+    ) -> ChatRun | None:
         """End a claimed run from the worker's synchronous finalization section.
 
         Commit alongside product output; caller locks the run before product rows.
         ``execute_chat_run`` also uses this when the adapter type is unavailable.
+
+        :param run_id: The id of the run.
+        :param status: The final status.
+        :param error_code: Why the run failed, or an empty string.
+        :param message: The product's saved result, kept as the run's outcome.
+        :raises ValueError: When the status is not a final one.
+        :return: The ended run, or None when it had already ended elsewhere.
         """
 
         status = ChatRunStatus(status)
@@ -286,14 +313,14 @@ class ChatRunHandler:
                 finished_on=timezone.now(),
                 lease_expires_at=None,
             ):
-                return False
+                return None
             run = self.get_run(run_id)
             notify_run_on_commit(run)
             transaction.on_commit(
                 lambda: record_run_finished(run.run_type, str(status), error_code),
                 robust=True,
             )
-        return True
+        return run
 
     def _end_without_worker(
         self,

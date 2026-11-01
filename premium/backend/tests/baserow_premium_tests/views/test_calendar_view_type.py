@@ -671,6 +671,38 @@ def test_calendar_timezone_test_cases(
     assert dict(grouped_rows) == test_case["expected_result"]
 
 
+@pytest.mark.django_db
+@pytest.mark.view_calendar
+def test_get_rows_grouped_by_date_field_with_empty_range(premium_data_fixture):
+    user = premium_data_fixture.create_user()
+    table, fields, rows = premium_data_fixture.build_table(
+        columns=[
+            ("Name", "text"),
+            ("Date", {"type": "date", "date_include_time": True}),
+        ],
+        rows=[["Visible", "2023-02-01 10:00"], ["Hidden", "2023-02-01 10:00"]],
+    )
+    name_field, date_field = fields
+    calendar_view = premium_data_fixture.create_calendar_view(
+        table=table, date_field=date_field
+    )
+    premium_data_fixture.create_view_filter(
+        view=calendar_view, field=name_field, type="equal", value="Visible"
+    )
+
+    timestamp = datetime(2023, 1, 1, 12, 0, tzinfo=timezone.utc)
+    grouped_rows = get_rows_grouped_by_date_field(
+        user,
+        calendar_view,
+        date_field,
+        from_timestamp=timestamp,
+        to_timestamp=timestamp,
+        user_timezone="UTC",
+    )
+
+    assert dict(grouped_rows) == {}
+
+
 @pytest.mark.view_calendar
 def test_to_midnight():
     assert to_midnight(datetime(2023, 1, 9, 23, 0, 0, 0)) == datetime(

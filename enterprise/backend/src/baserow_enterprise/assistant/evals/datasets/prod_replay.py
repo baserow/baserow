@@ -13,6 +13,9 @@ Failure classes:
 - ``Tool name conflicts with existing tool: 'create_rows_in_table_N'``.
 - Row value validation (decimal/date/number got ``''``) ending the turn.
 - ``Exceeded maximum output retries (1)`` from the formula agent.
+- ``"" value must be a decimal number`` from link fields to a table whose
+  primary field is not text.
+- ``A page with the path ... already exists`` from creating a page.
 
 Containment turns these recoverable failures into retry prompts by design, so
 each case carries an explicit ``max_tool_errors`` budget instead of the
@@ -24,6 +27,8 @@ from __future__ import annotations
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
+from baserow.contrib.builder.elements.models import Element
+from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.database.fields.models import FormulaField, LinkRowField
 from baserow.contrib.database.models import Table
 from baserow.contrib.database.rows.handler import RowHandler
@@ -96,6 +101,18 @@ PROMPT_SIGNED_AMOUNT_FORMULA = (
     "as negative Amount."
 )
 
+# link_row_examples class: link fields to a number primary broke row tools.
+PROMPT_ORDERS_FOR_PRODUCTS = (
+    "Add 3 orders, each linked to one of our products, with a quantity."
+)
+
+# page_path_clash class: creating a page at a taken path ended the turn. The
+# path differs from the taken one only by its parameter name.
+PROMPT_PAGE_AT_TAKEN_PATH = (
+    "Add an Edit product page at /product/:product_id with a heading that says "
+    "'Edit product'."
+)
+
 
 REQUESTED_TRACKER_TABLES = ("Projects", "Milestones")
 SHIPMENT_ISO_WEEKS = {"2026-01-01": 1, "2026-06-15": 25, "2027-01-01": 53}
@@ -109,6 +126,10 @@ REQUIRED_EMPLOYEE_FIELDS = (
     "Notes",
     "Performance Score",
 )
+REQUESTED_ORDER_COUNT = 3
+PRODUCT_CODES = (1001, 1002, 1003)
+TAKEN_PAGE_NAME = "Product details"
+TAKEN_PAGE_PATH = "/product/:id"
 SIGNED_TRANSACTIONS = (
     ("T-1", "Credit", 100),
     ("T-2", "Debit", 40),
@@ -719,5 +740,178 @@ register_case(
         max_iters=15,
         max_tool_errors=2,
         metadata={"failure_class": "formula_compiler"},
+    )
+)
+
+
+# ---------------------------------------------------------------------------
+# Orders linked to products with a number primary
+# ---------------------------------------------------------------------------
+
+
+@register_scenario("prod-replay-orders-linked-to-number-primary")
+def _orders_linked_to_number_primary_scenario(fx: Fixtures) -> EvalScenario:
+    """Orders link to Products, whose primary field is a number."""
+
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    database = fx.create_database_application(workspace=workspace, name="Shop DB")
+    products = fx.create_database_table(database=database, name="Products")
+    code = fx.create_number_field(table=products, name="Code", primary=True)
+    name = fx.create_text_field(table=products, name="Name")
+    orders = fx.create_database_table(database=database, name="Orders")
+    fx.create_text_field(table=orders, name="Order", primary=True)
+    fx.create_number_field(table=orders, name="Quantity")
+    link = fx.create_link_row_field(
+        table=orders, name="Products", link_row_table=products
+    )
+    RowHandler().force_create_rows(
+        user,
+        products,
+        [
+            {code.db_column: value, name.db_column: product}
+            for value, product in zip(PRODUCT_CODES, ("Lamp", "Chair", "Desk"))
+        ],
+    )
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_database_ui_context(user, workspace, database, orders),
+        refs={"orders": orders, "products": products, "link": link},
+    )
+
+
+def _check_orders_linked_to_number_primary(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    """Regression: '"" value must be a decimal number' broke the row tools."""
+
+    link = scenario.refs["link"]
+    product_ids = set(
+        scenario.refs["products"].get_model().objects.values_list("id", flat=True)
+    )
+    orders = list(scenario.refs["orders"].get_model().objects.all())
+    links = {
+        order.id: set(getattr(order, link.db_column).values_list("id", flat=True))
+        for order in orders
+    }
+    unlinked = [
+        order_id
+        for order_id, linked in links.items()
+        if not linked or not linked <= product_ids
+    ]
+    return [
+        CheckResult(
+            f"{REQUESTED_ORDER_COUNT} orders created",
+            len(orders) == REQUESTED_ORDER_COUNT,
+            hint=f"orders: {len(orders)}",
+        ),
+        CheckResult(
+            "every order links to an existing product",
+            bool(orders) and not unlinked,
+            hint=f"links per order: {links}",
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="prod-replay/orders-linked-to-number-primary",
+        dataset="kuma-prod-replay",
+        prompt=PROMPT_ORDERS_FOR_PRODUCTS,
+        scenario="prod-replay-orders-linked-to-number-primary",
+        checks=_check_orders_linked_to_number_primary,
+        max_iters=15,
+        max_tool_errors=2,
+        metadata={"failure_class": "link_row_examples"},
+    )
+)
+
+
+# ---------------------------------------------------------------------------
+# Page at a path another page already uses
+# ---------------------------------------------------------------------------
+
+
+@register_scenario("prod-replay-page-at-taken-path")
+def _page_at_taken_path_scenario(fx: Fixtures) -> EvalScenario:
+    """Builder whose details page clashes with the path the prompt asks for."""
+
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    builder = fx.create_builder_application(
+        user=user, workspace=workspace, name="Shop App"
+    )
+    home_page = fx.create_builder_page(builder=builder, name="Home", path="/")
+    taken_page = fx.create_builder_page(
+        builder=builder,
+        name=TAKEN_PAGE_NAME,
+        path=TAKEN_PAGE_PATH,
+        path_params=[{"name": "id", "type": "numeric"}],
+    )
+    fx.create_builder_heading_element(page=taken_page, value="'Product details'")
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_builder_ui_context(user, workspace, builder),
+        refs={"builder": builder, "home_page": home_page, "taken_page": taken_page},
+        pre_state={
+            "taken_element_count": Element.objects.filter(page=taken_page).count()
+        },
+    )
+
+
+def _check_page_at_taken_path(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    """Regression: a taken path ended the turn instead of coming back as an error."""
+
+    taken_page = Page.objects_and_trash.get(id=scenario.refs["taken_page"].id)
+    element_count = Element.objects.filter(page=taken_page).count()
+    answer = output.answer.lower()
+    clash_reported = any(
+        text.lower() in answer for text in (TAKEN_PAGE_NAME, TAKEN_PAGE_PATH, "already")
+    )
+    new_pages = list(
+        Page.objects.filter(builder=scenario.refs["builder"], shared=False)
+        .exclude(id__in=(scenario.refs["home_page"].id, taken_page.id))
+        .values_list("name", "path")
+    )
+    return [
+        CheckResult(
+            f"{TAKEN_PAGE_NAME} page unchanged",
+            taken_page.name == TAKEN_PAGE_NAME
+            and taken_page.path == TAKEN_PAGE_PATH
+            and not taken_page.trashed
+            and element_count == scenario.pre_state["taken_element_count"],
+            hint=(
+                f"name={taken_page.name!r} path={taken_page.path!r} "
+                f"trashed={taken_page.trashed} elements={element_count}"
+            ),
+        ),
+        CheckResult(
+            "page created at a free path, or the clash reported",
+            bool(new_pages) or clash_reported,
+            hint=f"new pages: {new_pages}; answer: {output.answer[:200]!r}",
+        ),
+        CheckResult(
+            "turn ended with a real answer",
+            bool(output.answer.strip()),
+            hint=f"answer: {output.answer[:200]!r}",
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="prod-replay/page-at-taken-path",
+        dataset="kuma-prod-replay",
+        prompt=PROMPT_PAGE_AT_TAKEN_PATH,
+        scenario="prod-replay-page-at-taken-path",
+        checks=_check_page_at_taken_path,
+        mode=AgentMode.APPLICATION,
+        max_iters=15,
+        max_tool_errors=2,
+        metadata={"failure_class": "page_path_clash"},
     )
 )

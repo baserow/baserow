@@ -18,6 +18,7 @@ from baserow.core.notifications.operations import (
 from baserow.core.user_sources.operations import (
     ListUserSourcesApplicationOperationType,
     LoginUserSourceOperationType,
+    ReadUserSourceOperationType,
 )
 
 from .agents.operations import (
@@ -166,6 +167,7 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
         ListApplicationsWorkspaceOperationType.type,
         ListIntegrationsApplicationOperationType.type,
         ListUserSourcesApplicationOperationType.type,
+        ReadUserSourceOperationType.type,
         LoginUserSourceOperationType.type,
         ReadFieldRuleOperationType.type,
     ]

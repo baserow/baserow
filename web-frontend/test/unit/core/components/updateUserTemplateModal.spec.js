@@ -3,25 +3,16 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { ModalStub } from '@baserow/test/helpers/modalStub'
+import { permission } from '@baserow/test/helpers/permission'
+import { heldBack } from '@baserow/test/helpers/heldBack'
+import { seedWorkspaces, updateJob } from '@baserow/test/helpers/store'
 import UpdateUserTemplateModal from '@baserow/modules/core/components/template/UpdateUserTemplateModal'
 
-// The permission plugin allows everything in tests and can't be replaced.
-const permission = vi.hoisted(() => ({ check: () => true }))
-
-vi.mock('#app', async (importOriginal) => {
-  const original = await importOriginal()
-  return {
-    ...original,
-    useNuxtApp: () =>
-      new Proxy(original.useNuxtApp(), {
-        get(target, property) {
-          return property === '$hasPermission'
-            ? (...args) => permission.check(...args)
-            : Reflect.get(target, property)
-        },
-      }),
-  }
-})
+vi.mock('#app', async (importOriginal) =>
+  (await import('@baserow/test/helpers/permission')).mockHasPermission(
+    importOriginal
+  )
+)
 
 const categories = [
   { id: 1, name: 'Business' },
@@ -77,28 +68,19 @@ describe('UpdateUserTemplateModal', () => {
       }
       return dispatch.call(store, type, ...args)
     })
-    const workspaces = [
-      { id: 1, name: 'Acme' },
-      { id: 2, name: 'Side project' },
-    ]
-    for (const workspace of workspaces) {
-      await store.dispatch('workspace/forceCreate', workspace)
-      // Loaded, so that they aren't fetched.
-      store.commit('workspace/SET_PERMISSIONS', {
-        workspaceId: workspace.id,
-        permissions: [],
-      })
-    }
-    store.commit('workspace/SET_SELECTED', store.getters['workspace/get'](1))
     const database = { type: 'database', tables: [] }
-    const applications = [
-      { id: 11, name: 'CRM', workspace: { id: 1 }, ...database },
-      { id: 12, name: 'Tasks', workspace: { id: 1 }, ...database },
-      { id: 21, name: 'Notes', workspace: { id: 2 }, ...database },
-    ]
-    for (const application of applications) {
-      await store.dispatch('application/forceCreate', application)
-    }
+    await seedWorkspaces(
+      store,
+      [
+        { id: 1, name: 'Acme' },
+        { id: 2, name: 'Side project' },
+      ],
+      [
+        { id: 11, name: 'CRM', workspace: { id: 1 }, ...database },
+        { id: 12, name: 'Tasks', workspace: { id: 1 }, ...database },
+        { id: 21, name: 'Notes', workspace: { id: 2 }, ...database },
+      ]
+    )
   })
 
   afterEach(async () => {
@@ -138,12 +120,6 @@ describe('UpdateUserTemplateModal', () => {
 
   const isModalOpen = (wrapper) =>
     wrapper.findComponent({ name: 'Modal' }).vm.open
-
-  const updateJob = async (data) => {
-    const job = testApp.store.getters['job/get'](7)
-    await testApp.store.dispatch('job/forceUpdate', { job, data })
-    await flushPromises()
-  }
 
   describe('details', () => {
     test('are prefilled from the template', async () => {
@@ -392,7 +368,10 @@ describe('UpdateUserTemplateModal', () => {
     test('closes and refreshes when the template is updated', async () => {
       const wrapper = await startContentUpdate()
 
-      await updateJob({ state: 'finished', progress_percentage: 100 })
+      await updateJob(testApp.store, 7, {
+        state: 'finished',
+        progress_percentage: 100,
+      })
 
       expect(isModalOpen(wrapper)).toBe(false)
       expect(testApp.store.state.toast.items[0]).toMatchObject({
@@ -407,7 +386,7 @@ describe('UpdateUserTemplateModal', () => {
     test('is handled as updated when it failed after the revision', async () => {
       const wrapper = await startContentUpdate()
 
-      await updateJob({
+      await updateJob(testApp.store, 7, {
         state: 'failed',
         human_readable_error: 'Failed',
         revision: 8,
@@ -425,7 +404,10 @@ describe('UpdateUserTemplateModal', () => {
     test('shows why the job failed', async () => {
       const wrapper = await startContentUpdate()
 
-      await updateJob({ state: 'failed', human_readable_error: 'Denied' })
+      await updateJob(testApp.store, 7, {
+        state: 'failed',
+        human_readable_error: 'Denied',
+      })
 
       expect(isModalOpen(wrapper)).toBe(true)
       expect(wrapper.text()).toContain('Denied')
@@ -440,7 +422,10 @@ describe('UpdateUserTemplateModal', () => {
       const wrapper = await startContentUpdate()
       wrapper.vm.hide()
 
-      await updateJob({ state: 'failed', human_readable_error: 'Denied' })
+      await updateJob(testApp.store, 7, {
+        state: 'failed',
+        human_readable_error: 'Denied',
+      })
 
       expect(testApp.store.state.toast.items).toHaveLength(1)
       expect(testApp.store.state.toast.items[0]).toMatchObject({
@@ -459,7 +444,10 @@ describe('UpdateUserTemplateModal', () => {
       await flushPromises()
       wrapper.vm.hide()
 
-      await updateJob({ state: 'failed', human_readable_error: 'Denied' })
+      await updateJob(testApp.store, 7, {
+        state: 'failed',
+        human_readable_error: 'Denied',
+      })
       await wrapper.vm.show()
       await flushPromises()
 
@@ -485,7 +473,10 @@ describe('UpdateUserTemplateModal', () => {
         await mountAndShow('content'),
       ]
 
-      await updateJob({ state: 'finished', progress_percentage: 100 })
+      await updateJob(testApp.store, 7, {
+        state: 'finished',
+        progress_percentage: 100,
+      })
 
       expect(testApp.store.state.toast.items).toHaveLength(1)
       expect(refreshed).toBe(1)
@@ -527,13 +518,8 @@ describe('UpdateUserTemplateModal', () => {
     })
 
     test('keeps an update that is still being sent when shown again', async () => {
-      let respond = null
-      testApp.mock.onPost('/jobs/').reply(
-        () =>
-          new Promise((resolve) => {
-            respond = resolve
-          })
-      )
+      const jobRequest = heldBack()
+      testApp.mock.onPost('/jobs/').reply(jobRequest.reply)
       const wrapper = await mountAndShow('details')
       await wrapper.find('input').setValue('Sprints')
       await saveButton(wrapper).trigger('click')
@@ -548,7 +534,7 @@ describe('UpdateUserTemplateModal', () => {
       expect(wrapper.find('input').element.value).toBe('Sprints')
       expect(saveButton(wrapper).attributes('disabled')).toBeDefined()
 
-      respond([200, runningJob()])
+      jobRequest.send([200, runningJob()])
       await flushPromises()
 
       expect(wrapper.find('input').element.value).toBe('Sprints')

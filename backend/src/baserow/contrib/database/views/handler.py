@@ -1174,29 +1174,41 @@ class ViewHandler:
         return duplicated_view
 
     def _check_view_configuration_permissions(
-        self, user: AbstractUser, view: View, categories: Iterable[str]
+        self,
+        user: AbstractUser,
+        view: View,
+        categories: Iterable[str],
+        is_source: bool = False,
     ):
         """
         Checks in one batch that the user is allowed to configure all the requested
         categories on the given view. The same check is applied to the source and
         the destination of a copy because the ownership managers hide configuration
         from users that lack these write operations, so a read check alone would
-        leak configuration that the interface hides.
+        leak configuration that the interface hides, except for a source whose
+        configuration is visible to everyone who can read it, see
+        `get_source_operation_types`.
 
         :param user: The user on whose behalf the permissions are checked.
         :param view: The view that the categories are configured on.
         :param categories: The category types that must be checked.
+        :param is_source: Whether the view is the source of the copy.
         :raises PermissionException: When the user is not allowed to configure one
             of the categories on the view.
         """
 
-        checks = [
-            PermissionCheck(user, operation_type.type, view)
-            for category in categories
-            for operation_type in view_configuration_copy_category_type_registry.get(
-                category
-            ).operation_types
-        ]
+        checks = []
+        for category in categories:
+            category_type = view_configuration_copy_category_type_registry.get(category)
+            operation_types = (
+                category_type.get_source_operation_types(view)
+                if is_source
+                else category_type.operation_types
+            )
+            checks.extend(
+                PermissionCheck(user, operation_type.type, view)
+                for operation_type in operation_types
+            )
         CoreHandler().check_multiple_permissions(
             checks,
             workspace=view.table.database.workspace,
@@ -1366,7 +1378,9 @@ class ViewHandler:
             workspace=dest_view.table.database.workspace,
             context=source_view,
         )
-        self._check_view_configuration_permissions(user, source_view, categories)
+        self._check_view_configuration_permissions(
+            user, source_view, categories, is_source=True
+        )
 
         configuration = self.export_view_configuration(source_view, categories)
         self.apply_view_configuration(user, dest_view, configuration)
@@ -5547,8 +5561,14 @@ class ViewHandler:
             value = item.get("value")
             func_name = item.get("function")
 
-            # Validate function against field type.
             field_obj = model._field_objects[field_id]
+            if field_obj["type"].write_only:
+                raise ValidationError(
+                    f"Field of type {field_obj['type'].type} can't have a default "
+                    "value."
+                )
+
+            # Validate function against field type.
             if func_name:
                 supported = field_obj["type"].get_supported_default_value_functions()
                 if func_name not in supported:
@@ -5629,6 +5649,8 @@ class ViewHandler:
             field_obj = model._field_objects[field_id]
             field = field_obj["field"]
             field_type = field_obj["type"]
+            if field_type.write_only:
+                continue
             field_name = field_obj["name"]
             supported_functions = field_type.get_supported_default_value_functions()
 

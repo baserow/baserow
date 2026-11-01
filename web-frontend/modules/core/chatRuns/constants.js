@@ -7,6 +7,8 @@ export const TEXT_DELTA = 'text.delta'
 export const PROGRESS = 'progress'
 export const RUN_CANCEL_REQUESTED = 'run.cancel_requested'
 export const RUN_FINISHED = 'run.finished'
+export const RUN_BASELINE = 'run.baseline'
+export const RUN_HEARTBEAT = 'run.heartbeat'
 
 export const RUN_STATUS = {
   QUEUED: 'queued',
@@ -17,6 +19,8 @@ export const RUN_STATUS = {
 }
 
 export const STATUS_CHECK_MS = 5000
+// A quiet stream sends a heartbeat about every 5 s, so this much silence means it stalled.
+export const STREAM_IDLE_MS = 15000
 export const MAX_RECONNECT_ATTEMPTS = 3
 export const MAX_FINISHED_FOLLOWERS = 20
 

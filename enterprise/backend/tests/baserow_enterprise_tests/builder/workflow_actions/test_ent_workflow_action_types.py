@@ -79,3 +79,26 @@ def test_import_workflow_action(
     for key, value in pytest_params.items():
         if key != "service":
             assert getattr(workflow_action, key) == value
+
+
+@pytest.mark.django_db
+def test_untrusted_code_action_cannot_execute(enterprise_data_fixture):
+    """Block before calling the code runner, even when dispatching directly."""
+
+    from baserow.core.services.exceptions import (
+        ServiceImproperlyConfiguredDispatchException,
+    )
+    from baserow_enterprise.builder.workflow_actions.workflow_action_types import (
+        CoreCodeActionType,
+    )
+
+    builder = enterprise_data_fixture.create_builder_application(untrusted_content=True)
+    page = enterprise_data_fixture.create_builder_page(builder=builder)
+    action_type = CoreCodeActionType()
+    action = enterprise_data_fixture.create_workflow_action(
+        action_type.model_class,
+        page=page,
+        **action_type.get_pytest_params(enterprise_data_fixture),
+    )
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException, match="trusted"):
+        action_type.dispatch(action, None)

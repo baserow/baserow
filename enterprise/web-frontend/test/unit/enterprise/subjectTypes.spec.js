@@ -46,9 +46,7 @@ describe('TeamSubjectType', () => {
       name: 'Management',
       subtitle: '2 members',
       search: 'Management',
-      initials: '',
-      icon: 'iconoir-community',
-      color: 'neutral',
+      avatarComponent: expect.any(Function),
     })
     expect(subjectType.getBadge()).toBe('Team')
   })

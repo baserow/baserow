@@ -68,6 +68,18 @@
   color: $palette-neutral-900;
 }
 
+.invite-list__items--scrollable {
+  // Show five full rows and half of the next as a cue that the list scrolls.
+  max-height: 357px;
+  padding-right: 12px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+
+  .invite-list__item {
+    min-height: 65px;
+  }
+}
+
 .invite-list__empty {
   padding: 32px 16px;
   text-align: center;

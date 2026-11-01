@@ -132,10 +132,12 @@ export const routes = [
             path: 'members',
             file: path.resolve(__dirname, 'pages/settings/members.vue'),
           },
+          // Pending invitations are managed from the invite modal on the members
+          // page now, this keeps old links to the invites page working.
           {
-            name: 'settings-invites',
+            name: 'settings-invites-redirect',
             path: 'invites',
-            file: path.resolve(__dirname, 'pages/settings/invites.vue'),
+            redirect: { name: 'settings-members' },
           },
           {
             name: 'settings-agents',
