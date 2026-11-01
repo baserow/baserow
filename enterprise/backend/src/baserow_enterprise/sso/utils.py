@@ -1,13 +1,37 @@
-from typing import Callable
+import secrets
+from typing import Callable, Optional
 
 from django.conf import settings
+from django.contrib.sessions.backends.base import SessionBase
 
 import requests
 
 import advocate
 from baserow_enterprise.features import SSO
+from baserow_enterprise.sso.exceptions import AuthFlowError
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
 from baserow_premium.license.handler import LicenseHandler
+
+
+def consume_oauth_state_or_raise(session: SessionBase, state: Optional[str]) -> None:
+    """
+    Checks the state returned to an OAuth2 callback against the one the login view
+    stored in the session, which ties the callback to the browser that started the
+    flow. The stored state is always removed, so it can only be used once.
+
+    :param session: Django session object holding the stored state.
+    :param state: The state query parameter of the callback.
+    :raises AuthFlowError: If the state is missing or doesn't match.
+    """
+
+    expected_state = session.pop("oauth_state", None)
+    # Compared as bytes because compare_digest rejects non ASCII strings.
+    if (
+        not state
+        or not expected_state
+        or not secrets.compare_digest(state.encode(), expected_state.encode())
+    ):
+        raise AuthFlowError("The OAuth2 state is missing or invalid.")
 
 
 def get_sso_request_function() -> Callable:

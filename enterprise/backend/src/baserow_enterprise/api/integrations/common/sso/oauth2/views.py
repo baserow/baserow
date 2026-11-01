@@ -36,6 +36,7 @@ from baserow_enterprise.integrations.common.sso.oauth2.app_auth_provider_types i
     OpenIdConnectAppAuthProviderType,
 )
 from baserow_enterprise.sso.exceptions import AuthFlowError
+from baserow_enterprise.sso.utils import consume_oauth_state_or_raise
 
 
 class OAuth2LoginView(APIView):
@@ -239,6 +240,10 @@ class OAuth2CallbackView(APIView):
             },
             on_error=on_error,
         ):
+            consume_oauth_state_or_raise(
+                request.session, request.query_params.get("state", None)
+            )
+
             code = request.query_params.get("code", None)
 
             user_info, original_url = provider.get_type().get_user_info(
