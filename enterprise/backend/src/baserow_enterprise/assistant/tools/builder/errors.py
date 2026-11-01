@@ -22,21 +22,12 @@ def _user_error_mapping() -> dict[type[Exception], Any]:
 
     from baserow.contrib.builder.api.data_sources import errors as dse
     from baserow.contrib.builder.api.elements import errors as ee
-    from baserow.contrib.builder.api.pages import errors as pe
     from baserow.contrib.builder.api.workflow_actions import errors as wae
     from baserow.contrib.builder.data_sources import exceptions as ds
     from baserow.contrib.builder.elements import exceptions as e
-    from baserow.contrib.builder.pages import exceptions as p
     from baserow.contrib.builder.workflow_actions import exceptions as wa
 
     return {
-        p.PagePathNotUnique: pe.ERROR_PAGE_PATH_NOT_UNIQUE,
-        p.PathParamNotInPath: pe.ERROR_PATH_PARAM_NOT_IN_PATH,
-        p.PathParamNotDefined: pe.ERROR_PATH_PARAM_NOT_DEFINED,
-        p.DuplicatePathParamsInPath: pe.ERROR_DUPLICATE_PATH_PARAMS_IN_PATH,
-        p.InvalidQueryParamName: pe.ERROR_INVALID_QUERY_PARAM_NAME,
-        p.DuplicatePageParams: pe.ERROR_DUPLICATE_QUERY_PARAMS,
-        p.SharedPageIsReadOnly: pe.ERROR_SHARED_PAGE_READ_ONLY,
         e.ElementNotInSamePage: ee.ERROR_ELEMENT_NOT_IN_SAME_PAGE,
         e.ElementMoveNotAllowed: ee.ERROR_ELEMENT_MOVE_NOT_ALLOWED,
         e.ElementTypeDeactivated: ee.ERROR_ELEMENT_TYPE_DEACTIVATED,

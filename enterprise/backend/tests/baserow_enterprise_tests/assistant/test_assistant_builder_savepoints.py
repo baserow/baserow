@@ -35,6 +35,7 @@ from baserow_enterprise.assistant.tools.builder.types import (
     PageCreate,
     PageUpdate,
 )
+from baserow_enterprise.assistant.tools.builder.types.page import PageQueryParam
 from baserow_enterprise.assistant.tools.builder.types.workflow_action import (
     FieldValueMapping,
 )
@@ -461,3 +462,23 @@ def test_failed_element_leaves_no_ghost_in_the_cached_elements(site, monkeypatch
     saved = list(Element.objects.filter(page=site["page"]).values_list("id", flat=True))
     assert cached == saved
     assert cached_in_builder == saved
+
+
+@pytest.mark.django_db
+def test_create_pages_words_a_page_error_like_update_page(site):
+    result = create_pages(
+        site["ctx"],
+        application_id=site["builder"].id,
+        pages=[
+            PageCreate(
+                name="Item",
+                path="/item/:id",
+                query_params=[PageQueryParam(name="id")],
+            )
+        ],
+        thought="test",
+    )
+
+    [error] = result["errors"]
+    assert error.startswith("Item: The query param id ")
+    assert error.endswith(". This page was not created.")

@@ -360,11 +360,23 @@ def ensure_distinct_paths(pages: list[PageCreate]) -> None:
         pages_by_path[generalised] = page
 
 
+# Raised for a page's path or parameters.
+_PAGE_PARAM_ERRORS = (
+    PathParamNotInPath,
+    PathParamNotDefined,
+    DuplicatePathParamsInPath,
+    InvalidPagePathParamType,
+    InvalidQueryParamName,
+    DuplicatePageParams,
+)
+
+
 def create_page(user: AbstractUser, builder: Builder, page_create: PageCreate) -> Page:
     """
     Create a page in a builder application.
 
-    :raises ToolInputError: When another page already uses the path.
+    :raises ToolInputError: When another page already uses the path, or the path or
+        parameters are not valid.
     """
 
     svc = PageService()
@@ -382,6 +394,8 @@ def create_page(user: AbstractUser, builder: Builder, page_create: PageCreate) -
         raise _taken_path_error(
             builder, page_create.path, outcome="This page was not created."
         )
+    except _PAGE_PARAM_ERRORS as exc:
+        raise ToolInputError(f"{exc}. This page was not created.")
 
     # PageService.create_page doesn't accept visibility/role kwargs,
     # so we update them separately if non-default.
@@ -436,9 +450,6 @@ def update_page(
         except ValueError as exc:
             raise ToolInputError(f"{exc} Nothing was changed in this call.") from exc
         kwargs["path_params"] = [param.model_dump() for param in path_params]
-        # The handler checks the query params against the path params only when
-        # they're given.
-        kwargs.setdefault("query_params", page.query_params)
     if kwargs:
         try:
             PageService().update_page(user, page, **kwargs)
@@ -450,14 +461,7 @@ def update_page(
             raise ToolInputError(
                 f"Page {page.id} is the shared page, which can't be changed."
             )
-        except (
-            PathParamNotInPath,
-            PathParamNotDefined,
-            DuplicatePathParamsInPath,
-            InvalidPagePathParamType,
-            InvalidQueryParamName,
-            DuplicatePageParams,
-        ) as exc:
+        except _PAGE_PARAM_ERRORS as exc:
             raise ToolInputError(f"{exc}. Nothing was changed in this call.")
         page.refresh_from_db()
     return page
