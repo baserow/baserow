@@ -2,7 +2,7 @@ from contextlib import ContextDecorator
 from enum import Enum
 from functools import wraps
 from typing import Callable, Dict, Optional, Type
-from urllib.parse import urljoin, urlparse
+from urllib.parse import ParseResult, urljoin, urlparse
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -12,6 +12,8 @@ from django.shortcuts import redirect
 from requests.models import PreparedRequest
 
 from baserow.core.user.utils import generate_session_tokens_for_user, sign_user_session
+
+DEFAULT_PORTS = {"http": 80, "https": 443}
 
 
 # please keep this in sync with baserow_enterprise/locales/en.json
@@ -118,6 +120,39 @@ def redirect_to_sign_in_error_page(
     return redirect(frontend_error_page_url)
 
 
+def _parse_requested_frontend_url(url: str) -> ParseResult | None:
+    """
+    Parses a url requested by the client.
+
+    :param url: The requested url.
+    :return: The parsed url, or None if it has userinfo, a backslash, a control
+        character or can't be parsed, because urlparse and browsers can then disagree
+        on the host.
+    """
+
+    if "\\" in url or any(ord(char) < 32 or ord(char) == 127 for char in url):
+        return None
+
+    try:
+        parsed = urlparse(url)
+        # Reading the port raises if it's invalid.
+        _ = parsed.port
+    except ValueError:
+        return None
+
+    return None if "@" in parsed.netloc else parsed
+
+
+def _get_url_origin(parsed: ParseResult) -> tuple[str, str | None, int | None]:
+    """
+    Returns the scheme, host and port of the parsed url, so that a case or a default
+    port difference doesn't count as a different origin.
+    """
+
+    port = parsed.port or DEFAULT_PORTS.get(parsed.scheme)
+    return parsed.scheme, parsed.hostname, port
+
+
 def get_valid_frontend_url(
     requested_original_url: Optional[str] = None,
     query_params: Optional[Dict[str, str]] = None,
@@ -139,7 +174,7 @@ def get_valid_frontend_url(
     :return: The url with the token as a query parameter.
     """
 
-    requested_url_parsed = urlparse(requested_original_url or "")
+    requested_url_parsed = _parse_requested_frontend_url(requested_original_url or "")
 
     if default_frontend_urls is None:
         default_frontend_urls = [get_frontend_default_redirect_url()]
@@ -149,7 +184,10 @@ def get_valid_frontend_url(
 
     matching_url = default_frontend_url_parsed
 
-    if requested_url_parsed.hostname is None:
+    if requested_url_parsed is None:
+        requested_url_parsed = default_frontend_url_parsed
+
+    elif requested_url_parsed.hostname is None:
         # provide a correct absolute url if the requested one is relative
         requested_url_parsed = default_frontend_url_parsed._replace(
             path=requested_url_parsed.path
@@ -158,14 +196,16 @@ def get_valid_frontend_url(
     else:
         found = False
         for allowed_url in default_frontend_urls_parsed:
-            if (
-                requested_url_parsed.hostname == allowed_url.hostname
-                and requested_url_parsed.scheme in ("http", "https")
-            ):
+            if _get_url_origin(requested_url_parsed) == _get_url_origin(allowed_url):
                 matching_url = allowed_url
                 found = True
 
-        if not found:
+        if found:
+            # The redirect origin only ever comes from the allowed url.
+            requested_url_parsed = requested_url_parsed._replace(
+                scheme=matching_url.scheme, netloc=matching_url.netloc
+            )
+        else:
             # None are matching -> redirecting to main homepage
             requested_url_parsed = default_frontend_url_parsed
             matching_url = default_frontend_url_parsed
@@ -272,10 +312,9 @@ def get_standardized_url(url: str) -> str:
 
     parsed = urlparse(url)
 
-    default_ports = {"http": 80, "https": 443}
     netloc = (
         parsed.hostname
-        if parsed.port == default_ports.get(parsed.scheme)
+        if parsed.port == DEFAULT_PORTS.get(parsed.scheme)
         else parsed.netloc
     )
     path = (

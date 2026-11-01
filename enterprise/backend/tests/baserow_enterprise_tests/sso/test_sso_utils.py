@@ -144,6 +144,125 @@ def test_get_valid_front_url_w_params():
     )
 
 
+@pytest.mark.parametrize(
+    "requested_url",
+    [
+        # A browser reads the backslash as the end of the host, urlparse doesn't.
+        "https://attacker.example\\@localhost:3000/all-workspaces",
+        "http://attacker.example\\@localhost:3000/all-workspaces",
+        "http://localhost:3000\\.attacker.example/",
+        # Userinfo.
+        "https://attacker.example@localhost:3000/",
+        "http://attacker.example@localhost:3000/",
+        "http://user:password@localhost:3000/",
+        # Control characters.
+        "http://attacker.example\t@localhost:3000/",
+        "http://local\thost:3000/",
+        "http://localhost:3000/\ndashboard",
+        "http://localhost:3000/dash\r\nboard",
+        "http://localhost:3000/dash\x01board",
+        "http://localhost:3000/dash\x7fboard",
+        "\x01http://localhost:3000/dashboard",
+        "/\tdashboard",
+        "/\t/attacker.example",
+        # Relative urls a browser resolves to another host.
+        "/\\attacker.example",
+        "\\\\attacker.example",
+        "//attacker.example",
+        # Another origin on an allowed host.
+        "https://localhost:3000/dashboard",
+        "http://localhost:4000/dashboard",
+        # Urls urlparse can't fully parse.
+        "http://[attacker.example/",
+        "http://localhost:99999/",
+    ],
+)
+@pytest.mark.parametrize("allow_any_path", [True, False])
+def test_get_valid_front_url_falls_back_to_default_on_unsafe_url(
+    requested_url, allow_any_path
+):
+    assert (
+        get_valid_frontend_url(
+            requested_url,
+            query_params={"token": "secret"},
+            allow_any_path=allow_any_path,
+        )
+        == "http://localhost:3000/all-workspaces?token=secret"
+    )
+
+
+def test_get_valid_front_url_with_defaults_falls_back_on_unsafe_url():
+    defaults = ["https://app.com:3000/", "https://other.net/preview/"]
+    for requested_url in [
+        "https://attacker.example\\@other.net/preview/",
+        "https://attacker.example@other.net/preview/",
+        "https://other.net:8443/preview/",
+        "http://other.net/preview/",
+    ]:
+        assert (
+            get_valid_frontend_url(
+                requested_url,
+                default_frontend_urls=defaults,
+                allow_any_path=False,
+            )
+            == "https://app.com:3000/"
+        )
+
+
+def test_get_valid_front_url_keeps_legitimate_urls():
+    assert get_valid_frontend_url("/dashboard") == "http://localhost:3000/dashboard"
+    assert get_valid_frontend_url("/a%5Cb%20c") == "http://localhost:3000/a%5Cb%20c"
+    assert get_valid_frontend_url("http://localhost:3000/dashboard?a=1#b") == (
+        "http://localhost:3000/dashboard?a=1#b"
+    )
+    # A case or default port difference is the same origin.
+    assert get_valid_frontend_url("HTTP://LOCALHOST:3000/dashboard") == (
+        "http://localhost:3000/dashboard"
+    )
+
+    defaults = ["https://test.com/toto", "http://random.net/"]
+    for requested_url, expected_url in [
+        ("https://test.com:443/toto/sub", "https://test.com/toto/sub"),
+        ("HTTPS://TEST.com/toto/sub", "https://test.com/toto/sub"),
+    ]:
+        assert (
+            get_valid_frontend_url(
+                requested_url, default_frontend_urls=defaults, allow_any_path=False
+            )
+            == expected_url
+        )
+    assert get_valid_frontend_url(
+        "http://random.net:80/sub", default_frontend_urls=defaults
+    ) == ("http://random.net/sub")
+
+    assert (
+        get_valid_frontend_url(
+            "https://test.com/sub", default_frontend_urls=["https://test.com:443/"]
+        )
+        == "https://test.com:443/sub"
+    )
+
+
+def test_get_valid_front_url_matches_the_allowed_url_with_the_same_port():
+    defaults = ["http://test.com:3000", "http://test.com:4000/builder/preview/1/"]
+    assert (
+        get_valid_frontend_url(
+            "http://test.com:3000/login",
+            default_frontend_urls=defaults,
+            allow_any_path=False,
+        )
+        == "http://test.com:3000/login"
+    )
+    assert (
+        get_valid_frontend_url(
+            "http://test.com:4000/builder/preview/1/login",
+            default_frontend_urls=defaults,
+            allow_any_path=False,
+        )
+        == "http://test.com:4000/builder/preview/1/login"
+    )
+
+
 @pytest.mark.django_db()
 def test_urlencode_user_tokens(enterprise_data_fixture):
     user = enterprise_data_fixture.create_user()

@@ -179,6 +179,36 @@ def test_builder_saml_baserow_initiated_login_view(
 
 @pytest.mark.django_db()
 @override_settings(DEBUG=True)
+@pytest.mark.parametrize(
+    "relay_state",
+    [
+        "http://attacker.example\\@test.com:3000/login",
+        "http://attacker.example@test.com:3000/login",
+    ],
+)
+def test_builder_saml_acs_does_not_send_the_token_to_a_smuggled_host(
+    data_fixture, api_client, enterprise_data_fixture, relay_state
+):
+    (
+        metadata,
+        saml_response,
+    ) = enterprise_data_fixture.get_valid_saml_idp_metadata_and_response_for_builder()
+    publish_builder_with_saml_provider(data_fixture, metadata)
+
+    with freeze_time("2024-12-17T15:53:00.00Z"):
+        response = api_client.post(
+            reverse("api:user_sources:sso_saml:acs"),
+            data={"SAMLResponse": saml_response, "RelayState": relay_state},
+        )
+
+    assert response.status_code == HTTP_302_FOUND
+    location = response.headers["Location"]
+    assert location.startswith("http://test.com:3000/?user_source_saml_token__")
+    assert "attacker.example" not in location
+
+
+@pytest.mark.django_db()
+@override_settings(DEBUG=True)
 def test_builder_saml_assertion_consumer_service(
     data_fixture, api_client, enterprise_data_fixture, settings
 ):

@@ -464,6 +464,44 @@ def test_saml_assertion_consumer_service(api_client, enterprise_data_fixture):
 
 @pytest.mark.django_db()
 @override_settings(DEBUG=True)
+@pytest.mark.parametrize(
+    "relay_state",
+    [
+        "https://attacker.example\\@localhost:3000/all-workspaces",
+        "http://attacker.example\\@localhost:3000/all-workspaces",
+        "https://attacker.example@localhost:3000/",
+        "http://attacker.example@localhost:3000/",
+        "http://attacker.example\t@localhost:3000/",
+        "/\\attacker.example",
+        "//attacker.example",
+    ],
+)
+def test_saml_acs_does_not_send_the_token_to_a_smuggled_host(
+    api_client, enterprise_data_fixture, relay_state
+):
+    enterprise_data_fixture.enable_enterprise()
+    (
+        metadata,
+        saml_response,
+    ) = enterprise_data_fixture.get_valid_saml_idp_metadata_and_response()
+    enterprise_data_fixture.create_saml_auth_provider(
+        domain="baserow.io", metadata=metadata
+    )
+
+    with freeze_time("2022-11-23T14:23:25.00Z"):
+        response = api_client.post(
+            reverse("api:enterprise_sso_saml:acs"),
+            data={"SAMLResponse": saml_response, "RelayState": relay_state},
+        )
+
+    assert response.status_code == HTTP_302_FOUND
+    location = response.headers["Location"]
+    assert location.startswith(f"{get_frontend_default_redirect_url()}?token=")
+    assert "attacker.example" not in location
+
+
+@pytest.mark.django_db()
+@override_settings(DEBUG=True)
 def test_saml_acs_returns_to_the_mcp_consent_page(api_client, enterprise_data_fixture):
     # The MCP consent page carries the authorize request in its path, because the
     # ACS drops the RelayState query.
