@@ -471,7 +471,10 @@ def test_saml_assertion_consumer_service(api_client, enterprise_data_fixture):
         "http://attacker.example\\@localhost:3000/all-workspaces",
         "https://attacker.example@localhost:3000/",
         "http://attacker.example@localhost:3000/",
+        # The serializer's urlparse removes the tab, so `@` is what rejects this.
         "http://attacker.example\t@localhost:3000/",
+        # This control character does reach get_valid_frontend_url.
+        "http://localhost:3000/dash\x01board",
         "/\\attacker.example",
         "//attacker.example",
     ],
@@ -498,6 +501,87 @@ def test_saml_acs_does_not_send_the_token_to_a_smuggled_host(
     location = response.headers["Location"]
     assert location.startswith(f"{get_frontend_default_redirect_url()}?token=")
     assert "attacker.example" not in location
+
+
+@pytest.mark.django_db()
+@override_settings(DEBUG=True)
+def test_saml_acs_removes_tabs_from_the_relay_state_before_validating_it(
+    api_client, enterprise_data_fixture
+):
+    # The fail closed on tabs and newlines can't apply on this route: the serializer
+    # rewrites the RelayState first, the same way a browser would read it.
+    enterprise_data_fixture.enable_enterprise()
+    (
+        metadata,
+        saml_response,
+    ) = enterprise_data_fixture.get_valid_saml_idp_metadata_and_response()
+    enterprise_data_fixture.create_saml_auth_provider(
+        domain="baserow.io", metadata=metadata
+    )
+
+    with freeze_time("2022-11-23T14:23:25.00Z"):
+        response = api_client.post(
+            reverse("api:enterprise_sso_saml:acs"),
+            data={
+                "SAMLResponse": saml_response,
+                "RelayState": "http://localhost:3000/\tdashboard",
+            },
+        )
+
+    assert response.status_code == HTTP_302_FOUND
+    assert response.headers["Location"].startswith(
+        "http://localhost:3000/dashboard?token="
+    )
+
+
+@pytest.mark.django_db()
+@override_settings(DEBUG=True)
+def test_saml_acs_unparsable_relay_state_redirects_to_the_error_page(
+    api_client, enterprise_data_fixture
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    response = api_client.post(
+        reverse("api:enterprise_sso_saml:acs"),
+        data={"SAMLResponse": "unused", "RelayState": "http://[x/"},
+    )
+
+    assert response.status_code == HTTP_302_FOUND
+    assert (
+        response.headers["Location"]
+        == f"{get_frontend_login_error_url()}?error=errorInvalidSamlResponse"
+    )
+
+
+@pytest.mark.django_db()
+@override_settings(DEBUG=True)
+def test_saml_login_ignores_an_unparsable_original(api_client, enterprise_data_fixture):
+    enterprise_data_fixture.create_saml_auth_provider(domain="test1.com")
+    enterprise_data_fixture.enable_enterprise()
+
+    response = api_client.get(
+        reverse("api:enterprise_sso_saml:login"), {"original": "http://[x"}
+    )
+
+    assert response.status_code == HTTP_302_FOUND
+    query_params = dict(parse_qsl(urlparse(response.headers["Location"]).query))
+    assert query_params["RelayState"] == get_frontend_default_redirect_url()
+
+
+@pytest.mark.django_db()
+@override_settings(DEBUG=True)
+def test_saml_login_url_ignores_an_unparsable_original(
+    api_client, enterprise_data_fixture
+):
+    enterprise_data_fixture.create_saml_auth_provider(domain="test1.com")
+    enterprise_data_fixture.enable_enterprise()
+
+    response = api_client.get(
+        reverse("api:enterprise_sso_saml:login_url"), {"original": "http://[x"}
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert "original" not in response.json()["redirect_url"]
 
 
 @pytest.mark.django_db()

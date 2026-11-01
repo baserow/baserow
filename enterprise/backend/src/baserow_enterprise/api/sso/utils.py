@@ -2,7 +2,7 @@ from contextlib import ContextDecorator
 from enum import Enum
 from functools import wraps
 from typing import Callable, Dict, Optional, Type
-from urllib.parse import ParseResult, urljoin, urlparse
+from urllib.parse import ParseResult, parse_qsl, urlencode, urljoin, urlparse
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -13,7 +13,13 @@ from requests.models import PreparedRequest
 
 from baserow.core.user.utils import generate_session_tokens_for_user, sign_user_session
 
-DEFAULT_PORTS = {"http": 80, "https": 443}
+# The frontend ignores a login callback unless it finds exactly one of these.
+SSO_CALLBACK_PARAM_PREFIXES = (
+    "user_source_saml_token__",
+    "user_source_oidc_token__",
+    "saml_error__",
+    "oidc_error__",
+)
 
 
 # please keep this in sync with baserow_enterprise/locales/en.json
@@ -85,14 +91,44 @@ class map_sso_exceptions(ContextDecorator):
         return wrapped_function
 
 
+def is_sso_callback_param(name: str) -> bool:
+    """
+    :param name: The name of a query parameter.
+    :return: Whether the parameter carries the result of a user source login.
+    """
+
+    return name.startswith(SSO_CALLBACK_PARAM_PREFIXES)
+
+
+def _remove_query_params(query: str, should_remove: Callable[[str], bool]) -> str:
+    """
+    Removes the matching parameters from a query string. The query string is returned
+    as is if there are none.
+
+    :param query: The query string.
+    :param should_remove: Called with a parameter name, returns if it must be removed.
+    :return: The query string without the matching parameters.
+    """
+
+    params = parse_qsl(query, keep_blank_values=True)
+    kept_params = [param for param in params if not should_remove(param[0])]
+    return query if len(kept_params) == len(params) else urlencode(kept_params)
+
+
 def urlencode_query_params(url: str, query_params: Dict[str, str]) -> str:
     """
-    Adds the query parameters to the provided url.
+    Adds the query parameters to the provided url, replacing the ones with the same
+    name that the url already has.
 
     :param url: The url to which the query parameters should be added.
     :param query_params: The query parameters that should be added to the url.
     :return: The url with the query parameters added.
     """
+
+    parsed_url = urlparse(url)
+    url = parsed_url._replace(
+        query=_remove_query_params(parsed_url.query, query_params.__contains__)
+    ).geturl()
 
     req = PreparedRequest()
     req.prepare_url(url, query_params)
@@ -143,14 +179,15 @@ def _parse_requested_frontend_url(url: str) -> ParseResult | None:
     return None if "@" in parsed.netloc else parsed
 
 
-def _get_url_origin(parsed: ParseResult) -> tuple[str, str | None, int | None]:
+def _get_netloc_without_userinfo(parsed: ParseResult) -> str:
     """
-    Returns the scheme, host and port of the parsed url, so that a case or a default
-    port difference doesn't count as a different origin.
+    :param parsed: The parsed url. Its port must be valid.
+    :return: The host and port of the url, rebuilt from their parsed values.
     """
 
-    port = parsed.port or DEFAULT_PORTS.get(parsed.scheme)
-    return parsed.scheme, parsed.hostname, port
+    hostname = parsed.hostname
+    host = f"[{hostname}]" if ":" in hostname else hostname
+    return host if parsed.port is None else f"{host}:{parsed.port}"
 
 
 def get_valid_frontend_url(
@@ -196,14 +233,21 @@ def get_valid_frontend_url(
     else:
         found = False
         for allowed_url in default_frontend_urls_parsed:
-            if _get_url_origin(requested_url_parsed) == _get_url_origin(allowed_url):
+            if (
+                requested_url_parsed.hostname == allowed_url.hostname
+                and requested_url_parsed.scheme in ("http", "https")
+            ):
                 matching_url = allowed_url
                 found = True
 
         if found:
-            # The redirect origin only ever comes from the allowed url.
+            # A domain doesn't store its scheme and port, so the allowed url can't
+            # replace the requested ones. It can only prevent a downgrade to http.
             requested_url_parsed = requested_url_parsed._replace(
-                scheme=matching_url.scheme, netloc=matching_url.netloc
+                scheme="https"
+                if matching_url.scheme == "https"
+                else requested_url_parsed.scheme,
+                netloc=_get_netloc_without_userinfo(requested_url_parsed),
             )
         else:
             # None are matching -> redirecting to main homepage
@@ -214,9 +258,21 @@ def get_valid_frontend_url(
         if requested_url_parsed.path in ["", "/"]:
             # use the default frontend path if the requested one is empty
             requested_url_parsed = requested_url_parsed._replace(path=matching_url.path)
-    elif not requested_url_parsed.geturl().startswith(matching_url.geturl()):
+    elif (
+        not requested_url_parsed._replace(
+            scheme=matching_url.scheme, netloc=matching_url.netloc
+        )
+        .geturl()
+        .startswith(matching_url.geturl())
+    ):
         # if using a path that doesn't match the allowed urls, we reset to default url
-        requested_url_parsed = matching_url
+        requested_url_parsed = requested_url_parsed._replace(
+            path=matching_url.path, params="", query="", fragment=""
+        )
+
+    requested_url_parsed = requested_url_parsed._replace(
+        query=_remove_query_params(requested_url_parsed.query, is_sso_callback_param)
+    )
 
     if query_params:
         return urlencode_query_params(requested_url_parsed.geturl(), query_params)
@@ -312,9 +368,10 @@ def get_standardized_url(url: str) -> str:
 
     parsed = urlparse(url)
 
+    default_ports = {"http": 80, "https": 443}
     netloc = (
         parsed.hostname
-        if parsed.port == DEFAULT_PORTS.get(parsed.scheme)
+        if parsed.port == default_ports.get(parsed.scheme)
         else parsed.netloc
     )
     path = (

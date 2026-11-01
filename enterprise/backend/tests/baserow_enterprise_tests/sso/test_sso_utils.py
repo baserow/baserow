@@ -1,3 +1,5 @@
+from urllib.parse import parse_qs, urlparse
+
 from django.test.utils import override_settings
 
 import pytest
@@ -169,9 +171,9 @@ def test_get_valid_front_url_w_params():
         "/\\attacker.example",
         "\\\\attacker.example",
         "//attacker.example",
-        # Another origin on an allowed host.
-        "https://localhost:3000/dashboard",
-        "http://localhost:4000/dashboard",
+        # Allowed host with a scheme that can't be redirected to.
+        "ftp://localhost:3000/dashboard",
+        "javascript://localhost:3000/%0aalert(1)//",
         # Urls urlparse can't fully parse.
         "http://[attacker.example/",
         "http://localhost:99999/",
@@ -196,8 +198,7 @@ def test_get_valid_front_url_with_defaults_falls_back_on_unsafe_url():
     for requested_url in [
         "https://attacker.example\\@other.net/preview/",
         "https://attacker.example@other.net/preview/",
-        "https://other.net:8443/preview/",
-        "http://other.net/preview/",
+        "https://attacker.example/preview/",
     ]:
         assert (
             get_valid_frontend_url(
@@ -222,7 +223,7 @@ def test_get_valid_front_url_keeps_legitimate_urls():
 
     defaults = ["https://test.com/toto", "http://random.net/"]
     for requested_url, expected_url in [
-        ("https://test.com:443/toto/sub", "https://test.com/toto/sub"),
+        ("https://test.com:443/toto/sub", "https://test.com:443/toto/sub"),
         ("HTTPS://TEST.com/toto/sub", "https://test.com/toto/sub"),
     ]:
         assert (
@@ -231,36 +232,134 @@ def test_get_valid_front_url_keeps_legitimate_urls():
             )
             == expected_url
         )
-    assert get_valid_frontend_url(
-        "http://random.net:80/sub", default_frontend_urls=defaults
-    ) == ("http://random.net/sub")
-
+    assert (
+        get_valid_frontend_url(
+            "http://random.net:80/sub", default_frontend_urls=defaults
+        )
+        == "http://random.net:80/sub"
+    )
     assert (
         get_valid_frontend_url(
             "https://test.com/sub", default_frontend_urls=["https://test.com:443/"]
         )
-        == "https://test.com:443/sub"
-    )
-
-
-def test_get_valid_front_url_matches_the_allowed_url_with_the_same_port():
-    defaults = ["http://test.com:3000", "http://test.com:4000/builder/preview/1/"]
-    assert (
-        get_valid_frontend_url(
-            "http://test.com:3000/login",
-            default_frontend_urls=defaults,
-            allow_any_path=False,
-        )
-        == "http://test.com:3000/login"
+        == "https://test.com/sub"
     )
     assert (
         get_valid_frontend_url(
-            "http://test.com:4000/builder/preview/1/login",
-            default_frontend_urls=defaults,
+            "http://[::1]:3000/sub", default_frontend_urls=["http://[::1]:3000/"]
+        )
+        == "http://[::1]:3000/sub"
+    )
+
+
+@pytest.mark.parametrize("allow_any_path", [True, False])
+@pytest.mark.parametrize(
+    "requested_url,allowed_url,expected_url",
+    [
+        # A domain stores neither scheme nor port, so the allowed url gets them from
+        # PUBLIC_WEB_FRONTEND_URL. The site can really be served on another origin.
+        (
+            "https://shop.example.com/login?next=x",
+            "http://shop.example.com:3000",
+            "https://shop.example.com/login?next=x&t=1",
+        ),
+        (
+            "https://shop.example.com:8443/login",
+            "http://shop.example.com:3000",
+            "https://shop.example.com:8443/login?t=1",
+        ),
+        (
+            "http://shop.example.com:4000/login",
+            "http://shop.example.com:3000",
+            "http://shop.example.com:4000/login?t=1",
+        ),
+        # A crafted http link can't move the token to plain HTTP.
+        (
+            "http://shop.example.com/login",
+            "https://shop.example.com",
+            "https://shop.example.com/login?t=1",
+        ),
+        (
+            "http://shop.example.com:8443/login",
+            "https://shop.example.com:8443",
+            "https://shop.example.com:8443/login?t=1",
+        ),
+    ],
+)
+def test_get_valid_front_url_keeps_the_requested_origin_without_downgrading(
+    requested_url, allowed_url, expected_url, allow_any_path
+):
+    assert (
+        get_valid_frontend_url(
+            requested_url,
+            query_params={"t": "1"},
+            default_frontend_urls=[allowed_url],
+            allow_any_path=allow_any_path,
+        )
+        == expected_url
+    )
+
+
+def test_get_valid_front_url_path_outside_allowed_url_keeps_the_requested_origin():
+    assert (
+        get_valid_frontend_url(
+            "https://test.com/other?a=1",
+            default_frontend_urls=["http://test.com:3000/toto"],
             allow_any_path=False,
         )
-        == "http://test.com:4000/builder/preview/1/login"
+        == "https://test.com/toto"
     )
+
+
+@pytest.mark.parametrize("allow_any_path", [True, False])
+def test_get_valid_front_url_with_an_invalid_port_in_the_allowed_url(allow_any_path):
+    # A domain's name is stored free form, so the allowed url can have a bad port.
+    assert (
+        get_valid_frontend_url(
+            "https://shop.example.com/login",
+            query_params={"t": "1"},
+            default_frontend_urls=["http://shop.example.com:abc"],
+            allow_any_path=allow_any_path,
+        )
+        == "https://shop.example.com/login?t=1"
+    )
+
+
+def test_get_valid_front_url_removes_requested_callback_params():
+    defaults = ["http://test.com/"]
+    assert (
+        get_valid_frontend_url(
+            "http://test.com/p?a=1&user_source_oidc_token__1=ATTACKER"
+            "&user_source_saml_token__999=x&saml_error__1=e&oidc_error__2=e"
+            "&%75ser_source_saml_token__3=encoded",
+            query_params={"user_source_oidc_token__1": "real"},
+            default_frontend_urls=defaults,
+        )
+        == "http://test.com/p?a=1&user_source_oidc_token__1=real"
+    )
+
+
+def test_get_valid_front_url_keeps_other_requested_params_untouched():
+    assert (
+        get_valid_frontend_url(
+            "http://test.com/p?next=%2Ftoto&token=mine&empty=#frag",
+            default_frontend_urls=["http://test.com/"],
+        )
+        == "http://test.com/p?next=%2Ftoto&token=mine&empty=#frag"
+    )
+
+
+@pytest.mark.django_db()
+def test_urlencode_user_tokens_replaces_requested_tokens(enterprise_data_fixture):
+    user = enterprise_data_fixture.create_user()
+    url = urlencode_user_tokens(
+        "http://localhost:3000/dashboard?a=1&token=ATTACKER&user_session=ATTACKER", user
+    )
+    params = parse_qs(urlparse(url).query)
+    assert params["a"] == ["1"]
+    assert len(params["token"]) == 1
+    assert len(params["user_session"]) == 1
+    assert "ATTACKER" not in url
 
 
 @pytest.mark.django_db()
