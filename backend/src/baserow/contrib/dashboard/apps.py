@@ -166,6 +166,12 @@ class DashboardConfig(AppConfig):
             ListWidgetsMcpTool,
             UpdateWidgetsMcpTool,
         )
+        from baserow.contrib.dashboard.tools.registries import (
+            widget_tool_type_registry,
+        )
+        from baserow.contrib.dashboard.tools.widget_tool_types import (
+            SummaryWidgetToolType,
+        )
         from baserow.core.mcp.groups import (
             DashboardDeleteMCPToolGroup,
             DashboardEditMCPToolGroup,
@@ -173,6 +179,8 @@ class DashboardConfig(AppConfig):
             mcp_tool_group_registry,
         )
         from baserow.core.mcp.registries import mcp_tool_registry
+
+        widget_tool_type_registry.register(SummaryWidgetToolType())
 
         mcp_tool_group_registry.register(DashboardReadMCPToolGroup())
         mcp_tool_group_registry.register(DashboardEditMCPToolGroup())

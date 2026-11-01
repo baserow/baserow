@@ -5,7 +5,6 @@ import pytest
 from baserow.contrib.dashboard.data_sources.actions import (
     UpdateDashboardDataSourceActionType,
 )
-from baserow.contrib.dashboard.tools.types import WidgetUpdate
 from baserow.contrib.dashboard.tools.widgets import (
     create_widgets,
     delete_widgets,
@@ -222,9 +221,7 @@ def test_update_widget_changes_aggregation_only(dashboard_ctx, sales_table):
     ]["id"]
     Action.objects.all().delete()
 
-    result = update_widgets(
-        ctx, [WidgetUpdate(widget_id=widget_id, aggregation_type="max")]
-    )
+    result = update_widgets(ctx, [{"widget_id": widget_id, "aggregation_type": "max"}])
 
     assert result["errors"] == []
     (updated,) = result["updated"]

@@ -1,4 +1,4 @@
-from typing import cast
+from typing import Any, cast
 
 from django.db import IntegrityError
 from django.db.models import QuerySet
@@ -31,7 +31,45 @@ from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
 
 
-class ChartWidgetType(WidgetType):
+class SeriesConfigMixin:
+    """Keeps the configuration of a chart's series in step with its series."""
+
+    def series_config_for(
+        self, widget: Widget, restyle: bool = False
+    ) -> list[dict[str, Any]]:
+        """
+        One entry for each series of the chart's data source. The chart only
+        draws a series in its own type when the series has an entry. A series
+        that has one keeps its type and color, unless ``restyle`` draws every
+        series as the chart's type. Pass the result as ``series_config`` to an
+        update of the widget.
+
+        :param widget: The chart, with its data source already updated.
+        :param restyle: Whether every series takes the chart's type.
+        :return: The chart's ``series_config``.
+        """
+
+        widget.data_source.refresh_from_db()
+        service = widget.data_source.service.specific
+        existing = {
+            config.series_id: config.series_chart_type
+            for config in widget.series_config.all()
+        }
+        # Without series_color, so the update keeps the color a series has.
+        return [
+            {
+                "series_id": series.id,
+                "series_chart_type": (
+                    existing[series.id]
+                    if series.id in existing and not restyle
+                    else widget.default_series_chart_type
+                ),
+            }
+            for series in service.service_aggregation_series.all()
+        ]
+
+
+class ChartWidgetType(SeriesConfigMixin, WidgetType):
     type = "chart"
     model_class = ChartWidget
     grid_layout = WidgetGridLayout(
@@ -257,7 +295,7 @@ class ChartWidgetType(WidgetType):
         )
 
 
-class PieChartWidgetType(WidgetType):
+class PieChartWidgetType(SeriesConfigMixin, WidgetType):
     type = "pie_chart"
     model_class = PieChartWidget
     grid_layout = WidgetGridLayout(

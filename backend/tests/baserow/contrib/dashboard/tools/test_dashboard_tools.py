@@ -4,7 +4,6 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 
 import pydantic
 import pytest
-from pydantic import TypeAdapter
 
 from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.dashboard.tools.dashboards import (
@@ -12,7 +11,6 @@ from baserow.contrib.dashboard.tools.dashboards import (
     get_dashboard_in_workspace,
     list_dashboards,
 )
-from baserow.contrib.dashboard.tools.types import WidgetCreate
 from baserow.core.action.models import Action
 from baserow.core.actions import CreateApplicationActionType
 from baserow.core.exceptions import ApplicationDoesNotExist
@@ -141,37 +139,6 @@ def test_create_dashboards_caps_the_batch():
     names = schema.model_json_schema()["properties"]["names"]
     assert names["maxItems"] == 20
     assert names["minItems"] == 1
-
-
-def test_chart_widget_create_rejects_empty_series():
-    with pytest.raises(pydantic.ValidationError):
-        TypeAdapter(WidgetCreate).validate_python(
-            {"type": "chart", "title": "T", "table_id": 1, "series": []}
-        )
-
-
-def test_widget_create_picks_the_model_by_type():
-    adapter = TypeAdapter(WidgetCreate)
-    summary = adapter.validate_python(
-        {
-            "type": "summary",
-            "title": "Total",
-            "table_id": 1,
-            "field_id": 2,
-            "aggregation_type": "sum",
-        }
-    )
-    chart = adapter.validate_python(
-        {
-            "type": "pie_chart",
-            "title": "Split",
-            "table_id": 1,
-            "series": [{"field_id": 2, "aggregation_type": "sum"}],
-        }
-    )
-    assert summary.field_id == 2
-    assert chart.series[0].aggregation_type == "sum"
-    assert chart.group_by_field_id is None
 
 
 @pytest.mark.django_db

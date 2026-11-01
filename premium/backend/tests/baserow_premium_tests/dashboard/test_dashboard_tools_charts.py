@@ -2,8 +2,11 @@
 
 from django.test.utils import override_settings
 
+import pydantic
 import pytest
+from pydantic import TypeAdapter
 
+from baserow.contrib.dashboard.tools.registries import WidgetCreate
 from baserow.contrib.dashboard.tools.widgets import (
     create_widgets,
     get_widget_data,
@@ -481,3 +484,34 @@ def test_chart_type_must_fit_the_widget_type(premium_data_fixture):
         "Invalid value. A chart is drawn as BAR or LINE; use a pie_chart for PIE "
         "or DOUGHNUT."
     )
+
+
+def test_chart_widget_create_rejects_empty_series():
+    with pytest.raises(pydantic.ValidationError):
+        TypeAdapter(WidgetCreate).validate_python(
+            {"type": "chart", "title": "T", "table_id": 1, "series": []}
+        )
+
+
+def test_widget_create_picks_the_model_by_type():
+    adapter = TypeAdapter(WidgetCreate)
+    summary = adapter.validate_python(
+        {
+            "type": "summary",
+            "title": "Total",
+            "table_id": 1,
+            "field_id": 2,
+            "aggregation_type": "sum",
+        }
+    )
+    chart = adapter.validate_python(
+        {
+            "type": "pie_chart",
+            "title": "Split",
+            "table_id": 1,
+            "series": [{"field_id": 2, "aggregation_type": "sum"}],
+        }
+    )
+    assert summary.field_id == 2
+    assert chart.series[0].aggregation_type == "sum"
+    assert chart.group_by_field_id is None

@@ -1,5 +1,6 @@
 import inspect
 import json
+from functools import cached_property
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -188,9 +189,12 @@ class FunctionMCPTool(MCPTool):
     ignore_extra_arguments: bool = False
     """True to drop unknown arguments instead of rejecting the call."""
 
-    def __init__(self):
-        super().__init__()
-        self.input_schema = _input_model_for(
+    @cached_property
+    def input_schema(self) -> type[BaseModel]:
+        # Built on first use rather than at registration, so an input that
+        # depends on a registry has every app's types, like the widget
+        # definitions premium adds.
+        return _input_model_for(
             type(self).function,
             self.type,
             extra="ignore" if self.ignore_extra_arguments else "forbid",

@@ -3,6 +3,7 @@ Widget tools shared by the clients that act for a user.
 """
 
 import json
+from functools import cache
 from typing import Annotated, Any
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -24,10 +25,11 @@ from baserow.contrib.dashboard.data_sources.exceptions import (
 )
 from baserow.contrib.dashboard.data_sources.service import DashboardDataSourceService
 from baserow.contrib.dashboard.tools.dashboards import get_dashboard_in_workspace
-from baserow.contrib.dashboard.tools.types import (
-    CHART_TYPES,
+from baserow.contrib.dashboard.tools.registries import (
     WidgetCreate,
+    WidgetToolType,
     WidgetUpdate,
+    widget_tool_type_registry,
 )
 from baserow.contrib.dashboard.widgets.actions import (
     CreateWidgetActionType,
@@ -61,12 +63,27 @@ from baserow.core.tools.errors import item_error_message
 MAX_WIDGET_DATA = 20
 MAX_WIDGET_WRITES = 20
 
-WIDGET_CREATES = TypeAdapter(list[WidgetCreate])
-WIDGET_UPDATES = TypeAdapter(list[WidgetUpdate])
 
-# The widget types whose data source is one aggregated field. Charts and pie charts
-# are premium and read their series from the grouped aggregate service.
-SUMMARY_WIDGET_TYPES = {"summary"}
+# Built on first use, once every app registered its widget tool types.
+@cache
+def _widget_creates() -> TypeAdapter:
+    return TypeAdapter(list[WidgetCreate])
+
+
+@cache
+def _widget_updates() -> TypeAdapter:
+    return TypeAdapter(list[WidgetUpdate])
+
+
+def _tool_type(widget_type: str) -> WidgetToolType | None:
+    """
+    :param widget_type: The type of a widget.
+    :return: How the tools handle it, or None when they don't.
+    """
+
+    if widget_type in widget_tool_type_registry.registry:
+        return widget_tool_type_registry.get(widget_type)
+    return None
 
 
 def get_widget_in_workspace(ctx: ToolContext, widget_id: int) -> Widget:
@@ -134,30 +151,16 @@ def describe_widget(widget: Widget, service: Service | None = None) -> dict[str,
     if service is None and data_source_id is not None:
         service_id = widget.data_source.service_id
         if service_id is not None:
-            # With the series and group bys of a chart prefetched.
+            # With what the service type prefetches, like a chart's series.
             (service,) = ServiceHandler().get_services(
                 base_queryset=Service.objects.filter(id=service_id)
             )
 
     description["table_id"] = getattr(service, "table_id", None)
     description["view_id"] = getattr(service, "view_id", None)
-    if widget_type in SUMMARY_WIDGET_TYPES:
-        description["field_id"] = getattr(service, "field_id", None)
-        description["aggregation_type"] = getattr(service, "aggregation_type", None)
-        return description
-
-    if service is not None and hasattr(service, "service_aggregation_series"):
-        series = list(service.service_aggregation_series.all())
-        group_bys = list(service.service_aggregation_group_bys.all())
-    else:
-        series, group_bys = [], []
-    description["series"] = [
-        {"field_id": s.field_id, "aggregation_type": s.aggregation_type} for s in series
-    ]
-    description["group_by_field_id"] = group_bys[0].field_id if group_bys else None
-    # Grouped by row id in the UI: one category per row.
-    description["group_by_row_id"] = bool(group_bys) and group_bys[0].field_id is None
-    description["chart_type"] = getattr(widget, "default_series_chart_type", None)
+    tool_type = _tool_type(widget_type)
+    if tool_type is not None:
+        description.update(tool_type.describe(widget, service))
     return description
 
 
@@ -283,20 +286,21 @@ def _check_visible(ctx: ToolContext, config: dict[str, Any]) -> None:
 
 
 def _unfitting_aggregation(
-    service: Service, config: dict[str, Any]
+    tool_type: WidgetToolType, service: Service, config: dict[str, Any]
 ) -> DjangoValidationError | None:
     """
     The first aggregation of a data source that its service can't compute on its
     field, as an error naming the ones it can. Called after the service refused the
     values, to tell the caller what to use instead.
 
+    :param tool_type: How the tools handle the widget's type.
     :param service: The specific service of the widget's data source.
     :param config: The data source the widget was given.
     :return: The error, or None when every aggregation fits its field.
     """
 
     registry = service_type_registry.get_by_model(service).aggregation_registry
-    aggregations = _aggregations(config)
+    aggregations = tool_type.aggregations(config)
     fields = {
         field.id: field
         for field in specific_iterator(
@@ -327,112 +331,25 @@ def _unfitting_aggregation(
     return None
 
 
-def _aggregations(config: dict[str, Any]) -> list[tuple[int, str]]:
-    """
-    The field and aggregation of each value a data source computes.
-
-    :param config: A summary's or a chart's data source.
-    :return: One (field_id, aggregation_type) pair for each value.
-    """
-
-    if "series" in config:
-        return [(s["field_id"], s["aggregation_type"]) for s in config["series"]]
-    return [(config["field_id"], config["aggregation_type"])]
-
-
-def _series_ids(
-    series: list[dict[str, Any]], existing: list[dict[str, Any]]
-) -> list[int | None]:
-    """
-    The id each series of a chart keeps, so its color and chart type stay. A
-    series given again keeps its id wherever it moves. The others take the ids
-    left over in order, so a series whose field or aggregation changes keeps its
-    style too.
-
-    :param series: The series the chart gets.
-    :param existing: The series it has, with their ids, in order.
-    :return: For each series, the id it keeps, or None for a new one.
-    """
-
-    def key(s):
-        return s["field_id"], s["aggregation_type"]
-
-    left = list(existing)
-    ids: list[int | None] = []
-    for new in series:
-        match = next((old for old in left if key(old) == key(new)), None)
-        if match is not None:
-            left.remove(match)
-        ids.append(match["id"] if match is not None else None)
-    rest = iter(old["id"] for old in left)
-    return [next(rest, None) if id_ is None else id_ for id_ in ids]
-
-
-def _data_source_values(
-    config: dict[str, Any],
-    previous: dict[str, Any] | None = None,
-    existing_series: list[dict[str, Any]] | None = None,
+def _data_source_config(
+    tool_type: WidgetToolType, values: dict[str, Any]
 ) -> dict[str, Any]:
     """
-    The service values of a widget's data source.
+    The data source part of a definition, or of ``describe_widget``.
 
-    :param config: The data source the widget gets.
-    :param previous: The data source it has, when it is updated. Only the values
-        that change are sent.
-    :param existing_series: The chart's series with their ids, in order.
-    :return: The values to send to the data source's service.
+    :param tool_type: How the tools handle the widget's type.
+    :param values: A definition, or a widget as ``describe_widget`` returns it.
+    :return: Its table, view and the type's data source values.
     """
 
-    changed = {
-        key for key in config if previous is None or previous[key] != config[key]
-    }
-    if "series" not in config:
-        return {key: config[key] for key in changed}
-
-    values = {key: config[key] for key in changed & {"table_id", "view_id"}}
-    # A new table drops the series and group by of the old one.
-    table_changed = "table_id" in changed and previous is not None
-    # The grouped aggregate service (premium) takes the series and group bys
-    # under the names of their relations. It drops the sorts they no longer match.
-    if "series" in changed or table_changed:
-        ids = _series_ids(config["series"], existing_series or [])
-        values["service_aggregation_series"] = [
-            {
-                **({"id": id_} if id_ is not None else {}),
-                "field_id": series["field_id"],
-                "aggregation_type": series["aggregation_type"],
-            }
-            for id_, series in zip(ids, config["series"])
-        ]
-    if changed & {"group_by_field_id", "group_by_row_id"} or table_changed:
-        group_by = config["group_by_field_id"]
-        # A group by without a field groups by row id.
-        values["service_aggregation_group_bys"] = (
-            [{"field_id": group_by}]
-            if group_by is not None or config.get("group_by_row_id")
-            else []
-        )
-    return values
-
-
-def _data_source_config(description: dict[str, Any]) -> dict[str, Any]:
-    """
-    The data source part of ``describe_widget``, in the shape of a definition.
-
-    :param description: A widget as ``describe_widget`` returns it.
-    :return: Its table, view, and field and aggregation or series and group by.
-    """
-
-    keys = ["table_id", "view_id"]
-    if description["type"] in SUMMARY_WIDGET_TYPES:
-        keys += ["field_id", "aggregation_type"]
-    else:
-        keys += ["series", "group_by_field_id", "group_by_row_id"]
-    return {key: description[key] for key in keys}
+    keys = ("table_id", "view_id", *tool_type.data_source_keys)
+    # A definition leaves out what only a widget describes, like group_by_row_id.
+    return {key: values.get(key) for key in keys}
 
 
 def _update_data_source(
     ctx: ToolContext,
+    tool_type: WidgetToolType,
     widget: Widget,
     config: dict[str, Any],
     previous: dict[str, Any] | None = None,
@@ -441,6 +358,7 @@ def _update_data_source(
     Set a widget's data source to the given table, view, fields and aggregations.
 
     :param ctx: The user and workspace the tool acts for.
+    :param tool_type: How the tools handle the widget's type.
     :param widget: The widget whose data source changes.
     :param config: The data source the widget gets.
     :param previous: The data source it has, when it is updated.
@@ -452,19 +370,7 @@ def _update_data_source(
     """
 
     service = widget.data_source.service.specific
-    existing_series = (
-        [
-            {
-                "id": series.id,
-                "field_id": series.field_id,
-                "aggregation_type": series.aggregation_type,
-            }
-            for series in service.service_aggregation_series.all()
-        ]
-        if hasattr(service, "service_aggregation_series")
-        else None
-    )
-    values = _data_source_values(config, previous, existing_series)
+    values = tool_type.data_source_values(config, previous, service)
     try:
         # The service checks that the view and fields belong to the table, and
         # that each aggregation fits its field.
@@ -475,41 +381,11 @@ def _update_data_source(
             values,
         )
     except (DRFValidationError, InstanceTypeDoesNotExist) as exc:
-        unfitting = _unfitting_aggregation(service, config)
+        unfitting = _unfitting_aggregation(tool_type, service, config)
         if unfitting is None:
             raise
         raise unfitting from exc
     return values
-
-
-def _series_config(widget: Widget, restyle: bool = False) -> list[dict[str, Any]]:
-    """
-    One entry for each series of a chart. The chart only draws a series in its
-    own type when the series has an entry. A series that has one keeps its type,
-    and its color, unless ``restyle`` draws every series as the chart's type.
-
-    :param widget: The chart, with its data source already updated.
-    :param restyle: Whether every series takes the chart's type.
-    :return: The chart's ``series_config``.
-    """
-
-    widget.data_source.refresh_from_db()
-    service = widget.data_source.service.specific
-    existing = {
-        config.series_id: config.series_chart_type
-        for config in widget.series_config.all()
-    }
-    return [
-        {
-            "series_id": series.id,
-            "series_chart_type": (
-                existing[series.id]
-                if series.id in existing and not restyle
-                else widget.default_series_chart_type
-            ),
-        }
-        for series in service.service_aggregation_series.all()
-    ]
 
 
 def _describe(ctx: ToolContext, widget_id: int) -> dict[str, Any]:
@@ -537,23 +413,25 @@ def create_widget(ctx: ToolContext, dashboard_id: int, spec: WidgetCreate) -> Wi
     :raises DRFValidationError: When the view or a field doesn't belong to the
         table.
     :raises DjangoValidationError: When an aggregation doesn't fit its field.
-    :raises FeaturesNotAvailableError: When a chart is created without premium.
+    :raises FeaturesNotAvailableError: When the widget type needs a licence the
+        user doesn't have.
     """
 
-    config = spec.model_dump(exclude={"type", "title", "description", "chart_type"})
-    data = {"title": spec.title, "description": spec.description}
-    chart_type = getattr(spec, "chart_type", None)
-    if chart_type is not None:
-        data["default_series_chart_type"] = chart_type
+    tool_type = widget_tool_type_registry.get(spec.type)
+    given = spec.model_dump()
+    config = _data_source_config(tool_type, given)
+    data = {
+        "title": spec.title,
+        "description": spec.description,
+        **tool_type.widget_values(given, None),
+    }
     widget = CreateWidgetActionType.do(ctx.user, dashboard_id, spec.type, data)
     # The item's savepoint drops the widget when its data source is refused.
     _check_visible(ctx, config)
-    _update_data_source(ctx, widget, config)
-    if spec.type not in SUMMARY_WIDGET_TYPES:
-        widget = WidgetService().get_widget(ctx.user, widget.id)
-        UpdateWidgetActionType.do(
-            ctx.user, widget.id, spec.type, {"series_config": _series_config(widget)}
-        )
+    sent = _update_data_source(ctx, tool_type, widget, config)
+    more = tool_type.after_data_source_update(ctx, widget, sent, data)
+    if more:
+        UpdateWidgetActionType.do(ctx.user, widget.id, spec.type, more)
     return widget
 
 
@@ -573,9 +451,9 @@ def create_widgets(
 ) -> dict[str, Any]:
     """
     Add widgets to a dashboard. A summary shows one figure: a field of a table
-    aggregated over its rows, like the sum of Amount. A chart (BAR or LINE) or
-    pie_chart (PIE or DOUGHNUT) shows one or more series, optionally by the
-    values of group_by_field_id. Charts need a premium licence. Pass view_id to
+    aggregated over its rows, like the sum of Amount. With premium, a chart (BAR
+    or LINE) or pie_chart (PIE or DOUGHNUT) shows one or more series, optionally
+    by the values of group_by_field_id. Pass view_id to
     aggregate only the rows a view shows. Each widget is saved on its own: a
     widget that fails is listed in errors with its index and the others are
     kept. An aggregation that doesn't fit a field is reported with the ones that
@@ -583,7 +461,7 @@ def create_widgets(
     """
 
     dashboard = get_dashboard_in_workspace(ctx, dashboard_id)
-    specs = WIDGET_CREATES.validate_python(widgets)
+    specs = _widget_creates().validate_python(widgets)
 
     created = []
     errors = []
@@ -603,8 +481,8 @@ def create_widgets(
     return {"created": created, "errors": errors}
 
 
-SUMMARY_VALUES = {"field_id", "aggregation_type"}
-CHART_VALUES = {"series", "group_by_field_id", "chart_type"}
+# The values every widget type takes in an update.
+COMMON_VALUES = {"title", "description", "table_id", "view_id"}
 
 
 def update_widget(ctx: ToolContext, spec: WidgetUpdate) -> bool:
@@ -629,30 +507,21 @@ def update_widget(ctx: ToolContext, spec: WidgetUpdate) -> bool:
         )
     given.update(dict.fromkeys(spec.clear))
 
-    not_for_type = sorted(
-        set(given)
-        & (CHART_VALUES if widget_type in SUMMARY_WIDGET_TYPES else SUMMARY_VALUES)
-    )
+    tool_type = _tool_type(widget_type)
+    if tool_type is None:
+        raise DjangoValidationError(
+            f"A {widget_type} widget can't be changed with this tool."
+        )
+    not_for_type = sorted(set(given) - COMMON_VALUES - set(tool_type.update_fields))
     if not_for_type:
         raise DjangoValidationError(
             f"{', '.join(not_for_type)} can't be used on a {widget_type} widget."
         )
-    chart_types = CHART_TYPES.get(widget_type, ())
-    if "chart_type" in given and given["chart_type"] not in chart_types:
-        other_type, other_chart_types = next(
-            item for item in CHART_TYPES.items() if item[0] != widget_type
-        )
-        raise DjangoValidationError(
-            f"A {widget_type} is drawn as {' or '.join(chart_types)}; use a "
-            f"{other_type} for {' or '.join(other_chart_types)}."
-        )
 
-    config = _data_source_config(current)
-    new_config = {**config, **{k: v for k, v in given.items() if k in config}}
+    config = _data_source_config(tool_type, current)
+    new_config = tool_type.update_config(config, given)
     if new_config["table_id"] != config["table_id"] and "view_id" not in given:
         new_config["view_id"] = None
-    if "group_by_field_id" in given:
-        new_config["group_by_row_id"] = False
     data_source_changed = new_config != config
     if data_source_changed:
         _check_visible(ctx, new_config)
@@ -662,22 +531,14 @@ def update_widget(ctx: ToolContext, spec: WidgetUpdate) -> bool:
         for key in ("title", "description")
         if key in given and given[key] != current[key]
     }
-    if "chart_type" in given and given["chart_type"] != current["chart_type"]:
-        new_data["default_series_chart_type"] = given["chart_type"]
+    new_data.update(tool_type.widget_values(given, current))
 
     sent = (
-        _update_data_source(ctx, widget, new_config, config)
+        _update_data_source(ctx, tool_type, widget, new_config, config)
         if data_source_changed
         else {}
     )
-    restyle = "default_series_chart_type" in new_data
-    if widget_type not in SUMMARY_WIDGET_TYPES and (
-        "service_aggregation_series" in sent or restyle
-    ):
-        widget = WidgetService().get_widget(ctx.user, widget.id)
-        if restyle:
-            widget.default_series_chart_type = new_data["default_series_chart_type"]
-        new_data["series_config"] = _series_config(widget, restyle)
+    new_data.update(tool_type.after_data_source_update(ctx, widget, sent, new_data))
     if new_data:
         UpdateWidgetActionType.do(ctx.user, widget.id, widget_type, new_data)
     return data_source_changed or bool(new_data)
@@ -697,13 +558,13 @@ def update_widgets(
     """
     Change widgets: their title, description, chart type, or what they show.
     Only the values given change; clear removes the view or the group by.
-    Setting series replaces all the series of a chart. Changing table_id needs the fields of the new table too, and clears
-    the view unless view_id is given. Each widget is saved on its own: a widget
+    Setting series replaces all the series of a chart. Changing table_id needs
+    the fields of the new table too, and clears the view unless view_id is given. Each widget is saved on its own: a widget
     that fails is listed in errors and the others are kept. Returns the widgets
     that changed, as list_widgets describes them.
     """
 
-    specs = WIDGET_UPDATES.validate_python(widgets)
+    specs = _widget_updates().validate_python(widgets)
 
     updated = []
     errors = []

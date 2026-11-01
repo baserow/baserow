@@ -2,10 +2,13 @@
 
 import pytest
 
+from baserow.contrib.dashboard.tools.registries import widget_tool_type_registry
 from baserow.contrib.dashboard.tools.widgets import (
+    describe_widget,
     get_widget_data,
     get_widget_in_workspace,
     list_widgets,
+    update_widgets,
 )
 from baserow.contrib.dashboard.widgets.exceptions import WidgetDoesNotExist
 from baserow.contrib.dashboard.widgets.service import WidgetService
@@ -142,3 +145,30 @@ def test_get_widget_in_workspace_hides_trashed_widget(dashboard_ctx, summary_wid
 
     with pytest.raises(WidgetDoesNotExist):
         get_widget_in_workspace(ctx, widget.id)
+
+
+@pytest.mark.django_db
+def test_a_widget_type_the_tools_dont_handle_is_only_described(
+    dashboard_ctx, summary_widget, monkeypatch
+):
+    ctx, _ = dashboard_ctx
+    widget, _, _ = summary_widget
+    monkeypatch.delitem(widget_tool_type_registry.registry, "summary")
+
+    assert describe_widget(widget) == {
+        "id": widget.id,
+        "type": "summary",
+        "title": widget.title,
+        "description": widget.description,
+        "data_source_id": widget.data_source_id,
+        "table_id": widget.data_source.service.specific.table_id,
+        "view_id": None,
+    }
+    result = update_widgets(ctx, [{"widget_id": widget.id, "title": "New"}])
+    assert result["errors"] == [
+        {
+            "index": 0,
+            "widget_id": widget.id,
+            "error": "Invalid value. A summary widget can't be changed with this tool.",
+        }
+    ]
