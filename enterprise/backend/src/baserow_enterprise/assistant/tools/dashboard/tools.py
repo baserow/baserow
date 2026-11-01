@@ -5,13 +5,13 @@ from django.utils.translation import gettext as _
 
 from pydantic import Field
 from pydantic_ai import ModelRetry, RunContext
-from pydantic_ai.toolsets import FunctionToolset
 
 from baserow.contrib.dashboard.tools import widgets as shared_widgets
 from baserow.contrib.dashboard.tools.dashboards import get_dashboard_in_workspace
 from baserow.contrib.dashboard.tools.registries import WidgetCreate, WidgetUpdate
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.tools.shared import require_payload
+from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 from baserow_enterprise.assistant.types import DashboardNavigationType
 
 
@@ -181,4 +181,4 @@ TOOL_FUNCTIONS = [
     update_widgets,
     delete_widgets,
 ]
-dashboard_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)
+dashboard_toolset = AssistantFunctionToolset(TOOL_FUNCTIONS, max_retries=3)
