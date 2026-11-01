@@ -2589,3 +2589,37 @@ def test_official_template_with_active_content_installs_trusted(
 
     installed = Builder.objects.get(id=applications[0].id)
     assert installed.untrusted_content is False
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("login_page", ["other_builder", "shared"])
+def test_update_builder_refuses_a_login_page_it_does_not_own(data_fixture, login_page):
+    from rest_framework.exceptions import ValidationError
+
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    other = data_fixture.create_builder_application(user=user)
+    page = (
+        data_fixture.create_builder_page(builder=other)
+        if login_page == "other_builder"
+        else builder.shared_page
+    )
+
+    with pytest.raises(ValidationError):
+        CoreHandler().update_application(user, builder, login_page_id=page.id)
+
+    builder.refresh_from_db()
+    assert builder.login_page_id is None
+
+
+@pytest.mark.django_db
+def test_update_builder_sets_and_clears_its_login_page(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(builder=builder)
+
+    CoreHandler().update_application(user, builder, login_page_id=page.id)
+    assert builder.login_page_id == page.id
+
+    CoreHandler().update_application(user, builder, login_page_id=None)
+    assert builder.login_page_id is None

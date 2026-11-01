@@ -146,6 +146,28 @@ class BuilderApplicationType(ApplicationType):
             ),
         }
 
+    def prepare_value_for_db(self, values: dict, instance: "Builder | None" = None):
+        """
+        A builder's login page must be one of its own pages, and not its shared
+        page.
+
+        :raises ValidationError: When the login page is another builder's page.
+        """
+
+        login_page_id = values.get("login_page_id")
+        if (
+            instance is not None
+            and login_page_id is not None
+            and not Page.objects_without_shared.filter(
+                builder=instance, id=login_page_id
+            ).exists()
+        ):
+            raise serializers.ValidationError(
+                detail=f"The login page with id {login_page_id} doesn't exist.",
+                code="invalid_login_page_id",
+            )
+        return values
+
     def get_api_urls(self):
         from .api import urls as api_urls
 
