@@ -58,6 +58,8 @@
     "noTools": "There are no tools available.",
     "deletes": "Deletes",
     "overwrites": "Overwrites",
+    "areaWorkspace": "Workspace",
+    "workspaceRead": "Search the workspace",
     "areaDatabase": "Databases",
     "databaseRead": "Read tables and rows",
     "databaseEdit": "Create and change",

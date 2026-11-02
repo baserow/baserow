@@ -410,6 +410,7 @@ TOOL_VISIBILITY: dict[str, frozenset[AgentMode]] = {
     "get_tables_schema": EVERYWHERE,
     "list_actions": frozenset({APPLICATION, EXPLAIN}),
     "list_builders": EVERYWHERE,
+    "search_workspace": EVERYWHERE,
     "list_data_sources": frozenset({APPLICATION, EXPLAIN}),
     "list_elements": frozenset({APPLICATION, EXPLAIN}),
     "list_nodes": frozenset({AUTOMATION, EXPLAIN}),

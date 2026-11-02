@@ -404,6 +404,15 @@ class CoreConfig(AppConfig):
             UpdateMCPEndpointActionType,
             UpdateMCPEndpointToolsActionType,
         )
+        from baserow.core.mcp.groups import (
+            WorkspaceReadMCPToolGroup,
+            mcp_tool_group_registry,
+        )
+        from baserow.core.mcp.registries import mcp_tool_registry
+        from baserow.core.mcp.search.tools import SearchWorkspaceMcpTool
+
+        mcp_tool_group_registry.register(WorkspaceReadMCPToolGroup())
+        mcp_tool_registry.register(SearchWorkspaceMcpTool())
 
         action_type_registry.register(CreateMCPEndpointActionType())
         action_type_registry.register(UpdateMCPEndpointActionType())

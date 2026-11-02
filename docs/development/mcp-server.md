@@ -102,6 +102,7 @@ Some tools are currently disabled (`enabled = False`) and hidden from MCP client
 
 | Tool | Status | Description |
 |---|---|---|
+| `search_workspace` | enabled | Search the workspace by name or content, optionally by type (shared with Kuma) |
 | `list_applications` | enabled | List the workspace's databases, a page at a time (shared with Kuma) |
 | `list_databases` | enabled | List all databases in the workspace (kept for existing connections, until 2.6) |
 | `list_tables` | enabled | List tables, optionally filtered by database or table name (shared with Kuma) |

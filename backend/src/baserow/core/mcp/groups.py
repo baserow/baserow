@@ -2,6 +2,7 @@ from typing import List
 
 from baserow.core.registry import Instance, Registry
 
+GROUP_WORKSPACE_READ = "workspace_read"
 GROUP_DATABASE_READ = "database_read"
 GROUP_DATABASE_EDIT = "database_edit"
 GROUP_DATABASE_DELETE = "database_delete"
@@ -9,6 +10,7 @@ GROUP_AUTOMATION_READ = "automation_read"
 GROUP_AUTOMATION_EDIT = "automation_edit"
 GROUP_AUTOMATION_DELETE = "automation_delete"
 
+AREA_WORKSPACE = "workspace"
 AREA_DATABASE = "database"
 AREA_AUTOMATION = "automation"
 
@@ -38,6 +40,14 @@ class MCPToolGroupRegistry(Registry[MCPToolGroup]):
 
     def get_ordered(self) -> List[MCPToolGroup]:
         return sorted(self.registry.values(), key=lambda group: group.order)
+
+
+class WorkspaceReadMCPToolGroup(MCPToolGroup):
+    type = GROUP_WORKSPACE_READ
+    title = "Search the workspace"
+    area = AREA_WORKSPACE
+    read_only_preset = True
+    order = 5
 
 
 class DatabaseReadMCPToolGroup(MCPToolGroup):

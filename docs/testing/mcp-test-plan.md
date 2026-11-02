@@ -111,6 +111,7 @@ The following tools are currently enabled:
 
 | Tool | Description |
 |---|---|
+| `search_workspace` | Search the workspace by name or content |
 | `list_applications` | List the workspace's databases |
 | `list_databases` | List all databases in the workspace |
 | `list_tables` | List tables, optionally filtered by database or table name |
@@ -177,6 +178,12 @@ Expected: Claude calls `delete_rows` and confirms deletion.
 Ask Claude: *"Find rows in [table name] that contain 'test'"*
 
 Expected: Claude calls `list_table_rows` with a `search` parameter.
+
+### Search the workspace
+
+Ask Claude: *"Which table has the invoices?"*, then *"Find the customer called Acme"*.
+
+Expected: Claude calls `search_workspace`, finds the table, and finds the row with its `table_id` and `row_id`. Row search needs the workspace's search data to be built, which happens in the background after rows are added.
 
 ### Create tables, fields and views
 

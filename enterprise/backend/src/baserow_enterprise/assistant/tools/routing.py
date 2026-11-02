@@ -82,6 +82,7 @@ def _tool_routes() -> dict[str, _ToolRoute]:
         ask_user,
         create_builders,
         list_builders,
+        search_workspace,
         switch_mode,
         update_builder,
     )
@@ -122,7 +123,7 @@ def _tool_routes() -> dict[str, _ToolRoute]:
             automation_mode | explain_mode,
         ),
         **_routes_for(
-            (navigate, switch_mode, list_builders, ask_user),
+            (navigate, switch_mode, list_builders, search_workspace, ask_user),
             AgentMode.DATABASE,
             all_modes,
         ),

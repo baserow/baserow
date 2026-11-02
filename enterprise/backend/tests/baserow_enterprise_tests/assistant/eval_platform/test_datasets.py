@@ -109,6 +109,8 @@ EXPECTED_CASE_IDS = {
         "core/creates-automation",
         "core/creates-database",
         "core/lists-databases",
+        "core/search-finds-row",
+        "core/search-finds-table",
     ],
     "kuma-database": [
         "database/creates-database-from-description",
@@ -290,7 +292,7 @@ class TestDatasetCounts:
     def test_case_counts_per_dataset(self):
         grouped = cases_by_dataset()
 
-        assert len(grouped["kuma-core"]) == 3
+        assert len(grouped["kuma-core"]) == 5
         assert len(grouped["kuma-database"]) == 21
         assert len(grouped["kuma-docs"]) == 64
         assert len(grouped["kuma-builder"]) == 32

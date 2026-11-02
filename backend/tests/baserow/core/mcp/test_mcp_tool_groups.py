@@ -4,12 +4,14 @@ import pytest
 
 from baserow.core.mcp.groups import (
     AREA_AUTOMATION,
+    AREA_WORKSPACE,
     GROUP_AUTOMATION_DELETE,
     GROUP_AUTOMATION_EDIT,
     GROUP_AUTOMATION_READ,
     GROUP_DATABASE_DELETE,
     GROUP_DATABASE_EDIT,
     GROUP_DATABASE_READ,
+    GROUP_WORKSPACE_READ,
     MCPToolGroup,
     MCPToolGroupRegistry,
     mcp_tool_group_registry,
@@ -29,6 +31,16 @@ def test_every_tool_has_a_registered_group():
         tool.name for tool in mcp_tool_registry.get_all() if tool.group not in groups
     ]
     assert ungrouped == []
+
+
+def test_workspace_search_is_first_and_in_the_read_only_preset():
+    group = mcp_tool_group_registry.get(GROUP_WORKSPACE_READ)
+    assert group.area == AREA_WORKSPACE
+    assert group.read_only_preset is True
+    assert mcp_tool_group_registry.get_ordered()[0] is group
+    tool = mcp_tool_registry.get("search_workspace")
+    assert tool.group == GROUP_WORKSPACE_READ
+    assert tool.read_only is True
 
 
 def test_core_database_tool_groups():

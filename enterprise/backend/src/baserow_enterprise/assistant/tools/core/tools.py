@@ -9,6 +9,7 @@ from pydantic_ai import ModelRetry, RunContext
 from baserow.core.actions import CreateApplicationActionType
 from baserow.core.service import CoreService
 from baserow.core.tools import applications as shared_applications
+from baserow.core.tools import search as shared_search
 from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps
 from baserow_enterprise.assistant.tools.shared import require_payload
 from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
@@ -88,6 +89,50 @@ def list_builders(
         )
 
     return builders_by_type
+
+
+def search_workspace(
+    ctx: RunContext[AssistantDeps],
+    query: Annotated[
+        str,
+        Field(min_length=1, max_length=200, description="The text to search for."),
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+    types: Annotated[
+        list[str] | None,
+        Field(
+            description=(
+                "Only return these types: database, database_table, database_field, "
+                "database_row, builder, automation, dashboard, agent. Null for all."
+            )
+        ),
+    ] = None,
+    page: Annotated[int, Field(ge=1, description="The page to return.")] = 1,
+    size: Annotated[
+        int,
+        Field(
+            ge=1,
+            le=shared_search.MAX_PAGE_SIZE,
+            description="The number of results a page.",
+        ),
+    ] = 20,
+) -> dict[str, Any]:
+    """\
+    Search the workspace by name or content.
+
+    WHEN to use: The user names something and you don't know where it is, like a customer, a row value, or which table holds some data.
+    WHAT it does: Finds databases, tables, fields, rows, applications, automations, dashboards and agents the user can access.
+    RETURNS: results with type, id, title, subtitle, metadata, and has_more. A row's table_id and row_id are in its metadata.
+    DO NOT USE when: You already know the table and want to filter its rows; use list_rows.
+    """
+
+    ctx.deps.tool_helpers.update_status(_("Searching the workspace..."))
+
+    return shared_search.search_workspace(
+        ctx.deps.tool_context(), query=query, types=types, page=page, size=size
+    )
 
 
 def create_builders(
@@ -293,5 +338,12 @@ def ask_user(
     )
 
 
-TOOL_FUNCTIONS = [list_builders, create_builders, update_builder, switch_mode, ask_user]
+TOOL_FUNCTIONS = [
+    list_builders,
+    search_workspace,
+    create_builders,
+    update_builder,
+    switch_mode,
+    ask_user,
+]
 core_toolset = AssistantFunctionToolset(TOOL_FUNCTIONS, max_retries=3)

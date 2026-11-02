@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from baserow.contrib.automation.models import Automation
 from baserow.contrib.database.models import Database
+from baserow.contrib.database.search.handler import SearchHandler
 from baserow.test_utils.fixtures import Fixtures
 from baserow_enterprise.assistant.evals.harness import tool_called
 from baserow_enterprise.assistant.evals.registry import (
@@ -23,6 +24,91 @@ PROMPT_LISTS_DATABASES = "What databases do I have in this workspace?"
 PROMPT_CREATES_DATABASE = "Create a new database called 'Customer Portal'"
 
 PROMPT_CREATES_AUTOMATION = "Create an empty automation called 'Overdue Task Reminder'."
+
+
+PROMPT_SEARCH_FINDS_ROW = "Find the customer called Acme."
+
+PROMPT_SEARCH_FINDS_TABLE = "Which table has the invoices?"
+
+
+@register_scenario("core-search-workspace")
+def _search_workspace_scenario(fx: Fixtures) -> EvalScenario:
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    other = fx.create_database_application(workspace=workspace, name="Operations")
+    fx.create_database_table(database=other, name="Tasks")
+    database = fx.create_database_application(workspace=workspace, name="Sales")
+    customers, _, rows = fx.build_table(
+        user=user,
+        database=database,
+        name="Customers",
+        columns=[("Name", {"type": "text", "primary": True})],
+        rows=[["Globex"], ["Acme"]],
+    )
+    invoices = fx.create_database_table(database=database, name="Invoices")
+    SearchHandler.create_workspace_search_table_if_not_exists(workspace.id)
+    SearchHandler.initialize_missing_search_data(customers)
+    SearchHandler.process_search_data_updates(customers)
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_database_ui_context(user, workspace, other),
+        refs={"customers": customers, "invoices": invoices, "acme": rows[1]},
+    )
+
+
+def _check_search_finds_row(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    answer = output.answer.lower()
+    return [
+        CheckResult(
+            "called search_workspace", tool_called(output, "search_workspace") >= 1
+        ),
+        CheckResult("answer mentions Acme", "acme" in answer, hint=output.answer[:200]),
+        CheckResult(
+            "answer mentions Customers", "customers" in answer, hint=output.answer[:200]
+        ),
+    ]
+
+
+def _check_search_finds_table(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    return [
+        CheckResult(
+            "called search_workspace or list_tables",
+            tool_called(output, "search_workspace") + tool_called(output, "list_tables")
+            >= 1,
+        ),
+        CheckResult(
+            "answer mentions Invoices",
+            "invoices" in output.answer.lower(),
+            hint=output.answer[:200],
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="core/search-finds-row",
+        dataset="kuma-core",
+        prompt=PROMPT_SEARCH_FINDS_ROW,
+        scenario="core-search-workspace",
+        checks=_check_search_finds_row,
+        max_iters=10,
+    )
+)
+register_case(
+    EvalCase(
+        id="core/search-finds-table",
+        dataset="kuma-core",
+        prompt=PROMPT_SEARCH_FINDS_TABLE,
+        scenario="core-search-workspace",
+        checks=_check_search_finds_table,
+        max_iters=10,
+    )
+)
 
 
 @register_scenario("core-lists-databases")

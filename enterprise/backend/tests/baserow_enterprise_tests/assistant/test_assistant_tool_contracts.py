@@ -35,7 +35,10 @@ from baserow_enterprise.assistant.tools.builder.tools import (
     list_elements,
     list_pages,
 )
-from baserow_enterprise.assistant.tools.core.tools import list_builders
+from baserow_enterprise.assistant.tools.core.tools import (
+    list_builders,
+    search_workspace,
+)
 from baserow_enterprise.assistant.tools.database.tools import (
     get_tables_schema,
     list_rows,
@@ -305,6 +308,16 @@ class ReadToolCase:
     check: Callable[[Any, SeededWorkspace], None]
 
 
+def _check_search_workspace(result: Any, seed: SeededWorkspace) -> None:
+    assert set(result) == {"results", "has_more"}
+    assert_items(
+        result["results"],
+        {"type": str, "id": int, "title": str},
+        "search_workspace",
+    )
+    assert any(item["id"] == seed.table.id for item in result["results"])
+
+
 def _check_list_builders(result: Any, seed: SeededWorkspace) -> None:
     assert set(result) >= {"database", "application", "automation"}
     for builder_type in ("database", "application", "automation"):
@@ -441,6 +454,11 @@ READ_TOOL_CASES: list[ReadToolCase] = [
         "list_builders",
         lambda ctx, s: list_builders(ctx, builder_types=None, thought="contract"),
         _check_list_builders,
+    ),
+    ReadToolCase(
+        "search_workspace",
+        lambda ctx, s: search_workspace(ctx, query=s.table.name, thought="contract"),
+        _check_search_workspace,
     ),
     ReadToolCase(
         "list_tables",

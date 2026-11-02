@@ -123,6 +123,7 @@ const { t } = useI18n()
 // Translations of the groups and areas the frontend knows. Others fall back to
 // the API's English title.
 const GROUP_LABELS = {
+  workspace_read: 'mcpToolPicker.workspaceRead',
   database_read: 'mcpToolPicker.databaseRead',
   database_edit: 'mcpToolPicker.databaseEdit',
   database_delete: 'mcpToolPicker.databaseDelete',
@@ -131,6 +132,7 @@ const GROUP_LABELS = {
   automation_delete: 'mcpToolPicker.automationDelete',
 }
 const AREA_LABELS = {
+  workspace: 'mcpToolPicker.areaWorkspace',
   database: 'mcpToolPicker.areaDatabase',
   automation: 'mcpToolPicker.areaAutomation',
 }
