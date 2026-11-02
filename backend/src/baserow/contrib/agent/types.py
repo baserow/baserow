@@ -47,3 +47,5 @@ class AgentReplyRequest:
     model_identifier: str
     prompt: str
     history: list[AgentMessage]
+    run_as_unavailable: bool = False
+    """An identity is configured but cannot be used for workspace access."""

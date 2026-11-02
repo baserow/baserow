@@ -520,6 +520,13 @@ class AgentHandler:
             model_identifier=agent.model_identifier,
             prompt=prompt.content,
             history=list(reversed(history)),
+            run_as_unavailable=(
+                agent.run_as_subject_type is not None
+                or agent.run_as_subject_id is not None
+            )
+            and not self.is_run_as_subject_usable(
+                agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
+            ),
         )
 
     def finish_reply(

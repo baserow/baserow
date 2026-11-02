@@ -19,7 +19,11 @@ from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.utils import remove_null_characters
 
-from .constants import INTERRUPTED_REPLY_NOTE, REPLY_REQUEST_LIMIT
+from .constants import (
+    INTERRUPTED_REPLY_NOTE,
+    REPLY_REQUEST_LIMIT,
+    UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS,
+)
 from .models import AgentMessage
 from .types import AgentReplyRequest
 
@@ -128,8 +132,16 @@ class AgentResponder:
             await asyncio.gather(work, stop, return_exceptions=True)
         return self._outcome(work)
 
+    def _get_instructions(self) -> str:
+        """Combine saved instructions with this reply's workspace access context."""
+
+        instructions = self._request.instructions
+        if self._request.run_as_unavailable:
+            instructions += f"\n\n{UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS}"
+        return instructions
+
     async def _stream(self) -> None:
-        agent = Agent(instructions=self._request.instructions)
+        agent = Agent(instructions=self._get_instructions())
         # Kuma enables content tracing for every Agent; conversations are private.
         agent.instrument = False
         async with self._model:
