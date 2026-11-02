@@ -1276,6 +1276,12 @@ AUTOMATION_HISTORY_PAGE_SIZE_LIMIT = int(
 AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS = int(
     os.getenv("BASEROW_AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS", 20)
 )
+# The longest a single Wait node may pause a workflow run. A longer wait fails
+# the node rather than being shortened. The waits of one run still add up to
+# AUTOMATION_WORKFLOW_TIMEOUT_HOURS.
+AUTOMATION_WAIT_MAX_SECONDS = int(
+    os.getenv("BASEROW_AUTOMATION_WAIT_MAX_SECONDS", 6 * 60 * 60)
+)
 # The largest request body the HTTP trigger accepts. Every accepted body is kept
 # in the workflow's history and sample data, so larger ones are refused.
 AUTOMATION_HTTP_TRIGGER_MAX_BODY_SIZE_BYTES = int(

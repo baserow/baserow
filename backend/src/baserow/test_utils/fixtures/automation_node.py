@@ -19,6 +19,7 @@ from baserow.contrib.automation.nodes.node_types import (
     CorePeriodicTriggerNodeType,
     CoreResponseActionNodeType,
     CoreRouterActionNodeType,
+    CoreWaitActionNodeType,
     LocalBaserowCreateRowActionNodeType,
     LocalBaserowCreateRowsActionNodeType,
     LocalBaserowDeleteRowActionNodeType,
@@ -219,6 +220,13 @@ class AutomationNodeFixtures:
         return self.create_automation_node(
             user=user,
             type=CoreGotoActionNodeType.type,
+            **kwargs,
+        )
+
+    def create_core_wait_action_node(self, user=None, **kwargs):
+        return self.create_automation_node(
+            user=user,
+            type=CoreWaitActionNodeType.type,
             **kwargs,
         )
 

@@ -79,12 +79,14 @@ class IntegrationsConfig(AppConfig):
             CoreRouterServiceType,
             CoreSMTPEmailServiceType,
             CoreStartWorkflowServiceType,
+            CoreWaitServiceType,
         )
 
         service_type_registry.register(CoreHTTPRequestServiceType())
         service_type_registry.register(CoreSMTPEmailServiceType())
         service_type_registry.register(CoreRouterServiceType())
         service_type_registry.register(CoreGotoServiceType())
+        service_type_registry.register(CoreWaitServiceType())
         service_type_registry.register(CoreHTTPTriggerServiceType())
         service_type_registry.register(CoreInboundEmailTriggerServiceType())
         service_type_registry.register(CoreManualTriggerServiceType())

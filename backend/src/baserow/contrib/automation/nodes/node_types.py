@@ -37,6 +37,7 @@ from baserow.contrib.automation.nodes.models import (
     CoreRouterActionNode,
     CoreSMTPEmailActionNode,
     CoreStartWorkflowActionNode,
+    CoreWaitActionNode,
     LocalBaserowAggregateRowsActionNode,
     LocalBaserowCreateRowActionNode,
     LocalBaserowCreateRowsActionNode,
@@ -73,6 +74,7 @@ from baserow.contrib.integrations.core.service_types import (
     CoreRouterServiceType,
     CoreSMTPEmailServiceType,
     CoreStartWorkflowServiceType,
+    CoreWaitServiceType,
 )
 from baserow.contrib.integrations.local_baserow.mixins import (
     UpdateRowRequiresRowIdMixin,
@@ -697,6 +699,25 @@ class CoreGotoActionNodeType(AutomationActionNodeType):
             automation_node_updated.send(
                 cls, user=user, node=handler.get_node(goto_node_id)
             )
+
+
+class CoreWaitActionNodeType(AutomationActionNodeType):
+    display_name = _("Wait")
+    type = "wait"
+    model_class = CoreWaitActionNode
+    service_type = CoreWaitServiceType.type
+
+    def get_history_status(self, dispatch_result: DispatchResult) -> str:
+        """
+        A wait of zero seconds has nothing to wait for and completes at once,
+        so its history is marked as skipped: a computed zero is visibly a no-op
+        rather than a pause. A real wait only produces its result once it is
+        over, which reads as a success.
+        """
+
+        if (dispatch_result.data or {}).get("seconds") == 0:
+            return HistoryStatusChoices.SKIPPED
+        return HistoryStatusChoices.SUCCESS
 
 
 class AutomationTriggerNodeType(AutomationNodeType):
