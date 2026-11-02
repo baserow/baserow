@@ -722,3 +722,137 @@ def test_oauth2_login_with_an_original_too_long_for_the_cookie_still_succeeds(
         {"code": "testcode", "state": get_state(location)},
     )
     assert_signed_in(response, provider, application_url)
+
+
+def call_oauth2_callback_with_original(api_client, user_source, original):
+    provider = OpenIdConnectAppAuthProviderModel.objects.create(
+        user_source=user_source,
+        name="idp",
+        base_url="https://idp.example.com",
+        client_id="clientid",
+        secret="secret",
+        authorization_url="https://idp.example.com/oauth2/authorize",
+        access_token_url="https://idp.example.com/oauth2/token",
+        user_info_url="https://idp.example.com/oauth2/userInfo",
+    )
+    responses.add(
+        responses.POST,
+        provider.access_token_url,
+        json={"access_token": "testtoken", "token_type": "Bearer"},
+    )
+    responses.add(
+        responses.GET,
+        provider.user_info_url,
+        json={
+            "sub": "sub",
+            "email": "app-user@example.com",
+            "email_verified": True,
+            "name": "App user",
+        },
+    )
+
+    session = api_client.session
+    session["oauth_2_provider_id"] = provider.id
+    provider.get_type().store_oauth_state(provider, session, OAUTH_STATE)
+    OpenIdConnectAppAuthProviderType().push_request_data_to_session(
+        session, {"original": original}
+    )
+    session.save()
+    api_client.cookies[settings.SESSION_COOKIE_NAME] = session.session_key
+
+    return api_client.get(
+        reverse(
+            "api:user_sources:sso_oauth2_openid_connect:callback",
+            kwargs={"user_source_uid": user_source.uid},
+        ),
+        {"code": "testcode", "state": OAUTH_STATE},
+    )
+
+
+@pytest.mark.django_db
+@responses.activate
+@override_settings(DEBUG=True)
+@pytest.mark.parametrize(
+    "original_template",
+    [
+        "{scheme}://attacker.example\\@{netloc}{path}",
+        "{scheme}://attacker.example@{netloc}{path}",
+        "{scheme}://{netloc}\\.attacker.example{path}",
+        "{scheme}://{netloc}{path}\tx",
+        "//attacker.example",
+        "{scheme}://[attacker.example/",
+    ],
+)
+def test_oauth2_callback_does_not_send_the_token_to_a_smuggled_host(
+    original_template, api_client, data_fixture
+):
+    data = populate_local_baserow_test_data(data_fixture)
+    user_source = data["user_source"]
+    application_url = user_source.application.get_type().get_application_urls(
+        user_source.application.specific
+    )[0]
+    parsed = urlparse(application_url)
+    original = original_template.format(
+        scheme=parsed.scheme, netloc=parsed.netloc, path=parsed.path
+    )
+
+    response = call_oauth2_callback_with_original(api_client, user_source, original)
+
+    assert response.status_code == HTTP_302_FOUND
+    location = response["Location"]
+    assert location.startswith(
+        f"{application_url}?user_source_oidc_token__{user_source.id}="
+    ) or location.startswith(
+        f"{application_url}/?user_source_oidc_token__{user_source.id}="
+    )
+    assert "attacker.example" not in location
+
+
+@pytest.mark.django_db
+@responses.activate
+@override_settings(DEBUG=True)
+def test_oauth2_callback_removes_callback_params_from_original(
+    api_client, data_fixture
+):
+    data = populate_local_baserow_test_data(data_fixture)
+    user_source = data["user_source"]
+    application_url = user_source.application.get_type().get_application_urls(
+        user_source.application.specific
+    )[0]
+    original = (
+        f"{application_url}/login?next=%2Ftoto"
+        f"&user_source_oidc_token__{user_source.id}=ATTACKER"
+        "&user_source_saml_token__999=x"
+    )
+
+    response = call_oauth2_callback_with_original(api_client, user_source, original)
+
+    assert response.status_code == HTTP_302_FOUND
+    location = response["Location"]
+    assert "ATTACKER" not in location
+    # The frontend ignores a callback unless it has exactly one token param.
+    assert [name for name, _ in parse_qsl(urlparse(location).query)] == [
+        "next",
+        f"user_source_oidc_token__{user_source.id}",
+    ]
+
+
+@pytest.mark.django_db
+@responses.activate
+@override_settings(DEBUG=True)
+def test_oauth2_callback_keeps_the_https_origin_of_the_site(api_client, data_fixture):
+    data = populate_local_baserow_test_data(data_fixture)
+    user_source = data["user_source"]
+    application_url = user_source.application.get_type().get_application_urls(
+        user_source.application.specific
+    )[0]
+    hostname = urlparse(application_url).hostname
+
+    response = call_oauth2_callback_with_original(
+        api_client, user_source, f"https://{hostname}/login"
+    )
+
+    assert response.status_code == HTTP_302_FOUND
+    assert response["Location"].startswith(
+        f"https://{hostname}/login?user_source_oidc_token__{user_source.id}="
+    )
