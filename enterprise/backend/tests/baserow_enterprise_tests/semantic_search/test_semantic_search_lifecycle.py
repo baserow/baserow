@@ -17,7 +17,7 @@ from baserow.contrib.database.search.tasks import periodic_check_pending_search_
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.registries import action_type_registry
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Template
+from baserow.core.models import Template, TrashEntry
 from baserow.core.registries import ImportExportConfig
 from baserow.core.snapshots.handler import SnapshotHandler
 from baserow.core.trash.handler import TrashHandler
@@ -411,3 +411,38 @@ def test_official_template_isnt_indexed_but_its_install_is(
     installed_field = installed_table.field_set.get(name="Name")
     assert SemanticSearchField.objects.filter(field=installed_field).exists()
     assert len(get_chunk_counts(installed_field)) == len(customers["rows"])
+
+
+@pytest.mark.django_db
+def test_permanently_deleting_rows_queries_semantic_search_once_per_trash_entry(
+    data_fixture, semantic_search, django_capture_on_commit_callbacks
+):
+    user = data_fixture.create_user()
+    table, field, rows = create_indexed_field(
+        data_fixture, user, values=[f"value {number}" for number in range(25)]
+    )
+    row_ids = [row.id for row in rows]
+
+    def count_semantic_search_queries(trash_entries: list[list[int]]) -> int:
+        for entry_row_ids in trash_entries:
+            RowHandler().delete_rows(user, table, entry_row_ids)
+        TrashEntry.objects.update(should_be_permanently_deleted=True)
+        # Including the marking of the vectors when the deletion is committed.
+        with CaptureQueriesContext(connection) as captured:
+            with django_capture_on_commit_callbacks(execute=True):
+                TrashHandler.permanently_delete_marked_trash()
+        return sum(
+            "baserow_enterprise_semanticsearch" in query["sql"]
+            and 'FROM "database_field"' not in query["sql"]
+            for query in captured.captured_queries
+        )
+
+    one_row = count_semantic_search_queries([row_ids[:1]])
+    many_rows = count_semantic_search_queries([row_ids[1:21]])
+    two_entries = count_semantic_search_queries([row_ids[21:22], row_ids[22:23]])
+
+    assert one_row > 0
+    assert many_rows == one_row
+    assert two_entries == one_row * 2
+    periodic_check_pending_search_data()
+    assert get_chunk_counts(field) == {row_id: 1 for row_id in row_ids[23:]}
