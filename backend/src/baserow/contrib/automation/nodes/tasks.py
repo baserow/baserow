@@ -2,6 +2,7 @@ import time
 from typing import Dict, Optional
 
 from celery.canvas import Signature
+from celery.exceptions import Ignore
 
 from baserow.config.celery import app
 from baserow.core.db import atomic_with_retry_on_deadlock
@@ -106,4 +107,45 @@ def resume_deferred_node_celery_task(
     result = _resume()
     if isinstance(result, Signature):
         return self.replace(result)
+    return None
+
+
+@app.task(bind=True, queue="automation_workflow", max_retries=None)
+def resume_pending_node_celery_task(self, node_history_id: int) -> Signature | None:
+    """
+    Resumes a node that suspended itself (see `AutomationNodeHandler._suspend_node`)
+    once it is due. The task is scheduled with a countdown of at most one chunk
+    and retries itself chunk by chunk until the node is due, so that no message
+    waits in the broker longer than its visibility timeout. `max_retries=None`:
+    the wait itself bounds the number of chunks.
+    """
+
+    from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+    from baserow.contrib.automation.nodes.types import (
+        PendingNodeAlreadyClaimed,
+        PendingNodeNotDue,
+    )
+
+    # As in dispatch_node_celery_task, the atomic block wraps the handler call
+    # only: `self.replace()` raises `Ignore`, which would roll it back.
+    @atomic_with_retry_on_deadlock()
+    def _resume():
+        return AutomationNodeHandler().resume_pending_node(node_history_id)
+
+    result = _resume()
+
+    if isinstance(result, PendingNodeNotDue):
+        # Celery rebuilds the message from the request, chain included, so the
+        # run goes on from the resumed node later.
+        raise self.retry(countdown=result.countdown)
+
+    if isinstance(result, PendingNodeAlreadyClaimed):
+        # Another delivery of this task (a redelivered message, or the recovery
+        # sweep) resumed the node. Unlike returning None, `Ignore` drops this
+        # copy's chain too, so the run is not marked done twice or early.
+        raise Ignore()
+
+    if isinstance(result, Signature):
+        return self.replace(result)
+
     return None

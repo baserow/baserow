@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.core.subjects import UserSubjectType
@@ -140,10 +141,30 @@ class AutomationNodeHistory(AutomationHistory):
         db_default=1,
         help_text="Which attempt of the node this entry records, starting at 1.",
     )
+    resume_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_default=None,
+        help_text="When a waiting node is due to resume.",
+    )
+    resume_state = models.JSONField(
+        null=True,
+        blank=True,
+        db_default=None,
+        help_text="What the runner needs to resume a waiting node: the state its "
+        "service stored and the iterator positions of the dispatch. Cleared once "
+        "the node resumed.",
+    )
 
     class Meta(AutomationHistory.Meta):
         indexes = [
             models.Index(fields=["workflow_history", "node"]),
+            # The recovery sweep looks for waiting nodes whose resume is overdue.
+            models.Index(
+                fields=["resume_at"],
+                condition=Q(status=HistoryStatusChoices.WAITING),
+                name="wa_node_hist_waiting_idx",
+            ),
         ]
 
 

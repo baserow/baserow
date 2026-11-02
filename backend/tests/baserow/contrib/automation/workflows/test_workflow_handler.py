@@ -1865,6 +1865,44 @@ def test_mark_failure_for_timed_out_history(data_fixture):
 
 @override_settings(AUTOMATION_WORKFLOW_TIMEOUT_HOURS=1)
 @pytest.mark.django_db
+def test_mark_failure_for_timed_out_history_times_out_waiting_nodes(data_fixture):
+    """
+    A node that waits belongs to a run that is still going: when the run times
+    out, the waiting node times out with it.
+    """
+
+    workflow = data_fixture.create_automation_workflow()
+
+    with freeze_time("2026-04-16 12:00:00"):
+        timed_out_history = data_fixture.create_automation_workflow_history(
+            workflow=workflow,
+            status=HistoryStatusChoices.STARTED,
+        )
+        node_history = AutomationNodeHistory.objects.create(
+            workflow_history=timed_out_history,
+            node=workflow.get_trigger(),
+            started_on=timed_out_history.started_on,
+            status=HistoryStatusChoices.WAITING,
+            resume_at=timezone.now() + datetime.timedelta(hours=6),
+            resume_state={"state": {"seconds": 21600}, "current_iterations": None},
+        )
+
+    with freeze_time("2026-04-16 13:00:01"):
+        AutomationWorkflowHandler().mark_failure_for_timed_out_history()
+
+    error_message = "This workflow took too long and was timed out."
+
+    timed_out_history.refresh_from_db()
+    assert timed_out_history.status == HistoryStatusChoices.ERROR
+
+    node_history.refresh_from_db()
+    assert node_history.status == HistoryStatusChoices.ERROR
+    assert node_history.message == error_message
+    assert node_history.completed_on == timed_out_history.completed_on
+
+
+@override_settings(AUTOMATION_WORKFLOW_TIMEOUT_HOURS=1)
+@pytest.mark.django_db
 def test_mark_failure_for_timed_out_history_with_cancellation_requested(
     data_fixture,
 ):

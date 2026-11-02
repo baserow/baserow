@@ -8,6 +8,10 @@ from baserow.contrib.automation.api.workflows.serializers import (
     AutomationWorkflowSerializer,
 )
 from baserow.contrib.automation.models import Automation, AutomationWorkflow
+from baserow.contrib.automation.nodes.signals import (
+    automation_node_dispatch_resumed,
+    automation_node_dispatch_suspended,
+)
 from baserow.contrib.automation.object_scopes import AutomationObjectScopeType
 from baserow.contrib.automation.workflows.object_scopes import (
     AutomationWorkflowObjectScopeType,
@@ -184,6 +188,31 @@ def workflow_dispatch_done(sender, workflow_history, **kwargs):
             workflow.id,
             {
                 "type": "automation_workflow_dispatch_done",
+                "workflow_id": workflow.id,
+                "history_id": workflow_history.id,
+            },
+            None,
+        )
+    )
+
+
+@receiver([automation_node_dispatch_suspended, automation_node_dispatch_resumed])
+def node_dispatch_suspended_or_resumed(sender, node, node_history, **kwargs):
+    """
+    A node that starts or stops waiting changes what the history of a run that
+    is still `started` shows, so the readers of the workflow refetch it.
+    """
+
+    workflow_history = node_history.workflow_history
+    workflow = workflow_history.original_workflow
+    transaction.on_commit(
+        lambda: broadcast_to_permitted_users.delay(
+            workflow.automation.workspace_id,
+            ReadAutomationWorkflowOperationType.type,
+            AutomationWorkflowObjectScopeType.type,
+            workflow.id,
+            {
+                "type": "automation_workflow_history_updated",
                 "workflow_id": workflow.id,
                 "history_id": workflow_history.id,
             },

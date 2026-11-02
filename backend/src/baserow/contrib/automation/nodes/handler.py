@@ -1,4 +1,6 @@
+import math
 from collections import defaultdict
+from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
 from django.conf import settings
@@ -30,6 +32,7 @@ from baserow.contrib.automation.history.models import (
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.constants import (
     AUTOMATION_NODE_RETRY_COUNTDOWNS,
+    AUTOMATION_PENDING_NODE_COUNTDOWN_CHUNK_SECONDS,
     AutomationNodeOnFailure,
 )
 from baserow.contrib.automation.nodes.exceptions import (
@@ -44,16 +47,21 @@ from baserow.contrib.automation.nodes.node_types import (
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.signals import (
     automation_node_dispatch_completed,
+    automation_node_dispatch_resumed,
     automation_node_dispatch_started,
+    automation_node_dispatch_suspended,
     automation_node_updated,
 )
 from baserow.contrib.automation.nodes.tasks import (
     dispatch_node_celery_task,
     resume_deferred_node_celery_task,
+    resume_pending_node_celery_task,
 )
 from baserow.contrib.automation.nodes.types import (
     AutomationNodeDict,
     NodeDispatchRetry,
+    PendingNodeAlreadyClaimed,
+    PendingNodeNotDue,
 )
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
@@ -73,7 +81,7 @@ from baserow.core.services.exceptions import (
 )
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
-from baserow.core.services.types import DispatchResult
+from baserow.core.services.types import DispatchResult, PendingDispatch
 from baserow.core.storage import ExportZipFile
 from baserow.core.telemetry.utils import baserow_trace, baserow_trace_handler
 from baserow.core.utils import ChildProgressBuilder, MirrorDict, extract_allowed
@@ -837,6 +845,13 @@ class AutomationNodeHandler:
         try:
             self._before_node_dispatch(node, workflow_history)
             dispatch_result = node_type.dispatch(node, dispatch_context)
+            if dispatch_result.pending is not None and simulate_until_node:
+                # A simulation never waits, whatever the service did. A service
+                # is expected to answer at once when it uses sample data; this
+                # is the backstop, resuming it right away.
+                dispatch_result = node_type.resume_dispatch(
+                    node, dispatch_result.pending.state, dispatch_context
+                )
             if (
                 dispatch_result.destination_service_id is not None
                 and not simulate_until_node
@@ -924,6 +939,20 @@ class AutomationNodeHandler:
                 attempt,
                 error,
                 retryable=False,
+            )
+
+        if dispatch_result.pending is not None:
+            # The service asked to be resumed later: the node is parked and the
+            # worker freed. Like a deferred node, a pending one gets its data
+            # later, through complete_pending_node(), where the retry condition
+            # does not apply.
+            return self._suspend_node(
+                node,
+                node_history,
+                workflow_history,
+                dispatch_result.pending,
+                iteration_path,
+                current_iterations,
             )
 
         # The node produced data, but its retry condition may still count the
@@ -1015,6 +1044,67 @@ class AutomationNodeHandler:
             current_iterations,
         )
 
+    def _pending_node_countdown(self, resume_at: datetime, now: datetime) -> int:
+        """
+        Seconds before the resume task of a waiting node wakes up next: the
+        time left until `resume_at`, cut to one chunk so that no message waits
+        in the broker longer than its visibility timeout. Rounded up, so a
+        wake-up never lands just before the node is due.
+        """
+
+        remaining = math.ceil((resume_at - now).total_seconds())
+        return max(0, min(remaining, AUTOMATION_PENDING_NODE_COUNTDOWN_CHUNK_SECONDS))
+
+    def _suspend_node(
+        self,
+        node: AutomationNode,
+        node_history: AutomationNodeHistory,
+        workflow_history: AutomationWorkflowHistory,
+        pending: PendingDispatch,
+        iteration_path: str,
+        current_iterations: Optional[Dict[int, int]],
+    ) -> Signature | None:
+        """
+        Parks a node whose service asked to be resumed later (e.g. a "Wait"
+        node): its history is marked `waiting` with everything the resume needs,
+        and the resume task is scheduled with a countdown. No worker is held in
+        the meantime and the run stays `started`.
+
+        :return: The resume task's signature, which runs in place of this
+            dispatch so the run's chain goes on from the resumed node, or None
+            when the run was marked as errored.
+        """
+
+        if pending.resume_at is None:
+            # Only time-based resumes are supported for now.
+            error = (
+                "The node is misconfigured and cannot be dispatched. The node "
+                "suspended itself without a time to resume at."
+            )
+            self._handle_workflow_error(node_history, iteration_path, error)
+            return None
+
+        now = timezone.now()
+        resume_at = pending.resume_at
+
+        node_history.status = HistoryStatusChoices.WAITING
+        node_history.resume_at = resume_at
+        # The iterator positions are stored as received: their keys are strings
+        # after Celery's JSON round trip, and the dispatch context converts them.
+        node_history.resume_state = {
+            "state": pending.state,
+            "current_iterations": current_iterations,
+        }
+        node_history.save()
+
+        automation_node_dispatch_suspended.send(
+            sender=self, node=node, node_history=node_history
+        )
+
+        return resume_pending_node_celery_task.si(node_history.id).set(
+            countdown=self._pending_node_countdown(resume_at, now)
+        )
+
     def complete_deferred_node(
         self,
         node_history_id: int,
@@ -1064,6 +1154,153 @@ class AutomationNodeHandler:
         dispatch_result = DispatchResult(data=response_data)
         return self._complete_node_dispatch(
             node_history.node,
+            node_history,
+            dispatch_context,
+            iteration_path,
+            dispatch_result,
+            current_iterations,
+        )
+
+    def resume_pending_node(
+        self, node_history_id: int
+    ) -> Signature | PendingNodeNotDue | PendingNodeAlreadyClaimed | None:
+        """
+        Entry point of the resume task of a waiting node, called at every
+        wake-up. Checks that the run still wants the node, asks for another
+        wake-up if the node is not due yet, and otherwise claims it and
+        finishes its dispatch. The claim is a conditional update from `waiting`,
+        so a duplicate delivery of the task (a redelivered message, the recovery
+        sweep) resumes the node once at most.
+
+        :param node_history_id: The `waiting` node history to resume.
+        :return: As dispatch_node(): a signature for the next nodes, or None
+            when this branch of the run is over (the run was resolved, the node
+            was deleted, or nothing follows it). A PendingNodeNotDue asks the
+            task to wake up again later, a PendingNodeAlreadyClaimed tells it
+            that another delivery already resumed the node.
+        """
+
+        try:
+            node_history = AutomationNodeHistory.objects.select_related(
+                "workflow_history__workflow__automation__workspace",
+                "workflow_history__cancellation_requested_by",
+            ).get(id=node_history_id)
+        except AutomationNodeHistory.DoesNotExist:
+            # The node or its workflow was deleted while the node waited, e.g.
+            # the workflow was republished. The run's chain goes on and resolves
+            # the run, nothing else is left to do for this node.
+            logger.warning(
+                f"Node history with ID {node_history_id} was not found. It was "
+                "likely deleted while the node was waiting."
+            )
+            return None
+
+        workflow_history = node_history.workflow_history
+
+        if workflow_history.status in (
+            HistoryStatusChoices.CANCELLED,
+            HistoryStatusChoices.ERROR,
+        ):
+            # Resolved while the node waited, e.g. by the timeout sweep.
+            self._resolve_waiting_node(
+                node_history, workflow_history.status, workflow_history.message
+            )
+            return None
+
+        if (
+            workflow_history.cancellation_requested_on is not None
+            and workflow_history.status == HistoryStatusChoices.STARTED
+        ):
+            # The same cooperative cancellation as dispatch_node(): a "Stop run"
+            # is noticed at the next wake-up, within one countdown chunk.
+            AutomationHistoryHandler().finalize_workflow_history_cancellation(
+                workflow_history
+            )
+            workflow_history.refresh_from_db(fields=["status", "message"])
+            self._resolve_waiting_node(
+                node_history, workflow_history.status, workflow_history.message
+            )
+            return None
+
+        if node_history.status != HistoryStatusChoices.WAITING:
+            return PendingNodeAlreadyClaimed()
+
+        now = timezone.now()
+        if node_history.resume_at > now:
+            return PendingNodeNotDue(
+                countdown=self._pending_node_countdown(node_history.resume_at, now)
+            )
+
+        claimed = AutomationNodeHistory.objects.filter(
+            id=node_history.id, status=HistoryStatusChoices.WAITING
+        ).update(status=HistoryStatusChoices.STARTED)
+        if not claimed:
+            return PendingNodeAlreadyClaimed()
+
+        node_history.status = HistoryStatusChoices.STARTED
+        return self.complete_pending_node(node_history)
+
+    def _resolve_waiting_node(
+        self, node_history: AutomationNodeHistory, status: str, message: str
+    ) -> None:
+        """
+        Closes the history of a waiting node whose run was resolved elsewhere,
+        with the run's outcome. Guarded on the row still being `waiting`, so a
+        duplicate wake-up never rewrites it.
+        """
+
+        AutomationNodeHistory.objects.filter(
+            id=node_history.id, status=HistoryStatusChoices.WAITING
+        ).update(status=status, message=message, completed_on=timezone.now())
+
+    def complete_pending_node(
+        self, node_history: AutomationNodeHistory
+    ) -> Optional[Signature]:
+        """
+        Finishes the dispatch of a node that suspended itself, once its resume
+        is due and claimed: the service is resumed with the state it stored, and
+        the result is completed like any other dispatch, iterator positions
+        included. A failure here is not retried by the node's error policy: the
+        wait itself has nothing transient to recover from. A resume does not
+        count as a dispatch for the per-run limit either.
+        """
+
+        node = node_history.node.specific
+        workflow_history = node_history.workflow_history
+        resume_state = node_history.resume_state or {}
+        current_iterations = resume_state.get("current_iterations")
+        dispatch_context = AutomationDispatchContext(
+            node.workflow,
+            workflow_history,
+            event_payload=workflow_history.event_payload,
+            simulate_until_node=workflow_history.simulate_until_node,
+            current_iterations=current_iterations,
+        )
+        iteration_path = dispatch_context.get_iteration_path(node)
+        node_type: Type[AutomationActionNodeType] = node.get_type()
+
+        try:
+            dispatch_result = node_type.resume_dispatch(
+                node, resume_state.get("state") or {}, dispatch_context
+            )
+        except Exception as e:
+            original_workflow = node.workflow.get_original()
+            error = (
+                f"Error while resuming workflow {original_workflow.id}. Error: {str(e)}"
+            )
+            logger.exception(error)
+            self._handle_workflow_error(node_history, iteration_path, error)
+            return None
+
+        # The state served its purpose. `resume_at` is kept: the history still
+        # tells when the node resumed.
+        node_history.resume_state = None
+        automation_node_dispatch_resumed.send(
+            sender=self, node=node, node_history=node_history
+        )
+
+        return self._complete_node_dispatch(
+            node,
             node_history,
             dispatch_context,
             iteration_path,
