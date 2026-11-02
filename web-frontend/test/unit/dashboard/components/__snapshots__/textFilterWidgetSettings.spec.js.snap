@@ -14,34 +14,11 @@ exports[`TextFilterWidgetSettings > renders literal settings and saves clearing 
     <div class="control__wrapper">
       <div class="control__elements">
         <div class="control__elements-wrapper">
-          <div id="v-0-0-0" class="dropdown" tabindex="0" role="list"><a class="dropdown__selected">
-              <!--v-if-->
-              <!--v-if--><span class="dropdown__selected-text" title="textFilterWidget.input">textFilterWidget.input</span><i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
-            </a>
-            <div class="dropdown__items hidden">
-              <!--v-if-->
-              <ul class="select__items prevent-scroll" tabindex="-1">
-                <li class="select__item select__item--no-options visible active" role="listitem"><a class="select__item-link">
-                    <div class="select__item-name">
-                      <!--v-if-->
-                      <!--v-if-->
-                      <!--v-if--><span class="select__item-name-text" title="textFilterWidget.input">textFilterWidget.input</span>
-                    </div>
-                    <!--v-if-->
-                  </a><i class="select__item-active-icon iconoir-check"></i></li>
-                <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
-                    <div class="select__item-name">
-                      <!--v-if-->
-                      <!--v-if-->
-                      <!--v-if--><span class="select__item-name-text" title="textFilterWidget.dropdown">textFilterWidget.dropdown</span>
-                    </div>
-                    <!--v-if-->
-                  </a><i class="select__item-active-icon iconoir-check"></i></li>
-              </ul>
-              <!--v-if-->
-              <!--v-if-->
-            </div>
-          </div>
+          <div class="segment-control"><button class="segment-control__button--active segment-control__button" title="textFilterWidget.input">
+              <!--v-if--><span class="segment-control__button-label">textFilterWidget.input</span>
+            </button><button class="segment-control__button" title="textFilterWidget.dropdown">
+              <!--v-if--><span class="segment-control__button-label">textFilterWidget.dropdown</span>
+            </button></div>
         </div>
         <!--v-if-->
       </div>
@@ -124,34 +101,11 @@ exports[`configures a target inside the input sidebar and keeps template saves i
     <div class="control__wrapper">
       <div class="control__elements">
         <div class="control__elements-wrapper">
-          <div id="v-0-0-0" class="dropdown" tabindex="0" role="list"><a class="dropdown__selected">
-              <!--v-if-->
-              <!--v-if--><span class="dropdown__selected-text" title="textFilterWidget.input">textFilterWidget.input</span><i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
-            </a>
-            <div class="dropdown__items hidden">
-              <!--v-if-->
-              <ul class="select__items prevent-scroll" tabindex="-1">
-                <li class="select__item select__item--no-options visible active" role="listitem"><a class="select__item-link">
-                    <div class="select__item-name">
-                      <!--v-if-->
-                      <!--v-if-->
-                      <!--v-if--><span class="select__item-name-text" title="textFilterWidget.input">textFilterWidget.input</span>
-                    </div>
-                    <!--v-if-->
-                  </a><i class="select__item-active-icon iconoir-check"></i></li>
-                <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
-                    <div class="select__item-name">
-                      <!--v-if-->
-                      <!--v-if-->
-                      <!--v-if--><span class="select__item-name-text" title="textFilterWidget.dropdown">textFilterWidget.dropdown</span>
-                    </div>
-                    <!--v-if-->
-                  </a><i class="select__item-active-icon iconoir-check"></i></li>
-              </ul>
-              <!--v-if-->
-              <!--v-if-->
-            </div>
-          </div>
+          <div class="segment-control"><button class="segment-control__button--active segment-control__button" title="textFilterWidget.input">
+              <!--v-if--><span class="segment-control__button-label">textFilterWidget.input</span>
+            </button><button class="segment-control__button" title="textFilterWidget.dropdown">
+              <!--v-if--><span class="segment-control__button-label">textFilterWidget.dropdown</span>
+            </button></div>
         </div>
         <!--v-if-->
       </div>
@@ -376,34 +330,11 @@ exports[`configures a target inside the input sidebar and keeps template saves i
     <div class="control__wrapper">
       <div class="control__elements">
         <div class="control__elements-wrapper">
-          <div id="v-0-0-0" class="dropdown" tabindex="0" role="list"><a class="dropdown__selected">
-              <!--v-if-->
-              <!--v-if--><span class="dropdown__selected-text" title="textFilterWidget.input">textFilterWidget.input</span><i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
-            </a>
-            <div class="dropdown__items hidden">
-              <!--v-if-->
-              <ul class="select__items prevent-scroll" tabindex="-1">
-                <li class="select__item select__item--no-options visible active" role="listitem"><a class="select__item-link">
-                    <div class="select__item-name">
-                      <!--v-if-->
-                      <!--v-if-->
-                      <!--v-if--><span class="select__item-name-text" title="textFilterWidget.input">textFilterWidget.input</span>
-                    </div>
-                    <!--v-if-->
-                  </a><i class="select__item-active-icon iconoir-check"></i></li>
-                <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
-                    <div class="select__item-name">
-                      <!--v-if-->
-                      <!--v-if-->
-                      <!--v-if--><span class="select__item-name-text" title="textFilterWidget.dropdown">textFilterWidget.dropdown</span>
-                    </div>
-                    <!--v-if-->
-                  </a><i class="select__item-active-icon iconoir-check"></i></li>
-              </ul>
-              <!--v-if-->
-              <!--v-if-->
-            </div>
-          </div>
+          <div class="segment-control"><button class="segment-control__button--active segment-control__button" title="textFilterWidget.input">
+              <!--v-if--><span class="segment-control__button-label">textFilterWidget.input</span>
+            </button><button class="segment-control__button" title="textFilterWidget.dropdown">
+              <!--v-if--><span class="segment-control__button-label">textFilterWidget.dropdown</span>
+            </button></div>
         </div>
         <!--v-if-->
       </div>

@@ -6,17 +6,16 @@
       class="margin-bottom-2"
       required
     >
-      <Dropdown
-        :model-value="widget.mode || 'input'"
-        :show-search="false"
-        @update:model-value="updateSetting('mode', $event)"
-      >
-        <DropdownItem :name="$t('textFilterWidget.input')" value="input" />
-        <DropdownItem
-          :name="$t('textFilterWidget.dropdown')"
-          value="dropdown"
-        />
-      </Dropdown>
+      <SegmentControl
+        :segments="[
+          { label: $t('textFilterWidget.input') },
+          { label: $t('textFilterWidget.dropdown') },
+        ]"
+        :active-index="widget.mode === 'dropdown' ? 1 : 0"
+        @update:active-index="
+          updateSetting('mode', $event === 1 ? 'dropdown' : 'input')
+        "
+      />
     </FormGroup>
     <FormGroup
       v-if="widget.mode === 'dropdown'"
