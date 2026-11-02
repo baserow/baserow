@@ -424,7 +424,10 @@ export function useAgentConfiguration(agent) {
     }
   )
   watch(
-    () => agent.value?._?.realtimeVersion,
+    [
+      () => agent.value?._?.realtimeVersion,
+      () => store.getters['agent/getRevision'](agent.value?.workspace.id),
+    ],
     () => fetchConfiguration()
   )
   watch(

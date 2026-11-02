@@ -627,6 +627,147 @@ describe('Agent configuration', () => {
     trashed: false,
   }
 
+  const workspaceAccessRow = (wrapper) =>
+    wrapper
+      .findAll('.menu-list__item-button')
+      .find((button) => button.text().includes('agent.workspaceAccess'))
+
+  test.each([
+    ['trashed', { ...investor, trashed: true }, true],
+    ['active', investor, false],
+    ['unset', null, false],
+  ])(
+    'flags workspace access without opening it when the identity is %s',
+    async (_, identity, hasError) => {
+      mockConfiguration(testApp, completeConfiguration({ run_as: identity }))
+      const wrapper = await mount()
+      const error = workspaceAccessRow(wrapper).find('.icon--error')
+
+      expect(error.exists()).toBe(hasError)
+      if (hasError) {
+        expect(error.attributes('aria-label')).toBe('agent.runAsTrashed')
+      }
+      expect(wrapper.find('.agent-configuration__body').exists()).toBe(false)
+      expect(warning(wrapper).exists()).toBe(false)
+      expect(wrapper.find('.agent-chat__composer').exists()).toBe(true)
+    }
+  )
+
+  test('updates the collapsed workspace access error when the identity is deleted and restored', async () => {
+    mockConfiguration(testApp, completeConfiguration({ run_as: investor }))
+    const wrapper = await mount()
+    const error = () => workspaceAccessRow(wrapper).find('.icon--error')
+    const requests = testApp.mock.history.get.length
+
+    await testApp.store.dispatch('agent/forceDelete', {
+      workspaceId: 2,
+      agentId: investor.id,
+    })
+    await flushPromises()
+    expect(testApp.mock.history.get).toHaveLength(requests)
+
+    mockConfiguration(
+      testApp,
+      completeConfiguration({ run_as: { ...investor, trashed: true } })
+    )
+    await testApp.store.dispatch('agent/forceDelete', {
+      workspaceId: 1,
+      agentId: investor.id,
+    })
+    await flushPromises()
+
+    expect(error().attributes('aria-label')).toBe('agent.runAsTrashed')
+    expect(wrapper.find('.agent-configuration__body').exists()).toBe(false)
+    expect(warning(wrapper).exists()).toBe(false)
+
+    mockConfiguration(testApp, completeConfiguration({ run_as: investor }))
+    await testApp.store.dispatch('agent/forceCreate', {
+      id: investor.id,
+      workspace_id: 1,
+      name: investor.name,
+    })
+    await flushPromises()
+
+    expect(error().exists()).toBe(false)
+    expect(savedValues(testApp)).toEqual([])
+  })
+
+  test.each([
+    [
+      'a replacement identity',
+      { ...investor, id: 8, name: 'Support' },
+      'Support',
+    ],
+    ['no workspace access', null, 'agent.noWorkspaceAccess'],
+  ])(
+    'clears the workspace access error after choosing %s',
+    async (_, identity, label) => {
+      mockConfiguration(
+        testApp,
+        completeConfiguration({ run_as: { ...investor, trashed: true } })
+      )
+      testApp.mock.onGet('/subjects/').reply(
+        200,
+        page([
+          {
+            id: 'core.Agent:8',
+            subject_id: 8,
+            subject_type: 'core.Agent',
+            name: 'Support',
+          },
+        ])
+      )
+      mockSaves(testApp, completeConfiguration({ run_as: identity }))
+      const wrapper = await mount()
+      expect(workspaceAccessRow(wrapper).find('.icon--error').exists()).toBe(
+        true
+      )
+
+      await openSection(wrapper, 'agent.workspaceAccess')
+      expect(wrapper.get('.control__messages').text()).toContain(
+        'agent.runAsTrashed'
+      )
+      await wrapper
+        .get('.agent-configuration .dropdown__selected')
+        .trigger('click')
+      await flushPromises()
+      await wrapper
+        .findAll('.agent-configuration .select__item-link')
+        .find((item) => item.text().includes(label))
+        .trigger('click')
+      await flushPromises()
+      await wrapper.get('button[aria-label="action.back"]').trigger('click')
+
+      expect(workspaceAccessRow(wrapper).find('.icon--error').exists()).toBe(
+        false
+      )
+      expect(savedValues(testApp)).toEqual([
+        {
+          run_as_subject_type: identity?.type ?? null,
+          run_as_subject_id: identity?.id ?? null,
+        },
+      ])
+    }
+  )
+
+  test('does not fetch private configuration for identity events without access', async () => {
+    allowed.value = withoutConfiguration
+    const wrapper = await mount()
+
+    await testApp.store.dispatch('agent/forceDelete', {
+      workspaceId: 1,
+      agentId: investor.id,
+    })
+    await flushPromises()
+
+    expect(
+      testApp.mock.history.get.filter(({ url }) =>
+        url.includes('/configuration/')
+      )
+    ).toEqual([])
+    expect(wrapper.find('.agent-configuration').exists()).toBe(false)
+  })
+
   test.each([
     ['assigns an identity', null, investor, 'Investor'],
     ['clears the identity', investor, null, 'agent.noWorkspaceAccess'],

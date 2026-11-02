@@ -16,7 +16,8 @@ const WorkspaceAccessSection = markRaw(AgentWorkspaceAccessSection)
  *
  * Components can expose `focusField(field)` to focus a field selected from the
  * configuration warning. The fields map identifies which section owns a field
- * and provides its label and optional unavailable error message.
+ * and provides its label and optional unavailable error message. Section errors
+ * also receive the configuration for optional settings that don't block replies.
  */
 export class AgentConfigurationSectionType extends Registerable {
   get name() {
@@ -110,6 +111,13 @@ export class WorkspaceAccessAgentConfigurationSectionType extends AgentConfigura
 
   get component() {
     return WorkspaceAccessSection
+  }
+
+  getErrorMessage(errors, configuration) {
+    const runAs = configuration?.run_as
+    return runAs?.trashed
+      ? this.$t('agent.runAsTrashed', { name: runAs.name })
+      : super.getErrorMessage(errors)
   }
 
   getOrder() {
