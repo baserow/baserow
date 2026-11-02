@@ -29,6 +29,12 @@ EXPECTED = {
     "search_workspace": (True, False),
     "list_row_comments": (True, False),
     "create_row_comments": (False, False),
+    "set_view_sorts": (False, False),
+    "set_field_visibility": (False, False),
+    "set_row_colours": (False, False),
+    "delete_views": (False, True),
+    "delete_view_filters": (False, True),
+    "delete_row_colours": (False, True),
     # Disabled tools, annotated so they are ready when enabled.
     "update_table": (False, True),
     "delete_table": (False, True),

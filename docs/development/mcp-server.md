@@ -120,6 +120,12 @@ Some tools are currently disabled (`enabled = False`) and hidden from MCP client
 | `delete_fields` | enabled | Delete (trash) fields (shared with Kuma) |
 | `create_views` | enabled | Create views in a table (shared with Kuma) |
 | `create_view_filters` | enabled | Add filters to views (shared with Kuma) |
+| `set_view_sorts` | enabled | Replace the sorts of a view (shared with Kuma) |
+| `set_field_visibility` | enabled | Hide or show fields in a view (shared with Kuma) |
+| `set_row_colours` | enabled | Colour rows by a single select field or by conditions. Needs premium (shared with Kuma) |
+| `delete_views` | enabled | Delete (trash) views (shared with Kuma) |
+| `delete_view_filters` | enabled | Delete filters from views (shared with Kuma) |
+| `delete_row_colours` | enabled | Remove row colours from views (shared with Kuma) |
 | `list_workflows` | enabled | List the automations of the workspace and their workflows (shared with Kuma) |
 | `list_nodes` | enabled | List a workflow's nodes in order, with their branches and output paths (shared with Kuma) |
 | `create_workflows` | enabled | Create workflows with a trigger and nodes (shared with Kuma) |

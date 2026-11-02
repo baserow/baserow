@@ -25,6 +25,7 @@ from baserow.contrib.database.rows.actions import (
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.tools import fields as shared_fields
 from baserow.contrib.database.tools import tables as shared_tables
+from baserow.contrib.database.tools import view_config as shared_view_config
 from baserow.contrib.database.tools import views as shared_views
 from baserow.core.exceptions import PermissionException
 from baserow.core.models import Workspace
@@ -1344,6 +1345,109 @@ def create_row_comments(
     comments: Annotated[
         list[shared_row_comments.RowCommentCreate],
         Field(description="The comments to post, each on one row."),
+
+
+# View config
+# ---------------------------------------------------------------------------
+
+
+def set_view_sorts(
+    ctx: RunContext[AssistantDeps],
+    view_id: Annotated[int, Field(description="The ID of the view.")],
+    sorts: Annotated[
+        list[shared_view_config.ViewSortItem],
+        Field(description="The new sorts, most important first. Empty removes them."),
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+) -> dict[str, Any]:
+    """\
+    Replace the sorts of a view.
+
+    WHEN to use: User wants a view sorted differently, or its sorts removed.
+    WHAT it does: The view ends up sorted by exactly this list. list_views shows the current sorts.
+    RETURNS: sorts with id, field_id, order.
+    HOW: Get the field IDs from list_tables or get_tables_schema, and the view ID from list_views.
+    """
+
+    return shared_view_config.set_view_sorts(ctx.deps.tool_context(), view_id, sorts)
+
+
+def set_field_visibility(
+    ctx: RunContext[AssistantDeps],
+    view_id: Annotated[int, Field(description="The ID of the view.")],
+    fields: Annotated[
+        list[shared_view_config.FieldVisibility],
+        Field(description="The fields to hide or show."),
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+) -> dict[str, Any]:
+    """\
+    Hide or show fields in a view.
+
+    WHEN to use: User wants fields hidden from or shown in a view, without deleting them.
+    RETURNS: updated field IDs. Fields that can't change, like the primary field of a grid view, are in errors.
+    DO NOT USE when: The view is a form; a form has no hidden fields.
+    """
+
+    require_payload("set_field_visibility", "fields", fields)
+    return shared_view_config.set_field_visibility(
+        ctx.deps.tool_context(), view_id, fields
+    )
+
+
+def set_row_colours(
+    ctx: RunContext[AssistantDeps],
+    view_id: Annotated[int, Field(description="The ID of the view.")],
+    colour: Annotated[
+        shared_view_config.RowColour, Field(description="How to colour the rows.")
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+) -> dict[str, Any]:
+    """\
+    Colour the rows of a grid or gallery view.
+
+    WHEN to use: User wants rows coloured by a single select field, or by conditions like "red when the amount is over 100".
+    WHAT it does: Adds a colouring to the view. list_views shows the ones it already has under row_colours; remove one that gets replaced with delete_row_colours.
+    RETURNS: decoration_id.
+    HOW: For conditions, use the same filter format as create_view_filters. Colours are names like red, light-blue, dark-green.
+    """
+
+    return shared_view_config.set_row_colours(ctx.deps.tool_context(), view_id, colour)
+
+
+def delete_views(
+    ctx: RunContext[AssistantDeps],
+    view_ids: Annotated[
+        list[int], Field(description="The IDs of the views to delete.")
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+) -> dict[str, Any]:
+    """\
+    Move views to the trash.
+
+    WHEN to use: User asks to delete views. The rows of the table stay.
+    RETURNS: deleted view IDs. Views that can't be deleted are in errors with their index.
+    """
+
+    require_payload("delete_views", "view_ids", view_ids)
+    return shared_view_config.delete_views(ctx.deps.tool_context(), view_ids)
+
+
+def delete_view_filters(
+    ctx: RunContext[AssistantDeps],
+    filter_ids: Annotated[
+        list[int],
+        Field(
+            description="The IDs of the filters to delete, as list_views shows them."
+        ),
     ],
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
@@ -1363,6 +1467,38 @@ def create_row_comments(
 
     return shared_row_comments.create_row_comments(
         ctx.deps.tool_context(), table_id, comments
+
+
+    Delete filters from views.
+
+    WHEN to use: User wants a view to stop filtering on something. list_views shows each view's filters.
+    RETURNS: deleted filter IDs. Filters that can't be deleted are in errors with their index.
+    """
+
+    require_payload("delete_view_filters", "filter_ids", filter_ids)
+    return shared_view_config.delete_view_filters(ctx.deps.tool_context(), filter_ids)
+
+
+def delete_row_colours(
+    ctx: RunContext[AssistantDeps],
+    decoration_ids: Annotated[
+        list[int],
+        Field(description="The IDs of the row colours to delete, as list_views shows."),
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+) -> dict[str, Any]:
+    """\
+    Remove row colours from views.
+
+    WHEN to use: User wants rows no longer coloured. list_views shows each view's row_colours.
+    RETURNS: deleted IDs. Colours that can't be removed are in errors with their index.
+    """
+
+    require_payload("delete_row_colours", "decoration_ids", decoration_ids)
+    return shared_view_config.delete_row_colours(
+        ctx.deps.tool_context(), decoration_ids
     )
 
 
@@ -1379,6 +1515,12 @@ TOOL_FUNCTIONS = [
     delete_fields,
     create_views,
     create_view_filters,
+    set_view_sorts,
+    set_field_visibility,
+    set_row_colours,
+    delete_views,
+    delete_view_filters,
+    delete_row_colours,
     generate_formula,
     load_row_tools,
 ]

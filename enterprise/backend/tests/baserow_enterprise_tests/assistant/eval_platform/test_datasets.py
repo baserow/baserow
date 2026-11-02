@@ -114,6 +114,7 @@ EXPECTED_CASE_IDS = {
     ],
     "kuma-database": [
         "database/adds-row-comment",
+        "database/colours-rows",
         "database/creates-database-from-description",
         "database/creates-related-tables",
         "database/creates-related-tables-with-sample-rows",
@@ -135,6 +136,7 @@ EXPECTED_CASE_IDS = {
         "database/deletes-field",
         "database/reads-row-comments",
         "database/renames-field",
+        "database/sorts-view",
         "database/updates-select-options",
     ],
     "kuma-docs": [

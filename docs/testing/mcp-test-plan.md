@@ -129,6 +129,12 @@ The following tools are currently enabled:
 | `delete_fields` | Delete (trash) fields |
 | `create_views` | Create views in a table |
 | `create_view_filters` | Add filters to views |
+| `set_view_sorts` | Replace the sorts of a view |
+| `set_field_visibility` | Hide or show fields in a view |
+| `set_row_colours` | Colour rows of a view (premium) |
+| `delete_views` | Delete (trash) views |
+| `delete_view_filters` | Delete filters from views |
+| `delete_row_colours` | Remove row colours from views |
 | `list_workflows` | List automations and their workflows |
 | `list_nodes` | List a workflow's nodes with their output paths |
 | `create_workflows` | Create workflows with a trigger and nodes |
@@ -212,6 +218,12 @@ where State is Open"*
 
 Expected: Claude calls `create_views`, then `create_view_filters`. The view
 shows the filter in Baserow.
+
+### View config
+
+Ask Claude: *"Sort the grid by due date, newest first"*, *"Hide the notes field in this view"*, *"Colour the rows by status"* (needs a premium licence), then *"Remove that colour and the filters on this view"*.
+
+Expected: the view changes after each request. Hiding the primary field of a grid view comes back as an error on that field. Without a licence, colouring reports that the feature isn't available.
 
 ### Automations
 
