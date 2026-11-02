@@ -26,8 +26,8 @@ export class WidgetDataProviderType extends DataProviderType {
     ]
   }
 
-  getDataChunk(context, [id]) {
-    return this.getDataContent(context)[id]
+  getDataChunk(context, path) {
+    return getValueAtPath(this.getDataContent(context), path)
   }
 
   getDataSourceDispatchContext(context) {
@@ -54,7 +54,12 @@ export class WidgetDataProviderType extends DataProviderType {
   }
 
   isValid(path) {
-    return path.length === 1 && /^[1-9][0-9]*$/.test(path[0])
+    return (
+      path.length >= 1 &&
+      path.length <= 2 &&
+      /^[1-9][0-9]{0,18}$/.test(path[0]) &&
+      (path.length === 1 || path[1] === '*' || /^[0-9]{1,9}$/.test(path[1]))
+    )
   }
 }
 

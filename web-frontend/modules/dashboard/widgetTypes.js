@@ -230,7 +230,7 @@ export class FilterWidgetType extends WidgetType {
   }
 
   valueChanged(widget, context, value) {
-    if (context.state.widgetValues[widget.id] === value) return
+    if (isEqual(context.state.widgetValues[widget.id], value)) return
     context.commit('SET_WIDGET_VALUE', { widgetId: widget.id, value })
     refreshWidgetSources(widget, context)
   }
@@ -243,16 +243,43 @@ export class FilterWidgetType extends WidgetType {
 }
 
 export class TextFilterWidgetType extends FilterWidgetType {
+  isMultiple(widget) {
+    return widget.mode === 'dropdown' && widget.multiple === true
+  }
+
+  afterUpdate(widget, context, previousWidget) {
+    const previousValue = context.state.widgetValues[widget.id]
+    super.afterUpdate(widget, context, previousWidget)
+    if (
+      this.isMultiple(widget) !== this.isMultiple(previousWidget) &&
+      widget.default_value === previousWidget.default_value
+    ) {
+      const values = Array.isArray(previousValue)
+        ? previousValue
+        : previousValue
+          ? [previousValue]
+          : []
+      this.valueChanged(
+        widget,
+        context,
+        this.isMultiple(widget) ? values : values[0] || ''
+      )
+    }
+  }
+
   afterSave(widget, context, values) {
     super.afterSave(widget, context, values)
     context.dispatch('fetchWidgetOptions', { widgetId: widget.id })
   }
   getDefaultValue(widget) {
-    return widget.default_value ?? ''
+    const value = widget.default_value ?? ''
+    return this.isMultiple(widget) ? (value ? [value] : []) : value
   }
 
   getValueSchema(widget) {
-    return { type: 'string', title: widget.title }
+    return this.isMultiple(widget)
+      ? { type: 'array', items: { type: 'string' }, title: widget.title }
+      : { type: 'string', title: widget.title }
   }
   static getType() {
     return 'text_filter'

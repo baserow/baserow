@@ -54,6 +54,34 @@ test('the dynamic formula picker exposes only its owning input', () => {
   })
 })
 
+test('multiple filter values expose an array and support whole-list and index paths', async () => {
+  const store = testApp.store
+  await store.dispatch('dashboardApplication/forceSetWidgets', [
+    {
+      id: 1,
+      type: 'text_filter',
+      title: 'Country',
+      mode: 'dropdown',
+      multiple: true,
+      default_value: 'France',
+    },
+  ])
+  const provider = new WidgetDataProviderType({
+    app: { $store: store, $registry: store.$registry },
+  })
+  expect(provider.getDataSchema({}).properties[1]).toEqual({
+    type: 'array',
+    title: 'Country',
+    items: { type: 'string' },
+  })
+  expect(provider.getDataChunk({}, ['1', '*'])).toEqual(['France'])
+  expect(provider.getDataChunk({}, ['1', '0'])).toBe('France')
+  expect(provider.isValid(['1', '*'])).toBe(true)
+  expect(provider.isValid(['1', '0'])).toBe(true)
+  expect(provider.isValid(['1', '0', 'extra'])).toBe(false)
+  store.commit('dashboardApplication/RESET')
+})
+
 test('new filter types supply their own formula schema', () => {
   class NumberFilterWidgetType extends FilterWidgetType {
     static getType() {

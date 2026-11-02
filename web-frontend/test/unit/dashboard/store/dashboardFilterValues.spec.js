@@ -81,6 +81,46 @@ const settle = async () => {
 }
 
 describe('Dashboard filter dispatch', () => {
+  test.each([false, true])(
+    'waits for selection mode persistence before dispatching (failure: %s)',
+    async (failure) => {
+      await store.dispatch('dashboardApplication/forceUpdateWidget', {
+        widgetId: 12,
+        values: { mode: 'dropdown', multiple: false },
+      })
+      await change(12, 'Beta')
+      await vi.advanceTimersByTimeAsync(300)
+      await settle()
+      post.mockClear()
+      let finishSave
+      store.$client.patch = vi.fn(
+        () =>
+          new Promise((resolve, reject) => {
+            finishSave = failure
+              ? () => reject(new Error('Save failed'))
+              : () => resolve({ data: {} })
+          })
+      )
+      const saving = store
+        .dispatch('dashboardApplication/updateWidget', {
+          widgetId: 12,
+          values: { multiple: true },
+          originalValues: { multiple: false },
+        })
+        .catch(() => {})
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(post).not.toHaveBeenCalled()
+      finishSave()
+      await saving
+      await vi.advanceTimersByTimeAsync(300)
+      expect(requests).toHaveLength(2)
+      expect(requests[0].payload.widget_data[12]).toEqual(
+        failure ? 'Beta' : ['Beta']
+      )
+      await settle()
+    }
+  )
+
   test('sends defaults on initial dispatch and selectively coalesces multiple inputs', async () => {
     const initial = store.dispatch('dashboardApplication/dispatchDataSource', 1)
     await vi.advanceTimersByTimeAsync(0)

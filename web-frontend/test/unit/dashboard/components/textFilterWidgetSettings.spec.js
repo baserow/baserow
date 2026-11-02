@@ -9,6 +9,34 @@ beforeEach(() => {
 afterEach(() => testApp.afterEach())
 
 describe('TextFilterWidgetSettings', () => {
+  test('offers single or multiple selection only for dropdowns', async () => {
+    const widget = {
+      id: 2,
+      mode: 'input',
+      multiple: false,
+      placeholder: '',
+      default_value: '',
+    }
+    const dispatch = vi.spyOn(testApp.store, 'dispatch').mockResolvedValue()
+    const wrapper = await testApp.mount(TextFilterWidgetSettings, {
+      props: { dashboard: { id: 1 }, widget },
+    })
+    expect(wrapper.findAll('.segment-control')).toHaveLength(1)
+    await wrapper.setProps({ widget: { ...widget, mode: 'dropdown' } })
+    const selections = wrapper.findAll('.segment-control')[1].findAll('button')
+    expect(selections.map((button) => button.text())).toEqual([
+      'textFilterWidget.singleValue',
+      'textFilterWidget.multipleValues',
+    ])
+    await selections[1].trigger('click')
+    expect(dispatch).toHaveBeenCalledWith(
+      'dashboardApplication/updateWidget',
+      expect.objectContaining({
+        values: expect.objectContaining({ mode: 'dropdown', multiple: true }),
+      })
+    )
+    dispatch.mockRestore()
+  })
   test('renders literal settings and saves clearing through the widget store', async () => {
     const dispatch = vi.spyOn(testApp.store, 'dispatch').mockResolvedValue()
     const wrapper = await testApp.mount(TextFilterWidgetSettings, {
@@ -27,6 +55,7 @@ describe('TextFilterWidgetSettings', () => {
       widgetId: 2,
       values: {
         mode: 'input',
+        multiple: false,
         options: {},
         placeholder: '',
         default_value: 'Initial',
@@ -34,6 +63,7 @@ describe('TextFilterWidgetSettings', () => {
       },
       originalValues: {
         mode: 'input',
+        multiple: false,
         options: {},
         placeholder: 'Type here',
         default_value: 'Initial',
@@ -47,6 +77,7 @@ describe('TextFilterWidgetSettings', () => {
       widgetId: 2,
       values: {
         mode: 'input',
+        multiple: false,
         options: {},
         placeholder: 'Type here',
         default_value: "get('literal')",
@@ -54,6 +85,7 @@ describe('TextFilterWidgetSettings', () => {
       },
       originalValues: {
         mode: 'input',
+        multiple: false,
         options: {},
         placeholder: 'Type here',
         default_value: 'Initial',
