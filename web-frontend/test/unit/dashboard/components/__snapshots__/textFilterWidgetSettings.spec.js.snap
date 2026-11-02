@@ -26,6 +26,7 @@ exports[`TextFilterWidgetSettings > renders literal settings and saves clearing 
     </div>
   </div>
   <!--v-if-->
+  <!--v-if-->
   <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-1" class="control__label control__label--small"><span>textFilterWidget.placeholder</span>
       <!--v-if-->
       <!--v-if-->
@@ -112,6 +113,7 @@ exports[`configures a target inside the input sidebar and keeps template saves i
       <!--v-if-->
     </div>
   </div>
+  <!--v-if-->
   <!--v-if-->
   <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-1" class="control__label control__label--small"><span>textFilterWidget.placeholder</span>
       <!--v-if-->
@@ -341,6 +343,7 @@ exports[`configures a target inside the input sidebar and keeps template saves i
       <!--v-if-->
     </div>
   </div>
+  <!--v-if-->
   <!--v-if-->
   <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-1" class="control__label control__label--small"><span>textFilterWidget.placeholder</span>
       <!--v-if-->

@@ -13,26 +13,29 @@
     >
       <Dropdown
         v-model="value"
+        :multiple="multiple"
         class="dashboard-text-filter-widget__dropdown"
         :class="{
-          'dashboard-text-filter-widget__dropdown--active': value !== '',
+          'dashboard-text-filter-widget__dropdown--active': hasValue,
         }"
-        :show-footer="value !== '' || optionState.error"
+        :show-footer="hasValue || optionState.error"
         :loading="optionState.loading"
       >
         <template #selectedValue>
           <i class="dropdown__selected-icon iconoir-filter" />
-          <span class="dropdown__selected-text" :title="value">{{
-            value
+          <span class="dropdown__selected-text" :title="displayValue">{{
+            displayValue
           }}</span>
         </template>
         <template #defaultValue>
           <i class="dropdown__selected-icon iconoir-filter" />
           <span
             class="dropdown__selected-text"
-            :class="{ 'dropdown__selected-placeholder': !value }"
-            :title="value"
-            >{{ value || widget.placeholder || $t('action.makeChoice') }}</span
+            :class="{ 'dropdown__selected-placeholder': !hasValue }"
+            :title="displayValue"
+            >{{
+              displayValue || widget.placeholder || $t('action.makeChoice')
+            }}</span
           >
         </template>
         <DropdownItem
@@ -52,7 +55,7 @@
           <ButtonText v-if="optionState.error" @click="loadOptions(true)">{{
             $t('action.retry')
           }}</ButtonText>
-          <ButtonText v-if="value !== ''" @click="value = ''">{{
+          <ButtonText v-if="hasValue" @click="value = multiple ? [] : ''">{{
             $t('textFilterWidget.clear')
           }}</ButtonText>
         </template>
@@ -91,6 +94,9 @@ const props = defineProps({
 })
 
 const store = useStore()
+const multiple = computed(
+  () => props.widget.mode === 'dropdown' && props.widget.multiple === true
+)
 const optionState = computed(() => {
   const cached =
     store.getters[`${props.storePrefix}dashboardApplication/getWidgetOptions`][
@@ -120,12 +126,19 @@ const value = computed({
     store.getters[`${props.storePrefix}dashboardApplication/getWidgetValues`][
       props.widget.id
     ] ??
-    props.widget.default_value ??
-    '',
+    (multiple.value
+      ? props.widget.default_value
+        ? [props.widget.default_value]
+        : []
+      : (props.widget.default_value ?? '')),
   set: (value) =>
     store.dispatch(`${props.storePrefix}dashboardApplication/setWidgetValue`, {
       widgetId: props.widget.id,
       value,
     }),
 })
+const hasValue = computed(() => value.value.length > 0)
+const displayValue = computed(() =>
+  Array.isArray(value.value) ? value.value.join(', ') : value.value
+)
 </script>

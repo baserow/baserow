@@ -20,6 +20,43 @@ afterEach(() => {
 })
 
 describe('TextFilterWidget', () => {
+  test('selects several values in place and clears to an empty list', async () => {
+    const dropdown = {
+      ...widget,
+      mode: 'dropdown',
+      multiple: true,
+      default_value: '',
+    }
+    const store = testApp.store
+    vi.spyOn(store.$client, 'get').mockResolvedValue({
+      data: { results: ['France', 'Belgium'] },
+    })
+    await store.dispatch('dashboardApplication/forceSetWidgets', [dropdown])
+    wrapper = await testApp.mount(TextFilterWidget, {
+      props: { widget: dropdown },
+    })
+    await flushPromises()
+    await wrapper.get('.dropdown__selected').trigger('click')
+    for (const item of wrapper.findAll('.select__item-link'))
+      await item.trigger('click')
+    expect(store.getters['dashboardApplication/getWidgetValues'][1]).toEqual([
+      'France',
+      'Belgium',
+    ])
+    expect(wrapper.get('.dropdown__selected-text').text()).toBe(
+      'France, Belgium'
+    )
+    expect(wrapper.get('.dropdown__items').classes()).not.toContain('hidden')
+    expect(
+      wrapper.findAll('.select__item-name-text').map((item) => item.text())
+    ).toEqual(['France', 'Belgium'])
+    await wrapper.get('.select__footer button').trigger('click')
+    expect(store.getters['dashboardApplication/getWidgetValues'][1]).toEqual([])
+    expect(wrapper.get('.dropdown__selected-placeholder').text()).toBe(
+      'Type here'
+    )
+    store.commit('dashboardApplication/RESET')
+  })
   test('loads public dropdown options when the formula is private', async () => {
     const dropdown = { ...widget, mode: 'dropdown', default_value: '' }
     const store = testApp.store
