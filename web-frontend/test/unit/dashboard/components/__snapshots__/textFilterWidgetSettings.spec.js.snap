@@ -6,7 +6,50 @@ exports[`TextFilterWidgetSettings > renders literal settings and saves clearing 
     <!--v-if-->
     <div></div>
   </div>
-  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-0" class="control__label control__label--small"><span>textFilterWidget.placeholder</span>
+  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-0" class="control__label control__label--small"><span>textFilterWidget.filterType</span>
+      <!--v-if-->
+      <!--v-if-->
+      <!--v-if-->
+    </label>
+    <div class="control__wrapper">
+      <div class="control__elements">
+        <div class="control__elements-wrapper">
+          <div id="v-0-0-0" class="dropdown" tabindex="0" role="list"><a class="dropdown__selected">
+              <!--v-if-->
+              <!--v-if--><span class="dropdown__selected-text" title="textFilterWidget.input">textFilterWidget.input</span><i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
+            </a>
+            <div class="dropdown__items hidden">
+              <!--v-if-->
+              <ul class="select__items prevent-scroll" tabindex="-1">
+                <li class="select__item select__item--no-options visible active" role="listitem"><a class="select__item-link">
+                    <div class="select__item-name">
+                      <!--v-if-->
+                      <!--v-if-->
+                      <!--v-if--><span class="select__item-name-text" title="textFilterWidget.input">textFilterWidget.input</span>
+                    </div>
+                    <!--v-if-->
+                  </a><i class="select__item-active-icon iconoir-check"></i></li>
+                <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                    <div class="select__item-name">
+                      <!--v-if-->
+                      <!--v-if-->
+                      <!--v-if--><span class="select__item-name-text" title="textFilterWidget.dropdown">textFilterWidget.dropdown</span>
+                    </div>
+                    <!--v-if-->
+                  </a><i class="select__item-active-icon iconoir-check"></i></li>
+              </ul>
+              <!--v-if-->
+              <!--v-if-->
+            </div>
+          </div>
+        </div>
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+    </div>
+  </div>
+  <!--v-if-->
+  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-1" class="control__label control__label--small"><span>textFilterWidget.placeholder</span>
       <!--v-if-->
       <!--v-if-->
       <!--v-if-->
@@ -16,7 +59,7 @@ exports[`TextFilterWidgetSettings > renders literal settings and saves clearing 
         <div class="control__elements-wrapper">
           <div class="form-input">
             <!--v-if-->
-            <div class="form-input__wrapper"><input id="v-0-0-0" class="form-input__input" type="text" min="false" max="false" step="false" placeholder="" autocomplete="" value="Type here">
+            <div class="form-input__wrapper"><input id="v-0-0-1" class="form-input__input" type="text" min="false" max="false" step="false" placeholder="" autocomplete="" value="Type here">
               <!--v-if-->
               <!--v-if-->
             </div>
@@ -28,7 +71,7 @@ exports[`TextFilterWidgetSettings > renders literal settings and saves clearing 
       <!--v-if-->
     </div>
   </div>
-  <div data-form-error="false" class="control"><label for="v-0-0-1" class="control__label control__label--small"><span>textFilterWidget.defaultValue</span>
+  <div data-form-error="false" class="control"><label for="v-0-0-2" class="control__label control__label--small"><span>textFilterWidget.defaultValue</span>
       <!--v-if-->
       <!--v-if-->
       <!--v-if-->
@@ -38,7 +81,7 @@ exports[`TextFilterWidgetSettings > renders literal settings and saves clearing 
         <div class="control__elements-wrapper">
           <div class="form-input">
             <!--v-if-->
-            <div class="form-input__wrapper"><input id="v-0-0-1" class="form-input__input" type="text" min="false" max="false" step="false" placeholder="" autocomplete="" value="Initial">
+            <div class="form-input__wrapper"><input id="v-0-0-2" class="form-input__input" type="text" min="false" max="false" step="false" placeholder="" autocomplete="" value="Initial">
               <!--v-if-->
               <!--v-if-->
             </div>
@@ -50,7 +93,7 @@ exports[`TextFilterWidgetSettings > renders literal settings and saves clearing 
       <!--v-if-->
     </div>
   </div>
-  <div data-form-error="false" class="control margin-top-2"><label for="v-0-0-2" class="control__label control__label--small"><span>textFilterWidget.targets</span>
+  <div data-form-error="false" class="control margin-top-2"><label for="v-0-0-3" class="control__label control__label--small"><span>textFilterWidget.targets</span>
       <!--v-if-->
       <!--v-if-->
       <!--v-if-->
@@ -73,7 +116,7 @@ exports[`configures a target inside the input sidebar and keeps template saves i
     <!--v-if-->
     <div></div>
   </div>
-  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-0" class="control__label control__label--small"><span>textFilterWidget.placeholder</span>
+  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-0" class="control__label control__label--small"><span>textFilterWidget.filterType</span>
       <!--v-if-->
       <!--v-if-->
       <!--v-if-->
@@ -81,13 +124,33 @@ exports[`configures a target inside the input sidebar and keeps template saves i
     <div class="control__wrapper">
       <div class="control__elements">
         <div class="control__elements-wrapper">
-          <div class="form-input">
-            <!--v-if-->
-            <div class="form-input__wrapper"><input id="v-0-0-0" class="form-input__input" type="text" min="false" max="false" step="false" placeholder="" autocomplete="" value="">
+          <div id="v-0-0-0" class="dropdown" tabindex="0" role="list"><a class="dropdown__selected">
+              <!--v-if-->
+              <!--v-if--><span class="dropdown__selected-text" title="textFilterWidget.input">textFilterWidget.input</span><i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
+            </a>
+            <div class="dropdown__items hidden">
+              <!--v-if-->
+              <ul class="select__items prevent-scroll" tabindex="-1">
+                <li class="select__item select__item--no-options visible active" role="listitem"><a class="select__item-link">
+                    <div class="select__item-name">
+                      <!--v-if-->
+                      <!--v-if-->
+                      <!--v-if--><span class="select__item-name-text" title="textFilterWidget.input">textFilterWidget.input</span>
+                    </div>
+                    <!--v-if-->
+                  </a><i class="select__item-active-icon iconoir-check"></i></li>
+                <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                    <div class="select__item-name">
+                      <!--v-if-->
+                      <!--v-if-->
+                      <!--v-if--><span class="select__item-name-text" title="textFilterWidget.dropdown">textFilterWidget.dropdown</span>
+                    </div>
+                    <!--v-if-->
+                  </a><i class="select__item-active-icon iconoir-check"></i></li>
+              </ul>
               <!--v-if-->
               <!--v-if-->
             </div>
-            <!--v-if-->
           </div>
         </div>
         <!--v-if-->
@@ -95,7 +158,8 @@ exports[`configures a target inside the input sidebar and keeps template saves i
       <!--v-if-->
     </div>
   </div>
-  <div data-form-error="false" class="control"><label for="v-0-0-1" class="control__label control__label--small"><span>textFilterWidget.defaultValue</span>
+  <!--v-if-->
+  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-1" class="control__label control__label--small"><span>textFilterWidget.placeholder</span>
       <!--v-if-->
       <!--v-if-->
       <!--v-if-->
@@ -117,7 +181,29 @@ exports[`configures a target inside the input sidebar and keeps template saves i
       <!--v-if-->
     </div>
   </div>
-  <div data-form-error="false" class="control margin-top-2"><label for="v-0-0-2" class="control__label control__label--small"><span>textFilterWidget.targets</span>
+  <div data-form-error="false" class="control"><label for="v-0-0-2" class="control__label control__label--small"><span>textFilterWidget.defaultValue</span>
+      <!--v-if-->
+      <!--v-if-->
+      <!--v-if-->
+    </label>
+    <div class="control__wrapper">
+      <div class="control__elements">
+        <div class="control__elements-wrapper">
+          <div class="form-input">
+            <!--v-if-->
+            <div class="form-input__wrapper"><input id="v-0-0-2" class="form-input__input" type="text" min="false" max="false" step="false" placeholder="" autocomplete="" value="">
+              <!--v-if-->
+              <!--v-if-->
+            </div>
+            <!--v-if-->
+          </div>
+        </div>
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+    </div>
+  </div>
+  <div data-form-error="false" class="control margin-top-2"><label for="v-0-0-3" class="control__label control__label--small"><span>textFilterWidget.targets</span>
       <!--v-if-->
       <!--v-if-->
       <!--v-if-->
@@ -139,7 +225,7 @@ exports[`configures a target inside the input sidebar and keeps template saves i
               </div>
               <div class="expandable__content">
                 <div class="sidebar-expandable__content">
-                  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-4" class="control__label control__label--small"><span>textFilterWidget.emptyBehavior</span>
+                  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-5" class="control__label control__label--small"><span>textFilterWidget.emptyBehavior</span>
                       <!--v-if-->
                       <!--v-if-->
                       <!--v-if-->
@@ -147,7 +233,7 @@ exports[`configures a target inside the input sidebar and keeps template saves i
                     <div class="control__wrapper">
                       <div class="control__elements">
                         <div class="control__elements-wrapper">
-                          <div id="v-0-0-4" class="dropdown" tabindex="0" role="list"><a class="dropdown__selected">
+                          <div id="v-0-0-5" class="dropdown" tabindex="0" role="list"><a class="dropdown__selected">
                               <!--v-if-->
                               <!--v-if--><span class="dropdown__selected-text" title="textFilterWidget.apply_nothing">textFilterWidget.apply_nothing</span><i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
                             </a>
@@ -282,7 +368,7 @@ exports[`configures a target inside the input sidebar and keeps template saves i
     <!--v-if-->
     <div></div>
   </div>
-  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-0" class="control__label control__label--small"><span>textFilterWidget.placeholder</span>
+  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-0" class="control__label control__label--small"><span>textFilterWidget.filterType</span>
       <!--v-if-->
       <!--v-if-->
       <!--v-if-->
@@ -290,13 +376,33 @@ exports[`configures a target inside the input sidebar and keeps template saves i
     <div class="control__wrapper">
       <div class="control__elements">
         <div class="control__elements-wrapper">
-          <div class="form-input">
-            <!--v-if-->
-            <div class="form-input__wrapper"><input id="v-0-0-0" class="form-input__input" type="text" min="false" max="false" step="false" placeholder="" autocomplete="" value="">
+          <div id="v-0-0-0" class="dropdown" tabindex="0" role="list"><a class="dropdown__selected">
+              <!--v-if-->
+              <!--v-if--><span class="dropdown__selected-text" title="textFilterWidget.input">textFilterWidget.input</span><i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
+            </a>
+            <div class="dropdown__items hidden">
+              <!--v-if-->
+              <ul class="select__items prevent-scroll" tabindex="-1">
+                <li class="select__item select__item--no-options visible active" role="listitem"><a class="select__item-link">
+                    <div class="select__item-name">
+                      <!--v-if-->
+                      <!--v-if-->
+                      <!--v-if--><span class="select__item-name-text" title="textFilterWidget.input">textFilterWidget.input</span>
+                    </div>
+                    <!--v-if-->
+                  </a><i class="select__item-active-icon iconoir-check"></i></li>
+                <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                    <div class="select__item-name">
+                      <!--v-if-->
+                      <!--v-if-->
+                      <!--v-if--><span class="select__item-name-text" title="textFilterWidget.dropdown">textFilterWidget.dropdown</span>
+                    </div>
+                    <!--v-if-->
+                  </a><i class="select__item-active-icon iconoir-check"></i></li>
+              </ul>
               <!--v-if-->
               <!--v-if-->
             </div>
-            <!--v-if-->
           </div>
         </div>
         <!--v-if-->
@@ -304,7 +410,8 @@ exports[`configures a target inside the input sidebar and keeps template saves i
       <!--v-if-->
     </div>
   </div>
-  <div data-form-error="false" class="control"><label for="v-0-0-1" class="control__label control__label--small"><span>textFilterWidget.defaultValue</span>
+  <!--v-if-->
+  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-1" class="control__label control__label--small"><span>textFilterWidget.placeholder</span>
       <!--v-if-->
       <!--v-if-->
       <!--v-if-->
@@ -326,7 +433,29 @@ exports[`configures a target inside the input sidebar and keeps template saves i
       <!--v-if-->
     </div>
   </div>
-  <div data-form-error="false" class="control margin-top-2"><label for="v-0-0-2" class="control__label control__label--small"><span>textFilterWidget.targets</span>
+  <div data-form-error="false" class="control"><label for="v-0-0-2" class="control__label control__label--small"><span>textFilterWidget.defaultValue</span>
+      <!--v-if-->
+      <!--v-if-->
+      <!--v-if-->
+    </label>
+    <div class="control__wrapper">
+      <div class="control__elements">
+        <div class="control__elements-wrapper">
+          <div class="form-input">
+            <!--v-if-->
+            <div class="form-input__wrapper"><input id="v-0-0-2" class="form-input__input" type="text" min="false" max="false" step="false" placeholder="" autocomplete="" value="">
+              <!--v-if-->
+              <!--v-if-->
+            </div>
+            <!--v-if-->
+          </div>
+        </div>
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+    </div>
+  </div>
+  <div data-form-error="false" class="control margin-top-2"><label for="v-0-0-3" class="control__label control__label--small"><span>textFilterWidget.targets</span>
       <!--v-if-->
       <!--v-if-->
       <!--v-if-->

@@ -97,7 +97,14 @@
     "dashboard": "Dashboard"
   },
   "textFilterWidget": {
-    "name": "Text input",
+    "name": "Text filter",
+    "filterType": "Filter type",
+    "input": "Input",
+    "dropdown": "Dropdown",
+    "filterValues": "Filter values",
+    "filterValuesHelp": "Choose a data source field or enter values separated by commas.",
+    "optionsError": "Could not load filter values. Check the source or formula.",
+    "clear": "Clear selection",
     "placeholder": "Placeholder",
     "defaultValue": "Default value",
     "targets": "Filtered widgets",
