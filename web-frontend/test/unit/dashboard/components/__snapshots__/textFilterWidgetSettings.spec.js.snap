@@ -6,7 +6,8 @@ exports[`TextFilterWidgetSettings > renders literal settings and saves clearing 
     <!--v-if-->
     <div></div>
   </div>
-  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-0" class="control__label control__label--small"><span>textFilterWidget.placeholder</span><span class="control__required">common.optional</span>
+  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-0" class="control__label control__label--small"><span>textFilterWidget.placeholder</span>
+      <!--v-if-->
       <!--v-if-->
       <!--v-if-->
     </label>
@@ -27,7 +28,8 @@ exports[`TextFilterWidgetSettings > renders literal settings and saves clearing 
       <!--v-if-->
     </div>
   </div>
-  <div data-form-error="false" class="control"><label for="v-0-0-1" class="control__label control__label--small"><span>textFilterWidget.defaultValue</span><span class="control__required">common.optional</span>
+  <div data-form-error="false" class="control"><label for="v-0-0-1" class="control__label control__label--small"><span>textFilterWidget.defaultValue</span>
+      <!--v-if-->
       <!--v-if-->
       <!--v-if-->
     </label>
@@ -48,7 +50,8 @@ exports[`TextFilterWidgetSettings > renders literal settings and saves clearing 
       <!--v-if-->
     </div>
   </div>
-  <div data-form-error="false" class="control margin-top-2"><label for="v-0-0-2" class="control__label control__label--small"><span>textFilterWidget.targets</span><span class="control__required">common.optional</span>
+  <div data-form-error="false" class="control margin-top-2"><label for="v-0-0-2" class="control__label control__label--small"><span>textFilterWidget.targets</span>
+      <!--v-if-->
       <!--v-if-->
       <!--v-if-->
     </label>
@@ -70,7 +73,8 @@ exports[`configures a target inside the input sidebar and keeps template saves i
     <!--v-if-->
     <div></div>
   </div>
-  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-0" class="control__label control__label--small"><span>textFilterWidget.placeholder</span><span class="control__required">common.optional</span>
+  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-0" class="control__label control__label--small"><span>textFilterWidget.placeholder</span>
+      <!--v-if-->
       <!--v-if-->
       <!--v-if-->
     </label>
@@ -91,7 +95,8 @@ exports[`configures a target inside the input sidebar and keeps template saves i
       <!--v-if-->
     </div>
   </div>
-  <div data-form-error="false" class="control"><label for="v-0-0-1" class="control__label control__label--small"><span>textFilterWidget.defaultValue</span><span class="control__required">common.optional</span>
+  <div data-form-error="false" class="control"><label for="v-0-0-1" class="control__label control__label--small"><span>textFilterWidget.defaultValue</span>
+      <!--v-if-->
       <!--v-if-->
       <!--v-if-->
     </label>
@@ -112,7 +117,8 @@ exports[`configures a target inside the input sidebar and keeps template saves i
       <!--v-if-->
     </div>
   </div>
-  <div data-form-error="false" class="control margin-top-2"><label for="v-0-0-2" class="control__label control__label--small"><span>textFilterWidget.targets</span><span class="control__required">common.optional</span>
+  <div data-form-error="false" class="control margin-top-2"><label for="v-0-0-2" class="control__label control__label--small"><span>textFilterWidget.targets</span>
+      <!--v-if-->
       <!--v-if-->
       <!--v-if-->
     </label>
@@ -133,7 +139,8 @@ exports[`configures a target inside the input sidebar and keeps template saves i
               </div>
               <div class="expandable__content">
                 <div class="sidebar-expandable__content">
-                  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-4" class="control__label control__label--small"><span>textFilterWidget.emptyBehavior</span><span class="control__required">common.optional</span>
+                  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-4" class="control__label control__label--small"><span>textFilterWidget.emptyBehavior</span>
+                      <!--v-if-->
                       <!--v-if-->
                       <!--v-if-->
                     </label>
@@ -275,7 +282,8 @@ exports[`configures a target inside the input sidebar and keeps template saves i
     <!--v-if-->
     <div></div>
   </div>
-  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-0" class="control__label control__label--small"><span>textFilterWidget.placeholder</span><span class="control__required">common.optional</span>
+  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-0" class="control__label control__label--small"><span>textFilterWidget.placeholder</span>
+      <!--v-if-->
       <!--v-if-->
       <!--v-if-->
     </label>
@@ -296,7 +304,8 @@ exports[`configures a target inside the input sidebar and keeps template saves i
       <!--v-if-->
     </div>
   </div>
-  <div data-form-error="false" class="control"><label for="v-0-0-1" class="control__label control__label--small"><span>textFilterWidget.defaultValue</span><span class="control__required">common.optional</span>
+  <div data-form-error="false" class="control"><label for="v-0-0-1" class="control__label control__label--small"><span>textFilterWidget.defaultValue</span>
+      <!--v-if-->
       <!--v-if-->
       <!--v-if-->
     </label>
@@ -317,7 +326,8 @@ exports[`configures a target inside the input sidebar and keeps template saves i
       <!--v-if-->
     </div>
   </div>
-  <div data-form-error="false" class="control margin-top-2"><label for="v-0-0-2" class="control__label control__label--small"><span>textFilterWidget.targets</span><span class="control__required">common.optional</span>
+  <div data-form-error="false" class="control margin-top-2"><label for="v-0-0-2" class="control__label control__label--small"><span>textFilterWidget.targets</span>
+      <!--v-if-->
       <!--v-if-->
       <!--v-if-->
     </label>
