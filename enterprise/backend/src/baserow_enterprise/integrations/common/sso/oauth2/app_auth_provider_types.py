@@ -112,6 +112,9 @@ class OpenIdConnectAppAuthProviderType(
 
     compatible_user_source_types = [LocalBaserowUserSourceType.type]
 
+    callback_token_query_param_prefix = "user_source_oidc_token__"
+    callback_error_query_param_prefix = "oidc_error__"
+
     public_serializer_field_names = ["name", "base_url"]
 
     sensitive_fields = ["secret"]

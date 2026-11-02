@@ -1,3 +1,4 @@
+from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
 
 from django.test.utils import override_settings
@@ -10,6 +11,9 @@ from baserow_enterprise.api.sso.utils import (
     get_valid_frontend_url,
     redirect_user_on_success,
     urlencode_user_tokens,
+)
+from baserow_enterprise.integrations.common.sso.saml.app_auth_provider_types import (
+    SamlAppAuthProviderType,
 )
 from baserow_enterprise.sso.utils import (
     enforce_sso_ssrf_protection,
@@ -323,6 +327,20 @@ def test_get_valid_front_url_with_an_invalid_port_in_the_allowed_url(allow_any_p
         )
         == "https://shop.example.com/login?t=1"
     )
+
+
+def test_get_valid_front_url_asks_the_auth_provider_types_for_callback_params():
+    with patch.object(
+        SamlAppAuthProviderType, "callback_token_query_param_prefix", "custom_token__"
+    ):
+        assert (
+            get_valid_frontend_url(
+                "http://test.com/p?custom_token__1=ATTACKER&user_source_saml_token__1=a",
+                default_frontend_urls=["http://test.com"],
+                allow_any_path=False,
+            )
+            == "http://test.com/p?user_source_saml_token__1=a"
+        )
 
 
 def test_get_valid_front_url_removes_requested_callback_params():

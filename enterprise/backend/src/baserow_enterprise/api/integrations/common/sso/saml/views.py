@@ -36,6 +36,9 @@ from baserow_enterprise.api.sso.utils import (
     map_sso_exceptions,
 )
 from baserow_enterprise.application_users.exceptions import ApplicationUserLimitReached
+from baserow_enterprise.integrations.common.sso.saml.app_auth_provider_types import (
+    SamlAppAuthProviderType,
+)
 from baserow_enterprise.integrations.common.sso.saml.handler import (
     SamlAppAuthProviderHandler,
 )
@@ -141,9 +144,11 @@ class SamlAppAuthProviderAssertionConsumerServiceView(APIView):
 
             query_params = data.get("saml_request_data", {})
             # Add the refresh token as query parameter
-            query_params[f"user_source_saml_token__{user.user_source.id}"] = (
-                user.get_refresh_token()
-            )
+            query_params[
+                SamlAppAuthProviderType.get_callback_token_query_param_name(
+                    user.user_source.id
+                )
+            ] = user.get_refresh_token()
 
             # Otherwise it's a success, we redirect to the login page
             redirect_url = get_valid_frontend_url(
@@ -166,7 +171,11 @@ class SamlAppAuthProviderAssertionConsumerServiceView(APIView):
         # and the plain email/password login flow) instead of a full page error.
         error_url = get_valid_frontend_url(
             origin,
-            {f"saml_error__{user_source_id}": error_raised["code"].value},
+            {
+                SamlAppAuthProviderType.get_callback_error_query_param_name(
+                    user_source_id
+                ): error_raised["code"].value
+            },
             default_frontend_urls=application_urls,
             allow_any_path=False,
         )
@@ -266,7 +275,11 @@ class SamlAppAuthProviderBaserowInitiatedSingleSignOn(APIView):
         # so the auth form can render the error inline instead of a full page error.
         error_url = get_valid_frontend_url(
             request.GET.get("original"),
-            {f"saml_error__{user_source.id}": error_raised["code"].value},
+            {
+                SamlAppAuthProviderType.get_callback_error_query_param_name(
+                    user_source.id
+                ): error_raised["code"].value
+            },
             default_frontend_urls=application_urls,
             allow_any_path=False,
         )

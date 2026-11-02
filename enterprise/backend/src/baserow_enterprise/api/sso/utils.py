@@ -11,15 +11,8 @@ from django.shortcuts import redirect
 
 from requests.models import PreparedRequest
 
+from baserow.core.app_auth_providers.registries import app_auth_provider_type_registry
 from baserow.core.user.utils import generate_session_tokens_for_user, sign_user_session
-
-# The frontend ignores a login callback unless it finds exactly one of these.
-SSO_CALLBACK_PARAM_PREFIXES = (
-    "user_source_saml_token__",
-    "user_source_oidc_token__",
-    "saml_error__",
-    "oidc_error__",
-)
 
 
 # please keep this in sync with baserow_enterprise/locales/en.json
@@ -93,11 +86,17 @@ class map_sso_exceptions(ContextDecorator):
 
 def is_sso_callback_param(name: str) -> bool:
     """
+    The frontend ignores a login callback unless it finds exactly one of these
+    parameters, so a requested url must not bring its own.
+
     :param name: The name of a query parameter.
     :return: Whether the parameter carries the result of a user source login.
     """
 
-    return name.startswith(SSO_CALLBACK_PARAM_PREFIXES)
+    return any(
+        auth_provider_type.is_callback_query_param(name)
+        for auth_provider_type in app_auth_provider_type_registry.get_all()
+    )
 
 
 def _remove_query_params(query: str, should_remove: Callable[[str], bool]) -> str:

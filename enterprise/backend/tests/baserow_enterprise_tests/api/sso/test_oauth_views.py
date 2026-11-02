@@ -399,9 +399,8 @@ def test_oauth2_callback_does_not_send_the_token_to_a_smuggled_host(
 
     with patch(GET_USER_INFO, create_get_user_info_stub(provider)):
         session = api_client.session
-        session["oauth_request_data"] = json.dumps(
-            {"original": original, "oauth_state": "generated_oauth_state"}
-        )
+        provider.get_type().store_oauth_state(provider, session, OAUTH_STATE)
+        session["oauth_request_data"] = json.dumps({"original": original})
         session.save()
         api_client.cookies[settings.SESSION_COOKIE_NAME] = session.session_key
 
@@ -410,7 +409,7 @@ def test_oauth2_callback_does_not_send_the_token_to_a_smuggled_host(
                 "api:enterprise_sso_oauth2:callback",
                 kwargs={"provider_id": provider.id},
             )
-            + "?code=validcode",
+            + f"?code=validcode&state={OAUTH_STATE}",
             format="json",
         )
 
