@@ -215,7 +215,6 @@ def test_get_oauth_token_and_response(
         **extra_params,
     )
     provider_type_instance = auth_provider_type_registry.get_by_model(provider)
-    session = SessionBase()
     code = "testcode"
 
     # mock access token response
@@ -243,7 +242,7 @@ def test_get_oauth_token_and_response(
     )
 
     token, json_response = provider_type_instance.get_oauth_token_and_response(
-        provider, code, session
+        provider, code
     )
     assert token == access_token_response
     assert json_response["email"] == oauth_response_data["email"]
@@ -751,9 +750,7 @@ def test_get_oauth_token_private_address_blocked(enterprise_data_fixture):
     provider_type_instance = auth_provider_type_registry.get_by_model(provider)
 
     with pytest.raises(AuthFlowError) as err:
-        provider_type_instance.get_oauth_token_and_response(
-            provider, "code", SessionBase()
-        )
+        provider_type_instance.get_oauth_token_and_response(provider, "code")
     assert isinstance(err.value.__cause__, UnacceptableAddressException)
 
 
@@ -789,7 +786,7 @@ def test_get_oauth_session_only_guarded_for_admin_configurable_urls(
         **extra_params,
     )
     provider_type_instance = auth_provider_type_registry.get_by_model(provider)
-    oauth = provider_type_instance.get_oauth_session(provider, SessionBase())
+    oauth = provider_type_instance.get_oauth_session(provider)
     assert (
         isinstance(
             oauth.get_adapter("https://example.com"), advocate.ValidatingHTTPAdapter

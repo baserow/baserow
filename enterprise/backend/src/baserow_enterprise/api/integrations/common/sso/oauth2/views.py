@@ -199,7 +199,7 @@ class OAuth2CallbackView(APIView):
         in.
         """
 
-        auth_provider_id = request.session.pop("oauth_2_provider_id", None)
+        auth_provider_id = request.session.get("oauth_2_provider_id", None)
         if not auth_provider_id:
             raise AuthProviderModelNotFound("Missing auth provider id.")
 
@@ -239,6 +239,12 @@ class OAuth2CallbackView(APIView):
             },
             on_error=on_error,
         ):
+            provider.get_type().consume_oauth_state_or_raise(
+                provider, request.session, request.query_params.get("state", None)
+            )
+            # Kept until here so that a stale tab can't fail the login of another one.
+            del request.session["oauth_2_provider_id"]
+
             code = request.query_params.get("code", None)
 
             user_info, original_url = provider.get_type().get_user_info(
