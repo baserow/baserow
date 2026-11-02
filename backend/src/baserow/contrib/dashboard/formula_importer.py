@@ -24,7 +24,9 @@ class DashboardFormulaImporter(BaserowFormulaImporter):
     """
 
     def get_data_provider_type_registry(self):
-        return dashboard_data_provider_type_registry
+        return self.extra_context.get(
+            "data_provider_type_registry", dashboard_data_provider_type_registry
+        )
 
 
 def import_formula(
