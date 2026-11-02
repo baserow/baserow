@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Background workers recover on their own when a task leaves a database transaction open, instead of failing every later task",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-11-02"
+}
