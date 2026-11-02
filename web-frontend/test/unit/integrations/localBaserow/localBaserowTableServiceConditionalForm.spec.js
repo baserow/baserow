@@ -80,6 +80,9 @@ describe('LocalBaserowTableServiceConditionalForm', () => {
 
   test('adding a filter group emits a new group and a seeded filter', async () => {
     const wrapper = await mountComponent()
+    expect(wrapper.text()).toContain(
+      'localBaserowTableServiceConditionalForm.noFilterTitle'
+    )
     const child = wrapper.findComponent(ViewFieldConditionsForm)
 
     child.vm.$emit('addFilterGroup', {

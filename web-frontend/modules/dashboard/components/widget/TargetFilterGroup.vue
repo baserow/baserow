@@ -5,6 +5,7 @@
     :filter-type="localGroup.filter_type"
     :fields="fields"
     :read-only="readOnly"
+    :show-empty-state="false"
     @update:model-value="update('filters', $event)"
     @update:filter-groups="update('filter_groups', $event)"
     @update:filter-type="update('filter_type', $event)"
@@ -46,15 +47,19 @@ provide(
   }))
 )
 let updatePending = false
+const flushUpdate = () => {
+  if (!updatePending) return
+  updatePending = false
+  emit('update', localGroup.value)
+}
+// Switching cases unmounts the editor; keep its last edit before leaving.
+onBeforeUnmount(flushUpdate)
 /** Save related condition/group changes together before the server remaps group IDs. */
 const update = (key, value) => {
   if (props.readOnly) return
   localGroup.value = { ...localGroup.value, [key]: value }
   if (updatePending) return
   updatePending = true
-  nextTick(() => {
-    updatePending = false
-    emit('update', localGroup.value)
-  })
+  nextTick(flushUpdate)
 }
 </script>

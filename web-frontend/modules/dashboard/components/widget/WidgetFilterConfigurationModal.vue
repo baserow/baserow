@@ -4,9 +4,6 @@
       <h2 class="box__title">
         {{ $t('textFilterWidget.filterTarget', { widget: target.title }) }}
       </h2>
-      <div class="dashboard-widget-filters__description">
-        {{ $t('textFilterWidget.configureHelp', { filter: widget.title }) }}
-      </div>
       <Alert v-if="unavailableReason" type="warning">{{
         unavailableReason
       }}</Alert>
@@ -24,67 +21,28 @@
           class="margin-bottom-2"
           >{{ $t('textFilterWidget.incompatibleConditions') }}</Alert
         >
-        <template v-for="(context, index) in readonlyGroups" :key="context.key">
-          <div v-if="index" class="dashboard-widget-filters__operator">
-            <span>{{ source.filter_type }}</span>
-          </div>
-          <section
-            class="dashboard-widget-filters__group dashboard-widget-filters__group--readonly"
-          >
-            <div class="dashboard-widget-filters__group-header">
-              <h3 class="dashboard-widget-filters__group-title">
-                {{ context.title }}
-              </h3>
-              <span class="dashboard-widget-filters__readonly"
-                ><i class="iconoir-lock" />{{
-                  $t('textFilterWidget.readOnly')
-                }}</span
-              >
-            </div>
-            <div class="dashboard-widget-filters__group-body">
-              <TargetFilterGroup
-                :group="context.group"
-                :fields="fields"
-                :dashboard="dashboard"
-                :owner="context.owner"
-                read-only
-              />
-            </div>
-          </section>
-        </template>
-        <div
-          v-if="readonlyGroups.length"
-          class="dashboard-widget-filters__operator"
-        >
-          <span>
-            {{ source.filter_type }}
-          </span>
-        </div>
-        <section class="dashboard-widget-filters__group">
-          <div class="dashboard-widget-filters__group-header">
-            <h3 class="dashboard-widget-filters__group-title">
-              {{ widget.title }}
-            </h3>
-          </div>
-          <div class="dashboard-widget-filters__group-body">
-            <TargetFilterGroup
-              :key="target.id"
-              :group="link.group"
-              :fields="fields"
-              :dashboard="dashboard"
-              :owner="widget"
-              @update="$emit('update', { ...link, group: $event })"
-            />
-          </div>
-        </section>
-        <FormGroup
-          small-label
-          :label="$t('textFilterWidget.emptyBehavior')"
-          :helper-text="$t('textFilterWidget.emptyBehaviorHelp')"
-          class="margin-top-2"
-          required
-        >
+        <h3 class="dashboard-widget-filters__title">{{ widget.title }}</h3>
+        <SegmentControl
+          v-model:active-index="selectedCase"
+          class="dashboard-widget-filters__cases"
+          :segments="[
+            { label: $t('textFilterWidget.withValue') },
+            { label: $t('textFilterWidget.whenEmpty') },
+          ]"
+        />
+        <TargetFilterGroup
+          v-if="selectedCase === 0"
+          :key="`${target.id}-normal`"
+          :group="link.group"
+          :fields="fields"
+          :dashboard="dashboard"
+          :owner="widget"
+          @update="$emit('update', { ...link, group: $event })"
+        />
+        <template v-else>
           <Dropdown
+            class="dashboard-widget-filters__empty-behavior"
+            :aria-label="$t('textFilterWidget.emptyBehavior')"
             :model-value="link.empty_behavior"
             @update:model-value="updateEmptyBehavior"
           >
@@ -95,39 +53,116 @@
               :value="policy"
             />
           </Dropdown>
-        </FormGroup>
-        <template v-if="link.empty_behavior === 'apply_alternative'">
-          <div class="dashboard-widget-filters__operator">
-            <span>{{
-              $t('textFilterWidget.alternativeSeparator', {
-                operator: source.filter_type,
-              })
-            }}</span>
-          </div>
-          <section
-            class="dashboard-widget-filters__group dashboard-widget-filters__group--alternative"
+          <div
+            v-if="link.empty_behavior === 'apply_alternative'"
+            class="dashboard-widget-filters__alternative"
           >
-            <div class="dashboard-widget-filters__group-header">
-              <h3 class="dashboard-widget-filters__group-title">
-                {{ $t('textFilterWidget.alternativeGroup') }}
-              </h3>
-            </div>
-            <div class="dashboard-widget-filters__group-body">
-              <TargetFilterGroup
-                :key="`${target.id}-alternative`"
-                :group="link.alternative_group || emptyGroup()"
-                :fields="fields"
-                :dashboard="dashboard"
-                :owner="widget"
-                @update="
-                  $emit('update', { ...link, alternative_group: $event })
-                "
-              />
-            </div>
-          </section>
+            <TargetFilterGroup
+              :key="`${target.id}-alternative`"
+              :group="link.alternative_group || emptyGroup()"
+              :fields="fields"
+              :dashboard="dashboard"
+              :owner="widget"
+              @update="$emit('update', { ...link, alternative_group: $event })"
+            />
+          </div>
         </template>
+        <div
+          v-if="readonlyGroups.length"
+          class="dashboard-widget-filters__operator"
+        >
+          <Badge size="small">{{ source.filter_type }}</Badge>
+        </div>
+        <section
+          v-if="readonlyGroups.length"
+          class="dashboard-widget-filters__other"
+        >
+          <div class="dashboard-widget-filters__other-header">
+            <h3 class="dashboard-widget-filters__title">
+              {{ $t('textFilterWidget.otherConditions') }}
+            </h3>
+            <Badge size="small">{{ otherConditionCount }}</Badge>
+          </div>
+          <template
+            v-for="(context, index) in readonlyGroups"
+            :key="context.key"
+          >
+            <div v-if="index" class="dashboard-widget-filters__operator">
+              <Badge size="small">{{ source.filter_type }}</Badge>
+            </div>
+            <Expandable
+              :default-expanded="readonlyGroups.length === 1"
+              card
+              toggle-on-click
+              class="dashboard-widget-filters__source"
+            >
+              <template #header="{ toggle, expanded }">
+                <div class="dashboard-widget-filters__source-header">
+                  <ButtonText
+                    type="secondary"
+                    class="dashboard-widget-filters__source-toggle"
+                    :icon="
+                      expanded
+                        ? 'iconoir-nav-arrow-down'
+                        : 'iconoir-nav-arrow-right'
+                    "
+                    :aria-expanded="expanded"
+                    :title="context.title"
+                    @click.stop="toggle"
+                    >{{ context.title }}</ButtonText
+                  >
+                  <HelpIcon
+                    icon="iconoir-lock"
+                    class="dashboard-widget-filters__source-lock"
+                    :tooltip="
+                      context.owner
+                        ? $t('textFilterWidget.editFilterConditions', {
+                            filter: context.title,
+                          })
+                        : $t('textFilterWidget.editWidgetConditions')
+                    "
+                    @click.stop
+                  />
+                </div>
+              </template>
+              <div class="dashboard-widget-filters__source-detail">
+                <FormGroup
+                  v-if="context.group.filters.length"
+                  small-label
+                  :label="
+                    context.owner ? $t('textFilterWidget.withValue') : null
+                  "
+                  required
+                >
+                  <TargetFilterGroup
+                    :group="context.group"
+                    :fields="fields"
+                    :dashboard="dashboard"
+                    :owner="context.owner"
+                    read-only
+                  />
+                </FormGroup>
+                <FormGroup
+                  v-if="context.alternativeGroup"
+                  small-label
+                  :label="$t('textFilterWidget.whenEmpty')"
+                  class="margin-top-2"
+                  required
+                >
+                  <TargetFilterGroup
+                    :group="context.alternativeGroup"
+                    :fields="fields"
+                    :dashboard="dashboard"
+                    :owner="context.owner"
+                    read-only
+                  />
+                </FormGroup>
+              </div>
+            </Expandable>
+          </template>
+        </section>
       </template>
-      <div class="actions actions--right dashboard-widget-filters__footer">
+      <div class="dashboard-widget-filters__footer">
         <Button type="secondary" @click="hide()">{{
           $t('action.close')
         }}</Button>
@@ -154,6 +189,15 @@ const props = defineProps({
 })
 const emit = defineEmits(['update', 'retry'])
 
+const conditionCount = (context) =>
+  context.group.filters.length + (context.alternativeGroup?.filters.length || 0)
+const otherConditionCount = computed(() =>
+  props.readonlyGroups.reduce(
+    (count, context) => count + conditionCount(context),
+    0
+  )
+)
+const selectedCase = ref(0)
 const modal = ref(null)
 const modalOpen = ref(false)
 const emptyGroup = () => ({
@@ -170,6 +214,7 @@ const updateEmptyBehavior = (empty_behavior) =>
       : {}),
   })
 const show = () => {
+  selectedCase.value = 0
   modalOpen.value = true
   modal.value.show()
 }

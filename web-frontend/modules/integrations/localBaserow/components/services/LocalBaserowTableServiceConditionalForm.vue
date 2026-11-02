@@ -1,6 +1,10 @@
 <template>
   <div v-if="modelValue">
-    <div v-if="modelValue.length === 0 && filterGroups.length === 0">
+    <div
+      v-if="
+        showEmptyState && modelValue.length === 0 && filterGroups.length === 0
+      "
+    >
       <div class="filters__none">
         <div class="filters__none-title">
           {{ $t('localBaserowTableServiceConditionalForm.noFilterTitle') }}
@@ -120,6 +124,7 @@ export default {
     ViewFieldConditionsForm,
   },
   props: {
+    showEmptyState: { type: Boolean, default: true },
     readOnly: { type: Boolean, default: false },
     modelValue: {
       type: Array,

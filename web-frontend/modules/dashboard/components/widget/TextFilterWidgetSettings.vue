@@ -320,23 +320,19 @@ const readonlyGroups = computed(() => {
       (item) => item.target_widget_id === targetId.value
     )
     if (!contribution) continue
-    for (const key of ['group', 'alternative_group']) {
-      if (
-        key === 'alternative_group' &&
-        contribution.empty_behavior !== 'apply_alternative'
-      )
-        continue
-      if (!hasConditions(contribution[key])) continue
-      groups.push({
-        key: `${owner.id}-${key}`,
-        title:
-          key === 'group'
-            ? owner.title
-            : `${owner.title} · ${$i18n.t('textFilterWidget.alternativeGroup')}`,
-        group: contribution[key],
-        owner,
-      })
-    }
+    const alternativeGroup =
+      contribution.empty_behavior === 'apply_alternative' &&
+      hasConditions(contribution.alternative_group)
+        ? contribution.alternative_group
+        : null
+    if (!hasConditions(contribution.group) && !alternativeGroup) continue
+    groups.push({
+      key: owner.id,
+      title: owner.title,
+      group: contribution.group,
+      alternativeGroup,
+      owner,
+    })
   }
   return groups
 })
