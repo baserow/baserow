@@ -46,7 +46,9 @@ describe('TextFilterWidgetSettings', () => {
       },
     })
     expect(wrapper.html()).toMatchSnapshot()
-    const inputs = wrapper.findAll('input')
+    const inputs = wrapper
+      .findAll('.control input')
+      .filter((input) => !input.classes().includes('select__search-input'))
     expect(inputs).toHaveLength(2)
     await inputs[0].setValue('')
     await inputs[0].trigger('blur')
@@ -96,383 +98,222 @@ describe('TextFilterWidgetSettings', () => {
   })
 })
 
-test('configures a target inside the input sidebar and keeps template saves isolated', async () => {
-  const group = { filters: [], filter_groups: [], filter_type: 'AND' }
-  const input = {
-    id: 2,
-    type: 'text_filter',
-    title: 'Search',
-    placeholder: '',
-    default_value: '',
-    target_filters: [],
-  }
-  const target = {
-    id: 3,
-    type: 'summary',
-    title: 'Revenue',
-    data_source_id: 4,
-  }
-  const namespace = 'template/dashboardApplication'
-  testApp.store.commit(`${namespace}/SET_DASHBOARD_ID`, 1)
-  testApp.store.commit(`${namespace}/SET_WIDGETS`, [
-    input,
-    target,
-    { ...target, id: 5, title: 'Costs', data_source_id: 6 },
-    { ...target, id: 7, title: 'New widget', data_source_id: 8 },
-    { ...target, id: 9, type: 'chart', title: 'Chart', data_source_id: 4 },
-  ])
-  testApp.store.commit(`${namespace}/SET_DATA_SOURCES`, [
+const emptyGroup = () => ({
+  filters: [],
+  filter_groups: [],
+  filter_type: 'AND',
+})
+const conditionGroup = (value) => ({
+  ...emptyGroup(),
+  filters: [
     {
-      id: 4,
-      table_id: 5,
-      ...group,
-      filters: [
-        {
-          id: 1,
-          field: 99,
-          type: 'equal',
-          value: { formula: 'Permanent', mode: 'raw' },
-        },
-      ],
+      id: 1,
+      field: 99,
+      type: 'equal',
+      group: null,
+      value: { formula: value, mode: 'raw' },
     },
-    { id: 6, table_id: 5, ...group },
-    { id: 8, table_id: null, ...group },
-  ])
-  testApp.store.commit(`${namespace}/SELECT_WIDGET`, 2)
-  const dispatch = vi.spyOn(testApp.store, 'dispatch').mockResolvedValue()
-  vi.spyOn(testApp.store.$client, 'get').mockResolvedValue({ data: [] })
-  const wrapper = await testApp.mount(TextFilterWidgetSettings, {
-    props: { widget: input, dashboard: { id: 1 }, storePrefix: 'template/' },
-    global: {
-      stubs: {
-        TargetFilterGroup: {
-          props: { group: Object, owner: Object, readOnly: Boolean },
-          emits: ['update'],
-          template: `<div v-if="readOnly" class="readonly-group">{{ owner ? owner.title : 'permanent' }}</div><button v-else class="edit-group" @click="$emit('update', { ...group, filter_type: 'OR' })">{{ owner ? 'dynamic' : 'permanent' }}</button>`,
-        },
-      },
-    },
-  })
-  await wrapper
-    .findAll('.dashboard-widget-filter-target__name')
-    .find((node) => node.text().includes('Revenue'))
-    .trigger('click')
-  await flushPromises()
-  expect(wrapper.html()).toMatchSnapshot()
-  expect(wrapper.findAll('[role="switch"]')).toHaveLength(4)
-  expect(wrapper.findAll('.header__filter-link')).toHaveLength(0)
-  expect(
-    wrapper.findAll('[role="switch"]')[2].attributes('aria-disabled')
-  ).toBe('true')
-  expect(wrapper.text()).toContain('New widget')
-  expect(
-    wrapper.findAll('[role="switch"]')[3].attributes('aria-disabled')
-  ).toBe('false')
-  expect(wrapper.text()).toContain('Chart')
-  expect(dispatch).not.toHaveBeenCalled()
-  await wrapper.findAll('[role="switch"]')[2].trigger('click')
-  expect(dispatch).not.toHaveBeenCalled()
-  await wrapper.findAll('[role="switch"]')[0].trigger('click')
-  expect(dispatch).toHaveBeenLastCalledWith(
-    `${namespace}/updateWidget`,
-    expect.objectContaining({
-      widgetId: 2,
-      values: expect.objectContaining({
-        target_filters: [
-          { target_widget_id: 3, group, empty_behavior: 'apply_nothing' },
-        ],
-      }),
-    })
-  )
-  await wrapper.setProps({
-    widget: {
-      ...input,
-      target_filters: [
-        { target_widget_id: 3, group, empty_behavior: 'apply_nothing' },
-      ],
-    },
-  })
-  await flushPromises()
-  expect(
-    wrapper.findAll('.select__item-name-text').map((item) => item.text())
-  ).toEqual([
-    'textFilterWidget.apply_nothing',
-    'textFilterWidget.apply_alternative',
-  ])
-  expect(testApp.store.getters[`${namespace}/getSelectedWidgetId`]).toBe(2)
-  const callsBeforeNameClick = dispatch.mock.calls.length
-  const name = wrapper
-    .findAll('.dashboard-widget-filter-target__name')
-    .find((node) => node.text() === 'Revenue')
-  await name.trigger('click')
-  expect(wrapper.findAll('.expandable--expanded')).toHaveLength(0)
-  expect(wrapper.find('[role="switch"]').attributes('aria-checked')).toBe(
-    'true'
-  )
-  await name.trigger('click')
-  expect(wrapper.findAll('.expandable--expanded')).toHaveLength(1)
-  expect(dispatch).toHaveBeenCalledTimes(callsBeforeNameClick)
-
-  const clickButton = async (label) => {
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text() === label)
-      .trigger('click')
-  }
-  expect(wrapper.findAll('.edit-group')).toHaveLength(0)
-  await wrapper.find('.header__filter-link').trigger('click')
-  expect(wrapper.html()).toMatchSnapshot('normal group modal')
-  expect(wrapper.findAll('.edit-group')).toHaveLength(1)
-  await wrapper.find('.edit-group').trigger('click')
-  expect(dispatch).toHaveBeenCalledWith(
-    `${namespace}/updateWidget`,
-    expect.objectContaining({
-      widgetId: 2,
-      values: expect.objectContaining({
-        target_filters: [
-          {
-            target_widget_id: 3,
-            empty_behavior: 'apply_nothing',
-            group: { ...group, filter_type: 'OR' },
-          },
-        ],
-      }),
-    })
-  )
-  expect(wrapper.find('.readonly-group').text()).toBe('permanent')
-  expect(dispatch).not.toHaveBeenCalledWith(
-    `${namespace}/updateDataSource`,
-    expect.anything()
-  )
-  await clickButton('action.close')
-  await vi.waitFor(() =>
-    expect(wrapper.findComponent({ name: 'Modal' }).vm.open).toBe(false)
-  )
-  await flushPromises()
-  expect(wrapper.findAll('.edit-group')).toHaveLength(0)
-  await wrapper.setProps({
-    widget: {
-      ...input,
-      target_filters: [
-        {
-          target_widget_id: 3,
-          group,
-          alternative_group: group,
-          empty_behavior: 'apply_alternative',
-        },
-      ],
-    },
-  })
-  expect(wrapper.findAll('.edit-group')).toHaveLength(0)
-  expect(wrapper.findAll('.header__filter-link')).toHaveLength(1)
-  expect(wrapper.find('.header__filter-link').text()).toBe(
-    'serviceRefinementForms.filterTabTitle - 1'
-  )
-  expect(wrapper.find('.header__filter-link').classes()).toContain(
-    'active--success'
-  )
-  await wrapper.find('.header__filter-link').trigger('click')
-  await flushPromises()
-  const alternativeEditor = wrapper.find(
-    '.dashboard-widget-filters__group--alternative .edit-group'
-  )
-  expect(alternativeEditor.text()).toBe('dynamic')
-  await alternativeEditor.trigger('click')
-  expect(dispatch).toHaveBeenLastCalledWith(
-    `${namespace}/updateWidget`,
-    expect.objectContaining({
-      widgetId: 2,
-      values: expect.objectContaining({
-        target_filters: [
-          expect.objectContaining({
-            alternative_group: { ...group, filter_type: 'OR' },
-          }),
-        ],
-      }),
-    })
-  )
-  await clickButton('action.close')
-  await wrapper.findAll('[role="switch"]')[0].trigger('click')
-  expect(dispatch).toHaveBeenLastCalledWith(
-    `${namespace}/updateWidget`,
-    expect.objectContaining({
-      values: expect.objectContaining({ target_filters: [] }),
-    })
-  )
-  await wrapper
-    .findAll('.sidebar-expandable__header')
-    .find((header) => header.text().includes('Costs'))
-    .trigger('click')
-  await flushPromises()
-  expect(wrapper.findAll('.sidebar-expandable__header')).toHaveLength(4)
-  expect(wrapper.findAll('.expandable--expanded')).toHaveLength(1)
-  expect(wrapper.findAll('.header__filter-link')).toHaveLength(0)
-  expect(wrapper.text()).toContain('textFilterWidget.enableTargetHelp')
-  await wrapper
-    .findAll('.sidebar-expandable__header')
-    .find((header) => header.text().includes('Costs'))
-    .trigger('click')
-  expect(wrapper.findAll('.expandable--expanded')).toHaveLength(0)
-  expect(wrapper.findAll('.header__filter-link')).toHaveLength(0)
-  expect(testApp.store.getters[`${namespace}/getSelectedWidgetId`]).toBe(2)
+  ],
 })
-
-test('one modal locks permanent and other-input groups while saving only the owning input', async () => {
-  const conditions = (value) => ({
-    filter_type: 'OR',
-    filter_groups: [],
-    filters: [
-      {
-        id: value,
-        field: 99,
-        type: 'equal',
-        group: null,
-        value: { formula: value, mode: 'raw' },
-      },
-    ],
-  })
-  const widget = {
-    id: 2,
-    type: 'text_filter',
-    title: 'Search',
-    target_filters: [
-      {
-        target_widget_id: 3,
-        group: { filters: [], filter_groups: [], filter_type: 'AND' },
-        empty_behavior: 'apply_nothing',
-      },
-    ],
-  }
-  const other = {
-    id: 4,
-    type: 'text_filter',
-    title: 'Other input',
-    target_filters: [
-      {
-        target_widget_id: 3,
-        group: conditions('Other'),
-        empty_behavior: 'apply_nothing',
-      },
-    ],
-  }
+async function mountTargets({ linked = false, prefix = '' } = {}) {
+  const namespace = `${prefix}dashboardApplication`
   const store = testApp.store
-  store.commit('dashboardApplication/SET_WIDGETS', [
-    widget,
-    other,
-    { id: 3, type: 'summary', title: 'Total', data_source_id: 5 },
-  ])
-  store.commit('dashboardApplication/SET_DATA_SOURCES', [
-    { id: 5, table_id: 1, ...conditions('Permanent') },
-  ])
-  vi.spyOn(store.$client, 'get').mockResolvedValue({
-    data: [{ id: 99, name: 'Name', type: 'text' }],
-  })
-  const dispatch = vi.spyOn(store, 'dispatch').mockResolvedValue()
-  const wrapper = await testApp.mount(TextFilterWidgetSettings, {
-    props: { widget, dashboard: { id: 1 } },
-  })
-  await wrapper
-    .findAll('.sidebar-expandable__header')
-    .find((header) => header.text().includes('Total'))
-    .trigger('click')
-  await flushPromises()
-  expect(wrapper.findAll('.header__filter-link')).toHaveLength(1)
-  expect(wrapper.find('.header__filter-link').text()).toBe(
-    'serviceRefinementForms.filterTabTitle - 2'
-  )
-  await wrapper.find('.header__filter-link').trigger('click')
-  await flushPromises()
-  const groups = wrapper.findAllComponents({ name: 'TargetFilterGroup' })
-  expect(groups.filter((group) => group.props('readOnly'))).toHaveLength(2)
-  expect(wrapper.text()).toContain('Other input')
-  expect(wrapper.text()).toContain('textFilterWidget.permanentGroup')
-  dispatch.mockClear()
-  for (const group of groups.filter((group) => group.props('readOnly'))) {
-    expect(group.find('.filters__add').exists()).toBe(false)
-    expect(group.find('.filters__remove').exists()).toBe(false)
-  }
-  expect(dispatch).not.toHaveBeenCalled()
-  const editable = groups.find((group) => !group.props('readOnly'))
-  await editable.find('.filters__add').trigger('click')
-  await flushPromises()
-  expect(dispatch).toHaveBeenCalledOnce()
-  expect(dispatch).toHaveBeenLastCalledWith(
-    'dashboardApplication/updateWidget',
-    expect.objectContaining({
-      widgetId: widget.id,
-      values: expect.objectContaining({
-        target_filters: [
-          expect.objectContaining({
-            target_widget_id: 3,
-            group: expect.objectContaining({
-              filters: [expect.objectContaining({ field: 99 })],
-            }),
-          }),
-        ],
-      }),
-    })
-  )
-  expect(
-    store.getters['dashboardApplication/getDataSourceById'](5).filters[0].value
-      .formula
-  ).toBe('Permanent')
-})
-
-test('selecting the alternative policy opens its editor and saves alternative conditions', async () => {
-  const group = { filters: [], filter_groups: [], filter_type: 'AND' }
-  const store = testApp.store
-  store.commit('dashboardApplication/SET_WIDGETS', [
+  store.commit(`${namespace}/SET_DASHBOARD_ID`, 1)
+  store.commit(`${namespace}/SET_WIDGETS`, [
     {
       id: 2,
       type: 'text_filter',
-      title: 'Search',
-      placeholder: '',
-      default_value: '',
+      title: 'Country',
+      target_filters: linked
+        ? [
+            {
+              target_widget_id: 3,
+              group: emptyGroup(),
+              empty_behavior: 'apply_nothing',
+            },
+          ]
+        : [],
+    },
+    { id: 3, type: 'summary', title: 'Revenue', data_source_id: 4 },
+    { id: 5, type: 'summary', title: 'Orders', data_source_id: 4 },
+    { id: 7, type: 'summary', title: 'New widget', data_source_id: 8 },
+    {
+      id: 9,
+      type: 'text_filter',
+      title: 'Other filter',
       target_filters: [
-        { target_widget_id: 3, group, empty_behavior: 'apply_nothing' },
+        {
+          target_widget_id: 3,
+          group: conditionGroup('Other'),
+          empty_behavior: 'apply_nothing',
+        },
       ],
     },
-    { id: 3, type: 'summary', title: 'Total', data_source_id: 5 },
   ])
-  store.commit('dashboardApplication/SET_DATA_SOURCES', [
-    { id: 5, table_id: 1, ...group },
+  store.commit(`${namespace}/SET_DATA_SOURCES`, [
+    { id: 4, table_id: 1, ...conditionGroup('Permanent') },
+    { id: 8, table_id: null, ...emptyGroup() },
   ])
-  vi.spyOn(store.$client, 'get').mockResolvedValue({
-    data: [{ id: 99, name: 'Name', type: 'text' }],
-  })
+  store.commit(`${namespace}/SELECT_WIDGET`, 2)
+  const fetch = vi
+    .spyOn(store.$client, 'get')
+    .mockResolvedValue({ data: [{ id: 99, name: 'Country', type: 'text' }] })
   const dispatch = vi
     .spyOn(store, 'dispatch')
     .mockImplementation(async (action, payload) => {
-      if (action === 'dashboardApplication/updateWidget')
-        store.commit('dashboardApplication/UPDATE_WIDGET', payload)
+      if (action === `${namespace}/updateWidget`)
+        store.commit(`${namespace}/UPDATE_WIDGET`, payload)
     })
-  dispatch.mockClear()
-  const widget = store.getters['dashboardApplication/getWidgets'].find(
-    (item) => item.id === 2
+  const widget = store.getters[`${namespace}/getWidgets`].find(
+    (w) => w.id === 2
   )
   const wrapper = await testApp.mount(TextFilterWidgetSettings, {
-    props: { widget, dashboard: { id: 1 } },
+    props: { widget, dashboard: { id: 1 }, storePrefix: prefix },
   })
-  await wrapper
-    .findAll('.sidebar-expandable__header')
-    .find((header) => header.text().includes('Total'))
-    .trigger('click')
-  await flushPromises()
-  await wrapper.find('.dropdown__selected').trigger('click')
-  await wrapper
+  dispatch.mockClear()
+  return { wrapper, widget, dispatch, fetch, namespace }
+}
+const button = (wrapper, text) =>
+  wrapper.findAll('button').find((b) => b.text() === text)
+const option = (wrapper, text) =>
+  wrapper
     .findAll('.select__item-link')
-    .find((option) => option.text() === 'textFilterWidget.apply_alternative')
+    .find((item) => item.text().includes(text))
+
+test('adds eligible widgets together, keeps existing conditions and isolates template saves', async () => {
+  const { wrapper, widget, dispatch, fetch, namespace } = await mountTargets({
+    prefix: 'template/',
+  })
+  expect(wrapper.findAll('.dashboard-widget-filter-target')).toHaveLength(0)
+  expect(wrapper.text()).toContain('textFilterWidget.noTargets')
+  await button(wrapper, 'textFilterWidget.addWidgets').trigger('click')
+  expect(option(wrapper, 'Other filter')).toBeUndefined()
+  expect(
+    option(wrapper, 'New widget')
+      .element.closest('li')
+      .classList.contains('disabled')
+  ).toBe(true)
+  await option(wrapper, 'New widget').trigger('click')
+  expect(button(wrapper, 'action.add').attributes('disabled')).toBeDefined()
+  await option(wrapper, 'Revenue').trigger('click')
+  await option(wrapper, 'Orders').trigger('click')
+  expect(dispatch).not.toHaveBeenCalled()
+  await button(wrapper, 'action.cancel').trigger('click')
+  expect(widget.target_filters).toHaveLength(0)
+  await button(wrapper, 'textFilterWidget.addWidgets').trigger('click')
+  expect(button(wrapper, 'action.add').attributes('disabled')).toBeDefined()
+  await option(wrapper, 'Revenue').trigger('click')
+  await option(wrapper, 'Orders').trigger('click')
+  await button(wrapper, 'action.add').trigger('click')
+  await flushPromises()
+  expect(widget.target_filters.map((link) => link.target_widget_id)).toEqual([
+    3, 5,
+  ])
+  expect(wrapper.findAll('.dashboard-widget-filter-target')).toHaveLength(2)
+  expect(wrapper.find('.dashboard-widget-filter-target').text()).toContain(
+    'textFilterWidget.setUpConditions'
+  )
+  expect(fetch).not.toHaveBeenCalled()
+  expect(dispatch).toHaveBeenCalledOnce()
+  expect(dispatch).toHaveBeenCalledWith(
+    `${namespace}/updateWidget`,
+    expect.objectContaining({ widgetId: 2 })
+  )
+  expect(testApp.store.getters[`${namespace}/getSelectedWidgetId`]).toBe(2)
+})
+
+test('opens conditions directly, locks other owners, and counts only this filter’s conditions', async () => {
+  const { wrapper, widget, dispatch, fetch } = await mountTargets({
+    linked: true,
+  })
+  expect(wrapper.find('.dashboard-widget-filter-target').text()).toContain(
+    'textFilterWidget.setUpConditions'
+  )
+  await wrapper.find('.dashboard-widget-filter-target').trigger('click')
+  await flushPromises()
+  const groups = wrapper.findAllComponents({ name: 'TargetFilterGroup' })
+  expect(groups.filter((g) => g.props('readOnly'))).toHaveLength(2)
+  expect(dispatch).not.toHaveBeenCalled()
+  expect(fetch).toHaveBeenCalledOnce()
+  for (const group of groups.filter((g) => g.props('readOnly'))) {
+    expect(group.find('.filters__add').exists()).toBe(false)
+    expect(group.find('.filters__remove').exists()).toBe(false)
+  }
+  await groups
+    .find((g) => !g.props('readOnly'))
+    .find('.filters__add')
     .trigger('click')
   await flushPromises()
+  expect(widget.target_filters[0].group.filters).toHaveLength(1)
+  expect(wrapper.find('.dashboard-widget-filter-target').text()).toContain(
+    'textFilterWidget.conditionCount'
+  )
+  expect(dispatch).toHaveBeenCalledOnce()
   expect(
-    wrapper.find('.dashboard-widget-filters__group--alternative').exists()
-  ).toBe(true)
-  expect(wrapper.text()).toContain('textFilterWidget.alternativeSeparator')
+    testApp.store.getters['dashboardApplication/getDataSourceById'](4)
+      .filters[0].value.formula
+  ).toBe('Permanent')
+  expect(
+    testApp.store.getters['dashboardApplication/getWidgets'].find(
+      (w) => w.id === 9
+    ).target_filters[0].group.filters[0].value.formula
+  ).toBe('Other')
+})
+
+test('configures empty selection behavior and alternative conditions inside the modal', async () => {
+  const { wrapper, widget } = await mountTargets({ linked: true })
+  await wrapper.find('.dashboard-widget-filter-target').trigger('click')
+  await flushPromises()
   await wrapper
-    .find('.dashboard-widget-filters__group--alternative .filters__add')
+    .find('.dashboard-widget-filters .dropdown__selected')
     .trigger('click')
+  await option(wrapper, 'textFilterWidget.apply_alternative').trigger('click')
+  await flushPromises()
+  const alternative = wrapper.find(
+    '.dashboard-widget-filters__group--alternative'
+  )
+  expect(alternative.exists()).toBe(true)
+  await alternative.find('.filters__add').trigger('click')
   await flushPromises()
   expect(widget.target_filters[0].group.filters).toHaveLength(0)
   expect(widget.target_filters[0].alternative_group.filters).toHaveLength(1)
   expect(widget.target_filters[0].alternative_group.filters[0].field).toBe(99)
+})
+
+test('removes only the selected link through its context menu', async () => {
+  const { wrapper, widget, dispatch } = await mountTargets({ linked: true })
+  widget.target_filters.push({
+    target_widget_id: 5,
+    group: conditionGroup('Orders'),
+    empty_behavior: 'apply_nothing',
+  })
+  await flushPromises()
+  await wrapper.find('.dashboard-widget-filter-target button').trigger('click')
+  await flushPromises()
+  expect(wrapper.find('.dashboard-widget-filters').exists()).toBe(false)
+  await wrapper.find('.context__menu-item-link--delete').trigger('click')
+  await flushPromises()
+  expect(widget.target_filters).toHaveLength(1)
+  expect(widget.target_filters[0].target_widget_id).toBe(5)
+  expect(widget.target_filters[0].group.filters[0].value.formula).toBe('Orders')
+  expect(wrapper.find('.dashboard-widget-filter-target').text()).toContain(
+    'Orders'
+  )
+  expect(dispatch).toHaveBeenCalledOnce()
+})
+
+test('retries loading fields without showing an empty condition editor after failure', async () => {
+  const { wrapper, fetch } = await mountTargets({ linked: true })
+  fetch.mockRejectedValueOnce(new Error('offline'))
+  await wrapper.find('.dashboard-widget-filter-target').trigger('click')
+  await flushPromises()
+  expect(wrapper.text()).toContain('textFilterWidget.fieldsError')
+  expect(wrapper.findComponent({ name: 'TargetFilterGroup' }).exists()).toBe(
+    false
+  )
+  await button(wrapper, 'action.retry').trigger('click')
+  await flushPromises()
+  expect(wrapper.findComponent({ name: 'TargetFilterGroup' }).exists()).toBe(
+    true
+  )
 })

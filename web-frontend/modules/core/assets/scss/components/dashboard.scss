@@ -178,6 +178,8 @@ $dashboard-resources-row-min-width: 1044px;
 .dashboard-widget-filters {
   color: $palette-neutral-1200;
 
+  // Existing class supplied by the shared service condition form.
+  // stylelint-disable-next-line selector-class-pattern
   .filters_footer {
     display: flex;
     flex-wrap: wrap;
@@ -186,12 +188,6 @@ $dashboard-resources-row-min-width: 1044px;
     padding-top: 12px;
     border-top: 1px solid $palette-neutral-200;
   }
-}
-
-.dashboard-widget-filters__target {
-  margin-bottom: 8px;
-  font-size: 14px;
-  font-weight: 600;
 }
 
 .dashboard-widget-filters__description {
@@ -275,19 +271,53 @@ $dashboard-resources-row-min-width: 1044px;
   border-top: 1px solid $palette-neutral-200;
 }
 
+.dashboard-widget-filter-targets__help {
+  margin: 0 0 12px;
+  color: $palette-neutral-900;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dashboard-widget-filter-targets__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dashboard-widget-filter-targets__empty {
+  margin: 0;
+  padding: 16px;
+  border: 1px dashed $palette-neutral-400;
+  color: $palette-neutral-900;
+  font-size: 12px;
+  line-height: 20px;
+
+  @include rounded($rounded);
+}
+
+.dashboard-widget-filter-targets__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .dashboard-widget-filter-target {
-  .sidebar-expandable__content {
-    padding-bottom: 16px;
+  gap: 8px;
+  background-color: $palette-neutral-0;
+
+  &.item-card--with-actions .item-card__details {
+    padding-right: 0;
   }
 
-  .switch {
-    flex-shrink: 0;
+  .item-card__meta {
+    margin-top: 4px;
   }
 }
 
-.dashboard-widget-filter-target__name {
-  min-width: 0;
-  flex: 1;
+.dashboard-widget-filter-target__chevron {
+  color: $palette-neutral-700;
+}
 
-  @extend %ellipsis;
+.dashboard-widget-filter-target__pending {
+  color: $palette-yellow-800;
 }
