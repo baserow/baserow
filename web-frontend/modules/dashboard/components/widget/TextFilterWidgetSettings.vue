@@ -4,13 +4,18 @@
       small-label
       :label="$t('textFilterWidget.placeholder')"
       class="margin-bottom-2"
+      required
     >
       <FormInput
         :model-value="widget.placeholder"
         @blur="updateSetting('placeholder', $event.target.value)"
       />
     </FormGroup>
-    <FormGroup small-label :label="$t('textFilterWidget.defaultValue')">
+    <FormGroup
+      small-label
+      :label="$t('textFilterWidget.defaultValue')"
+      required
+    >
       <FormInput
         :model-value="widget.default_value"
         @blur="updateSetting('default_value', $event.target.value)"
@@ -20,6 +25,7 @@
       small-label
       :label="$t('textFilterWidget.targets')"
       class="margin-top-2"
+      required
     >
       <SidebarExpandable
         v-for="candidate in targets"
@@ -72,6 +78,7 @@
               small-label
               :label="$t('textFilterWidget.emptyBehavior')"
               class="margin-bottom-2"
+              required
             >
               <Dropdown
                 :model-value="link.empty_behavior"
