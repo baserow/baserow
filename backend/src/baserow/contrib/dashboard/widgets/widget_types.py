@@ -9,10 +9,12 @@ from baserow.contrib.dashboard.widgets.models import Widget
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowAggregateRowsUserServiceType,
 )
+from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.services.registries import service_type_registry
 
 from .mixins import DisplayWidgetTypeMixin, FilterWidgetTypeMixin
 from .models import SummaryWidget, TextFilterWidget
+from .options import dashboard_options_data_provider_registry
 from .registries import WidgetType
 from .types import WidgetGridLayout
 
@@ -107,16 +109,31 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
     model_class = TextFilterWidget
     allowed_fields = [
         *WidgetType.allowed_fields,
+        "mode",
+        "options",
         "placeholder",
         "default_value",
         "target_filters",
     ]
-    serializer_field_names = ["placeholder", "default_value", "target_filters"]
+    serializer_field_names = [
+        "mode",
+        "options",
+        "placeholder",
+        "default_value",
+        "target_filters",
+    ]
     public_serializer_field_names = [
+        "mode",
         "placeholder",
         "default_value",
         *FilterWidgetTypeMixin.public_serializer_field_names,
     ]
+    serializer_field_overrides = {
+        "options": FormulaSerializerField(
+            data_provider_type_registry=dashboard_options_data_provider_registry,
+        ),
+    }
+    public_serializer_field_overrides = {}
     grid_layout = WidgetGridLayout(
         default_width=2,
         default_height=2,
@@ -127,12 +144,26 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
     )
 
     class SerializedDict(WidgetDict):
+        mode: str
+        options: dict
         placeholder: str
         default_value: str
         target_filters: list
 
     def get_filter_value(self, widget, values):
         return values.get(str(widget.id), widget.default_value)
+
+    def after_import(self, widget, id_mapping, **kwargs):
+        from baserow.contrib.dashboard.formula_importer import import_formula
+
+        updated_models = super().after_import(widget, id_mapping, **kwargs)
+        widget.options = import_formula(
+            widget.options,
+            id_mapping,
+            data_provider_type_registry=dashboard_options_data_provider_registry,
+        )
+        updated_models.add(widget)
+        return updated_models
 
     def validate_filter_value(self, widget, value):
         if not isinstance(value, str):

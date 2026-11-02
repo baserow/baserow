@@ -3,25 +3,60 @@
 import django.db.models.deletion
 from django.db import migrations, models
 
+import baserow.core.formula.field
+
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('dashboard', '0006_dashboard_sharing'),
+        ("dashboard", "0006_dashboard_sharing"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='TextFilterWidget',
+            name="TextFilterWidget",
             fields=[
-                ('widget_ptr', models.OneToOneField(auto_created=True, on_delete=django.db.models.deletion.CASCADE, parent_link=True, primary_key=True, serialize=False, to='dashboard.widget')),
-                ('placeholder', models.TextField(blank=True, db_default='', default='')),
-                ('default_value', models.TextField(blank=True, db_default='', default='')),
-                ('target_filters', models.JSONField(blank=True, db_default=[], default=list)),
+                (
+                    "widget_ptr",
+                    models.OneToOneField(
+                        auto_created=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        parent_link=True,
+                        primary_key=True,
+                        serialize=False,
+                        to="dashboard.widget",
+                    ),
+                ),
+                (
+                    "mode",
+                    models.CharField(
+                        choices=[("input", "Input"), ("dropdown", "Dropdown")],
+                        db_default="input",
+                        default="input",
+                        max_length=16,
+                    ),
+                ),
+                (
+                    "options",
+                    baserow.core.formula.field.FormulaField(
+                        blank=True, db_default="", default="", null=True
+                    ),
+                ),
+                (
+                    "placeholder",
+                    models.TextField(blank=True, db_default="", default=""),
+                ),
+                (
+                    "default_value",
+                    models.TextField(blank=True, db_default="", default=""),
+                ),
+                (
+                    "target_filters",
+                    models.JSONField(blank=True, db_default=[], default=list),
+                ),
             ],
             options={
-                'abstract': False,
+                "abstract": False,
             },
-            bases=('dashboard.widget',),
+            bases=("dashboard.widget",),
         ),
     ]

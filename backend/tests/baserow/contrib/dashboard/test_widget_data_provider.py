@@ -56,7 +56,7 @@ def filter_dashboard(data_fixture):
         title="Search",
         default_value="Alpha",
         grid_width=2,
-        grid_height=4,
+        grid_height=2,
     )
     target = SummaryWidget.objects.create(
         dashboard=dashboard,
@@ -91,12 +91,16 @@ def filter_dashboard(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("mode", ["input", "dropdown"])
 @pytest.mark.parametrize(
     "public,password", [(False, False), (True, False), (True, True)]
 )
-def test_dispatch_widget_values(api_client, filter_dashboard, public, password):
+def test_dispatch_widget_values(api_client, filter_dashboard, public, password, mode):
     """Defaults and explicit empties work through each authenticated dispatch surface."""
     _, token, dashboard, source, widget, _ = filter_dashboard
+    widget.mode = mode
+    widget.options = "Alpha, Beta"
+    widget.save()
     if public:
         url = reverse(
             "api:dashboard:public:data_source_dispatch",
@@ -827,3 +831,142 @@ def test_runtime_filter_is_complete_and_namespaces_nested_group_ids(
     assert DashboardDataSourceHandler().dispatch_data_source(source, context) == {
         "result": expected
     }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("public", [False, True])
+def test_dropdown_options_from_saved_table_formula(
+    api_client, filter_dashboard, public
+):
+    user, token, dashboard, source, widget, condition = filter_dashboard
+    table = source.service.specific.table
+    widget.mode = "dropdown"
+    widget.options = BaserowFormulaObject.create(
+        f"get('table.{table.id}.*.field_{condition['field']}')"
+    )
+    widget.save()
+    url = reverse(
+        "api:dashboard:public:widget_options"
+        if public
+        else "api:dashboard:widgets:options",
+        kwargs={"slug": dashboard.slug, "widget_id": widget.id}
+        if public
+        else {"widget_id": widget.id},
+    )
+    headers = {} if public else {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    response = api_client.get(url, **headers)
+    assert response.status_code == 200
+    assert response.json() == {"results": ["Alpha", "Beta"]}
+    RowHandler().create_rows(user, table, [{f"field_{condition['field']}": " Alpha "}])
+    assert api_client.get(url, **headers).json() == {
+        "results": ["Alpha", "Beta", " Alpha "]
+    }
+    widget.options = BaserowFormulaObject.create(
+        "France, Belgium, France, , Morocco", mode="raw"
+    )
+    widget.save()
+    assert api_client.get(url, **headers).json() == {
+        "results": ["France", "Belgium", "Morocco"]
+    }
+
+
+@pytest.mark.django_db
+def test_dropdown_options_access_and_formula_scope(
+    api_client, filter_dashboard, data_fixture
+):
+    _, token, dashboard, source, widget, condition = filter_dashboard
+    widget.mode = "dropdown"
+    widget.save()
+    options_url = reverse(
+        "api:dashboard:widgets:options", kwargs={"widget_id": widget.id}
+    )
+    assert api_client.get(options_url).status_code == 401
+    _, outsider_token = data_fixture.create_user_and_token()
+    assert (
+        api_client.get(
+            options_url, HTTP_AUTHORIZATION=f"JWT {outsider_token}"
+        ).status_code
+        == 401
+    )
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    detail_url = reverse("api:dashboard:widgets:item", kwargs={"widget_id": widget.id})
+    table = source.service.specific.table
+    formula = BaserowFormulaObject.create(
+        f"get('table.{table.id}.*.field_{condition['field']}')"
+    )
+    assert (
+        api_client.patch(
+            detail_url, {"options": formula}, format="json", **headers
+        ).status_code
+        == 200
+    )
+    assert (
+        api_client.patch(
+            detail_url,
+            {"options": BaserowFormulaObject.create(f"get('widget_data.{widget.id}')")},
+            format="json",
+            **headers,
+        ).status_code
+        == 400
+    )
+    unrelated = data_fixture.create_database_table(database=table.database)
+    field = data_fixture.create_text_field(table=unrelated)
+    widget.options = BaserowFormulaObject.create(
+        f"get('table.{unrelated.id}.*.field_{field.id}')"
+    )
+    widget.save()
+    assert api_client.get(options_url, **headers).status_code == 400
+    # Public access still requires the password and membership in the named dashboard.
+    dashboard.set_password("test-password")
+    dashboard.save()
+    public_url = reverse(
+        "api:dashboard:public:widget_options",
+        kwargs={"slug": dashboard.slug, "widget_id": widget.id},
+    )
+    assert api_client.get(public_url).status_code == 401
+    other = data_fixture.create_dashboard_application(public=True)
+    other_url = reverse(
+        "api:dashboard:public:widget_options",
+        kwargs={"slug": other.slug, "widget_id": widget.id},
+    )
+    assert api_client.get(other_url).status_code == 404
+
+
+@pytest.mark.django_db
+def test_dropdown_options_schema_limits_and_import(
+    api_client, filter_dashboard, monkeypatch
+):
+    from baserow.contrib.dashboard.formula_importer import import_formula
+    from baserow.contrib.dashboard.widgets.options import (
+        DashboardOptionsContext,
+        dashboard_options_data_provider_registry,
+    )
+
+    _, token, dashboard, source, widget, condition = filter_dashboard
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    table = source.service.specific.table
+    field_name = f"field_{condition['field']}"
+    url = reverse(
+        "api:dashboard:data_sources:list", kwargs={"dashboard_id": dashboard.id}
+    )
+    response = api_client.get(url, **headers)
+    assert response.status_code == 200
+    assert field_name in response.json()[0]["table_schema"]["items"]["properties"]
+    formula = BaserowFormulaObject.create(f"get('table.{table.id}.*.{field_name}')")
+    imported = import_formula(
+        formula,
+        {
+            "database_tables": {table.id: 1234},
+            "database_fields": {condition["field"]: 5678},
+        },
+        data_provider_type_registry=dashboard_options_data_provider_registry,
+    )
+    assert imported["formula"] == "get('table.1234.*.field_5678')"
+    widget.mode = "dropdown"
+    widget.options = formula
+    widget.save()
+    monkeypatch.setattr(DashboardOptionsContext, "max_values", 1)
+    options_url = reverse(
+        "api:dashboard:widgets:options", kwargs={"widget_id": widget.id}
+    )
+    assert api_client.get(options_url, **headers).status_code == 400
