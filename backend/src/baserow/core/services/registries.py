@@ -599,6 +599,30 @@ class ServiceType(
                     raise
             return serialized_data
 
+    def resume_dispatch(
+        self,
+        service: ServiceSubClass,
+        state: dict,
+        dispatch_context: DispatchContext,
+    ) -> DispatchResult:
+        """
+        Finishes a dispatch that returned a `PendingDispatch`. The consumer that
+        suspended the dispatch calls this once the wait is over, with the `state`
+        the service stored on the pending result. Returns the final result,
+        exactly as `dispatch()` would have.
+
+        :param service: The service instance whose dispatch is resumed.
+        :param state: The state the service stored when it suspended.
+        :param dispatch_context: The context used for the dispatch.
+        :raises NotImplementedError: If the service type never suspends.
+        :return: The final dispatch result.
+        """
+
+        raise NotImplementedError(
+            f"The {self.type} service type returned a pending dispatch but does "
+            "not implement resume_dispatch()."
+        )
+
     def remove_unused_field_names(
         self,
         row: Dict[str, Any],
