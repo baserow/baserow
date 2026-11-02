@@ -73,6 +73,18 @@ summary reflects the last call in display order. Every expanded line has its own
 status icon, so earlier failed or interrupted calls remain visible without
 making a later successful call look unsuccessful.
 
+Failed steps may include `error_code`: `not_found`, `permission_denied`,
+`invalid_input`, `partial_failure` or `failed`. Use backend `ChatRunStepErrorCode`
+and frontend `STEP_ERROR_CODE` constants. Exception categories are passed through
+`ToolReturn.metadata`; Core only copies recognized codes into failed steps.
+Validation retries and incomplete batch results receive fixed categories too.
+The shared card translates these codes into hover tooltips on warning icons and
+includes the same explanation in screen-reader text. Missing or unknown codes
+use a generic failure hint. No raw error messages are included, and Sentry
+diagnostics are unchanged. The existing tooltip is hover-only; no new popover or
+interaction model is introduced. These optional codes persist in the same JSON
+steps without a migration; old messages do not gain a reconstructed reason.
+
 ## Registering a presenter
 
 Extend `ToolPresentationType` from `modules/core/toolPresentationTypes.js` and
@@ -153,6 +165,7 @@ argument schemas and check summary extraction. Frontend tests compare the fixtur
 with the actual registered presenters and exercise real English translations.
 Both CI path filters include the shared fixture. A runtime fallback does not
 exempt a new tool from presenter coverage.
+The fixture's `step_error_codes` also keeps backend/frontend constants in sync.
 
 Future action-tool registrations must join these contract checks using their
 stable presentation key. Cover only services that can actually become tools.

@@ -6,6 +6,7 @@ import {
   ToolPresentationType,
 } from '@baserow/modules/core/toolPresentationTypes'
 import en from '@baserow/modules/core/locales/en.json'
+import { STEP_ERROR_CODE } from '@baserow/modules/core/chatRuns/constants'
 
 const { createI18n } = await vi.importActual('vue-i18n')
 const i18n = createI18n({
@@ -64,6 +65,7 @@ describe('shared tool presentations', () => {
       icon: 'iconoir-mail',
       group: null,
       input: null,
+      failureHint: '',
     })
     expect(groupToolSteps([step], registry, t)).toEqual([
       expect.objectContaining({ title: 'Sending an email', lines: [] }),
@@ -180,5 +182,82 @@ describe('shared tool presentations', () => {
         toolActivity({ tool: 'send_email', status: 'done' }, registry, t)
       ).toMatchObject({ title: 'Email sent', input: null })
     }
+  })
+
+  test.each([
+    [STEP_ERROR_CODE.NOT_FOUND, 'Not found in this workspace.'],
+    [
+      STEP_ERROR_CODE.PERMISSION_DENIED,
+      'Permission denied for this operation.',
+    ],
+    [STEP_ERROR_CODE.INVALID_INPUT, 'The tool received invalid input.'],
+    [
+      STEP_ERROR_CODE.PARTIAL_FAILURE,
+      'Some requested operations could not be completed.',
+    ],
+    [STEP_ERROR_CODE.FAILED, 'This tool call failed.'],
+  ])(
+    'translates the shared failure code %s even for an unknown presenter',
+    (code, hint) => {
+      const registry = registryWith(EmailPresentation)
+      expect(
+        toolActivity(
+          { tool: 'future_action', status: 'failed', error_code: code },
+          registry,
+          t
+        ).failureHint
+      ).toBe(hint)
+    }
+  )
+
+  test.each([
+    undefined,
+    null,
+    {},
+    ['not_found'],
+    '__proto__',
+    '<script>private</script>',
+  ])('unknown or missing failure codes use a generic hint: %j', (errorCode) => {
+    const registry = registryWith(EmailPresentation)
+    expect(
+      toolActivity(
+        {
+          tool: 'send_email',
+          status: 'failed',
+          error_code: errorCode,
+          error: 'PRIVATE_EXCEPTION',
+          facts: { error: 'PRIVATE_RESULT' },
+        },
+        registry,
+        t
+      ).failureHint
+    ).toBe('This tool call failed.')
+  })
+
+  test.each(['running', 'done', 'stopped'])(
+    'ignores stale failure codes when status is %s',
+    (status) => {
+      expect(
+        toolActivity(
+          { tool: 'send_email', status, error_code: STEP_ERROR_CODE.NOT_FOUND },
+          registryWith(EmailPresentation),
+          t
+        ).failureHint
+      ).toBe('')
+    }
+  )
+
+  test('a missing failure translation falls back without exposing the key', () => {
+    expect(
+      toolActivity(
+        {
+          tool: 'send_email',
+          status: 'failed',
+          error_code: STEP_ERROR_CODE.NOT_FOUND,
+        },
+        registryWith(EmailPresentation),
+        (key) => key
+      ).failureHint
+    ).toBe('This tool call failed.')
   })
 })

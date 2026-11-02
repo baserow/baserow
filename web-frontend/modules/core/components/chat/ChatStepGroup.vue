@@ -13,18 +13,27 @@
       @click="expanded = !expanded"
     >
       <span
+        v-tooltip:[failureTooltipOptions]="
+          status === STEP_STATUS.FAILED
+            ? failureHint || $t('toolPresentation.failureFailed')
+            : null
+        "
         :class="
           status === STEP_STATUS.RUNNING
             ? 'chat-step-group__spinner'
             : statusIcons[status]
         "
         class="chat-step-group__icon"
+        tooltip-position="bottom-right"
         aria-hidden="true"
       />
       <span class="chat-step-group__title">{{ title }}</span>
-      <span class="chat-step-group__status">{{
-        $t(statusLabels[status])
-      }}</span>
+      <span class="chat-step-group__status">
+        {{ $t(statusLabels[status]) }}
+        <template v-if="status === STEP_STATUS.FAILED">
+          {{ failureHint || $t('toolPresentation.failureFailed') }}
+        </template>
+      </span>
       <i
         class="chat-step-group__chevron"
         :class="expanded ? 'iconoir-nav-arrow-down' : 'iconoir-nav-arrow-right'"
@@ -33,35 +42,53 @@
     </button>
     <div v-else class="chat-step-group__header">
       <span
+        v-tooltip:[failureTooltipOptions]="
+          status === STEP_STATUS.FAILED
+            ? failureHint || $t('toolPresentation.failureFailed')
+            : null
+        "
         :class="
           status === STEP_STATUS.RUNNING
             ? 'chat-step-group__spinner'
             : statusIcons[status]
         "
         class="chat-step-group__icon"
+        tooltip-position="bottom-right"
         aria-hidden="true"
       />
       <span class="chat-step-group__title">{{ title }}</span>
-      <span class="chat-step-group__status">{{
-        $t(statusLabels[status])
-      }}</span>
+      <span class="chat-step-group__status">
+        {{ $t(statusLabels[status]) }}
+        <template v-if="status === STEP_STATUS.FAILED">
+          {{ failureHint || $t('toolPresentation.failureFailed') }}
+        </template>
+      </span>
     </div>
     <div v-if="hasDetails && expanded" :id="detailsId">
       <ul v-if="lines.length" class="chat-step-group__lines">
         <li v-for="line in lines" :key="line.id" class="chat-step-group__line">
           <span
+            v-tooltip:[failureTooltipOptions]="
+              line.status === STEP_STATUS.FAILED
+                ? line.failureHint || $t('toolPresentation.failureFailed')
+                : null
+            "
             :class="
               line.status === STEP_STATUS.RUNNING
                 ? 'chat-step-group__spinner'
                 : statusIcons[line.status]
             "
             class="chat-step-group__icon chat-step-group__line-icon"
+            tooltip-position="bottom-right"
             aria-hidden="true"
           />
           <span class="chat-step-group__line-title">{{ line.title }}</span>
-          <span class="chat-step-group__status">{{
-            $t(statusLabels[line.status])
-          }}</span>
+          <span class="chat-step-group__status">
+            {{ $t(statusLabels[line.status]) }}
+            <template v-if="line.status === STEP_STATUS.FAILED">
+              {{ line.failureHint || $t('toolPresentation.failureFailed') }}
+            </template>
+          </span>
         </li>
       </ul>
       <div v-if="inputText" class="chat-step-group__input">
@@ -91,8 +118,12 @@ const props = defineProps({
   icon: { type: String, default: 'iconoir-tools' },
   lines: { type: Array, default: () => [] },
   input: { type: Object, default: null },
+  failureHint: { type: String, default: '' },
 })
 
+const failureTooltipOptions = {
+  contentClasses: ['tooltip__content--expandable'],
+}
 const detailsId = useId()
 // Workspace activity starts open; action inputs are available on demand.
 const expanded = ref(props.lines.length > 0)

@@ -4,6 +4,7 @@ import cases from '@baserow_test_cases/agent_tools.json'
 import coreEn from '@baserow/modules/core/locales/en.json'
 import agentEn from '@baserow/modules/agent/locales/en.json'
 import { groupAgentTools } from '@baserow/modules/agent/agentTools'
+import { STEP_ERROR_CODE } from '@baserow/modules/core/chatRuns/constants'
 import {
   groupToolSteps,
   toolActivity,
@@ -43,6 +44,15 @@ describe('Agent tool presentations', () => {
   })
 
   test('every backend contract example has an actually registered presenter', () => {
+    expect(Object.values(STEP_ERROR_CODE).sort()).toEqual(
+      [...cases.step_error_codes].sort()
+    )
+    for (const error_code of cases.step_error_codes) {
+      expect(
+        toolActivity(step('list_tables', 'failed', { error_code }), registry, t)
+          .failureHint
+      ).toBeTruthy()
+    }
     expect(
       registry
         .getList('toolPresentation')
@@ -218,8 +228,14 @@ describe('Agent tool presentations', () => {
     const [group] = groupToolSteps(
       [
         step('list_tables', 'done', { id: 'a' }),
-        step('list_table_rows', 'failed', { id: 'b' }),
-        step('list_table_rows', 'failed', { id: 'c' }),
+        step('list_table_rows', 'failed', {
+          id: 'b',
+          error_code: STEP_ERROR_CODE.NOT_FOUND,
+        }),
+        step('list_table_rows', 'failed', {
+          id: 'c',
+          error_code: STEP_ERROR_CODE.PERMISSION_DENIED,
+        }),
         step('list_table_rows', 'done', {
           id: 'd',
           facts: { count: 22, table: 'Projects' },
@@ -230,6 +246,11 @@ describe('Agent tool presentations', () => {
     )
     expect(group.status).toBe('done')
     expect(group.title).toBe('Looked at your workspace')
+    expect(group.failureHint).toBe('')
+    expect(group.lines[1].failureHint).toBe('Not found in this workspace.')
+    expect(group.lines[2].failureHint).toBe(
+      'Permission denied for this operation.'
+    )
     expect(group.lines.map(({ status }) => status)).toEqual([
       'done',
       'failed',
@@ -270,5 +291,20 @@ describe('Agent tool presentations', () => {
       status: 'done',
       title: 'Looked at your workspace',
     })
+  })
+
+  test('only a failed final call supplies the workspace summary hint', () => {
+    const calls = [
+      step('list_tables', 'running', { id: 'a' }),
+      step('list_table_rows', 'failed', {
+        id: 'b',
+        error_code: STEP_ERROR_CODE.NOT_FOUND,
+      }),
+    ]
+    expect(groupToolSteps(calls, registry, t)[0].failureHint).toBe('')
+    calls[0].status = 'done'
+    expect(groupToolSteps(calls, registry, t)[0].failureHint).toBe(
+      'Not found in this workspace.'
+    )
   })
 })

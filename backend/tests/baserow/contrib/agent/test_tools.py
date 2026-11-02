@@ -4,16 +4,30 @@ import threading
 from pathlib import Path
 from types import SimpleNamespace
 
+from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import OperationalError
 from django.urls import reverse
 
 import pytest
 from asgiref.sync import async_to_sync
 from freezegun import freeze_time
+from pydantic import ValidationError
 from pydantic_ai import ToolReturn
+from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
+from baserow.api.exceptions import RequestBodyValidationException
 from baserow.contrib.agent.registries import AgentToolType, agent_tool_type_registry
 from baserow.contrib.database.views.models import FormView
+from baserow.core.chat_runs.constants import ChatRunStepErrorCode
+from baserow.core.exceptions import (
+    InstanceTypeDoesNotExist,
+    PermissionDenied,
+    UserNotInWorkspace,
+    WorkspaceDoesNotExist,
+)
+from baserow.core.mcp.exceptions import MCPToolInputError
 from baserow.core.models import Agent
 from baserow.core.notifications.models import NotificationRecipient
 from baserow.core.tools import ToolContext
@@ -84,14 +98,10 @@ TOOLS = {
     "delete_rows": (True, lambda s: {"table_id": s.table.id, "row_ids": [s.row.id]}),
 }
 
-PRESENTATIONS = {
-    case["name"]: case
-    for case in json.loads(
-        (
-            Path(__file__).resolve().parents[5] / "tests/cases/agent_tools.json"
-        ).read_text()
-    )["tools"]
-}
+PRESENTATION_CONTRACT = json.loads(
+    (Path(__file__).resolve().parents[5] / "tests/cases/agent_tools.json").read_text()
+)
+PRESENTATIONS = {case["name"]: case for case in PRESENTATION_CONTRACT["tools"]}
 
 
 @pytest.fixture
@@ -130,6 +140,7 @@ def test_tool_names_and_whether_they_change_data_stay_the_same():
         for tool_type in agent_tool_type_registry.get_all()
     } == {name: changes_data for name, (changes_data, _) in TOOLS.items()}
     assert set(PRESENTATIONS) == set(TOOLS)
+    assert list(ChatRunStepErrorCode) == PRESENTATION_CONTRACT["step_error_codes"]
 
 
 @pytest.mark.parametrize("name", PRESENTATIONS)
@@ -301,14 +312,16 @@ def test_tool_errors_are_answered_to_the_model(
 
     other_table = data_fixture.create_database_table()
 
-    assert call_tool(
+    missing = call_tool(
         agent_tool_type_registry.get("list_table_rows"),
         workspace_data.ctx,
         {"table_id": other_table.id},
-    ) == {"error": "Not found in this workspace."}
-    assert call_tool(BrokenAgentToolType(), workspace_data.ctx, {}) == {
-        "error": "Internal error."
-    }
+    )
+    assert missing.return_value == {"error": "Not found in this workspace."}
+    assert missing.metadata == {"error_code": "not_found"}
+    unexpected = call_tool(BrokenAgentToolType(), workspace_data.ctx, {})
+    assert unexpected.return_value == {"error": "Internal error."}
+    assert unexpected.metadata == {"error_code": "failed"}
     hidden_schema = call_tool(
         agent_tool_type_registry.get("get_table_schema"),
         workspace_data.ctx,
@@ -460,7 +473,8 @@ def test_unexpected_tool_errors_do_not_log_private_values(
         {"table_id": workspace_data.table.id, "search": private_search},
     )
 
-    assert result == {"error": "Internal error."}
+    assert result.return_value == {"error": "Internal error."}
+    assert result.metadata == {"error_code": "failed"}
     output = "".join(str(entry) for entry in logs)
     assert "list_table_rows" in output
     assert "OperationalError" in output
@@ -503,3 +517,50 @@ def test_a_stop_waits_for_the_running_tool(workspace_data):
         return still_running
 
     assert async_to_sync(stop_during_the_call)()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "error,code",
+    [
+        (ObjectDoesNotExist("private details"), "not_found"),
+        (WorkspaceDoesNotExist("private details"), "not_found"),
+        (UserNotInWorkspace(), "not_found"),
+        (PermissionDenied(), "permission_denied"),
+        (DRFPermissionDenied("private details"), "permission_denied"),
+        (DjangoValidationError("private details"), "invalid_input"),
+        (DRFValidationError({"field": "private details"}), "invalid_input"),
+        (RequestBodyValidationException({"field": "private details"}), "invalid_input"),
+        (MCPToolInputError("private details"), "invalid_input"),
+        (InstanceTypeDoesNotExist("bad_type", "unknown type"), "invalid_input"),
+        (InstanceTypeDoesNotExist("model not registered"), "failed"),
+        (RuntimeError("Not found in this workspace."), "failed"),
+        (
+            ValidationError.from_exception_data(
+                "Tool", [{"type": "int_parsing", "loc": ("id",), "input": "private"}]
+            ),
+            "invalid_input",
+        ),
+        (
+            type("RelatedObjectDoesNotExist", (ObjectDoesNotExist, AttributeError), {})(
+                "private details"
+            ),
+            "failed",
+        ),
+    ],
+)
+def test_tool_failure_codes_use_exception_types_without_copying_private_details(
+    workspace_data, error, code
+):
+    def fail(ctx: ToolContext) -> None:
+        raise error
+
+    class FailingTool(AgentToolType):
+        type = "failing"
+        function = fail
+
+    result = call_tool(FailingTool(), workspace_data.ctx, {})
+
+    assert isinstance(result, ToolReturn)
+    assert set(result.return_value) == {"error"}
+    assert result.metadata == {"error_code": code}

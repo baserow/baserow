@@ -22,6 +22,7 @@ from baserow.contrib.agent.actions import (
     CreateAgentConversationActionType,
     CreateAgentMessageActionType,
 )
+from baserow.contrib.agent.api.serializers import AgentMessageStepSerializer
 from baserow.contrib.agent.chat_run_type import AgentChatRunType
 from baserow.contrib.agent.constants import INTERRUPTED_REPLY_NOTE, TOOL_RETRIES
 from baserow.contrib.agent.handler import AgentHandler
@@ -86,6 +87,18 @@ def allow_create_rows(
         allowed_tools=["create_rows"],
     )
     return table
+
+
+def test_legacy_failed_steps_serialize_without_an_error_code():
+    step = {
+        "id": "legacy-call",
+        "tool": "list_table_rows",
+        "status": "failed",
+        "changes_data": False,
+        "facts": {},
+    }
+
+    assert AgentMessageStepSerializer(step).data == step
 
 
 @pytest.fixture
@@ -763,6 +776,8 @@ def test_a_reply_recovers_from_invalid_tool_calls(
     steps = AgentMessage.objects.get(id=created.reply.id).steps
     assert [step["status"] for step in steps] == ["failed"] * TOOL_RETRIES + ["done"]
     assert all(step["input"] == {} and step["facts"] == {} for step in steps[:-1])
+    assert all(step["error_code"] == "invalid_input" for step in steps[:-1])
+    assert "error_code" not in steps[-1]
 
 
 @pytest.mark.django_db
@@ -875,3 +890,64 @@ def test_a_reply_cannot_keep_writing_after_its_identity_is_trashed(
     assert list(
         table.get_model(attribute_names=True).objects.values_list("name", flat=True)
     ) == ["Before revocation"]
+
+
+@pytest.mark.django_db
+def test_failed_tool_category_survives_live_events_history_and_api(
+    data_fixture, configured_agent, mocker, api_client
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    table = allow_create_rows(data_fixture, agent)
+    emitted = mocker.spy(ChatRunJournal, "emit")
+    targets = iter([0, table.id])
+
+    async def stream(messages, info):
+        target = next(targets, None)
+        if target is None:
+            yield "Done."
+        else:
+            yield {
+                0: DeltaToolCall(
+                    name="create_rows",
+                    json_args=json.dumps(
+                        {"table_id": target, "rows": [{"Name": "Plan"}]}
+                    ),
+                )
+            }
+
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(FunctionModel(stream_function=stream), {}),
+    )
+    created = start(user, agent)
+    run_reply(run_of(created.conversation))
+
+    steps = AgentMessage.objects.get(id=created.reply.id).steps
+    assert [step["status"] for step in steps] == ["failed", "done"]
+    assert steps[0]["error_code"] == "not_found"
+    assert "error_code" not in steps[1]
+    assert "Not found in this workspace." not in json.dumps(steps)
+    streamed = [
+        entry.args[2] for entry in emitted.call_args_list if entry.args[1] == "step"
+    ]
+    assert [step["status"] for step in streamed] == [
+        "running",
+        "failed",
+        "running",
+        "done",
+    ]
+    assert streamed[1] == steps[0]
+    assert streamed[3] == steps[1]
+    assert run_of(created.conversation).outcome["steps"] == steps
+    api_client.force_authenticate(user)
+    response = api_client.get(
+        agent_url(agent, "messages", conversation_uuid=created.conversation.uuid)
+    )
+    assert response.status_code == 200
+    saved_reply = next(
+        message
+        for message in response.json()["results"]
+        if message["role"] == "assistant"
+    )
+    assert saved_reply["steps"] == steps

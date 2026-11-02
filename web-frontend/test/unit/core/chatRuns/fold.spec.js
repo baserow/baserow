@@ -53,6 +53,19 @@ describe('foldRunEvent', () => {
     ).toEqual([step('a', 'stopped')])
   })
 
+  test('retains a failure code through live events, reconnect and saved history', () => {
+    const failed = { ...step('a', 'failed'), error_code: 'not_found' }
+    const events = [
+      ['step', step('a')],
+      ['step', failed],
+      ['run.baseline', { steps: [failed] }],
+      ['run.finished', { status: 'completed', message: { steps: [failed] } }],
+    ]
+    for (const count of [2, 3, 4]) {
+      expect(fold(events.slice(0, count)).steps).toEqual([failed])
+    }
+  })
+
   test.each([
     ['a new run is queued', [['run.created']], { status: 'queued', text: '' }],
     ['a started run is running', [['run.started']], { status: 'running' }],

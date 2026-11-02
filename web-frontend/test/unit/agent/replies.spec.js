@@ -197,7 +197,9 @@ describe('Agent replies', () => {
       reply('completed', 'Finished', {
         steps: [
           toolStep('a', 'list_tables', 'done'),
-          toolStep('failed-read', 'list_table_rows', 'failed'),
+          toolStep('failed-read', 'list_table_rows', 'failed', {
+            error_code: 'not_found',
+          }),
           toolStep('b', 'get_table_schema', 'done', {
             facts: { table: 'Tasks' },
           }),
@@ -219,6 +221,9 @@ describe('Agent replies', () => {
     expect(reads.find('button .iconoir-warning-triangle').exists()).toBe(false)
     expect(reads.findAll('li .iconoir-warning-triangle')).toHaveLength(1)
     expect(reads.findAll('li .iconoir-check-circle')).toHaveLength(2)
+    expect(
+      reads.findAll('li')[1].get('.chat-step-group__status').text()
+    ).toContain('This tool call failed.')
     expect(reads.get('button').classes()).not.toContain('button')
     expect(reads.get('.chat-step-group__title').text()).toBe(
       'Workspace activity'

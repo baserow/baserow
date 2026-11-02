@@ -1,5 +1,8 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import { STEP_STATUS } from '@baserow/modules/core/chatRuns/constants'
+import {
+  STEP_ERROR_CODE,
+  STEP_STATUS,
+} from '@baserow/modules/core/chatRuns/constants'
 
 export const WORKSPACE_TOOL_GROUP = 'workspace'
 
@@ -11,6 +14,16 @@ const FALLBACK_LABELS = {
   [STEP_STATUS.FAILED]: 'Tool failed',
   [STEP_STATUS.STOPPED]: 'Tool interrupted',
 }
+const FAILURE_LABELS = new Map([
+  [STEP_ERROR_CODE.NOT_FOUND, 'toolPresentation.failureNotFound'],
+  [
+    STEP_ERROR_CODE.PERMISSION_DENIED,
+    'toolPresentation.failurePermissionDenied',
+  ],
+  [STEP_ERROR_CODE.INVALID_INPUT, 'toolPresentation.failureInvalidInput'],
+  [STEP_ERROR_CODE.PARTIAL_FAILURE, 'toolPresentation.failurePartial'],
+  [STEP_ERROR_CODE.FAILED, 'toolPresentation.failureFailed'],
+])
 
 /**
  * Presentation shared by workspace tools and configured actions. The stable type
@@ -91,6 +104,15 @@ export function toolActivity(step, registry, t) {
     icon: 'iconoir-tools',
     group: null,
     input: null,
+    failureHint:
+      status === STEP_STATUS.FAILED
+        ? genericText(
+            t,
+            FAILURE_LABELS.get(data.error_code) ||
+              'toolPresentation.failureFailed',
+            'This tool call failed.'
+          )
+        : '',
   }
   try {
     const type = data.presentation_type || data.tool
@@ -156,6 +178,8 @@ export function groupToolSteps(steps, registry, t) {
     )
       ? STEP_STATUS.RUNNING
       : activity.status
+    group.failureHint =
+      group.status === STEP_STATUS.FAILED ? activity.failureHint : ''
     group.title = genericText(
       t,
       group.status === STEP_STATUS.RUNNING

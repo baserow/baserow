@@ -14,7 +14,7 @@ from pydantic_ai.messages import (
 
 from baserow.core.sentry import report_exception
 
-from .constants import ChatRunEventKind, ChatRunStepStatus
+from .constants import ChatRunEventKind, ChatRunStepErrorCode, ChatRunStepStatus
 from .types import ChatRunStep
 
 if TYPE_CHECKING:
@@ -58,23 +58,31 @@ def _display_data(value: Any) -> dict[str, Any]:
 
 def _ended(
     part: ToolReturnPart | RetryPromptPart,
-) -> tuple[ChatRunStepStatus, dict[str, Any]]:
+) -> tuple[ChatRunStepStatus, dict[str, Any], ChatRunStepErrorCode | None]:
     """Read a tool outcome without confusing domain errors with success.
 
     :param part: The tool result or validation retry.
-    :return: Its display status and successful outcome facts.
+    :return: Its status, successful outcome facts and safe failure category.
     """
 
     if isinstance(part, RetryPromptPart):
-        return ChatRunStepStatus.FAILED, {}
+        return ChatRunStepStatus.FAILED, {}, ChatRunStepErrorCode.INVALID_INPUT
     if part.outcome == "interrupted":
-        return ChatRunStepStatus.STOPPED, {}
+        return ChatRunStepStatus.STOPPED, {}, None
+    if part.outcome == "denied":
+        return ChatRunStepStatus.FAILED, {}, ChatRunStepErrorCode.PERMISSION_DENIED
+    if isinstance(part.content, dict) and part.content.get("errors"):
+        return ChatRunStepStatus.FAILED, {}, ChatRunStepErrorCode.PARTIAL_FAILURE
     if part.outcome != "success" or (
-        isinstance(part.content, dict)
-        and ("error" in part.content or part.content.get("errors"))
+        isinstance(part.content, dict) and "error" in part.content
     ):
-        return ChatRunStepStatus.FAILED, {}
-    return ChatRunStepStatus.DONE, _display_data(part.metadata)
+        code = (
+            part.metadata.get("error_code") if isinstance(part.metadata, dict) else None
+        )
+        if not isinstance(code, str) or code not in ChatRunStepErrorCode:
+            code = ChatRunStepErrorCode.FAILED
+        return ChatRunStepStatus.FAILED, {}, ChatRunStepErrorCode(code)
+    return ChatRunStepStatus.DONE, _display_data(part.metadata), None
 
 
 class ChatRunSteps:
@@ -130,6 +138,8 @@ class ChatRunSteps:
                 "input": _display_data(description.get("input")) if not invalid else {},
                 "facts": {},
             }
+            if invalid:
+                step["error_code"] = ChatRunStepErrorCode.INVALID_INPUT
             self._pending[event.tool_call_id].append(step["id"])
             self._update(step)
         elif isinstance(event, FunctionToolResultEvent):
@@ -138,8 +148,12 @@ class ChatRunSteps:
                 step = self._steps[pending.popleft()]
                 if not pending:
                     del self._pending[event.tool_call_id]
-                status, facts = _ended(event.part)
-                self._update({**step, "status": status, "facts": facts})
+                status, facts, error_code = _ended(event.part)
+                updated = {**step, "status": status, "facts": facts}
+                updated.pop("error_code", None)
+                if error_code is not None:
+                    updated["error_code"] = error_code
+                self._update(updated)
 
     def finish(self) -> list[ChatRunStep]:
         """Finish activity once the model run ends.

@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ChatStepGroup from '@baserow/modules/core/components/chat/ChatStepGroup'
+import tooltip from '@baserow/modules/core/directives/tooltip'
 import { Registry } from '@baserow/modules/core/registry'
 import {
   groupToolSteps,
@@ -50,7 +51,7 @@ describe('ChatStepGroup', () => {
     )
     const wrapper = mount(ChatStepGroup, {
       props: card,
-      global: { mocks: { $t: t } },
+      global: { directives: { tooltip }, mocks: { $t: t } },
     })
 
     expect(wrapper.get('.chat-step-group__title').text()).toBe('Email sent')
@@ -76,7 +77,7 @@ describe('ChatStepGroup', () => {
           { id: 'b', title: 'Read 22 rows from Projects', status: 'done' },
         ],
       },
-      global: { mocks: { $t: (key) => key } },
+      global: { directives: { tooltip }, mocks: { $t: (key) => key } },
     })
 
     expect(wrapper.get('li').text()).toContain('Read rows')
@@ -112,11 +113,11 @@ describe('ChatStepGroup', () => {
           status,
           lines: [{ id: 'a', title: 'Read rows', status }],
         },
-        global: { mocks: { $t: (key) => key } },
+        global: { directives: { tooltip }, mocks: { $t: (key) => key } },
       })
 
       expect(wrapper.get(`li ${icon}`).attributes('aria-hidden')).toBe('true')
-      expect(wrapper.get('li .chat-step-group__status').text()).toBe(label)
+      expect(wrapper.get('li .chat-step-group__status').text()).toContain(label)
       expect(wrapper.get('.chat-step-group__line-title').text()).toBe(
         'Read rows'
       )
@@ -134,7 +135,7 @@ describe('ChatStepGroup', () => {
         status: 'running',
         input: { values, truncated: true },
       },
-      global: { mocks: { $t: (key) => key } },
+      global: { directives: { tooltip }, mocks: { $t: (key) => key } },
     })
 
     expect(wrapper.get('button').attributes('aria-expanded')).toBe('false')
@@ -165,13 +166,123 @@ describe('ChatStepGroup', () => {
     (input) => {
       const wrapper = mount(ChatStepGroup, {
         props: { title: 'Added rows', status: 'done', input },
-        global: { mocks: { $t: (key) => key } },
+        global: { directives: { tooltip }, mocks: { $t: (key) => key } },
       })
 
       expect(wrapper.find('button').exists()).toBe(false)
       expect(wrapper.find('pre').exists()).toBe(false)
     }
   )
+
+  test.each([false, true])(
+    'shows an escaped failure hint on a header icon, expandable: %s',
+    async (expandable) => {
+      const failureHint = 'Tool failed: <img src=x onerror=alert(1)>'
+      const wrapper = mount(ChatStepGroup, {
+        props: {
+          title: 'Create rows',
+          status: 'failed',
+          failureHint,
+          input: expandable ? { values: { table_id: 42 } } : null,
+        },
+        global: { directives: { tooltip }, mocks: { $t: (key) => key } },
+      })
+
+      try {
+        expect(wrapper.find('button button').exists()).toBe(false)
+        expect(wrapper.get('.chat-step-group__status').text()).toContain(
+          failureHint
+        )
+        await wrapper.get('.iconoir-warning-triangle').trigger('mouseenter')
+        expect(document.querySelector('.tooltip__content').textContent).toBe(
+          failureHint
+        )
+        expect(document.querySelector('.tooltip img')).toBeNull()
+
+        await wrapper.setProps({ status: 'done' })
+        expect(document.querySelector('.tooltip')).toBeNull()
+        expect(wrapper.get('.chat-step-group__status').text()).not.toContain(
+          failureHint
+        )
+      } finally {
+        document.body.click()
+        wrapper.unmount()
+      }
+    }
+  )
+
+  test('uses a generic failure hint when history has no reason', async () => {
+    const wrapper = mount(ChatStepGroup, {
+      props: { title: 'Read rows', status: 'failed' },
+      global: { directives: { tooltip }, mocks: { $t: (key) => key } },
+    })
+
+    try {
+      await wrapper.get('.iconoir-warning-triangle').trigger('mouseenter')
+      expect(document.querySelector('.tooltip__content').textContent).toBe(
+        'toolPresentation.failureFailed'
+      )
+      expect(wrapper.get('.chat-step-group__status').text()).toContain(
+        'toolPresentation.failureFailed'
+      )
+    } finally {
+      document.body.click()
+      wrapper.unmount()
+    }
+  })
+
+  test.each(['running', 'done', 'stopped'])(
+    'does not show a failure tooltip for a %s call',
+    async (status) => {
+      const wrapper = mount(ChatStepGroup, {
+        props: { title: 'Read rows', status, failureHint: 'Old failure' },
+        global: { directives: { tooltip }, mocks: { $t: (key) => key } },
+      })
+
+      try {
+        await wrapper.get('.chat-step-group__icon').trigger('mouseenter')
+        expect(document.querySelector('.tooltip')).toBeNull()
+        expect(wrapper.get('.chat-step-group__status').text()).not.toContain(
+          'Old failure'
+        )
+      } finally {
+        wrapper.unmount()
+      }
+    }
+  )
+
+  test('explains an earlier failed call without attaching its hint to a successful summary', async () => {
+    const failureHint = 'The requested table was not found in this workspace.'
+    const wrapper = mount(ChatStepGroup, {
+      props: {
+        title: 'Looked at your workspace',
+        status: 'done',
+        lines: [
+          { id: 'a', title: 'Read rows', status: 'failed', failureHint },
+          { id: 'b', title: 'Read 22 rows', status: 'done' },
+        ],
+      },
+      global: { directives: { tooltip }, mocks: { $t: (key) => key } },
+    })
+
+    try {
+      await wrapper.get('button .chat-step-group__icon').trigger('mouseenter')
+      expect(document.querySelector('.tooltip')).toBeNull()
+      expect(
+        wrapper.get('button .chat-step-group__status').text()
+      ).not.toContain(failureHint)
+      await wrapper.get('li .iconoir-warning-triangle').trigger('mouseenter')
+      expect(document.querySelector('.tooltip__content').textContent).toBe(
+        failureHint
+      )
+      expect(wrapper.get('li .chat-step-group__status').text()).toContain(
+        failureHint
+      )
+    } finally {
+      document.body.click()
+      wrapper.unmount()
+    }
+  })
 
   test.each([
     ['running', '.chat-step-group__spinner', 'toolPresentation.statusRunning'],
@@ -181,7 +292,7 @@ describe('ChatStepGroup', () => {
   ])('shows %s for a standalone action', (status, icon, label) => {
     const wrapper = mount(ChatStepGroup, {
       props: { title: 'Sending an email', status },
-      global: { mocks: { $t: (key) => key } },
+      global: { directives: { tooltip }, mocks: { $t: (key) => key } },
     })
 
     expect(wrapper.find('button').exists()).toBe(false)

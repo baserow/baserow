@@ -63,15 +63,16 @@ def test_steps_keep_call_order_and_distinct_ids_when_provider_ids_are_reused():
 
 
 @pytest.mark.parametrize(
-    "part,status",
+    "part,status,error_code",
     [
-        (RetryPromptPart("Try again", tool_call_id="one"), "failed"),
-        (ToolReturnPart("tool", {"error": "denied"}, "one"), "failed"),
+        (RetryPromptPart("Try again", tool_call_id="one"), "failed", "invalid_input"),
+        (ToolReturnPart("tool", {"error": "denied"}, "one"), "failed", "failed"),
         (
             ToolReturnPart(
                 "tool", {"deleted_field_ids": [], "errors": ["denied"]}, "one"
             ),
             "failed",
+            "partial_failure",
         ),
         (
             ToolReturnPart(
@@ -81,18 +82,31 @@ def test_steps_keep_call_order_and_distinct_ids_when_provider_ids_are_reused():
                 metadata={"count": 1},
             ),
             "failed",
+            "partial_failure",
         ),
-        (ToolReturnPart("tool", None, "one", outcome="failed"), "failed"),
-        (ToolReturnPart("tool", None, "one", outcome="denied"), "failed"),
-        (ToolReturnPart("tool", None, "one", outcome="interrupted"), "stopped"),
+        (ToolReturnPart("tool", None, "one", outcome="failed"), "failed", "failed"),
+        (
+            ToolReturnPart("tool", None, "one", outcome="denied"),
+            "failed",
+            "permission_denied",
+        ),
+        (
+            ToolReturnPart("tool", None, "one", outcome="interrupted"),
+            "stopped",
+            None,
+        ),
     ],
 )
-def test_failed_or_interrupted_calls_have_no_success_facts(part, status):
+def test_failed_or_interrupted_calls_have_no_success_facts(part, status, error_code):
     steps = ChatRunSteps(Mock(), describe)
     steps.on_event(call("one"))
     steps.on_event(FunctionToolResultEvent(part))
     assert steps.finish()[0]["status"] == status
     assert steps.finish()[0]["facts"] == {}
+    if error_code is None:
+        assert "error_code" not in steps.finish()[0]
+    else:
+        assert steps.finish()[0]["error_code"] == error_code
 
 
 def test_invalid_call_is_failed_even_without_a_result_and_has_no_input():
@@ -102,6 +116,7 @@ def test_invalid_call_is_failed_even_without_a_result_and_has_no_input():
     description.assert_called_once_with("create_rows", {})
     saved = steps.finish()[0]
     assert saved["status"] == "failed"
+    assert saved["error_code"] == "invalid_input"
     assert saved["input"] == {}
 
 
@@ -149,3 +164,48 @@ def test_invalid_display_input_and_unmatched_results_are_ignored():
     steps.on_event(result("missing"))
     steps.on_event(call("one"))
     assert steps.finish()[0]["input"] == {}
+
+
+@pytest.mark.parametrize(
+    "code,expected",
+    [
+        ("not_found", "not_found"),
+        ("permission_denied", "permission_denied"),
+        ("invalid_input", "invalid_input"),
+        ("partial_failure", "partial_failure"),
+        ("failed", "failed"),
+        ("PRIVATE_ERROR_MESSAGE", "failed"),
+        ({"raw_error": "PRIVATE_ERROR_MESSAGE"}, "failed"),
+        (None, "failed"),
+    ],
+)
+def test_failed_steps_only_copy_allowlisted_error_codes(code, expected):
+    journal = Mock()
+    steps = ChatRunSteps(journal, describe)
+    steps.on_event(call("one"))
+    steps.on_event(
+        result(
+            "one",
+            content={"error": "PRIVATE_ERROR_MESSAGE"},
+            facts={"error_code": code, "traceback": "PRIVATE_TRACEBACK"},
+        )
+    )
+
+    step = steps.finish()[0]
+    assert step["error_code"] == expected
+    assert step["facts"] == {}
+    assert "PRIVATE" not in str(step)
+    assert journal.emit.call_args.args[1] == step
+
+
+@pytest.mark.parametrize(
+    "outcome,status", [("success", "done"), ("interrupted", "stopped")]
+)
+def test_success_or_stop_clears_earlier_validation_error(outcome, status):
+    steps = ChatRunSteps(Mock(), describe)
+    steps.on_event(call("one", valid=False))
+    steps.on_event(result("one", outcome=outcome))
+
+    step = steps.finish()[0]
+    assert step["status"] == status
+    assert "error_code" not in step

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from typing import Any, TypedDict
+from typing import Any, NotRequired, TypedDict
 
-from .constants import ChatRunStepStatus
+from .constants import ChatRunStepErrorCode, ChatRunStepStatus
 from .models import ChatRunStatus
 
 
@@ -12,6 +12,7 @@ class ChatRunStep(TypedDict):
     tool: str
     presentation_type: str
     status: ChatRunStepStatus
+    error_code: NotRequired[ChatRunStepErrorCode]
     changes_data: bool
     input: dict[str, Any]
     facts: dict[str, Any]

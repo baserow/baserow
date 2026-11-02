@@ -24,6 +24,16 @@ class ChatRunStepStatus(StrEnum):
     STOPPED = "stopped"
 
 
+class ChatRunStepErrorCode(StrEnum):
+    """Safe categories for translated tool failures, never exception messages."""
+
+    NOT_FOUND = "not_found"
+    PERMISSION_DENIED = "permission_denied"
+    INVALID_INPUT = "invalid_input"
+    PARTIAL_FAILURE = "partial_failure"
+    FAILED = "failed"
+
+
 class ChatRunErrorCode(StrEnum):
     """Engine values of ``ChatRun.error_code``. Run types may add their own."""
 

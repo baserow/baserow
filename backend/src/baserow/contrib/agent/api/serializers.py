@@ -20,7 +20,7 @@ from baserow.contrib.agent.models import (
 from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.contrib.agent.types import AgentConfiguration
 from baserow.contrib.agent.validators import AGENT_TEXT_MAX_LENGTH
-from baserow.core.chat_runs.constants import ChatRunStepStatus
+from baserow.core.chat_runs.constants import ChatRunStepErrorCode, ChatRunStepStatus
 
 READINESS_CHOICES = [state.value for state in AgentReadinessState]
 
@@ -241,6 +241,9 @@ class AgentMessageStepSerializer(serializers.Serializer):
     tool = serializers.CharField()
     presentation_type = serializers.CharField(required=False)
     status = serializers.ChoiceField(choices=list(ChatRunStepStatus))
+    error_code = serializers.ChoiceField(
+        choices=list(ChatRunStepErrorCode), required=False
+    )
     changes_data = serializers.BooleanField()
     input = serializers.DictField(required=False)
     facts = serializers.DictField()
