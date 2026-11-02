@@ -496,3 +496,27 @@ def test_open_page_action_refuses_another_builders_page(data_fixture):
             navigation_type="page",
             navigate_to_page_id=elsewhere.id,
         )
+
+
+@pytest.mark.django_db
+def test_open_page_action_refuses_to_turn_on_another_builders_page(data_fixture):
+    from rest_framework.exceptions import ValidationError
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    button = data_fixture.create_builder_button_element(page=page)
+    elsewhere = data_fixture.create_builder_page(user=user)
+    workflow_action = BuilderWorkflowActionService().create_workflow_action(
+        user,
+        builder_workflow_action_type_registry.get("open_page"),
+        page=page,
+        element=button,
+        event="click",
+        navigation_type="custom",
+        navigate_to_page_id=elsewhere.id,
+    )
+
+    with pytest.raises(ValidationError):
+        BuilderWorkflowActionService().update_workflow_action(
+            user, workflow_action, navigation_type="page"
+        )

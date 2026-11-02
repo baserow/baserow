@@ -447,7 +447,9 @@ class ElementHandler:
 
         from baserow.contrib.builder.pages.handler import PageHandler
 
-        PageHandler().raise_if_page_links_outside_builder(element.page.builder, kwargs)
+        PageHandler().raise_if_page_links_outside_builder(
+            element.page.builder, kwargs, instance=element
+        )
         allowed_updates = element.get_type().prepare_value_for_db(
             allowed_updates, instance=element
         )

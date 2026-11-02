@@ -65,7 +65,9 @@ class BuilderWorkflowActionType(
 
         page = values.get("page") or (instance.page if instance else None)
         if page is not None:
-            PageHandler().raise_if_page_links_outside_builder(page.builder, values)
+            PageHandler().raise_if_page_links_outside_builder(
+                page.builder, values, instance=instance
+            )
 
         if "element_id" in values:
             values["element"] = ElementHandler().get_element(values["element_id"])

@@ -448,7 +448,9 @@ class PageHandler:
             [page_path], existing_paths, max_length=255, suffix="/{0}"
         )
 
-    def raise_if_page_links_outside_builder(self, builder: Builder, values: Any):
+    def raise_if_page_links_outside_builder(
+        self, builder: Builder, values: Any, instance: Any = None
+    ):
         """
         Check that every `navigate_to_page_id` in the values of an element or
         workflow action, nested ones such as menu items and table columns included,
@@ -456,8 +458,20 @@ class PageHandler:
 
         :param builder: The builder the element or workflow action is in.
         :param values: The values it's created or updated with.
+        :param instance: The element or workflow action being updated. Its saved
+            link fills in whichever of `navigation_type` and `navigate_to_page_id`
+            the values leave out.
         :raises ValidationError: When one names a page of another builder.
         """
+
+        if instance is not None and (
+            "navigation_type" in values or "navigate_to_page_id" in values
+        ):
+            values = {
+                "navigation_type": getattr(instance, "navigation_type", None),
+                "navigate_to_page_id": getattr(instance, "navigate_to_page_id", None),
+                **values,
+            }
 
         page_ids = set()
 
