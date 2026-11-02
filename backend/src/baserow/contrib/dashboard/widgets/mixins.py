@@ -206,7 +206,7 @@ class FilterWidgetTypeMixin:
         for link in self.get_target_filters(widget):
             if link["target_widget_id"] != target.id:
                 continue
-            if value != "":
+            if value != "" and value != []:
                 return link["group"]
             if link.get("empty_behavior") == "apply_alternative":
                 return link["alternative_group"]

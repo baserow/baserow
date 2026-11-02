@@ -110,6 +110,7 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
     allowed_fields = [
         *WidgetType.allowed_fields,
         "mode",
+        "multiple",
         "options",
         "placeholder",
         "default_value",
@@ -117,6 +118,7 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
     ]
     serializer_field_names = [
         "mode",
+        "multiple",
         "options",
         "placeholder",
         "default_value",
@@ -124,6 +126,7 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
     ]
     public_serializer_field_names = [
         "mode",
+        "multiple",
         "placeholder",
         "default_value",
         *FilterWidgetTypeMixin.public_serializer_field_names,
@@ -145,13 +148,17 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
 
     class SerializedDict(WidgetDict):
         mode: str
+        multiple: bool
         options: dict
         placeholder: str
         default_value: str
         target_filters: list
 
     def get_filter_value(self, widget, values):
-        return values.get(str(widget.id), widget.default_value)
+        default = widget.default_value
+        if widget.mode == TextFilterWidget.Mode.DROPDOWN and widget.multiple:
+            default = [default] if default else []
+        return values.get(str(widget.id), default)
 
     def after_import(self, widget, id_mapping, **kwargs):
         from baserow.contrib.dashboard.formula_importer import import_formula
@@ -166,6 +173,14 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
         return updated_models
 
     def validate_filter_value(self, widget, value):
+        if widget.mode == TextFilterWidget.Mode.DROPDOWN and widget.multiple:
+            if not isinstance(value, list) or any(
+                not isinstance(item, str) for item in value
+            ):
+                raise serializers.ValidationError(
+                    "Expected a list of string filter values."
+                )
+            return value
         if not isinstance(value, str):
             raise serializers.ValidationError("Expected a string filter value.")
         return value
