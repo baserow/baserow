@@ -88,5 +88,10 @@ deleting many fields or rows is cheap and a failure is retried by its next run.
   deleting the workspace drops its vector table. Trashed items keep their vectors, so
   restoring doesn't embed everything again. Re-enabling semantic search before the
   periodic check keeps the vectors, and only changed values are embedded again.
+- When a change of another field makes the field's value something else than text,
+  like deleting a field that a formula uses, semantic search stays enabled with the
+  `incompatible` status. Its vectors are marked for deletion, and it's indexed again
+  as soon as its value is text again, for example when the deleted field is
+  restored. Converting the field itself to an unsupported type disables it.
 - Searching the index, including ranking and permissions, belongs to the semantic
   search action, not to the updaters.

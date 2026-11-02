@@ -11,7 +11,7 @@
     <div class="control__elements flex justify-content-end">
       <SwitchInput
         v-tooltip="disabledReason"
-        :value="isCompatible && values.semantic_search_enabled"
+        :value="values.semantic_search_enabled && (isCompatible || isKept)"
         :small="true"
         :disabled="!!disabledReason"
         class="inline-flex"
@@ -58,6 +58,7 @@ const STATUS_MESSAGES = {
   error: 'semanticSearchFieldSetting.statusError',
   paused: 'semanticSearchFieldSetting.statusPaused',
   unavailable: 'semanticSearchFieldSetting.statusUnavailable',
+  incompatible: 'semanticSearchFieldSetting.statusIncompatible',
 }
 const ERROR_MESSAGES = {
   ERROR_SEMANTIC_SEARCH_NOT_AVAILABLE: 'semanticSearchFieldSetting.unavailable',
@@ -116,10 +117,18 @@ export default {
       if (!this.isAvailable && !this.defaultValues.semantic_search_enabled) {
         return this.$t('semanticSearchFieldSetting.unavailable')
       }
-      if (!this.isCompatible) {
+      if (!this.isCompatible && !this.isKept) {
         return this.$t('semanticSearchFieldSetting.incompatible')
       }
       return null
+    },
+    // A change of another field made it incompatible, so it's paused until it's
+    // compatible again, but it can still be disabled.
+    isKept() {
+      return (
+        this.defaultValues.semantic_search_enabled &&
+        this.defaultValues.semantic_search_status === 'incompatible'
+      )
     },
     // The status is of the saved field, so it doesn't apply while toggling.
     isStatusRelevant() {
@@ -151,7 +160,7 @@ export default {
     },
     getFormValues() {
       // Converting to an incompatible type disables semantic search in the backend.
-      return this.isCompatible ? { ...this.values } : {}
+      return this.isCompatible || this.isKept ? { ...this.values } : {}
     },
     handleErrorByForm(error) {
       const message = ERROR_MESSAGES[error.handler?.code]

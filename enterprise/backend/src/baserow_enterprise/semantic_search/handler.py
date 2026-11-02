@@ -1,13 +1,14 @@
 import hashlib
 import json
 import time
+from collections import defaultdict
 from typing import TYPE_CHECKING, Optional
 
 from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction
 
-from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.fields.models import Field, FormulaField
 from baserow.contrib.database.search.registries import search_data_updater_registry
 from baserow.contrib.database.table.models import Table
 from baserow.core.embeddings import (
@@ -39,6 +40,7 @@ class SemanticSearchStatus:
     INDEXING = SemanticSearchField.Status.INDEXING.value
     READY = SemanticSearchField.Status.READY.value
     ERROR = SemanticSearchField.Status.ERROR.value
+    INCOMPATIBLE = SemanticSearchField.Status.INCOMPATIBLE.value
     PAUSED = "paused"
     UNAVAILABLE = "unavailable"
 
@@ -149,25 +151,47 @@ class SemanticSearchHandler:
         if deleted:
             self.mark_vectors_for_deletion(field.table, [field.id])
 
-    def disable_incompatible_fields(self, fields: list[Field]):
+    def update_compatibility(self, fields: list[Field]):
         """
-        Disables semantic search for the fields of which the type no longer supports
-        it, like converting a field to a type without an index removes the index.
+        Keeps semantic search enabled for fields that a change of another field made
+        incompatible, like a formula of which the referenced field was deleted, so
+        that they're indexed again when they're compatible again. Their vectors no
+        longer represent their values, so they're deleted meanwhile.
 
-        :param fields: The fields that may have changed type.
+        :param fields: The fields that may have changed because of another field.
         """
 
-        enabled_field_ids = set(
-            SemanticSearchField.objects.filter(field__in=fields).values_list(
-                "field_id", flat=True
+        # Only the result of formulas, lookups and rollups depends on other fields, so
+        # most field changes don't need a query.
+        fields_by_id = {
+            field.id: field for field in fields if isinstance(field, FormulaField)
+        }
+        if not fields_by_id:
+            return
+
+        incompatible, compatible_again = defaultdict(list), defaultdict(list)
+        for semantic_search_field in SemanticSearchField.objects.filter(
+            field_id__in=fields_by_id
+        ):
+            field = fields_by_id[semantic_search_field.field_id]
+            is_compatible = self.get_semantic_search_field_type(field) is not None
+            was_compatible = (
+                semantic_search_field.status != SemanticSearchStatus.INCOMPATIBLE
             )
-        )
-        for field in fields:
-            if (
-                field.id in enabled_field_ids
-                and self.get_semantic_search_field_type(field) is None
-            ):
-                self.disable(field)
+            if was_compatible and not is_compatible:
+                incompatible[field.table].append(semantic_search_field)
+            elif is_compatible and not was_compatible:
+                compatible_again[field.table].append(semantic_search_field)
+
+        for table, semantic_search_fields in incompatible.items():
+            self.mark_vectors_for_deletion(
+                table, [field.field_id for field in semantic_search_fields]
+            )
+            self._set_status(
+                table, semantic_search_fields, SemanticSearchStatus.INCOMPATIBLE
+            )
+        for table, semantic_search_fields in compatible_again.items():
+            self.queue_full_updates(table, semantic_search_fields)
 
     def mark_vectors_for_deletion(
         self,
@@ -317,7 +341,12 @@ class SemanticSearchHandler:
             table,
             list(
                 SemanticSearchField.objects.filter(field__table=table)
-                .exclude(status=SemanticSearchStatus.READY)
+                .exclude(
+                    status__in=[
+                        SemanticSearchStatus.READY,
+                        SemanticSearchStatus.INCOMPATIBLE,
+                    ]
+                )
                 .exclude(
                     field_id__in=SemanticSearchPendingUpdate.objects.values("field_id")
                 )

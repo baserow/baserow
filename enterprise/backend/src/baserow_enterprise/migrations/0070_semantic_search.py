@@ -31,6 +31,7 @@ class Migration(migrations.Migration):
                             ("indexing", "Indexing"),
                             ("ready", "Ready"),
                             ("error", "Error"),
+                            ("incompatible", "Incompatible"),
                         ],
                         default="indexing",
                         max_length=16,

@@ -16,6 +16,9 @@ class SemanticSearchField(models.Model):
         INDEXING = "indexing"
         READY = "ready"
         ERROR = "error"
+        # A field it depends on changed, so its value isn't text anymore. The
+        # setting is kept, so that it's indexed again when the value is text again.
+        INCOMPATIBLE = "incompatible"
 
     field = models.OneToOneField(
         "database.Field",

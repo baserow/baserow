@@ -93,6 +93,28 @@ describe('SemanticSearchFieldSetting', () => {
     expect(wrapper.find('.switch').classes()).toContain('switch--disabled')
   })
 
+  test('stays enabled while another field made it incompatible', async () => {
+    giveAdvancedLicense()
+    const wrapper = await mountComponent(
+      { type: 'formula', formula_type: 'invalid' },
+      { semantic_search_enabled: true, semantic_search_status: 'incompatible' }
+    )
+
+    expect(wrapper.find('.switch').classes()).toContain('switch--active')
+    expect(wrapper.text()).toContain(
+      'semanticSearchFieldSetting.statusIncompatible'
+    )
+    expect(wrapper.vm.getFormValues()).toEqual({
+      semantic_search_enabled: true,
+    })
+
+    await wrapper.find('.switch').trigger('click')
+
+    expect(wrapper.vm.getFormValues()).toEqual({
+      semantic_search_enabled: false,
+    })
+  })
+
   test('is disabled when the instance has no embeddings service', async () => {
     giveAdvancedLicense()
     testApp.store.commit('settings/SET_SETTINGS', {

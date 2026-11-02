@@ -62,7 +62,8 @@
     "indexing": "Indexing values for semantic search...",
     "statusError": "The values couldn't be indexed because the embeddings service failed. It's retried automatically.",
     "statusPaused": "Indexing is paused because the workspace doesn't have the advanced plan anymore.",
-    "statusUnavailable": "Indexing is paused because semantic search isn't configured on this instance anymore."
+    "statusUnavailable": "Indexing is paused because semantic search isn't configured on this instance anymore.",
+    "statusIncompatible": "Indexing is paused because this field's value isn't text anymore, for example because a field it uses was deleted. It continues automatically when the value is text again."
   },
   "createTeamModal": {
     "title": "Create team",

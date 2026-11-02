@@ -19,6 +19,7 @@ from baserow_premium.license.handler import LicenseHandler
 
 from .exceptions import SemanticSearchNotAvailable, SemanticSearchNotSupported
 from .handler import SemanticSearchHandler
+from .models import SemanticSearchField
 
 
 @extend_schema_field(OpenApiTypes.BOOL)
@@ -64,9 +65,11 @@ class SemanticSearchFieldExtensionType(FieldExtensionType):
             ),
             "semantic_search_status": SemanticSearchStatusField(
                 help_text="The state of the semantic search index of the field: "
-                "`indexing`, `ready`, `error`, `paused` if the workspace doesn't "
-                "have the required license or `unavailable` if the instance "
-                "doesn't support it. Null if semantic search is disabled.",
+                "`indexing`, `ready`, `error`, `incompatible` if a change of "
+                "another field made its value something else than text, `paused` "
+                "if the workspace doesn't have the required license or "
+                "`unavailable` if the instance doesn't support it. Null if "
+                "semantic search is disabled.",
             ),
         }
 
@@ -89,11 +92,39 @@ class SemanticSearchFieldExtensionType(FieldExtensionType):
     ):
         handler = SemanticSearchHandler()
         enabled = values.get("semantic_search_enabled")
-        was_enabled = handler.get_semantic_search_field(field) is not None
+        is_compatible = handler.get_semantic_search_field_type(field) is not None
+        type_changed = type(field) is not type(old_field)
+        # Nothing changes for a compatible field of the same type without a new
+        # value, which is most field updates, so the setting isn't looked up.
+        if enabled is None and is_compatible and not type_changed:
+            return
+
+        semantic_search_field = handler.get_semantic_search_field(field)
+        was_enabled = semantic_search_field is not None
         if enabled and not was_enabled:
             self._enable(field)
         elif enabled is False and was_enabled:
             handler.disable(field)
+        elif (
+            was_enabled
+            and not is_compatible
+            and (
+                type_changed
+                or handler.get_semantic_search_field_type(old_field) is not None
+            )
+        ):
+            # The user's own change made it incompatible, like converting it to a
+            # number, which also removes its index. Also if another field already
+            # made it incompatible, because the setting doesn't apply to the new type.
+            handler.disable(field)
+        elif (
+            was_enabled
+            and is_compatible
+            and semantic_search_field.status == SemanticSearchField.Status.INCOMPATIBLE
+        ):
+            # Like a formula that another field made incompatible, converted to a
+            # text field. Its type is no longer one that depends on other fields.
+            handler.queue_full_updates(field.table, [semantic_search_field])
 
     def _enable(self, field: Field):
         """

@@ -1,6 +1,11 @@
 from django.dispatch import receiver
 
-from baserow.contrib.database.fields.signals import field_restored, field_updated
+from baserow.contrib.database.fields.signals import (
+    field_created,
+    field_deleted,
+    field_restored,
+    field_updated,
+)
 from baserow.core.trash.signals import before_permanently_deleted, permanently_deleted
 
 from .handler import SemanticSearchHandler
@@ -60,17 +65,31 @@ def delete_vectors_of_permanently_deleted_rows(sender, trash_item, *args, **kwar
 
 
 @receiver(field_updated)
-def disable_semantic_search_of_incompatible_fields(
+def update_compatibility_of_updated_fields(
     sender, field, related_fields, *args, **kwargs
 ):
-    # Also the fields that changed because of another field, like a formula of
-    # which the result became a number because a referenced field was converted.
-    SemanticSearchHandler().disable_incompatible_fields([field, *related_fields])
+    # The field itself is in it if the change was made in another table, like a
+    # lookup of which the target field was converted.
+    SemanticSearchHandler().update_compatibility([field, *related_fields])
+
+
+@receiver(field_created)
+@receiver(field_deleted)
+def update_compatibility_of_related_fields(sender, related_fields, *args, **kwargs):
+    # Like a formula that breaks when a referenced field is deleted, and works again
+    # when a field with that name is created.
+    SemanticSearchHandler().update_compatibility(related_fields)
 
 
 @receiver(field_restored)
-def queue_update_of_restored_field(sender, field, *args, **kwargs):
+def queue_update_of_restored_field(sender, field, related_fields, *args, **kwargs):
+    handler = SemanticSearchHandler()
+    handler.update_compatibility([field, *related_fields])
     # Rows created while the field was trashed haven't been indexed.
-    semantic_search_field = SemanticSearchField.objects.filter(field=field).first()
+    semantic_search_field = (
+        SemanticSearchField.objects.filter(field=field)
+        .exclude(status=SemanticSearchField.Status.INCOMPATIBLE)
+        .first()
+    )
     if semantic_search_field:
-        SemanticSearchHandler().queue_full_updates(field.table, [semantic_search_field])
+        handler.queue_full_updates(field.table, [semantic_search_field])

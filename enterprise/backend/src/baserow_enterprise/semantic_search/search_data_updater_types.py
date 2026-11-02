@@ -47,9 +47,10 @@ class SemanticSearchDataUpdaterType(SearchDataUpdaterType):
     def _get_semantic_search_fields(
         self, table: Table, field_ids: list[int] | None
     ) -> QuerySet:
+        # Incompatible fields aren't indexed until they're compatible again.
         semantic_search_fields = SemanticSearchField.objects.filter(
             field__table=table, field__trashed=False
-        )
+        ).exclude(status=SemanticSearchField.Status.INCOMPATIBLE)
         if field_ids is not None:
             semantic_search_fields = semantic_search_fields.filter(
                 field_id__in=field_ids

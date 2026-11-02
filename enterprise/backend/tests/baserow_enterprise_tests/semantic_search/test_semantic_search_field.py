@@ -542,8 +542,16 @@ def test_converting_to_incompatible_type_disables_semantic_search(
     assert get_chunk_counts(fields[0]) == {}
 
 
+def get_semantic_search_state(api_client, token, table, field):
+    listed = {item["id"]: item for item in list_fields(api_client, token, table)}
+    return (
+        listed[field.id]["semantic_search_enabled"],
+        listed[field.id]["semantic_search_status"],
+    )
+
+
 @pytest.mark.django_db
-def test_formula_that_stops_being_text_disables_semantic_search(
+def test_formula_that_stops_being_text_is_incompatible_until_it_is_again(
     api_client, data_fixture, semantic_search, django_capture_on_commit_callbacks
 ):
     user, token = data_fixture.create_user_and_token()
@@ -567,12 +575,233 @@ def test_formula_that_stops_being_text_disables_semantic_search(
         response = update_field(api_client, token, fields[0], {"type": "number"})
 
     assert [
-        related_field["semantic_search_enabled"]
-        for related_field in response.json()["related_fields"]
-    ] == [False]
-    assert not SemanticSearchField.objects.exists()
+        (related["semantic_search_enabled"], related["semantic_search_status"])
+        for related in response.json()["related_fields"]
+    ] == [(True, "incompatible")]
     periodic_check_pending_search_data()
     assert get_chunk_counts(formula) == {}
+
+    with django_capture_on_commit_callbacks(execute=True):
+        update_field(api_client, token, fields[0], {"type": "text"})
+    index(table)
+
+    assert get_semantic_search_state(api_client, token, table, formula) == (
+        True,
+        "ready",
+    )
+    assert get_chunk_counts(formula) == {rows[0].id: 1}
+
+
+@pytest.mark.django_db
+def test_deleting_a_referenced_field_keeps_semantic_search_until_it_is_restored(
+    api_client, data_fixture, semantic_search, django_capture_on_commit_callbacks
+):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+    table, fields, rows = data_fixture.build_table(
+        user=user, database=database, columns=[("Notes", "text")], rows=[["first"]]
+    )
+    other_table, other_fields, other_rows = data_fixture.build_table(
+        user=user, database=database, columns=[("Name", "text")], rows=[["x"]]
+    )
+    link = data_fixture.create_link_row_field(
+        table=other_table, name="Link", link_row_table=table
+    )
+    update_row(api_client, token, other_table, other_rows[0], {link: [rows[0].id]})
+    formula = FieldHandler().create_field(
+        user, table, "formula", name="Copy", formula="field('Notes')"
+    )
+    lookup = FieldHandler().create_field(
+        user,
+        other_table,
+        "lookup",
+        name="Lookup",
+        through_field_id=link.id,
+        target_field_id=fields[0].id,
+    )
+    for field in [formula, lookup]:
+        FieldHandler().update_field(user, field, semantic_search_enabled=True)
+    index(table)
+    index(other_table)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        response = api_client.delete(
+            reverse("api:database:fields:item", kwargs={"field_id": fields[0].id}),
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+    # Changes while it's incompatible aren't queued and don't change its status.
+    update_row(api_client, token, table, rows[0], {})
+    periodic_check_pending_search_data()
+
+    assert response.status_code == HTTP_200_OK
+    # The formula in the same table and the lookup in the other table.
+    for field, field_table in [(formula, table), (lookup, other_table)]:
+        assert get_semantic_search_state(api_client, token, field_table, field) == (
+            True,
+            "incompatible",
+        )
+        assert get_chunk_counts(field) == {}
+    assert not SemanticSearchPendingUpdate.objects_and_trash.exists()
+
+    with django_capture_on_commit_callbacks(execute=True):
+        TrashHandler.restore_item(user, "field", fields[0].id)
+    index(table)
+    index(other_table)
+
+    for field, field_table in [(formula, table), (lookup, other_table)]:
+        assert get_semantic_search_state(api_client, token, field_table, field) == (
+            True,
+            "ready",
+        )
+    assert get_chunk_counts(formula) == {rows[0].id: 1}
+    assert get_chunk_counts(lookup) == {other_rows[0].id: 1}
+
+
+@pytest.mark.django_db
+def test_creating_the_referenced_field_again_makes_the_formula_compatible(
+    api_client, data_fixture, semantic_search, django_capture_on_commit_callbacks
+):
+    user, token = data_fixture.create_user_and_token()
+    table, fields, rows = data_fixture.build_table(
+        user=user, columns=[("Notes", "text")], rows=[["first"]]
+    )
+    formula = FieldHandler().create_field(
+        user, table, "formula", name="Copy", formula="concat('note ', field('Notes'))"
+    )
+    FieldHandler().update_field(user, formula, semantic_search_enabled=True)
+    index(table)
+    with django_capture_on_commit_callbacks(execute=True):
+        FieldHandler().delete_field(user, fields[0])
+    assert get_semantic_search_state(api_client, token, table, formula) == (
+        True,
+        "incompatible",
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        FieldHandler().create_field(user, table, "text", name="Notes")
+    index(table)
+
+    assert get_semantic_search_state(api_client, token, table, formula) == (
+        True,
+        "ready",
+    )
+    assert "note " in semantic_search.embedded_texts
+
+
+@pytest.mark.django_db
+def test_changing_the_formula_itself_to_a_number_disables_semantic_search(
+    api_client, data_fixture, semantic_search
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    formula = FieldHandler().create_field(
+        user, table, "formula", name="Copy", formula="'text'"
+    )
+    update_field(
+        api_client,
+        token,
+        formula,
+        {"formula": "'text'", "semantic_search_enabled": True},
+    )
+
+    response = update_field(api_client, token, formula, {"formula": "1"})
+
+    assert response.json()["semantic_search_enabled"] is False
+    assert not SemanticSearchField.objects.exists()
+
+
+@pytest.mark.django_db
+def test_converting_an_incompatible_formula_to_another_type_disables_it(
+    api_client, data_fixture, semantic_search
+):
+    user, token = data_fixture.create_user_and_token()
+    table, fields, rows = data_fixture.build_table(
+        user=user, columns=[("Notes", "text")], rows=[["first"]]
+    )
+    formula = FieldHandler().create_field(
+        user, table, "formula", name="Copy", formula="field('Notes')"
+    )
+    FieldHandler().update_field(user, formula, semantic_search_enabled=True)
+    # The result of the formula becomes a number, so it's incompatible.
+    FieldHandler().update_field(user, fields[0], new_type_name="number")
+
+    # The field form still sends the setting of a kept field.
+    response = update_field(
+        api_client,
+        token,
+        formula,
+        {"type": "button", "label": "Open", "semantic_search_enabled": True},
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    assert response.json()["semantic_search_enabled"] is False
+    assert not SemanticSearchField.objects.exists()
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        # Converted to a type of which the compatibility doesn't depend on others.
+        {"type": "text"},
+        # Fixed by the user, so it's still a formula.
+        {"formula": "'fixed text'"},
+    ],
+    ids=["converted_to_text", "formula_fixed"],
+)
+@pytest.mark.parametrize("send_setting", [True, False])
+@pytest.mark.django_db
+def test_user_making_an_incompatible_formula_compatible_indexes_it_again(
+    api_client, data_fixture, semantic_search, change, send_setting
+):
+    user, token = data_fixture.create_user_and_token()
+    table, fields, rows = data_fixture.build_table(
+        # A number, so the value survives converting it to a number and back.
+        user=user,
+        columns=[("Notes", "text")],
+        rows=[["1"]],
+    )
+    formula = FieldHandler().create_field(
+        user, table, "formula", name="Copy", formula="field('Notes')"
+    )
+    FieldHandler().update_field(user, formula, semantic_search_enabled=True)
+    # The result of the formula becomes a number, so it's incompatible.
+    FieldHandler().update_field(user, fields[0], new_type_name="number")
+
+    # The field form sends the setting of a kept field, the API doesn't have to.
+    body = {**change, "semantic_search_enabled": True} if send_setting else change
+    response = update_field(api_client, token, formula, body)
+    index(table)
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    assert get_semantic_search_state(api_client, token, table, formula) == (
+        True,
+        "ready",
+    )
+    assert get_chunk_counts(formula) == {rows[0].id: 1}
+
+
+@pytest.mark.django_db
+def test_renaming_an_incompatible_formula_keeps_semantic_search(
+    api_client, data_fixture, semantic_search
+):
+    user, token = data_fixture.create_user_and_token()
+    table, fields, rows = data_fixture.build_table(
+        user=user, columns=[("Notes", "text")], rows=[["first"]]
+    )
+    formula = FieldHandler().create_field(
+        user, table, "formula", name="Copy", formula="field('Notes')"
+    )
+    FieldHandler().update_field(user, formula, semantic_search_enabled=True)
+    # The result of the formula becomes a number, so it's incompatible.
+    FieldHandler().update_field(user, fields[0], new_type_name="number")
+
+    response = update_field(
+        api_client, token, formula, {"name": "Renamed", "formula": "field('Notes')"}
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    assert response.json()["semantic_search_enabled"] is True
+    assert response.json()["semantic_search_status"] == "incompatible"
 
 
 @pytest.mark.django_db
@@ -621,6 +850,67 @@ def test_disabling_while_indexing_doesnt_leave_vectors(
 
     assert semantic_search.embedded_texts == ["value"]
     assert get_chunk_counts(fields[0]) == {}
+
+
+@pytest.mark.django_db
+def test_field_changes_only_query_semantic_search_if_formulas_can_change(
+    data_fixture, semantic_search
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        database=database,
+        columns=[("Notes", "text"), ("Other", "text")],
+        rows=[["first", "second"]],
+    )
+    other_table = data_fixture.create_database_table(database=database)
+    formula = FieldHandler().create_field(
+        user, table, "formula", name="Copy", formula="field('Notes')"
+    )
+    FieldHandler().update_field(user, formula, semantic_search_enabled=True)
+
+    def count_semantic_search_queries(change) -> int:
+        with CaptureQueriesContext(connection) as captured:
+            change()
+        # Field queries also join it to avoid a query per field, which is fine.
+        return sum(
+            'FROM "baserow_enterprise_semanticsearchfield"' in query["sql"]
+            or query["sql"].startswith(
+                'UPDATE "baserow_enterprise_semanticsearchfield"'
+            )
+            for query in captured.captured_queries
+        )
+
+    handler = FieldHandler()
+    assert (
+        count_semantic_search_queries(
+            lambda: handler.update_field(user, fields[1], name="Renamed")
+        )
+        == 0
+    )
+    assert (
+        count_semantic_search_queries(
+            lambda: handler.create_field(user, table, "text", name="New")
+        )
+        == 0
+    )
+    assert (
+        count_semantic_search_queries(
+            lambda: handler.create_field(
+                user, table, "link_row", name="Link", link_row_table=other_table
+            )
+        )
+        == 0
+    )
+    assert (
+        count_semantic_search_queries(lambda: handler.delete_field(user, fields[1]))
+        == 0
+    )
+    # The formula breaks, so it becomes incompatible.
+    assert (
+        count_semantic_search_queries(lambda: handler.delete_field(user, fields[0])) > 0
+    )
 
 
 @pytest.mark.django_db
