@@ -1,6 +1,8 @@
 import { nextTick } from 'vue'
 import { useNuxtApp, useRouter, useRuntimeConfig } from '#imports'
 
+import { redactPrivateLinkTokens } from '@baserow/modules/core/utils/templatePrivateLink'
+
 export default defineNuxtPlugin({
   name: 'posthog',
   parallel: true,
@@ -25,6 +27,8 @@ export default defineNuxtPlugin({
       autocapture: {
         css_selector_allowlist: ['[ph-autocapture]'],
       },
+      // Events sent on the page of a private link, like `identify`, carry its URL.
+      before_send: redactPrivateLinkTokens,
     })
 
     nuxtApp.provide('posthog', posthog)

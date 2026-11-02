@@ -566,3 +566,103 @@ class RejectUserTemplateAdminActionType(ActionType):
     @classmethod
     def scope(cls) -> ActionScopeStr:
         return RootActionScopeType.value()
+
+
+class UpdateUserTemplatePrivateLinkActionType(ActionType):
+    type = "update_user_template_private_link"
+    description = ActionTypeDescription(
+        _("Change template private link"),
+        _('Template "%(template_name)s" (%(template_id)s) private link created'),
+    )
+    analytics_params = ["template_id", "enabled"]
+
+    @dataclasses.dataclass
+    class Params:
+        template_id: int
+        template_name: str
+        # Whether the link was created or turned off. The token is never recorded.
+        enabled: bool
+
+    @classmethod
+    def do(cls, user: AbstractUser, template_id: int, enabled: bool) -> Template:
+        """
+        Creates or turns off the private link of a user template owned by the
+        user, see `UserTemplateService.update_private_link`. A request that changes
+        nothing isn't recorded. This action is not undoable.
+
+        :param user: The user changing the private link of the template.
+        :param template_id: The id of the template, which is its root.
+        :param enabled: Whether the template must have a private link.
+        :return: The latest revision of the template.
+        """
+
+        with transaction.atomic():
+            revision, changed = UserTemplateService().update_private_link(
+                user, template_id, enabled
+            )
+            if changed:
+                params = cls.Params(
+                    template_id=template_id,
+                    template_name=revision.name,
+                    enabled=enabled,
+                )
+                cls.register_action(user, params, cls.scope())
+
+        return revision
+
+    @classmethod
+    def get_long_description(cls, params_dict: Dict[str, Any], *args, **kwargs) -> str:
+        if params_dict.get("enabled", True):
+            return super().get_long_description(params_dict, *args, **kwargs)
+        description = ActionTypeDescription(
+            cls.description.short,
+            _('Template "%(template_name)s" (%(template_id)s) private link turned off'),
+        )
+        return render_action_type_description(description, params_dict)
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()
+
+
+class RotateUserTemplatePrivateLinkActionType(ActionType):
+    type = "rotate_user_template_private_link"
+    description = ActionTypeDescription(
+        _("Regenerate template private link"),
+        _('Template "%(template_name)s" (%(template_id)s) private link regenerated'),
+    )
+    analytics_params = ["template_id"]
+
+    @dataclasses.dataclass
+    class Params:
+        template_id: int
+        template_name: str
+
+    @classmethod
+    def do(cls, user: AbstractUser, template_id: int) -> Template:
+        """
+        Replaces the token of the private link of a user template owned by the
+        user, see `UserTemplateService.rotate_private_link`. A template without a
+        link changes nothing and isn't recorded. This action is not undoable,
+        because the old link must stop working.
+
+        :param user: The user regenerating the private link of the template.
+        :param template_id: The id of the template, which is its root.
+        :return: The latest revision of the template.
+        """
+
+        with transaction.atomic():
+            revision, rotated = UserTemplateService().rotate_private_link(
+                user, template_id
+            )
+            if rotated:
+                params = cls.Params(
+                    template_id=template_id, template_name=revision.name
+                )
+                cls.register_action(user, params, cls.scope())
+
+        return revision
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()

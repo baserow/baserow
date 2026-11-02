@@ -583,6 +583,7 @@ describe('TemplateModal navigation', () => {
 
       await wrapper.find('.details__make-private').trigger('click')
       await wrapper.find('.details__make-private').trigger('click')
+      await flushPromises()
       const changed = { ...sprintTracker, name: 'Private', state: 'private' }
       reply.send([200, changed])
       await flushPromises()

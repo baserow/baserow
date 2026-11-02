@@ -393,11 +393,15 @@ class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOn
 
         return _get_workspace_template_types(_WorkspaceTemplatesCacheKey(self))
 
-    def has_openable_template(self, actor) -> bool:
+    def has_openable_template(
+        self, actor, *, private_link_token: str | None = None
+    ) -> bool:
         """
         Whether the actor can open this workspace as a template, see
         `Template.is_openable_by`. Prefetch `template_set__root` to check many
-        workspaces without a query each.
+        workspaces without a query each. With the token of a private link, see
+        `TemplateQuerySet.openable`, an actor who can't open it otherwise costs one
+        query.
         """
 
         template_types = self.get_template_types()
@@ -412,7 +416,15 @@ class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOn
         templates = self.template_set.all()
         if "template_set" not in getattr(self, "_prefetched_objects_cache", {}):
             templates = templates.select_related("root")
-        return any(template.is_openable_by(actor) for template in templates)
+        if any(template.is_openable_by(actor) for template in templates):
+            return True
+        # One query for all the revisions sharing the workspace.
+        return (
+            private_link_token is not None
+            and Template.objects.filter(workspace=self)
+            .openable(actor, private_link_token=private_link_token)
+            .exists()
+        )
 
     def get_workspace_user(
         self, user: User, include_trash: bool = False
@@ -926,24 +938,38 @@ class TemplateQuerySet(QuerySet):
 
         return self.with_can_approve().filter(can_approve=True)
 
-    def official_or_owned(self, actor):
+    def official_or_owned(self, actor: Any, private_link_token: str | None = None):
         """
         The official templates and every revision of the user templates owned by
-        the actor.
+        the actor or of the one whose private link has the token.
+
+        :param actor: The user or anonymous user.
+        :param private_link_token: The token of the private link of the request.
+        :return: Those templates.
         """
 
         q = _official_template_q()
         if (user_id := _get_user_id(actor)) is not None:
             q |= Q(type=Template.Type.USER) & _root_q(owner_id=user_id)
+        if private_link_token is not None:
+            q |= Q(type=Template.Type.USER) & _root_q(
+                private_link_token=private_link_token
+            )
         return self.filter(q)
 
-    def openable(self, actor: Any) -> "TemplateQuerySet":
+    def openable(
+        self, actor: Any, *, private_link_token: str | None = None
+    ) -> "TemplateQuerySet":
         """
         The templates the actor can open: every revision of the own ones, only the
-        public revision of the others. It leaves out the revisions of the review
-        queue that `Template.is_openable_by` lets an instance admin open.
+        public revision of the others. With the token of a private link, any actor,
+        also a signed out one, opens the latest revision of the private template
+        whose link has the token, as long as it isn't blocked. Lists pass no token,
+        so that this template isn't listed. It leaves out the revisions of the
+        review queue that `Template.is_openable_by` lets an instance admin open.
 
         :param actor: The user or anonymous user.
+        :param private_link_token: The token of the private link of the request.
         :return: Those templates.
         """
 
@@ -958,6 +984,21 @@ class TemplateQuerySet(QuerySet):
         )
         if (user_id := _get_user_id(actor)) is not None:
             visible |= _root_q(owner_id=user_id, marked_for_deletion_at__isnull=True)
+        if private_link_token is not None:
+            # A public template shows its public revision, like to everybody. Over
+            # all the rows, so that the latest revision is the same whatever else
+            # the queryset filters.
+            family_id = Coalesce(OuterRef("root_id"), OuterRef("id"))
+            newer_revision = Template.objects.filter(
+                Q(id=family_id) | Q(root_id=family_id),
+                version__gt=OuterRef("version"),
+            )
+            visible |= _root_q(
+                private_link_token=private_link_token,
+                public_revision__isnull=True,
+                blocked_at__isnull=True,
+                marked_for_deletion_at__isnull=True,
+            ) & ~Q(Exists(newer_revision))
         return self.filter(official | Q(type=Template.Type.USER) & visible)
 
 

@@ -1,3 +1,4 @@
+import secrets
 from typing import List, Optional
 
 from django.db.models import Max
@@ -78,11 +79,11 @@ class TemplateFixtures:
         self, template: Template, state: str, revision: Optional[Template] = None
     ) -> Template:
         """
-        Puts a user template in `state`: "private", "shared", "public", "blocked",
-        "public_blocked", "marked" for deletion, "in_review", "rejected",
-        "resubmitted" (in review again after a rejection) or "withdrawn_rejected"
-        (withdrawn after a rejection). The shared, public or reviewed revision is
-        `revision`, the template itself by default.
+        Puts a user template in `state`: "private", "shared" with a private link,
+        "public", "blocked", "public_blocked", "marked" for deletion, "in_review",
+        "rejected", "resubmitted" (in review again after a rejection) or
+        "withdrawn_rejected" (withdrawn after a rejection). The shared, public or
+        reviewed revision is `revision`, the template itself by default.
 
         :param template: The user template.
         :param state: The state to put it in.
@@ -94,7 +95,10 @@ class TemplateFixtures:
         now = timezone.now()
         changes = {
             "private": {},
-            "shared": {"shared_revision": revision},
+            "shared": {
+                "shared_revision": revision,
+                "private_link_token": secrets.token_hex(32),
+            },
             "public": {"public_revision": revision},
             "blocked": {"blocked_at": now},
             "public_blocked": {"public_revision": revision, "blocked_at": now},

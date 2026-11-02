@@ -132,7 +132,8 @@ def started(job):
         [
             # Per actor "opens:shown:installs", by the index of the revisions.
             (["private"], False, "0:0:0", "-:-:-", "-:-", "-:-:-"),
-            # The private link opens it from #6245 on.
+            # Opened with the token of its private link only, see
+            # `test_user_template_private_link`.
             (["shared"], False, "0:0:0", "-:-:-", "-:-", "-:-:-"),
             (["public"], True, "0:0:0", "0:0:0", "0:0", "0:0:0"),
             # An admin previews the review queue from the admin page only.
@@ -208,5 +209,7 @@ def test_actor_gets_what_it_is_shown(
     assert gets == expected[actor]
     browser = CoreHandler().list_templates(AnonymousUser(), listed=True)
     assert browser.filter_by_root(id=root.id).exists() is listed
-    # Checked again when it starts, like when it's requested.
-    assert starts == [not gets.endswith(":-")] * len(jobs)
+    # Checked again when it starts, like when it's requested. The job doesn't keep
+    # the token of the private link, so the link being on is enough.
+    shared = revision_states == ["shared"]
+    assert starts == [shared or not gets.endswith(":-")] * len(jobs)

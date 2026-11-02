@@ -123,6 +123,7 @@ MIDDLEWARE = [
     "baserow.core.cache.LocalCacheMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "baserow.api.user_sources.middleware.AddUserSourceUserMiddleware",
+    "baserow.api.templates.middleware.TemplatePrivateLinkMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "baserow.middleware.BaserowCustomHttp404Middleware",
@@ -592,6 +593,8 @@ BASEROW_CACHE_TTL_SECONDS = int(os.getenv("BASEROW_CACHE_TTL_SECONDS", 120))
 
 PUBLIC_VIEW_AUTHORIZATION_HEADER = "Baserow-View-Authorization"
 PUBLIC_DASHBOARD_AUTHORIZATION_HEADER = "Baserow-Dashboard-Authorization"
+# The token of the private link of a user template that the user opened.
+TEMPLATE_PRIVATE_LINK_HEADER = "Baserow-Template-Authorization"
 
 CORS_ORIGIN_ALLOW_ALL = True
 CLIENT_SESSION_ID_HEADER = "ClientSessionId"
@@ -608,6 +611,7 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
     WEBSOCKET_ID_HEADER,
     PUBLIC_VIEW_AUTHORIZATION_HEADER,
     PUBLIC_DASHBOARD_AUTHORIZATION_HEADER,
+    TEMPLATE_PRIVATE_LINK_HEADER,
     CLIENT_SESSION_ID_HEADER,
     CLIENT_UNDO_REDO_ACTION_GROUP_ID_HEADER,
     USER_SOURCE_AUTHENTICATION_HEADER,
@@ -1968,6 +1972,9 @@ if SENTRY_DSN:
         "code_verifier",
         "refresh_token",
         "access_token",
+        # The token of the private link of a user template, see
+        # TEMPLATE_PRIVATE_LINK_HEADER.
+        "baserow-template-authorization",
     ]
     sentry_transport = None
 

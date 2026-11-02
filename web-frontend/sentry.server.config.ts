@@ -2,6 +2,7 @@ import { useRuntimeConfig } from '#imports'
 import * as Sentry from '@sentry/nuxt'
 import { makeFakeTransport } from './modules/core/utils/sentryFakeTransport'
 import { SILENCED_API_ERRORS } from './modules/core/utils/sentryErrors'
+import { redactPrivateLinkTokens } from './modules/core/utils/templatePrivateLink'
 
 const config = useRuntimeConfig()
 const dsn =
@@ -37,8 +38,10 @@ if (dsn && dsn !== '') {
         console.error('[Sentry captured error]', err)
         return null
       } else {
-        return event
+        return redactPrivateLinkTokens(event)
       }
     },
+    // The URL of the page of a private link carries its token.
+    beforeSendTransaction: redactPrivateLinkTokens,
   })
 }

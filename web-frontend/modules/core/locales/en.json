@@ -722,6 +722,24 @@
     "resubmitTitle": "Submit “{name}” for review again?",
     "submitForReviewAgain": "Submit for review again"
   },
+  "userTemplatePrivateLink": {
+    "emptyTitle": "You have not yet shared this template",
+    "emptyDescription": "Anyone who has the link can install this template.",
+    "create": "Create a sharing link",
+    "sharedTitle": "This template is shared via a private link",
+    "sharedDescription": "People who have the link can install the template.",
+    "copy": "Copy link",
+    "regenerate": "Generate a new link",
+    "regenerateHint": "Regenerating creates a new link and breaks the old one.",
+    "remove": "Disable shared link",
+    "createdTitle": "Sharing link created",
+    "createdDescription": "Anyone who has the link can install this template.",
+    "regeneratedTitle": "New sharing link generated",
+    "regeneratedDescription": "The old link no longer works.",
+    "removedTitle": "Sharing link disabled",
+    "removedDescription": "The link no longer works.",
+    "blocked": "This template is blocked, so its private link can't be changed."
+  },
   "userTemplateDetailsForm": {
     "name": "Name",
     "namePlaceholder": "Template name",
@@ -780,6 +798,8 @@
     "makePublic": "Make public",
     "submitForReviewAgain": "Submit for review again",
     "makePrivate": "Make private",
+    "privateLink": "Sharing link",
+    "copyLink": "Copy sharing link",
     "delete": "Delete"
   },
   "publicTemplateList": {

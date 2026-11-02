@@ -26,18 +26,18 @@ area whose line it falls under.
 
 ## Areas
 
-| Area | Domain                             | Test                                                                                                                                                                                                         |
-| ---- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1    | Owner makes public or updates      | `test_owner_is_told_whether_a_change_goes_to_review` in `backend/tests/baserow/core/user_templates/test_user_template_publishing.py`                                                                         |
-| 2    | Owner makes private                | `test_make_private_withdraws_from_review` in `backend/tests/baserow/core/user_templates/test_user_template_publishing.py`                                                                                    |
-| 3    | Who opens, installs and downloads  | `test_actor_gets_what_it_is_shown` in `backend/tests/baserow/core/user_templates/test_user_template_access.py`                                                                                               |
-| 4    | Admin review page                  | `test_admin_is_shown_what_a_review_does` in `backend/tests/baserow/api/admin/templates/test_templates_admin_views.py`                                                                                        |
-| 5    | Admin switches approval off        | `test_switching_approval_off_approves_like_an_admin` in `backend/tests/baserow/core/user_templates/test_user_template_review.py`                                                                             |
-| 6    | Stale views and concurrency        | `test_refused_review` in `backend/tests/baserow/core/user_templates/test_user_template_review.py`, and the tests listed in the area, also in `test_user_template_publishing.py` and `test_settings_views.py` |
-| 7    | What the web-frontend shows        | The specs listed in the area                                                                                                                                                                                 |
-| 8    | Private link                       | Not built yet, #6245                                                                                                                                                                                         |
-| 9    | Admin management of every template | Not built yet, #6322                                                                                                                                                                                         |
-| 10   | Blocking a template                | Not built yet, #6324. Blocked rows set `blocked_at` in the database, there's no Block action yet                                                                                                             |
+| Area | Domain                             | Test                                                                                                                                                                                                                                                                    |
+| ---- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Owner makes public or updates      | `test_owner_is_told_whether_a_change_goes_to_review` in `backend/tests/baserow/core/user_templates/test_user_template_publishing.py`                                                                                                                                    |
+| 2    | Owner makes private                | `test_make_private_withdraws_from_review` in `backend/tests/baserow/core/user_templates/test_user_template_publishing.py`                                                                                                                                               |
+| 3    | Who opens, installs and downloads  | `test_actor_gets_what_it_is_shown` in `backend/tests/baserow/core/user_templates/test_user_template_access.py`                                                                                                                                                          |
+| 4    | Admin review page                  | `test_admin_is_shown_what_a_review_does` in `backend/tests/baserow/api/admin/templates/test_templates_admin_views.py`                                                                                                                                                   |
+| 5    | Admin switches approval off        | `test_switching_approval_off_approves_like_an_admin` in `backend/tests/baserow/core/user_templates/test_user_template_review.py`                                                                                                                                        |
+| 6    | Stale views and concurrency        | `test_refused_review` in `backend/tests/baserow/core/user_templates/test_user_template_review.py`, and the tests listed in the area, also in `test_user_template_publishing.py` and `test_settings_views.py`                                                            |
+| 7    | What the web-frontend shows        | The specs listed in the area                                                                                                                                                                                                                                            |
+| 8    | Private link                       | `test_allow_if_template_permission_manager_allows_openable_templates` in `backend/tests/baserow/core/test_basic_permissions.py`, `test_user_template_private_link.py`, and the private link tests in `backend/tests/baserow/api/templates/test_user_templates_views.py` |
+| 9    | Admin management of every template | Not built yet, #6322                                                                                                                                                                                                                                                    |
+| 10   | Blocking a template                | Not built yet, #6324. Blocked rows set `blocked_at` in the database, there's no Block action yet                                                                                                                                                                        |
 
 ## Revision States
 
@@ -45,19 +45,19 @@ The states of the revisions of a template, oldest first, joined by `+`. The
 first revision is the template itself. `public+in_review` is a listed template
 with an edit in review.
 
-| State                | Meaning                                                                                                          |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `private`            | Never submitted.                                                                                                 |
-| `shared`             | Has a shared revision, which the private link will open. Behaves like `private` until the private link is built. |
-| `public`             | Approved and listed for everybody.                                                                               |
-| `in_review`          | Submitted, waiting for an admin. `rejected+in_review` is a new revision submitted after a rejection.             |
-| `rejected`           | Rejected by an admin, with a reason.                                                                             |
-| `resubmitted`        | The rejected revision itself submitted again. Its rejection stays open until it's approved.                      |
-| `withdrawn_rejected` | Rejected, then withdrawn by its owner by making it private.                                                      |
-| `blocked`            | Blocked by an admin. Set in the database, there's no Block action yet.                                           |
-| `public_blocked`     | Listed, then blocked.                                                                                            |
-| `marked`             | Marked for deletion by its owner, purged after the grace period.                                                 |
-| `pruned`             | Not a revision: the previous revision's content was pruned.                                                      |
+| State                | Meaning                                                                                              |
+| -------------------- | ---------------------------------------------------------------------------------------------------- |
+| `private`            | Never submitted.                                                                                     |
+| `shared`             | Has a shared revision, which opens with the token of its private link only, see area 8.              |
+| `public`             | Approved and listed for everybody.                                                                   |
+| `in_review`          | Submitted, waiting for an admin. `rejected+in_review` is a new revision submitted after a rejection. |
+| `rejected`           | Rejected by an admin, with a reason.                                                                 |
+| `resubmitted`        | The rejected revision itself submitted again. Its rejection stays open until it's approved.          |
+| `withdrawn_rejected` | Rejected, then withdrawn by its owner by making it private.                                          |
+| `blocked`            | Blocked by an admin. Set in the database, there's no Block action yet.                               |
+| `public_blocked`     | Listed, then blocked.                                                                                |
+| `marked`             | Marked for deletion by its owner, purged after the grace period.                                     |
+| `pruned`             | Not a revision: the previous revision's content was pruned.                                          |
 
 `blocked`, `public_blocked` and `marked` apply to the whole template. After the
 first revision, `blocked` and `marked` add an unsubmitted revision, so `rejected+blocked` is a

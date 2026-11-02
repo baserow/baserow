@@ -57,7 +57,7 @@
 
 .user-template-list__row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 144px 140px 84px 24px;
+  grid-template-columns: minmax(0, 1fr) 144px 140px 84px 56px;
   align-items: center;
   gap: 16px;
   padding: 12px 16px;
@@ -149,6 +149,35 @@
 .user-template-list__actions {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
+}
+
+// Flat, like in the design, unlike the other icon buttons.
+.user-template-list__link,
+.user-template-list__more {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+
+  &.active,
+  &:hover:not(.button-icon--loading):not([disabled]) {
+    background: $palette-neutral-50;
+  }
+}
+
+// Also while its link is shown.
+.user-template-list__link--shared {
+  &,
+  &.active,
+  &:hover:not(.button-icon--loading):not([disabled]) {
+    background: $palette-blue-50;
+  }
+
+  .button-icon__icon,
+  &.active .button-icon__icon,
+  &:hover:not([disabled]) .button-icon__icon {
+    color: $palette-blue-500;
+  }
 }
 
 .user-template-list__state-icon {
