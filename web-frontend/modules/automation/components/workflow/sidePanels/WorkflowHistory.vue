@@ -27,36 +27,28 @@
     </template>
 
     <template #default>
-      <template v-if="item.status !== 'started'">
-        <div
-          v-if="nodeHistoriesEntry === null"
-          class="workflow-history__message"
-        >
-          <div class="loading"></div>
-        </div>
-        <template v-else>
-          <NodeHistory
-            v-for="nh in rootNodeHistories"
-            :key="nh.id"
-            :workflow-history-id="item.id"
-            :node-history="nh"
-            :child-node-histories-by-parent="childNodeHistoriesByParent"
-            :error-descendant-node-ids="errorDescendantNodeIds"
-            :pass-info-by-history-id="passInfoByHistoryId"
-            :depth="0"
-          />
-          <div v-if="workflowLevelMessage" class="workflow-history__message">
-            {{ workflowLevelMessage }}
-          </div>
-        </template>
-        <div class="workflow-history__run-time">
-          {{ totalRunTimeMessage }}
+      <div v-if="nodeHistoriesEntry === null" class="workflow-history__message">
+        <div class="loading"></div>
+      </div>
+      <template v-else>
+        <NodeHistory
+          v-for="nh in rootNodeHistories"
+          :key="nh.id"
+          :workflow-history-id="item.id"
+          :node-history="nh"
+          :child-node-histories-by-parent="childNodeHistoriesByParent"
+          :error-descendant-node-ids="errorDescendantNodeIds"
+          :pass-info-by-history-id="passInfoByHistoryId"
+          :depth="0"
+        />
+        <div v-if="workflowLevelMessage" class="workflow-history__message">
+          {{ workflowLevelMessage }}
         </div>
       </template>
-      <template v-else>
-        <div class="workflow-history__run-time">
-          {{ totalRunTimeMessage }}
-        </div>
+      <div class="workflow-history__run-time">
+        {{ totalRunTimeMessage }}
+      </div>
+      <template v-if="item.status === 'started'">
         <div
           v-if="item.cancellation_requested_on"
           class="workflow-history__cancel"
@@ -186,18 +178,24 @@ watch(
     } else if (timer) {
       clearInterval(timer)
       timer = null
-      // When the workflow run completes, if the WorkflowHistory is already
-      // expanded, we should fetch the node histories.
+      // The run completed: its node histories are fetched again, since the
+      // ones shown while it was in progress stopped at a waiting or running
+      // node.
       store.dispatch('automationHistory/fetchNodeHistories', {
         workflowHistoryId: props.item.id,
+        refresh: true,
       })
     }
   },
   { immediate: true }
 )
 
+/**
+ * The node histories of a run in progress are shown too, so that a node that
+ * is waiting (or running) can be seen; they are refreshed by the realtime
+ * events of the run and once more when it completes.
+ */
 const onToggle = () => {
-  if (props.item.status === 'started') return
   store.dispatch('automationHistory/fetchNodeHistories', {
     workflowHistoryId: props.item.id,
   })

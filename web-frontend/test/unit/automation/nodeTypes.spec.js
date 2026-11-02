@@ -150,6 +150,7 @@ describe('Automation node types', () => {
       'csv_file_reader',
       'xls_file_reader',
       'goto',
+      'wait',
       'slack_write_message',
     ])
   })
