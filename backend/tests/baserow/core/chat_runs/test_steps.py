@@ -104,15 +104,33 @@ def test_invalid_call_is_failed_even_without_a_result_and_has_no_input():
     assert saved["input"] == {}
 
 
-def test_unknown_tools_and_presentation_errors_do_not_fail_the_run():
-    steps = ChatRunSteps(Mock(), Mock(side_effect=LookupError("missing tool")))
-    steps.on_event(call("one", name="unknown_tool"))
-    steps.on_event(result("one", facts={"not_json": object()}))
+def test_unknown_tools_and_presentation_errors_do_not_fail_the_run(logs):
+    steps = ChatRunSteps(
+        Mock(), Mock(side_effect=LookupError("PRIVATE_DESCRIPTION_ERROR_CANARY"))
+    )
+    steps.on_event(
+        call(
+            "one",
+            name="PRIVATE_TOOL_CANARY",
+            arguments={"search": "PRIVATE_ARGUMENT_CANARY"},
+        )
+    )
+    steps.on_event(result("one", facts={"PRIVATE_FACTS_CANARY": object()}))
     step = steps.finish()[0]
-    assert step["tool"] == step["presentation_type"] == "unknown_tool"
+    assert step["tool"] == step["presentation_type"] == "PRIVATE_TOOL_CANARY"
     assert step["status"] == "done"
     assert step["input"] == step["facts"] == {}
     assert not step["changes_data"]
+    output = "".join(str(entry) for entry in logs)
+    for private in (
+        "PRIVATE_DESCRIPTION_ERROR_CANARY",
+        "PRIVATE_TOOL_CANARY",
+        "PRIVATE_ARGUMENT_CANARY",
+        "PRIVATE_FACTS_CANARY",
+    ):
+        assert private not in output
+    assert "LookupError" in output
+    assert "TypeError" in output
 
 
 def test_invalid_display_input_and_unmatched_results_are_ignored():

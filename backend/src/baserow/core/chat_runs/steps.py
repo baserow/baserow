@@ -46,8 +46,10 @@ def _display_data(value: Any) -> dict[str, Any]:
         return {}
     try:
         return json.loads(json.dumps(value, allow_nan=False))
-    except Exception:
-        logger.exception("Tool step display data is not JSON serializable")
+    except Exception as exc:
+        logger.error(
+            "Tool step display data is not JSON serializable ({})", type(exc).__name__
+        )
         return {}
 
 
@@ -105,8 +107,8 @@ class ChatRunSteps:
                 description = self._describe_call(name, arguments)
                 if not isinstance(description, dict):
                     description = {}
-            except Exception:
-                logger.exception("Could not describe tool call {}", name)
+            except Exception as exc:
+                logger.error("Could not describe tool call ({})", type(exc).__name__)
             presentation_type = description.get("presentation_type")
             step: ChatRunStep = {
                 "id": str(uuid4()),
