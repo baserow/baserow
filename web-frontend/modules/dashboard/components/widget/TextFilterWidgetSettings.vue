@@ -69,115 +69,152 @@
         @blur="updateSetting('default_value', $event.target.value)"
       />
     </FormGroup>
-    <FormGroup
-      small-label
-      :label="$t('textFilterWidget.targets')"
-      class="margin-top-2"
-      required
-    >
-      <SidebarExpandable
-        v-for="candidate in targets"
-        :key="candidate.id"
-        class="dashboard-widget-filter-target"
-        :show-handle="false"
-        :force-expanded="candidate.id === targetId"
-        @toggle="toggleTarget(candidate)"
+    <FormGroup small-label class="margin-top-3" required>
+      <template #label>{{ $t('textFilterWidget.targets') }}</template>
+      <template #after-label
+        ><Badge size="small">{{ linkedTargets.length }}</Badge></template
       >
-        <template #title>
-          <SwitchInput
-            v-tooltip="
-              !canFilter(candidate) ? unavailableTargetReason(candidate) : null
-            "
-            :model-value="configured(candidate.id)"
-            :disabled="!canFilter(candidate) && !configured(candidate.id)"
-            small
-            role="switch"
-            :aria-label="
-              $t('textFilterWidget.enableTarget', { widget: candidate.title })
-            "
-            :aria-checked="configured(candidate.id)"
-            :aria-disabled="!canFilter(candidate) && !configured(candidate.id)"
-            :tabindex="
-              canFilter(candidate) || configured(candidate.id) ? 0 : -1
-            "
-            @click.stop
-            @update:model-value="setTargetEnabled(candidate, $event)"
-            @keydown.enter.stop.prevent="
-              setTargetEnabled(candidate, !configured(candidate.id))
-            "
-            @keydown.space.stop.prevent="
-              setTargetEnabled(candidate, !configured(candidate.id))
-            "
-          />
-          <span class="dashboard-widget-filter-target__name">{{
-            candidate.title
-          }}</span>
-        </template>
-        <template v-if="candidate.id === targetId" #default>
-          <p v-if="!configured(candidate.id)" class="margin-bottom-2">
-            {{
-              canFilter(candidate)
-                ? $t('textFilterWidget.enableTargetHelp')
-                : unavailableTargetReason(candidate)
-            }}
-          </p>
-          <template v-else>
-            <FormGroup
-              small-label
-              :label="$t('textFilterWidget.emptyBehavior')"
-              class="margin-bottom-2"
-              required
+      <p class="dashboard-widget-filter-targets__help">
+        {{ $t('textFilterWidget.targetsHelp') }}
+      </p>
+      <div class="dashboard-widget-filter-targets__list">
+        <ItemCard
+          v-for="candidate in linkedTargets"
+          :key="candidate.id"
+          :name="candidate.title"
+          :title="candidate.title"
+          :show-icon="false"
+          role="button"
+          class="dashboard-widget-filter-target"
+          @click="openFilters(candidate)"
+        >
+          <template #meta>
+            <span
+              :class="{
+                'dashboard-widget-filter-target__pending':
+                  !conditionCount(candidate.id) || !canFilter(candidate),
+              }"
             >
-              <Dropdown
-                :model-value="link.empty_behavior"
-                @update:model-value="updateEmptyBehavior"
-              >
-                <DropdownItem
-                  v-for="policy in policies"
-                  :key="policy"
-                  :name="$t(`textFilterWidget.${policy}`)"
-                  :value="policy"
-                />
-              </Dropdown>
-            </FormGroup>
-            <div v-if="fieldsLoading" class="loading" />
-            <Alert
-              v-else-if="hasIncompatibleConditions"
-              type="warning"
-              class="margin-bottom-2"
-            >
-              {{ $t('textFilterWidget.incompatibleConditions') }}
-            </Alert>
-            <div v-if="!fieldsLoading" class="service-form__filter-buttons">
-              <span class="service-form__filter-title">{{
-                $t('serviceRefinementForms.refinements')
-              }}</span>
-              <a
-                class="header__filter-link"
-                :class="{ 'active active--success': filterCount > 0 }"
-                role="button"
-                tabindex="0"
-                :aria-label="$t('textFilterWidget.configureFilters')"
-                @click.prevent="openFilters"
-                @keydown.enter.prevent="openFilters"
-                @keydown.space.prevent="openFilters"
-              >
-                <i class="header__filter-icon iconoir-filter" />
-                <span class="header__filter-name">{{
-                  $t(
-                    'serviceRefinementForms.filterTabTitle',
-                    { count: filterCount },
-                    filterCount
-                  )
-                }}</span>
-              </a>
-            </div>
+              {{
+                !canFilter(candidate)
+                  ? unavailableTargetReason(candidate)
+                  : conditionCount(candidate.id)
+                    ? $t(
+                        'textFilterWidget.conditionCount',
+                        { count: conditionCount(candidate.id) },
+                        conditionCount(candidate.id)
+                      )
+                    : $t('textFilterWidget.setUpConditions')
+              }}
+            </span>
           </template>
+          <template #actions>
+            <i
+              class="iconoir-nav-arrow-right dashboard-widget-filter-target__chevron"
+            />
+            <ButtonIcon
+              size="small"
+              icon="baserow-icon-more-vertical"
+              :aria-label="
+                $t('textFilterWidget.targetOptions', {
+                  widget: candidate.title,
+                })
+              "
+              @click.stop="openTargetMenu(candidate, $event)"
+            />
+          </template>
+        </ItemCard>
+        <p
+          v-if="!linkedTargets.length"
+          class="dashboard-widget-filter-targets__empty"
+        >
+          {{ $t('textFilterWidget.noTargets') }}
+        </p>
+      </div>
+      <Button
+        type="secondary"
+        icon="iconoir-plus"
+        full-width
+        class="margin-top-1"
+        @click="openTargetPicker"
+        >{{ $t('textFilterWidget.addWidgets') }}</Button
+      >
+      <Dropdown
+        ref="targetPicker"
+        v-model="selectedTargets"
+        :show-input="false"
+        :tabindex="-1"
+        multiple
+        show-search
+        show-footer
+        fixed-items
+      >
+        <DropdownItem
+          v-for="candidate in availableTargets"
+          :key="candidate.id"
+          :name="candidate.title"
+          :value="candidate.id"
+          :disabled="!canFilter(candidate)"
+          :description="
+            !canFilter(candidate) ? unavailableTargetReason(candidate) : null
+          "
+        />
+        <template #emptyState>{{
+          $t('textFilterWidget.noAvailableTargets')
+        }}</template>
+        <template #footer>
+          <div class="dashboard-widget-filter-targets__actions">
+            <Button
+              type="secondary"
+              size="small"
+              @click="targetPicker.hide()"
+              >{{ $t('action.cancel') }}</Button
+            >
+            <Button
+              size="small"
+              :disabled="!selectedTargets.length"
+              :loading="targetsSaving"
+              @click="addTargets"
+              >{{ $t('action.add') }}</Button
+            >
+          </div>
         </template>
-      </SidebarExpandable>
+      </Dropdown>
+      <template #helper>{{ $t('textFilterWidget.targetsFootnote') }}</template>
     </FormGroup>
+    <Context ref="targetMenu">
+      <ul v-if="menuTarget" class="context__menu">
+        <li class="context__menu-item">
+          <a
+            class="context__menu-item-link"
+            role="button"
+            tabindex="0"
+            @click="openFilters(menuTarget)"
+            @keydown.enter.prevent="openFilters(menuTarget)"
+          >
+            <i class="context__menu-item-icon iconoir-filter" />{{
+              $t('textFilterWidget.configureFilters')
+            }}
+          </a>
+        </li>
+        <li class="context__menu-item context__menu-item--with-separator">
+          <a
+            class="context__menu-item-link context__menu-item-link--delete"
+            :class="{ 'context__menu-item-link--loading': targetsSaving }"
+            role="button"
+            tabindex="0"
+            @click="removeTarget"
+            @keydown.enter.prevent="removeTarget"
+          >
+            <i class="context__menu-item-icon iconoir-bin" />{{
+              $t('textFilterWidget.removeLink')
+            }}
+          </a>
+        </li>
+      </ul>
+    </Context>
     <WidgetFilterConfigurationModal
-      v-if="target && source"
+      v-if="target"
       ref="groupModal"
       :widget="widget"
       :dashboard="dashboard"
@@ -186,13 +223,20 @@
       :link="link"
       :fields="fields"
       :readonly-groups="readonlyGroups"
+      :fields-loading="fieldsLoading"
+      :unavailable-reason="
+        !canFilter(target) ? unavailableTargetReason(target) : null
+      "
+      :fields-error="fieldsError"
+      :has-incompatible-conditions="hasIncompatibleConditions"
+      @retry="loadFields(source?.table_id)"
       @update="updateLink"
     />
   </FormSection>
 </template>
 
 <script setup>
-import SidebarExpandable from '@baserow/modules/core/components/SidebarExpandable.vue'
+import ItemCard from '@baserow/modules/core/components/ItemCard'
 import DashboardFormulaInput from '@baserow/modules/dashboard/components/DashboardFormulaInput'
 import WidgetFilterConfigurationModal from '@baserow/modules/dashboard/components/widget/WidgetFilterConfigurationModal'
 import FieldService from '@baserow/modules/database/services/field'
@@ -208,7 +252,12 @@ const targetId = ref(null)
 const groupModal = ref(null)
 const fields = ref([])
 const fieldsLoading = ref(false)
-const policies = ['apply_nothing', 'apply_alternative']
+const fieldsError = ref(false)
+const targetPicker = ref(null)
+const targetMenu = ref(null)
+const menuTarget = ref(null)
+const selectedTargets = ref([])
+const targetsSaving = ref(false)
 const emptyGroup = () => ({
   filters: [],
   filter_groups: [],
@@ -233,11 +282,17 @@ const unavailableTargetReason = (widget) =>
   )
 const targets = computed(() =>
   $store.getters[`${props.storePrefix}dashboardApplication/getWidgets`].filter(
-    (widget) => widget.id !== props.widget.id
+    (widget) => $registry.get('dashboardWidget', widget.type).isDisplayWidget
   )
 )
+const configured = (id) =>
+  (props.widget.target_filters || []).some(
+    (link) => link.target_widget_id === id
+  )
 const target = computed(() =>
-  targets.value.find((widget) => widget.id === targetId.value)
+  targets.value.find(
+    (widget) => widget.id === targetId.value && configured(widget.id)
+  )
 )
 const source = computed(() => target.value && getSource(target.value))
 const hasConditions = (group) => Boolean(group?.filters?.length)
@@ -285,17 +340,32 @@ const readonlyGroups = computed(() => {
   }
   return groups
 })
-const filterCount = computed(() =>
-  [
-    ...readonlyGroups.value.map((context) => context.group),
-    link.value.group,
-    ...(link.value.empty_behavior === 'apply_alternative'
-      ? [link.value.alternative_group]
-      : []),
-  ].reduce((count, group) => count + (group?.filters?.length || 0), 0)
+const linkedTargets = computed(() =>
+  targets.value.filter((widget) => configured(widget.id))
 )
-const openFilters = () => groupModal.value.show()
-watch(targetId, () => groupModal.value?.hide())
+const availableTargets = computed(() =>
+  targets.value.filter((widget) => !configured(widget.id))
+)
+const conditionCount = (id) => {
+  const contribution = props.widget.target_filters?.find(
+    (link) => link.target_widget_id === id
+  )
+  return (
+    (contribution?.group?.filters?.length || 0) +
+    (contribution?.empty_behavior === 'apply_alternative'
+      ? contribution.alternative_group?.filters?.length || 0
+      : 0)
+  )
+}
+const openFilters = async (candidate) => {
+  targetMenu.value?.hide()
+  targetId.value = candidate.id
+  await nextTick()
+  groupModal.value?.show()
+}
+watch(target, (value) => {
+  if (!value) groupModal.value?.hide()
+})
 
 const hasIncompatibleConditions = computed(() =>
   [link.value.group, link.value.alternative_group]
@@ -310,10 +380,6 @@ const hasIncompatibleConditions = computed(() =>
       })
     )
 )
-const configured = (id) =>
-  (props.widget.target_filters || []).some(
-    (link) => link.target_widget_id === id
-  )
 const link = computed(
   () =>
     (props.widget.target_filters || []).find(
@@ -328,27 +394,32 @@ watch(
   () => props.widget.id,
   () => {
     targetId.value = null
+    menuTarget.value = null
+    selectedTargets.value = []
+    targetMenu.value?.hide()
+    targetPicker.value?.hide()
   }
 )
-watch(
-  () => source.value?.table_id,
-  async (tableId) => {
-    fields.value = []
-    if (!tableId) return
-    fieldsLoading.value = true
-    try {
-      const { data } = await FieldService($client).fetchAll(tableId)
-      if (source.value?.table_id === tableId) fields.value = data
-    } catch (error) {
-      notifyIf(error, 'dashboard')
-    } finally {
-      if (source.value?.table_id === tableId) fieldsLoading.value = false
-    }
+let fieldsRequest = 0
+async function loadFields(tableId) {
+  const request = ++fieldsRequest
+  fields.value = []
+  fieldsError.value = false
+  fieldsLoading.value = Boolean(tableId)
+  if (!tableId) return
+  try {
+    const { data } = await FieldService($client).fetchAll(tableId)
+    if (request === fieldsRequest) fields.value = data
+  } catch (error) {
+    if (request === fieldsRequest) fieldsError.value = true
+  } finally {
+    if (request === fieldsRequest) fieldsLoading.value = false
   }
-)
-const toggleTarget = (widget) => {
-  targetId.value = targetId.value === widget.id ? null : widget.id
 }
+watch(() => source.value?.table_id, loadFields)
+onBeforeUnmount(() => {
+  fieldsRequest++
+})
 const updateLink = (value) =>
   updateSetting('target_filters', [
     ...(props.widget.target_filters || []).filter(
@@ -361,36 +432,57 @@ const updateLink = (value) =>
         : {}),
     },
   ])
-/** Open the alternative editor immediately after enabling its empty-input policy. */
-const updateEmptyBehavior = async (empty_behavior) => {
-  const selectedTargetId = targetId.value
-  await updateLink({ ...link.value, empty_behavior })
-  if (
-    empty_behavior === 'apply_alternative' &&
-    link.value.empty_behavior === 'apply_alternative' &&
-    targetId.value === selectedTargetId
-  ) {
-    openFilters()
+const openTargetPicker = (event) => {
+  selectedTargets.value = []
+  targetPicker.value.show(event.currentTarget)
+}
+const openTargetMenu = (candidate, event) => {
+  menuTarget.value = candidate
+  targetMenu.value.toggle(event.currentTarget, 'bottom', 'right', 4)
+}
+async function addTargets() {
+  if (targetsSaving.value) return
+  const candidates = availableTargets.value.filter(
+    (candidate) =>
+      selectedTargets.value.includes(candidate.id) && canFilter(candidate)
+  )
+  if (!candidates.length) return
+  targetsSaving.value = true
+  try {
+    const saved = await updateSetting('target_filters', [
+      ...(props.widget.target_filters || []),
+      ...candidates.map((candidate) => ({
+        target_widget_id: candidate.id,
+        group: emptyGroup(),
+        empty_behavior: 'apply_nothing',
+      })),
+    ])
+    if (saved) targetPicker.value?.hide()
+  } finally {
+    targetsSaving.value = false
   }
 }
-/** Explicitly opt a target in or remove its contributed group. */
-const setTargetEnabled = (candidate, enabled) => {
-  if (enabled && !canFilter(candidate)) return
-  if (enabled === configured(candidate.id)) return
-  const links = props.widget.target_filters || []
-  const updated = enabled
-    ? [
-        ...links,
-        {
-          target_widget_id: candidate.id,
-          group: emptyGroup(),
-          empty_behavior: 'apply_nothing',
-        },
-      ]
-    : links.filter((link) => link.target_widget_id !== candidate.id)
-  if (enabled) targetId.value = candidate.id
-  else if (targetId.value === candidate.id) targetId.value = null
-  return updateSetting('target_filters', updated)
+async function removeTarget() {
+  if (targetsSaving.value || !menuTarget.value) return
+  const id = menuTarget.value.id
+  targetsSaving.value = true
+  try {
+    const saved = await updateSetting(
+      'target_filters',
+      (props.widget.target_filters || []).filter(
+        (link) => link.target_widget_id !== id
+      )
+    )
+    if (saved) {
+      targetMenu.value?.hide()
+      if (targetId.value === id) {
+        groupModal.value?.hide()
+        targetId.value = null
+      }
+    }
+  } finally {
+    targetsSaving.value = false
+  }
 }
 /** Save configuration through the shared undoable widget update flow. */
 async function updateSetting(field, value) {
@@ -412,8 +504,10 @@ async function updateSetting(field, value) {
         originalValues: settings,
       }
     )
+    return true
   } catch (error) {
     notifyIf(error, 'dashboard')
+    return false
   }
 }
 </script>
