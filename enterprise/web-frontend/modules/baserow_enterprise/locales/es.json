@@ -41,7 +41,7 @@
         "remove": "Borrar equipo"
     },
     "teamsTable": {
-        "title": "{cuentaEquipos} equipos en {nombreDelEspacioDeTrabajo}",
+        "title": "{teamCount} equipos en {workspaceName}",
         "createNew": "Crear equipo",
         "nameColumn": "Nombre",
         "roleHelpText": "Puede anularse con roles en bases de datos y tablas.",
@@ -81,15 +81,15 @@
         "allActionTypes": "Todos los tipos de eventos",
         "ip_address": "Dirección IP",
         "exportToCsv": "Exportar a CSV",
-        "workspaceTitle": "Registro de auditoría - {nombreDelEspacioDeTrabajo}",
+        "workspaceTitle": "Registro de auditoría - {workspaceName}",
         "adminTitle": "Registro de auditoría"
     },
     "auditLogExportModal": {
         "title": "Exportar a CSV",
-        "exportFilename": "Exportación del registro de auditoría administrativa - {fecha}",
+        "exportFilename": "Exportación del registro de auditoría administrativa - {date}",
         "cancelledTitle": "Error de exportación",
         "cancelledDescription": "Algo ha ido mal al exportar el registro de auditoría. Por favor, inténtalo de nuevo.",
-        "exportWorkspaceFilename": " • Espacio de trabajo ({IdEspacioDeTrabajo}) Exportación de registros de auditoría - {fecha}"
+        "exportWorkspaceFilename": " • Espacio de trabajo ({workspaceId}) Exportación de registros de auditoría - {date}"
     },
     "authProviders": {
         "addProvider": "Añadir proveedor",
@@ -130,14 +130,14 @@
         "emailVerificationNotice": "Asegúrate de que tu proveedor de identidad exija direcciones de correo electrónico verificadas antes de autenticar a los usuarios. Las firmas SAML autentican al proveedor, no la propiedad del correo."
     },
     "createSettingsAuthProviderModal": {
-        "title": "Añadir un nuevo {tipo}"
+        "title": "Añadir un nuevo {type}"
     },
     "updateSettingsAuthProviderModal": {
-        "title": "Editar {nombre}"
+        "title": "Editar {name}"
     },
     "deleteAuthProviderModal": {
-        "title": "Borrar {nombre}",
-        "comment": "¿Realmente quieres borrar este {tipo}?"
+        "title": "Borrar {name}",
+        "comment": "¿Realmente quieres borrar este {type}?"
     },
     "loginWithSaml": {
         "signInWithSaml": "Inicio de sesión con SAML SSO",

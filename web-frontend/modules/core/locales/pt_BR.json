@@ -79,13 +79,13 @@
         "passwordRepeat": "Repetir senha"
     },
     "invitationTitle": "Convite",
-    "invitationMessage": "{invitedBy} convidou você para participar {group}.",
+    "invitationMessage": "{invitedBy} convidou você para participar {workspace}.",
     "workspaceForm": {
         "nameLabel": "Nome"
     },
     "leaveWorkspaceModal": {
-        "title": "Saiu do {group}",
-        "message": "Tem certeza de que deseja sair do grupo {group}? Você não poderá mais acessar os aplicativos relacionados e, se quiser recuperar o acesso, um dos administradores deverá convidá-lo novamente. Se você sair do grupo, ele não será excluído. Todos os outros membros ainda terão acesso a ele. Não é possível sair de um grupo se você for o último administrador, pois isso o deixará sem manutenção.",
+        "title": "Saiu do {workspace}",
+        "message": "Tem certeza de que deseja sair do grupo {workspace}? Você não poderá mais acessar os aplicativos relacionados e, se quiser recuperar o acesso, um dos administradores deverá convidá-lo novamente. Se você sair do grupo, ele não será excluído. Todos os outros membros ainda terão acesso a ele. Não é possível sair de um grupo se você for o último administrador, pois isso o deixará sem manutenção.",
         "leave": "Sair do grupo"
     },
     "dashboardWorkspace": {
@@ -94,7 +94,7 @@
     },
     "workspaceInvitation": {
         "title": "Convite",
-        "message": "{by} convidou você para participar de {group}.",
+        "message": "{by} convidou você para participar de {workspace}.",
         "reject": "Rejeitar",
         "accept": "Aceitar"
     },
@@ -452,13 +452,13 @@
             "passwordRepeat": "Repetir senha"
         },
         "invitationTitle": "Convite",
-        "invitationMessage": "{invitedBy} convidou você para participar {group}.",
+        "invitationMessage": "{invitedBy} convidou você para participar {workspace}.",
         "workspaceForm": {
             "nameLabel": "Nome"
         },
         "leaveWorkspaceModal": {
-            "title": "Saiu do {group}",
-            "message": "Tem certeza de que deseja sair do grupo {group}? Você não poderá mais acessar os aplicativos relacionados e, se quiser recuperar o acesso, um dos administradores deverá convidá-lo novamente. Se você sair do grupo, ele não será excluído. Todos os outros membros ainda terão acesso a ele. Não é possível sair de um grupo se você for o último administrador, pois isso o deixará sem manutenção.",
+            "title": "Saiu do {workspace}",
+            "message": "Tem certeza de que deseja sair do grupo {workspace}? Você não poderá mais acessar os aplicativos relacionados e, se quiser recuperar o acesso, um dos administradores deverá convidá-lo novamente. Se você sair do grupo, ele não será excluído. Todos os outros membros ainda terão acesso a ele. Não é possível sair de um grupo se você for o último administrador, pois isso o deixará sem manutenção.",
             "leave": "Sair do grupo"
         },
         "dashboardWorkspace": {
@@ -467,7 +467,7 @@
         },
         "workspaceInvitation": {
             "title": "Convite",
-            "message": "{by} convidou você para participar de {group}.",
+            "message": "{by} convidou você para participar de {workspace}.",
             "reject": "Rejeitar",
             "accept": "Aceitar"
         },

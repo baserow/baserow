@@ -96,7 +96,7 @@
         "premiumFeatures": "Recursos Premium"
     },
     "license": {
-        "title": "{product_code} plano",
+        "title": "{name} plano",
         "users": "Usuários",
         "description": "Escolha os usuários que podem usar o plano {product_code}. Esta licença permite que você conceda {product_code} a um máximo de {seats} usuários.",
         "seatLeft": "Você não tem seats restantes|Você tem um seat restante|Você tem {count} seats restantes",

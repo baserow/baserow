@@ -588,7 +588,7 @@
                 "copyEmail": "E-mail kopiëren",
                 "remove": "Verwijderen uit werkruimte"
             },
-            "title": "{userAmount} Leden in {groupName}",
+            "title": "{userAmount} Leden in {workspaceName}",
             "inviteMember": "Lid uitnodigen"
         },
         "membersTabTitle": "Leden",
@@ -598,7 +598,7 @@
                 "message": "Bericht",
                 "role": "Role"
             },
-            "title": "{invitesAmount} Uitnodigingen in behandeling in {groupName}",
+            "title": "{invitesAmount} Uitnodigingen in behandeling in {workspaceName}",
             "actions": {
                 "copyEmail": "E-mail kopiëren",
                 "remove": "Uitnodiging annuleren"
@@ -627,7 +627,7 @@
     "removeFromWorkspaceModal": {
         "title": "Bevestig verwijdering uit de werkruimte",
         "remove": "Verwijderen",
-        "confirmation": "Weet u zeker dat u {naam} wilt verwijderen uit {workspaceName}? Deze actie kan niet ongedaan worden gemaakt."
+        "confirmation": "Weet u zeker dat u {name} wilt verwijderen uit {workspaceName}? Deze actie kan niet ongedaan worden gemaakt."
     },
     "UserSessionExpiredNotification": {
         "title": "Sessie verlopen",
@@ -1074,7 +1074,7 @@
         "untrustedPublicKeyMessage": "Het geleverde bestand is ondertekend met een onbetrouwbare openbare sleutel. Vraag je beheerder om de openbare sleutel toe te voegen aan de lijst van vertrouwde sleutels of de handtekeningverificatie uit te schakelen om dit bestand te kunnen importeren.",
         "importingState": "Importeren",
         "importingTableStructure": "Aanmaken: {table}",
-        "importingTableData": "Gegevens importeren: {tabel}",
+        "importingTableData": "Gegevens importeren: {table}",
         "uploadAndImport": "Uploaden en importeren"
     },
     "user": {
@@ -1242,18 +1242,18 @@
         "removeTwoFactorAuth": "Tweefactorauthenticatie verwijderen"
     },
     "changeUserPasswordModal": {
-        "changePassword": "Wijzig wachtwoord voor {gebruikersnaam}"
+        "changePassword": "Wijzig wachtwoord voor {username}"
     },
     "deleteUserModal": {
-        "title": "Verwijder {gebruikersnaam}",
+        "title": "Verwijder {username}",
         "confirmation": "Weet je zeker dat je de gebruiker: {name} wilt verwijderen?",
         "comment1": "De gebruikersaccount wordt verwijderd, maar de werkruimtes waar die gebruiker lid van is blijven bestaan. De gebruikers werkruimte wordt niet verwijderd, zelfs als deze gebruiker de laatste gebruiker in de werkruimtes is. Door de laatste gebruiker in een werkruimte te verwijderen kan niemand meer toegang krijgen tot die werkruimte.",
         "comment2": "Na het verwijderen van een gebruiker is het mogelijk dat een nieuwe gebruiker zich opnieuw aanmeldt met het e-mailadres van de verwijderde gebruiker. Om ervoor te zorgen dat ze zich niet opnieuw kunnen aanmelden, deactiveer de gebruiker in plaats van deze te verwijderen.",
-        "delete": "Verwijder gebruiker {gebruikersnaam}"
+        "delete": "Verwijder gebruiker {username}"
     },
     "editUserModal": {
         "delete": "Gebruiker verwijderen",
-        "edit": "Bewerk { gebruikersnaam }"
+        "edit": "Bewerk { username }"
     },
     "adminDashboard": {
         "title": "Dashboard",

@@ -35,7 +35,7 @@
         "roleTitle": "Výchozí role",
         "inviteMembers": "Přidat členy",
         "membersTitle": "Členové",
-        "noSubjectsSelected": "Pro případné přidání členů do týmu klikněte na '{buttonLabel}'.",
+        "noSubjectsSelected": "Prostřednictvím tohoto týmu zatím nikdo nemá přístup.",
         "roleHelpText": "Specifické uživatelské role budou vždy nadřazeny rolím definovaným pro tým."
     },
     "editTeamContext": {

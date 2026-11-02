@@ -35,7 +35,7 @@
         "roleTitle": "기본 역할",
         "inviteMembers": "멤버 추가",
         "membersTitle": "멤버",
-        "noSubjectsSelected": "선택적으로 팀 사용자들을 추가하려면 '{buttonLabel}'을 클릭하세요.",
+        "noSubjectsSelected": "아직 이 팀을 통해 액세스할 수 있는 사용자가 없습니다.",
         "roleHelpText": "사용자별 역할은 항상 팀 역할보다 우선합니다."
     },
     "editTeamContext": {

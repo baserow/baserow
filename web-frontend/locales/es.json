@@ -225,7 +225,7 @@
         "autonumber": "Campo de sólo lectura que incrementa automáticamente un número por cada nueva fila.",
         "uuid": "Un UUID único y persistente de sólo lectura.",
         "createdBy": "El campo \"Creado por\" es un campo de sólo lectura que muestra el usuario que creó la fila.",
-        "duration": "Acepta una duración basada en el tiempo como una cadena con el formato {formato} o como un número que representa el número total de segundos.",
+        "duration": "Acepta una duración basada en el tiempo como una cadena con el formato {format} o como un número que representa el número total de segundos.",
         "password": "Un campo de sólo escritura que contiene una contraseña con hash. El valor será \"nulo\" si no se ha establecido, o \"verdadero\" si se ha establecido. Acepta una cadena para establecerla.",
         "formViewEditRow": "Un campo de solo lectura que genera una URL única y firmada que permite editar la fila a través de la vista de formulario vinculada.",
         "button": "Un campo de botón. Al hacer clic en el botón se abre una URL construida a partir de los valores de la fila. La celda no almacena datos y las escrituras son rechazadas."
@@ -634,7 +634,7 @@
         "unnamed": "fila sin nombre {value}"
     },
     "urlCheck": {
-        "invalidUrlEnvVarTitle": "{Nombre} inválido",
+        "invalidUrlEnvVarTitle": "{name} inválido",
         "invalidUrlEnvVarDescription": "La variable de entorno {name} se ha establecido en un valor no válido. El administrador de su sitio debe cambiar {name} por una URL válida que empiece por http:// o https:// y luego reiniciar Baserow para solucionar este error."
     },
     "health": {
