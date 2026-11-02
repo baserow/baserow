@@ -6,13 +6,18 @@ from dataclasses import dataclass, replace
 from functools import cache
 from typing import TYPE_CHECKING, Any, Callable, Iterable
 
+from django.core.exceptions import ValidationError as DjangoValidationError
+
 import jsonschema
 from loguru import logger
 from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.toolsets.abstract import AgentDepsT, ToolsetTool
+from rest_framework.exceptions import APIException
 from typing_extensions import Self
 
 from baserow.core.exceptions import PermissionException, UserNotInWorkspace
+from baserow.core.tools.errors import ToolInputError as SharedToolInputError
+from baserow.core.tools.errors import tool_error_message
 from baserow_enterprise.assistant.deps import AgentMode
 
 from .shared.errors import ToolInputError, permission_denied_result
@@ -308,6 +313,13 @@ class ModeAwareToolset(AbstractToolset[AgentDepsT]):
             }
         except PermissionException:
             return permission_denied_result(name)
+        except (SharedToolInputError, DjangoValidationError, APIException) as exc:
+            # What the shared tools raise for the model to act on, like a feature
+            # that needs a licence. A server error has no message and is raised.
+            message = tool_error_message(exc)
+            if message is None:
+                raise
+            return {"error": message}
         except Exception as exc:
             if not type(exc).__name__.endswith("DoesNotExist"):
                 raise

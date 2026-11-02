@@ -4,6 +4,8 @@ from types import SimpleNamespace
 from typing import Annotated, Any
 from unittest.mock import AsyncMock, MagicMock
 
+from django.core.exceptions import ValidationError as DjangoValidationError
+
 import pytest
 from loguru import logger
 from pydantic import AfterValidator, ValidationError
@@ -20,6 +22,7 @@ from pydantic_ai.toolsets import FunctionToolset
 from pydantic_ai.usage import RunUsage
 
 from baserow.core.exceptions import PermissionDenied, UserNotInWorkspace
+from baserow.core.tools.errors import ToolInputError as SharedToolInputError
 from baserow_enterprise.assistant.action_memory import (
     get_mutation_evidence,
     get_verified_tool_outcomes,
@@ -51,6 +54,7 @@ from baserow_enterprise.assistant.tools.toolset import (
     move_thought_to_top_level,
 )
 from baserow_enterprise.assistant.types import BaseModel as AssistantBaseModel
+from baserow_premium.license.exceptions import FeaturesNotAvailableError
 
 from .utils import make_test_ctx
 
@@ -219,6 +223,9 @@ async def test_deferred_tool_switches_modes_then_executes_once(initial_args):
         (PermissionDenied(), "permission was denied"),
         (UserNotInWorkspace(), "outside the current workspace"),
         (ToolInputError("Invalid workflow"), "Invalid workflow"),
+        (SharedToolInputError("Invalid workflow"), "Invalid workflow"),
+        (DjangoValidationError("Invalid range"), "Invalid value. Invalid range"),
+        (FeaturesNotAvailableError(), "does not have access to these features"),
         (ModelRetry("Invalid workflow"), "Invalid workflow"),
     ],
 )
