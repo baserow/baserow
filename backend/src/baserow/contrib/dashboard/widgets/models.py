@@ -122,6 +122,7 @@ class TextFilterWidget(Widget):
         max_length=16, choices=Mode.choices, default=Mode.INPUT, db_default=Mode.INPUT
     )
     options = FormulaField(db_default="")
+    multiple = models.BooleanField(default=False, db_default=False)
 
     target_filters = TargetFiltersField(
         default=list,

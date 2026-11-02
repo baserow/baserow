@@ -18,7 +18,8 @@ from baserow.test_utils.helpers import assert_undo_redo_actions_are_valid
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("mode", ["input", "dropdown"])
-def test_text_widget_export_import_and_duplicate(data_fixture, mode):
+@pytest.mark.parametrize("multiple", [False, True])
+def test_text_widget_export_import_and_duplicate(data_fixture, mode, multiple):
     """Literal settings survive application round trips without a data source."""
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
@@ -31,6 +32,7 @@ def test_text_widget_export_import_and_duplicate(data_fixture, mode):
         placeholder="Type here",
         default_value="get('literal')",
         mode=mode,
+        multiple=multiple,
         options=BaserowFormulaObject.create("France, Belgium", mode="raw"),
     )
     assert isinstance(widget, TextFilterWidget)
@@ -46,6 +48,7 @@ def test_text_widget_export_import_and_duplicate(data_fixture, mode):
     for application in [imported, duplicated]:
         copy = TextFilterWidget.objects.get(dashboard=application)
         assert copy.mode == mode
+        assert copy.multiple == multiple
         assert copy.options == BaserowFormulaObject.create(
             "France, Belgium", mode="raw"
         )
@@ -120,6 +123,7 @@ def test_text_widget_crud_serializers(api_client, data_fixture):
     assert response.json()["placeholder"] == "Type here"
     assert response.json()["default_value"] == "Initial"
     assert response.json()["mode"] == "input"
+    assert response.json()["multiple"] is False
     widget = TextFilterWidget.objects.get(id=widget_id)
     public = PublicDashboardInfoSerializer(
         dashboard, context={"widgets": [widget], "data_sources": []}
@@ -127,6 +131,7 @@ def test_text_widget_crud_serializers(api_client, data_fixture):
     assert public["widgets"][0]["default_value"] == "Initial"
     assert public["widgets"][0]["placeholder"] == "Type here"
     assert public["widgets"][0]["mode"] == "input"
+    assert public["widgets"][0]["multiple"] is False
     assert "options" not in public["widgets"][0]
     detail_url = reverse("api:dashboard:widgets:item", kwargs={"widget_id": widget_id})
     response = api_client.patch(
@@ -135,6 +140,7 @@ def test_text_widget_crud_serializers(api_client, data_fixture):
             "placeholder": "",
             "default_value": "",
             "mode": "dropdown",
+            "multiple": True,
         },
         format="json",
         **headers,
@@ -143,6 +149,7 @@ def test_text_widget_crud_serializers(api_client, data_fixture):
     widget.refresh_from_db()
     assert (widget.placeholder, widget.default_value) == ("", "")
     assert widget.mode == "dropdown"
+    assert widget.multiple is True
     response = api_client.patch(
         detail_url, {"mode": "invalid"}, format="json", **headers
     )

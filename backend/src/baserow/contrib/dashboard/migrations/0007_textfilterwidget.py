@@ -41,6 +41,7 @@ class Migration(migrations.Migration):
                         blank=True, db_default="", default="", null=True
                     ),
                 ),
+                ("multiple", models.BooleanField(default=False, db_default=False)),
                 (
                     "placeholder",
                     models.TextField(blank=True, db_default="", default=""),

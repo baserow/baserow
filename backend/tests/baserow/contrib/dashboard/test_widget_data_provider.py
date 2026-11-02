@@ -138,6 +138,75 @@ def test_dispatch_widget_values(api_client, filter_dashboard, public, password, 
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("public", [False, True])
+def test_multiple_dropdown_exposes_lists_and_empty_policy(
+    api_client, filter_dashboard, public
+):
+    from baserow.contrib.dashboard.formula_importer import import_formula
+
+    _, token, dashboard, source, widget, condition = filter_dashboard
+    widget.mode = "dropdown"
+    widget.multiple = True
+    # The configured formula explicitly selects a value, as in the Builder.
+    condition["value"] = BaserowFormulaObject.create(
+        f"get('widget_data.{widget.id}.0')"
+    )
+    widget.save()
+    context = DashboardDispatchContext(
+        HttpRequest(),
+        dashboard=dashboard,
+        data={
+            "widget_data": {str(widget.id): ["Beta", "Alpha"]},
+        },
+    )
+    assert context[f"widget_data.{widget.id}"] == ["Beta", "Alpha"]
+    assert context[f"widget_data.{widget.id}.*"] == ["Beta", "Alpha"]
+    assert context[f"widget_data.{widget.id}.1"] == "Alpha"
+    assert (
+        import_formula(condition["value"], {"dashboard_widgets": {widget.id: 123}})[
+            "formula"
+        ]
+        == "get('widget_data.123.0')"
+    )
+    url = reverse(
+        "api:dashboard:public:data_source_dispatch"
+        if public
+        else "api:dashboard:data_sources:dispatch",
+        kwargs={"slug": dashboard.slug, "data_source_id": source.id}
+        if public
+        else {"data_source_id": source.id},
+    )
+    headers = {} if public else {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    for payload, expected in [
+        ({}, "10"),
+        ({"widget_data": {str(widget.id): ["Beta", "Alpha"]}}, "20"),
+        ({"widget_data": {str(widget.id): []}}, "70"),
+    ]:
+        response = api_client.post(url, payload, format="json", **headers)
+        assert response.status_code == 200, response.json()
+        assert response.json() == {"result": expected}
+    for value in ["Beta", [1], [None], [["Beta"]]]:
+        assert (
+            api_client.post(
+                url, {"widget_data": {str(widget.id): value}}, format="json", **headers
+            ).status_code
+            == 400
+        )
+    widget.target_filters[0]["empty_behavior"] = "apply_alternative"
+    widget.target_filters[0]["alternative_group"] = {
+        "filters": [
+            {**condition, "value": BaserowFormulaObject.create("Beta", mode="raw")}
+        ],
+        "filter_groups": [],
+        "filter_type": "AND",
+    }
+    widget.save()
+    assert api_client.post(
+        url, {"widget_data": {str(widget.id): []}}, format="json", **headers
+    ).json() == {"result": "20"}
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     "value",
     [
