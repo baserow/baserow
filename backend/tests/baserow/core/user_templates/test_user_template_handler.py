@@ -479,6 +479,23 @@ def test_list_listed_templates(data_fixture):
 
 
 @pytest.mark.django_db
+def test_list_listed_templates_most_recently_listed_first(data_fixture):
+    now = timezone.now()
+    first, second, third = (data_fixture.create_user_template() for _ in range(3))
+    for template in [first, second, third]:
+        data_fixture.set_user_template_state(template, "public")
+    # Listed last, although its revision is the oldest. Equal dates by id.
+    Template.objects.filter(id=first.id).update(reviewed_on=now)
+    Template.objects.filter(id__in=[second.id, third.id]).update(
+        reviewed_on=now - timedelta(days=1)
+    )
+
+    templates = CoreHandler().list_templates(AnonymousUser(), "user", listed=True)
+
+    assert list(templates) == [first, third, second]
+
+
+@pytest.mark.django_db
 def test_listed_category_filter_uses_listed_revision(data_fixture):
     before, after = (data_fixture.create_template_category() for _ in range(2))
     template = data_fixture.create_user_template(category=before)

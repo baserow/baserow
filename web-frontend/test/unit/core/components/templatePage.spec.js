@@ -17,7 +17,7 @@ const categories = [
   { id: 1, name: 'Business', templates: [projectTracker] },
   { id: 2, name: 'Personal', templates: [recipeBook] },
 ]
-// A shared template, which lists its own categories.
+// A public template, which lists its own categories.
 const crm = {
   id: 5,
   type: 'user',
@@ -28,9 +28,11 @@ const crm = {
 
 describe('TemplatePage', () => {
   let testApp = null
+  let refreshPublicList = vi.fn()
 
   beforeEach(() => {
     testApp = new TestApp()
+    refreshPublicList = vi.fn()
   })
 
   afterEach(async () => {
@@ -58,14 +60,19 @@ describe('TemplatePage', () => {
         <a class="list__recipe-book" @click="$emit('selected', categories[1].templates[0])" />
       </div>`,
     }),
-    SharedTemplateList: defineComponent({
-      name: 'SharedTemplateList',
+    PublicTemplateList: defineComponent({
+      name: 'PublicTemplateList',
       emits: ['selected'],
-      template: `<div class="shared-list">
+      template: `<div class="public-list">
         <slot name="head" />
-        <a class="shared-list__crm" @click="$emit('selected', crm)" />
+        <a class="public-list__crm" @click="$emit('selected', crm)" />
       </div>`,
       setup: () => ({ crm }),
+      methods: {
+        refresh() {
+          refreshPublicList()
+        },
+      },
     }),
   }
 
@@ -118,24 +125,28 @@ describe('TemplatePage', () => {
     expect(wrapper.find('.list').isVisible()).toBe(false)
   })
 
-  test('opens a shared template from the shared tab', async () => {
+  test('opens a public template from the public tab', async () => {
     const wrapper = await mountPage('project-tracker')
 
     await wrapper.find('.details__back').trigger('click')
-    expect(wrapper.find('.shared-list').exists()).toBe(false)
+    expect(wrapper.find('.public-list').exists()).toBe(false)
 
     await wrapper.findAll('.segment-control__button')[1].trigger('click')
     expect(wrapper.find('.list').isVisible()).toBe(false)
 
-    await wrapper.find('.shared-list__crm').trigger('click')
+    // Shown as it is now, keeping its own categories.
+    testApp.mock
+      .onGet('/templates/crm-a1b2c3/')
+      .reply(200, { id: 5, type: 'user', slug: 'crm-a1b2c3', name: 'CRM 1' })
+    await wrapper.find('.public-list__crm').trigger('click')
     const router = useRouter()
     await vi.waitFor(() =>
       expect(router.currentRoute.value.params.slug).toBe('crm-a1b2c3')
     )
     await flushPromises()
 
-    expect(wrapper.find('.details').text()).toBe('CRM: Sales')
-    expect(wrapper.find('.shared-list').isVisible()).toBe(false)
+    expect(wrapper.find('.details').text()).toBe('CRM 1: Sales')
+    expect(wrapper.find('.public-list').isVisible()).toBe(false)
 
     // Reloaded when its install is outdated, keeping its own categories.
     testApp.mock
@@ -147,7 +158,29 @@ describe('TemplatePage', () => {
 
     await wrapper.find('.details__back').trigger('click')
 
-    expect(wrapper.find('.shared-list').isVisible()).toBe(true)
+    expect(wrapper.find('.public-list').isVisible()).toBe(true)
+  })
+
+  test('tells that a public template is no longer shared, and lists them again', async () => {
+    const wrapper = await mountPage('project-tracker')
+    testApp.dontFailOnErrorResponses()
+    testApp.mock.onGet('/templates/crm-a1b2c3/').reply(404, {
+      error: 'ERROR_TEMPLATE_DOES_NOT_EXIST',
+    })
+    await wrapper.find('.details__back').trigger('click')
+    await wrapper.findAll('.segment-control__button')[1].trigger('click')
+
+    await wrapper.find('.public-list__crm').trigger('click')
+    await flushPromises()
+
+    expect(useRouter().currentRoute.value.params.slug).toBe('project-tracker')
+    expect(wrapper.find('.details').exists()).toBe(false)
+    expect(testApp.store.state.toast.items).toHaveLength(1)
+    expect(testApp.store.state.toast.items[0]).toMatchObject({
+      type: 'error',
+      title: 'templateModal.unavailableTitle',
+    })
+    expect(refreshPublicList).toHaveBeenCalledTimes(1)
   })
 
   test('shows the template of the URL when it changes', async () => {
@@ -165,6 +198,19 @@ describe('TemplatePage', () => {
     await flushPromises()
 
     expect(wrapper.find('.details').text()).toBe('Project Tracker: Business')
+  })
+
+  test('loads a public template of the URL that it does not know', async () => {
+    // Opened from the list before the page was reloaded on another one.
+    const wrapper = await mountPage('project-tracker')
+    testApp.mock
+      .onGet('/templates/crm-a1b2c3/')
+      .reply(200, { id: 5, type: 'user', slug: 'crm-a1b2c3', name: 'CRM' })
+
+    await useRouter().push('/template/crm-a1b2c3')
+    await flushPromises()
+
+    expect(wrapper.find('.details').text()).toBe('CRM:')
   })
 
   test('reloads the preview when the install of the shown revision is refused', async () => {

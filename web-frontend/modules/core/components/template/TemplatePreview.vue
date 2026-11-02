@@ -2,7 +2,9 @@
   <div>
     <template v-if="template !== null">
       <div v-if="loading" class="loading-absolute-center"></div>
-      <div v-else class="layout">
+      <!-- Hidden, not removed, while loading, so that a custom sidebar keeps its
+      state, like the chosen workspace, when a new revision is shown. -->
+      <div v-show="!loading" class="layout">
         <div class="layout__col-1" :style="{ width: sidebarWidthPx }">
           <slot
             name="sidebar"
@@ -78,16 +80,23 @@ export default {
       }
       return null
     },
+    // The shown content changes with the template or its revision, which is in
+    // another workspace, not with a copy of the same template.
+    contentKey() {
+      return this.template === null
+        ? null
+        : `${this.template.id}:${this.template.workspace_id}`
+    },
   },
   watch: {
-    template(value) {
+    contentKey(value) {
       if (value === null) {
         this.loading = false
         this.applications = []
         this.page = null
         return
       }
-      this.fetchApplications(value)
+      this.fetchApplications(this.template)
     },
   },
   created() {

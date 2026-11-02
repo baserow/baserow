@@ -59,6 +59,8 @@ from tests.baserow.core.user_templates.utils import (
     create_template,
     deny_export,
     find_values,
+    make_private,
+    make_public,
     purge_after_the_grace_period,
     queued,
     run_job,
@@ -345,6 +347,61 @@ def test_update_user_template_details_makes_the_template_public(
     assert [call.kwargs["action_type"].type for call in action_done.call_args_list] == [
         "update_user_template",
         "update_user_template_visibility",
+    ]
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("made_public_meanwhile", [False, True])
+def test_update_user_template_made_private_while_queued_stays_private(
+    data_fixture, use_tmp_media_root, made_public_meanwhile
+):
+    user = data_fixture.create_user()
+    root = create_template(data_fixture, user)
+    with queued():
+        job = update_details(user, root, make_public=True, public_listing_consent=True)
+    if made_public_meanwhile:
+        make_public(user, root)
+
+    make_private(user, root)
+    with patch("baserow.core.action.signals.action_done.send") as action_done:
+        job = run_job(job)
+
+    assert job.state == JOB_FINISHED, job.error
+    assert Template.objects.get(id=root.id).public_revision_id is None
+    assert [call.kwargs["action_type"].type for call in action_done.call_args_list] == [
+        "update_user_template"
+    ]
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_update_user_template_made_private_while_running_stays_private(
+    data_fixture, use_tmp_media_root
+):
+    user = data_fixture.create_user()
+    root = create_template(data_fixture, user)
+    with queued():
+        job = update_details(user, root, make_public=True, public_listing_consent=True)
+    save_template = CreateUserTemplateJobType._save_template
+
+    def save_then_make_private(self, job, revision):
+        save_template(self, job, revision)
+        # After the job loaded `make_public`.
+        make_private(user, root)
+
+    with (
+        patch.object(
+            CreateUserTemplateJobType, "_save_template", save_then_make_private
+        ),
+        patch("baserow.core.action.signals.action_done.send") as action_done,
+    ):
+        job = run_job(job)
+
+    assert job.state == JOB_FINISHED, job.error
+    assert Template.objects.get(id=root.id).public_revision_id is None
+    assert [call.kwargs["action_type"].type for call in action_done.call_args_list] == [
+        "update_user_template"
     ]
 
 

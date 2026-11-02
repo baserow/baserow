@@ -45,6 +45,7 @@
         <UserTemplateVisibilityForm
           v-if="showVisibility"
           :model-value="visibility"
+          :disabled="jobIsRunning || updateLoading"
           class="margin-top-2"
           @update:model-value="Object.assign(values, $event)"
         />
@@ -125,7 +126,7 @@ import UserTemplateContentForm from '@baserow/modules/core/components/template/U
 import UserTemplateDetailsForm from '@baserow/modules/core/components/template/UserTemplateDetailsForm'
 import UserTemplateVisibilityForm from '@baserow/modules/core/components/template/UserTemplateVisibilityForm'
 import TemplateService from '@baserow/modules/core/services/template'
-import { notifyTemplateUpdated } from '@baserow/modules/core/utils/userTemplate'
+import { getVisibilityAction } from '@baserow/modules/core/utils/userTemplate'
 
 // The notifications of the jobs that ended, by job of the store. The same template
 // can be updated from more than one mounted modal, which all follow the same job,
@@ -167,7 +168,7 @@ export default {
   },
   // `visibility-changed` is emitted with the template as listed in the user's
   // templates.
-  emits: ['updated', 'visibility-changed', 'outdated', 'hidden'],
+  emits: ['updated', 'visibility-changed', 'hidden'],
   data() {
     return {
       // The mode of the running job, or else the requested one.
@@ -177,6 +178,10 @@ export default {
       updateLoading: false,
       // Whether the content form allows to update the template.
       contentValid: false,
+      // The state of the template when the modal was shown, which the chosen
+      // visibility is compared with. A template changed meanwhile, for example
+      // made private from its row menu, isn't changed back by a save.
+      shownState: this.template.state,
       values: this.getDefaultValues(),
     }
   },
@@ -194,14 +199,14 @@ export default {
       return { makePublic, publicListingConsent }
     },
     isPublic() {
-      return this.template.state === 'public'
+      return this.shownState === 'public'
     },
     // Only a private or a public template can be made the other. It isn't changed
     // while the details are being saved.
     showVisibility() {
       return (
         this.activeMode === 'details' &&
-        ['private', 'public'].includes(this.template.state) &&
+        getVisibilityAction({ state: this.shownState }) !== null &&
         !this.jobIsRunning &&
         !this.jobIsFinished
       )
@@ -298,6 +303,7 @@ export default {
       this.updateLoading = false
       this.contentValid = false
       this.job = null
+      this.shownState = this.template.state
       this.values = this.getDefaultValues()
       this.hideError()
     },
@@ -334,7 +340,10 @@ export default {
           icon: this.values.icon,
           category_ids: this.values.categoryIds,
           ...(this.madePublicByJob
-            ? { make_public: true, public_listing_consent: true }
+            ? {
+                make_public: true,
+                public_listing_consent: this.values.publicListingConsent,
+              }
             : {}),
         }
       }
@@ -356,15 +365,20 @@ export default {
       }
       this.updateLoading = true
       this.hideError()
+      // What is sent is decided when Save is clicked, also when the template is
+      // changed while a request runs.
+      const visibility =
+        this.visibilityChanged && !this.madePublicByJob
+          ? { ...this.visibility }
+          : null
+      const updatesDetails =
+        this.activeMode !== 'details' || this.detailsChanged
+      const request = this.getRequest()
       try {
-        if (
-          this.visibilityChanged &&
-          !this.madePublicByJob &&
-          !(await this.changeVisibility())
-        ) {
+        if (visibility !== null && !(await this.changeVisibility(visibility))) {
           return
         }
-        if (this.activeMode === 'details' && !this.detailsChanged) {
+        if (!updatesDetails) {
           this.hide()
           this.$store.dispatch('toast/success', {
             title: this.$t('updateUserTemplateModal.updated'),
@@ -373,7 +387,7 @@ export default {
         }
         const { data } = await JobService(this.$client).create(
           CreateUserTemplateJobType.getType(),
-          this.getRequest()
+          request
         )
         await this.createAndMonitorJob(data)
       } catch (error) {
@@ -385,25 +399,17 @@ export default {
     /**
      * Makes the template public or private, as chosen. Returns whether it did.
      */
-    async changeVisibility() {
+    async changeVisibility({ makePublic, publicListingConsent }) {
       try {
-        const { data } = await TemplateService(this.$client).setListed(
+        const { data } = await TemplateService(this.$client).setVisibility(
           this.template.slug,
-          this.values.makePublic,
-          this.template.revision_id
+          makePublic ? 'public' : 'private',
+          { publicListingConsent }
         )
         this.$emit('visibility-changed', data)
         return true
       } catch (error) {
-        // The template was updated in another tab since the modal was opened, and
-        // stays private. The author checks the update before making it public.
-        if (error.handler?.code === 'ERROR_TEMPLATE_UPDATED') {
-          this.hide()
-          notifyTemplateUpdated(error, this.$t)
-          this.$emit('outdated', this.template.id)
-        } else {
-          this.handleError(error, 'template')
-        }
+        this.handleError(error, 'template')
         return false
       }
     },

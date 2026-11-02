@@ -284,36 +284,9 @@ describe('UpdateUserTemplateModal', () => {
 
       expect(
         testApp.mock.history.patch.map(({ data }) => JSON.parse(data))
-      ).toStrictEqual([
-        { listed: true, public_listing_consent: true, revision_id: 3 },
-      ])
+      ).toStrictEqual([{ visibility: 'public', public_listing_consent: true }])
       expect(testApp.mock.history.post).toHaveLength(0)
       expect(wrapper.emitted('visibility-changed')).toStrictEqual([[listed]])
-      expect(isModalOpen(wrapper)).toBe(false)
-    })
-
-    test('stays private when the template was updated since it was opened', async () => {
-      testApp.dontFailOnErrorResponses()
-      testApp.mock
-        .onPatch('/templates/sprint-tracker/')
-        .reply(400, { error: 'ERROR_TEMPLATE_UPDATED', detail: '' })
-      const wrapper = await mountAndShow(
-        'details',
-        userTemplate({ slug: 'sprint-tracker' })
-      )
-
-      await chooseVisibility(wrapper, 'userTemplateVisibilityForm.public')
-      await wrapper
-        .find('.user-template-form__consent input[type="checkbox"]')
-        .setValue(true)
-      await saveButton(wrapper).trigger('click')
-      await flushPromises()
-
-      expect(testApp.store.state.toast.items[0]).toMatchObject({
-        type: 'error',
-        message: 'makeTemplatePublicModal.updated',
-      })
-      expect(wrapper.emitted('outdated')).toStrictEqual([[3]])
       expect(isModalOpen(wrapper)).toBe(false)
     })
 
@@ -369,7 +342,112 @@ describe('UpdateUserTemplateModal', () => {
       await saveButton(wrapper).trigger('click')
       await flushPromises()
 
-      expect(requests).toStrictEqual([{ listed: false }, 'job'])
+      expect(requests).toStrictEqual([{ visibility: 'private' }, 'job'])
+    })
+
+    // Mounted like the templates modal, which shows the template as changed.
+    const mountFollowingChanges = async (template) => {
+      let wrapper = null
+      wrapper = await testApp.mount(UpdateUserTemplateModal, {
+        props: {
+          template,
+          mode: 'details',
+          categories,
+          onVisibilityChanged: (changed) =>
+            wrapper.setProps({ template: changed }),
+        },
+        global: { stubs: { Modal: ModalStub } },
+      })
+      await wrapper.vm.show()
+      await flushPromises()
+      return wrapper
+    }
+
+    const activeVisibility = (wrapper) =>
+      wrapper.find('.segment-control__button--active').text()
+
+    test('sends what was chosen when Save was clicked', async () => {
+      const patch = heldBack()
+      testApp.mock.onPatch('/templates/sprint-tracker/').reply(patch.reply)
+      testApp.mock.onPost('/jobs/').reply(200, runningJob())
+      const wrapper = await mountFollowingChanges(
+        userTemplate({ slug: 'sprint-tracker', state: 'public' })
+      )
+
+      await chooseVisibility(wrapper, 'userTemplateVisibilityForm.private')
+      await wrapper.find('input').setValue('Sprints')
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+      // Public can't be chosen again while the change is sent.
+      await chooseVisibility(wrapper, 'userTemplateVisibilityForm.public')
+      expect(activeVisibility(wrapper)).toBe(
+        'userTemplateVisibilityForm.private'
+      )
+      patch.send([
+        200,
+        userTemplate({ slug: 'sprint-tracker', state: 'private' }),
+      ])
+      await flushPromises()
+
+      expect(
+        testApp.mock.history.patch.map(({ data }) => JSON.parse(data))
+      ).toStrictEqual([{ visibility: 'private' }])
+      const job = JSON.parse(testApp.mock.history.post[0].data)
+      expect(job.name).toBe('Sprints')
+      expect(job).not.toHaveProperty('make_public')
+    })
+
+    test.each([
+      ['public', 'private'],
+      ['private', 'public'],
+    ])(
+      "keeps a %s template that was made %s meanwhile so when it's renamed",
+      async (shown, changed) => {
+        testApp.mock.onPost('/jobs/').reply(200, runningJob())
+        const wrapper = await mountFollowingChanges(
+          userTemplate({ slug: 'sprint-tracker', state: shown })
+        )
+
+        // Changed from its row menu while the modal is open.
+        await wrapper.setProps({
+          template: userTemplate({ slug: 'sprint-tracker', state: changed }),
+        })
+        await wrapper.find('input').setValue('Sprints')
+        await saveButton(wrapper).trigger('click')
+        await flushPromises()
+
+        expect(testApp.mock.history.patch).toHaveLength(0)
+        const job = JSON.parse(testApp.mock.history.post[0].data)
+        expect(job.name).toBe('Sprints')
+        expect(job).not.toHaveProperty('make_public')
+      }
+    )
+
+    test("can't be changed while the details are saved", async () => {
+      const post = heldBack()
+      testApp.mock.onPost('/jobs/').reply(post.reply)
+      const wrapper = await mountFollowingChanges(
+        userTemplate({ slug: 'sprint-tracker', state: 'public' })
+      )
+
+      await wrapper.find('input').setValue('Sprints')
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+      await chooseVisibility(wrapper, 'userTemplateVisibilityForm.private')
+
+      // Not silently dropped by the running save.
+      expect(activeVisibility(wrapper)).toBe(
+        'userTemplateVisibilityForm.public'
+      )
+      expect(
+        wrapper
+          .findAll('.segment-control__button')
+          .every((button) => button.attributes('disabled') !== undefined)
+      ).toBe(true)
+      post.send([200, runningJob()])
+      await flushPromises()
+
+      expect(testApp.mock.history.patch).toHaveLength(0)
     })
 
     test.each(['blocked', 'in_review'])(

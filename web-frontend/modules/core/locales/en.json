@@ -622,8 +622,10 @@
   },
   "templateModal": {
     "officialTemplates": "Official templates",
-    "sharedTemplates": "Shared templates",
-    "yourTemplates": "Your templates"
+    "publicTemplates": "Shared templates",
+    "yourTemplates": "Your templates",
+    "unavailableTitle": "Template not available",
+    "unavailableDescription": "This template is no longer shared. The list shows the shared templates as they are now."
   },
   "createUserTemplateModal": {
     "detailsTitle": "New template",
@@ -665,10 +667,7 @@
   "makeTemplatePublicModal": {
     "title": "Make “{name}” public?",
     "description": "“{name}” will be listed in the template browser for everyone on this instance, and your account name, {author}, is shared as author. You can make it private again later.",
-    "makePublic": "Make public",
-    "updated": "The template changed since you opened it, so it stays private. Check the latest version, then make it public again.",
-    "madePublicTitle": "“{name}” is now public",
-    "madePublicDescription": "Listed in the template browser for everyone in this instance."
+    "makePublic": "Make public"
   },
   "userTemplateDetailsForm": {
     "name": "Name",
@@ -728,9 +727,10 @@
     "makePrivate": "Make private",
     "delete": "Delete"
   },
-  "sharedTemplateList": {
+  "publicTemplateList": {
     "title": "Shared templates",
     "you": "You",
+    "updated": "Updated {ago}",
     "emptyTitle": "No shared templates yet",
     "emptyCategoryTitle": "No shared templates in this category",
     "emptyDescription": "Templates that people on this instance make public are listed here.",

@@ -188,7 +188,7 @@
                 </a>
               </li>
               <li
-                v-if="focusedTemplate?.state === 'private'"
+                v-if="focusedVisibilityAction === 'make-public'"
                 class="context__menu-item"
               >
                 <a
@@ -200,7 +200,7 @@
                 </a>
               </li>
               <li
-                v-else-if="focusedTemplate?.state === 'public'"
+                v-else-if="focusedVisibilityAction === 'make-private'"
                 class="context__menu-item"
               >
                 <a
@@ -249,6 +249,7 @@ import debounce from 'lodash/debounce'
 import TemplateService from '@baserow/modules/core/services/template'
 import { getHumanAgoLabel } from '@baserow/modules/core/utils/date'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { getVisibilityAction } from '@baserow/modules/core/utils/userTemplate'
 import { useUserTemplateDownload } from '@baserow/modules/core/composables/useUserTemplateDownload'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
 import TemplateEmptyState from '@baserow/modules/core/components/template/TemplateEmptyState'
@@ -325,6 +326,9 @@ const searchInput = ref(null)
 const actionsContext = ref(null)
 // The template whose actions are shown.
 const focusedTemplate = ref(null)
+const focusedVisibilityAction = computed(() =>
+  getVisibilityAction(focusedTemplate.value)
+)
 const { isDownloading, download } = useUserTemplateDownload()
 const search = ref('')
 const templates = ref([])

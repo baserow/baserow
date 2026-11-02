@@ -28,7 +28,6 @@ from django.db.models import (
     Value,
     When,
 )
-from django.db.models.functions import Coalesce
 from django.utils import translation
 from django.utils.translation import gettext as _
 
@@ -41,7 +40,6 @@ from tqdm import tqdm
 from baserow.core.cache import get_cached_settings, set_cached_settings
 from baserow.core.db import specific_queryset
 from baserow.core.deferred_callbacks import deferred_callback_context
-from baserow.core.pagination import KEYSET_CURSOR_EPOCH, RankedKeysetCursor
 from baserow.core.registries import plugin_registry
 from baserow.core.user.utils import normalize_email_address
 from baserow.core.user_templates.constants import USER_TEMPLATE_SEEDED_ID_MAPPINGS
@@ -2161,31 +2159,30 @@ class CoreHandler:
 
     def list_templates(
         self,
-        actor,
+        actor: AbstractUser | AnonymousUser,
         template_type: Optional[str] = None,
         owned: bool = False,
         listed: bool = False,
         category_id: Optional[int] = None,
-        after: Optional[RankedKeysetCursor] = None,
     ) -> QuerySet[Template]:
         """
         Returns the latest revision the actor can open of every template, most
         recently changed first: a user template by the creation of that revision,
-        an official one by its last update. The fields of the template as a whole
-        are on the selected `root`, or on the row itself when it's the root. Each
-        row has its position in the listing as `list_rank`, `list_changed_on` and
-        its id, which is what `after` points at.
+        an official one by its last update. With `listed`, the listed revision
+        instead, see `listed`. The fields of the template as a whole are on the
+        selected `root`, or on the row itself when it's the root. Equal dates are
+        ordered by id, newest first.
 
         :param actor: The user or anonymous user listing the templates.
         :param template_type: Only the templates of this `Template.Type`.
         :param owned: Only the templates owned by the actor.
-        :param listed: Only the templates everybody can open, each as everybody
-            sees it: a user template by its public revision. The actor's own come
-            first.
+        :param listed: Only what everybody can open, as everybody sees it: every
+            official template, unless `template_type` leaves them out, and the
+            public revision of every public user template. The actor's own come
+            first, then the most recently listed: a user template by when its
+            revision was listed, which is when it was made public or approved, an
+            official one by its last update.
         :param category_id: Only the rows in this category.
-        :param after: Only the rows that follow this one in the listing, so that
-            rows listed, moved or removed since it was read neither repeat nor are
-            skipped.
         :return: The templates.
         """
 
@@ -2203,43 +2200,46 @@ class CoreHandler:
         templates = templates.listed() if listed else templates.latest_revisions()
 
         # A revision isn't changed after it's created, an official template is.
-        # The ones from before these fields existed come last.
-        changed_on = Coalesce(
-            Case(
-                When(type=Template.Type.USER, then=F("created_on")),
-                default=F("updated_on"),
+        # A listed revision is dated by when it was listed, see `submit_revision`.
+        changed_on = Case(
+            When(
+                type=Template.Type.USER,
+                then=F("reviewed_on" if listed else "created_on"),
             ),
-            Value(KEYSET_CURSOR_EPOCH),
+            default=F("updated_on"),
         )
         # The actor's own come first in the listing.
-        rank = Value(0)
+        is_own = Value(False)
         if listed and actor.is_authenticated:
-            rank = Case(
+            is_own = Case(
                 When(
                     Q(root__isnull=True, owner_id=actor.id)
                     | Q(root__owner_id=actor.id),
-                    then=Value(1),
+                    then=Value(True),
                 ),
-                default=Value(0),
+                default=Value(False),
             )
-        templates = templates.annotate(list_rank=rank, list_changed_on=changed_on)
-        if after is not None:
-            templates = templates.filter(
-                after.get_filter("list_rank", "list_changed_on")
-            )
+        templates = templates.alias(list_is_own=is_own, list_changed_on=changed_on)
         if category_id is not None:
             # The categories of the listed row itself, which an edit can change.
             templates = templates.filter(categories__id=category_id)
         return (
             templates.select_related("author", "root__author")
             .prefetch_related("categories")
-            .order_by("-list_rank", "-list_changed_on", "-id")
+            .order_by(
+                F("list_is_own").desc(),
+                F("list_changed_on").desc(nulls_last=True),
+                "-id",
+            )
         )
 
-    def list_listed_template_categories(self, actor) -> QuerySet[TemplateCategory]:
+    def list_public_template_categories(
+        self, actor: AbstractUser | AnonymousUser
+    ) -> QuerySet[TemplateCategory]:
         """
         Returns the categories of the listed revisions of the public user
-        templates, see `list_templates`.
+        templates, see `list_templates`. Official templates aren't taken into
+        account.
 
         :param actor: The user or anonymous user listing the templates.
         :return: The categories holding at least one listed revision.

@@ -9,10 +9,10 @@ from baserow.core.models import Application, Template, Workspace
 from baserow.core.user_templates.exceptions import (
     NoApplicationsSelected,
     TemplateHasNoContent,
-    TemplateUpdated,
     UserTemplatePublicListingConsentRequired,
 )
 from baserow.core.user_templates.handler import UserTemplateHandler
+from baserow.core.user_templates.models import CreateUserTemplateJob
 from baserow.core.utils import ChildProgressBuilder
 
 
@@ -140,27 +140,26 @@ class UserTemplateService:
         template_id: int,
         listed: bool,
         public_listing_consent: bool,
-        revision_id: Optional[int] = None,
+        job_id: Optional[int] = None,
     ) -> Tuple[Template, Optional[int]]:
         """
         Makes a user template public or private. A public template lists its
         latest revision for everybody on the instance, see
         `UserTemplateHandler.submit_revision`. A private one isn't listed, and only
-        its owner can open it. Asking for the visibility it has changes nothing.
-        Must run in a transaction.
+        its owner can open it, and the unfinished create user template jobs of the
+        template don't make it public anymore. Asking for the visibility it has
+        changes nothing else. Must run in a transaction.
 
         :param user: The owner of the template.
         :param template_id: The id of the template, which is its root.
         :param listed: Whether the template is made public.
         :param public_listing_consent: Whether the user agreed that the template
             and their name are listed for everybody on the instance.
-        :param revision_id: The id of the revision the user was shown, to make
-            the template public only if that revision is listed.
+        :param job_id: The id of the create user template job making the template
+            public, which it only does while the job still asks for it.
         :raises TemplateDoesNotExist: If the user doesn't own the template.
         :raises UserTemplatePublicListingConsentRequired: If the template is made
             public without the consent.
-        :raises TemplateUpdated: If the template is made public while another
-            revision than `revision_id` is the latest.
         :raises TemplateHasNoContent: If the latest revision has no content.
         :return: The latest revision, and the id of the revision that was listed or
             unlisted, None if nothing changed.
@@ -181,18 +180,22 @@ class UserTemplateService:
             revision.root = root
 
         if not listed:
+            # Also when it's private already: a job can be about to list it.
+            handler.drop_scheduled_make_public(root)
             public_revision_id = root.public_revision_id
             if public_revision_id is not None:
                 handler.withdraw_listing(root)
             return revision, public_revision_id
 
-        # The author agreed to list what they were shown, not an update made in
-        # another tab since.
-        if revision_id is not None and revision_id != revision.id:
-            raise TemplateUpdated(
-                f"The template {root.id} was updated after revision {revision_id} "
-                "was shown."
-            )
+        # Read under the lock of the root, after which a make private clears it.
+        if (
+            job_id is not None
+            and not CreateUserTemplateJob.objects.filter(
+                id=job_id, make_public=True
+            ).exists()
+        ):
+            return revision, None
+
         self.get_template_content(revision)
         if root.public_revision_id == revision.id:
             return revision, None

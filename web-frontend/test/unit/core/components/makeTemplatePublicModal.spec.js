@@ -8,7 +8,6 @@ import MakeTemplatePublicModal from '@baserow/modules/core/components/template/M
 
 const template = {
   id: 3,
-  revision_id: 5,
   slug: 'sprint-tracker',
   type: 'user',
   name: 'Sprint Tracker',
@@ -61,14 +60,10 @@ describe('MakeTemplatePublicModal', () => {
 
     expect(
       testApp.mock.history.patch.map(({ data }) => JSON.parse(data))
-    ).toStrictEqual([
-      { listed: true, public_listing_consent: true, revision_id: 5 },
-    ])
+    ).toStrictEqual([{ visibility: 'public', public_listing_consent: true }])
     expect(wrapper.emitted('made-public')).toStrictEqual([[row]])
-    expect(testApp.store.state.toast.items[0]).toMatchObject({
-      type: 'success',
-      message: 'makeTemplatePublicModal.madePublicDescription',
-    })
+    // The template shows as public, which needs no toast.
+    expect(testApp.store.state.toast.items).toHaveLength(0)
     expect(wrapper.findComponent({ name: 'Modal' }).vm.open).toBe(false)
   })
 
@@ -89,24 +84,5 @@ describe('MakeTemplatePublicModal', () => {
     expect(testApp.mock.history.patch).toHaveLength(1)
     expect(wrapper.emitted('made-public')).toHaveLength(1)
     expect(wrapper.findComponent({ name: 'Modal' }).vm.open).toBe(true)
-  })
-
-  test('stays private when the template was updated since it was shown', async () => {
-    testApp.dontFailOnErrorResponses()
-    testApp.mock
-      .onPatch('/templates/sprint-tracker/')
-      .reply(400, { error: 'ERROR_TEMPLATE_UPDATED', detail: '' })
-    const wrapper = await mountAndShow()
-
-    await button(wrapper, 'makeTemplatePublicModal.makePublic').trigger('click')
-    await flushPromises()
-
-    expect(testApp.store.state.toast.items[0]).toMatchObject({
-      type: 'error',
-      message: 'makeTemplatePublicModal.updated',
-    })
-    expect(wrapper.emitted('outdated')).toStrictEqual([[3]])
-    expect(wrapper.emitted('made-public')).toBeUndefined()
-    expect(wrapper.findComponent({ name: 'Modal' }).vm.open).toBe(false)
   })
 })

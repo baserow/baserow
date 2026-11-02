@@ -38,8 +38,7 @@ class TemplateUpdated(Exception):
     """
     Raised when a user template is installed or downloaded while another revision
     than the one the user was shown is installable, because another revision was
-    made public or its owner updated it since. Also when its owner makes it public
-    while another revision than the one they were shown would be listed.
+    made public or its owner updated it since.
     """
 
 

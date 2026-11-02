@@ -398,10 +398,17 @@ class CreateUserTemplateJobType(JobType):
             if job.make_public:
                 # After the revision is committed, so that only the new revision is
                 # listed, and the template stays private when making it public
-                # fails. The consent was checked by `prepare_values`.
+                # fails, or when its owner made it private since the job was
+                # created. The consent was checked by `prepare_values`.
                 action_type_registry.get_by_type(
                     UpdateUserTemplateVisibilityActionType
-                ).do(job.user, job.template_id, True, public_listing_consent=True)
+                ).do(
+                    job.user,
+                    job.template_id,
+                    True,
+                    public_listing_consent=True,
+                    job_id=job.id,
+                )
             return template
         except BaseException:
             try:

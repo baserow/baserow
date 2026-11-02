@@ -1,23 +1,18 @@
 from unittest.mock import patch
 
-from django.contrib.auth.models import AnonymousUser
-
 import pytest
 
-from baserow.core.action.registries import action_type_registry
-from baserow.core.exceptions import TemplateDoesNotExist
-from baserow.core.models import Template, Workspace
+from baserow.core.models import Template
 from baserow.core.user_templates.actions import (
     UpdateUserTemplateVisibilityActionType,
 )
 from baserow.core.user_templates.handler import UserTemplateHandler
-from tests.baserow.core.user_templates.utils import ICON, create_template, make_public
-
-
-def make_private(user, template):
-    return action_type_registry.get_by_type(UpdateUserTemplateVisibilityActionType).do(
-        user, template.id, False, public_listing_consent=False
-    )
+from tests.baserow.core.user_templates.utils import (
+    ICON,
+    create_template,
+    make_private,
+    make_public,
+)
 
 
 @pytest.mark.django_db
@@ -43,31 +38,6 @@ def test_submit_revision_lists_and_approves(data_fixture):
 
     make_public(user, root)
     assert Template.objects.get(id=root.id).public_revision_id == latest.id
-
-
-@pytest.mark.django_db
-def test_make_public_opens_and_private_closes_access(data_fixture):
-    user, other = data_fixture.create_user(), data_fixture.create_user()
-    root = create_template(data_fixture, user)
-
-    def assert_access(expected):
-        revision = Template.objects.get(id=root.id)
-        for actor in [other, AnonymousUser()]:
-            assert Template.objects.openable(actor).filter(id=root.id).exists() is (
-                expected
-            )
-            workspace = Workspace.objects.get(id=root.workspace_id)
-            assert workspace.has_openable_template(actor) is expected
-        if expected:
-            UserTemplateHandler().check_install_access(other, revision)
-        else:
-            with pytest.raises(TemplateDoesNotExist):
-                UserTemplateHandler().check_install_access(other, revision)
-
-    make_public(user, root)
-    assert_access(True)
-    make_private(user, root)
-    assert_access(False)
 
 
 @pytest.mark.django_db

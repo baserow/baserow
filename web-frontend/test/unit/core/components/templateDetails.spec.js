@@ -129,6 +129,53 @@ describe('TemplateDetails', () => {
     expect(wrapper.emitted('delete')).toStrictEqual([[userTemplate]])
   })
 
+  test.each([
+    ['private', 'templateDetails.makePublic', 'make-public'],
+    ['public', 'templateDetails.makePrivate', 'make-private'],
+    ['rejected', null, null],
+  ])(
+    'offers the visibility change of a %s own template',
+    async (state, label, event) => {
+      const userTemplate = { ...template, type: 'user', state }
+      const wrapper = await mountComponent({
+        template: userTemplate,
+        isOwn: true,
+      })
+
+      await wrapper
+        .find('.template-install__actions .button-icon')
+        .trigger('click')
+      const links = wrapper.findAll('.context__menu-item-link')
+      expect(links.map((link) => link.text())).toStrictEqual(
+        [
+          'templateDetails.editDetails',
+          'templateDetails.updateContent',
+          label,
+          'templateInstall.download',
+          'templateDetails.delete',
+        ].filter(Boolean)
+      )
+      if (event) {
+        await links[2].trigger('click')
+        expect(wrapper.emitted(event)).toStrictEqual([[userTemplate]])
+      }
+    }
+  )
+
+  test('shows "You" as author of an own template, by the server', async () => {
+    const shown = { ...template, type: 'user', author_name: 'Ada' }
+    const own = await mountComponent({
+      template: { ...shown, is_own: true, state: 'private' },
+    })
+    expect(own.find('.template-details__author-name').text()).toBe(
+      'templateDetails.you'
+    )
+    expect(own.find('.template-details__private').exists()).toBe(true)
+
+    const other = await mountComponent({ template: { ...shown, state: null } })
+    expect(other.find('.template-details__author-name').text()).toBe('Ada')
+  })
+
   test('installs the latest revision only of an own template', async () => {
     const userTemplate = { ...template, type: 'user' }
     const other = await mountComponent({ template: userTemplate })

@@ -48,7 +48,10 @@ from baserow.core.models import (
 )
 from baserow.core.storage import get_default_storage
 from baserow.core.user.exceptions import UserNotFound
-from baserow.core.user_templates.actions import CreateUserTemplateActionType
+from baserow.core.user_templates.actions import (
+    CreateUserTemplateActionType,
+    UpdateUserTemplateVisibilityActionType,
+)
 from baserow.core.user_templates.exceptions import NoApplicationsSelected
 from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.user_templates.job_types import CreateUserTemplateJobType
@@ -716,8 +719,11 @@ def test_create_user_template_job_keeps_the_template_private_if_publishing_fails
 ):
     source = create_source(data_fixture)
 
+    # Fails after the template is made public, so that only rolling back undoes it.
     with patch.object(
-        UserTemplateHandler, "submit_revision", side_effect=RuntimeError("Fails")
+        UpdateUserTemplateVisibilityActionType,
+        "register_action",
+        side_effect=RuntimeError("Fails"),
     ):
         with pytest.raises(RuntimeError):
             start_job(

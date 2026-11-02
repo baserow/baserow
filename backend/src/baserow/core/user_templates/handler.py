@@ -297,7 +297,9 @@ class UserTemplateHandler:
 
         The root is locked first, so that updates of the same template commit one
         after the other. The revision is only created while the user still owns
-        the template and `base_revision` is still its latest revision.
+        the template and `base_revision` is still its latest revision. The new
+        revision of a public template that isn't blocked is listed right away, in
+        place of the one listed before, see `submit_revision`.
 
         :param user: The user who updates the template, who must own it.
         :param root: The root of the template.
@@ -820,6 +822,23 @@ class UserTemplateHandler:
 
         root.public_revision = None
         root.save(update_fields=["public_revision"])
+
+    def drop_scheduled_make_public(self, root: Template) -> None:
+        """
+        Stops the unfinished create user template jobs of a template from making it
+        public once their revision is committed, because its owner made it private
+        since. The caller holds the lock of the root, which such a job takes before
+        it reads whether it still makes the template public, see
+        `UserTemplateService.update_visibility`.
+
+        :param root: The root of the template, locked.
+        """
+
+        from baserow.core.user_templates.models import CreateUserTemplateJob
+
+        CreateUserTemplateJob.objects.filter(
+            template=root, make_public=True
+        ).is_pending_or_running().update(make_public=False)
 
     def _is_public(self, root: Template) -> bool:
         """Whether the template has a public revision and isn't blocked."""

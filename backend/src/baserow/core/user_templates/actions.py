@@ -354,7 +354,7 @@ class UpdateUserTemplateVisibilityActionType(ActionType):
         listed: bool,
         *,
         public_listing_consent: bool,
-        revision_id: Optional[int] = None,
+        job_id: Optional[int] = None,
     ) -> Template:
         """
         Makes a user template owned by the user public or private, see
@@ -366,15 +366,15 @@ class UpdateUserTemplateVisibilityActionType(ActionType):
         :param listed: Whether the template is made public.
         :param public_listing_consent: Whether the user agreed that the template
             and their name are listed for everybody on the instance.
-        :param revision_id: The id of the revision the user was shown, see
-            `UserTemplateService.update_visibility`.
+        :param job_id: The id of the create user template job making the template
+            public, see `UserTemplateService.update_visibility`.
         :return: The latest revision of the template.
         """
 
         # The create job makes a template public outside of a transaction.
         with transaction.atomic():
             revision, changed_revision_id = UserTemplateService().update_visibility(
-                user, template_id, listed, public_listing_consent, revision_id
+                user, template_id, listed, public_listing_consent, job_id
             )
             if changed_revision_id is not None:
                 params = cls.Params(

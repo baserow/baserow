@@ -1,10 +1,11 @@
+from typing import Optional
+
 from django.conf import settings
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from baserow.api.pagination import RankedKeysetCursorField
 from baserow.core.models import Template, TemplateCategory
 from baserow.core.user_templates.constants import UserTemplateState
 from baserow.core.user_templates.handler import UserTemplateHandler
@@ -15,28 +16,28 @@ class ListTemplatesQueryParamSerializer(serializers.Serializer):
     type = serializers.ChoiceField(choices=Template.Type.choices, required=False)
     owned = serializers.BooleanField(required=False, default=False)
     search = serializers.CharField(required=False, allow_blank=True)
-    listed = serializers.BooleanField(required=False, default=False)
+    listed = serializers.BooleanField(
+        required=False,
+        default=False,
+        help_text="Only the templates everybody can open: the official ones and "
+        "the public revision of the public user templates.",
+    )
     category = serializers.IntegerField(required=False)
-    cursor = RankedKeysetCursorField(required=False)
 
 
 class UpdateTemplateSerializer(serializers.Serializer):
-    listed = serializers.BooleanField(
-        help_text="Whether the template is public: listed, with the name of its "
-        "author, for everybody on this instance.",
+    visibility = serializers.ChoiceField(
+        choices=["public", "private"],
+        help_text="`public` lists the template, with the name of its author, for "
+        "everybody on this instance. `private` takes it out of that listing, so "
+        "that only its owner can open it.",
     )
     public_listing_consent = serializers.BooleanField(
         required=False,
         default=False,
-        help_text="Must be true to list the template: the author agrees that the "
-        "template and their name are listed for everybody on this instance. It's "
-        "recorded in the audit log.",
-    )
-    revision_id = serializers.IntegerField(
-        required=False,
-        help_text="The `revision_id` of the template the author was shown. If "
-        "another revision would be listed, because the template was updated "
-        "since, it isn't made public.",
+        help_text="Must be true with `public`: the author agrees that the template "
+        "and their name are listed for everybody on this instance. It's recorded "
+        "in the audit log.",
     )
 
 
@@ -115,7 +116,7 @@ class TemplateSerializer(serializers.ModelSerializer):
         return instance.get_root().slug == settings.DEFAULT_APPLICATION_TEMPLATES[0]
 
     @extend_schema_field(serializers.CharField(allow_null=True))
-    def get_author_name(self, instance):
+    def get_author_name(self, instance: Template) -> Optional[str]:
         author = instance.get_root().author
         return None if author is None else author.first_name
 
@@ -134,7 +135,49 @@ class TemplateCategorySerializer(serializers.ModelSerializer):
         fields = ("id", "name")
 
 
-class TemplateListItemSerializer(TemplateSerializer):
+class TemplateDetailSerializer(TemplateSerializer):
+    """
+    A template revision as the template page and the flat list show it, with
+    whether the user who asks owns it. Needs the request in the context.
+    """
+
+    is_own = serializers.SerializerMethodField(
+        help_text="Whether the authenticated user owns this user template."
+    )
+    updated_on = serializers.SerializerMethodField(
+        help_text="When the content shown was last changed: the creation of the "
+        "revision of a user template, the last update of an official one."
+    )
+
+    class Meta(TemplateSerializer.Meta):
+        fields = TemplateSerializer.Meta.fields + ("is_own", "updated_on")
+
+    def _is_owner(self, instance: Template) -> bool:
+        request = self.context.get("request")
+        # An anonymous user has no id, and only a user template has an owner.
+        return (
+            instance.type == Template.Type.USER
+            and request is not None
+            and request.user.is_authenticated
+            and instance.get_root().owner_id == request.user.id
+        )
+
+    @extend_schema_field(OpenApiTypes.BOOL)
+    def get_is_own(self, instance: Template) -> bool:
+        return self._is_owner(instance)
+
+    @extend_schema_field(OpenApiTypes.DATETIME)
+    def get_updated_on(self, instance: Template) -> str:
+        # A revision isn't changed after it's created, an official template is.
+        updated_on = (
+            instance.created_on
+            if instance.type == Template.Type.USER
+            else instance.updated_on
+        )
+        return serializers.DateTimeField().to_representation(updated_on)
+
+
+class TemplateListItemSerializer(TemplateDetailSerializer):
     """
     A revision of a template in the flat list. `state`, `reason`, the source and
     `install_count` are only shown to the owner of a user template, and are null
@@ -142,10 +185,6 @@ class TemplateListItemSerializer(TemplateSerializer):
     """
 
     created_on = serializers.DateTimeField(source="get_root.created_on", read_only=True)
-    updated_on = serializers.SerializerMethodField(
-        help_text="When the content shown was last changed: the creation of the "
-        "revision of a user template, the last update of an official one."
-    )
     categories = TemplateCategorySerializer(read_only=True, many=True)
     state = serializers.SerializerMethodField(
         help_text="The state of the template as shown to its owner. Null for "
@@ -167,8 +206,8 @@ class TemplateListItemSerializer(TemplateSerializer):
         help_text="How many times the template was installed. Only shown to its owner."
     )
 
-    class Meta(TemplateSerializer.Meta):
-        fields = TemplateSerializer.Meta.fields + (
+    class Meta(TemplateDetailSerializer.Meta):
+        fields = TemplateDetailSerializer.Meta.fields + (
             "categories",
             "state",
             "reason",
@@ -176,15 +215,6 @@ class TemplateListItemSerializer(TemplateSerializer):
             "source_application_ids",
             "install_count",
             "created_on",
-            "updated_on",
-        )
-
-    def _is_owner(self, instance) -> bool:
-        request = self.context.get("request")
-        return (
-            instance.type == Template.Type.USER
-            and request is not None
-            and instance.get_root().owner_id == request.user.id
         )
 
     def _get_owner_state(self, instance):
@@ -196,16 +226,6 @@ class TemplateListItemSerializer(TemplateSerializer):
         if not self._is_owner(instance):
             return None
         return UserTemplateHandler().get_template_metadata(instance)
-
-    @extend_schema_field(OpenApiTypes.DATETIME)
-    def get_updated_on(self, instance):
-        # A revision isn't changed after it's created, an official template is.
-        updated_on = (
-            instance.created_on
-            if instance.type == Template.Type.USER
-            else instance.updated_on
-        )
-        return serializers.DateTimeField().to_representation(updated_on)
 
     @extend_schema_field(
         serializers.ChoiceField(choices=UserTemplateState.choices, allow_null=True)

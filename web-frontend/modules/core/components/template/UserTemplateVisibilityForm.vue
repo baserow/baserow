@@ -13,11 +13,13 @@
       :segments="segments"
       size="small"
       :active-index="modelValue.makePublic ? 1 : 0"
+      :disabled="disabled"
       @update:active-index="choose($event === 1)"
     />
     <div v-if="modelValue.makePublic" class="user-template-form__consent">
       <Checkbox
         :model-value="modelValue.publicListingConsent"
+        :disabled="disabled"
         @update:model-value="
           emit('update:modelValue', {
             ...modelValue,
@@ -46,6 +48,11 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  disabled: {
+    type: Boolean,
+    required: false,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -58,7 +65,7 @@ const segments = computed(() => [
 ])
 
 function choose(makePublic) {
-  if (makePublic === props.modelValue.makePublic) {
+  if (props.disabled || makePublic === props.modelValue.makePublic) {
     return
   }
   // Agreed again each time Public is chosen.

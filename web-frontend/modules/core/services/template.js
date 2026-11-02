@@ -12,19 +12,15 @@ export default (client) => {
     },
     /**
      * Lists the public user templates of everyone on this instance, the viewer's
-     * own first. The page continues after the `cursor`, the `next_cursor` of the
-     * previous page.
+     * own first.
      */
     fetchListed({
-      cursor = null,
+      offset = 0,
       limit = 20,
       search = '',
       categoryId = null,
     } = {}) {
-      const params = { view: 'flat', type: 'user', listed: true, limit }
-      if (cursor !== null) {
-        params.cursor = cursor
-      }
+      const params = { view: 'flat', type: 'user', listed: true, offset, limit }
       if (search) {
         params.search = search
       }
@@ -34,9 +30,9 @@ export default (client) => {
       return client.get('/templates/', { params })
     },
     // The categories holding at least one public user template.
-    fetchListedCategories() {
+    fetchPublicCategories() {
       return client.get('/templates/', {
-        params: { view: 'listed_categories' },
+        params: { view: 'public_categories' },
       })
     },
     fetch(slug) {
@@ -79,14 +75,15 @@ export default (client) => {
     },
     /**
      * Makes a template of the user public or private. A template is only made
-     * public if `revisionId`, the revision the user was shown, is still its
-     * latest one.
+     * public with the `publicListingConsent` of its author.
+     *
+     * @param {string} visibility `public` or `private`.
      */
-    setListed(slug, listed, revisionId = null) {
+    setVisibility(slug, visibility, { publicListingConsent = false } = {}) {
+      const isPublic = visibility === 'public'
       return client.patch(`/templates/${slug}/`, {
-        listed,
-        ...(listed && { public_listing_consent: true }),
-        ...(listed && revisionId !== null && { revision_id: revisionId }),
+        visibility,
+        ...(isPublic && { public_listing_consent: publicListingConsent }),
       })
     },
   }

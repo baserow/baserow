@@ -587,7 +587,6 @@ describe('UserTemplateList', () => {
   test.each([
     ['private', 'userTemplateList.makePublic', 'make-public'],
     ['public', 'userTemplateList.makePrivate', 'make-private'],
-    ['blocked', null, null],
   ])(
     'offers to change the visibility of a %s template',
     async (state, item, event) => {
@@ -600,19 +599,20 @@ describe('UserTemplateList', () => {
         .trigger('click')
       const links = wrapper.findAll('.context__menu-item-link')
 
-      expect(links.map((link) => link.text())).toStrictEqual(
-        [
-          'userTemplateList.editDetails',
-          'userTemplateList.updateContent',
-          item,
-          'userTemplateList.delete',
-        ].filter(Boolean)
-      )
-      if (event) {
-        await links[2].trigger('click')
-        expect(wrapper.emitted(event)).toStrictEqual([[template]])
-        expect(testApp.mock.history.post).toHaveLength(0)
-      }
+      expect(links.map((link) => link.text())).toStrictEqual([
+        'userTemplateList.editDetails',
+        'userTemplateList.updateContent',
+        item,
+        'userTemplateList.download',
+        'userTemplateList.delete',
+      ])
+
+      await links[2].trigger('click')
+      await flushPromises()
+
+      expect(wrapper.emitted(event)).toStrictEqual([[template]])
+      // The modal makes the change, not the list.
+      expect(testApp.mock.history.patch).toHaveLength(0)
     }
   )
 

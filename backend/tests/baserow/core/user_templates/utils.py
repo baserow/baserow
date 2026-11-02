@@ -209,6 +209,12 @@ def make_public(user, template):
     )
 
 
+def make_private(user, template):
+    return action_type_registry.get_by_type(UpdateUserTemplateVisibilityActionType).do(
+        user, template.id, False, public_listing_consent=False
+    )
+
+
 def store_archive(name="template.zip"):
     return get_default_storage().save(
         f"template-revisions/{name}", ContentFile(b"archive")

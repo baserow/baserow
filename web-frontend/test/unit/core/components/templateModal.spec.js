@@ -27,6 +27,13 @@ const sprintTracker = {
   workspace_id: 102,
   categories: [{ id: 7, name: 'Agile' }],
 }
+const launchPlan = {
+  id: 9,
+  type: 'user',
+  slug: 'launch-plan-d4e5f6',
+  name: 'Launch Plan',
+  categories: [],
+}
 
 const ModalStub = defineComponent({
   name: 'Modal',
@@ -87,7 +94,7 @@ describe('TemplateModal navigation', () => {
     showDeleteModal = vi.fn()
     removeFromList = vi.fn()
     replaceInList = vi.fn()
-    refreshSharedList = vi.fn()
+    refreshPublicList = vi.fn()
     await testApp.afterEach()
   })
 
@@ -125,19 +132,20 @@ describe('TemplateModal navigation', () => {
         <a class="list__recipe-book" @click="$emit('selected', categories[1].templates[0])" />
       </div>`,
     }),
-    SharedTemplateList: defineComponent({
-      name: 'SharedTemplateList',
+    PublicTemplateList: defineComponent({
+      name: 'PublicTemplateList',
       props: ['active'],
       emits: ['selected'],
-      template: `<div class="shared-list">
+      template: `<div class="public-list">
         <slot name="head" />
-        <a class="shared-list__sprint-tracker" @click="$emit('selected', sprintTracker)" />
-        <a class="shared-list__own" @click="$emit('selected', { ...sprintTracker, state: 'public' })" />
+        <a class="public-list__sprint-tracker" @click="$emit('selected', sprintTracker)" />
+        <a class="public-list__own" @click="$emit('selected', { ...sprintTracker, is_own: true })" />
+        <a class="public-list__launch-plan" @click="$emit('selected', launchPlan)" />
       </div>`,
-      setup: () => ({ sprintTracker }),
+      setup: () => ({ sprintTracker, launchPlan }),
       methods: {
         refresh() {
-          refreshSharedList()
+          refreshPublicList()
         },
       },
     }),
@@ -216,7 +224,7 @@ describe('TemplateModal navigation', () => {
   let showDeleteModal = vi.fn()
   let removeFromList = vi.fn()
   let replaceInList = vi.fn()
-  let refreshSharedList = vi.fn()
+  let refreshPublicList = vi.fn()
 
   const mountAndShow = async (...args) => {
     const wrapper = await testApp.mount(TemplateModal, {
@@ -374,7 +382,7 @@ describe('TemplateModal navigation', () => {
 
       expect(tabs(wrapper).map((tab) => tab.text())).toStrictEqual([
         'templateModal.officialTemplates',
-        'templateModal.sharedTemplates',
+        'templateModal.publicTemplates',
         'templateModal.yourTemplates',
       ])
       // The own templates are only loaded when their tab is opened.
@@ -398,50 +406,61 @@ describe('TemplateModal navigation', () => {
       expect(ownList(wrapper).isVisible()).toBe(false)
     })
 
-    it('open a shared template, which is reloaded when its install is outdated', async () => {
-      testApp.authenticate({ id: 1 })
-      const wrapper = await mountAndShow()
-      await tabs(wrapper)[1].trigger('click')
-      const sharedList = () =>
-        wrapper.findComponent({ name: 'SharedTemplateList' })
-      expect(sharedList().props('active')).toBe(true)
-
-      await wrapper.find('.shared-list__sprint-tracker').trigger('click')
-
-      const details = wrapper.findComponent({ name: 'TemplateDetails' })
-      expect(details.props('isOwn')).toBe(false)
-      expect(wrapper.find('.details').text()).toBe('Sprint Tracker: Agile')
-
+    // The public template as it is now, which has no categories.
+    const mockPublicTemplate = (changes) =>
       testApp.mock.onGet(`/templates/${sprintTracker.slug}/`).reply(200, {
         id: sprintTracker.id,
         type: 'user',
         slug: sprintTracker.slug,
-        name: 'Sprint Tracker v2',
-        workspace_id: 103,
+        name: sprintTracker.name,
+        workspace_id: sprintTracker.workspace_id,
+        is_own: false,
+        ...changes,
       })
+
+    it('open a public template as it is now, which is reloaded when its install is outdated', async () => {
+      testApp.authenticate({ id: 1 })
+      const wrapper = await mountAndShow()
+      await tabs(wrapper)[1].trigger('click')
+      const publicList = () =>
+        wrapper.findComponent({ name: 'PublicTemplateList' })
+      expect(publicList().props('active')).toBe(true)
+
+      mockPublicTemplate({ name: 'Sprint Tracker v2', workspace_id: 103 })
+      await wrapper.find('.public-list__sprint-tracker').trigger('click')
+      await flushPromises()
+
+      const details = wrapper.findComponent({ name: 'TemplateDetails' })
+      expect(details.props('isOwn')).toBe(false)
+      expect(details.props('template').workspace_id).toBe(103)
+      expect(wrapper.find('.details').text()).toBe('Sprint Tracker v2: Agile')
+
+      mockPublicTemplate({ name: 'Sprint Tracker v3', workspace_id: 104 })
       await wrapper.find('.details__outdated').trigger('click')
       await flushPromises()
 
-      expect(wrapper.find('.details').text()).toBe('Sprint Tracker v2: Agile')
+      expect(wrapper.find('.details').text()).toBe('Sprint Tracker v3: Agile')
 
       // Not kept mounted, so that it shows the changes made in the other tabs.
       await wrapper.find('.details__back').trigger('click')
       await tabs(wrapper)[0].trigger('click')
-      expect(sharedList().exists()).toBe(false)
+      expect(publicList().exists()).toBe(false)
     })
 
-    it("keep the opened template when a shared template's reload answers late", async () => {
+    it("keep the opened template when a public template's reload answers late", async () => {
       testApp.authenticate({ id: 1 })
       const reload = heldBack()
+      mockPublicTemplate({})
+      const wrapper = await mountAndShow()
+      await tabs(wrapper)[1].trigger('click')
+      await wrapper.find('.public-list__sprint-tracker').trigger('click')
+      await flushPromises()
       testApp.mock
         .onGet(`/templates/${sprintTracker.slug}/`)
         .reply(reload.reply)
-      const wrapper = await mountAndShow()
-      await tabs(wrapper)[1].trigger('click')
-      await wrapper.find('.shared-list__sprint-tracker').trigger('click')
 
       await wrapper.find('.details__outdated').trigger('click')
-      // Not the recipe book, which has the shared template's id here.
+      // Not the recipe book, which has the public template's id here.
       await wrapper.vm.show('project-tracker')
       reload.send([200, { ...sprintTracker, name: 'Sprint Tracker v2' }])
       await flushPromises()
@@ -471,15 +490,68 @@ describe('TemplateModal navigation', () => {
       expect(ownListComponent().props('active')).toBe(true)
     })
 
-    it("open the user's own shared template as theirs", async () => {
+    it('tell that a public template is no longer shared, and list them again', async () => {
       testApp.authenticate({ id: 1 })
+      testApp.mock.onGet(`/templates/${sprintTracker.slug}/`).reply(404, {
+        error: 'ERROR_TEMPLATE_DOES_NOT_EXIST',
+      })
       const wrapper = await mountAndShow()
       await tabs(wrapper)[1].trigger('click')
 
-      await wrapper.find('.shared-list__own').trigger('click')
+      await wrapper.find('.public-list__sprint-tracker').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.find('.details').exists()).toBe(false)
+      expect(testApp.store.state.toast.items).toHaveLength(1)
+      expect(testApp.store.state.toast.items[0]).toMatchObject({
+        type: 'error',
+        title: 'templateModal.unavailableTitle',
+      })
+      expect(refreshPublicList).toHaveBeenCalledTimes(1)
+    })
+
+    it('open the public template chosen last when an earlier one answers late', async () => {
+      testApp.authenticate({ id: 1 })
+      const first = heldBack()
+      const second = heldBack()
+      testApp.mock
+        .onGet(`/templates/${sprintTracker.slug}/`)
+        .reply(first.reply)
+        .onGet(`/templates/${launchPlan.slug}/`)
+        .reply(second.reply)
+      const wrapper = await mountAndShow()
+      await tabs(wrapper)[1].trigger('click')
+
+      await wrapper.find('.public-list__sprint-tracker').trigger('click')
+      await wrapper.find('.public-list__launch-plan').trigger('click')
+      await flushPromises()
+      second.send([200, launchPlan])
+      await flushPromises()
+      first.send([200, sprintTracker])
+      await flushPromises()
+
+      expect(wrapper.find('.details').text()).toBe('Launch Plan:')
+    })
+
+    it("open the user's own public template as theirs, and list it no more once private", async () => {
+      testApp.authenticate({ id: 1 })
+      mockPublicTemplate({ is_own: true })
+      testApp.mock
+        .onPatch(`/templates/${sprintTracker.slug}/`)
+        .reply(200, { ...sprintTracker, is_own: true, state: 'private' })
+      const wrapper = await mountAndShow()
+      await tabs(wrapper)[1].trigger('click')
+
+      await wrapper.find('.public-list__own').trigger('click')
+      await flushPromises()
 
       const details = wrapper.findComponent({ name: 'TemplateDetails' })
       expect(details.props('isOwn')).toBe(true)
+
+      await wrapper.find('.details__make-private').trigger('click')
+      await flushPromises()
+
+      expect(refreshPublicList).toHaveBeenCalledTimes(1)
     })
 
     it('make an opened own template private once, and show the change', async () => {
@@ -498,7 +570,9 @@ describe('TemplateModal navigation', () => {
       reply.send([200, changed])
       await flushPromises()
 
-      expect(testApp.mock.history.patch).toHaveLength(1)
+      expect(
+        testApp.mock.history.patch.map(({ data }) => JSON.parse(data))
+      ).toStrictEqual([{ visibility: 'private' }])
       expect(replaceInList).toHaveBeenCalledWith(changed)
       expect(wrapper.find('.details').text()).toBe('Private: Agile')
     })
@@ -596,9 +670,10 @@ describe('TemplateModal navigation', () => {
 
       expect(refreshList).toHaveBeenCalledTimes(1)
       expect(wrapper.find('.details').text()).toBe('Sprints: Agile')
-      // Mounted again, so that the preview loads the new workspace.
+      // Kept mounted, so that the chosen workspace is kept. The preview loads
+      // the new revision itself.
       const newDetails = wrapper.findComponent({ name: 'TemplateDetails' })
-      expect(newDetails.vm).not.toBe(details.vm)
+      expect(newDetails.vm).toBe(details.vm)
       expect(newDetails.props('template')).toStrictEqual(updated)
     })
 
@@ -622,9 +697,10 @@ describe('TemplateModal navigation', () => {
 
       expect(refreshList).toHaveBeenCalledTimes(1)
       expect(wrapper.find('.details').text()).toBe('Sprints: Agile')
-      // Mounted again, so that the preview loads the new revision.
+      // Kept mounted, so that the chosen workspace is kept. The preview loads
+      // the new revision itself.
       const newDetails = wrapper.findComponent({ name: 'TemplateDetails' })
-      expect(newDetails.vm).not.toBe(details.vm)
+      expect(newDetails.vm).toBe(details.vm)
       expect(newDetails.props('template')).toStrictEqual(updated)
     })
 

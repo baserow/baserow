@@ -1,14 +1,14 @@
 <template>
   <!-- The frame and the sidebar are shared with the list of the official
   templates. -->
-  <div class="template-list shared-template-list">
+  <div class="template-list public-template-list">
     <div
       class="template-list__head"
       :class="{ 'template-list__head--centered': $slots.head }"
     >
       <slot name="head">
         <div class="template-list__title">
-          {{ $t('sharedTemplateList.title') }}
+          {{ $t('publicTemplateList.title') }}
         </div>
       </slot>
     </div>
@@ -46,18 +46,18 @@
           </li>
         </ul>
       </div>
-      <div class="shared-template-list__content">
-        <div v-if="!loaded" class="shared-template-list__loading">
+      <div class="public-template-list__content">
+        <div v-if="!loaded" class="public-template-list__loading">
           <div class="loading"></div>
         </div>
         <TemplateEmptyState
           v-else-if="failed"
           icon="iconoir-warning-triangle"
-          :title="$t('sharedTemplateList.errorTitle')"
-          :description="$t('sharedTemplateList.errorDescription')"
+          :title="$t('publicTemplateList.errorTitle')"
+          :description="$t('publicTemplateList.errorDescription')"
         >
           <Button type="secondary" :loading="loading" @click="fetchPage()">
-            {{ $t('sharedTemplateList.retry') }}
+            {{ $t('publicTemplateList.retry') }}
           </Button>
         </TemplateEmptyState>
         <TemplateEmptyState
@@ -66,20 +66,21 @@
           :query="loadedSearch"
           :title="
             categoryId === null
-              ? $t('sharedTemplateList.emptyTitle')
-              : $t('sharedTemplateList.emptyCategoryTitle')
+              ? $t('publicTemplateList.emptyTitle')
+              : $t('publicTemplateList.emptyCategoryTitle')
           "
-          :description="$t('sharedTemplateList.emptyDescription')"
+          :description="$t('publicTemplateList.emptyDescription')"
         ></TemplateEmptyState>
         <InfiniteScroll
           v-else
-          class="shared-template-list__scroll"
+          ref="scroll"
+          class="public-template-list__scroll"
           :current-count="templates.length"
-          :has-more-page="nextCursor !== null"
+          :has-more-page="hasNextPage"
           :page-size="PAGE_SIZE"
           :loading="loading"
           :render-end="false"
-          @load-next-page="fetchPage(nextCursor)"
+          @load-next-page="fetchPage(offset)"
         >
           <div class="template-list__grid">
             <a
@@ -104,21 +105,31 @@
               >
                 {{ template.description }}
               </div>
-              <div class="shared-template-list__card-footer">
+              <div class="public-template-list__card-footer">
                 <div
                   v-if="template.author_name"
-                  class="shared-template-list__author"
+                  class="public-template-list__author"
                 >
                   <Avatar
                     :initials="template.author_name.charAt(0).toUpperCase()"
                     size="small"
                     rounded
                   ></Avatar>
-                  <span class="shared-template-list__author-name">{{
+                  <span class="public-template-list__author-name">{{
                     isOwnTemplate(template)
-                      ? $t('sharedTemplateList.you')
+                      ? $t('publicTemplateList.you')
                       : template.author_name
                   }}</span>
+                </div>
+                <div
+                  v-if="template.updated_on"
+                  class="public-template-list__updated"
+                >
+                  {{
+                    $t('publicTemplateList.updated', {
+                      ago: getHumanAgoLabel($t, template.updated_on),
+                    })
+                  }}
                 </div>
               </div>
             </a>
@@ -130,11 +141,12 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useNuxtApp } from '#app'
 import debounce from 'lodash/debounce'
 
 import TemplateService from '@baserow/modules/core/services/template'
+import { getHumanAgoLabel } from '@baserow/modules/core/utils/date'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { isOwnTemplate } from '@baserow/modules/core/utils/userTemplate'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
@@ -158,14 +170,17 @@ const { $client, $i18n, $priorityBus } = useNuxtApp()
 
 const allTemplates = computed(() => $i18n.t('templateCategories.allTemplates'))
 
-// The categories holding a shared template.
+// The categories holding a public template.
 const categories = ref([])
 const searchInput = ref(null)
+const scroll = ref(null)
 const search = ref('')
 const categoryId = ref(null)
 const templates = ref([])
-// Where the next page continues, null when no templates follow.
-const nextCursor = ref(null)
+// Where the next page starts: the number of templates received so far, which is
+// more than the shown ones when a template moved to the next page meanwhile.
+const offset = ref(0)
+const hasNextPage = ref(false)
 const loading = ref(false)
 const loaded = ref(false)
 // Whether the first page couldn't be loaded.
@@ -178,16 +193,16 @@ const loadedSearch = ref('')
 let lastRequest = 0
 
 /**
- * Loads the page after the cursor with the current search and category, the first
- * page without one, which replaces the shown templates.
+ * Loads the page at the offset with the current search and category. The first
+ * page replaces the shown templates.
  */
-async function fetchPage(cursor = null) {
+async function fetchPage(pageOffset = 0) {
   const request = ++lastRequest
   const requestSearch = search.value
   loading.value = true
   try {
     const { data } = await TemplateService($client).fetchListed({
-      cursor,
+      offset: pageOffset,
       limit: PAGE_SIZE,
       search: requestSearch,
       categoryId: categoryId.value,
@@ -195,16 +210,26 @@ async function fetchPage(cursor = null) {
     if (request !== lastRequest) {
       return
     }
-    templates.value =
-      cursor === null ? data.results : [...templates.value, ...data.results]
-    nextCursor.value = data.next_cursor
+    if (pageOffset === 0) {
+      templates.value = data.results
+    } else {
+      // A template that moved to this page meanwhile, for example because one
+      // before it was made private, is shown once.
+      const shown = new Set(templates.value.map(({ id }) => id))
+      templates.value = [
+        ...templates.value,
+        ...data.results.filter(({ id }) => !shown.has(id)),
+      ]
+    }
+    offset.value = pageOffset + data.results.length
+    hasNextPage.value = data.next !== null
     loadedSearch.value = requestSearch
     failed.value = false
   } catch (error) {
     if (request === lastRequest) {
       // A failed first page shows the error instead of the list, the toast is
       // only for a failed next page.
-      failed.value = cursor === null
+      failed.value = pageOffset === 0
       if (!failed.value) {
         notifyIf(error, 'templates')
       }
@@ -215,6 +240,29 @@ async function fetchPage(cursor = null) {
       loading.value = false
     }
   }
+  if (request === lastRequest && !failed.value) {
+    await fillView()
+  }
+}
+
+/**
+ * The next page is only loaded when the list is scrolled, so it's loaded right
+ * away while the shown templates don't fill the list, for example on a high
+ * screen. A hidden list measures 0, so it's filled once it's shown again.
+ */
+async function fillView() {
+  await nextTick()
+  const element = scroll.value?.$refs.infiniteScroll
+  if (
+    props.active &&
+    element &&
+    element.clientHeight > 0 &&
+    hasNextPage.value &&
+    !loading.value &&
+    element.scrollHeight <= element.clientHeight
+  ) {
+    await fetchPage(offset.value)
+  }
 }
 
 // Like `lastRequest`, for the categories.
@@ -224,12 +272,12 @@ let lastCategoriesRequest = 0
 async function fetchCategories() {
   const request = ++lastCategoriesRequest
   try {
-    const { data } = await TemplateService($client).fetchListedCategories()
+    const { data } = await TemplateService($client).fetchPublicCategories()
     if (request !== lastCategoriesRequest) {
       return
     }
     categories.value = data
-    // The chosen category is gone once it holds no shared template, for example
+    // The chosen category is gone once it holds no public template, for example
     // after the user's template was made private, so all templates are shown.
     if (
       categoryId.value !== null &&
@@ -280,7 +328,15 @@ onMounted(() => {
   fetchPage()
   listenToSearch(props.active)
 })
-watch(() => props.active, listenToSearch)
+watch(
+  () => props.active,
+  (active) => {
+    listenToSearch(active)
+    if (active) {
+      fillView()
+    }
+  }
+)
 
 onBeforeUnmount(() => {
   searchChanged.cancel()

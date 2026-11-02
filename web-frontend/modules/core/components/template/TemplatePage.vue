@@ -3,11 +3,11 @@
     <!-- The page doesn't use the app layout, which renders the toasts, like the
     progress and the result of an install. -->
     <Toasts />
-    <!-- Keyed by the workspace too, so that the preview shows the content of a
-    new revision. -->
+    <!-- Keyed by the template only, so that the chosen workspace is kept when a
+    new revision is shown. The preview loads its content then. -->
     <TemplateDetails
       v-if="selectedTemplate"
-      :key="`${selectedTemplate.id}:${selectedTemplate.workspace_id}`"
+      :key="selectedTemplate.id"
       :template="selectedTemplate"
       :categories="selectedTemplateCategories"
       show-back
@@ -32,12 +32,13 @@
       </template>
     </TemplateList>
     <!-- Mounted when its tab is opened, so that it's only loaded when needed. -->
-    <SharedTemplateList
-      v-if="tab === 'shared'"
+    <PublicTemplateList
+      v-if="tab === 'public'"
       v-show="!selectedTemplate"
+      ref="publicTemplateList"
       :active="!selectedTemplate"
       class="templates__body"
-      @selected="selectSharedTemplate"
+      @selected="selectPublicTemplate"
     >
       <template #head>
         <SegmentControl
@@ -47,14 +48,14 @@
           @update:active-index="tab = tabs[$event].value"
         />
       </template>
-    </SharedTemplateList>
+    </PublicTemplateList>
   </div>
 </template>
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-import SharedTemplateList from '@baserow/modules/core/components/template/SharedTemplateList'
+import PublicTemplateList from '@baserow/modules/core/components/template/PublicTemplateList'
 import TemplateDetails from '@baserow/modules/core/components/template/TemplateDetails'
 import TemplateList from '@baserow/modules/core/components/template/TemplateList'
 import Toasts from '@baserow/modules/core/components/toasts/Toasts'
@@ -109,9 +110,13 @@ if (error.value) {
 // of the template page.
 const showList = ref(false)
 const currentSlug = ref(slug)
-// The shared templates opened from the list by slug. They aren't part of the
+// The public templates opened from the list by slug. They aren't part of the
 // official categories.
-const sharedTemplates = ref({})
+const publicTemplates = ref({})
+const publicTemplateList = ref(null)
+// The id of the public template being opened, so that only the last opened one
+// is shown.
+let selectingPublic = null
 
 const tab = ref('official')
 const tabs = computed(() => [
@@ -121,8 +126,8 @@ const tabs = computed(() => [
     icon: 'baserow-icon-templates',
   },
   {
-    value: 'shared',
-    label: $i18n.t('templateModal.sharedTemplates'),
+    value: 'public',
+    label: $i18n.t('templateModal.publicTemplates'),
     icon: 'iconoir-group',
   },
 ])
@@ -139,7 +144,7 @@ const selectedTemplate = computed(() => {
     return data.value.template
   }
   return (
-    sharedTemplates.value[currentSlug.value] ??
+    publicTemplates.value[currentSlug.value] ??
     data.value.categories
       .flatMap((category) => category.templates)
       .find((t) => t.slug === currentSlug.value) ??
@@ -154,18 +159,61 @@ watch(
     if (route.name === 'template') {
       currentSlug.value = newSlug
       showList.value = false
+      if (selectedTemplate.value === null) {
+        fetchPublicTemplate(newSlug)
+      }
     }
   }
 )
+
+/**
+ * Loads a public template that the page doesn't know, like one opened from the
+ * list before a reload, which the browser history goes back to.
+ */
+async function fetchPublicTemplate(slug) {
+  try {
+    const { data: template } = await TemplateService($client).fetch(slug)
+    publicTemplates.value[slug] = template
+  } catch (e) {
+    notifyIf(e, 'template')
+  }
+}
 
 function selectTemplate(template) {
   showList.value = false
   router.push({ name: 'template', params: { slug: template.slug } })
 }
 
-function selectSharedTemplate(template) {
-  sharedTemplates.value[template.slug] = template
-  selectTemplate(template)
+/**
+ * Shows the public template as it is now, which may have been made private or
+ * deleted since the list was loaded. The list is loaded again then.
+ */
+async function selectPublicTemplate(template) {
+  const { id, slug } = template
+  selectingPublic = id
+  try {
+    const { data: fetched } = await TemplateService($client).fetch(slug)
+    if (selectingPublic === id && !selectedTemplate.value) {
+      // The template's own categories aren't part of the response.
+      const shown = { ...template, ...fetched }
+      publicTemplates.value[slug] = shown
+      selectTemplate(shown)
+    }
+  } catch (e) {
+    if (e.response?.status === 404) {
+      $store.dispatch('toast/error', {
+        title: $i18n.t('templateModal.unavailableTitle'),
+        message: $i18n.t('templateModal.unavailableDescription'),
+      })
+      publicTemplateList.value?.refresh()
+    } else {
+      notifyIf(e, 'template')
+    }
+  } finally {
+    if (selectingPublic === id) {
+      selectingPublic = null
+    }
+  }
 }
 
 const selectedTemplateCategories = computed(() => {
@@ -192,8 +240,8 @@ async function templateOutdated() {
       data.value = { ...data.value, template }
     } else {
       // The template's own categories aren't part of the response.
-      sharedTemplates.value[slug] = {
-        ...sharedTemplates.value[slug],
+      publicTemplates.value[slug] = {
+        ...publicTemplates.value[slug],
         ...template,
       }
     }
