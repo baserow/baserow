@@ -3,29 +3,32 @@ import flushPromises from 'flush-promises'
 import LocalBaserowForm from '@baserow/modules/integrations/localBaserow/components/integrations/LocalBaserowForm'
 import { TestApp } from '@baserow/test/helpers/testApp'
 
+const sections = (wrapper) =>
+  wrapper.findAllComponents({ name: 'DropdownSection' }).map((section) => ({
+    title: section.props('title'),
+    items: section
+      .findAllComponents({ name: 'DropdownItem' })
+      .map((item) => [item.props('name'), item.props('description')]),
+  }))
+
 describe('LocalBaserowForm', () => {
   let testApp = null
 
-  beforeEach(() => {
+  beforeEach(async () => {
     testApp = new TestApp()
     testApp.store.state.auth.user = { id: 1 }
-    testApp.mock.onGet('/subjects/').reply(200, {
+    await testApp.store.dispatch('workspace/forceCreate', {
+      id: 1,
+      name: 'Acme',
+      users: [],
+    })
+    testApp.mock.onGet('/agents/workspace/1/').reply(200, {
       count: 2,
       next: null,
       previous: null,
       results: [
-        {
-          id: 'core.Agent:10',
-          subject_id: 10,
-          subject_type: 'core.Agent',
-          name: 'Writer agent',
-        },
-        {
-          id: 'core.Agent:11',
-          subject_id: 11,
-          subject_type: 'core.Agent',
-          name: 'Reader agent',
-        },
+        { id: 10, name: 'Writer agent', role_uid: 'MEMBER' },
+        { id: 11, name: 'Reader agent', role_uid: 'UNKNOWN' },
       ],
     })
   })
@@ -43,29 +46,71 @@ describe('LocalBaserowForm', () => {
     })
   }
 
-  test('lists agents and emits the selected typed subject', async () => {
-    const wrapper = await mountComponent()
+  async function openDropdown(wrapper) {
     await wrapper.find('.dropdown__selected').trigger('click')
     await flushPromises()
+  }
+
+  async function selectItem(wrapper, name) {
+    await wrapper
+      .findAllComponents({ name: 'DropdownItem' })
+      .find((item) => item.props('name') === name)
+      .find('.select__item-link')
+      .trigger('click')
+    await flushPromises()
+  }
+
+  test('lists the current user and the identities in their sections', async () => {
+    const wrapper = await mountComponent()
+    await openDropdown(wrapper)
 
     expect(testApp.mock.history.get.at(-1).params).toEqual({
-      workspace_id: 1,
       page: 1,
-      search: '',
-      subject_types: 'core.Agent',
       size: 100,
     })
-
-    const items = wrapper.findAllComponents({ name: 'DropdownItem' })
-    expect(items.map((item) => item.props('name'))).toEqual([
-      'localBaserowForm.currentUser',
-      'Writer agent',
-      'Reader agent',
+    // An identity whose role isn't one of the workspace roles has no
+    // description.
+    expect(sections(wrapper)).toEqual([
+      {
+        title: 'subjectType.members',
+        items: [
+          [
+            'localBaserowForm.currentUser',
+            'localBaserowForm.currentUserDescription',
+          ],
+        ],
+      },
+      {
+        title: 'subjectType.identities',
+        items: [
+          ['Writer agent', 'localBaserowForm.identityRole'],
+          ['Reader agent', null],
+        ],
+      },
     ])
+  })
 
-    await items.at(1).find('.select__item-link').trigger('click')
-    await flushPromises()
+  test('tells when the workspace has no identities yet', async () => {
+    testApp.mock
+      .onGet('/agents/workspace/1/')
+      .reply(200, { count: 0, next: null, previous: null, results: [] })
+    const wrapper = await mountComponent()
+    await openDropdown(wrapper)
 
+    const identities = sections(wrapper)[1]
+    expect(identities.items).toEqual([['localBaserowForm.noIdentities', null]])
+
+    await selectItem(wrapper, 'localBaserowForm.noIdentities')
+
+    expect(wrapper.emitted('values-changed')).toBeUndefined()
+  })
+
+  test('emits the selected identity as typed subject', async () => {
+    const wrapper = await mountComponent()
+    await openDropdown(wrapper)
+    await selectItem(wrapper, 'Writer agent')
+
+    expect(wrapper.find('.dropdown__selected-text').text()).toBe('Writer agent')
     expect(wrapper.emitted('values-changed').at(-1)[0]).toEqual({
       authorized_subject_id: 10,
       authorized_subject_type: 'core.Agent',
@@ -128,13 +173,8 @@ describe('LocalBaserowForm', () => {
     const wrapper = await mountComponent({
       authorized_subject: { id: 11, type: 'core.Agent', name: 'Reader agent' },
     })
-    await flushPromises()
-
-    await wrapper
-      .findComponent({ name: 'DropdownItem', props: { value: 'user' } })
-      .find('.select__item-link')
-      .trigger('click')
-    await flushPromises()
+    await openDropdown(wrapper)
+    await selectItem(wrapper, 'localBaserowForm.currentUser')
 
     expect(wrapper.emitted('values-changed').at(-1)[0]).toEqual({
       authorized_subject_id: 1,

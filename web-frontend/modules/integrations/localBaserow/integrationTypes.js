@@ -45,10 +45,6 @@ export class LocalBaserowIntegrationType extends IntegrationType {
     return LocalBaserowForm
   }
 
-  get warning() {
-    return this.app.$i18n.t('localBaserowIntegrationType.localBaserowWarning')
-  }
-
   getDefaultValues() {
     const user = this.app.$store.getters['auth/getUserObject']
     return {

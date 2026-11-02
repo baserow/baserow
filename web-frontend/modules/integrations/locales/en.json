@@ -14,8 +14,7 @@
     "localBaserowSubjectSummary": "Local Baserow - {type}: {name}",
     "localBaserowNoUser": "Local Baserow - Not configured",
     "errorTrashedIdentity": "The authorized identity has been trashed",
-    "errorNoUser": "No user or identity has authorized this integration.",
-    "localBaserowWarning": "Authorizing your account gives everyone who has edit permissions to the application full access to the data you have access to. It's possible to create a second user, give the right permissions and use that one."
+    "errorNoUser": "No user or identity has authorized this integration."
   },
   "aiIntegrationType": {
     "inheritingWorkspace": "Inheriting workspace AI settings",
@@ -124,6 +123,9 @@
   "localBaserowForm": {
     "subject": "Authenticate as",
     "currentUser": "My user account",
+    "currentUserDescription": "Warning: using your account gives everyone who has edit permissions to the application full access to the data you have access to.",
+    "identityRole": "Workspace role: {role}",
+    "noIdentities": "You do not have any identities yet",
     "subjectMessage": "Actions use the permissions of the selected user or identity. Identity actions are identified as such in the audit log."
   },
   "aiForm": {
