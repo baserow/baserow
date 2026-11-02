@@ -176,13 +176,13 @@ describe('FieldPermissionSubjectsSelector', () => {
     await wrapper.find('.dropdown__selected').trigger('click')
     await flushPromises()
     const option = wrapper.find('.field-permission-subjects__dropdown-option')
-    expect(option.find('.baserow-icon-agent').exists()).toBe(true)
+    expect(option.find('.iconoir-lock').exists()).toBe(true)
     await wrapper.find('.select__item-link').trigger('click')
     await flushPromises()
     const selected = wrapper.findAll('.field-permission-subjects__item')
     expect(selected).toHaveLength(2)
     expect(selected[1].text()).toContain('Import agent')
-    expect(selected[1].find('.baserow-icon-agent').exists()).toBe(true)
+    expect(selected[1].find('.iconoir-lock').exists()).toBe(true)
     await wrapper.find('.dropdown__selected').trigger('click')
     await flushPromises()
     expect(fetchSubjectOptions).toHaveBeenLastCalledWith(
@@ -210,9 +210,7 @@ describe('FieldPermissionSubjectsSelector', () => {
       'Saved agent'
     )
     expect(
-      wrapper
-        .find('.field-permission-subjects__item .baserow-icon-agent')
-        .exists()
+      wrapper.find('.field-permission-subjects__item .iconoir-lock').exists()
     ).toBe(true)
     wrapper.unmount()
   })

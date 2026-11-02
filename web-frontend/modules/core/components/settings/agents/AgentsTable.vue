@@ -27,7 +27,7 @@
     <template #empty>
       <div class="placeholder">
         <div class="placeholder__icon">
-          <i class="baserow-icon-agent" aria-hidden="true"></i>
+          <i class="iconoir-lock" aria-hidden="true"></i>
         </div>
         <h2 class="placeholder__header">{{ $t('agents.emptyTitle') }}</h2>
         <p class="placeholder__content">{{ $t('agents.emptyDescription') }}</p>

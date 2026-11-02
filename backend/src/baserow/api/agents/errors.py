@@ -1,7 +1,7 @@
 ERROR_AGENT_DOES_NOT_EXIST = (
     "ERROR_AGENT_DOES_NOT_EXIST",
     404,
-    "The requested agent does not exist.",
+    "The requested identity does not exist.",
 )
 ERROR_AGENT_ROLE_DOES_NOT_EXIST = (
     "ERROR_AGENT_ROLE_DOES_NOT_EXIST",

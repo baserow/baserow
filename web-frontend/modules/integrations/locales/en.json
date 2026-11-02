@@ -13,8 +13,8 @@
     "localBaserowSummary": "Local Baserow - {name}, {username}",
     "localBaserowSubjectSummary": "Local Baserow - {type}: {name}",
     "localBaserowNoUser": "Local Baserow - Not configured",
-    "errorTrashedAgent": "The authorized agent has been trashed",
-    "errorNoUser": "No user or agent has authorized this integration.",
+    "errorTrashedAgent": "The authorized identity has been trashed",
+    "errorNoUser": "No user or identity has authorized this integration.",
     "localBaserowWarning": "Authorizing your account gives everyone who has edit permissions to the application full access to the data you have access to. It's possible to create a second user, give the right permissions and use that one."
   },
   "aiIntegrationType": {
@@ -124,7 +124,7 @@
   "localBaserowForm": {
     "subject": "Authenticate as",
     "currentUser": "My user account",
-    "subjectMessage": "Actions use the permissions of the selected user or agent. Agent actions are identified as such in the audit log."
+    "subjectMessage": "Actions use the permissions of the selected user or identity. Identity actions are identified as such in the audit log."
   },
   "aiForm": {
     "description": "Configure AI provider settings for this integration. By default, workspace AI settings are inherited.",

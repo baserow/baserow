@@ -30,7 +30,7 @@ exports[`teamSubjects > shows agents in the member selector with their avatar co
             </svg></div>
           <!--v-if-->
         </label>
-        <div class="avatar avatar--medium avatar--purple agent-avatar margin-left-1"><i class="baserow-icon-agent avatar__icon"></i>
+        <div class="avatar avatar--medium avatar--purple agent-avatar margin-left-1"><i class="iconoir-lock avatar__icon"></i>
           <!--v-if-->
           <!--v-if-->
         </div><span class="margin-left-1">Writer</span>
@@ -59,7 +59,7 @@ exports[`teamSubjects > shows users and agents at the same size in the teams tab
     <!--v-if-->
     <!--v-if--><span class="avatar__initials">A</span>
   </div>
-  <div class="avatar avatar--large avatar--purple agent-avatar subject-sample-field-list__avatar"><i class="baserow-icon-agent avatar__icon"></i>
+  <div class="avatar avatar--large avatar--purple agent-avatar subject-sample-field-list__avatar"><i class="iconoir-lock avatar__icon"></i>
     <!--v-if-->
     <!--v-if-->
   </div>

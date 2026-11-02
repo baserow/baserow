@@ -231,7 +231,7 @@ export class AgentSubjectType extends SubjectType {
     return (this._avatarComponent ??= ({ size }) => (
       <Avatar
         class="agent-avatar"
-        icon="baserow-icon-agent"
+        icon="iconoir-lock"
         color="purple"
         size={size}
       />
@@ -239,7 +239,7 @@ export class AgentSubjectType extends SubjectType {
   }
 
   get iconClass() {
-    return 'baserow-icon-agent'
+    return 'iconoir-lock'
   }
 
   getTypeDisplayName() {
