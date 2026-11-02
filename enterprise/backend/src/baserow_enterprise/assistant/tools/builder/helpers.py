@@ -1220,6 +1220,7 @@ def add_field_mapping_to_action(
         LocalBaserowTableServiceFieldMapping,
     )
     from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
+    from baserow.core.services.models import Service
     from baserow_enterprise.assistant.tools.shared.formula_utils import formula_object
 
     try:
@@ -1267,31 +1268,36 @@ def add_field_mapping_to_action(
         )
 
     # The service replaces its whole list of mappings, mappings on trashed fields
-    # included.
+    # included. The service row lock makes a concurrent addition wait for this one,
+    # and the transaction keeps the old list if the replacement fails.
     value = formula_object(value_formula, mode=BASEROW_FORMULA_MODE_ADVANCED)
-    field_mappings = []
-    status = "created"
-    for mapping in LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(
-        service=service
-    ):
-        if mapping.field_id == field_id:
-            status = "updated"
+    with transaction.atomic():
+        Service.objects.select_for_update().filter(id=service.id).first()
+        field_mappings = []
+        status = "created"
+        for mapping in LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(
+            service=service
+        ):
+            if mapping.field_id == field_id:
+                status = "updated"
+                field_mappings.append(
+                    {"field_id": field_id, "enabled": True, "value": value}
+                )
+            else:
+                field_mappings.append(
+                    {
+                        "field_id": mapping.field_id,
+                        "enabled": mapping.enabled,
+                        "value": mapping.value,
+                    }
+                )
+        if status == "created":
             field_mappings.append(
                 {"field_id": field_id, "enabled": True, "value": value}
             )
-        else:
-            field_mappings.append(
-                {
-                    "field_id": mapping.field_id,
-                    "enabled": mapping.enabled,
-                    "value": mapping.value,
-                }
-            )
-    if status == "created":
-        field_mappings.append({"field_id": field_id, "enabled": True, "value": value})
-    action = UpdateBuilderWorkflowActionActionType.do(
-        user, action, service={"field_mappings": field_mappings}
-    )
+        action = UpdateBuilderWorkflowActionActionType.do(
+            user, action, service={"field_mappings": field_mappings}
+        )
     service = action.service.specific
 
     mappings = [

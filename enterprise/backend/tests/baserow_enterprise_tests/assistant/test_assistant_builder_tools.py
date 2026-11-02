@@ -1946,6 +1946,88 @@ def test_add_action_field_mapping_goes_through_the_action_type(data_fixture):
     ).exists()
 
 
+@pytest.mark.django_db(transaction=True)
+def test_add_action_field_mapping_failure_keeps_the_mappings(data_fixture, monkeypatch):
+    from baserow.contrib.integrations.local_baserow.models import (
+        LocalBaserowTableServiceFieldMapping,
+    )
+    from baserow_enterprise.assistant.tools.builder.tools import (
+        add_action_field_mapping,
+    )
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Form", path="/form")
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    email_field = data_fixture.create_text_field(table=table, name="Email")
+    ctx = make_test_ctx(user, workspace)
+    action = _create_row_action_on_form(ctx, page, table, name_field)
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("lock timeout")
+
+    monkeypatch.setattr(
+        LocalBaserowTableServiceFieldMapping.objects, "bulk_create", fail
+    )
+    with pytest.raises(RuntimeError):
+        add_action_field_mapping(
+            ctx,
+            action_id=action.id,
+            field_id=email_field.id,
+            value_formula="'a@b.c'",
+            thought="test",
+        )
+
+    assert list(
+        LocalBaserowTableServiceFieldMapping.objects.filter(
+            service_id=action.service_id
+        ).values_list("field_id", flat=True)
+    ) == [name_field.id]
+
+
+@pytest.mark.django_db
+def test_add_action_field_mapping_locks_the_service_before_reading(data_fixture):
+    from baserow_enterprise.assistant.tools.builder.tools import (
+        add_action_field_mapping,
+    )
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Form", path="/form")
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    email_field = data_fixture.create_text_field(table=table, name="Email")
+    ctx = make_test_ctx(user, workspace)
+    action = _create_row_action_on_form(ctx, page, table, name_field)
+
+    with CaptureQueriesContext(connection) as queries:
+        add_action_field_mapping(
+            ctx,
+            action_id=action.id,
+            field_id=email_field.id,
+            value_formula="'a@b.c'",
+            thought="test",
+        )
+
+    sqls = [q["sql"] for q in queries.captured_queries]
+    lock = next(
+        i
+        for i, sql in enumerate(sqls)
+        if "FOR UPDATE" in sql and '"core_service"' in sql
+    )
+    read = next(
+        i
+        for i, sql in enumerate(sqls)
+        if sql.startswith("SELECT") and "localbaserowtableservicefieldmapping" in sql
+    )
+    assert lock < read
+
+
 def _create_row_action_on_form(ctx, page, table, field) -> BuilderWorkflowAction:
     from baserow_enterprise.assistant.tools.builder.types import FieldValueMapping
 
