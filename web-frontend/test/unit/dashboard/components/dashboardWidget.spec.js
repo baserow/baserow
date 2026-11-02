@@ -30,6 +30,7 @@ function mountDashboardWidget({
     component: LoadingWidgetContent,
     isLoading: (_widget, data) => !data[1],
     isMisconfigured: () => isMisconfigured,
+    hasCard: true,
     showHeaderBorder,
   }
 
