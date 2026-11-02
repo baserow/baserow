@@ -27,6 +27,7 @@
         small-label
         :label="$t('widgetSettings.description')"
         :error="fieldHasErrors('description')"
+        :required="$registry.get('dashboardWidget', widget.type).isFilterWidget"
         class="margin-bottom-2"
       >
         <FormTextarea
