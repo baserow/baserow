@@ -28,6 +28,7 @@ class ListTemplatesQueryParamSerializer(serializers.Serializer):
 class UpdateTemplateSerializer(serializers.Serializer):
     visibility = serializers.ChoiceField(
         choices=["public", "private"],
+        required=False,
         help_text="`public` lists the template, with the name of its author, for "
         "everybody on this instance. `private` takes it out of that listing, so "
         "that only its owner can open it.",
@@ -39,6 +40,19 @@ class UpdateTemplateSerializer(serializers.Serializer):
         "and their name are listed for everybody on this instance. It's recorded "
         "in the audit log.",
     )
+    private_link = serializers.BooleanField(
+        required=False,
+        help_text="`true` creates the private link of the template, which anyone "
+        "who has it can open and install it with. `false` turns it off, which "
+        "takes the access away from everybody who has it.",
+    )
+
+    def validate(self, data):
+        if ("visibility" in data) == ("private_link" in data):
+            raise serializers.ValidationError(
+                "Exactly one of `visibility` and `private_link` must be given."
+            )
+        return data
 
 
 class InstallTemplateQueryParamSerializer(serializers.Serializer):
@@ -181,8 +195,8 @@ class TemplateListItemSerializer(TemplateDetailSerializer):
     """
     A revision of a template in the flat list, or opened by its slug. `state`,
     `reason`, `can_make_public`, `make_public_needs_review`, `update_needs_review`,
-    `listed`, the source and `install_count` are only shown to the owner of a user
-    template, and are null otherwise.
+    `listed`, the source, `install_count` and `private_link_token` are only shown
+    to the owner of a user template, and are null otherwise.
     """
 
     created_on = serializers.DateTimeField(source="get_root.created_on", read_only=True)
@@ -226,6 +240,10 @@ class TemplateListItemSerializer(TemplateDetailSerializer):
     install_count = serializers.SerializerMethodField(
         help_text="How many times the template was installed. Only shown to its owner."
     )
+    private_link_token = serializers.SerializerMethodField(
+        help_text="The token of the private link, null without one. Only shown to "
+        "its owner."
+    )
 
     class Meta(TemplateDetailSerializer.Meta):
         fields = TemplateDetailSerializer.Meta.fields + (
@@ -239,6 +257,7 @@ class TemplateListItemSerializer(TemplateDetailSerializer):
             "source_workspace_id",
             "source_application_ids",
             "install_count",
+            "private_link_token",
             "created_on",
         )
 
@@ -343,3 +362,9 @@ class TemplateListItemSerializer(TemplateDetailSerializer):
             return None
         # Counted on the root, which the list selects with every revision.
         return instance.get_root().install_count
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_private_link_token(self, instance):
+        if not self._is_owner(instance):
+            return None
+        return instance.get_root().private_link_token

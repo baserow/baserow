@@ -396,7 +396,9 @@ class CoreConfig(AppConfig):
             CreateUserTemplateActionType,
             DeleteUserTemplateActionType,
             RejectUserTemplateAdminActionType,
+            RotateUserTemplatePrivateLinkActionType,
             UpdateUserTemplateActionType,
+            UpdateUserTemplatePrivateLinkActionType,
             UpdateUserTemplateVisibilityActionType,
         )
 
@@ -406,6 +408,8 @@ class CoreConfig(AppConfig):
         action_type_registry.register(UpdateUserTemplateVisibilityActionType())
         action_type_registry.register(ApproveUserTemplateAdminActionType())
         action_type_registry.register(RejectUserTemplateAdminActionType())
+        action_type_registry.register(UpdateUserTemplatePrivateLinkActionType())
+        action_type_registry.register(RotateUserTemplatePrivateLinkActionType())
 
         from baserow.core.trash.actions import (
             EmptyTrashActionType,

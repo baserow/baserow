@@ -63,7 +63,7 @@
       <ul class="context__menu">
         <slot name="menu-items" :hide="hideContext"></slot>
         <li
-          v-if="showCopyLink"
+          v-if="showCopyLink || copyLinkUrl"
           class="context__menu-item"
           :class="{ 'context__menu-item--with-separator': hasMenuItems }"
         >
@@ -79,7 +79,8 @@
           "
           class="context__menu-item"
           :class="{
-            'context__menu-item--with-separator': hasMenuItems && !showCopyLink,
+            'context__menu-item--with-separator':
+              hasMenuItems && !showCopyLink && !copyLinkUrl,
           }"
         >
           <a
@@ -134,6 +135,13 @@ const props = defineProps({
     type: Boolean,
     required: false,
     default: true,
+  },
+  // Copied instead of the link to the page of the template, like its private
+  // link, also when `showCopyLink` is false.
+  copyLinkUrl: {
+    type: String,
+    required: false,
+    default: null,
   },
   // Whether the latest revision of a user template is installed, which only its
   // owner may. Otherwise it's the public revision, or the owner's latest one
@@ -234,9 +242,12 @@ async function loadPermissions() {
 
 onMounted(loadPermissions)
 
-// Sends the user back to this template's page after logging in.
+// Sends the user back to this template's page after logging in, or to the page of
+// its private link, which is needed to open it again.
 async function goToLogin() {
-  const original = templateRoute().fullPath
+  const current = router.currentRoute.value
+  const { fullPath: original } =
+    current.name === 'template-private-link' ? current : templateRoute()
   await router.push({ name: 'login', query: { original } })
 }
 
@@ -319,7 +330,8 @@ function templateRoute() {
 async function copyLink() {
   const { href } = templateRoute()
   await navigator.clipboard.writeText(
-    new URL(href, config.public.publicWebFrontendUrl).toString()
+    props.copyLinkUrl ??
+      new URL(href, config.public.publicWebFrontendUrl).toString()
   )
   copiedRef.value.show()
 }

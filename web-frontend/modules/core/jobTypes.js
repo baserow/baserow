@@ -5,6 +5,8 @@ import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
 import { triggerDownload } from '@baserow/modules/core/utils/download'
 import { signedInUserCheck } from '@baserow/modules/core/utils/auth'
 import TemplateService from '@baserow/modules/core/services/template'
+import { FINISHED_STATES } from '@baserow/modules/core/store/job'
+import { getOpenPrivateLinkToken } from '@baserow/modules/core/utils/templatePrivateLink'
 
 /**
  * The job type base class that can be extended when creating a plugin
@@ -361,7 +363,7 @@ export class DownloadUserTemplateJobType extends JobType {
           autoDownload: true,
         })
       }
-      await store.dispatch('job/create', data)
+      await this.followJob(data)
       return
     }
     const current = this.findRevisionToast(template.revision_id)
@@ -424,6 +426,25 @@ export class DownloadUserTemplateJobType extends JobType {
     await this.app.$store.dispatch('job/forceDelete', job)
   }
 
+  /**
+   * Follows the job of a download. A job that ended before the answer came isn't
+   * polled anymore, so its end is handled at once. A job already in the store, from
+   * an earlier click, is updated with the answer, which can be ahead of it.
+   */
+  async followJob(data) {
+    const store = this.app.$store
+    const known = store.getters['job/get'](data.id)
+    if (known) {
+      await store.dispatch('job/forceUpdate', { job: known, data })
+      await store.dispatch('job/tryScheduleNextUpdate')
+      return
+    }
+    const job = await store.dispatch('job/create', data)
+    if (FINISHED_STATES.includes(job.state)) {
+      await this.afterUpdate(job, data)
+    }
+  }
+
   findDownloadToast(jobId) {
     return this.app.$store.state.toast.items.find(
       (toast) =>
@@ -457,11 +478,15 @@ export class DownloadUserTemplateJobType extends JobType {
     for (const toast of ended) {
       await store.dispatch('toast/remove', toast)
     }
+    // Kept to ask for the archive once the job is finished, even if the page of
+    // the private link was left since.
+    const privateLinkToken = getOpenPrivateLinkToken(this.app)
     await store.dispatch('toast/add', {
       type: 'downloadTemplate',
       data: {
         template_name: template.name,
         revision_id: template.revision_id,
+        ...(privateLinkToken && { privateLinkToken }),
         ...data,
       },
     })
@@ -513,7 +538,11 @@ export class DownloadUserTemplateJobType extends JobType {
     const isSameUser = signedInUserCheck(store)
     let response
     try {
-      response = await TemplateService(client).download(slug, revisionId)
+      response = await TemplateService(client).download(
+        slug,
+        revisionId,
+        toast.data.privateLinkToken
+      )
     } catch (error) {
       if (!error.handler) {
         throw error
@@ -534,7 +563,7 @@ export class DownloadUserTemplateJobType extends JobType {
         toast,
         data: { jobId: data.id, state: data.state },
       })
-      await store.dispatch('job/create', data)
+      await this.followJob(data)
       return
     }
     const { autoDownload } = toast.data

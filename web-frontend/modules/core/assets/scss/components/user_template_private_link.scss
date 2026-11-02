@@ -1,0 +1,106 @@
+.user-template-private-link {
+  width: 390px;
+}
+
+.user-template-private-link__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 20px;
+  text-align: center;
+}
+
+.user-template-private-link__empty-title {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  color: $palette-neutral-1200;
+}
+
+.user-template-private-link__shared {
+  padding: 16px;
+}
+
+.user-template-private-link__title {
+  margin-bottom: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  color: $palette-neutral-1200;
+}
+
+.user-template-private-link__description {
+  margin: 0;
+  font-size: 12px;
+  line-height: 20px;
+  color: $palette-neutral-900;
+
+  .user-template-private-link__shared & {
+    margin-bottom: 12px;
+  }
+}
+
+.user-template-private-link__url {
+  @include flex-align-items(4px);
+}
+
+.user-template-private-link__url-box {
+  @extend %ellipsis;
+
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid $palette-neutral-400;
+  background-color: $palette-neutral-100;
+  font-size: 12px;
+  line-height: 34px;
+  color: $palette-neutral-900;
+
+  @include rounded($rounded-md);
+}
+
+// The confirmation that the link was copied is shown over the button.
+.user-template-private-link__action {
+  position: relative;
+  flex: 0 0 auto;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 16px;
+  color: $palette-neutral-900;
+  cursor: pointer;
+
+  @include rounded($rounded);
+
+  &:hover:not([disabled]) {
+    background-color: $palette-neutral-100;
+  }
+
+  &[disabled] {
+    cursor: not-allowed;
+  }
+}
+
+.user-template-private-link__action--loading {
+  cursor: wait;
+
+  @include loading-spinner($palette-neutral-700);
+
+  i {
+    display: none;
+  }
+}
+
+.user-template-private-link__hint {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 20px;
+  color: $palette-neutral-700;
+}

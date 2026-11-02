@@ -62,6 +62,7 @@ from baserow.core.user_templates.models import (
     CreateUserTemplateJob,
     DownloadUserTemplateJob,
 )
+from baserow.core.user_templates.private_link import get_private_link_token
 from baserow.core.user_templates.service import UserTemplateService
 from baserow.core.utils import Progress
 
@@ -580,7 +581,10 @@ class DownloadUserTemplateJobType(JobType):
         """
 
         revision = UserTemplateHandler().get_downloadable_revision(
-            user, values["slug"], values["revision_id"]
+            user,
+            values["slug"],
+            values["revision_id"],
+            private_link_token=get_private_link_token(),
         )
         return {"revision": revision}
 

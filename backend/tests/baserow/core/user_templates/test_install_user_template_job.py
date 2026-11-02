@@ -31,6 +31,7 @@ from baserow.core.models import (
 from baserow.core.storage import get_default_storage
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_templates.actions import DeleteUserTemplateActionType
+from baserow.core.user_templates.private_link import private_link_token
 from tests.baserow.core.user_templates.utils import (
     add_password_data,
     assert_password_data_left_out,
@@ -66,16 +67,17 @@ def _create_revisions(data_fixture, owner):
     return revisions
 
 
-def _start_install(user, root, latest=False):
+def _start_install(user, root, latest=False, link_token=None):
     # Only one install job of a user can run at a time.
     InstallTemplateJob.objects.filter(user=user).delete()
-    return JobHandler().create_and_start_job(
-        user,
-        InstallTemplateJobType.type,
-        workspace_id=user.workspaceuser_set.first().workspace_id,
-        template_id=root.id,
-        latest=latest,
-    )
+    with private_link_token(link_token):
+        return JobHandler().create_and_start_job(
+            user,
+            InstallTemplateJobType.type,
+            workspace_id=user.workspaceuser_set.first().workspace_id,
+            template_id=root.id,
+            latest=latest,
+        )
 
 
 @pytest.mark.django_db
@@ -83,22 +85,33 @@ def test_install_user_template_pins_revision(data_fixture):
     owner = data_fixture.create_user()
     staff = data_fixture.create_user(is_staff=True)
     viewer = data_fixture.create_user()
-    for user in [owner, staff, viewer]:
+    holder = data_fixture.create_user()
+    for user in [owner, staff, viewer, holder]:
         data_fixture.create_workspace(user=user)
     root, revision_2, revision_3 = _create_revisions(data_fixture, owner)
+    tokens = {
+        holder: data_fixture.set_user_template_state(root, "shared").private_link_token
+    }
 
     # Everyone installs the public revision, the owner too, while a newer revision
     # exists. Only the owner can ask for the latest one, as from "Your templates".
-    for user in [owner, staff, viewer]:
-        assert _start_install(user, root).template_id == revision_2.id
+    for user in [owner, staff, viewer, holder]:
+        installed = _start_install(user, root, link_token=tokens.get(user))
+        assert installed.template_id == revision_2.id
     assert _start_install(owner, root, latest=True).template_id == revision_3.id
-    for user in [staff, viewer]:
+    for user in [staff, viewer, holder]:
         with pytest.raises(TemplateDoesNotExist):
-            _start_install(user, root, latest=True)
+            _start_install(user, root, latest=True, link_token=tokens.get(user))
 
-    # The owner installs the latest revision while the template isn't public.
+    # The owner, and who has the private link, install the latest revision while
+    # the template isn't public.
     Template.objects.filter(id=root.id).update(public_revision=None)
-    assert _start_install(owner, root).template_id == revision_3.id
+    for user in [owner, holder]:
+        installed = _start_install(user, root, link_token=tokens.get(user))
+        assert installed.template_id == revision_3.id
+    for link_token in [None, "b" * 64]:
+        with pytest.raises(TemplateDoesNotExist):
+            _start_install(holder, root, link_token=link_token)
 
 
 def _create_template(data_fixture, owner, names=("First", "Second")):

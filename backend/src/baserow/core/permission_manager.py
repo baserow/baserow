@@ -20,6 +20,7 @@ from baserow.core.user_sources.operations import (
     LoginUserSourceOperationType,
     ReadUserSourceOperationType,
 )
+from baserow.core.user_templates.private_link import get_private_link_token
 
 from .agents.operations import (
     CreateAgentOperationType,
@@ -160,7 +161,8 @@ class StaffOnlyPermissionManagerType(PermissionManagerType):
 class AllowIfTemplatePermissionManagerType(PermissionManagerType):
     """
     Allows read operations on the templates the actor can open, see
-    `Workspace.has_openable_template`.
+    `Workspace.has_openable_template`, and the one whose private link the request
+    was made with, see `get_private_link_token`.
     """
 
     type = "allow_if_template"
@@ -190,19 +192,22 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
         result = {}
         for check in allowed_checks:
             if check.actor not in openable_by:
-                openable_by[check.actor] = workspace.has_openable_template(check.actor)
+                openable_by[check.actor] = workspace.has_openable_template(
+                    check.actor, private_link_token=get_private_link_token()
+                )
             if openable_by[check.actor]:
                 result[check] = True
         return result
 
     def get_permissions_object(self, actor, workspace=None):
         # Not every template the actor can open, so that the list doesn't grow with
-        # the public templates of other users. Revisions can share a workspace, so
-        # it's listed once. The ordering is cleared, because it would otherwise be
-        # part of the distinct.
+        # the public templates of other users, only the one of the private link of
+        # the request. Revisions can share a workspace, so it's listed once. The
+        # ordering is cleared, because it would otherwise be part of the distinct.
+        token = get_private_link_token()
         workspace_template_ids = (
-            Template.objects.official_or_owned(actor)
-            .openable(actor)
+            Template.objects.official_or_owned(actor, private_link_token=token)
+            .openable(actor, private_link_token=token)
             .order_by()
             .values_list("workspace_id", flat=True)
             .distinct()
@@ -220,7 +225,9 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
         workspace=None,
     ):
         def has_openable_template():
-            return workspace and workspace.has_openable_template(actor)
+            return workspace and workspace.has_openable_template(
+                actor, private_link_token=get_private_link_token()
+            )
 
         if (
             operation_name in self.OPERATION_ALLOWED_ON_TEMPLATES
@@ -237,7 +244,9 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
         return {
             workspace.id: WORKSPACE_FILTER_ALLOW_ALL
             for workspace in workspaces
-            if workspace.has_openable_template(actor)
+            if workspace.has_openable_template(
+                actor, private_link_token=get_private_link_token()
+            )
         }
 
 

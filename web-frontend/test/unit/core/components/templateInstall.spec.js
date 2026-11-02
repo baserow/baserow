@@ -37,6 +37,7 @@ describe('TemplateInstall', () => {
   afterEach(async () => {
     permission.check = () => true
     push.mockRestore()
+    await testApp.nuxtApp.$router.replace('/template/project-tracker')
     await testApp.afterEach()
   })
 
@@ -56,22 +57,33 @@ describe('TemplateInstall', () => {
     await flushPromises()
   }
 
-  test('sends an anonymous visitor to the login page and back', async () => {
-    const wrapper = await testApp.mount(TemplateInstall, {
-      props: { template },
-    })
+  test.each([
+    '/template/project-tracker',
+    // The link is needed to open the template again.
+    `/template/project-tracker/private-link/${'a'.repeat(64)}`,
+  ])(
+    'sends an anonymous visitor from %s to the login page and back',
+    async (path) => {
+      const wrapper = await testApp.mount(TemplateInstall, {
+        props: { template },
+      })
+      // The spy stands in for `push`, which `replace` uses too.
+      push.mockRestore()
+      await testApp.nuxtApp.$router.replace(path)
+      push = vi.spyOn(testApp.nuxtApp.$router, 'push').mockResolvedValue()
 
-    expect(wrapper.find('.template-install__workspace').exists()).toBe(false)
+      expect(wrapper.find('.template-install__workspace').exists()).toBe(false)
 
-    await clickUse(wrapper)
+      await clickUse(wrapper)
 
-    expect(push).toHaveBeenCalledWith({
-      name: 'login',
-      query: { original: '/template/project-tracker' },
-    })
-    expect(testApp.mock.history.post).toHaveLength(0)
-    expect(wrapper.emitted('installed')).toBeUndefined()
-  })
+      expect(push).toHaveBeenCalledWith({
+        name: 'login',
+        query: { original: path },
+      })
+      expect(testApp.mock.history.post).toHaveLength(0)
+      expect(wrapper.emitted('installed')).toBeUndefined()
+    }
+  )
 
   test.each([
     [

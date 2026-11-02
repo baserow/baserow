@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
@@ -18,6 +18,7 @@ describe('TemplateDetails', () => {
   })
 
   afterEach(async () => {
+    vi.unstubAllGlobals()
     await testApp.afterEach()
   })
 
@@ -159,6 +160,41 @@ describe('TemplateDetails', () => {
       ])
       await links[2].trigger('click')
       expect(wrapper.emitted(event)).toStrictEqual([[userTemplate]])
+    }
+  )
+
+  test.each([
+    ['private', true],
+    ['blocked', false],
+  ])(
+    'copies the private link of a %s own template: %s',
+    async (state, copied) => {
+      vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn() } })
+      const token = 'a'.repeat(64)
+      const wrapper = await mountComponent({
+        template: {
+          ...template,
+          type: 'user',
+          state,
+          private_link_token: token,
+        },
+        ownerActions: true,
+      })
+
+      await wrapper
+        .find('.template-install__actions .button-icon')
+        .trigger('click')
+      const link = wrapper
+        .findAll('.context__menu-item-link')
+        .find((item) => item.text().includes('templateInstall.copyLink'))
+      expect(link !== undefined).toBe(copied)
+      if (copied) {
+        await link.trigger('click')
+        const [url] = navigator.clipboard.writeText.mock.calls[0]
+        expect(new URL(url).pathname).toBe(
+          `/template/project-tracker/private-link/${token}`
+        )
+      }
     }
   )
 

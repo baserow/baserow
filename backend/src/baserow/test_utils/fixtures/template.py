@@ -1,3 +1,4 @@
+import secrets
 from typing import List, Optional
 
 from django.db.models import Max
@@ -91,7 +92,10 @@ class TemplateFixtures:
         now = timezone.now()
         changes = {
             "private": {},
-            "shared": {"shared_revision": revision},
+            "shared": {
+                "shared_revision": revision,
+                "private_link_token": secrets.token_hex(32),
+            },
             "public": {"public_revision": revision},
             "blocked": {"blocked_at": now},
             "public_blocked": {"public_revision": revision, "blocked_at": now},

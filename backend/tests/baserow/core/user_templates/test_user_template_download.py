@@ -173,3 +173,20 @@ def test_get_downloadable_revision(data_fixture, actor, shown, error):
     else:
         with pytest.raises(error):
             get()
+
+
+@pytest.mark.django_db
+def test_get_downloadable_revision_through_private_link(data_fixture):
+    template = data_fixture.set_user_template_state(
+        create_template(data_fixture, data_fixture.create_user()), "shared"
+    )
+    latest = add_revision(data_fixture, template)
+
+    revision = UserTemplateHandler().get_downloadable_revision(
+        data_fixture.create_user(),
+        template.slug,
+        latest.id,
+        template.private_link_token,
+    )
+
+    assert revision.id == latest.id
