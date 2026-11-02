@@ -368,7 +368,7 @@
         "title": "Wachtwoord vergeten",
         "message": "Vul je e-mailadres in op het formulier. Als we een account vinden, sturen we een e-mail met een link om je wachtwoord te resetten.",
         "submit": "Stuur link",
-        "confirmation": "Als je e-mailadres in onze database voorkomt, ontvangt je binnen enkele minuten op je e-mailadres een link om je wachtwoord opnieuw in te stellen.",
+        "confirmation": "We hebben een e-mail gestuurd naar {email} met een link om je Baserow-wachtwoord opnieuw in te stellen.",
         "disabled": "Wachtwoord resetten is uitgeschakeld",
         "disabledMessage": "Het is niet mogelijk om een wachtwoord opnieuw in te stellen omdat het is uitgeschakeld.",
         "loginText": "Heb je al een account en wachtwoord?",

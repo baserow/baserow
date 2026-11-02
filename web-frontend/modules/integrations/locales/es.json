@@ -250,7 +250,7 @@
         "supportPairingHeading": "2. Conexión de tu aplicación Slack",
         "supportPairingStep1": "Si tu aplicación es nueva: navega a «Configuración» > «Instalar aplicación». Haz clic en el botón verde para instalar la aplicación en tu espacio de trabajo.",
         "supportPairingStep2": "Copia tu «Token OAuth de usuario bot» y almacénalo en el campo «Token de usuario bot» de este formulario.",
-        "supportPairingStep3": "Finalmente, si tu aplicación es nueva: en Slack, invita tu aplicación al canal que hayas elegido con",
+        "supportPairingStep3": "Finalmente, si tu aplicación es nueva: en Slack, invita tu aplicación al canal que hayas elegido con {command}",
         "supportSetupStep1Link": "página de aplicaciones",
         "tokenConfigured": "Hay un token guardado. Deja en blanco para conservarlo.",
         "tokenKeepPlaceholder": "Deja en blanco para conservar el token guardado"
