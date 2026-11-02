@@ -122,7 +122,10 @@ const props = defineProps({
 })
 
 const failureTooltipOptions = {
-  contentClasses: ['tooltip__content--expandable'],
+  contentClasses: [
+    'tooltip__content--expandable',
+    'chat-step-group__failure-tooltip',
+  ],
 }
 const detailsId = useId()
 // Workspace activity starts open; action inputs are available on demand.

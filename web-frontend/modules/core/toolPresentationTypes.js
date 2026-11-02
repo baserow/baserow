@@ -57,19 +57,47 @@ export class ToolPresentationType extends Registerable {
   getInput(step, t) {
     return null
   }
+
+  /** Name an attempted target from approved display context, when available. */
+  getTarget(step, t) {
+    return ''
+  }
 }
 
 const record = (value) =>
   value && typeof value === 'object' && !Array.isArray(value) ? value : {}
 
-function genericText(t, key, fallback) {
+function genericText(t, key, fallback, values) {
   try {
-    const text = t(key)
+    const text = t(key, values)
     return typeof text === 'string' && text.trim() && text !== key
       ? text
       : fallback
   } catch {
     return fallback
+  }
+}
+
+function failureHint(data, status, t, target = '') {
+  if (status !== STEP_STATUS.FAILED) return ''
+  const key =
+    FAILURE_LABELS.get(data.error_code) || 'toolPresentation.failureFailed'
+  return genericText(
+    t,
+    target ? `${key}Target` : key,
+    'This tool call failed.',
+    { target }
+  )
+}
+
+function toolTarget(presenter, step, t) {
+  try {
+    const target = presenter.getTarget(step, t)
+    return typeof target === 'string' && target.length <= 1024
+      ? target.trim()
+      : ''
+  } catch {
+    return ''
   }
 }
 
@@ -104,15 +132,7 @@ export function toolActivity(step, registry, t) {
     icon: 'iconoir-tools',
     group: null,
     input: null,
-    failureHint:
-      status === STEP_STATUS.FAILED
-        ? genericText(
-            t,
-            FAILURE_LABELS.get(data.error_code) ||
-              'toolPresentation.failureFailed',
-            'This tool call failed.'
-          )
-        : '',
+    failureHint: failureHint(data, status, t),
   }
   try {
     const type = data.presentation_type || data.tool
@@ -144,6 +164,12 @@ export function toolActivity(step, registry, t) {
       icon: presenter.icon,
       group: !data.changes_data ? presenter.group : null,
       input: toolInput(presenter, normalized, translate),
+      failureHint: failureHint(
+        data,
+        status,
+        t,
+        toolTarget(presenter, normalized, translate)
+      ),
     }
   } catch {
     return fallback

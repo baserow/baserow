@@ -120,6 +120,69 @@ describe('Agent tool presentations', () => {
     )
   })
 
+  test.each(cases.tools.map(({ name }) => name))(
+    'identifies an authorized target in failed and interrupted %s calls',
+    (tool) => {
+      const presenter = registry.get('toolPresentation', tool)
+      for (const status of ['failed', 'stopped']) {
+        const input = { target: '  Projects  ' }
+        const activity = toolActivity(
+          step(tool, status, { input }),
+          registry,
+          t
+        )
+        expect(activity.title).toBe(`${presenter.getLabel(t)}: Projects`)
+        expect(presenter.getTarget({ input })).toBe('Projects')
+      }
+    }
+  )
+
+  test.each([undefined, null, '', '  ', 42, [], {}])(
+    'ignores an unavailable or malformed target: %j',
+    (target) => {
+      const presenter = registry.get('toolPresentation', 'list_table_rows')
+      const input = { target }
+      expect(presenter.getTarget({ input })).toBe('')
+      expect(
+        toolActivity(step('list_table_rows', 'failed', { input }), registry, t)
+          .title
+      ).toBe('Read rows')
+    }
+  )
+
+  test('a target never turns requested counts into a confirmed result', () => {
+    const data = step('create_rows', 'running', {
+      input: { target: 'Projects', requested_count: 4 },
+      facts: { count: 2, table: 'Projects' },
+    })
+    expect(toolActivity(data, registry, t).title).toBe('Creating 4 rows')
+    expect(toolActivity({ ...data, status: 'done' }, registry, t).title).toBe(
+      'Added 2 rows to Projects'
+    )
+    expect(
+      toolActivity({ ...data, status: 'done', facts: {} }, registry, t).title
+    ).toBe('Create rows')
+    expect(toolActivity({ ...data, status: 'failed' }, registry, t).title).toBe(
+      'Create rows: Projects'
+    )
+  })
+
+  test('uses the authorized target in the shared failure explanation', () => {
+    const activity = toolActivity(
+      step('list_table_rows', 'failed', {
+        input: { target: 'Clients' },
+        error_code: STEP_ERROR_CODE.NOT_FOUND,
+      }),
+      registry,
+      t
+    )
+
+    expect(activity.title).toBe('Read rows: Clients')
+    expect(activity.failureHint).toBe(
+      'Not found or not accessible to the agent: Clients.'
+    )
+  })
+
   test('shows confirmed read counts and newly created table names', () => {
     expect(
       toolActivity(
@@ -247,7 +310,9 @@ describe('Agent tool presentations', () => {
     expect(group.status).toBe('done')
     expect(group.title).toBe('Looked at your workspace')
     expect(group.failureHint).toBe('')
-    expect(group.lines[1].failureHint).toBe('Not found in this workspace.')
+    expect(group.lines[1].failureHint).toBe(
+      'Not found or not accessible to the agent.'
+    )
     expect(group.lines[2].failureHint).toBe(
       'Permission denied for this operation.'
     )
@@ -304,7 +369,7 @@ describe('Agent tool presentations', () => {
     expect(groupToolSteps(calls, registry, t)[0].failureHint).toBe('')
     calls[0].status = 'done'
     expect(groupToolSteps(calls, registry, t)[0].failureHint).toBe(
-      'Not found in this workspace.'
+      'Not found or not accessible to the agent.'
     )
   })
 })

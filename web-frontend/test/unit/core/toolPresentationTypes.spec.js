@@ -84,7 +84,7 @@ describe('shared tool presentations', () => {
           id: 'unknown',
           tool: '<img src=secret>',
           status,
-          input: { values: { password: 'secret' } },
+          input: { target: 'secret', values: { password: 'secret' } },
           facts: { output: 'private result' },
         },
         registry,
@@ -185,7 +185,7 @@ describe('shared tool presentations', () => {
   })
 
   test.each([
-    [STEP_ERROR_CODE.NOT_FOUND, 'Not found in this workspace.'],
+    [STEP_ERROR_CODE.NOT_FOUND, 'Not found or not accessible to the agent.'],
     [
       STEP_ERROR_CODE.PERMISSION_DENIED,
       'Permission denied for this operation.',
@@ -260,4 +260,61 @@ describe('shared tool presentations', () => {
       ).failureHint
     ).toBe('This tool call failed.')
   })
+
+  test('future action presenters can name a failure target through the shared hint', () => {
+    class TargetedEmail extends EmailPresentation {
+      getActivity() {
+        return 'Send email'
+      }
+
+      getTarget({ input }) {
+        return input.target
+      }
+    }
+    const registry = registryWith(TargetedEmail)
+    const step = {
+      tool: 'action_37',
+      presentation_type: 'send_email',
+      status: 'failed',
+      error_code: STEP_ERROR_CODE.PERMISSION_DENIED,
+      input: { target: 'alice@example.com' },
+    }
+    expect(toolActivity(step, registry, t)).toMatchObject({
+      title: 'Send email',
+      failureHint: 'Permission denied for this operation on alice@example.com.',
+    })
+
+    registry.get('toolPresentation', 'send_email').getTarget = () => {
+      throw new Error('Broken target formatter')
+    }
+    expect(toolActivity(step, registry, t)).toMatchObject({
+      title: 'Send email',
+      failureHint: 'Permission denied for this operation.',
+    })
+  })
+
+  test.each([null, {}, [], ' ', 'x'.repeat(1025)])(
+    'malformed or oversized target hints use the generic reason: %j',
+    (target) => {
+      class TargetedEmail extends EmailPresentation {
+        getActivity() {
+          return 'Send email'
+        }
+        getTarget() {
+          return target
+        }
+      }
+      expect(
+        toolActivity(
+          {
+            tool: 'send_email',
+            status: 'failed',
+            error_code: STEP_ERROR_CODE.NOT_FOUND,
+          },
+          registryWith(TargetedEmail),
+          t
+        ).failureHint
+      ).toBe('Not found or not accessible to the agent.')
+    }
+  )
 })

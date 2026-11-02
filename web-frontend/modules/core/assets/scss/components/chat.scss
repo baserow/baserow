@@ -336,6 +336,10 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   min-width: 0;
 }
 
+.chat-step-group__failure-tooltip {
+  overflow-wrap: anywhere;
+}
+
 .chat-step-group__input {
   margin: 6px 8px 8px 32px;
 }

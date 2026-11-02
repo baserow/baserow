@@ -50,6 +50,17 @@ Input previews travel with the step through streaming, persistence and reload;
 they describe the request, not a guarantee of what changed. Older saved steps
 without `values` keep a non-expandable action card.
 
+`input.target` can name the attempted resource independently of successful
+outcome facts. Agent tools use `get_step_resources(result)` to declare disclosed
+names and `get_step_target(arguments, resources)` to resolve a requested target.
+The responder remembers only those names in a bounded catalog for the current
+reply. This includes
+linked-table names returned by an authorized schema read, even when that
+identity cannot read the linked rows. Target resolution performs no database
+lookup and does not parse model prose.
+Unknown targets keep a generic label; a batch is named only when every requested
+resource is known. The resolved display name persists with the step.
+
 Use Core's `tool_input_preview` after selecting the allowed values. It copies
 them without changing the executed arguments, limits the preview to 16 KiB of
 compact JSON, 500 nodes, eight nested levels and 1,000 characters per string,
@@ -84,6 +95,9 @@ use a generic failure hint. No raw error messages are included, and Sentry
 diagnostics are unchanged. The existing tooltip is hover-only; no new popover or
 interaction model is introduced. These optional codes persist in the same JSON
 steps without a migration; old messages do not gain a reconstructed reason.
+Not-found hints deliberately cover missing and inaccessible resources, because
+permission-filtered lookups do not distinguish them. A presenter can opt into
+`getTarget(step, t)` to include approved target context in the shared hint.
 
 ## Registering a presenter
 
@@ -134,7 +148,9 @@ export default defineNuxtPlugin({
 });
 ```
 
-The base also provides `icon`, `getDescription(t)`, `getInput(step, t)` and `group`.
+The base also provides `icon`, `getDescription(t)`, `getInput(step, t)`,
+`getTarget(step, t)` and `group`. Target formatting defaults to an empty string;
+invalid targets or formatter failures keep the generic failure explanation.
 `getInput` defaults to `null`; opt in by returning the backend's
 `{ values, truncated? }` preview. Core validates the preview independently of the
 title, so invalid or oversized input cannot hide the activity. Leave `group` as

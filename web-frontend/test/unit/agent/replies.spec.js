@@ -199,6 +199,7 @@ describe('Agent replies', () => {
           toolStep('a', 'list_tables', 'done'),
           toolStep('failed-read', 'list_table_rows', 'failed', {
             error_code: 'not_found',
+            input: { target: 'Clients' },
           }),
           toolStep('b', 'get_table_schema', 'done', {
             facts: { table: 'Tasks' },
@@ -221,6 +222,11 @@ describe('Agent replies', () => {
     expect(reads.find('button .iconoir-warning-triangle').exists()).toBe(false)
     expect(reads.findAll('li .iconoir-warning-triangle')).toHaveLength(1)
     expect(reads.findAll('li .iconoir-check-circle')).toHaveLength(2)
+    // This page suite mocks translations to keys; real wording is covered by
+    // the presenter tests. This key requires the saved target to reach the UI.
+    expect(
+      reads.findAll('li')[1].get('.chat-step-group__line-title').text()
+    ).toBe('agent.toolActivityTarget')
     expect(
       reads.findAll('li')[1].get('.chat-step-group__status').text()
     ).toContain('This tool call failed.')
