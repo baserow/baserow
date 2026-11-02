@@ -48,6 +48,12 @@ const ensureDataSourceRefresh = (state, dispatch) => {
   if (!dataSourceRefreshes.has(state)) {
     const refresh = { ids: new Set() }
     refresh.run = debounce(() => {
+      // A selection can change shape while its settings save is still pending.
+      // Dispatch only once the server knows the current filter configuration.
+      if (state.widgets.some(({ id }) => widgetUpdates.get(state)?.has(id))) {
+        refresh.run()
+        return
+      }
       const ids = [...refresh.ids]
       refresh.ids.clear()
       ids.forEach((dataSourceId) =>
@@ -596,7 +602,8 @@ export const actions = {
       debouncedWidgetUpdate = debounce(async () => {
         try {
           await WidgetService($client).update(widgetId, values)
-          updates.delete(widgetId)
+          if (updates.get(widgetId) === debouncedWidgetUpdate)
+            updates.delete(widgetId)
           if (isDashboardRequestCurrent(state, request)) {
             const widget = state.widgets.find(
               (widget) => widget.id === widgetId
@@ -617,6 +624,8 @@ export const actions = {
           }
           resolve()
         } catch (error) {
+          if (updates.get(widgetId) === debouncedWidgetUpdate)
+            updates.delete(widgetId)
           if (isFetchRequestCurrent(state, request, 'widgetFetchGeneration')) {
             applyWidgetUpdate(context, $registry, {
               widgetId,

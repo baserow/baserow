@@ -20,6 +20,22 @@
     <FormGroup
       v-if="widget.mode === 'dropdown'"
       small-label
+      :label="$t('textFilterWidget.selection')"
+      class="margin-bottom-2"
+      required
+    >
+      <SegmentControl
+        :segments="[
+          { label: $t('textFilterWidget.singleValue') },
+          { label: $t('textFilterWidget.multipleValues') },
+        ]"
+        :active-index="widget.multiple ? 1 : 0"
+        @update:active-index="updateSetting('multiple', $event === 1)"
+      />
+    </FormGroup>
+    <FormGroup
+      v-if="widget.mode === 'dropdown'"
+      small-label
       :label="$t('textFilterWidget.filterValues')"
       :helper-text="$t('textFilterWidget.filterValuesHelp')"
       class="margin-bottom-2"
@@ -381,6 +397,7 @@ async function updateSetting(field, value) {
   if (value === props.widget[field]) return
   const settings = {
     mode: props.widget.mode || 'input',
+    multiple: props.widget.multiple || false,
     options: props.widget.options || {},
     placeholder: props.widget.placeholder,
     default_value: props.widget.default_value,
