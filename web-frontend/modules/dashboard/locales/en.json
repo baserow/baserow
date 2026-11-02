@@ -121,7 +121,6 @@
     "configureSourceFirst": "Choose a data source for this widget first.",
     "unsupportedTarget": "This widget does not have a filterable data source.",
     "targetsHelp": "Choose where this filter is used.",
-    "targetsFootnote": "Each widget can use a different field or condition.",
     "addWidgets": "Add widgets",
     "noTargets": "No widgets selected. Add a widget, then set up its conditions.",
     "noAvailableTargets": "No matching widgets available.",
