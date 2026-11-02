@@ -1,6 +1,11 @@
+import json
+import os
+import shutil
 from io import BytesIO
+from pathlib import Path
 
-from django.db import connection
+from django.core.files.storage import FileSystemStorage
+from django.db import connection, transaction
 from django.test.utils import CaptureQueriesContext
 
 import pytest
@@ -12,9 +17,11 @@ from baserow.contrib.database.search.tasks import periodic_check_pending_search_
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.registries import action_type_registry
 from baserow.core.handler import CoreHandler
+from baserow.core.models import Template
 from baserow.core.registries import ImportExportConfig
 from baserow.core.snapshots.handler import SnapshotHandler
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.utils import Progress
 from baserow_enterprise.semantic_search.handler import SemanticSearchHandler
 from baserow_enterprise.semantic_search.models import (
@@ -323,3 +330,84 @@ def test_reenabling_before_the_vectors_are_deleted_keeps_them(
     # Only the value that changed while semantic search was disabled.
     assert semantic_search.embedded_texts == ["new"]
     assert not SemanticSearchPendingUpdate.objects_and_trash.exists()
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.usefixtures("use_tmp_media_root")
+def test_user_template_copy_isnt_indexed_but_its_install_is(
+    data_fixture, semantic_search
+):
+    user = data_fixture.create_user()
+    table, field, rows = create_indexed_field(data_fixture, user)
+    handler = UserTemplateHandler()
+
+    template_workspace = handler.copy_applications(
+        user, [table.database], name="Template"
+    )
+
+    # The copy remembers the setting, so that its installs are indexed.
+    template_fields = SemanticSearchField.objects.filter(
+        field__table__database__workspace=template_workspace
+    )
+    assert template_fields.count() == 1
+    assert not SemanticSearchPendingUpdate.objects_and_trash.filter(
+        field_id__in=template_fields.values("field_id")
+    ).exists()
+
+    template = data_fixture.create_user_template(
+        user=user, workspace=template_workspace
+    )
+    target = data_fixture.create_workspace(user=user)
+    content = handler.serialize_template_content(template)
+    with transaction.atomic():
+        applications = handler.install_template_content(user, target, template, content)
+    installed_table = applications[0].specific.table_set.get()
+    index(installed_table)
+
+    installed_field = installed_table.field_set.get(name=field.name)
+    assert SemanticSearchField.objects.filter(field=installed_field).exists()
+    assert len(get_chunk_counts(installed_field)) == len(rows)
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_official_template_isnt_indexed_but_its_install_is(
+    data_fixture, semantic_search, tmpdir, settings
+):
+    # The test template, with semantic search enabled for a field like an export
+    # of a field with semantic search contains it.
+    source = os.path.join(settings.BASE_DIR, "../../../tests/templates")
+    template_json = json.loads(Path(source, "example-template.json").read_text())
+    customers = template_json["export"][0]["tables"][0]
+    name_field = next(field for field in customers["fields"] if field["id"] == 8)
+    name_field["extensions"] = {"semantic_search": {"enabled": True}}
+    Path(tmpdir, "example-template.json").write_text(json.dumps(template_json))
+    shutil.copy(Path(source, "example-template.zip"), Path(tmpdir))
+    settings.APPLICATION_TEMPLATES_DIR = str(tmpdir)
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+    handler = CoreHandler()
+
+    handler.sync_templates(storage=storage, pattern="example-template")
+
+    # The previewed copy remembers the setting, so that its installs are indexed.
+    template = Template.objects.get(slug="example-template")
+    template_fields = SemanticSearchField.objects.filter(
+        field__table__database__workspace=template.workspace
+    )
+    assert template_fields.count() == 1
+    assert not SemanticSearchPendingUpdate.objects_and_trash.filter(
+        field_id__in=template_fields.values("field_id")
+    ).exists()
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    applications, _ = handler.install_template(
+        user, workspace, template, storage=storage
+    )
+    installed_table = applications[0].specific.table_set.get(name="Customers")
+    index(installed_table)
+
+    installed_field = installed_table.field_set.get(name="Name")
+    assert SemanticSearchField.objects.filter(field=installed_field).exists()
+    assert len(get_chunk_counts(installed_field)) == len(customers["rows"])

@@ -205,11 +205,14 @@ class SemanticSearchFieldExtensionType(FieldExtensionType):
             and not import_export_config.only_structure
         )
         # The rows are imported after the fields. Their search data update queues
-        # the indexing, or the periodic check does if it's skipped.
+        # the indexing, or the periodic check does if it's skipped. Like the
+        # full-text search data, copies that save disk space, like the ones of
+        # templates, aren't indexed. Installing them indexes the installed copy.
         SemanticSearchHandler().enable(
             field,
             start_indexing=False,
             copy_vectors_from_field_id=(
                 serialized_values["id"] if reuse_vectors else None
             ),
+            queue_indexing=not import_export_config.reduce_disk_space_usage,
         )

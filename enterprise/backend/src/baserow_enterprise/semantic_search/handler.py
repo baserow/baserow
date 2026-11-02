@@ -111,6 +111,7 @@ class SemanticSearchHandler:
         field: Field,
         start_indexing: bool = True,
         copy_vectors_from_field_id: Optional[int] = None,
+        queue_indexing: bool = True,
     ) -> SemanticSearchField:
         """
         Enables semantic search for the field without checking the license and
@@ -119,6 +120,9 @@ class SemanticSearchHandler:
         :param field: The field of which the values become searchable.
         :param start_indexing: False if the indexing is started later, for example
             because the rows still have to be imported.
+        :param queue_indexing: False if the field only remembers that semantic
+            search is enabled, like the copy of a template, which is indexed when
+            it's installed.
         :param copy_vectors_from_field_id: A field with the same rows and values,
             like the original of a duplicate, of which the vectors can be reused.
         :return: The semantic search state of the field.
@@ -130,7 +134,7 @@ class SemanticSearchHandler:
         field.semantic_search = semantic_search_field
         # Snapshots don't belong to a workspace and aren't searchable, they only
         # remember that semantic search was enabled.
-        if created and field.table.database.workspace_id is not None:
+        if created and queue_indexing and field.table.database.workspace_id is not None:
             self.queue_full_updates(
                 field.table,
                 [semantic_search_field],
