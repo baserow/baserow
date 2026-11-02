@@ -9,7 +9,7 @@
     @keydown.enter="selectWithKeyboard($event)"
     @keydown.space="selectWithKeyboard($event)"
   >
-    <slot name="icon">
+    <slot v-if="showIcon" name="icon">
       <ItemIcon :icon="icon" :color="iconColor" :loading="loading"></ItemIcon>
     </slot>
 
@@ -37,6 +37,10 @@ export default {
   name: 'ItemCard',
   components: { ItemIcon },
   props: {
+    showIcon: {
+      type: Boolean,
+      default: true,
+    },
     name: {
       type: String,
       required: false,
