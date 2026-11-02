@@ -72,6 +72,9 @@
     "coreGoto": "Go to",
     "coreGotoDescription": "Jumps back to an earlier node while a condition is true, to repeat or retry steps.",
     "coreGotoDestinationRequired": "A destination is required.",
+    "coreWait": "Wait",
+    "coreWaitDescription": "Pauses for a number of seconds before the next node runs.",
+    "coreWaitSecondsRequired": "The number of seconds to wait is required.",
     "coreSMTPEmailDescription": "Sends an email using SMTP configuration.",
     "coreIteration": "Iterator",
     "coreIterationDescription": "Loops over each item of a list and runs its child nodes once per item.",
@@ -276,6 +279,11 @@
     "destinationLabel": "Destination node",
     "destinationDescription": "The node to jump to when the condition is true.",
     "destinationPlaceholder": "Choose a destination node..."
+  },
+  "coreWaitServiceForm": {
+    "secondsLabel": "Seconds",
+    "secondsDescription": "The workflow pauses for this many whole seconds before the next node runs. Maximum {max} seconds.",
+    "secondsPlaceholder": "Number of seconds, e.g. 60"
   },
   "slackBotForm": {
     "tokenLabel": "Bot User Token",
