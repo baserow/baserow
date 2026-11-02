@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 
+from baserow.core.formula.field import FormulaField
 from baserow.core.mixins import (
     CreatedAndUpdatedOnMixin,
     FractionOrderableMixin,
@@ -111,7 +112,16 @@ class SummaryWidget(Widget):
 
 
 class TextFilterWidget(Widget):
-    """A text input whose viewer value remains local to the browser."""
+    """A text filter whose viewer value remains local to the browser."""
+
+    class Mode(models.TextChoices):
+        INPUT = "input", "Input"
+        DROPDOWN = "dropdown", "Dropdown"
+
+    mode = models.CharField(
+        max_length=16, choices=Mode.choices, default=Mode.INPUT, db_default=Mode.INPUT
+    )
+    options = FormulaField(db_default="")
 
     target_filters = TargetFiltersField(
         default=list,

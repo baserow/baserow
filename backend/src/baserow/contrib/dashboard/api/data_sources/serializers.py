@@ -24,6 +24,7 @@ class DashboardDataSourceSerializer(ServiceSerializer):
         help_text=DashboardDataSource._meta.get_field("order").help_text
     )
     type = serializers.SerializerMethodField(help_text="The type of the data source.")
+    table_schema = serializers.SerializerMethodField()
 
     def _get_service_instance(self, instance):
         # We generate the service schema using a `Service` instance.
@@ -80,11 +81,54 @@ class DashboardDataSourceSerializer(ServiceSerializer):
         else:
             return None
 
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_table_schema(self, instance):
+        from baserow.contrib.database.table.exceptions import TableDoesNotExist
+        from baserow.contrib.database.table.operations import (
+            ListRowsDatabaseTableOperationType,
+        )
+        from baserow.contrib.database.table.service import TableService
+        from baserow.contrib.integrations.local_baserow.service_types import (
+            LocalBaserowTableServiceType,
+        )
+        from baserow.core.exceptions import PermissionException
+        from baserow.core.handler import CoreHandler
+
+        request = self.context.get("request")
+        service = self._get_service_instance(instance)
+        if request is None or service is None:
+            return None
+        service = service.specific
+        if (
+            not isinstance(service.get_type(), LocalBaserowTableServiceType)
+            or not service.table_id
+        ):
+            return None
+        try:
+            table = TableService().get_table(request.user, service.table_id)
+            CoreHandler().check_permissions(
+                request.user,
+                ListRowsDatabaseTableOperationType.type,
+                workspace=table.database.workspace,
+                context=table,
+            )
+        except (PermissionException, TableDoesNotExist):
+            return None
+        return {
+            "title": table.name,
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": service.get_type().get_table_properties(service),
+            },
+        }
+
     class Meta(ServiceSerializer.Meta):
         fields = ServiceSerializer.Meta.fields + (
             "name",
             "dashboard_id",
             "order",
+            "table_schema",
         )
         extra_kwargs = {
             **ServiceSerializer.Meta.extra_kwargs,

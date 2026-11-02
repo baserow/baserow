@@ -10,13 +10,15 @@ from baserow.contrib.dashboard.widgets.service import WidgetService
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.registries import action_type_registry
 from baserow.core.action.scopes import ApplicationActionScopeType
+from baserow.core.formula import BaserowFormulaObject
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
 from baserow.test_utils.helpers import assert_undo_redo_actions_are_valid
 
 
 @pytest.mark.django_db
-def test_text_widget_export_import_and_duplicate(data_fixture):
+@pytest.mark.parametrize("mode", ["input", "dropdown"])
+def test_text_widget_export_import_and_duplicate(data_fixture, mode):
     """Literal settings survive application round trips without a data source."""
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
@@ -28,6 +30,8 @@ def test_text_widget_export_import_and_duplicate(data_fixture):
         description="Enter text",
         placeholder="Type here",
         default_value="get('literal')",
+        mode=mode,
+        options=BaserowFormulaObject.create("France, Belgium", mode="raw"),
     )
     assert isinstance(widget, TextFilterWidget)
     assert not DashboardDataSource.objects.filter(dashboard=dashboard).exists()
@@ -41,6 +45,10 @@ def test_text_widget_export_import_and_duplicate(data_fixture):
     duplicated = CoreHandler().duplicate_application(user, dashboard)
     for application in [imported, duplicated]:
         copy = TextFilterWidget.objects.get(dashboard=application)
+        assert copy.mode == mode
+        assert copy.options == BaserowFormulaObject.create(
+            "France, Belgium", mode="raw"
+        )
         assert (copy.title, copy.description, copy.placeholder, copy.default_value) == (
             "Search",
             "Enter text",
@@ -102,6 +110,7 @@ def test_text_widget_crud_serializers(api_client, data_fixture):
             "title": "Search",
             "placeholder": "Type here",
             "default_value": "Initial",
+            "options": BaserowFormulaObject.create("France, Belgium", mode="raw"),
         },
         format="json",
         **headers,
@@ -110,18 +119,22 @@ def test_text_widget_crud_serializers(api_client, data_fixture):
     widget_id = response.json()["id"]
     assert response.json()["placeholder"] == "Type here"
     assert response.json()["default_value"] == "Initial"
+    assert response.json()["mode"] == "input"
     widget = TextFilterWidget.objects.get(id=widget_id)
     public = PublicDashboardInfoSerializer(
         dashboard, context={"widgets": [widget], "data_sources": []}
     ).data
     assert public["widgets"][0]["default_value"] == "Initial"
     assert public["widgets"][0]["placeholder"] == "Type here"
+    assert public["widgets"][0]["mode"] == "input"
+    assert "options" not in public["widgets"][0]
     detail_url = reverse("api:dashboard:widgets:item", kwargs={"widget_id": widget_id})
     response = api_client.patch(
         detail_url,
         {
             "placeholder": "",
             "default_value": "",
+            "mode": "dropdown",
         },
         format="json",
         **headers,
@@ -129,6 +142,11 @@ def test_text_widget_crud_serializers(api_client, data_fixture):
     assert response.status_code == 200
     widget.refresh_from_db()
     assert (widget.placeholder, widget.default_value) == ("", "")
+    assert widget.mode == "dropdown"
+    response = api_client.patch(
+        detail_url, {"mode": "invalid"}, format="json", **headers
+    )
+    assert response.status_code == 400
 
 
 @pytest.mark.django_db
