@@ -83,7 +83,7 @@
     "nameTitle": "Name",
     "roleTitle": "Default role",
     "inviteMembers": "Manage access",
-    "agentLabel": "Identity",
+    "identityLabel": "Identity",
     "membersTitle": "Team members",
     "noSubjectsSelected": "No one has access through this team yet.",
     "accessModalTitle": "Manage team access",
@@ -109,7 +109,7 @@
   "subjectSampleField": {
     "titleAttr": "{subjectCount} members in this team."
   },
-  "enterpriseAgents": {
+  "enterpriseIdentities": {
     "teams": "Teams",
     "noTeams": "No teams",
     "teamsLoadError": "The teams could not be loaded.",
@@ -241,7 +241,7 @@
     "allUsers": "All Users",
     "allActors": "All Actors",
     "usersSection": "Users",
-    "agentsSection": "Identities",
+    "identitiesSection": "Identities",
     "allWorkspaces": "All Workspaces",
     "allActionTypes": "All Event Types",
     "actorDisplay": "{name} ({id})"
@@ -396,7 +396,7 @@
     "fromWorkspace": "From workspace",
     "fromWorkspaceExplanation": "Everyone keeps their workspace role on everything inside the workspace, including this {type}.",
     "manageWorkspaceRoles": "Manage workspace roles",
-    "agentRoleCount": "{count} {role} identity | {count} {role} identities",
+    "identityRoleCount": "{count} {role} identity | {count} {role} identities",
     "noInheritedAccess": "No one else has access to this {type}.",
     "everyoneWithRoleOn": "Everyone with a role on {name}",
     "fromLevel": "From {level}",

@@ -25,7 +25,7 @@ exports[`AuditLogActorDropdown > renders users and agents in separate sections a
       </div>
       <!--v-if-->
       <div class="dropdown-section">
-        <div class="dropdown-section__title">subjectType.agents</div>
+        <div class="dropdown-section__title">subjectType.identities</div>
         <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
             <div class="select__item-name">
               <!--v-if--><i class="select__item-icon iconoir-lock"></i>

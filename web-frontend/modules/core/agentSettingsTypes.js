@@ -46,7 +46,7 @@ export class GeneralAgentSettingsType extends AgentSettingsType {
   }
 
   get name() {
-    return this.app.$i18n.t('agents.general')
+    return this.app.$i18n.t('identities.general')
   }
 
   get icon() {

@@ -87,7 +87,9 @@ export class LocalBaserowIntegrationType extends IntegrationType {
       integration.authorized_subject.type === 'core.Agent' &&
       integration.authorized_subject.trashed
     ) {
-      return this.app.$i18n.t('localBaserowIntegrationType.errorTrashedAgent')
+      return this.app.$i18n.t(
+        'localBaserowIntegrationType.errorTrashedIdentity'
+      )
     }
     return super.getErrorMessage(integration)
   }

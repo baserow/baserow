@@ -13,7 +13,7 @@
     "localBaserowSummary": "Local Baserow - {name}, {username}",
     "localBaserowSubjectSummary": "Local Baserow - {type}: {name}",
     "localBaserowNoUser": "Local Baserow - Not configured",
-    "errorTrashedAgent": "The authorized identity has been trashed",
+    "errorTrashedIdentity": "The authorized identity has been trashed",
     "errorNoUser": "No user or identity has authorized this integration.",
     "localBaserowWarning": "Authorizing your account gives everyone who has edit permissions to the application full access to the data you have access to. It's possible to create a second user, give the right permissions and use that one."
   },

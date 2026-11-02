@@ -414,8 +414,8 @@ describe('Local baserow service types', () => {
         service: { integration_id: 5, table_id: 99 },
         application,
       })
-    ).toBe('localBaserowIntegrationType.errorTrashedAgent')
-    expect(en.localBaserowIntegrationType.errorTrashedAgent).toBe(
+    ).toBe('localBaserowIntegrationType.errorTrashedIdentity')
+    expect(en.localBaserowIntegrationType.errorTrashedIdentity).toBe(
       'The authorized identity has been trashed'
     )
   })

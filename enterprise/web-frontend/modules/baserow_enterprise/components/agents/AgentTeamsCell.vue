@@ -4,7 +4,7 @@
       team.name
     }}</Badge>
     <span v-if="!row.teams?.length" class="agent-teams-cell__empty">
-      {{ $t('enterpriseAgents.noTeams') }}
+      {{ $t('enterpriseIdentities.noTeams') }}
     </span>
   </div>
 </template>

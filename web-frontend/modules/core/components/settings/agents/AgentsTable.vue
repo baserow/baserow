@@ -6,7 +6,7 @@
     :service="service"
     :columns="columns"
     row-id-key="id"
-    :search-placeholder="$t('agents.search')"
+    :search-placeholder="$t('identities.search')"
     :row-expandable="rowExpansion?.isExpandable"
     :expand-column-key="rowExpansion?.columnKey"
     @row-context="openContext"
@@ -22,15 +22,17 @@
       />
     </template>
     <template #title="{ count }">{{
-      $t('agents.title', { count, workspace: workspace.name })
+      $t('identities.title', { count, workspace: workspace.name })
     }}</template>
     <template #empty>
       <div class="placeholder">
         <div class="placeholder__icon">
           <i class="iconoir-lock" aria-hidden="true"></i>
         </div>
-        <h2 class="placeholder__header">{{ $t('agents.emptyTitle') }}</h2>
-        <p class="placeholder__content">{{ $t('agents.emptyDescription') }}</p>
+        <h2 class="placeholder__header">{{ $t('identities.emptyTitle') }}</h2>
+        <p class="placeholder__content">
+          {{ $t('identities.emptyDescription') }}
+        </p>
       </div>
     </template>
     <template #primary-action>
@@ -41,7 +43,7 @@
         icon="iconoir-plus"
         @click="$refs.createModal.show()"
       >
-        {{ $t('agents.create') }}
+        {{ $t('identities.create') }}
       </Button>
     </template>
     <template #menus>
@@ -165,7 +167,7 @@ export default {
       let columns = [
         new CrudTableColumn(
           'name',
-          this.$t('agents.name'),
+          this.$t('identities.name'),
           ManagementNameField,
           true,
           true,
@@ -177,7 +179,7 @@ export default {
         ),
         new CrudTableColumn(
           'role_uid',
-          this.$t('agents.workspaceRole'),
+          this.$t('identities.workspaceRole'),
           AgentRoleField,
           true,
           false,
@@ -200,7 +202,7 @@ export default {
       columns.push(
         new CrudTableColumn(
           'last_active',
-          this.$t('agents.lastActive'),
+          this.$t('identities.lastActive'),
           AgentLastActiveField,
           true
         )

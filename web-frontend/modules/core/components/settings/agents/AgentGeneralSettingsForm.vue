@@ -1,5 +1,5 @@
 <template>
-  <FormGroup :label="$t('agents.name')" required class="margin-bottom-2">
+  <FormGroup :label="$t('identities.name')" required class="margin-bottom-2">
     <FormInput
       ref="name"
       :model-value="modelValue.name"
@@ -9,8 +9,8 @@
     />
   </FormGroup>
   <FormGroup
-    :label="$t('agents.workspaceRole')"
-    :helper-text="canUseNoAccess ? $t('agents.roleHelpText') : null"
+    :label="$t('identities.workspaceRole')"
+    :helper-text="canUseNoAccess ? $t('identities.roleHelpText') : null"
     required
   >
     <WorkspaceRoleSelector

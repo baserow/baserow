@@ -1801,11 +1801,11 @@
     "user": "User",
     "users": "Users",
     "anonymousUser": "Anonymous user",
-    "agent": "Identity",
-    "agents": "Identities",
+    "identity": "Identity",
+    "identities": "Identities",
     "members": "Members"
   },
-  "agents": {
+  "identities": {
     "saved": "Changes saved",
     "tabTitle": "Identities",
     "title": "{count} identities in {workspace}",

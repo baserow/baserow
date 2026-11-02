@@ -243,11 +243,11 @@ export class AgentSubjectType extends SubjectType {
   }
 
   getTypeDisplayName() {
-    return this.$t('subjectType.agent')
+    return this.$t('subjectType.identity')
   }
 
   getPluralTypeDisplayName() {
-    return this.$t('subjectType.agents')
+    return this.$t('subjectType.identities')
   }
 
   getBadge() {

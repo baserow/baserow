@@ -11,7 +11,7 @@ export class EnterpriseTeamsAgentSettingsType extends AgentSettingsType {
   }
 
   get name() {
-    return this.app.$i18n.t('enterpriseAgents.teams')
+    return this.app.$i18n.t('enterpriseIdentities.teams')
   }
 
   get icon() {
