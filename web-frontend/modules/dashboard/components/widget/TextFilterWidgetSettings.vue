@@ -2,6 +2,39 @@
   <FormSection>
     <FormGroup
       small-label
+      :label="$t('textFilterWidget.filterType')"
+      class="margin-bottom-2"
+      required
+    >
+      <Dropdown
+        :model-value="widget.mode || 'input'"
+        :show-search="false"
+        @update:model-value="updateSetting('mode', $event)"
+      >
+        <DropdownItem :name="$t('textFilterWidget.input')" value="input" />
+        <DropdownItem
+          :name="$t('textFilterWidget.dropdown')"
+          value="dropdown"
+        />
+      </Dropdown>
+    </FormGroup>
+    <FormGroup
+      v-if="widget.mode === 'dropdown'"
+      small-label
+      :label="$t('textFilterWidget.filterValues')"
+      :helper-text="$t('textFilterWidget.filterValuesHelp')"
+      class="margin-bottom-2"
+      required
+    >
+      <DashboardFormulaInput
+        placeholder=""
+        :model-value="widget.options || {}"
+        :data-providers-allowed="['table']"
+        @input="updateSetting('options', $event)"
+      />
+    </FormGroup>
+    <FormGroup
+      small-label
       :label="$t('textFilterWidget.placeholder')"
       class="margin-bottom-2"
       required
@@ -145,6 +178,7 @@
 
 <script setup>
 import SidebarExpandable from '@baserow/modules/core/components/SidebarExpandable.vue'
+import DashboardFormulaInput from '@baserow/modules/dashboard/components/DashboardFormulaInput'
 import WidgetFilterConfigurationModal from '@baserow/modules/dashboard/components/widget/WidgetFilterConfigurationModal'
 import FieldService from '@baserow/modules/database/services/field'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -346,22 +380,20 @@ const setTargetEnabled = (candidate, enabled) => {
 /** Save configuration through the shared undoable widget update flow. */
 async function updateSetting(field, value) {
   if (value === props.widget[field]) return
+  const settings = {
+    mode: props.widget.mode || 'input',
+    options: props.widget.options || {},
+    placeholder: props.widget.placeholder,
+    default_value: props.widget.default_value,
+    target_filters: props.widget.target_filters || [],
+  }
   try {
     await $store.dispatch(
       `${props.storePrefix}dashboardApplication/updateWidget`,
       {
         widgetId: props.widget.id,
-        values: {
-          placeholder: props.widget.placeholder,
-          default_value: props.widget.default_value,
-          target_filters: props.widget.target_filters || [],
-          [field]: value,
-        },
-        originalValues: {
-          placeholder: props.widget.placeholder,
-          default_value: props.widget.default_value,
-          target_filters: props.widget.target_filters || [],
-        },
+        values: { ...settings, [field]: value },
+        originalValues: settings,
       }
     )
   } catch (error) {

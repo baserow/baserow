@@ -246,6 +246,10 @@ body.dashboard-widget-grid--resizing * {
     }
   }
 
+  .vgl-item:has(.dashboard-text-filter-widget .dropdown__items:not(.hidden)) {
+    z-index: 2;
+  }
+
   .dashboard-widget-grid__item--compact:has(> .dashboard-widget--plain)
     > .vgl-item__resizer {
     right: 4px;

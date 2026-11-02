@@ -1337,3 +1337,90 @@ describe('Dashboard application store public mode', () => {
     expect(token).toBe(null)
   })
 })
+
+test('dropdown options are cached, retryable and discarded after changing dashboards', async () => {
+  const dashboardState = createDashboardState()
+  dashboardState.widgets = [
+    {
+      id: 1,
+      type: 'text_filter',
+      mode: 'dropdown',
+      options: { formula: 'France, Belgium', mode: 'raw' },
+    },
+  ]
+  const context = { state: dashboardState, commit: applyCommit(dashboardState) }
+  const pending = deferred()
+  const getOptions = vi
+    .fn()
+    .mockReturnValueOnce(pending.promise)
+    .mockResolvedValue({ data: { results: ['Belgium'] } })
+  WidgetService.mockReturnValue({ getOptions })
+  const first = actions.fetchWidgetOptions.call({ $client: {} }, context, {
+    widgetId: 1,
+  })
+  await actions.fetchWidgetOptions.call({ $client: {} }, context, {
+    widgetId: 1,
+  })
+  expect(getOptions).toHaveBeenCalledTimes(1)
+  pending.resolve({ data: { results: ['France'] } })
+  await first
+  expect(dashboardState.widgetOptions[1].values).toEqual(['France'])
+  await actions.fetchWidgetOptions.call({ $client: {} }, context, {
+    widgetId: 1,
+    force: true,
+  })
+  expect(dashboardState.widgetOptions[1].values).toEqual(['Belgium'])
+  const stale = deferred()
+  getOptions.mockReturnValueOnce(stale.promise)
+  const request = actions.fetchWidgetOptions.call({ $client: {} }, context, {
+    widgetId: 1,
+    force: true,
+  })
+  mutations.RESET(dashboardState)
+  stale.resolve({ data: { results: ['Old dashboard'] } })
+  await request
+  expect(dashboardState.widgetOptions).toEqual({})
+})
+
+test('public dropdown options use the dashboard token and can retry a failure', async () => {
+  const dashboardState = createDashboardState()
+  dashboardState.widgets = [{ id: 1, type: 'text_filter', mode: 'dropdown' }]
+  mutations.SET_PUBLIC(dashboardState, {
+    slug: 'public-dashboard',
+    authToken: 'token',
+  })
+  const context = { state: dashboardState, commit: applyCommit(dashboardState) }
+  const getWidgetOptions = vi
+    .fn()
+    .mockRejectedValueOnce(new Error('Unavailable'))
+    .mockResolvedValueOnce({ data: { results: ['France'] } })
+  PublicDashboardService.mockReturnValue({ getWidgetOptions })
+  await actions.fetchWidgetOptions.call({ $client: {} }, context, {
+    widgetId: 1,
+  })
+  expect(getWidgetOptions).toHaveBeenCalledWith('public-dashboard', 1, 'token')
+  expect(dashboardState.widgetOptions[1]).toMatchObject({
+    loading: false,
+    error: true,
+  })
+  await actions.fetchWidgetOptions.call({ $client: {} }, context, {
+    widgetId: 1,
+    force: true,
+  })
+  expect(dashboardState.widgetOptions[1]).toMatchObject({
+    error: false,
+    values: ['France'],
+  })
+})
+
+test('realtime source updates reload the viewer-specific table schema', async () => {
+  const dashboardState = createDashboardState()
+  const commit = applyCommit(dashboardState)
+  const dispatch = vi.fn().mockResolvedValue([])
+  await actions.handleDataSourceUpdated(
+    { state: dashboardState, commit, dispatch },
+    { id: 1, table_id: 2, table_schema: null }
+  )
+  expect(dispatch).toHaveBeenCalledExactlyOnceWith('fetchNewDataSources', 42)
+  expect(commit).not.toHaveBeenCalled()
+})

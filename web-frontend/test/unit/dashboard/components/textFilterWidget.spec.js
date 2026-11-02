@@ -1,4 +1,5 @@
 import { nextTick } from 'vue'
+import { flushPromises } from '@vue/test-utils'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import TextFilterWidget from '@baserow/modules/dashboard/components/widget/TextFilterWidget'
 
@@ -13,9 +14,80 @@ const widget = {
 beforeEach(() => {
   testApp = new TestApp()
 })
-afterEach(() => testApp.afterEach())
+afterEach(() => {
+  testApp.afterEach()
+  vi.restoreAllMocks()
+})
 
 describe('TextFilterWidget', () => {
+  test('loads public dropdown options when the formula is private', async () => {
+    const dropdown = { ...widget, mode: 'dropdown', default_value: '' }
+    const store = testApp.store
+    const getOptions = vi.spyOn(store.$client, 'get').mockResolvedValue({
+      data: { results: ['France'] },
+    })
+    await store.dispatch('dashboardApplication/forceSetWidgets', [dropdown])
+    store.commit('dashboardApplication/SET_PUBLIC', {
+      slug: 'shared',
+      authToken: 'token',
+    })
+    wrapper = await testApp.mount(TextFilterWidget, {
+      props: { widget: dropdown },
+    })
+    await flushPromises()
+    expect(wrapper.get('.select__item-name-text').text()).toBe('France')
+    expect(getOptions).toHaveBeenCalledWith(
+      '/dashboard/public/shared/widgets/1/options/',
+      {
+        headers: { 'Baserow-Dashboard-Authorization': 'JWT token' },
+      }
+    )
+    store.commit('dashboardApplication/RESET')
+  })
+  test('selects and clears dropdown values without changing option order or losing input text', async () => {
+    const dropdown = {
+      ...widget,
+      mode: 'dropdown',
+      options: { formula: 'France, Belgium, Morocco', mode: 'raw' },
+      default_value: '',
+    }
+    const store = testApp.store
+    const getOptions = vi.spyOn(store.$client, 'get').mockResolvedValue({
+      data: { results: ['France', 'Belgium', 'Morocco'] },
+    })
+    await store.dispatch('dashboardApplication/forceSetWidgets', [dropdown])
+    wrapper = await testApp.mount(TextFilterWidget, {
+      props: { widget: dropdown },
+    })
+    await flushPromises()
+    const names = () =>
+      wrapper.findAll('.select__item-name-text').map((item) => item.text())
+    expect(names()).toEqual(['France', 'Belgium', 'Morocco'])
+    await wrapper.get('.dropdown__selected').trigger('click')
+    await wrapper.findAll('.select__item-link')[1].trigger('click')
+    expect(store.getters['dashboardApplication/getWidgetValues'][1]).toBe(
+      'Belgium'
+    )
+    expect(wrapper.get('.dropdown__selected-text').text()).toBe('Belgium')
+    expect(names()).toEqual(['France', 'Belgium', 'Morocco'])
+    await wrapper.get('.dropdown__selected').trigger('click')
+    await wrapper.get('.select__search-input').setValue('Fra')
+    await wrapper.get('.select__search-input').trigger('keyup')
+    expect(wrapper.findAll('.select__item.visible')).toHaveLength(1)
+    expect(store.getters['dashboardApplication/getWidgetValues'][1]).toBe(
+      'Belgium'
+    )
+    await wrapper.get('.select__footer button').trigger('click')
+    expect(store.getters['dashboardApplication/getWidgetValues'][1]).toBe('')
+    await wrapper.setProps({ widget: { ...dropdown, mode: 'input' } })
+    await wrapper.get('input').setValue('Unlisted value')
+    await wrapper.setProps({ widget: dropdown })
+    expect(wrapper.get('.dropdown__selected-text').text()).toBe(
+      'Unlisted value'
+    )
+    expect(getOptions).toHaveBeenCalledTimes(1)
+    store.commit('dashboardApplication/RESET')
+  })
   test('renders an accessible input and preserves viewer values across unrelated changes', async () => {
     const store = testApp.store
     await store.dispatch('dashboardApplication/forceSetWidgets', [

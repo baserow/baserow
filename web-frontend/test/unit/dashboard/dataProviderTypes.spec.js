@@ -84,3 +84,37 @@ test('new filter types supply their own formula schema', () => {
     registry.unregister('dashboardWidget', 'number_filter')
   }
 })
+
+test('dropdown option picker exposes each used table once in the selected dashboard', async () => {
+  const { DashboardTableDataProviderType } =
+    await import('@baserow/modules/dashboard/dataProviderTypes')
+  const store = testApp.store
+  const prefix = 'template/dashboardApplication/'
+  const tableSchema = {
+    title: 'Orders',
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: { field_10: { type: 'string', title: 'Country' } },
+    },
+  }
+  store.commit(prefix + 'SET_WIDGETS', [
+    { id: 1, data_source_id: 2 },
+    { id: 2, data_source_id: 3 },
+    { id: 3, type: 'text_filter' },
+  ])
+  store.commit(prefix + 'SET_DATA_SOURCES', [
+    { id: 2, table_id: 5, table_schema: tableSchema },
+    { id: 3, table_id: 5, table_schema: tableSchema },
+    { id: 4, table_id: 6, table_schema: tableSchema },
+  ])
+  const provider = new DashboardTableDataProviderType({
+    app: { $store: store },
+  })
+  expect(provider.getDataSchema({ storePrefix: 'template/' })).toEqual({
+    type: 'object',
+    properties: { 5: { ...tableSchema, order: 0 } },
+  })
+  expect(provider.isValid(['5', '*', 'field_10'])).toBe(true)
+  expect(provider.isValid(['5'])).toBe(false)
+})
