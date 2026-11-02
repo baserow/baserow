@@ -88,24 +88,26 @@
       </template>
     </ViewFieldConditionsForm>
     <div v-if="!readOnly" class="filters_footer">
-      <ButtonText
-        type="secondary"
-        size="small"
-        icon="iconoir-plus"
-        class="filters__add"
-        @click.prevent="addFilter()"
-      >
-        {{ $t('localBaserowTableServiceConditionalForm.addFilter') }}
-      </ButtonText>
-      <ButtonText
-        type="secondary"
-        size="small"
-        icon="iconoir-plus"
-        class="filters__add"
-        @click.prevent="addFilterGroup()"
-      >
-        {{ $t('localBaserowTableServiceConditionalForm.addFilterGroup') }}
-      </ButtonText>
+      <slot name="actions" v-bind="{ addFilter, addFilterGroup }">
+        <ButtonText
+          type="secondary"
+          size="small"
+          icon="iconoir-plus"
+          class="filters__add"
+          @click.prevent="addFilter()"
+        >
+          {{ $t('localBaserowTableServiceConditionalForm.addFilter') }}
+        </ButtonText>
+        <ButtonText
+          type="secondary"
+          size="small"
+          icon="iconoir-plus"
+          class="filters__add"
+          @click.prevent="addFilterGroup()"
+        >
+          {{ $t('localBaserowTableServiceConditionalForm.addFilterGroup') }}
+        </ButtonText>
+      </slot>
     </div>
   </div>
 </template>

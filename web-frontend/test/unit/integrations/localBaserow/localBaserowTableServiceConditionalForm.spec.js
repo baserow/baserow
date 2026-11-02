@@ -83,6 +83,14 @@ describe('LocalBaserowTableServiceConditionalForm', () => {
     expect(wrapper.text()).toContain(
       'localBaserowTableServiceConditionalForm.noFilterTitle'
     )
+    expect(
+      wrapper
+        .findAll('.filters_footer .button-text')
+        .map((button) => button.text())
+    ).toEqual([
+      'localBaserowTableServiceConditionalForm.addFilter',
+      'localBaserowTableServiceConditionalForm.addFilterGroup',
+    ])
     const child = wrapper.findComponent(ViewFieldConditionsForm)
 
     child.vm.$emit('addFilterGroup', {

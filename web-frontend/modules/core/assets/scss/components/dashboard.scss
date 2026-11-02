@@ -177,14 +177,16 @@ $dashboard-resources-row-min-width: 1044px;
 
 .dashboard-widget-filters {
   color: $palette-neutral-1200;
+}
 
-  // Existing class supplied by the shared service condition form.
-  // stylelint-disable-next-line selector-class-pattern
-  .filters_footer {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-    margin-top: 16px;
+.dashboard-widget-filters__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+
+  &--empty {
+    margin-top: 0;
   }
 }
 
@@ -298,7 +300,9 @@ $dashboard-resources-row-min-width: 1044px;
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  padding-bottom: 4px;
+
+  // The shared dropdown footer already adds 4px above this row.
+  padding: 4px 0 8px;
 }
 
 .dashboard-widget-filter-target {

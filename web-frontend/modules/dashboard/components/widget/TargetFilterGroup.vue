@@ -9,7 +9,36 @@
     @update:model-value="update('filters', $event)"
     @update:filter-groups="update('filter_groups', $event)"
     @update:filter-type="update('filter_type', $event)"
-  />
+  >
+    <template #actions="{ addFilter, addFilterGroup }">
+      <div
+        class="dashboard-widget-filters__actions"
+        :class="{
+          'dashboard-widget-filters__actions--empty':
+            !localGroup.filters.length && !localGroup.filter_groups.length,
+        }"
+      >
+        <Button
+          type="secondary"
+          button-type="button"
+          icon="iconoir-plus"
+          class="filters__add"
+          @click="addFilter()"
+        >
+          {{ $t('localBaserowTableServiceConditionalForm.addFilter') }}
+        </Button>
+        <Button
+          type="secondary"
+          button-type="button"
+          icon="iconoir-plus"
+          class="filters__add"
+          @click="addFilterGroup()"
+        >
+          {{ $t('localBaserowTableServiceConditionalForm.addFilterGroup') }}
+        </Button>
+      </div>
+    </template>
+  </LocalBaserowTableServiceConditionalForm>
 </template>
 
 <script setup>
