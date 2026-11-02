@@ -28,6 +28,7 @@ class AutomationNodeHistorySerializer(serializers.ModelSerializer):
             "message",
             "status",
             "attempt",
+            "resume_at",
             "workflow_history",
             "node",
             "node_type",

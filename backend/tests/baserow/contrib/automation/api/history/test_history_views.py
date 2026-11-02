@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.urls import reverse
 from django.utils import timezone
 
@@ -86,6 +88,54 @@ def test_get_node_histories_includes_attempt(api_client, data_fixture):
     )
     assert rows[second_attempt.id]["attempt"] == 2
     assert rows[second_attempt.id]["status"] == "success"
+
+
+@pytest.mark.django_db
+def test_get_node_histories_includes_resume_at(api_client, data_fixture):
+    """
+    A waiting node exposes when it is due to resume, so the frontend can show
+    "Waiting until HH:MM" while the run is still in progress. Nodes that never
+    waited return null.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    trigger = workflow.get_trigger()
+    wait_node = data_fixture.create_core_wait_action_node(workflow=workflow)
+    workflow_history = data_fixture.create_automation_workflow_history(
+        workflow=workflow,
+        status=HistoryStatusChoices.STARTED,
+    )
+    trigger_history = data_fixture.create_automation_node_history(
+        workflow_history=workflow_history,
+        node=trigger,
+        status=HistoryStatusChoices.SUCCESS,
+    )
+    # Whole seconds: DRF drops the fractional part when it is zero, which keeps
+    # the expected string below deterministic.
+    resume_at = (timezone.now() + timedelta(minutes=5)).replace(microsecond=0)
+    wait_history = data_fixture.create_automation_node_history(
+        workflow_history=workflow_history,
+        node=wait_node,
+        status=HistoryStatusChoices.WAITING,
+        resume_at=resume_at,
+        resume_state={"state": {"seconds": 300}, "current_iterations": {}},
+    )
+
+    url = reverse(
+        API_URL_NODE_HISTORIES, kwargs={"workflow_history_id": workflow_history.id}
+    )
+    response = api_client.get(url, **get_api_kwargs(token))
+
+    assert response.status_code == HTTP_200_OK
+    rows = {row["id"]: row for row in response.json()}
+    assert rows[trigger_history.id]["resume_at"] is None
+    assert rows[wait_history.id]["status"] == "waiting"
+    assert rows[wait_history.id]["resume_at"] == resume_at.isoformat().replace(
+        "+00:00", "Z"
+    )
+    # The runner's internal state is not part of the API.
+    assert "resume_state" not in rows[wait_history.id]
 
 
 @pytest.mark.django_db
