@@ -32,6 +32,10 @@ class DatabaseToolPresentationType extends ToolPresentationType {
     return t(`${this.labelKey}Description`)
   }
 
+  getInput({ input }) {
+    return this.constructor.definition.read ? null : input
+  }
+
   getActivity({ status, input, facts }, t) {
     const { counted, table } = this.constructor.definition
     if (status !== STEP_STATUS.RUNNING && status !== STEP_STATUS.DONE) {

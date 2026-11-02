@@ -130,7 +130,7 @@ class AgentResponder:
 
     def _describe_call(self, name: str, arguments: dict) -> dict:
         """
-        Describe allowed tools without retaining their raw arguments.
+        Describe allowed tools using only their approved input display values.
 
         :param name: The called tool's execution name.
         :param arguments: Its arguments.

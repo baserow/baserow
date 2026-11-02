@@ -394,7 +394,10 @@ def test_unfinished_replies_persist_partial_text_without_private_error_details(
     assert [(step["status"], step["facts"]) for step in steps] == [
         ("done", {"table": table.name, "count": 1})
     ]
-    assert "Private row value" not in json.dumps(steps)
+    assert steps[0]["input"]["values"] == {
+        "table_id": table.id,
+        "rows": [{"Name": "Private row value"}],
+    }
     assert [log.record["message"] for log in logs] == (
         [f"Agent reply {reply_id} could not be written (ModelHTTPError, status 429)"]
         if reason is None
@@ -650,7 +653,7 @@ def test_busy_conversations_and_workspaces_are_refused_with_their_errors(
     "with_identity,valid_facts", [(True, True), (True, False), (False, True)]
 )
 def test_a_reply_calls_the_allowed_tools_as_the_agent_identity(
-    data_fixture, configured_agent, mocker, with_identity, valid_facts
+    data_fixture, configured_agent, mocker, with_identity, valid_facts, api_client
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
@@ -692,7 +695,10 @@ def test_a_reply_calls_the_allowed_tools_as_the_agent_identity(
                 "presentation_type": "create_rows",
                 "status": "done",
                 "changes_data": True,
-                "input": {"requested_count": 1},
+                "input": {
+                    "requested_count": 1,
+                    "values": {"table_id": table.id, "rows": [{"Name": "Plan"}]},
+                },
                 "facts": {"table": table.name, "count": 1} if valid_facts else {},
             }
         ]
@@ -703,6 +709,17 @@ def test_a_reply_calls_the_allowed_tools_as_the_agent_identity(
         assert streamed[-1] == steps[0]
         run = run_of(created.conversation)
         assert run.outcome["steps"] == steps
+        api_client.force_authenticate(user)
+        response = api_client.get(
+            agent_url(agent, "messages", conversation_uuid=created.conversation.uuid)
+        )
+        assert response.status_code == 200
+        saved_reply = next(
+            message
+            for message in response.json()["results"]
+            if message["role"] == "assistant"
+        )
+        assert saved_reply["steps"] == steps
     else:
         assert steps is None
     rows = [row.name for row in table.get_model(attribute_names=True).objects.all()]

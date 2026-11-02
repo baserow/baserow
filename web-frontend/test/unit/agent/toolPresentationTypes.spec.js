@@ -63,6 +63,15 @@ describe('Agent tool presentations', () => {
         )
         expect(activity.title).not.toMatch(/^(agent|toolPresentation)\./)
         expect(activity.icon).toBe('iconoir-db')
+        if (step(name).changes_data) {
+          expect(Object.keys(input.values).length).toBeGreaterThan(0)
+          expect(activity.input).toEqual({
+            values: input.values,
+            truncated: false,
+          })
+        } else {
+          expect(activity.input).toBe(null)
+        }
       }
     }
   })
@@ -203,5 +212,29 @@ describe('Agent tool presentations', () => {
         tools: [{ name: 'new_tool', label: 'new_tool', description: '' }],
       },
     ])
+  })
+
+  test('failed reads keep the workspace warning even when another read succeeds', () => {
+    const [group] = groupToolSteps(
+      [
+        step('list_tables', 'done', { id: 'a' }),
+        step('list_table_rows', 'failed', { id: 'b' }),
+        step('list_table_rows', 'failed', { id: 'c' }),
+        step('list_table_rows', 'done', {
+          id: 'd',
+          facts: { count: 22, table: 'Projects' },
+        }),
+      ],
+      registry,
+      t
+    )
+    expect(group.status).toBe('failed')
+    expect(group.lines.map(({ status }) => status)).toEqual([
+      'done',
+      'failed',
+      'failed',
+      'done',
+    ])
+    expect(group.lines.at(-1).title).toBe('Read 22 rows from Projects')
   })
 })

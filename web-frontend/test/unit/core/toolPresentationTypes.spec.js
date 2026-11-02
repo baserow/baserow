@@ -63,6 +63,7 @@ describe('shared tool presentations', () => {
       status: 'running',
       icon: 'iconoir-mail',
       group: null,
+      input: null,
     })
     expect(groupToolSteps([step], registry, t)).toEqual([
       expect.objectContaining({ title: 'Sending an email', lines: [] }),
@@ -81,7 +82,7 @@ describe('shared tool presentations', () => {
           id: 'unknown',
           tool: '<img src=secret>',
           status,
-          input: { password: 'secret' },
+          input: { values: { password: 'secret' } },
           facts: { output: 'private result' },
         },
         registry,
@@ -135,5 +136,49 @@ describe('shared tool presentations', () => {
     expect(
       toolActivity({ tool: 'send_email', status: 'running' }, registry, t).title
     ).toBe('Sending an email')
+  })
+
+  test('input previews require the presenter to opt in', () => {
+    const registry = registryWith(EmailPresentation)
+    const step = {
+      tool: 'send_email',
+      status: 'done',
+      input: { values: { subject: 'Hello' }, truncated: true },
+    }
+    expect(toolActivity(step, registry, t).input).toBe(null)
+
+    registry.get('toolPresentation', 'send_email').getInput = ({ input }) =>
+      input
+    expect(toolActivity(step, registry, t).input).toEqual(step.input)
+  })
+
+  test.each([null, {}, { values: [] }, { values: 'secret' }, { values: {} }])(
+    'omits malformed or empty input previews: %j',
+    (input) => {
+      const registry = registryWith(EmailPresentation)
+      registry.get('toolPresentation', 'send_email').getInput = () => input
+      expect(
+        toolActivity({ tool: 'send_email', status: 'done' }, registry, t)
+      ).toMatchObject({ title: 'Email sent', input: null })
+    }
+  )
+
+  test('broken, circular and oversized previews leave the activity usable', () => {
+    const registry = registryWith(EmailPresentation)
+    const presenter = registry.get('toolPresentation', 'send_email')
+    const circular = {}
+    circular.self = circular
+    for (const getInput of [
+      () => {
+        throw new Error('Broken preview')
+      },
+      () => ({ values: circular }),
+      () => ({ values: { body: 'x'.repeat(40000) } }),
+    ]) {
+      presenter.getInput = getInput
+      expect(
+        toolActivity({ tool: 'send_email', status: 'done' }, registry, t)
+      ).toMatchObject({ title: 'Email sent', input: null })
+    }
   })
 })

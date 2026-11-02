@@ -5,10 +5,11 @@
     :aria-busy="status === STEP_STATUS.RUNNING"
   >
     <button
-      v-if="lines.length"
+      v-if="hasDetails"
       class="chat-step-group__header chat-step-group__header--toggle"
       type="button"
       :aria-expanded="expanded"
+      :aria-controls="detailsId"
       @click="expanded = !expanded"
     >
       <span
@@ -45,29 +46,74 @@
         $t(statusLabels[status])
       }}</span>
     </div>
-    <ul v-if="lines.length && expanded" class="chat-step-group__lines">
-      <li v-for="line in lines" :key="line.id" class="chat-step-group__line">
-        <span>{{ line.title }}</span>
-        <span class="chat-step-group__status">{{
-          $t(statusLabels[line.status])
-        }}</span>
-      </li>
-    </ul>
+    <div v-if="hasDetails && expanded" :id="detailsId">
+      <ul v-if="lines.length" class="chat-step-group__lines">
+        <li v-for="line in lines" :key="line.id" class="chat-step-group__line">
+          <span>{{ line.title }}</span>
+          <span
+            v-if="line.status === STEP_STATUS.FAILED"
+            class="chat-step-group__line-status chat-step-group__line-status--failed"
+            >{{ $t(statusLabels[line.status]) }}</span
+          >
+          <span
+            v-else-if="line.status === STEP_STATUS.STOPPED"
+            class="chat-step-group__line-status"
+            >{{ $t('toolPresentation.lineStopped') }}</span
+          >
+          <span v-else class="chat-step-group__status">{{
+            $t(statusLabels[line.status])
+          }}</span>
+        </li>
+      </ul>
+      <div v-if="inputText" class="chat-step-group__input">
+        <div class="chat-step-group__input-label">
+          {{ $t('toolPresentation.input') }}
+        </div>
+        <pre
+          class="chat-step-group__input-values"
+          tabindex="0"
+          :aria-label="$t('toolPresentation.input')"
+        ><code>{{ inputText }}</code></pre>
+        <p v-if="input.truncated" class="chat-step-group__input-note">
+          {{ $t('toolPresentation.inputTruncated') }}
+        </p>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref, useId } from 'vue'
 import { STEP_STATUS } from '@baserow/modules/core/chatRuns/constants'
 
-defineProps({
+const props = defineProps({
   title: { type: String, required: true },
   status: { type: String, required: true },
   icon: { type: String, default: 'iconoir-tools' },
   lines: { type: Array, default: () => [] },
+  input: { type: Object, default: null },
 })
 
-const expanded = ref(true)
+const detailsId = useId()
+// Workspace activity starts open; action inputs are available on demand.
+const expanded = ref(props.lines.length > 0)
+const inputText = computed(() => {
+  const values = props.input?.values
+  if (
+    !values ||
+    typeof values !== 'object' ||
+    Array.isArray(values) ||
+    !Object.keys(values).length
+  ) {
+    return ''
+  }
+  try {
+    return JSON.stringify(values, null, 2)
+  } catch {
+    return ''
+  }
+})
+const hasDetails = computed(() => props.lines.length > 0 || !!inputText.value)
 const statusIcons = {
   [STEP_STATUS.DONE]: 'iconoir-check-circle chat-step-group__icon--done',
   [STEP_STATUS.FAILED]:

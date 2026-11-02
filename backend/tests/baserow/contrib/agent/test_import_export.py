@@ -82,11 +82,14 @@ def test_duplicate_copies_conversations_with_new_identifiers(
             steps=[
                 {
                     "id": "call_1",
-                    "tool": "list_tables",
-                    "presentation_type": "list_tables",
+                    "tool": "create_rows",
+                    "presentation_type": "create_rows",
                     "status": "done",
-                    "changes_data": False,
-                    "input": {},
+                    "changes_data": True,
+                    "input": {
+                        "requested_count": 1,
+                        "values": {"table_id": 1, "rows": [{"Name": "Plan"}]},
+                    },
                     "facts": {},
                 }
             ],

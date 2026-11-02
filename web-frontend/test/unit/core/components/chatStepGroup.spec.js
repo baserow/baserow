@@ -8,7 +8,7 @@ import {
 } from '@baserow/modules/core/toolPresentationTypes'
 
 describe('ChatStepGroup', () => {
-  test('renders a configured email action through the same shared card', () => {
+  test('renders a configured email action and its input through the same shared card', async () => {
     class EmailPresentation extends ToolPresentationType {
       static getType() {
         return 'send_email'
@@ -18,6 +18,10 @@ describe('ChatStepGroup', () => {
         return t(
           facts.delivery === 'sent' ? 'emailTool.sent' : 'emailTool.send'
         )
+      }
+
+      getInput({ input }) {
+        return input
       }
     }
     const registry = new Registry()
@@ -35,6 +39,9 @@ describe('ChatStepGroup', () => {
           presentation_type: 'send_email',
           status: 'done',
           changes_data: true,
+          input: {
+            values: { to: 'alice@example.com', subject: 'Project update' },
+          },
           facts: { delivery: 'sent' },
         },
       ],
@@ -51,7 +58,12 @@ describe('ChatStepGroup', () => {
       'toolPresentation.statusDone'
     )
     expect(wrapper.find('.iconoir-check-circle').exists()).toBe(true)
-    expect(wrapper.find('button').exists()).toBe(false)
+    expect(wrapper.get('button').attributes('aria-expanded')).toBe('false')
+    expect(wrapper.find('pre').exists()).toBe(false)
+    await wrapper.get('button').trigger('click')
+    expect(wrapper.get('pre').text()).toContain('alice@example.com')
+    expect(wrapper.get('pre').text()).toContain('Project update')
+    expect(wrapper.get('button').attributes('aria-expanded')).toBe('true')
   })
 
   test('shows grouped details by default and can collapse and expand them', async () => {
@@ -66,6 +78,10 @@ describe('ChatStepGroup', () => {
 
     expect(wrapper.get('li').text()).toContain('Reading tables')
     expect(wrapper.get('li').text()).toContain('toolPresentation.statusFailed')
+    expect(wrapper.get('.chat-step-group__line-status--failed').text()).toBe(
+      'toolPresentation.statusFailed'
+    )
+    expect(wrapper.find('li .chat-step-group__status').exists()).toBe(false)
     expect(wrapper.find('li .iconoir-warning-triangle').exists()).toBe(false)
     expect(wrapper.get('button').attributes('aria-expanded')).toBe('true')
     expect(wrapper.get('button .iconoir-nav-arrow-down').exists()).toBe(true)
@@ -76,6 +92,71 @@ describe('ChatStepGroup', () => {
     await wrapper.get('button').trigger('click')
     expect(wrapper.get('li').text()).toContain('Reading tables')
   })
+
+  test('makes interrupted lines visible without claiming a rollback', () => {
+    const wrapper = mount(ChatStepGroup, {
+      props: {
+        title: 'Workspace activity',
+        status: 'stopped',
+        lines: [{ id: 'a', title: 'Read rows', status: 'stopped' }],
+      },
+      global: { mocks: { $t: (key) => key } },
+    })
+
+    expect(wrapper.get('.chat-step-group__line-status').text()).toBe(
+      'toolPresentation.lineStopped'
+    )
+  })
+
+  test('expands input safely, indicates a shortened preview, and keeps it open through completion', async () => {
+    const values = {
+      table_id: 42,
+      rows: [{ Name: '<img src=x onerror=alert(1)>', Done: false, Amount: 0 }],
+    }
+    const wrapper = mount(ChatStepGroup, {
+      props: {
+        title: 'Creating rows',
+        status: 'running',
+        input: { values, truncated: true },
+      },
+      global: { mocks: { $t: (key) => key } },
+    })
+
+    expect(wrapper.get('button').attributes('aria-expanded')).toBe('false')
+    expect(wrapper.get('.iconoir-nav-arrow-right').exists()).toBe(true)
+    expect(wrapper.find('pre').exists()).toBe(false)
+    await wrapper.get('button').trigger('click')
+
+    const detailsId = wrapper.get('button').attributes('aria-controls')
+    expect(wrapper.get(`[id="${detailsId}"]`).text()).toContain(
+      'toolPresentation.input'
+    )
+    expect(wrapper.get('pre').text()).toBe(JSON.stringify(values, null, 2))
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(wrapper.get('pre').attributes('tabindex')).toBe('0')
+    expect(wrapper.get('.chat-step-group__input-note').text()).toBe(
+      'toolPresentation.inputTruncated'
+    )
+
+    await wrapper.setProps({ status: 'done', title: 'Added 1 row' })
+    expect(wrapper.get('button').attributes('aria-expanded')).toBe('true')
+    expect(wrapper.get('pre').text()).toContain('Amount')
+    await wrapper.get('button').trigger('click')
+    expect(wrapper.find('pre').exists()).toBe(false)
+  })
+
+  test.each([null, {}, { values: {} }, { values: [] }, { values: 'private' }])(
+    'does not add a toggle for unavailable input: %j',
+    (input) => {
+      const wrapper = mount(ChatStepGroup, {
+        props: { title: 'Added rows', status: 'done', input },
+        global: { mocks: { $t: (key) => key } },
+      })
+
+      expect(wrapper.find('button').exists()).toBe(false)
+      expect(wrapper.find('pre').exists()).toBe(false)
+    }
+  )
 
   test.each([
     ['running', '.chat-step-group__spinner', 'toolPresentation.statusRunning'],

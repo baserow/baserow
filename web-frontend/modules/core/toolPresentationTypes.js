@@ -3,6 +3,7 @@ import { STEP_STATUS } from '@baserow/modules/core/chatRuns/constants'
 
 export const WORKSPACE_TOOL_GROUP = 'workspace'
 
+const MAX_INPUT_PREVIEW_LENGTH = 32768
 const STATUSES = new Set(Object.values(STEP_STATUS))
 const STATUS_PRIORITY = [
   STEP_STATUS.RUNNING,
@@ -40,9 +41,14 @@ export class ToolPresentationType extends Registerable {
     return ''
   }
 
-  /** Receives safe display summaries and facts, never raw arguments/results. */
+  /** Receives explicitly approved display input and facts, never raw results. */
   getActivity(step, t) {
     return t(`toolPresentation.${step.status}`)
+  }
+
+  /** Opt in to the backend's curated input preview; hidden by default. */
+  getInput(step, t) {
+    return null
   }
 }
 
@@ -60,6 +66,22 @@ function genericText(t, key, fallback) {
   }
 }
 
+function toolInput(presenter, step, t) {
+  try {
+    const input = presenter.getInput(step, t)
+    const values = record(input?.values)
+    if (!Object.keys(values).length) return null
+    // Validate independently of the title so a broken preview cannot hide it.
+    const json = JSON.stringify(values)
+    if (json.length > MAX_INPUT_PREVIEW_LENGTH) return null
+    const parsed = record(JSON.parse(json))
+    if (!Object.keys(parsed).length) return null
+    return { values: parsed, truncated: input.truncated === true }
+  } catch {
+    return null
+  }
+}
+
 /** Resolve a safe activity without letting an unknown or broken type break chat. */
 export function toolActivity(step, registry, t) {
   const data = record(step)
@@ -74,6 +96,7 @@ export function toolActivity(step, registry, t) {
     status,
     icon: 'iconoir-tools',
     group: null,
+    input: null,
   }
   try {
     const type = data.presentation_type || data.tool
@@ -91,16 +114,20 @@ export function toolActivity(step, registry, t) {
       }
       return text
     }
-    const title = presenter.getActivity(
-      { ...data, status, input: record(data.input), facts: record(data.facts) },
-      translate
-    )
+    const normalized = {
+      ...data,
+      status,
+      input: record(data.input),
+      facts: record(data.facts),
+    }
+    const title = presenter.getActivity(normalized, translate)
     if (typeof title !== 'string' || !title.trim()) return fallback
     return {
       ...fallback,
       title,
       icon: presenter.icon,
       group: !data.changes_data ? presenter.group : null,
+      input: toolInput(presenter, normalized, translate),
     }
   } catch {
     return fallback

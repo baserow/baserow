@@ -1840,6 +1840,9 @@
     "statusDone": "Completed",
     "statusFailed": "Failed",
     "statusStopped": "Interrupted; changes may have completed",
+    "lineStopped": "Interrupted",
+    "input": "Input",
+    "inputTruncated": "This is a shortened preview of the input.",
     "workspaceRunning": "Looking at your workspace",
     "workspaceDone": "Looked at your workspace",
     "workspace": "Workspace activity"

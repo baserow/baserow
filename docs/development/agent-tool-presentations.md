@@ -18,7 +18,10 @@ The backend emits `step` events and saves the same steps on the assistant messag
     "presentation_type": "create_rows",
     "status": "running",
     "changes_data": true,
-    "input": { "requested_count": 3 },
+    "input": {
+        "requested_count": 1,
+        "values": { "table_id": 42, "rows": [{ "Name": "Planning" }] }
+    },
     "facts": {}
 }
 ```
@@ -29,9 +32,13 @@ the stable `send_email` presenter. Presentation keys never select execution or
 grant permissions. Older steps without `presentation_type` resolve through
 `tool`. Step IDs identify individual calls, including repeated calls to one tool.
 
-`input` contains a small display summary derived from arguments, such as a
-requested count. It must exclude row values, search text, credentials, formulas
-and complete argument objects. `facts` contains confirmed outcomes, such as
+`input` contains a display summary derived from arguments, such as a requested
+count. Mutation tools can also supply `input.values`: an explicitly allowed,
+bounded preview of the requested input. Database changes include identifiers,
+row values, field definitions and filter values so users can inspect the change.
+Read tools retain only their summaries. Never copy all arguments automatically:
+future action tools must select user-facing values and exclude credentials,
+provider configuration and internal context. `facts` contains confirmed outcomes, such as
 `{"count": 2, "table": "Tasks"}`, extracted after authorized success. Names must
 come from authorized results or permitted lookups. Requested counts do not prove
 how many items changed: reuse and partial results can produce different counts.
@@ -39,6 +46,16 @@ how many items changed: reuse and partial results can produce different counts.
 Agent tools define these summaries with `AgentToolType.get_step_input(arguments)`
 and `get_step_facts(ctx, arguments, result)`. Invalid or unavailable summaries
 remain empty. Summary extraction must never change whether execution succeeds.
+Input previews travel with the step through streaming, persistence and reload;
+they describe the request, not a guarantee of what changed. Older saved steps
+without `values` keep a non-expandable action card.
+
+Use Core's `tool_input_preview` after selecting the allowed values. It copies
+them without changing the executed arguments, limits the preview to 16 KiB of
+compact JSON, 500 nodes, eight nested levels and 1,000 characters per string,
+and marks omissions with `truncated: true`. Invalid JSON values are replaced or
+omitted. This bounds display and storage costs; it does not decide which fields
+are safe to display.
 
 Unexpected tool and summary failures use Core's `report_exception` helper. When
 Sentry is configured, it captures the original exception, traceback locals and
@@ -51,6 +68,9 @@ The frontend uses `STEP_STATUS` from `modules/core/chatRuns/constants.js` for
 the statuses `running`, `done`, `failed` and `stopped`. `stopped` means the
 outcome is uncertain; a write may already have completed. It does not imply
 rollback. Missing history steps are supported and produce no activity cards.
+Workspace groups keep a warning when any call failed, even if a later call
+succeeded: those calls may target different resources. Failed and interrupted
+lines show their status visibly; successful lines remain plain.
 
 ## Registering a presenter
 
@@ -81,6 +101,12 @@ class EmailToolPresentationType extends ToolPresentationType {
         }
         return this.getLabel(t);
     }
+
+    getInput({ input }) {
+        // The backend explicitly selected user-facing email fields, e.g.
+        // recipients, subject and body. It must never include SMTP credentials.
+        return input;
+    }
 }
 
 export default defineNuxtPlugin({
@@ -95,15 +121,20 @@ export default defineNuxtPlugin({
 });
 ```
 
-The base also provides `icon`, `getDescription(t)` and `group`. Leave `group` as
+The base also provides `icon`, `getDescription(t)`, `getInput(step, t)` and `group`.
+`getInput` defaults to `null`; opt in by returning the backend's
+`{ values, truncated? }` preview. Core validates the preview independently of the
+title, so invalid or oversized input cannot hide the activity. Leave `group` as
 `null` for actions. Only workspace reads should return `WORKSPACE_TOOL_GROUP`
 from `modules/core/toolPresentationTypes.js`.
 `groupToolSteps(steps, registry, t)` groups consecutive workspace reads and gives
 each write or action its own card, even when an action is read-only.
 `ChatStepGroup` renders the resulting title, status and optional activity lines.
+Action inputs use the same card and caret, initially collapsed. Expanded previews
+show escaped, formatted JSON and a notice when `truncated` is true.
 `toolActivity(step, registry, t)` supplies individual labels, including composer
 activity. Unknown presenters, missing translations and formatter exceptions use
-generic labels while preserving status; they never display raw arguments/results.
+generic labels while preserving status; unknown presenters never display inputs.
 
 ## Translations and coverage
 

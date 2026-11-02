@@ -146,7 +146,10 @@ describe('Agent replies', () => {
   test('shows live tool activity and replaces it with the saved outcome', async () => {
     const wrapper = await startReply()
     const running = toolStep('call-1', 'create_rows', 'running', {
-      input: { requested_count: 3 },
+      input: {
+        requested_count: 3,
+        values: { table_id: 1, rows: [{ Name: 'Planning' }] },
+      },
     })
 
     await receive('run-1', 'step', running)
@@ -158,6 +161,10 @@ describe('Agent replies', () => {
       'agent.toolCreateRowsRunningCount'
     )
     expect(activity(wrapper).text()).toContain('3')
+    const card = wrapper.get('.chat-step-group')
+    expect(card.find('.chat-step-group__input').exists()).toBe(false)
+    await card.get('button').trigger('click')
+    expect(card.get('pre').text()).toContain('Planning')
 
     const done = {
       ...running,
@@ -181,6 +188,7 @@ describe('Agent replies', () => {
     expect(activity(wrapper).classes()).not.toContain(
       'chat-composer__activity--visible'
     )
+    expect(card.get('pre').text()).toContain('Planning')
   })
 
   test('reloads grouped reads and failed calls from saved message steps', async () => {
@@ -192,7 +200,9 @@ describe('Agent replies', () => {
           toolStep('b', 'get_table_schema', 'done', {
             facts: { table: 'Tasks' },
           }),
-          toolStep('c', 'create_rows', 'failed'),
+          toolStep('c', 'create_rows', 'failed', {
+            input: { values: { table_id: 1, rows: [{ Name: 'Planning' }] } },
+          }),
         ],
       }),
     ])
@@ -211,6 +221,10 @@ describe('Agent replies', () => {
     expect(reads.findAll('li')).toHaveLength(2)
     await reads.get('button').trigger('click')
     expect(reads.findAll('li')).toHaveLength(0)
+    const change = wrapper.findAll('.chat-step-group')[1]
+    expect(change.find('pre').exists()).toBe(false)
+    await change.get('button').trigger('click')
+    expect(change.get('pre').text()).toContain('Planning')
     expect(api.stream).not.toHaveBeenCalled()
   })
 
