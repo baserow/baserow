@@ -15,6 +15,7 @@ from rest_framework.status import (
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.tasks import periodic_check_pending_search_data
+from baserow.core.services.registries import service_type_registry
 from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.semantic_search.handler import SemanticSearchHandler
 from baserow_enterprise.semantic_search.models import (
@@ -969,3 +970,40 @@ def test_listing_fields_doesnt_query_per_semantic_search_field(
         FieldHandler().update_field(user, field, semantic_search_enabled=True)
 
     assert count_queries() == one_field_queries
+
+
+@pytest.mark.django_db
+def test_service_context_data_leaves_out_semantic_search(data_fixture, semantic_search):
+    user = data_fixture.create_user()
+    table, fields, rows = data_fixture.build_table(
+        user=user, columns=[("Notes", "text")], rows=[["first"]]
+    )
+    FieldHandler().update_field(user, fields[0], semantic_search_enabled=True)
+    aggregate = data_fixture.create_local_baserow_aggregate_rows_service(
+        table=table, field=fields[0], aggregation_type="empty_count"
+    )
+
+    # The field describes the values of the aggregation, not its settings.
+    field_context = (
+        service_type_registry.get_by_model(aggregate)
+        .get_context_data(aggregate)
+        .get("field")
+    )
+
+    assert field_context["id"] == fields[0].id
+    assert "semantic_search_enabled" not in field_context
+    assert "semantic_search_status" not in field_context
+
+    for number in range(3):
+        data_fixture.create_single_select_field(table=table, name=f"Select {number}")
+    list_rows = data_fixture.create_local_baserow_list_rows_service(table=table)
+
+    # Only the select options of the fields are used.
+    with CaptureQueriesContext(connection) as captured:
+        service_type_registry.get_by_model(list_rows).get_context_data(list_rows)
+
+    assert not [
+        query
+        for query in captured.captured_queries
+        if 'FROM "baserow_enterprise_semanticsearchfield"' in query["sql"]
+    ]
