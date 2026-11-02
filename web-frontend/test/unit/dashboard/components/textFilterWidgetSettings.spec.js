@@ -25,8 +25,16 @@ describe('TextFilterWidgetSettings', () => {
     await flushPromises()
     expect(dispatch).toHaveBeenCalledWith('dashboardApplication/updateWidget', {
       widgetId: 2,
-      values: { placeholder: '', default_value: 'Initial', target_filters: [] },
+      values: {
+        mode: 'input',
+        options: {},
+        placeholder: '',
+        default_value: 'Initial',
+        target_filters: [],
+      },
       originalValues: {
+        mode: 'input',
+        options: {},
         placeholder: 'Type here',
         default_value: 'Initial',
         target_filters: [],
@@ -38,11 +46,15 @@ describe('TextFilterWidgetSettings', () => {
     expect(dispatch).toHaveBeenCalledWith('dashboardApplication/updateWidget', {
       widgetId: 2,
       values: {
+        mode: 'input',
+        options: {},
         placeholder: 'Type here',
         default_value: "get('literal')",
         target_filters: [],
       },
       originalValues: {
+        mode: 'input',
+        options: {},
         placeholder: 'Type here',
         default_value: 'Initial',
         target_filters: [],
@@ -152,6 +164,8 @@ test('configures a target inside the input sidebar and keeps template saves isol
   expect(
     wrapper.findAll('.select__item-name-text').map((item) => item.text())
   ).toEqual([
+    'textFilterWidget.input',
+    'textFilterWidget.dropdown',
     'textFilterWidget.apply_nothing',
     'textFilterWidget.apply_alternative',
   ])

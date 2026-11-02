@@ -21,6 +21,7 @@ export const state = () => ({
   selectedWidgetId: null,
   widgets: [],
   widgetValues: {},
+  widgetOptions: {},
   dataSources: [],
   integrations: [],
   // A cache for data that has been
@@ -303,11 +304,15 @@ const applyWidgetCollection = (context, registry, widgets) => {
 }
 
 export const mutations = {
+  SET_WIDGET_OPTIONS(state, { widgetId, options }) {
+    state.widgetOptions = { ...state.widgetOptions, [widgetId]: options }
+  },
   SET_WIDGET_VALUE(state, { widgetId, value }) {
     state.widgetValues = { ...state.widgetValues, [widgetId]: value }
   },
   DELETE_WIDGET_VALUE(state, widgetId) {
     delete state.widgetValues[widgetId]
+    delete state.widgetOptions[widgetId]
   },
   RESET(state) {
     dataSourceDispatchQueues.get(state)?.cancelPending()
@@ -321,6 +326,7 @@ export const mutations = {
     state.selectedWidgetId = null
     cancelDataSourceRefresh(state)
     state.widgetValues = {}
+    state.widgetOptions = {}
     state.widgets = []
     state.dataSources = []
     state.integrations = []
@@ -336,6 +342,7 @@ export const mutations = {
     if (state.dashboardId !== dashboardId) {
       cancelDataSourceRefresh(state)
       state.widgetValues = {}
+      state.widgetOptions = {}
       dataSourceDispatchQueues.get(state)?.cancelPending()
       state.dashboardGeneration += 1
       state.widgetFetchGeneration += 1
@@ -471,6 +478,57 @@ export const mutations = {
 }
 
 export const actions = {
+  async fetchWidgetOptions({ state, commit }, { widgetId, force = false }) {
+    // Optimistic settings are not available on the server until afterSave runs.
+    if (widgetUpdates.get(state)?.has(widgetId)) return
+    const widget = state.widgets.find(({ id }) => id === widgetId)
+    if (widget?.type !== 'text_filter' || widget.mode !== 'dropdown') return
+    const signature = JSON.stringify(widget.options)
+    const previous = state.widgetOptions[widgetId]
+    if (!force && previous && previous.signature === signature) return
+    const generation = state.dashboardGeneration
+    commit('SET_WIDGET_OPTIONS', {
+      widgetId,
+      options: { signature, loading: true, values: [], error: false },
+    })
+    const pending = state.widgetOptions[widgetId]
+    const isCurrent = () =>
+      state.dashboardGeneration === generation &&
+      state.widgetOptions[widgetId] === pending &&
+      JSON.stringify(
+        state.widgets.find(({ id }) => id === widgetId)?.options
+      ) === signature
+    try {
+      const { data } = state.publicSlug
+        ? await PublicDashboardService(this.$client).getWidgetOptions(
+            state.publicSlug,
+            widgetId,
+            state.publicAuthToken
+          )
+        : await WidgetService(this.$client).getOptions(widgetId)
+      if (isCurrent())
+        commit('SET_WIDGET_OPTIONS', {
+          widgetId,
+          options: {
+            signature,
+            loading: false,
+            values: data.results,
+            error: false,
+          },
+        })
+    } catch (error) {
+      if (isCurrent())
+        commit('SET_WIDGET_OPTIONS', {
+          widgetId,
+          options: {
+            signature,
+            loading: false,
+            values: [],
+            error: true,
+          },
+        })
+    }
+  },
   forceSetWidgets(context, widgets) {
     applyWidgetCollection(context, this.$registry, widgets)
   },
@@ -655,6 +713,12 @@ export const actions = {
     }
   },
   async handleDataSourceUpdated({ state, commit, dispatch }, dataSource) {
+    // Realtime payloads cannot include a table schema checked against this viewer's
+    // permissions. Fetch the private representation before replacing the source.
+    if ('table_schema' in dataSource && dataSource.table_schema === null) {
+      await dispatch('fetchNewDataSources', state.dashboardId)
+      return
+    }
     commit('INVALIDATE_DATA_SOURCE_COLLECTION_FETCH')
     commit('INVALIDATE_DATA_SOURCE_MUTATION', dataSource.id)
     commit('UPDATE_DATA_SOURCE', {
@@ -1032,6 +1096,7 @@ export const actions = {
 }
 
 export const getters = {
+  getWidgetOptions: (state) => state.widgetOptions,
   getWidgetValues: (state) => state.widgetValues,
   getDashboardId(state) {
     return state.dashboardId

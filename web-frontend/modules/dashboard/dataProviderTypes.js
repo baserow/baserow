@@ -1,3 +1,4 @@
+import { getValueAtPath } from '@baserow/modules/core/utils/object'
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 
 export class WidgetDataProviderType extends DataProviderType {
@@ -54,5 +55,52 @@ export class WidgetDataProviderType extends DataProviderType {
 
   isValid(path) {
     return path.length === 1 && /^[1-9][0-9]*$/.test(path[0])
+  }
+}
+
+export class DashboardTableDataProviderType extends DataProviderType {
+  static getType() {
+    return 'table'
+  }
+
+  isValid(path) {
+    return (
+      path.length >= 3 &&
+      /^[1-9][0-9]{0,18}$/.test(path[0]) &&
+      (path[1] === '*' || /^[0-9]{1,9}$/.test(path[1])) &&
+      (path[2] === 'id' || /^field_[1-9][0-9]{0,18}$/.test(path[2]))
+    )
+  }
+
+  get name() {
+    return this.app.$i18n.t('dataProviderType.dataSource')
+  }
+
+  getDataContent() {
+    // Table values are resolved by the backend when loading filter options.
+    return {}
+  }
+
+  getDataChunk(context, path) {
+    return getValueAtPath(this.getDataContent(context), path)
+  }
+
+  getDataSchema({ storePrefix = '' }) {
+    const getters = this.app.$store.getters
+    const prefix = `${storePrefix}dashboardApplication/`
+    const sourceIds = new Set(
+      getters[prefix + 'getWidgets'].map((widget) => widget.data_source_id)
+    )
+    const properties = {}
+    for (const sourceId of sourceIds) {
+      const source = getters[prefix + 'getDataSourceById'](sourceId)
+      if (source?.table_schema && !Object.hasOwn(properties, source.table_id)) {
+        properties[source.table_id] = {
+          ...source.table_schema,
+          order: Object.keys(properties).length,
+        }
+      }
+    }
+    return { type: 'object', properties }
   }
 }

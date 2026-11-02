@@ -243,6 +243,10 @@ export class FilterWidgetType extends WidgetType {
 }
 
 export class TextFilterWidgetType extends FilterWidgetType {
+  afterSave(widget, context, values) {
+    super.afterSave(widget, context, values)
+    context.dispatch('fetchWidgetOptions', { widgetId: widget.id })
+  }
   getDefaultValue(widget) {
     return widget.default_value ?? ''
   }
