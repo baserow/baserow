@@ -358,11 +358,13 @@ exports[`adding conditions after a permanent group is saved keeps its persistent
       </div>
     </div>
   </div>
-  <div class="filters_footer"><button class="button-text button-text--small button-text--secondary filters__add"><i class="button-text__icon iconoir-plus"></i>
-      <!--v-if--><span class="button-text__label">localBaserowTableServiceConditionalForm.addFilter</span>
-    </button><button class="button-text button-text--small button-text--secondary filters__add"><i class="button-text__icon iconoir-plus"></i>
-      <!--v-if--><span class="button-text__label">localBaserowTableServiceConditionalForm.addFilterGroup</span>
-    </button></div>
+  <div class="filters_footer">
+    <div class="dashboard-widget-filters__actions"><button type="button" class="button button--regular button--secondary filters__add"><i class="button__icon iconoir-plus"></i><span class="button__label">localBaserowTableServiceConditionalForm.addFilter</span>
+        <!--v-if-->
+      </button><button type="button" class="button button--regular button--secondary filters__add"><i class="button__icon iconoir-plus"></i><span class="button__label">localBaserowTableServiceConditionalForm.addFilterGroup</span>
+        <!--v-if-->
+      </button></div>
+  </div>
 </div>"
 `;
 
