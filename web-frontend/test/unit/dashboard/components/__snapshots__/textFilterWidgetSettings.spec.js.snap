@@ -6,7 +6,51 @@ exports[`TextFilterWidgetSettings > renders literal settings and saves clearing 
     <!--v-if-->
     <div></div>
   </div>
-  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-0" class="control__label control__label--small"><span>textFilterWidget.filterType</span>
+  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-0" class="control__label control__label--small"><span>textFilterWidget.placeholder</span>
+      <!--v-if-->
+      <!--v-if-->
+      <!--v-if-->
+    </label>
+    <div class="control__wrapper">
+      <div class="control__elements">
+        <div class="control__elements-wrapper">
+          <div class="form-input">
+            <!--v-if-->
+            <div class="form-input__wrapper"><input id="v-0-0-0" class="form-input__input" type="text" min="false" max="false" step="false" placeholder="" autocomplete="" value="Type here">
+              <!--v-if-->
+              <!--v-if-->
+            </div>
+            <!--v-if-->
+          </div>
+        </div>
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+    </div>
+  </div>
+  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-1" class="control__label control__label--small"><span>textFilterWidget.defaultValue</span>
+      <!--v-if-->
+      <!--v-if-->
+      <!--v-if-->
+    </label>
+    <div class="control__wrapper">
+      <div class="control__elements">
+        <div class="control__elements-wrapper">
+          <div class="form-input">
+            <!--v-if-->
+            <div class="form-input__wrapper"><input id="v-0-0-1" class="form-input__input" type="text" min="false" max="false" step="false" placeholder="" autocomplete="" value="Initial">
+              <!--v-if-->
+              <!--v-if-->
+            </div>
+            <!--v-if-->
+          </div>
+        </div>
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+    </div>
+  </div>
+  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-2" class="control__label control__label--small"><span>textFilterWidget.filterType</span>
       <!--v-if-->
       <!--v-if-->
       <!--v-if-->
@@ -27,51 +71,7 @@ exports[`TextFilterWidgetSettings > renders literal settings and saves clearing 
   </div>
   <!--v-if-->
   <!--v-if-->
-  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-1" class="control__label control__label--small"><span>textFilterWidget.placeholder</span>
-      <!--v-if-->
-      <!--v-if-->
-      <!--v-if-->
-    </label>
-    <div class="control__wrapper">
-      <div class="control__elements">
-        <div class="control__elements-wrapper">
-          <div class="form-input">
-            <!--v-if-->
-            <div class="form-input__wrapper"><input id="v-0-0-1" class="form-input__input" type="text" min="false" max="false" step="false" placeholder="" autocomplete="" value="Type here">
-              <!--v-if-->
-              <!--v-if-->
-            </div>
-            <!--v-if-->
-          </div>
-        </div>
-        <!--v-if-->
-      </div>
-      <!--v-if-->
-    </div>
-  </div>
-  <div data-form-error="false" class="control"><label for="v-0-0-2" class="control__label control__label--small"><span>textFilterWidget.defaultValue</span>
-      <!--v-if-->
-      <!--v-if-->
-      <!--v-if-->
-    </label>
-    <div class="control__wrapper">
-      <div class="control__elements">
-        <div class="control__elements-wrapper">
-          <div class="form-input">
-            <!--v-if-->
-            <div class="form-input__wrapper"><input id="v-0-0-2" class="form-input__input" type="text" min="false" max="false" step="false" placeholder="" autocomplete="" value="Initial">
-              <!--v-if-->
-              <!--v-if-->
-            </div>
-            <!--v-if-->
-          </div>
-        </div>
-        <!--v-if-->
-      </div>
-      <!--v-if-->
-    </div>
-  </div>
-  <div data-form-error="false" class="control control--messages margin-top-3"><span class="control__label control__label--small">textFilterWidget.targets<span class="control__after-label"><div class="badge badge--neutral badge--small"><!--v-if--><span class="badge__label">0</span></div></span></span>
+  <div data-form-error="false" class="control"><span class="control__label control__label--small">textFilterWidget.targets<span class="control__after-label"><div class="badge badge--neutral badge--small"><!--v-if--><span class="badge__label">0</span></div></span></span>
   <div class="control__wrapper">
     <div class="control__elements">
       <div class="control__elements-wrapper">
@@ -101,11 +101,7 @@ exports[`TextFilterWidgetSettings > renders literal settings and saves clearing 
       </div>
       <!--v-if-->
     </div>
-    <div class="control__messages">
-      <p class="control__helper-text"> textFilterWidget.targetsFootnote</p>
-      <!--v-if-->
-      <!--v-if-->
-    </div>
+    <!--v-if-->
   </div>
 </div>
 <teleport-stub to="body">

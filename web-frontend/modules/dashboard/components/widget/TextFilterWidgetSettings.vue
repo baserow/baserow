@@ -2,6 +2,28 @@
   <FormSection>
     <FormGroup
       small-label
+      :label="$t('textFilterWidget.placeholder')"
+      class="margin-bottom-2"
+      required
+    >
+      <FormInput
+        :model-value="widget.placeholder"
+        @blur="updateSetting('placeholder', $event.target.value)"
+      />
+    </FormGroup>
+    <FormGroup
+      small-label
+      :label="$t('textFilterWidget.defaultValue')"
+      class="margin-bottom-2"
+      required
+    >
+      <FormInput
+        :model-value="widget.default_value"
+        @blur="updateSetting('default_value', $event.target.value)"
+      />
+    </FormGroup>
+    <FormGroup
+      small-label
       :label="$t('textFilterWidget.filterType')"
       class="margin-bottom-2"
       required
@@ -48,28 +70,7 @@
         @input="updateSetting('options', $event)"
       />
     </FormGroup>
-    <FormGroup
-      small-label
-      :label="$t('textFilterWidget.placeholder')"
-      class="margin-bottom-2"
-      required
-    >
-      <FormInput
-        :model-value="widget.placeholder"
-        @blur="updateSetting('placeholder', $event.target.value)"
-      />
-    </FormGroup>
-    <FormGroup
-      small-label
-      :label="$t('textFilterWidget.defaultValue')"
-      required
-    >
-      <FormInput
-        :model-value="widget.default_value"
-        @blur="updateSetting('default_value', $event.target.value)"
-      />
-    </FormGroup>
-    <FormGroup small-label class="margin-top-3" required>
+    <FormGroup small-label required>
       <template #label>{{ $t('textFilterWidget.targets') }}</template>
       <template #after-label
         ><Badge size="small">{{ linkedTargets.length }}</Badge></template
@@ -180,7 +181,6 @@
           </div>
         </template>
       </Dropdown>
-      <template #helper>{{ $t('textFilterWidget.targetsFootnote') }}</template>
     </FormGroup>
     <Context ref="targetMenu">
       <ul v-if="menuTarget" class="context__menu">
