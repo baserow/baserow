@@ -7,6 +7,15 @@ class BaserowPremiumConfig(AppConfig):
     name = "baserow_premium"
 
     def ready(self):
+        from baserow.core.mcp.registries import mcp_tool_registry
+        from baserow_premium.mcp.row_comments.tools import (
+            CreateRowCommentsMcpTool,
+            ListRowCommentsMcpTool,
+        )
+
+        mcp_tool_registry.register(ListRowCommentsMcpTool())
+        mcp_tool_registry.register(CreateRowCommentsMcpTool())
+
         # noinspection PyUnresolvedReferences
         import baserow_premium.fields.receivers  # noqa: F401
         import baserow_premium.license.receivers  # noqa: F401

@@ -113,6 +113,7 @@ EXPECTED_CASE_IDS = {
         "core/search-finds-table",
     ],
     "kuma-database": [
+        "database/adds-row-comment",
         "database/creates-database-from-description",
         "database/creates-related-tables",
         "database/creates-related-tables-with-sample-rows",
@@ -132,6 +133,7 @@ EXPECTED_CASE_IDS = {
         "database/creates-view-kanban",
         "database/creates-view-timeline",
         "database/deletes-field",
+        "database/reads-row-comments",
         "database/renames-field",
         "database/updates-select-options",
     ],
@@ -294,6 +296,8 @@ class TestDatasetCounts:
 
         assert len(grouped["kuma-core"]) == 5
         assert len(grouped["kuma-database"]) == 21
+        assert len(grouped["kuma-core"]) == 3
+        assert len(grouped["kuma-database"]) == 23
         assert len(grouped["kuma-docs"]) == 64
         assert len(grouped["kuma-builder"]) == 32
         assert len(grouped["kuma-automation"]) == 11

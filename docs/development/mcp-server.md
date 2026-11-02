@@ -112,6 +112,8 @@ Some tools are currently disabled (`enabled = False`) and hidden from MCP client
 | `update_rows` | enabled | Update rows by ID using field names |
 | `delete_rows` | enabled | Delete rows by ID |
 | `list_views` | enabled | List the views of a table (shared with Kuma) |
+| `list_row_comments` | enabled | List a row's comments as plain text. Needs premium (shared with Kuma) |
+| `create_row_comments` | enabled | Post plain text comments on rows. Needs premium (shared with Kuma) |
 | `create_tables` | enabled | Create tables with their fields (shared with Kuma) |
 | `create_fields` | enabled | Add fields to a table (shared with Kuma) |
 | `update_fields` | enabled | Rename fields or change their settings (shared with Kuma) |

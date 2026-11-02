@@ -11,6 +11,7 @@ raised ``AttributeError``.
 
 from dataclasses import dataclass
 from typing import Any, Callable
+from unittest.mock import patch
 
 from django.contrib.auth.models import AbstractUser
 
@@ -25,6 +26,7 @@ from baserow.contrib.database.models import Database
 from baserow.contrib.database.table.models import Table
 from baserow.core.graph.types import GraphPointPosition
 from baserow.core.models import Workspace
+from baserow.core.prosemirror.utils import prosemirror_doc_from_plain_text
 from baserow_enterprise.assistant.tools.automation.tools import (
     list_nodes,
     list_workflows,
@@ -41,12 +43,14 @@ from baserow_enterprise.assistant.tools.core.tools import (
 )
 from baserow_enterprise.assistant.tools.database.tools import (
     get_tables_schema,
+    list_row_comments,
     list_rows,
     list_tables,
     list_views,
 )
 from baserow_enterprise.assistant.tools.database.types import ListTablesFilterArg
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
+from baserow_premium.row_comments.models import RowComment
 
 from .utils import make_test_ctx
 
@@ -318,6 +322,30 @@ def _check_search_workspace(result: Any, seed: SeededWorkspace) -> None:
     assert any(item["id"] == seed.table.id for item in result["results"])
 
 
+def _list_row_comments_of_a_new_comment(ctx: Any, seed: SeededWorkspace) -> Any:
+    row_id = seed.table.get_model().objects.first().id
+    RowComment.objects.create(
+        table=seed.table,
+        row_id=row_id,
+        user=seed.user,
+        message=prosemirror_doc_from_plain_text("Called them"),
+    )
+    with patch(
+        "baserow_premium.row_comments.handler.LicenseHandler"
+        ".raise_if_user_doesnt_have_feature"
+    ):
+        return list_row_comments(ctx, seed.table.id, row_id, thought="contract")
+
+
+def _check_list_row_comments(result: Any, seed: SeededWorkspace) -> None:
+    assert result["count"] == 1
+    assert_items(
+        result["comments"],
+        {"id": int, "user_name": str, "text": str, "created_on": str, "edited": bool},
+        "list_row_comments",
+    )
+
+
 def _check_list_builders(result: Any, seed: SeededWorkspace) -> None:
     assert set(result) >= {"database", "application", "automation"}
     for builder_type in ("database", "application", "automation"):
@@ -459,6 +487,9 @@ READ_TOOL_CASES: list[ReadToolCase] = [
         "search_workspace",
         lambda ctx, s: search_workspace(ctx, query=s.table.name, thought="contract"),
         _check_search_workspace,
+        "list_row_comments",
+        _list_row_comments_of_a_new_comment,
+        _check_list_row_comments,
     ),
     ReadToolCase(
         "list_tables",
@@ -558,6 +589,7 @@ EXEMPT_TOOLS: dict[str, str] = {
     "search_user_docs": _LLM,
     "generate_formula": _LLM,
     "create_builders": _WRITE,
+    "create_row_comments": _WRITE,
     "update_builder": _WRITE,
     "create_tables": _WRITE,
     "create_fields": _WRITE,

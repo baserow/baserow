@@ -121,6 +121,8 @@ The following tools are currently enabled:
 | `update_rows` | Update existing rows by ID |
 | `delete_rows` | Delete rows by ID |
 | `list_views` | List the views of a table |
+| `list_row_comments` | List a row's comments (premium) |
+| `create_row_comments` | Post comments on rows (premium) |
 | `create_tables` | Create tables with their fields |
 | `create_fields` | Add fields to a table |
 | `update_fields` | Rename fields or change their settings |
@@ -184,6 +186,12 @@ Expected: Claude calls `list_table_rows` with a `search` parameter.
 Ask Claude: *"Which table has the invoices?"*, then *"Find the customer called Acme"*.
 
 Expected: Claude calls `search_workspace`, finds the table, and finds the row with its `table_id` and `row_id`. Row search needs the workspace's search data to be built, which happens in the background after rows are added.
+
+### Row comments
+
+Needs a premium licence. Ask Claude: *"Add a comment to row 1 of [table name] saying I called them"*, then *"What did people say about this row?"*.
+
+Expected: Claude calls `create_row_comments`, then `list_row_comments`. The comment shows in the row's comment panel. Without a licence Claude reports that the feature isn't available and no comment is stored.
 
 ### Create tables, fields and views
 

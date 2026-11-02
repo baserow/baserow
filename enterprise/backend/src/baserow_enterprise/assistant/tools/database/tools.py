@@ -43,6 +43,7 @@ from baserow_enterprise.assistant.tools.toolset import (
 )
 from baserow_enterprise.assistant.types import TableNavigationType, ViewNavigationType
 from baserow_premium.prompts import get_formula_docs
+from baserow_premium.row_comments import tools as shared_row_comments
 
 from . import helpers, reconciliation
 from .agents import (
@@ -1299,11 +1300,79 @@ def load_row_tools(
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Row comments
+# ---------------------------------------------------------------------------
+
+
+def list_row_comments(
+    ctx: RunContext[AssistantDeps],
+    table_id: Annotated[int, Field(description="The ID of the row's table.")],
+    row_id: Annotated[int, Field(description="The ID of the row.")],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+    page: Annotated[int, Field(ge=1, description="The page to return.")] = 1,
+    size: Annotated[
+        int,
+        Field(
+            ge=1,
+            le=shared_row_comments.MAX_PAGE_SIZE,
+            description="The number of comments a page.",
+        ),
+    ] = 20,
+) -> dict[str, Any]:
+    """\
+    List the comments on a row.
+
+    WHEN to use: User asks what people said about a row, or what its comments are.
+    WHAT it does: Returns the row's comments as plain text, newest first.
+    RETURNS: comments with id, user_name, text, created_on, edited, and the total count.
+    DO NOT USE when: You want the row's field values; use list_rows.
+    """
+
+    ctx.deps.tool_helpers.update_status(_("Reading the comments..."))
+
+    return shared_row_comments.list_row_comments(
+        ctx.deps.tool_context(), table_id, row_id, page=page, size=size
+    )
+
+
+def create_row_comments(
+    ctx: RunContext[AssistantDeps],
+    table_id: Annotated[int, Field(description="The ID of the rows' table.")],
+    comments: Annotated[
+        list[shared_row_comments.RowCommentCreate],
+        Field(description="The comments to post, each on one row."),
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+) -> dict[str, Any]:
+    """\
+    Post comments on rows.
+
+    WHEN to use: User asks to add a comment or note to a row's comments.
+    WHAT it does: Posts plain text comments. Mentions aren't supported, so write a name as plain text.
+    RETURNS: created comments with id, row_id, text. Comments that can't be posted are in errors with their index.
+    DO NOT USE when: User wants a value stored in a field of the row; update the row instead.
+    """
+
+    require_payload("create_row_comments", "comments", comments)
+    ctx.deps.tool_helpers.update_status(_("Posting the comments..."))
+
+    return shared_row_comments.create_row_comments(
+        ctx.deps.tool_context(), table_id, comments
+    )
+
+
 TOOL_FUNCTIONS = [
     list_tables,
     get_tables_schema,
     list_rows,
     list_views,
+    list_row_comments,
+    create_row_comments,
     create_tables,
     create_fields,
     update_fields,

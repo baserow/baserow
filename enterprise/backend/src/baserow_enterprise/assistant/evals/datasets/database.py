@@ -18,7 +18,9 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.models import View, ViewFilter
 from baserow.core.db import specific_iterator
 from baserow.core.models import Workspace
+from baserow.core.prosemirror.utils import prosemirror_doc_from_plain_text
 from baserow.test_utils.fixtures import Fixtures
+from baserow_enterprise.assistant.evals.harness import tool_called
 from baserow_enterprise.assistant.evals.registry import (
     register_case,
     register_scenario,
@@ -1444,5 +1446,128 @@ register_case(
         scenario="database-creates-rows-with-all-field-types",
         checks=_check_creates_rows_with_all_field_types,
         max_iters=20,
+    )
+)
+
+
+# ---------------------------------------------------------------------------
+# Row comments
+# ---------------------------------------------------------------------------
+
+PROMPT_ADDS_ROW_COMMENT = (
+    "Add a comment to the Acme row of the Customers table saying I called them."
+)
+
+PROMPT_READS_ROW_COMMENTS = (
+    "What did people say about the Acme row of the Customers table?"
+)
+
+
+def _grant_premium(user: AbstractUser) -> None:
+    """
+    Give the user the premium licence of the premium tests. Row comments need it.
+    The eval database is disposable and runs with the debug licence key, which that
+    licence is signed for, on instance id "1".
+    """
+
+    from baserow_premium_tests.fixtures import VALID_100_SEAT_LICENSE_UNTIL_YEAR_2099
+
+    from baserow.core.models import Settings
+    from baserow_premium.license.models import License, LicenseUser
+
+    Settings.objects.update(instance_id="1")
+    licence, _ = License.objects.get_or_create(
+        license=VALID_100_SEAT_LICENSE_UNTIL_YEAR_2099.decode()
+    )
+    LicenseUser.objects.get_or_create(user=user, license=licence)
+
+
+@register_scenario("database-row-comments")
+def _row_comments_scenario(fx: Fixtures) -> EvalScenario:
+    from baserow_premium.row_comments.models import RowComment
+
+    user = fx.create_user(first_name="Anna")
+    _grant_premium(user)
+    workspace = fx.create_workspace(user=user)
+    database = fx.create_database_application(workspace=workspace, name="Sales")
+    customers, _, rows = fx.build_table(
+        user=user,
+        database=database,
+        name="Customers",
+        columns=[("Name", {"type": "text", "primary": True})],
+        rows=[["Globex"], ["Acme"]],
+    )
+    RowComment.objects.create(
+        table=customers,
+        row_id=rows[1].id,
+        user=user,
+        message=prosemirror_doc_from_plain_text("They want a discount."),
+    )
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_database_ui_context(user, workspace, database),
+        refs={"customers": customers, "acme": rows[1]},
+    )
+
+
+def _check_adds_row_comment(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    from baserow_premium.row_comments.models import RowComment
+
+    comments = [
+        str(comment.message).lower()
+        for comment in RowComment.objects.filter(
+            table=scenario.refs["customers"], row_id=scenario.refs["acme"].id
+        )
+        if "discount" not in str(comment.message).lower()
+    ]
+    return [
+        CheckResult(
+            "called create_row_comments",
+            tool_called(output, "create_row_comments") >= 1,
+        ),
+        CheckResult(
+            "comment stored on the Acme row",
+            len(comments) == 1 and "called" in comments[0],
+            hint=str(comments)[:200],
+        ),
+    ]
+
+
+def _check_reads_row_comments(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    return [
+        CheckResult(
+            "called list_row_comments", tool_called(output, "list_row_comments") >= 1
+        ),
+        CheckResult(
+            "answer mentions the discount",
+            "discount" in output.answer.lower(),
+            hint=output.answer[:200],
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="database/adds-row-comment",
+        dataset="kuma-database",
+        prompt=PROMPT_ADDS_ROW_COMMENT,
+        scenario="database-row-comments",
+        checks=_check_adds_row_comment,
+        max_iters=10,
+    )
+)
+register_case(
+    EvalCase(
+        id="database/reads-row-comments",
+        dataset="kuma-database",
+        prompt=PROMPT_READS_ROW_COMMENTS,
+        scenario="database-row-comments",
+        checks=_check_reads_row_comments,
+        max_iters=10,
     )
 )

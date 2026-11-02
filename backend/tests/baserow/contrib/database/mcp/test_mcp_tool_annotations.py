@@ -27,6 +27,8 @@ EXPECTED = {
     "update_nodes": (False, True),
     "delete_nodes": (False, True),
     "search_workspace": (True, False),
+    "list_row_comments": (True, False),
+    "create_row_comments": (False, False),
     # Disabled tools, annotated so they are ready when enabled.
     "update_table": (False, True),
     "delete_table": (False, True),
