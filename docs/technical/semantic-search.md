@@ -93,5 +93,12 @@ deleting many fields or rows is cheap and a failure is retried by its next run.
   `incompatible` status. Its vectors are marked for deletion, and it's indexed again
   as soon as its value is text again, for example when the deleted field is
   restored. Converting the field itself to an unsupported type disables it.
+- The hash of every indexed value includes `BASEROW_EMBEDDINGS_API_URL`,
+  `BASEROW_SEMANTIC_SEARCH_CHUNK_SIZE`, `BASEROW_SEMANTIC_SEARCH_CHUNK_OVERLAP` and
+  `BASEROW_SEMANTIC_SEARCH_MAX_CHUNKS_PER_CELL`, but changing them doesn't queue
+  anything. Existing values keep their old vectors until they're changed. To index a
+  field again with the new settings, turn its semantic search off and on: the update
+  of all rows that's queued then embeds every value again, because their hashes
+  changed.
 - Searching the index, including ranking and permissions, belongs to the semantic
   search action, not to the updaters.
