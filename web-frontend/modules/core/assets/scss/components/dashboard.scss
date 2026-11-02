@@ -185,76 +185,71 @@ $dashboard-resources-row-min-width: 1044px;
     flex-wrap: wrap;
     gap: 16px;
     margin-top: 16px;
-    padding-top: 12px;
-    border-top: 1px solid $palette-neutral-200;
   }
 }
 
-.dashboard-widget-filters__description {
-  margin-bottom: 24px;
-  color: $palette-neutral-900;
-  font-size: 13px;
+.dashboard-widget-filters__title {
+  margin: 0 0 16px;
+  font-size: 14px;
+  font-weight: 500;
   line-height: 20px;
+  overflow-wrap: anywhere;
 }
 
-.dashboard-widget-filters__group {
-  border: 1px solid $palette-neutral-300;
-  border-radius: 8px;
-  background-color: $white;
+.dashboard-widget-filters__cases {
+  width: fit-content;
+  max-width: 100%;
+  margin-bottom: 20px;
+
+  .segment-control__button {
+    flex: 0 0 auto;
+    padding: 0 12px;
+  }
 }
 
-.dashboard-widget-filters__group-header {
+.dashboard-widget-filters__empty-behavior {
+  max-width: 320px;
+}
+
+.dashboard-widget-filters__alternative {
+  margin-top: 16px;
+}
+
+.dashboard-widget-filters__other-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
   gap: 8px;
-  padding: 12px 16px;
-  border-bottom: 1px solid $palette-neutral-200;
-}
+  margin-bottom: 8px;
 
-.dashboard-widget-filters__group-title {
-  margin: 0;
-  color: $palette-neutral-1200;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 20px;
-}
-
-.dashboard-widget-filters__readonly {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background-color: $palette-neutral-100;
-  color: $palette-neutral-900;
-  font-size: 11px;
-  line-height: 18px;
-}
-
-.dashboard-widget-filters__group-body {
-  padding: 16px;
-}
-
-.dashboard-widget-filters__group--readonly {
-  background-color: $palette-neutral-50;
-
-  .dropdown__selected,
-  .filters__value input:disabled {
-    color: $palette-neutral-900;
+  .dashboard-widget-filters__title {
+    margin: 0;
   }
+}
+
+.dashboard-widget-filters__source {
+  margin-top: 12px;
+}
+
+.dashboard-widget-filters__source-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-widget-filters__source-toggle {
+  min-width: 0;
+}
+
+.dashboard-widget-filters__source-lock {
+  flex-shrink: 0;
+  color: $palette-neutral-900;
 }
 
 .dashboard-widget-filters__operator {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 12px 0;
-  color: $palette-neutral-900;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 20px;
+  margin: 20px 0;
 
   &::before,
   &::after {
@@ -266,6 +261,10 @@ $dashboard-resources-row-min-width: 1044px;
 }
 
 .dashboard-widget-filters__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
   margin-top: 24px;
   padding-top: 16px;
   border-top: 1px solid $palette-neutral-200;

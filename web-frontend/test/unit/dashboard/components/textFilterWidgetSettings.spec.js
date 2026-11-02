@@ -222,7 +222,7 @@ test('adds eligible widgets together, keeps existing conditions and isolates tem
   expect(testApp.store.getters[`${namespace}/getSelectedWidgetId`]).toBe(2)
 })
 
-test('opens conditions directly, locks other owners, and counts only this filter’s conditions', async () => {
+test('separates editable conditions from other owners without changing their rules', async () => {
   const { wrapper, widget, dispatch, fetch } = await mountTargets({
     linked: true,
   })
@@ -231,18 +231,56 @@ test('opens conditions directly, locks other owners, and counts only this filter
   )
   await wrapper.find('.dashboard-widget-filter-target').trigger('click')
   await flushPromises()
-  const groups = wrapper.findAllComponents({ name: 'TargetFilterGroup' })
-  expect(groups.filter((g) => g.props('readOnly'))).toHaveLength(2)
-  expect(dispatch).not.toHaveBeenCalled()
-  expect(fetch).toHaveBeenCalledOnce()
-  for (const group of groups.filter((g) => g.props('readOnly'))) {
+  const modal = wrapper.findComponent({
+    name: 'WidgetFilterConfigurationModal',
+  })
+  const otherConditions = modal.find('.dashboard-widget-filters__other')
+  const heading = otherConditions.find(
+    '.dashboard-widget-filters__other-header'
+  )
+  expect(heading.text()).toContain('textFilterWidget.otherConditions')
+  expect(heading.find('.badge').text()).toBe('2')
+  expect(modal.findAllComponents({ name: 'TargetFilterGroup' })).toHaveLength(1)
+
+  for (const summary of otherConditions.findAll(
+    '.dashboard-widget-filters__source-toggle'
+  )) {
+    expect(summary.attributes('aria-expanded')).toBe('false')
+    await summary.trigger('click')
+  }
+  const groups = otherConditions.findAllComponents({
+    name: 'TargetFilterGroup',
+  })
+  expect(groups).toHaveLength(2)
+  for (const group of groups) {
     expect(group.find('.filters__add').exists()).toBe(false)
     expect(group.find('.filters__remove').exists()).toBe(false)
   }
-  await groups
-    .find((g) => !g.props('readOnly'))
-    .find('.filters__add')
-    .trigger('click')
+  const sources = otherConditions.findAll('.dashboard-widget-filters__source')
+  for (const [index, tooltip] of [
+    'textFilterWidget.editWidgetConditions',
+    'textFilterWidget.editFilterConditions',
+  ].entries()) {
+    const lock = sources[index].find('.dashboard-widget-filters__source-lock')
+    expect(lock.classes()).toContain('iconoir-lock')
+    await lock.trigger('mouseenter')
+    expect(document.querySelector('.tooltip__content').textContent).toBe(
+      tooltip
+    )
+    await lock.trigger('mouseleave')
+  }
+  const operators = modal.findAll('.dashboard-widget-filters__operator')
+  expect(operators.map((operator) => operator.find('.badge').text())).toEqual([
+    'AND',
+    'AND',
+  ])
+  expect(operators[0].element.nextElementSibling).toBe(otherConditions.element)
+  expect(operators[1].element.previousElementSibling).toBe(sources[0].element)
+  expect(operators[1].element.nextElementSibling).toBe(sources[1].element)
+  expect(dispatch).not.toHaveBeenCalled()
+  expect(fetch).toHaveBeenCalledOnce()
+
+  await modal.find('.filters__add').trigger('click')
   await flushPromises()
   expect(widget.target_filters[0].group.filters).toHaveLength(1)
   expect(wrapper.find('.dashboard-widget-filter-target').text()).toContain(
@@ -260,24 +298,200 @@ test('opens conditions directly, locks other owners, and counts only this filter
   ).toBe('Other')
 })
 
-test('configures empty selection behavior and alternative conditions inside the modal', async () => {
-  const { wrapper, widget } = await mountTargets({ linked: true })
+test('edits one case at a time and preserves alternative conditions when navigating', async () => {
+  const { wrapper, widget, dispatch } = await mountTargets({ linked: true })
   await wrapper.find('.dashboard-widget-filter-target').trigger('click')
   await flushPromises()
-  await wrapper
-    .find('.dashboard-widget-filters .dropdown__selected')
+  const modal = wrapper.findComponent({
+    name: 'WidgetFilterConfigurationModal',
+  })
+  const cases = modal.find('.dashboard-widget-filters__cases').findAll('button')
+  expect(cases.map((item) => item.text())).toEqual([
+    'textFilterWidget.withValue',
+    'textFilterWidget.whenEmpty',
+  ])
+  expect(modal.find('.filters__none').exists()).toBe(false)
+  expect(modal.find('.dashboard-widget-filters__empty-behavior').exists()).toBe(
+    false
+  )
+  expect(modal.findAllComponents({ name: 'TargetFilterGroup' })).toHaveLength(1)
+
+  await modal
+    .find('.dashboard-widget-filters__cases')
+    .findAll('button')[1]
+    .trigger('click')
+  expect(dispatch).not.toHaveBeenCalled()
+  expect(modal.findAllComponents({ name: 'TargetFilterGroup' })).toHaveLength(0)
+  await modal
+    .find('.dashboard-widget-filters__empty-behavior .dropdown__selected')
     .trigger('click')
   await option(wrapper, 'textFilterWidget.apply_alternative').trigger('click')
   await flushPromises()
-  const alternative = wrapper.find(
-    '.dashboard-widget-filters__group--alternative'
-  )
+  const alternative = modal.find('.dashboard-widget-filters__alternative')
   expect(alternative.exists()).toBe(true)
+  expect(alternative.find('.filters__none').exists()).toBe(false)
+  expect(modal.findAllComponents({ name: 'TargetFilterGroup' })).toHaveLength(1)
   await alternative.find('.filters__add').trigger('click')
   await flushPromises()
   expect(widget.target_filters[0].group.filters).toHaveLength(0)
   expect(widget.target_filters[0].alternative_group.filters).toHaveLength(1)
   expect(widget.target_filters[0].alternative_group.filters[0].field).toBe(99)
+
+  dispatch.mockClear()
+  await modal
+    .find('.dashboard-widget-filters__cases')
+    .findAll('button')[0]
+    .trigger('click')
+  expect(modal.find('.dashboard-widget-filters__alternative').exists()).toBe(
+    false
+  )
+  expect(modal.find('.filters__item').exists()).toBe(false)
+  await modal
+    .find('.dashboard-widget-filters__cases')
+    .findAll('button')[1]
+    .trigger('click')
+  expect(
+    modal.find('.dashboard-widget-filters__alternative .filters__item').exists()
+  ).toBe(true)
+  expect(widget.target_filters[0].alternative_group.filters).toHaveLength(1)
+  expect(dispatch).not.toHaveBeenCalled()
+})
+
+test('keeps other owners’ alternative conditions read-only while editing the current filter', async () => {
+  const { wrapper, dispatch } = await mountTargets({ linked: true })
+  const source =
+    testApp.store.getters['dashboardApplication/getDataSourceById'](4)
+  source.filter_type = 'OR'
+  const other = testApp.store.getters['dashboardApplication/getWidgets'].find(
+    (w) => w.id === 9
+  )
+  const alternative = conditionGroup('Fallback')
+  alternative.filter_groups = [
+    { id: 10, filter_type: 'OR', parent_group: null },
+  ]
+  alternative.filters[0].group = 10
+  alternative.filters.push({ ...alternative.filters[0], id: 2 })
+  other.target_filters[0].empty_behavior = 'apply_alternative'
+  other.target_filters[0].alternative_group = alternative
+
+  await wrapper.find('.dashboard-widget-filter-target').trigger('click')
+  await flushPromises()
+  const modal = wrapper.findComponent({
+    name: 'WidgetFilterConfigurationModal',
+  })
+  expect(
+    modal.find('.dashboard-widget-filters__other-header .badge').text()
+  ).toBe('4')
+  const section = modal.find('.dashboard-widget-filters__other')
+  const sources = section.findAll('.dashboard-widget-filters__source')
+  expect(sources).toHaveLength(2)
+  await sources[1]
+    .find('.dashboard-widget-filters__source-toggle')
+    .trigger('click')
+  expect(sources[1].text()).toContain('textFilterWidget.withValue')
+  expect(sources[1].text()).toContain('textFilterWidget.whenEmpty')
+  const groups = sources[1].findAllComponents({ name: 'TargetFilterGroup' })
+  expect(groups).toHaveLength(2)
+  for (const group of groups) {
+    expect(group.find('.filters__add').exists()).toBe(false)
+    expect(group.find('.filters__remove').exists()).toBe(false)
+  }
+  expect(sources[1].findAll('input:disabled')).toHaveLength(3)
+  expect(
+    modal
+      .findAll('.dashboard-widget-filters__operator')
+      .map((operator) => operator.find('.badge').text())
+  ).toEqual(['OR', 'OR'])
+  expect(dispatch).not.toHaveBeenCalled()
+
+  await modal
+    .find('.dashboard-widget-filters__cases')
+    .findAll('button')[1]
+    .trigger('click')
+  await modal.find('.dashboard-widget-filters__footer button').trigger('click')
+  await vi.waitFor(() =>
+    expect(wrapper.find('.modal__wrapper').exists()).toBe(false)
+  )
+  await wrapper.find('.dashboard-widget-filter-target').trigger('click')
+  await flushPromises()
+  const reopened = wrapper.findComponent({
+    name: 'WidgetFilterConfigurationModal',
+  })
+  expect(reopened.find('.segment-control__button--active').text()).toBe(
+    'textFilterWidget.withValue'
+  )
+  expect(reopened.find('.dashboard-widget-filters__other').exists()).toBe(true)
+  expect(dispatch).not.toHaveBeenCalled()
+})
+
+test('shows the only other source directly without adding another expansion step', async () => {
+  const { wrapper, dispatch } = await mountTargets({ linked: true })
+  testApp.store.getters['dashboardApplication/getDataSourceById'](4).filters =
+    []
+  await wrapper.find('.dashboard-widget-filter-target').trigger('click')
+  await flushPromises()
+  const modal = wrapper.findComponent({
+    name: 'WidgetFilterConfigurationModal',
+  })
+  const section = modal.find('.dashboard-widget-filters__other')
+  expect(section.findAll('.dashboard-widget-filters__source')).toHaveLength(1)
+  expect(
+    section
+      .find('.dashboard-widget-filters__source-toggle')
+      .attributes('aria-expanded')
+  ).toBe('true')
+  expect(section.findAll('input:disabled')).toHaveLength(1)
+  expect(section.find('input:disabled').element.value).toBe('Other')
+  expect(dispatch).not.toHaveBeenCalled()
+})
+
+test('saves a pending condition group when switching cases', async () => {
+  const { wrapper, widget, dispatch } = await mountTargets({ linked: true })
+  await wrapper.find('.dashboard-widget-filter-target').trigger('click')
+  await flushPromises()
+  const modal = wrapper.findComponent({
+    name: 'WidgetFilterConfigurationModal',
+  })
+  const add = button(
+    modal,
+    'localBaserowTableServiceConditionalForm.addFilterGroup'
+  ).trigger('click')
+  // Navigate in the same tick, before TargetFilterGroup emits its batched save.
+  await modal
+    .find('.dashboard-widget-filters__cases')
+    .findAll('button')[1]
+    .trigger('click')
+  await add
+  await flushPromises()
+  expect(dispatch).toHaveBeenCalledOnce()
+  expect(widget.target_filters[0].group.filter_groups).toHaveLength(1)
+  expect(widget.target_filters[0].group.filters).toHaveLength(1)
+  expect(widget.target_filters[0].group.filters[0].group).toBe(
+    widget.target_filters[0].group.filter_groups[0].id
+  )
+  await modal
+    .find('.dashboard-widget-filters__cases')
+    .findAll('button')[0]
+    .trigger('click')
+  expect(modal.findAll('.filters__item--level-2')).toHaveLength(1)
+  expect(dispatch).toHaveBeenCalledOnce()
+})
+
+test('omits other conditions when the widget and other filters have none', async () => {
+  const { wrapper } = await mountTargets({ linked: true })
+  testApp.store.getters['dashboardApplication/getDataSourceById'](4).filters =
+    []
+  testApp.store.getters['dashboardApplication/getWidgets'].find(
+    (w) => w.id === 9
+  ).target_filters = []
+  await wrapper.find('.dashboard-widget-filter-target').trigger('click')
+  await flushPromises()
+  const modal = wrapper.findComponent({
+    name: 'WidgetFilterConfigurationModal',
+  })
+  expect(modal.find('.dashboard-widget-filters__operator').exists()).toBe(false)
+  expect(modal.find('.dashboard-widget-filters__other').exists()).toBe(false)
+  expect(modal.find('.filters__add').exists()).toBe(true)
 })
 
 test('removes only the selected link through its context menu', async () => {
