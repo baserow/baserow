@@ -197,6 +197,7 @@ describe('Agent replies', () => {
       reply('completed', 'Finished', {
         steps: [
           toolStep('a', 'list_tables', 'done'),
+          toolStep('failed-read', 'list_table_rows', 'failed'),
           toolStep('b', 'get_table_schema', 'done', {
             facts: { table: 'Tasks' },
           }),
@@ -214,11 +215,15 @@ describe('Agent replies', () => {
       wrapper.find('.chat-step-group .iconoir-warning-triangle').exists()
     ).toBe(true)
     const reads = wrapper.findAll('.chat-step-group')[0]
+    expect(reads.find('button .iconoir-check-circle').exists()).toBe(true)
+    expect(reads.find('button .iconoir-warning-triangle').exists()).toBe(false)
+    expect(reads.findAll('li .iconoir-warning-triangle')).toHaveLength(1)
+    expect(reads.findAll('li .iconoir-check-circle')).toHaveLength(2)
     expect(reads.get('button').classes()).not.toContain('button')
     expect(reads.get('.chat-step-group__title').text()).toBe(
       'Workspace activity'
     )
-    expect(reads.findAll('li')).toHaveLength(2)
+    expect(reads.findAll('li')).toHaveLength(3)
     await reads.get('button').trigger('click')
     expect(reads.findAll('li')).toHaveLength(0)
     const change = wrapper.findAll('.chat-step-group')[1]

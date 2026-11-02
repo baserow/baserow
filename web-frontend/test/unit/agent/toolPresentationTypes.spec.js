@@ -171,7 +171,7 @@ describe('Agent tool presentations', () => {
     expect(groups.map(({ title, status }) => ({ title, status }))).toEqual([
       { title: 'Looking at your workspace', status: 'running' },
       { title: 'Create rows', status: 'done' },
-      { title: 'Workspace activity', status: 'failed' },
+      { title: 'Workspace activity', status: 'stopped' },
     ])
     expect(groups.map(({ lines }) => lines.map(({ id }) => id))).toEqual([
       ['list_tables', 'get_table_schema'],
@@ -214,7 +214,7 @@ describe('Agent tool presentations', () => {
     ])
   })
 
-  test('failed reads keep the workspace warning even when another read succeeds', () => {
+  test('the last successful read sets the summary while earlier failures stay on their lines', () => {
     const [group] = groupToolSteps(
       [
         step('list_tables', 'done', { id: 'a' }),
@@ -228,7 +228,8 @@ describe('Agent tool presentations', () => {
       registry,
       t
     )
-    expect(group.status).toBe('failed')
+    expect(group.status).toBe('done')
+    expect(group.title).toBe('Looked at your workspace')
     expect(group.lines.map(({ status }) => status)).toEqual([
       'done',
       'failed',
@@ -236,5 +237,38 @@ describe('Agent tool presentations', () => {
       'done',
     ])
     expect(group.lines.at(-1).title).toBe('Read 22 rows from Projects')
+  })
+
+  test.each(['done', 'failed', 'stopped'])(
+    'a settled workspace group summarizes its last call: %s',
+    (status) => {
+      const [group] = groupToolSteps(
+        [
+          step('list_tables', 'failed', { id: 'a' }),
+          step('get_table_schema', 'done', { id: 'b' }),
+          step('list_table_rows', status, { id: 'c' }),
+        ],
+        registry,
+        t
+      )
+      expect(group.status).toBe(status)
+    }
+  )
+
+  test('keeps a spinner while an earlier parallel call is still running', () => {
+    const calls = [
+      step('list_tables', 'running', { id: 'a' }),
+      step('list_table_rows', 'done', { id: 'b' }),
+    ]
+    expect(groupToolSteps(calls, registry, t)[0]).toMatchObject({
+      status: 'running',
+      title: 'Looking at your workspace',
+    })
+
+    calls[0].status = 'failed'
+    expect(groupToolSteps(calls, registry, t)[0]).toMatchObject({
+      status: 'done',
+      title: 'Looked at your workspace',
+    })
   })
 })

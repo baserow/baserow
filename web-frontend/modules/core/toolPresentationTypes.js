@@ -5,12 +5,6 @@ export const WORKSPACE_TOOL_GROUP = 'workspace'
 
 const MAX_INPUT_PREVIEW_LENGTH = 32768
 const STATUSES = new Set(Object.values(STEP_STATUS))
-const STATUS_PRIORITY = [
-  STEP_STATUS.RUNNING,
-  STEP_STATUS.FAILED,
-  STEP_STATUS.STOPPED,
-  STEP_STATUS.DONE,
-]
 const FALLBACK_LABELS = {
   [STEP_STATUS.RUNNING]: 'Using a tool',
   [STEP_STATUS.DONE]: 'Tool completed',
@@ -155,9 +149,13 @@ export function groupToolSteps(steps, registry, t) {
       groups.push(group)
     }
     group.lines.push(activity)
-    group.status = STATUS_PRIORITY.find((status) =>
-      group.lines.some((line) => line.status === status)
+    // Keep pending parallel calls visible; once settled, summarize the last
+    // call in display order. Earlier outcomes remain on their individual lines.
+    group.status = group.lines.some(
+      (line) => line.status === STEP_STATUS.RUNNING
     )
+      ? STEP_STATUS.RUNNING
+      : activity.status
     group.title = genericText(
       t,
       group.status === STEP_STATUS.RUNNING

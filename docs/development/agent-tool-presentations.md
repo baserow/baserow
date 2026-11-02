@@ -68,9 +68,10 @@ The frontend uses `STEP_STATUS` from `modules/core/chatRuns/constants.js` for
 the statuses `running`, `done`, `failed` and `stopped`. `stopped` means the
 outcome is uncertain; a write may already have completed. It does not imply
 rollback. Missing history steps are supported and produce no activity cards.
-Workspace groups keep a warning when any call failed, even if a later call
-succeeded: those calls may target different resources. Failed and interrupted
-lines show their status visibly; successful lines remain plain.
+Workspace groups show a spinner while any call is running. Once settled, the
+summary reflects the last call in display order. Every expanded line has its own
+status icon, so earlier failed or interrupted calls remain visible without
+making a later successful call look unsuccessful.
 
 ## Registering a presenter
 

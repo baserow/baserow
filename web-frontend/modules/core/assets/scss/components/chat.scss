@@ -327,13 +327,13 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   overflow-wrap: anywhere;
 }
 
-.chat-step-group__line-status {
-  flex-shrink: 0;
-  color: $palette-neutral-600;
+.chat-step-group__line-icon {
+  margin-top: 2px;
 }
 
-.chat-step-group__line-status--failed {
-  color: $palette-yellow-1000;
+.chat-step-group__line-title {
+  flex: 1;
+  min-width: 0;
 }
 
 .chat-step-group__input {

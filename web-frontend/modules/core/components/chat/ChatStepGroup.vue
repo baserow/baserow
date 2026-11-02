@@ -49,18 +49,17 @@
     <div v-if="hasDetails && expanded" :id="detailsId">
       <ul v-if="lines.length" class="chat-step-group__lines">
         <li v-for="line in lines" :key="line.id" class="chat-step-group__line">
-          <span>{{ line.title }}</span>
           <span
-            v-if="line.status === STEP_STATUS.FAILED"
-            class="chat-step-group__line-status chat-step-group__line-status--failed"
-            >{{ $t(statusLabels[line.status]) }}</span
-          >
-          <span
-            v-else-if="line.status === STEP_STATUS.STOPPED"
-            class="chat-step-group__line-status"
-            >{{ $t('toolPresentation.lineStopped') }}</span
-          >
-          <span v-else class="chat-step-group__status">{{
+            :class="
+              line.status === STEP_STATUS.RUNNING
+                ? 'chat-step-group__spinner'
+                : statusIcons[line.status]
+            "
+            class="chat-step-group__icon chat-step-group__line-icon"
+            aria-hidden="true"
+          />
+          <span class="chat-step-group__line-title">{{ line.title }}</span>
+          <span class="chat-step-group__status">{{
             $t(statusLabels[line.status])
           }}</span>
         </li>

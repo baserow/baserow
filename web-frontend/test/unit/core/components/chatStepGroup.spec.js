@@ -70,19 +70,23 @@ describe('ChatStepGroup', () => {
     const wrapper = mount(ChatStepGroup, {
       props: {
         title: 'Looked at your workspace',
-        status: 'failed',
-        lines: [{ id: 'a', title: 'Reading tables', status: 'failed' }],
+        status: 'done',
+        lines: [
+          { id: 'a', title: 'Read rows', status: 'failed' },
+          { id: 'b', title: 'Read 22 rows from Projects', status: 'done' },
+        ],
       },
       global: { mocks: { $t: (key) => key } },
     })
 
-    expect(wrapper.get('li').text()).toContain('Reading tables')
+    expect(wrapper.get('li').text()).toContain('Read rows')
     expect(wrapper.get('li').text()).toContain('toolPresentation.statusFailed')
-    expect(wrapper.get('.chat-step-group__line-status--failed').text()).toBe(
-      'toolPresentation.statusFailed'
+    expect(wrapper.find('li .iconoir-warning-triangle').exists()).toBe(true)
+    expect(wrapper.find('li .iconoir-check-circle').exists()).toBe(true)
+    expect(wrapper.find('button .iconoir-check-circle').exists()).toBe(true)
+    expect(wrapper.find('button .iconoir-warning-triangle').exists()).toBe(
+      false
     )
-    expect(wrapper.find('li .chat-step-group__status').exists()).toBe(false)
-    expect(wrapper.find('li .iconoir-warning-triangle').exists()).toBe(false)
     expect(wrapper.get('button').attributes('aria-expanded')).toBe('true')
     expect(wrapper.get('button .iconoir-nav-arrow-down').exists()).toBe(true)
     await wrapper.get('button').trigger('click')
@@ -90,23 +94,34 @@ describe('ChatStepGroup', () => {
     expect(wrapper.get('button').attributes('aria-expanded')).toBe('false')
     expect(wrapper.get('button .iconoir-nav-arrow-right').exists()).toBe(true)
     await wrapper.get('button').trigger('click')
-    expect(wrapper.get('li').text()).toContain('Reading tables')
+    expect(wrapper.get('li').text()).toContain('Read rows')
+    expect(wrapper.find('li .iconoir-warning-triangle').exists()).toBe(true)
   })
 
-  test('makes interrupted lines visible without claiming a rollback', () => {
-    const wrapper = mount(ChatStepGroup, {
-      props: {
-        title: 'Workspace activity',
-        status: 'stopped',
-        lines: [{ id: 'a', title: 'Read rows', status: 'stopped' }],
-      },
-      global: { mocks: { $t: (key) => key } },
-    })
+  test.each([
+    ['running', '.chat-step-group__spinner', 'toolPresentation.statusRunning'],
+    ['done', '.iconoir-check-circle', 'toolPresentation.statusDone'],
+    ['failed', '.iconoir-warning-triangle', 'toolPresentation.statusFailed'],
+    ['stopped', '.iconoir-minus-circle', 'toolPresentation.statusStopped'],
+  ])(
+    'shows the %s icon and accessible label for each expanded call',
+    (status, icon, label) => {
+      const wrapper = mount(ChatStepGroup, {
+        props: {
+          title: 'Workspace activity',
+          status,
+          lines: [{ id: 'a', title: 'Read rows', status }],
+        },
+        global: { mocks: { $t: (key) => key } },
+      })
 
-    expect(wrapper.get('.chat-step-group__line-status').text()).toBe(
-      'toolPresentation.lineStopped'
-    )
-  })
+      expect(wrapper.get(`li ${icon}`).attributes('aria-hidden')).toBe('true')
+      expect(wrapper.get('li .chat-step-group__status').text()).toBe(label)
+      expect(wrapper.get('.chat-step-group__line-title').text()).toBe(
+        'Read rows'
+      )
+    }
+  )
 
   test('expands input safely, indicates a shortened preview, and keeps it open through completion', async () => {
     const values = {
