@@ -489,13 +489,18 @@ class _FieldIndexer:
         # Trashed rows are indexed as well, so that they're immediately searchable
         # again when restored.
         queryset = self.model.objects_and_trash.order_by("id")
-        while not self.deadline_passed() and (
-            values := list(
+        while not self.deadline_passed():
+            # Disabling semantic search, trashing the field or making it incompatible
+            # stops the indexing, instead of embedding batches that are thrown away.
+            if not self._is_still_indexed():
+                return True
+            values = list(
                 self.semantic_search_field_type.get_values(
                     self.field, queryset.filter(id__gt=processed_until_row_id)
                 )[:INDEX_BATCH_ROWS]
             )
-        ):
+            if not values:
+                break
             processed = self._index(values)
             if processed:
                 processed_until_row_id = values[processed - 1][0]
@@ -511,6 +516,15 @@ class _FieldIndexer:
 
         self.vector_table.delete_rows_not_in(self.field.id, self.model)
         return True
+
+    def _is_still_indexed(self) -> bool:
+        return (
+            SemanticSearchField.objects.filter(
+                field_id=self.field.id, field__trashed=False
+            )
+            .exclude(status=SemanticSearchField.Status.INCOMPATIBLE)
+            .exists()
+        )
 
     def _copy_vectors(self, source_field_id: int):
         source_workspace_id = (

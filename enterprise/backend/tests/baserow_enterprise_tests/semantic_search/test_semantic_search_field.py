@@ -17,7 +17,10 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.tasks import periodic_check_pending_search_data
 from baserow.core.services.registries import service_type_registry
 from baserow.core.trash.handler import TrashHandler
-from baserow_enterprise.semantic_search.handler import SemanticSearchHandler
+from baserow_enterprise.semantic_search.handler import (
+    INDEX_BATCH_ROWS,
+    SemanticSearchHandler,
+)
 from baserow_enterprise.semantic_search.models import (
     SemanticSearchField,
     SemanticSearchPendingUpdate,
@@ -850,6 +853,38 @@ def test_disabling_while_indexing_doesnt_leave_vectors(
         index(table)
 
     assert semantic_search.embedded_texts == ["value"]
+    assert get_chunk_counts(fields[0]) == {}
+
+
+@pytest.mark.django_db
+def test_disabling_while_indexing_stops_embedding_the_other_rows(
+    data_fixture, semantic_search, django_capture_on_commit_callbacks
+):
+    user = data_fixture.create_user()
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        columns=[("Notes", "text")],
+        rows=[[f"value {number}"] for number in range(INDEX_BATCH_ROWS * 3)],
+    )
+    FieldHandler().update_field(user, fields[0], semantic_search_enabled=True)
+
+    def disabling_embedder(texts):
+        # Someone disables semantic search during the first request.
+        if not semantic_search.embedded_texts:
+            with django_capture_on_commit_callbacks(execute=True):
+                FieldHandler().update_field(
+                    user, fields[0], semantic_search_enabled=False
+                )
+        return semantic_search(texts)
+
+    with patch(
+        "baserow_enterprise.semantic_search.handler.get_embedder",
+        return_value=disabling_embedder,
+    ):
+        index(table)
+
+    # Only the batch that was already being embedded.
+    assert len(semantic_search.embedded_texts) == INDEX_BATCH_ROWS
     assert get_chunk_counts(fields[0]) == {}
 
 
