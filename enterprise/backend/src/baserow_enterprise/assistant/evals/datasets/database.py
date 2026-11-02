@@ -1468,18 +1468,10 @@ PROMPT_READS_ROW_COMMENTS = (
 )
 
 
-# View config
-# ---------------------------------------------------------------------------
-
-PROMPT_SORTS_VIEW = "Sort the Grid view of the Tasks table by due date, newest first."
-
-PROMPT_COLOURS_ROWS = "Colour the rows of the Grid view of the Tasks table by status."
-
-
 def _grant_premium(user: AbstractUser) -> None:
     """
-    Give the user the premium licence of the premium tests. Row comments need it.
-    Give the user the premium licence of the premium tests. Row colours need it.
+    Give the user the premium licence of the premium tests. Row comments and row colours
+    need it.
     The eval database is disposable and runs with the debug licence key, which that
     licence is signed for, on instance id "1".
     """
@@ -1517,21 +1509,6 @@ def _row_comments_scenario(fx: Fixtures) -> EvalScenario:
         user=user,
         message=prosemirror_doc_from_plain_text("They want a discount."),
     )
-
-
-@register_scenario("database-view-config")
-def _view_config_scenario(fx: Fixtures) -> EvalScenario:
-    user = fx.create_user()
-    _grant_premium(user)
-    workspace = fx.create_workspace(user=user)
-    database = fx.create_database_application(workspace=workspace, name="Projects")
-    tasks = fx.create_database_table(database=database, name="Tasks")
-    fx.create_text_field(table=tasks, name="Name", primary=True)
-    due = fx.create_date_field(table=tasks, name="Due date")
-    status = fx.create_single_select_field(table=tasks, name="Status")
-    fx.create_select_option(field=status, value="Open", color="blue")
-    fx.create_select_option(field=status, value="Done", color="green")
-    view = fx.create_grid_view(table=tasks, name="Grid")
     return EvalScenario(
         user=user,
         workspace=workspace,
@@ -1561,8 +1538,73 @@ def _check_adds_row_comment(
             "comment stored on the Acme row",
             len(comments) == 1 and "called" in comments[0],
             hint=str(comments)[:200],
+        ),
+    ]
 
 
+def _check_reads_row_comments(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    return [
+        CheckResult(
+            "called list_row_comments", tool_called(output, "list_row_comments") >= 1
+        ),
+        CheckResult(
+            "answer mentions the discount",
+            "discount" in output.answer.lower(),
+            hint=output.answer[:200],
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="database/adds-row-comment",
+        dataset="kuma-database",
+        prompt=PROMPT_ADDS_ROW_COMMENT,
+        scenario="database-row-comments",
+        checks=_check_adds_row_comment,
+        max_iters=10,
+    )
+)
+register_case(
+    EvalCase(
+        id="database/reads-row-comments",
+        dataset="kuma-database",
+        prompt=PROMPT_READS_ROW_COMMENTS,
+        scenario="database-row-comments",
+        checks=_check_reads_row_comments,
+        max_iters=10,
+    )
+)
+
+
+# ---------------------------------------------------------------------------
+# View config
+# ---------------------------------------------------------------------------
+
+PROMPT_SORTS_VIEW = "Sort the Grid view of the Tasks table by due date, newest first."
+
+PROMPT_COLOURS_ROWS = "Colour the rows of the Grid view of the Tasks table by status."
+
+
+@register_scenario("database-view-config")
+def _view_config_scenario(fx: Fixtures) -> EvalScenario:
+    user = fx.create_user()
+    _grant_premium(user)
+    workspace = fx.create_workspace(user=user)
+    database = fx.create_database_application(workspace=workspace, name="Projects")
+    tasks = fx.create_database_table(database=database, name="Tasks")
+    fx.create_text_field(table=tasks, name="Name", primary=True)
+    due = fx.create_date_field(table=tasks, name="Due date")
+    status = fx.create_single_select_field(table=tasks, name="Status")
+    fx.create_select_option(field=status, value="Open", color="blue")
+    fx.create_select_option(field=status, value="Done", color="green")
+    view = fx.create_grid_view(table=tasks, name="Grid")
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_database_ui_context(user, workspace, database),
         refs={"view": view, "due": due, "status": status},
     )
 
@@ -1583,19 +1625,6 @@ def _check_sorts_view(
             hint=str([(sort.field_id, sort.order) for sort in sorts]),
         ),
     ]
-
-
-def _check_reads_row_comments(
-    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
-) -> list[CheckResult]:
-    return [
-        CheckResult(
-            "called list_row_comments", tool_called(output, "list_row_comments") >= 1
-        ),
-        CheckResult(
-            "answer mentions the discount",
-            "discount" in output.answer.lower(),
-            hint=output.answer[:200],
 
 
 def _check_colours_rows(
@@ -1619,11 +1648,6 @@ def _check_colours_rows(
 
 register_case(
     EvalCase(
-        id="database/adds-row-comment",
-        dataset="kuma-database",
-        prompt=PROMPT_ADDS_ROW_COMMENT,
-        scenario="database-row-comments",
-        checks=_check_adds_row_comment,
         id="database/sorts-view",
         dataset="kuma-database",
         prompt=PROMPT_SORTS_VIEW,
@@ -1634,11 +1658,6 @@ register_case(
 )
 register_case(
     EvalCase(
-        id="database/reads-row-comments",
-        dataset="kuma-database",
-        prompt=PROMPT_READS_ROW_COMMENTS,
-        scenario="database-row-comments",
-        checks=_check_reads_row_comments,
         id="database/colours-rows",
         dataset="kuma-database",
         prompt=PROMPT_COLOURS_ROWS,

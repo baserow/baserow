@@ -106,6 +106,8 @@ _OUR_DATASETS = {
 
 EXPECTED_CASE_IDS = {
     "kuma-core": [
+        "core/audit-log-what-changed",
+        "core/audit-log-who-deleted",
         "core/creates-automation",
         "core/creates-database",
         "core/lists-databases",
@@ -296,10 +298,8 @@ class TestDatasetCounts:
     def test_case_counts_per_dataset(self):
         grouped = cases_by_dataset()
 
-        assert len(grouped["kuma-core"]) == 5
-        assert len(grouped["kuma-database"]) == 21
-        assert len(grouped["kuma-core"]) == 3
-        assert len(grouped["kuma-database"]) == 23
+        assert len(grouped["kuma-core"]) == 7
+        assert len(grouped["kuma-database"]) == 25
         assert len(grouped["kuma-docs"]) == 64
         assert len(grouped["kuma-builder"]) == 32
         assert len(grouped["kuma-automation"]) == 11

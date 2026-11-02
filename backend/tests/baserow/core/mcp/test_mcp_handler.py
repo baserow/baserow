@@ -113,7 +113,8 @@ def test_create_endpoint_stores_read_only_and_legacy_tools(data_fixture):
     expected = [
         tool.name
         for tool in mcp_tool_registry.get_enabled_tools()
-        if tool.read_only or tool.name in LEGACY_DEFAULT_TOOLS
+        if (tool.read_only and not tool.off_by_default)
+        or tool.name in LEGACY_DEFAULT_TOOLS
     ]
     assert endpoint.allowed_tools == expected
     assert set(LEGACY_DEFAULT_TOOLS) <= set(expected)

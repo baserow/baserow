@@ -67,7 +67,9 @@
     "areaAutomation": "Automations",
     "automationRead": "Read workflows and nodes",
     "automationEdit": "Create and change",
-    "automationDelete": "Delete"
+    "automationDelete": "Delete",
+    "areaAuditLog": "Audit log",
+    "auditLogRead": "Read the audit log"
   },
   "paginator": {
     "page": "Page",

@@ -146,6 +146,32 @@ describe('McpToolPicker', () => {
     expect(area.text()).toContain('mcpToolPicker.workspaceRead')
   })
 
+  test('labels the audit log group and area', async () => {
+    const { wrapper } = await mount({
+      groups: [
+        {
+          type: 'audit_log_read',
+          title: 'Read the audit log',
+          area: 'audit_log',
+          read_only_preset: false,
+        },
+      ],
+      tools: [
+        {
+          name: 'list_audit_log',
+          title: 'List the audit log',
+          read_only: true,
+          destructive: false,
+          group: 'audit_log_read',
+        },
+      ],
+    })
+    const area = wrapper.find('[data-test="mcp-tool-picker-area-audit_log"]')
+
+    expect(area.text()).toContain('mcpToolPicker.areaAuditLog')
+    expect(area.text()).toContain('mcpToolPicker.auditLogRead')
+  })
+
   test('labels the automation groups and area', async () => {
     const automationGroups = [
       {

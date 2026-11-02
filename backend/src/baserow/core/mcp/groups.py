@@ -9,10 +9,12 @@ GROUP_DATABASE_DELETE = "database_delete"
 GROUP_AUTOMATION_READ = "automation_read"
 GROUP_AUTOMATION_EDIT = "automation_edit"
 GROUP_AUTOMATION_DELETE = "automation_delete"
+GROUP_AUDIT_LOG_READ = "audit_log_read"
 
 AREA_WORKSPACE = "workspace"
 AREA_DATABASE = "database"
 AREA_AUTOMATION = "automation"
+AREA_AUDIT_LOG = "audit_log"
 
 
 class MCPToolGroup(Instance):
@@ -91,6 +93,13 @@ class AutomationDeleteMCPToolGroup(MCPToolGroup):
     title = "Delete in automations"
     area = AREA_AUTOMATION
     order = 60
+
+
+class AuditLogReadMCPToolGroup(MCPToolGroup):
+    type = GROUP_AUDIT_LOG_READ
+    title = "Read the audit log"
+    area = AREA_AUDIT_LOG
+    order = 100
 
 
 mcp_tool_group_registry = MCPToolGroupRegistry()

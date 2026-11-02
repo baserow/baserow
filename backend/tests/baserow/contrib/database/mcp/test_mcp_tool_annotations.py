@@ -35,6 +35,8 @@ EXPECTED = {
     "delete_views": (False, True),
     "delete_view_filters": (False, True),
     "delete_row_colours": (False, True),
+    "list_audit_log": (True, False),
+    "search_audit_log": (True, False),
     # Disabled tools, annotated so they are ready when enabled.
     "update_table": (False, True),
     "delete_table": (False, True),

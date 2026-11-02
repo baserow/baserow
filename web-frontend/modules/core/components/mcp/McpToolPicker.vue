@@ -130,11 +130,13 @@ const GROUP_LABELS = {
   automation_read: 'mcpToolPicker.automationRead',
   automation_edit: 'mcpToolPicker.automationEdit',
   automation_delete: 'mcpToolPicker.automationDelete',
+  audit_log_read: 'mcpToolPicker.auditLogRead',
 }
 const AREA_LABELS = {
   workspace: 'mcpToolPicker.areaWorkspace',
   database: 'mcpToolPicker.areaDatabase',
   automation: 'mcpToolPicker.areaAutomation',
+  audit_log: 'mcpToolPicker.areaAuditLog',
 }
 
 // The tools the user sees: a tool is only listed under one of the groups.

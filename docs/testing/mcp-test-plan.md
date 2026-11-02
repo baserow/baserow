@@ -142,8 +142,11 @@ The following tools are currently enabled:
 | `update_nodes` | Change node labels, settings and router conditions |
 | `delete_nodes` | Delete (trash) workflow nodes |
 
-The automation tools are off in the "Read only" preset. Turn them on at
-consent or under **Settings > Connected apps**.
+| `list_audit_log` | List who did what in this workspace (enterprise, admin) |
+| `search_audit_log` | Search the workspace's audit log within 90 days (enterprise, admin) |
+
+The automation and audit log tools are off in the "Read only" preset. Turn them
+on at consent or under **Settings > Connected apps**.
 
 ## 4. Test scenarios
 
@@ -224,6 +227,12 @@ shows the filter in Baserow.
 Ask Claude: *"Sort the grid by due date, newest first"*, *"Hide the notes field in this view"*, *"Colour the rows by status"* (needs a premium licence), then *"Remove that colour and the filters on this view"*.
 
 Expected: the view changes after each request. Hiding the primary field of a grid view comes back as an error on that field. Without a licence, colouring reports that the feature isn't available.
+
+### Audit log
+
+Needs an enterprise licence and a workspace admin. Turn on **Read the audit log**, create and delete a table, then ask Claude: *"Who deleted a table this week?"*.
+
+Expected: Claude calls `list_audit_log` or `search_audit_log` and names you. As a workspace member who isn't an admin, Claude reports it has no permission. Entries of other workspaces never show.
 
 ### Automations
 

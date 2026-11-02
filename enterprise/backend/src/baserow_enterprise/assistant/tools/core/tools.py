@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated, Any, Literal
 
 from django.db import transaction
@@ -13,6 +14,7 @@ from baserow.core.tools import search as shared_search
 from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps
 from baserow_enterprise.assistant.tools.shared import require_payload
 from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
+from baserow_enterprise.audit_log import tools as shared_audit_log
 
 from . import helpers
 from .types import BuilderItem, BuilderItemCreate, BuilderUpdate
@@ -132,6 +134,109 @@ def search_workspace(
 
     return shared_search.search_workspace(
         ctx.deps.tool_context(), query=query, types=types, page=page, size=size
+    )
+
+
+def list_audit_log(
+    ctx: RunContext[AssistantDeps],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+    user_id: Annotated[
+        int | None, Field(description="Only what this user did, by user ID.")
+    ] = None,
+    action_types: Annotated[
+        list[str] | None,
+        Field(description="Only these actions, like create_table or delete_rows."),
+    ] = None,
+    from_timestamp: Annotated[
+        datetime | None,
+        Field(description="Only from this moment, in ISO format."),
+    ] = None,
+    to_timestamp: Annotated[
+        datetime | None,
+        Field(description="Only up to this moment, in ISO format."),
+    ] = None,
+    page: Annotated[int, Field(ge=1, description="The page to return.")] = 1,
+    size: Annotated[
+        int,
+        Field(
+            ge=1,
+            le=shared_audit_log.MAX_PAGE_SIZE,
+            description="The number of entries a page.",
+        ),
+    ] = 50,
+) -> dict[str, Any]:
+    """\
+    List who did what in this workspace.
+
+    WHEN to use: User asks who changed, created or deleted something, or what happened recently.
+    WHAT it does: Returns audit log entries of this workspace, newest first, optionally by user, action or date. Needs an enterprise licence and a workspace admin.
+    RETURNS: entries with id, timestamp, actor, action_type, description, ip_address, and has_more.
+    HOW: Prefer this over search_audit_log when you know the action or the dates; a description holds the names of what changed.
+    """
+
+    ctx.deps.tool_helpers.update_status(_("Reading the audit log..."))
+
+    return shared_audit_log.list_audit_log(
+        ctx.deps.tool_context(),
+        user_id=user_id,
+        action_types=action_types,
+        from_timestamp=from_timestamp,
+        to_timestamp=to_timestamp,
+        page=page,
+        size=size,
+    )
+
+
+def search_audit_log(
+    ctx: RunContext[AssistantDeps],
+    query: Annotated[
+        str,
+        Field(
+            min_length=2,
+            max_length=200,
+            description="Text to find in who did it, the action type and its short description. It matches literally, so use one short word like delete, not deleted or a phrase.",
+        ),
+    ],
+    from_timestamp: Annotated[
+        datetime, Field(description="The start of the range, in ISO format.")
+    ],
+    to_timestamp: Annotated[
+        datetime,
+        Field(description="The end of the range, at most 90 days after the start."),
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+    page: Annotated[int, Field(ge=1, description="The page to return.")] = 1,
+    size: Annotated[
+        int,
+        Field(
+            ge=1,
+            le=shared_audit_log.MAX_PAGE_SIZE,
+            description="The number of entries a page.",
+        ),
+    ] = 50,
+) -> dict[str, Any]:
+    """\
+    Search the audit log of this workspace by text, in a date range of at most 90 days.
+
+    WHEN to use: User asks what a person did, or about a kind of action, and you don't have its exact action type.
+    RETURNS: The same as list_audit_log.
+    DO NOT USE when: Looking for the name of a table or row; it doesn't search those. Use list_audit_log and read the descriptions.
+    NO RESULTS: This doesn't prove nothing happened. Try another word or list_audit_log before saying so.
+    """
+
+    ctx.deps.tool_helpers.update_status(_("Searching the audit log..."))
+
+    return shared_audit_log.search_audit_log(
+        ctx.deps.tool_context(),
+        query,
+        from_timestamp,
+        to_timestamp,
+        page=page,
+        size=size,
     )
 
 
@@ -341,6 +446,8 @@ def ask_user(
 TOOL_FUNCTIONS = [
     list_builders,
     search_workspace,
+    list_audit_log,
+    search_audit_log,
     create_builders,
     update_builder,
     switch_mode,

@@ -62,6 +62,10 @@ class MCPTool(Instance):
     group: str | None = None
     """The permission group the tool belongs to, see ``baserow.core.mcp.groups``."""
 
+    off_by_default: bool = False
+    """True to leave a read-only tool off new endpoint keys, because what it reads
+    needs a deliberate choice. The user can turn it on."""
+
     @property
     def name(self) -> str:
         """MCP tool name, derived from ``type``."""

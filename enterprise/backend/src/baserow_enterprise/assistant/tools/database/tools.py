@@ -1345,8 +1345,29 @@ def create_row_comments(
     comments: Annotated[
         list[shared_row_comments.RowCommentCreate],
         Field(description="The comments to post, each on one row."),
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+) -> dict[str, Any]:
+    """\
+    Post comments on rows.
+
+    WHEN to use: User asks to add a comment or note to a row's comments.
+    WHAT it does: Posts plain text comments. Mentions aren't supported, so write a name as plain text.
+    RETURNS: created comments with id, row_id, text. Comments that can't be posted are in errors with their index.
+    DO NOT USE when: User wants a value stored in a field of the row; update the row instead.
+    """
+
+    require_payload("create_row_comments", "comments", comments)
+    ctx.deps.tool_helpers.update_status(_("Posting the comments..."))
+
+    return shared_row_comments.create_row_comments(
+        ctx.deps.tool_context(), table_id, comments
+    )
 
 
+# ---------------------------------------------------------------------------
 # View config
 # ---------------------------------------------------------------------------
 
@@ -1454,21 +1475,6 @@ def delete_view_filters(
     ],
 ) -> dict[str, Any]:
     """\
-    Post comments on rows.
-
-    WHEN to use: User asks to add a comment or note to a row's comments.
-    WHAT it does: Posts plain text comments. Mentions aren't supported, so write a name as plain text.
-    RETURNS: created comments with id, row_id, text. Comments that can't be posted are in errors with their index.
-    DO NOT USE when: User wants a value stored in a field of the row; update the row instead.
-    """
-
-    require_payload("create_row_comments", "comments", comments)
-    ctx.deps.tool_helpers.update_status(_("Posting the comments..."))
-
-    return shared_row_comments.create_row_comments(
-        ctx.deps.tool_context(), table_id, comments
-
-
     Delete filters from views.
 
     WHEN to use: User wants a view to stop filtering on something. list_views shows each view's filters.

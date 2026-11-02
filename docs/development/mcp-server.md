@@ -132,6 +132,8 @@ Some tools are currently disabled (`enabled = False`) and hidden from MCP client
 | `add_nodes` | enabled | Add nodes to a workflow (shared with Kuma) |
 | `update_nodes` | enabled | Change node labels, settings and router conditions (shared with Kuma) |
 | `delete_nodes` | enabled | Delete (trash) workflow nodes (shared with Kuma) |
+| `list_audit_log` | enabled | List who did what in this workspace. Needs enterprise and a workspace admin (shared with Kuma) |
+| `search_audit_log` | enabled | Search the workspace's audit log by text within 90 days. Needs enterprise and a workspace admin (shared with Kuma) |
 | `update_table` | disabled | Rename a table |
 | `delete_table` | disabled | Delete (trash) a table |
 
@@ -147,6 +149,8 @@ list_databases
 ```
 
 The automation tools are in their own groups (`automation_read`, `automation_edit`, `automation_delete`) and are not part of the "Read only" preset, so a user turns them on at consent or later under Settings. A value that takes a formula is stored as written when it is a valid formula and quoted when it is a literal. A formula is invalid when it doesn't parse, or reads a `previous_node` path the node doesn't output (the paths `list_nodes` shows). An invalid formula comes back in `formula_errors` for the client to fix with `update_nodes`: on a new node the value is left empty, on an update it keeps what it had. A formula can name a node created earlier in the same call by its ref, as in `get('previous_node.trigger.0.id')`. Over MCP no model is called; Kuma repairs those values with its formula generator after the nodes are committed.
+
+The audit log tools are in their own group (`audit_log_read`), registered by the enterprise app. They are off in the "Read only" preset and on new endpoint keys (`off_by_default`), so a user has to turn them on. They only read the audit log of the endpoint's workspace, not the instance-wide log.
 
 ## Adding a new tool
 

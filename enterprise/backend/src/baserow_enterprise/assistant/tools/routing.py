@@ -81,7 +81,9 @@ def _tool_routes() -> dict[str, _ToolRoute]:
     from .core.tools import (
         ask_user,
         create_builders,
+        list_audit_log,
         list_builders,
+        search_audit_log,
         search_workspace,
         switch_mode,
         update_builder,
@@ -123,7 +125,15 @@ def _tool_routes() -> dict[str, _ToolRoute]:
             automation_mode | explain_mode,
         ),
         **_routes_for(
-            (navigate, switch_mode, list_builders, search_workspace, ask_user),
+            (
+                navigate,
+                switch_mode,
+                list_builders,
+                search_workspace,
+                list_audit_log,
+                search_audit_log,
+                ask_user,
+            ),
             AgentMode.DATABASE,
             all_modes,
         ),
