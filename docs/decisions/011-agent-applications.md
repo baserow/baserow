@@ -20,7 +20,7 @@ prioritize a simple starting experience and independent management.
 | Term                         | Meaning                                                                                             |
 | ---------------------------- | --------------------------------------------------------------------------------------------------- |
 | Agent                        | A reusable, configured AI agent that callers can invoke.                                            |
-| `Agent` subject              | The core permission subject with a workspace role. An agent may run as one: its execution identity. |
+| Agent identity              | A workspace-owned User with identity type `agent` and a workspace role, as proposed in [ADR 013](013-agent-users.md). An agent may run as one. |
 | Caller                       | Anything that references an agent to invoke it, such as a conversation or an automatic job.         |
 | Agent Builder (option 1)     | A workspace application containing many agents, as a database contains tables.                      |
 | Agent application (option 2) | A workspace application of type `agent` that is exactly one agent.                                  |
@@ -43,7 +43,7 @@ understandable.
 Both options can reuse Baserow's application infrastructure, permission system, internal
 tools and supported backend services. Sharing a management boundary does not by itself
 authorize sharing integrations, determine execution identity or provide orchestration.
-The `Agent` subject remains distinct from an agent.
+The agent identity remains distinct from the configured agent application.
 
 This record decides the ownership model. Execution, orchestration and workspace
 integrations are outside its scope. The
