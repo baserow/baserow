@@ -1,0 +1,12 @@
+{
+    "type": "breaking_change",
+    "message": "SSO logins check the state on callbacks, so custom OpenID Connect providers must return it",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [
+        "OAuth2 and OpenID Connect callbacks are rejected unless the state matches the login started by the same browser with the same provider.",
+        "A custom OpenID Connect identity provider that doesn't return the state sent to it can no longer be used to log in."
+    ],
+    "created_at": "2026-11-01"
+}
