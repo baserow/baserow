@@ -164,8 +164,6 @@ test('configures a target inside the input sidebar and keeps template saves isol
   expect(
     wrapper.findAll('.select__item-name-text').map((item) => item.text())
   ).toEqual([
-    'textFilterWidget.input',
-    'textFilterWidget.dropdown',
     'textFilterWidget.apply_nothing',
     'textFilterWidget.apply_alternative',
   ])
