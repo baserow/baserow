@@ -21,11 +21,14 @@
     "manageTeamForm": {
         "nameTitle": "Nazwa",
         "roleTitle": "Domyślna rola",
-        "inviteMembers": "Dodaj członków",
-        "membersTitle": "Członkowie",
-        "noSubjectsSelected": "Nikt nie ma jeszcze dostępu przez ten zespół.",
+        "inviteMembers": "Zarządzaj dostępem",
+        "membersTitle": "Członkowie zespołu",
+        "noSubjectsSelected": "Nikt jeszcze nie ma dostępu za pośrednictwem tego zespołu.",
         "roleHelpText": "Indywidualne role są zawsze nadrzędne w stosunku do ról w zespołach.",
-        "submit": "Zapisz"
+        "submit": "Zapisz",
+        "agentLabel": "Agent",
+        "accessModalTitle": "Zarządzanie dostępem zespołu",
+        "accessModalDescription": "Wybierz osoby oraz agentów należących do tego zespołu."
     },
     "editTeamContext": {
         "edit": "Edytuj zespół",
@@ -68,12 +71,18 @@
         "filterFromTimestamp": "Od",
         "filterToTimestampTitle": "Do",
         "filterToTimestamp": "Do",
-        "user": "Użytkownik",
+        "user": "Aktor",
         "workspace": "Obszar roboczy",
         "timestamp": "Timestamp",
         "clearFilters": "Wyczyść",
         "workspaceTitle": "Log audytu obszaru {workspaceName}",
-        "adminTitle": "Log audytu"
+        "adminTitle": "Log audytu",
+        "filterActorTitle": "Aktor",
+        "actorType": "Rodzaj aktora",
+        "allActors": "Wszyscy aktorzy",
+        "usersSection": "Użytkownicy",
+        "agentsSection": "Agenci",
+        "actorDisplay": "{name} ({id})"
     },
     "manageTeamModals": {
         "subheading": "W ramach zespołów można zbiorczo nadawać lub ograniczać uprawnienia wielu użytkownikom równocześnie."
@@ -124,7 +133,8 @@
         "defaultAttrs": "Domyślne",
         "firstNameAttrKeyHelper": "Imię użytkownika lub imię i nazwisko, jeśli nie podano 'nazwiska'.",
         "firstNameAttrKey": "Imię",
-        "lastNameAttrKey": "Nazwisko"
+        "lastNameAttrKey": "Nazwisko",
+        "emailVerificationNotice": "Sprawdź, czy dostawca usług tożsamości wymaga użycia zweryfikowanych adresów e-mail przed uwierzytelnieniem. Podpisy SAML służą do uwierzytelniania dostawcy, a nie do potwierdzania własności adresu e-mail."
     },
     "createSettingsAuthProviderModal": {
         "title": "Dodaj nowy typ {type}"
@@ -156,7 +166,9 @@
         "errorAuthFlowError": "wystąpił błąd podczas uwierzytelnienia u wybranego dostawcy.",
         "errorDifferentProvider": "prosimy o wybranie dostawcy użytego przy rejestracji.",
         "errorWorkspaceInvitationEmailMismatch": "twój adres e-mail nie jest zgodny z adresem w zaproszeniu.",
-        "errorSignupDisabled": "rejestracja została wyłączona przez administratora."
+        "errorSignupDisabled": "rejestracja została wyłączona przez administratora.",
+        "errorUnverifiedEmail": "Dostawca usług tożsamości nie zweryfikował twojego adresu e-mail. Proszę potwierdzić adres e-mail u dostawcy i spróbować ponownie.",
+        "errorApplicationUserLimitReached": "Logowanie jest chwilowo niedostępne. Skontaktuj się z właścicielem strony lub spróbuj ponownie później."
     },
     "roles": {
         "commenter": {
@@ -263,9 +275,10 @@
         "invite": "Zaproś {count} {type}",
         "types": {
             "members": "członkowie zespołu",
-            "teams": "zespoły"
+            "teams": "zespoły",
+            "agents": "agenci"
         },
-        "helpTooltip": "Indywidualne role członków zespołu są nadrzędne w stosunku do ról przypisanych w zespołach.",
+        "helpTooltip": "Indywidualne role członków zespołu oraz agentów są nadrzędne w stosunku do ról przypisanych w zespołach.",
         "roleSelectorBuilderDataWarningTooltip": "Będą mogli tworzyć formuły i pola wyszukiwania, odsłaniając dowolne pola w dowolnych połączonych tabelach."
     },
     "oauthSettingsForm": {
@@ -289,7 +302,8 @@
         "firstNameAttrKey": "Imię",
         "lastNameAttrKey": "Nazwisko",
         "firstNameAttrKeyHelper": "Imię użytkownika lub pełne imię i nazwisko, jeśli pole 'nazwisko' nie jest wypełnione.",
-        "lastNameAttrKeyHelper": "Nazwisko użytkownika (opcjonalnie). Wyczyść tę wartość, jeśli w polu 'imię' zostały już wpisane imię i nazwisko."
+        "lastNameAttrKeyHelper": "Nazwisko użytkownika (opcjonalnie). Wyczyść tę wartość, jeśli w polu 'imię' zostały już wpisane imię i nazwisko.",
+        "emailVerificationNotice": "Sprawdź, czy dostawca usług tożsamości wymaga użycia zweryfikowanych adresów e-mail przed uwierzytelnieniem. Adres e-mail musi być zgodny z tym, który został podany przez dostawcę."
     },
     "loginButton": {
         "continueWith": "Kontynuuj z"
@@ -302,7 +316,8 @@
         "membersTab": "Członkowie zespołu",
         "teamsTab": "Zespoły",
         "subjectTypeNameMembers": "członkowie zespołu",
-        "subjectTypeNameTeams": "zespoły"
+        "subjectTypeNameTeams": "zespoły",
+        "agentsTab": "Agenci"
     },
     "membersRoleField": {
         "noAccessHelpText": "Ten użytkownik wymaga indywidualnie przyznanego dostępu do zasobów.",
@@ -342,7 +357,9 @@
         "codeRunner": "Program do uruchamiania kodu",
         "codeRunnerContent": "Uruchamiaj kod JavaScript w węzłach automatyzacji oraz w operacjach wykonywanych przez aplikacje.",
         "xlsFileReader": "Czytnik plików XLS",
-        "xlsFileReaderContent": "Wczytuj wiersze z plików XLS i XLSX w węzłach automatyzacji oraz w operacjach wykonywanych przez aplikacje."
+        "xlsFileReaderContent": "Wczytuj wiersze z plików XLS i XLSX w węzłach automatyzacji oraz w operacjach wykonywanych przez aplikacje.",
+        "builderGraphElement": "Element wykresu",
+        "builderGraphElementContent": "Na stronach aplikacji wyświetl wykresy danych opartych na formułach."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Wsparcie"
@@ -505,18 +522,18 @@
         "line": "Wykres liniowy"
     },
     "groupedAggregateRowsDataSourceForm": {
-        "series": "Seria danych",
+        "series": "Szereg danych",
         "data": "Dane",
         "sourceFieldLabel": "Źródło",
         "viewFieldLabel": "Widok",
-        "addSeries": "Dodaj serię danych",
+        "addSeries": "Dodaj szereg danych",
         "notSelected": "Nie wybrano"
     },
     "aggregationSeriesForm": {
         "aggregationFieldLabel": "Pole",
         "aggregationTypeLabel": "Podsumowanie",
-        "deleteSeries": "Usuń serię danych",
-        "chartType": "Typ wykresu",
+        "deleteSeries": "Usuń szereg danych",
+        "chartType": "Rodzaj wykresu",
         "barChart": "Słupkowy",
         "lineChart": "Liniowy",
         "pieChart": "Kołowy",
@@ -529,7 +546,7 @@
         "groupByFieldLabel": "Pogrupuj wg."
     },
     "aggregationSortByForm": {
-        "sortByFieldLabel": "Sortuj według",
+        "sortByFieldLabel": "Sortuj wg.",
         "none": "Brak",
         "ascending": "Rosnąco",
         "descending": "Malejąco"
@@ -552,7 +569,7 @@
         "defaultNameTitle": "Początkowa nazwa pliku|Początkowe nazwy plików",
         "defaultNameHelp": "Liczba nazw musi być zgodna z liczbą adresów URL.",
         "defaultUrlPlaceholder": "Podaj domyślny adres URL...|Podaj domyślne adresy URL..",
-        "fileTypesHelper": "Podaj dozwolone rozszerzenia plików (każde w osobnym wierszu), np. jpg, png, svg, pdf. Możesz podać image/*, video/* lub audio/*, aby zezwolić na wszystkie pliki danego typu. Jeśli zostawisz puste, to wszelkie rodzaje plików będą dozwolone.",
+        "fileTypesHelper": "Podaj dozwolone rodzaje plików (każdy w osobnym wierszu). Aby uwzględnić wszystkie rodzaje plików danego typu, podaj rozszerzenia (np. jpg, png, pdf), pełną nazwę MIME (np. image/jpeg, application/pdf) lub nazwę MIME z wieloznakiem (np. image/*, text/*, application/*). Możesz podać image/*, video/* lub audio/*. Puste pole oznacza, że wszystkie rodzaje będą dozwolone.",
         "preview": "Umożliwić podgląd plików graficznych?",
         "maxFileSize": "Maksymalny rozmiar pliku",
         "maxFileSizePlaceholder": "Wpisz liczbę...",
@@ -745,7 +762,9 @@
         "nobodyTitle": "Nikt",
         "nobodyDescription": "Brak użytkowników",
         "allowInForms": "Zezwól aby to pole było wypełniane w wierszach tworzonych przy użyciu formularzy",
-        "linkRowWarning": "To jest pole 'Tabeli powiązanej'. Aby wartości w obecnej tabeli nie mogły być aktualizowane za pośrednictwem tabeli powiązanej, sprawdź, czy w tabeli powiązanej nadane są odpowiednie uprawnienia."
+        "linkRowWarning": "To jest pole 'Tabeli powiązanej'. Aby wartości w obecnej tabeli nie mogły być aktualizowane za pośrednictwem tabeli powiązanej, sprawdź, czy w tabeli powiązanej nadane są odpowiednie uprawnienia.",
+        "customTitle": "Konkretni użytkownicy, agenci lub zespoły",
+        "customDescription": "Wyłącznie wybrani użytkownicy, agenci oraz członkowie zespołów, którym nadano już rolę Edytora, Konfiguratora lub Administratora"
     },
     "builderSettingTypes": {
         "customCode": "Własny CSS/JS"
@@ -779,7 +798,9 @@
     },
     "elementType": {
         "errorUserSourceHasNoLoginOption": "Wybrane źródło użytkownika nie ma opcji logowania",
-        "errorUserSourceMissing": "Nie wybrano źródła użytkownika"
+        "errorUserSourceMissing": "Nie wybrano źródła użytkownika",
+        "graph": "Wykres",
+        "graphDescription": "Wyświetl wykres danych opartych na formułach."
     },
     "fieldPermissionsMenuItem": {
         "label": "Edytuj uprawnienia pola"
@@ -920,5 +941,67 @@
         "prompt": "Utwórz bazę danych zawierającą tabele, pola, przykładowe wiersze i widoki zgodnie z następującym opisem: {prompt}",
         "context": "Osoba zadająca pytanie pracuje w sektorze: {industry} i w zespole: {team}. Skonfiguruj tabele, pola i przykładowe wiersze, które będą odpowiadać temu profilowi.",
         "language": "Zapisz wszystko w języku określonym kodem ISO 639-1 jako \"{language}\"."
+    },
+    "enterpriseAgents": {
+        "teams": "Zespoły",
+        "noTeams": "Brak zespołów",
+        "teamsLoadError": "Nie można było załadować zespołów.",
+        "teamsLoadErrorDescription": "Sprawdź połączenie i spróbuj ponownie.",
+        "retry": "Spróbuj ponownie"
+    },
+    "applicationUserLimitNotification": {
+        "titleWarning": "W obszarze {workspaceName} wykorzystano {usage} z {limit} dostępnych użytkowników aplikacji.",
+        "titleReached": "W obszarze {workspaceName} wykorzystano {limit} użytkowników aplikacji. Dopóki limit nie zostanie zwiększony, nie będzie można zalogować się do opublikowanych aplikacji.",
+        "titleWarningInstance": "W tej instalacji wykorzystano {usage} z {limit} dostępnych użytkowników aplikacji. Limit jest współdzielony przez wszystkie obszary robocze, w tym {workspaceName}.",
+        "titleReachedInstance": "Ta instalacja wyczerpała limit {limit} użytkowników aplikacji. Gdy limit zostanie przekroczony, a licencja nie zostanie zaktualizowana, to nie będzie można się zalogować do aplikacji opublikowanych w obszarach roboczych, w tym w {workspaceName}."
+    },
+    "selectAgentsList": {
+        "searchPlaceholder": "Znajdź agentów...",
+        "selectedAmountLabel": "wybrano {count} agentów"
+    },
+    "subjectType": {
+        "team": "Zespół",
+        "teams": "Zespoły"
+    },
+    "fieldPermissionSubjectsSelector": {
+        "accessNote": "Wybór nie oznacza przyznania dostępu do tabeli. W miejscu, gdzie znajduje się tabela, wybrany użytkownik, agent lub członek wybranego zespołu musi również mieć nadaną rolę Edytora, Konfiguratora lub Administratora.",
+        "canEdit": "Wybrani użytkownicy, agenci i zespoły",
+        "noSelectedSubjects": "Jeszcze nie wybrano nikogo. Skorzystaj z wyszukiwania powyżej, aby dodać użytkownika, agenta lub zespół.",
+        "addPeopleOrTeams": "Dodaj użytkowników, agentów lub zespoły",
+        "searchPlaceholder": "Wyszukuj użytkowników, agentów lub zespoły",
+        "searchHint": "Wyszukaj na podstawie nazwy",
+        "teamDescription": "Zespół",
+        "teamSearchDescription": "Zespół · {count} członek | Zespół · {count} członków",
+        "remove": "Usuń {subject}"
+    },
+    "graphElementForm": {
+        "labels": "Etykiety",
+        "labelsHelper": "Wynikiem formuły musi być tablica danych. Każdy element stanowi jedną etykietę na wykresie.",
+        "labelsPlaceholder": "to_array('Sty,Lut,Mar')",
+        "seriesList": "Szereg danych",
+        "series": "Szereg danych {number}",
+        "addSeries": "Dodaj szereg danych",
+        "seriesLabel": "Etykieta szeregu danych",
+        "seriesLabelPlaceholder": "'Przychody'",
+        "seriesValues": "Wartości",
+        "seriesValuesHelper": "Wynikiem formuły musi być jedna wartość liczbowa dla każdej etykiety.",
+        "seriesValuesPlaceholder": "to_array('10,20,30')",
+        "chartType": "Rodzaj wykresu",
+        "seriesColor": "Kolor",
+        "barChart": "Słupkowy",
+        "lineChart": "Liniowy"
+    },
+    "graphElement": {
+        "series": "Szereg danych {number}",
+        "noData": "Brak danych do wykresu"
+    },
+    "aiProviderModelFeature": {
+        "kuma": "Kuma",
+        "kumaDescription": "Wykorzystaj asystenta AI Kuma."
+    },
+    "assistantDashboardPrompt": {
+        "title": "Co chciałbyć przygotować",
+        "placeholder": "Skonfiguruj narzędzie do zarządzania zasobami firmy",
+        "build": "Zbuduj to"
     }
 }

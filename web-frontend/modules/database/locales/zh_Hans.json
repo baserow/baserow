@@ -695,7 +695,7 @@
     },
     "snapshotsModal": {
         "title": "快照",
-        "description": "快照是创建时数据库的完整副本。恢复时将创建该数据的副本。一年后会自动删除快照。",
+        "description": "快照是您的 {applicationTypeName} 在创建时的完整副本。恢复时将创建该数据的副本。一年后会自动删除快照。",
         "descriptionLimits": "每个组最多可以有 {n} 个快照。| 每个组最多可以有 {n} 个快照。| 每个组最多可以有 {n} 个快照。",
         "createLabel": "创建一个新快照",
         "create": "创建快照",

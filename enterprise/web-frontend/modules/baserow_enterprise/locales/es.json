@@ -29,16 +29,18 @@
     "manageTeamForm": {
         "nameTitle": "Nombre",
         "roleTitle": "Rol por defecto",
-        "inviteMembers": "Añadir miembros",
-        "membersTitle": "Miembros",
+        "inviteMembers": "Gestionar acceso",
+        "membersTitle": "Miembros del equipo",
         "noSubjectsSelected": "Nadie tiene acceso a través de este equipo todavía.",
         "roleHelpText": "Los roles específicos de usuario siempre prevalecerán sobre los roles de equipo.",
         "submit": "Guardar",
-        "accessModalDescription": "Elige las personas y los agentes que pertenecen a este equipo."
+        "accessModalDescription": "Elige las personas y los agentes que pertenecen a este equipo.",
+        "accessModalTitle": "Gestionar el acceso del equipo",
+        "agentLabel": "Agente"
     },
     "editTeamContext": {
         "edit": "Editar equipo",
-        "remove": "Borrar equipo"
+        "remove": "Eliminar equipo"
     },
     "teamsTable": {
         "title": "{teamCount} equipos en {workspaceName}",
@@ -47,7 +49,10 @@
         "roleHelpText": "Puede anularse con roles en bases de datos y tablas.",
         "subjectsColumn": "Miembros",
         "createdColumn": "Creado en",
-        "roleColumn": "Rol por defecto"
+        "roleColumn": "Rol por defecto",
+        "emptyDescription": "Agrupa a personas y agentes en equipos para gestionar su acceso conjuntamente. Crea un equipo para un departamento o proyecto, luego asigna su rol.",
+        "emptyTitle": "Aún no hay equipos",
+        "search": "Buscar equipos"
     },
     "subjectSampleField": {
         "titleAttr": "{subjectCount} miembros en este equipo."
@@ -63,33 +68,39 @@
     "auditLog": {
         "title": "Registro de auditoría",
         "filterUserTitle": "Usuario",
-        "filterWorkspaceTitle": "Grupo",
+        "filterWorkspaceTitle": "Espacio de trabajo",
         "filterActionTypeTitle": "Tipo de evento",
         "filterFromTimestampTitle": "De fecha",
         "filterFromTimestamp": "De fecha",
         "filterToTimestampTitle": "Hasta la fecha",
         "filterToTimestamp": "Hasta la fecha",
-        "user": "Usuario",
-        "workspace": "Grupo",
+        "user": "Actor",
+        "workspace": "Espacio de trabajo",
         "actionType": "Tipo de evento",
         "description": "Descripción",
         "timestamp": "Marca de tiempo",
         "exportModalTitle": "Exportar a CSV",
         "clearFilters": "Limpiar",
         "allUsers": "Todos los usuarios",
-        "allWorkspaces": "Todos los grupos",
+        "allWorkspaces": "Todos los espacios de trabajo",
         "allActionTypes": "Todos los tipos de eventos",
         "ip_address": "Dirección IP",
         "exportToCsv": "Exportar a CSV",
         "workspaceTitle": "Registro de auditoría - {workspaceName}",
-        "adminTitle": "Registro de auditoría"
+        "adminTitle": "Registro de auditoría",
+        "actorDisplay": "{name} ({id})",
+        "actorType": "Tipo de actor",
+        "allActors": "Todos los actores",
+        "agentsSection": "Agentes",
+        "usersSection": "Usuarios",
+        "filterActorTitle": "Actor"
     },
     "auditLogExportModal": {
         "title": "Exportar a CSV",
         "exportFilename": "Exportación del registro de auditoría administrativa - {date}",
         "cancelledTitle": "Error de exportación",
         "cancelledDescription": "Algo ha ido mal al exportar el registro de auditoría. Por favor, inténtalo de nuevo.",
-        "exportWorkspaceFilename": " • Espacio de trabajo ({workspaceId}) Exportación de registros de auditoría - {date}"
+        "exportWorkspaceFilename": " Espacio de trabajo ({workspaceId}) Exportación de registros de auditoría - {date}"
     },
     "authProviders": {
         "addProvider": "Añadir proveedor",
@@ -105,7 +116,7 @@
     },
     "editAuthProviderMenuContext": {
         "edit": "Editar",
-        "delete": "Borrar"
+        "delete": "Eliminar"
     },
     "samlSettingsForm": {
         "domainPlaceholder": "Insertar el nombre de dominio de la empresa...",
@@ -136,8 +147,8 @@
         "title": "Editar {name}"
     },
     "deleteAuthProviderModal": {
-        "title": "Borrar {name}",
-        "comment": "¿Realmente quieres borrar este {type}?"
+        "title": "Eliminar {name}",
+        "comment": "¿Realmente quieres eliminar este {type}?"
     },
     "loginWithSaml": {
         "signInWithSaml": "Inicio de sesión con SAML SSO",
@@ -269,7 +280,8 @@
     },
     "membersRoleField": {
         "noAccessHelpText": "Este usuario necesita acceso explícito a los recursos.",
-        "adminHelpText": "Los administradores pueden restringir las funciones de otros administradores."
+        "adminHelpText": "Los administradores pueden restringir las funciones de otros administradores.",
+        "adminFullAccessHelpText": "Los administradores tienen acceso total a todo en este espacio de trabajo. Su rol en una base de datos, tabla o vista no puede reducirse. Para restringir a un administrador, reduce primero su rol en el espacio de trabajo."
     },
     "membersPagePlugin": {
         "roleHelpText": "Puede anularse con roles en bases de datos y tablas."
@@ -346,7 +358,8 @@
         "codeRunnerContent": "Ejecuta código JavaScript en nodos de automatización y acciones de flujo de trabajo del constructor de aplicaciones.",
         "xlsFileReader": "Lector de archivos XLS",
         "codeRunner": "Ejecutor de código",
-        "builderGraphElementContent": "Muestra datos basados en fórmulas como un gráfico en páginas de aplicación."
+        "builderGraphElementContent": "Muestra datos basados en fórmulas como un gráfico en páginas de aplicación.",
+        "builderGraphElement": "Elemento de gráfico"
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Soporte directo"
@@ -365,7 +378,7 @@
         "deactivated": "Disponible en los planes Avanzado y Empresa"
     },
     "localBaserowUserSourceForm": {
-        "description": "Cada fila de la tabla es una cuenta de usuario. Seleccione los campos coincidentes en la tabla. El campo de correo electrónico se utilizará para identificar.",
+        "description": "Cada fila en la tabla es una cuenta de usuario. Por favor, selecciona los campos coincidentes en la tabla. El campo de correo electrónico se usará para identificar.",
         "emailFieldLabel": "Selecciona el campo de correo electrónico",
         "noFields": "No hay campos",
         "nameFieldLabel": "Seleccionar campo de nombre",
@@ -447,7 +460,7 @@
     "githubIssuesDataSync": {
         "repo": "Repositorio",
         "repoHelper": "El nombre del repositorio. Típicamente en la esquina superior izquierda `owner / repo`",
-        "apiTokenHelper": "Se puede generar aquí https://github.com/settings/tokens haciendo clic en `Generate new token`, seleccione `All repositories`, luego en `Repository permissions` ponga `Issues` en `read-only`.",
+        "apiTokenHelper": "Se puede generar aquí https://github.com/settings/tokens haciendo clic en `Generate new token`, selecciona `All repositories`, luego bajo `Repository permissions` establece `Issues` en `read-only`.",
         "owner": "Propietario",
         "ownerHelper": "Nombre de usuario o propietario del repositorio. Típicamente en la esquina superior izquierda `owner / repo`",
         "apiToken": "Token API"
@@ -458,7 +471,7 @@
         "projectId": "ID del proyecto",
         "accessToken": "Clave de acceso",
         "projectIdHelper": "El ID del proyecto desde el que quieres sincronizar las incidencias. Puedes encontrarlo yendo a la página de tu proyecto (por ejemplo, https://gitlab.com/baserow/baserow), haz clic en los tres puntos de la esquina superior derecha y, a continuación, en 'Copiar ID de proyecto: 12345678'.",
-        "accessTokenHelper": "Se puede generar aquí https://gitlab.com/-/user_settings/personal_access_tokens haciendo clic en `Add new token`, seleccione `read_api`."
+        "accessTokenHelper": "Se puede generar aquí https://gitlab.com/-/user_settings/personal_access_tokens haciendo clic en `Add new token`, selecciona `read_api`."
     },
     "exportWorkspaceModalWarning": {
         "message": "Ten en cuenta que una exportación no incluirá ningún permiso establecido en la aplicación y sus tablas."
@@ -596,27 +609,27 @@
     },
     "groupedAggregateRowsDataSourceForm": {
         "series": "Series",
-        "addSeries": "Añadir series",
+        "addSeries": "Añadir serie",
         "data": "Datos",
-        "sourceFieldLabel": "Fuente",
+        "sourceFieldLabel": "Origen",
         "viewFieldLabel": "Vista",
         "notSelected": "No seleccionado"
     },
     "aggregationSeriesForm": {
         "aggregationFieldLabel": "Campo",
         "aggregationTypeLabel": "Resumen",
-        "deleteSeries": "Eliminar series",
+        "deleteSeries": "Eliminar serie",
         "chartType": "Tipo de gráfico",
         "barChart": "Barra",
         "lineChart": "Línea",
-        "pieChart": "Pastel",
+        "pieChart": "Circular",
         "doughnutChart": "Dona",
         "polarAreaChart": "Área polar"
     },
     "aggregationGroupByForm": {
         "groupByFieldLabel": "Agrupar por",
         "groupByNone": "Ninguno",
-        "groupByRowId": "Id de fila"
+        "groupByRowId": "ID de fila"
     },
     "aggregationSortByForm": {
         "none": "Ninguno",
@@ -656,7 +669,7 @@
         "maxFileSize": "Tamaño máximo de archivo",
         "maxFileSizePlaceholder": "Introduce un número…",
         "addFileType": "Añadir tipo de archivo",
-        "fileTypesHelper": "Elige qué extensiones de archivo se permiten (una por línea) en la entrada de archivo (ej. jpg, png, svg, pdf). puedes especificar «image/*», «video/*» o «audio/*» para permitir todos los archivos de estos tipos. Déjalo vacío para permitir todos los tipos de archivo."
+        "fileTypesHelper": "Elige qué tipos de archivo están permitidos (uno por línea). Ingresa una extensión de archivo (ej. jpg, png, pdf), un tipo MIME completo (ej. image/jpeg, application/pdf) o un comodín MIME (ej. image/*, text/*, application/*) para permitir todos los archivos de ese tipo. Deja vacío para permitir todos los tipos de archivo."
     },
     "fileInputElement": {
         "defaultHelpText": "Arrastrar y soltar archivos aquí o hacer clic para seleccionar",
@@ -676,7 +689,8 @@
         "nobodyDescription": "Ningún usuario",
         "allowInForms": "Permitir que este campo se establezca en filas creadas mediante formularios",
         "linkRowWarning": "Este es un campo «Enlace a la tabla». Para asegurarte de que los valores no puedan cambiarse desde la tabla vinculada, por favor asegúrate de establecer también los permisos correctos en la tabla vinculada.",
-        "customDescription": "Solo los usuarios, agentes y miembros de equipos seleccionados que ya tengan un rol de Editor, Constructor o Administrador"
+        "customDescription": "Solo los usuarios, agentes y miembros de equipos seleccionados que ya tengan un rol de Editor, Constructor o Administrador",
+        "customTitle": "Usuarios, agentes o equipos específicos"
     },
     "builderSettingTypes": {
         "customCode": "CSS/JS personalizados"
@@ -710,7 +724,9 @@
     },
     "elementType": {
         "errorUserSourceHasNoLoginOption": "La fuente de usuario seleccionada no tiene opción de inicio de sesión",
-        "errorUserSourceMissing": "No se ha seleccionado ninguna fuente de usuario"
+        "errorUserSourceMissing": "No se ha seleccionado ninguna fuente de usuario",
+        "graphDescription": "Muestra datos impulsados por fórmulas como un gráfico.",
+        "graph": "Gráfico"
     },
     "fieldPermissionsMenuItem": {
         "label": "Editar permisos de campo"
@@ -797,7 +813,7 @@
         "frequencyColumn": "Frecuencia",
         "statusColumn": "Estado",
         "runningSince": "Ejecutándose desde {time}",
-        "idle": "Inactivo",
+        "idle": "En reposo",
         "neverRun": "Nunca ejecutado",
         "runNow": "Ejecutar ahora",
         "edit": "Editar",
@@ -922,7 +938,10 @@
         "errorOtherOptions": "Vuelve atrás para iniciar una base de datos de otra manera, por ejemplo desde una plantilla, una importación o desde cero.",
         "placeholder": "ej. Realiza un seguimiento de proyectos de clientes con fechas límite, responsables y estado.",
         "generating": "Kuma está escribiendo una sugerencia para ti…",
-        "suggestionsTitle": "O empieza con uno de estos"
+        "suggestionsTitle": "O empieza con uno de estos",
+        "label": "Describe tu base de datos",
+        "modelNotSupportedTitle": "Kuma no está disponible",
+        "editDetails": "Editar detalles"
     },
     "aiPromptOnboardingType": {
         "context": "La persona que pregunta trabaja en {industry}, en el equipo {team}. Usa eso para elegir tablas, campos y filas de ejemplo realistas.",
@@ -932,24 +951,130 @@
     "fieldPermissionSubjectsSelector": {
         "accessNote": "La selección no otorga acceso a la tabla. Un usuario seleccionado, un agente, o un miembro de un equipo seleccionado debe tener además un rol de Editor, Constructor o Administrador donde esta tabla se encuentra.",
         "noSelectedSubjects": "Nadie está seleccionado todavía. Usa la búsqueda de arriba para añadir un usuario, agente o equipo.",
-        "teamSearchDescription": "Equipo · {count} miembro | Equipo · {count} miembros"
+        "teamSearchDescription": "Equipo · {count} miembro | Equipo · {count} miembros",
+        "canEdit": "Usuarios, agentes y equipos seleccionados",
+        "searchPlaceholder": "Buscar usuarios, agentes o equipos",
+        "addPeopleOrTeams": "Añadir usuarios, agentes o equipos",
+        "searchHint": "Buscar por nombre",
+        "remove": "Quitar {subject}",
+        "teamDescription": "Equipo"
     },
     "applicationUserLimitNotification": {
         "titleReachedEnforced": "{workspaceName} ha alcanzado el límite de usuarios de aplicación de {limit}. Una vez que se supere, nadie podrá iniciar sesión en sus aplicaciones publicadas hasta que actualices el plan.",
-        "titleReached": "{workspaceName} ha alcanzado el límite de usuarios de aplicación de {limit}. Por favor, actualiza el plan.",
-        "titleWarning": "{workspaceName} ha usado {usage} de los {limit} usuarios de aplicación disponibles."
+        "titleReached": "{workspaceName} ha alcanzado el límite de usuarios de aplicación de {limit}. Una vez que supere esto, nadie puede iniciar sesión en sus aplicaciones publicadas hasta que actualices.",
+        "titleWarning": "{workspaceName} ha usado {usage} de los {limit} usuarios de aplicación disponibles.",
+        "titleReachedInstance": "Esta instancia ha alcanzado el límite de usuarios de aplicación de {limit}. Una vez que supere esto, nadie puede iniciar sesión en las aplicaciones publicadas de ningún espacio de trabajo, incluyendo {workspaceName}, hasta que la licencia sea actualizada.",
+        "titleWarningInstance": "Esta instancia ha utilizado {usage} de los {limit} usuarios de la aplicación disponibles. El límite es compartido por todos los espacios de trabajo, incluyendo {workspaceName}."
     },
     "graphElementForm": {
         "labelsHelper": "La fórmula debe resolverse en un `array`. Cada elemento se convierte en una etiqueta del gráfico.",
-        "seriesValuesHelper": "La fórmula debe resolverse en un valor numérico por etiqueta."
+        "seriesValuesHelper": "La fórmula debe resolverse en un valor numérico por etiqueta.",
+        "chartType": "Tipo de gráfico",
+        "series": "Serie {number}",
+        "addSeries": "Añadir serie",
+        "seriesLabel": "Etiqueta de la serie",
+        "seriesColor": "Color",
+        "labels": "Etiquetas",
+        "labelsPlaceholder": "to_array('Jan,Feb,Mar')",
+        "seriesList": "Series",
+        "seriesLabelPlaceholder": "'Ingresos'",
+        "seriesValues": "Valores",
+        "seriesValuesPlaceholder": "to_array('10,20,30')",
+        "barChart": "Barra",
+        "lineChart": "Línea"
     },
     "enterpriseAgents": {
         "retry": "Reintentar",
         "teamsLoadErrorDescription": "Comprueba la conexión e inténtalo de nuevo.",
-        "teamsLoadError": "No se pudieron cargar los equipos."
+        "teamsLoadError": "No se pudieron cargar los equipos.",
+        "noTeams": "No hay equipos",
+        "teams": "Equipos"
     },
     "subjectType": {
         "team": "Equipo",
-        "teams": "Equipos"
+        "teams": "Equipos",
+        "teamMembers": "{count} miembros"
+    },
+    "assistantDashboardPrompt": {
+        "title": "Cuéntanos qué te gustaría crear",
+        "placeholder": "Crear rastreador de activos de la empresa",
+        "build": "Constrúyelo"
+    },
+    "aiProviderModelFeature": {
+        "kumaDescription": "Alimenta el asistente de IA Kuma.",
+        "kuma": "Kuma"
+    },
+    "graphElement": {
+        "noData": "No hay datos para graficar",
+        "series": "Serie {number}"
+    },
+    "aiOnboardingDetailsModal": {
+        "title": "Edita tus detalles",
+        "submit": "Actualizar sugerencias"
+    },
+    "selectAgentsList": {
+        "selectedAmountLabel": "{count} agentes seleccionados",
+        "searchPlaceholder": "Encontrar agentes..."
+    },
+    "shareScope": {
+        "noAccessSelectionDescription": "El miembro, equipo o agente seleccionado ya no tendrá acceso a este {type}, ni a nada dentro de él a menos que se le otorgue un rol allí. | Los {count} miembros, equipos y agentes seleccionados ya no tendrán acceso a este {type}, ni a nada dentro de él a menos que se les otorgue un rol allí.",
+        "scopeAdminHelpText": "Tiene acceso total a este {type} y a todo lo que contiene. Los roles establecidos en cualquier cosa dentro no tienen efecto sobre él. Para restringirlo, reduce primero este rol.",
+        "inheritedAdminHelpText": "Administrador del {level}: siempre tiene acceso total a este {type}. El rol establecido aquí no tiene efecto. Para restringirlo, reduce primero su rol de {level}.",
+        "alreadyInvited": "Ya hay una invitación pendiente en este {type}. \nPuedes cambiar su rol en la lista de abajo en lugar de invitar de nuevo.",
+        "noAccessDescription": "{name} ya no tendrá acceso a este {type}, ni a nada dentro de él a menos que se le dé un rol allí.",
+        "fromLevelExplanation": "Todos conservan su rol en este {level} sobre todo lo que hay dentro, incluyendo este {type}, a menos que se les dé otro rol allí.",
+        "alreadyAdmin": "Administrador del {level}: ya tiene acceso total a este {type}. \nPara restringirlo, reduce primero su rol de {level}.",
+        "workspaceInvitationRequired": "Invitar a nuevas personas requiere el permiso de invitación del espacio de trabajo. Todavía puedes conceder acceso a los miembros existentes del espacio de trabajo.",
+        "alreadyAssigned": "Ya tiene un rol en este {type}. \nPuedes cambiarlo en la lista de abajo.",
+        "fromWorkspaceExplanation": "Todos conservan su rol de espacio de trabajo sobre todo lo que hay dentro del espacio de trabajo, incluyendo este {type}.",
+        "noResults": "Ningún {subjects} coincide. Escribe una dirección de correo electrónico completa para invitar a alguien nuevo.",
+        "inviteEmailDescription": "Obtiene el rol {role} solo en este {type} - sin rol en el espacio de trabajo",
+        "emptyTitle": "Nadie tiene un rol establecido en este {type} aún.",
+        "error": {
+            "description": "Hubo un error al obtener los datos de los miembros.",
+            "title": "No se pudieron obtener los datos"
+        },
+        "noInheritedAccess": "Nadie más tiene acceso a este {type}.",
+        "emptyDescription": "Todos los que están por debajo heredan el acceso de los niveles superiores.",
+        "noWorkspaceRole": "Sin rol de espacio de trabajo - solo este {type}",
+        "agentRoleCount": "{count} agente {role} | {count} agentes {role}",
+        "everyoneWithRoleOn": "Todos los que tienen un rol en {name}",
+        "searchPlaceholder": "Busca {subjects}, o escribe un correo electrónico",
+        "directAccess": "Acceso directo en este {type}",
+        "addAs": "Añadir a {count} como {role}",
+        "noAccessConfirm": "Dar sin acceso",
+        "pendingNoWorkspaceRole": "Sin rol de espacio de trabajo",
+        "manageWorkspaceRoles": "Gestionar roles del espacio de trabajo",
+        "everyoneAt": "Todos en {name}",
+        "inheritedAccess": "También tiene acceso",
+        "manageLevelRoles": "Gestionar roles de {level}",
+        "noAccessTitle": "¿Quitar el acceso?",
+        "noSubjectResults": "Ningún {subjects} coincide.",
+        "searchSubjectsPlaceholder": "Buscar {subjects}",
+        "invitePending": "Invitación pendiente",
+        "roleCount": "{count} {role}",
+        "fromWorkspace": "Desde el espacio de trabajo",
+        "roleHere": "{role} aquí",
+        "fromLevel": "Desde {level}",
+        "inherited": "(heredado)",
+        "adminHint": "Administrador",
+        "add": "Añadir"
+    },
+    "subjectRoleAssignments": {
+        "showMore": "Mostrar {count} rol más | Mostrar {count} roles más",
+        "remove": "Eliminar el rol en {name}",
+        "location": "{type} en {path}",
+        "application": "Aplicación",
+        "table": "Tabla",
+        "view": "Vista"
+    },
+    "inviteModal": {
+        "memberRoute": "Invitar a miembros"
+    },
+    "scopeInvitationTarget": {
+        "title": "Compartir {name}",
+        "view": "Ver",
+        "table": "Tabla",
+        "application": "Aplicación"
     }
 }

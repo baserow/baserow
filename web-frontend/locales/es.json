@@ -26,7 +26,14 @@
         "saturday": "Sábado",
         "sunday": "Domingo",
         "value": "valor",
-        "workspace": "espacio de trabajo"
+        "workspace": "espacio de trabajo",
+        "lastViewed": "Última visualización",
+        "nameAsc": "Nombre (A-Z)",
+        "nameDesc": "Nombre (Z-A)",
+        "neverViewed": "Nunca visto",
+        "createdAgo": "Creado hace {ago}",
+        "viewedAgo": "Visto hace {ago}",
+        "created": "Creado"
     },
     "action": {
         "upload": "Subir",
@@ -41,7 +48,7 @@
         "delete": "Eliminar",
         "rename": "Renombrar",
         "add": "Agregar",
-        "makeChoice": "Elige una opción",
+        "makeChoice": "Selecciona una opción",
         "cancel": "Cancelar",
         "save": "Guardar",
         "retry": "Volver a intentar",
@@ -91,13 +98,21 @@
         "automationDesc": "Automatizar tareas repetitivas y flujos de trabajo.",
         "automationDefaultName": "Automatización sin título",
         "cantSelectAutomationWorkflowTitle": "No se pudo seleccionar la automatización.",
-        "cantSelectAutomationWorkflowDescription": "No se pudo seleccionar la automatización porque no tiene ningún flujo de trabajo. Usa la barra lateral para crear uno."
+        "cantSelectAutomationWorkflowDescription": "No se pudo seleccionar la automatización porque no tiene ningún flujo de trabajo. Usa la barra lateral para crear uno.",
+        "agentDesc": "Crea un agente en tu espacio de trabajo.",
+        "viewDatabase": "Ver base de datos",
+        "viewBuilder": "Ver aplicación",
+        "viewDashboard": "Ver panel",
+        "viewAutomation": "Ver automatización",
+        "viewAgent": "Ver agente",
+        "agent": "Agente",
+        "agents": "Agentes"
     },
     "settingType": {
         "account": "Cuenta",
         "password": "Contraseña",
         "tokens": "Tokens de la base de datos",
-        "deleteAccount": "Borrar cuenta",
+        "deleteAccount": "Eliminar cuenta",
         "emailNotifications": "Notificaciones por correo electrónico",
         "mcpEndpoint": "Servidor MCP",
         "twoFactorAuth": "Autenticación de dos factores",
@@ -177,7 +192,8 @@
         "multipleCollaboratorsCheckboxes": "Casillas de selección",
         "formViewEditRow": "Editar enlace de fila",
         "defaultValueFunctionNow": "Fecha actual",
-        "formViewEditRowShareWarning": "Cualquiera con el enlace compartido puede editar filas mediante el formulario {formNames} a través de los campos de enlace de edición de filas visible públicamente.|Cualquiera con el enlace compartido puede editar filas mediante los formularios {formNames} a través de los campos de enlace de edición de filas visible públicamente."
+        "formViewEditRowShareWarning": "Cualquiera con el enlace compartido puede editar filas mediante el formulario {formNames} a través de los campos de enlace de edición de filas visible públicamente.|Cualquiera con el enlace compartido puede editar filas mediante los formularios {formNames} a través de los campos de enlace de edición de filas visible públicamente.",
+        "button": "Botón"
     },
     "fieldErrors": {
         "invalidNumber": "Número invalido",
@@ -191,7 +207,8 @@
         "maxChars": "Máximo {max} caracteres.",
         "minChars": "Mínimo {min} caracteres.",
         "higherThan": "El valor es mayor que {max}.",
-        "maxCharsExceeded": "Máximo {max} caracteres (‑{over})."
+        "maxCharsExceeded": "Máximo {max} caracteres (‑{over}).",
+        "maxImagesExceeded": "Máximo {max} imágenes (elimina {over})."
     },
     "fieldDocs": {
         "readOnly": "Este es un campo de sólo lectura.",
@@ -225,10 +242,11 @@
         "autonumber": "Campo de sólo lectura que incrementa automáticamente un número por cada nueva fila.",
         "uuid": "Un UUID único y persistente de sólo lectura.",
         "createdBy": "El campo \"Creado por\" es un campo de sólo lectura que muestra el usuario que creó la fila.",
-        "duration": "Acepta una duración basada en el tiempo como una cadena con el formato {format} o como un número que representa el número total de segundos.",
+        "duration": "Acepta una duración basada en tiempo como una cadena en el formato {format} o como un número que representa el número total de segundos.",
         "password": "Un campo de sólo escritura que contiene una contraseña con hash. El valor será \"nulo\" si no se ha establecido, o \"verdadero\" si se ha establecido. Acepta una cadena para establecerla.",
         "formViewEditRow": "Un campo de solo lectura que genera una URL única y firmada que permite editar la fila a través de la vista de formulario vinculada.",
-        "button": "Un campo de botón. Al hacer clic en el botón se abre una URL construida a partir de los valores de la fila. La celda no almacena datos y las escrituras son rechazadas."
+        "button": "Un campo de botón. Al hacer clic en el botón se abre una URL construida a partir de los valores de la fila. La celda no almacena datos y las escrituras son rechazadas.",
+        "longTextRichText": "Acepta texto multilínea formateado con markdown. Para incrustar una imagen, súbelo con el punto final de carga de archivo y referencia su nombre devuelto como ![alt][nombre]. Las respuestas agregan una URL temporal, ![alt][nombre](url), la cual se omite al devolver el valor. Un valor puede hacer referencia hasta 100 imágenes, y cada nombre debe ser una imagen subida."
     },
     "viewFilter": {
         "contains": "contiene",
@@ -338,7 +356,7 @@
         "deactivated": "Disponible en versión premium"
     },
     "trashType": {
-        "workspace": "grupo",
+        "workspace": "espacio de trabajo",
         "application": "aplicación",
         "table": "tabla",
         "field": "campo",
@@ -348,7 +366,9 @@
         "automation_workflow": "flujo de trabajo de automatización",
         "automation_node": "nodo de automatización",
         "builder_page": "página del constructor",
-        "builder_element": "elemento del constructor"
+        "builder_element": "elemento del constructor",
+        "database_workflow_action": "acción del botón",
+        "agent": "agente"
     },
     "webhook": {
         "request": "Requerimiento",
@@ -388,9 +408,9 @@
         "notCompletedTitle": "Acción no completada.",
         "notCompletedDescription": "No se pudo completar la acción porque se produjo un error desconocido.",
         "userNotInWorkspaceTitle": "Acción no permitida.",
-        "userNotInWorkspaceDescription": "No se pudo completar la acción porque no es miembro del grupo relacionado.",
+        "userNotInWorkspaceDescription": "No se pudo completar la acción porque no eres miembro del espacio de trabajo relacionado.",
         "invalidWorkspacePermissionsTitle": "Acción no permitida.",
-        "invalidWorkspacePermissionsDescription": "No se pudo completar la acción porque no tiene los permisos adecuados para el grupo relacionado.",
+        "invalidWorkspacePermissionsDescription": "No se pudo completar la acción porque no tienes los permisos adecuados para el espacio de trabajo relacionado.",
         "tableDoesNotExistTitle": "La tabla no existe.",
         "tableDoesNotExistDescription": "No se pudo completar la acción porque la tabla relacionada ya no existe.",
         "rowDoesNotExistTitle": "La fila no existe.",
@@ -406,15 +426,15 @@
         "adminCannotDeactivateSelfTitle": "Acción no permitida.",
         "adminCannotDeactivateSelfDescription": "No puede desactivar o eliminar el personal usted mismo.",
         "adminCannotDeleteSelfTitle": "Acción no permitida.",
-        "adminCannotDeleteSelfDescription": "No puedes borrarte a ti mismo.",
+        "adminCannotDeleteSelfDescription": "No puedes eliminarte a ti mismo.",
         "maxFieldCountExceededTitle": "No se pudo crear el campo.",
         "maxFieldCountExceededDescription": "No se pudo completar la acción porque el número de campos supera el límite",
         "cannotRestoreParentBeforeChildTitle": "Por favor restaure al parent primero.",
         "cannotRestoreParentBeforeChildDescription": "No puede restaurar este elemento porque depende de un elemento eliminado. Primero restaure el elemento principal.",
         "cannotRestoreAsRelatedTableTrashedTitle": "Primero restaure las tablas relacionadas.",
         "cannotRestoreAsRelatedTableTrashedDescription": "No puede restaurar este campo porque depende de otras tablas que aún están en la papelera. Primero restaure las otras tablas relacionadas.",
-        "workspaceUserIsLastAdminTitle": "no puedo dejar el grupo",
-        "workspaceUserIsLastAdminDescription": "No es posible abandonar el grupo porque eres el último administrador. Elimine el grupo o otorgue permisos de administrador a otro usuario.",
+        "workspaceUserIsLastAdminTitle": "No se puede abandonar el espacio de trabajo",
+        "workspaceUserIsLastAdminDescription": "No es posible abandonar el espacio de trabajo porque eres el último administrador. Elimine el espacio de trabajo u otorgue permisos de administrador a otro usuario.",
         "errorMaxJobCountExceededTitle": "No se pudo iniciar la acción.",
         "errorMaxJobCountExceededDescription": "No puedes iniciar ninguna otra de estas acciones ya que tienes otras en ejecución en segundo plano. Por favor, inténtalo de nuevo una vez que las acciones anteriores se hayan completado.",
         "failedToLockFieldDueToConflictTitle": "No se puede cambiar el campo",
@@ -449,7 +469,7 @@
         "cannotCreateFieldTypeTitle": "No se puede crear el campo",
         "generativeAIDoesNotExistTitle": "La IA generativa no existe",
         "generativeAIDoesNotExistDescription": "El modelo de IA generativa no existe.",
-        "modelDoesNotBelongToTypeTitle": "El modelo seleccionado no pertenece al tipo AI",
+        "modelDoesNotBelongToTypeTitle": "Modelo de IA no disponible",
         "modelDoesNotBelongToTypeDescription": "El modelo de IA seleccionado está deshabilitado o ya no está disponible.",
         "outputParserTitle": "Resultado incorrecto",
         "outputParserDescription": "El modelo respondió con una salida incorrecta. Por favor, inténtalo de nuevo.",
@@ -470,7 +490,17 @@
         "fieldConstraintTitle": "Violación de restricción de campo",
         "fieldConstraintDescription": "No se puede aplicar la restricción.",
         "fieldDataConstraintTitle": "Violación de restricción de datos del campo",
-        "fieldDataConstraintDescription": "No se pudo completar la operación debido a violaciones de restricciones existentes."
+        "fieldDataConstraintDescription": "No se pudo completar la operación debido a violaciones de restricciones existentes.",
+        "userFileDoesNotExistDescription": "El valor hace referencia a una imagen que ya no existe. Elimínala e inténtalo de nuevo.",
+        "userFileDoesNotExistTitle": "La imagen no existe",
+        "invitationEmailNotVerifiedDescription": "Abre el enlace del correo de invitación para aceptarla, o verifica primero tu dirección de correo electrónico.",
+        "templateUpdatedDescription": "La plantilla cambió desde que la abriste. Ahora se muestra la última versión; instálala de nuevo.",
+        "templateBlockedDescription": "La plantilla está bloqueada y no se puede instalar.",
+        "templateHasNoContentDescription": "La plantilla no tiene contenido.",
+        "templateUpdatedTitle": "Esta plantilla fue actualizada",
+        "templateHasNoContentTitle": "Plantilla no tiene contenido",
+        "invitationEmailNotVerifiedTitle": "Invitación no aceptada.",
+        "templateBlockedTitle": "Plantilla bloqueada"
     },
     "importerType": {
         "csv": "Importar un archivo CSV",
@@ -488,18 +518,18 @@
         "fields": "Campos",
         "listFields": "Campos de lista",
         "listRows": "Filas de lista",
-        "getRow": "obtener fila",
+        "getRow": "Obtener fila",
         "createRow": "Crear fila",
         "updateRow": "Actualizar fila",
         "moveRow": "Mover fila",
-        "deleteRow": "Borrar fila",
+        "deleteRow": "Eliminar fila",
         "queryParameters": "Parámetros de consulta",
         "pathParameters": "Parámetros de ruta",
         "requestBodySchema": "Solicitar esquema de cuerpo",
         "userFieldNamesDescription": "Cuando se proporciona cualquier valor para el parámetro GET `user_field_names`, los nombres de campo devueltos por este extremo serán los nombres reales de los campos.\n\nSi no se proporciona el parámetro GET `user_field_names`, todos los nombres de campo devueltos serán `field_` seguidos de la identificación del campo. Por ejemplo, `field_1` se refiere al campo con una identificación de `1`.",
         "createRows": "Crear filas",
         "updateRows": "Actualizar filas",
-        "deleteRows": "Borrar filas",
+        "deleteRows": "Eliminar filas",
         "batchRows": "Lote",
         "singleRow": "Único",
         "uploadFile": "Subir archivo",
@@ -737,7 +767,8 @@
         "categoryUtility": "Utilidad",
         "encodeUriComponentDescription": "Codifica el argumento en porcentaje para que pueda usarse de forma segura como una sola parte de una URL, como un segmento de ruta o un parámetro de consulta",
         "encodeUriDescription": "Codifica en porcentaje los caracteres que no están permitidos en una URL, dejando intacta la estructura de la URL",
-        "nowDescription": "Devuelve la fecha y hora actuales."
+        "nowDescription": "Devuelve la fecha y hora actuales.",
+        "markdownToHtmlDescription": "Convierte markdown, como el valor de un campo de texto enriquecido, a HTML. Útil para cuerpos de correo electrónico HTML y cargas útiles de solicitudes HTTP."
     },
     "formulaInputContext": {
         "useRegularInput": "Usa entrada regular",

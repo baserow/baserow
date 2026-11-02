@@ -265,7 +265,7 @@
         "title": "Esqueci a senha",
         "message": "Por favor, insira seu endereço de e-mail neste formulário. Se encontrarmos uma conta, enviaremos um e-mail com um link para redefinir sua senha.",
         "submit": "Enviar link",
-        "confirmation": "Se o seu endereço de e-mail existir em nosso banco de dados, você receberá um link de redefinição de senha em seu endereço de e-mail em alguns minutos.",
+        "confirmation": "Enviamos um e-mail para {email} com um link para redefinir sua senha do Baserow.",
         "disabled": "Esqueci a senha está desabilitado",
         "disabledMessage": "Não é possível recuperar a senha porque ela foi desativada."
     },
@@ -651,7 +651,7 @@
             "title": "Esqueci a senha",
             "message": "Por favor, insira seu endereço de e-mail neste formulário. Se encontrarmos uma conta, enviaremos um e-mail com um link para redefinir sua senha.",
             "submit": "Enviar link",
-            "confirmation": "Se o seu endereço de e-mail existir em nosso banco de dados, você receberá um link de redefinição de senha em seu endereço de e-mail em alguns minutos.",
+            "confirmation": "Enviamos um e-mail para {email} com um link para redefinir sua senha do Baserow.",
             "disabled": "Esqueci a senha está desabilitado",
             "disabledMessage": "Não é possível recuperar a senha porque ela foi desativada."
         },

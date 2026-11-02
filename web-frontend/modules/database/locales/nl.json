@@ -832,7 +832,7 @@
     },
     "snapshotsModal": {
         "title": "snapshots",
-        "description": "Snapshots zijn een volledige kopie van uw database van het moment waarop ze werden aangemaakt. Een duplicaat van die gegevens wordt gemaakt bij het terugzetten. Snapshots worden na een jaar automatisch verwijderd.",
+        "description": "Snapshots zijn een volledige kopie van je {applicationTypeName} van het moment waarop ze werden aangemaakt. Een duplicaat van die gegevens wordt gemaakt bij het terugzetten. Snapshots worden na een jaar automatisch verwijderd.",
         "descriptionLimits": "U kunt een maximum aan {n} snapshots per werkruimte hebben. | U kunt een maximum van {n} snapshot per werkruimte hebben. | U kunt een maximum aan {n} snapshots per werkruimte hebben.",
         "reset": "Maak een andere",
         "limitReached": "Het limiet van het maximum aantal snapshots is bereikt.",

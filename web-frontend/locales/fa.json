@@ -131,7 +131,7 @@
         "max254Chars": "حداکثر 245 کاراکتر",
         "invalidEmail": "ایمیل نامعتبر",
         "invalidPhoneNumber": "شماره تماس نامعتبر",
-        "invalidDuration": "فرمت مدت زمان نامعتبر (durationFormat).",
+        "invalidDuration": "فرمت مدت زمان نامعتبر ({durationFormat}).",
         "overflowDuration": "مقدار زیاد از حد بزرگ است.",
         "maxChars": "حداکثر {max} کاراکتر.",
         "minChars": "حداقل {min} کاراکتر."

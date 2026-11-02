@@ -738,7 +738,7 @@
         "allVisitors": "Alle bezoekers",
         "loggedInVisitors": "Aangemelde bezoekers",
         "notLoggedInVisitors": "Uitgelogde bezoekers",
-        "warningMessage": "Op dit moment wordt de zichtbaarheid alleen toegepast in de UI, de onderliggende gegevens zijn nog steeds toegankelijk via de API. Raadpleeg de &lt;a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api'&gt;documentatie&lt;/a&gt; voor meer informatie over gegevensbeveiliging.",
+        "warningMessage": "Bekijk de {link} voor meer informatie over hoe we gegevens beveiligen.",
         "warningTitle": "We verbeteren voortdurend de beveiliging",
         "excludedRolesLabel": "alle rollen behalve",
         "switchAllowLabel": "Sta toe",

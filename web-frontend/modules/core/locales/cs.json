@@ -33,7 +33,12 @@
         "general": "Obecné",
         "people": "Lidé",
         "licenses": "Licence",
-        "replayGuidedTour": "Znovu spustit průvodce"
+        "replayGuidedTour": "Znovu spustit průvodce",
+        "allWorkspaces": "Všechny pracovní prostory",
+        "backToHome": "Zpět na domovskou stránku",
+        "templates": "Šablony",
+        "recents": "Nedávné",
+        "recentlyViewed": "Naposledy zobrazené"
     },
     "accountForm": {
         "nameLabel": "Vaše jméno",
@@ -101,7 +106,9 @@
         "title": "Pozvánka",
         "message": "{by} vás pozval(a) do pracovního prostoru {workspace}.",
         "reject": "Odmítnout",
-        "accept": "Přijmout"
+        "accept": "Přijmout",
+        "emailNotVerified": "Chcete-li přijmout tuto pozvánku, ověřte svou e-mailovou adresu nebo otevřete odkaz v e-mailu s pozvánkou.",
+        "sendVerificationEmail": "Odeslat ověřovací e-mail"
     },
     "workspaceMemberModal": {
         "membersModalTitle": "",
@@ -142,10 +149,13 @@
     },
     "templateCategories": {
         "search": "Hledat šablony",
-        "title": "Šablony"
+        "title": "Šablony",
+        "allTemplates": "Všechny šablony",
+        "noResults": "Nebyly nalezeny žádné šablony"
     },
     "templateHeader": {
-        "use": "Použít tuto šablonu"
+        "use": "Použít tuto šablonu",
+        "selectWorkspace": "Zvolit pracovní prostor"
     },
     "trashSidebar": {
         "title": "",
@@ -224,11 +234,12 @@
     },
     "errorLayout": {
         "notFound": "Hledaná stránka nebyla nalezena. Může to být proto, že je adresa URL nesprávná nebo nemáte oprávnění tuto stránku zobrazit.",
-        "error": "Při načítání stránky došlo k chybě. Naši vývojáři byli o problému informováni. Zkuste stránku obnovit nebo se vraťte na nástěnku.",
-        "backDashboard": "Zpět na nástěnku",
+        "error": "Při načítání stránky došlo k chybě. Naši vývojáři byli o problému informováni. Zkuste stránku obnovit nebo se vraťte na domovskou stránku.",
+        "backDashboard": "Zpět na domovskou stránku",
         "backLogin": "Zpět k přihlášení",
         "wrong": "Něco se pokazilo",
-        "refresh": "Obnovit stránku"
+        "refresh": "Obnovit stránku",
+        "pageNotFoundTitle": "Stránka nenalezena"
     },
     "dashboard": {
         "title": "Nástěnka",
@@ -260,7 +271,9 @@
         "noWorkspaceDescription": "Začněte vytvořením nového pracovního prostoru",
         "starOnGitHub": "Označte nás hvězdičkou na GitHubu",
         "academy": "Akademie Baserow",
-        "academyMessage": "Absolvujte kurzy a staňte se odborníky"
+        "academyMessage": "Absolvujte kurzy a staňte se odborníky",
+        "templates": "Šablony",
+        "templatesMessage": "Začněte s hotovým řešením"
     },
     "login": {
         "title": "Vítejte zpět",
@@ -426,7 +439,11 @@
     },
     "InstallTemplateJobType": {
         "installedTitle": "Šablona je nainstalována",
-        "installing": "Probíhá instalace"
+        "installing": "Probíhá instalace",
+        "installingTitle": "Probíhá instalace {name}",
+        "installedMessage": "Úspěšně nainstalováno: {name}",
+        "failedTitle": "{name} se nepodařilo nainstalovat",
+        "dismiss": "Zavřít"
     },
     "notificationPanel": {
         "noNotificationTitle": "Nemáte žádná oznámení",
@@ -469,7 +486,8 @@
         "errorJobAlreadyRunningDescription": "Jiná importní úloha již běží. Před spuštěním další počkejte, až skončí.",
         "errorJobCannotBeCancelledTitle": "Úlohu nelze zrušit",
         "errorJobCannotBeCancelledDescription": "Úlohu nelze zrušit, protože už byla dokončena.\nChcete-li ji odstranit, odstraňte první snímek ze seznamu níže.",
-        "stateCanceled": "Zrušeno"
+        "stateCanceled": "Zrušeno",
+        "errorJobCannotBeCancelledGenericDescription": "Úlohu nelze zrušit, protože již byla dokončena."
     },
     "crudTableSearch": {
         "search": "Hledat"
@@ -479,7 +497,7 @@
         "invitesTabTitle": "Pozvánky",
         "membersTable": {
             "title": "{userAmount} členů v pracovním prostoru {workspaceName}",
-            "inviteMember": "Pozvat člena",
+            "inviteMember": "Pozvat členy",
             "columns": {
                 "name": "Jméno",
                 "email": "E-mail",
@@ -493,7 +511,11 @@
             "actions": {
                 "copyEmail": "Kopírovat e-mail",
                 "remove": "Odebrat z pracovního prostoru"
-            }
+            },
+            "emptyTitle": "Zatím žádní členové",
+            "emptyDescription": "Pozvěte lidi ke spolupráci v tomto pracovním prostoru. Pro každou osobu zvolte roli, abyste určili, co může zobrazit a upravovat.",
+            "search": "Hledat členy",
+            "pendingInvitations": "Čekající pozvánky ({count})"
         },
         "invitesTable": {
             "title": "{invitesAmount} čekajících pozvánek v pracovním prostoru {workspaceName}",
@@ -504,7 +526,10 @@
             "actions": {
                 "copyEmail": "Kopírovat e-mail",
                 "remove": "Zrušit pozvánku"
-            }
+            },
+            "emptyTitle": "Žádné čekající pozvánky",
+            "emptyDescription": "Pozvěte lidi do tohoto pracovního prostoru. Zde můžete sledovat a spravovat jejich pozvánky, dokud je nepřijmou.",
+            "search": "Hledat pozvánky"
         },
         "membersInviteModal": {
             "title": "Pozvat členy pracovního prostoru",
@@ -617,7 +642,9 @@
     "integrationCreateEditModal": {
         "createTitle": "Nová integrace",
         "editTitle": "Upravit integraci",
-        "warningTitle": "Upozornění"
+        "warningTitle": "Upozornění",
+        "credentialRequiredTitle": "Vyžadovány přihlašovací údaje",
+        "credentialRequiredMessage": "Chcete-li změnit, kam se tato integrace připojuje, zadejte přihlašovací údaje znovu."
     },
     "integrationEditForm": {
         "name": "Název",
@@ -659,7 +686,12 @@
         "errorInvalidFormula": "Vzorec není platný.",
         "advancedFormulaMode": "Rozšířený režim vzorce",
         "invalidFormulaTitle": "Neplatný vzorec",
-        "invalidSyntax": "Není platný vzorec pro expertní režim, zkontrolujte syntaxi."
+        "invalidSyntax": "Není platný vzorec pro expertní režim, zkontrolujte syntaxi.",
+        "useFormulaMode": "Použít režim vzorce",
+        "useRawMode": "Použít režim raw",
+        "formatPlain": "Prostý text",
+        "formatMarkdown": "Markdown",
+        "formatBadgeTitle": "Formát: {format}. Kliknutím jej změňte."
     },
     "userPasswordChangedToast": {
         "title": "Heslo změněno",
@@ -669,7 +701,8 @@
         "addIntegration": "Přidat novou integraci",
         "noIntegrations": "Nebyly nalezeny žádné integrace.",
         "selectTypeFirst": "Nejprve zvolte typ",
-        "integrationPlaceholder": "Vyberte integraci"
+        "integrationPlaceholder": "Vyberte integraci",
+        "editIntegration": "Upravit integraci"
     },
     "dataExplorer": {
         "noMatchingNodesText": "Nebyly nalezeny žádné odpovídající výsledky.",
@@ -700,7 +733,8 @@
         "title": "Nastavení pracovního prostoru"
     },
     "workspaceSettingType": {
-        "generativeAI": "Generativní AI"
+        "generativeAI": "Generativní AI",
+        "aiProviders": "Poskytovatelé AI"
     },
     "generativeAIModelType": {
         "openai": "OpenAI",
@@ -736,7 +770,43 @@
         "anthropicModelIdentifierDescription": "Zadejte [identifikátor modelu Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview). Například: `claude-sonnet-5`, `claude-opus-4-8` nebo `claude-haiku-4-5`.",
         "mistralModelIdentifierDescription": "Zadejte [identifikátor modelu Mistral](https://docs.mistral.ai/models/). Například: `mistral-large-latest`, `mistral-medium-latest` nebo `mistral-small-latest`.",
         "ollamaModelIdentifierDescription": "Zadejte identifikátor [modelu nainstalovaného v Ollama](https://ollama.com/library). Například: `gemma3`, `qwen3` nebo `llama3.3`.",
-        "openRouterModelIdentifierDescription": "Zadejte [identifikátor modelu OpenRouter](https://openrouter.ai/models). Například: `openai/gpt-5.6` nebo `anthropic/claude-sonnet-5`."
+        "openRouterModelIdentifierDescription": "Zadejte [identifikátor modelu OpenRouter](https://openrouter.ai/models). Například: `openai/gpt-5.6` nebo `anthropic/claude-sonnet-5`.",
+        "google": "Google Gemini",
+        "googleApiKeyLabel": "Klíč API",
+        "googleApiKeyDescription": "Zadejte klíč API služby Google AI Studio. [Vytvořte nebo zobrazte klíč API](https://aistudio.google.com/apikey).",
+        "googleModelsLabel": "Povolené modely",
+        "googleModelsDescription": "Zadejte čárkami oddělený seznam [identifikátorů modelů Gemini](https://ai.google.dev/gemini-api/docs/models), které lze použít v Baserow. Například: `gemini-3.6-flash,gemini-3.5-flash`.",
+        "googleModelIdentifierDescription": "Zadejte [identifikátor modelu Gemini](https://ai.google.dev/gemini-api/docs/models). Například: `gemini-3.6-flash` nebo `gemini-3.5-flash`.",
+        "groq": "Groq",
+        "groqApiKeyLabel": "Klíč API",
+        "groqApiKeyDescription": "Zadejte klíč API služby Groq. [Vytvořte nebo zobrazte klíč API](https://console.groq.com/keys).",
+        "groqModelsLabel": "Povolené modely",
+        "groqModelsDescription": "Zadejte čárkami oddělený seznam [identifikátorů modelů Groq](https://console.groq.com/docs/models), které lze použít v Baserow. Například: `openai/gpt-oss-120b,openai/gpt-oss-20b`.",
+        "groqModelIdentifierDescription": "Zadejte [identifikátor modelu Groq](https://console.groq.com/docs/models). Například: `openai/gpt-oss-120b` nebo `openai/gpt-oss-20b`.",
+        "bedrock": "Amazon Bedrock",
+        "bedrockSecretLabel": "Klíč API nebo tajný přístupový klíč",
+        "bedrockSecretDescription": "Zadejte [klíč API Amazon Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html) nebo tajný přístupový klíč příslušející k ID přístupového klíče.",
+        "bedrockChangeSecret": "Změnit klíč API nebo tajný přístupový klíč",
+        "bedrockSecretUpdateHint": "Zadejte nový klíč API nebo tajný přístupový klíč. Při každém přidání nebo odebrání ID přístupového klíče jej zadejte znovu.",
+        "bedrockAccessKeyIdLabel": "ID přístupového klíče",
+        "bedrockAccessKeyIdDescription": "[ID přístupového klíče IAM](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html), které patří k tajnému přístupovému klíči. Chcete-li použít klíč API Bedrock, nechte jej prázdné.",
+        "bedrockRegionLabel": "Oblast",
+        "bedrockRegionDescription": "Oblast AWS, ve které se volá Bedrock, například `eu-central-1`.",
+        "bedrockModelsLabel": "Povolené modely",
+        "bedrockModelsDescription": "Zadejte čárkami oddělený seznam [ID profilů inference Bedrock nebo modelů](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html), které lze použít v Baserow. Například: `eu.anthropic.claude-sonnet-4-5-20250929-v1:0,eu.amazon.nova-pro-v1:0`.",
+        "bedrockModelIdentifierDescription": "Zadejte [ID profilu inference Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html), například `eu.anthropic.claude-sonnet-4-5-20250929-v1:0`. Novější modely odmítají ID svého základního modelu.",
+        "xai": "xAI",
+        "xaiApiKeyLabel": "Klíč API",
+        "xaiApiKeyDescription": "Zadejte klíč API služby xAI. [Vytvořte nebo zobrazte klíč API](https://console.x.ai).",
+        "xaiModelsLabel": "Povolené modely",
+        "xaiModelsDescription": "Zadejte čárkami oddělený seznam [identifikátorů modelů xAI](https://docs.x.ai/developers/models), které lze použít v Baserow. Například: `grok-4.3,grok-4.20-non-reasoning`.",
+        "xaiModelIdentifierDescription": "Zadejte [identifikátor modelu xAI](https://docs.x.ai/developers/models). Například: `grok-4.3` nebo `grok-4.20-non-reasoning`.",
+        "zai": "Z.ai",
+        "zaiApiKeyLabel": "Klíč API",
+        "zaiApiKeyDescription": "Zadejte klíč API služby Z.ai. [Vytvořte nebo zobrazte klíč API](https://z.ai/manage-apikey/apikey-list).",
+        "zaiModelsLabel": "Povolené modely",
+        "zaiModelsDescription": "Zadejte čárkami oddělený seznam [identifikátorů modelů Z.ai](https://docs.z.ai/guides/overview/pricing), které lze použít v Baserow. Například: `glm-5.2,glm-4.6v`.",
+        "zaiModelIdentifierDescription": "Zadejte [identifikátor modelu Z.ai](https://docs.z.ai/guides/overview/pricing). Například: `glm-5.2` nebo `glm-4.6v`."
     },
     "generativeAIWorkspaceSettings": {
         "title": "Nastavení generativní AI",
@@ -745,7 +815,16 @@
         "changedDescription": "Nastavení bylo aktualizováno a nyní se bude používat v tomto pracovním prostoru.",
         "submitButton": "Aktualizovat nastavení",
         "openSettings": "Otevřít nastavení",
-        "hideSettings": "Skrýt nastavení"
+        "hideSettings": "Skrýt nastavení",
+        "providerTitle": "Poskytovatelé AI",
+        "providerDescription": "Spravujte poskytovatele vlastněné tímto pracovním prostorem nebo povolte či zakažte poskytovatele zděděné z instance.",
+        "sharedModelsTitle": "Sdíleno mezi pracovními prostory",
+        "addWorkspaceConfiguration": "Přidat konfiguraci pracovního prostoru",
+        "overridden": "Přepsáno",
+        "overriddenByWorkspace": "Přepsáno pracovním prostorem",
+        "disabledInWorkspace": "Zakázáno v pracovním prostoru",
+        "noProviders": "Žádní poskytovatelé AI nejsou k dispozici",
+        "noProvidersDescription": "Přidejte poskytovatele pro tento pracovní prostor nebo požádejte správce instance, aby nějakého nakonfiguroval."
     },
     "dashboardVerifyEmail": {
         "title": "Zkontrolujte svou e-mailovou schránku a kliknutím na odkaz ověřte svůj e-mail.",
@@ -1028,7 +1107,9 @@
         "createEndpoint": "Vytvořit koncový bod",
         "createNewTitle": "Vytvořit koncový bod serveru MCP",
         "backToOverview": "Zpět na přehled",
-        "noEndpointsMessage": "Dosud nebyly přidány žádné koncové body serveru MCP (Model Context Protocol). Lze je použít k přímé integraci s LLM, jako je Claude, a umožnit LLM provádět akce přímo v Baserow. Chcete-li začít, vytvořte koncový bod serveru."
+        "noEndpointsMessage": "Dosud nebyly přidány žádné koncové body serveru MCP (Model Context Protocol). Lze je použít k přímé integraci s LLM, jako je Claude, a umožnit LLM provádět akce přímo v Baserow. Chcete-li začít, vytvořte koncový bod serveru.",
+        "oauthTab": "OAuth",
+        "endpointTab": "Koncový bod"
     },
     "mcpEndpointForm": {
         "nameLabel": "Název",
@@ -1080,7 +1161,12 @@
         "methodsOptionLabel": "Povolené metody HTTP",
         "methodsOptionDescription": "Určuje, které metody HTTP jsou pro tento webhook povolené. Vyloučení metody GET snižuje pravděpodobnost nechtěného spuštění webhooku.",
         "methodsOptionAll": "Všechny",
-        "methodsOptionExcludeGet": "Vyloučit GET"
+        "methodsOptionExcludeGet": "Vyloučit GET",
+        "responseOptionsLabel": "Odpověď",
+        "waitForResponse": "Čekat na odpověď pracovního postupu",
+        "waitForResponseDescription": "Čeká se, dokud nebude dosažen uzel Odpověď. Pokud nebude dosažen žádný, čeká se na dokončení pracovního postupu a vrátí se výchozí odpověď.",
+        "responseTimeout": "Časový limit odpovědi",
+        "seconds": "sekundy"
     },
     "twoFactorAuthSettings": {
         "title": "Dvoufaktorové ověřování",
@@ -1153,8 +1239,9 @@
         "verificationFailedDescription": "Zadaný kód není platný."
     },
     "nodeHelpTooltip": {
-        "exampleLabel": "Příklad",
-        "result": "Výsledek: {result}"
+        "exampleLabel": "Příklad | Příklady",
+        "result": "Výsledek: {result}",
+        "clickToInsert": "Kliknutím na příklad jej vložíte"
     },
     "twoFactorAuthField": {
         "enabled": "Povoleno",
@@ -1208,7 +1295,8 @@
         "useSimpleInputModalTitle": "Přepnout do základního režimu?",
         "useAdvancedInput": "Přepnout do expertního režimu",
         "useAdvancedInputModalTitle": "Přepnout do expertního režimu?",
-        "modalMessage": "Přepnutím do jiného režimu se vymaže aktuální vzorec. Opravdu chcete pokračovat?"
+        "modalMessage": "Přepnutím do jiného režimu se vymaže aktuální vzorec. Opravdu chcete pokračovat?",
+        "formatLabel": "Formát"
     },
     "formulaParserErrors": {
         "invalidArgCountMin": "Funkce „{funcType}“ očekává nejméně {minArgs} argumentů.",
@@ -1223,7 +1311,8 @@
         "showErrorLabel": "Zobrazit chybu",
         "downloadFullPayload": "Stáhnout úplnou datovou část",
         "truncatedLabel": "[Výstup zkrácen]",
-        "truncatedPayloadWarning": "Zobrazuje se pouze prvních {size} znaků. Stáhněte úplnou datovou část a prohlédněte si ji v počítači."
+        "truncatedPayloadWarning": "Zobrazuje se pouze prvních {size} znaků. Stáhněte úplnou datovou část a prohlédněte si ji v počítači.",
+        "noHtmlContent": "Tento e-mail nemá tělo ve formátu HTML."
     },
     "workspaceOutdatedToast": {
         "title": "Příliš mnoho změn",
@@ -1281,12 +1370,12 @@
         "removeModel": "Odebrat model",
         "editModel": "Upravit model",
         "modelIdentifier": "Identifikátor modelu",
-        "modelDiscoveryHelp": "Vyberte model známý nástroji Pydantic AI nebo zadejte libovolný vlastní identifikátor.",
+        "modelDiscoveryHelp": "Vyberte model ze seznamu nebo zadejte libovolný vlastní identifikátor.",
         "modelDiscoveryUnavailable": "Návrhy známých modelů nejsou k dispozici. Zadejte identifikátor ručně.",
-        "modelDiscoveryEmpty": "Pydantic AI nemá pro tohoto poskytovatele žádné známé modely. Zadejte identifikátor ručně.",
+        "modelDiscoveryEmpty": "Tento poskytovatel nemá žádné známé modely. Zadejte identifikátor ručně.",
         "modelDiscoveryNoMatch": "Žádný známý model neodpovídá. Můžete použít zadaný identifikátor.",
         "noProviders": "Nejsou nakonfigurováni žádní poskytovatelé AI pro instanci",
-        "noProvidersDescription": "Přidejte poskytovatele ručně nebo si před povolením funkce pro uživatele prohlédněte a spusťte příkaz pro import prostředí.",
+        "noProvidersDescription": "Přidejte poskytovatele a nakonfigurujte modely dostupné pro vaše pracovní prostory.",
         "noModels": "Pro tohoto poskytovatele nejsou nakonfigurovány žádné modely.",
         "active": "Aktivní",
         "inactive": "Neaktivní",
@@ -1308,7 +1397,48 @@
         "retry": "Zkusit znovu",
         "saveError": "Poskytovatele AI se nepodařilo uložit.",
         "saveModelError": "Model poskytovatele AI se nepodařilo uložit.",
-        "actionError": "Změnu poskytovatele AI se nepodařilo dokončit."
+        "actionError": "Změnu poskytovatele AI se nepodařilo dokončit.",
+        "availableFor": "K dispozici pro",
+        "availableForDescription": "Zvolte, které uvedené funkce AI mohou tento model používat.",
+        "availableForList": "K dispozici pro: {features}",
+        "availableForNone": "Není k dispozici pro žádnou z uvedených funkcí",
+        "featureSettingsTitle": "Funkce AI",
+        "featureSettingsDescription": "Pro každou funkci zvolte model nakonfigurovaného poskytovatele. Modely prostředí jsou zastaralé.",
+        "kumaDisabled": "Zakázáno",
+        "kumaInvalidFallback": "Vybraný model není k dispozici — používá se zastaralý model prostředí: {model}",
+        "kumaInvalidNoFallback": "Vybraný model není k dispozici — není nakonfigurován žádný model prostředí",
+        "kumaDisabledInWorkspace": "Zakázáno v tomto pracovním prostoru",
+        "kumaUseInstance": "Použít nastavení instance — {model}",
+        "kumaInheritedUnavailable": "vybraný model instance není k dispozici",
+        "kumaUseLegacy": "Použít model prostředí (zastaralý): {model}",
+        "kumaLegacyFallback": "model prostředí (zastaralý): {model}",
+        "kumaLegacyEmpty": "prázdné",
+        "kumaNotConfigured": "není nakonfigurováno",
+        "featureModelLabel": "Model pro {feature}",
+        "modelScopeInstance": "Instance",
+        "modelScopeWorkspace": "Pracovní prostor",
+        "noFeatureModels": "Nejsou k dispozici žádné vhodné modely. Upravte model a zvolte, které funkce jej mohou používat.",
+        "featureSettingError": "Nastavení funkce AI se nepodařilo uložit.",
+        "featureSettingErrorDescription": "Obnovte stránku a zvolte dostupný model.",
+        "inherited": "Zděděno",
+        "moreActions": "Další akce",
+        "testAllModels": "Otestovat všechny modely",
+        "testModel": "Otestovat model",
+        "someTestsFailed": "Některé testy selhaly",
+        "featureTestPassed": "{feature}: Úspěšně otestováno",
+        "featureTestFailed": "{feature}: {error}",
+        "testing": "Testování…",
+        "disableModelTitle": "Zakázat {name}?",
+        "disableModelDescription": "Model zůstane vybraný tam, kde je nakonfigurován, ale nebude jej možné používat, dokud jej znovu nepovolíte.",
+        "modelFeaturesRemovedTitle": "Změnit funkce, pro které je {name} k dispozici?",
+        "modelFeaturesRemovedDescription": "Funkce, jejichž výběr jste zrušili, už tento model nemohou používat.",
+        "modelInUse": "{features} používá tento model. | {features} používají tento model.",
+        "modelUsageUnknown": "Baserow nemohl ověřit, co tento model stále používá.",
+        "modelUsageFeature": "{feature} ({count})",
+        "modelIdentifierRenamedTitle": "Přejmenovat {name}?",
+        "modelIdentifierRenamedDescription": "Nadále budou ukazovat na starý identifikátor a přestanou fungovat, dokud nebudou přesměrovány.",
+        "extraField_region": "Oblast",
+        "extraField_access_key_id": "ID přístupového klíče"
     },
     "groupedMenu": {
         "core": "Základní",
@@ -1323,5 +1453,355 @@
         "previous": "Předchozí video",
         "next": "Další video",
         "close": "Zavřít"
+    },
+    "allWorkspaces": {
+        "title": "Vaše pracovní prostory",
+        "searchResults": "Výsledky vyhledávání",
+        "searchPlaceholder": "Hledat",
+        "allItems": "Všechny položky",
+        "itemsSelected": "{count} typ položky | {count} typy položek",
+        "createWorkspace": "Vytvořit pracovní prostor",
+        "expandedView": "Rozšířené zobrazení",
+        "compactView": "Kompaktní zobrazení",
+        "collapseAll": "Sbalit vše",
+        "expandAll": "Rozbalit vše",
+        "workspacesSection": "Pracovní prostory",
+        "itemsSection": "Položky",
+        "noResultsTitle": "Nebyly nalezeny žádné výsledky",
+        "noResultsDescription": "Pro výraz „{search}“ jsme nic nenašli. Zkontrolujte pravopis nebo použijte jiná klíčová slova.",
+        "clearSearch": "Vymazat vyhledávání",
+        "membersCount": "0 členů | 1 člen | {count} členů",
+        "itemsCount": "0 položek | 1 položka | {count} položek",
+        "moreElements": "{count} další prvek | {count} další prvky",
+        "noApplications": "Zatím žádné aplikace Builder",
+        "noFilterMatches": "Žádné položky neodpovídají vybraným typům.",
+        "create": "Vytvořit",
+        "members": "Členové",
+        "settings": "Nastavení"
+    },
+    "recentlyViewed": {
+        "title": "Naposledy zobrazené",
+        "yourItems": "Vaše položky",
+        "name": "Název",
+        "lastViewed": "Naposledy zobrazeno",
+        "workspace": "Pracovní prostor",
+        "allWorkspaces": "Všechny pracovní prostory",
+        "workspacesSelected": "{count} pracovní prostor | {count} pracovní prostory",
+        "allItems": "Všechny položky",
+        "itemTypesSelected": "{count} typ položky | {count} typy položek",
+        "tableView": "Tabulka",
+        "cardsView": "Karty",
+        "loadMore": "Načíst další",
+        "emptyTitle": "Nedávno nebylo nic zobrazeno",
+        "emptyDescription": "Zde se zobrazí zobrazení, stránky, nástěnky a pracovní postupy, které otevřete.",
+        "noFilterMatchesTitle": "Žádné položky neodpovídají vybraným filtrům",
+        "noFilterMatchesDescription": "Zkuste vybrat jiné pracovní prostory nebo typy položek.",
+        "clearFilters": "Vymazat filtry",
+        "goToWorkspaces": "Přejít do pracovních prostorů"
+    },
+    "trashType": {
+        "integration": "integrace",
+        "user_source": "zdroj uživatele"
+    },
+    "richTextEditor": {
+        "errorUnsupportedImageTitle": "Obrázek nelze vložit",
+        "errorUnsupportedImageMessage": "{name} není podporovaný obrázek a nebyl přidán."
+    },
+    "coreManualTriggerServiceForm": {
+        "responseOptionsLabel": "Odpověď",
+        "waitForResponse": "Čekat na odpověď pracovního postupu",
+        "waitForResponseDescription": "Čeká se, dokud nebude dosažen uzel Odpověď. Pokud nebude dosažen žádný, čeká se na dokončení pracovního postupu a vrátí se výchozí odpověď.",
+        "responseTimeout": "Časový limit odpovědi",
+        "seconds": "sekundy"
+    },
+    "coreResponseServiceForm": {
+        "statusCode": "Stavový kód",
+        "statusCode200": "200 - OK",
+        "statusCode201": "201 - Vytvořeno",
+        "statusCode202": "202 - Přijato",
+        "statusCode204": "204 - Bez obsahu",
+        "statusCode400": "400 - Chybný požadavek",
+        "statusCode401": "401 - Neautorizováno",
+        "statusCode403": "403 - Zakázáno",
+        "statusCode404": "404 - Nenalezeno",
+        "statusCode405": "405 - Metoda není povolena",
+        "statusCode409": "409 - Konflikt",
+        "statusCode422": "422 - Nezpracovatelný obsah",
+        "statusCode429": "429 - Příliš mnoho požadavků",
+        "bodyType": "Typ těla",
+        "bodyTypeEmpty": "Prázdné",
+        "bodyTypeJson": "JSON",
+        "bodyTypeText": "Text",
+        "body": "Tělo",
+        "bodyPlaceholder": "Tělo odpovědi",
+        "headers": "Hlavičky",
+        "name": "Název",
+        "value": "Hodnota",
+        "namePlaceholder": "Název hlavičky",
+        "valuePlaceholder": "Hodnota hlavičky",
+        "addHeader": "Přidat hlavičku",
+        "nameFieldRequired": "Název hlavičky je povinný.",
+        "nameFieldInvalid": "Názvy hlaviček mohou obsahovat pouze písmena, číslice, pomlčky a podtržítka a nesmějí začínat pomlčkou ani podtržítkem."
+    },
+    "inboundEmailTriggerServiceForm": {
+        "title": "E-mailová adresa",
+        "addressVersionTest": "Test",
+        "addressVersionPublished": "Publikováno",
+        "copyAddress": "Kopírovat e-mailovou adresu",
+        "description": "Každý e-mail odeslaný na tuto adresu spustí pracovní postup s údaji o odesílateli, předmětu, těle a přílohách e-mailu jako datovou částí.",
+        "limits": "Přijímány jsou e-maily do {size} MB a textové i HTML tělo se předává každé až do 1 MB. Přílohy se neukládají: datová část obsahuje pouze jejich název, typ a velikost.",
+        "autoForwardTip": "Tip: tuto adresu můžete také přidat jako pravidlo automatického přeposílání do své doručené pošty, aby se pracovní postup spustil vždy, když obdržíte e-mail.",
+        "secretWarning": "S touto adresou zacházejte jako s tajemstvím: každý, kdo ji zná, může tento pracovní postup spustit.",
+        "regenerate": "Regenerovat adresu",
+        "infoDescription": "Po odeslání e-mailu může jeho doručení v závislosti na poskytovateli trvat až několik minut."
+    },
+    "subjectType": {
+        "user": "Uživatel",
+        "users": "Uživatelé",
+        "agent": "Agent",
+        "agents": "Agenti",
+        "anonymousUser": "Anonymní uživatel",
+        "members": "Členové"
+    },
+    "agents": {
+        "saved": "Změny uloženy",
+        "tabTitle": "Agenti",
+        "title": "{count} agentů v {workspace}",
+        "create": "Vytvořit agenta",
+        "createTitle": "Vytvořit agenta",
+        "updateTitle": "Upravit agenta",
+        "save": "Uložit změny",
+        "edit": "Upravit agenta",
+        "delete": "Odstranit agenta",
+        "general": "Obecné",
+        "mcpServerPlaceholder": "Nastavení serveru MCP zde bude k dispozici.",
+        "name": "Název",
+        "invalidNameTitle": "Název agenta není povolen",
+        "lastActive": "Naposledy aktivní",
+        "workspaceRole": "Role v pracovním prostoru",
+        "search": "Hledat agenty",
+        "emptyTitle": "Zatím žádní agenti",
+        "emptyDescription": "Vytvořte agenta, který připojí nástroje AI k vašemu pracovnímu prostoru. Zvolte jeho roli a týmy, abyste určili, k čemu má přístup.",
+        "new": "Nový",
+        "roleHelpText": "Začněte s možností Bez přístupu, potom podle potřeby udělte přístup ke konkrétním databázím, tabulkám nebo pohledům."
+    },
+    "mcpAuthorize": {
+        "title": "Připojit {client}",
+        "titleFrom": "Připojit {client} z {host}",
+        "subtitle": "V pracovním prostoru, který zvolíte, bude jednat vaším jménem.",
+        "unverified": "Neověřeno · vrací vás zpět na {host}",
+        "returns": "Návrat na {host}",
+        "workspace": "Pracovní prostor",
+        "databases": "{count} databáze | {count} databází",
+        "noWorkspaces": "V žádném ze svých pracovních prostorů nemůžete připojit aplikace. Požádejte správce pracovního prostoru o přístup.",
+        "loopbackWarning": "Tato aplikace se přihlašuje prostřednictvím vašeho vlastního počítače. Jakýkoli program v něm by mohl použít tento název, pokračujte proto pouze tehdy, pokud jste přihlášení právě sami zahájili.",
+        "tools": "Co může provádět",
+        "selectAll": "Vybrat vše",
+        "selectNone": "Žádné",
+        "toolsRead": "Čtení",
+        "toolsChange": "Změny",
+        "deletes": "Odstraňuje",
+        "overwrites": "Přepisuje",
+        "noTools": "Nejsou k dispozici žádné nástroje.",
+        "signedIn": "Přihlášeni jako {email}",
+        "allow": "Povolit",
+        "deny": "Zamítnout",
+        "invalid": "Tento požadavek na autorizaci není platný.",
+        "invalidMessage": "Zkuste se z aplikace připojit znovu. Pokud se to bude opakovat, odeberte z aplikace server Baserow a přidejte jej znovu.",
+        "unknownClient": "Registrace přihlášení této aplikace není známa nebo její platnost vypršela. Odeberte z aplikace server Baserow a přidejte jej znovu.",
+        "clientRejected": "Tato aplikace se nemůže přihlásit k tomuto serveru Baserow. Důvod může správce Baserow najít v protokolu serveru.",
+        "loadFailed": "Tento požadavek na přihlášení se nepodařilo načíst.",
+        "loadFailedMessage": "Zkontrolujte připojení a znovu načtěte stránku, abyste to zkusili znovu.",
+        "failed": "Připojení se nepodařilo dokončit.",
+        "framed": "Tato stránka se z bezpečnostních důvodů nemůže zobrazit uvnitř jiného webu. Chcete-li pokračovat, otevřete ji v samostatném okně prohlížeče."
+    },
+    "inviteModal": {
+        "emailRoute": "Pozvání e-mailem",
+        "linkRoute": "Vytvořit odkaz",
+        "emailTitle": "Pozvat členy e-mailem",
+        "linkTitle": "Pozvat členy pomocí odkazu",
+        "linkEmptyTitle": "Odkaz s pozvánkou jste dosud nevytvořili",
+        "linkEmptyDescription": "Můžete vytvořit více odkazů s různými rolemi.",
+        "pendingTitle": "Čekající pozvánky",
+        "pendingEmptyTitle": "Žádné pozvánky nečekají.",
+        "pendingEmptyDescription": "Pozvánky se zde zobrazují, dokud nejsou přijaty.",
+        "backTo": "Zpět na {level}: {title}"
+    },
+    "templateInstall": {
+        "use": "Použít tuto šablonu",
+        "selectWorkspace": "Vyberte pracovní prostor",
+        "more": "Více",
+        "copyLink": "Kopírovat odkaz ke sdílení",
+        "workspaceNoPermission": "Nemáte oprávnění přidávat aplikace do tohoto pracovního prostoru.",
+        "noWorkspace": "Šablona se instaluje do pracovního prostoru. Nejprve vytvořte pracovní prostor a poté do něj nainstalujte šablonu.",
+        "noWorkspaceAskInvite": "Nejste členem žádného pracovního prostoru. Šablona se instaluje do pracovního prostoru, takže vás do něj musí nejprve pozvat správce.",
+        "createWorkspace": "Vytvořit pracovní prostor"
+    },
+    "templateDetails": {
+        "back": "Zpět na šablony",
+        "contents": "Co obsahuje",
+        "actions": "Akce",
+        "editDetails": "Upravit podrobnosti",
+        "updateContent": "Aktualizovat obsah šablony",
+        "delete": "Odstranit"
+    },
+    "mcpOAuthConnections": {
+        "title": "Připojit nástroj AI",
+        "description": "Jedna adresa URL pro všechny nástroje. Při připojení se přihlásíte a zvolíte pracovní prostor a nástroje.",
+        "copyURL": "Kopírovat adresu URL",
+        "claudeInstructions": "V claude.ai nebo Claude Desktop otevřete **Settings → Connectors**, klikněte na **Add custom connector** a vložte výše uvedenou adresu URL.",
+        "claudeCodeInstructions": "Spusťte toto v terminálu, potom v Claude Code spusťte `/mcp` a přihlaste se.",
+        "chatGptInstructions": "V ChatGPT otevřete **Plugins**, klikněte na **+** vpravo nahoře a vyberte **Add custom MCP server**. Výše uvedenou adresu URL vložte jako adresu serveru a jako ověřování vyberte **OAuth**.",
+        "cursorInstructions": "Přidejte toto do souboru `~/.cursor/mcp.json`. Cursor vás při připojení vyzve k přihlášení.",
+        "connectedApps": "Připojené aplikace",
+        "noConnections": "Zatím nejsou připojeny žádné aplikace.",
+        "publishedBy": "{host}",
+        "expired": "Odhlášeno",
+        "expiredTooltip": "Přihlášení této aplikace skončilo. Chcete-li ji používat, přihlaste se znovu z aplikace.",
+        "tools": "{count} nástroj | {count} nástroje",
+        "connectedOn": "Připojeno {date}",
+        "disconnect": "Odpojit",
+        "confirmDisconnect": "Kliknutím znovu odpojíte",
+        "toolsOff": "{count} nástroj vypnut | {count} nástroje vypnuty | {count} nástrojů vypnuto",
+        "editTools": "Upravit nástroje",
+        "editToolsTitle": "Nástroje pro {client}",
+        "editToolsDescription": "Vyberte, co může dělat v pracovním prostoru {workspace}. Aplikace změnu převezme při dalším požadavku, aniž by se musela znovu přihlásit.",
+        "saveTools": "Uložit"
+    },
+    "mcpToolPicker": {
+        "tools": "Co může dělat",
+        "readOnly": "Pouze pro čtení",
+        "fullAccess": "Úplný přístup",
+        "none": "Žádné",
+        "noTools": "Nejsou k dispozici žádné nástroje.",
+        "deletes": "Odstraňuje",
+        "overwrites": "Přepisuje",
+        "areaDatabase": "Databáze",
+        "databaseRead": "Číst tabulky a řádky",
+        "databaseEdit": "Vytvářet a měnit",
+        "databaseDelete": "Odstranit",
+        "areaAutomation": "Automatizace",
+        "automationRead": "Číst pracovní postupy a uzly",
+        "automationEdit": "Vytvářet a měnit",
+        "automationDelete": "Odstraňovat"
+    },
+    "createUserTemplateJobType": {
+        "name": "Vytvořit šablonu"
+    },
+    "inviteInput": {
+        "batchLimitExceeded": "Najednou lze pozvat až {limit} e-mailových adres. Chcete-li pokračovat, odeberte nadbytečné adresy.",
+        "placeholder": "Zadejte nebo vložte e-mailové adresy",
+        "invite": "Pozvat",
+        "inviteAs": "Pozvat {count} jako {role}",
+        "tabAll": "Vše",
+        "inviteEmail": "Pozvat {email}",
+        "inviteEmailDescription": "Připojí se k pracovnímu prostoru jako {role}",
+        "alreadyInvited": "Pozvánka již čeká.\nMísto dalšího pozvání můžete její roli změnit na stránce Pozvánky.",
+        "alreadyMember": "Již je členem tohoto pracovního prostoru",
+        "roleNotForEmails": "Novou osobu nelze pozvat s rolí {role}",
+        "noResults": "Chcete-li někoho pozvat, zadejte celou e-mailovou adresu.",
+        "invitedHint": "Pozvánka odeslána",
+        "memberHint": "Člen"
+    },
+    "templateEmptyState": {
+        "noResultsTitle": "Nebyly nalezeny žádné šablony",
+        "noResultsDescription": "Žádné šablony neodpovídají „{query}“. Zkuste jiné vyhledávání."
+    },
+    "templateModal": {
+        "officialTemplates": "Oficiální šablony",
+        "yourTemplates": "Vaše šablony"
+    },
+    "createUserTemplateModal": {
+        "detailsTitle": "Nová šablona",
+        "detailsDescription": "Uložte opakovaně použitelnou kopii své práce jako soukromou šablonu.",
+        "continue": "Pokračovat",
+        "contentTitle": "Vyberte obsah šablony",
+        "contentDescription": "Vyberte pracovní prostor, ze kterého chcete převzít obsah, a poté zvolte, co má šablona obsahovat.",
+        "create": "Vytvořit šablonu",
+        "cannotBeCancelled": "Zrušení není možné, protože šablona již byla vytvořena.",
+        "failedAfterCreated": "Šablona byla vytvořena, ale poté došlo k chybě."
+    },
+    "updateUserTemplateModal": {
+        "detailsTitle": "Upravit šablonu",
+        "detailsDescription": "Změňte, jak je šablona prezentována. Obsah šablony zůstane nezměněn.",
+        "contentTitle": "Aktualizovat obsah",
+        "contentDescription": "Nahraďte obsah šablony aplikacemi z některého z vašich pracovních prostorů. Její podrobnosti, odkaz a přístup zůstanou stejné.",
+        "save": "Uložit změny",
+        "update": "Aktualizovat šablonu",
+        "updated": "Šablona aktualizována",
+        "failedAfterUpdated": "Šablona byla aktualizována, ale poté došlo k chybě.",
+        "cannotBeCancelled": "Zrušení není možné, protože šablona již byla aktualizována.",
+        "invalidKeptDetails": "Ikonu nebo kategorii šablony už nelze použít. Nejprve je změňte pomocí možnosti „Upravit podrobnosti“ a potom aktualizujte obsah."
+    },
+    "userTemplateDetailsForm": {
+        "name": "Název",
+        "namePlaceholder": "Název šablony",
+        "nameRequired": "Název je povinný.",
+        "chooseIcon": "Vyberte ikonu",
+        "description": "Popis",
+        "descriptionPlaceholder": "K čemu tato šablona slouží?",
+        "categories": "Kategorie",
+        "categoriesRequired": "Vyberte alespoň jednu kategorii."
+    },
+    "userTemplateContentForm": {
+        "workspace": "Pracovní prostor",
+        "workspaceEmpty": "V tomto pracovním prostoru není co kopírovat.",
+        "workspaceNoPermission": "Nemáte oprávnění tento pracovní prostor zkopírovat.",
+        "applications": "Obsah",
+        "noticeTitle": "Co se nekopíruje",
+        "noticeSecrets": "Většina hesel, tokenů a klíčů API integrací a synchronizací dat.",
+        "noticePeople": "Lidé: hodnoty polí spolupracovníků, přiřazení rolí a uživatel, za kterého se provádějí automatické aktualizace polí AI.",
+        "noticePersonalViews": "Osobní pohledy.",
+        "noticeReferences": "Připojení k databázím, které nejsou zahrnuty. Zdroje dat, filtry a spouštěče, které je používají, je třeba znovu nastavit.",
+        "noticeRest": "Vše ostatní je sdíleno beze změny.",
+        "selectedApplications": "0 vybraných aplikací | 1 vybraná aplikace | {count} vybraných aplikací",
+        "noticePasswords": "Hodnoty polí s heslem ve vašich tabulkách včetně hesel uživatelů vašich aplikací."
+    },
+    "templateIconSelectContext": {
+        "search": "Hledat ikony",
+        "noResults": "Nebyly nalezeny žádné ikony"
+    },
+    "userTemplateList": {
+        "title": "Vaše šablony",
+        "count": "0 šablon | 1 šablona | {count} šablon",
+        "search": "Hledat šablony",
+        "newTemplate": "Nová šablona",
+        "name": "Název",
+        "visibility": "Viditelnost",
+        "lastUpdated": "Naposledy aktualizováno",
+        "emptyTitle": "Ještě jste nevytvořili žádnou šablonu",
+        "emptyDescription": "Proměňte svou práci v šablonu, kterou si můžete později zobrazit v náhledu a sdílet.",
+        "noWorkspace": "Šablona se vytváří z pracovního prostoru. Nejprve vytvořte pracovní prostor nebo se k němu připojte.",
+        "noContent": "Šablona se vytváří z obsahu pracovního prostoru. Nejprve přidejte databázi, aplikaci nebo automatizaci.",
+        "statePrivate": "Soukromá",
+        "stateInReview": "V posouzení",
+        "stateRejected": "Zamítnuta",
+        "stateBlocked": "Zablokována",
+        "statePublic": "Veřejná",
+        "errorTitle": "Vaše šablony se nepodařilo načíst",
+        "errorDescription": "Při načítání vašich šablon došlo k chybě.",
+        "retry": "Zkusit znovu",
+        "actions": "Akce",
+        "editDetails": "Upravit podrobnosti",
+        "updateContent": "Aktualizovat obsah šablony",
+        "used": "Použito",
+        "usedTimes": "{count}krát | {count}krát | {count}krát",
+        "delete": "Odstranit"
+    },
+    "crudTable": {
+        "empty": "Zatím žádné položky",
+        "emptyPage": "Na této stránce nejsou žádné výsledky.",
+        "noResults": "Nebyly nalezeny žádné výsledky. Zkuste upravit vyhledávání nebo filtry.",
+        "rowActions": "Akce řádku",
+        "expandRow": "Rozbalit podrobnosti řádku",
+        "collapseRow": "Sbalit podrobnosti řádku"
+    },
+    "managementPages": {
+        "you": "Vy"
+    },
+    "deleteUserTemplateModal": {
+        "title": "Opravdu chcete odstranit „{name}“?",
+        "description": "Šablona bude odstraněna pro všechny v této instanci. Kopie, které si lidé už nainstalovali do svých pracovních prostorů, tím nebudou ovlivněny.",
+        "delete": "Odstranit šablonu"
     }
 }

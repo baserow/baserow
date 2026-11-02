@@ -462,7 +462,8 @@
         "filterTypeNotFound": "Ten typ filtra nie jest kompatybilny.",
         "noCompatibleFilterTypesErrorTitle": "Brak kompatybilnych typów filtrów",
         "noCompatibleFilterTypesErrorMessage": "Żadne z twoich pól nie posiada kompatybilnych typów filtrów",
-        "addFilterGroup": "Dodaj grupę filtrów"
+        "addFilterGroup": "Dodaj grupę filtrów",
+        "copyFromView": "Kopia z innego widoku"
     },
     "viewFilterTypeFileTypeDropdown": {
         "image": "plik graficzny",
@@ -561,7 +562,8 @@
         "deleteView": "Usuń widok",
         "toPersonal": "Do osobistych",
         "toCollaborative": "Do współpracy",
-        "defaultRowValues": "Wartości domyślne wierszy"
+        "defaultRowValues": "Wartości domyślne wierszy",
+        "copyConfiguration": "Skopiuj konfigurację z widoku"
     },
     "deleteViewModal": {
         "title": "Usuń {name}",
@@ -671,7 +673,7 @@
     },
     "apiDocsDatabase": {
         "pageTitle": "Dokumentacja API bazy danych {name}",
-        "back": "Powrót do pulpitu",
+        "back": "Powrót do wprowadzenia",
         "openDatabase": "otwórz bazę danych"
     },
     "apiDocsComponent": {
@@ -680,7 +682,7 @@
         "settings": "ustawienia",
         "selectApplicationTitle": "Dla której bazy danych chcesz zobaczyć dokumentację?",
         "signIn": "Aby zacząć, zaloguj się",
-        "back": "Powrót do pulpitu"
+        "back": "Powrót do wprowadzenia"
     },
     "viewAggregationType": {
         "emptyCount": "(Pusty)",
@@ -916,7 +918,8 @@
         "restored": ": użytkownik, który przywrócił ten wiersz",
         "createdUndo": "cofnij utworzenie wiersza",
         "updatedUndo": "cofnij aktualizację wiersza",
-        "deletedUndo": "cofnij usunięcie wiersza"
+        "deletedUndo": "cofnij usunięcie wiersza",
+        "anonymousUser": "Użytkownik anonimowy"
     },
     "formSubmittedNotification": {
         "title": "{formName} został przesłany do tabeli {tableName}:",
@@ -936,7 +939,11 @@
         "passwordUpdated": "Hasło zostało zaktualizowane"
     },
     "dataProviderTypes": {
-        "fieldsName": "Pola"
+        "fieldsName": "Pola",
+        "rowName": "Kliknięty wiersz",
+        "rowId": "ID wiersza",
+        "previousActionName": "Poprzednia operacja",
+        "previousActionRowId": "Id"
     },
     "apiDocsFiltersBuilderModal": {
         "title": "Konfigurator parametrów filtrów",
@@ -956,7 +963,10 @@
         "hiddenFieldWarning": "Jedno lub więcej kryteriów pogrupowań odwołuje się do ukrytych pól, które nie będą widoczne dla edytorów i użytkowników z niższymi uprawnieniami.",
         "maxGroupBysReached": "Można pogrupować wg. maksymalnie {count} pól.",
         "collapseAllGroups": "Zwiń wszystko",
-        "expandAllGroups": "Rozwiń wszystko"
+        "expandAllGroups": "Rozwiń wszystko",
+        "layout": "Układ grup",
+        "layoutSection": "Sekcje",
+        "layoutColumn": "Kolumny"
     },
     "userMentionInRichTextFieldNotification": {
         "title": "{sender} wspomniał o Tobie w polu {fieldName} wiersza {rowId} w {tableName}",
@@ -1326,6 +1336,98 @@
         "labelPlaceholder": "Otwórz",
         "url": "Adres URL",
         "urlPlaceholder": "np. concat('https://example.com/', get('fields.field_1'))",
-        "invalidUrl": "Formuła w adresie URL jest nieprawidłowa."
+        "invalidUrl": "Formuła w adresie URL jest nieprawidłowa.",
+        "unresolvedReferenceTitle": "Operacji nie zapisano",
+        "unresolvedReferenceMessage": "Operacja używa wyniku z operacji, która jej nie poprzedza. Zamień kolejność operacji lub usuń odwołanie, następnie zapisz ponownie."
+    },
+    "copyViewConfigurationModal": {
+        "title": "Skopiuj konfigurację do {name}",
+        "sourceView": "Skopiuj z widoku",
+        "selectAll": "Wybierz wszystko",
+        "clearAll": "Wyczyść wszystko",
+        "copy": "Skopiuj konfigurację"
+    },
+    "copyViewConfigurationOption": {
+        "fieldVisibility": "Widoczność pól",
+        "fieldOrder": "Kolejność pól",
+        "fieldWidths": "Szerokość pól",
+        "viewSettings": "Ustawienia ({settings})",
+        "viewSettingsRowHeightSize": "wysokość wiersza",
+        "viewSettingsFrozenColumnCount": "zamrożone kolumny",
+        "viewSettingsRowIdentifierType": "identyfikator wiersza",
+        "viewSettingsGroupByLayout": "układ grupy",
+        "filters": "Filtry",
+        "sorts": "Posortowania",
+        "groupBys": "Grupy",
+        "decorations": "Dekoracje",
+        "defaultRowValues": "Domyślne wartości pól"
+    },
+    "hiddenRows": {
+        "title": "Ukryty wiersz | Ukryte wiersze",
+        "createdMessage": "Nowy wiersz nie spełnia kryteriów filtrowania widoku i nie został wyświetlony. Poproś użytkownika, który skonfigurował widok, aby ustawił wartości domyślne zgodnie z kryteriami filtrowania. | {count} nowych wierszy nie spełnia kryteriów filtrowania widoku i nie zostały wyświetlone. Poproś użytkownika, który skonfigurował widok, aby ustawił wartości domyślne zgodnie z kryteriami filtrowania.",
+        "updatedMessage": "Ten wiersz przestał spełniać kryteria filtrowania widoku, dlatego został ukryty. | {count} wierszy przestało spełniać kryteria filtrowania widoku, dlatego zostały ukryte."
+    },
+    "databaseWorkflowActionWithService": {
+        "nothingCapturedYet": "Kliknięcie tego przycisku w wierszu pozwoli przechwycić odpowiedź punktu końcowego i kolejne operacje będą mogły wykorzystać zwrócone wartości. Pozostałe operacje tego przycisku również zostaną wykonane.",
+        "payloadModalTitle": "Przechwycona odpowiedź {actionLabel}",
+        "payloadModalSubTitle": "Payload JSON"
+    },
+    "databaseWorkflowActionType": {
+        "openUrl": "Otwórz URL",
+        "sendEmail": "Wyślij e-mail",
+        "deleteRow": "Usuń wiersz",
+        "noUrl": "Wprowadź URL, który otworzy stronę.",
+        "staleReference": "Ta operacja wykorzystuje wynik innej operacji, która nie jest już wykonywana przed nią.",
+        "unreadableReference": "Ta operacja wykorzystuje wynik innej operacji, który nie jest już zwracany.",
+        "writesToTrashedField": "Ta operacja zapisuje dane w polu, które zostało usunięte do kosza. Przywróć pole i wykonaj operację ponownie.",
+        "tableTrashed": "Ta operacja korzysta z tabeli, która została usunięta do kosza. Przywróć tabelę lub wybierz inną.",
+        "requiresReconfiguration": "Ta operacja odwołuje się do tabeli, pola lub integracji, które znajdują się w koszu lub zostały trwale usunięte.",
+        "noInstanceSmtp": "W tej instancji bazy Baserow nie skonfigurowano żadnego serwera SMTP. Aby wysłać ten e-mail, wybierz integrację SMTP.",
+        "instanceSmtpTurnedOff": "Wysyłanie wiadomości korzystając z serwera tej instancji SMTP jest wyłączone. Aby wysłać ten e-mail, wybierz integrację SMTP.",
+        "slackOk": "OK",
+        "slackChannel": "Kanał",
+        "slackTs": "Znacznik czasu wiadomości",
+        "smtpIntegrationIncomplete": "Ta integracja SMTP nie posiada serwera. Aby przycisk wysyłał wiadomości, wpisz dane hosta.",
+        "slackTokenMissing": "Ten bot nie ma żadnego tokena. Aby przycisk działał, dodaj nowego bota wraz z tokenem lub wklej token obecnego bota.",
+        "slackData": "Dane",
+        "startWorkflowMissing": "Ta operacja nie jest powiązana z żadnym procesem. Proces mógł zostać usunięty lub nie masz do niego dostępu. Wybierz inny proces lub zwróć się do kogoś, kto ma do niego dostęp.",
+        "startWorkflowUnpublished": "Ten proces jeszcze nie został opublikowany. Opublikuj go, aby przycisk działał.",
+        "startWorkflowNotLive": "Ten proces został wstrzymany lub wyłączony. Należy go najpierw wznowić, aby przycisk go uruchamiał."
+    },
+    "openUrlWorkflowActionForm": {
+        "url": "URL",
+        "urlPlaceholder": "URL...",
+        "openIn": "Otwórz w",
+        "sameTab": "Ta sama karta",
+        "newTab": "Nowa karta"
+    },
+    "openUrlWorkflowAction": {
+        "invalidUrlTitle": "Nie można było otworzyć tego URL",
+        "invalidUrlMessage": "Ten adres URL nie został znaleziony lub używa niedozwolonego protokołu."
+    },
+    "buttonFieldActionList": {
+        "actions": "Operacje",
+        "addAction": "Dodaj operację",
+        "chooseAction": "Wybierz operację...",
+        "searchActions": "Wyszukuj operacje",
+        "misconfigured": "Przynajmniej jedna operacja nie jest skonfigurowana poprawnie",
+        "toggleAction": "Wyświetl lub ukryj tę operację",
+        "moveAction": "Użyj klawiszy strzałek aby zmienić kolejność operacji"
+    },
+    "buttonField": {
+        "dispatchErrorTitle": "Nie można wykonać operacji",
+        "dispatchErrorMessage": "Coś się nie powiodło w trakcie wykonywania operacji tego przycisku. Spróbuj ponownie.",
+        "rateLimitedTitle": "Zbyt wiele kliknięć",
+        "rateLimitedMessage": "Ten przycisk został kliknięty zbyt wiele razy. Poczekaj chwilę i spróbuj ponownie.",
+        "requiresReconfiguration": "Aby kliknąć ten przycisk, należy najpierw zmienić jego konfigurację.",
+        "noPermission": "Nie masz uprawnień, aby kliknąć ten przycisk.",
+        "stillRunningTitle": "Jeszcze nie ukończono",
+        "stillRunningMessage": "Operacja uruchomiona przy pomocy tego przycisku może jeszcze być wykonywana."
+    },
+    "rowEditFieldButtonField": {
+        "createRowBefore": "Operacje mogą być wykonane po utworzeniu wiersza."
+    },
+    "lastViewedItemType": {
+        "databaseView": "widok {name}"
     }
 }

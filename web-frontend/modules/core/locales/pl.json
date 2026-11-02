@@ -34,7 +34,12 @@
         "general": "Ogólne",
         "people": "Osoby",
         "licenses": "Licencje",
-        "replayGuidedTour": "Powtórz wycieczkę po Baserow"
+        "replayGuidedTour": "Powtórz wycieczkę po Baserow",
+        "recents": "Ostatnio wyświetlane",
+        "allWorkspaces": "Wszystkie obszary robocze",
+        "recentlyViewed": "Niedawno wyświetlane",
+        "backToHome": "Powrót na stronę główną",
+        "templates": "Szablony"
     },
     "accountForm": {
         "nameLabel": "Twoje imię",
@@ -165,10 +170,13 @@
     },
     "templateCategories": {
         "search": "Wyszukaj szablony",
-        "title": "Szablony"
+        "title": "Szablony",
+        "allTemplates": "Wszystkie szablony",
+        "noResults": "Brak szablonów"
     },
     "templateHeader": {
-        "use": "Użyj tego szablonu"
+        "use": "Użyj tego szablonu",
+        "selectWorkspace": "Wybierz obszar roboczy"
     },
     "trashSidebar": {
         "title": "Śmieci",
@@ -275,11 +283,12 @@
     },
     "errorLayout": {
         "notFound": "Strona, której szukasz, nie została znaleziona. Może to być spowodowane tym, że adres URL jest nieprawidłowy lub że nie masz uprawnień dostępu do tej strony.",
-        "error": "Podczas otwierania strony wystąpił błąd. Nasi programiści zostali powiadomieni o problemie. Proszę spróbować odświeżyć stronę lub powrócić do pulpitu.",
-        "backDashboard": "Powrót do pulpitu",
+        "error": "Podczas otwierania strony wystąpił błąd. Nasi programiści zostali powiadomieni o problemie. Proszę spróbować odświeżyć stronę lub powrócić na stronę główną.",
+        "backDashboard": "Powrót na stronę główną",
         "backLogin": "Powrót do logowania",
         "wrong": "Wystąpił błąd",
-        "refresh": "Odśwież stronę"
+        "refresh": "Odśwież stronę",
+        "pageNotFoundTitle": "Nie znaleziono strony"
     },
     "dashboard": {
         "title": "Pulpit",
@@ -312,7 +321,9 @@
         "noWorkspaceDescription": "Rozpocznij od utworzenia nowego obszaru roboczego",
         "starOnGitHub": "Oceń nas na GitHub",
         "academy": "Akademia Baserow",
-        "academyMessage": "Weź udział w naszych kursach i zostań ekspertem"
+        "academyMessage": "Weź udział w naszych kursach i zostań ekspertem",
+        "templates": "Szablony",
+        "templatesMessage": "Rozpocznij korzystając z gotowego rozwiązania"
     },
     "dashboardSidebar": {
         "workspaces": "Grupy",
@@ -491,7 +502,8 @@
         "errorJobAlreadyRunningDescription": "Zadanie importu jest już uruchomione. Zanim rozpoczniesz nowe, musisz poczekać, aż poprzednie zostanie zakończone.",
         "errorJobCannotBeCancelledTitle": "Nie można anulować",
         "errorJobCannotBeCancelledDescription": "Nie ma możliwości anulowania zadania, ponieważ zostało ono już zakończone.\nAby je skasować, usuń pierwszą migawkę z poniższej listy.",
-        "stateCanceled": "Anulowano"
+        "stateCanceled": "Anulowano",
+        "errorJobCannotBeCancelledGenericDescription": "Nie ma możliwości anulowania tej czynności, ponieważ została już wykonana."
     },
     "datetime": {
         "daysAgo": "0 dni temu | 1 dzień temu | {n} dni temu",
@@ -518,7 +530,7 @@
                 "copyEmail": "Skopiuj adres e-mail"
             },
             "title": "{userAmount} członków w obszarze roboczym {workspaceName}",
-            "inviteMember": "Zaproś członka zespołu",
+            "inviteMember": "Zaproś członków",
             "columns": {
                 "email": "Adres e-mail",
                 "name": "Nazwa",
@@ -528,7 +540,10 @@
                 "highestRoleHelpText": "Najwyższa rola, jaką ten użytkownik przyznał im bezpośrednio lub w ramach zespołu, w odniesieniu do dowolnego elementu w tym obszarze roboczym",
                 "highestRoleInstanceHelpText": "Najwyższa rola tego użytkownika w obecnej instancji",
                 "2fa": "2FA"
-            }
+            },
+            "emptyTitle": "Nie ma jeszcze żadnych członków",
+            "emptyDescription": "Zaproś do współpracy w obszarze roboczym. Każdej zaproszonej osobie przypisz jakąś rolę. Pozwoli to określić, co dana osoba będzie mogła edytować lub przeglądać.",
+            "search": "Wyszukiwanie członków"
         },
         "invitesTable": {
             "title": "Liczba zaproszeń oczekujących na potwierdzenie w obszarze {workspaceName}: {invitesAmount}",
@@ -540,7 +555,10 @@
             "actions": {
                 "remove": "Anuluj zaproszenie",
                 "copyEmail": "Skopiuj e-mail"
-            }
+            },
+            "emptyTitle": "Brak oczekujących zaproszeń",
+            "emptyDescription": "Zaproś do obszaru roboczego. Zanim zaproszenia zostaną zaakceptowane, możesz je zmienić lub śledzić ich status.",
+            "search": "Wyszukiwanie zaproszonych"
         },
         "invitesTabTitle": "Zaproszenia",
         "membersInviteModal": {
@@ -685,7 +703,9 @@
     "integrationCreateEditModal": {
         "createTitle": "Nowa integracja",
         "editTitle": "Edytuj integrację",
-        "warningTitle": "Ostrzeżenie"
+        "warningTitle": "Ostrzeżenie",
+        "credentialRequiredTitle": "Wymagane uwierzytelnienie",
+        "credentialRequiredMessage": "Aby zmienić połączenie integracji, ponownie wprowadź dane uwierzytelniające."
     },
     "integrationEditForm": {
         "name": "Nazwa",
@@ -719,7 +739,12 @@
         "errorInvalidFormula": "Ta formuła jest nieprawidłowa.",
         "advancedFormulaMode": "Tryb zaawansowany",
         "invalidFormulaTitle": "Nieprawidłowa formuła",
-        "invalidSyntax": "Ta formuła jest nieprawidłowa. Sprawdź składnię."
+        "invalidSyntax": "Ta formuła jest nieprawidłowa. Sprawdź składnię.",
+        "useFormulaMode": "Użyj trybu formuł",
+        "useRawMode": "Użyj trybu źródłowego",
+        "formatPlain": "Zwykły tekst",
+        "formatMarkdown": "Markdown",
+        "formatBadgeTitle": "Format: {format}. Kliknij, żeby zmienić."
     },
     "dataExplorer": {
         "noMatchingNodesText": "Nie znaleziono pasujących wyników.",
@@ -729,7 +754,8 @@
         "title": "Ustawienia obszaru roboczego"
     },
     "workspaceSettingType": {
-        "generativeAI": "Generatywna AI"
+        "generativeAI": "Generatywna AI",
+        "aiProviders": "Dostawcy AI"
     },
     "generativeAIModelType": {
         "openai": "OpenAI",
@@ -765,7 +791,43 @@
         "anthropicModelIdentifierDescription": "Wprowadź [identyfikator modelu Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview), np. `claude-sonnet-5`, `claude-opus-4-8`lub `claude-haiku-4-5`.",
         "mistralModelIdentifierDescription": "Wprowadź [identyfikator modelu Mistral](https://docs.mistral.ai/models/), np. `mistral-large-latest`, `mistral-medium-latest` lub `mistral-small-latest`.",
         "ollamaModelIdentifierDescription": "Wprowadź identyfikator [modelu zainstalowanego w Ollama](https://ollama.com/library), np. `gemma3`, `qwen3` lub `llama3.3`.",
-        "openRouterModelIdentifierDescription": "Wprowadź [identyfikator modelu OpenRouter](https://openrouter.ai/models), np. `openai/gpt-5.6` lub `anthropic/claude-sonnet-5`."
+        "openRouterModelIdentifierDescription": "Wprowadź [identyfikator modelu OpenRouter](https://openrouter.ai/models), np. `openai/gpt-5.6` lub `anthropic/claude-sonnet-5`.",
+        "bedrock": "Amazon Bedrock",
+        "bedrockSecretLabel": "Klucz API lub tajny klucz dostępu",
+        "bedrockSecretDescription": "Wprowadź [klucz API Amazon Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html) lub tajny klucz dostępu powiązany z ID klucza dostępu.",
+        "bedrockChangeSecret": "Zmień klucz API lub tajny klucz dostępu",
+        "bedrockSecretUpdateHint": "Wprowadź nowy klucz API lub tajny klucz dostępu. Wprowadź go ponownie za każdym razem, gdy dodasz lub usuniesz ID klucza dostępu.",
+        "bedrockAccessKeyIdLabel": "ID klucza dostępu",
+        "bedrockAccessKeyIdDescription": "[ID klucza dostępu IAM] (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html), który jest przypisany do tajnego klucza dostępu. Pozostaw puste, aby użyć klucza API Bedrock.",
+        "bedrockRegionLabel": "Region",
+        "bedrockRegionDescription": "Region AWS, w którym ma działać Bedrock, np. `eu-central-1`.",
+        "bedrockModelsLabel": "Włączone modele",
+        "bedrockModelsDescription": "Podaj [ID modeli lub profili wnioskowania Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html), których będzie można używać w bazie Baserow. Poszczególne opcje oddziel przecinkami (np. `eu.anthropic.claude-sonnet-4-5-20250929-v1:0,eu.amazon.nova-pro-v1:0`)`.",
+        "bedrockModelIdentifierDescription": "Wprowadź [ID profilu wnioskowania Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html), np.`eu.anthropic.claude-sonnet-4-5-20250929-v1:0`. Nowsze modele odrzucają ID modelu bazowego.",
+        "google": "Google Gemini",
+        "googleApiKeyLabel": "Klucz API",
+        "googleApiKeyDescription": "Wprowadź klucz API Google AI Studio. [Utwórz lub wyświetl klucz API](https://aistudio.google.com/apikey).",
+        "googleModelsLabel": "Włączone modele",
+        "googleModelsDescription": "Podaj [identyfikatory modeli Gemini](https://ai.google.dev/gemini-api/docs/models) , których będzie można używać w bazie Baserow. Poszczególne opcje oddziel przecinkami, np. `gemini-3.6-flash,gemini-3.5-flash`.",
+        "googleModelIdentifierDescription": "Wprowadź [identyfikator modelu Gemini](https://ai.google.dev/gemini-api/docs/models), np.: `gemini-3.6-flash` lub `gemini-3.5-flash`.",
+        "groq": "Groq",
+        "groqApiKeyLabel": "Klucz API",
+        "groqApiKeyDescription": "Wprowadź klucz API Groq. [Utwórz lub wyświetl klucz API](https://console.groq.com/keys).",
+        "groqModelsLabel": "Włączone modele",
+        "groqModelsDescription": "Podaj [identyfikatory modeli Groq](https://console.groq.com/docs/models) , których będzie można używać w bazie Baserow. Poszczególne opcje oddziel przecinkami, np.: `openai/gpt-oss-120b,openai/gpt-oss-20b`.",
+        "groqModelIdentifierDescription": "Wprowadź [identyfikator modelu Groq](https://console.groq.com/docs/models), np.: `openai/gpt-oss-120b` lub `openai/gpt-oss-20b`.",
+        "xai": "xAI",
+        "xaiApiKeyLabel": "Klucz API",
+        "xaiApiKeyDescription": "Wprowadź klucz API xAI. [Utwórz lub wyświetl klucz API](https://console.x.ai).",
+        "xaiModelsLabel": "Włączone modele",
+        "xaiModelsDescription": "Podaj [identyfikatory modeli xAI](https://docs.x.ai/developers/models), których będzie można używać w bazie Baserow. Poszczególne opcje oddziel przecinkami, np.: `grok-4.3,grok-4.20-non-reasoning`.",
+        "xaiModelIdentifierDescription": "Wprowadź [identyfikator modelu xAI](https://docs.x.ai/developers/models), np.: `grok-4.3` or `grok-4.20-non-reasoning`.",
+        "zai": "Z.ai",
+        "zaiApiKeyLabel": "Klucz API",
+        "zaiApiKeyDescription": "Wprowadź klucz API Z.ai. [Utwórz lub wyświetl klucz API](https://z.ai/manage-apikey/apikey-list).",
+        "zaiModelsLabel": "Włączone modele",
+        "zaiModelsDescription": "Podaj [identyfikatory modeli Z.ai](https://docs.z.ai/guides/overview/pricing), których będzie można używać w bazie Baserow. Poszczególne opcje oddziel przecinkami, np.: `glm-5.2,glm-4.6v`.",
+        "zaiModelIdentifierDescription": "Wprowadź [identyfikator modelu Z.ai](https://docs.z.ai/guides/overview/pricing). Np.: `glm-5.2` lub `glm-4.6v`."
     },
     "generativeAIWorkspaceSettings": {
         "changedTitle": "Ustawienia zostały poprawnie zaktualizowane",
@@ -774,7 +836,16 @@
         "description": "Ustawienia te są opcjonalne i służą do skonfigurowania AI na poziomie obszaru roboczego. Funkcje takie jak pole AI mogą być wyłączone, ponieważ nie został podany klucz API dla jednego z obsługiwanych modeli. Podając klucz, można te funkcje włączyć. Pozostawienie pustej wartości spowoduje zastosowanie globalnych ustawień. W takim wypadku należy pamiętać, że ustawienia te będą wspólne dla wszystkich użytkowników.",
         "changedDescription": "Ustawienia zostały zaktualizowane i od teraz mają zastosowanie w tym obszarze roboczym.",
         "openSettings": "Otwórz ustawienia",
-        "hideSettings": "Ukryj ustawienia"
+        "hideSettings": "Ukryj ustawienia",
+        "providerTitle": "Dostawcy AI",
+        "providerDescription": "Zarządzaj dostawcami w tym obszarze roboczym lub włączaj i wyłączaj dostawców odziedziczonych w instancji.",
+        "sharedModelsTitle": "Modele współdzielone we wszystkich obszarach",
+        "addWorkspaceConfiguration": "Dodaj konfigurację obszaru roboczego",
+        "overridden": "Zastąpienia",
+        "overriddenByWorkspace": "Nadpisane przez obszar roboczy",
+        "disabledInWorkspace": "Wyłączone w obszarze roboczym",
+        "noProviders": "Brak dostępnych dostawców AI",
+        "noProvidersDescription": "Dodaj dostawcę dla tego obszaru roboczego lub poproś, aby administrator skonfigurował go."
     },
     "userPasswordChangedToast": {
         "title": "Hasło zostało zmienione",
@@ -784,7 +855,8 @@
         "addIntegration": "Dodaj nową integrację",
         "noIntegrations": "Nie znaleziono żadnych integracji.",
         "selectTypeFirst": "Najpierw wybierz rodzaj",
-        "integrationPlaceholder": "Wybierz integrację"
+        "integrationPlaceholder": "Wybierz integrację",
+        "editIntegration": "Edytuj integrację"
     },
     "richTextEditorFloatingMenu": {
         "paragraph": "Ustęp",
@@ -1101,7 +1173,9 @@
         "createEndpoint": "Utwórz endpoint",
         "backToOverview": "Powrót",
         "createNewTitle": "Utwórz endpoint serwera MCP",
-        "noEndpointsMessage": "Endpoint serwera MCP (Model Context Protocol) nie został podany. Serwery MCP służą do bezpośredniej integracji z modelami LLM, np. Claude umożliwiając im wykonywanie operacji w Baserow. Aby uruchomić serwer MCP, najpierw utwórz endpoint."
+        "noEndpointsMessage": "Endpoint serwera MCP (Model Context Protocol) nie został podany. Serwery MCP służą do bezpośredniej integracji z modelami LLM, np. Claude umożliwiając im wykonywanie operacji w Baserow. Aby uruchomić serwer MCP, najpierw utwórz endpoint.",
+        "oauthTab": "OAuth",
+        "endpointTab": "Endpoint"
     },
     "workspaceSearch": {
         "types": {
@@ -1221,7 +1295,8 @@
         "useSimpleInputModalTitle": "Przełączyć na tryb standardowy?",
         "useAdvancedInput": "Przełącz się na tryb zaawansowany",
         "useAdvancedInputModalTitle": "Przełączyć na tryb zaawansowany?",
-        "modalMessage": "Przełączenie trybu spowoduje skasowanie bieżącej formuły. Czy na pewno chcesz kontynuować?"
+        "modalMessage": "Przełączenie trybu spowoduje skasowanie bieżącej formuły. Czy na pewno chcesz kontynuować?",
+        "formatLabel": "Format"
     },
     "formulaParserErrors": {
         "invalidArgCountMin": "Funkcja '{funcType}' wymaga co najmniej {minArgs} argumentów.",
@@ -1257,7 +1332,12 @@
         "methodsOptionLabel": "Dozwolone metody HTTP",
         "methodsOptionDescription": "Określa, które metody HTTP są dopuszczalne dla tego webhooka. Wykluczenie GET zmniejsza ryzyko przypadkowego wywołania webhooka.",
         "methodsOptionAll": "Wszystkie",
-        "methodsOptionExcludeGet": "Za wyjątkiem GET"
+        "methodsOptionExcludeGet": "Za wyjątkiem GET",
+        "responseOptionsLabel": "Odpowiedź",
+        "waitForResponse": "Zaczekaj na odpowiedź procesu",
+        "waitForResponseDescription": "Poczekaj, aż wykonanie dotrze do węzła odpowiedzi. Jeśli nie dotrze do żadnego, poczekaj, aż proces zakończy się i zwróci domyślną odpowiedź.",
+        "responseTimeout": "Limit czasu odpowiedzi",
+        "seconds": "sekundy"
     },
     "twoFactorAuthEmpty": {
         "title": "2FA nie jest jeszcze włączone",
@@ -1267,8 +1347,9 @@
         "notAllowedDescription": "2FA jest dostępne tylko dla kont z hasłem."
     },
     "nodeHelpTooltip": {
-        "exampleLabel": "Przykład",
-        "result": "Wynik: {result}"
+        "exampleLabel": "Przykład | Przykłady",
+        "result": "Wynik: {result}",
+        "clickToInsert": "Kliknij przykład, aby go wstawić"
     },
     "enableWithQRCode": {
         "scanQRCode": "Zeskanuj kod QR",
@@ -1296,7 +1377,8 @@
         "showErrorLabel": "Wyświetl błąd",
         "downloadFullPayload": "Pobierz cały payload",
         "truncatedLabel": "[Skrócony wynik]",
-        "truncatedPayloadWarning": "Liczba wyświetlonych znaków: {size}. Pobierz cały payload, żeby go przejrzeć w całości."
+        "truncatedPayloadWarning": "Liczba wyświetlonych znaków: {size}. Pobierz cały payload, żeby go przejrzeć w całości.",
+        "noHtmlContent": "Ten e-mail nie zawiera treści w formacie HTML."
     },
     "workspaceOutdatedToast": {
         "title": "Zbyt wiele zmian",
@@ -1360,12 +1442,12 @@
         "removeModel": "Usuń model",
         "editModel": "Edytuj model",
         "modelIdentifier": "Identyfikator modelu",
-        "modelDiscoveryHelp": "Wybierz model z listy Pydantic AI lub wprowadź dowolny własny identyfikator.",
+        "modelDiscoveryHelp": "Wybierz model z listy lub wprowadź dowolny własny identyfikator.",
         "modelDiscoveryUnavailable": "Lista modeli jest niedostępna. Wprowadź identyfikator ręcznie.",
-        "modelDiscoveryEmpty": "Na liście Pydantic AI nie ma modeli tego dostawcy. Wprowadź identyfikator ręcznie.",
+        "modelDiscoveryEmpty": "Na liście nie ma modeli tego dostawcy. Wprowadź identyfikator ręcznie.",
         "modelDiscoveryNoMatch": "Nie znaleziono pasujących modeli. Możesz użyć identyfikatora, który wprowadziłeś.",
         "noProviders": "W tej instancji nie skonfigurowano jeszcze dostawców AI",
-        "noProvidersDescription": "Dodaj dostawcę ręcznie lub wyświetl podgląd i uruchom polecenie importu środowiska przed włączeniem tej funkcji dla użytkowników.",
+        "noProvidersDescription": "Dodaj dostawcę, aby skonfigurować modele, które mają być dostępne w twoim obszarze roboczym.",
         "noModels": "Dla tego dostawcy nie skonfigurowano jeszcze żadnych modeli.",
         "active": "Aktywny",
         "inactive": "Nieaktywny",
@@ -1387,7 +1469,48 @@
         "retry": "Spróbuj ponownie",
         "saveError": "Dostawca AI nie został zapisany.",
         "saveModelError": "Nie udało się zapisać dostawcy AI.",
-        "actionError": "Zmiana dostawcy AI nie powiodła się."
+        "actionError": "Zmiana dostawcy AI nie powiodła się.",
+        "featureSettingError": "Nie udało się zapisać ustawień funkcji AI.",
+        "featureSettingErrorDescription": "Odśwież stronę i wybierz dostępny model.",
+        "inherited": "Odziedziczony",
+        "moreActions": "Więcej operacji",
+        "testAllModels": "Przetestuj wszystkie modele",
+        "testModel": "Przetestuj model",
+        "someTestsFailed": "Niektóre testy zakończyły się niepowodzeniem",
+        "featureTestPassed": "{feature}: Wynik pozytywny",
+        "featureTestFailed": "{feature}: {error}",
+        "testing": "Trwa testowanie…",
+        "disableModelTitle": "Wyłączyć {name}?",
+        "disableModelDescription": "Model nadal jest oznaczony jako wybrany, ale nie można z niego korzystać, dopóki nie zostanie ponownie włączony.",
+        "modelFeaturesRemovedTitle": "Zmień funkcje dla jakich opcja {name} ma być dostępna?",
+        "modelFeaturesRemovedDescription": "Funkcje, które nie są zaznaczone, nie mogą już korzystać z tego modelu.",
+        "modelInUse": "{features} funkcja korzysta z tego modelu. | Liczba funkcji, które korzystają z tego modelu: {features}.",
+        "modelUsageUnknown": "Nie moża było sprawdzić jaka funkcja nadal korzysta z tego modelu.",
+        "modelUsageFeature": "{feature} ({count})",
+        "modelIdentifierRenamedTitle": "Czy zmienić nazwę {name}?",
+        "modelIdentifierRenamedDescription": "Nadal odwołują się do poprzedniego identyfikatora i wyłączają się, o ile nie zostaną ponownie skonfigurowane.",
+        "extraField_region": "Region",
+        "extraField_access_key_id": "ID klucza dostępu",
+        "availableFor": "Dostępny dla",
+        "availableForDescription": "Wybierz, które z podanych funkcji AI mogą być używane przez ten model.",
+        "availableForList": "Dostępne dla: {features}",
+        "availableForNone": "Niedostępne dla żadnej z wymienionych funkcji",
+        "featureSettingsTitle": "Funkcje AI",
+        "featureSettingsDescription": "Dla każdej funkcji należy wybrać jeden ze skonfigurowanych modeli. Modele środowiskowe zostały wycofane.",
+        "kumaDisabled": "Wyłączony",
+        "kumaInvalidFallback": "Wybrany model jest wyłączony - użyty zostanie starszy model środowiskowy: {model}",
+        "kumaInvalidNoFallback": "Wybrany model nie jest dostępny - brak skonfigurowanego modelu środowiskowego",
+        "kumaDisabledInWorkspace": "Wyłączony w tym obszarze roboczym",
+        "kumaUseInstance": "Użyj ustawień instancji - {model}",
+        "kumaInheritedUnavailable": "wybrany model instancji nie jest dostępny",
+        "kumaUseLegacy": "Użyj modelu środowiskowego (przestarzała opcja): {model}",
+        "kumaLegacyFallback": "model środowiskowy (przestarzały): {model}",
+        "kumaLegacyEmpty": "pusty",
+        "kumaNotConfigured": "nieskonfigurowany",
+        "featureModelLabel": "Model dla funkcji {feature}",
+        "modelScopeInstance": "Instancja",
+        "modelScopeWorkspace": "Obszar roboczy",
+        "noFeatureModels": "Nie ma dostępnych modeli spełniających kryteria. Edytuj model i wybierz, które funkcje mogą z niego korzystać."
     },
     "academy": {
         "learnMore": "Więcej o akademii Baserow"
@@ -1396,5 +1519,326 @@
         "previous": "Poprzedni film",
         "next": "Następny film",
         "close": "Zamknij"
+    },
+    "allWorkspaces": {
+        "title": "Twoje obszary robocze",
+        "searchResults": "Wynik wyszukiwania",
+        "searchPlaceholder": "Szukaj",
+        "allItems": "Wszystkie elementy",
+        "itemsSelected": "{count} rodzaj elementu | liczba rodzajów elementów: {count}",
+        "createWorkspace": "Utwórz obszar roboczy",
+        "expandedView": "Widok rozszerzony",
+        "compactView": "Widok kompaktowy",
+        "collapseAll": "Zwiń wszystko",
+        "expandAll": "Rozwiń wszystko",
+        "workspacesSection": "Obszary robocze",
+        "itemsSection": "Elementy",
+        "noResultsTitle": "Brak rezultatów",
+        "noResultsDescription": "Nie znaleziono żadnych wyników dla frazy „{search}”. Sprawdź pisownię lub użyj innych słów kluczowych.",
+        "clearSearch": "Wyczyść wyszukiwanie",
+        "membersCount": "0 członków | 1 członek | {count} członków",
+        "itemsCount": "0 elementów | 1 element | {count} elementy/ów",
+        "moreElements": "{count} element więcej | {count} elementy/ów więcej",
+        "noApplications": "Nie ma jeszcze żadnych konfiguratorów",
+        "noFilterMatches": "Żaden z elementów nie odpowiada wybranym rodzajom.",
+        "create": "Utwórz",
+        "members": "Członkowie zespołu",
+        "settings": "Ustawienia"
+    },
+    "recentlyViewed": {
+        "title": "Niedawno wyświetlane",
+        "yourItems": "Twoje elementy",
+        "name": "Nazwa",
+        "lastViewed": "Ostatnio wyświetlone",
+        "workspace": "Obszar roboczy",
+        "allWorkspaces": "Wszystkie obszary robocze",
+        "workspacesSelected": "{count} obszar roboczy | liczba obszarów roboczych: {count}",
+        "allItems": "Wszystkie elementy",
+        "itemTypesSelected": "{count} rodzaj elementu | liczba rodzajów elementów: {count}",
+        "tableView": "Tabela",
+        "cardsView": "Karty",
+        "loadMore": "Załaduj więcej",
+        "emptyTitle": "Ostatnio nic nie było wyświetlane",
+        "emptyDescription": "Tutaj są widoczne widoki, strony, pulpity oraz obszary robocze, które otwierasz.",
+        "noFilterMatchesTitle": "Żadne elementy nie są zgodne z wybranymi filtrami",
+        "noFilterMatchesDescription": "Spróbuj wybrać inny obszar roboczy lub rodzaj elementu.",
+        "clearFilters": "Wyczyść filtry",
+        "goToWorkspaces": "Przejdź do swoich obszarów roboczych"
+    },
+    "coreManualTriggerServiceForm": {
+        "responseOptionsLabel": "Odpowiedź",
+        "waitForResponse": "Zaczekaj na odpowiedź procesu",
+        "waitForResponseDescription": "Poczekaj, aż wykonanie dotrze do węzła odpowiedzi. Jeśli nie dotrze do żadnego, poczekaj, aż proces zakończy się i zwróci domyślną odpowiedź.",
+        "responseTimeout": "Limit czasu odpowiedzi",
+        "seconds": "sekundy"
+    },
+    "coreResponseServiceForm": {
+        "statusCode": "Kod stanu",
+        "statusCode200": "200 - OK (przetworzono pomyślnie)",
+        "statusCode201": "201 - Created (zasób został utworzony)",
+        "statusCode202": "202 - Accepted (żądanie zostało przyjęte do przetworzenia)",
+        "statusCode204": "204 - No Content (pomyślnie, bez treści odpowiedzi)",
+        "statusCode400": "400 - Bad Request (nieprawidłowe żądanie)",
+        "statusCode401": "401 - Unauthorized (wymagane uwierzytelnienie)",
+        "statusCode403": "403 - Forbidden (brak uprawnień)",
+        "statusCode404": "404 - Not Found (nie znaleziono zasobu)",
+        "statusCode405": "405 - Method Not Allowed (metoda nie jest dozwolona dla tego zasobu)",
+        "statusCode409": "409 - Conflict (konflikt z bieżącym stanem zasobu)",
+        "statusCode422": "422 - Unprocessable Content (nie można przetworzyć zawartości żądania)",
+        "statusCode429": "429 - Too Many Requests (zbyt wiele żądań)",
+        "bodyPlaceholder": "Treść odpowiedzi",
+        "headers": "Nagłówki",
+        "name": "Nazwa",
+        "value": "Wartość",
+        "namePlaceholder": "Nazwa nagłówka",
+        "valuePlaceholder": "Wartość nagłówka",
+        "addHeader": "Dodaj nagłówek",
+        "bodyType": "Rodzaj treści",
+        "bodyTypeEmpty": "Pusty",
+        "bodyTypeJson": "JSON",
+        "bodyTypeText": "Tekst",
+        "body": "Treść",
+        "nameFieldRequired": "Wymagana jest nazwa nagłówka.",
+        "nameFieldInvalid": "Nazwy nagłówków mogą zawierać wyłącznie litery, cyfry, myślniki i znaki podkreślenia, ponadto nie mogą zaczynać się od myślnika ani znaku podkreślenia."
+    },
+    "trashType": {
+        "integration": "integracja",
+        "user_source": "źródło użytkowników"
+    },
+    "richTextEditor": {
+        "errorUnsupportedImageTitle": "Nie można osadzić pliku graficznego",
+        "errorUnsupportedImageMessage": "Błąd: {name} nie jest obsługiwanym typem pliku graficznego."
+    },
+    "inboundEmailTriggerServiceForm": {
+        "title": "Adres e-mail",
+        "addressVersionTest": "Test",
+        "addressVersionPublished": "Opublikowany",
+        "copyAddress": "Skopiuj adres e-mail",
+        "description": "Każda wiadomość e-mail wysłana na ten adres uruchomi proces, a jako payload zostaną użyte: nadawca, temat, treść oraz załączniki tej wiadomości.",
+        "limits": "Akceptowane są wiadomości e-mail o rozmiarze do {size} MB, a treść tekstowa do 1 MB oraz treść HTML również do 1 MB. Załączniki nie są przechowywane: w treści wiadomości uwzględniane są jedynie ich nazwa, rodzaj i rozmiar.",
+        "autoForwardTip": "Wskazówka: możesz również dodać ten adres w ustawieniach przekierowania w swojej skrzynce odbiorczej. Dzięki temu proces zostanie uruchomiony za każdym razem, gdy otrzymasz e-mail.",
+        "secretWarning": "Traktuj ten adres jako sekret: ktokolwiek go zna, może uruchomić ten proces.",
+        "regenerate": "Wygeneruj adres ponownie",
+        "infoDescription": "W zależności od dostawcy usług e-mailowych, dostarczenie wiadomości może potrwać do kilku minut."
+    },
+    "mcpOAuthConnections": {
+        "tools": "{count} narzędzie | liczba narzędzi: {count}",
+        "connectedOn": "Podłączono {date}",
+        "disconnect": "Rozłącz",
+        "confirmDisconnect": "Kliknij ponownie aby rozłączyć",
+        "title": "Podłącz narzędzie AI",
+        "description": "Każde narzędzie z innym adresem URL. Zaloguj się i wybierz obszar roboczy oraz narzędzia.",
+        "copyURL": "Skopiuj URL",
+        "claudeInstructions": "W claude.ai lub Claude Desktop otwórz **Settings → Connectors**, kliknij **Add custom connector** i wklej powyższy URL.",
+        "claudeCodeInstructions": "Wykonaj tę komendę w oknie terminala. Następnie w Claude Code, aby się zalogować, wpisz komendę `/mcp`.",
+        "chatGptInstructions": "W ChatGPT otwórz **Plugins**, w prawym górnym rogu kliknij **+** i wybierz opcję **Add custom MCP server**. Wklej powyższy URL jako adres serwera oraz wybierz **OAuth** jako formę uwierzytelnienia.",
+        "cursorInstructions": "Dopisz to do `~/.cursor/mcp.json`. Cursor poprosi o zalogowanie się po połączeniu.",
+        "connectedApps": "Podłączone aplikacje",
+        "noConnections": "Nie ma jeszcze żadnych podłączonych aplikacji.",
+        "publishedBy": "{host}",
+        "expired": "Wylogowany",
+        "expiredTooltip": "Sesja tej aplikacji zakończyła się. Zaloguj się ponownie za pośrednictwem aplikacji.",
+        "toolsOff": "{count} narzędzie wyłączone | Liczba wyłączonych narzędzi: {count}",
+        "editTools": "Edytownie narzędzi",
+        "editToolsTitle": "Narzędzia do {client}",
+        "editToolsDescription": "Wybierz funkcje, z których aplikacja może korzystać w {workspace}. Zmiany zostaną uaktualnione przy następnym żądaniu i bez konieczności ponownego logowania.",
+        "saveTools": "Zapisz"
+    },
+    "subjectType": {
+        "user": "Użytkownik",
+        "users": "Użytkownicy",
+        "anonymousUser": "Użytkownik anonimowy",
+        "agent": "Agent",
+        "agents": "Agenci",
+        "members": "Członkowie"
+    },
+    "agents": {
+        "saved": "Zmiany zostały zapisane",
+        "tabTitle": "Agenci",
+        "title": "{count} agentów w {workspace}",
+        "create": "Utwórz agenta",
+        "createTitle": "Utwórz agenta",
+        "updateTitle": "Edytuj agenta",
+        "save": "Zapisz zmiany",
+        "edit": "Edytuj agenta",
+        "delete": "Usuń agenta",
+        "general": "Ogólnie",
+        "mcpServerPlaceholder": "Tutaj znajdziesz ustawienia serwera MCP.",
+        "name": "Nazwa",
+        "invalidNameTitle": "Ta nazwa agenta nie jest dozwolona",
+        "lastActive": "Ostatnia aktywność",
+        "workspaceRole": "Rola w obszarze roboczym",
+        "search": "Wyszukiwanie agentów",
+        "emptyTitle": "Brak agentów",
+        "emptyDescription": "Utwórz agenta, aby połączyć narzędzia AI z Twoim obszarem roboczym. Wybierz rolę i zespoły, aby określić, do czego ma mieć dostęp.",
+        "new": "Nowy",
+        "roleHelpText": "Zacznij od braku dostępu, następnie, w zależności od potrzeb, dodaj dostęp do konkretnych baz danych, tabel lub widoków."
+    },
+    "mcpAuthorize": {
+        "title": "Podłącz {client}",
+        "titleFrom": "Podłącz {client} z {host}",
+        "subtitle": "Będzie pełnił Twoją rolę w wybranym obszarze roboczym.",
+        "unverified": "Niezweryfikowane · przekierowuje z powrotem do {host}",
+        "returns": "Powraca do {host}",
+        "workspace": "Obszar roboczy",
+        "databases": "liczba baz danych: {count} | liczba baz danych: {count}",
+        "noWorkspaces": "Nie masz możliwości podłączenia aplikacji w żadnym z obszarów roboczych. Poproś administratora o dostęp.",
+        "loopbackWarning": "Ta aplikacja loguje się za pośrednictwem Twojego komputera. Ta nazwa może być użyta przez każdy zainstalowany program. Kontynuuj wyłącznie, jeżeli jesteś osobą, która sama rozpoczęła proces logowania.",
+        "signedIn": "Zalogowany jako {email}",
+        "allow": "Zezwalaj",
+        "deny": "Zablokuj",
+        "invalid": "Ta prośba o autoryzację jest niepoprawna.",
+        "invalidMessage": "Spróbuj ponownie podłączyć się z aplikacji. Jeśli problem powtórzy się, usuń serwer Baserow z aplikacji, a następnie dodaj go ponownie.",
+        "unknownClient": "Rejestracja logowania tej aplikacji nie jest skonfigurowana lub wygasła. Usuń serwer Baserow z aplikacji, a następnie dodaj go ponownie.",
+        "clientRejected": "Ta aplikacja nie może się zalogować do tego serwera Baserow. Poproś administratora, aby sprawdził przyczynę w logu serwera.",
+        "loadFailed": "Nie udało się załadować tego żądania logowania.",
+        "loadFailedMessage": "Sprawdź połączenie i przeładuj stronę, zanim spróbujesz ponownie.",
+        "failed": "Nie udało się uzyskać połączenia.",
+        "framed": "Ze względów bezpieczeństwa ta strona nie może być wyświetlana wewnątrz innej witryny. Aby kontynuować, otwórz ją w osobnym oknie przeglądarki."
+    },
+    "mcpToolPicker": {
+        "tools": "Co jest dostępne",
+        "readOnly": "Tylko odczyt",
+        "fullAccess": "Pełen dostęp",
+        "none": "Brak",
+        "noTools": "Brak dostępnych narzędzi.",
+        "deletes": "Usuwa",
+        "overwrites": "Nadpisuje",
+        "areaDatabase": "Bazy danych",
+        "databaseRead": "Odczyt tabel i wierszy",
+        "databaseEdit": "Tworzenie i modyfikacja",
+        "databaseDelete": "Usuwanie"
+    },
+    "createUserTemplateJobType": {
+        "name": "Tworzenie szablonów"
+    },
+    "inviteModal": {
+        "emailRoute": "E-mail z zaproszeniem",
+        "linkRoute": "Utwórz link",
+        "emailTitle": "Zaproś członków e-mailem",
+        "linkTitle": "Zaproś członków używając linku",
+        "linkEmptyTitle": "Jeszcze nie utworzono linku z zaproszeniem",
+        "linkEmptyDescription": "Możesz utworzyć wiele linków z różnymi rolami.",
+        "pendingTitle": "Wysłane zaproszenia",
+        "pendingEmptyTitle": "Brak wysłanych zaproszeń.",
+        "pendingEmptyDescription": "Zaproszenia będą tutaj widoczne, dopóki nie zostaną zaakceptowane."
+    },
+    "inviteInput": {
+        "batchLimitExceeded": "Możesz jednorazowo wysłać zaproszenia na maksymalnie {limit} adresy/ów.",
+        "placeholder": "Wpisz lub skopiuj adresy e-mail",
+        "invite": "Zaproś",
+        "inviteAs": "Zaproś {count} jako {role}",
+        "tabAll": "Wszyscy",
+        "inviteEmail": "Zaproś {email}",
+        "inviteEmailDescription": "Zostanie przypisany do obszaru roboczego jako {role}",
+        "alreadyInvited": "Zaproszenie zostało już wysłane.\nZamiast wysyłać ponownie, możesz zmodyfikować rolę na stronie zaproszenia.",
+        "alreadyMember": "Jest już członkiem tego obszaru roboczego",
+        "roleNotForEmails": "Nowy użytkownik nie może być zaproszony jako {role}",
+        "noResults": "Aby wysłać zaproszenie, wpisz pełny adres e-mail."
+    },
+    "templateEmptyState": {
+        "noResultsTitle": "Brak szablonów",
+        "noResultsDescription": "Brak szablonów pasujących do zapytania \"{query}\". Spróbuj wpisać inne zapytanie."
+    },
+    "templateInstall": {
+        "use": "Użyj tego szablonu",
+        "selectWorkspace": "Wybierz obszar roboczy",
+        "more": "Więcej",
+        "copyLink": "Skopiuj link do współdzielenia"
+    },
+    "templateDetails": {
+        "back": "Powrót do Szablonów",
+        "contents": "Co zawiera",
+        "actions": "Operacje",
+        "editDetails": "Edytuj szczegóły",
+        "updateContent": "Zmodyfikuj zawartość szablonu"
+    },
+    "templateModal": {
+        "officialTemplates": "Oficjalne szablony",
+        "yourTemplates": "Twoje szablony"
+    },
+    "createUserTemplateModal": {
+        "detailsTitle": "Nowe szablony",
+        "detailsDescription": "Zapisz co zrobiłeś, jako szablon do ponownego wykorzystania.",
+        "continue": "Kontynuuj",
+        "contentTitle": "Wybierz zawartość szablonu",
+        "contentDescription": "Wybierz obszar roboczy, a następnie elementy, które będzie zawierał szablon.",
+        "create": "Utwórz szablon",
+        "cannotBeCancelled": "Nie można anulować, ponieważ szablon został już utworzony.",
+        "failedAfterCreated": "Szablon został utworzony, ale po utworzeniu wystąpił błąd."
+    },
+    "updateUserTemplateModal": {
+        "detailsTitle": "Edytuj szablon",
+        "detailsDescription": "Zmodyfikuj wygląd szablonu. Zawartość szablonu pozostanie bez zmian.",
+        "contentTitle": "Zaktualizuj zawartość",
+        "contentDescription": "Zastąp zawartość szablonu aplikacjami z jednego z obszarów roboczych. Szczegóły, link i uprawnienia pozostaną bez zmian.",
+        "save": "Zapisz zmiany",
+        "update": "Zaktualizuj szablon",
+        "updated": "Szablon został zaktualizowany",
+        "failedAfterUpdated": "Szablon został zaktualizowany, ale po aktualizacji wystąpił błąd.",
+        "cannotBeCancelled": "Nie można anulować, ponieważ szablon został już zaktualizowany.",
+        "invalidKeptDetails": "Ta ikona lub kategoria szablonu nie może już być użyta. Aby je zmodyfikować, użyj opcji \"Edytuj szczegóły”, a następnie zaktualizuj zawartość."
+    },
+    "userTemplateDetailsForm": {
+        "name": "Nazwa",
+        "namePlaceholder": "Nazwa szablonu",
+        "nameRequired": "Nazwa jest wymagana.",
+        "chooseIcon": "Wybierz ikonę",
+        "description": "Opis",
+        "descriptionPlaceholder": "Do czego służy ten szablon?",
+        "categories": "Kategorie",
+        "categoriesRequired": "Wybierz przynajmniej jedną kategorię."
+    },
+    "userTemplateContentForm": {
+        "workspace": "Obszar roboczy",
+        "workspaceEmpty": "W tym obszarze roboczym nie ma nic do skopiowania.",
+        "workspaceNoPermission": "Nie masz uprawnień do skopiowania tego obszaru roboczego.",
+        "applications": "Zawartość",
+        "noticeTitle": "Co nie zostanie skopiowane",
+        "noticeSecrets": "Większość haseł, tokenów oraz kluczy API integracji lub synchronizacji danych.",
+        "noticePeople": "Użytkownicy: wartości pól współpracowników, przypisania ról oraz użytkownik, którego AI używa w trakcie uaktualniania pól.",
+        "noticePersonalViews": "Własne widoki.",
+        "noticeReferences": "Połączenia z bazami danych które nie są uwzgędnione. Należy ponownie skonfigurować źródła danych, filtry i triggery, które z nich korzystają.",
+        "noticeRest": "Pozostałe treści zostaną udostępnione bez zmian.",
+        "selectedApplications": "Wybano 0 aplikacji | Wybrano 1 aplikację | Liczba wybranych aplikacji: {count}"
+    },
+    "templateIconSelectContext": {
+        "search": "Wyszukiwanie ikon",
+        "noResults": "Nie znaleziono ikon"
+    },
+    "userTemplateList": {
+        "title": "Twoje szablony",
+        "count": "0 szablonów | 1 szablon | Liczba szablonów: {count}",
+        "search": "Wyszukiwanie szablonów",
+        "newTemplate": "Nowy szablon",
+        "name": "Nazwa",
+        "visibility": "Widoczność",
+        "lastUpdated": "Ostatnia aktualizacja",
+        "emptyTitle": "Nie ma jeszcze żadnych szablonów",
+        "emptyDescription": "Zapisz to, co zrobiłeś jako szablon, który będziesz mógł zobaczyć w podglądzie oraz udostępnić.",
+        "noWorkspace": "Szablon tworzony jest na podstawie obszaru roboczego. Musisz najpierw utworzyć nowy obszar lub dołączyć do istniejącego.",
+        "noContent": "Szablon jest tworzony na podstawie zawartości obszaru roboczego. Musisz najpierw dodać bazę danych, aplikację lub automatyzację.",
+        "statePrivate": "Prywatny",
+        "stateInReview": "W trakcie przeglądu",
+        "stateRejected": "Odrzucony",
+        "stateBlocked": "Zablokowany",
+        "statePublic": "Publiczny",
+        "errorTitle": "Nie można było załadować Twoich szablonów",
+        "errorDescription": "W trakcie ładowania Twoich szablonów wystąpił błąd.",
+        "retry": "Spróbuj ponownie",
+        "actions": "Operacje",
+        "editDetails": "Edytuj szczegóły",
+        "updateContent": "Zmodyfikuj zawartość szablonu"
+    },
+    "crudTable": {
+        "empty": "Jeszcze nie ma żadnych pozycji",
+        "emptyPage": "Brak rezultatów na tej stronie.",
+        "noResults": "Nie znaleziono żadnych wyników. Spróbuj zmienić zapytanie lub filtry.",
+        "rowActions": "Operacje na wierszach",
+        "expandRow": "Pokaż więcej szczegółów",
+        "collapseRow": "Pokaż mniej szczegółów"
+    },
+    "managementPages": {
+        "you": "Ty"
     }
 }

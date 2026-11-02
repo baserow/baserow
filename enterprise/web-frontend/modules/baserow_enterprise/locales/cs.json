@@ -33,10 +33,13 @@
         "submit": "Uložit",
         "nameTitle": "Název",
         "roleTitle": "Výchozí role",
-        "inviteMembers": "Přidat členy",
-        "membersTitle": "Členové",
-        "noSubjectsSelected": "Prostřednictvím tohoto týmu zatím nikdo nemá přístup.",
-        "roleHelpText": "Specifické uživatelské role budou vždy nadřazeny rolím definovaným pro tým."
+        "inviteMembers": "Spravovat přístup",
+        "membersTitle": "Členové týmu",
+        "noSubjectsSelected": "Zatím nikdo nemá přístup prostřednictvím tohoto týmu.",
+        "roleHelpText": "Specifické uživatelské role budou vždy nadřazeny rolím definovaným pro tým.",
+        "agentLabel": "Agent",
+        "accessModalTitle": "Spravovat přístup týmu",
+        "accessModalDescription": "Zvolte lidi a agenty, kteří patří do tohoto týmu."
     },
     "editTeamContext": {
         "remove": "Smazat tým",
@@ -49,7 +52,10 @@
         "createdColumn": "Datum vytvoření",
         "subjectsColumn": "Členové",
         "roleColumn": "Výchozí role",
-        "roleHelpText": "Lze přepsat pomocí rolí v databázích a tabulkách."
+        "roleHelpText": "Lze přepsat pomocí rolí v databázích a tabulkách.",
+        "emptyTitle": "Zatím žádné týmy",
+        "emptyDescription": "Seskupte lidi a agenty do týmů, abyste společně spravovali jejich přístup. Vytvořte tým pro oddělení nebo projekt a pak mu přiřaďte roli.",
+        "search": "Hledat týmy"
     },
     "teamsSettings": {
         "teamsTabTitle": "Týmy"
@@ -70,7 +76,7 @@
         "workspaceTitle": "Protokol o auditu - {workspaceName}",
         "filterToTimestampTitle": "Do",
         "filterToTimestamp": "Do",
-        "user": "Uživatel",
+        "user": "Aktér",
         "timestamp": "Časové razítko",
         "actionType": "Typ události",
         "description": "Popis",
@@ -80,7 +86,13 @@
         "clearFilters": "Vymazat",
         "allUsers": "Všichni uživatelé",
         "allActionTypes": "Všechny typy událostí",
-        "filterFromTimestamp": "Od"
+        "filterFromTimestamp": "Od",
+        "filterActorTitle": "Aktér",
+        "actorType": "Typ aktéra",
+        "allActors": "Všichni aktéři",
+        "usersSection": "Uživatelé",
+        "agentsSection": "Agenti",
+        "actorDisplay": "{name} ({id})"
     },
     "subjectSampleField": {
         "titleAttr": "Počet členů v tomto týmu je {subjectCount}."
@@ -127,7 +139,8 @@
         "firstNameAttrKey": "Jméno",
         "firstNameAttrKeyHelper": "Jméno uživatele, nebo celé jméno, pokud není zadáno „Příjmení“.",
         "lastNameAttrKey": "Příjmení",
-        "lastNameAttrKeyHelper": "Příjmení uživatele (volitelné). Vymažte tuto hodnotu, chcete-li celé jméno zadat v poli „Jméno“."
+        "lastNameAttrKeyHelper": "Příjmení uživatele (volitelné). Vymažte tuto hodnotu, chcete-li celé jméno zadat v poli „Jméno“.",
+        "emailVerificationNotice": "Před ověřováním uživatelů zajistěte, aby poskytovatel identity vyžadoval ověřené e-mailové adresy. Podpisy SAML ověřují poskytovatele, nikoli vlastnictví e-mailové adresy."
     },
     "loginError": {
         "errorInvalidSamlRequest": "Požadavek SAML je neplatný.",
@@ -142,7 +155,9 @@
         "title": "Něco se nepodařilo:",
         "defaultErrorMessage": "Průběh přihlášení pomocí SSO nebylo možné dokončit.",
         "errorSsoFeatureNotActive": "Funkce SSO není aktivní. Kontaktujte svého administrátora.",
-        "errorUserDeactivated": "uživatel byl zakázán."
+        "errorUserDeactivated": "uživatel byl zakázán.",
+        "errorUnverifiedEmail": "poskytovatel identity neověřil vaši e-mailovou adresu. Ověřte prosím svůj e-mail u poskytovatele a zkuste to znovu.",
+        "errorApplicationUserLimitReached": "Přihlášení je dočasně nedostupné. Kontaktujte prosím vlastníka webu nebo to zkuste později."
     },
     "roles": {
         "builder": {
@@ -248,7 +263,8 @@
         "membersTab": "Členové",
         "teamsTab": "Týmy",
         "subjectTypeNameMembers": "členové",
-        "subjectTypeNameTeams": "týmy"
+        "subjectTypeNameTeams": "týmy",
+        "agentsTab": "Agenti"
     },
     "selectMembersList": {
         "searchPlaceholder": "Hledat členy...",
@@ -262,13 +278,15 @@
         "invite": "Pozvat {type} ({count})",
         "types": {
             "members": "členy",
-            "teams": "týmy"
+            "teams": "týmy",
+            "agents": "agenti"
         },
-        "helpTooltip": "Přiřazení role člena má přednost před přiřazením role týmu."
+        "helpTooltip": "Přiřazení rolí členů a agentů mají přednost před přiřazením rolí týmů."
     },
     "membersRoleField": {
         "noAccessHelpText": "Tento uživatel potřebuje výslovný přístup ke zdrojům.",
-        "adminHelpText": "Administrátoři mohou omezit role ostatních administrátorů."
+        "adminHelpText": "Administrátoři mohou omezit role ostatních administrátorů.",
+        "adminFullAccessHelpText": "Správci mají úplný přístup ke všemu v tomto pracovním prostoru. Jejich roli u databáze, tabulky nebo pohledu nelze snížit. Chcete-li správce omezit, nejprve snižte jeho roli v pracovním prostoru."
     },
     "membersPagePlugin": {
         "roleHelpText": "Lze přepsat rolemi na úrovni databází a tabulek."
@@ -294,7 +312,8 @@
         "lastNameAttrKey": "Příjmení",
         "firstNameAttrKeyHelper": "Jméno uživatele, nebo celé jméno, pokud není zadáno „Příjmení“.",
         "lastNameAttrKeyHelper": "Příjmení uživatele (volitelné). Vymažte tuto hodnotu, chcete-li celé jméno zadat v poli „Jméno“.",
-        "callbackUrl": "URL zpětného volání"
+        "callbackUrl": "URL zpětného volání",
+        "emailVerificationNotice": "Před ověřováním uživatelů zajistěte, aby poskytovatel identity vyžadoval ověřené e-mailové adresy. Baserow důvěřuje e-mailové adrese uvedené poskytovatelem."
     },
     "loginButton": {
         "continueWith": "Pokračovat pomocí"
@@ -329,7 +348,9 @@
         "xlsFileReaderContent": "Načítejte řádky ze souborů XLS a XLSX v uzlech automatizace a akcích pracovních postupů tvůrce aplikací.",
         "dataScanner": "Skener dat",
         "dataScannerContent": "Prohledávejte všechna data v instanci Baserow a hledejte citlivé vzory, například čísla IBAN nebo zdravotnické identifikátory, případně porovnávejte data se seznamy známých hodnot. Nastavte automatické plány skenování a zobrazujte podrobné výsledky.",
-        "dateDependency": "Datumová závislost"
+        "dateDependency": "Datumová závislost",
+        "builderGraphElement": "Prvek grafu",
+        "builderGraphElementContent": "Zobrazte data řízená vzorcem jako graf na stránkách aplikace."
     },
     "userTeamsField": {
         "no_records": "Žádné týmy"
@@ -422,7 +443,7 @@
         "multiple": "Více souborů?",
         "required": "Povinné",
         "fileTypes": "Typy souborů",
-        "fileTypesHelper": "Zvolte přípony souborů, které má vstup souborů povolit (jednu na řádek), například jpg, png, svg nebo pdf. Chcete-li povolit všechny soubory daného typu, můžete zadat image/*, video/* nebo audio/*. Ponecháte-li pole prázdné, budou povoleny všechny typy souborů.",
+        "fileTypesHelper": "Zvolte povolené typy souborů (jeden na řádek). Zadejte příponu souboru (např. jpg, .png, pdf), úplný typ MIME (např. image/jpeg, application/pdf) nebo zástupný znak MIME (např. image/*, text/*, application/*), abyste povolili všechny soubory daného typu. Ponechte prázdné, chcete-li povolit všechny typy souborů.",
         "preview": "Zobrazovat náhledy obrázků?",
         "maxFileSize": "Maximální velikost souboru",
         "maxFileSizePlaceholder": "Zadejte číslo...",
@@ -445,7 +466,9 @@
         "nobodyTitle": "Nikdo",
         "nobodyDescription": "Žádní uživatelé",
         "allowInForms": "Povolit nastavení tohoto pole v řádcích vytvořených prostřednictvím formulářů",
-        "linkRowWarning": "Toto je pole „Odkaz na tabulku“. Chcete-li zajistit, aby hodnoty nebylo možné měnit z propojené tabulky, nastavte správná oprávnění také u propojené tabulky."
+        "linkRowWarning": "Toto je pole „Odkaz na tabulku“. Chcete-li zajistit, aby hodnoty nebylo možné měnit z propojené tabulky, nastavte správná oprávnění také u propojené tabulky.",
+        "customTitle": "Konkrétní uživatelé, agenti nebo týmy",
+        "customDescription": "Pouze vybraní uživatelé, agenti a členové týmů, kteří již mají roli Editor, Builder nebo Správce"
     },
     "builderSettingTypes": {
         "customCode": "Vlastní CSS/JS"
@@ -479,7 +502,9 @@
     },
     "elementType": {
         "errorUserSourceHasNoLoginOption": "Vybraný zdroj uživatelů nemá žádnou možnost přihlášení",
-        "errorUserSourceMissing": "Není vybrán žádný zdroj uživatelů"
+        "errorUserSourceMissing": "Není vybrán žádný zdroj uživatelů",
+        "graph": "Graf",
+        "graphDescription": "Zobrazte data řízená vzorcem jako graf."
     },
     "fieldPermissionsMenuItem": {
         "label": "Upravit oprávnění pole"
@@ -570,8 +595,8 @@
         "polarArea": "Polární plošný graf"
     },
     "groupedAggregateRowsDataSourceForm": {
-        "series": "Datové řady",
-        "addSeries": "Přidat datovou řadu",
+        "series": "Řady",
+        "addSeries": "Přidat řadu",
         "data": "Data",
         "sourceFieldLabel": "Zdroj",
         "viewFieldLabel": "Zobrazení",
@@ -580,13 +605,13 @@
     "aggregationSeriesForm": {
         "aggregationFieldLabel": "Pole",
         "aggregationTypeLabel": "Souhrn",
-        "deleteSeries": "Odstranit datovou řadu",
+        "deleteSeries": "Odstranit řadu",
         "chartType": "Typ grafu",
         "barChart": "Sloupcový",
         "lineChart": "Spojnicový",
-        "pieChart": "Výsečový",
+        "pieChart": "Koláčový",
         "doughnutChart": "Prstencový",
-        "polarAreaChart": "Polární plošný"
+        "polarAreaChart": "Polární plocha"
     },
     "aggregationGroupByForm": {
         "groupByFieldLabel": "Seskupit podle",
@@ -594,7 +619,7 @@
         "groupByRowId": "ID řádku"
     },
     "aggregationSortByForm": {
-        "sortByFieldLabel": "Seřadit podle",
+        "sortByFieldLabel": "Řadit podle",
         "none": "Žádné",
         "ascending": "Vzestupně",
         "descending": "Sestupně"
@@ -883,5 +908,129 @@
         "placeholder": "např. Sleduj klientské projekty s termíny, vlastníky a stavem.",
         "title": "Co má pro vás Kuma vytvořit?",
         "suggestionsTitle": "Nebo začněte jedním z těchto návrhů"
+    },
+    "enterpriseAgents": {
+        "teams": "Týmy",
+        "noTeams": "Žádné týmy",
+        "teamsLoadError": "Týmy se nepodařilo načíst.",
+        "teamsLoadErrorDescription": "Zkontrolujte připojení a zkuste to znovu.",
+        "retry": "Zkusit znovu"
+    },
+    "applicationUserLimitNotification": {
+        "titleWarning": "{workspaceName} využil {usage} z {limit} dostupných uživatelů aplikace.",
+        "titleReached": "{workspaceName} dosáhl limitu {limit} uživatelů aplikace. Po jeho překročení se nikdo nebude moci přihlásit k publikovaným aplikacím, dokud neprovedete upgrade.",
+        "titleWarningInstance": "Tato instance využila {usage} z {limit} dostupných uživatelů aplikace. Limit sdílejí všechny pracovní prostory včetně {workspaceName}.",
+        "titleReachedInstance": "Tato instance dosáhla limitu {limit} uživatelů aplikace. Po jeho překročení se nikdo nebude moci přihlásit k publikovaným aplikacím žádného pracovního prostoru včetně {workspaceName}, dokud nebude licence upgradována."
+    },
+    "selectAgentsList": {
+        "searchPlaceholder": "Najít agenty…",
+        "selectedAmountLabel": "Vybraní agenti: {count}"
+    },
+    "subjectType": {
+        "team": "Tým",
+        "teams": "Týmy",
+        "teamMembers": "{count} členů"
+    },
+    "fieldPermissionSubjectsSelector": {
+        "accessNote": "Výběr neuděluje přístup k tabulce. Vybraný uživatel, agent nebo člen vybraného týmu musí mít také roli Editor, Builder nebo Správce v místě, kde se tato tabulka nachází.",
+        "canEdit": "Vybraní uživatelé, agenti a týmy",
+        "noSelectedSubjects": "Zatím není nikdo vybrán. Pomocí vyhledávání výše přidejte uživatele, agenta nebo tým.",
+        "addPeopleOrTeams": "Přidat uživatele, agenty nebo týmy",
+        "searchPlaceholder": "Hledat uživatele, agenty nebo týmy",
+        "searchHint": "Hledat podle názvu",
+        "teamDescription": "Tým",
+        "teamSearchDescription": "Tým · {count} člen | Tým · {count} členů",
+        "remove": "Odebrat {subject}"
+    },
+    "graphElementForm": {
+        "labels": "Popisky",
+        "labelsHelper": "Vzorec musí vyhodnotit pole. Každá položka se stane jedním popiskem v grafu.",
+        "labelsPlaceholder": "to_array('Jan,Feb,Mar')",
+        "seriesList": "Řady",
+        "series": "Řada {number}",
+        "addSeries": "Přidat řadu",
+        "seriesLabel": "Popisek řady",
+        "seriesLabelPlaceholder": "'Revenue'",
+        "seriesValues": "Hodnoty",
+        "seriesValuesHelper": "Vzorec musí vyhodnotit jednu číselnou hodnotu pro každý popisek.",
+        "seriesValuesPlaceholder": "to_array('10,20,30')",
+        "chartType": "Typ grafu",
+        "seriesColor": "Barva",
+        "barChart": "Sloupcový",
+        "lineChart": "Spojnicový"
+    },
+    "graphElement": {
+        "series": "Řada {number}",
+        "noData": "Žádná data grafu"
+    },
+    "aiProviderModelFeature": {
+        "kuma": "Kuma",
+        "kumaDescription": "Napájejte asistenta Kuma AI."
+    },
+    "assistantDashboardPrompt": {
+        "title": "Řekněte nám, co chcete vytvořit",
+        "placeholder": "Vytvořit evidenci firemního majetku",
+        "build": "Vytvořit"
+    },
+    "inviteModal": {
+        "memberRoute": "Pozvat členy"
+    },
+    "scopeInvitationTarget": {
+        "title": "Sdílet {name}",
+        "application": "Aplikace",
+        "table": "Tabulka",
+        "view": "Pohled"
+    },
+    "shareScope": {
+        "pendingNoWorkspaceRole": "Bez role v pracovním prostoru",
+        "searchPlaceholder": "Hledat {subjects} nebo zadejte e-mail",
+        "searchSubjectsPlaceholder": "Hledat {subjects}",
+        "workspaceInvitationRequired": "Pozvání nových lidí vyžaduje oprávnění zvát do pracovního prostoru. Stávajícím členům pracovního prostoru však stále můžete udělit přístup.",
+        "add": "Přidat",
+        "addAs": "Přidat {count} jako {role}",
+        "inviteEmailDescription": "Má roli {role} pouze u tohoto {type} – bez role v pracovním prostoru",
+        "alreadyInvited": "Pozvánka pro tento {type} již čeká.\r\nMísto dalšího pozvání můžete její roli změnit v seznamu níže.",
+        "alreadyAssigned": "U tohoto {type} již má přiřazenou roli.\r\nMůžete ji změnit v seznamu níže.",
+        "alreadyAdmin": "Správce úrovně {level}: již má úplný přístup k tomuto {type}.\r\nChcete-li jej omezit, nejprve snižte jeho roli na úrovni {level}.",
+        "noResults": "Žádní {subjects} neodpovídají. Chcete-li pozvat novou osobu, zadejte celou e-mailovou adresu.",
+        "noSubjectResults": "Žádní {subjects} neodpovídají.",
+        "directAccess": "Přímý přístup k tomuto {type}",
+        "emptyTitle": "Zatím nemá nikdo u tohoto {type} nastavenou roli.",
+        "emptyDescription": "Všichni níže dědí přístup z vyšších úrovní.",
+        "invitePending": "Pozvánka čeká",
+        "noWorkspaceRole": "Bez role v pracovním prostoru – pouze tento {type}",
+        "inheritedAdminHelpText": "Správce úrovně {level} má vždy úplný přístup k tomuto {type}. Role nastavená zde nemá žádný účinek. Chcete-li jej omezit, nejprve snižte jeho roli na úrovni {level}.",
+        "scopeAdminHelpText": "Má úplný přístup k tomuto {type} a všemu v něm. Role nastavené pro cokoli uvnitř na něj nemají žádný účinek. Chcete-li jej omezit, nejprve snižte tuto roli.",
+        "inheritedAccess": "Má také přístup",
+        "inherited": "(zděděno)",
+        "everyoneAt": "Všichni v {name}",
+        "roleCount": "{count} {role}",
+        "fromWorkspace": "Z pracovního prostoru",
+        "fromWorkspaceExplanation": "Všichni si zachovávají roli pracovního prostoru u všeho v pracovním prostoru, včetně tohoto {type}.",
+        "manageWorkspaceRoles": "Spravovat role pracovního prostoru",
+        "error": {
+            "title": "Data se nepodařilo načíst",
+            "description": "Při načítání údajů o členech došlo k chybě."
+        },
+        "roleHere": "{role} zde",
+        "adminHint": "Správce",
+        "agentRoleCount": "{count} agent s rolí {role} | {count} agenti s rolí {role} | {count} agentů s rolí {role}",
+        "noInheritedAccess": "Nikdo jiný nemá přístup k tomuto {type}.",
+        "everyoneWithRoleOn": "Všichni s rolí u {name}",
+        "fromLevel": "Z úrovně {level}",
+        "fromLevelExplanation": "Všichni si zachovávají svou roli na úrovni {level} pro vše uvnitř, včetně tohoto {type}, pokud jim tam není přiřazena jiná role.",
+        "manageLevelRoles": "Spravovat role úrovně {level}",
+        "noAccessTitle": "Odebrat přístup?",
+        "noAccessDescription": "{name} už nebude mít přístup k tomuto {type} ani k ničemu v něm, pokud zde nebude přiřazena role.",
+        "noAccessSelectionDescription": "Vybraný člen, tým nebo agent už nebude mít přístup k tomuto {type} ani k ničemu v něm, pokud zde nebude přiřazena role. | Vybraným {count} členům, týmům ani agentům už nebude umožněn přístup k tomuto {type} ani k ničemu v něm, pokud jim tam nebude přiřazena role. | Vybraným {count} členům, týmům ani agentům už nebude umožněn přístup k tomuto {type} ani k ničemu v něm, pokud jim tam nebude přiřazena role.",
+        "noAccessConfirm": "Odebrat přístup"
+    },
+    "subjectRoleAssignments": {
+        "location": "{type} v {path}",
+        "application": "Aplikace",
+        "table": "Tabulka",
+        "view": "Zobrazení",
+        "remove": "Odebrat roli u {name}",
+        "showMore": "Zobrazit ještě {count} roli | Zobrazit ještě {count} role | Zobrazit ještě {count} rolí"
     }
 }

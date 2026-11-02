@@ -121,7 +121,7 @@
         "rowUsage": "Utilização de linha",
         "storeUsage": "Utilização do espaço",
         "disconnectLicense": "Disconectar da licença",
-        "disconnectDescription": "Se você desconectar esta licença enquanto ela estiver ativa, os usuários relacionados não terão mais acesso ao plano. Ele efetivamente removerá a licença. Entre em contato com nossa equipe de suporte em {contact} se quiser usar esta licença em outra instância auto-hospedada."
+        "disconnectDescription": "Tem certeza de que deseja desconectar esta licença? Se você desconectar esta licença enquanto ela estiver ativa, os usuários relacionados não terão mais acesso ao plano. Isso removerá efetivamente a licença desta instância. Você pode alterar o ID da instância da sua assinatura na página de assinaturas em {subscriptions} ou entrando em contato com nossa equipe de suporte em {contact}, se você estiver no plano enterprise."
     },
     "decoratorValueProviderType": {
         "singleSelectColorDescription": "Colorir as linhas da mesma forma que o valor de uma seleção única",
