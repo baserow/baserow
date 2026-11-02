@@ -154,8 +154,9 @@ def on_page(page: Page) -> Q:
 def forget_page_graphs(page: Page) -> None:
     """
     Reload the graphs of ``page`` and of its builder's shared page and drop their
-    cached elements, after an element's savepoint rolled back. The request's
-    caches still hold the rolled back element.
+    cached elements, after an element's savepoint rolled back or a transaction that
+    locked the graph ended. The request's caches still hold the rolled back element
+    and a handler that thinks it holds the lock.
     """
 
     for graph_page in (page, page.builder.shared_page):

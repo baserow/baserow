@@ -1093,14 +1093,16 @@ def move_elements(
                 }
             )
         except PermissionException:
-            helpers.forget_page_graphs(page)
             errors.append(
                 f"Permission denied for element {element_move.element_id}; it was not moved. "
                 "Do not retry the denied operation."
             )
         except Exception as exc:
-            helpers.forget_page_graphs(page)
             errors.append(f"element {element_move.element_id}: {exc}")
+        finally:
+            # Each move commits on its own and releases the graph lock, so the next
+            # one reads the graph again and takes the lock again.
+            helpers.forget_page_graphs(page)
 
     result: dict[str, Any] = {"moved_elements": moved}
     if errors:
