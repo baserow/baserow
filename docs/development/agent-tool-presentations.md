@@ -40,6 +40,13 @@ Agent tools define these summaries with `AgentToolType.get_step_input(arguments)
 and `get_step_facts(ctx, arguments, result)`. Invalid or unavailable summaries
 remain empty. Summary extraction must never change whether execution succeeds.
 
+Unexpected tool and summary failures use Core's `report_exception` helper. When
+Sentry is configured, it captures the original exception, traceback locals and
+tool context, subject to the existing scrubbing and size limits. Console logs
+contain only a safe summary, exception class and Sentry event ID when available.
+The fake Sentry console transport also uses that safe summary. Reporting failures
+must preserve the tool result and empty-summary fallback.
+
 The frontend uses `STEP_STATUS` from `modules/core/chatRuns/constants.js` for
 the statuses `running`, `done`, `failed` and `stopped`. `stopped` means the
 outcome is uncertain; a write may already have completed. It does not imply

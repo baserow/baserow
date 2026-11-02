@@ -32,7 +32,7 @@ from baserow.contrib.agent.models import (
 )
 from baserow.contrib.agent.operations import ReadAgentConversationsOperationType
 from baserow.contrib.agent.registries import agent_tool_type_registry
-from baserow.contrib.agent.replies import create_reply_model
+from baserow.contrib.agent.replies import AgentResponder, create_reply_model
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.signals import agent_conversation_updated
 from baserow.contrib.agent.types import AgentMessageCreated
@@ -92,6 +92,41 @@ def allow_create_rows(
 def reply_run(data_fixture, configured_agent):
     user = data_fixture.create_user()
     return run_of(start(user, configured_agent(user=user)).conversation)
+
+
+@pytest.mark.django_db
+def test_failed_input_summary_retains_sentry_context_without_logging_payloads(
+    reply_run, data_fixture, reply_model, mocker, logs, sentry_events
+):
+    agent = AgentConversation.objects.get(id=reply_run.chat_id).agent
+    allow_create_rows(data_fixture, agent)
+    request = AgentService().prepare_reply(reply_run.context["reply_id"])
+    responder = AgentResponder(request, mocker.Mock(), reply_model, {})
+    mocker.patch.object(
+        agent_tool_type_registry.get("create_rows"),
+        "get_step_input",
+        side_effect=ValueError("PRIVATE_INPUT_ERROR_CANARY"),
+    )
+    arguments = {"rows": [{"Name": "PRIVATE_INPUT_ARGUMENT_CANARY"}]}
+
+    description = responder._describe_call("create_rows", arguments)
+
+    assert description == {
+        "presentation_type": "create_rows",
+        "changes_data": True,
+        "input": {},
+    }
+    assert len(sentry_events) == 1
+    event = sentry_events[0]
+    assert event["contexts"]["report_exception"] == {
+        "tool": "create_rows",
+        "phase": "step_input",
+    }
+    assert event["exception"]["values"][-1]["value"] == "PRIVATE_INPUT_ERROR_CANARY"
+    assert "PRIVATE_INPUT_ARGUMENT_CANARY" in json.dumps(event)
+    output = "".join(str(entry) for entry in logs)
+    assert "PRIVATE_INPUT_ERROR_CANARY" not in output
+    assert "PRIVATE_INPUT_ARGUMENT_CANARY" not in output
 
 
 @pytest.mark.django_db

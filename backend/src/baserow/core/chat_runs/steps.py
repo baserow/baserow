@@ -4,7 +4,6 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from loguru import logger
 from pydantic_ai import AgentRunResultEvent, AgentStreamEvent
 from pydantic_ai.messages import (
     FunctionToolCallEvent,
@@ -12,6 +11,8 @@ from pydantic_ai.messages import (
     RetryPromptPart,
     ToolReturnPart,
 )
+
+from baserow.core.sentry import report_exception
 
 from .constants import ChatRunEventKind, ChatRunStepStatus
 from .types import ChatRunStep
@@ -47,8 +48,10 @@ def _display_data(value: Any) -> dict[str, Any]:
     try:
         return json.loads(json.dumps(value, allow_nan=False))
     except Exception as exc:
-        logger.error(
-            "Tool step display data is not JSON serializable ({})", type(exc).__name__
+        report_exception(
+            exc,
+            "Tool step display data is not JSON serializable",
+            context={"phase": "step_display"},
         )
         return {}
 
@@ -108,7 +111,11 @@ class ChatRunSteps:
                 if not isinstance(description, dict):
                     description = {}
             except Exception as exc:
-                logger.error("Could not describe tool call ({})", type(exc).__name__)
+                report_exception(
+                    exc,
+                    "Could not describe tool call",
+                    context={"tool": name, "phase": "step_description"},
+                )
             presentation_type = description.get("presentation_type")
             step: ChatRunStep = {
                 "id": str(uuid4()),

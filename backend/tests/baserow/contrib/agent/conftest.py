@@ -61,3 +61,35 @@ def logs():
     sink_id = logger.add(written.append, level="WARNING")
     yield written
     logger.remove(sink_id)
+
+
+@pytest.fixture
+def sentry_events(settings):
+    """Capture actual SDK events without making a network request."""
+
+    from sentry_sdk import Client, new_scope
+    from sentry_sdk.transport import Transport
+
+    events = []
+
+    class MemoryTransport(Transport):
+        def capture_envelope(self, envelope):
+            events.extend(
+                item.payload.json
+                for item in envelope.items
+                if item.headers.get("type") == "event"
+            )
+
+    settings.SENTRY_DSN = "https://public@example.invalid/1"
+    client = Client(
+        dsn=settings.SENTRY_DSN,
+        transport=MemoryTransport(),
+        default_integrations=False,
+        enable_backpressure_handling=False,
+    )
+    try:
+        with new_scope() as scope:
+            scope.set_client(client)
+            yield events
+    finally:
+        client.close()

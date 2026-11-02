@@ -5,7 +5,6 @@ from dataclasses import replace
 from typing import Any, Callable, get_type_hints
 
 from asgiref.sync import sync_to_async
-from loguru import logger
 from pydantic_ai import Tool, ToolReturn
 
 from baserow.core.cache import local_cache
@@ -14,6 +13,7 @@ from baserow.core.exceptions import PermissionDenied
 from baserow.core.mcp.exceptions import INTERNAL_ERROR_MESSAGE, to_mcp_error
 from baserow.core.registries import subject_type_registry
 from baserow.core.registry import Instance, Registry
+from baserow.core.sentry import report_exception
 from baserow.core.tools import ToolContext
 
 
@@ -54,18 +54,20 @@ def _call_tool(
                     raise TypeError("Step facts must be a dictionary")
                 facts = json.loads(json.dumps(facts, allow_nan=False))
             except Exception as exc:
-                logger.error(
-                    "Agent tool {} step facts failed ({})",
-                    tool_type.type,
-                    type(exc).__name__,
+                report_exception(
+                    exc,
+                    f"Agent tool {tool_type.type} step facts failed",
+                    context={"tool": tool_type.type, "phase": "step_facts"},
                 )
                 facts = {}
             return ToolReturn(return_value=result, metadata=facts)
     except Exception as exc:
         message = to_mcp_error(exc)
         if message is None:
-            logger.error(
-                "Agent tool {} failed ({})", function.__name__, type(exc).__name__
+            report_exception(
+                exc,
+                f"Agent tool {tool_type.type} failed",
+                context={"tool": tool_type.type, "phase": "execution"},
             )
             message = INTERNAL_ERROR_MESSAGE
         return {"error": message}
