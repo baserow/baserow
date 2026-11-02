@@ -376,6 +376,73 @@ def test_oauth2_callback_signup_disabled(api_client, enterprise_data_fixture):
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+@pytest.mark.parametrize(
+    "original",
+    [
+        "https://attacker.example\\@localhost:3000/all-workspaces",
+        "https://attacker.example@localhost:3000/",
+        "http://localhost:3000/dash\tboard",
+        "/\\attacker.example",
+        "//attacker.example",
+        "http://[attacker.example/",
+    ],
+)
+def test_oauth2_callback_does_not_send_the_token_to_a_smuggled_host(
+    api_client, enterprise_data_fixture, original
+):
+    # The login view only stores relative urls, so this seeds the session directly
+    # to check the callback doesn't rely on that.
+    enterprise_data_fixture.enable_enterprise()
+    provider = enterprise_data_fixture.create_oauth_provider(
+        type="google", client_id="g_client_id", secret="g_secret"
+    )
+
+    with patch(GET_USER_INFO, create_get_user_info_stub(provider)):
+        session = api_client.session
+        provider.get_type().store_oauth_state(provider, session, OAUTH_STATE)
+        session["oauth_request_data"] = json.dumps({"original": original})
+        session.save()
+        api_client.cookies[settings.SESSION_COOKIE_NAME] = session.session_key
+
+        response = api_client.get(
+            reverse(
+                "api:enterprise_sso_oauth2:callback",
+                kwargs={"provider_id": provider.id},
+            )
+            + f"?code=validcode&state={OAUTH_STATE}",
+            format="json",
+        )
+
+    assert response.status_code == HTTP_302_FOUND
+    location = response.headers["Location"]
+    assert location.startswith(
+        f"{settings.PUBLIC_WEB_FRONTEND_URL}/all-workspaces?token="
+    )
+    assert "attacker.example" not in location
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_oauth2_login_ignores_an_unparsable_original(
+    api_client, enterprise_data_fixture
+):
+    enterprise_data_fixture.enable_enterprise()
+    provider = enterprise_data_fixture.create_oauth_provider(
+        type="google", client_id="g_client_id", secret="g_secret"
+    )
+
+    response = api_client.get(
+        reverse("api:enterprise_sso_oauth2:login", kwargs={"provider_id": provider.id}),
+        {"original": "http://[x"},
+    )
+
+    assert response.status_code == HTTP_302_FOUND
+    session_data = json.loads(api_client.session.pop("oauth_request_data"))
+    assert "original" not in session_data
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_oauth2_callback_login_success(
     api_client, data_fixture, enterprise_data_fixture
 ):

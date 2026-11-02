@@ -179,6 +179,135 @@ def test_builder_saml_baserow_initiated_login_view(
 
 @pytest.mark.django_db()
 @override_settings(DEBUG=True)
+@pytest.mark.parametrize(
+    "relay_state",
+    [
+        "http://attacker.example\\@test.com:3000/login",
+        "http://attacker.example@test.com:3000/login",
+    ],
+)
+def test_builder_saml_acs_does_not_send_the_token_to_a_smuggled_host(
+    data_fixture, api_client, enterprise_data_fixture, relay_state
+):
+    (
+        metadata,
+        saml_response,
+    ) = enterprise_data_fixture.get_valid_saml_idp_metadata_and_response_for_builder()
+    publish_builder_with_saml_provider(data_fixture, metadata)
+
+    with freeze_time("2024-12-17T15:53:00.00Z"):
+        response = api_client.post(
+            reverse("api:user_sources:sso_saml:acs"),
+            data={"SAMLResponse": saml_response, "RelayState": relay_state},
+        )
+
+    assert response.status_code == HTTP_302_FOUND
+    location = response.headers["Location"]
+    assert location.startswith("http://test.com:3000/?user_source_saml_token__")
+    assert "attacker.example" not in location
+
+
+@pytest.mark.django_db()
+@override_settings(DEBUG=True)
+def test_builder_saml_acs_keeps_the_https_origin_of_the_site(
+    data_fixture, api_client, enterprise_data_fixture
+):
+    # The allowed url is http://test.com:3000 because a domain takes its scheme and
+    # port from PUBLIC_WEB_FRONTEND_URL.
+    (
+        metadata,
+        saml_response,
+    ) = enterprise_data_fixture.get_valid_saml_idp_metadata_and_response_for_builder()
+    publish_builder_with_saml_provider(data_fixture, metadata)
+
+    with freeze_time("2024-12-17T15:53:00.00Z"):
+        response = api_client.post(
+            reverse("api:user_sources:sso_saml:acs"),
+            data={
+                "SAMLResponse": saml_response,
+                "RelayState": "https://test.com/login",
+            },
+        )
+
+    assert response.status_code == HTTP_302_FOUND
+    assert response.headers["Location"].startswith(
+        "https://test.com/login?user_source_saml_token__"
+    )
+
+
+@pytest.mark.django_db()
+@override_settings(DEBUG=True)
+def test_builder_saml_acs_removes_callback_params_from_the_relay_state(
+    data_fixture, api_client, enterprise_data_fixture
+):
+    (
+        metadata,
+        saml_response,
+    ) = enterprise_data_fixture.get_valid_saml_idp_metadata_and_response_for_builder()
+    _, published_user_source = publish_builder_with_saml_provider(
+        data_fixture, metadata
+    )
+    relay_state = (
+        "http://test.com:3000/login?next=%2Ftoto&user_source_saml_token__999=x"
+        f"&user_source_saml_token__{published_user_source.id}=ATTACKER"
+        f"&saml_error__{published_user_source.id}=e&user_source_oidc_token__1=x"
+    )
+
+    with freeze_time("2024-12-17T15:53:00.00Z"):
+        response = api_client.post(
+            reverse("api:user_sources:sso_saml:acs"),
+            data={"SAMLResponse": saml_response, "RelayState": relay_state},
+        )
+
+    assert response.status_code == HTTP_302_FOUND
+    location = response.headers["Location"]
+    assert "ATTACKER" not in location
+    # The frontend ignores a callback unless it has exactly one token param.
+    assert [name for name, _ in parse_qsl(urlparse(location).query)] == [
+        "next",
+        f"user_source_saml_token__{published_user_source.id}",
+    ]
+
+
+@pytest.mark.django_db()
+@override_settings(DEBUG=True)
+def test_builder_saml_acs_unparsable_relay_state_returns_an_api_error(
+    api_client, enterprise_data_fixture
+):
+    response = api_client.post(
+        reverse("api:user_sources:sso_saml:acs"),
+        data={"SAMLResponse": "unused", "RelayState": "http://[x/"},
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_SAML_INVALID_LOGIN_REQUEST"
+
+
+@pytest.mark.django_db()
+@override_settings(DEBUG=True)
+def test_builder_saml_login_falls_back_on_an_unparsable_original(
+    data_fixture, api_client, enterprise_data_fixture
+):
+    metadata = enterprise_data_fixture.get_test_saml_idp_metadata()
+    _, published_user_source = publish_builder_with_saml_provider(
+        data_fixture, metadata
+    )
+
+    response = api_client.get(
+        reverse(
+            "api:user_sources:sso_saml:login",
+            kwargs={"user_source_uid": published_user_source.uid},
+        ),
+        {"original": "http://[x"},
+    )
+
+    assert response.status_code == HTTP_302_FOUND
+    query_params = dict(parse_qsl(urlparse(response.headers["Location"]).query))
+    assert query_params["RelayState"] == "http://test.com:3000"
+
+
+@pytest.mark.django_db()
+@override_settings(DEBUG=True)
 def test_builder_saml_assertion_consumer_service(
     data_fixture, api_client, enterprise_data_fixture, settings
 ):

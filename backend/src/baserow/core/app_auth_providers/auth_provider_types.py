@@ -41,6 +41,52 @@ class AppAuthProviderType(
     compatible or False if not.
     """
 
+    callback_token_query_param_prefix: str | None = None
+    """
+    The prefix of the query parameter that gives the frontend the refresh token after
+    a login. It's None if this type doesn't redirect back to the frontend.
+    """
+
+    callback_error_query_param_prefix: str | None = None
+    """
+    The prefix of the query parameter that gives the frontend the error code of a
+    failed login. It's None if this type doesn't redirect back to the frontend.
+    """
+
+    @classmethod
+    def get_callback_token_query_param_name(cls, user_source_id: int) -> str:
+        """
+        :param user_source_id: The id of the user source the user logged in to.
+        :return: The query parameter that gives the frontend the refresh token.
+        """
+
+        return f"{cls.callback_token_query_param_prefix}{user_source_id}"
+
+    @classmethod
+    def get_callback_error_query_param_name(cls, user_source_id: int) -> str:
+        """
+        :param user_source_id: The id of the user source the user tried to log in to.
+        :return: The query parameter that gives the frontend the error code.
+        """
+
+        return f"{cls.callback_error_query_param_prefix}{user_source_id}"
+
+    @classmethod
+    def is_callback_query_param(cls, name: str) -> bool:
+        """
+        :param name: The name of a query parameter.
+        :return: Whether the parameter carries the result of a login with this type,
+            for any user source.
+        """
+
+        return any(
+            prefix and name.startswith(prefix)
+            for prefix in (
+                cls.callback_token_query_param_prefix,
+                cls.callback_error_query_param_prefix,
+            )
+        )
+
     def export_prepared_values(self, instance: AuthProviderModelSubClass) -> dict:
         """
         Returns a serializable dict of this auth provider's values in the

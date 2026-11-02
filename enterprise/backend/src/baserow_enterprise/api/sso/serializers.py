@@ -39,7 +39,10 @@ class SsoLoginRequestSerializer(BaseSsoLoginRequestSerializer):
     def validate_original(self, value):
         """Only relative URLs are allowed."""
 
-        if urlparse(value).hostname:
+        try:
+            if urlparse(value).hostname:
+                return None
+        except ValueError:
             return None
 
         return value
