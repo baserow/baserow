@@ -1717,7 +1717,13 @@ def setup_user_source(
         return {"error": str(exc)}
 
     # Create login page if not already set
+    # A login page that was undone is in the trash, so it counts as none.
     login_page_id = builder.login_page_id
+    if (
+        login_page_id
+        and not helpers.workspace_pages(workspace).filter(id=login_page_id).exists()
+    ):
+        login_page_id = None
     if not login_page_id:
         tool_helpers.update_status(_("Creating login page..."))
         login_page = helpers.create_login_page(user, builder, user_source.id)

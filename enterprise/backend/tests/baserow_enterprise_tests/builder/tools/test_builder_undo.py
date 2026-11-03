@@ -29,6 +29,7 @@ from baserow_enterprise.assistant.tools.builder.tools import (
     update_data_source as update_data_source_tool,
 )
 from baserow_enterprise.assistant.tools.shared import ToolInputError
+from baserow_enterprise.builder.elements.models import AuthFormElement
 from baserow_enterprise.builder.tools import helpers
 from baserow_enterprise.builder.tools.types import (
     ActionCreate,
@@ -37,6 +38,7 @@ from baserow_enterprise.builder.tools.types import (
     PageCreate,
     PageUpdate,
 )
+from baserow_enterprise.builder.tools.types.workflow_action import FieldValueMapping
 from baserow_enterprise_tests.assistant.utils import make_test_ctx
 
 
@@ -237,12 +239,11 @@ def test_create_workflow_action_is_undoable(data_fixture, site):
         site["integration"],
     )
     assert BuilderWorkflowAction.objects.filter(id=action_id).exists()
-    services = Service.objects.count()
 
     undo(site)
 
     assert not BuilderWorkflowAction.objects.filter(id=action_id).exists()
-    assert Service.objects.count() == services
+    assert BuilderWorkflowAction.trash.filter(id=action_id).exists()
 
 
 @pytest.mark.django_db
@@ -257,6 +258,7 @@ def test_create_workflow_action_with_an_invalid_event_leaves_no_service(
             {"name": "Edit", "type": "button", "config": {}},
         ],
     )
+    name_field = site["table"].field_set.first()
     services = Service.objects.count()
 
     with pytest.raises(ToolInputError, match="does not identify one button column"):
@@ -264,10 +266,13 @@ def test_create_workflow_action_with_an_invalid_event_leaves_no_service(
             site["user"],
             site["page"],
             ActionCreate(
-                type="notification",
+                type="create_row",
                 element=table_element.id,
                 event="Edit_click",
-                title="Hi",
+                table_id=site["table"].id,
+                field_values=[
+                    FieldValueMapping(field_id=str(name_field.id), value="'x'")
+                ],
             ),
             {},
             {},
@@ -340,3 +345,33 @@ def test_a_failed_batch_item_leaves_no_action_row(site):
 
     assert len(result["errors"]) == 1
     assert Action.objects.filter(type="create_page").count() == 2
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_setup_creates_a_new_login_page_after_the_old_one_is_undone(data_fixture, site):
+    from baserow_enterprise.assistant.tools.builder.tools import setup_user_source
+    from baserow_enterprise.builder.tools.types.user_source import UserSourceSetup
+
+    table = site["table"]
+    data_fixture.create_email_field(table=table, name="Email")
+    data_fixture.create_password_field(table=table, name="Password")
+    setup = UserSourceSetup(name="Members", table_id=table.id)
+
+    first = setup_user_source(
+        site["ctx"], application_id=site["builder"].id, setup=setup, thought="t"
+    )
+    first_page = Page.objects.get(id=first["login_page_id"])
+    undo(site, first_page)
+    undo(site, first_page)
+    assert not Page.objects.filter(id=first_page.id).exists()
+
+    result = setup_user_source(
+        site["ctx"], application_id=site["builder"].id, setup=setup, thought="t"
+    )
+
+    site["builder"].refresh_from_db()
+    assert result["login_page_id"] != first_page.id
+    assert site["builder"].login_page_id == result["login_page_id"]
+    login_page = Page.objects.get(id=result["login_page_id"])
+    assert AuthFormElement.objects.filter(page=login_page).exists()
