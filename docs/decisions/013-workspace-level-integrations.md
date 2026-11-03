@@ -35,7 +35,7 @@ In scope for v2:
 - Bulk replacement of references and demotion.
 - Builder-managed sharing.
 
-Terms used in this record:
+### Glossary
 
 | Term                  | Meaning                                                                                |
 | --------------------- | -------------------------------------------------------------------------------------- |
