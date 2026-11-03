@@ -1615,8 +1615,8 @@ def resolve_existing_table(
         missing.append("email (EmailField or TextField with 'email' in name)")
     if "name" not in field_map:
         missing.append(
-            "name (TextField with 'name' in name, or a text, email, number or uuid "
-            "primary field)"
+            "name (TextField with 'name' in name, or a text, long text, email, "
+            "number or uuid primary field)"
         )
     if missing:
         raise ToolInputError(

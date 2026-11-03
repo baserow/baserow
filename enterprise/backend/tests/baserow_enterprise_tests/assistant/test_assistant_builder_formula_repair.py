@@ -757,6 +757,40 @@ def test_update_row_with_a_description_is_created_and_its_row_id_filled(
 
 
 @pytest.mark.django_db
+def test_plain_field_value_is_stored_as_fixed_text_with_no_model_call(
+    site, button, monkeypatch
+):
+    def fail(formulas, context):
+        raise AssertionError("the model must not be called")
+
+    asked = use_generator(monkeypatch, fail)
+    field = site["table"].field_set.first()
+
+    result = create_actions(
+        site["ctx"],
+        page_id=site["page"].id,
+        actions=[
+            ActionCreate(
+                type="create_row",
+                element=button.id,
+                event="click",
+                table_id=site["table"].id,
+                field_values=[{"field_id": str(field.id), "value": "New"}],
+            )
+        ],
+        thought="test",
+    )
+
+    assert asked == []
+    assert "errors" not in result
+    assert "formula_errors" not in result
+    action = BuilderWorkflowAction.objects.get(
+        id=result["created_actions"][0]["id"]
+    ).specific
+    assert action.service.specific.field_mappings.get().value["formula"] == "'New'"
+
+
+@pytest.mark.django_db
 def test_create_actions_reports_a_generation_failure_as_before(
     site, button, monkeypatch
 ):

@@ -1585,8 +1585,8 @@ def _create_row_with(builder_ctx, value):
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "value",
-    ["nosuchfn('x')", "not a formula", "get('current_record.id')"],
-    ids=["unknown-function", "plain-text", "not-in-a-collection"],
+    ["nosuchfn('x')", "get('current_record.id')"],
+    ids=["unknown-function", "not-in-a-collection"],
 )
 def test_a_new_row_actions_invalid_field_value_is_left_empty_and_listed(
     builder_ctx, value
@@ -1595,6 +1595,50 @@ def test_a_new_row_actions_invalid_field_value_is_left_empty_and_listed(
 
     assert [e["field"] for e in result["formula_errors"]] == [f"field_{field.id}"]
     assert stored == "''"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        ("Alice", "'Alice'"),
+        ("Hello (world)", "'Hello (world)'"),
+        ("O'Brien", "'O\\'Brien'"),
+        ("not a formula", "'not a formula'"),
+    ],
+)
+def test_a_new_row_actions_plain_field_value_is_stored_as_fixed_text(
+    builder_ctx, value, expected
+):
+    result, _field, stored = _create_row_with(builder_ctx, value)
+
+    assert "formula_errors" not in result
+    assert stored == expected
+
+
+@pytest.mark.django_db
+def test_a_new_row_actions_field_id_may_have_spaces_around_it(builder_ctx):
+    table = builder_ctx["data_source"].service.specific.table
+    field = table.field_set.first()
+    result = actions.create_actions(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            ActionCreate(
+                type="create_row",
+                element=builder_ctx["button"].id,
+                event="click",
+                table_id=table.id,
+                field_values=[{"field_id": f" {field.id} ", "value": "'x'"}],
+            )
+        ],
+    )
+
+    assert "formula_errors" not in result
+    action = BuilderWorkflowAction.objects.get(
+        id=result["created_actions"][0]["id"]
+    ).specific
+    assert action.service.specific.field_mappings.get().value["formula"] == "'x'"
 
 
 @pytest.mark.django_db

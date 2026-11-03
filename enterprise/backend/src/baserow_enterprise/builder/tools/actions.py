@@ -134,8 +134,8 @@ def create_actions(
     Give dynamic values as formulas in Baserow formula syntax, like
     get('form_data.<element id>') or, on a table button, get('current_record.id').
     get('previous_action.<action id>.<field>') reads what an earlier action returned.
-    Plain text in a title, description or parameter is stored as fixed text. A field
-    value is always a formula, so quote fixed text: 'like this'.
+    Plain text in a title, description, parameter or field value is stored as fixed
+    text. Text that parses as a formula is a formula, so quote it: 'like this'.
     Descriptions are not turned into formulas: a value that isn't a valid formula is
     left empty and listed in formula_errors. A field value can then be set with
     add_action_field_mapping. A row action can't run without its row_id, so one that

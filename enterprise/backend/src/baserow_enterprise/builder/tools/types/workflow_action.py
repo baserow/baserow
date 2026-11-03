@@ -19,6 +19,7 @@ from baserow_enterprise.tools.formula_utils import (
     EMPTY_FORMULA,
     formula_desc,
     formula_object,
+    is_valid_formula,
     literal_or_placeholder,
     needs_formula,
 )
@@ -56,7 +57,10 @@ class FieldValueMapping(BaseModel):
     field_id: str = Field(..., description="The field ID (as string).")
     value: str = Field(
         ...,
-        description="Formula, with fixed text quoted, or $formula: prefix + formula intent.",
+        description=(
+            "Fixed text, or a formula or $formula: prefix + formula intent. "
+            "Quote fixed text that parses as a formula: 'like this'."
+        ),
     )
 
 
@@ -240,15 +244,26 @@ def _field_mappings(action: "ActionCreate") -> list[dict] | None:
     if action.type not in ("create_row", "update_row") or not action.field_values:
         return None
 
-    # The formula step checks each value and stores the ones that pass.
+    # A value that is or parses as a formula is checked by the formula step.
+    # Anything else is fixed text.
     return [
         {
-            "field_id": int(fv.field_id),
-            "value": formula_object("''", mode=BASEROW_FORMULA_MODE_ADVANCED),
+            "field_id": int(fv.field_id.strip()),
+            "value": _advanced(
+                EMPTY_FORMULA
+                if _is_field_formula(fv.value)
+                else literal_or_placeholder(fv.value)
+            ),
             "enabled": True,
         }
         for fv in action.field_values
     ]
+
+
+def _is_field_formula(value: str) -> bool:
+    """Whether a field value goes through the formula step, or is fixed text."""
+
+    return needs_formula(value) or is_valid_formula(value)
 
 
 # ---------------------------------------------------------------------------
@@ -269,9 +284,11 @@ def _row_formulas(action: "ActionCreate", orm_action, context) -> dict[str, str]
     # Field values for create/update
     if action.field_values:
         for fv in action.field_values:
-            formulas[f"field_{fv.field_id}"] = (
-                formula_desc(fv.value) if needs_formula(fv.value) else fv.value
-            )
+            key = f"field_{fv.field_id.strip()}"
+            if needs_formula(fv.value):
+                formulas[key] = formula_desc(fv.value)
+            elif is_valid_formula(fv.value):
+                formulas[key] = fv.value
 
     return formulas
 
