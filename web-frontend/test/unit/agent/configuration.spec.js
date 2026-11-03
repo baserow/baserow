@@ -1177,8 +1177,9 @@ describe('Agent configuration', () => {
     }
   )
 
-  const withTools = (allowedTools) =>
+  const withTools = (allowedTools, runAs = investor) =>
     completeConfiguration({
+      run_as: runAs,
       allowed_tools: allowedTools,
       available_tools: [
         { name: 'list_tables', group: 'database', changes_data: false },
@@ -1260,6 +1261,38 @@ describe('Agent configuration', () => {
 
     expect(toggle.attributes('aria-checked')).toBe('true')
     expect(savedValues(testApp)).toEqual([])
+  })
+
+  test('keeps workspace tools off and locked without workspace access', async () => {
+    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(200, page([]))
+    mockConfiguration(testApp, withTools(['list_tables']))
+    mockSaves(testApp, withTools(['list_tables'], null))
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    const body = wrapper.get('.agent-configuration__body')
+    await body.get('.dropdown__selected').trigger('click')
+    await flushPromises()
+    await body
+      .findAll('.select__item-link')
+      .find((item) => item.text().includes('agent.noWorkspaceAccess'))
+      .trigger('click')
+    await flushPromises()
+
+    const tools = wrapper.get('.agent-workspace-tools')
+    const toggle = tools.get('[role="switch"]')
+    expect(toggle.attributes('aria-checked')).toBe('false')
+    expect(toggle.attributes('aria-disabled')).toBe('true')
+    expect(toggle.element.tabIndex).toBe(-1)
+    expect(tools.find('.agent-workspace-tools__presets').exists()).toBe(false)
+
+    await toggle.trigger('keydown', { key: 'Enter' })
+    await toggle.trigger('click')
+    await flushPromises()
+
+    expect(toggle.attributes('aria-checked')).toBe('false')
+    expect(savedValues(testApp)).toEqual([
+      { run_as_subject_type: null, run_as_subject_id: null },
+    ])
   })
 
   test('disables an open tool permissions modal when edit access is revoked', async () => {
