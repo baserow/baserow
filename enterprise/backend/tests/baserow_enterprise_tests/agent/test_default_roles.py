@@ -3,14 +3,22 @@ import pytest
 from baserow.contrib.agent.operations import (
     CreateAgentConversationOperationType,
     CreateAgentMessageOperationType,
+    DeleteAgentConversationOperationType,
     ReadAgentConfigurationOperationType,
     ReadAgentConversationsOperationType,
+    RestoreAgentConversationOperationType,
+    UpdateAgentConversationOperationType,
 )
 from baserow.core.handler import CoreHandler
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 
-READ = {ReadAgentConversationsOperationType.type}
+READ = {
+    ReadAgentConversationsOperationType.type,
+    UpdateAgentConversationOperationType.type,
+    DeleteAgentConversationOperationType.type,
+    RestoreAgentConversationOperationType.type,
+}
 WRITE = READ | {
     CreateAgentConversationOperationType.type,
     CreateAgentMessageOperationType.type,

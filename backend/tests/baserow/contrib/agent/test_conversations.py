@@ -27,6 +27,9 @@ from baserow.core.action.models import Action
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.exceptions import FeatureDisabledException
+from baserow.core.models import TrashEntry
+from baserow.core.trash.exceptions import CannotRestoreItemNotOwnedByUser
+from baserow.core.trash.handler import TrashHandler
 
 from .utils import agent_url, new_conversation, run_reply
 
@@ -247,10 +250,15 @@ def test_conversations_are_private_to_their_owner_and_agent(
         lambda: service.create_conversation(
             actor, target.id, conversation.uuid, message.uuid, message.content
         ),
+        lambda: service.rename_conversation(
+            actor, target.id, conversation.uuid, "Renamed"
+        ),
+        lambda: service.delete_conversation(actor, target.id, conversation.uuid),
     ]:
         with pytest.raises(AgentConversationDoesNotExist):
             attempt()
     assert AgentMessage.objects.count() == 1
+    assert AgentConversation.objects.get().title == conversation.title
 
 
 @pytest.mark.django_db
@@ -558,3 +566,62 @@ def test_message_rechecks_readiness_after_waiting_for_the_conversation(
             future.result(timeout=5)
 
     assert not AgentMessage.objects.exists()
+
+
+@pytest.mark.django_db
+def test_renaming_collapses_whitespace_and_keeps_the_list_order(
+    data_fixture, configured_agent, api_client, api_user
+):
+    agent = configured_agent(user=api_user)
+    renamed = data_fixture.create_agent_conversation(user=api_user, agent=agent)
+    newer = data_fixture.create_agent_conversation(user=api_user, agent=agent)
+    url = agent_url(agent, "conversation", conversation_uuid=renamed.uuid)
+
+    response = api_client.patch(url, {"title": "  Daily\n research "})
+    listed = api_client.get(agent_url(agent, "conversations")).json()["results"]
+
+    assert response.status_code == 200
+    assert response.json()["title"] == "Daily research"
+    assert [item["uuid"] for item in listed] == [str(newer.uuid), str(renamed.uuid)]
+    blank = api_client.patch(url, {"title": " \n"})
+    assert blank.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+
+
+@pytest.mark.django_db
+def test_a_deleted_conversation_stops_its_reply_and_only_its_owner_restores_it(
+    data_fixture, configured_agent, api_client, api_user
+):
+    member = data_fixture.create_user()
+    agent = configured_agent(
+        workspace=data_fixture.create_workspace(user=api_user, members=[member])
+    )
+    payload = new_conversation()
+    api_client.post(agent_url(agent, "conversations"), payload)
+    url = agent_url(agent, "conversation", conversation_uuid=payload["uuid"])
+    messages_url = agent_url(agent, "messages", conversation_uuid=payload["uuid"])
+
+    assert api_client.delete(url).status_code == 204
+
+    reply = AgentMessage.objects.get(role="assistant")
+    assert ChatRun.objects.get().status == reply.status == "cancelled"
+    assert not api_client.get(agent_url(agent, "conversations")).json()["results"]
+    for response in [
+        api_client.get(messages_url),
+        api_client.post(messages_url, {"uuid": str(uuid4()), "content": "Hello"}),
+        api_client.post(agent_url(agent, "conversations"), payload),
+        api_client.patch(url, {"title": "Renamed"}),
+        api_client.delete(url),
+    ]:
+        assert response.json()["error"] == "ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST"
+    entry = TrashEntry.objects.get()
+    assert (entry.trash_item_type, entry.trash_item_owner, entry.application_id) == (
+        "agent_conversation",
+        api_user,
+        agent.id,
+    )
+    with pytest.raises(CannotRestoreItemNotOwnedByUser):
+        TrashHandler.restore_item(member, "agent_conversation", entry.trash_item_id)
+
+    TrashHandler.restore_item(api_user, "agent_conversation", entry.trash_item_id)
+
+    assert api_client.get(messages_url).json()["count"] == 2

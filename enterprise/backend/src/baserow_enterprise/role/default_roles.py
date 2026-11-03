@@ -4,8 +4,11 @@ from django.core.exceptions import ImproperlyConfigured
 from baserow.contrib.agent.operations import (
     CreateAgentConversationOperationType,
     CreateAgentMessageOperationType,
+    DeleteAgentConversationOperationType,
     ReadAgentConfigurationOperationType,
     ReadAgentConversationsOperationType,
+    RestoreAgentConversationOperationType,
+    UpdateAgentConversationOperationType,
 )
 from baserow.contrib.automation.nodes.operations import (
     CreateAutomationNodeOperationType,
@@ -416,6 +419,9 @@ default_roles[VIEWER_ROLE_UID].extend(
         DeleteMCPEndpointOperationType,
         ChatAssistantChatOperationType,
         ReadAgentConversationsOperationType,
+        UpdateAgentConversationOperationType,
+        DeleteAgentConversationOperationType,
+        RestoreAgentConversationOperationType,
         ReadFieldRuleOperationType,
         ExportTableOperationType,
         DispatchDashboardDataSourceOperationType,

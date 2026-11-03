@@ -3,8 +3,10 @@ import pytest
 from baserow.contrib.agent.operations import (
     CreateAgentConversationOperationType,
     CreateAgentMessageOperationType,
+    DeleteAgentConversationOperationType,
     ReadAgentConfigurationOperationType,
     ReadAgentConversationsOperationType,
+    UpdateAgentConversationOperationType,
 )
 from baserow.contrib.agent.service import AgentService
 from baserow.core.actions import ExportApplicationsActionType
@@ -29,6 +31,12 @@ def call(name, user, agent, conversation, message):
         "retry message": lambda: service.create_message(
             user, agent.id, conversation.uuid, message.uuid, message.content
         ),
+        "rename conversation": lambda: service.rename_conversation(
+            user, agent.id, conversation.uuid, "Renamed"
+        ),
+        "delete conversation": lambda: service.delete_conversation(
+            user, agent.id, conversation.uuid
+        ),
         "export": lambda: ExportApplicationsActionType.do(
             user, agent.workspace, [agent]
         ),
@@ -52,6 +60,8 @@ def call(name, user, agent, conversation, message):
             [CreateAgentConversationOperationType, CreateAgentMessageOperationType],
         ),
         ("retry message", [CreateAgentMessageOperationType]),
+        ("rename conversation", [UpdateAgentConversationOperationType]),
+        ("delete conversation", [DeleteAgentConversationOperationType]),
         ("export", [ReadAgentConfigurationOperationType]),
     ],
 )

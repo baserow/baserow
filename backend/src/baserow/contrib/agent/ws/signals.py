@@ -8,7 +8,11 @@ from django.dispatch import receiver
 from rest_framework.fields import DateTimeField
 
 from baserow.contrib.agent.models import AgentConversation
-from baserow.contrib.agent.signals import agent_conversation_updated
+from baserow.contrib.agent.signals import (
+    agent_conversation_deleted,
+    agent_conversation_renamed,
+    agent_conversation_updated,
+)
 from baserow.contrib.agent.ws.tasks import broadcast_run_as_updates
 from baserow.core.agents.signals import agent_created, agent_deleted, agent_updated
 from baserow.core.models import Agent
@@ -50,22 +54,19 @@ def run_as_identity_permanently_deleted(
         )
 
 
-@receiver(agent_conversation_updated)
-def conversation_updated(
-    sender,
+def _notify_owner(
     conversation: AgentConversation,
     user: AbstractUser | None,
-    run_id: UUID | None = None,
-    **kwargs,
-):
-    """Tell the owner's sessions which run is replying, without private content."""
+    event_type: str,
+    **values: str | None,
+) -> None:
+    """Send an event about the conversation to its owner's other sessions only."""
 
     payload = {
-        "type": "agent_conversation_updated",
+        "type": event_type,
         "agent_id": conversation.agent_id,
         "conversation_uuid": str(conversation.uuid),
-        "run_id": str(run_id) if run_id else None,
-        "updated_on": DateTimeField().to_representation(conversation.updated_on),
+        **values,
     }
     owner_id = conversation.owner_user_id
     web_socket_id = getattr(user, "web_socket_id", None)
@@ -74,3 +75,38 @@ def conversation_updated(
             [owner_id], payload, ignore_web_socket_id=web_socket_id
         )
     )
+
+
+@receiver(agent_conversation_updated)
+def conversation_updated(
+    sender,
+    conversation: AgentConversation,
+    user: AbstractUser | None,
+    run_id: UUID | None = None,
+    **kwargs,
+):
+    """Tell the owner's sessions which run is replying, without message content."""
+
+    _notify_owner(
+        conversation,
+        user,
+        "agent_conversation_updated",
+        run_id=str(run_id) if run_id else None,
+        updated_on=DateTimeField().to_representation(conversation.updated_on),
+    )
+
+
+@receiver(agent_conversation_renamed)
+def conversation_renamed(
+    sender, conversation: AgentConversation, user: AbstractUser, **kwargs
+):
+    _notify_owner(
+        conversation, user, "agent_conversation_renamed", title=conversation.title
+    )
+
+
+@receiver(agent_conversation_deleted)
+def conversation_deleted(
+    sender, conversation: AgentConversation, user: AbstractUser, **kwargs
+):
+    _notify_owner(conversation, user, "agent_conversation_deleted")

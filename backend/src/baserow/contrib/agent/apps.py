@@ -13,10 +13,13 @@ class AgentConfig(AppConfig):
             operation_type_registry,
         )
         from baserow.core.search.registries import workspace_search_registry
+        from baserow.core.trash.registries import trash_item_type_registry
 
         from .actions import (
             CreateAgentConversationActionType,
             CreateAgentMessageActionType,
+            DeleteAgentConversationActionType,
+            RenameAgentConversationActionType,
             UpdateAgentConfigurationActionType,
         )
         from .application_types import AgentApplicationType
@@ -25,8 +28,11 @@ class AgentConfig(AppConfig):
         from .operations import (
             CreateAgentConversationOperationType,
             CreateAgentMessageOperationType,
+            DeleteAgentConversationOperationType,
             ReadAgentConfigurationOperationType,
             ReadAgentConversationsOperationType,
+            RestoreAgentConversationOperationType,
+            UpdateAgentConversationOperationType,
         )
         from .registries import agent_tool_type_registry
         from .search_types import AgentSearchType
@@ -45,6 +51,7 @@ class AgentConfig(AppConfig):
             UpdateFieldsAgentToolType,
             UpdateRowsAgentToolType,
         )
+        from .trash_types import AgentConversationTrashableItemType
 
         application_type_registry.register(AgentApplicationType())
         workspace_search_registry.register(AgentSearchType())
@@ -54,14 +61,20 @@ class AgentConfig(AppConfig):
             CreateAgentConversationOperationType,
             CreateAgentMessageOperationType,
             ReadAgentConfigurationOperationType,
+            UpdateAgentConversationOperationType,
+            DeleteAgentConversationOperationType,
+            RestoreAgentConversationOperationType,
         ):
             operation_type_registry.register(operation())
         for action in (
             CreateAgentConversationActionType,
             CreateAgentMessageActionType,
+            RenameAgentConversationActionType,
+            DeleteAgentConversationActionType,
             UpdateAgentConfigurationActionType,
         ):
             action_type_registry.register(action())
+        trash_item_type_registry.register(AgentConversationTrashableItemType())
         chat_run_type_registry.register(AgentChatRunType())
         for tool_type in (
             ListTablesAgentToolType,

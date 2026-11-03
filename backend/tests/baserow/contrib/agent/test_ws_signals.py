@@ -10,6 +10,8 @@ from rest_framework.fields import DateTimeField
 from baserow.contrib.agent.actions import (
     CreateAgentConversationActionType,
     CreateAgentMessageActionType,
+    DeleteAgentConversationActionType,
+    RenameAgentConversationActionType,
 )
 from baserow.contrib.agent.models import (
     AgentConversation,
@@ -191,3 +193,40 @@ def test_rolled_back_identity_change_does_not_invalidate_configuration(
     identity.refresh_from_db()
     assert identity.name == "Original"
     broadcast.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_renames_deletions_and_restores_notify_only_the_owner(
+    data_fixture, configured_agent, mocker, django_capture_on_commit_callbacks
+):
+    user = data_fixture.create_user(web_socket_id="source-tab")
+    other_user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user, members=[other_user])
+    agent = configured_agent(workspace=workspace)
+    conversation = data_fixture.create_agent_conversation(user=user, agent=agent)
+    event = {"agent_id": agent.id, "conversation_uuid": str(conversation.uuid)}
+    broadcast = mocker.patch(
+        "baserow.contrib.agent.ws.signals.broadcast_to_users.delay"
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        RenameAgentConversationActionType.do(
+            user, agent.id, conversation.uuid, "Renamed"
+        )
+        DeleteAgentConversationActionType.do(user, agent.id, conversation.uuid)
+        TrashHandler.restore_item(user, "agent_conversation", conversation.id)
+
+    assert broadcast.call_args_list == [
+        call(
+            [user.id],
+            {"type": "agent_conversation_renamed", **event, "title": "Renamed"},
+            ignore_web_socket_id="source-tab",
+        ),
+        call(
+            [user.id],
+            {"type": "agent_conversation_deleted", **event},
+            ignore_web_socket_id="source-tab",
+        ),
+        # The restoring tab also needs it back in its list.
+        call([user.id], update_of(conversation), ignore_web_socket_id=None),
+    ]

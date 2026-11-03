@@ -16,6 +16,7 @@ from baserow.core.generative_ai.registries import generative_ai_model_type_regis
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
 from baserow.core.registries import subject_type_registry
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import Subject
 from baserow.core.utils import extract_allowed, remove_null_characters
 
@@ -354,6 +355,39 @@ class AgentHandler:
         conversation.agent, conversation.owner_user = agent, owner
         return conversation
 
+    def rename_conversation(
+        self, conversation: AgentConversation, title: str
+    ) -> AgentConversation:
+        """
+        Rename a conversation without moving it in the list, which is ordered by
+        activity.
+
+        :param conversation: The conversation to rename.
+        :param title: The new title, with its whitespace collapsed like a first
+            message's.
+        :return: The renamed conversation.
+        """
+
+        conversation.title = " ".join(title.split())
+        conversation.save(update_fields=["title"])
+        return conversation
+
+    def delete_conversation(
+        self, user: AbstractUser, conversation: AgentConversation
+    ) -> None:
+        """
+        Trash a conversation and stop the reply still being written in it.
+
+        :param user: The user deleting the conversation.
+        :param conversation: The conversation, locked so no new reply can start.
+        """
+
+        agent = conversation.agent
+        TrashHandler.trash(user, agent.workspace, agent, conversation)
+        run = ChatRunHandler().get_active_run(AGENT_RUN_TYPE, conversation.id)
+        if run is not None:
+            ChatRunHandler().request_cancel(run.id)
+
     def get_creation_retry(
         self,
         agent: AgentApplication,
@@ -371,14 +405,14 @@ class AgentHandler:
         :param message_uuid: The uuid of the first message.
         :param content: The content of the first message.
         :raises AgentConversationDoesNotExist: When the uuid belongs to another
-            owner's or agent's conversation.
+            owner's or agent's conversation, or to a deleted one.
         :raises AgentMessageConflict: When the conversation was created with another
             first message.
         :return: The conversation, its first message, its reply and the run writing
             it, or None when nothing was accepted with this uuid before.
         """
 
-        conversation = AgentConversation.objects.filter(uuid=uuid).first()
+        conversation = AgentConversation.objects_and_trash.filter(uuid=uuid).first()
         if conversation is None:
             return None
         return self._get_first_message_retry(
@@ -395,7 +429,11 @@ class AgentHandler:
     ) -> AgentMessageCreated:
         """Validate an existing identifier, also one a racing request just created."""
 
-        if conversation.agent_id != agent.id or conversation.owner_user_id != owner.id:
+        if (
+            conversation.trashed
+            or conversation.agent_id != agent.id
+            or conversation.owner_user_id != owner.id
+        ):
             raise AgentConversationDoesNotExist
         message = conversation.messages.order_by("id").first()
         if (
@@ -470,7 +508,7 @@ class AgentHandler:
         except IntegrityError:
             # A concurrent request created this uuid after the retry check.
             return self._get_first_message_retry(
-                AgentConversation.objects.get(uuid=uuid),
+                AgentConversation.objects_and_trash.get(uuid=uuid),
                 agent,
                 user,
                 message_uuid,

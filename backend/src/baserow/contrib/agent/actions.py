@@ -13,6 +13,7 @@ from baserow.core.action.registries import (
 )
 from baserow.core.action.scopes import ApplicationActionScopeType
 
+from .models import AgentConversation
 from .service import AgentService
 from .types import AgentConfiguration, AgentMessageCreated
 
@@ -115,6 +116,93 @@ class CreateAgentMessageActionType(ActionType):
                 result.conversation.agent.workspace,
             )
         return result
+
+    @classmethod
+    def scope(cls, agent_id: int) -> ActionScopeStr:
+        return ApplicationActionScopeType.value(agent_id)
+
+
+class RenameAgentConversationActionType(ActionType):
+    type = "rename_agent_conversation"
+    description = ActionTypeDescription(
+        _("Rename agent conversation"),
+        _("Conversation (%(conversation_id)s) renamed in agent (%(agent_id)s)."),
+    )
+    analytics_params = ["agent_id", "conversation_id"]
+
+    @dataclass
+    class Params:
+        agent_id: int
+        conversation_id: int
+
+    @classmethod
+    @transaction.atomic
+    def do(
+        cls, user: AbstractUser, agent_id: int, conversation_uuid: UUID, title: str
+    ) -> AgentConversation:
+        """
+        Rename a conversation, auditing it by ids because titles are private.
+
+        :param user: The user renaming the conversation.
+        :param agent_id: The id of the agent.
+        :param conversation_uuid: The uuid of the conversation.
+        :param title: The new title.
+        :return: The renamed conversation.
+        """
+
+        conversation = AgentService().rename_conversation(
+            user, agent_id, conversation_uuid, title
+        )
+        cls.register_action(
+            user,
+            cls.Params(agent_id, conversation.id),
+            cls.scope(agent_id),
+            conversation.agent.workspace,
+        )
+        return conversation
+
+    @classmethod
+    def scope(cls, agent_id: int) -> ActionScopeStr:
+        return ApplicationActionScopeType.value(agent_id)
+
+
+class DeleteAgentConversationActionType(ActionType):
+    type = "delete_agent_conversation"
+    description = ActionTypeDescription(
+        _("Delete agent conversation"),
+        _("Conversation (%(conversation_id)s) deleted in agent (%(agent_id)s)."),
+    )
+    analytics_params = ["agent_id", "conversation_id"]
+
+    @dataclass
+    class Params:
+        agent_id: int
+        conversation_id: int
+
+    @classmethod
+    @transaction.atomic
+    def do(
+        cls, user: AbstractUser, agent_id: int, conversation_uuid: UUID
+    ) -> AgentConversation:
+        """
+        Move a conversation to the trash, auditing it by ids.
+
+        :param user: The user deleting the conversation.
+        :param agent_id: The id of the agent.
+        :param conversation_uuid: The uuid of the conversation.
+        :return: The trashed conversation.
+        """
+
+        conversation = AgentService().delete_conversation(
+            user, agent_id, conversation_uuid
+        )
+        cls.register_action(
+            user,
+            cls.Params(agent_id, conversation.id),
+            cls.scope(agent_id),
+            conversation.agent.workspace,
+        )
+        return conversation
 
     @classmethod
     def scope(cls, agent_id: int) -> ActionScopeStr:

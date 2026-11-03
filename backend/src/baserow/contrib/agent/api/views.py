@@ -28,6 +28,8 @@ from baserow.api.subjects.serializers import SubjectOptionSerializer
 from baserow.contrib.agent.actions import (
     CreateAgentConversationActionType,
     CreateAgentMessageActionType,
+    DeleteAgentConversationActionType,
+    RenameAgentConversationActionType,
     UpdateAgentConfigurationActionType,
 )
 from baserow.contrib.agent.exceptions import (
@@ -58,6 +60,7 @@ from .serializers import (
     AgentConversationCreateSerializer,
     AgentConversationPagination,
     AgentConversationSerializer,
+    AgentConversationUpdateSerializer,
     AgentMessageCreatedSerializer,
     AgentMessageCreateSerializer,
     AgentMessagePagination,
@@ -335,6 +338,60 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
                 result, context=_accepted_context(result)
             ).data
         )
+
+
+class AgentConversationView(APIView):
+    @extend_schema(
+        tags=["Agent applications"],
+        operation_id="update_agent_conversation",
+        description=(
+            "Renames one of the authenticated user's conversations. It keeps its "
+            "place in the list, which is ordered by activity."
+        ),
+        parameters=[AGENT_ID_PATH_PARAMETER],
+        request=AgentConversationUpdateSerializer,
+        responses={
+            200: AgentConversationSerializer,
+            400: get_error_schema(["ERROR_REQUEST_BODY_VALIDATION"]),
+            **CONVERSATION_READ_ERRORS,
+        },
+    )
+    @map_exceptions(AGENT_EXCEPTIONS)
+    @validate_body(AgentConversationUpdateSerializer, return_validated=True)
+    def patch(
+        self, request: Request, agent_id: int, conversation_uuid: UUID, data: dict
+    ) -> Response:
+        """Renames a conversation of the authenticated owner."""
+
+        conversation = RenameAgentConversationActionType.do(
+            request.user, agent_id, conversation_uuid, **data
+        )
+        runs = AgentHandler().get_conversation_runs([conversation.id])
+        return Response(
+            AgentConversationSerializer(
+                conversation, context={"conversation_runs": runs}
+            ).data
+        )
+
+    @extend_schema(
+        tags=["Agent applications"],
+        operation_id="delete_agent_conversation",
+        description=(
+            "Moves one of the authenticated user's conversations to the trash and "
+            "stops the reply being written in it. Only the owner sees and restores "
+            "it there."
+        ),
+        parameters=[AGENT_ID_PATH_PARAMETER],
+        responses={204: None, **CONVERSATION_READ_ERRORS},
+    )
+    @map_exceptions(AGENT_EXCEPTIONS)
+    def delete(
+        self, request: Request, agent_id: int, conversation_uuid: UUID
+    ) -> Response:
+        """Trashes a conversation of the authenticated owner."""
+
+        DeleteAgentConversationActionType.do(request.user, agent_id, conversation_uuid)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class AgentMessagesView(RealtimeRecoveryPrimaryReadMixin, APIView):

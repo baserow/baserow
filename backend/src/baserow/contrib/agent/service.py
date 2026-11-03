@@ -19,10 +19,16 @@ from .models import AgentApplication, AgentConversation, AgentMessage
 from .operations import (
     CreateAgentConversationOperationType,
     CreateAgentMessageOperationType,
+    DeleteAgentConversationOperationType,
     ReadAgentConfigurationOperationType,
     ReadAgentConversationsOperationType,
+    UpdateAgentConversationOperationType,
 )
-from .signals import agent_conversation_updated
+from .signals import (
+    agent_conversation_deleted,
+    agent_conversation_renamed,
+    agent_conversation_updated,
+)
 from .types import (
     AgentConfiguration,
     AgentConfigurationUpdated,
@@ -165,6 +171,60 @@ class AgentService:
         )
         conversation = self.handler.get_conversation(agent, user, conversation_uuid)
         return conversation, conversation.messages.all()
+
+    @transaction.atomic
+    def rename_conversation(
+        self, user: AbstractUser, agent_id: int, conversation_uuid: UUID, title: str
+    ) -> AgentConversation:
+        """
+        Rename one of the user's conversations.
+
+        :param user: The user renaming the conversation.
+        :param agent_id: The id of the agent.
+        :param conversation_uuid: The uuid of the conversation.
+        :param title: The new title.
+        :raises PermissionException: When the user may not update conversations of
+            the agent.
+        :raises AgentConversationDoesNotExist: When the user has no conversation with
+            this uuid in the agent.
+        :return: The renamed conversation.
+        """
+
+        agent = self._get_authorized_agent(
+            user, agent_id, UpdateAgentConversationOperationType.type
+        )
+        conversation = self.handler.get_conversation(agent, user, conversation_uuid)
+        self.handler.rename_conversation(conversation, title)
+        agent_conversation_renamed.send(self, conversation=conversation, user=user)
+        return conversation
+
+    @transaction.atomic
+    def delete_conversation(
+        self, user: AbstractUser, agent_id: int, conversation_uuid: UUID
+    ) -> AgentConversation:
+        """
+        Move one of the user's conversations to the trash, where only they see it.
+
+        :param user: The user deleting the conversation.
+        :param agent_id: The id of the agent.
+        :param conversation_uuid: The uuid of the conversation.
+        :raises PermissionException: When the user may not delete conversations of
+            the agent.
+        :raises AgentConversationDoesNotExist: When the user has no conversation with
+            this uuid in the agent.
+        :return: The trashed conversation.
+        """
+
+        agent = self._get_authorized_agent(
+            user, agent_id, DeleteAgentConversationOperationType.type
+        )
+        # The lock waits for a message being sent, so its reply is stopped too.
+        conversation = self.handler.get_conversation(
+            agent, user, conversation_uuid, for_update=True
+        )
+        self.handler.delete_conversation(user, conversation)
+        agent_conversation_deleted.send(self, conversation=conversation, user=user)
+        return conversation
 
     def _require_ready(self, agent: AgentApplication) -> None:
         """Reject new content without leaking privileged setting diagnostics."""
