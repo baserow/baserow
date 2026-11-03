@@ -181,7 +181,7 @@ The shared app itself cannot be trashed (1.1 guards).
 (`UpdateIntegrationSerializer`).
 
 - **View.** The target must be the shared app of the integration's workspace,
-  otherwise 400. Demotion later relaxes this.
+  otherwise 400.
 - **Service.** When `application_id` changes, `update_integration` also checks
   `workspace.create_integration` if the target is the shared app, and
   `workspace.integration.update` if the source is (the undo direction), on top of the

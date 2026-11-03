@@ -33,7 +33,7 @@ Immediate follow-ups to v1:
 
 In scope for v2:
 - Publishing credential changes independently of app changes.
-- Bulk replacement of references and demotion.
+- Bulk replacement of references.
 - Builder-managed sharing.
 
 ### Glossary
@@ -44,7 +44,6 @@ In scope for v2:
 | Shared application    | The hidden application owned by a workspace.                                           |
 | Workspace integration | An integration owned by the shared application.                                        |
 | Promotion             | Making an integration that belongs to one app available to every app in the workspace. |
-| Demotion              | The reverse of promotion: returning a workspace integration to a single app.           |
 | Published copies      | Published Builder apps, published Automation workflows and workflow test clones.       |
 
 ## Decision
@@ -99,7 +98,7 @@ An Admin may promote an existing app-level integration by moving its `applicatio
 
 Promotion is undoable unless new services or user sources began referencing the integration after the move, in which case moving it back could break them.
 
-For a Local Baserow integration authorised as someone other than the promoting Admin, promotion must re-authorise it as the Admin or be rejected. Workspaces with duplicate integrations can promote one and manually repoint other apps' services to it in v1. Demotion and bulk replacement are deferred to v2.
+For a Local Baserow integration authorised as someone other than the promoting Admin, promotion must re-authorise it as the Admin or be rejected. Workspaces with duplicate integrations can promote one and manually repoint other apps' services to it in v1. Bulk replacement is deferred to v2. Demotion is not offered; an Admin who wants to stop sharing an integration deletes it and recreates it at the app level.
 
 ## Options considered
 
@@ -123,7 +122,7 @@ For a Local Baserow integration authorised as someone other than the promoting A
 - **Portability cost:** Workspace imports and templates produce app-level copies rather than preserving shared ownership.
 - **Security boundary:** Workspace integrations can make an authorised Local Baserow identity usable from multiple apps; Builders may select but not manage these integrations.
 - **Follow-ups:** Usage counts on delete; removal of lazy creation and the backfill task once a data migration guarantees every workspace has a shared application.
-- **v2 candidates:** integration-only publishing; bulk “Replace with” for services and user sources; demotion with checks for remaining consumers; and potentially allowing Builders to share integrations.
+- **v2 candidates:** integration-only publishing; bulk “Replace with” for services and user sources; and potentially allowing Builders to share integrations.
 
 ## Revisit triggers
 
