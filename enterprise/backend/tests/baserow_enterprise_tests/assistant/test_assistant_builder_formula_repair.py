@@ -496,6 +496,27 @@ def test_a_refused_explicit_formula_in_a_repeat_goes_to_the_model(listed, monkey
 
 
 @pytest.mark.django_db
+def test_a_row_field_named_by_its_name_goes_to_the_model(listed, monkeypatch):
+    by_name = "get('current_record.Name')"
+    field_id = listed["table"].field_set.get(name="Name").id
+    by_id = f"get('current_record.field_{field_id}')"
+    asked = use_generator(monkeypatch, lambda formulas, context: {"value": by_id})
+
+    result = create_display_elements(
+        listed["ctx"],
+        page_id=listed["page"].id,
+        elements=[
+            heading(value=f"$formula: {by_name}", parent_element=listed["repeat"].id)
+        ],
+        thought="test",
+    )
+
+    assert asked == [{"value": by_name}]
+    element = ElementHandler().get_element(result["ref_to_id_map"]["h"])
+    assert element.value["formula"] == by_id
+
+
+@pytest.mark.django_db
 def test_create_elements_reports_a_generation_failure_once_per_element(
     site, monkeypatch
 ):

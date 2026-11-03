@@ -75,6 +75,9 @@ class BuilderFormulaContext:
         self._row_scoped_data_source: int | None = None
         # Whether the collection in the stack has nothing to read a row from.
         self.in_unbound_collection = False
+        # Whether current_record is a row of the data source in the stack, rather
+        # than an item of a property that only the page knows the shape of.
+        self.current_record_is_row = False
 
     def load_page_context(self) -> None:
         """Load all available data providers into the formula context."""
@@ -452,14 +455,10 @@ class _GetPathsVisitor(BaserowFormulaValidationVisitor):
         return super()._parse_args_for_validation(formula_function_type, accepted_args)
 
 
-def _matches_schema(
-    segments: list[str], schema: dict[str, Any], by_title: bool = False
-) -> bool:
+def _matches_schema(segments: list[str], schema: dict[str, Any]) -> bool:
     """
-    Whether a path reads something a JSON schema describes.
-
-    :param by_title: Whether a segment may also name a row's field by its name, which
-        the row services read too.
+    Whether a path reads something a JSON schema describes. A field must be named by
+    its key: a published page only loads the fields its formulas name as field_<id>.
     """
 
     if not segments:
@@ -468,16 +467,12 @@ def _matches_schema(
         if not (segments[0].isdigit() or segments[0] == "*"):
             return False
         items = schema.get("items")
-        return _matches_schema(segments[1:], items, by_title) if items else True
+        return _matches_schema(segments[1:], items) if items else True
     properties = schema.get("properties")
     if not properties:
         # An object of unknown shape can hold anything; a plain value holds nothing.
         return schema.get("type") == "object"
     prop = properties.get(segments[0])
-    if prop is None and by_title:
-        prop = next(
-            (p for p in properties.values() if p.get("title") == segments[0]), None
-        )
     return prop is not None and _matches_schema(segments[1:], prop)
 
 
@@ -485,6 +480,11 @@ def _listed(names: list[str]) -> str:
     if len(names) > MAX_LISTED_PATHS:
         names = [*names[:MAX_LISTED_PATHS], "..."]
     return ", ".join(names) or "none"
+
+
+def _listed_fields(schema: dict[str, Any]) -> str:
+    properties = schema.get("items", schema).get("properties", {})
+    return _listed([f"{key} ({prop.get('title')})" for key, prop in properties.items()])
 
 
 def _data_source_path_problem(
@@ -506,22 +506,34 @@ def _data_source_path_problem(
             f"page. Its data sources: {_listed(names)}."
         )
     schema = data_source["schema"]
-    if (
-        not check_schema
-        or schema is None
-        or _matches_schema(rest[1:], schema, by_title=True)
-    ):
+    if not check_schema or schema is None or _matches_schema(rest[1:], schema):
         return None
     if schema.get("type") == "array" and not (rest[1].isdigit() or rest[1] == "*"):
         return (
             f"'{path}' needs a row index after the data source, because it returns "
             f"a list, like data_source.{data_source_id}.0.id."
         )
-    properties = schema.get("items", schema).get("properties", {})
-    names = [f"{key} ({prop.get('title')})" for key, prop in properties.items()]
     return (
         f"'{path}' is not something data source {data_source_id} "
-        f"('{data_source['name']}') has. Its fields: {_listed(names)}."
+        f"('{data_source['name']}') has. Its fields: {_listed_fields(schema)}."
+    )
+
+
+def _current_record_path_problem(
+    path: str, rest: list[str], context: BuilderFormulaContext
+) -> str | None:
+    if not context.current_record_is_row or rest == ["__idx__"]:
+        return None
+    data_source_id = context._current_record_stack[-1]
+    data_source = context.data_sources.get(data_source_id)
+    schema = data_source["schema"] if data_source else None
+    if schema is None:
+        return None
+    if _matches_schema(rest, schema.get("items", schema)):
+        return None
+    return (
+        f"'{path}' is not something a row of data source {data_source_id} "
+        f"('{data_source['name']}') has. Its fields: {_listed_fields(schema)}."
     )
 
 
@@ -552,6 +564,8 @@ def _get_path_problem(
         return (
             f"'{path}' can't be read: the repeat or table around it has no data source."
         )
+    if root == "current_record":
+        return _current_record_path_problem(path, rest, context)
     if root == "previous_action" and not allow_previous_action:
         return f"'{path}' can only be read in a workflow action."
     return None
@@ -566,9 +580,9 @@ def formula_problem(
     """
     Why a value can't be stored as a formula. The formula isn't evaluated, so the
     type of the values its functions get isn't checked. It must parse, call functions
-    that exist and read paths this context has: for ``data_source``, ``page_parameter``
-    and ``form_data`` the thing named must exist, and for the other providers the
-    provider must be available.
+    that exist and read paths this context has: for ``data_source``,
+    ``current_record``, ``page_parameter`` and ``form_data`` the thing named must
+    exist, and for the other providers the provider must be available.
 
     :param allow_previous_action: Whether the value can read earlier workflow actions.
     :return: The problem, or None when the formula is valid.
@@ -666,10 +680,14 @@ def current_record_of(
     context.in_unbound_collection = not (
         collection.data_source_id or collection.schema_property
     )
+    context.current_record_is_row = bool(
+        collection.data_source_id and not collection.schema_property
+    )
     try:
         yield
     finally:
         context.in_unbound_collection = False
+        context.current_record_is_row = False
         context.pop_current_record_context()
 
 

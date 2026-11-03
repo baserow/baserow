@@ -99,7 +99,6 @@ def test_paths_the_page_has_are_accepted(site):
         f"get('data_source.{rows}.0')",
         f"get('data_source.{rows}.5.id')",
         f"get('data_source.{rows}.*.field_{site['fields']['text'].id}')",
-        f"get('data_source.{rows}.0.Name')",
         f"get('data_source.{rows}.0.field_{select}.0.value')",
         f"get('data_source.{rows}.0.field_{select}.*.value')",
         f"get('data_source.{row}.field_{site['fields']['text'].id}')",
@@ -222,6 +221,71 @@ def test_current_record_is_accepted_inside_a_collection(data_fixture, site):
         accepted = formula_problem("value", "get('current_record.__idx__')", context)
 
     assert accepted is None
+
+
+@pytest.fixture
+def row_heading(data_fixture, site):
+    repeat = data_fixture.create_builder_repeat_element(
+        page=site["page"], data_source=site["rows"]
+    )
+    return data_fixture.create_builder_heading_element(
+        page=site["page"],
+        value="''",
+        reference_element=repeat,
+        position=GraphPointPosition.CHILD,
+    )
+
+
+def problem_in_row(site, heading, formula):
+    context = page_formula_context(site["page"])
+    with current_record_of(context, "element", heading):
+        return formula_problem("value", formula, context)
+
+
+@pytest.mark.django_db
+def test_a_row_field_read_by_its_name_is_refused(site, row_heading):
+    # A published page only loads the fields its formulas name as field_<id>.
+    found = problem_in_row(site, row_heading, "get('current_record.Name')")
+
+    assert "'current_record.Name'" in found
+    assert f"field_{site['fields']['text'].id} (Name)" in found
+
+
+@pytest.mark.django_db
+def test_a_field_of_a_list_read_by_its_name_is_refused(site):
+    found = problem(site, f"get('data_source.{site['rows'].id}.0.Name')")
+
+    assert f"field_{site['fields']['text'].id} (Name)" in found
+
+
+@pytest.mark.django_db
+def test_a_row_field_read_by_its_id_is_accepted(site, row_heading):
+    field_id = site["fields"]["select"].id
+
+    for path in [
+        "id",
+        f"field_{field_id}",
+        f"field_{field_id}.0.value",
+        f"field_{field_id}.*.value",
+    ]:
+        formula = f"get('current_record.{path}')"
+        assert problem_in_row(site, row_heading, formula) is None
+
+
+@pytest.mark.django_db
+def test_a_collection_following_a_property_of_a_row_is_not_checked(data_fixture, site):
+    # Its rows are the items of the property, which only the page knows.
+    repeat = data_fixture.create_builder_repeat_element(
+        page=site["page"], data_source=site["row"], schema_property="field_1"
+    )
+    heading = data_fixture.create_builder_heading_element(
+        page=site["page"],
+        value="''",
+        reference_element=repeat,
+        position=GraphPointPosition.CHILD,
+    )
+
+    assert problem_in_row(site, heading, "get('current_record.value')") is None
 
 
 @pytest.mark.django_db

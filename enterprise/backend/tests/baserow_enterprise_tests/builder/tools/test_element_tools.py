@@ -326,6 +326,33 @@ def test_current_record_in_a_repeat_without_a_data_source_says_so(
 
 
 @pytest.mark.django_db
+def test_a_row_field_named_by_its_name_is_listed_in_formula_errors(
+    data_fixture, builder_ctx
+):
+    page = builder_ctx["page"]
+    repeat = data_fixture.create_builder_repeat_element(
+        page=page, data_source=builder_ctx["data_source"]
+    )
+    field = builder_ctx["data_source"].service.specific.table.field_set.first()
+
+    result = elements.create_elements(
+        builder_ctx["ctx"],
+        page.id,
+        [
+            ElementItemCreate(
+                ref="h",
+                type="heading",
+                parent_element=repeat.id,
+                value=f"get('current_record.{field.name}')",
+            )
+        ],
+    )
+
+    assert result["formula_errors"][0]["field"] == "value"
+    assert f"field_{field.id} ({field.name})" in result["formula_errors"][0]["error"]
+
+
+@pytest.mark.django_db
 def test_a_repeat_bound_through_a_schema_property_offers_current_record(
     data_fixture, builder_ctx
 ):
