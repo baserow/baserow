@@ -296,3 +296,16 @@ def test_row_colour_tools_open_their_own_transaction(premium_data_fixture):
     deleted = delete_row_colours(ctx, [decoration])
 
     assert deleted["deleted_row_colours"] == [decoration]
+
+
+@pytest.mark.parametrize("color", ["#ff0000", "", "teal", "light-", "red "])
+def test_row_colour_rejects_a_colour_a_row_cannot_show(color):
+    # A row takes its colour from a CSS class per palette name, anything else shows
+    # nothing while the tool reports success.
+    with pytest.raises(ValidationError):
+        ConditionalColour(color=color, filters=[])
+
+
+@pytest.mark.parametrize("color", ["red", "light-blue", "dark-green", "darker-gray"])
+def test_row_colour_accepts_the_palette(color):
+    assert ConditionalColour(color=color, filters=[]).color == color

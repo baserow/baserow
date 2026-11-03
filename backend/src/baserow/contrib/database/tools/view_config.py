@@ -69,7 +69,13 @@ class ConditionalColour(BaseModel):
 
     color: str = Field(
         ...,
-        description="A colour name like red, light-blue or dark-green, or a hex value.",
+        # A row takes its colour from a CSS class per palette name.
+        pattern=r"^((light|dark|darker)-)?"
+        r"(blue|green|cyan|orange|yellow|red|brown|purple|pink|gray)$",
+        description=(
+            "One of blue, green, cyan, orange, yellow, red, brown, purple, pink or "
+            "gray, optionally prefixed by light-, dark- or darker-."
+        ),
     )
     filters: list[ViewFilterItemCreate] = Field(
         ...,
