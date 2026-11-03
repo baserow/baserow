@@ -43,22 +43,55 @@ const DATA_SOURCE_DISPATCH_RETRY_DELAY_MS = 250
 const dataSourceDispatchQueues = new WeakMap()
 const dataSourceRefreshes = new WeakMap()
 
+/** Include both old and new targets while their configuration is being saved. */
+const getWidgetSaveSourceIds = (state, registry, widget, values) => {
+  const type = widget && registry?.get?.('dashboardWidget', widget.type)
+  if (type?.isFilterWidget) {
+    // Every dispatch includes all viewer values, and the API validates all of
+    // them. A scalar/list change must therefore wait even on unrelated sources.
+    if (
+      type.getValueSchema(widget).type !==
+      type.getValueSchema({ ...widget, ...values }).type
+    ) {
+      return state.dataSources.map(({ id }) => id)
+    }
+    const targets = new Set([
+      ...type.getTargetWidgetIds(widget),
+      ...type.getTargetWidgetIds({ ...widget, ...values }),
+    ])
+    return state.widgets.flatMap((target) => {
+      const targetType = registry.get('dashboardWidget', target.type)
+      return targetType.isDisplayWidget && targets.has(target.id)
+        ? [targetType.getDataSourceId(target)]
+        : []
+    })
+  }
+  if (
+    type?.isDisplayWidget &&
+    type.getDataSourceId(widget) !==
+      type.getDataSourceId({ ...widget, ...values })
+  ) {
+    return [
+      type.getDataSourceId(widget),
+      type.getDataSourceId({ ...widget, ...values }),
+    ].filter((id) => id != null)
+  }
+  return []
+}
+
 /** Attach a debounce to the local Vuex action context, including template stores. */
 const ensureDataSourceRefresh = (state, dispatch) => {
   if (!dataSourceRefreshes.has(state)) {
-    const refresh = { ids: new Set() }
+    const refresh = { ids: new Set(), saves: new Set() }
     refresh.run = debounce(() => {
-      // A selection can change shape while its settings save is still pending.
-      // Dispatch only once the server knows the current filter configuration.
-      if (state.widgets.some(({ id }) => widgetUpdates.get(state)?.has(id))) {
-        refresh.run()
-        return
-      }
-      const ids = [...refresh.ids]
-      refresh.ids.clear()
-      ids.forEach((dataSourceId) =>
+      for (const dataSourceId of refresh.ids) {
+        // Keep only affected sources waiting. Completion of their saves will
+        // schedule the next attempt, without polling or blocking other sources.
+        if ([...refresh.saves].some((save) => save.sourceIds.has(dataSourceId)))
+          continue
+        refresh.ids.delete(dataSourceId)
         dispatch('dispatchDataSource', { dataSourceId })
-      )
+      }
     }, 300)
     dataSourceRefreshes.set(state, refresh)
   }
@@ -588,17 +621,28 @@ export const actions = {
         state,
         'widgetFetchGeneration'
       )
+      const sourceIds = getWidgetSaveSourceIds(
+        state,
+        $registry,
+        state.widgets.find((widget) => widget.id === widgetId),
+        values
+      )
       applyWidgetUpdate(context, $registry, { widgetId, values })
 
       if (!widgetUpdates.has(state)) widgetUpdates.set(state, new Map())
       const updates = widgetUpdates.get(state)
       let batch = updates.get(widgetId)
-      if (batch && !batch.started) {
+      if (
+        batch &&
+        !batch.started &&
+        isDashboardRequestCurrent(state, batch.request)
+      ) {
         // Keep every caller waiting for the combined save, with the latest value
         // for each field and the earliest value for rolling that field back.
         Object.assign(batch.values, values)
         batch.originalValues = { ...originalValues, ...batch.originalValues }
         batch.request = request
+        sourceIds.forEach((id) => batch.sourceIds.add(id))
         batch.waiters.push({ resolve, reject })
         batch.run()
         return
@@ -610,7 +654,11 @@ export const actions = {
         request,
         waiters: [{ resolve, reject }],
         started: false,
+        sourceIds: new Set(sourceIds),
       }
+      ensureDataSourceRefresh(state, dispatch)
+      const refresh = dataSourceRefreshes.get(state)
+      refresh.saves.add(batch)
       batch.run = debounce(async () => {
         batch.started = true
         const { values, originalValues, request } = batch
@@ -654,6 +702,11 @@ export const actions = {
           } finally {
             // A failed recovery must also release every waiting component.
             batch.waiters.forEach(({ reject }) => reject(error))
+          }
+        } finally {
+          refresh.saves.delete(batch)
+          if (dataSourceRefreshes.get(state) === refresh && refresh.ids.size) {
+            refresh.run()
           }
         }
       }, 1000)
