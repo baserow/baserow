@@ -220,7 +220,8 @@ def update_action(
     ],
 ) -> dict[str, Any]:
     """
-    Change the values of a workflow action, the ones create_actions takes for its type.
+    Change the values of a workflow action, the ones create_actions takes for its type,
+    like the message a button shows when clicked, which is a notification's title.
     This is how to fix a value create_actions listed in formula_errors. The action's
     type, element and event stay as they are.
 

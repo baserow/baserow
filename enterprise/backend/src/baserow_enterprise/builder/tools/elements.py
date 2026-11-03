@@ -51,6 +51,7 @@ def list_elements(
     empty cell. Menus show their items in order: uid, name, type, page_id (or
     url, for a link to a custom address), and the sub-links of a top-level link
     as children.
+    What a button does when clicked isn't listed here: use list_actions.
 
     Elements with page_name "[shared]" are headers and footers shown on every
     page. They belong to the shared page, not to this one.
@@ -364,8 +365,10 @@ def update_element(
     """
     Update an element: its text, settings, table columns or menu items. Properties the
     element's type doesn't have refuse the whole update. A button has no target of its
-    own: give it a click action. To move an element or change its style use
-    move_elements or update_element_style.
+    own: give it a click action. A button's text is what it says before it's clicked;
+    what it shows or does when clicked, like the message of a notification, is a click
+    action: find it with list_actions and change it with update_action. To move an
+    element or change its style use move_elements or update_element_style.
 
     Give dynamic values as formulas in Baserow formula syntax, like
     get('page_parameter.id'). A value that isn't a valid formula keeps its previous

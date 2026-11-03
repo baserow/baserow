@@ -526,6 +526,7 @@ def list_elements(
     List all elements on a page.
 
     WHEN to use: Check existing elements, find element IDs or container structure.
+    NOT LISTED: What a button does when clicked, like the message it shows or the page it opens. Use list_actions for that.
     WHAT it does: Lists elements with id, type, parent_element_id, is_container. Tables also show their data_source_id and table_columns in display order: uid, name, type, and value (text, boolean, rating) or label (button). value and label are formulas: fixed text is quoted, and '' or "''" is an empty cell. Menus show their items in order: uid, name, type, page_id (or url, for a link to a custom address), and a top-level link's sub-links as children.
     RETURNS: Elements array.
 
@@ -888,6 +889,9 @@ def update_element(
     - Unsupported properties reject the update without applying any changes.
     - Button navigation belongs in create_actions(type='open_page', event='click'),
       not in update_element. Links support navigation properties directly.
+    - A button's text is what it says before it's clicked. What it shows or does when
+      clicked, like the message of a notification, is a click action: find it with
+      list_actions and change it with update_action.
 
     ## Table Columns
     - list_elements shows each table's columns with uid, name, type, and value or label.
@@ -1172,7 +1176,7 @@ def list_actions(
     """\
     List all workflow actions on a page.
 
-    WHEN to use: Check existing actions, find action IDs, or review field mappings.
+    WHEN to use: Check existing actions, find action IDs, review field mappings, or find what a button does when clicked, like the message it shows.
     WHAT it does: Lists actions with id, type, element_id, event, field_mappings.
     RETURNS: Workflow actions array.
     """
@@ -1302,7 +1306,7 @@ def update_action(
     """\
     Change the values of an existing workflow action.
 
-    WHEN to use: A notification, open_page, row or refresh_data_source action should do something else, like a new title, target page or row_id.
+    WHEN to use: A notification, open_page, row or refresh_data_source action should do something else, like a new message (a notification's title), target page or row_id.
     WHAT it does: Changes the given values. Its type, element and event stay as they are. page_parameters and query_parameters replace the whole list; field_values change the named fields only.
     RETURNS: The updated action, with errors for values that kept their previous value.
     DO NOT USE when: The action doesn't exist yet — use create_actions instead.

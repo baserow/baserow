@@ -1192,3 +1192,61 @@ def test_update_element_style_with_a_bad_side_is_an_input_error(
         elements.update_element_style(
             builder_ctx["ctx"], element.id, ElementStyleChanges(padding={"up": 1})
         )
+
+
+@pytest.fixture
+def save_button(data_fixture, builder_ctx):
+    return data_fixture.create_builder_button_element(
+        page=builder_ctx["page"], value="'Save'"
+    )
+
+
+@pytest.mark.django_db
+def test_changing_a_button_text_points_to_its_notification(
+    data_fixture, builder_ctx, save_button
+):
+    action = data_fixture.create_notification_workflow_action(
+        page=builder_ctx["page"], element=save_button, event="click", title="'Saved'"
+    )
+
+    result = elements.update_element(
+        builder_ctx["ctx"], save_button.id, ElementChanges(label="All done!")
+    )
+
+    save_button.refresh_from_db()
+    action.refresh_from_db()
+    assert save_button.value["formula"] == "'All done!'"
+    assert action.title["formula"] == "'Saved'"
+    assert "update_action" in result["note"]
+    assert str(action.id) in result["note"]
+    assert "'Saved'" in result["note"]
+
+
+@pytest.mark.django_db
+def test_changing_the_text_of_a_button_without_a_notification_adds_no_note(
+    data_fixture, builder_ctx, save_button
+):
+    data_fixture.create_open_page_workflow_action(
+        page=builder_ctx["page"], element=save_button, event="click"
+    )
+
+    result = elements.update_element(
+        builder_ctx["ctx"], save_button.id, ElementChanges(value="Store")
+    )
+
+    assert "note" not in result
+
+
+@pytest.mark.django_db
+def test_changing_a_button_without_touching_its_text_adds_no_note(
+    data_fixture, builder_ctx, save_button
+):
+    data_fixture.create_notification_workflow_action(
+        page=builder_ctx["page"], element=save_button, event="click", title="'Saved'"
+    )
+
+    result = elements.update_element(
+        builder_ctx["ctx"], save_button.id, ElementChanges(visibility="logged-in")
+    )
+
+    assert "note" not in result

@@ -5,6 +5,7 @@ from typing import Any
 from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.builder.elements.models import Element, MenuElement, TableElement
+from baserow.contrib.builder.workflow_actions.models import NotificationWorkflowAction
 
 from .helpers import child_menu, save_child_menu
 from .menu_item_changes import MenuItemsChange, linkable_page_ids, merge_menu_items
@@ -92,6 +93,32 @@ class ButtonAssistantElementType(AssistantElementType):
         """
 
         return BUTTON_NAVIGATION_GUIDANCE
+
+    def updated_result(self, element: Element, update: ElementUpdate) -> dict[str, Any]:
+        """
+        Say that a new text left the message the button shows when clicked as it was,
+        since both can be meant by "the message of the button".
+
+        :param element: The updated button.
+        :param update: The properties that were changed.
+        :return: A note naming the button's notifications when its text changed.
+        """
+
+        if update.value is None and update.label is None:
+            return {}
+        notifications = [
+            f"action {action.id}, title {action.title['formula']}"
+            for action in NotificationWorkflowAction.objects.filter(element=element)
+        ]
+        if not notifications:
+            return {}
+        return {
+            "note": (
+                "This changed only the text on the button. Clicking it also shows a "
+                f"notification ({'; '.join(notifications)}), which stays as it was. "
+                "If that message is what should change, use update_action."
+            )
+        }
 
 
 class LinkAssistantElementType(AssistantElementType):
