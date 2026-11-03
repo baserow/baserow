@@ -103,11 +103,14 @@
       >
       </AggregationSeriesForm>
     </FormSection>
-    <ServiceRefinementForms
+    <DashboardServiceRefinementForms
       v-if="values.table_id && !fieldHasErrors('table_id')"
       small
       :values="values"
       :table-fields="tableFields"
+      :widget="widget"
+      :dashboard="dashboard"
+      :store-prefix="storePrefix"
       :group-count-override="values.aggregation_group_bys.length"
       :group-title-override="groupTitleOverride"
       :sort-count-override="values.aggregation_sorts.length"
@@ -134,7 +137,7 @@
         >
         </AggregationSortByForm>
       </template>
-    </ServiceRefinementForms>
+    </DashboardServiceRefinementForms>
   </form>
 </template>
 
@@ -146,7 +149,7 @@ import AggregationSeriesForm from '@baserow_premium/integrations/localBaserow/co
 import AggregationGroupByForm from '@baserow_premium/integrations/localBaserow/components/services/AggregationGroupByForm'
 import AggregationSortByForm from '@baserow_premium/integrations/localBaserow/components/services/AggregationSortByForm'
 import tableFields from '@baserow/modules/database/mixins/tableFields'
-import ServiceRefinementForms from '@baserow/modules/integrations/localBaserow/components/services/ServiceRefinementForms'
+import DashboardServiceRefinementForms from '@baserow/modules/dashboard/components/data_source/DashboardServiceRefinementForms'
 
 const includesIfSet = (array) => (value) => {
   if (value === null || value === undefined) {
@@ -162,7 +165,7 @@ export default {
     AggregationSeriesForm,
     AggregationGroupByForm,
     AggregationSortByForm,
-    ServiceRefinementForms,
+    DashboardServiceRefinementForms,
   },
   mixins: [form, tableFields],
   props: {

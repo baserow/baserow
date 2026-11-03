@@ -140,5 +140,8 @@
   },
   "dashboardDataProviderType": {
     "widgetData": "Filter widgets"
+  },
+  "dashboardServiceRefinementForms": {
+    "dashboardFilters": "Dashboard filters"
   }
 }
