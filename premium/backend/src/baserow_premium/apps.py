@@ -250,4 +250,15 @@ class BaserowPremiumConfig(AppConfig):
         widget_type_registry.register(ChartWidgetType())
         widget_type_registry.register(PieChartWidgetType())
 
+        from baserow.contrib.dashboard.tools.registries import (
+            widget_tool_type_registry,
+        )
+        from baserow_premium.dashboard.widgets.tool_types import (
+            ChartWidgetToolType,
+            PieChartWidgetToolType,
+        )
+
+        widget_tool_type_registry.register(ChartWidgetToolType())
+        widget_tool_type_registry.register(PieChartWidgetToolType())
+
         from baserow_premium.fields import tasks  # noqa: F401

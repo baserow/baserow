@@ -191,7 +191,9 @@
         "rowNotifications": "행 알림",
         "surveyFormContent": "설문조사 모드를 사용해 한 번에 한 질문씩 응답을 받을 수 있습니다. 집중력과 사용 편의성을 높인 간소화된 양식 보기입니다.",
         "personalViewsContent": "작성자만 볼 수 있는 뷰를 만들어보세요. 다른 사람의 작업 공간에 영향을 주지 않고 데이터를 실험하고, 필터링하고, 정렬할 수 있는 공간을 제공합니다.",
-        "chartWidget": "차트 위젯"
+        "chartWidget": "차트 위젯",
+        "groupedAggregateRowsDataSourceContent": "Baserow 테이블의 행을 그룹화하고 요약 값을 계산하여 애플리케이션 빌더 페이지에서 사용합니다.",
+        "groupedAggregateRowsDataSource": "행 그룹화 및 요약"
     },
     "licenses": {
         "titleNoLicenses": "라이선스가 없습니다",
@@ -315,7 +317,8 @@
     },
     "premiumFieldType": {
         "ai": "AI 프롬프트",
-        "aiDescription": "프롬프트를 기반으로 AI가 생성한 텍스트를 포함하는 읽기 전용 필드입니다."
+        "aiDescription": "프롬프트를 기반으로 AI가 생성한 텍스트를 포함하는 읽기 전용 필드입니다.",
+        "aiRichTextDescription": "필드 프롬프트를 바탕으로 AI가 생성한 텍스트를 마크다운 형식으로 저장하는 읽기 전용 필드입니다."
     },
     "functionalGridViewFieldAI": {
         "generate": "생성"
@@ -381,7 +384,8 @@
     "chart": {
         "other": "기타",
         "true": "참",
-        "false": "거짓"
+        "false": "거짓",
+        "empty": "비어 있음"
     },
     "generateAIValuesModal": {
         "title": "모든 AI 값 생성",
@@ -415,5 +419,62 @@
     "viewOwnershipType": {
         "personal": "개인",
         "personalDescription": "오직 당신만이 그 뷰를 볼 수 있습니다."
+    },
+    "groupedAggregateRowsDataSourceForm": {
+        "series": "데이터 계열",
+        "addSeries": "데이터 계열 추가",
+        "data": "데이터",
+        "sourceFieldLabel": "원본",
+        "viewFieldLabel": "보기",
+        "notSelected": "선택되지 않음"
+    },
+    "localBaserowGroupedAggregateRowsForm": {
+        "series": "데이터 계열",
+        "addSeries": "데이터 계열 추가"
+    },
+    "serviceType": {
+        "localBaserowGroupedAggregateRows": "행 그룹화 및 요약",
+        "localBaserowGroupedAggregateRowsDescription": "Baserow 테이블의 행을 그룹화하고 요약 값을 계산합니다.",
+        "errorNoAggregationSeriesDefined": "정의된 요약 데이터 계열이 없습니다.",
+        "errorIncompleteAggregationSeries": "하나 이상의 요약 데이터 계열이 완성되지 않았습니다.",
+        "errorTrashedAggregationField": "설정된 필드 중 하나 이상이 휴지통으로 이동되었습니다."
+    },
+    "aggregationSeriesForm": {
+        "aggregationFieldLabel": "필드",
+        "aggregationTypeLabel": "요약",
+        "deleteSeries": "데이터 계열 삭제",
+        "chartType": "차트 유형",
+        "barChart": "막대",
+        "lineChart": "선",
+        "pieChart": "원형",
+        "doughnutChart": "도넛",
+        "polarAreaChart": "극좌표 영역",
+        "seriesColor": "색상",
+        "automaticColor": "자동 색상 사용"
+    },
+    "aggregationGroupByForm": {
+        "groupByFieldLabel": "그룹화 기준",
+        "groupByNone": "없음",
+        "groupByRowId": "행 ID",
+        "rowIdDisabledTooltip": "기본 필드에 여러 값이 포함될 수 있어 현재 행 ID로 그룹화할 수 없습니다.",
+        "groupedByField": "{field}별로 그룹화됨",
+        "bucketLimit": "최대 버킷 수",
+        "bucketLimitHelp": "기타 버킷을 포함합니다. 서버 최댓값({max})을 사용하려면 비워 두세요.",
+        "modeLabel": "다중 선택 항목 그룹화",
+        "completeSelection": "전체 선택 항목",
+        "eachOption": "선택된 각 옵션"
+    },
+    "aggregationSortByForm": {
+        "sortByFieldLabel": "정렬 기준",
+        "none": "없음",
+        "ascending": "오름차순",
+        "descending": "내림차순"
+    },
+    "aiProviderModelFeature": {
+        "aiFields": "AI 필드",
+        "aiFieldsDescription": "AI 필드의 값을 생성합니다."
+    },
+    "premiumDashboardShareOptions": {
+        "hideLogo": "공유 대시보드에서 Baserow 로고 숨기기"
     }
 }

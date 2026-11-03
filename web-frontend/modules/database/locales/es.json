@@ -65,7 +65,8 @@
     },
     "sidebar": {
         "viewAPI": "Ver documentos API",
-        "createTable": "Nueva mesa"
+        "createTable": "Nueva tabla",
+        "adminContentCategory": "Contenido"
     },
     "sidebarItem": {
         "exportTable": "Exportar tabla",
@@ -100,7 +101,7 @@
     },
     "apiTokenForm": {
         "nameLabel": "Nombre",
-        "workspaceLabel": "Grupo"
+        "workspaceLabel": "Espacio de trabajo"
     },
     "apiDocsSelectDatabase": {
         "needOneDatabase": "Debe tener al menos una base de datos para ver la documentación de la API."
@@ -234,7 +235,7 @@
     },
     "fieldLinkRowSubForm": {
         "noTable": "Necesita al menos otra tabla en la misma base de datos para vincular.",
-        "selectTableLabel": "Seleccione una tabla para vincular",
+        "selectTableLabel": "Selecciona una tabla para vincular",
         "hasRelatedFieldLabel": "Crear campo relacionado en la tabla vinculada",
         "limitToView": "Limitar la selección para mostrar",
         "limitToViewDescription": "Ten en cuenta que esto es solo visual. Aún es posible establecer relaciones fuera de la vista mediante la tabla relacionada o la API.",
@@ -285,7 +286,7 @@
     "fieldLookupSubForm": {
         "noTable": "Necesita al menos un campo de fila de vínculo para crear un campo de búsqueda.",
         "selectThroughFieldLabel": "Seleccione un campo de fila de enlace",
-        "selectTargetFieldLabel": "Seleccione un campo para buscar"
+        "selectTargetFieldLabel": "Selecciona un campo para buscar"
     },
     "fieldFormulaNumberSubForm": {
         "typeLabel": "Tipo de número",
@@ -312,7 +313,7 @@
         "hideHiddenFields": "Ocultar campos ocultos"
     },
     "rowEditFieldMultipleSelect": {
-        "addOption": "Escoge una opción"
+        "addOption": "Elige una opción"
     },
     "rowEditFieldFile": {
         "addFile": "Agregar un archivo",
@@ -330,9 +331,9 @@
         "keepOnlyOneValue": "Mantén solo un valor. Este campo solo admite una relación. El valor se guarda si queda únicamente una relación."
     },
     "tableCSVImporter": {
-        "chooseFileLabel": "Elija el archivo CSV",
+        "chooseFileLabel": "Elige el archivo CSV",
         "chooseFileDescription": "Puede importar un CSV existente cargando el archivo .CSV con datos tabulares. La mayoría de las aplicaciones de hojas de cálculo le permitirán exportar su hoja de cálculo como un archivo .CSV.",
-        "chooseFile": "Elija el archivo CSV",
+        "chooseFile": "Elige el archivo CSV",
         "columnSeparator": "Separador de columnas",
         "recordSeparator": "separador de registros",
         "unitSeparator": "Separador de unidades",
@@ -346,18 +347,18 @@
         "name": "Nombre"
     },
     "tableXMLImporter": {
-        "fileLabel": "Elija el archivo XML",
+        "fileLabel": "Elige el archivo XML",
         "fileDescription": "Puede importar un XML existente cargando el archivo .XML con datos tabulares, es decir:",
-        "chooseButton": "Elija el archivo XML",
+        "chooseButton": "Elige el archivo XML",
         "processingError": "Ocurrió un error al procesar XML: {errors}",
         "emptyError": "Este archivo XML está vacío.",
         "limitFileSize": "El tamaño máximo de archivo es {limit} MB.",
         "limitError": "No es posible importar más de {limit} filas."
     },
     "tableJSONImporter": {
-        "fileLabel": "Elija el archivo JSON",
+        "fileLabel": "Elige el archivo JSON",
         "fileDescription": "Puede importar un archivo JSON existente cargando el archivo .json con datos tabulares, es decir:",
-        "chooseButton": "Elija el archivo JSON",
+        "chooseButton": "Elige el archivo JSON",
         "encodingLabel": "Codificación",
         "processingError": "Ocurrió un error al analizar JSON: {error}",
         "arrayError": "El archivo JSON no es una matriz.",
@@ -387,7 +388,7 @@
         "statePreValidation": "Validando datos...",
         "showReport": "Mostrar informe de error",
         "stateCreateTable": "Creando tabla...",
-        "additionalImportTitle": "Importar a {tabla}",
+        "additionalImportTitle": "Importar a {table}",
         "showTable": "mostrar tabla",
         "importButton": "Importar",
         "fieldMappingTitle": "Cartografía de campo",
@@ -427,11 +428,11 @@
     },
     "viewFilterTypeLinkRow": {
         "unnamed": "fila sin nombre {value}",
-        "choose": "elegir fila"
+        "choose": "Elegir fila"
     },
     "viewFilterContext": {
         "addFilter": "Añadir filtro",
-        "disableAllFilters": "Todo impedido",
+        "disableAllFilters": "todo deshabilitado",
         "noFilterTitle": "Aún no creaste ningún filtro",
         "noFilterText": "Los filtros le permiten mostrar filas que se aplican a sus condiciones.",
         "where": "Donde",
@@ -441,7 +442,8 @@
         "filterTypeNotFound": "El tipo de filtro no es compatible.",
         "noCompatibleFilterTypesErrorTitle": "No hay tipos de filtro compatibles",
         "noCompatibleFilterTypesErrorMessage": "Ninguno de sus campos tiene ningún tipo de filtro compatible",
-        "addFilterGroup": "Añadir grupo de filtros"
+        "addFilterGroup": "Añadir grupo de filtros",
+        "copyFromView": "Copiar desde otra vista"
     },
     "viewFilterTypeFileTypeDropdown": {
         "image": "imagen",
@@ -485,10 +487,10 @@
         "generateNewURL": "Generar nueva URL"
     },
     "viewFieldsContext": {
-        "coverField": "campo de cobertura",
-        "noCover": "Sin cobertura",
+        "coverField": "Campo de imagen de portada",
+        "noCover": "Sin imagen de portada",
         "search": "Buscar campos",
-        "hideAll": "Esconder todo",
+        "hideAll": "Ocultar todo",
         "showAll": "Mostrar todo"
     },
     "viewFilterTypeBoolean": {
@@ -515,11 +517,12 @@
         "duplicateView": "Duplicar vista",
         "toPersonal": "Pasar a personal",
         "toCollaborative": "Pasar a colaborativo",
-        "defaultRowValues": "Valores predeterminados de fila"
+        "defaultRowValues": "Valores predeterminados de fila",
+        "copyConfiguration": "Copiar configuración de la vista"
     },
     "deleteViewModal": {
         "title": "Eliminar {name}",
-        "description": "¿Está seguro de que desea eliminar la vista {nombre}? Los datos de la tabla se conservarán, pero se eliminarán los filtros, clasificaciones y anchos de campo relacionados con la vista.",
+        "description": "¿Estás seguro de que quieres eliminar la vista {name}? Los datos de la tabla se conservarán, pero los filtros, los ordenamientos y los anchos de los campos relacionados con la vista se eliminarán.",
         "delete": "Eliminar vista"
     },
     "viewForm": {
@@ -554,12 +557,12 @@
         "insertRowAbove": "Insertar fila arriba",
         "insertRowBelow": "Insertar fila debajo",
         "enlargeRow": "Ampliar fila",
-        "deleteRow": "Borrar fila",
+        "deleteRow": "Eliminar fila",
         "rowCount": "Sin filas | 1 fila | {count} filas",
         "selectRow": "Seleccionar fila",
         "duplicateRow": "Duplicar fila",
         "copyCells": "Copiar celdas",
-        "deleteRows": "Borrar filas",
+        "deleteRows": "Eliminar filas",
         "hiddenRowsInsertedTitle": "Filas añadidas",
         "hiddenRowsInsertedMessage": "{number} se han añadido filas nuevas, pero no son visibles debido a los filtros activos.",
         "copiedRowURLMessage": "La URL de la fila {id} se ha copiado en el portapapeles.",
@@ -596,8 +599,8 @@
         "formatLabel": "¿A qué formato le gustaría exportar?"
     },
     "exportTableForm": {
-        "viewLabel": "Seleccione la vista para exportar:",
-        "typeError": "No hay ningún tipo de exportador disponible, seleccione una vista diferente o la tabla completa.",
+        "viewLabel": "Selecciona la vista para exportar:",
+        "typeError": "Ningún tipo de exportador disponible, por favor selecciona una vista diferente o la tabla completa.",
         "includeRowId": "Incluir ID de fila",
         "includePrimaryField": "Incluir campo principal"
     },
@@ -618,8 +621,8 @@
     },
     "apiDocsDatabase": {
         "pageTitle": "Documentación de la API de la base de datos de {name}",
-        "back": "volver al tablero",
-        "openDatabase": "base de datos abierta"
+        "back": "Volver a la vista general",
+        "openDatabase": "abrir base de datos"
     },
     "apiDocsComponent": {
         "title": "REST API",
@@ -627,10 +630,10 @@
         "settings": "ajustes",
         "selectApplicationTitle": "¿Para qué base de datos desea ver la documentación?",
         "signIn": "inicia sesión para empezar",
-        "back": "volver al tablero"
+        "back": "Volver a la vista general"
     },
     "viewAggregationType": {
-        "emptyCount": "{Empty}",
+        "emptyCount": "(Vacío)",
         "notEmptyCount": "Lleno",
         "emptyPercentage": "Porcentaje vacío",
         "notEmptyPercentage": "Porcentaje lleno",
@@ -662,7 +665,7 @@
     },
     "importFromAirtable": {
         "airtableShareLinkTitle": "Comparte un enlace a tu Base",
-        "airtableShareLinkDescription": "Para importar tu base de Airtable, necesitas disponer de un enlace compartido de toda la base. En Airtable, haz clic en el botón «Compartir» en la esquina superior derecha después de abrir tu base. Después, debes escoger la opción «Compartir mediante enlace\". En la ventana emergente de compartir pulsa la pestaña «Compartir públicamente» y luego en «Enlace privado de solo lectura». Copia el enlace público y pégalo en el campo de entrada abajo. También se acepta un enlace a una vista compartida públicamente, y se importará como una base de datos que contiene esa única tabla.",
+        "airtableShareLinkDescription": "Para importar tu base de Airtable, necesitas disponer de un enlace compartido de toda la base. En Airtable, haz clic en el botón «Compartir» en la esquina superior derecha después de abrir tu base. Después, debes elegir la opción «Compartir mediante enlace». En la ventana emergente de compartir pulsa la pestaña «Compartir públicamente» y luego en «Enlace privado de solo lectura». Copia el enlace público y pégalo en el campo de entrada abajo. También se acepta un enlace a una vista compartida públicamente, y se importará como una base de datos que contiene esa única tabla.",
         "airtableShareLinkBeta": "Esta funcionalidad importará la mayor parte de los datos, pero existen incompatibilidades. Por lo tanto, se añadirá una tabla llamada \"Airtable import report\" que contendrá una lista de cosas que no fueron importadas o que se importaron parcialmente.",
         "airtableShareLinkPaste": "Pega el enlace aquí",
         "importButtonLabel": "Importar desde Airtable",
@@ -687,10 +690,13 @@
         "sessionLabel": "Cookie de sesión (__Host‑airtable‑session)",
         "sessionSignatureLabel": "Cookie de firma de sesión (__Host‑airtable‑session.sig)",
         "errorBaseNotPublicDescription": "Airtable no devolvió una base compartida públicamente para este enlace. Abre el enlace en tu navegador para comprobar que carga la base que quieres importar y que la URL completa se copió correctamente, luego inténtalo de nuevo.",
-        "errorRequiresAuthenticationDescription": "Esta base solo puede importarse con autenticación adicional. La opción «Autenticación de sesión» de abajo se ha habilitado para ti. Sigue las instrucciones para copiar los valores de las cookies «__Host-airtable-session» y «__Host-airtable-session.sig» en los campos, e inténtalo de nuevo."
+        "errorRequiresAuthenticationDescription": "Esta base solo puede importarse con autenticación adicional. La opción «Autenticación de sesión» de abajo se ha habilitado para ti. Sigue las instrucciones para copiar los valores de las cookies «__Host-airtable-session» y «__Host-airtable-session.sig» en los campos, e inténtalo de nuevo.",
+        "errorBaseNotPublicTitle": "No se pudo acceder a la base",
+        "openSharedLink": "Abrir el enlace compartido",
+        "errorRequiresAuthenticationTitle": "Autenticación requerida"
     },
     "viewDecorator": {
-        "decorator": "Color | 1 Color | {recuento} Colores",
+        "decorator": "Color | 1 Color | {count} Colores",
         "hiddenFieldWarning": "Las decoraciones se eliminan para editores y roles inferiores porque pueden hacer referencia a campos ocultos."
     },
     "chooseSingleSelectField": {
@@ -710,8 +716,8 @@
     },
     "shareViewDisablePasswordModal": {
         "title": "Desactivar la protección de contraseña",
-        "description": "¿Estás seguro que quieres desactivar la protección por contraseña de este enlace público? Al desactivarla, la contraseña se borrará y no será posible recuperarla",
-        "disable": "Desactivar"
+        "description": "¿Estás seguro de que quieres deshabilitar la protección por contraseña para este enlace público? Al deshabilitarla, la contraseña será eliminada y no será posible recuperarla",
+        "disable": "Deshabilitar"
     },
     "publicViewAuthLogin": {
         "title": "Esta página está protegida por contraseña",
@@ -723,15 +729,15 @@
         }
     },
     "apiDocsTableDeleteRows": {
-        "description": "Elimina las filas existentes de {nombre}.",
+        "description": "Elimina las filas existentes de {name}.",
         "items": "Una matriz de identificadores de fila que deben ser eliminados."
     },
     "apiDocsTableUpdateRows": {
-        "description": "Actualiza filas existentes de {nombre}.",
+        "description": "Actualiza las filas existentes de {name}.",
         "id": "La identificación de la fila."
     },
     "apiDocsTableCreateRows": {
-        "description": "Crear nuevas filas de {nombre}.",
+        "description": "Crear nuevas filas de {name}.",
         "before": "Si se proporciona, las filas recién creadas se posicionarán antes de la fila con la identificación proporcionada."
     },
     "importer": {
@@ -740,7 +746,7 @@
         "inProgress": "En proceso...",
         "loading": "Cargando el archivo",
         "decoding": "Descodificando datos",
-        "fieldDefaultName": "Campo {conteo}"
+        "fieldDefaultName": "Campo {count}"
     },
     "formViewMeta": {
         "includeRowId": "Utiliza {row_id} para incluir el id de la fila recién creada en el URL."
@@ -782,7 +788,7 @@
         "snapshotDeletedErrorTitle": "Se ha producido un error",
         "snapshotDeletedErrorMessage": "La imagen no ha podido ser eliminada. Favor de intentarlo otra vez mas tarde.",
         "title": "instantáneas",
-        "description": "Las instantáneas son una copia completa de tu {nombre_aplicacion_tipo} del momento en que fueron creadas. Al restaurarlas se creará una duplicación de esos datos. Las instantáneas se eliminan automáticamente al cabo de un año.",
+        "description": "Las instantáneas son una copia completa de tu {applicationTypeName} del momento en que fueron creadas. Se creará una duplicación de esos datos al restaurar. Las instantáneas se eliminan automáticamente después de un año.",
         "descriptionLimits": "Puedes tener un máximo de {n} instantáneas por espacio de trabajo. | Puedes tener un máximo de {n} instantáneas por espacio de trabajo. | Puedes tener un máximo de {n} instantáneas por espacio de trabajo.",
         "snapshot": "Imagen",
         "limitReached": "Se ha alcanzado el límite de imágenes máximas.",
@@ -793,13 +799,13 @@
         "nameAlreadyExists": "Ya existe una instantánea con este nombre."
     },
     "deleteSnapshotModal": {
-        "content": "¿Estás seguro de que quieres eliminar permanentemente la imagen instantánea {nombre}?",
-        "confirm": "Borrar",
-        "title": "Borrar imagen instantánea"
+        "content": "¿Estás seguro de que quieres eliminar permanentemente la imagen instantánea {name}?",
+        "confirm": "Eliminar",
+        "title": "Eliminar imagen instantánea"
     },
     "snapshotListItem": {
         "restore": "restaurar",
-        "delete": "borrar",
+        "delete": "eliminar",
         "created": "creada"
     },
     "formViewModeType": {
@@ -901,7 +907,7 @@
         "queryParameter": "Parámetro de consulta"
     },
     "viewGroupBy": {
-        "groupBy": "Agrupar | Agrupar por 1 campos | Agrupar por {cuenta} campos"
+        "groupBy": "Agrupar | Agrupar por 1 campo | Agrupar por {count} campos"
     },
     "rowHistorySidebar": {
         "you": "Tú",
@@ -914,12 +920,13 @@
         "restored": "restauró esta fila",
         "createdUndo": "deshizo la creación de la fila",
         "updatedUndo": "deshizo la actualización de la fila",
-        "deletedUndo": "deshizo la eliminación de la fila"
+        "deletedUndo": "deshizo la eliminación de la fila",
+        "anonymousUser": "Usuario anónimo"
     },
     "viewGroupByContext": {
         "groupBy": "Agrupar por",
         "thenBy": "Y luego por",
-        "addGroupBy": "Elegir un campo por el que agrupar",
+        "addGroupBy": "elige un campo por el que agrupar",
         "noGroupByTitle": "Aún no has creado ninguna agrupación",
         "noGroupByText": "Agrupar filas por un campo.",
         "hiddenFieldWarning": "Uno o más agrupamientos hacen referencia a campos ocultos que no serán visibles para editores y roles inferiores.",
@@ -927,10 +934,11 @@
         "collapseAllGroups": "Colapsar todo",
         "expandAllGroups": "Expandir todo",
         "layoutColumn": "Columnas",
-        "layoutSection": "Secciones"
+        "layoutSection": "Secciones",
+        "layout": "Diseño de grupo"
     },
     "collaboratorAddedToRowNotification": {
-        "title": "{sender} te asignó a {nombreDeCampo} en la fila {rowId} en {nombreDeTabla}",
+        "title": "{sender} te ha asignado a {fieldName} en la fila {rowId} en {tableName}",
         "deletedUser": "Un usuario eliminado",
         "unknownUser": "Un usuario desconocido"
     },
@@ -942,8 +950,8 @@
         "addConditionGroup": "Añadir grupo de condiciones"
     },
     "formSubmittedNotification": {
-        "title": "Se ha enviado {nombreDelFormulario} en la tabla {nombreDeLaTabla}:",
-        "moreValues": "0 | y 1 campo más. | y {cuenta} campos más."
+        "title": "{formName} se ha enviado en la tabla {tableName}:",
+        "moreValues": "0 | y 1 campo más. | y {count} campos más."
     },
     "fieldDurationSubForm": {
         "durationFormatLabel": "Formato de duración"
@@ -966,7 +974,10 @@
     },
     "dataProviderTypes": {
         "fieldsName": "Campos",
-        "previousActionRowId": "ID"
+        "previousActionRowId": "ID",
+        "rowName": "Fila pulsada",
+        "rowId": "ID de fila",
+        "previousActionName": "Acción anterior"
     },
     "userMentionInRichTextFieldNotification": {
         "deletedUser": "Un usuario eliminado",
@@ -1036,7 +1047,7 @@
     },
     "databaseScratchTrackFieldsStep": {
         "campaignsDetailsRow3": "Revitaliza tu negocio y cautiva a tu público con un relanzamiento de marca dinámico que se adapte perfectamente a las tendencias actuales del mercado y a los deseos de los clientes.",
-        "title": "Elija campos para cada fila",
+        "title": "Elige los campos para cada fila",
         "description": "Selecciona hasta {selectedFieldsLimitCount} campos. Puedes agregarlo más tarde.",
         "fieldName": "Nombre",
         "fieldType": "Tipo de campo",
@@ -1115,7 +1126,7 @@
         "create": "Crear y sincronizar tabla",
         "error": "Algo salió mal durante la sincronización",
         "autoAddLabel": "Agregar automáticamente nuevas propiedades",
-        "autoAddHelper": "Automáticamente agrega y sincroniza las propiedades recién disponibles del origen de datos en la tabla de Baserow. Ten en cuenta que, para que esto funcione, todas las propiedades deben estar sincronizadas.",
+        "autoAddHelper": "Añade y sincroniza automáticamente las propiedades recién disponibles de la fuente de datos en la tabla de Baserow. Ten en cuenta que para que esto funcione, todas las propiedades deben estar sincronizadas.",
         "twoWaySyncLabel": "Sincronización bidireccional",
         "deleteUnmatchedRowsHelper": "Cuando está activado, las filas que son eliminadas o ya no son visibles en el origen también son eliminadas de esta tabla en cada sincronización. Cuando está desactivado, esas filas se mantienen y reutilizan si la fila del origen reaparece.",
         "deleteUnmatchedRowsLabel": "Elimina filas cuando se eliminan o se ocultan en el origen",
@@ -1160,7 +1171,8 @@
     "configureDataSyncModal": {
         "syncSettings": "Ajustes de sincronización",
         "syncedFields": "Campos sincronizados",
-        "title": "Sincronización de datos"
+        "title": "Sincronización de datos",
+        "syncHistory": "Historial de sincronización"
     },
     "apiDocsPasswordFieldAuthentication": {
         "title": "autenticación de {name}",
@@ -1264,57 +1276,156 @@
         "emptyValue": "(Vacío)"
     },
     "viewsAdminRotateSlugModal": {
-        "refreshWarning": "¿Estás seguro de que quieres refrescar la URL de {viewName}? Después de refrescar, se generará una nueva URL y no será posible acceder a la vista mediante la URL anterior. Todos los que tengan la URL anterior no podrán acceder a la vista nunca más."
+        "refreshWarning": "¿Estás seguro de que quieres refrescar la URL de {viewName}? Después de refrescar, se generará una nueva URL y no será posible acceder a la vista mediante la URL anterior. Todos los que tengan la URL anterior no podrán acceder a la vista nunca más.",
+        "generateNewURL": "Generar nueva URL",
+        "title": "Refrescar URL"
     },
     "templateOnboardingCancelModal": {
         "description": "Para omitir la bienvenida, selecciona una de las plantillas a continuación. Empezar con una plantilla es la mejor manera de conocer Baserow porque configura tablas, campos y datos de ejemplo por ti. Siempre puedes cambiarlo o eliminarlo más adelante.",
-        "title": "Selecciona una plantilla para empezar"
+        "title": "Selecciona una plantilla para empezar",
+        "continue": "Usa esta plantilla"
     },
     "dataSyncRuns": {
         "description": "Las ejecuciones de sincronización más recientes de esta tabla, sin importar quién o qué las inició.",
         "duration": "{seconds}s",
-        "noRuns": "Esta tabla aún no se ha sincronizado."
+        "noRuns": "Esta tabla aún no se ha sincronizado.",
+        "title": "Historial de sincronización",
+        "previousRuns": "Ejecuciones anteriores",
+        "byUser": "por {name}",
+        "triggerManual": "Manual",
+        "triggerPeriodic": "Periódico"
     },
     "viewsAdminContext": {
         "publicUrlCopiedMessage": "La URL pública de la vista ha sido copiada a tu portapapeles.",
-        "openPublicView": "Abrir vista pública en una pestaña nueva"
+        "openPublicView": "Abrir vista pública en una pestaña nueva",
+        "filterWorkspace": "Filtrar por espacio de trabajo",
+        "publicUrlCopiedTitle": "URL pública copiada",
+        "copyPublicUrl": "Copiar URL pública",
+        "rotateSlug": "Rotar slug",
+        "makePrivate": "Convertir en privado",
+        "makePublic": "Convertir en público"
     },
     "databaseWorkflowActionType": {
         "startWorkflowMissing": "El flujo de trabajo de esta acción no se puede encontrar. Puede que haya sido eliminado, o que no tengas acceso a él. Elige otro flujo de trabajo, o pide ayuda a alguien que pueda ver este.",
         "slackTokenMissing": "Este bot no tiene token. Añade un nuevo bot con su token, o pega uno en este bot, antes de que el botón pueda publicar.",
         "tableTrashed": "Esta acción utiliza una tabla que está en la papelera o ya no existe. Restaura la tabla o elige otra.",
         "writesToTrashedField": "Esta acción escribe en un campo que está en la papelera. Restaura el campo para ejecutar la acción de nuevo.",
-        "instanceSmtpTurnedOff": "El envío a través del servidor SMTP propio de esta instancia de Baserow está desactivado, por lo que un botón no puede enviar correo electrónico.",
+        "instanceSmtpTurnedOff": "El envío a través del servidor SMTP propio de esta instancia de Baserow está desactivado. Elige una integración SMTP para enviar este correo electrónico.",
         "requiresReconfiguration": "Esta acción apunta a una tabla, campo o integración que está en la papelera o que ha desaparecido.",
         "startWorkflowUnpublished": "Este flujo de trabajo aún no ha sido publicado. Publícalo antes de que el botón pueda iniciarlo.",
-        "noInstanceSmtp": "Esta instancia de Baserow no tiene un servidor SMTP configurado, por lo que un botón no puede enviar correo electrónico.",
+        "noInstanceSmtp": "Esta instancia de Baserow no tiene servidor SMTP configurado. Elige una integración SMTP para enviar este correo electrónico.",
         "startWorkflowNotLive": "Este flujo de trabajo está pausado o deshabilitado. Reactívalo antes de que el botón pueda iniciarlo.",
         "staleReference": "Esta acción usa un resultado de una acción que ya no se ejecuta antes que ella.",
-        "unreadableReference": "Esta acción usa un resultado de una acción que ya no devuelve uno."
+        "unreadableReference": "Esta acción usa un resultado de una acción que ya no devuelve uno.",
+        "slackOk": "OK",
+        "slackChannel": "Canal",
+        "smtpIntegrationIncomplete": "Esta integración SMTP no tiene servidor. Rellena su host antes de que el botón pueda enviar.",
+        "noUrl": "Introduce una URL para abrir.",
+        "deleteRow": "Eliminar una fila",
+        "openUrl": "Abrir URL",
+        "sendEmail": "Enviar correo electrónico",
+        "slackTs": "Marca de tiempo del mensaje",
+        "slackData": "Datos"
     },
     "databaseWorkflowActionWithService": {
-        "nothingCapturedYet": "Haz clic en este botón en una fila para capturar lo que el punto final (endpoint) responde, de modo que las acciones posteriores puedan usar sus campos. Las demás acciones del botón también se ejecutan."
+        "nothingCapturedYet": "Haz clic en este botón en una fila para capturar lo que el punto final (endpoint) responde, de modo que las acciones posteriores puedan usar sus campos. Las demás acciones del botón también se ejecutan.",
+        "payloadModalTitle": "Respuesta capturada para {actionLabel}",
+        "payloadModalSubTitle": "Carga útil JSON"
     },
     "fieldButtonSubForm": {
-        "unresolvedReferenceMessage": "Una acción utiliza un resultado de una acción que no se ejecuta antes que ella. Muévela hacia atrás o elimina la referencia, y luego guarda de nuevo."
+        "unresolvedReferenceMessage": "Una acción utiliza un resultado de una acción que no se ejecuta antes que ella. Muévela hacia atrás o elimina la referencia, y luego guarda de nuevo.",
+        "unresolvedReferenceTitle": "Acción no guardada",
+        "label": "Etiqueta",
+        "labelPlaceholder": "Abrir"
     },
     "openUrlWorkflowAction": {
-        "invalidUrlMessage": "No se pudo resolver la URL de esta fila, o usa un protocolo que no está permitido."
+        "invalidUrlMessage": "No se pudo resolver la URL de esta fila, o usa un protocolo que no está permitido.",
+        "invalidUrlTitle": "No se pudo abrir la URL"
     },
     "buttonField": {
         "rateLimitedMessage": "Este botón se ha pulsado con demasiada frecuencia. Espera un momento e inténtalo de nuevo.",
         "dispatchErrorMessage": "Algo salió mal al ejecutar las acciones del botón. Por favor, inténtalo de nuevo.",
         "requiresReconfiguration": "Este botón necesita ser reconfigurado antes de que pueda ser pulsado.",
-        "noPermission": "No tienes permiso para pulsar este botón."
+        "noPermission": "No tienes permiso para pulsar este botón.",
+        "stillRunningMessage": "Las acciones del botón aún pueden estar ejecutándose en segundo plano.",
+        "dispatchErrorTitle": "No se pudieron ejecutar las acciones",
+        "rateLimitedTitle": "Demasiados clics",
+        "stillRunningTitle": "Sigue en ejecución"
     },
     "rowEditFieldButtonField": {
         "createRowBefore": "Las acciones se pueden ejecutar después de que se haya creado la fila."
     },
     "viewsAdminTable": {
-        "workspace": "Espacio de trabajo"
+        "workspace": "Espacio de trabajo",
+        "name": "Vista",
+        "type": "Tipo",
+        "onlyPublic": "Solo vistas compartidas públicamente",
+        "allViews": "Todas las vistas",
+        "public": "Compartido públicamente",
+        "createdOn": "Creado el",
+        "allWorkspaces": "Todos los espacios de trabajo",
+        "table": "Tabla",
+        "database": "Base de datos",
+        "passwordProtected": "Contraseña",
+        "ownedBy": "Propietario"
     },
     "buttonFieldActionList": {
         "moveAction": "Mover acción, usa las teclas de flecha para reordenar",
-        "misconfigured": "Al menos una acción está mal configurada"
+        "misconfigured": "Al menos una acción está mal configurada",
+        "toggleAction": "Mostrar u ocultar esta acción",
+        "addAction": "Añadir acción",
+        "chooseAction": "Elige una acción...",
+        "searchActions": "Buscar acciones",
+        "actions": "Acciones"
+    },
+    "adminType": {
+        "databaseViews": "Vistas"
+    },
+    "hiddenRows": {
+        "createdMessage": "La nueva fila no cumple con los filtros de esta vista, así que no aparece. Solicita al diseñador de la vista que configure valores por defecto compatibles con los filtros. | {count} nuevas filas no cumplen con los filtros de esta vista, así que no aparecen. Solicita al diseñador de la vista que configure valores por defecto compatibles con los filtros.",
+        "updatedMessage": "La fila ya no coincide con los filtros de esta vista, por lo que está oculta. | {count} filas ya no coinciden con los filtros de esta vista, por lo que están ocultas.",
+        "title": "Fila oculta | Filas ocultas"
+    },
+    "copyViewConfigurationModal": {
+        "title": "Copiar configuración a {name}",
+        "sourceView": "Copiar desde la vista",
+        "selectAll": "Seleccionar todo",
+        "clearAll": "Limpiar todo",
+        "copy": "Copiar configuración"
+    },
+    "copyViewConfigurationOption": {
+        "defaultRowValues": "Valores predeterminados de la fila",
+        "fieldVisibility": "Visibilidad de campos",
+        "fieldOrder": "Orden de campos",
+        "fieldWidths": "Anchos de campos",
+        "viewSettings": "Configuración ({settings})",
+        "viewSettingsRowHeightSize": "altura de fila",
+        "viewSettingsFrozenColumnCount": "columnas congeladas",
+        "viewSettingsRowIdentifierType": "identificador de fila",
+        "viewSettingsGroupByLayout": "diseño de grupo",
+        "filters": "Filtros",
+        "sorts": "Órdenes",
+        "groupBys": "Grupos",
+        "decorations": "Decoraciones"
+    },
+    "formViewFooterLinks": {
+        "reportAbuse": "Reportar abuso"
+    },
+    "publicViewMenu": {
+        "reportAbuse": "Reportar abuso",
+        "moreOptions": "Más opciones"
+    },
+    "openUrlWorkflowActionForm": {
+        "openIn": "Abrir en",
+        "sameTab": "Misma pestaña",
+        "newTab": "Nueva pestaña",
+        "url": "URL",
+        "urlPlaceholder": "URL..."
+    },
+    "lastViewedItemType": {
+        "databaseView": "Vista de {name}"
+    },
+    "viewsAdmin": {
+        "title": "Vistas"
     }
 }

@@ -1899,7 +1899,9 @@ def test_local_baserow_table_agg_service_type_get_context_data_excludes_fields(
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     field = data_fixture.create_number_field(table=table)
-    serialized_field = field_type_registry.get_serializer(field, FieldSerializer).data
+    serialized_field = field_type_registry.get_serializer(
+        field, FieldSerializer, extra_params={"data_schema": True}
+    ).data
     service = data_fixture.create_local_baserow_aggregate_rows_service(
         table=table, field=field, aggregation_type="sum"
     )

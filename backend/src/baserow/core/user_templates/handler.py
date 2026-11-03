@@ -10,7 +10,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
 from django.core.files import File
 from django.db import IntegrityError, transaction
-from django.db.models import F, Q
+from django.db.models import F, Q, QuerySet
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.text import slugify
@@ -36,6 +36,13 @@ from baserow.core.registries import ImportExportConfig, application_type_registr
 from baserow.core.storage import get_default_storage
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user.exceptions import UserNotFound
+from baserow.core.user_templates.archive import (
+    delete_template_archive_file,
+    delete_template_archives,
+    is_valid_template_archive,
+    new_template_archive_name,
+    template_archive_dir,
+)
 from baserow.core.user_templates.constants import (
     USER_TEMPLATE_DELETION_GRACE_PERIOD,
     USER_TEMPLATE_ICON_MAX_LENGTH,
@@ -50,6 +57,7 @@ from baserow.core.user_templates.exceptions import (
     TemplateChangedDuringUpdate,
     TemplateHasNoContent,
     TemplateSlugGenerationFailed,
+    TemplateUpdated,
 )
 from baserow.core.user_templates.types import TemplateMetadata
 from baserow.core.utils import ChildProgressBuilder
@@ -457,6 +465,21 @@ class UserTemplateHandler:
         :return: The serialized applications.
         """
 
+        return self.serialize_applications(
+            self._get_content_applications(revision),
+            user_template_copy_config(),
+            progress_builder=progress_builder,
+        )
+
+    def _get_content_applications(self, revision: Template) -> List[Application]:
+        """
+        Returns the applications holding the content of a revision, in their order.
+
+        :param revision: The revision of a user template.
+        :raises TemplateHasNoContent: If the revision has no application.
+        :return: The applications in the workspace of the revision.
+        """
+
         applications = (
             list(
                 Application.objects.filter(workspace_id=revision.workspace_id).order_by(
@@ -470,12 +493,94 @@ class UserTemplateHandler:
             raise TemplateHasNoContent(
                 f"The template {revision.family_id} has no content."
             )
+        return applications
 
-        return self.serialize_applications(
-            applications,
-            user_template_copy_config(),
-            progress_builder=progress_builder,
-        )
+    def build_template_archive(
+        self,
+        revision: Template,
+        *,
+        progress_builder: Optional[ChildProgressBuilder] = None,
+    ) -> None:
+        """
+        Builds the downloadable archive of a revision of a user template: a zip
+        file that can be imported into a workspace, holding what an install of the
+        revision would copy. It's stored in the directory of the revision, with a
+        name stamped with the current version, see `has_valid_archive`.
+
+        The applications are exported in their own snapshots, so this must not be
+        called inside an atomic block.
+
+        :param revision: The revision whose archive is built.
+        :param progress_builder: A progress builder that allows for publishing
+            progress.
+        :raises TemplateHasNoContent: If the revision has no application to copy.
+        :raises TemplateDoesNotExist: If the revision was deleted meanwhile. The
+            archive is deleted then.
+        """
+
+        from baserow.core.import_export.handler import ImportExportHandler
+
+        applications = self._get_content_applications(revision)
+        name = new_template_archive_name(revision.id)
+
+        try:
+            ImportExportHandler().write_applications_archive(
+                applications,
+                user_template_copy_config(),
+                name,
+                get_default_storage(),
+                progress_builder=progress_builder,
+            )
+            saved_name = self._save_template_archive_name(revision, name)
+        except Exception:
+            # Nothing refers to the file yet.
+            delete_template_archive_file(name)
+            raise
+
+        if saved_name != name:
+            # Another build saved a valid archive meanwhile, so nothing refers to
+            # this one.
+            delete_template_archive_file(name)
+        revision.archive.name = saved_name
+
+    def _save_template_archive_name(self, revision: Template, name: str) -> str:
+        """
+        Saves the name of the archive just built for a revision, unless another
+        build saved a valid one meanwhile, and deletes the replaced archive once
+        that commits. The revision is locked, so that overlapping builds keep one
+        valid archive and never delete each other's files.
+
+        :param revision: The revision the archive was built for.
+        :param name: The name of the archive just built.
+        :raises TemplateDoesNotExist: If the revision was deleted.
+        :return: The name of the archive the revision refers to now, which is
+            `name` unless another build saved a valid one first.
+        """
+
+        with transaction.atomic():
+            current_names = list(
+                Template.objects.select_for_update(no_key=True)
+                .filter(id=revision.id)
+                .values_list("archive", flat=True)
+            )
+            if not current_names:
+                raise TemplateDoesNotExist(
+                    f"The template revision {revision.id} does not exist."
+                )
+            current_name = current_names[0]
+            if current_name and is_valid_template_archive(revision.id, current_name):
+                return current_name
+
+            # Neither `updated_on`, nor `install_count`, are changed.
+            Template.objects.filter(id=revision.id).update(archive=name)
+            if current_name:
+                # Kept while another template refers to it, like a revision that
+                # only changed the details.
+                transaction.on_commit(
+                    lambda: self.delete_content_without_template(None, current_name),
+                    robust=True,
+                )
+        return name
 
     def install_template_content(
         self,
@@ -623,6 +728,42 @@ class UserTemplateHandler:
                 # It ended, or committed, between the query and the lock.
                 pass
 
+    def get_user_template_root(self, template_id: int) -> Optional[Template]:
+        """
+        Returns the root of a user template that isn't marked for deletion, which
+        is what the id of a user template refers to when it's installed or
+        downloaded. Access isn't checked here.
+
+        :param template_id: The id of the template.
+        :return: The root, or None for the id of a revision, of an official
+            template, of a template marked for deletion, or an unknown id.
+        """
+
+        return self._get_user_template_roots().filter(id=template_id).first()
+
+    def get_user_template_root_by_slug(self, slug: str) -> Optional[Template]:
+        """
+        Returns the root of a user template that isn't marked for deletion by its
+        slug, which only the root of a template has. Access isn't checked here.
+
+        :param slug: The slug of the template.
+        :return: The root, or None for the slug of an official template, of a
+            template marked for deletion, or an unknown slug.
+        """
+
+        return self._get_user_template_roots().filter(slug=slug).first()
+
+    def _get_user_template_roots(self) -> QuerySet[Template]:
+        """
+        Returns the roots of the user templates that aren't marked for deletion.
+
+        :return: A queryset of the roots.
+        """
+
+        return Template.objects.user().filter(
+            root__isnull=True, marked_for_deletion_at__isnull=True
+        )
+
     def get_latest_revision(self, root: Template) -> Template:
         """
         Returns the latest revision of a template, which is the root itself until
@@ -711,14 +852,68 @@ class UserTemplateHandler:
         else:
             revision = self.get_latest_revision(root)
 
+        self._check_has_content(revision)
+        return revision
+
+    def _check_has_content(self, revision: Template) -> None:
+        """
+        Checks that a revision of a user template has content to copy.
+
+        :param revision: The revision, with its root selected.
+        :raises TemplateHasNoContent: If the revision has no application to copy.
+        """
+
         if (
             not revision.has_content
             or not Application.objects.filter(
                 workspace_id=revision.workspace_id
             ).exists()
         ):
-            raise TemplateHasNoContent(f"The template {root.id} has no content.")
+            raise TemplateHasNoContent(
+                f"The template {revision.family_id} has no content."
+            )
 
+    def get_downloadable_revision(
+        self, user: AbstractUser, slug: str, revision_id: int
+    ) -> Template:
+        """
+        Returns the revision of a user template whose archive the user downloads,
+        which is the revision the user was shown. Its owner may download any
+        revision of the template, anyone else only the public one, with the same
+        access as install, see `get_installable_revision`.
+
+        :param user: The user who downloads the template.
+        :param slug: The slug of the template.
+        :param revision_id: The id of the revision the user was shown.
+        :raises TemplateDoesNotExist: If there is no user template with the slug,
+            the user may not download it, or its owner asks for a revision of
+            another template.
+        :raises TemplateBlocked: If the user owns the template and it's blocked.
+        :raises TemplateUpdated: If the user doesn't own the template and the
+            revision isn't the public one anymore.
+        :raises TemplateHasNoContent: If the revision has no application to copy.
+        :return: The revision, with its root selected.
+        """
+
+        root = self.get_user_template_root_by_slug(slug)
+        if root is None:
+            raise TemplateDoesNotExist(f"The template with slug {slug} does not exist.")
+        access = self._check_install_access(user, root)
+        if access != "owner" and revision_id != root.public_revision_id:
+            raise TemplateUpdated(
+                f"The template {root.id} was updated after revision {revision_id} "
+                "was shown."
+            )
+        revision = (
+            Template.objects.filter(Q(id=root.id) | Q(root=root), id=revision_id)
+            .select_related("root")
+            .first()
+        )
+        if revision is None:
+            raise TemplateDoesNotExist(
+                f"The revision {revision_id} of the template {root.id} does not exist."
+            )
+        self._check_has_content(revision)
         return revision
 
     def check_install_access(self, user: AbstractUser, revision: Template) -> None:
@@ -790,7 +985,8 @@ class UserTemplateHandler:
         leaves them behind. Deleting twice does nothing.
 
         :param workspace_id: The id of the workspace holding the copy, if any.
-        :param archive_name: The name of the stored archive, if any.
+        :param archive_name: The name of the stored archive, if any, or the
+            directory of the archives of a revision, see `delete_template_archives`.
         """
 
         if (
@@ -804,10 +1000,13 @@ class UserTemplateHandler:
                 if workspace is not None:
                     TrashHandler.permanently_delete(workspace)
 
-        if archive_name and not Template.objects.filter(archive=archive_name).exists():
-            storage = get_default_storage()
-            if storage.exists(archive_name):
-                storage.delete(archive_name)
+        if archive_name.endswith("/"):
+            # The directory of the archives of a revision.
+            delete_template_archives(archive_name)
+        elif (
+            archive_name and not Template.objects.filter(archive=archive_name).exists()
+        ):
+            delete_template_archive_file(archive_name)
 
     def delete_content_of_deleted_job(
         self, workspace_id: Optional[int], archive_name: str
@@ -864,19 +1063,24 @@ class UserTemplateHandler:
         another grace period, so that it doesn't hold up the others.
         """
 
-        from baserow.core.user_templates.models import CreateUserTemplateJob
+        from baserow.core.user_templates.models import (
+            CreateUserTemplateJob,
+            DownloadUserTemplateJob,
+        )
 
         # Only leaves out what `_delete_marked_template` would skip, which checks
         # the jobs again once they're locked. The families with a pending or
         # running job are read once, rather than per template.
         create_jobs = CreateUserTemplateJob.objects.is_pending_or_running()
         install_jobs = InstallTemplateJob.objects.is_pending_or_running()
+        download_jobs = DownloadUserTemplateJob.objects.is_pending_or_running()
         busy_root_ids = (
             Template.objects.filter(
                 Q(id__in=create_jobs.values("template_id"))
                 | Q(id__in=create_jobs.values("base_revision_id"))
                 | Q(id__in=create_jobs.values("revision_id"))
                 | Q(id__in=install_jobs.values("template_id"))
+                | Q(id__in=download_jobs.values("revision_id"))
             )
             .annotate(family_root_id=Coalesce("root_id", "id"))
             .values("family_root_id")
@@ -911,8 +1115,9 @@ class UserTemplateHandler:
         deletion succeeds, so that the sweep retries a failed one.
 
         The template is kept while one of its jobs is pending or running, so that
-        an install or an update finishes first, and while another transaction
-        holds its root.
+        an install, an update or a download finishes first, and while another
+        transaction holds its root. The download jobs are kept, without their
+        revision.
 
         :param root_id: The id of the root of the template.
         :return: Whether the template was removed.
@@ -920,6 +1125,7 @@ class UserTemplateHandler:
 
         from baserow.core.user_templates.models import (
             CreateUserTemplateJob,
+            DownloadUserTemplateJob,
             UserTemplateContentToDelete,
         )
 
@@ -956,7 +1162,14 @@ class UserTemplateHandler:
                     template_id__in=family_ids
                 ).values_list("id", flat=True)
             )
-            job_ids = create_job_ids + install_job_ids
+            # The download jobs are kept without their revision, see
+            # `DownloadUserTemplateJob.revision`.
+            download_job_ids = list(
+                DownloadUserTemplateJob.objects.filter(
+                    revision_id__in=family_ids
+                ).values_list("id", flat=True)
+            )
+            job_ids = create_job_ids + install_job_ids + download_job_ids
 
             # The states are read from the locked rows, because a job that was
             # failed can still be started by its late task until it's locked.
@@ -985,6 +1198,10 @@ class UserTemplateHandler:
                 (workspace_id, archive_name or "")
                 for _, workspace_id, archive_name in family
                 if workspace_id is not None or archive_name
+            }
+            # Each revision builds its own archives, see `build_template_archive`.
+            distinct_contents |= {
+                (None, template_archive_dir(template_id)) for template_id in family_ids
             }
             contents = UserTemplateContentToDelete.objects.bulk_create(
                 [

@@ -2,14 +2,18 @@ from typing import Any
 
 import pytest
 
+from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.actions import UpdateElementActionType
+from baserow.core.formula import BaserowFormulaObject
 from baserow.core.graph.types import GraphPointPosition
 from baserow.test_utils.fixtures import Fixtures
 from baserow_enterprise.assistant.evals.datasets.builder import (
     _changes_theme_scenario,
+    _check_changes_detail_path,
     _check_changes_theme,
     _check_creates_data_source_with_repeat,
     _check_creates_new_page_not_modifies_existing,
+    _check_detail_row_from_url,
     _check_menu_adds_link_keeps_button,
     _check_menu_adds_pages_one_by_one,
     _check_menu_button_opens_page,
@@ -17,8 +21,11 @@ from baserow_enterprise.assistant.evals.datasets.builder import (
     _check_menu_removes_sub_link,
     _check_menu_renames_button,
     _check_menu_reorders_items,
+    _check_product_detail_page,
     _creates_data_source_with_repeat_scenario,
     _creates_new_page_not_modifies_existing_scenario,
+    _product_detail_page_scenario,
+    _product_shop_scenario,
     _site_header_menu_scenario,
 )
 from baserow_enterprise.assistant.evals.types import EvalRunOutput, EvalScenario
@@ -224,3 +231,94 @@ def test_menu_checks_pass_only_when_the_edit_keeps_the_items(
     checks = check(None, scenario, _output())
 
     assert all(result.passed for result in checks) == (outcome == "edited"), checks
+
+
+def _detail_page(
+    data_fixture, scenario, path="/product/:id", row_id="get('page_parameter.id')"
+):
+    refs = scenario.refs
+    page = data_fixture.create_builder_page(
+        builder=refs["builder"],
+        name="Product",
+        path=path,
+        path_params=[{"name": "id", "type": "numeric"}],
+    )
+    source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page, name="Product", table=refs["table"], row_id=row_id
+    )
+    return page, source
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("defect", [None, "literal_row", "literal_title"])
+def test_product_detail_page_check_reads_saved_formulas(data_fixture, defect):
+    scenario = _product_shop_scenario(data_fixture)
+    refs = scenario.refs
+    page, source = _detail_page(
+        data_fixture,
+        scenario,
+        row_id="'1'" if defect == "literal_row" else "get('page_parameter.id')",
+    )
+    name = f"get('data_source.{source.id}.field_{refs['name_field'].id}')"
+    data_fixture.create_builder_heading_element(page=page, value=name)
+    data_fixture.create_builder_text_element(
+        page=page,
+        value=f"get('data_source.{source.id}.field_{refs['price_field'].id}')",
+    )
+    button = data_fixture.create_builder_button_element(page=page)
+    data_fixture.create_notification_workflow_action(
+        page=page,
+        element=button,
+        event="click",
+        title="'Added'" if defect == "literal_title" else name,
+    )
+
+    results = {
+        r.name: r.passed for r in _check_product_detail_page(None, scenario, _output())
+    }
+
+    assert results["get_row data source reads the row id from the URL"] == (
+        defect != "literal_row"
+    )
+    assert results["notification title is the product's name"] == (
+        defect != "literal_title"
+    )
+    assert results["an element shows the product's Name"]
+    assert results["an element shows the product's Price"]
+
+
+@pytest.mark.django_db
+def test_changes_detail_path_check_needs_a_numeric_id(data_fixture):
+    scenario = _product_detail_page_scenario(data_fixture)
+    page = scenario.refs["page"]
+    page.path = "/item/:id/:slug"
+    page.path_params = [
+        {"name": "id", "type": "text"},
+        {"name": "slug", "type": "text"},
+    ]
+    page.save()
+
+    results = {
+        r.name: r.passed for r in _check_changes_detail_path(None, scenario, _output())
+    }
+
+    assert results["path is '/item/:id/:slug'"]
+    assert not results["id stays numeric"]
+
+
+@pytest.mark.django_db
+def test_detail_row_from_url_check_reads_the_saved_row_id(data_fixture):
+    scenario = _product_detail_page_scenario(data_fixture)
+
+    def passed():
+        return {
+            r.name: r.passed
+            for r in _check_detail_row_from_url(None, scenario, _output())
+        }["Product data source reads the row id from the URL"]
+
+    assert not passed()
+    source = DataSource.objects.get(page=scenario.refs["page"])
+    service = source.service.specific
+    service.row_id = BaserowFormulaObject.create("get('page_parameter.id')")
+    service.save()
+    assert passed()

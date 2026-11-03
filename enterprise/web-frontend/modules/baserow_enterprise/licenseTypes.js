@@ -13,6 +13,7 @@ const commonAdvancedFeatures = [
   EnterpriseFeaturesObject.ADVANCED_WEBHOOKS,
   EnterpriseFeaturesObject.FIELD_LEVEL_PERMISSIONS,
   EnterpriseFeaturesObject.DATE_DEPENDENCY,
+  EnterpriseFeaturesObject.SEMANTIC_SEARCH,
   // WAB
   EnterpriseFeaturesObject.BUILDER_SSO,
   EnterpriseFeaturesObject.BUILDER_NO_BRANDING,

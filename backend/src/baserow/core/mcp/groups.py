@@ -8,11 +8,15 @@ GROUP_DATABASE_DELETE = "database_delete"
 GROUP_AUTOMATION_READ = "automation_read"
 GROUP_AUTOMATION_EDIT = "automation_edit"
 GROUP_AUTOMATION_DELETE = "automation_delete"
+GROUP_DASHBOARD_READ = "dashboard_read"
+GROUP_DASHBOARD_EDIT = "dashboard_edit"
+GROUP_DASHBOARD_DELETE = "dashboard_delete"
 GROUP_DATA_SOURCES_READ = "data_sources_read"
 GROUP_DATA_SOURCES_EDIT = "data_sources_edit"
 
 AREA_DATABASE = "database"
 AREA_AUTOMATION = "automation"
+AREA_DASHBOARD = "dashboard"
 AREA_DATA_SOURCES = "data_sources"
 
 
@@ -86,18 +90,41 @@ class AutomationDeleteMCPToolGroup(MCPToolGroup):
     order = 60
 
 
+class DashboardReadMCPToolGroup(MCPToolGroup):
+    type = GROUP_DASHBOARD_READ
+    title = "Read dashboards"
+    area = AREA_DASHBOARD
+    # Only the figures the user already sees on the dashboard.
+    read_only_preset = True
+    order = 70
+
+
+class DashboardEditMCPToolGroup(MCPToolGroup):
+    type = GROUP_DASHBOARD_EDIT
+    title = "Edit dashboards"
+    area = AREA_DASHBOARD
+    order = 80
+
+
+class DashboardDeleteMCPToolGroup(MCPToolGroup):
+    type = GROUP_DASHBOARD_DELETE
+    title = "Delete in dashboards"
+    area = AREA_DASHBOARD
+    order = 90
+
+
 class DataSourcesReadMCPToolGroup(MCPToolGroup):
     type = GROUP_DATA_SOURCES_READ
     title = "Read data source filters"
     area = AREA_DATA_SOURCES
-    order = 70
+    order = 100
 
 
 class DataSourcesEditMCPToolGroup(MCPToolGroup):
     type = GROUP_DATA_SOURCES_EDIT
     title = "Edit data source filters"
     area = AREA_DATA_SOURCES
-    order = 80
+    order = 110
 
 
 mcp_tool_group_registry = MCPToolGroupRegistry()

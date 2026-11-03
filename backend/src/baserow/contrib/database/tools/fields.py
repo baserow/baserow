@@ -42,8 +42,8 @@ from baserow.contrib.database.tools.errors import user_error_message
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import InstanceTypeDoesNotExist, PermissionException
 from baserow.core.formula.parser.exceptions import BaserowFormulaException
-from baserow.core.mcp.exceptions import INTERNAL_ERROR_MESSAGE, to_mcp_error
 from baserow.core.tools import ToolContext
+from baserow.core.tools.errors import INTERNAL_ERROR_MESSAGE, tool_error_message
 
 
 class BaseModel(PydanticBaseModel):
@@ -956,7 +956,7 @@ def _formula_error(exc: InvalidFormulaFieldError) -> dict[str, Any]:
     }
 
 
-# Errors to_mcp_error turns into a readable message.
+# Errors tool_error_message turns into a readable message.
 _FORMATTED_ERRORS = (
     DjangoValidationError,
     DRFValidationError,
@@ -977,7 +977,7 @@ def _item_error_message(exc: Exception) -> str:
 
     if isinstance(exc, _FORMATTED_ERRORS):
         # None for an InstanceTypeDoesNotExist without a type name: a server bug.
-        message = to_mcp_error(exc)
+        message = tool_error_message(exc)
     elif not isinstance(exc, AttributeError) and (
         isinstance(exc, (ValueError, ObjectDoesNotExist))
         or type(exc).__module__.startswith("baserow")
