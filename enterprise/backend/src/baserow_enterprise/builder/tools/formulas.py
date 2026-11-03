@@ -435,14 +435,19 @@ class _GetPathsVisitor(BaserowFormulaValidationVisitor):
         )
         self.paths: list[str] = []
 
-    def visitFunctionCall(self, ctx, function_name=None):
-        result = super().visitFunctionCall(ctx, function_name)
-        if function_name is None and ctx.func_name().getText().lower() == "get":
-            path = ctx.expr()[0].accept(self)
-            # A path built by another function is only known when the page runs.
-            if isinstance(path, str):
-                self.paths.append(path)
-        return result
+    def _parse_args_for_validation(self, formula_function_type, accepted_args):
+        # A path built by another function is only known when the page runs.
+        if (
+            formula_function_type.type == "get"
+            and accepted_args
+            and isinstance(accepted_args[0], str)
+        ):
+            if not to_path(accepted_args[0]):
+                raise InvalidRuntimeFormula(
+                    f"'{accepted_args[0]}' doesn't name anything to read."
+                )
+            self.paths.append(accepted_args[0])
+        return super()._parse_args_for_validation(formula_function_type, accepted_args)
 
 
 def _matches_schema(
@@ -481,7 +486,10 @@ def _listed(names: list[str]) -> str:
 
 
 def _data_source_path_problem(
-    path: str, rest: list[str], context: BuilderFormulaContext
+    path: str,
+    rest: list[str],
+    context: BuilderFormulaContext,
+    check_schema: bool = True,
 ) -> str | None:
     data_source_id = rest[0] if rest else ""
     data_source = (
@@ -496,7 +504,11 @@ def _data_source_path_problem(
             f"page. Its data sources: {_listed(names)}."
         )
     schema = data_source["schema"]
-    if schema is None or _matches_schema(rest[1:], schema, by_title=True):
+    if (
+        not check_schema
+        or schema is None
+        or _matches_schema(rest[1:], schema, by_title=True)
+    ):
         return None
     if schema.get("type") == "array" and not (rest[1].isdigit() or rest[1] == "*"):
         return (
@@ -516,9 +528,14 @@ def _get_path_problem(
 ) -> str | None:
     """Why a path of a ``get`` call can't be read in this context, if so."""
 
-    root, *rest = to_path(path)
+    parts = to_path(path)
+    if not parts:
+        return f"'{path}' doesn't name anything to read."
+    root, *rest = parts
     if root == "data_source":
         return _data_source_path_problem(path, rest, context)
+    if root == "data_source_context":
+        return _data_source_path_problem(path, rest, context, check_schema=False)
     if root in ("page_parameter", "form_data"):
         known = context.context.get(root, {})
         what = "page parameter" if root == "page_parameter" else "form element"
@@ -573,6 +590,7 @@ def formula_problem(
         InstanceTypeDoesNotExist,
         RecursionError,
         ValueError,
+        OverflowError,
     ) as exc:
         return f"'{field}' is not a valid formula: {exc}"
 

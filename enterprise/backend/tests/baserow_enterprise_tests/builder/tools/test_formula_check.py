@@ -241,3 +241,57 @@ def test_update_leaves_row_id_alone_when_it_is_not_given(site):
     )
 
     assert result["updated_data_source"]["name"] == "Renamed"
+
+
+@pytest.mark.django_db
+def test_deeply_nested_gets_are_checked_in_linear_time(site, monkeypatch):
+    from baserow_enterprise.builder.tools import formulas
+
+    calls = 0
+    original = formulas._GetPathsVisitor.visitFunctionCall
+
+    def counting(self, *args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(formulas._GetPathsVisitor, "visitFunctionCall", counting)
+    depth = 200
+    formula = "get(" * depth + "'page_parameter.id'" + ")" * depth
+
+    assert problem(site, formula) is None
+    assert calls == depth
+
+
+@pytest.mark.django_db
+def test_a_data_source_context_must_be_on_the_page(data_fixture, site):
+    other = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=data_fixture.create_builder_page(), name="Other"
+    )
+    rows = site["rows"].id
+
+    assert problem(site, f"get('data_source_context.{rows}.total_count')") is None
+    refused = problem(site, f"get('data_source_context.{other.id}.total_count')")
+    assert refused and "isn't on this page" in refused
+    assert "isn't on this page" in problem(site, "get('data_source_context.x')")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "formula",
+    [
+        "to_duration(99999999999999999999)",
+        "duration_format(99999999999999999999,'a')",
+    ],
+)
+def test_a_number_too_large_for_a_function_is_refused(site, formula):
+    refused = problem(site, formula)
+
+    assert refused and "not a valid formula" in refused
+
+
+@pytest.mark.django_db
+def test_a_get_without_a_path_is_refused_with_a_message(site):
+    refused = problem(site, "get('[')")
+
+    assert refused and "doesn't name anything" in refused
