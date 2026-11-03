@@ -102,6 +102,12 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   white-space: pre-wrap;
 }
 
+.chat-message__bubble--thinking {
+  border-color: $palette-cyan-200;
+  background: $palette-cyan-50;
+  color: $palette-cyan-900;
+}
+
 .chat-message__bubble--error {
   border-color: rgba($palette-red-600, 0.35);
   background: $palette-red-50;

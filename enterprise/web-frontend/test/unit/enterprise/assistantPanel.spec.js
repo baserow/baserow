@@ -225,6 +225,7 @@ describe('AssistantPanel', () => {
     ).join('\n\n')
     await receive({ type: 'ai/reasoning', content })
     expect(wrapper.find('.assistant__reasoning--collapsed').exists()).toBe(true)
+    expect(wrapper.find('.chat-message__bubble--thinking').exists()).toBe(true)
     writes.length = 0
 
     // The preview has reached its cap; more thinking does not change its height.
@@ -241,7 +242,25 @@ describe('AssistantPanel', () => {
     )
     expect(wrapper.find('.assistant__reasoning-toggle').exists()).toBe(false)
     expect(wrapper.findAll('.chat-markdown p')).toHaveLength(40)
+    expect(wrapper.find('.chat-message__bubble--thinking').exists()).toBe(false)
     expect(writes).toEqual([1400])
+
+    // A later tool call can reveal that the streamed text was only its preface.
+    height = 1000
+    await receive({ type: 'ai/reasoning', content })
+    expect(wrapper.find('.chat-message__bubble--thinking').exists()).toBe(true)
+    expect(wrapper.find('.assistant__reasoning--collapsed').exists()).toBe(true)
+    expect(wrapper.find('.assistant__reasoning-toggle').exists()).toBe(true)
+    await receive({ type: 'ai/reasoning', content: '' })
+    expect(wrapper.find('.chat-message__bubble--thinking').exists()).toBe(true)
+    expect(wrapper.find('.chat-typing').exists()).toBe(true)
+    expect(wrapper.find('.assistant__reasoning-toggle').exists()).toBe(false)
+    height = 1400
+    await receive({ type: 'ai/message', content, sources: [] })
+    expect(wrapper.find('.chat-message__bubble--thinking').exists()).toBe(false)
+    expect(wrapper.find('.assistant__reasoning--collapsed').exists()).toBe(
+      false
+    )
 
     container.scrollTop = 200
     await wrapper.get('.assistant__content').trigger('scroll')
@@ -263,6 +282,7 @@ describe('AssistantPanel', () => {
     expect(writes).toEqual([])
     expect(top).toBe(200)
     expect(wrapper.findAll('.chat-markdown p')).toHaveLength(41)
+    expect(wrapper.find('.chat-message__bubble--thinking').exists()).toBe(false)
     expect(wrapper.find('.assistant__reasoning-toggle').exists()).toBe(false)
     expect(wrapper.find('button[aria-label="action.copy"]').exists()).toBe(true)
     expect(store.getters['assistant/currentChat'].running).toBe(false)

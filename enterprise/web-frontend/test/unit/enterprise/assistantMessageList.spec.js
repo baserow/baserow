@@ -45,6 +45,13 @@ describe('AssistantMessageList', () => {
     const bubble = wrapper.get('.chat-message__bubble').element
     expect(wrapper.findAll('.chat-typing__dot')).toHaveLength(3)
     expect(wrapper.find('.chat-message__actions').exists()).toBe(false)
+    expect(wrapper.find('.chat-message__bubble--thinking').exists()).toBe(false)
+    await wrapper.setProps({
+      messages: [{ ...pending, loading: false, reasoning: true }],
+    })
+    expect(wrapper.find('.chat-message__bubble--thinking').exists()).toBe(true)
+    expect(wrapper.findAll('.chat-typing__dot')).toHaveLength(3)
+    expect(wrapper.find('.assistant__reasoning-toggle').exists()).toBe(false)
 
     const reasoning = {
       ...pending,
@@ -57,6 +64,7 @@ describe('AssistantMessageList', () => {
 
     expect(wrapper.get('.chat-message__bubble').element).toBe(bubble)
     expect(wrapper.get('.chat-markdown strong').text()).toBe('Plan')
+    expect(wrapper.find('.chat-message__bubble--thinking').exists()).toBe(true)
     expect(wrapper.get('.chat-message__bubble').attributes('aria-busy')).toBe(
       'true'
     )
@@ -82,6 +90,7 @@ describe('AssistantMessageList', () => {
     await wrapper.setProps({ messages: [final] })
     expect(wrapper.get('.chat-message__bubble').element).toBe(bubble)
     expect(wrapper.get('.chat-markdown strong').text()).toBe('Answer')
+    expect(wrapper.find('.chat-message__bubble--thinking').exists()).toBe(false)
     expect(wrapper.find('.assistant__reasoning-toggle').exists()).toBe(false)
     expect(wrapper.find('.chat-message__actions').exists()).toBe(false)
     await wrapper.setProps({ running: false })

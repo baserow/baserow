@@ -11,14 +11,22 @@
         <div
           v-else
           class="chat-message__bubble"
-          :class="{ 'chat-message__bubble--error': message.error }"
+          :class="{
+            'chat-message__bubble--error': message.error,
+            'chat-message__bubble--thinking':
+              message.reasoning && !message.error,
+          }"
           :aria-live="message.role === 'ai' ? 'polite' : undefined"
           :aria-busy="isBusy(message, index)"
         >
           <template v-if="message.role === 'human'">{{
             message.content
           }}</template>
-          <ChatTyping v-else-if="message.loading && !message.content" />
+          <ChatTyping
+            v-else-if="
+              (message.loading || message.reasoning) && !message.content
+            "
+          />
           <template v-else>
             <ChatMarkdown
               :id="
@@ -33,7 +41,7 @@
               }"
             />
             <button
-              v-if="message.reasoning"
+              v-if="message.reasoning && message.content"
               type="button"
               class="assistant__reasoning-toggle"
               :aria-controls="`assistant-reasoning-${message.id}`"
