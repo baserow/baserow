@@ -1302,6 +1302,48 @@ def get_writable_action(
     return action
 
 
+def check_open_page_parameters(
+    action: BuilderWorkflowAction, item: ActionUpdate
+) -> None:
+    """
+    Check that the page parameters an open_page update leaves on the action are the
+    ones the page it opens has. Only a call that gives the page or the parameters is
+    checked. A page that isn't in the action's application is left to the writer.
+
+    :raises ToolInputError: When parameters are missing or unknown.
+    """
+
+    if item.type != "open_page" or (
+        item.page_parameters is None and item.navigate_to_page_id is None
+    ):
+        return
+
+    page_id = item.navigate_to_page_id or getattr(action, "navigate_to_page_id", None)
+    page = Page.objects.filter(id=page_id, builder_id=action.page.builder_id).first()
+    if page is None:
+        return
+    if item.page_parameters is not None:
+        names = [param.name for param in item.page_parameters]
+    else:
+        names = [param["name"] for param in action.page_parameters or []]
+
+    expected = [param["name"] for param in page.path_params or []]
+    missing = [name for name in expected if name not in names]
+    unknown = [name for name in dict.fromkeys(names) if name not in expected]
+    if not missing and not unknown:
+        return
+    problems = []
+    if missing:
+        problems.append(f"missing: {', '.join(missing)}")
+    if unknown:
+        problems.append(f"unknown: {', '.join(unknown)}")
+    raise ToolInputError(
+        f"The page parameters don't fit page {page.id}, which takes "
+        f"{', '.join(expected) or 'none'} ({'; '.join(problems)}). Give page_parameters "
+        "with exactly those names, or an empty list if it takes none."
+    )
+
+
 def update_workflow_action(
     user: AbstractUser,
     workspace: Workspace,
@@ -1322,6 +1364,7 @@ def update_workflow_action(
     if item.data_source is not None:
         page = action.element.page if action.element_id else action.page
         check_data_source_on_page(page, item.data_source)
+    check_open_page_parameters(action, item)
 
     with transaction.atomic():
         # A row action's mappings are replaced as a whole list.

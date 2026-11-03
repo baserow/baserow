@@ -37,7 +37,8 @@ def list_actions(
     """
     List the workflow actions of a page of an application builder: id, type, the
     element they belong to, the event that runs them (like click or submit) and
-    their field mappings. Actions run when a visitor uses an element, like
+    their values, like the title, the page to open and its parameters, or the table
+    and field mappings. Actions run when a visitor uses an element, like
     opening a page, showing a notification or changing rows. The actions of elements
     on the shared page, like a header or footer, are listed too: they run on every
     page.
@@ -228,6 +229,11 @@ def update_action(
     stored as fixed text. A row_id or field value is always a formula, so quote fixed
     text: 'like this'. A value that isn't a valid formula keeps its previous value and
     is listed in formula_errors.
+
+    page_parameters must name exactly the parameters of the page the action opens,
+    and replace the whole list: read the current one with list_actions. Moving to
+    another table with table_id clears the field values, so give the new ones with
+    it; row_id stays and now points into the new table.
     """
 
     _action, formula_errors = update_action_values(ctx, action_id, changes)

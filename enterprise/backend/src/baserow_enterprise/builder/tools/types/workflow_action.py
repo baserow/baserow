@@ -741,8 +741,9 @@ class ActionChanges(BaseModel):
     table_id: int | None = Field(
         default=None,
         description=(
-            "(row actions) Target table ID. Moving to another table clears the "
-            "field values, so send the new ones with it."
+            "(row actions) Target table ID. Moving to another table: the field "
+            "values are cleared, so send the new ones with it, and row_id stays and "
+            "now points into the new table."
         ),
     )
     row_id: str | None = Field(
@@ -797,6 +798,11 @@ class ActionChanges(BaseModel):
                 f"{', '.join(wrong)} can't be set on a {action_type} action. It takes: "
                 f"{', '.join(changeable) or 'nothing'}."
             )
+        if given == ["field_values"] and not self.field_values:
+            raise ToolInputError(
+                "There is nothing to change: field_values is empty. Name the fields "
+                "to set."
+            )
         # Every value is set, so ``target`` doesn't take its default for a new action.
         values = {name: getattr(self, name) for name in type(self).model_fields}
         if self.field_values is not None:
@@ -817,6 +823,21 @@ class ActionChanges(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+def _formula_text(value: Any) -> str:
+    """A stored formula as the string the tools take back."""
+
+    if isinstance(value, dict):
+        return value.get("formula") or ""
+    return str(value) if value else ""
+
+
+def _parameter_items(parameters: list[dict] | None) -> list["ParameterMapping"]:
+    return [
+        ParameterMapping(name=p["name"], value=_formula_text(p.get("value")))
+        for p in parameters or []
+    ]
+
+
 class FieldMappingItem(BaseModel):
     """Field mapping for create_row/update_row workflow actions."""
 
@@ -826,12 +847,24 @@ class FieldMappingItem(BaseModel):
 
 
 class ActionItem(BaseModel):
-    """Existing workflow action with ID."""
+    """
+    Existing workflow action with ID. The values are what ``create_actions`` and
+    ``update_action`` take, formulas as plain strings, and only the ones of the
+    action's type are set.
+    """
 
     id: int
     type: str
     element_id: int | None = None
     event: str = "click"
+    title: str | None = None
+    description: str | None = None
+    navigation_type: str | None = None
+    navigate_to_page_id: int | None = None
+    target: str | None = None
+    page_parameters: list[ParameterMapping] | None = None
+    query_parameters: list[ParameterMapping] | None = None
+    data_source_id: int | None = None
     table_id: int | None = None
     row_id_formula: str | None = None
     field_mappings: list[FieldMappingItem] | None = None
@@ -850,20 +883,32 @@ class ActionItem(BaseModel):
 
         specific = action.specific
 
+        if action_type == "notification":
+            kwargs["title"] = _formula_text(specific.title)
+            kwargs["description"] = _formula_text(specific.description)
+        elif action_type == "open_page":
+            kwargs["navigation_type"] = specific.navigation_type
+            kwargs["navigate_to_page_id"] = specific.navigate_to_page_id
+            kwargs["target"] = specific.target
+            kwargs["page_parameters"] = _parameter_items(specific.page_parameters)
+            kwargs["query_parameters"] = _parameter_items(specific.query_parameters)
+        elif action_type == "refresh_data_source":
+            kwargs["data_source_id"] = specific.data_source_id
+
         if action_type in ("create_row", "update_row", "delete_row"):
             if hasattr(specific, "service") and specific.service:
                 service = specific.service.specific
                 if hasattr(service, "table") and service.table:
                     kwargs["table_id"] = service.table_id
                 if hasattr(service, "row_id") and service.row_id:
-                    kwargs["row_id_formula"] = str(service.row_id)
+                    kwargs["row_id_formula"] = _formula_text(service.row_id)
                 if action_type in ("create_row", "update_row"):
                     if hasattr(service, "field_mappings"):
                         mappings = [
                             FieldMappingItem(
                                 field_id=m.field_id,
                                 field_name=m.field.name,
-                                value=str(m.value) if m.value else "",
+                                value=_formula_text(m.value),
                             )
                             for m in service.field_mappings.all()
                         ]

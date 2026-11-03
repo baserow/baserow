@@ -1271,3 +1271,337 @@ def test_update_action_refuses_a_table_of_another_workspace(
         update(builder_ctx, action.id, table_id=other.id)
 
     assert stored(action.id).service.specific.table_id == table.id
+
+
+# ---------------------------------------------------------------------------
+# Reading actions back
+# ---------------------------------------------------------------------------
+
+
+def listed(builder_ctx, action_id):
+    result = actions.list_actions(builder_ctx["ctx"], builder_ctx["page"].id)
+    return next(a for a in result["workflow_actions"] if a["id"] == action_id)
+
+
+@pytest.mark.django_db
+def test_list_actions_shows_a_notification_title_and_description(builder_ctx, titled):
+    item = listed(builder_ctx, titled.id)
+
+    assert item["title"] == "'Old'"
+    assert item["description"] == "'Text'"
+    assert item["navigate_to_page_id"] is None
+    assert item["page_parameters"] is None
+
+
+@pytest.mark.django_db
+def test_list_actions_shows_where_an_open_page_goes(
+    builder_ctx, detail_page, opens_detail
+):
+    item = listed(builder_ctx, opens_detail.id)
+
+    assert item["navigation_type"] == "page"
+    assert item["navigate_to_page_id"] == detail_page.id
+    assert item["target"] == opens_detail.target
+    assert item["page_parameters"] == [{"name": "id", "value": "'Fixed'"}]
+    assert item["query_parameters"] == []
+    assert item["title"] is None
+
+
+@pytest.mark.django_db
+def test_list_actions_shows_the_data_source_a_refresh_uses(builder_ctx):
+    action = saved(
+        create(
+            builder_ctx,
+            ActionCreate(
+                type="refresh_data_source",
+                element=builder_ctx["button"].id,
+                data_source=builder_ctx["data_source"].id,
+            ),
+        )
+    )
+
+    item = listed(builder_ctx, action.id)
+
+    assert item["data_source_id"] == builder_ctx["data_source"].id
+
+
+@pytest.mark.django_db
+def test_list_actions_gives_row_formulas_as_plain_strings(builder_ctx):
+    action = saved(
+        create(builder_ctx, row_action(builder_ctx, builder_ctx["button"].id))
+    )
+
+    item = listed(builder_ctx, action.id)
+
+    assert item["row_id_formula"] == "'1'"
+    assert [m["value"] for m in item["field_mappings"]] == ["'x'"]
+
+
+@pytest.mark.django_db
+def test_list_actions_reads_the_same_as_update_action_returns(
+    builder_ctx, opens_detail
+):
+    result = update(builder_ctx, opens_detail.id, target="blank")
+
+    assert result["updated_action"] == listed(builder_ctx, opens_detail.id)
+    assert result["updated_action"]["target"] == "blank"
+
+
+@pytest.mark.django_db
+def test_what_list_actions_shows_can_be_sent_back_to_update_action(
+    builder_ctx, detail_page, opens_detail
+):
+    data_source_id = builder_ctx["data_source"].id
+    update(
+        builder_ctx,
+        opens_detail.id,
+        page_parameters=[
+            {"name": "id", "value": f"get('data_source.{data_source_id}.0.id')"}
+        ],
+        query_parameters=[{"name": "tab", "value": "Fixed tab"}],
+    )
+    before = listed(builder_ctx, opens_detail.id)
+    raw_before = stored(opens_detail.id)
+
+    result = update(
+        builder_ctx,
+        opens_detail.id,
+        navigate_to_page_id=before["navigate_to_page_id"],
+        target=before["target"],
+        page_parameters=before["page_parameters"],
+        query_parameters=before["query_parameters"],
+    )
+
+    assert "formula_errors" not in result
+    assert result["updated_action"] == before
+    after = stored(opens_detail.id)
+    assert after.page_parameters == raw_before.page_parameters
+    assert after.query_parameters == raw_before.query_parameters
+
+
+@pytest.mark.django_db
+def test_notification_values_can_be_sent_back_to_update_action(builder_ctx, titled):
+    before = listed(builder_ctx, titled.id)
+
+    update(builder_ctx, titled.id, title=before["title"], description="Same")
+    update(builder_ctx, titled.id, description=before["description"])
+
+    assert listed(builder_ctx, titled.id)["title"] == before["title"]
+    assert stored(titled.id).title["formula"] == "'Old'"
+    assert stored(titled.id).description["formula"] == "'Text'"
+
+
+# ---------------------------------------------------------------------------
+# Page parameters of an open_page update
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def two_parameter_page(data_fixture, builder_ctx):
+    return data_fixture.create_builder_page(
+        builder=builder_ctx["builder"],
+        name="Two",
+        path="/d/:id/:slug",
+        path_params=[
+            {"name": "id", "type": "text"},
+            {"name": "slug", "type": "text"},
+        ],
+    )
+
+
+@pytest.fixture
+def opens_two(builder_ctx, two_parameter_page):
+    return saved(
+        create(
+            builder_ctx,
+            ActionCreate(
+                type="open_page",
+                element=builder_ctx["button"].id,
+                navigate_to_page_id=two_parameter_page.id,
+                page_parameters=[
+                    {"name": "id", "value": "A"},
+                    {"name": "slug", "value": "B"},
+                ],
+            ),
+        )
+    )
+
+
+def _parameter_names(action_id):
+    return [p["name"] for p in stored(action_id).page_parameters]
+
+
+@pytest.mark.django_db
+def test_update_action_refuses_a_partial_parameter_list(builder_ctx, opens_two):
+    with pytest.raises(ToolInputError, match="slug") as error:
+        update(
+            builder_ctx,
+            opens_two.id,
+            page_parameters=[{"name": "id", "value": "New"}],
+            target="blank",
+        )
+
+    assert "missing" in str(error.value).lower()
+    assert _parameter_names(opens_two.id) == ["id", "slug"]
+    assert stored(opens_two.id).target == opens_two.target
+    assert stored(opens_two.id).page_parameters[0]["value"]["formula"] == "'A'"
+
+
+@pytest.mark.django_db
+def test_update_action_refuses_an_unknown_parameter_name(builder_ctx, opens_two):
+    with pytest.raises(ToolInputError, match="nosuch") as error:
+        update(
+            builder_ctx,
+            opens_two.id,
+            page_parameters=[
+                {"name": "id", "value": "A"},
+                {"name": "slug", "value": "B"},
+                {"name": "nosuch", "value": "x"},
+            ],
+        )
+
+    assert "unknown" in str(error.value).lower()
+    assert _parameter_names(opens_two.id) == ["id", "slug"]
+
+
+@pytest.mark.django_db
+def test_update_action_names_both_the_missing_and_the_unknown(builder_ctx, opens_two):
+    with pytest.raises(ToolInputError) as error:
+        update(
+            builder_ctx,
+            opens_two.id,
+            page_parameters=[{"name": "nosuch", "value": "x"}],
+        )
+
+    message = str(error.value)
+    assert "nosuch" in message and "id" in message and "slug" in message
+    assert _parameter_names(opens_two.id) == ["id", "slug"]
+
+
+@pytest.mark.django_db
+def test_update_action_refuses_a_new_target_with_other_parameters(
+    data_fixture, builder_ctx, opens_two
+):
+    other = data_fixture.create_builder_page(
+        builder=builder_ctx["builder"],
+        path="/o/:code",
+        path_params=[{"name": "code", "type": "text"}],
+    )
+
+    with pytest.raises(ToolInputError, match="code"):
+        update(builder_ctx, opens_two.id, navigate_to_page_id=other.id)
+
+    action = stored(opens_two.id)
+    assert action.navigate_to_page_id == opens_two.navigate_to_page_id
+    assert _parameter_names(opens_two.id) == ["id", "slug"]
+
+
+@pytest.mark.django_db
+def test_update_action_accepts_a_new_target_with_its_parameters(
+    data_fixture, builder_ctx, opens_two
+):
+    other = data_fixture.create_builder_page(
+        builder=builder_ctx["builder"],
+        path="/o/:code",
+        path_params=[{"name": "code", "type": "text"}],
+    )
+
+    result = update(
+        builder_ctx,
+        opens_two.id,
+        navigate_to_page_id=other.id,
+        page_parameters=[{"name": "code", "value": "C"}],
+    )
+
+    assert "formula_errors" not in result
+    assert _parameter_names(opens_two.id) == ["code"]
+    assert stored(opens_two.id).navigate_to_page_id == other.id
+
+
+@pytest.mark.django_db
+def test_update_action_accepts_a_target_without_parameters_and_an_empty_list(
+    data_fixture, builder_ctx, opens_two
+):
+    other = data_fixture.create_builder_page(builder=builder_ctx["builder"], path="/o")
+
+    update(builder_ctx, opens_two.id, navigate_to_page_id=other.id, page_parameters=[])
+
+    assert stored(opens_two.id).page_parameters == []
+
+
+@pytest.mark.django_db
+def test_update_action_accepts_a_complete_list_in_any_order(builder_ctx, opens_two):
+    update(
+        builder_ctx,
+        opens_two.id,
+        page_parameters=[
+            {"name": "slug", "value": "S"},
+            {"name": "id", "value": "I"},
+        ],
+    )
+
+    assert sorted(_parameter_names(opens_two.id)) == ["id", "slug"]
+
+
+@pytest.mark.django_db
+def test_update_action_does_not_check_parameters_when_none_are_given(
+    builder_ctx, opens_two
+):
+    update(builder_ctx, opens_two.id, target="blank", query_parameters=[])
+
+    assert stored(opens_two.id).target == "blank"
+
+
+@pytest.mark.django_db
+def test_create_actions_still_takes_parameters_the_page_does_not_have(builder_ctx):
+    detail = builder_ctx["builder"].page_set.get(name="About")
+
+    result = create(
+        builder_ctx,
+        ActionCreate(
+            type="open_page",
+            element=builder_ctx["button"].id,
+            navigate_to_page_id=detail.id,
+            page_parameters=[{"name": "nosuch", "value": "x"}],
+        ),
+    )
+
+    assert "errors" not in result
+
+
+# ---------------------------------------------------------------------------
+# Empty field values, and the table_id warning
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_update_action_with_only_an_empty_field_value_list_is_refused(
+    builder_ctx, row_action_with_mapping
+):
+    action, _table, field = row_action_with_mapping
+
+    with pytest.raises(ToolInputError, match="field_values"):
+        update(builder_ctx, action.id, field_values=[])
+
+    assert _mappings(action.id) == {field.id: "'x'"}
+
+
+@pytest.mark.django_db
+def test_an_empty_field_value_list_with_another_change_is_not_refused(
+    builder_ctx, row_action_with_mapping
+):
+    action, table, field = row_action_with_mapping
+
+    update(builder_ctx, action.id, field_values=[], table_id=table.id)
+
+    assert _mappings(action.id) == {field.id: "'x'"}
+
+
+def test_table_id_says_what_moving_to_another_table_does():
+    description = ActionChanges.model_fields["table_id"].description
+
+    assert "cleared" in description
+    assert "row_id" in description
+    assert "new table" in description
+    assert "row_id" in actions.update_action.__doc__
+    assert "clears the field values" in actions.update_action.__doc__
