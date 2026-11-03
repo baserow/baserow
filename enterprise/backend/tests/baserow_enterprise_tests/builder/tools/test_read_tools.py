@@ -1,5 +1,7 @@
 import pytest
 
+from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
+from baserow.core.exceptions import ApplicationDoesNotExist
 from baserow.core.mcp.constants import LEGACY_DEFAULT_TOOLS
 from baserow.core.mcp.groups import (
     GROUP_BUILDER_EDIT,
@@ -8,7 +10,8 @@ from baserow.core.mcp.groups import (
 )
 from baserow.core.mcp.handler import MCPEndpointHandler
 from baserow.core.mcp.registries import mcp_tool_registry
-from baserow.core.tools.errors import tool_error_message
+from baserow.core.tools import ToolContext
+from baserow.core.tools.errors import ToolInputError, tool_error_message
 from baserow_enterprise.assistant.tools.builder import tools as kuma
 from baserow_enterprise.assistant.tools.core import tools as kuma_core
 from baserow_enterprise.builder.tools import (
@@ -134,20 +137,55 @@ def test_kuma_tools_return_what_the_shared_tools_return(builder_ctx):
 def test_read_tools_hide_other_workspaces(data_fixture, builder_ctx):
     user = builder_ctx["user"]
     other = data_fixture.create_workspace(user=user)
-    ctx = builder_ctx["ctx"].__class__(user=user, workspace=other)
+    ctx = ToolContext(user=user, workspace=other)
     builder_id = builder_ctx["builder"].id
     page_id = builder_ctx["page"].id
 
     calls = [
-        lambda: pages.list_pages(ctx, builder_id),
-        lambda: data_sources.list_data_sources(ctx, page_id),
-        lambda: elements.list_elements(ctx, page_id),
-        lambda: actions.list_actions(ctx, page_id),
+        (lambda: pages.list_pages(ctx, builder_id), ApplicationDoesNotExist),
+        (lambda: data_sources.list_data_sources(ctx, page_id), PageDoesNotExist),
+        (lambda: elements.list_elements(ctx, page_id), PageDoesNotExist),
+        (lambda: actions.list_actions(ctx, page_id), PageDoesNotExist),
     ]
-    for call in calls:
-        with pytest.raises(Exception) as error:
+    for call, exception in calls:
+        with pytest.raises(exception) as error:
             call()
         assert tool_error_message(error.value) == "Not found in this workspace."
+
+
+@pytest.mark.django_db
+def test_list_pages_rejects_a_database_id(data_fixture, builder_ctx):
+    database = data_fixture.create_database_application(
+        workspace=builder_ctx["workspace"]
+    )
+
+    with pytest.raises(ApplicationDoesNotExist) as error:
+        pages.list_pages(builder_ctx["ctx"], database.id)
+
+    assert tool_error_message(error.value) == "Not found in this workspace."
+
+
+@pytest.mark.django_db
+def test_kuma_tools_explain_a_missing_builder_or_page(data_fixture, builder_ctx):
+    user = builder_ctx["user"]
+    other = data_fixture.create_workspace(user=user)
+    kuma_ctx = make_test_ctx(user, other)
+    builder_id = builder_ctx["builder"].id
+    page_id = builder_ctx["page"].id
+
+    with pytest.raises(ToolInputError) as error:
+        kuma.list_pages(kuma_ctx, builder_id, "t")
+    assert str(error.value) == (
+        f"Application with ID {builder_id} not found in this workspace. "
+        "Use list_builders to find valid application IDs."
+    )
+    for tool in (kuma.list_data_sources, kuma.list_elements, kuma.list_actions):
+        with pytest.raises(ToolInputError) as error:
+            tool(kuma_ctx, page_id, "t")
+        assert str(error.value) == (
+            f"Page with ID {page_id} not found or not accessible. "
+            "Use list_pages to find valid page IDs."
+        )
 
 
 @pytest.mark.parametrize("name", READ_TOOLS)

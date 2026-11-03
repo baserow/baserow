@@ -13,10 +13,12 @@ from django.utils.translation import gettext as _
 from pydantic import Field
 from pydantic_ai import ModelRetry, RunContext
 
+from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.handler import PageHandler
-from baserow.core.exceptions import PermissionException
+from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.tools.shared import (
+    ToolInputError,
     permission_denied_result,
     raise_if_permission_denied,
     require_payload,
@@ -87,6 +89,13 @@ def _get_data_source_refs(tool_helpers, page_id: int) -> dict[str, int]:
     return _get_page_context(tool_helpers, page_id)["data_source_refs"].copy()
 
 
+def _page_not_found(page_id: int) -> ToolInputError:
+    return ToolInputError(
+        f"Page with ID {page_id} not found or not accessible. "
+        "Use list_pages to find valid page IDs."
+    )
+
+
 # ---------------------------------------------------------------------------
 # Page tools
 # ---------------------------------------------------------------------------
@@ -108,7 +117,13 @@ def list_pages(
     DO NOT USE when: You already have the page IDs you need.
     """
 
-    result = shared_pages.list_pages(ctx.deps.tool_context(), application_id)
+    try:
+        result = shared_pages.list_pages(ctx.deps.tool_context(), application_id)
+    except ApplicationDoesNotExist:
+        raise ToolInputError(
+            f"Application with ID {application_id} not found in this workspace. "
+            "Use list_builders to find valid application IDs."
+        )
     return {
         **result,
         "next_steps": (
@@ -282,7 +297,10 @@ def list_data_sources(
     RETURNS: Data sources array.
     """
 
-    return shared_data_sources.list_data_sources(ctx.deps.tool_context(), page_id)
+    try:
+        return shared_data_sources.list_data_sources(ctx.deps.tool_context(), page_id)
+    except PageDoesNotExist:
+        raise _page_not_found(page_id)
 
 
 def create_data_sources(
@@ -479,7 +497,10 @@ def list_elements(
     Do not add page-specific children to them.
     """
 
-    return shared_elements.list_elements(ctx.deps.tool_context(), page_id)
+    try:
+        return shared_elements.list_elements(ctx.deps.tool_context(), page_id)
+    except PageDoesNotExist:
+        raise _page_not_found(page_id)
 
 
 def _create_elements_internal(
@@ -1086,7 +1107,10 @@ def list_actions(
     RETURNS: Workflow actions array.
     """
 
-    return shared_actions.list_actions(ctx.deps.tool_context(), page_id)
+    try:
+        return shared_actions.list_actions(ctx.deps.tool_context(), page_id)
+    except PageDoesNotExist:
+        raise _page_not_found(page_id)
 
 
 def create_actions(

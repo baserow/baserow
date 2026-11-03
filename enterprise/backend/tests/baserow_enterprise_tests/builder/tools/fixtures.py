@@ -23,7 +23,7 @@ def block_model_calls(monkeypatch):
 
     for method in ("run", "run_sync", "run_stream", "iter"):
         monkeypatch.setattr(Agent, method, fail)
-    yield
+    yield calls
     assert not calls, "A shared tool called a model."
 
 

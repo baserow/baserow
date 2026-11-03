@@ -21,12 +21,12 @@ def list_elements(
     """
     List the elements of a page of an application builder: id, type, parent
     element and whether it is a container. Elements of the shared page are
-    included. Tables also show their data source
-    and their columns in display order: uid, name, type, and value (text,
-    boolean, rating) or label (button). A value or label is a formula: fixed
-    text is quoted, and '' or "''" is an empty cell. Menus show their items in
-    order: uid, name, type, page_id (or url, for a link to a custom address), and
-    the sub-links of a top-level link as children.
+    included. Tables also show their data source and their columns in display
+    order: uid, name, type, and value (text, boolean, rating) or label (button).
+    A value or label is a formula: fixed text is quoted, and '' or "''" is an
+    empty cell. Menus show their items in order: uid, name, type, page_id (or
+    url, for a link to a custom address), and the sub-links of a top-level link
+    as children.
 
     Elements with page_name "[shared]" are headers and footers shown on every
     page. They belong to the shared page, not to this one.

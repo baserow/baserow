@@ -25,3 +25,11 @@ def test_the_agent_is_restored_after_each_test():
     monkeypatch.undo()
 
     assert {m: Agent.__dict__.get(m) for m in before} == before
+
+
+def test_the_autouse_fixture_is_active_in_this_folder(no_model_calls):
+    with pytest.raises(AssertionError, match="called a model"):
+        Agent.run_sync(None, "hello")
+
+    assert len(no_model_calls) == 1
+    no_model_calls.clear()
