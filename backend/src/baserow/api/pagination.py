@@ -50,9 +50,11 @@ class KeysetCursorField(serializers.CharField):
         microseconds, id = match.groups()
         try:
             value = _KEYSET_CURSOR_EPOCH + timedelta(microseconds=int(microseconds))
-        except OverflowError:
+            id = int(id)
+        # `int` refuses more than 4300 digits with a `ValueError`.
+        except (OverflowError, ValueError):
             raise serializers.ValidationError("Invalid cursor.")
-        return KeysetCursor(value=value, id=int(id))
+        return KeysetCursor(value=value, id=id)
 
 
 class Pageable(Protocol):

@@ -10,11 +10,11 @@
   >
     <div v-if="loading" class="loading-absolute-center"></div>
     <template v-else>
-      <!-- Keyed by the workspace too, so that the preview shows the content of a
-      new revision. -->
+      <!-- Keyed by the template only, so that the chosen workspace is kept when a
+      new revision is shown. The preview loads its content then. -->
       <TemplateDetails
         v-if="selectedTemplate !== null"
-        :key="`${selectedTemplate.id}:${selectedTemplate.workspace_id}`"
+        :key="selectedTemplate.id"
         :template="selectedTemplate"
         :categories="selectedTemplateCategories"
         :workspace="workspace"
@@ -26,6 +26,8 @@
         @outdated="templateOutdated"
         @edit="openUpdateModal(selectedTemplate, $event)"
         @delete="openDeleteModal"
+        @make-public="openMakePublicModal"
+        @make-private="makePrivate"
       ></TemplateDetails>
       <TemplateList
         v-show="selectedTemplate === null && tab === 'official'"
@@ -43,6 +45,25 @@
           ></SegmentControl>
         </template>
       </TemplateList>
+      <!-- Mounted only while its tab is open, so that it's loaded again with the
+      changes made in "Your templates". -->
+      <PublicTemplateList
+        v-if="showTabs && tab === 'public'"
+        v-show="selectedTemplate === null"
+        ref="publicTemplateList"
+        :active="open && selectedTemplate === null"
+        class="templates__body"
+        @selected="selectPublicTemplate"
+      >
+        <template #head>
+          <SegmentControl
+            :segments="tabs"
+            :active-index="tabIndex"
+            type="pills"
+            @update:active-index="selectTab(tabs[$event].value)"
+          ></SegmentControl>
+        </template>
+      </PublicTemplateList>
       <UserTemplateList
         v-if="showTabs && userTemplatesOpened"
         v-show="selectedTemplate === null && tab === 'own'"
@@ -53,13 +74,16 @@
           tab === 'own' &&
           !creating &&
           !updating &&
-          !deleting
+          !deleting &&
+          !makingPublic
         "
         class="templates__body"
         @selected="selectTemplate($event, true)"
         @create="openCreateModal"
         @edit="openUpdateModal"
         @delete="openDeleteModal"
+        @make-public="openMakePublicModal"
+        @make-private="makePrivate"
       >
         <template #head>
           <SegmentControl
@@ -94,6 +118,7 @@
       :categories="categories"
       @hidden="updating = false"
       @updated="templateUpdated"
+      @visibility-changed="templateChanged"
     ></UpdateUserTemplateModal>
     <!-- Not keyed, so that a running deletion is still handled after the modal
     is opened for another template. -->
@@ -104,6 +129,15 @@
       @hidden="deleting = false"
       @deleted="templateDeleted"
     ></DeleteUserTemplateModal>
+    <!-- Not keyed, so that a running request is still handled after the modal is
+    opened for another template. -->
+    <MakeTemplatePublicModal
+      v-if="showTabs && madePublicTemplate !== null"
+      ref="makeTemplatePublicModal"
+      :template="madePublicTemplate"
+      @hidden="makingPublic = false"
+      @made-public="templateChanged"
+    ></MakeTemplatePublicModal>
   </Modal>
 </template>
 
@@ -112,9 +146,12 @@ import modal from '@baserow/modules/core/mixins/modal'
 import TemplateService from '@baserow/modules/core/services/template'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
+import { isOwnTemplate } from '@baserow/modules/core/utils/userTemplate'
 
 import CreateUserTemplateModal from '@baserow/modules/core/components/template/CreateUserTemplateModal'
 import DeleteUserTemplateModal from '@baserow/modules/core/components/template/DeleteUserTemplateModal'
+import MakeTemplatePublicModal from '@baserow/modules/core/components/template/MakeTemplatePublicModal'
+import PublicTemplateList from '@baserow/modules/core/components/template/PublicTemplateList'
 import TemplateDetails from '@baserow/modules/core/components/template/TemplateDetails'
 import TemplateList from '@baserow/modules/core/components/template/TemplateList'
 import UpdateUserTemplateModal from '@baserow/modules/core/components/template/UpdateUserTemplateModal'
@@ -125,6 +162,8 @@ export default {
   components: {
     CreateUserTemplateModal,
     DeleteUserTemplateModal,
+    MakeTemplatePublicModal,
+    PublicTemplateList,
     TemplateDetails,
     TemplateList,
     UpdateUserTemplateModal,
@@ -148,6 +187,8 @@ export default {
       categories: [],
       selectedTemplate: null,
       // Whether the selected template is one of the user's, who can update it.
+      // Also when it's opened from the public ones, which list its public revision
+      // then.
       selectedIsOwn: false,
       tab: 'official',
       // The list of the user's templates is loaded when its tab is opened first.
@@ -165,6 +206,15 @@ export default {
       // While a template is asked to be deleted, its modal takes the search
       // shortcut.
       deleting: false,
+      // The user's template that is or was last asked to be made public.
+      madePublicTemplate: null,
+      // While a template is asked to be made public, its modal takes the search
+      // shortcut.
+      makingPublic: false,
+      // The ids of the templates that are being made private.
+      madePrivate: new Set(),
+      // The id of the public template that was last opened, until it's loaded.
+      selectingPublic: null,
     }
   },
   computed: {
@@ -180,6 +230,11 @@ export default {
           value: 'official',
           label: this.$t('templateModal.officialTemplates'),
           icon: 'baserow-icon-templates',
+        },
+        {
+          value: 'public',
+          label: this.$t('templateModal.publicTemplates'),
+          icon: 'iconoir-group',
         },
         {
           value: 'own',
@@ -220,6 +275,7 @@ export default {
     this.$priorityBus.$off('start-search', this.searchStarted)
   },
   methods: {
+    isOwnTemplate,
     /**
      * When the modal is opened we want to fetch all the templates and their
      * categories, so that the user can browse them. The details of the template
@@ -266,6 +322,34 @@ export default {
       this.selectedTemplate = template
       this.selectedIsOwn = own
     },
+    /**
+     * Shows the public template as it is now, which may have been made private or
+     * deleted since the list was loaded. The list is loaded again then.
+     */
+    async selectPublicTemplate(template) {
+      const { id, slug } = template
+      this.selectingPublic = id
+      try {
+        const { data } = await TemplateService(this.$client).fetch(slug)
+        if (this.selectingPublic === id && this.selectedTemplate === null) {
+          this.selectTemplate(data, isOwnTemplate(data))
+        }
+      } catch (error) {
+        if (error.response?.status === 404) {
+          this.$store.dispatch('toast/error', {
+            title: this.$t('templateModal.unavailableTitle'),
+            message: this.$t('templateModal.unavailableDescription'),
+          })
+          this.$refs.publicTemplateList?.refresh()
+        } else {
+          notifyIf(error, 'templates')
+        }
+      } finally {
+        if (this.selectingPublic === id) {
+          this.selectingPublic = null
+        }
+      }
+    },
     openCreateModal() {
       this.creating = true
       this.$refs.createUserTemplateModal.show()
@@ -296,6 +380,7 @@ export default {
      */
     async templateUpdated(job) {
       this.$refs.userTemplateList?.refresh()
+      this.$refs.publicTemplateList?.refresh()
       if (!this.selectedIsOwn || this.selectedTemplate?.id !== job.template) {
         return
       }
@@ -311,11 +396,22 @@ export default {
     },
     /**
      * An install was refused because the template was updated since it was
-     * shown, in another tab for example. Only the user's own templates can be,
-     * as the other tab lists the official ones.
+     * shown, in another tab for example, or because another revision of a public
+     * template was listed since. The preview then shows the new revision.
      */
-    templateOutdated() {
-      return this.templateUpdated({ template: this.selectedTemplate.id })
+    async templateOutdated() {
+      if (this.selectedIsOwn) {
+        return this.templateUpdated({ template: this.selectedTemplate.id })
+      }
+      const { id, slug } = this.selectedTemplate
+      try {
+        const { data } = await TemplateService(this.$client).fetch(slug)
+        if (!this.selectedIsOwn && this.selectedTemplate?.id === id) {
+          this.selectedTemplate = data
+        }
+      } catch (error) {
+        notifyIf(error, 'templates')
+      }
     },
     async openDeleteModal(template) {
       this.deletedTemplate = template
@@ -323,6 +419,46 @@ export default {
       // Mounts the modal the first time.
       await this.$nextTick()
       this.$refs.deleteUserTemplateModal.show()
+    },
+    async makePrivate({ id, slug }) {
+      if (this.madePrivate.has(id)) {
+        return
+      }
+      this.madePrivate.add(id)
+      try {
+        const { data } = await TemplateService(this.$client).setVisibility(
+          slug,
+          'private'
+        )
+        this.templateChanged(data)
+      } catch (error) {
+        notifyIf(error, 'templates')
+      } finally {
+        this.madePrivate.delete(id)
+      }
+    },
+    /**
+     * Shows the changed visibility of a user's template in the lists, its preview
+     * and its update modal.
+     *
+     * @param {object} template The template as listed in the user's templates.
+     */
+    templateChanged(template) {
+      this.$refs.userTemplateList?.replace(template)
+      this.$refs.publicTemplateList?.refresh()
+      if (this.selectedIsOwn && this.selectedTemplate?.id === template.id) {
+        this.selectedTemplate = template
+      }
+      if (this.updatedTemplate?.id === template.id) {
+        this.updatedTemplate = template
+      }
+    },
+    async openMakePublicModal(template) {
+      this.madePublicTemplate = template
+      this.makingPublic = true
+      // Mounts the modal the first time.
+      await this.$nextTick()
+      this.$refs.makeTemplatePublicModal.show()
     },
     /**
      * The deleted template disappears from the list, its preview and its update
@@ -336,6 +472,7 @@ export default {
       } else {
         this.$refs.userTemplateList?.remove(templateId, requestedAt)
       }
+      this.$refs.publicTemplateList?.refresh()
       if (this.selectedIsOwn && this.selectedTemplate?.id === templateId) {
         this.selectTemplate(null)
       }
@@ -351,6 +488,8 @@ export default {
      */
     hidden() {
       this.open = false
+      // A public template still being opened isn't shown once the modal is closed.
+      this.selectingPublic = null
       this.selectTemplate(null)
     },
     searchStarted({ event }) {

@@ -15,8 +15,19 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser, AnonymousUser
 from django.core.files.storage import Storage
 from django.db import OperationalError, transaction
-from django.db.models import Count, Model, Prefetch, Q, QuerySet
-from django.db.models.functions import Coalesce
+from django.db.models import (
+    Case,
+    Count,
+    Exists,
+    F,
+    Model,
+    OuterRef,
+    Prefetch,
+    Q,
+    QuerySet,
+    Value,
+    When,
+)
 from django.utils import translation
 from django.utils.translation import gettext as _
 
@@ -2148,18 +2159,30 @@ class CoreHandler:
 
     def list_templates(
         self,
-        actor,
+        actor: AbstractUser | AnonymousUser,
         template_type: Optional[str] = None,
         owned: bool = False,
+        listed: bool = False,
+        category_id: Optional[int] = None,
     ) -> QuerySet[Template]:
         """
         Returns the latest revision the actor can open of every template, most
-        recently updated template first. The fields of the template as a whole are
-        on the selected `root`, or on the row itself when it's the root.
+        recently changed first: a user template by the creation of that revision,
+        an official one by its last update. With `listed`, the listed revision
+        instead, see `listed`. The fields of the template as a whole are on the
+        selected `root`, or on the row itself when it's the root. Equal dates are
+        ordered by id, newest first.
 
         :param actor: The user or anonymous user listing the templates.
         :param template_type: Only the templates of this `Template.Type`.
         :param owned: Only the templates owned by the actor.
+        :param listed: Only what everybody can open, as everybody sees it: every
+            official template, unless `template_type` leaves them out, and the
+            public revision of every public user template. The actor's own come
+            first, then the most recently listed: a user template by when its
+            revision was listed, which is when it was made public or approved, an
+            official one by its last update.
+        :param category_id: Only the rows in this category.
         :return: The templates.
         """
 
@@ -2174,13 +2197,57 @@ class CoreHandler:
                 if actor.is_authenticated
                 else templates.none()
             )
+        templates = templates.listed() if listed else templates.latest_revisions()
+
+        # A revision isn't changed after it's created, an official template is.
+        # A listed revision is dated by when it was listed, see `submit_revision`.
+        changed_on = Case(
+            When(
+                type=Template.Type.USER,
+                then=F("reviewed_on" if listed else "created_on"),
+            ),
+            default=F("updated_on"),
+        )
+        # The actor's own come first in the listing.
+        is_own = Value(False)
+        if listed and actor.is_authenticated:
+            is_own = Case(
+                When(
+                    Q(root__isnull=True, owner_id=actor.id)
+                    | Q(root__owner_id=actor.id),
+                    then=Value(True),
+                ),
+                default=Value(False),
+            )
+        templates = templates.alias(list_is_own=is_own, list_changed_on=changed_on)
+        if category_id is not None:
+            # The categories of the listed row itself, which an edit can change.
+            templates = templates.filter(categories__id=category_id)
         return (
-            templates.latest_revisions()
+            templates.select_related("author", "root__author")
             .prefetch_related("categories")
             .order_by(
-                Coalesce("root__updated_on", "updated_on").desc(nulls_last=True),
-                Coalesce("root_id", "id").desc(),
+                F("list_is_own").desc(),
+                F("list_changed_on").desc(nulls_last=True),
+                "-id",
             )
+        )
+
+    def list_public_template_categories(
+        self, actor: AbstractUser | AnonymousUser
+    ) -> QuerySet[TemplateCategory]:
+        """
+        Returns the categories of the listed revisions of the public user
+        templates, see `list_templates`. Official templates aren't taken into
+        account.
+
+        :param actor: The user or anonymous user listing the templates.
+        :return: The categories holding at least one listed revision.
+        """
+
+        listed = Template.objects.openable(actor).user().public_revisions()
+        return TemplateCategory.objects.filter(
+            Exists(listed.filter(categories=OuterRef("pk")))
         )
 
     # This single function generates a huge number of spans and events, we know it

@@ -9,8 +9,10 @@ from baserow.core.models import Application, Template, Workspace
 from baserow.core.user_templates.exceptions import (
     NoApplicationsSelected,
     TemplateHasNoContent,
+    UserTemplatePublicListingConsentRequired,
 )
 from baserow.core.user_templates.handler import UserTemplateHandler
+from baserow.core.user_templates.models import CreateUserTemplateJob
 from baserow.core.utils import ChildProgressBuilder
 
 
@@ -131,3 +133,71 @@ class UserTemplateService:
         root = handler.get_template_for_deletion(user, template_id)
         handler.mark_template_for_deletion(root)
         return root
+
+    def update_visibility(
+        self,
+        user: AbstractUser,
+        template_id: int,
+        listed: bool,
+        public_listing_consent: bool,
+        job_id: Optional[int] = None,
+    ) -> Tuple[Template, Optional[int]]:
+        """
+        Makes a user template public or private. A public template lists its
+        latest revision for everybody on the instance, see
+        `UserTemplateHandler.submit_revision`. A private one isn't listed, and only
+        its owner can open it, and the unfinished create user template jobs of the
+        template don't make it public anymore. Asking for the visibility it has
+        changes nothing else. Must run in a transaction.
+
+        :param user: The owner of the template.
+        :param template_id: The id of the template, which is its root.
+        :param listed: Whether the template is made public.
+        :param public_listing_consent: Whether the user agreed that the template
+            and their name are listed for everybody on the instance.
+        :param job_id: The id of the create user template job making the template
+            public, which it only does while the job still asks for it.
+        :raises TemplateDoesNotExist: If the user doesn't own the template.
+        :raises UserTemplatePublicListingConsentRequired: If the template is made
+            public without the consent.
+        :raises TemplateHasNoContent: If the latest revision has no content.
+        :return: The latest revision, and the id of the revision that was listed or
+            unlisted, None if nothing changed.
+        """
+
+        handler = UserTemplateHandler()
+        root = handler.get_own_template(user, template_id, for_update=True)
+        if listed and not public_listing_consent:
+            raise UserTemplatePublicListingConsentRequired(
+                "Making a template public needs the consent of its author."
+            )
+
+        revision = handler.get_latest_revision(root)
+        if revision.id == root.id:
+            revision = root
+        else:
+            # Reads the state of the template from the locked root.
+            revision.root = root
+
+        if not listed:
+            # Also when it's private already: a job can be about to list it.
+            handler.drop_scheduled_make_public(root)
+            public_revision_id = root.public_revision_id
+            if public_revision_id is not None:
+                handler.withdraw_listing(root)
+            return revision, public_revision_id
+
+        # Read under the lock of the root, after which a make private clears it.
+        if (
+            job_id is not None
+            and not CreateUserTemplateJob.objects.filter(
+                id=job_id, make_public=True
+            ).exists()
+        ):
+            return revision, None
+
+        self.get_template_content(revision)
+        if root.public_revision_id == revision.id:
+            return revision, None
+        handler.submit_revision(root, revision)
+        return revision, revision.id

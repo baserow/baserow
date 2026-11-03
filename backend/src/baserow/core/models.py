@@ -667,6 +667,17 @@ class TemplateQuerySet(QuerySet):
             _root_q(public_revision=F("id"), blocked_at__isnull=True)
         ).select_related("root")
 
+    def listed(self):
+        """
+        The listed rows: every official template, and the public revision of every
+        user template that isn't blocked, see `official` and `public_revisions`.
+        Only what everybody can open after `openable`, which leaves out the
+        templates marked for deletion, and the user templates while their feature
+        flag is off. The root is selected too, like in `latest_revisions`.
+        """
+
+        return (self.official() | self.public_revisions()).select_related("root")
+
     def filter_by_root(self, **lookups):
         """
         The rows of the templates whose root matches the lookups: the root itself
