@@ -1,5 +1,6 @@
 import mimetypes
 from io import BytesIO
+from pathlib import Path
 from unittest.mock import patch
 
 from django.conf import settings
@@ -1051,14 +1052,20 @@ SECURE_FILE_SERVE_SETTINGS = {
 }
 
 
-# Python's own table, which is what the production image uses as it has no mime.types.
+# Python's own table, used where there is no mime.types, like the ci and dev images.
 BUILTIN_MIME_TYPES = mimetypes.MimeTypes(filenames=())
+# The production image copies this file to /etc/, and mimetypes reads it on top.
+PRODUCTION_MIME_TYPES = mimetypes.MimeTypes(
+    filenames=(str(Path(__file__).parents[6] / "backend/docker/mime.types"),)
+)
 
 
-@pytest.fixture
-def builtin_mime_types():
-    with patch("mimetypes.guess_type", BUILTIN_MIME_TYPES.guess_type):
-        yield
+@pytest.fixture(
+    params=[BUILTIN_MIME_TYPES, PRODUCTION_MIME_TYPES], ids=["builtin", "production"]
+)
+def mime_types(request):
+    with patch("mimetypes.guess_type", request.param.guess_type):
+        yield request.param
 
 
 def get_stored_file(api_client, stored_name, query=""):
@@ -1095,6 +1102,8 @@ def get_stored_file(api_client, stored_name, query=""):
         "notes.md",
         "unknown.foo",
         "no_extension",
+        # The production image calls this image/x-ms-bmp, which browsers may download.
+        "photo.bmp",
         # The CSP leaves a dead player when these are opened directly.
         "clip.mp4",
         "clip.webm",
@@ -1106,7 +1115,7 @@ def get_stored_file(api_client, stored_name, query=""):
     ],
 )
 def test_files_not_safe_to_display_are_served_as_attachment(
-    enable_enterprise, api_client, use_tmp_media_root, builtin_mime_types, stored_name
+    enable_enterprise, api_client, use_tmp_media_root, mime_types, stored_name
 ):
     response = get_stored_file(api_client, stored_name)
 
@@ -1133,7 +1142,7 @@ def test_files_safe_to_display_are_served_inline(
     enable_enterprise,
     api_client,
     use_tmp_media_root,
-    builtin_mime_types,
+    mime_types,
     stored_name,
     content_type,
 ):
@@ -1148,9 +1157,9 @@ def test_files_safe_to_display_are_served_inline(
 @override_settings(**SECURE_FILE_SERVE_SETTINGS)
 @pytest.mark.parametrize("content_type", sorted(INLINE_SAFE_CONTENT_TYPES))
 def test_every_inline_safe_content_type_is_reachable_and_served_inline(
-    enable_enterprise, api_client, use_tmp_media_root, builtin_mime_types, content_type
+    enable_enterprise, api_client, use_tmp_media_root, mime_types, content_type
 ):
-    extension = BUILTIN_MIME_TYPES.guess_extension(content_type)
+    extension = mime_types.guess_extension(content_type)
     assert extension is not None, f"No file name resolves to {content_type}"
 
     response = get_stored_file(api_client, f"file{extension}")

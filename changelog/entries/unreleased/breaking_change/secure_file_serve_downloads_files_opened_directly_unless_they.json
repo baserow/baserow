@@ -5,7 +5,7 @@
     "issue_number": null,
     "domain": "core",
     "bullet_points": [
-        "HTML, SVG, CSV, JSON, Markdown, audio, video and files with no extension now download when opened directly",
+        "HTML, SVG, BMP, CSV, JSON, Markdown, audio, video and files with no extension now download when opened directly",
         "Images, audio and video shown inside Baserow are not affected",
         "Every file is served with a sandbox Content-Security-Policy"
     ],

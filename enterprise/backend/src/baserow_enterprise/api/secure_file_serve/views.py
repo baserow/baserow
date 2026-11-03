@@ -26,11 +26,13 @@ from .errors import ERROR_SECURE_FILE_SERVE_EXCEPTION
 # Types that can't run script on the Baserow origin. Everything else is downloaded.
 # Audio and video are left out because the CSP below leaves a dead player when they
 # are opened directly. <audio> and <video> ignore the attachment and still play them.
+# BMP is left out because the production image's mime.types calls it image/x-ms-bmp,
+# which Chromium and WebKit download anyway. <img> ignores the attachment and still
+# shows it.
 INLINE_SAFE_CONTENT_TYPES = frozenset(
     {
         "application/pdf",
         "image/avif",
-        "image/bmp",
         "image/gif",
         "image/jpeg",
         "image/png",
@@ -121,6 +123,5 @@ class DownloadView(APIView):
             as_attachment=as_attachment,
             filename=smart_str(download_file_name or secure_file.name),
         )
-        response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Content-Security-Policy"] = FILE_CONTENT_SECURITY_POLICY
         return response
