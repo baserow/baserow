@@ -18,6 +18,7 @@ from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.data_sources.operations import (
     ReadDataSourceOperationType,
+    UpdateDataSourceOperationType,
 )
 from baserow.contrib.builder.data_sources.service import DataSourceService
 from baserow.contrib.builder.elements.actions import (
@@ -571,8 +572,14 @@ def update_data_source(
             .data_source
         )
     else:
+        # Formulas are written once generated; refuse before asking the model.
+        operation_type = (
+            UpdateDataSourceOperationType
+            if ds_update.get_formulas_to_update(ds, None)
+            else ReadDataSourceOperationType
+        )
         CoreHandler().check_permissions(
-            user, ReadDataSourceOperationType.type, workspace=workspace, context=ds
+            user, operation_type.type, workspace=workspace, context=ds
         )
 
     ds_type = ds.service.get_type().type if ds.service else ""

@@ -522,3 +522,40 @@ def test_generated_row_formulas_are_written_under_the_service_lock(
     )
 
     assert locked == [True]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_formula_only_data_source_update_checks_update_permission_first(
+    data_fixture, site, monkeypatch
+):
+    from baserow.contrib.builder.data_sources.operations import (
+        UpdateDataSourceOperationType,
+    )
+    from baserow.core.exceptions import PermissionDenied
+    from baserow.core.handler import CoreHandler
+
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=site["page"], table=site["table"], row_id="'1'"
+    )
+    calls = use_generator(monkeypatch, generated("get('page_parameter.id')"))
+    check_permissions = CoreHandler.check_permissions
+
+    def deny_updates(self, actor, operation_name, *args, **kwargs):
+        if operation_name == UpdateDataSourceOperationType.type:
+            raise PermissionDenied()
+        return check_permissions(self, actor, operation_name, *args, **kwargs)
+
+    monkeypatch.setattr(CoreHandler, "check_permissions", deny_updates)
+
+    with pytest.raises(PermissionDenied):
+        update_data_source(
+            site["ctx"],
+            page_id=site["page"].id,
+            data_source=DataSourceUpdate(
+                data_source_id=data_source.id,
+                row_id="$formula: the id page parameter",
+            ),
+            thought="test",
+        )
+
+    assert calls == []
