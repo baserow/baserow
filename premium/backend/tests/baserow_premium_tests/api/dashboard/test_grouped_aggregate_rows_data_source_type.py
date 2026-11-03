@@ -150,6 +150,17 @@ def test_grouped_aggregate_rows_get_dashboard_data_sources(
         "order": "1.00000000000000000000",
         "schema": AnyDict(),
         "table_id": table.id,
+        "table_schema": {
+            "title": table.name,
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": AnyDict(),
+                    **{f"field_{f.id}": AnyDict() for f in (field, field_2, field_3)},
+                },
+            },
+        },
         "type": "local_baserow_grouped_aggregate_rows",
         "view_id": None,
         "sample_data": None,
@@ -174,6 +185,7 @@ def test_grouped_aggregate_rows_get_dashboard_data_sources(
             mode=BASEROW_FORMULA_MODE_SIMPLE,
         ),
         "table_id": None,
+        "table_schema": None,
         "type": "local_baserow_list_rows",
         "view_id": None,
         "sample_data": None,
