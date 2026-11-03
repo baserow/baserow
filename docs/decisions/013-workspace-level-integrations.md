@@ -54,7 +54,7 @@ Each workspace will have one hidden application of a new `shared` type. New work
 
 A workspace integration remains an ordinary `Integration` owned by this shared application. `Integration` has a foreign key to `Application`, and existing code depends on that ownership chain: Local Baserow uses `application.workspace` for context, application types determine the supported integration types, services validate integration ownership when saved, imported and dispatched, and publishing, duplication and snapshots go through export/import. Keeping the chain intact retains that behaviour and the existing permission scoping without a second lookup path, and follows the Builder's hidden `__shared__` page precedent.
 
-The shared application remains accessible through existing application managers and APIs but is hidden from user-facing application lists. It cannot be managed as an ordinary application, and features such as exports, templates, trash listings and statistics must explicitly exclude it where appropriate. Workspace integrations use the existing integration API and are managed through Workspace settings.
+The shared application remains accessible through existing application managers and APIs, so that nothing which resolves it needs a separate lookup path, but is hidden from user-facing application lists. It cannot be managed as an ordinary application, and features such as exports, templates, trash listings and statistics must explicitly exclude it where appropriate. Workspace integrations use the existing integration API and are managed through Workspace settings.
 
 In the trash, a workspace integration is listed under the workspace; the shared application is never shown as a parent.
 
@@ -80,7 +80,7 @@ Workspace exports and templates include referenced workspace integrations as app
 
 Each imported app receives its own copy; shared ownership is not preserved, even when importing into the original workspace. Local Baserow copies are re-authorised to the importer, while integrations such as SMTP require their credentials to be configured again.
 
-This retains a common export/import path and avoids leaving services without integrations after import. The cost is duplication: three apps using one workspace integration produce three app-level integrations on import. Consolidating them afterwards is an Admin task using the ordinary tools: promote one copy and repoint the other services to it, by hand in v1 and with bulk replacement once it exists. Import itself will not recreate workspace-level ownership.
+This retains a common export/import path and avoids leaving services without integrations after import. The cost is duplication: three apps using one workspace integration produce three app-level integrations on import. Consolidating them afterwards is an Admin task using the ordinary tools: promote one copy and repoint the other services to it, by hand in v1 and with bulk replacement once it exists. Import itself will not recreate workspace-level ownership: exporting a workspace integration once in a dedicated section would have required its own import handling, creation of the shared application during import and an Admin permission on the importer, for a result that promotion and bulk replacement reach anyway.
 
 ### 5. Admins manage, Builders list
 
@@ -102,16 +102,12 @@ For a Local Baserow integration authorised as someone other than the promoting A
 
 ## Options considered
 
-| Option | Reason not chosen for v1 |
-| ------ | ------------------------ |
-| Add workspace ownership to `Integration`, or introduce `WorkspaceIntegration` | Creates a second ownership path across existing consumers, permission scopes, integration types and trash handling. |
-| Hide the shared application in backend managers | Requires separate lookup paths for APIs and consumers that need to resolve it; we instead hide it in the frontend and explicitly exclude it where necessary. |
+| Option                                                               | Why not                                                                                                                                                             |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Create the shared application by a data migration before the rollout | Blocks the deployment until every workspace is processed; the background task does the same work in batches after the rollout, with lazy creation covering the gap. |
-| Let published copies directly reference workspace integrations | Shared edits or deletion could immediately affect live apps and workflows. |
-| Omit workspace integrations from exports | Imported services would lose their integrations, with no bulk repair path in v1; templates also need portable copies. |
-| Deduplicate workspace integrations through a dedicated export manifest section | Requires additional import handling, workspace integration creation and Admin permissions, while promotion and bulk replacement consolidate copies after import anyway. |
-| Reuse app-level integration permissions | Could allow Builders to manage shared integrations through the existing ownership chain. |
-| Let Builders manage workspace integrations | Shared changes affect multiple applications; v1 uses the stricter Admin boundary. |
+| Let published copies directly reference workspace integrations       | Shared edits or deletion could immediately affect live apps and workflows.                                                                                          |
+| Omit workspace integrations from exports                             | Imported services would lose their integrations, with no bulk repair path; templates also need portable copies.                                                     |
+| Reuse app-level integration permissions                              | Could allow Builders to manage shared integrations through the existing ownership chain.                                                                            |
 
 ## Consequences
 
