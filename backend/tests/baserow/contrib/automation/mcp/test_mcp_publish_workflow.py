@@ -18,6 +18,7 @@ from baserow.contrib.automation.workflows.actions import (
     UpdateAutomationWorkflowActionType,
 )
 from baserow.contrib.automation.workflows.constants import WorkflowState
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.operations import (
     PublishAutomationWorkflowOperationType,
@@ -603,6 +604,47 @@ def test_pause_of_a_paused_workflow_changes_nothing(data_fixture):
     update.assert_not_called()
     assert result["changed"] is False
     assert result["paused_workflow"]["state"] == "paused"
+
+
+def _pause_survives_cleanup(endpoint, workflow):
+    AutomationWorkflowHandler().clear_old_history()
+
+    assert _listed_state(endpoint, workflow["id"]) == "paused"
+    with patch.object(UpdateAutomationWorkflowActionType, "do") as update:
+        result = _json(
+            _call(endpoint, "pause_workflow", {"workflow_id": workflow["id"]})
+        )
+    update.assert_not_called()
+    assert result["changed"] is False
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_paused_workflow_survives_the_history_cleanup(data_fixture):
+    endpoint, _, _, workflow = _build_workflow_over_mcp(data_fixture)
+    _json(_call(endpoint, "publish_workflow", {"workflow_id": workflow["id"]}))
+    _json(_call(endpoint, "pause_workflow", {"workflow_id": workflow["id"]}))
+
+    _pause_survives_cleanup(endpoint, workflow)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_paused_workflow_with_an_older_run_survives_the_history_cleanup(
+    data_fixture,
+):
+    endpoint, orders, log, workflow = _build_workflow_over_mcp(data_fixture)
+    _json(_call(endpoint, "publish_workflow", {"workflow_id": workflow["id"]}))
+    _create_order(endpoint.user, orders)
+    assert _logged(log) == ["Written"]
+    _json(_call(endpoint, "publish_workflow", {"workflow_id": workflow["id"]}))
+    _json(_call(endpoint, "pause_workflow", {"workflow_id": workflow["id"]}))
+
+    _pause_survives_cleanup(endpoint, workflow)
+
+    # It can be made live again from the update the UI uses.
+    AutomationWorkflowHandler().update_workflow(
+        AutomationWorkflow.objects.get(id=workflow["id"]), state=WorkflowState.LIVE
+    )
+    assert _listed_state(endpoint, workflow["id"]) == "live"
 
 
 @pytest.mark.django_db

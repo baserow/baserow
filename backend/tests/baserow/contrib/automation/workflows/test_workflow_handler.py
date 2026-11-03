@@ -2401,6 +2401,59 @@ def test_clear_old_history_keeps_live_published_automation_when_newer_test_clone
 
 
 @pytest.mark.django_db
+def test_clear_old_history_keeps_a_paused_published_automation(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    handler = AutomationWorkflowHandler()
+    published = handler.publish(workflow)
+    handler.update_workflow(workflow, state=WorkflowState.PAUSED)
+
+    handler.clear_old_history()
+
+    assert Automation.objects.filter(id=published.automation_id).exists()
+    assert (
+        handler.get_published_workflow(workflow, with_cache=False).state
+        == WorkflowState.PAUSED
+    )
+
+
+@pytest.mark.django_db
+def test_clear_old_history_keeps_the_paused_copy_over_an_older_one_with_history(
+    data_fixture,
+):
+    workflow = data_fixture.create_automation_workflow()
+    handler = AutomationWorkflowHandler()
+    first = handler.publish(workflow)
+    data_fixture.create_automation_workflow_history(
+        original_workflow=workflow,
+        workflow=first,
+        status=HistoryStatusChoices.SUCCESS,
+    )
+    second = handler.publish(workflow)
+    handler.update_workflow(workflow, state=WorkflowState.PAUSED)
+
+    handler.clear_old_history()
+
+    assert Automation.objects.filter(id=second.automation_id).exists()
+    current = handler.get_published_workflow(workflow, with_cache=False)
+    assert current.id == second.id
+    assert current.state == WorkflowState.PAUSED
+
+
+@pytest.mark.django_db
+def test_clear_old_history_keeps_a_disabled_current_copy(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    handler = AutomationWorkflowHandler()
+    published = handler.publish(workflow)
+    AutomationWorkflow.objects.filter(id=published.id).update(
+        state=WorkflowState.DISABLED
+    )
+
+    handler.clear_old_history()
+
+    assert Automation.objects.filter(id=published.automation_id).exists()
+
+
+@pytest.mark.django_db
 @patch(f"{WORKFLOWS_MODULE}.handler.start_workflow_celery_task")
 def test_async_start_workflow_test_run_creates_test_clone(
     mock_start_workflow_celery_task, data_fixture, django_capture_on_commit_callbacks

@@ -301,7 +301,9 @@ class AutomationWorkflowHandler:
         # published workflow, if available.
         state = allowed_values.pop("state", None)
         if state is not None:
-            if published_workflow := self.get_published_workflow(workflow):
+            if published_workflow := self.get_published_workflow(
+                workflow, with_cache=False
+            ):
                 published_workflow.state = WorkflowState(state)
                 published_workflow.save(update_fields=["state"])
 
@@ -1119,11 +1121,16 @@ class AutomationWorkflowHandler:
             )
         )
 
-        # Exclude any automation that is currently the active published workflow
+        # Keep the newest published copy of each workflow whatever its state, so a
+        # paused or disabled workflow keeps the version it was paused or disabled with.
         active_published_ids = list(
             AutomationWorkflow.objects.filter(
-                state=WorkflowState.LIVE,
-            ).values_list("automation_id", flat=True)
+                automation__published_from__isnull=False,
+            )
+            .exclude(state=WorkflowState.TEST_CLONE)
+            .order_by("automation__published_from_id", "-automation_id")
+            .distinct("automation__published_from_id")
+            .values_list("automation_id", flat=True)
         )
         if active_published_ids:
             empty_published = empty_published.exclude(id__in=active_published_ids)

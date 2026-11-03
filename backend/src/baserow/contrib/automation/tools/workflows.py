@@ -29,7 +29,6 @@ from baserow.contrib.automation.workflows.operations import (
 )
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowTableService
-from baserow.core.cache import local_cache
 from baserow.core.exceptions import (
     PermissionException,
     UntrustedContentCannotBePublished,
@@ -501,9 +500,10 @@ def pause_workflow(
 ) -> dict[str, Any]:
     """
     Pause a live workflow, so its trigger no longer starts runs. Events while it is
-    paused aren't replayed. publish_workflow makes it live again. changed is false
-    when it was already paused. A workflow that was never published or was disabled
-    is refused.
+    paused aren't replayed. A run already under way isn't stopped. publish_workflow
+    makes it live again by publishing the current draft, with any edits made since,
+    not the paused version. changed is false when it was already paused. A workflow
+    that was never published or was disabled is refused.
     """
 
     workflow = get_workflow_in_workspace(ctx, workflow_id)
@@ -514,9 +514,7 @@ def pause_workflow(
         context=workflow,
     )
     handler = AutomationWorkflowHandler()
-    # MCP calls don't pass the middleware that scopes this cache, and the update
-    # below finds the published version through it.
-    with local_cache.context(), transaction.atomic():
+    with transaction.atomic():
         # Waits for a publish in progress, so what it leaves live is what gets paused.
         handler.get_workflow(workflow.id, for_update=True)
         published = handler.get_published_workflow(workflow, with_cache=False)
