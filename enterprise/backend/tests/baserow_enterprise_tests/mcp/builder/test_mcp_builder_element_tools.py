@@ -4,6 +4,7 @@ import json
 
 import pytest
 
+from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import Element
 
 from .test_mcp_builder_read_tools import READ_TOOLS, _endpoint, _session
@@ -22,6 +23,12 @@ WRITE_TOOLS = [
 def _load(result):
     assert result.isError is False, result.content[0].text
     return json.loads(result.content[0].text)
+
+
+def _button_state(button):
+    saved = Element.objects.get(id=button.id).specific
+    order = [e.id for e in ElementHandler().get_elements(saved.page, use_cache=False)]
+    return (saved.value, order, saved.style_padding_top)
 
 
 def _calls(builder_ctx):
@@ -86,7 +93,7 @@ def test_write_tools_with_builder_edit_turned_on(data_fixture, builder_ctx):
     tools = {tool.name: tool for tool in listed.tools}
     for name in WRITE_TOOLS:
         assert tools[name].annotations.readOnlyHint is False
-        assert tools[name].annotations.destructiveHint is False
+        assert tools[name].annotations.destructiveHint is (name == "update_element")
     assert set(tools["create_display_elements"].inputSchema["properties"]) == {
         "page_id",
         "elements",
@@ -123,7 +130,10 @@ def test_write_tools_with_only_builder_read_turned_on_are_refused(
     data_fixture, builder_ctx
 ):
     endpoint = _endpoint(data_fixture, builder_ctx, READ_TOOLS)
+    data_fixture.create_builder_heading_element(page=builder_ctx["page"])
     count = Element.objects.count()
+    button = builder_ctx["button"]
+    before = _button_state(button)
     calls = _calls(builder_ctx)
 
     async def callback(client):
@@ -138,6 +148,7 @@ def test_write_tools_with_only_builder_read_turned_on_are_refused(
     for result in results.values():
         assert result.isError is True
     assert Element.objects.count() == count
+    assert _button_state(button) == before
 
 
 @pytest.mark.django_db
@@ -197,3 +208,23 @@ def test_an_element_of_another_workspace_is_not_found_over_mcp(
 
     assert result.isError is True
     assert "Not found in this workspace." in result.content[0].text
+
+
+@pytest.mark.django_db
+def test_a_negative_size_is_an_input_error_over_mcp(data_fixture, builder_ctx):
+    endpoint = _endpoint(data_fixture, builder_ctx, WRITE_TOOLS)
+    button = builder_ctx["button"]
+    padding = button.style_padding_top
+
+    async def callback(client):
+        return await client.call_tool(
+            "update_element_style",
+            {"element_id": button.id, "style": {"padding": -5}},
+        )
+
+    result = _session(endpoint, callback)
+
+    assert result.isError is True
+    assert "-5" in result.content[0].text
+    assert "Internal error" not in result.content[0].text
+    assert Element.objects.get(id=button.id).style_padding_top == padding

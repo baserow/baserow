@@ -4,6 +4,7 @@ without a model. The conftest of this folder fails any model call.
 """
 
 import pytest
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.builder.elements.element_types import HeadingElementType
 from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
@@ -853,7 +854,7 @@ def test_update_refuses_a_link_or_menu_item_to_another_builder(builder_ctx, else
     )["ref_to_id_map"]
     away = elsewhere["sibling_page"].id
 
-    with pytest.raises(Exception, match="doesn't exist"):
+    with pytest.raises(DRFValidationError, match="doesn't exist"):
         elements.update_element(
             ctx,
             created["link"],
@@ -1120,6 +1121,94 @@ def test_update_of_an_unknown_property_changes_nothing(data_fixture, builder_ctx
         )
 
     assert saved(element.id).value["formula"] == "'Old'"
+
+
+def test_a_column_named_like_a_field_does_not_beat_a_formula_by_default():
+    assert ElementItemCreate(ref="t", type="table")._column_name_beats_formula is False
+
+
+@pytest.mark.django_db
+def test_record_selector_and_datetime_picker_store_their_default_value(
+    data_fixture, builder_ctx
+):
+    result = elements.create_form_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            FormElementCreate(ref="form", type="form_container"),
+            FormElementCreate(
+                ref="plain",
+                type="record_selector",
+                parent_element="form",
+                data_source=builder_ctx["data_source"].id,
+                default_value="7",
+            ),
+            FormElementCreate(
+                ref="dynamic",
+                type="record_selector",
+                parent_element="form",
+                data_source=builder_ctx["data_source"].id,
+                default_value="get('user.id')",
+            ),
+            FormElementCreate(
+                ref="described",
+                type="record_selector",
+                parent_element="form",
+                data_source=builder_ctx["data_source"].id,
+                default_value="$formula: the id of the user",
+            ),
+            FormElementCreate(
+                ref="date", type="datetime_picker", default_value="2024-01-01"
+            ),
+            FormElementCreate(
+                ref="date_formula",
+                type="datetime_picker",
+                default_value="get('user.id')",
+            ),
+        ],
+    )
+
+    ids = result["ref_to_id_map"]
+    assert not result.get("errors")
+    assert saved(ids["plain"]).default_value["formula"] == "'7'"
+    assert saved(ids["dynamic"]).default_value["formula"] == "get('user.id')"
+    assert saved(ids["described"]).default_value["formula"] == "''"
+    assert saved(ids["date"]).default_value["formula"] == "'2024-01-01'"
+    assert saved(ids["date_formula"]).default_value["formula"] == "get('user.id')"
+    assert [(e["element_id"], e["field"]) for e in result["formula_errors"]] == [
+        (ids["described"], "default_value")
+    ]
+
+
+@pytest.mark.django_db
+def test_a_link_with_a_url_and_no_navigation_type_goes_to_the_url(builder_ctx):
+    result = elements.create_display_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            DisplayElementCreate(
+                ref="plain", type="link", value="Go", navigate_to_url="https://a.b"
+            ),
+            DisplayElementCreate(
+                ref="dynamic",
+                type="link",
+                value="Mail",
+                navigate_to_url="get('user.email')",
+            ),
+            DisplayElementCreate(ref="page", type="link", value="Stay"),
+        ],
+    )
+
+    ids = result["ref_to_id_map"]
+    assert not result.get("errors")
+    assert not result.get("formula_errors")
+    plain = saved(ids["plain"])
+    assert plain.navigation_type == "custom"
+    assert plain.navigate_to_url["formula"] == "'https://a.b'"
+    dynamic = saved(ids["dynamic"])
+    assert dynamic.navigation_type == "custom"
+    assert dynamic.navigate_to_url["formula"] == "get('user.email')"
+    assert saved(ids["page"]).navigation_type == "page"
 
 
 @pytest.mark.django_db

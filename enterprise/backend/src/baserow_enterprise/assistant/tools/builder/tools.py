@@ -1394,6 +1394,7 @@ def _setup_elements(
     with transaction.atomic():
         for el_create in elements:
             tool_helpers.raise_if_cancelled()
+            el_create._column_name_beats_formula = True
             try:
                 with transaction.atomic():
                     element, el_id, action_pairs = helpers.create_element(

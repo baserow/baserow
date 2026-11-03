@@ -235,6 +235,7 @@ def _button_orm(el: "ElementItemCreate", user, page) -> dict:
 
 
 def _link_orm(el: "ElementItemCreate", user, page) -> dict:
+    nav = el.navigation_type or ("custom" if el.navigate_to_url else "page")
     kwargs: dict[str, Any] = {
         "value": formula_object(
             literal_or_placeholder(el.value)
@@ -243,11 +244,10 @@ def _link_orm(el: "ElementItemCreate", user, page) -> dict:
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
         "variant": el.link_variant or "link",
-        "navigation_type": el.navigation_type or "page",
+        "navigation_type": nav,
         "target": el.link_target or "self",
     }
 
-    nav = el.navigation_type or "page"
     if nav == "page" and el.navigate_to_page_id:
         kwargs["navigate_to_page_id"] = el.navigate_to_page_id
         kwargs["page_parameters"] = [
@@ -375,9 +375,16 @@ def _checkbox_orm(el: "ElementItemCreate", user, page) -> dict:
 
 
 def _datetime_picker_orm(el: "ElementItemCreate", user, page) -> dict:
+    default_value = el.default_value or ""
     return {
         "label": formula_object(
             wrap_static_string(el.label or ""), mode=BASEROW_FORMULA_MODE_ADVANCED
+        ),
+        "default_value": formula_object(
+            literal_or_placeholder(default_value)
+            if needs_formula(default_value)
+            else (wrap_static_string(default_value) if default_value else "''"),
+            mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
         "required": el.required or False,
         "include_time": el.include_time or False,
@@ -386,9 +393,16 @@ def _datetime_picker_orm(el: "ElementItemCreate", user, page) -> dict:
 
 
 def _record_selector_orm(el: "ElementItemCreate", user, page) -> dict:
+    default_value = el.default_value or ""
     return {
         "label": formula_object(
             wrap_static_string(el.label or ""), mode=BASEROW_FORMULA_MODE_ADVANCED
+        ),
+        "default_value": formula_object(
+            literal_or_placeholder(default_value)
+            if needs_formula(default_value)
+            else (wrap_static_string(default_value) if default_value else "''"),
+            mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
         "data_source_id": el.data_source,
         "required": el.required or False,
@@ -671,6 +685,7 @@ _GET_FORMULAS: dict[str, Any] = {
     "choice": _default_value_formula,
     "checkbox": _default_value_formula,
     "datetime_picker": _default_value_formula,
+    "record_selector": _default_value_formula,
     "table": _table_formulas,
 }
 
@@ -805,7 +820,7 @@ class ElementItemCreate(BaseModel):
     post-creation hooks, and formula handling based on the ``type`` field.
     """
 
-    _column_name_beats_formula: bool = PrivateAttr(default=True)
+    _column_name_beats_formula: bool = PrivateAttr(default=False)
 
     ref: str = Field(..., description="Unique reference for this element.")
     type: ElementType = Field(..., description="Element type.")
@@ -2168,6 +2183,14 @@ class ElementStyleUpdate(BaseModel):
                 invalid = set(val.keys()) - valid_sides
                 if invalid:
                     raise ValueError(f"{field_name}: invalid sides {invalid}")
+        for field_name in ("padding", "margin", "border_size"):
+            val = getattr(self, field_name)
+            sizes = val.values() if isinstance(val, dict) else [val]
+            for size in sizes:
+                if size is not None and size < 0:
+                    raise ValueError(
+                        f"{field_name}: {size} is not allowed, a size can't be negative"
+                    )
         return self
 
     # -- Radii --

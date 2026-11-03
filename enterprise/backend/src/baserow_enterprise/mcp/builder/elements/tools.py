@@ -52,7 +52,7 @@ class UpdateElementMcpTool(FunctionMCPTool):
     group = GROUP_BUILDER_EDIT
     title = "Update an element"
     read_only = False
-    destructive = False
+    destructive = True
     function = elements.update_element
 
 
