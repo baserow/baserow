@@ -29,6 +29,7 @@ In scope for v1:
 
 Immediate follow-ups to v1:
 - Usage counts on delete.
+- Removal of lazy creation and the backfill task, once a data migration guarantees every workspace has a shared application.
 
 In scope for v2:
 - Publishing credential changes independently of app changes.
@@ -50,7 +51,7 @@ In scope for v2:
 
 ### 1. A hidden shared application owns the workspace integrations
 
-Each workspace will have one hidden application of a new `shared` type, created lazily on first use rather than by a data migration.
+Each workspace will have one hidden application of a new `shared` type. New workspaces receive it when they are created. Existing workspaces are backfilled by a background task after deployment, and until that task has reached a workspace, listing its applications creates the shared application if it is missing.
 
 A workspace integration remains an ordinary `Integration` owned by this shared application. `Integration` has a foreign key to `Application`, and existing code depends on that ownership chain: Local Baserow uses `application.workspace` for context, application types determine the supported integration types, services validate integration ownership when saved, imported and dispatched, and publishing, duplication and snapshots go through export/import. Keeping the chain intact retains that behaviour and the existing permission scoping without a second lookup path, and follows the Builder's hidden `__shared__` page precedent.
 
@@ -58,7 +59,7 @@ The shared application remains accessible through existing application managers 
 
 In the trash, a workspace integration is listed under the workspace; the shared application is never shown as a parent.
 
-Lazy creation means that listing a workspace's applications may create the shared application. We accept this side effect because it covers new workspaces, existing workspaces after the upgrade and workspaces restored from a backup without a separate creation step.
+The background task does the one-off backfill in batches after the rollout, instead of a data migration that would run before it. Until the task has reached a workspace, the new code can meet a workspace whose shared application does not exist yet, which is what the lazy creation in the listing covers. Its downsides are small for one release: a write on a read endpoint, taken under the workspace row lock so that concurrent listings cannot create two, and code that is soon obsolete. The next release adds a data migration that creates any missing shared applications and removes both the lazy path and the task.
 
 ### 2. A service or user source may use an integration of its own application or of the workspace
 
@@ -106,6 +107,7 @@ For a Local Baserow integration authorised as someone other than the promoting A
 | ------ | ------------------------ |
 | Add workspace ownership to `Integration`, or introduce `WorkspaceIntegration` | Creates a second ownership path across existing consumers, permission scopes, integration types and trash handling. |
 | Hide the shared application in backend managers | Requires separate lookup paths for APIs and consumers that need to resolve it; we instead hide it in the frontend and explicitly exclude it where necessary. |
+| Create the shared application by a data migration before the rollout | Blocks the deployment until every workspace is processed; the background task does the same work in batches after the rollout, with lazy creation covering the gap. |
 | Let published copies directly reference workspace integrations | Shared edits or deletion could immediately affect live apps and workflows. |
 | Omit workspace integrations from exports | Imported services would lose their integrations, with no bulk repair path in v1; templates also need portable copies. |
 | Deduplicate workspace integrations through a dedicated export manifest section | Requires additional import handling, workspace integration creation and Admin permissions, while promotion and bulk replacement consolidate copies after import anyway. |
@@ -120,7 +122,7 @@ For a Local Baserow integration authorised as someone other than the promoting A
 - **Publishing cost:** Credential rotation across published copies requires republishing each affected app or workflow. Pushing integration changes without publishing unrelated app changes is deferred.
 - **Portability cost:** Workspace imports and templates produce app-level copies rather than preserving shared ownership.
 - **Security boundary:** Workspace integrations can make an authorised Local Baserow identity usable from multiple apps; Builders may select but not manage these integrations.
-- **Follow-ups:** Usage counts on delete.
+- **Follow-ups:** Usage counts on delete; removal of lazy creation and the backfill task once a data migration guarantees every workspace has a shared application.
 - **v2 candidates:** integration-only publishing; bulk “Replace with” for services and user sources; demotion with checks for remaining consumers; and potentially allowing Builders to share integrations.
 
 ## Revisit triggers
