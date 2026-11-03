@@ -58,6 +58,31 @@ def _build_ingredient_cost_table(data_fixture, user):
 
 
 @pytest.mark.django_db
+def test_builder_list_filter_values_keep_string_conversion(data_fixture):
+    user = data_fixture.create_user()
+    integration, table, ingredient, cost, _ = _build_ingredient_cost_table(
+        data_fixture, user
+    )
+    combined = RowHandler().create_row(
+        user, table, {ingredient.db_column: "Duck,Goose", cost.db_column: 300}
+    )
+    service = data_fixture.create_local_baserow_list_rows_service(
+        table=table, integration=integration
+    )
+    data_fixture.create_local_baserow_table_service_filter(
+        service=service,
+        field=ingredient,
+        type="equal",
+        value=BaserowFormulaObject.create("split('Duck|Goose', '|')"),
+    )
+    service_type = LocalBaserowListRowsUserServiceType()
+    context = FakeDispatchContext()
+    values = service_type.resolve_service_formulas(service, context)
+    result = service_type.dispatch_data(service, values, context)
+    assert [row.id for row in result["results"]] == [combined.id]
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     "with_filters,with_groups,nested",
     [

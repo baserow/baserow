@@ -139,6 +139,91 @@ def test_dispatch_widget_values(api_client, filter_dashboard, public, password, 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("public", [False, True])
+@pytest.mark.parametrize("operator", ["equal", "not_equal"])
+def test_multiple_dropdown_matches_individual_values(
+    api_client, filter_dashboard, public, operator
+):
+    user, token, dashboard, source, widget, condition = filter_dashboard
+    service = source.service.specific
+    # A literal comma in a value must not be confused with multiple selections.
+    RowHandler().create_row(
+        user,
+        service.table,
+        {f"field_{condition['field']}": "Alpha,Beta", service.field.db_column: 80},
+    )
+    widget.mode = "dropdown"
+    widget.multiple = True
+    condition["type"] = operator
+    widget.save()
+    url = reverse(
+        "api:dashboard:public:data_source_dispatch"
+        if public
+        else "api:dashboard:data_sources:dispatch",
+        kwargs={"slug": dashboard.slug, "data_source_id": source.id}
+        if public
+        else {"data_source_id": source.id},
+    )
+    headers = {} if public else {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    for values, matching in [
+        (["Alpha", "Beta"], 30),
+        (["Alpha", "Beta", "Alpha"], 30),
+        (["Alpha"], 10),
+        (["Alpha,Beta"], 80),
+        (["Missing"], 0),
+        ([], 150),
+    ]:
+        expected = matching if operator == "equal" or not values else 150 - matching
+        response = api_client.post(
+            url, {"widget_data": {str(widget.id): values}}, format="json", **headers
+        )
+        assert response.status_code == 200, response.json()
+        assert response.json() == {"result": str(expected) if expected else None}
+
+    # An explicit formula that joins values still requests a scalar comparison.
+    widget.target_filters[0]["group"]["filters"][0]["value"] = (
+        BaserowFormulaObject.create(f"join(get('widget_data.{widget.id}'), ',')")
+    )
+    widget.save()
+    response = api_client.post(
+        url,
+        {"widget_data": {str(widget.id): ["Alpha", "Beta"]}},
+        format="json",
+        **headers,
+    )
+    assert response.status_code == 200, response.json()
+    assert response.json() == {"result": "80" if operator == "equal" else "70"}
+
+
+@pytest.mark.django_db
+def test_multiple_dropdown_preserves_other_conditions(data_fixture, filter_dashboard):
+    _, _, dashboard, source, widget, condition = filter_dashboard
+    service = source.service.specific
+    widget.mode = "dropdown"
+    widget.multiple = True
+    group = widget.target_filters[0]["group"]
+    group["filter_groups"] = [
+        {"id": "countries", "parent_group": None, "filter_type": "AND"}
+    ]
+    condition["group"] = "countries"
+    widget.save()
+    data_fixture.create_local_baserow_table_service_filter(
+        service=service,
+        field=service.field,
+        type="higher_than",
+        value=BaserowFormulaObject.create("15", mode="raw"),
+    )
+    context = DashboardDispatchContext(
+        HttpRequest(),
+        dashboard=dashboard,
+        data={"widget_data": {str(widget.id): ["Alpha", "Beta"]}},
+    )
+    assert DashboardDataSourceHandler().dispatch_data_source(source, context) == {
+        "result": "20"
+    }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("public", [False, True])
 def test_multiple_dropdown_exposes_lists_and_empty_policy(
     api_client, filter_dashboard, public
 ):
