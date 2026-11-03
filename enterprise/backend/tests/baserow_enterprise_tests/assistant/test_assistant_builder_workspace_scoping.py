@@ -403,6 +403,9 @@ def test_header_refuses_pages_of_another_builder(data_fixture, two_workspaces):
             ref="h", type="header", share_type="only", page_ids=[w["page"].id]
         ),
         ElementItemCreate(
+            ref="h", type="header", share_type="only", page_ids=[shared_page.id]
+        ),
+        ElementItemCreate(
             ref="h",
             type="header",
             menu_items=[MenuItemCreate(name="Away", page_id=sibling_page.id)],

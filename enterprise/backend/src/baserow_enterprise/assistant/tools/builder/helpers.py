@@ -181,15 +181,16 @@ def check_data_source_on_page(page: Page, data_source_id: int) -> None:
 def check_pages_in_builder(builder: Builder, page_ids: list[int]) -> None:
     """
     Check the pages a header or footer is shown on. The element would leave out a
-    page of another builder without saying so.
+    page of another builder, or the shared page, without saying so.
 
-    :raises ToolInputError: When one is a page of another application.
+    :raises ToolInputError: When one is a page of another application or the
+        shared page.
     """
 
     found = set(
-        Page.objects.filter(builder=builder, id__in=page_ids).values_list(
-            "id", flat=True
-        )
+        Page.objects_without_shared.filter(
+            builder=builder, id__in=page_ids
+        ).values_list("id", flat=True)
     )
     missing = [page_id for page_id in page_ids if page_id not in found]
     if missing:
