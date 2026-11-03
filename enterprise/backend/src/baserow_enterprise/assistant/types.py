@@ -246,12 +246,24 @@ class BuilderPageNavigationType(BaseModel):
         return _("page %(page_name)s") % {"page_name": self.page_name}
 
 
+class DashboardNavigationType(BaseModel):
+    type: Literal["dashboard"]
+    dashboard_id: int
+    dashboard_name: str
+
+    def to_localized_string(self):
+        return _("dashboard %(dashboard_name)s") % {
+            "dashboard_name": self.dashboard_name
+        }
+
+
 AnyNavigationType = Annotated[
     TableNavigationType
     | WorkspaceNavigationType
     | ViewNavigationType
     | WorkflowNavigationType
-    | BuilderPageNavigationType,
+    | BuilderPageNavigationType
+    | DashboardNavigationType,
     Field(discriminator="type"),
 ]
 

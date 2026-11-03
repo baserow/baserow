@@ -36,9 +36,9 @@ class TemplateHasNoContent(Exception):
 
 class TemplateUpdated(Exception):
     """
-    Raised when a user template is installed while another revision than the one
-    the user was shown is installable, because another revision was made public
-    or its owner updated it since.
+    Raised when a user template is installed or downloaded while another revision
+    than the one the user was shown is installable, because another revision was
+    made public or its owner updated it since.
     """
 
 

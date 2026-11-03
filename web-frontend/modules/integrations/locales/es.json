@@ -23,7 +23,7 @@
         "defaultResultCountPlaceholder": "Valor predeterminado…"
     },
     "localBaserowTableServiceConditionalForm": {
-        "addFilter": "Añadir filtro adicional",
+        "addFilter": "Añadir filtro",
         "relatedFieldNotFound": "No se encuentra el campo relacionado.",
         "filterTypeNotFound": "El tipo de filtro no es compatible.",
         "noCompatibleFilterTypesErrorTitle": "No hay tipos de filtro compatibles",
@@ -34,7 +34,9 @@
         "noFilterText": "Los filtros de fuente de datos le permiten mostrar las filas de la tabla Baserow que se aplican a tus condiciones.",
         "useDefaultForValue": "Utiliza el filtro por defecto para este campo",
         "textFilterInputPlaceholder": "Escribe el texto…",
-        "useExpressionForValue": "Usa una expresión para este filtro"
+        "useExpressionForValue": "Usa una expresión para este filtro",
+        "expressionFilterInputPlaceholder": "Elige una expresión...",
+        "addFilterGroup": "Añadir grupo de filtros"
     },
     "localBaserowTableServiceSortForm": {
         "noTableChosenForSorting": "Elige una tabla para empezar a utilizar la ordenación de fuentes de datos.",
@@ -63,7 +65,7 @@
         "localBaserowSummary": "Baserow local - {name}, {username}",
         "localBaserowWarning": "Autorizar su cuenta les otorga a todos los que tienen permisos de edición en la aplicación acceso completo a los datos a los que usted tiene acceso. Es posible crear un segundo usuario, otorgarle los permisos correctos y usarlo.",
         "smtp": "Correo electrónico SMTP",
-        "slackBot": "Bot de Slack",
+        "slackBot": "Slack",
         "ai": "IA"
     },
     "serviceType": {
@@ -97,7 +99,7 @@
         "coreRouterDescription": "Dirige el flujo de trabajo a la siguiente rama basándote en una condición.",
         "coreSMTPEmailDescription": "Envía un correo electrónico usando la configuración SMTP.",
         "coreIteration": "Iterador",
-        "coreIterationDescription": "Itera sobre los elementos.",
+        "coreIterationDescription": "Itera sobre cada elemento de una lista y ejecuta sus nodos secundarios una vez por elemento.",
         "errorFromEmailMissing": "No se ha especificado la dirección del Remitente del correo",
         "errorToEmailsMissing": "No se ha especificado la dirección del Destinatario del correo",
         "misconfigured": "Configurado incorrectamente",
@@ -141,23 +143,35 @@
         "errorNoRowsSelected": "No se seleccionaron filas",
         "coreManualTrigger": "Disparador manual",
         "coreStartWorkflow": "Iniciar flujo de trabajo",
-        "coreGotoDescription": "Salta a otro punto del flujo de trabajo cuando una condición es verdadera.",
+        "coreGotoDescription": "Salta hacia atrás a un nodo anterior mientras una condición sea verdadera, para repetir o reintentar pasos.",
         "coreResponseDescription": "Devuelve la respuesta del flujo de trabajo solo cuando el disparador admite esperar respuestas y tiene la espera habilitada.",
         "inboundEmailTriggerDescription": "Se desencadena cuando se recibe un correo electrónico en la dirección de correo generada.",
         "errorAIModelUnavailable": "El modelo de IA seleccionado está deshabilitado o ya no está disponible",
-        "errorMisconfiguredIntegration": "Falta la integración o ha sido enviada a la papelera"
+        "errorMisconfiguredIntegration": "Falta la integración o ha sido enviada a la papelera",
+        "errorResponseBodyMissing": "El cuerpo de la respuesta JSON no puede estar vacío.",
+        "coreGotoDestinationRequired": "Se requiere un destino.",
+        "errorNoRowIdSelected": "Ningún ID de fila seleccionado",
+        "coreGoto": "Ir a",
+        "inboundEmailTrigger": "Disparador de correo electrónico",
+        "coreResponse": "Respuesta"
     },
     "userSourceType": {
         "localBaserow": "Autenticación de la tabla de Baserow"
     },
     "localBaserowForm": {
         "user": "Usuario",
-        "userMessage": "Al crear esta conexión, estás autorizando a la aplicación a usar tu cuenta para realizar cambios en tu espacio de trabajo local de Baserow."
+        "userMessage": "Al crear esta conexión, estás autorizando a la aplicación a usar tu cuenta para realizar cambios en tu espacio de trabajo local de Baserow.",
+        "subjectMessage": "Las acciones usan los permisos del usuario o agente seleccionado. Las acciones del agente se identifican como tales en el registro de auditoría.",
+        "currentUser": "Mi cuenta de usuario",
+        "subject": "Autenticar como"
     },
     "localBaserowIntegrationType": {
         "localBaserowNoUser": "Baserow local - No configurado",
         "localBaserowSummary": "Baserow local - {name}, {username}",
-        "localBaserowWarning": "Al autorizar tu cuenta, cualquier persona con permisos de edición en la aplicación tendrá acceso total a los datos a los que tú tienes acceso. Puedes crear un segundo usuario, asignarle los permisos adecuados y utilizar ese usuario."
+        "localBaserowWarning": "Al autorizar tu cuenta, cualquier persona con permisos de edición en la aplicación tendrá acceso total a los datos a los que tú tienes acceso. Puedes crear un segundo usuario, asignarle los permisos adecuados y utilizar ese usuario.",
+        "errorTrashedAgent": "El agente autorizado ha sido eliminado a la papelera",
+        "localBaserowSubjectSummary": "Baserow Local - {type}: {name}",
+        "errorNoUser": "Ningún usuario o agente ha autorizado esta integración."
     },
     "integrationsCommon": {
         "singleRow": "una sola fila",
@@ -166,15 +180,16 @@
     "localBaserowAggregateRowsForm": {
         "searchTabTitle": "Buscar",
         "aggregationFieldLabel": "Campo",
-        "aggregationTypeLabel": "Añadir",
-        "noTableChosenForFiltering": "Seleccione una tabla para comenzar a utilizar filtros de fuente de datos.",
+        "aggregationTypeLabel": "Agregación",
+        "noTableChosenForFiltering": "Elige una tabla para empezar a usar filtros de fuente de datos.",
         "filterTabTitle": "Filtros",
         "searchFieldPlaceHolder": "Introduzca un término de búsqueda..."
     },
     "slackBotIntegrationType": {
         "slackBotSummary": "Bot de Slack",
         "slackBotNoToken": "Bot de Slack – No configurado",
-        "slackBotWarning": "Cualquiera que pueda construir en esta aplicación puede enviar mensajes a través de este bot, y puede reemplazar su token. Usa un bot cuyo acceso te gustaría compartir."
+        "slackBotWarning": "Cualquiera que pueda construir en esta aplicación puede enviar mensajes a través de este bot, y puede reemplazar su token. Usa un bot cuyo acceso te gustaría compartir.",
+        "errorNoToken": "No se ha establecido ningún token de bot."
     },
     "aiIntegrationType": {
         "inheritingWorkspace": "Configuración heredada de IA del espacio de trabajo",
@@ -186,7 +201,8 @@
         "workspaceSettingsDescription": "Esta integración hereda los ajustes del proveedor de IA de tu espacio de trabajo por defecto. Una anulación del proveedor es autónoma: incluye sus propias credenciales o host, porque los campos de conexión nunca se combinan con credenciales heredadas.",
         "overrideWorkspaceSettings": "Sobrescribe la configuración del espacio de trabajo para este proveedor",
         "inherited": "Heredado",
-        "overridden": "Sobrescrito"
+        "overridden": "Sobrescrito",
+        "apiKeyKeepPlaceholder": "Deja en blanco para conservar la clave de API guardada"
     },
     "aiAgentServiceForm": {
         "integrationLabel": "Integración",
@@ -213,8 +229,8 @@
         "sortTabTitle": "Ordenar | 1 Orden | {count} Ordenamientos",
         "searchTabTitle": "Buscar | 1 Búsqueda | {count} Búsquedas",
         "searchFieldPlaceHolder": "Introduce un término de búsqueda…",
-        "noTableChosenForFiltering": "Elige una tabla para comenzar a usar filtros de origen de datos.",
-        "noTableChosenForSorting": "Elige una tabla para comenzar a usar ordenamientos de origen de datos.",
+        "noTableChosenForFiltering": "Elige una tabla para comenzar a usar filtros de la fuente de datos.",
+        "noTableChosenForSorting": "Elige una tabla para comenzar a usar ordenamientos de la fuente de datos.",
         "refinements": "Configuración detallada",
         "noTableChosenForGrouping": "Elige una tabla para empezar a usar grupos de fuentes de datos.",
         "groupTabTitle": "Agrupar por | 1 grupo | {count} grupos"
@@ -234,9 +250,9 @@
         "supportPairingHeading": "2. Conexión de tu aplicación Slack",
         "supportPairingStep1": "Si tu aplicación es nueva: navega a «Configuración» > «Instalar aplicación». Haz clic en el botón verde para instalar la aplicación en tu espacio de trabajo.",
         "supportPairingStep2": "Copia tu «Token OAuth de usuario bot» y almacénalo en el campo «Token de usuario bot» de este formulario.",
-        "supportPairingStep3": "Finalmente, si tu aplicación es nueva: en Slack, invita tu aplicación al canal que hayas elegido con",
+        "supportPairingStep3": "Finalmente, si tu aplicación es nueva: en Slack, invita tu aplicación al canal que hayas elegido con {command}",
         "supportSetupStep1Link": "página de aplicaciones",
-        "tokenConfigured": "Hay un token guardado. Déjalo en blanco para conservarlo.",
+        "tokenConfigured": "Hay un token guardado. Deja en blanco para conservarlo.",
         "tokenKeepPlaceholder": "Deja en blanco para conservar el token guardado"
     },
     "coreHTTPRequestServiceForm": {
@@ -272,7 +288,8 @@
         "channelNoPrefix": "Elimina el ‘#’ antes del nombre del canal."
     },
     "smtpIntegrationType": {
-        "smtpSummary": "SMTP - {host}:{port}"
+        "smtpSummary": "SMTP - {host}:{port}",
+        "errorNoHost": "No se ha establecido ningún host SMTP."
     },
     "smtpForm": {
         "host": "Servidor SMTP",
@@ -284,8 +301,12 @@
         "usernamePlaceholder": "tu-correo{'@'}ejemplo.com",
         "password": "Contraseña",
         "passwordPlaceholder": "tu-contraseña",
-        "passwordConfigured": "Hay una contraseña guardada. Déjalo en blanco para conservarla.",
-        "passwordKeepPlaceholder": "Deja en blanco para conservar la contraseña guardada"
+        "passwordConfigured": "Hay una contraseña guardada. Deja en blanco para conservarla.",
+        "passwordKeepPlaceholder": "Deja en blanco para conservar la contraseña guardada",
+        "securitySsl": "SSL/TLS (normalmente puerto 465)",
+        "securityStartTls": "STARTTLS (normalmente puerto 587)",
+        "security": "Seguridad",
+        "securityNone": "Ninguno"
     },
     "smtpEmailForm": {
         "integrationDropdownLabel": "Integración",
@@ -326,7 +347,7 @@
     },
     "coreIterationServiceForm": {
         "source": "Fuente",
-        "sourcePlaceholder": "Selecciona una fuente…"
+        "sourcePlaceholder": "Elige una fuente…"
     },
     "periodicForm": {
         "intervalLabel": "Intervalo",
@@ -353,7 +374,8 @@
         "monthHelper": "Este flujo de trabajo se ejecutará cada mes en el día y hora especificados",
         "deactivatedTitle": "Disparador periódico desactivado",
         "deactivatedText": "Este disparador periódico ha sido desactivado automáticamente debido a fallos consecutivos.",
-        "timezoneHelper": "La programación mantiene esta hora local cuando cambian los relojes"
+        "timezoneHelper": "La programación mantiene esta hora local cuando cambian los relojes",
+        "timezone": "Zona horaria"
     },
     "localBaserowUpsertRowServiceForm": {
         "noTableSelectedMessage": "Elige una tabla para comenzar a configurar tus campos.",
@@ -418,9 +440,13 @@
     "coreGotoServiceForm": {
         "conditionDescription": "Cuando esta condición es verdadera, el flujo de trabajo salta al nodo de destino en lugar de continuar con el siguiente nodo.",
         "destinationDescription": "El nodo al que saltar cuando la condición es verdadera.",
-        "conditionPlaceholder": "Si es verdadero, saltamos al nodo de destino."
+        "conditionPlaceholder": "Si es verdadero, saltamos al nodo de destino.",
+        "conditionLabel": "Condición",
+        "destinationPlaceholder": "Elige un nodo de destino...",
+        "destinationLabel": "Nodo de destino"
     },
     "aiProviderModelFeature": {
-        "aiAgentDescription": "Ejecuta acciones de Agente de IA en flujos de trabajo de Automatización y del Constructor de Aplicaciones."
+        "aiAgentDescription": "Ejecuta acciones de Agente de IA en flujos de trabajo de Automatización y del Constructor de Aplicaciones.",
+        "aiAgent": "Agente de IA"
     }
 }

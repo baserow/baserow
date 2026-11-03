@@ -48,6 +48,57 @@ describe('widgetGridLayout', () => {
     ])
   })
 
+  test('projects two columns in visual order without filling earlier gaps', () => {
+    const widgets = [
+      summary(5, 4, 20, 2, 4),
+      summary(3, 3, 8, 3, 5),
+      summary(1, 0, 0, 2, 4),
+      summary(4, 0, 20, 1, 4),
+      summary(2, 2, 0, 4, 8),
+    ]
+    const saved = structuredClone(widgets)
+
+    expect(createWidgetGridLayout(widgets, 2)).toEqual([
+      { i: 1, x: 0, y: 0, w: 1, h: 4 },
+      { i: 2, x: 0, y: 4, w: 2, h: 8 },
+      { i: 3, x: 0, y: 12, w: 1, h: 5 },
+      { i: 4, x: 1, y: 12, w: 1, h: 4 },
+      { i: 5, x: 0, y: 17, w: 1, h: 4 },
+    ])
+    expect(widgets).toEqual(saved)
+  })
+
+  test('starts each row below its tallest widget', () => {
+    expect(
+      createWidgetGridLayout(
+        [
+          summary(1, 0, 0, 3, 4),
+          summary(2, 3, 0, 3, 9),
+          summary(3, 0, 4, 3, 4),
+          summary(4, 3, 9, 3, 4),
+        ],
+        2
+      )
+    ).toEqual([
+      { i: 1, x: 0, y: 0, w: 1, h: 4 },
+      { i: 2, x: 1, y: 0, w: 1, h: 9 },
+      { i: 3, x: 0, y: 9, w: 1, h: 4 },
+      { i: 4, x: 1, y: 9, w: 1, h: 4 },
+    ])
+  })
+
+  test('stacks every width on mobile while preserving saved heights', () => {
+    expect(
+      createWidgetGridLayout(
+        [summary(2, 3, 10, 3, 9), summary(1, 0, 0, 6, 16)],
+        1
+      )
+    ).toEqual([
+      { i: 1, x: 0, y: 0, w: 1, h: 16 },
+      { i: 2, x: 0, y: 16, w: 1, h: 9 },
+    ])
+  })
+
   test('allows resizing an existing widget smaller than its current type minimum', () => {
     const chart = {
       grid_layout: {

@@ -1,6 +1,8 @@
 {
     "dashboard": {
-        "descriptionPlaceholder": "Descripción"
+        "descriptionPlaceholder": "Descripción",
+        "widgetsLoading": "Cargando tu panel...",
+        "addWidget": "Añadir widget"
     },
     "dashboardHeader": {
         "doneEditing": "Edición completada"
@@ -43,5 +45,55 @@
     },
     "trashType": {
         "widget": "widget"
+    },
+    "lastViewedItemType": {
+        "dashboard": "Panel"
+    },
+    "dashboardRotateSlugModal": {
+        "refreshWarning": "Después de actualizar, se generará una nueva URL y no será posible acceder al panel mediante la URL antigua. Todos con quienes hayas compartido la URL no podrán acceder al panel.",
+        "title": "¿Actualizar la URL de {dashboardName}?",
+        "success": "Nueva URL generada correctamente",
+        "generateNewUrl": "Generar nueva URL"
+    },
+    "dashboardEnablePasswordModal": {
+        "description": "El enlace público solo será accesible después de introducir la contraseña. Esta contraseña debe tener 8 o más caracteres y se guardará cifrada.",
+        "changeDescription": "Al cambiar la contraseña, la anterior dejará de funcionar. Esta contraseña debe tener 8 o más caracteres y se guardará cifrada.",
+        "title": "Introduce una contraseña",
+        "setPassword": "Establecer contraseña",
+        "changeTitle": "Cambiar contraseña",
+        "changePassword": "Cambiar contraseña",
+        "placeholder": "Contraseña"
+    },
+    "dashboardDisablePasswordModal": {
+        "description": "Al deshabilitar, la contraseña se eliminará y no será posible recuperarla.",
+        "title": "¿Deshabilitar la protección por contraseña de este enlace público?",
+        "disable": "Deshabilitar"
+    },
+    "shareDashboardLink": {
+        "notSharedText": "El enlace privado para compartir permite que cualquiera vea los datos en este panel.",
+        "sharedDescription": "Las personas que tienen el enlace pueden ver el panel.",
+        "sharedTitle": "Este panel está actualmente compartido mediante un enlace privado",
+        "notSharedTitle": "Todavía no has compartido este panel",
+        "restrictWithPassword": "Restringir el acceso con una contraseña",
+        "createPrivateLink": "Crear un enlace privado",
+        "passwordProtected": "El acceso está protegido por contraseña",
+        "disableLink": "Deshabilitar enlace compartido",
+        "generateNewUrl": "Generar nueva URL",
+        "shareDashboard": "Compartir panel",
+        "copyURL": "Copiar URL",
+        "changePassword": "Cambiar contraseña"
+    },
+    "publicDashboardAuth": {
+        "description": "Necesitas una contraseña para acceder a este sitio.",
+        "incorrectPasswordText": "La contraseña proporcionada es incorrecta.",
+        "title": "Contraseña obligatoria",
+        "incorrectPasswordTitle": "Contraseña incorrecta",
+        "continue": "Continuar",
+        "passwordPlaceholder": "Contraseña...",
+        "passwordLabel": "Contraseña"
+    },
+    "publicDashboard": {
+        "noWidgets": "Este panel todavía no tiene ningún widget.",
+        "reportAbuse": "Denunciar abuso"
     }
 }

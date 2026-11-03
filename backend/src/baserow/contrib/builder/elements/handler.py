@@ -378,6 +378,8 @@ class ElementHandler:
 
         local_cache.delete(self._get_elements_cache_key(page, True))
         local_cache.delete(self._get_elements_cache_key(page, False))
+        local_cache.delete(self._get_builder_elements_cache_key(page.builder_id, True))
+        local_cache.delete(self._get_builder_elements_cache_key(page.builder_id, False))
         local_cache.delete(BaseGraphHandler.generate_point_map_cache_key(page))
         local_cache.delete(
             BaseGraphHandler.generate_previous_position_map_cache_key(page)
@@ -414,6 +416,9 @@ class ElementHandler:
             kwargs, self.allowed_fields_create + element_type.allowed_fields
         )
         allowed_values["page"] = page
+        from baserow.contrib.builder.pages.handler import PageHandler
+
+        PageHandler().raise_if_page_links_outside_builder(page.builder, kwargs)
         allowed_values = element_type.prepare_value_for_db(allowed_values)
 
         model_class = cast(Element, element_type.model_class)
@@ -440,6 +445,11 @@ class ElementHandler:
             kwargs, self.allowed_fields_update + element.get_type().allowed_fields
         )
 
+        from baserow.contrib.builder.pages.handler import PageHandler
+
+        PageHandler().raise_if_page_links_outside_builder(
+            element.page.builder, kwargs, instance=element
+        )
         allowed_updates = element.get_type().prepare_value_for_db(
             allowed_updates, instance=element
         )

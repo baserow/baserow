@@ -1,4 +1,5 @@
 import json
+import secrets
 import urllib
 from abc import abstractmethod
 from dataclasses import asdict, dataclass
@@ -6,6 +7,7 @@ from typing import Any, Dict, Optional, Tuple, TypedDict
 
 from django.conf import settings
 from django.contrib.sessions.backends.base import SessionBase
+from django.core import signing
 from django.urls import include, path, reverse
 
 import jwt
@@ -38,6 +40,10 @@ from .models import (
 )
 
 OAUTH_BACKEND_URL = settings.OAUTH_BACKEND_URL
+
+# Chromium and WebKit drop a cookie whose name and value exceed 4096 bytes. This
+# stays lower so that the name and attributes fit as well, for browsers counting them.
+MAX_SESSION_COOKIE_VALUE_SIZE = 3900
 
 _is_url_already_loaded = False
 
@@ -85,12 +91,93 @@ class BaseOAuth2AuthProviderMixin:
     ) -> None:
         session["oauth_request_data"] = json.dumps(query_params or {})
 
+        # The session is stored in a cookie, and a browser drops a cookie that is too
+        # big with everything in it. Going back to the default page is better than
+        # failing the login.
+        if query_params and "original" in query_params:
+            cookie_value = signing.dumps(
+                dict(session.items()), compress=True, serializer=session.serializer
+            )
+            if len(cookie_value) > MAX_SESSION_COOKIE_VALUE_SIZE:
+                logger.warning(
+                    "OAuth2 login: not keeping an original URL of {} characters, it "
+                    "doesn't fit in the session cookie.",
+                    len(query_params["original"]),
+                )
+                session["oauth_request_data"] = json.dumps(
+                    {k: v for k, v in query_params.items() if k != "original"}
+                )
+
     def pop_request_data_from_session(self, session: SessionBase) -> Dict[str, Any]:
         try:
             return json.loads(session.pop("oauth_request_data"))
         except (KeyError, json.JSONDecodeError):
             pass
         return {}
+
+    def store_oauth_state(
+        self, instance: AuthProviderModel, session: SessionBase, state: str
+    ) -> None:
+        """
+        Stores the state of a login together with the provider it was issued for.
+
+        :param instance: The provider the login is started with.
+        :param session: Django session object to store the state in.
+        :param state: The state sent to the provider.
+        """
+
+        session["oauth_state"] = state
+        session["oauth_state_provider"] = self._get_oauth_state_provider(instance)
+
+    def consume_oauth_state_or_raise(
+        self, instance: AuthProviderModel, session: SessionBase, state: Optional[str]
+    ) -> None:
+        """
+        Checks the state returned to an OAuth2 callback against the one stored when
+        the browser started a login with this provider, and removes it if it matches.
+        A wrong state leaves it in place, so a stale tab can't fail the login of
+        another one.
+
+        The session is stored in the cookie, so this only stops a replay from the
+        browser holding the updated cookie. A replay sending an old copy of the cookie
+        passes this check, and only the provider's single use code stops it.
+
+        :param instance: The provider the callback is for.
+        :param session: Django session object holding the stored state.
+        :param state: The state query parameter of the callback.
+        :raises AuthFlowError: If the state is missing, doesn't match, or was issued
+            for another provider.
+        """
+
+        expected_state = session.get("oauth_state")
+        if not state:
+            failure = "missing from the callback"
+        elif not expected_state:
+            failure = "missing from the session"
+        elif session.get("oauth_state_provider") != self._get_oauth_state_provider(
+            instance
+        ):
+            failure = "issued for another provider"
+        # Compared as bytes because compare_digest rejects non ASCII strings.
+        elif not secrets.compare_digest(state.encode(), expected_state.encode()):
+            failure = "does not match"
+        else:
+            del session["oauth_state"]
+            del session["oauth_state_provider"]
+            return
+
+        logger.warning(
+            "OAuth2 callback rejected for {} provider {}: the state is {}.",
+            self.type,
+            instance.id,
+            failure,
+        )
+        raise AuthFlowError(f"The OAuth2 state is {failure}.")
+
+    def _get_oauth_state_provider(self, instance: AuthProviderModel) -> str:
+        # Core and builder providers are in separate tables, so the same id and type
+        # can exist in both. The model tells them apart.
+        return f"{self.model_class._meta.label_lower}:{instance.id}"
 
     def get_authorization_url(
         self,
@@ -111,9 +198,9 @@ class BaseOAuth2AuthProviderMixin:
             page.
         """
 
-        oauth = self.get_oauth_session(instance, session)
+        oauth = self.get_oauth_session(instance)
         authorization_url, state = oauth.authorization_url(self.get_base_url(instance))
-        session["oauth_state"] = state
+        self.store_oauth_state(instance, session, state)
         self.push_request_data_to_session(session, query_params)
         return authorization_url
 
@@ -121,31 +208,20 @@ class BaseOAuth2AuthProviderMixin:
     def get_callback_url(self, instance: AuthProviderModel):
         pass
 
-    def get_oauth_session(
-        self, instance: AuthProviderModel, session: SessionBase
-    ) -> OAuth2Session:
+    def get_oauth_session(self, instance: AuthProviderModel) -> OAuth2Session:
         """
         Creates OAuth2Session client to be used to interact with the provider
         during OAuth2 flow.
 
         :param instance: A subclass of AuthProviderModel for which to
             create the session client.
-        :param session: Django session object to store and retrieve oauth state.
         :return: HTTP client with the correct session.
         """
 
         redirect_uri = self.get_callback_url(instance)
-        if "oauth_state" in session:
-            oauth = OAuth2Session(
-                instance.client_id,
-                redirect_uri=redirect_uri,
-                scope=self.SCOPE,
-                state=session.pop("oauth_state"),
-            )
-        else:
-            oauth = OAuth2Session(
-                instance.client_id, redirect_uri=redirect_uri, scope=self.SCOPE
-            )
+        oauth = OAuth2Session(
+            instance.client_id, redirect_uri=redirect_uri, scope=self.SCOPE
+        )
         # The token and user info URLs can come from an admin/builder configured
         # provider or its well-known document, so the session itself must also
         # block private addresses. Providers with hardcoded URLs are skipped.
@@ -169,10 +245,10 @@ class BaseOAuth2AuthProviderMixin:
         pass
 
     def get_oauth_token_and_response(
-        self, instance: GoogleAuthProviderModel, code: str, session: SessionBase
+        self, instance: GoogleAuthProviderModel, code: str
     ) -> Tuple[str, Dict[str, Any]]:
         try:
-            oauth = self.get_oauth_session(instance, session)
+            oauth = self.get_oauth_session(instance)
             self.before_fetch_token(oauth)
             token = oauth.fetch_token(
                 self.get_access_token_url(instance),
@@ -249,7 +325,7 @@ class BaseOAuth2AuthProviderMixin:
         :return: User info with user's name and email.
         """
 
-        _, json_response = self.get_oauth_token_and_response(instance, code, session)
+        _, json_response = self.get_oauth_token_and_response(instance, code)
 
         logger.debug("OAuth2 response: {0} {1}", _, json_response)
 
@@ -374,9 +450,7 @@ class GitHubAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
         :return: User info with user's name and email.
         """
 
-        token, json_response = self.get_oauth_token_and_response(
-            instance, code, session
-        )
+        token, json_response = self.get_oauth_token_and_response(instance, code)
         logger.debug("OAuth2 response: {0} {1}", token, json_response)
 
         try:
@@ -479,10 +553,10 @@ class FacebookAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
         session: SessionBase,
         query_params: Dict[str, Any],
     ) -> str:
-        oauth = self.get_oauth_session(instance, session)
+        oauth = self.get_oauth_session(instance)
         oauth = facebook_compliance_fix(oauth)
         authorization_url, state = oauth.authorization_url(self.AUTHORIZATION_URL)
-        session["oauth_state"] = state
+        self.store_oauth_state(instance, session, state)
         self.push_request_data_to_session(session, query_params)
         return authorization_url
 
@@ -614,9 +688,7 @@ class OpenIdConnectAuthProviderTypeMixin:
         :return: User info with user's name and email.
         """
 
-        token, json_response = self.get_oauth_token_and_response(
-            instance, code, session
-        )
+        token, json_response = self.get_oauth_token_and_response(instance, code)
 
         logger.debug("OAuth2 response: {0} {1}", token, json_response)
 

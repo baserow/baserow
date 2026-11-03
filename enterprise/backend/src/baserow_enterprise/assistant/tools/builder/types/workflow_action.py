@@ -254,7 +254,23 @@ def _open_page_formulas(action: "ActionCreate", orm_action, context) -> dict[str
     return formulas
 
 
+def _notification_formulas(
+    action: "ActionCreate", orm_action, context
+) -> dict[str, str]:
+    """Get formulas for a notification's title and description."""
+
+    return {
+        name: formula_desc(value)
+        for name, value in [
+            ("title", action.title),
+            ("description", action.description),
+        ]
+        if value and needs_formula(value)
+    }
+
+
 _GET_FORMULAS: dict[str, Any] = {
+    "notification": _notification_formulas,
     "create_row": _row_formulas,
     "update_row": _row_formulas,
     "delete_row": _row_formulas,
@@ -262,77 +278,87 @@ _GET_FORMULAS: dict[str, Any] = {
 }
 
 # ---------------------------------------------------------------------------
-# Formula dispatch: update_action_with_formulas
+# Formula dispatch: values to update an action with its generated formulas
 # ---------------------------------------------------------------------------
 
 
-def _update_row_formulas(
+def _advanced(formula: str) -> Any:
+    return formula_object(formula, mode=BASEROW_FORMULA_MODE_ADVANCED)
+
+
+def _row_formula_values(
     action: "ActionCreate",
     orm_action: "BuilderWorkflowAction",
     formulas: dict[str, str],
-) -> None:
-    """Apply generated formulas to row-based workflow actions."""
-
-    if not formulas:
-        return
+) -> dict[str, Any]:
+    """The service values that apply generated formulas to a row action."""
 
     service = orm_action.specific.service.specific
-
-    # Update row_id
+    service_values: dict[str, Any] = {}
     if "row_id" in formulas:
-        service.row_id = formula_object(
-            formulas["row_id"], mode=BASEROW_FORMULA_MODE_ADVANCED
-        )
-        service.save(update_fields=["row_id"])
+        service_values["row_id"] = _advanced(formulas["row_id"])
 
-    # Update field mappings
+    mappings = []
     for mapping in service.field_mappings.all():
-        key = f"field_{mapping.field_id}"
-        if key in formulas:
-            mapping.value = formula_object(
-                formulas[key], mode=BASEROW_FORMULA_MODE_ADVANCED
-            )
-            mapping.save(update_fields=["value"])
+        formula = formulas.get(f"field_{mapping.field_id}")
+        mappings.append(
+            {
+                "field_id": mapping.field_id,
+                "enabled": mapping.enabled,
+                "value": mapping.value if formula is None else _advanced(formula),
+            }
+        )
+    # The service replaces its whole list of mappings.
+    if any(f"field_{mapping['field_id']}" in formulas for mapping in mappings):
+        service_values["field_mappings"] = mappings
+    return {"service": service_values} if service_values else {}
 
 
-def _update_open_page_formulas(
+def _open_page_formula_values(
     action: "ActionCreate",
     orm_action: "BuilderWorkflowAction",
     formulas: dict[str, str],
-) -> None:
-    """Apply generated formulas to open_page page/query parameters."""
-
-    if not formulas:
-        return
+) -> dict[str, Any]:
+    """The values that apply generated formulas to open_page parameters."""
 
     specific = orm_action.specific
-    page_params = specific.page_parameters or []
-    query_params = specific.query_parameters or []
-
-    for i, p in enumerate(page_params):
-        key = f"page_param_{i}"
-        if key in formulas:
-            p["value"] = formula_object(
-                formulas[key], mode=BASEROW_FORMULA_MODE_ADVANCED
-            )
-
-    for i, p in enumerate(query_params):
-        key = f"query_param_{i}"
-        if key in formulas:
-            p["value"] = formula_object(
-                formulas[key], mode=BASEROW_FORMULA_MODE_ADVANCED
-            )
-
-    specific.page_parameters = page_params
-    specific.query_parameters = query_params
-    specific.save(update_fields=["page_parameters", "query_parameters"])
+    values: dict[str, Any] = {}
+    for field, prefix in (
+        ("page_parameters", "page_param"),
+        ("query_parameters", "query_param"),
+    ):
+        params = [dict(param) for param in getattr(specific, field) or []]
+        changed = False
+        for i, param in enumerate(params):
+            formula = formulas.get(f"{prefix}_{i}")
+            if formula is not None:
+                param["value"] = _advanced(formula)
+                changed = True
+        if changed:
+            values[field] = params
+    return values
 
 
-_UPDATE_FORMULAS: dict[str, Any] = {
-    "create_row": _update_row_formulas,
-    "update_row": _update_row_formulas,
-    "delete_row": _update_row_formulas,
-    "open_page": _update_open_page_formulas,
+def _notification_formula_values(
+    action: "ActionCreate",
+    orm_action: "BuilderWorkflowAction",
+    formulas: dict[str, str],
+) -> dict[str, Any]:
+    """The values that apply generated formulas to a notification."""
+
+    return {
+        name: _advanced(formulas[name])
+        for name in ("title", "description")
+        if name in formulas
+    }
+
+
+_FORMULA_VALUES: dict[str, Any] = {
+    "notification": _notification_formula_values,
+    "create_row": _row_formula_values,
+    "update_row": _row_formula_values,
+    "delete_row": _row_formula_values,
+    "open_page": _open_page_formula_values,
 }
 
 
@@ -487,15 +513,18 @@ class ActionCreate(BaseModel):
         fn = _GET_FORMULAS.get(self.type)
         return fn(self, orm_action, context) if fn else {}
 
-    def update_with_formulas(
+    def formula_values(
         self,
         orm_action: "BuilderWorkflowAction",
         formulas: dict[str, str],
-    ) -> None:
-        """Apply LLM-generated formulas to this action."""
-        fn = _UPDATE_FORMULAS.get(self.type)
-        if fn:
-            fn(self, orm_action, formulas)
+    ) -> dict[str, Any]:
+        """
+        The values to update ``orm_action`` with, through its action type, to apply
+        the generated formulas.
+        """
+
+        fn = _FORMULA_VALUES.get(self.type)
+        return fn(self, orm_action, formulas) if fn and formulas else {}
 
 
 # ---------------------------------------------------------------------------

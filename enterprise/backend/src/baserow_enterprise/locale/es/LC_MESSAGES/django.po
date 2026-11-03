@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2023-01-31 17:08+0000\n"
-"PO-Revision-Date: 2023-03-07 17:18+0000\n"
-"Last-Translator: Hiram <hiram@swyftlight.com>\n"
+"PO-Revision-Date: 2026-10-30 22:20+0000\n"
+"Last-Translator: cuathro <cuathro@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/baserow/"
 "enterprise-backend/es/>\n"
 "Language: es\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 4.16.2-dev\n"
+"X-Generator: Weblate 2026.11.dev0\n"
 
 #: baserow_enterprise/audit_log/job_types.py:143
 msgid "User Email"
@@ -101,7 +101,7 @@ msgstr "Equipo \"%(name)s\" (%(team_id)s) actualizado."
 
 #: baserow_enterprise/teams/actions.py:193
 msgid "Delete team"
-msgstr "Borrar equipo"
+msgstr "Eliminar equipo"
 
 #: baserow_enterprise/teams/actions.py:194
 #, python-format
@@ -119,7 +119,7 @@ msgstr "Tema (%(subject_id)s) creado"
 
 #: baserow_enterprise/teams/actions.py:320
 msgid "Delete team subject"
-msgstr "Borrar el tema del equipo"
+msgstr "Eliminar miembro del equipo"
 
 #: baserow_enterprise/teams/actions.py:321
 #, python-format

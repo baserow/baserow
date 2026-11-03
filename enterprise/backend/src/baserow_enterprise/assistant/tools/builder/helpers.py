@@ -12,10 +12,13 @@ from django.contrib.auth.models import AbstractUser
 from django.db import DatabaseError, transaction
 from django.db.models import Q, QuerySet
 
+from rest_framework.exceptions import ValidationError as DRFValidationError
+
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.data_sources.operations import (
     ReadDataSourceOperationType,
+    UpdateDataSourceOperationType,
 )
 from baserow.contrib.builder.data_sources.service import DataSourceService
 from baserow.contrib.builder.elements.actions import (
@@ -60,6 +63,9 @@ from baserow.contrib.builder.workflow_actions.service import (
     BuilderWorkflowActionService,
 )
 from baserow.contrib.database.fields.models import Field
+from baserow.contrib.integrations.local_baserow.service_types import (
+    LocalBaserowViewServiceType,
+)
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
@@ -70,6 +76,7 @@ from baserow.core.services.registries import service_type_registry
 from baserow_enterprise.assistant.tools.shared import (
     ToolInputError,
     raise_if_permission_denied,
+    validation_messages,
 )
 
 from .registries import assistant_element_type_registry
@@ -88,6 +95,7 @@ from .types import (
     PageItem,
     PageUpdate,
 )
+from .types.page import PagePathParam, with_path_parameters
 
 if TYPE_CHECKING:
     pass
@@ -147,6 +155,19 @@ def on_page(page: Page) -> Q:
     return Q(page=page) | Q(page__builder_id=page.builder_id, page__shared=True)
 
 
+def forget_page_graphs(page: Page) -> None:
+    """
+    Reload the graphs of ``page`` and of its builder's shared page and drop their
+    cached elements, after an element's savepoint rolled back or a transaction that
+    locked the graph ended. The request's caches still hold the rolled back element
+    and a handler that thinks it holds the lock.
+    """
+
+    for graph_page in (page, page.builder.shared_page):
+        graph_page.reload_graph()
+        ElementHandler().invalidate_element_cache(graph_page)
+
+
 def check_data_source_on_page(page: Page, data_source_id: int) -> None:
     """
     :raises ToolInputError: When the data source is neither on ``page`` nor on its
@@ -161,33 +182,21 @@ def check_data_source_on_page(page: Page, data_source_id: int) -> None:
         )
 
 
-def check_page_links(builder: Builder, values: Any) -> None:
+def check_pages_in_builder(builder: Builder, page_ids: list[int]) -> None:
     """
-    Check that every ``navigate_to_page_id`` in ``values``, including those of
-    nested menu items, is a page of ``builder``.
+    Check the pages a header or footer is shown on. The element would leave out a
+    page of another builder, or the shared page, without saying so.
 
-    :raises ToolInputError: When one names a page of another application.
+    :raises ToolInputError: When one is a page of another application or the
+        shared page.
     """
 
-    page_ids = set()
-
-    def collect(value: Any) -> None:
-        if isinstance(value, dict):
-            if value.get("navigate_to_page_id") is not None:
-                page_ids.add(value["navigate_to_page_id"])
-            for item in value.values():
-                collect(item)
-        elif isinstance(value, (list, tuple)):
-            for item in value:
-                collect(item)
-
-    collect(values)
     found = set(
-        Page.objects.filter(builder=builder, id__in=page_ids).values_list(
-            "id", flat=True
-        )
+        Page.objects_without_shared.filter(
+            builder=builder, id__in=page_ids
+        ).values_list("id", flat=True)
     )
-    missing = sorted(page_ids - found, key=str)
+    missing = [page_id for page_id in page_ids if page_id not in found]
     if missing:
         raise ToolInputError(
             f"Page with ID {missing[0]} not found in this application. "
@@ -285,7 +294,10 @@ def list_workflow_actions(user: AbstractUser, page: Page) -> list[ActionItem]:
 
 
 def _taken_path_error(
-    builder: Builder, path: str, page_id: int | None = None
+    builder: Builder,
+    path: str,
+    page_id: int | None = None,
+    outcome: str = "Nothing was changed in this call.",
 ) -> ToolInputError:
     """
     Describe a path that another page of the builder already uses.
@@ -293,6 +305,7 @@ def _taken_path_error(
     :param builder: The builder application the path must be unique in.
     :param path: The path that is already used.
     :param page_id: The page that asked for the path, which is not a clash.
+    :param outcome: What the call did about it.
     :return: The error to raise, naming the page that uses the path.
     """
 
@@ -313,8 +326,7 @@ def _taken_path_error(
     else:
         owner = f"page {page.id} ('{page.name}')"
     return ToolInputError(
-        f"The path '{path}' is already used by {owner}. Nothing was changed in "
-        "this call. Pick another path."
+        f"The path '{path}' is already used by {owner}. {outcome} Pick another path."
     )
 
 
@@ -340,11 +352,23 @@ def ensure_distinct_paths(pages: list[PageCreate]) -> None:
         pages_by_path[generalised] = page
 
 
+# Raised for a page's path or parameters.
+_PAGE_PARAM_ERRORS = (
+    PathParamNotInPath,
+    PathParamNotDefined,
+    DuplicatePathParamsInPath,
+    InvalidPagePathParamType,
+    InvalidQueryParamName,
+    DuplicatePageParams,
+)
+
+
 def create_page(user: AbstractUser, builder: Builder, page_create: PageCreate) -> Page:
     """
     Create a page in a builder application.
 
-    :raises ToolInputError: When another page already uses the path.
+    :raises ToolInputError: When another page already uses the path, or the path or
+        parameters are not valid.
     """
 
     svc = PageService()
@@ -358,7 +382,12 @@ def create_page(user: AbstractUser, builder: Builder, page_create: PageCreate) -
             query_params=[p.model_dump() for p in page_create.query_params],
         )
     except PagePathNotUnique:
-        raise _taken_path_error(builder, page_create.path)
+        # create_pages saves the other pages of the call.
+        raise _taken_path_error(
+            builder, page_create.path, outcome="This page was not created."
+        )
+    except _PAGE_PARAM_ERRORS as exc:
+        raise ToolInputError(f"{exc}. This page was not created.")
 
     # PageService.create_page doesn't accept visibility/role kwargs,
     # so we update them separately if non-default.
@@ -395,6 +424,22 @@ def update_page(
 
     page = get_page(user, workspace, page_update.page_id)
     kwargs = page_update.to_update_kwargs()
+    if "path" in kwargs:
+        # Parameters left out of path_params keep their type if the new path still
+        # names them; new ones are text.
+        names = PageHandler().get_path_param_names(kwargs["path"])
+        given = page_update.path_params or []
+        given_names = {param.name for param in given}
+        try:
+            kept = [
+                PagePathParam(**param)
+                for param in page.path_params
+                if param["name"] in names and param["name"] not in given_names
+            ]
+            path_params = with_path_parameters(kwargs["path"], [*given, *kept])
+        except ValueError as exc:
+            raise ToolInputError(f"{exc} Nothing was changed in this call.") from exc
+        kwargs["path_params"] = [param.model_dump() for param in path_params]
     if kwargs:
         try:
             PageService().update_page(user, page, **kwargs)
@@ -406,14 +451,7 @@ def update_page(
             raise ToolInputError(
                 f"Page {page.id} is the shared page, which can't be changed."
             )
-        except (
-            PathParamNotInPath,
-            PathParamNotDefined,
-            DuplicatePathParamsInPath,
-            InvalidPagePathParamType,
-            InvalidQueryParamName,
-            DuplicatePageParams,
-        ) as exc:
+        except _PAGE_PARAM_ERRORS as exc:
             raise ToolInputError(f"{exc}. Nothing was changed in this call.")
         page.refresh_from_db()
     return page
@@ -430,38 +468,43 @@ def create_data_source(
     ds_create: DataSourceCreate,
     integration: Integration,
 ) -> tuple[Any, int]:
-    """Create a data source on a page."""
+    """
+    Create a data source on a page.
+
+    :raises ToolInputError: When a sort names a field of another table.
+    """
 
     service_type = service_type_registry.get(ds_create.get_service_type())
     service_kwargs = ds_create.to_service_kwargs(user, page.builder.workspace)
     service_kwargs["integration"] = integration
-
-    data_source = DataSourceService().create_data_source(
-        user=user,
-        page=page,
-        name=ds_create.name,
-        service_type=service_type,
-        **service_kwargs,
-    )
-
-    # Add sortings
     sortings = ds_create.get_sortings()
-    if sortings:
-        from baserow.contrib.integrations.local_baserow.models import (
-            LocalBaserowTableServiceSort,
+    with transaction.atomic():
+        data_source = DataSourceService().create_data_source(
+            user=user,
+            page=page,
+            name=ds_create.name,
+            service_type=service_type,
+            **service_kwargs,
         )
 
-        LocalBaserowTableServiceSort.objects.bulk_create(
-            [
-                LocalBaserowTableServiceSort(
-                    service=data_source.service,
-                    field_id=s["field_id"],
-                    order_by=s["order_by"],
-                    order=i,
+        if sortings:
+            try:
+                data_source = (
+                    DataSourceService()
+                    .update_data_source(
+                        user,
+                        data_source,
+                        service_type=service_type,
+                        service_sorts=sortings,
+                    )
+                    .data_source
                 )
-                for i, s in enumerate(sortings)
-            ]
-        )
+            except DRFValidationError as exc:
+                # The service refuses a sort on a field of another table.
+                raise ToolInputError(
+                    f"{validation_messages(exc)} Use get_tables_schema to find valid "
+                    "field IDs. No changes were applied."
+                ) from exc
 
     return data_source, data_source.id
 
@@ -504,6 +547,14 @@ def update_data_source(
         service_type_registry.get_by_model(ds.service.specific) if ds.service else None
     )
     kwargs = ds_update.to_update_kwargs(user, workspace)
+    if "view_id" in kwargs and not isinstance(
+        service_type, LocalBaserowViewServiceType
+    ):
+        # Other services leave a view out without saying so.
+        raise ToolInputError(
+            f"Data source {ds.id} can't use a view. Only list_rows and get_row data "
+            "sources read through a view. No changes were applied."
+        )
     if kwargs:
         ds = (
             DataSourceService()
@@ -511,8 +562,14 @@ def update_data_source(
             .data_source
         )
     else:
+        # Formulas are written once generated; refuse before asking the model.
+        operation_type = (
+            UpdateDataSourceOperationType
+            if ds_update.get_formulas_to_update(ds, None)
+            else ReadDataSourceOperationType
+        )
         CoreHandler().check_permissions(
-            user, ReadDataSourceOperationType.type, workspace=workspace, context=ds
+            user, operation_type.type, workspace=workspace, context=ds
         )
 
     ds_type = ds.service.get_type().type if ds.service else ""
@@ -565,8 +622,6 @@ def create_element(
             use_shared_page = True
 
     target_page = page.builder.shared_page if use_shared_page else page
-    if use_shared_page:
-        shared_page_refs.add(element_create.ref)
 
     # Resolve data source ref to integer ID early so that to_orm_kwargs
     # (e.g. _convert_table_fields) can look up the data source's table fields.
@@ -585,14 +640,18 @@ def create_element(
         check_data_source_on_page(page, int(element_create.data_source))
 
     kwargs = element_create.to_orm_kwargs(user, target_page)
-    check_page_links(page.builder, kwargs)
+    if element_create.page_ids:
+        check_pages_in_builder(page.builder, element_create.page_ids)
+        kwargs["pages"] = list(
+            Page.objects.filter(builder=page.builder, id__in=element_create.page_ids)
+        )
 
     # Resolve parent
     if isinstance(parent, int):
         kwargs["parent_element_id"] = parent
     elif isinstance(parent, str):
         if parent not in ref_to_id_map:
-            raise ValueError(
+            raise ToolInputError(
                 f"Parent ref '{parent}' not found. "
                 "Define parent elements before children."
             )
@@ -649,18 +708,24 @@ def create_element(
         reference_element_id = None
         position = "south"
 
-    element = CreateElementActionType.do(
-        user,
-        element_type,
-        target_page,
-        {
-            "reference_element_id": reference_element_id,
-            "position": position,
-            **kwargs,
-        },
-    )
-
-    action_pairs = element_create.post_create(user, element, target_page)
+    # A post-create hook can still be refused, e.g. a menu linking to another
+    # application, and then nothing of the element is kept.
+    with transaction.atomic():
+        element = CreateElementActionType.do(
+            user,
+            element_type,
+            target_page,
+            {
+                "reference_element_id": reference_element_id,
+                "position": position,
+                **kwargs,
+            },
+        )
+        action_pairs = element_create.post_create(user, element, target_page)
+    # Added once the element exists, so a failed one doesn't send the children of a
+    # later element with the same ref to the shared page.
+    if use_shared_page:
+        shared_page_refs.add(element_create.ref)
     return element, element.id, action_pairs
 
 
@@ -735,11 +800,10 @@ def move_element(
         reference_element_id = before.id
     else:
         # before_id=None means "move to end" — append after the current last element.
-        from baserow.core.cache import local_cache
-
-        element.page.refresh_from_db()
-        with local_cache.context():
-            last_ref, _, _ = element.page.get_graph().get_last_position()
+        # The lock reads the latest graph, as the move does.
+        graph = element.page.get_graph()
+        graph.lock_for_update()
+        last_ref, _, _ = graph.get_last_position()
 
         if last_ref is not None and last_ref.id == element.id:
             # Already at the end — no-op.
@@ -847,7 +911,6 @@ def update_element(
         ) | set(element_update.get_formula_dependent_fields(element_type))
         for field in deferred_fields:
             kwargs.pop(field, None)
-        check_page_links(page.builder, kwargs)
         if kwargs:
             element = UpdateElementActionType.do(user, element, kwargs)
         after_update_result = hooks.after_update(user, element, element_update)
@@ -903,7 +966,6 @@ def save_child_menu(
     :raises PermissionDenied: When the user can't update or create the menu.
     """
 
-    check_page_links(container.page.builder, menu_items)
     if menu is not None:
         return UpdateElementActionType.do(user, menu, {"menu_items": menu_items})
     # A new menu has no sub-links yet, and creating one doesn't take children.
@@ -1059,7 +1121,7 @@ def create_workflow_action(
         element_id = el
     elif isinstance(el, str):
         if el not in element_ref_to_id_map:
-            raise ValueError(f"Element ref '{el}' not found.")
+            raise ToolInputError(f"Element ref '{el}' not found.")
         element_id = element_ref_to_id_map[el]
     else:
         raise ValueError("element is required for workflow actions.")
@@ -1095,8 +1157,6 @@ def create_workflow_action(
     elif isinstance(ds, int):
         check_data_source_on_page(page, ds)
         kwargs["data_source_id"] = ds
-    check_page_links(page.builder, kwargs)
-
     action = BuilderWorkflowActionService().create_workflow_action(
         user, action_type, **kwargs
     )
@@ -1152,10 +1212,14 @@ def add_field_mapping_to_action(
 ) -> dict[str, Any]:
     """Add or update a field mapping on a create_row/update_row workflow action."""
 
+    from baserow.contrib.builder.workflow_actions.actions import (
+        UpdateBuilderWorkflowActionActionType,
+    )
     from baserow.contrib.integrations.local_baserow.models import (
         LocalBaserowTableServiceFieldMapping,
     )
     from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
+    from baserow.core.services.models import Service
     from baserow_enterprise.assistant.tools.shared.formula_utils import formula_object
 
     try:
@@ -1181,7 +1245,7 @@ def add_field_mapping_to_action(
     action_type = action.get_type().type
 
     if action_type not in ("create_row", "update_row"):
-        raise ValueError(
+        raise ToolInputError(
             f"Cannot add field mappings to '{action_type}'. "
             "Only create_row and update_row support field mappings."
         )
@@ -1202,25 +1266,38 @@ def add_field_mapping_to_action(
             "Use get_tables_schema to find the table's field IDs."
         )
 
-    existing = LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(
-        service=service, field_id=field_id
-    ).first()
-
-    if existing:
-        existing.value = formula_object(
-            value_formula, mode=BASEROW_FORMULA_MODE_ADVANCED
-        )
-        existing.enabled = True
-        existing.save()
-        status = "updated"
-    else:
-        LocalBaserowTableServiceFieldMapping.objects.create(
-            service=service,
-            field_id=field_id,
-            value=formula_object(value_formula, mode=BASEROW_FORMULA_MODE_ADVANCED),
-            enabled=True,
-        )
+    # The service replaces its whole list of mappings, mappings on trashed fields
+    # included. The service row lock makes a concurrent addition wait for this one,
+    # and the transaction keeps the old list if the replacement fails.
+    value = formula_object(value_formula, mode=BASEROW_FORMULA_MODE_ADVANCED)
+    with transaction.atomic():
+        Service.objects.select_for_update().filter(id=service.id).first()
+        field_mappings = []
         status = "created"
+        for mapping in LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(
+            service=service
+        ):
+            if mapping.field_id == field_id:
+                status = "updated"
+                field_mappings.append(
+                    {"field_id": field_id, "enabled": True, "value": value}
+                )
+            else:
+                field_mappings.append(
+                    {
+                        "field_id": mapping.field_id,
+                        "enabled": mapping.enabled,
+                        "value": mapping.value,
+                    }
+                )
+        if status == "created":
+            field_mappings.append(
+                {"field_id": field_id, "enabled": True, "value": value}
+            )
+        action = UpdateBuilderWorkflowActionActionType.do(
+            user, action, service={"field_mappings": field_mappings}
+        )
+    service = action.service.specific
 
     mappings = [
         {

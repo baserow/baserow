@@ -59,7 +59,7 @@ export default {
       return (
         this.buttonLabel ??
         this.$t('memberAssignmentModalFooter.invite', {
-          selectedMembersCount: this.selectedMembersCount,
+          count: this.selectedMembersCount,
         })
       )
     },

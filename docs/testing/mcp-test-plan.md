@@ -132,9 +132,17 @@ The following tools are currently enabled:
 | `add_nodes` | Add nodes to a workflow |
 | `update_nodes` | Change node labels, settings and router conditions |
 | `delete_nodes` | Delete (trash) workflow nodes |
+| `list_dashboards` | List the dashboards of the workspace |
+| `list_widgets` | List a dashboard's widgets and what they show |
+| `get_widget_data` | Read the figures widgets show |
+| `create_dashboards` | Create empty dashboards |
+| `create_widgets` | Add summary, chart and pie chart widgets |
+| `update_widgets` | Change a widget's title, chart type, or what it shows |
+| `delete_widgets` | Delete (trash) widgets |
 
 The automation tools are off in the "Read only" preset. Turn them on at
-consent or under **Settings > Connected apps**.
+consent or under **Settings > Connected apps**. The "Read only" preset
+includes reading dashboards, not changing them.
 
 ## 4. Test scenarios
 
@@ -218,6 +226,37 @@ parser's message, the subject keeps its previous value, and Claude fixes it with
 
 Ask Claude to delete the email node. Expected: `delete_nodes` moves it to the
 trash. Deleting the router while a node is on its branch is refused.
+
+### Dashboards
+
+Use a workspace with a premium licence and a table with a number field and a
+single select field. Connect with the "Read only" preset.
+
+Ask Claude: *"What dashboards do I have?"* Expected: `list_dashboards` lists
+them with their widget count.
+
+Turn on the dashboard editing tools under **Settings > Connected apps**. Ask
+Claude: *"Create a dashboard called Sales with the total of [number field] in
+[table], and a line chart of [number field] by [single select field]."*
+Expected: `create_dashboards`, then `create_widgets` with a `summary` and a
+`chart` widget. Both appear on the new dashboard in Baserow, the chart drawn
+as lines.
+
+Ask Claude: *"What do those widgets show?"* Expected: `get_widget_data`
+returns the total and one row per option, matching the dashboard.
+
+Ask Claude to show the sum of a text field. Expected: `create_widgets`
+returns an error that names the field and lists the aggregations that fit it,
+like `empty_count`, and no widget is added.
+
+Ask Claude to change the total to an average. Expected: `update_widgets`
+changes the aggregation and the dashboard shows the new figure.
+
+Ask Claude to delete the chart. Expected: `delete_widgets` moves it to the
+trash, and restoring it from the trash brings it back.
+
+In a workspace without a premium licence, ask for a chart. Expected: the
+error says the feature needs a licence, not "Internal error."
 
 ## 5. Verify disabled tools are not exposed
 

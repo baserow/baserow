@@ -1,6 +1,8 @@
 {
     "dashboard": {
-        "descriptionPlaceholder": "Opis"
+        "descriptionPlaceholder": "Opis",
+        "addWidget": "Dodaj widżet",
+        "widgetsLoading": "Trwa ładowanie pulpitu...."
     },
     "dashboardHeader": {
         "doneEditing": "Zakończono edycję"
@@ -43,5 +45,8 @@
     },
     "trashType": {
         "widget": "widżet"
+    },
+    "lastViewedItemType": {
+        "dashboard": "Pulpit"
     }
 }
