@@ -102,10 +102,7 @@ def list_builders(
 
 def search_workspace(
     ctx: RunContext[AssistantDeps],
-    query: Annotated[
-        str,
-        Field(min_length=1, max_length=200, description="The text to search for."),
-    ],
+    query: shared_search.SearchQuery,
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
     ],
