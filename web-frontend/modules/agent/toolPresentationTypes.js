@@ -47,14 +47,35 @@ class DatabaseToolPresentationType extends ToolPresentationType {
     return typeof input?.target === 'string' ? input.target.trim() : ''
   }
 
+  getTargetActivity({ input }, t) {
+    const activity = this.getLabel(t)
+    const target = this.getTarget({ input })
+    return target
+      ? t('agent.toolActivityTarget', { activity, target })
+      : activity
+  }
+
+  /** A held call hasn't run, so it is titled by what it asks to do. */
+  getHeldActivity({ input }, t) {
+    const count = input.requested_count
+    if (this.constructor.definition.counted !== true || !countIsKnown(count)) {
+      return this.getTargetActivity({ input }, t)
+    }
+    const target = this.getTarget({ input })
+    return t(
+      `${this.labelKey}HeldCount${target ? 'Target' : ''}`,
+      { count, target },
+      count
+    )
+  }
+
   getActivity({ status, input, facts }, t) {
     const { counted, table } = this.constructor.definition
+    if (status === STEP_STATUS.WAITING || status === STEP_STATUS.REJECTED) {
+      return this.getHeldActivity({ input }, t)
+    }
     if (status !== STEP_STATUS.RUNNING && status !== STEP_STATUS.DONE) {
-      const activity = this.getLabel(t)
-      const target = this.getTarget({ input })
-      return target
-        ? t('agent.toolActivityTarget', { activity, target })
-        : activity
+      return this.getTargetActivity({ input }, t)
     }
     const count =
       status === STEP_STATUS.RUNNING ? input.requested_count : facts.count
