@@ -18,9 +18,9 @@ Published apps and workflows will receive independent copies; duplicates and sna
 
 ## Context
 
-`Integration` has a foreign key to `Application`. Existing code depends on that ownership chain: Local Baserow uses `application.workspace` for context, application types determine supported integrations, and services validate integration ownership when saved, imported and dispatched. Publishing, duplication and snapshots use export/import.
+Integrations hold the credentials and identity that services in Builder apps and Automations use, such as an SMTP connection or a Local Baserow identity. Every integration belongs to exactly one application today, so an editor who uses the same connection in several apps sets it up and maintains each copy independently.
 
-Today, an editor using the same integration in several apps must create and update each copy independently. Workspace-level integrations remove this duplication in the editor without redesigning the underlying integration model.
+Workspace admins need to configure such an integration once and make it available to every app in the workspace, either by creating it at workspace level or by promoting an integration that already exists in an app, which makes that integration available to the whole workspace while the original app keeps using it. App builders need to pick it when configuring a service, the same way they pick an app-level one. Credential changes should reach every editor app without being re-entered.
 
 In scope for v1:
 - Workspace integration management and use.
@@ -38,12 +38,14 @@ In scope for v2:
 
 Terms used in this record:
 
-| Term                  | Meaning                                                                          |
-| --------------------- | -------------------------------------------------------------------------------- |
-| App                   | Any application that can own integrations: a Builder app, an Automation, etc.    |
-| Shared application    | The hidden application owned by a workspace.                                     |
-| Workspace integration | An integration owned by the shared application.                                  |
-| Published copies      | Published Builder apps, published Automation workflows and workflow test clones. |
+| Term                  | Meaning                                                                                |
+| --------------------- | -------------------------------------------------------------------------------------- |
+| App                   | Any application that can own integrations: a Builder app, an Automation, etc.          |
+| Shared application    | The hidden application owned by a workspace.                                           |
+| Workspace integration | An integration owned by the shared application.                                        |
+| Promotion             | Making an integration that belongs to one app available to every app in the workspace. |
+| Demotion              | The reverse of promotion: returning a workspace integration to a single app.           |
+| Published copies      | Published Builder apps, published Automation workflows and workflow test clones.       |
 
 ## Decision
 
@@ -51,7 +53,7 @@ Terms used in this record:
 
 Each workspace will have one hidden application of a new `shared` type, created lazily on first use rather than by a data migration.
 
-A workspace integration remains an ordinary `Integration` owned by this shared application. This follows the Builder's hidden `__shared__` page precedent and retains the existing ownership chain, permission scoping and concrete integration behaviour.
+A workspace integration remains an ordinary `Integration` owned by this shared application. `Integration` has a foreign key to `Application`, and existing code depends on that ownership chain: Local Baserow uses `application.workspace` for context, application types determine the supported integration types, services validate integration ownership when saved, imported and dispatched, and publishing, duplication and snapshots go through export/import. Keeping the chain intact retains that behaviour and the existing permission scoping without a second lookup path, and follows the Builder's hidden `__shared__` page precedent.
 
 The shared application remains accessible through existing application managers and APIs but is hidden from user-facing application lists. It cannot be managed as an ordinary application, and features such as exports, templates, trash listings and statistics must explicitly exclude it where appropriate. Workspace integrations use the existing integration API and are managed through Workspace settings.
 
