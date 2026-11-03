@@ -6,19 +6,22 @@ from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.builder.elements.models import Element, MenuElement, TableElement
 from baserow.contrib.builder.workflow_actions.models import NotificationWorkflowAction
+from baserow.core.tools.errors import ToolInputError
 
+from .formulas import current_record_of, formula_problem, page_formula_context
 from .helpers import child_menu, save_child_menu
 from .menu_item_changes import MenuItemsChange, linkable_page_ids, merge_menu_items
 from .registries import AssistantElementType, PreparedElementUpdate
 from .table_column_changes import merge_table_columns
 from .types import ElementUpdate
+from .types.changes import NO_CHANGES
 from .types.element import (
     BUTTON_NAVIGATION_GUIDANCE,
     MENU_ITEM_PROPERTIES,
     TABLE_COLUMN_PROPERTIES,
 )
 from .types.menu_items import listed_menu_items
-from .types.table_columns import table_column_items
+from .types.table_columns import stored_formula_text, table_column_items
 
 
 def _merge_menu_item_changes(
@@ -268,6 +271,36 @@ class FooterAssistantElementType(MultiPageContainerAssistantElementType):
     type = "footer"
 
 
+def _check_changed_column_formulas(
+    table: TableElement, columns: list[dict[str, Any]]
+) -> None:
+    """
+    Check the values and labels a change adds or alters. The other columns stay out
+    of it, so what is already stored can't block an unrelated edit.
+
+    :param table: The table element, with its columns as they are stored.
+    :param columns: The full column list that would be saved.
+    :raises ToolInputError: When one of them can't be read on the table's page.
+    """
+
+    stored = {str(column.uid): column.config for column in table.fields.all()}
+    changed = {
+        f"{key} of column {column['name']}": text
+        for column in columns
+        for key in ("value", "label")
+        if (text := stored_formula_text(column["config"], key))
+        and text != stored_formula_text(stored.get(column.get("uid")), key)
+    }
+    if not changed:
+        return
+    context = page_formula_context(table.page)
+    with current_record_of(context, "element", table):
+        for field, formula in changed.items():
+            problem = formula_problem(field, formula, context)
+            if problem:
+                raise ToolInputError(f"{problem} {NO_CHANGES}")
+
+
 class TableAssistantElementType(AssistantElementType):
     """Kuma lists a table's columns, changes them by uid and reads them back."""
 
@@ -295,19 +328,21 @@ class TableAssistantElementType(AssistantElementType):
         :param update: The properties to change.
         :return: The full column list to save, and the removed columns when there
             are any.
-        :raises ToolInputError: When a column change can't be applied. Nothing is
-            saved.
+        :raises ToolInputError: When a column change can't be applied or a new or
+            changed column reads something the page doesn't have. Nothing is saved.
         """
 
         if not update.changes_table_columns():
             return PreparedElementUpdate(kwargs={}, result={})
+        table = element.specific
         change = merge_table_columns(
-            element.specific,
+            table,
             add=update.add_table_columns or [],
             update=update.update_table_columns or [],
             reorder=update.reorder_table_columns,
             remove=update.remove_table_columns or [],
         )
+        _check_changed_column_formulas(table, change.fields)
         result = {"removed_table_columns": change.removed} if change.removed else {}
         return PreparedElementUpdate(kwargs={"fields": change.fields}, result=result)
 

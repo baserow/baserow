@@ -257,7 +257,7 @@ def test_renaming_a_button_column_keeps_its_click_actions(
     "value,stored",
     [
         ("new text", "'new text'"),
-        ("get('current_record.field_9')", "get('current_record.field_9')"),
+        ("get('current_record.id')", "get('current_record.id')"),
         ("", "''"),
         ("'quoted'", "'quoted'"),
     ],
@@ -281,7 +281,7 @@ def test_a_column_update_changes_only_the_keys_sent(seeded: SeededTable) -> None
     _update(
         seeded,
         update_table_columns=[
-            {"uid": uids["Stars"], "value": "get('current_record.field_7')"},
+            {"uid": uids["Stars"], "value": "get('current_record.id')"},
             {"uid": uids["Site"], "name": "Website"},
         ],
     )
@@ -290,9 +290,20 @@ def test_a_column_update_changes_only_the_keys_sent(seeded: SeededTable) -> None
     stars_config = before[uids["Stars"]][3]
     assert after[uids["Stars"]][3] == {
         **stars_config,
-        "value": _advanced("get('current_record.field_7')"),
+        "value": _advanced("get('current_record.id')"),
     }
     assert after[uids["Site"]] == (uids["Site"], "Website", *before[uids["Site"]][2:])
+
+
+@pytest.mark.django_db
+def test_a_column_reading_a_field_by_name_is_refused(seeded: SeededTable) -> None:
+    with pytest.raises(ToolInputError, match="No changes were applied"):
+        _update(
+            seeded,
+            add_table_columns=[{"name": "Bad", "value": "get('current_record.Email')"}],
+        )
+
+    assert "Bad" not in [column[1] for column in _columns(seeded.table)]
 
 
 @pytest.mark.django_db

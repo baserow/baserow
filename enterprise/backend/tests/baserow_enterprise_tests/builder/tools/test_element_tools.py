@@ -1250,3 +1250,137 @@ def test_changing_a_button_without_touching_its_text_adds_no_note(
     )
 
     assert "note" not in result
+
+
+# ---------------------------------------------------------------------------
+# Table column formulas
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def table_with_stale_column(data_fixture, builder_ctx):
+    """A table reading the data source, with a column that reads a field by name."""
+
+    return data_fixture.create_builder_table_element(
+        page=builder_ctx["page"],
+        data_source=builder_ctx["data_source"],
+        fields=[
+            {
+                "name": "Stale",
+                "type": "text",
+                "config": {
+                    "value": {
+                        "formula": "get('current_record.Name')",
+                        "mode": "advanced",
+                        "version": "0.1",
+                    }
+                },
+            },
+        ],
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "value",
+    [
+        "get('current_record.Name')",
+        "get('data_source.999999.0.field_1')",
+        "get('nosuch.x')",
+    ],
+    ids=["by-name", "other-data-source", "unknown-provider"],
+)
+def test_a_new_column_reading_what_the_page_lacks_is_refused(
+    builder_ctx, table_with_stale_column, value
+):
+    table = table_with_stale_column
+
+    with pytest.raises(ToolInputError, match="No changes were applied"):
+        elements.update_element(
+            builder_ctx["ctx"],
+            table.id,
+            ElementChanges(add_table_columns=[TableColumnAdd(name="Bad", value=value)]),
+        )
+
+    assert [column.name for column in saved(table.id).fields.all()] == ["Stale"]
+
+
+@pytest.mark.django_db
+def test_a_changed_column_reading_a_field_by_name_is_refused(
+    builder_ctx, table_field, table_with_stale_column
+):
+    table = table_with_stale_column
+    uid = str(table.fields.get().uid)
+    good = f"get('current_record.field_{table_field.id}')"
+    ctx = builder_ctx["ctx"]
+
+    elements.update_element(
+        ctx,
+        table.id,
+        ElementChanges(update_table_columns=[TableColumnUpdate(uid=uid, value=good)]),
+    )
+    with pytest.raises(ToolInputError, match="current_record.Name"):
+        elements.update_element(
+            ctx,
+            table.id,
+            ElementChanges(
+                update_table_columns=[
+                    TableColumnUpdate(uid=uid, value="get('current_record.Name')")
+                ]
+            ),
+        )
+
+    assert saved(table.id).fields.get().config["value"]["formula"] == good
+
+
+@pytest.mark.django_db
+def test_a_new_button_column_label_reading_a_field_by_name_is_refused(
+    builder_ctx, table_with_stale_column
+):
+    with pytest.raises(ToolInputError, match="current_record.Name"):
+        elements.update_element(
+            builder_ctx["ctx"],
+            table_with_stale_column.id,
+            ElementChanges(
+                add_table_columns=[
+                    TableColumnAdd(
+                        name="Go", type="button", label="get('current_record.Name')"
+                    )
+                ]
+            ),
+        )
+
+
+@pytest.mark.django_db
+def test_a_stored_column_does_not_block_an_unrelated_change(
+    builder_ctx, table_field, table_with_stale_column
+):
+    table = table_with_stale_column
+    uid = str(table.fields.get().uid)
+    ctx = builder_ctx["ctx"]
+
+    elements.update_element(
+        ctx,
+        table.id,
+        ElementChanges(update_table_columns=[TableColumnUpdate(uid=uid, name="Old")]),
+    )
+    result = elements.update_element(
+        ctx,
+        table.id,
+        ElementChanges(
+            add_table_columns=[
+                TableColumnAdd(
+                    name="Good", value=f"get('current_record.field_{table_field.id}')"
+                ),
+                TableColumnAdd(name="Fixed", value="plain text"),
+                TableColumnAdd(name="Bound", field_id=table_field.id),
+            ]
+        ),
+    )
+
+    assert [c["name"] for c in result["updated_element"]["table_columns"]] == [
+        "Old",
+        "Good",
+        "Fixed",
+        "Bound",
+    ]

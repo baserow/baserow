@@ -378,8 +378,9 @@ def update_element(
     add_table_columns, update_table_columns, reorder_table_columns and
     remove_table_columns; columns you don't list stay as they are. Only text and
     button columns can be created. Undo doesn't revert column changes, and a removed
-    column and its click actions are gone for good. A column's formula must parse; what
-    it reads isn't checked, so it isn't listed in formula_errors.
+    column and its click actions are gone for good. A new or changed column's formula
+    must parse and read what the page has, or the whole update is refused and nothing
+    is listed in formula_errors.
 
     Menu items: list_elements shows each item's uid. Change them with add_menu_items,
     update_menu_items, reorder_menu_items and remove_menu_items; items you don't list
