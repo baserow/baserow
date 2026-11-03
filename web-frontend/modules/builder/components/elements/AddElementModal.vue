@@ -1,75 +1,41 @@
 <template>
-  <Modal ref="modal" class="add-element-modal">
-    <h2 class="box__title">{{ $t('addElementModal.title') }}</h2>
-    <div class="add-element-modal__content">
-      <FormInput
-        ref="search"
-        v-model="search"
-        size="large"
-        class="add-element-modal__search"
-        :placeholder="$t('addElementModal.searchPlaceholder')"
-        icon-left="iconoir-search"
+  <ItemPickerModal
+    ref="modal"
+    :title="$t('addElementModal.title')"
+    :search-placeholder="$t('addElementModal.searchPlaceholder')"
+    :groups="elementGroups"
+  >
+    <template #items="{ items }">
+      <AddElementCard
+        v-for="elementType in items"
+        :key="elementType.getType()"
+        :element-type="elementType"
+        :loading="addingElementType === elementType.getType()"
+        :workspace="workspace"
+        :builder="builder"
+        :page="page"
+        :place-in-container="placeInContainer"
+        :parent-element="parentElement"
+        :before-element="beforeElement"
+        :after-element="afterElement"
+        :page-place="pagePlace"
+        @click="addElement(elementType)"
       />
-      <div class="add-element-modal__element-cards">
-        <template v-for="group in elementTypes" :key="group.subject">
-          <div
-            v-if="group.elementTypes.length > 0"
-            class="add-element-modal__category"
-          >
-            <Expandable
-              :default-expanded="!initiallyCollapsedCategories[group.subject]"
-            >
-              <template #header="{ toggle, expanded }">
-                <a class="add-element-modal__category-title" @click="toggle">
-                  {{ group.label }}
-                  <i
-                    class="add-element-modal__category-arrow"
-                    :class="{
-                      'iconoir-nav-arrow-down': expanded,
-                      'iconoir-nav-arrow-right': !expanded,
-                    }"
-                  />
-                </a>
-              </template>
-              <template #default>
-                <div class="add-element-modal__category-content">
-                  <AddElementCard
-                    v-for="elementType in group.elementTypes"
-                    :key="elementType.getType()"
-                    :element-type="elementType"
-                    :loading="addingElementType === elementType.getType()"
-                    :workspace="workspace"
-                    :builder="builder"
-                    :page="page"
-                    :place-in-container="placeInContainer"
-                    :parent-element="parentElement"
-                    :before-element="beforeElement"
-                    :after-element="afterElement"
-                    :page-place="pagePlace"
-                    @click="addElement(elementType)"
-                  />
-                </div>
-              </template>
-            </Expandable>
-          </div>
-        </template>
-      </div>
-    </div>
-  </Modal>
+    </template>
+  </ItemPickerModal>
 </template>
 
 <script>
 import modal from '@baserow/modules/core/mixins/modal'
 import AddElementCard from '@baserow/modules/builder/components/elements/AddElementCard'
-import { isSubstringOfStrings } from '@baserow/modules/core/utils/string'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { mapActions } from 'vuex'
 import { PAGE_PLACES } from '@baserow/modules/builder/enums'
-import Expandable from '@baserow/modules/core/components/Expandable'
+import ItemPickerModal from '@baserow/modules/core/components/ItemPickerModal'
 
 export default {
   name: 'AddElementModal',
-  components: { AddElementCard, Expandable },
+  components: { AddElementCard, ItemPickerModal },
   mixins: [modal],
   inject: ['workspace', 'builder', 'currentPage'],
   props: {
@@ -81,7 +47,6 @@ export default {
   emits: ['element-added'],
   data() {
     return {
-      search: '',
       placeInContainer: null,
       beforeId: null,
       afterId: null,
@@ -91,11 +56,17 @@ export default {
     }
   },
   computed: {
-    initiallyCollapsedCategories() {
-      const result = {}
-      for (const group of this.elementTypes) {
-        if (group.elementTypes.length > 0) {
-          result[group.subject] = group.elementTypes.every((elementType) =>
+    elementGroups() {
+      const elementTypes = Object.values(this.$registry.getAll('element'))
+      return ['baseElement', 'layoutElement', 'formElement'].map((id) => {
+        const items = elementTypes.filter(
+          (elementType) => (elementType.category() || 'baseElement') === id
+        )
+        return {
+          id,
+          label: this.$t(`addElementCategory.${id}`),
+          items,
+          initiallyCollapsed: items.every((elementType) =>
             elementType.isDisallowedReason({
               workspace: this.workspace,
               builder: this.builder,
@@ -106,44 +77,9 @@ export default {
               afterElement: this.afterElement,
               pagePlace: this.pagePlace,
             })
-          )
-        }
-      }
-      return result
-    },
-    elementTypes() {
-      const elementTypesAll = Object.values(this.$registry.getAll('element'))
-      const filteredTypes = elementTypesAll.filter((elementType) =>
-        isSubstringOfStrings(
-          [elementType.name, elementType.description],
-          this.search
-        )
-      )
-
-      // Define group categories
-      const groupsList = ['baseElement', 'layoutElement', 'formElement']
-
-      // Create group objects with label and empty elementTypes array
-      const groups = groupsList.map((subject) => ({
-        subject,
-        label: this.$t(`addElementCategory.${subject}`),
-        elementTypes: [],
-      }))
-
-      // Fill other groups with filtered element types
-      filteredTypes.forEach((elementType) => {
-        const category = elementType.category() || 'baseElement'
-
-        // Add element to its standard category, even if it's already in suggested elements
-        if (category !== 'suggestedElement') {
-          const group = groups.find((g) => g.subject === category)
-          if (group) {
-            group.elementTypes.push(elementType)
-          }
+          ),
         }
       })
-
-      return groups
     },
     sharedPage() {
       return this.$store.getters['page/getSharedPage'](this.builder)
@@ -181,7 +117,7 @@ export default {
       actionCreateElement: 'element/create',
     }),
 
-    async show(
+    show(
       { placeInContainer, beforeId, afterId, parentElementId, pagePlace } = {},
       ...args
     ) {
@@ -191,10 +127,6 @@ export default {
       this.parentElementId = parentElementId
       this.pagePlace = pagePlace
       modal.methods.show.bind(this)(...args)
-
-      await this.$nextTick()
-      // Let's focus search input
-      this.$refs.search.focus()
     },
 
     async addElement(elementType) {

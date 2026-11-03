@@ -63,7 +63,10 @@
     "incorrectPasswordText": "The provided password is incorrect."
   },
   "createWidgetModal": {
-    "title": "Add new widget"
+    "title": "Add new widget",
+    "searchPlaceholder": "Search widgets and filters",
+    "widgets": "Widgets",
+    "filters": "Filters"
   },
   "widget": {
     "fixConfiguration": "Fix configuration"
