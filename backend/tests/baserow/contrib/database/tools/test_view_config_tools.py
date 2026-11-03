@@ -389,3 +389,30 @@ def test_view_config_tools_over_mcp(data_fixture):
     assert missing.isError
     assert missing.content[0].text == "Not found in this workspace."
     assert json.loads(deleted.content[0].text)["deleted_views"] == [view.id]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_view_config_tools_open_their_own_transaction(data_fixture):
+    # The MCP server and Kuma call the tools outside a transaction, unlike a test's
+    # database fixture, and the handlers lock rows with select_for_update.
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    primary = data_fixture.create_text_field(table=table, name="Name", primary=True)
+    amount = data_fixture.create_number_field(table=table, name="Amount")
+    view = data_fixture.create_grid_view(table=table)
+    view_filter = data_fixture.create_view_filter(view=view, field=primary)
+    ctx = ToolContext(user=user, workspace=workspace)
+
+    sorts = set_view_sorts(ctx, view.id, [ViewSortItem(field_id=amount.id)])
+    visibility = set_field_visibility(
+        ctx, view.id, [FieldVisibility(field_id=amount.id, hidden=True)]
+    )
+    filters = delete_view_filters(ctx, [view_filter.id])
+    views = delete_views(ctx, [view.id])
+
+    assert sorts["sorts"][0]["field_id"] == amount.id
+    assert visibility == {"updated_fields": [amount.id], "errors": []}
+    assert filters["deleted_filters"] == [view_filter.id]
+    assert views["deleted_views"] == [view.id]

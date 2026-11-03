@@ -284,3 +284,15 @@ def test_row_colour_over_mcp(premium_data_fixture):
     assert not result.isError
     decoration_id = json.loads(result.content[0].text)["decoration_id"]
     assert ViewDecoration.objects.filter(id=decoration_id).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_row_colour_tools_open_their_own_transaction(premium_data_fixture):
+    # The MCP server and Kuma call the tools outside a transaction, unlike a test's
+    # database fixture.
+    ctx, view, status, _ = _setup(premium_data_fixture, has_active_premium_license=True)
+
+    decoration = set_row_colours(ctx, view.id, _by_select(status.id))["decoration_id"]
+    deleted = delete_row_colours(ctx, [decoration])
+
+    assert deleted["deleted_row_colours"] == [decoration]
