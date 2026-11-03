@@ -35,6 +35,29 @@
   }
 }
 
+.invitation-links__url {
+  @extend %ellipsis;
+  @include rounded($rounded);
+
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid $palette-neutral-400;
+  background-color: $palette-neutral-50;
+  color: $palette-neutral-1200;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    border-color: $palette-neutral-600;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+    outline-offset: 2px;
+  }
+}
+
 .invitation-links__actions {
   display: flex;
   align-items: center;

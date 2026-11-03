@@ -44,11 +44,15 @@
             show-role-icons
             @update:model-value="(uid) => updateRole(invitationLink, uid)"
           />
-          <FormInput
+          <button
+            type="button"
             class="invitation-links__url"
-            :model-value="getPath(invitationLink)"
-            disabled
-          />
+            :title="getUrl(invitationLink)"
+            :aria-label="$t('inviteModal.linkCopy')"
+            @click="copy(invitationLink)"
+          >
+            {{ getPath(invitationLink) }}
+          </button>
           <div class="invitation-links__actions">
             <a
               v-tooltip="$t('inviteModal.linkCopy')"

@@ -6,6 +6,11 @@ import LinkInvitationRoute from '@baserow/modules/core/components/invitation/Lin
 import ConfirmModal from '@baserow/modules/core/components/modals/ConfirmModal'
 import InvitationLinkDeleteModal from '@baserow/modules/core/components/invitation/InvitationLinkDeleteModal'
 import WorkspaceRoleSelector from '@baserow/modules/core/components/workspace/WorkspaceRoleSelector'
+import { copyToClipboard } from '@baserow/modules/core/utils/clipboard'
+
+vi.mock('@baserow/modules/core/utils/clipboard', () => ({
+  copyToClipboard: vi.fn(),
+}))
 
 const roles = [
   {
@@ -74,7 +79,7 @@ describe('LinkInvitationRoute', () => {
   }
 
   function url(row) {
-    return row.find('.invitation-links__url input').element.value
+    return row.find('.invitation-links__url').text()
   }
 
   function nameInput(row) {
@@ -105,6 +110,22 @@ describe('LinkInvitationRoute', () => {
       'ADMIN',
     ])
   })
+
+  test.each(['.invitation-links__url', '.invitation-links__action'])(
+    'copies the full URL and shows feedback when clicking %s',
+    async (selector) => {
+      mockLinks([{ id: 1, slug: 'first', permissions: 'MEMBER' }])
+      const wrapper = await mountRoute()
+      copyToClipboard.mockClear()
+
+      await rows(wrapper)[0].find(selector).trigger('click')
+
+      expect(copyToClipboard).toHaveBeenCalledExactlyOnceWith(
+        'https://baserow.test/invite/first'
+      )
+      expect(rows(wrapper)[0].find('.copied--show').exists()).toBe(true)
+    }
+  )
 
   test('creates a link with the default invitation role', async () => {
     mockLinks([])
