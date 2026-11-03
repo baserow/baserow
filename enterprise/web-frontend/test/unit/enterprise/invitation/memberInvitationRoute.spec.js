@@ -2,10 +2,7 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { flushPromises } from '@vue/test-utils'
 import { expect, test, vi } from 'vitest'
 
-import {
-  AgentSubjectType,
-  UserSubjectType,
-} from '@baserow/modules/core/subjectTypes'
+import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
 import MemberInvitationRoute from '@baserow_enterprise/components/invitation/MemberInvitationRoute'
 import { TeamSubjectType } from '@baserow_enterprise/subjectTypes'
 
@@ -35,7 +32,6 @@ function createRegistry(app) {
   const subjectTypes = [
     new UserSubjectType({ app }),
     new TeamSubjectType({ app }),
-    new AgentSubjectType({ app }),
   ]
   return {
     get: (namespace, type) => subjectTypes.find((s) => s.type === type),
@@ -137,8 +133,8 @@ function createClient({
               ? [
                   {
                     id: 7,
-                    subject_type: 'core.Agent',
-                    subject: { id: 4, name: 'Smith' },
+                    subject_type: 'auth.User',
+                    subject: { id: 4, name: 'Smith', identity_type: 'agent' },
                     role: 'VIEWER',
                     scope_id: 20,
                     scope_type: 'database_table',
@@ -152,8 +148,8 @@ function createClient({
         return Promise.resolve({
           data: {
             results: [
-              { id: 4, name: 'Smith' },
-              { id: 5, name: 'Neo' },
+              { id: 4, name: 'Smith', identity_type: 'agent' },
+              { id: 5, name: 'Neo', identity_type: 'agent' },
             ],
             next: null,
           },
@@ -197,6 +193,7 @@ async function mountRoute(
   noAccessModal.asked = []
   const app = {
     $client: client,
+    $featureFlagIsEnabled: () => true,
     $hasPermission: (operation) =>
       operation !== 'workspace.list_agents' || canListAgents,
     $i18n: { t: (key) => key },
@@ -231,10 +228,10 @@ async function mountRoute(
           ],
           template:
             '<div class="picker" :data-email-disabled-reason="emailDisabledReason">' +
-            '{{ subjects["auth.User"].map((u) => u.name).join(",") }}</div>' +
+            '{{ subjects["auth.User"].filter((u) => u.identity_type !== "agent").map((u) => u.name).join(",") }}</div>' +
             '<div class="picker-agents" ' +
-            ':data-enabled="String(\'core.Agent\' in subjects)">' +
-            '{{ (subjects["core.Agent"] || []).map((a) => a.name).join(",") }}' +
+            ':data-enabled="String(\'auth.User\' in subjects)">' +
+            '{{ (subjects["auth.User"] || []).filter((a) => a.identity_type === "agent").map((a) => a.name).join(",") }}' +
             '</div>' +
             '<div class="picker-pending">{{ pendingEmails.join(",") }}</div>' +
             '<div class="picker-assigned">{{ JSON.stringify(assignedRoles) }}</div>' +
@@ -432,7 +429,7 @@ test('lists assigned agents and offers agents when listing is permitted', async 
   )
   try {
     expect(wrapper.find('.access').text()).toBe(
-      'invitation:1,auth.User:8,core.Agent:4'
+      'invitation:1,auth.User:8,auth.User:4'
     )
     expect(wrapper.find('.picker-agents').text()).toBe('Smith,Neo')
     expect(wrapper.find('.picker-agents').attributes('data-enabled')).toBe(
@@ -626,7 +623,7 @@ const assignment = (id, subjectType, subject, role, scopeType, scopeId) => ({
 const mark = { id: 8, name: 'Mark Delgado', email: 'mark@x.com' }
 const jane = { id: 9, name: 'Jane Roe', email: 'jane@x.com' }
 const managers = { id: 3, name: 'Management', subject_count: 2 }
-const smith = { id: 4, name: 'Smith' }
+const smith = { id: 4, name: 'Smith', identity_type: 'agent' }
 
 test('locks the role of admins of the workspace and of the database', async () => {
   const client = createClient({
@@ -693,7 +690,7 @@ test('names the outermost level that makes someone an admin of a view', async ()
       ],
       database_table: [
         assignment(2, 'auth.User', mark, 'ADMIN', 'database_table', 20),
-        assignment(3, 'core.Agent', smith, 'ADMIN', 'database_table', 20),
+        assignment(3, 'auth.User', smith, 'ADMIN', 'database_table', 20),
       ],
       database_view: [],
     },
@@ -712,7 +709,7 @@ test('names the outermost level that makes someone an admin of a view', async ()
     expect(JSON.parse(wrapper.find('.picker-admins').text())).toEqual({
       'auth.User:8': 'database',
       'auth.User:9': 'common.workspace',
-      'core.Agent:4': 'table',
+      'auth.User:4': 'table',
     })
   } finally {
     wrapper.unmount()

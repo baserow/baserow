@@ -323,7 +323,7 @@ export default {
             kind: roleAssignment.subject_type,
             name: subjectType.getDisplayName(subject),
             subtitle: subjectType.getSubtitle(subject),
-            badge: subjectType.getBadge(),
+            badge: subjectType.getBadge(subject),
             badgeColor: 'neutral',
             avatarComponent: subjectType.avatarComponent,
             subject,
@@ -469,7 +469,9 @@ export default {
         this.subjects[subjectType.type] =
           await subjectType.fetchAssignableSubjects(this.workspace)
       } catch (error) {
-        this.subjects[subjectType.type] = []
+        this.subjects[subjectType.type] = subjectType.isUser()
+          ? this.workspace.users
+          : []
         notifyIf(error)
       }
     },

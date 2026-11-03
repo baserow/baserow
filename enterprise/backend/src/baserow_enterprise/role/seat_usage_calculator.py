@@ -76,7 +76,7 @@ class RoleBasedSeatUsageSummaryCalculator:
         )
 
         # This queryset lists all the user ids and permissions set on workspace level.
-        all_workspace_permission = WorkspaceUser.objects.filter(
+        all_workspace_permission = WorkspaceUser.objects.people().filter(
             user__profile__to_be_deleted=False, user__is_active=True
         )
 

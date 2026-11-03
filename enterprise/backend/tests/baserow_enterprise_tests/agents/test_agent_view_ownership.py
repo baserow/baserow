@@ -3,8 +3,8 @@ import pytest
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import OWNERSHIP_TYPE_COLLABORATIVE
 from baserow.core.exceptions import PermissionDenied
-from baserow.core.models import Agent
 from baserow_premium.views.models import OWNERSHIP_TYPE_PERSONAL
+from baserow_premium.views.view_ownership_types import PersonalViewOwnershipType
 
 
 @pytest.fixture(autouse=True)
@@ -13,8 +13,8 @@ def enable_enterprise_and_roles(enable_enterprise, synced_roles):
 
 
 @pytest.mark.django_db
-def test_agent_cannot_access_human_personal_view_with_matching_id(data_fixture):
-    """A matching integer ID must not make an agent the owner of a user view."""
+def test_agent_cannot_access_human_personal_view(data_fixture):
+    """Agent workspace access never grants access to a human personal view."""
 
     owner = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=owner)
@@ -30,8 +30,7 @@ def test_agent_cannot_access_human_personal_view_with_matching_id(data_fixture):
         owned_by=owner,
         ownership_type=OWNERSHIP_TYPE_COLLABORATIVE,
     )
-    agent = Agent.objects.create(
-        id=owner.id,
+    agent = data_fixture.create_agent(
         workspace=workspace,
         name="Viewer agent",
         role_uid="VIEWER",
@@ -68,7 +67,7 @@ def test_builder_agent_cannot_modify_or_publish_human_personal_view(data_fixture
         owned_by=owner,
         ownership_type=OWNERSHIP_TYPE_COLLABORATIVE,
     )
-    agent = Agent.objects.create(
+    agent = data_fixture.create_agent(
         workspace=workspace,
         name="Builder agent",
         role_uid="BUILDER",
@@ -85,3 +84,20 @@ def test_builder_agent_cannot_modify_or_publish_human_personal_view(data_fixture
     collaborative_view.refresh_from_db()
     assert collaborative_view.name == "Allowed"
     assert collaborative_view.public is True
+
+
+@pytest.mark.django_db
+def test_agent_cannot_create_or_adopt_personal_views(data_fixture):
+    table = data_fixture.create_database_table()
+    agent = data_fixture.create_agent(
+        workspace=table.database.workspace, role_uid="ADMIN"
+    )
+    view = data_fixture.create_grid_view(table=table)
+    ownership = PersonalViewOwnershipType()
+
+    with pytest.raises(PermissionDenied):
+        ViewHandler().create_view(
+            agent, table, "grid", ownership_type=OWNERSHIP_TYPE_PERSONAL, name="Private"
+        )
+    with pytest.raises(PermissionDenied):
+        ownership.change_ownership_type(agent, view)

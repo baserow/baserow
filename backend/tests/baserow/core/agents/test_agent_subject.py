@@ -1,191 +1,122 @@
 import pytest
 
-from baserow.core.agents.operations import (
-    CreateAgentOperationType,
-    ListAgentsWorkspaceOperationType,
-)
-from baserow.core.agents.subjects import AgentSubjectType
+from baserow.core.agents.operations import ListAgentsWorkspaceOperationType
+from baserow.core.exceptions import LastAdminOfWorkspace, WorkspaceUserIsLastAdmin
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Agent
-from baserow.core.operations import UpdateWorkspaceOperationType
+from baserow.core.models import User, WorkspaceUser
+from baserow.core.operations import (
+    ListWorkspacesOperationType,
+    ReadWorkspaceOperationType,
+)
 from baserow.core.permission_manager import WorkspaceMemberOnlyPermissionManagerType
 from baserow.core.registries import subject_type_registry
+from baserow.core.subjects import UserSubjectType
 from baserow.core.types import PermissionCheck
 
 
 @pytest.mark.django_db
-def test_agent_subject_is_workspace_scoped_and_contains_no_users(data_fixture):
-    workspace = data_fixture.create_workspace()
-    other_workspace = data_fixture.create_workspace()
-    agent = Agent.objects.create(workspace=workspace, name="Writer")
-    subject_type = subject_type_registry.get_by_model(agent)
-
-    assert isinstance(subject_type, AgentSubjectType)
-    assert not subject_type.is_interactive_user
-    assert subject_type.is_in_workspace(agent, workspace)
-    assert not subject_type.is_in_workspace(agent, other_workspace)
-    assert subject_type.get_users_included_in_subject(agent) == []
-
-    permission_manager = WorkspaceMemberOnlyPermissionManagerType()
-    assert permission_manager.is_actor_in_workspace(agent, workspace)
-    assert not permission_manager.is_actor_in_workspace(agent, other_workspace)
-
-
-@pytest.mark.django_db
-def test_workspace_member_permission_manager_uses_agent_subject_type(
-    data_fixture, mocker
-):
-    workspace = data_fixture.create_workspace()
-    agent = Agent.objects.create(workspace=workspace, name="Writer")
-    subject_type = subject_type_registry.get(AgentSubjectType.type)
-    are_in_workspace = mocker.spy(subject_type, "are_in_workspace")
-    permission_manager = WorkspaceMemberOnlyPermissionManagerType()
-
-    permission_manager.check_multiple_permissions(
-        [
-            PermissionCheck(
-                agent,
-                ListAgentsWorkspaceOperationType.type,
-                workspace,
-            )
-        ],
-        workspace,
-    )
-
-    are_in_workspace.assert_called_once_with([agent], workspace, include_trash=False)
-
-
-@pytest.mark.django_db
-def test_agent_subject_can_include_trash(data_fixture):
-    workspace = data_fixture.create_workspace()
-    agent = Agent.objects.create(workspace=workspace, name="Writer", trashed=True)
-    subject_type = AgentSubjectType()
-
-    assert not subject_type.is_in_workspace(agent, workspace)
-    assert subject_type.is_in_workspace(agent, workspace, include_trash=True)
-
-    permission_manager = WorkspaceMemberOnlyPermissionManagerType()
-    assert not permission_manager.is_actor_in_workspace(agent, workspace)
-    assert permission_manager.is_actor_in_workspace(
-        agent, workspace, include_trash=True
-    )
-
-
-@pytest.mark.django_db
-def test_agent_subject_can_include_trashed_parent_workspace(data_fixture):
-    workspace = data_fixture.create_workspace()
-    agent = Agent.objects.create(workspace=workspace, name="Admin", role_uid="ADMIN")
-    workspace.trashed = True
-    workspace.save(update_fields=("trashed",))
-    agent = Agent.objects_and_trash.get(id=agent.id)
-    subject_type = AgentSubjectType()
-
-    assert not subject_type.is_in_workspace(agent, workspace)
-    assert subject_type.is_in_workspace(agent, workspace, include_trash=True)
-    assert subject_type.get_workspace_role_uids([agent], workspace) == {}
-    assert subject_type.get_workspace_role_uids(
-        [agent], workspace, include_trash=True
-    ) == {agent.id: "ADMIN"}
-    assert list(subject_type.get_workspace_subjects(workspace)) == []
-    assert list(subject_type.get_workspace_subjects(workspace, include_trash=True)) == [
-        agent
-    ]
-
-    assert not CoreHandler().check_permissions(
-        agent,
-        UpdateWorkspaceOperationType.type,
-        workspace=workspace,
-        context=workspace,
-        raise_permission_exceptions=False,
-    )
-    assert CoreHandler().check_permissions(
-        agent,
-        UpdateWorkspaceOperationType.type,
-        workspace=workspace,
-        context=workspace,
-        include_trash=True,
-    )
-
-
-@pytest.mark.django_db
-def test_basic_agent_permissions_follow_workspace_role(data_fixture):
-    workspace = data_fixture.create_workspace()
-    member = Agent.objects.create(workspace=workspace, name="Member")
-    admin = Agent.objects.create(workspace=workspace, name="Admin", role_uid="ADMIN")
-
-    assert CoreHandler().check_permissions(
-        member,
-        ListAgentsWorkspaceOperationType.type,
-        workspace=workspace,
-        context=workspace,
-    )
-    assert not CoreHandler().check_permissions(
-        member,
-        CreateAgentOperationType.type,
-        workspace=workspace,
-        context=workspace,
-        raise_permission_exceptions=False,
-    )
-    assert CoreHandler().check_permissions(
-        admin,
-        CreateAgentOperationType.type,
-        workspace=workspace,
-        context=workspace,
-    )
-
-
-@pytest.mark.django_db
-def test_membership_cache_batches_and_isolates_subjects_and_trash(
-    data_fixture, settings, django_assert_num_queries
-):
-    from baserow.core.cache import local_cache
-    from baserow.core.models import User
-
-    settings.BASEROW_USE_LOCAL_CACHE = True
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    other_workspace = data_fixture.create_workspace()
-    agent = Agent.objects.create(
-        id=user.id, workspace=workspace, name="Trashed", trashed=True
-    )
-    manager = WorkspaceMemberOnlyPermissionManagerType()
-
-    with local_cache.context():
-        with django_assert_num_queries(2):
-            assert manager.get_actors_in_workspace_map(workspace, [user, agent]) == {
-                user: True,
-                agent: False,
-            }
-        fresh_user = User.objects.get(id=user.id)
-        fresh_agent = Agent.objects_and_trash.get(id=agent.id)
-        with django_assert_num_queries(0):
-            assert manager.get_actors_in_workspace_map(
-                workspace, [fresh_user, fresh_agent]
-            ) == {user: True, agent: False}
-        with django_assert_num_queries(1):
-            assert manager.get_actors_in_workspace_map(
-                workspace, [fresh_agent], include_trash=True
-            ) == {agent: True}
-        with django_assert_num_queries(1):
-            assert manager.get_actors_in_workspace_map(
-                other_workspace, [fresh_user]
-            ) == {user: False}
-
-    with local_cache.context(), django_assert_num_queries(1):
-        assert manager.get_actors_in_workspace_map(workspace, [fresh_user]) == {
-            user: True
-        }
-
-
-@pytest.mark.django_db
-def test_repeated_permission_checks_reuse_actor_membership(
+def test_workspace_role_availability_only_queries_agent_roles(
     data_fixture, django_assert_num_queries
 ):
-    workspace = data_fixture.create_workspace()
-    agent = Agent.objects.create(workspace=workspace, name="Writer")
-    manager = WorkspaceMemberOnlyPermissionManagerType()
-    checks = [PermissionCheck(agent, ListAgentsWorkspaceOperationType.type, workspace)]
-    with django_assert_num_queries(1):
-        manager.check_multiple_permissions(checks, workspace)
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    user = User.objects.select_related("profile").get(id=user.id)
+    subject = UserSubjectType()
+
     with django_assert_num_queries(0):
-        manager.check_multiple_permissions(checks, workspace)
+        assert subject.are_workspace_roles_available([user], workspace) == [True]
+
+
+@pytest.mark.django_db
+def test_agent_uses_user_subject_and_workspace_membership(data_fixture):
+    workspace = data_fixture.create_workspace()
+    agent = data_fixture.create_agent(workspace=workspace)
+    subject = subject_type_registry.get_by_model(agent)
+
+    assert isinstance(subject, UserSubjectType)
+    assert not subject.is_interactive_user(agent)
+    assert subject.get_users_included_in_subject(agent) == []
+    assert subject.is_in_workspace(agent, workspace)
+    assert not subject.is_in_workspace(agent, data_fixture.create_workspace())
+    assert subject_type_registry.get_subject("auth.User", agent.id) == agent
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "state", ["inactive", "trashed", "deleting", "workspace_trash", "extra_membership"]
+)
+@pytest.mark.parametrize("include_trash", [False, True])
+def test_agent_membership_never_authorizes_unavailable_identity(
+    data_fixture, state, include_trash
+):
+    workspace = data_fixture.create_workspace()
+    agent = data_fixture.create_agent(workspace=workspace)
+    if state == "inactive":
+        agent.is_active = False
+        agent.save()
+    elif state == "trashed":
+        agent.profile.trashed = True
+        agent.profile.save()
+    elif state == "deleting":
+        agent.profile.to_be_deleted = True
+        agent.profile.save()
+    elif state == "workspace_trash":
+        workspace.trashed = True
+        workspace.save()
+    else:
+        data_fixture.create_user_workspace(user=agent)
+
+    assert not UserSubjectType().is_in_workspace(agent, workspace, include_trash)
+    manager = WorkspaceMemberOnlyPermissionManagerType()
+    check = PermissionCheck(agent, ListAgentsWorkspaceOperationType.type, workspace)
+    assert (
+        manager.check_multiple_permissions([check], workspace, include_trash)[check]
+        is not True
+    )
+    assert not manager.filter_queryset(
+        agent, check.operation_name, User.objects_and_agents.all(), workspace
+    )[0].exists()
+
+
+@pytest.mark.django_db
+def test_agent_has_no_global_or_public_template_permission(data_fixture):
+    workspace = data_fixture.create_workspace()
+    agent = data_fixture.create_agent(workspace=workspace, role_uid="ADMIN")
+    template = data_fixture.create_template()
+    handler = CoreHandler()
+
+    assert not handler.check_permissions(
+        agent, ListWorkspacesOperationType.type, raise_permission_exceptions=False
+    )
+    assert not handler.filter_queryset(
+        agent, ListWorkspacesOperationType.type, User.objects_and_agents.all()
+    ).exists()
+    assert not handler.check_permissions(
+        agent,
+        ReadWorkspaceOperationType.type,
+        workspace=template.workspace,
+        context=template.workspace,
+        raise_permission_exceptions=False,
+    )
+    assert handler.check_permissions(
+        agent, ReadWorkspaceOperationType.type, workspace=workspace, context=workspace
+    )
+
+
+@pytest.mark.django_db
+def test_agent_admin_does_not_replace_last_human_admin(data_fixture):
+    human = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=human)
+    agent = data_fixture.create_agent(workspace=workspace, role_uid="ADMIN")
+    handler = CoreHandler()
+    membership = workspace.get_workspace_user(human)
+
+    with pytest.raises(WorkspaceUserIsLastAdmin):
+        handler.leave_workspace(human, workspace)
+    with pytest.raises(LastAdminOfWorkspace):
+        handler.force_update_workspace_user(None, membership, permissions="MEMBER")
+    with pytest.raises(ValueError):
+        handler.add_user_to_workspace(data_fixture.create_workspace(), agent)
+    with pytest.raises(ValueError):
+        handler.leave_workspace(agent, workspace)
+    assert WorkspaceUser.objects_and_trash.filter(user=agent).count() == 1

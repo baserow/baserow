@@ -10,6 +10,8 @@ from oauth2_provider.oauth2_validators import OAuth2Validator
 from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
 from oauthlib.oauth2.rfc6749.utils import scope_to_list
 
+from baserow.core.user.identity import is_human_user
+
 MCP_SCOPE = "mcp"
 OFFLINE_ACCESS_SCOPE = "offline_access"
 ENDPOINT_SCOPE_RE = re.compile(r"^endpoint:(\d+)$")
@@ -114,6 +116,8 @@ class MCPOAuth2Validator(OAuth2Validator):
         if not super().validate_refresh_token(
             refresh_token, client, request, *args, **kwargs
         ):
+            return False
+        if not is_human_user(request.user):
             return False
         # A refresh that narrows the scopes would otherwise get a token without
         # `mcp` or the endpoint scope, so it wouldn't work on /mcp, and without the

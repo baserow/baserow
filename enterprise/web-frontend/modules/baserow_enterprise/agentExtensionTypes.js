@@ -36,7 +36,7 @@ export class EnterpriseRolesAgentExtensionType extends AgentExtensionType {
 
   getRowExpansion() {
     return getSubjectRoleAssignmentsRowExpansion({
-      subjectType: 'core.Agent',
+      subjectType: 'auth.User',
       columnKey: 'role_uid',
     })
   }

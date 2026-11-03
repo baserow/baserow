@@ -1,6 +1,5 @@
 import pytest
 
-from baserow.core.models import Agent
 from baserow.core.registries import subject_type_registry
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import RoleAssignment
@@ -14,7 +13,7 @@ def test_workspace_roles_for_mixed_subject_types(
     admin = data_fixture.create_user()
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin, members=[user])
-    agent = Agent.objects.create(workspace=workspace, name="Writer")
+    agent = data_fixture.create_agent(workspace=workspace, name="Writer")
     team = enterprise_data_fixture.create_team(workspace=workspace)
     subjects = [user, agent, team]
     handler = RoleAssignmentHandler()

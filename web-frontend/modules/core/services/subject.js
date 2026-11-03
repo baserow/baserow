@@ -4,7 +4,8 @@ export default (client) => ({
     {
       page = 1,
       search = '',
-      subjectTypes = 'auth.User,core.Agent',
+      subjectTypes = 'auth.User',
+      identityType = 'human',
       size = 100,
     } = {}
   ) {
@@ -14,6 +15,7 @@ export default (client) => ({
         page,
         search,
         subject_types: subjectTypes,
+        identity_type: identityType,
         size,
       },
     })

@@ -11,7 +11,6 @@ from rest_framework.status import (
 )
 
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Agent
 from baserow_enterprise.field_permissions.handler import FieldPermissionsHandler
 from baserow_enterprise.field_permissions.models import FieldPermissions
 from baserow_enterprise.field_permissions.permission_manager import (
@@ -410,9 +409,11 @@ def test_can_configure_specific_field_permission_users_and_teams(
     url = reverse(
         "api:enterprise:field_permissions:item", kwargs={"field_id": field.id}
     )
-    agent = Agent.objects.create(workspace=workspace, name="Field agent")
+    agent = enterprise_data_fixture.create_agent(
+        workspace=workspace, name="Field agent"
+    )
     subjects = [
-        {"subject_id": agent.id, "subject_type": "core.Agent"},
+        {"subject_id": agent.id, "subject_type": "auth.User"},
         {"subject_id": user.id, "subject_type": "auth.User"},
         {
             "subject_id": team.id,
@@ -433,7 +434,7 @@ def test_can_configure_specific_field_permission_users_and_teams(
         (subject["subject_type"], subject["subject_id"])
         for subject in rsp.json()["subjects"]
     } == {
-        ("core.Agent", agent.id),
+        ("auth.User", agent.id),
         ("auth.User", user.id),
         ("baserow_enterprise.Team", team.id),
     }
@@ -521,9 +522,13 @@ def test_can_search_paginated_field_permission_subject_options(
         kwargs={"field_id": field.id},
     )
 
-    agent = Agent.objects.create(workspace=workspace, name="Person agent")
-    Agent.objects.create(workspace=workspace, name="Person deleted", trashed=True)
-    Agent.objects.create(
+    agent = enterprise_data_fixture.create_agent(
+        workspace=workspace, name="Person agent"
+    )
+    enterprise_data_fixture.create_agent(
+        workspace=workspace, name="Person deleted", trashed=True
+    )
+    enterprise_data_fixture.create_agent(
         workspace=enterprise_data_fixture.create_workspace(), name="Person outsider"
     )
     first_page = api_client.get(
@@ -543,7 +548,7 @@ def test_can_search_paginated_field_permission_subject_options(
     assert len(first_page.json()["results"]) == 2
     options = first_page.json()["results"] + second_page.json()["results"]
     assert {(option["subject_type"], option["subject_id"]) for option in options} == {
-        ("core.Agent", agent.id),
+        ("auth.User", agent.id),
         ("auth.User", first_user.id),
         ("auth.User", second_user.id),
         ("baserow_enterprise.Team", team.id),
@@ -562,9 +567,8 @@ def test_can_search_paginated_field_permission_subject_options(
         url,
         {
             "search": "person",
-            "exclude_user_ids": str(first_user.id),
+            "exclude_user_ids": f"{first_user.id},{agent.id}",
             "exclude_team_ids": str(team.id),
-            "exclude_agent_ids": str(agent.id),
         },
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -613,10 +617,10 @@ def test_cannot_add_invalid_specific_field_permission_subjects(
     assert FieldPermissionsHandler._get_field_permission_subjects(field) == []
 
     for agent in [
-        Agent.objects.create(
+        enterprise_data_fixture.create_agent(
             workspace=enterprise_data_fixture.create_workspace(), name="Outside"
         ),
-        Agent.objects.create(
+        enterprise_data_fixture.create_agent(
             workspace=database.workspace, name="Deleted", trashed=True
         ),
     ]:
@@ -626,7 +630,7 @@ def test_cannot_add_invalid_specific_field_permission_subjects(
             HTTP_AUTHORIZATION=f"JWT {token}",
             data={
                 "role": "CUSTOM",
-                "subjects": [{"subject_id": agent.id, "subject_type": "core.Agent"}],
+                "subjects": [{"subject_id": agent.id, "subject_type": "auth.User"}],
             },
         )
         assert rsp.status_code == HTTP_404_NOT_FOUND

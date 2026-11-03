@@ -1,6 +1,5 @@
 import pytest
 
-from baserow.core.models import Agent
 from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
@@ -171,8 +170,8 @@ def test_subject_role_assignments_of_teams_and_agents(
     database = data_fixture.create_database_application(workspace=workspace)
     table = data_fixture.create_database_table(database=database)
     team = enterprise_data_fixture.create_team(workspace=workspace)
-    agent = Agent.objects.create(workspace=workspace, name="Bot", role_uid="ADMIN")
-    other_agent = Agent.objects.create(
+    agent = data_fixture.create_agent(workspace=workspace, name="Bot", role_uid="ADMIN")
+    other_agent = data_fixture.create_agent(
         workspace=workspace, name="Other", role_uid="VIEWER"
     )
     assign(team, workspace, "ADMIN", database.application_ptr)

@@ -8,10 +8,11 @@ from baserow.contrib.database.table.operations import UpdateDatabaseTableOperati
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.registries import action_type_registry
 from baserow.core.action.scopes import WorkspaceActionScopeType
+from baserow.core.agents.handler import AgentHandler
 from baserow.core.agents.service import AgentService
-from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Agent
+from baserow.core.models import User
+from baserow.core.subjects import UserSubjectType
 from baserow_enterprise.agents.agent_extension_types import EnterpriseAgentExtensionType
 from baserow_enterprise.role.actions import BatchAssignRoleActionType
 from baserow_enterprise.role.handler import RoleAssignmentHandler
@@ -40,7 +41,7 @@ def test_agent_workspace_role_batch_then_patch(data_fixture, api_client):
                     "scope_id": workspace.id,
                     "scope_type": "workspace",
                     "subject_id": agent.id,
-                    "subject_type": AgentSubjectType.type,
+                    "subject_type": UserSubjectType.type,
                     "role": "ADMIN",
                 }
             ]
@@ -50,7 +51,7 @@ def test_agent_workspace_role_batch_then_patch(data_fixture, api_client):
     )
     assert response.status_code == 200
     agent.refresh_from_db()
-    assert agent.role_uid == "ADMIN"
+    assert AgentHandler().get_role_uid(agent) == "ADMIN"
     assert not RoleAssignment.objects.exists()
     assert CoreHandler().check_permissions(
         agent,
@@ -84,7 +85,9 @@ def test_stale_agent_workspace_role_is_ignored(
 ):
     """Old workspace grants cannot override canonical roles or team inheritance."""
     workspace = data_fixture.create_workspace()
-    agent = Agent.objects.create(workspace=workspace, name="Writer", role_uid=role_uid)
+    agent = data_fixture.create_agent(
+        workspace=workspace, name="Writer", role_uid=role_uid
+    )
     handler = RoleAssignmentHandler()
     admin = handler.get_role_by_uid("ADMIN")
     viewer = handler.get_role_by_uid("VIEWER")
@@ -112,10 +115,10 @@ def test_stale_agent_workspace_role_is_ignored(
 
     handler.remove_role(agent, workspace)
     agent.refresh_from_db()
-    assert agent.role_uid == "NO_ACCESS"
+    assert AgentHandler().get_role_uid(agent) == "NO_ACCESS"
     assert (
         RoleAssignment.objects.filter(
-            subject_id=agent.id, subject_type=AgentSubjectType().get_content_type()
+            subject_id=agent.id, subject_type=UserSubjectType().get_content_type()
         ).count()
         == 1
     )
@@ -135,7 +138,9 @@ def test_agent_workspace_role_cannot_be_undone(data_fixture, new_role_uid):
     session_id = "agent-roles"
     user = data_fixture.create_user(session_id=session_id)
     workspace = data_fixture.create_workspace(user=user)
-    agent = Agent.objects.create(workspace=workspace, name="Writer", role_uid="VIEWER")
+    agent = data_fixture.create_agent(
+        workspace=workspace, name="Writer", role_uid="VIEWER"
+    )
     handler = RoleAssignmentHandler()
     role = handler.get_role_by_uid(new_role_uid) if new_role_uid else None
     action_type_registry.get_by_type(BatchAssignRoleActionType).do(
@@ -144,7 +149,7 @@ def test_agent_workspace_role_cannot_be_undone(data_fixture, new_role_uid):
     scopes = [WorkspaceActionScopeType.value(workspace_id=workspace.id)]
     assert ActionHandler.undo(user, scopes, session_id) == []
     agent.refresh_from_db()
-    assert agent.role_uid == (new_role_uid or "NO_ACCESS")
+    assert AgentHandler().get_role_uid(agent) == (new_role_uid or "NO_ACCESS")
     assert not RoleAssignment.objects.exists()
 
 
@@ -152,7 +157,7 @@ def test_agent_workspace_role_cannot_be_undone(data_fixture, new_role_uid):
 def test_agent_workspace_role_reads_respect_trash(data_fixture):
     """Role readers use canonical storage even with a stale grant on a trashed agent."""
     workspace = data_fixture.create_workspace()
-    agent = Agent.objects.create(
+    agent = data_fixture.create_agent(
         workspace=workspace, name="Writer", role_uid="VIEWER", trashed=True
     )
     handler = RoleAssignmentHandler()
@@ -172,11 +177,11 @@ def test_agent_workspace_role_reads_respect_trash(data_fixture):
     )
     assert handler.get_role_assignments(workspace, workspace) == []
 
-    agent.trashed = False
-    agent.save()
+    agent.profile.trashed = False
+    agent.profile.save()
     handler.assign_role(agent, workspace, handler.get_role_by_uid("EDITOR"))
     agent.refresh_from_db()
-    assert agent.role_uid == "EDITOR"
+    assert AgentHandler().get_role_uid(agent) == "EDITOR"
     assert not RoleAssignment.objects.exists()
 
 
@@ -211,8 +216,8 @@ def test_agent_rename_preserves_role_after_license_change(
     )
     assert response.status_code == 200
     agent.refresh_from_db()
-    assert agent.name == "Renamed"
-    assert agent.role_uid == role_uid
+    assert agent.first_name == "Renamed"
+    assert AgentHandler().get_role_uid(agent) == role_uid
 
     # Preserving an existing role must not allow selecting unavailable roles.
     response = api_client.patch(
@@ -224,7 +229,7 @@ def test_agent_rename_preserves_role_after_license_change(
     assert response.status_code == 400
     assert response.json()["error"] == "ERROR_AGENT_ROLE_DOES_NOT_EXIST"
     agent.refresh_from_db()
-    assert agent.role_uid == role_uid
+    assert AgentHandler().get_role_uid(agent) == role_uid
 
 
 @pytest.mark.django_db
@@ -234,7 +239,7 @@ def test_agent_with_unavailable_role_is_denied_permissions(
     """Losing RBAC cannot turn a restricted Agent into a basic workspace member."""
 
     workspace = data_fixture.create_workspace()
-    agent = Agent.objects.create(
+    agent = data_fixture.create_agent(
         workspace=workspace, name="Builder", role_uid="BUILDER"
     )
     database = data_fixture.create_database_application(workspace=workspace)
@@ -274,7 +279,9 @@ def test_agent_with_basic_role_keeps_permissions_without_rbac(
     """Roles supported without RBAC continue to use the basic permission policy."""
 
     workspace = data_fixture.create_workspace()
-    agent = Agent.objects.create(workspace=workspace, name="Basic", role_uid=role_uid)
+    agent = data_fixture.create_agent(
+        workspace=workspace, name="Basic", role_uid=role_uid
+    )
     database = data_fixture.create_database_application(workspace=workspace)
     table = data_fixture.create_database_table(database=database)
 
@@ -301,8 +308,8 @@ def test_agent_member_alias_is_valid_with_rbac(data_fixture, api_client):
         **headers,
     )
     assert response.status_code == 200
-    agent = Agent.objects.get(id=response.json()["id"])
-    assert agent.role_uid == "MEMBER"
+    agent = User.objects_and_agents.get(id=response.json()["id"])
+    assert AgentHandler().get_role_uid(agent) == "MEMBER"
     handler = RoleAssignmentHandler()
     assert handler.get_current_role_assignment(agent, workspace).role.uid == "BUILDER"
     assert dict(handler.get_roles_per_scope(workspace, agent))[workspace] == [

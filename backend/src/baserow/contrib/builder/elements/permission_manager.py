@@ -15,6 +15,7 @@ from baserow.contrib.builder.workflow_actions.operations import (
 from baserow.core.cache import global_cache
 from baserow.core.registries import PermissionManagerType
 from baserow.core.subjects import AnonymousUserSubjectType
+from baserow.core.user.identity import is_human_user
 from baserow.core.user_sources.subjects import UserSourceUserSubjectType
 
 from .models import Element
@@ -60,7 +61,7 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
         # or role_type. In which case, return True by default so that the
         # elements can be viewed in the editor.
         if isinstance(user, User):
-            return True
+            return is_human_user(user)
 
         if element.role_type == Element.ROLE_TYPES.ALLOW_ALL:
             return True
@@ -80,7 +81,7 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
         """
 
         if isinstance(actor, User):
-            return True
+            return is_human_user(actor)
 
         if page.visibility != Page.VISIBILITY_TYPES.LOGGED_IN:
             return True

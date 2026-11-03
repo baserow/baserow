@@ -10,7 +10,7 @@ import pytest
 from rest_framework.test import APIClient
 
 from baserow.core.agents.service import AgentService
-from baserow.core.agents.subjects import AgentSubjectType
+from baserow.core.subjects import UserSubjectType
 from baserow_enterprise.agents.agent_extension_types import EnterpriseAgentExtensionType
 from baserow_enterprise.teams.models import TeamSubject
 
@@ -97,6 +97,6 @@ def test_concurrent_agent_team_replacements_are_serialized(
 
     assert list(
         TeamSubject.objects.filter(
-            subject_type=AgentSubjectType().get_content_type(), subject_id=agent.id
+            subject_type=UserSubjectType().get_content_type(), subject_id=agent.id
         ).values_list("team_id", flat=True)
     ) == [second_team.id]

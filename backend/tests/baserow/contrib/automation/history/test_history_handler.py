@@ -23,7 +23,6 @@ from baserow.contrib.automation.history.models import (
 from baserow.contrib.automation.history.service import AutomationHistoryService
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.integrations.core.constants import RESPONSE_BODY_TYPE
-from baserow.core.models import Agent
 
 
 class FakeMonotonicClock:
@@ -869,7 +868,7 @@ def test_create_workflow_history_records_who_triggered_it(data_fixture):
 @pytest.mark.django_db
 def test_create_workflow_history_records_agent_who_triggered_it(data_fixture):
     workflow = data_fixture.create_automation_workflow()
-    agent = Agent.objects.create(
+    agent = data_fixture.create_agent(
         workspace=workflow.automation.workspace,
         name="Workflow agent",
     )
@@ -883,8 +882,8 @@ def test_create_workflow_history_records_agent_who_triggered_it(data_fixture):
     )
 
     assert history.triggered_by_id == agent.id
-    assert history.triggered_by_type == "core.Agent"
-    assert history.triggered_by_name == agent.name
+    assert history.triggered_by_type == "auth.User"
+    assert history.triggered_by_name == agent.first_name
 
 
 @pytest.mark.django_db

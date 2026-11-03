@@ -12,7 +12,7 @@ from baserow.core.agents.operations import (
 from baserow.core.agents.registries import agent_extension_type_registry
 from baserow.core.agents.signals import agent_created, agent_deleted, agent_updated
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Agent, Workspace
+from baserow.core.models import User, Workspace
 
 
 class AgentService:
@@ -35,7 +35,7 @@ class AgentService:
         )
         return AgentHandler().get_queryset(workspace)
 
-    def create_agent(self, user: AbstractUser, workspace: Workspace, **values) -> Agent:
+    def create_agent(self, user: AbstractUser, workspace: Workspace, **values) -> User:
         """
         Creates an agent and its registered extension data in a workspace.
 
@@ -66,7 +66,7 @@ class AgentService:
         return agent
 
     @transaction.atomic
-    def update_agent(self, user: AbstractUser, agent: Agent, **values) -> Agent:
+    def update_agent(self, user: AbstractUser, agent: User, **values) -> User:
         """
         Updates an agent and its registered extension data.
 
@@ -80,8 +80,8 @@ class AgentService:
         CoreHandler().check_permissions(
             user,
             UpdateAgentOperationType.type,
-            workspace=agent.workspace,
-            context=agent.workspace,
+            workspace=AgentHandler.get_workspace(agent),
+            context=AgentHandler.get_workspace(agent),
         )
         # Lock the agent before reading extension state, even for team-only edits.
         # Membership locks alone cannot serialize updates to an empty team set.
@@ -90,9 +90,9 @@ class AgentService:
         # Resubmitting it during an unrelated edit must preserve that role.
         if (
             "role_uid" in values
-            and values["role_uid"] != agent.role_uid
+            and values["role_uid"] != AgentHandler.get_role_uid(agent)
             and not agent_extension_type_registry.role_uid_exists(
-                values["role_uid"], agent.workspace
+                values["role_uid"], AgentHandler.get_workspace(agent)
             )
         ):
             raise AgentRoleDoesNotExist()
@@ -100,12 +100,12 @@ class AgentService:
         for extension in agent_extension_type_registry.get_all():
             extension.update(agent, values, user)
         agent = AgentHandler().get_agent(
-            agent.id, AgentHandler().get_queryset(agent.workspace)
+            agent.id, AgentHandler().get_queryset(AgentHandler.get_workspace(agent))
         )
         agent_updated.send(self, user=user, agent=agent)
         return agent
 
-    def delete_agent(self, user: AbstractUser, agent: Agent) -> None:
+    def delete_agent(self, user: AbstractUser, agent: User) -> None:
         """
         Deletes an agent after preparing all registered extensions for deletion.
 
@@ -116,8 +116,8 @@ class AgentService:
         CoreHandler().check_permissions(
             user,
             DeleteAgentOperationType.type,
-            workspace=agent.workspace,
-            context=agent.workspace,
+            workspace=AgentHandler.get_workspace(agent),
+            context=AgentHandler.get_workspace(agent),
         )
         for extension in agent_extension_type_registry.get_all():
             extension.before_delete(agent, user)

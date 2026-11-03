@@ -17,7 +17,6 @@ from baserow.api.integrations.serializers import (
 )
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
-from baserow.core.models import Agent
 from baserow.core.registries import application_type_registry
 from baserow.core.trash.handler import TrashHandler
 
@@ -109,7 +108,7 @@ def test_create_and_update_local_baserow_integration_with_agent(
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     application = data_fixture.create_builder_application(workspace=workspace)
-    agent = Agent.objects.create(workspace=workspace, name="Row writer")
+    agent = data_fixture.create_agent(workspace=workspace, name="Row writer")
     url = reverse("api:integrations:list", kwargs={"application_id": application.id})
 
     response = api_client.post(
@@ -118,7 +117,7 @@ def test_create_and_update_local_baserow_integration_with_agent(
             "type": "local_baserow",
             "name": "Agent connection",
             "authorized_subject_id": agent.id,
-            "authorized_subject_type": "core.Agent",
+            "authorized_subject_type": "auth.User",
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -127,9 +126,12 @@ def test_create_and_update_local_baserow_integration_with_agent(
     assert response.status_code == HTTP_200_OK
     assert response.json()["authorized_subject"] == {
         "id": agent.id,
-        "name": "Row writer",
+        "first_name": "Row writer",
+        "identity_type": "agent",
+        "email": None,
+        "username": None,
         "trashed": False,
-        "type": "core.Agent",
+        "type": "auth.User",
     }
 
     integration = Integration.objects.get(id=response.json()["id"]).specific
@@ -156,11 +158,11 @@ def test_local_baserow_integration_serializes_a_trashed_agent(api_client, data_f
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     application = data_fixture.create_builder_application(workspace=workspace)
-    agent = Agent.objects.create(workspace=workspace, name="Row writer")
+    agent = data_fixture.create_agent(workspace=workspace, name="Row writer")
     integration = data_fixture.create_local_baserow_integration(
         application=application, user=user, authorized_agent=agent
     )
-    TrashHandler.trash(user, workspace, None, agent)
+    TrashHandler.trash(user, workspace, None, agent.profile)
 
     response = api_client.get(
         reverse("api:integrations:list", kwargs={"application_id": application.id}),
@@ -173,9 +175,12 @@ def test_local_baserow_integration_serializes_a_trashed_agent(api_client, data_f
     ]
     assert response_integration["authorized_subject"] == {
         "id": agent.id,
-        "name": "Row writer",
+        "first_name": "Row writer",
+        "identity_type": "agent",
+        "email": None,
+        "username": None,
         "trashed": True,
-        "type": "core.Agent",
+        "type": "auth.User",
     }
 
 
@@ -185,7 +190,7 @@ def test_local_baserow_integration_rejects_agent_from_another_workspace(
 ):
     user, token = data_fixture.create_user_and_token()
     application = data_fixture.create_builder_application(user=user)
-    other_agent = Agent.objects.create(
+    other_agent = data_fixture.create_agent(
         workspace=data_fixture.create_workspace(), name="Other agent"
     )
     url = reverse("api:integrations:list", kwargs={"application_id": application.id})
@@ -196,7 +201,7 @@ def test_local_baserow_integration_rejects_agent_from_another_workspace(
             "type": "local_baserow",
             "name": "Invalid connection",
             "authorized_subject_id": other_agent.id,
-            "authorized_subject_type": "core.Agent",
+            "authorized_subject_type": "auth.User",
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",

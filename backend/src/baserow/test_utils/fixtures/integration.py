@@ -9,7 +9,7 @@ class IntegrationFixtures:
         authorized_agent = kwargs.pop("authorized_agent", None)
         authorized_user = kwargs.pop("authorized_user", None)
         if authorized_agent is not None:
-            kwargs["authorized_subject_type"] = "core.Agent"
+            kwargs["authorized_subject_type"] = "auth.User"
             kwargs["authorized_subject_id"] = authorized_agent.id
         else:
             if authorized_user is None:

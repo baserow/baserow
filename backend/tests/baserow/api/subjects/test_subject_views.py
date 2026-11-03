@@ -3,8 +3,6 @@ from django.shortcuts import reverse
 import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN
 
-from baserow.core.agents.subjects import AgentSubjectType
-from baserow.core.models import Agent
 from baserow.core.subjects import AnonymousUserSubjectType, UserSubjectType
 
 
@@ -16,13 +14,16 @@ def test_staff_can_search_global_subject_options(api_client, data_fixture):
     matching_user = data_fixture.create_user(email="matching@example.com")
     data_fixture.create_user(email="other@example.com")
     workspace = data_fixture.create_workspace(user=staff)
-    matching_agent = Agent.objects.create(workspace=workspace, name="Matching robot")
+    matching_agent = data_fixture.create_agent(
+        workspace=workspace, name="Matching robot"
+    )
 
     response = api_client.get(
         reverse("api:subjects:list"),
         {
             "search": "matching",
-            "subject_types": f"{UserSubjectType.type},{AgentSubjectType.type}",
+            "subject_types": UserSubjectType.type,
+            "identity_type": "all",
         },
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -36,15 +37,17 @@ def test_staff_can_search_global_subject_options(api_client, data_fixture):
             "name": matching_user.first_name,
             "label": matching_user.email,
             "email": matching_user.email,
+            "identity_type": "human",
             "subject_count": None,
         },
         {
-            "id": f"{AgentSubjectType.type}:{matching_agent.id}",
+            "id": f"{UserSubjectType.type}:{matching_agent.id}",
             "subject_id": matching_agent.id,
-            "subject_type": AgentSubjectType.type,
-            "name": matching_agent.name,
-            "label": matching_agent.name,
+            "subject_type": UserSubjectType.type,
+            "name": matching_agent.first_name,
+            "label": matching_agent.first_name,
             "email": None,
+            "identity_type": "agent",
             "subject_count": None,
         },
     ]
@@ -65,15 +68,16 @@ def test_non_staff_cannot_list_global_subject_options(api_client, data_fixture):
 def test_workspace_subject_options_are_scoped(api_client, data_fixture):
     admin, token = data_fixture.create_user_and_token(email="admin@example.com")
     workspace = data_fixture.create_workspace(user=admin)
-    agent = Agent.objects.create(workspace=workspace, name="Workspace robot")
+    agent = data_fixture.create_agent(workspace=workspace, name="Workspace robot")
     other_workspace = data_fixture.create_workspace()
-    Agent.objects.create(workspace=other_workspace, name="Other robot")
+    data_fixture.create_agent(workspace=other_workspace, name="Other robot")
 
     response = api_client.get(
         reverse("api:subjects:list"),
         {
             "workspace_id": workspace.id,
-            "subject_types": AgentSubjectType.type,
+            "subject_types": UserSubjectType.type,
+            "identity_type": "agent",
         },
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -124,9 +128,41 @@ def test_workspace_subject_options_exclude_inactive_and_deletion_scheduled_users
         {
             "workspace_id": workspace.id,
             "subject_types": UserSubjectType.type,
+            "identity_type": "human",
         },
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
     assert response.status_code == HTTP_200_OK
     assert [result["subject_id"] for result in response.json()["results"]] == [admin.id]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("state", ["disabled", "trashed"])
+def test_agent_subject_options_hide_unavailable_agents(api_client, data_fixture, state):
+    """Agent users test plan 13.1.2."""
+
+    admin, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=admin)
+    active = data_fixture.create_agent(workspace=workspace, name="Active")
+    data_fixture.create_agent(
+        workspace=workspace,
+        name="Unavailable",
+        is_active=state != "disabled",
+        trashed=state == "trashed",
+    )
+
+    response = api_client.get(
+        reverse("api:subjects:list"),
+        {
+            "workspace_id": workspace.id,
+            "subject_types": UserSubjectType.type,
+            "identity_type": "agent",
+        },
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert [result["subject_id"] for result in response.json()["results"]] == [
+        active.id
+    ]

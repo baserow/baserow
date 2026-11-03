@@ -10,8 +10,6 @@ from baserow.core.action.handler import ActionHandler
 from baserow.core.action.models import Action
 from baserow.core.action.signals import ActionCommandType
 from baserow.core.actions import CreateWorkspaceActionType
-from baserow.core.agents.subjects import AgentSubjectType
-from baserow.core.models import Agent
 from baserow.core.subjects import UserSubjectType
 from baserow_enterprise.api.audit_log.serializers import AuditLogSerializer
 from baserow_enterprise.audit_log.handler import AuditLogHandler
@@ -25,7 +23,7 @@ def test_agent_action_is_recorded_in_audit_log(
 ):
     user = enterprise_data_fixture.create_user()
     table = enterprise_data_fixture.create_database_table(user=user)
-    agent = Agent.objects.create(
+    agent = enterprise_data_fixture.create_agent(
         workspace=table.database.workspace,
         name="Automation writer",
         role_uid="ADMIN",
@@ -35,12 +33,12 @@ def test_agent_action_is_recorded_in_audit_log(
 
     entry = AuditLogEntry.objects.get(action_type="create_rows")
     assert entry.actor_id == agent.id
-    assert entry.actor_type == AgentSubjectType.type
-    assert entry.actor_name == agent.name
+    assert entry.actor_type == UserSubjectType.type
+    assert entry.actor_name == agent.first_name
     assert AuditLogSerializer(entry).data["actor"] == {
         "id": agent.id,
-        "type": AgentSubjectType.type,
-        "name": agent.name,
+        "type": UserSubjectType.type,
+        "name": agent.first_name,
     }
     assert AuditLogSerializer(entry).data["user"] == f"Automation writer ({agent.id})"
     assert not Action.objects.filter(type="create_rows").exists()

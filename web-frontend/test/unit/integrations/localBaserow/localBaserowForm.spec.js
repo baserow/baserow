@@ -15,15 +15,17 @@ describe('LocalBaserowForm', () => {
       previous: null,
       results: [
         {
-          id: 'core.Agent:10',
+          id: 'auth.User:10',
           subject_id: 10,
-          subject_type: 'core.Agent',
+          subject_type: 'auth.User',
+          identity_type: 'agent',
           name: 'Writer agent',
         },
         {
-          id: 'core.Agent:11',
+          id: 'auth.User:11',
           subject_id: 11,
-          subject_type: 'core.Agent',
+          subject_type: 'auth.User',
+          identity_type: 'agent',
           name: 'Reader agent',
         },
       ],
@@ -52,7 +54,8 @@ describe('LocalBaserowForm', () => {
       workspace_id: 1,
       page: 1,
       search: '',
-      subject_types: 'core.Agent',
+      subject_types: 'auth.User',
+      identity_type: 'agent',
       size: 100,
     })
 
@@ -68,13 +71,18 @@ describe('LocalBaserowForm', () => {
 
     expect(wrapper.emitted('values-changed').at(-1)[0]).toEqual({
       authorized_subject_id: 10,
-      authorized_subject_type: 'core.Agent',
+      authorized_subject_type: 'auth.User',
     })
   })
 
   test('shows the saved agent as selected', async () => {
     const wrapper = await mountComponent({
-      authorized_subject: { id: 11, type: 'core.Agent', name: 'Reader agent' },
+      authorized_subject: {
+        id: 11,
+        type: 'auth.User',
+        identity_type: 'agent',
+        name: 'Reader agent',
+      },
     })
     await flushPromises()
 
@@ -85,7 +93,8 @@ describe('LocalBaserowForm', () => {
     const wrapper = await mountComponent({
       authorized_subject: {
         id: 11,
-        type: 'core.Agent',
+        type: 'auth.User',
+        identity_type: 'agent',
         name: 'Reader agent',
         trashed: true,
       },
@@ -126,7 +135,12 @@ describe('LocalBaserowForm', () => {
 
   test('emits the current user as an explicit authorization subject', async () => {
     const wrapper = await mountComponent({
-      authorized_subject: { id: 11, type: 'core.Agent', name: 'Reader agent' },
+      authorized_subject: {
+        id: 11,
+        type: 'auth.User',
+        identity_type: 'agent',
+        name: 'Reader agent',
+      },
     })
     await flushPromises()
 

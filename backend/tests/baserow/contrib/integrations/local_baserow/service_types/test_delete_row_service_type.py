@@ -9,7 +9,7 @@ from baserow.contrib.integrations.local_baserow.models import LocalBaserowDelete
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowDeleteRowServiceType,
 )
-from baserow.core.models import Agent, TrashEntry
+from baserow.core.models import TrashEntry
 from baserow.core.services.exceptions import (
     DoesNotExist,
     InvalidContextContentDispatchException,
@@ -221,7 +221,7 @@ def test_local_baserow_delete_row_service_dispatch_data_as_agent(data_fixture):
         workspace=page.builder.workspace
     )
     table = data_fixture.create_database_table(database=database)
-    agent = Agent.objects.create(
+    agent = data_fixture.create_agent(
         workspace=page.builder.workspace,
         name="Row deleter",
         role_uid="ADMIN",
@@ -243,7 +243,7 @@ def test_local_baserow_delete_row_service_dispatch_data_as_agent(data_fixture):
 
     assert not model.objects.filter(id=row.id).exists()
     trash_entry = TrashEntry.objects.get(trash_item_type="rows")
-    assert trash_entry.user_who_trashed is None
+    assert trash_entry.user_who_trashed == agent
 
 
 @pytest.mark.django_db

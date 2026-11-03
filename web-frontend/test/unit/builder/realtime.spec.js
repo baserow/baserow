@@ -314,7 +314,7 @@ describe('builder realtime agent events', () => {
   const matchingIntegration = {
     id: 5,
     type: 'local_baserow',
-    authorized_subject: { id: 10, type: 'core.Agent' },
+    authorized_subject: { id: 10, type: 'auth.User' },
   }
   const builder = {
     id: 1,
@@ -346,7 +346,7 @@ describe('builder realtime agent events', () => {
           integrations: [
             {
               ...matchingIntegration,
-              authorized_subject: { id: 11, type: 'core.Agent' },
+              authorized_subject: { id: 11, type: 'auth.User' },
             },
           ],
         },

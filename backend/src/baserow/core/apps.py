@@ -12,6 +12,10 @@ class CoreConfig(AppConfig):
     name = "baserow.core"
 
     def ready(self):
+        from baserow.core.user.managers import install_user_managers
+
+        install_user_managers()
+
         import pydantic_ai
 
         # Otherwise the first uninstrumented agent run prints a Logfire promo to stderr.
@@ -218,14 +222,12 @@ class CoreConfig(AppConfig):
 
         from baserow.core.registries import subject_type_registry
 
-        from .agents.subjects import AgentSubjectType
         from .subjects import AnonymousUserSubjectType, UserSubjectType
         from .user_sources.subjects import UserSourceUserSubjectType
 
         subject_type_registry.register(UserSubjectType())
         subject_type_registry.register(AnonymousUserSubjectType())
         subject_type_registry.register(UserSourceUserSubjectType())
-        subject_type_registry.register(AgentSubjectType())
 
         from .agents.operations import (
             CreateAgentOperationType,
@@ -620,6 +622,7 @@ class CoreConfig(AppConfig):
 
             patch_user_model_str()
 
+        import baserow.core.agents.receivers  # noqa: F401
         import baserow.core.last_viewed.receivers  # noqa: F401
         import baserow.core.mcp.receivers  # noqa: F401
         import baserow.core.receivers  # noqa: F401

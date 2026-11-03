@@ -40,7 +40,7 @@ const redispatchForAuthorizedAgent = (store, { workspaceId, agentId }) => {
         .filter(
           (integration) =>
             integration.type === 'local_baserow' &&
-            integration.authorized_subject?.type === 'core.Agent' &&
+            integration.authorized_subject?.type === 'auth.User' &&
             integration.authorized_subject.id === agentId
         )
         .forEach((integration) => {

@@ -158,7 +158,7 @@ export default {
         (role) =>
           role.isVisible &&
           (!Array.isArray(role.allowedSubjectTypes) ||
-            role.allowedSubjectTypes.includes('core.Agent'))
+            role.allowedSubjectTypes.includes('auth.User'))
       )
     },
     columns() {
@@ -171,7 +171,7 @@ export default {
           true,
           false,
           {
-            avatarComponent: this.$registry.get('subject', 'core.Agent')
+            avatarComponent: this.$registry.get('subject', 'auth.User')
               .avatarComponent,
           }
         ),

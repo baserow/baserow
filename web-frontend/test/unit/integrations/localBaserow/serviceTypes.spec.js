@@ -386,7 +386,8 @@ describe('Local baserow service types', () => {
       type: 'local_baserow',
       authorized_subject: {
         id: 9,
-        type: 'core.Agent',
+        type: 'auth.User',
+        identity_type: 'agent',
         name: 'Writer',
         trashed: true,
       },

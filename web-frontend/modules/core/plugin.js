@@ -80,7 +80,6 @@ import {
   McpServerAgentSettingsType,
 } from '@baserow/modules/core/agentSettingsTypes'
 import {
-  AgentSubjectType,
   AnonymousUserSubjectType,
   UserSubjectType,
 } from '@baserow/modules/core/subjectTypes.jsx'
@@ -200,7 +199,6 @@ export default defineNuxtPlugin({
 
     registry.register('subject', new UserSubjectType(context))
     registry.register('subject', new AnonymousUserSubjectType(context))
-    registry.register('subject', new AgentSubjectType(context))
 
     registry.register('invitationRoute', new EmailInvitationRouteType(context))
     registry.register('invitationRoute', new LinkInvitationRouteType(context))

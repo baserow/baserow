@@ -100,7 +100,7 @@ export default {
         (role) =>
           role.isVisible &&
           (!Array.isArray(role.allowedSubjectTypes) ||
-            role.allowedSubjectTypes.includes('core.Agent'))
+            role.allowedSubjectTypes.includes('auth.User'))
       )
     },
     registeredSettings() {

@@ -1391,7 +1391,9 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
     """
 
     # Interactive users can persist undoable actions and emit product analytics.
-    is_interactive_user = False
+    def is_interactive_user(self, subject: Subject) -> bool:
+        return False
+
     display_name_field: Optional[str] = None
     lookup_fields = ("id", "pk")
     options_list_operation_type: Optional[str] = None
@@ -1613,6 +1615,12 @@ class SubjectTypeRegistry(Registry[SubjectType], ModelRegistryMixin[Any, Subject
         """
 
         model_class = self.get(type_name).model_class
+        manager = getattr(model_class, "objects_and_agents", None)
+        if manager is not None:
+            queryset = manager.select_related("profile")
+            if not include_trash:
+                queryset = queryset.filter(profile__trashed=False)
+            return queryset.filter(id=subject_id).first()
         manager = getattr(model_class, "objects", None)
         if include_trash:
             manager = getattr(model_class, "objects_and_trash", manager)

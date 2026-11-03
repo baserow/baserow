@@ -224,10 +224,7 @@ export default {
       }
       return this.targetType.getScopeTypeName(scopeType, scope).toLowerCase()
     },
-    /**
-     * Counts the members per role, then the agents per role, of the enabled
-     * subject types, in the order of the roles.
-     */
+    /** Counts the subjects per role, in the order of the roles. */
     getCounts(access, roles) {
       const counts = []
       for (const subjectType of this.enabledSubjectTypes) {
@@ -244,13 +241,7 @@ export default {
           }
           counts.push({
             key: `${subjectType.type}:${role.uid}`,
-            label: subjectType.isUser()
-              ? this.$t('shareScope.roleCount', { count, role: role.name })
-              : this.$t(
-                  'shareScope.agentRoleCount',
-                  { count, role: role.name },
-                  count
-                ),
+            label: this.$t('shareScope.roleCount', { count, role: role.name }),
           })
         }
       }

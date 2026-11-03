@@ -23,6 +23,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.models import BlacklistedToken, UserLogEntry, Workspace, WorkspaceUser
 from baserow.core.registries import plugin_registry
 from baserow.core.user.exceptions import (
+    ChangeEmailNotAllowed,
     DisabledSignupError,
     EmailAlreadyVerified,
     InvalidPassword,
@@ -1132,3 +1133,25 @@ def test_change_email_already_exists(data_fixture):
     # Verify the user's email was not changed
     user.refresh_from_db()
     assert user.email == "test@localhost"
+
+
+@pytest.mark.django_db
+def test_human_account_uniqueness_includes_agent_identities(data_fixture):
+    agent = data_fixture.create_agent()
+    with pytest.raises(UserAlreadyExist):
+        UserHandler().force_create_user(agent.email, "Person", "password")
+
+
+@pytest.mark.django_db
+def test_loaded_agent_cannot_use_human_password_and_email_flows(
+    data_fixture, mailoutbox
+):
+    agent = data_fixture.create_agent()
+    handler = UserHandler()
+    assert not handler.send_reset_password_email(agent)
+    assert not handler.send_email_pending_verification(agent)
+    with pytest.raises(InvalidPassword):
+        handler.change_password(agent, "password", "new-password")
+    with pytest.raises(ChangeEmailNotAllowed):
+        handler.send_change_email_confirmation(agent, "person@example.com", "password")
+    assert not mailoutbox

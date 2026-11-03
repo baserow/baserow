@@ -25,7 +25,6 @@ from baserow.contrib.database.tools.views import (
 from baserow.contrib.database.views.models import FormView, View, ViewFilter
 from baserow.core.exceptions import PermissionException
 from baserow.core.mcp import BaserowMCPServer, current_key
-from baserow.core.models import Agent
 from baserow.core.tools import ToolContext
 
 VIEW_TOOLS = ["create_views", "create_view_filters"]
@@ -861,11 +860,11 @@ def test_create_view_filters_uses_the_context_timezone(
 
 
 @pytest.mark.django_db
-def test_create_view_filters_works_for_an_actor_without_a_profile(
-    data_fixture, table_ctx
-):
+def test_create_view_filters_works_for_an_agent_identity(data_fixture, table_ctx):
     ctx, table = table_ctx
-    agent = Agent.objects.create(workspace=ctx.workspace, name="Bot", role_uid="ADMIN")
+    agent = data_fixture.create_agent(
+        workspace=ctx.workspace, name="Bot", role_uid="ADMIN"
+    )
     field = table.field_set.get(name="Name")
     view, create = _filter_view(
         data_fixture, (ToolContext(user=agent, workspace=ctx.workspace), table), field

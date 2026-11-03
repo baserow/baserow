@@ -68,7 +68,6 @@ export default {
     },
     availableSubjects() {
       const userSubjectType = this.$registry.get('subject', 'auth.User')
-      const agentSubjectType = this.$registry.get('subject', 'core.Agent')
       return [
         ...this.workspace.users.map((member) =>
           makeTeamSubject(member, userSubjectType)
@@ -76,7 +75,7 @@ export default {
         ...this.agents.map((agent) =>
           makeTeamSubject(
             agent,
-            agentSubjectType,
+            userSubjectType,
             this.$t('manageTeamForm.agentLabel')
           )
         ),

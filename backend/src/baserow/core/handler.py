@@ -30,6 +30,7 @@ from baserow.core.cache import get_cached_settings, set_cached_settings
 from baserow.core.db import specific_queryset
 from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.registries import plugin_registry
+from baserow.core.user.identity import is_agent_user, is_human_user
 from baserow.core.user.utils import normalize_email_address
 from baserow.core.user_templates.constants import USER_TEMPLATE_SEEDED_ID_MAPPINGS
 
@@ -784,7 +785,8 @@ class CoreHandler:
         from baserow.core.two_factor_auth.models import TwoFactorAuthProviderModel
 
         workspaceusers_with_user_and_profile = (
-            WorkspaceUser.objects.select_related("user")
+            WorkspaceUser.objects.people()
+            .select_related("user")
             .select_related("user__profile")
             .prefetch_related(
                 Prefetch(
@@ -795,9 +797,20 @@ class CoreHandler:
                 )
             )
         )
-        workspaceuser_workspaces = WorkspaceUser.objects.select_related(
-            "workspace"
-        ).annotate(workspace_agent_count=Count("workspace__agents", distinct=True))
+        workspaceuser_workspaces = (
+            WorkspaceUser.objects.people()
+            .select_related("workspace")
+            .annotate(
+                workspace_agent_count=Count(
+                    "workspace__workspaceuser",
+                    filter=Q(
+                        workspace__workspaceuser__user__profile__identity_type="agent",
+                        workspace__workspaceuser__user__profile__trashed=False,
+                    ),
+                    distinct=True,
+                )
+            )
+        )
         workspaceuser_workspaces = workspaceuser_workspaces.prefetch_related(
             Prefetch(
                 "workspace__workspaceuser_set",
@@ -875,6 +888,7 @@ class CoreHandler:
 
         return workspace
 
+    @transaction.atomic
     def leave_workspace(self, user, workspace):
         """
         Called when a user of workspace wants to leave a workspace.
@@ -888,6 +902,9 @@ class CoreHandler:
         if not isinstance(workspace, Workspace):
             raise ValueError("The workspace is not an instance of Workspace.")
 
+        if not is_human_user(user):
+            raise ValueError("An agent's membership is managed through its identity.")
+        User.objects_and_agents.select_for_update(of=("self",)).get(pk=user.pk)
         try:
             workspace_user = WorkspaceUser.objects.get(user=user, workspace=workspace)
         except WorkspaceUser.DoesNotExist:
@@ -899,11 +916,14 @@ class CoreHandler:
         # leave the workspace.
         if (
             workspace_user.permissions == WORKSPACE_USER_PERMISSION_ADMIN
-            and WorkspaceUser.objects.filter(
-                workspace=workspace, permissions=WORKSPACE_USER_PERMISSION_ADMIN
+            and len(
+                WorkspaceUser.objects.people()
+                .filter(
+                    workspace=workspace, permissions=WORKSPACE_USER_PERMISSION_ADMIN
+                )
+                .exclude(user__profile__to_be_deleted=True)
+                .select_for_update(of=("self",))
             )
-            .exclude(user__profile__to_be_deleted=True)
-            .count()
             == 1
         ):
             raise WorkspaceUserIsLastAdmin(
@@ -1032,7 +1052,7 @@ class CoreHandler:
         """
 
         if base_queryset is None:
-            base_queryset = WorkspaceUser.objects
+            base_queryset = WorkspaceUser.objects.people()
 
         try:
             workspace_user = base_queryset.select_related("workspace").get(
@@ -1064,8 +1084,10 @@ class CoreHandler:
         return workspace_user_queryset.filter(user__in=users, workspace=workspace)
 
     def get_users_in_workspace(self, workspace: Workspace) -> list[User]:
-        wk_users = WorkspaceUser.objects.filter(workspace=workspace).select_related(
-            "user"
+        wk_users = (
+            WorkspaceUser.objects.people()
+            .filter(workspace=workspace)
+            .select_related("user")
         )
         return [wk_user.user for wk_user in wk_users]
 
@@ -1146,6 +1168,9 @@ class CoreHandler:
         """
 
         with atomic_if_not_already():
+            User.objects_and_agents.select_for_update(of=("self",)).get(
+                pk=workspace_user.user_id
+            )
             if kwargs["permissions"] != "ADMIN":
                 CoreHandler.raise_if_user_is_last_admin_of_workspace(workspace_user)
 
@@ -1163,6 +1188,7 @@ class CoreHandler:
             )
             return workspace_user
 
+    @transaction.atomic
     def delete_workspace_user(self, user, workspace_user):
         """
         Deletes the provided workspace user.
@@ -1189,6 +1215,13 @@ class CoreHandler:
             raise CannotDeleteYourselfFromWorkspace(
                 "Cannot delete yourself from workspace."
             )
+
+        User.objects_and_agents.select_for_update(of=("self",)).get(
+            pk=workspace_user.user_id
+        )
+        if is_agent_user(workspace_user.user):
+            raise ValueError("An agent's membership is managed through its identity.")
+        self.raise_if_user_is_last_admin_of_workspace(workspace_user)
 
         before_workspace_user_deleted.send(
             self,
@@ -1502,15 +1535,26 @@ class CoreHandler:
         :return: The created or existing `WorkspaceUser` object.
         """
 
-        workspace_user, created = WorkspaceUser.objects.get_or_create(
-            user=user,
-            workspace=workspace,
-            defaults={
-                "order": WorkspaceUser.get_last_order(user),
-                "permissions": permissions,
-            },
-        )
-
+        with atomic_if_not_already():
+            # All membership writes lock the User, including AgentHandler creation.
+            User.objects_and_agents.select_for_update(of=("self",)).get(pk=user.pk)
+            if is_agent_user(user):
+                memberships = list(WorkspaceUser.objects_and_trash.filter(user=user))
+                if len(memberships) != 1 or memberships[0].workspace_id != workspace.id:
+                    raise ValueError(
+                        "An agent must retain its single workspace membership."
+                    )
+                return memberships[0]
+            if not is_human_user(user):
+                raise ValueError("A workspace member must have a valid identity.")
+            workspace_user, created = WorkspaceUser.objects.get_or_create(
+                user=user,
+                workspace=workspace,
+                defaults={
+                    "order": WorkspaceUser.get_last_order(user),
+                    "permissions": permissions,
+                },
+            )
         if created:
             workspace_user_added.send(
                 self,
@@ -2544,10 +2588,12 @@ class CoreHandler:
         :return:
         """
 
+        if not is_human_user(workspace_user.user):
+            return
         admins_in_workspace_count = len(
-            WorkspaceUser.objects.filter(
-                workspace=workspace_user.workspace, permissions="ADMIN"
-            ).select_for_update(of=("self",))
+            WorkspaceUser.objects.people()
+            .filter(workspace=workspace_user.workspace, permissions="ADMIN")
+            .select_for_update(of=("self",))
         )
 
         is_subject_admin = workspace_user.permissions == "ADMIN"

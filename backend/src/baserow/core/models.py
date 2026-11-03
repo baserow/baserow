@@ -21,6 +21,8 @@ from django.db.models import (
 from django.db.models.functions import Coalesce
 from django.db.models.manager import BaseManager
 
+from django_cte import CTEManager
+
 from baserow.core.feature_flags import FF_USER_TEMPLATES, feature_flag_is_enabled
 from baserow.core.jobs.mixins import (
     JobWithUndoRedoIds,
@@ -28,6 +30,8 @@ from baserow.core.jobs.mixins import (
     JobWithWebsocketId,
 )
 from baserow.core.jobs.models import Job
+from baserow.core.managers import make_trash_manager
+from baserow.core.user.managers import WorkspaceUserQuerySet
 from baserow.core.user_files.models import UserFile
 
 from .abuse_reports.models import AbuseReport
@@ -59,7 +63,6 @@ __all__ = [
     "Workspace",
     "WorkspaceUser",
     "WorkspaceInvitation",
-    "Agent",
     "Application",
     "TemplateCategory",
     "Template",
@@ -202,11 +205,33 @@ class Settings(models.Model):
     )
 
 
-class UserProfile(models.Model):
+class UserProfile(TrashableModelMixin, models.Model):
     """
     User profile to store user specific information that can't be stored in
     default user model.
     """
+
+    class IdentityType(models.TextChoices):
+        HUMAN = "human", "Human"
+        AGENT = "agent", "Agent"
+
+    identity_type = models.CharField(
+        max_length=5,
+        choices=IdentityType.choices,
+        default=IdentityType.HUMAN,
+        db_default=IdentityType.HUMAN,
+    )
+    trashed = models.BooleanField(default=False, db_default=False)
+    last_active = models.DateTimeField(null=True, blank=True, db_default=None)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["user"],
+                condition=Q(trashed=True),
+                name="core_profile_trashed_idx",
+            )
+        ]
 
     # Keep these in sync with the web-frontend options in
     # web-frontend/modules/core/enums.js
@@ -432,6 +457,14 @@ class WorkspaceUser(
     OrderableMixin,
     models.Model,
 ):
+    objects = make_trash_manager(False, parent="workspace").from_queryset(
+        WorkspaceUserQuerySet
+    )()
+    trash = make_trash_manager(True, parent="workspace").from_queryset(
+        WorkspaceUserQuerySet
+    )()
+    objects_and_trash = CTEManager.from_queryset(WorkspaceUserQuerySet)()
+
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -462,34 +495,6 @@ class WorkspaceUser(
     def get_last_order(cls, user):
         queryset = cls.objects.filter(user=user)
         return cls.get_highest_order_of_queryset(queryset) + 1
-
-
-class Agent(
-    HierarchicalModelMixin,
-    TrashableModelMixin,
-    CreatedAndUpdatedOnMixin,
-    models.Model,
-):
-    """A non-authenticating subject owned by a workspace."""
-
-    workspace = models.ForeignKey(
-        Workspace,
-        related_name="agents",
-        on_delete=models.CASCADE,
-    )
-    name = models.CharField(max_length=160)
-    role_uid = models.CharField(
-        max_length=32,
-        default=WORKSPACE_USER_PERMISSION_MEMBER,
-        db_default=WORKSPACE_USER_PERMISSION_MEMBER,
-    )
-    last_active = models.DateTimeField(null=True, blank=True, db_default=None)
-
-    def get_parent(self):
-        return self.workspace
-
-    class Meta:
-        ordering = ("name", "id")
 
 
 class WorkspaceInvitation(

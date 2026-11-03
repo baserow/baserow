@@ -22,7 +22,6 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.models import RichTextFieldMention
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.registries import action_type_registry
-from baserow.core.models import Agent
 from baserow.core.notifications.handler import NotificationHandler
 from baserow.core.notifications.models import Notification, NotificationRecipient
 from baserow.core.trash.handler import TrashHandler
@@ -39,11 +38,11 @@ pytestmark = pytest.mark.enable_signals(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_agent_row_create_collaborator_notification_has_no_user_sender(data_fixture):
+def test_agent_row_create_collaborator_notification_keeps_agent_sender(data_fixture):
     owner = data_fixture.create_user()
     collaborator = data_fixture.create_user()
     workspace = data_fixture.create_workspace(members=[owner, collaborator])
-    agent = Agent.objects.create(
+    agent = data_fixture.create_agent(
         workspace=workspace,
         name="Row writer",
         role_uid="ADMIN",
@@ -64,15 +63,15 @@ def test_agent_row_create_collaborator_notification_has_no_user_sender(data_fixt
     notification = Notification.objects.get(
         type=CollaboratorAddedToRowNotificationType.type
     )
-    assert notification.sender is None
+    assert notification.sender == agent
 
 
 @pytest.mark.django_db(transaction=True)
-def test_agent_row_update_mention_notification_has_no_user_sender(data_fixture):
+def test_agent_row_update_mention_notification_keeps_agent_sender(data_fixture):
     owner = data_fixture.create_user()
     mentioned_user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(members=[owner, mentioned_user])
-    agent = Agent.objects.create(
+    agent = data_fixture.create_agent(
         workspace=workspace,
         name="Row writer",
         role_uid="ADMIN",
@@ -95,12 +94,12 @@ def test_agent_row_update_mention_notification_has_no_user_sender(data_fixture):
     notification = Notification.objects.get(
         type=UserMentionInRichTextFieldNotificationType.type
     )
-    assert notification.sender is None
+    assert notification.sender == agent
     assert (
         UserMentionInRichTextFieldNotificationType.get_notification_title_for_email(
             notification, {}
         )
-        == f"An unknown user mentioned you in {rich_text_field.name} in row "
+        == f"{agent.first_name} mentioned you in {rich_text_field.name} in row "
         f"{row} in {table.name}."
     )
 

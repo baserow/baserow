@@ -3,7 +3,7 @@ from django.urls import reverse
 import pytest
 
 from baserow.core.agents.service import AgentService
-from baserow.core.models import Agent, Operation
+from baserow.core.models import Operation, User
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 from baserow_enterprise.teams.models import TeamSubject
@@ -76,18 +76,22 @@ def test_agent_team_changes_require_membership_permissions(
     assert response.status_code == (200 if allowed else 401)
     agent.refresh_from_db()
     if not allowed:
-        assert agent.name == "Original"
-        assert list(Agent.objects.filter(workspace=workspace)) == [agent]
+        assert agent.first_name == "Original"
+        assert list(
+            User.objects_and_agents.filter(
+                profile__identity_type="agent", workspaceuser__workspace=workspace
+            )
+        ) == [agent]
         assert list(TeamSubject.objects.filter(team__workspace=workspace)) == [
             old_membership
         ]
     elif action == "create":
-        created = Agent.objects.get(id=response.json()["id"])
-        assert created.name == "Changed"
+        created = User.objects_and_agents.get(id=response.json()["id"])
+        assert created.first_name == "Changed"
         assert TeamSubject.objects.get(team=new_team).subject_id == created.id
         assert TeamSubject.objects.filter(id=old_membership.id).exists()
     else:
-        assert agent.name == "Changed"
+        assert agent.first_name == "Changed"
         memberships = TeamSubject.objects.filter(subject_id=agent.id)
         assert list(memberships.values_list("team_id", flat=True)) == [
             new_team.id if action == "replace" else old_team.id

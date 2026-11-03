@@ -1,6 +1,5 @@
 import pytest
 
-from baserow.core.models import Agent
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 
@@ -47,7 +46,9 @@ def test_effective_access_on_the_workspace(data_fixture, enterprise_data_fixture
             (no_role_without_team, "NO_ROLE_LOW_PRIORITY"),
         ],
     )
-    agent = Agent.objects.create(workspace=workspace, name="Bot", role_uid="VIEWER")
+    agent = data_fixture.create_agent(
+        workspace=workspace, name="Bot", role_uid="VIEWER"
+    )
     team = enterprise_data_fixture.create_team(
         workspace=workspace, name="Sales", members=[no_role, builder]
     )
@@ -209,13 +210,13 @@ def test_effective_access_of_agents(data_fixture):
     database = data_fixture.create_database_application(workspace=workspace)
     application = database.application_ptr
     table = data_fixture.create_database_table(database=database)
-    workspace_agent = Agent.objects.create(
+    workspace_agent = data_fixture.create_agent(
         workspace=workspace, name="Workspace", role_uid="EDITOR"
     )
-    table_agent = Agent.objects.create(
+    table_agent = data_fixture.create_agent(
         workspace=workspace, name="Table", role_uid="NO_ACCESS"
     )
-    blocked_agent = Agent.objects.create(
+    blocked_agent = data_fixture.create_agent(
         workspace=workspace, name="Blocked", role_uid="EDITOR"
     )
     assign(table_agent, workspace, "VIEWER", table)

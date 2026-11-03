@@ -23,7 +23,6 @@ from baserow.api.pagination import (
 )
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.core.actions import DeleteWorkspaceActionType, OrderWorkspacesActionType
-from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.exceptions import WorkspaceDoesNotExist
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
@@ -260,7 +259,7 @@ class AuditLogActorFilterView(APIView):
         queryset = SubjectOptionsHandler.get_historical_options(
             workspace=workspace,
             search=query_params.get("search") or "",
-            subject_types={UserSubjectType.type, AgentSubjectType.type},
+            subject_types={UserSubjectType.type},
         )
         page, paginator = self.paginate_queryset(queryset, request)
         return paginator.get_paginated_response(

@@ -62,12 +62,12 @@ class WorkspaceAgentsView(APIView, SearchableViewMixin, SortableViewMixin):
     """Lists agents in a workspace and creates new workspace agents."""
 
     permission_classes = (IsAuthenticated,)
-    search_fields = ["name"]
+    search_fields = ["first_name"]
     sort_field_mapping = {
-        "name": "name",
-        "role_uid": "role_uid",
-        "last_active": "last_active",
-        "created_on": "created_on",
+        "name": "first_name",
+        "role_uid": "workspaceuser__permissions",
+        "last_active": "profile__last_active",
+        "created_on": "date_joined",
     }
 
     @extend_schema(

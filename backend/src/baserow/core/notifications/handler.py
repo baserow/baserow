@@ -16,6 +16,7 @@ from opentelemetry import trace
 from baserow.core.emails import NotificationsSummaryEmail
 from baserow.core.models import User, UserProfile, Workspace
 from baserow.core.telemetry.utils import baserow_trace
+from baserow.core.user.identity import is_human_user
 from baserow.core.utils import (
     atomic_if_not_already,
     grouper,
@@ -152,7 +153,7 @@ class NotificationHandler:
         """
 
         return cls.all_notifications_for_user(user, workspace).select_related(
-            "notification", "notification__sender"
+            "notification", "notification__sender__profile"
         )
 
     @classmethod
@@ -596,6 +597,7 @@ class NotificationHandler:
                     recipient=recipient, notification=notification
                 )
                 for recipient in recipients
+                if is_human_user(recipient)
             ]
         )
 
@@ -842,6 +844,7 @@ class UserNotificationsGrouper:
                         queued=True,
                     )
                     for recipient_id in self.recipients_ids[i]
+                    if recipient_id in all_recipients
                 ]
             )
 

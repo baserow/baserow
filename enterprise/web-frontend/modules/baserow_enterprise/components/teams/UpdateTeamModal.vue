@@ -113,14 +113,13 @@ export default {
               : Promise.resolve({ data: [] }),
           ])
         const userSubjectType = this.$registry.get('subject', 'auth.User')
-        const agentSubjectType = this.$registry.get('subject', 'core.Agent')
         const users = this.workspace.users.map((member) =>
           makeTeamSubject(member, userSubjectType)
         )
         const agents = (agentsResponse.results || agentsResponse).map((agent) =>
           makeTeamSubject(
             agent,
-            agentSubjectType,
+            userSubjectType,
             this.$t('manageTeamForm.agentLabel')
           )
         )

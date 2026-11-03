@@ -2,8 +2,9 @@ from django.urls import reverse
 
 import pytest
 
+from baserow.core.agents.handler import AgentHandler
 from baserow.core.agents.service import AgentService
-from baserow.core.models import Agent, WorkspaceUser
+from baserow.core.models import User, UserProfile, WorkspaceUser
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -20,6 +21,7 @@ def test_admin_can_crud_search_and_soft_delete_agents(data_fixture, api_client):
     assert response.status_code == 200
     agent_id = response.json()["id"]
     assert response.json()["last_active"] is None
+    assert response.json()["identity_type"] == "agent"
 
     api_client.post(url, {"name": "Other"}, format="json", **headers)
     response = api_client.get(f"{url}?search=Writer&sorts=%2Bname", **headers)
@@ -35,8 +37,8 @@ def test_admin_can_crud_search_and_soft_delete_agents(data_fixture, api_client):
     assert response.json()["name"] == "Writer 2"
 
     assert api_client.delete(item_url, **headers).status_code == 204
-    assert not Agent.objects.filter(id=agent_id).exists()
-    assert Agent.objects_and_trash.filter(id=agent_id, trashed=True).exists()
+    assert User.objects_and_agents.filter(id=agent_id, profile__trashed=True).exists()
+    assert not AgentHandler().get_queryset(workspace).filter(id=agent_id).exists()
 
 
 @pytest.mark.django_db
@@ -46,12 +48,13 @@ def test_agent_pagination_with_duplicate_names(data_fixture, api_client, sorts):
 
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    agents = Agent.objects.bulk_create(
-        [Agent(workspace=workspace, name=f"Agent {i % 3}") for i in range(400)]
-    )
+    agents = [
+        data_fixture.create_agent(workspace=workspace, name=f"Agent {i % 3}")
+        for i in range(400)
+    ]
     expected = sorted(agents, key=lambda agent: agent.id)
     if sorts:
-        expected.sort(key=lambda agent: agent.name, reverse=sorts == "-name")
+        expected.sort(key=lambda agent: agent.first_name, reverse=sorts == "-name")
 
     url = reverse("api:agents:workspace", kwargs={"workspace_id": workspace.id})
     result_ids = []
@@ -91,7 +94,7 @@ def test_member_can_list_but_cannot_mutate_agents(data_fixture, api_client):
     WorkspaceUser.objects.create(
         user=member, workspace=workspace, permissions="MEMBER", order=0
     )
-    Agent.objects.create(workspace=workspace, name="Visible")
+    data_fixture.create_agent(workspace=workspace, name="Visible")
     url = reverse("api:agents:workspace", kwargs={"workspace_id": workspace.id})
     headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
 
@@ -111,7 +114,7 @@ def test_nonmember_agent_mutations_return_user_not_in_workspace(
 
     admin = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin)
-    agent = Agent.objects.create(workspace=workspace, name="Writer")
+    agent = data_fixture.create_agent(workspace=workspace, name="Writer")
     _, token = data_fixture.create_user_and_token()
     headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
     workspace_url = reverse(
@@ -133,7 +136,7 @@ def test_nonmember_agent_mutations_return_user_not_in_workspace(
     assert response.status_code == 400
     assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
     assert list(
-        Agent.objects.filter(workspace=workspace).values_list("name", flat=True)
+        AgentHandler().get_queryset(workspace).values_list("first_name", flat=True)
     ) == ["Writer"]
 
 
@@ -209,11 +212,11 @@ def test_agent_openapi_operations_have_stable_ids_and_explicit_path_parameters(
 @pytest.mark.django_db
 def test_duplicate_agent_names_and_model_defaults(data_fixture):
     workspace = data_fixture.create_workspace()
-    first = Agent.objects.create(workspace=workspace, name="Same")
-    second = Agent.objects.create(workspace=workspace, name="Same")
+    first = data_fixture.create_agent(workspace=workspace, name="Same")
+    second = data_fixture.create_agent(workspace=workspace, name="Same")
 
-    assert first.role_uid == "MEMBER"
-    assert first.last_active is None
+    assert AgentHandler.get_role_uid(first) == "MEMBER"
+    assert first.profile.last_active is None
     assert first.id != second.id
 
 
@@ -221,10 +224,30 @@ def test_duplicate_agent_names_and_model_defaults(data_fixture):
 def test_admin_can_restore_agent(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
-    agent = Agent.objects.create(workspace=workspace, name="Writer")
+    agent = data_fixture.create_agent(workspace=workspace, name="Writer")
 
     AgentService().delete_agent(user, agent)
-    restored_agent = TrashHandler.restore_item(user, "agent", agent.id)
+    restored_profile = TrashHandler.restore_item(user, "agent", agent.profile.id)
 
-    assert restored_agent == agent
-    assert Agent.objects.filter(id=agent.id).exists()
+    assert restored_profile.user_id == agent.id
+    assert UserProfile.objects.filter(user=agent, trashed=False).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("length,status", [(150, 200), (151, 400)])
+def test_agent_names_accept_up_to_150_characters(
+    api_client, data_fixture, length, status
+):
+    """Agent users test plan 13.2.1."""
+
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+
+    response = api_client.post(
+        reverse("api:agents:workspace", kwargs={"workspace_id": workspace.id}),
+        {"name": "A" * length},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == status

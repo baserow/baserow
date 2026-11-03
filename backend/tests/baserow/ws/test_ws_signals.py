@@ -94,7 +94,7 @@ def test_agent_restore_emits_created_event(
     AgentService().delete_agent(user, agent)
     mock_broadcast_to_permitted_users.reset_mock()
 
-    TrashHandler.restore_item(user, "agent", agent.id)
+    TrashHandler.restore_item(user, "agent", agent.profile.id)
 
     args = mock_broadcast_to_permitted_users.delay.call_args[0]
     assert args[:4] == (

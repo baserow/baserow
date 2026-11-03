@@ -25,7 +25,6 @@ from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Agent
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import (
     InvalidContextContentDispatchException,
@@ -46,8 +45,10 @@ def test_local_baserow_create_rows_service_dispatch_data(
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
     )
-    agent = Agent.objects.create(workspace=page.builder.workspace, name="Row writer")
-    integration.authorized_subject_type = "core.Agent"
+    agent = data_fixture.create_agent(
+        workspace=page.builder.workspace, name="Row writer"
+    )
+    integration.authorized_subject_type = "auth.User"
     integration.authorized_subject_id = agent.id
     integration.save(update_fields=["authorized_subject_type", "authorized_subject_id"])
     database = data_fixture.create_database_application(
@@ -685,7 +686,9 @@ def test_local_baserow_upsert_row_service_dispatch_data_with_published_agent(
 ):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    agent = Agent.objects.create(workspace=page.builder.workspace, name="Row writer")
+    agent = data_fixture.create_agent(
+        workspace=page.builder.workspace, name="Row writer"
+    )
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user, authorized_agent=agent
     )

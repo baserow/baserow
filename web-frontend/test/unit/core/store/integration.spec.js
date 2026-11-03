@@ -325,7 +325,8 @@ describe('integration store', () => {
       ...integration,
       authorized_subject: {
         id: 3,
-        type: 'core.Agent',
+        type: 'auth.User',
+        identity_type: 'agent',
         name: 'Writer agent',
       },
       context_data: { databases: [{ id: 4, name: 'Agent database' }] },
@@ -337,7 +338,7 @@ describe('integration store', () => {
       integrationId: integration.id,
       values: {
         authorized_subject_id: 3,
-        authorized_subject_type: 'core.Agent',
+        authorized_subject_type: 'auth.User',
       },
     })
 

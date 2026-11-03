@@ -19,7 +19,7 @@ from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.mixins import TrashableModelMixin
-from baserow.core.models import Workspace, WorkspaceInvitation, WorkspaceUser
+from baserow.core.models import User, Workspace, WorkspaceInvitation, WorkspaceUser
 from baserow.core.object_scopes import CoreObjectScopeType, WorkspaceObjectScopeType
 from baserow.core.registries import (
     ObjectScopeType,
@@ -164,8 +164,15 @@ class RoleAssignmentHandler:
                     Q.AND,
                 )
 
-        return RoleAssignment.objects.filter(id_filters).exclude(
-            self._direct_workspace_roles_q()
+        return (
+            RoleAssignment.objects.filter(id_filters)
+            .exclude(
+                subject_type=ContentType.objects.get_for_model(User),
+                subject_id__in=User.objects_and_agents.filter(
+                    profile__trashed=True
+                ).values("id"),
+            )
+            .exclude(self._direct_workspace_roles_q())
         )
 
     def _direct_workspace_roles_q(self):
@@ -1359,7 +1366,13 @@ class RoleAssignmentHandler:
 
         prefetch_related_objects(
             [assignment for assignment in role_assignments if assignment is not None],
-            GenericPrefetch("subject", [TeamHandler().get_teams_queryset()]),
+            GenericPrefetch(
+                "subject",
+                [
+                    TeamHandler().get_teams_queryset(),
+                    User.objects_and_agents.select_related("profile"),
+                ],
+            ),
         )
 
     def get_role_assignments(self, workspace: Workspace, scope: Optional[ScopeObject]):

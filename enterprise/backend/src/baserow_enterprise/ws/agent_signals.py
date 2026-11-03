@@ -3,8 +3,9 @@ from django.dispatch import receiver
 
 from baserow.core.agents.handler import AgentHandler
 from baserow.core.agents.signals import agent_updated
-from baserow.core.agents.subjects import AgentSubjectType
-from baserow.core.models import Agent
+from baserow.core.models import User
+from baserow.core.subjects import UserSubjectType
+from baserow.core.user.identity import is_agent_user
 from baserow_enterprise.signals import (
     team_deleted,
     team_restored,
@@ -25,7 +26,7 @@ def notify_agents_after_team_change(workspace, agent_ids):
         for agent in agents:
             # Team responses do not update the caller's agent store, so include
             # the originating connection in this secondary event too.
-            agent_updated.send(Agent, agent=agent, user=None)
+            agent_updated.send(User, agent=agent, user=None)
 
     transaction.on_commit(notify)
 
@@ -35,7 +36,10 @@ def notify_agents_after_team_change(workspace, agent_ids):
 def agent_team_membership_changed(sender, subject, **kwargs):
     """Refresh an agent when its team membership is added or removed."""
 
-    if subject.subject_type_id == AgentSubjectType().get_content_type().id:
+    if (
+        subject.subject_type_id == UserSubjectType().get_content_type().id
+        and is_agent_user(subject.subject)
+    ):
         notify_agents_after_team_change(subject.team.workspace, [subject.subject_id])
 
 
@@ -47,7 +51,7 @@ def agent_team_changed(sender, team, **kwargs):
 
     agent_ids = list(
         TeamSubject.objects_and_trash.filter(
-            team=team, subject_type=AgentSubjectType().get_content_type()
+            team=team, subject_type=UserSubjectType().get_content_type()
         )
         .values_list("subject_id", flat=True)
         .distinct()

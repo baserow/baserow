@@ -19,6 +19,7 @@ from baserow.api.workspaces.serializers import (
 )
 from baserow.core import signals
 from baserow.core.agents import signals as agent_signals
+from baserow.core.agents.handler import AgentHandler
 from baserow.core.agents.operations import ListAgentsWorkspaceOperationType
 from baserow.core.ai_provider.signals import ai_provider_updated
 from baserow.core.db import specific_iterator
@@ -355,13 +356,13 @@ def agent_created(sender, agent, user=None, **kwargs):
 
     transaction.on_commit(
         lambda: broadcast_to_permitted_users.delay(
-            agent.workspace_id,
+            AgentHandler().get_workspace(agent).id,
             ListAgentsWorkspaceOperationType.type,
             "workspace",
-            agent.workspace_id,
+            AgentHandler().get_workspace(agent).id,
             {
                 "type": "agent_created",
-                "workspace_id": agent.workspace_id,
+                "workspace_id": AgentHandler().get_workspace(agent).id,
                 "agent": AgentSerializer(agent).data,
             },
             getattr(user, "web_socket_id", None),
@@ -375,13 +376,13 @@ def agent_updated(sender, agent, user, **kwargs):
 
     transaction.on_commit(
         lambda: broadcast_to_permitted_users.delay(
-            agent.workspace_id,
+            AgentHandler().get_workspace(agent).id,
             ListAgentsWorkspaceOperationType.type,
             "workspace",
-            agent.workspace_id,
+            AgentHandler().get_workspace(agent).id,
             {
                 "type": "agent_updated",
-                "workspace_id": agent.workspace_id,
+                "workspace_id": AgentHandler().get_workspace(agent).id,
                 "agent": AgentSerializer(agent).data,
             },
             getattr(user, "web_socket_id", None),
@@ -395,13 +396,13 @@ def agent_deleted(sender, agent, user, **kwargs):
 
     transaction.on_commit(
         lambda: broadcast_to_permitted_users.delay(
-            agent.workspace_id,
+            AgentHandler().get_workspace(agent).id,
             ListAgentsWorkspaceOperationType.type,
             "workspace",
-            agent.workspace_id,
+            AgentHandler().get_workspace(agent).id,
             {
                 "type": "agent_deleted",
-                "workspace_id": agent.workspace_id,
+                "workspace_id": AgentHandler().get_workspace(agent).id,
                 "agent_id": agent.id,
             },
             getattr(user, "web_socket_id", None),

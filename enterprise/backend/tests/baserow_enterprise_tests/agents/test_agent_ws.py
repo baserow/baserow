@@ -5,8 +5,7 @@ from django.db import transaction
 import pytest
 
 from baserow.core.agents.service import AgentService
-from baserow.core.agents.subjects import AgentSubjectType
-from baserow.core.models import Agent
+from baserow.core.subjects import UserSubjectType
 from baserow.core.trash.handler import TrashHandler
 from baserow.ws.tasks import broadcast_to_permitted_users
 from baserow_enterprise.role.handler import RoleAssignmentHandler
@@ -50,7 +49,7 @@ def test_agent_events_only_reach_users_allowed_to_list_agents(
         elif event == "delete":
             service.delete_agent(admin, agent)
         else:
-            TrashHandler.restore_item(admin, "agent", agent.id)
+            TrashHandler.restore_item(admin, "agent", agent.profile.id)
 
     broadcast.assert_called_once()
     user_ids, payload = broadcast.call_args.args
@@ -103,7 +102,7 @@ def test_team_changes_broadcast_current_agent_teams(
         with transaction.atomic():
             if change == "add":
                 handler.create_subject(
-                    admin, {"id": agent.id}, AgentSubjectType.type, team
+                    admin, {"id": agent.id}, UserSubjectType.type, team
                 )
             elif change in {"remove", "rollback"}:
                 membership = TeamSubject.objects.get(team=team, subject_id=agent.id)
@@ -113,7 +112,7 @@ def test_team_changes_broadcast_current_agent_teams(
                     []
                     if change == "replace"
                     else [
-                        {"subject_id": agent.id, "subject_type": AgentSubjectType.type}
+                        {"subject_id": agent.id, "subject_type": UserSubjectType.type}
                     ]
                 )
                 handler.update_team(admin, team, "Renamed", subjects=subjects)
@@ -145,7 +144,7 @@ def test_team_changes_broadcast_current_agent_teams(
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
-def test_human_team_changes_do_not_broadcast_an_agent_with_the_same_id(
+def test_human_team_changes_do_not_broadcast_an_agent(
     data_fixture, enterprise_data_fixture, enable_enterprise, synced_roles
 ):
     """Only agent memberships should trigger agent metadata broadcasts."""
@@ -153,7 +152,7 @@ def test_human_team_changes_do_not_broadcast_an_agent_with_the_same_id(
     member = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin, members=[member])
     team = enterprise_data_fixture.create_team(workspace=workspace)
-    Agent.objects.create(id=member.id, workspace=workspace, name="Same ID")
+    data_fixture.create_agent(workspace=workspace, name="Another identity")
     with patch("baserow.ws.signals.broadcast_to_permitted_users.delay") as broadcast:
         TeamHandler().create_subject(admin, {"id": member.id}, "auth.User", team)
     broadcast.assert_not_called()

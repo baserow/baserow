@@ -239,7 +239,6 @@ class FieldPermissionSubjectOptionsView(APIView):
             search=query_params.get("search") or "",
             exclude_user_ids=query_params["exclude_user_ids"],
             exclude_team_ids=query_params["exclude_team_ids"],
-            exclude_agent_ids=query_params["exclude_agent_ids"],
         )
 
         paginator = PageNumberPagination(limit_page_size=100)

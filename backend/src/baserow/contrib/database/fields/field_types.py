@@ -7843,9 +7843,11 @@ class MultipleCollaboratorsFieldType(
 
         user_ids = [v["id"] if isinstance(v, dict) else v for v in value]
         workspace = instance.table.database.workspace
-        workspace_users_count = WorkspaceUser.objects.filter(
-            user_id__in=user_ids, workspace_id=workspace.id
-        ).count()
+        workspace_users_count = (
+            WorkspaceUser.objects.people()
+            .filter(user_id__in=user_ids, workspace_id=workspace.id)
+            .count()
+        )
 
         if workspace_users_count != len(user_ids):
             raise AllProvidedCollaboratorIdsMustBeValidUsers(user_ids)
@@ -7867,9 +7869,11 @@ class MultipleCollaboratorsFieldType(
 
         workspace = instance.table.database.workspace
 
-        selected_ids = WorkspaceUser.objects.filter(
-            user_id__in=all_user_ids, workspace_id=workspace.id
-        ).values_list("user_id", flat=True)
+        selected_ids = (
+            WorkspaceUser.objects.people()
+            .filter(user_id__in=all_user_ids, workspace_id=workspace.id)
+            .values_list("user_id", flat=True)
+        )
 
         if len(selected_ids) != len(all_user_ids):
             invalid_ids = sorted(list(all_user_ids - set(selected_ids)))
@@ -7992,9 +7996,9 @@ class MultipleCollaboratorsFieldType(
             "db_constraint": False,
         }
         additional_filters = {
-            "id__in": WorkspaceUser.objects.filter(
-                workspace_id=instance.table.database.workspace_id
-            ).values_list("user_id", flat=True)
+            "id__in": WorkspaceUser.objects.people()
+            .filter(workspace_id=instance.table.database.workspace_id)
+            .values_list("user_id", flat=True)
         }
 
         MultipleSelectManyToManyField(
@@ -8042,9 +8046,11 @@ class MultipleCollaboratorsFieldType(
             # containing a mapping of the row ids to collaborator emails.
             cache[cache_entry] = defaultdict(list)
 
-            workspaceusers_from_workspace = WorkspaceUser.objects.filter(
-                workspace_id=workspace_id
-            ).select_related("user")
+            workspaceusers_from_workspace = (
+                WorkspaceUser.objects.people()
+                .filter(workspace_id=workspace_id)
+                .select_related("user")
+            )
 
             for workspaceuser in workspaceusers_from_workspace:
                 cache[cache_entry][workspaceuser.user.email] = workspaceuser.user.id
@@ -8078,9 +8084,9 @@ class MultipleCollaboratorsFieldType(
         cache_entry = f"collaborator_id_to_email_export_{workspace_id}"
         if cache_entry not in cache:
             cache[cache_entry] = dict(
-                WorkspaceUser.objects.filter(workspace_id=workspace_id).values_list(
-                    "user_id", "user__email"
-                )
+                WorkspaceUser.objects.people()
+                .filter(workspace_id=workspace_id)
+                .values_list("user_id", "user__email")
             )
 
         id_to_email = cache[cache_entry]
@@ -8098,9 +8104,8 @@ class MultipleCollaboratorsFieldType(
         if cache_key not in cache:
             cache[cache_key] = {
                 workspace_user["user__email"]: workspace_user
-                for workspace_user in WorkspaceUser.objects.filter(
-                    workspace_id=workspace_id
-                )
+                for workspace_user in WorkspaceUser.objects.people()
+                .filter(workspace_id=workspace_id)
                 .select_related("user")
                 .values("user__email", "user__first_name", "user_id")
             }
@@ -8124,9 +8129,11 @@ class MultipleCollaboratorsFieldType(
 
         if cache_entry_name not in cache:
             table = Table.objects.get(id=instance.table_id)
-            workspaceusers_ids = WorkspaceUser.objects.filter(
-                workspace=table.database.workspace_id
-            ).values_list("user_id", flat=True)
+            workspaceusers_ids = (
+                WorkspaceUser.objects.people()
+                .filter(workspace=table.database.workspace_id)
+                .values_list("user_id", flat=True)
+            )
             cache[cache_entry_name] = list(workspaceusers_ids)
 
         collaborators = cache[cache_entry_name]

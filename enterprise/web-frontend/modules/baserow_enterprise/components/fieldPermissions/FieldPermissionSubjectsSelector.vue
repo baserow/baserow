@@ -92,7 +92,6 @@ import FieldPermissionSubjectDropdownItem from '@baserow_enterprise/components/f
 import FieldPermissionService from '@baserow_enterprise/services/fieldPermissions'
 
 const USER_SUBJECT_TYPE = 'auth.User'
-const AGENT_SUBJECT_TYPE = 'core.Agent'
 const TEAM_SUBJECT_TYPE = 'baserow_enterprise.Team'
 
 export default {
@@ -126,11 +125,6 @@ export default {
     selectedUserIds() {
       return this.selectedSubjects
         .filter(({ subjectType }) => subjectType === USER_SUBJECT_TYPE)
-        .map(({ subjectId }) => subjectId)
-    },
-    selectedAgentIds() {
-      return this.selectedSubjects
-        .filter(({ subjectType }) => subjectType === AGENT_SUBJECT_TYPE)
         .map(({ subjectId }) => subjectId)
     },
     selectedTeamIds() {
@@ -210,7 +204,6 @@ export default {
         search: normalizedSearch,
         exclude_user_ids: this.selectedUserIds.join(','),
         exclude_team_ids: this.selectedTeamIds.join(','),
-        exclude_agent_ids: this.selectedAgentIds.join(','),
       })
       return {
         ...response,

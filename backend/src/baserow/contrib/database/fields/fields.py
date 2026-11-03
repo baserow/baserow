@@ -1,6 +1,7 @@
 from typing import Any, Optional
 from uuid import UUID
 
+from django.contrib.auth import get_user_model
 from django.db import models
 from django.db.models import Field
 from django.db.models.expressions import RawSQL
@@ -30,7 +31,10 @@ class IgnoreMissingForwardManyToOneDescriptor(ForwardManyToOneDescriptor):
         otherwise.
         """
 
-        return self.field.remote_field.model.objects.all()
+        model = self.field.remote_field.model
+        if model is get_user_model():
+            return model._base_manager.all()
+        return model.objects.all()
 
     def get_object(self, instance):
         """

@@ -353,7 +353,7 @@ test('members and agents offer their roles as row expansions', () => {
   const agents = new EnterpriseRolesAgentExtensionType({ app })
   expect(agents.isActive({ id: 12 })).toBe(true)
   expect(agents.getRowExpansion().getProps({ id: 5 })).toEqual({
-    subjectType: 'core.Agent',
+    subjectType: 'auth.User',
     subjectId: 5,
     roleColumnKey: 'role_uid',
     readOnly: false,

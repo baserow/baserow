@@ -11,7 +11,7 @@ const roles = [
 const workspace = { id: 12, name: 'Widelab', _: { roles } }
 const users = [{ user_id: 8, name: 'Mark Delgado', email: 'mark@x.com' }]
 const teams = [{ id: 3, name: 'Management', subject_count: 2 }]
-const agents = [{ id: 4, name: 'Smith' }]
+const agents = [{ id: 4, name: 'Smith', identity_type: 'agent' }]
 
 async function mountInput(props = {}) {
   return await mountSuspended(ShareScopeInput, {
@@ -220,32 +220,30 @@ test('only mentions and offers the subject types it is given', async () => {
 
   const withAgents = await mountInput({
     subjects: {
-      'auth.User': users,
+      'auth.User': [...users, ...agents],
       'baserow_enterprise.Team': teams,
-      'core.Agent': agents,
     },
   })
   try {
     const input = withAgents.find('input')
     expect(input.attributes('placeholder')).toBe(
-      'shareScope.searchPlaceholder: subjecttype.members, subjecttype.teams, subjecttype.agents'
+      'shareScope.searchPlaceholder: subjecttype.members, subjecttype.teams'
     )
     await input.trigger('focus')
     expect(tabLabels(withAgents)).toEqual([
       'inviteInput.tabAll',
       'subjectType.members',
       'subjectType.teams',
-      'subjectType.agents',
     ])
     expect(itemTitles(withAgents)).toEqual([
       'Mark Delgado',
-      'Management',
       'Smith',
+      'Management',
     ])
 
     await input.setValue('nobody')
     expect(withAgents.find('.invite-input__empty').text()).toBe(
-      'shareScope.noResults: subjecttype.members, subjecttype.teams, or subjecttype.agents'
+      'shareScope.noResults: subjecttype.members or subjecttype.teams'
     )
   } finally {
     withAgents.unmount()

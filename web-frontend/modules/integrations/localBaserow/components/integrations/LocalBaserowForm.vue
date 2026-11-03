@@ -97,7 +97,8 @@ export default {
       return SubjectService(this.$client).list(this.application.workspace.id, {
         page,
         search,
-        subjectTypes: 'core.Agent',
+        subjectTypes: 'auth.User',
+        identityType: 'agent',
       })
     },
     setAuthenticationSubject({ value, item }) {

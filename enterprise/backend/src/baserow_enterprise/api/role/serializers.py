@@ -354,6 +354,9 @@ class EffectiveAccessSerializer(serializers.Serializer):
         help_text="The type of the subject: a user or an agent."
     )
     subject_id = serializers.SerializerMethodField(help_text="The subject's id.")
+    identity_type = serializers.CharField(
+        source="subject.profile.identity_type", read_only=True
+    )
     role = serializers.SerializerMethodField(
         help_text="The uid of the role the subject effectively holds on the scope."
     )

@@ -506,3 +506,84 @@ def test_0133_adds_template_metadata_and_lets_revisions_share_a_workspace(
 
     NewTemplate.objects.update(public_revision=None)
     NewTemplate.objects.all().delete()
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0135_identity_upgrade_and_guarded_rollback(migrator, teardown_table_metadata):
+    previous = [("core", "0134_downloadusertemplatejob")]
+    current = [("core", "0135_user_identities")]
+    old_state = migrator.migrate(previous)
+    OldUser = old_state.apps.get_model("auth", "User")
+    OldProfile = old_state.apps.get_model("core", "UserProfile")
+    human = OldUser.objects.create(username="human@example.com")
+    OldProfile.objects.create(user_id=human.id, timezone="UTC")
+
+    new_state = migrator.migrate(current)
+    Profile = new_state.apps.get_model("core", "UserProfile")
+    assert Profile._base_manager.get(user_id=human.id).identity_type == "human"
+    assert "core_agent" not in connection.introspection.table_names()
+
+    User = new_state.apps.get_model("auth", "User")
+    agent = User.objects.create(username="agent@example.invalid", is_active=True)
+    Profile._base_manager.create(
+        user_id=agent.id, identity_type="agent", trashed=True, timezone="UTC"
+    )
+    with pytest.raises(RuntimeError, match="while agent Users exist"):
+        migrator.migrate(previous)
+    assert Profile._base_manager.get(user_id=agent.id).identity_type == "agent"
+    assert User.objects.get(id=agent.id).is_active
+    assert "core_agent" not in connection.introspection.table_names()
+
+    Profile._base_manager.filter(user_id=agent.id).delete()
+    User.objects.filter(id=agent.id).delete()
+    reversed_state = migrator.migrate(previous)
+    OldProfile = reversed_state.apps.get_model("core", "UserProfile")
+    assert "identity_type" not in {field.name for field in OldProfile._meta.fields}
+    assert "core_agent" in connection.introspection.table_names()
+
+
+@pytest.mark.once_per_day_in_ci
+@pytest.mark.parametrize("legacy", ["agent", "trash", "action"])
+def test_0135_refuses_legacy_data_before_schema_changes(
+    migrator, teardown_table_metadata, legacy
+):
+    previous = [("core", "0134_downloadusertemplatejob")]
+    old_state = migrator.migrate(previous)
+    Workspace = old_state.apps.get_model("core", "Workspace")
+    Agent = old_state.apps.get_model("core", "Agent")
+    TrashEntry = old_state.apps.get_model("core", "TrashEntry")
+    Action = old_state.apps.get_model("core", "Action")
+    workspace = Workspace.objects.create(name="Legacy data")
+    if legacy == "agent":
+        item = Agent.objects.create(workspace=workspace, name="Legacy")
+    elif legacy == "trash":
+        item = TrashEntry.objects.create(
+            workspace=workspace,
+            trash_item_type="agent",
+            trash_item_id=123,
+            name="Legacy",
+        )
+    else:
+        item = Action.objects.create(
+            type="batch_assign_role",
+            scope="workspace",
+            params={
+                "assignments": [{"subject_type_name": "core.Agent", "subject_id": 123}]
+            },
+        )
+    try:
+        with pytest.raises(
+            RuntimeError, match="Cannot replace legacy Agent identities"
+        ):
+            migrator.migrate([("core", "0135_user_identities")])
+        assert type(item).objects.filter(id=item.id).exists()
+        columns = {
+            field.name
+            for field in connection.introspection.get_table_description(
+                connection.cursor(), "core_userprofile"
+            )
+        }
+        assert "identity_type" not in columns
+        assert "core_agent" in connection.introspection.table_names()
+    finally:
+        item.delete()

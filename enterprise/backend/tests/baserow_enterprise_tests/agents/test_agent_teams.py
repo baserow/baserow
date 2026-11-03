@@ -4,11 +4,12 @@ import pytest
 from rest_framework.exceptions import ValidationError
 
 from baserow.api.agents.serializers import AgentSerializer
+from baserow.core.agents.handler import AgentHandler
 from baserow.core.agents.operations import ListAgentsWorkspaceOperationType
 from baserow.core.agents.service import AgentService
-from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Agent
+from baserow.core.models import User
+from baserow.core.subjects import UserSubjectType
 from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.features import TEAMS
 from baserow_enterprise.role.handler import RoleAssignmentHandler
@@ -39,7 +40,7 @@ def test_create_update_and_delete_agent_team_memberships(
         name="Writer",
         team_ids=[first.id],
     )
-    assert agent.role_uid == "NO_ACCESS"
+    assert AgentHandler().get_role_uid(agent) == "NO_ACCESS"
     assert AgentSerializer(agent).data["teams"] == [{"id": first.id, "name": "First"}]
 
     agent = AgentService().update_agent(user, agent, team_ids=[second.id])
@@ -47,12 +48,12 @@ def test_create_update_and_delete_agent_team_memberships(
 
     AgentService().delete_agent(user, agent)
     assert TeamSubject.objects.filter(
-        subject_type=AgentSubjectType().get_content_type(),
+        subject_type=UserSubjectType().get_content_type(),
         subject_id=agent.id,
         team=second,
     ).exists()
     assert not TeamHandler().list_subjects_in_team(second.id).exists()
-    assert Agent.objects_and_trash.get(id=agent.id).trashed
+    assert User.objects_and_agents.get(id=agent.id).profile.trashed
 
 
 @pytest.mark.django_db
@@ -77,13 +78,13 @@ def test_team_edit_updates_agent_subjects(data_fixture, enterprise_data_fixture)
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     team = enterprise_data_fixture.create_team(workspace=workspace)
-    retained_agent = Agent.objects.create(workspace=workspace, name="Writer")
-    removed_agent = Agent.objects.create(workspace=workspace, name="Researcher")
+    retained_agent = data_fixture.create_agent(workspace=workspace, name="Writer")
+    removed_agent = data_fixture.create_agent(workspace=workspace, name="Researcher")
     TeamHandler().create_subject(
-        user, {"id": retained_agent.id}, AgentSubjectType.type, team
+        user, {"id": retained_agent.id}, UserSubjectType.type, team
     )
     TeamHandler().create_subject(
-        user, {"id": removed_agent.id}, AgentSubjectType.type, team
+        user, {"id": removed_agent.id}, UserSubjectType.type, team
     )
 
     TeamHandler().update_team(
@@ -91,7 +92,7 @@ def test_team_edit_updates_agent_subjects(data_fixture, enterprise_data_fixture)
         team,
         "Renamed",
         subjects=[
-            {"subject_id": retained_agent.id, "subject_type": AgentSubjectType.type}
+            {"subject_id": retained_agent.id, "subject_type": UserSubjectType.type}
         ],
     )
 
@@ -108,9 +109,9 @@ def test_list_teams_in_workspace_includes_agent_in_subject_sample(
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     team = enterprise_data_fixture.create_team(workspace=workspace)
-    agent = Agent.objects.create(workspace=workspace, name="Writer")
+    agent = data_fixture.create_agent(workspace=workspace, name="Writer")
     team_subject = TeamHandler().create_subject(
-        user, {"id": agent.id}, AgentSubjectType.type, team
+        user, {"id": agent.id}, UserSubjectType.type, team
     )
 
     result = TeamHandler().list_teams_in_workspace(user, workspace).get()
@@ -119,8 +120,9 @@ def test_list_teams_in_workspace_includes_agent_in_subject_sample(
         {
             "team_subject_id": team_subject.id,
             "subject_id": agent.id,
-            "subject_type": AgentSubjectType.type,
-            "subject_label": agent.name,
+            "subject_type": UserSubjectType.type,
+            "subject_label": agent.first_name,
+            "identity_type": "agent",
         }
     ]
 
@@ -151,7 +153,7 @@ def test_agent_team_workspace_role_inheritance(
         **({"role_uid": role_uid} if role_uid is not None else {}),
     )
 
-    assert agent.role_uid == (role_uid or "NO_ACCESS")
+    assert AgentHandler().get_role_uid(agent) == (role_uid or "NO_ACCESS")
     role_handler = RoleAssignmentHandler()
     assert role_handler.get_roles_per_scope(workspace, agent)[0] == (
         workspace,
@@ -295,15 +297,15 @@ def test_enterprise_admin_can_restore_agent(data_fixture):
     agent = AgentService().create_agent(user, workspace, name="Writer")
     AgentService().delete_agent(user, agent)
 
-    restored_agent = TrashHandler.restore_item(user, "agent", agent.id)
+    restored_agent = TrashHandler.restore_item(user, "agent", agent.profile.id)
 
-    assert restored_agent == agent
-    assert Agent.objects.filter(id=agent.id).exists()
+    assert restored_agent.user == agent
+    assert User.objects_and_agents.filter(id=agent.id).exists()
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("teams_enabled", [True, False])
-def test_agent_list_loads_workspace_and_team_summaries_in_one_query(
+def test_agent_list_loads_workspace_and_team_summaries_without_per_agent_queries(
     data_fixture, enterprise_data_fixture, django_assert_num_queries, teams_enabled
 ):
     from baserow.core.agents.handler import AgentHandler
@@ -314,7 +316,7 @@ def test_agent_list_loads_workspace_and_team_summaries_in_one_query(
         workspace=workspace, trashed=True
     )
     agents = [
-        Agent.objects.create(workspace=workspace, name=f"Agent {index}")
+        data_fixture.create_agent(workspace=workspace, name=f"Agent {index}")
         for index in range(5)
     ]
     for agent in agents:
@@ -326,7 +328,7 @@ def test_agent_list_loads_workspace_and_team_summaries_in_one_query(
     ) as workspace_has_feature:
         queryset = AgentHandler().get_queryset(workspace)
 
-        with django_assert_num_queries(1):
+        with django_assert_num_queries(2):
             result = AgentSerializer(queryset, many=True).data
 
     workspace_has_feature.assert_called_once_with(TEAMS, workspace)
@@ -346,9 +348,8 @@ def test_agent_team_memberships_survive_trash_restore_and_team_edits(
     member = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user, members=[member])
     team = enterprise_data_fixture.create_team(workspace=workspace)
-    # Overlapping IDs must not hide the human when the agent is trashed.
-    agent = Agent.objects.create(
-        id=member.id,
+    # Trashed agents must not hide unrelated human memberships.
+    agent = data_fixture.create_agent(
         workspace=workspace,
         name="Writer",
         role_uid="NO_ROLE_LOW_PRIORITY",
@@ -358,7 +359,7 @@ def test_agent_team_memberships_survive_trash_restore_and_team_edits(
         user, {"id": member.id}, "auth.User", team
     )
     agent_membership = team_handler.create_subject(
-        user, {"id": agent.id}, AgentSubjectType.type, team
+        user, {"id": agent.id}, UserSubjectType.type, team
     )
     role_handler = RoleAssignmentHandler()
     builder = role_handler.get_role_by_uid("BUILDER")
@@ -368,6 +369,7 @@ def test_agent_team_memberships_survive_trash_restore_and_team_edits(
 
     AgentService().delete_agent(user, agent)
     assert TeamSubject.objects.filter(id=agent_membership.id).exists()
+    assert role_handler.get_role_assignments(workspace, database.application_ptr) == []
     visible_team = team_handler.list_teams_in_workspace(
         user, workspace, subject_sample_size=1
     ).get()
@@ -389,7 +391,7 @@ def test_agent_team_memberships_survive_trash_restore_and_team_edits(
         subjects=[{"subject_id": member.id, "subject_type": "auth.User"}],
     )
     assert TeamSubject.objects.filter(id=agent_membership.id).exists()
-    restored = TrashHandler.restore_item(user, "agent", agent.id)
+    restored = TrashHandler.restore_item(user, "agent", agent.profile.id).user
     assert AgentSerializer(restored).data["teams"] == [
         {"id": team.id, "name": "Renamed"}
     ]
@@ -406,6 +408,10 @@ def test_agent_team_memberships_survive_trash_restore_and_team_edits(
     assert dict(role_handler.get_roles_per_scope(workspace, restored))[workspace] == [
         builder
     ]
+    restored_assignments = role_handler.get_role_assignments(
+        workspace, database.application_ptr
+    )
+    assert [assignment.subject for assignment in restored_assignments] == [restored]
     assert (
         role_handler.get_current_role_assignment(
             restored, workspace, database.application_ptr
@@ -419,7 +425,7 @@ def test_agent_team_memberships_survive_trash_restore_and_team_edits(
 def test_permanent_agent_deletion_cleans_access_records(
     data_fixture, enterprise_data_fixture, team_trashed
 ):
-    """Permanent deletion prevents generic access records applying to a reused ID."""
+    """Permanent deletion removes retained team memberships and scoped roles."""
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     team = enterprise_data_fixture.create_team(workspace=workspace)
@@ -436,7 +442,7 @@ def test_permanent_agent_deletion_cleans_access_records(
         role_handler.get_role_by_uid("BUILDER"),
         scope=database.application_ptr,
     )
-    agent_content_type = AgentSubjectType().get_content_type()
+    agent_content_type = UserSubjectType().get_content_type()
     assignment_id = RoleAssignment.objects.get(
         subject_type=agent_content_type, subject_id=agent.id
     ).id
@@ -446,21 +452,21 @@ def test_permanent_agent_deletion_cleans_access_records(
     assert TeamSubject.objects_and_trash.filter(id=membership_id).exists()
     assert RoleAssignment.objects.filter(id=assignment_id).exists()
 
-    TrashHandler.permanently_delete(agent)
+    TrashHandler.permanently_delete(agent.profile)
 
-    assert not Agent.objects_and_trash.filter(id=agent_id).exists()
+    assert not User.objects_and_agents.filter(id=agent_id).exists()
     assert not TeamSubject.objects_and_trash.filter(id=membership_id).exists()
     assert not RoleAssignment.objects.filter(id=assignment_id).exists()
 
-    reused_agent = Agent.objects.create(
-        id=agent_id, workspace=workspace, name="Reused", role_uid="NO_ACCESS"
+    new_agent = data_fixture.create_agent(
+        workspace=workspace, name="New identity", role_uid="NO_ACCESS"
     )
     assert not TeamSubject.objects_and_trash.filter(
-        subject_type=agent_content_type, subject_id=reused_agent.id
+        subject_type=agent_content_type, subject_id=new_agent.id
     ).exists()
     assert (
         role_handler.get_current_role_assignment(
-            reused_agent, workspace, database.application_ptr
+            new_agent, workspace, database.application_ptr
         )
         is None
     )

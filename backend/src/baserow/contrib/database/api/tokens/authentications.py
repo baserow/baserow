@@ -9,6 +9,7 @@ from baserow.contrib.database.tokens.handler import TokenHandler
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.sentry import setup_user_in_sentry
 from baserow.core.telemetry.utils import setup_user_in_baggage_and_spans
+from baserow.core.user.identity import is_human_user
 
 
 class TokenAuthentication(BaseAuthentication):
@@ -48,6 +49,14 @@ class TokenAuthentication(BaseAuthentication):
             msg = "The provided token does not exist."
             raise AuthenticationFailed(
                 {"detail": msg, "error": "ERROR_TOKEN_DOES_NOT_EXIST"}
+            )
+
+        if not is_human_user(token.user):
+            raise AuthenticationFailed(
+                {
+                    "detail": "The provided token does not exist.",
+                    "error": "ERROR_TOKEN_DOES_NOT_EXIST",
+                }
             )
 
         if not token.user.is_active:

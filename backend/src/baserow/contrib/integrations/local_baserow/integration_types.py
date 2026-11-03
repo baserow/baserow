@@ -19,6 +19,7 @@ from baserow.core.integrations.registries import IntegrationType
 from baserow.core.integrations.types import IntegrationDict
 from baserow.core.models import Application
 from baserow.core.registries import ImportExportConfig, subject_type_registry
+from baserow.core.user.identity import is_agent_user
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -72,7 +73,7 @@ class LocalBaserowIntegrationType(IntegrationType):
             help_text="The ID of the subject whose permissions authenticate the integration.",
         ),
         "authorized_subject_type": serializers.ChoiceField(
-            choices=["auth.User", "core.Agent"], required=False, allow_null=True
+            choices=["auth.User"], required=False, allow_null=True
         ),
     }
 
@@ -112,7 +113,9 @@ class LocalBaserowIntegrationType(IntegrationType):
                 "authorized_subject_id and authorized_subject_type must be provided together."
             )
         else:
-            if subject_type_name == "auth.User" and subject_id != user.id:
+            subject_type = subject_type_registry.get(subject_type_name)
+            subject = subject_type_registry.get_subject(subject_type_name, subject_id)
+            if subject_id != user.id and not is_agent_user(subject):
                 raise serializers.ValidationError(
                     {
                         "authorized_subject_id": (
@@ -120,16 +123,10 @@ class LocalBaserowIntegrationType(IntegrationType):
                         )
                     }
                 )
-            subject_type = subject_type_registry.get(subject_type_name)
-            subject = subject_type_registry.get_subject(subject_type_name, subject_id)
             workspace = application.workspace
             if subject is None or not subject_type.is_in_workspace(subject, workspace):
                 raise serializers.ValidationError(
                     {"authorized_subject_id": "The subject does not exist."}
-                )
-            if getattr(subject, "trashed", False):
-                raise serializers.ValidationError(
-                    {"authorized_subject_id": "The agent is trashed."}
                 )
 
         return super().prepare_values(
@@ -178,18 +175,8 @@ class LocalBaserowIntegrationType(IntegrationType):
         """Preserve canonical authorization only in same-workspace publications."""
 
         if import_export_config and import_export_config.is_publishing:
-            subject = None
-            if instance.authorized_subject_type and instance.authorized_subject_id:
-                subject_type = subject_type_registry.get(
-                    instance.authorized_subject_type
-                )
-                manager = getattr(
-                    subject_type.model_class,
-                    "objects_and_trash",
-                    subject_type.model_class.objects,
-                )
-                subject = manager.filter(id=instance.authorized_subject_id).first()
-            if getattr(subject, "trashed", False):
+            subject = instance.authorized_subject_including_trash
+            if is_agent_user(subject) and subject.profile.trashed:
                 raise IntegrationImproperlyConfigured(
                     "The authorized subject is trashed."
                 )
@@ -253,6 +240,11 @@ class LocalBaserowIntegrationType(IntegrationType):
             cache = {}
 
         serialized_values = serialized_values.copy()
+        if serialized_values.get("authorized_subject_type") == "core.Agent":
+            raise IntegrationImproperlyConfigured(
+                "Legacy agent authorization is unsupported. Reauthorize the integration "
+                "before exporting it."
+            )
         username = serialized_values.pop("authorized_user", None)
         if username:
             workspace_users = cache.setdefault(

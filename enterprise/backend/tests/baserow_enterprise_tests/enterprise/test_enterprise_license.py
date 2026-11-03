@@ -2179,3 +2179,21 @@ def test_enterprise_settings_feature_allow_co_branding_in_emails(data_fixture, t
             == f"http://localhost:8000/media/user_files/{user_file.name}"
         )
         assert email_context["logo_additional_text"] == "by Baserow"
+
+
+@pytest.mark.django_db
+def test_agent_roles_do_not_consume_seats(enterprise_data_fixture, synced_roles):
+    human = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=human)
+    agent = enterprise_data_fixture.create_agent(workspace=workspace, role_uid="ADMIN")
+    summary = RoleBasedSeatUsageSummaryCalculator.get_seat_usage_for_workspace(
+        workspace
+    )
+    assert summary.seats_taken == 1
+    assert agent.id not in summary.highest_role_per_user_id
+    assert (
+        RoleBasedSeatUsageSummaryCalculator.get_seat_usage_for_specific_users(
+            [agent.id]
+        ).seats_taken
+        == 0
+    )

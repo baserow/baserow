@@ -6,6 +6,8 @@ from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.settings import api_settings as jwt_settings
 from rest_framework_simplejwt.tokens import AccessToken, Token
 
+from baserow.core.user.identity import is_human_user
+
 
 def user_is_valid_for_token(user: AbstractUser, token: Token) -> bool:
     """
@@ -20,7 +22,8 @@ def user_is_valid_for_token(user: AbstractUser, token: Token) -> bool:
     """
 
     return (
-        user.is_active
+        is_human_user(user)
+        and user.is_active
         and not user.profile.to_be_deleted
         and user.profile.is_jwt_token_valid(token)
     )
@@ -69,7 +72,7 @@ def get_user_from_token(
         # It could happen if the user was deleted after the token was issued.
         raise InvalidToken("User does not exist.")
 
-    if not user.profile.is_jwt_token_valid(token):
+    if not is_human_user(user) or not user.profile.is_jwt_token_valid(token):
         raise InvalidToken("Token is invalidated.")
 
     if not user.is_active:

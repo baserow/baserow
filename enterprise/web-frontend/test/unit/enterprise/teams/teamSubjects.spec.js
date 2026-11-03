@@ -7,16 +7,13 @@ import {
   getTeamSubjectKey,
   makeTeamSubject,
 } from '@baserow_enterprise/utils/teamSubjects'
-import {
-  AgentSubjectType,
-  UserSubjectType,
-} from '@baserow/modules/core/subjectTypes'
+import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
 
 const userSubjectType = new UserSubjectType()
-const agentSubjectType = new AgentSubjectType()
+const agentSubjectType = new UserSubjectType()
 
 describe('teamSubjects', () => {
-  test('normalizes users and agents with collision-safe selection IDs', () => {
+  test('normalizes users and agents with User selection IDs', () => {
     const user = makeTeamSubject(
       {
         id: 10,
@@ -27,7 +24,7 @@ describe('teamSubjects', () => {
       userSubjectType
     )
     const agent = makeTeamSubject(
-      { id: 1, name: 'Writer' },
+      { id: 2, name: 'Writer', identity_type: 'agent' },
       agentSubjectType,
       'Agent'
     )
@@ -41,10 +38,11 @@ describe('teamSubjects', () => {
       email: 'ada@example.com',
     })
     expect(agent).toEqual({
-      id: 'core.Agent:1',
-      subject_id: 1,
-      subject_type: 'core.Agent',
+      id: 'auth.User:2',
+      subject_id: 2,
+      subject_type: 'auth.User',
       name: 'Writer',
+      identity_type: 'agent',
       email: 'Agent',
     })
     expect(getTeamSubjectKey(user)).not.toBe(getTeamSubjectKey(agent))
@@ -52,7 +50,7 @@ describe('teamSubjects', () => {
 
   test('shows agents in the member selector with their avatar component', async () => {
     const agent = makeTeamSubject(
-      { id: 1, name: 'Writer' },
+      { id: 2, name: 'Writer', identity_type: 'agent' },
       agentSubjectType,
       'Agent'
     )
@@ -76,7 +74,7 @@ describe('teamSubjects', () => {
             },
             {
               subject_id: 2,
-              subject_type: 'core.Agent',
+              subject_type: 'auth.User',
               subject_label: 'Writer',
             },
           ],
@@ -90,7 +88,7 @@ describe('teamSubjects', () => {
 
   test('removing an agent does not submit the team form', async () => {
     const agent = makeTeamSubject(
-      { id: 1, name: 'Writer' },
+      { id: 2, name: 'Writer', identity_type: 'agent' },
       agentSubjectType,
       'Agent'
     )

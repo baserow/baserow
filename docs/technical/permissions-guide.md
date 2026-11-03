@@ -65,6 +65,14 @@ Group).
 
 **Subject**: includes all _Actors_ but also groups of _Actors_ like `Teams`.
 
+People and agent identities are both `auth.User` subjects. The immutable
+`UserProfile.identity_type` distinguishes them; their roles and grants use the same
+workspace memberships, teams and field permissions. `User.objects` lists people;
+permission and identity-resolution code opts into `User.objects_and_agents`.
+An agent must have one workspace membership and be active and untrashed to execute,
+even for trash-inclusive checks. Human account grants and authentication explicitly
+require a human identity; `isinstance(actor, User)` does not establish that.
+
 **Personal API Token**: An authentication token which can be created by users in
 their settings area in Baserow. It is owned by a `User`, for a _Workspace_,
 allowing access to some of our API endpoints.

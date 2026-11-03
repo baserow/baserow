@@ -10,7 +10,6 @@ from rest_framework.status import (
 )
 
 from baserow.core.cache import local_cache
-from baserow.core.models import Agent
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 
@@ -164,13 +163,15 @@ def test_list_subject_role_assignments_of_teams_and_agents(
     table.database.workspace = workspace
     table.database.save()
     team = enterprise_data_fixture.create_team(workspace=workspace)
-    agent = Agent.objects.create(workspace=workspace, name="Bot", role_uid="VIEWER")
+    agent = data_fixture.create_agent(
+        workspace=workspace, name="Bot", role_uid="VIEWER"
+    )
     assign(team, workspace, "EDITOR", table)
     assign(agent, workspace, "VIEWER", table)
 
     for subject_type, subject_id, role in [
         ("baserow_enterprise.Team", team.id, "EDITOR"),
-        ("core.Agent", agent.id, "VIEWER"),
+        ("auth.User", agent.id, "VIEWER"),
     ]:
         response = list_subject_role_assignments(
             api_client,
@@ -225,7 +226,9 @@ def test_lists_of_members_teams_and_agents_count_their_roles(
     database = data_fixture.create_database_application(workspace=workspace)
     table = data_fixture.create_database_table(database=database)
     team = enterprise_data_fixture.create_team(workspace=workspace)
-    agent = Agent.objects.create(workspace=workspace, name="Bot", role_uid="VIEWER")
+    agent = data_fixture.create_agent(
+        workspace=workspace, name="Bot", role_uid="VIEWER"
+    )
     assign(member, workspace, "VIEWER", database.application_ptr)
     assign(member, workspace, "EDITOR", table)
     assign(team, workspace, "EDITOR", table)

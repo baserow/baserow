@@ -8,12 +8,12 @@ from django.db.models import Count, OuterRef, QuerySet, Subquery
 from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
 
-from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.mixins import TrashableModelMixin
-from baserow.core.models import Workspace
+from baserow.core.models import User, Workspace
 from baserow.core.registries import subject_type_registry
 from baserow.core.subjects import UserSubjectType
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.user.identity import is_agent_user
 from baserow.core.utils import atomic_if_not_already
 from baserow_enterprise.models import Role, RoleAssignment, Team, TeamSubject
 from baserow_enterprise.role.handler import RoleAssignmentHandler
@@ -40,13 +40,19 @@ from ..features import TEAMS
 TeamForUpdate = NewType("TeamForUpdate", Team)
 TeamSubjectForUpdate = NewType("TeamSubjectForUpdate", TeamSubject)
 
-SUPPORTED_SUBJECT_TYPES = (UserSubjectType.type, AgentSubjectType.type)
+SUPPORTED_SUBJECT_TYPES = (UserSubjectType.type,)
 
 
 class TeamHandler:
     def get_team_subjects_queryset(self) -> QuerySet:
         """Hide trashed subjects while retaining memberships for their restoration."""
         queryset = TeamSubject.objects.all()
+        queryset = queryset.exclude(
+            subject_type=ContentType.objects.get_for_model(User),
+            subject_id__in=User.objects_and_agents.filter(profile__trashed=True).values(
+                "id"
+            ),
+        )
         for subject_type in subject_type_registry.get_all():
             if issubclass(subject_type.model_class, TrashableModelMixin):
                 # IDs can overlap across subject types, so filter by both fields.
@@ -156,6 +162,7 @@ class TeamHandler:
                 SELECT
                     sub.id AS team_subject_id,
                     sub.subject_id,
+                    (SELECT profile.identity_type FROM core_userprofile profile WHERE profile.user_id = sub.subject_id) AS identity_type,
                     CONCAT(ct.app_label, '.', INITCAP(ct.model)) AS subject_type,
                     CASE
                         {" ".join(subject_label_cases)}
@@ -432,11 +439,19 @@ class TeamHandler:
                 if pk_override:
                     pk_overrides[unique_subject_type][subject_id] = pk_override
 
-            # TODO: if we support a subject type that doesn't have a `workspace`
-            #   relation on its model, then this filter need to be modified.
-            type_subject_models = model_class.objects.filter(
-                pk__in=subject_ids_of_type, workspace=team.workspace_id
+            subject_type = subject_type_registry.get(unique_subject_type)
+            candidates = list(
+                model_class.objects_and_agents.filter(pk__in=subject_ids_of_type)
             )
+            type_subject_models = [
+                subject
+                for subject, belongs in zip(
+                    candidates,
+                    subject_type.are_in_workspace(candidates, team.workspace),
+                    strict=True,
+                )
+                if belongs
+            ]
 
             # If the subjects we found don't match those in `subject_ids_of_type`,
             # and we want to raise an exception if a subject isn't found, work out
@@ -506,13 +521,15 @@ class TeamHandler:
         model_class = subject_type.model_class
 
         try:
-            subject = model_class.objects.get(**subject_lookup)
+            subject = model_class.objects_and_agents.get(**subject_lookup)
         except model_class.DoesNotExist:
             lookup_str = ", ".join([f"{k}={v}" for k, v in subject_lookup.items()])
             raise TeamSubjectDoesNotExist(
                 f"The subject with {lookup_str} and type={subject_natural_key} does not exist."
             )
 
+        if "email" in subject_lookup and is_agent_user(subject):
+            raise TeamSubjectBadRequest("Agent team members must be selected by ID.")
         if not subject_type.is_in_workspace(subject, team.workspace):
             raise TeamSubjectNotInGroup()
 

@@ -131,7 +131,8 @@ class WorkspaceUsersView(APIView, SearchableViewMixin, SortableViewMixin):
         )
 
         qs = (
-            WorkspaceUser.objects.filter(workspace=workspace)
+            WorkspaceUser.objects.people()
+            .filter(workspace=workspace)
             .select_related("workspace", "user", "user__profile")
             .prefetch_related(
                 Prefetch(
@@ -209,7 +210,9 @@ class WorkspaceUserView(APIView):
 
         workspace_user = CoreHandler().get_workspace_user(
             workspace_user_id,
-            base_queryset=WorkspaceUser.objects.select_for_update(of=("self",)),
+            base_queryset=WorkspaceUser.objects.people().select_for_update(
+                of=("self",)
+            ),
         )
         workspace_user = CoreHandler().update_workspace_user(
             request.user, workspace_user, **data
@@ -253,7 +256,9 @@ class WorkspaceUserView(APIView):
 
         workspace_user = CoreHandler().get_workspace_user(
             workspace_user_id,
-            base_queryset=WorkspaceUser.objects.select_for_update(of=("self",)),
+            base_queryset=WorkspaceUser.objects.people().select_for_update(
+                of=("self",)
+            ),
         )
         CoreHandler().delete_workspace_user(request.user, workspace_user)
         return Response(status=204)

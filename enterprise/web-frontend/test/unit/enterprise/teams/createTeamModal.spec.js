@@ -21,10 +21,6 @@ test('opens the user picker when loading agents fails', async () => {
       type: 'auth.User',
       getId: (subject) => subject.user_id,
     },
-    'core.Agent': {
-      type: 'core.Agent',
-      getId: (subject) => subject.id,
-    },
   }
   const wrapper = await mountSuspended(CreateTeamModal, {
     props: {

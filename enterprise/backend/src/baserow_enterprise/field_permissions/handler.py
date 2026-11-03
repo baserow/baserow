@@ -9,10 +9,9 @@ from django.db.models import QuerySet
 
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.operations import WriteFieldValuesOperationType
-from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.cache import local_cache
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Agent, Workspace
+from baserow.core.models import Workspace
 from baserow.core.registries import (
     permission_manager_type_registry,
     subject_type_registry,
@@ -66,7 +65,6 @@ class FieldPermissionsHandler:
     allowed_subject_types = {
         UserSubjectType.type,
         TeamSubjectType.type,
-        AgentSubjectType.type,
     }
 
     @classmethod
@@ -76,7 +74,6 @@ class FieldPermissionsHandler:
         search: str = "",
         exclude_user_ids: list[int] | None = None,
         exclude_team_ids: list[int] | None = None,
-        exclude_agent_ids: list[int] | None = None,
     ) -> QuerySet:
         """Return selectable workspace users, agents, and teams for field permissions.
 
@@ -88,7 +85,6 @@ class FieldPermissionsHandler:
         :param search: An optional case-insensitive name, username, or email search.
         :param exclude_user_ids: User IDs to omit from the result.
         :param exclude_team_ids: Team IDs to omit from the result.
-        :param exclude_agent_ids: Agent IDs to omit from the result.
         :return: A queryset of user, agent, and team option dictionaries.
         """
 
@@ -99,7 +95,6 @@ class FieldPermissionsHandler:
             exclude_ids={
                 UserSubjectType.type: exclude_user_ids or [],
                 TeamSubjectType.type: exclude_team_ids or [],
-                AgentSubjectType.type: exclude_agent_ids or [],
             },
             order_by=("subject_name", "subject_type", "subject_id"),
         )
@@ -216,7 +211,7 @@ class FieldPermissionsHandler:
         cls,
         workspace: Workspace,
         subject_identifiers: list[FieldPermissionSubjectIdentifier],
-    ) -> list[AbstractUser | Team | Agent]:
+    ) -> list[AbstractUser | Team]:
         """Resolve supported subject identifiers within a workspace.
 
         Missing subjects and subjects outside the workspace intentionally produce
@@ -239,7 +234,12 @@ class FieldPermissionsHandler:
         subjects_by_identifier = {}
         for subject_type_name, subject_ids in identifiers_by_type.items():
             subject_type = subject_type_registry.get(subject_type_name)
-            subjects = list(subject_type.model_class.objects.filter(id__in=subject_ids))
+            manager = getattr(
+                subject_type.model_class,
+                "objects_and_agents",
+                subject_type.model_class.objects,
+            )
+            subjects = list(manager.filter(id__in=subject_ids))
             if len(subjects) != len(subject_ids) or not all(
                 subject_type.are_in_workspace(subjects, workspace)
             ):

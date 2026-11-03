@@ -2,6 +2,7 @@ import Avatar from '@baserow/modules/core/components/Avatar'
 import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
 import { Registerable } from '@baserow/modules/core/registry'
 import AgentService from '@baserow/modules/core/services/agent'
+import { FF_AGENTS } from '@baserow/modules/core/plugins/featureFlags'
 
 export class SubjectType extends Registerable {
   /** Component owning this subject type's avatar color, icon and shape. */
@@ -125,7 +126,7 @@ export class SubjectType extends Registerable {
       id,
       name: this.getDisplayName(subject),
       email: subject.email,
-      subtitle: this.getSubtitle(subject) ?? this.getBadge(),
+      subtitle: this.getSubtitle(subject) ?? this.getBadge(subject),
       search: this.getSearchText(subject),
       avatarComponent: this.avatarComponent,
       subject,
@@ -142,8 +143,36 @@ export class UserSubjectType extends SubjectType {
     return 10
   }
 
-  getTypeDisplayName() {
-    return this.$t('subjectType.user')
+  get avatarComponent() {
+    return (this._avatarComponent ??= ({ subject, size }) => {
+      const isAgent = subject.identity_type === 'agent'
+      return (
+        <Avatar
+          class={isAgent ? 'agent-avatar' : undefined}
+          initials={
+            isAgent ? '' : nameAbbreviation(this.getDisplayName(subject) || '')
+          }
+          icon={isAgent ? 'baserow-icon-agent' : ''}
+          color={isAgent ? 'purple' : 'blue'}
+          rounded={!isAgent}
+          size={size}
+        />
+      )
+    })
+  }
+
+  getTypeDisplayName(subject) {
+    return this.$t(
+      subject?.identity_type === 'agent'
+        ? 'subjectType.agent'
+        : 'subjectType.user'
+    )
+  }
+
+  getBadge(subject) {
+    return subject?.identity_type === 'agent'
+      ? this.$t('subjectType.agent')
+      : null
   }
 
   getPluralTypeDisplayName() {
@@ -159,7 +188,7 @@ export class UserSubjectType extends SubjectType {
   }
 
   getId(subject) {
-    return subject.user_id ?? super.getId(subject)
+    return subject.subject_id ?? subject.user_id ?? super.getId(subject)
   }
 
   getDisplayName(
@@ -186,8 +215,16 @@ export class UserSubjectType extends SubjectType {
     return this.getId(subject) === currentUserId
   }
 
-  fetchAssignableSubjects(workspace) {
-    return Promise.resolve(workspace.users || [])
+  async fetchAssignableSubjects(workspace) {
+    const users = workspace.users || []
+    if (
+      !this.app.$featureFlagIsEnabled?.(FF_AGENTS) ||
+      !this.app.$hasPermission('workspace.list_agents', workspace, workspace.id)
+    ) {
+      return users
+    }
+    const { data } = await AgentService(this.app.$client).list(workspace.id)
+    return [...users, ...data.results]
   }
 
   isUser() {
@@ -195,7 +232,7 @@ export class UserSubjectType extends SubjectType {
   }
 
   getWorkspaceRoleUid(subject) {
-    return subject.permissions ?? null
+    return subject.permissions ?? subject.role_uid ?? null
   }
 }
 
@@ -215,56 +252,5 @@ export class AnonymousUserSubjectType extends SubjectType {
   // Anonymous visitors are display-only and cannot receive role assignments.
   isEnabled(workspace) {
     return false
-  }
-}
-
-export class AgentSubjectType extends SubjectType {
-  static getType() {
-    return 'core.Agent'
-  }
-
-  getOrder() {
-    return 30
-  }
-
-  get avatarComponent() {
-    return (this._avatarComponent ??= ({ size }) => (
-      <Avatar
-        class="agent-avatar"
-        icon="baserow-icon-agent"
-        color="purple"
-        size={size}
-      />
-    ))
-  }
-
-  get iconClass() {
-    return 'baserow-icon-agent'
-  }
-
-  getTypeDisplayName() {
-    return this.$t('subjectType.agent')
-  }
-
-  getPluralTypeDisplayName() {
-    return this.$t('subjectType.agents')
-  }
-
-  getBadge() {
-    return this.getTypeDisplayName()
-  }
-
-  async fetchAssignableSubjects(workspace) {
-    if (
-      !this.app.$hasPermission('workspace.list_agents', workspace, workspace.id)
-    ) {
-      return []
-    }
-    const { data } = await AgentService(this.app.$client).list(workspace.id)
-    return data.results
-  }
-
-  getWorkspaceRoleUid(subject) {
-    return subject.role_uid ?? null
   }
 }

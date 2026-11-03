@@ -24,7 +24,7 @@ from baserow.core.integrations.operations import (
     ListIntegrationsApplicationOperationType,
     UpdateIntegrationOperationType,
 )
-from baserow.core.models import Agent, Template, Workspace
+from baserow.core.models import Template, Workspace
 from baserow.core.operations import (
     CreateApplicationsWorkspaceOperationType,
     ListApplicationsWorkspaceOperationType,
@@ -274,16 +274,15 @@ def test_basic_permission_manager_batches_workspace_roles_by_subject_type(
     workspace = data_fixture.create_workspace(
         user=admin, custom_permissions=[(member, "MEMBER")]
     )
-    admin_agent = Agent.objects.create(
+    admin_agent = data_fixture.create_agent(
         workspace=workspace, name="Admin agent", role_uid="ADMIN"
     )
-    member_agent = Agent.objects.create(
+    member_agent = data_fixture.create_agent(
         workspace=workspace, name="Member agent", role_uid="MEMBER"
     )
     user_subject_type = subject_type_registry.get_by_model(admin)
     agent_subject_type = subject_type_registry.get_by_model(admin_agent)
     get_user_roles = mocker.spy(user_subject_type, "get_workspace_role_uids")
-    get_agent_roles = mocker.spy(agent_subject_type, "get_workspace_role_uids")
     checks = [
         PermissionCheck(actor, UpdateWorkspaceOperationType.type, workspace)
         for actor in [admin, member, admin_agent, member_agent]
@@ -296,9 +295,12 @@ def test_basic_permission_manager_batches_workspace_roles_by_subject_type(
     assert result[checks[2]] is True
     assert isinstance(result[checks[3]], UserInvalidWorkspacePermissionsError)
     get_user_roles.assert_called_once()
-    assert set(get_user_roles.call_args.args[0]) == {admin, member}
-    get_agent_roles.assert_called_once()
-    assert set(get_agent_roles.call_args.args[0]) == {admin_agent, member_agent}
+    assert set(get_user_roles.call_args.args[0]) == {
+        admin,
+        member,
+        admin_agent,
+        member_agent,
+    }
 
 
 @pytest.mark.django_db
@@ -310,7 +312,7 @@ def test_basic_permission_manager_get_permissions_object_for_agent(
     data_fixture, role_uid, is_admin
 ):
     workspace = data_fixture.create_workspace()
-    agent = Agent.objects.create(
+    agent = data_fixture.create_agent(
         workspace=workspace, name=f"{role_uid} agent", role_uid=role_uid
     )
 
@@ -322,7 +324,7 @@ def test_basic_permission_manager_get_permissions_object_for_agent(
 @pytest.mark.django_db
 def test_basic_permission_manager_rejects_agent_from_another_workspace(data_fixture):
     workspace = data_fixture.create_workspace()
-    agent = Agent.objects.create(
+    agent = data_fixture.create_agent(
         workspace=data_fixture.create_workspace(),
         name="Other admin",
         role_uid="ADMIN",
@@ -339,7 +341,7 @@ def test_basic_permission_manager_rejects_agent_from_another_workspace(data_fixt
 @pytest.mark.django_db
 def test_basic_permission_manager_can_include_trashed_agent(data_fixture):
     workspace = data_fixture.create_workspace()
-    agent = Agent.objects.create(
+    agent = data_fixture.create_agent(
         workspace=workspace, name="Trashed admin", role_uid="ADMIN", trashed=True
     )
     check = PermissionCheck(agent, UpdateWorkspaceOperationType.type, workspace)
@@ -1338,7 +1340,7 @@ def test_allow_if_template_permission_manager_query_count(data_fixture):
 
     # Model instances retain membership results. Use a fresh actor so both
     # measurements start with the same cache state, as separate requests would.
-    buser = type(buser).objects.get(pk=buser.pk)
+    buser = type(buser).objects.select_related("profile").get(pk=buser.pk)
     with (
         CaptureQueriesContext(connection) as query_not_for_template,
         local_cache.context(),

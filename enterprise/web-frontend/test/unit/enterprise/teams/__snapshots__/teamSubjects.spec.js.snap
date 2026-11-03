@@ -59,9 +59,9 @@ exports[`teamSubjects > shows users and agents at the same size in the teams tab
     <!--v-if-->
     <!--v-if--><span class="avatar__initials">A</span>
   </div>
-  <div class="avatar avatar--large avatar--purple agent-avatar subject-sample-field-list__avatar"><i class="baserow-icon-agent avatar__icon"></i>
+  <div class="avatar avatar--rounded avatar--large avatar--blue subject-sample-field-list__avatar">
     <!--v-if-->
-    <!--v-if-->
+    <!--v-if--><span class="avatar__initials">W</span>
   </div>
   <!--v-if-->
 </div>"

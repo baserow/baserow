@@ -6,7 +6,7 @@ import UpdateTeamModal from '@baserow_enterprise/components/teams/UpdateTeamModa
 test.each([false, true])(
   'preserves memberships and prevents saving after a load failure: %s',
   async (loadFails) => {
-    const subject = { subject_id: 201, subject_type: 'core.Agent' }
+    const subject = { subject_id: 201, subject_type: 'auth.User' }
     const client = {
       get: vi.fn((url) => {
         if (loadFails && url.startsWith('/agents/')) {

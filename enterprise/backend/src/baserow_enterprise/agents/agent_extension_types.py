@@ -7,9 +7,10 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from baserow.core.agents.handler import AgentHandler
 from baserow.core.agents.registries import AgentExtensionType
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Agent
+from baserow.core.models import User
 from baserow.core.types import PermissionCheck
 from baserow_enterprise.features import RBAC, TEAMS
 from baserow_enterprise.role.handler import RoleAssignmentHandler
@@ -35,11 +36,13 @@ class AgentTeamsField(serializers.Field):
         # standalone agents fall through to the explicit license check below.
         if hasattr(agent, "_agent_teams"):
             return agent._agent_teams
-        if not LicenseHandler.workspace_has_feature(TEAMS, agent.workspace):
+        if not LicenseHandler.workspace_has_feature(
+            TEAMS, AgentHandler().get_workspace(agent)
+        ):
             return []
         return list(
             Team.objects.filter(
-                subjects__subject_type=ContentType.objects.get_for_model(Agent),
+                subjects__subject_type=ContentType.objects.get_for_model(User),
                 subjects__subject_id=agent.id,
             ).values("id", "name")
         )
@@ -72,7 +75,7 @@ class EnterpriseAgentExtensionType(AgentExtensionType):
             return queryset.annotate(_agent_teams=Value([], output_field=JSONField()))
         teams = (
             Team.objects.filter(
-                subjects__subject_type=ContentType.objects.get_for_model(Agent),
+                subjects__subject_type=ContentType.objects.get_for_model(User),
                 subjects__subject_id=OuterRef("pk"),
             )
             .annotate(summary=JSONObject(id="id", name="name"))
@@ -116,15 +119,19 @@ class EnterpriseAgentExtensionType(AgentExtensionType):
 
         if team_ids is None:
             return
-        LicenseHandler.raise_if_user_doesnt_have_feature(TEAMS, user, agent.workspace)
+        LicenseHandler.raise_if_user_doesnt_have_feature(
+            TEAMS, user, AgentHandler().get_workspace(agent)
+        )
         teams = list(
-            Team.objects.filter(id__in=set(team_ids), workspace=agent.workspace)
+            Team.objects.filter(
+                id__in=set(team_ids), workspace=AgentHandler().get_workspace(agent)
+            )
         )
         if len(teams) != len(set(team_ids)):
             raise ValidationError(
                 {"team_ids": "Every team must belong to the agent's workspace."}
             )
-        subject_type = ContentType.objects.get_for_model(Agent)
+        subject_type = ContentType.objects.get_for_model(User)
         memberships = list(
             TeamSubject.objects.filter(
                 subject_type=subject_type, subject_id=agent.id
@@ -147,7 +154,7 @@ class EnterpriseAgentExtensionType(AgentExtensionType):
             for membership in removed_memberships
         ]
         CoreHandler().check_multiple_permissions(
-            checks, workspace=agent.workspace, raise_exception=True
+            checks, workspace=AgentHandler().get_workspace(agent), raise_exception=True
         )
         TeamSubject.objects.filter(
             id__in=[membership.id for membership in removed_memberships]

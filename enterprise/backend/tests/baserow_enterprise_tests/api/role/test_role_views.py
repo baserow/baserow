@@ -93,6 +93,8 @@ def test_create_role_assignment(api_client, data_fixture, enterprise_data_fixtur
             "first_name": user2.first_name,
             "id": user2.id,
             "username": user2.username,
+            "identity_type": "human",
+            "trashed": False,
         },
     }
 
@@ -334,6 +336,8 @@ def test_get_role_assignments_workspace_level(data_fixture, api_client):
             "subject": {
                 "id": user.id,
                 "username": user.username,
+                "identity_type": "human",
+                "trashed": False,
                 "first_name": user.first_name,
                 "email": user.email,
             },
@@ -348,6 +352,8 @@ def test_get_role_assignments_workspace_level(data_fixture, api_client):
             "subject": {
                 "id": user_2.id,
                 "username": user_2.username,
+                "identity_type": "human",
+                "trashed": False,
                 "first_name": user_2.first_name,
                 "email": user_2.email,
             },
@@ -395,6 +401,8 @@ def test_get_role_assignments_application_level(data_fixture, api_client):
             "subject": {
                 "id": user_2.id,
                 "username": user_2.username,
+                "identity_type": "human",
+                "trashed": False,
                 "first_name": user_2.first_name,
                 "email": user_2.email,
             },
@@ -441,6 +449,8 @@ def test_get_role_assignments_table_level(data_fixture, api_client):
             "subject": {
                 "id": user_2.id,
                 "username": user_2.username,
+                "identity_type": "human",
+                "trashed": False,
                 "first_name": user_2.first_name,
                 "email": user_2.email,
             },
@@ -527,6 +537,8 @@ def test_batch_assign_role(data_fixture, api_client):
                 "first_name": user2.first_name,
                 "id": user2.id,
                 "username": user2.username,
+                "identity_type": "human",
+                "trashed": False,
             },
         },
         None,
@@ -581,6 +593,8 @@ def test_batch_assign_role_to_database_view(data_fixture, api_client):
                 "first_name": user2.first_name,
                 "id": user2.id,
                 "username": user2.username,
+                "identity_type": "human",
+                "trashed": False,
             },
         },
     ]

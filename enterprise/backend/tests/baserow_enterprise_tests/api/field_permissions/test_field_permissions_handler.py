@@ -17,7 +17,6 @@ from baserow.contrib.database.fields.operations import WriteFieldValuesOperation
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Agent
 from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.field_permissions.handler import (
     FieldPermissionRead,
@@ -397,21 +396,25 @@ def test_trashed_custom_field_subject_is_hidden_preserved_and_restored(
     workspace = database.workspace
     table = enterprise_data_fixture.create_database_table(database=database)
     field = enterprise_data_fixture.create_text_field(table=table)
-    selected_agent = Agent.objects.create(workspace=workspace, name="Selected")
-    active_agent = Agent.objects.create(workspace=workspace, name="Active")
+    selected_agent = enterprise_data_fixture.create_agent(
+        workspace=workspace, name="Selected"
+    )
+    active_agent = enterprise_data_fixture.create_agent(
+        workspace=workspace, name="Active"
+    )
     selected_identifier = {
         "subject_id": selected_agent.id,
-        "subject_type": "core.Agent",
+        "subject_type": "auth.User",
     }
     active_identifier = {
         "subject_id": active_agent.id,
-        "subject_type": "core.Agent",
+        "subject_type": "auth.User",
     }
 
     FieldPermissionsHandler._sync_field_permission_subjects(
         field, [selected_identifier, active_identifier]
     )
-    TrashHandler.trash(admin, workspace, None, selected_agent)
+    TrashHandler.trash(admin, workspace, None, selected_agent.profile)
 
     assert [
         assignment.subject_id
@@ -428,7 +431,7 @@ def test_trashed_custom_field_subject_is_hidden_preserved_and_restored(
     FieldPermissionsHandler._sync_field_permission_subjects(
         field, [selected_identifier, active_identifier]
     )
-    TrashHandler.restore_item(admin, "agent", selected_agent.id)
+    TrashHandler.restore_item(admin, "agent", selected_agent.profile.id)
 
     assert {
         assignment.subject_id
@@ -1115,10 +1118,10 @@ def test_custom_field_permissions_for_agents(
     workspace = database.workspace
     table = enterprise_data_fixture.create_database_table(database=database)
     field = enterprise_data_fixture.create_text_field(table=table)
-    agent = Agent.objects.create(
-        id=admin.id, workspace=workspace, name="Selected", role_uid=role_uid
+    agent = enterprise_data_fixture.create_agent(
+        workspace=workspace, name="Selected", role_uid=role_uid
     )
-    unselected = Agent.objects.create(
+    unselected = enterprise_data_fixture.create_agent(
         workspace=workspace, name="Unselected", role_uid="EDITOR"
     )
     subject = (
@@ -1134,7 +1137,7 @@ def test_custom_field_permissions_for_agents(
         subjects=[
             {
                 "subject_id": subject.id,
-                "subject_type": "baserow_enterprise.Team" if via_team else "core.Agent",
+                "subject_type": "baserow_enterprise.Team" if via_team else "auth.User",
             }
         ],
     )

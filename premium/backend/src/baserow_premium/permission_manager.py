@@ -72,6 +72,7 @@ from baserow.core.registries import (
     object_scope_type_registry,
 )
 from baserow.core.types import Actor, PermissionCheck
+from baserow.core.user.identity import is_human_user
 from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
 from baserow_premium.views.models import OWNERSHIP_TYPE_PERSONAL
@@ -225,7 +226,7 @@ class ViewOwnershipPermissionManagerType(PermissionManagerType):
             # Personal views are owned by users. Other subject types can never own
             # one, even when their integer ID matches the owner's user ID.
             if (
-                not isinstance(actor, User)
+                not is_human_user(actor)
                 and view.ownership_type == OWNERSHIP_TYPE_PERSONAL
             ):
                 result_by_check[check] = PermissionDenied(
@@ -236,7 +237,7 @@ class ViewOwnershipPermissionManagerType(PermissionManagerType):
             # The remaining ownership rules depend on a per-user premium license, which
             # only applies to users. Let the lower permission managers decide for other
             # actors like tokens or anonymous users.
-            if not isinstance(actor, User):
+            if not is_human_user(actor):
                 continue
 
             premium = local_cache.get(
@@ -342,7 +343,7 @@ class ViewOwnershipPermissionManagerType(PermissionManagerType):
             q=~Q(ownership_type=OWNERSHIP_TYPE_PERSONAL)
         )
         decisions = {workspace.id: without_personal for workspace in workspaces}
-        if not isinstance(actor, User):
+        if not is_human_user(actor):
             return decisions
 
         premium_workspaces = [

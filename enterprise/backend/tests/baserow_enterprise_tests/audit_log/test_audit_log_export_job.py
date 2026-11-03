@@ -10,7 +10,6 @@ from rest_framework import serializers
 
 from baserow.contrib.database.export.handler import ExportHandler
 from baserow.core.actions import CreateApplicationActionType, CreateWorkspaceActionType
-from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.jobs.constants import JOB_FINISHED
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.subjects import UserSubjectType
@@ -227,25 +226,23 @@ def test_audit_log_export_filters_work_correctly(
     job.refresh_from_db()
     job_type = AuditLogExportJobType()
 
+    agent = enterprise_data_fixture.create_agent(workspace=workspace_1)
     agent_entry = AuditLogEntry.objects.first()
     agent_entry.pk = None
-    agent_entry.actor_type = AgentSubjectType.type
+    agent_entry.actor_id = agent.id
     agent_entry.save()
 
     assert job.filter_actor_type is None
     assert job_type.get_filtered_queryset(job).count() == 3
 
-    job.filter_actor_id = user.id + 1
+    job.filter_actor_id = agent.id + 10000
     assert job_type.get_filtered_queryset(job).count() == 0
-    job.filter_actor_id = None
-
-    job.filter_actor_id = user.id
-    job.filter_actor_type = AgentSubjectType.type
-    assert job_type.get_filtered_queryset(job).count() == 1
-    job.filter_actor_id = None
-    assert job_type.get_filtered_queryset(job).count() == 1
+    job.filter_actor_id = agent.id
     job.filter_actor_type = UserSubjectType.type
+    assert job_type.get_filtered_queryset(job).count() == 1
+    job.filter_actor_id = user.id
     assert job_type.get_filtered_queryset(job).count() == 2
+    job.filter_actor_id = None
     agent_entry.delete()
 
     job.filter_workspace_id = workspace_1.id

@@ -19,7 +19,7 @@ from baserow.core.ai_provider.models import (
     AIProviderWorkspaceOverride,
 )
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Agent, Workspace, WorkspaceUser
+from baserow.core.models import Workspace, WorkspaceUser
 from baserow.test_utils.helpers import is_dict_subset
 
 
@@ -295,7 +295,7 @@ def test_list_workspaces_includes_agent_count(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     data_fixture.create_user_workspace(workspace=workspace)
-    Agent.objects.create(workspace=workspace, name="Writer")
+    data_fixture.create_agent(workspace=workspace, name="Writer")
 
     response = api_client.get(
         reverse("api:workspaces:list"),

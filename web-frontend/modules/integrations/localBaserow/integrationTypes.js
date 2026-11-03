@@ -28,10 +28,10 @@ export class LocalBaserowIntegrationType extends IntegrationType {
 
     const subjectType = this.app.$registry.get('subject', subject.type)
     const displayName = subjectType.getDisplayName(subject)
-    if (!subjectType.isUser()) {
+    if (subject.identity_type === 'agent') {
       return this.app.$i18n.t(
         'localBaserowIntegrationType.localBaserowSubjectSummary',
-        { type: subjectType.getTypeDisplayName(), name: displayName }
+        { type: subjectType.getTypeDisplayName(subject), name: displayName }
       )
     }
 
@@ -84,7 +84,7 @@ export class LocalBaserowIntegrationType extends IntegrationType {
       return this.app.$i18n.t('localBaserowIntegrationType.errorNoUser')
     }
     if (
-      integration.authorized_subject.type === 'core.Agent' &&
+      integration.authorized_subject.identity_type === 'agent' &&
       integration.authorized_subject.trashed
     ) {
       return this.app.$i18n.t('localBaserowIntegrationType.errorTrashedAgent')
