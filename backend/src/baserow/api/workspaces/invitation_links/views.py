@@ -13,6 +13,7 @@ from baserow.api.errors import (
     ERROR_USER_NOT_IN_GROUP,
 )
 from baserow.api.schemas import get_error_schema
+from baserow.api.workspaces.errors import ERROR_INVALID_WORKSPACE_ROLE
 from baserow.api.workspaces.serializers import WorkspaceUserWorkspaceSerializer
 from baserow.core.action.registries import action_type_registry
 from baserow.core.actions import (
@@ -22,6 +23,7 @@ from baserow.core.actions import (
     UpdateWorkspaceInvitationLinkActionType,
 )
 from baserow.core.exceptions import (
+    InvalidWorkspaceRole,
     UserInvalidWorkspacePermissionsError,
     UserNotInWorkspace,
     WorkspaceDoesNotExist,
@@ -115,6 +117,7 @@ class WorkspaceInvitationLinksView(APIView):
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_USER_INVALID_GROUP_PERMISSIONS",
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_INVALID_WORKSPACE_ROLE",
                     "ERROR_WORKSPACE_INVITATION_LINK_SIGNUPS_DISABLED",
                 ]
             ),
@@ -129,6 +132,7 @@ class WorkspaceInvitationLinksView(APIView):
             WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             UserInvalidWorkspacePermissionsError: ERROR_USER_INVALID_GROUP_PERMISSIONS,
+            InvalidWorkspaceRole: ERROR_INVALID_WORKSPACE_ROLE,
             WorkspaceInvitationLinkSignupsDisabled: (
                 ERROR_WORKSPACE_INVITATION_LINK_SIGNUPS_DISABLED
             ),
@@ -173,6 +177,7 @@ class WorkspaceInvitationLinkView(APIView):
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_USER_INVALID_GROUP_PERMISSIONS",
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_INVALID_WORKSPACE_ROLE",
                 ]
             ),
             404: get_error_schema(["ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST"]),
@@ -187,6 +192,7 @@ class WorkspaceInvitationLinkView(APIView):
             ),
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             UserInvalidWorkspacePermissionsError: ERROR_USER_INVALID_GROUP_PERMISSIONS,
+            InvalidWorkspaceRole: ERROR_INVALID_WORKSPACE_ROLE,
         }
     )
     def patch(self, request, data, invitation_link_id):

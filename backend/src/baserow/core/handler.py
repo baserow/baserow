@@ -1731,6 +1731,7 @@ class CoreHandler:
         :param name: A name that reminds the admins what the link is for.
         :raises FeatureDisabledException: If invitation links aren't enabled.
         :raises PermissionException: If the user isn't allowed to create links.
+        :raises InvalidWorkspaceRole: If the provided permissions are not available.
         :raises WorkspaceInvitationLinkSignupsDisabled: If the instance settings
             don't let anyone sign up through the link.
         :return: The created workspace invitation link.
@@ -1749,6 +1750,8 @@ class CoreHandler:
             raise WorkspaceInvitationLinkSignupsDisabled(
                 "Invitation links can't be created while signups are disabled."
             )
+
+        self.raise_if_invalid_workspace_role(permissions, workspace)
 
         return WorkspaceInvitationLink.objects.create(
             workspace=workspace, created_by=user, permissions=permissions, name=name
@@ -1771,6 +1774,7 @@ class CoreHandler:
             change.
         :param name: The new name of the link, if it changes.
         :raises PermissionException: If the user isn't allowed to update the link.
+        :raises InvalidWorkspaceRole: If the provided permissions are not available.
         :return: The updated workspace invitation link.
         """
 
@@ -1783,6 +1787,7 @@ class CoreHandler:
 
         update_fields = ["updated_on"]
         if permissions is not None:
+            self.raise_if_invalid_workspace_role(permissions, invitation_link.workspace)
             invitation_link.permissions = permissions
             update_fields.append("permissions")
         if name is not None:

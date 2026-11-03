@@ -1,7 +1,9 @@
+from django.shortcuts import reverse
+
 import pytest
 
 from baserow.core.handler import CoreHandler
-from baserow.core.models import WorkspaceUser
+from baserow.core.models import WorkspaceInvitationLink, WorkspaceUser
 from baserow_enterprise.role.models import Role
 
 
@@ -58,3 +60,55 @@ def test_workspace_role_upgrade_compares_the_operations_of_the_roles(data_fixtur
     assert not handler.is_workspace_role_upgrade("VIEWER_PLUS_ONE", "VIEWER", workspace)
     assert handler.is_workspace_role_upgrade("VIEWER_PLUS_ONE", "EDITOR", workspace)
     assert not handler.is_workspace_role_upgrade("COMMENTER", "UNKNOWN", workspace)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("method", ["post", "patch"])
+@pytest.mark.parametrize("role_kind", ["unknown", "hidden", "foreign", "local"])
+def test_workspace_invitation_link_validates_enterprise_roles(
+    api_client, data_fixture, method, role_kind
+):
+    """Links accept local custom roles and reject unavailable or foreign roles."""
+
+    admin, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=admin)
+    invitation_link = data_fixture.create_workspace_invitation_link(
+        workspace=workspace, created_by=admin, permissions="MEMBER"
+    )
+    permissions = "TEST_ROLE"
+    if role_kind != "unknown":
+        Role.objects.create(
+            uid=permissions,
+            workspace=(
+                data_fixture.create_workspace() if role_kind == "foreign" else workspace
+            ),
+            hidden=role_kind == "hidden",
+        )
+    url = (
+        reverse(
+            "api:workspaces:invitation_links:list",
+            kwargs={"workspace_id": workspace.id},
+        )
+        if method == "post"
+        else reverse(
+            "api:workspaces:invitation_links:item",
+            kwargs={"invitation_link_id": invitation_link.id},
+        )
+    )
+
+    response = getattr(api_client, method)(
+        url,
+        {"permissions": permissions},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    if role_kind == "local":
+        assert response.status_code == 200
+        assert response.json()["permissions"] == permissions
+    else:
+        assert response.status_code == 400
+        assert response.json()["error"] == "ERROR_INVALID_WORKSPACE_ROLE"
+        assert WorkspaceInvitationLink.objects.filter(workspace=workspace).count() == 1
+        invitation_link.refresh_from_db()
+        assert invitation_link.permissions == "MEMBER"

@@ -511,3 +511,43 @@ def test_sign_up_via_invitation_link_invalid(api_client, data_fixture):
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
     assert not User.objects.filter(email="newcomer@test.nl").exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("method", ["post", "patch"])
+@pytest.mark.parametrize("permissions", ["UNKNOWN_ROLE", "EDITOR"])
+def test_workspace_invitation_link_rejects_unavailable_roles(
+    api_client, data_fixture, method, permissions
+):
+    """Basic workspaces reject unknown roles and roles requiring an RBAC license."""
+
+    admin, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=admin)
+    invitation_link = data_fixture.create_workspace_invitation_link(
+        workspace=workspace, created_by=admin, permissions="MEMBER", name="Original"
+    )
+    url = (
+        reverse(
+            "api:workspaces:invitation_links:list",
+            kwargs={"workspace_id": workspace.id},
+        )
+        if method == "post"
+        else reverse(
+            "api:workspaces:invitation_links:item",
+            kwargs={"invitation_link_id": invitation_link.id},
+        )
+    )
+
+    response = getattr(api_client, method)(
+        url,
+        {"permissions": permissions, "name": "Changed"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_INVALID_WORKSPACE_ROLE"
+    assert WorkspaceInvitationLink.objects.filter(workspace=workspace).count() == 1
+    invitation_link.refresh_from_db()
+    assert invitation_link.permissions == "MEMBER"
+    assert invitation_link.name == "Original"
