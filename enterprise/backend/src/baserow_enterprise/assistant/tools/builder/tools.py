@@ -23,7 +23,11 @@ from baserow_enterprise.assistant.tools.shared import (
 )
 from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 from baserow_enterprise.assistant.types import BuilderPageNavigationType
+from baserow_enterprise.builder.tools import actions as shared_actions
+from baserow_enterprise.builder.tools import data_sources as shared_data_sources
+from baserow_enterprise.builder.tools import elements as shared_elements
 from baserow_enterprise.builder.tools import helpers
+from baserow_enterprise.builder.tools import pages as shared_pages
 from baserow_enterprise.builder.tools.errors import is_input_error, item_error
 from baserow_enterprise.builder.tools.registries import assistant_element_type_registry
 from baserow_enterprise.builder.tools.themes import (
@@ -104,40 +108,9 @@ def list_pages(
     DO NOT USE when: You already have the page IDs you need.
     """
 
-    from baserow.core.user_sources.service import UserSourceService
-
-    user = ctx.deps.user
-    workspace = ctx.deps.workspace
-    tool_helpers = ctx.deps.tool_helpers
-
-    builder = helpers.get_builder(user, workspace, application_id)
-    tool_helpers.update_status(
-        _("Listing pages in %(app_name)s...") % {"app_name": builder.name}
-    )
-
-    pages = helpers.list_pages(user, builder)
-
-    try:
-        user_sources = UserSourceService().get_user_sources(user, builder)
-    except PermissionException:
-        # Only application editors may list them.
-        user_sources = []
-    user_source_data = []
-    roles: set[str] = set()
-    for us in user_sources:
-        roles.update(us.get_type().get_roles(us))
-        entry = {"id": us.id, "name": us.name}
-        specific = us.specific if hasattr(us, "specific") else us
-        if hasattr(specific, "table_id"):
-            entry["table_id"] = specific.table_id
-        user_source_data.append(entry)
-
+    result = shared_pages.list_pages(ctx.deps.tool_context(), application_id)
     return {
-        "application_id": builder.id,
-        "pages": [p.model_dump() for p in pages],
-        "login_page_id": builder.login_page_id,
-        "user_sources": user_source_data,
-        "available_roles": sorted(roles),
+        **result,
         "next_steps": (
             "For a requested new page, use create_pages with this application_id "
             "first, then use its returned page ID in setup_page or element tools. "
@@ -309,16 +282,7 @@ def list_data_sources(
     RETURNS: Data sources array.
     """
 
-    user = ctx.deps.user
-    tool_helpers = ctx.deps.tool_helpers
-
-    page = helpers.get_page(user, ctx.deps.workspace, page_id)
-    tool_helpers.update_status(
-        _("Listing data sources on %(name)s...") % {"name": page.name}
-    )
-
-    ds_list = helpers.list_data_sources(user, page)
-    return {"data_sources": [ds.model_dump() for ds in ds_list]}
+    return shared_data_sources.list_data_sources(ctx.deps.tool_context(), page_id)
 
 
 def create_data_sources(
@@ -515,16 +479,7 @@ def list_elements(
     Do not add page-specific children to them.
     """
 
-    user = ctx.deps.user
-    tool_helpers = ctx.deps.tool_helpers
-
-    page = helpers.get_page(user, ctx.deps.workspace, page_id)
-    tool_helpers.update_status(
-        _("Listing elements on %(name)s...") % {"name": page.name}
-    )
-
-    elements = helpers.list_elements(user, page)
-    return {"elements": [el.model_dump() for el in elements]}
+    return shared_elements.list_elements(ctx.deps.tool_context(), page_id)
 
 
 def _create_elements_internal(
@@ -1131,16 +1086,7 @@ def list_actions(
     RETURNS: Workflow actions array.
     """
 
-    user = ctx.deps.user
-    tool_helpers = ctx.deps.tool_helpers
-
-    page = helpers.get_page(user, ctx.deps.workspace, page_id)
-    tool_helpers.update_status(
-        _("Listing actions on %(name)s...") % {"name": page.name}
-    )
-
-    actions = helpers.list_workflow_actions(user, page)
-    return {"workflow_actions": [a.model_dump() for a in actions]}
+    return shared_actions.list_actions(ctx.deps.tool_context(), page_id)
 
 
 def create_actions(

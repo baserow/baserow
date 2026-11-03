@@ -130,12 +130,26 @@ class BaserowEnterpriseConfig(AppConfig):
             ListAuditLogMcpTool,
             SearchAuditLogMcpTool,
         )
+        from baserow_enterprise.mcp.builder.actions.tools import ListActionsMcpTool
+        from baserow_enterprise.mcp.builder.applications.tools import (
+            ListBuildersMcpTool,
+        )
+        from baserow_enterprise.mcp.builder.data_sources.tools import (
+            ListDataSourcesMcpTool,
+        )
+        from baserow_enterprise.mcp.builder.elements.tools import ListElementsMcpTool
+        from baserow_enterprise.mcp.builder.pages.tools import ListPagesMcpTool
 
         mcp_tool_group_registry.register(AuditLogReadMCPToolGroup())
         mcp_tool_group_registry.register(BuilderReadMCPToolGroup())
         mcp_tool_group_registry.register(BuilderEditMCPToolGroup())
         mcp_tool_registry.register(ListAuditLogMcpTool())
         mcp_tool_registry.register(SearchAuditLogMcpTool())
+        mcp_tool_registry.register(ListBuildersMcpTool())
+        mcp_tool_registry.register(ListPagesMcpTool())
+        mcp_tool_registry.register(ListDataSourcesMcpTool())
+        mcp_tool_registry.register(ListElementsMcpTool())
+        mcp_tool_registry.register(ListActionsMcpTool())
 
         job_type_registry.register(DataScanResultExportJobType())
         agent_extension_type_registry.register(EnterpriseAgentExtensionType())
