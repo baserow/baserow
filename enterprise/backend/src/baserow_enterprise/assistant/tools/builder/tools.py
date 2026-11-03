@@ -26,9 +26,9 @@ from baserow_enterprise.assistant.tools.shared import (
 from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 from baserow_enterprise.assistant.types import BuilderPageNavigationType
 from baserow_enterprise.builder.tools import actions as shared_actions
+from baserow_enterprise.builder.tools import BuilderWriteOptions, helpers
 from baserow_enterprise.builder.tools import data_sources as shared_data_sources
 from baserow_enterprise.builder.tools import elements as shared_elements
-from baserow_enterprise.builder.tools import helpers
 from baserow_enterprise.builder.tools import pages as shared_pages
 from baserow_enterprise.builder.tools.errors import is_input_error, item_error
 from baserow_enterprise.builder.tools.registries import assistant_element_type_registry
@@ -50,7 +50,6 @@ from baserow_enterprise.builder.tools.types import (
     FormElementCreate,
     LayoutElementCreate,
     PageCreate,
-    PageItem,
     PageUpdate,
 )
 from baserow_enterprise.builder.tools.types.user_source import UserSourceSetup
@@ -97,6 +96,17 @@ def _page_not_found(page_id: int) -> ToolInputError:
 
 
 # ---------------------------------------------------------------------------
+def _input_item_error(exc: Exception) -> str:
+    """
+    The message for an item of a batch whose input is at fault. Anything else is a
+    bug, which stops the call and undoes the batch.
+    """
+
+    if not is_input_error(exc):
+        raise exc
+    return item_error(exc)
+
+
 # Page tools
 # ---------------------------------------------------------------------------
 
@@ -177,31 +187,20 @@ def create_pages(
 
     # Skip duplicates
     existing = {p.name.lower(): p for p in helpers.list_pages(user, builder)}
-    helpers.ensure_distinct_paths([p for p in pages if p.name.lower() not in existing])
-    created_pages: list[PageItem] = []
-    skipped_pages: list[PageItem] = []
-    errors: list[str] = []
+    new_pages = [p for p in pages if p.name.lower() not in existing]
+    helpers.ensure_distinct_paths(new_pages)
+    skipped_pages = [
+        existing[p.name.lower()] for p in pages if p.name.lower() in existing
+    ]
 
-    with transaction.atomic():
-        for page_create in pages:
-            tool_helpers.raise_if_cancelled()
-            ex = existing.get(page_create.name.lower())
-            if ex:
-                skipped_pages.append(ex)
-                continue
-            tool_helpers.update_status(
-                _("Creating page %(name)s...") % {"name": page_create.name}
-            )
-            try:
-                with transaction.atomic():
-                    page = helpers.create_page(user, builder, page_create)
-            except Exception as exc:
-                raise_if_permission_denied(exc)
-                if not is_input_error(exc):
-                    raise
-                errors.append(f"{page_create.name}: {item_error(exc)}")
-                continue
-            created_pages.append(PageItem.from_orm(page))
+    created = shared_pages.create_pages_with_options(
+        ctx.deps.tool_context(),
+        application_id,
+        new_pages,
+        BuilderWriteOptions(item_error=_input_item_error),
+    )
+    created_pages = created["created_pages"]
+    errors = created.get("errors", [])
 
     if created_pages:
         last = created_pages[-1]
@@ -209,14 +208,12 @@ def create_pages(
             BuilderPageNavigationType(
                 type="builder-page",
                 application_id=application_id,
-                page_id=last.id,
-                page_name=last.name,
+                page_id=last["id"],
+                page_name=last["name"],
             )
         )
 
-    result: dict[str, Any] = {
-        "created_pages": [p.model_dump() for p in created_pages],
-    }
+    result: dict[str, Any] = {"created_pages": created_pages}
     if skipped_pages:
         result["existing_pages"] = [p.model_dump() for p in skipped_pages]
     if errors:
@@ -262,17 +259,14 @@ def update_page(
     - When changing path, also update path_params if the new path has different parameters.
     """
 
-    user = ctx.deps.user
-    tool_helpers = ctx.deps.tool_helpers
-
-    tool_helpers.update_status(_("Updating page %(id)d...") % {"id": page.page_id})
-
-    updated_page = helpers.update_page(user, ctx.deps.workspace, page)
-    page_item = PageItem.from_orm(updated_page)
+    try:
+        result = shared_pages.update_page(ctx.deps.tool_context(), page.page_id, page)
+    except PageDoesNotExist:
+        raise _page_not_found(page.page_id)
 
     return {
         "status": "ok",
-        "page": page_item.model_dump(),
+        "page": result["updated_page"],
         "updated_fields": page.get_updated_field_names(),
     }
 

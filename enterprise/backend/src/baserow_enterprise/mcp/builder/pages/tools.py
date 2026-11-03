@@ -1,4 +1,4 @@
-from baserow.core.mcp.groups import GROUP_BUILDER_READ
+from baserow.core.mcp.groups import GROUP_BUILDER_EDIT, GROUP_BUILDER_READ
 from baserow.core.mcp.registries import FunctionMCPTool
 from baserow_enterprise.builder.tools import pages
 
@@ -9,3 +9,21 @@ class ListPagesMcpTool(FunctionMCPTool):
     title = "List pages"
     read_only = True
     function = pages.list_pages
+
+
+class CreatePagesMcpTool(FunctionMCPTool):
+    type = "create_pages"
+    group = GROUP_BUILDER_EDIT
+    title = "Create pages"
+    read_only = False
+    destructive = False
+    function = pages.create_pages
+
+
+class UpdatePageMcpTool(FunctionMCPTool):
+    type = "update_page"
+    group = GROUP_BUILDER_EDIT
+    title = "Update a page"
+    read_only = False
+    destructive = False
+    function = pages.update_page

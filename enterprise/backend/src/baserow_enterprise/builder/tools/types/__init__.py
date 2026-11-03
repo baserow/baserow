@@ -1,3 +1,4 @@
+from .application import BuilderCreate
 from .data_source import (
     DataSourceCreate,
     DataSourceItem,
@@ -33,7 +34,14 @@ from .menu_items import (
     MenuItemUpdate,
     RemovedMenuItem,
 )
-from .page import PageCreate, PageItem, PagePathParam, PageQueryParam, PageUpdate
+from .page import (
+    PageChanges,
+    PageCreate,
+    PageItem,
+    PagePathParam,
+    PageQueryParam,
+    PageUpdate,
+)
 from .table_columns import (
     RemovedTableColumn,
     TableColumnAdd,
@@ -52,6 +60,7 @@ __all__ = [
     "ActionCreate",
     "ActionItem",
     "ActionType",
+    "BuilderCreate",
     "ButtonStyleOverride",
     "ChoiceOption",
     "CollectionElementCreate",
@@ -78,6 +87,7 @@ __all__ = [
     "MenuItemAdd",
     "MenuItemCreate",
     "MenuItemUpdate",
+    "PageChanges",
     "PageCreate",
     "PageItem",
     "PagePathParam",
