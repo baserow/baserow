@@ -32,6 +32,7 @@ from baserow.core.exceptions import PermissionException
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
+from baserow.core.services.models import Service
 from baserow.core.utils import to_path
 from baserow_enterprise.assistant.tools.shared import raise_if_permission_denied
 from baserow_enterprise.assistant.tools.shared.agents import get_formula_generator
@@ -811,6 +812,13 @@ def update_workflow_action_formulas(
                 try:
                     generated = _generate_formulas(generate_formulas, formulas, context)
                     with transaction.atomic():
+                        # A row action's mappings are replaced as a whole list, so
+                        # a concurrent add_action_field_mapping waits for this.
+                        service_id = getattr(orm_action, "service_id", None)
+                        if service_id is not None:
+                            Service.objects.select_for_update().filter(
+                                id=service_id
+                            ).first()
                         # Loaded again so changes made while the model ran are
                         # kept.
                         fresh_action = (

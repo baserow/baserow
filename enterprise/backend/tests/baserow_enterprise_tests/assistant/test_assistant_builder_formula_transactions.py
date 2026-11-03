@@ -459,3 +459,66 @@ def test_generated_table_column_formulas_are_saved_through_the_action_type(
         f"get('current_record.field_{name_field.id}')"
     )
     assert Action.objects.filter(type=UpdateElementActionType.type).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_generated_row_formulas_are_written_under_the_service_lock(
+    data_fixture, site, monkeypatch
+):
+    from threading import Thread
+
+    from django.db import OperationalError, transaction
+
+    from baserow.core.services.models import Service
+    from baserow_enterprise.assistant.tools.builder.types.workflow_action import (
+        ActionCreate as RowActionCreate,
+    )
+
+    button = data_fixture.create_builder_button_element(page=site["page"])
+    name_field = site["table"].field_set.get(name="Name")
+    use_generator(monkeypatch, generated("get('page_parameter.id')"))
+    formula_values = RowActionCreate.formula_values
+    locked = []
+
+    def try_lock_from_another_connection(service_id):
+        try:
+            with transaction.atomic():
+                Service.objects.select_for_update(nowait=True).filter(
+                    id=service_id
+                ).first()
+            locked.append(False)
+        except OperationalError:
+            locked.append(True)
+        finally:
+            connection.close()
+
+    def checking_formula_values(self, orm_action, generated_formulas):
+        thread = Thread(
+            target=try_lock_from_another_connection, args=(orm_action.service_id,)
+        )
+        thread.start()
+        thread.join(timeout=10)
+        return formula_values(self, orm_action, generated_formulas)
+
+    monkeypatch.setattr(RowActionCreate, "formula_values", checking_formula_values)
+
+    create_actions(
+        site["ctx"],
+        page_id=site["page"].id,
+        actions=[
+            ActionCreate(
+                type="create_row",
+                element=button.id,
+                event="click",
+                table_id=site["table"].id,
+                field_values=[
+                    FieldValueMapping(
+                        field_id=name_field.id, value="$formula: the id in the URL"
+                    )
+                ],
+            )
+        ],
+        thought="t",
+    )
+
+    assert locked == [True]
