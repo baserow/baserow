@@ -240,22 +240,15 @@ def _field_mappings(action: "ActionCreate") -> list[dict] | None:
     if action.type not in ("create_row", "update_row") or not action.field_values:
         return None
 
-    mappings = []
-    for fv in action.field_values:
-        if needs_formula(fv.value):
-            formula_value = "''"
-        else:
-            formula_value = fv.value
-        mappings.append(
-            {
-                "field_id": int(fv.field_id),
-                "value": formula_object(
-                    formula_value, mode=BASEROW_FORMULA_MODE_ADVANCED
-                ),
-                "enabled": True,
-            }
-        )
-    return mappings
+    # The formula step checks each value and stores the ones that pass.
+    return [
+        {
+            "field_id": int(fv.field_id),
+            "value": formula_object("''", mode=BASEROW_FORMULA_MODE_ADVANCED),
+            "enabled": True,
+        }
+        for fv in action.field_values
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -276,8 +269,9 @@ def _row_formulas(action: "ActionCreate", orm_action, context) -> dict[str, str]
     # Field values for create/update
     if action.field_values:
         for fv in action.field_values:
-            if needs_formula(fv.value):
-                formulas[f"field_{fv.field_id}"] = formula_desc(fv.value)
+            formulas[f"field_{fv.field_id}"] = (
+                formula_desc(fv.value) if needs_formula(fv.value) else fv.value
+            )
 
     return formulas
 

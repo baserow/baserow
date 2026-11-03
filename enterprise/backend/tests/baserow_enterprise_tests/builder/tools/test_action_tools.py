@@ -1553,3 +1553,56 @@ def test_table_id_says_what_moving_to_another_table_does():
     assert "new table" in description
     assert "row_id" in actions.update_action.__doc__
     assert "clears the field values" in actions.update_action.__doc__
+
+
+# ---------------------------------------------------------------------------
+# Field values of a new row action
+# ---------------------------------------------------------------------------
+
+
+def _create_row_with(builder_ctx, value):
+    table = builder_ctx["data_source"].service.specific.table
+    field = table.field_set.first()
+    result = actions.create_actions(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            ActionCreate(
+                type="create_row",
+                element=builder_ctx["button"].id,
+                event="click",
+                table_id=table.id,
+                field_values=[{"field_id": str(field.id), "value": value}],
+            )
+        ],
+    )
+    action = BuilderWorkflowAction.objects.get(
+        id=result["created_actions"][0]["id"]
+    ).specific
+    return result, field, action.service.specific.field_mappings.get().value["formula"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "value",
+    ["nosuchfn('x')", "not a formula", "get('current_record.id')"],
+    ids=["unknown-function", "plain-text", "not-in-a-collection"],
+)
+def test_a_new_row_actions_invalid_field_value_is_left_empty_and_listed(
+    builder_ctx, value
+):
+    result, field, stored = _create_row_with(builder_ctx, value)
+
+    assert [e["field"] for e in result["formula_errors"]] == [f"field_{field.id}"]
+    assert stored == "''"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "value", ["'fixed'", "7", "upper('abc')", "get('user.id')", "$formula: 'fixed'"]
+)
+def test_a_new_row_actions_valid_field_value_is_stored(builder_ctx, value):
+    result, _field, stored = _create_row_with(builder_ctx, value)
+
+    assert "formula_errors" not in result
+    assert stored == value.removeprefix("$formula: ")
