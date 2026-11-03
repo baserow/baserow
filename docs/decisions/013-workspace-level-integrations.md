@@ -12,7 +12,7 @@
 
 Integrations currently belong to individual applications, so the same SMTP connection or Local Baserow identity must be configured and maintained separately in every app that uses it.
 
-Admins will be able to create workspace-level integrations or promote existing ones for use across applications in the workspace. A hidden shared application will own them, preserving the existing `Integration → Application → Workspace` model.
+Admins will be able to create workspace-level integrations in Workspace settings or promote existing ones for use across applications in the workspace. A hidden shared application will own them, preserving the existing `Integration → Application → Workspace` model.
 
 Published apps and workflows will receive independent copies; duplicates and snapshots within the workspace will retain their references. Workspace exports and templates will flatten workspace integrations to the app level.
 
@@ -54,27 +54,35 @@ Each workspace will have one hidden application of a new `shared` type. New work
 
 A workspace integration remains an ordinary `Integration` owned by this shared application. `Integration` has a foreign key to `Application`, and existing code depends on that ownership chain: Local Baserow uses `application.workspace` for context, application types determine the supported integration types, services validate integration ownership when saved, imported and dispatched, and publishing, duplication and snapshots go through export/import. Keeping the chain intact retains that behaviour and the existing permission scoping without a second lookup path, and follows the Builder's hidden `__shared__` page precedent.
 
-The shared application remains accessible through existing application managers and APIs, so that nothing which resolves it needs a separate lookup path, but is hidden from user-facing application lists. It cannot be managed as an ordinary application, and features such as exports, templates, trash listings and statistics must explicitly exclude it where appropriate. Workspace integrations use the existing integration API and are managed through Workspace settings.
+The shared application remains accessible through existing application managers and APIs, so that nothing which resolves it needs a separate lookup path, but is hidden from user-facing application lists. It cannot be managed as an ordinary application, and features such as exports, templates, trash listings and statistics must explicitly exclude it where appropriate.
 
 In the trash, a workspace integration is listed under the workspace; the shared application is never shown as a parent.
 
 The background task does the one-off backfill in batches after the rollout, instead of a data migration that would run before it. Until the task has reached a workspace, the new code can meet a workspace whose shared application does not exist yet, which is what the lazy creation in the listing covers. Its downsides are small for one release: a write on a read endpoint, taken under the workspace row lock so that concurrent listings cannot create two, and code that is soon obsolete. The next release adds a data migration that creates any missing shared applications and removes both the lazy path and the task.
 
-### 2. A service or user source may use an integration of its own application or of the workspace
+### 2. Managed in Workspace settings, through the existing integration API
+
+Workspace integrations are created, edited, reordered and deleted on an Integrations page in Workspace settings. Everyone who may list them can open the page; the management actions follow the Admin-only permissions of decision 6, and a Local Baserow integration shows there the identity it runs as, as in decision 7.
+
+Inside an app, a workspace integration is picked through the integration selector of decision 3. Promotion is triggered from the app's own integration settings by an Admin, after which the integration appears in Workspace settings and in the workspace group of the selector in every app.
+
+No new endpoints are added. The existing integration endpoints are addressed at the shared application, and the backend chooses the workspace-level or app-level permission operation by whether the target application is the shared one. The frontend learns the shared application's id from the application list, which is why that listing is where lazy creation lives (decision 1).
+
+### 3. A service or user source may use an integration of its own application or of the workspace
 
 Ownership validation will accept an integration owned either by the application of the service or user source, or by the shared application of the same workspace.
 
 Cross-workspace references remain invalid. Integration selectors will distinguish app-level and workspace-level choices.
 
-### 3. Published copies get their own copy, duplicates and snapshots keep the link
+### 4. Published copies get their own copy, duplicates and snapshots keep the link
 
 Publishing copies each referenced workspace integration into the published copy as an app-level integration. Published content therefore does not depend on an editable workspace integration: changing or deleting the workspace integration cannot directly disrupt a published copy.
 
 The trade-off is that credential changes, including urgent rotations, do not propagate to published copies. Each affected app or workflow must be republished until integration-only publishing is available; a full republish may also expose unrelated changes that are not ready to go live.
 
-By contrast, duplication and snapshot creation/restoration within the same workspace retain the workspace integration reference. They use its current configuration, not a historical snapshot of its settings. This reference-preserving rule does not apply to workspace imports or templates, even into the same workspace (decision 4).
+By contrast, duplication and snapshot creation/restoration within the same workspace retain the workspace integration reference. They use its current configuration, not a historical snapshot of its settings. This reference-preserving rule does not apply to workspace imports or templates, even into the same workspace (decision 5).
 
-### 4. Workspace exports and templates flatten to the app level
+### 5. Workspace exports and templates flatten to the app level
 
 Workspace exports and templates include referenced workspace integrations as app-level integrations, with sensitive fields stripped using the existing export rules.
 
@@ -82,19 +90,19 @@ Each imported app receives its own copy; shared ownership is not preserved, even
 
 This retains a common export/import path and avoids leaving services without integrations after import. The cost is duplication: three apps using one workspace integration produce three app-level integrations on import. Consolidating them afterwards is an Admin task using the ordinary tools: promote one copy and repoint the other services to it, by hand in v1 and with bulk replacement once it exists. Import itself will not recreate workspace-level ownership: exporting a workspace integration once in a dedicated section would have required its own import handling, creation of the shared application during import and an Admin permission on the importer, for a result that promotion and bulk replacement reach anyway.
 
-### 5. Admins manage, Builders list
+### 6. Admins manage, Builders list
 
 Workspace-scoped permissions will allow Builders to list and select workspace integrations, while only Admins may create, update, order, delete or restore them. The operations are separate from app-level integration permissions: because the shared application belongs to the workspace, reusing existing Builder-level operations could unintentionally grant management rights over integrations used by other apps.
 
-### 6. Every integration type is allowed at the workspace level
+### 7. Every integration type is allowed at the workspace level
 
 The shared application will support all integration types. In particular, a Local Baserow integration authorised as a person will make that identity clear wherever it is selected (for example, “Runs as [person] in all applications in this workspace”).
 
 This deliberately makes an authorised identity usable across applications: a Builder who can select the integration may use capabilities available through that identity. The Admin-only management rule and visible identity are the v1 controls; this broader reach is an accepted security consequence.
 
-### 7. Promotion only, as a one-row move
+### 8. Promotion only, as a one-row move
 
-An Admin may promote an existing app-level integration by moving its `application` reference to the workspace's shared application. Promotion moves the existing integration rather than creating a copy, preserving existing references. Only Admins may promote integrations. The original app's services and user sources continue to work under decision 2; published copies remain unchanged.
+An Admin may promote an existing app-level integration by moving its `application` reference to the workspace's shared application. Promotion moves the existing integration rather than creating a copy, preserving existing references. Only Admins may promote integrations. The original app's services and user sources continue to work under decision 3; published copies remain unchanged.
 
 Promotion is undoable unless new services or user sources began referencing the integration after the move, in which case moving it back could break them.
 
