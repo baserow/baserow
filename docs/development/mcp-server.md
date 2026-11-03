@@ -123,6 +123,13 @@ Some tools are currently disabled (`enabled = False`) and hidden from MCP client
 | `add_nodes` | enabled | Add nodes to a workflow (shared with Kuma) |
 | `update_nodes` | enabled | Change node labels, settings and router conditions (shared with Kuma) |
 | `delete_nodes` | enabled | Delete (trash) workflow nodes (shared with Kuma) |
+| `list_dashboards` | enabled | List the dashboards of the workspace with their widget count |
+| `list_widgets` | enabled | List a dashboard's widgets with the table, view, fields and aggregations they read |
+| `get_widget_data` | enabled | Read the figures widgets show |
+| `create_dashboards` | enabled | Create empty dashboards |
+| `create_widgets` | enabled | Add summary, chart and pie chart widgets to a dashboard |
+| `update_widgets` | enabled | Change a widget's title, chart type, or what it shows |
+| `delete_widgets` | enabled | Delete (trash) widgets |
 | `update_table` | disabled | Rename a table |
 | `delete_table` | disabled | Delete (trash) a table |
 
@@ -138,6 +145,8 @@ list_databases
 ```
 
 The automation tools are in their own groups (`automation_read`, `automation_edit`, `automation_delete`) and are not part of the "Read only" preset, so a user turns them on at consent or later under Settings. A value that takes a formula is stored as written when it is a valid formula and quoted when it is a literal. A formula is invalid when it doesn't parse, or reads a `previous_node` path the node doesn't output (the paths `list_nodes` shows). An invalid formula comes back in `formula_errors` for the client to fix with `update_nodes`: on a new node the value is left empty, on an update it keeps what it had. A formula can name a node created earlier in the same call by its ref, as in `get('previous_node.trigger.0.id')`. Over MCP no model is called; Kuma repairs those values with its formula generator after the nodes are committed.
+
+The dashboard tools are in the `dashboard_read`, `dashboard_edit` and `dashboard_delete` groups. `dashboard_read` is part of the "Read only" preset, because it only returns figures the user can already see on the dashboard. A widget is a `summary` (one field aggregated over the rows), a `chart` or a `pie_chart` (one or more series, optionally grouped by a field). Charts need a premium licence; without one the widget fails with the licence message. Each widget is saved on its own, so one that fails is listed in `errors` and the others are kept. An aggregation that doesn't fit a field, like `sum` on a text field, comes back in `errors` with the aggregations that do. A widget filters its rows through a view (`view_id`); filters on the data source itself are not offered. New widgets go where the dashboard places them by default.
 
 ## Adding a new tool
 

@@ -9,11 +9,14 @@ describes the tool to any client, and must not mention a client's own tools.
 """
 
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
-from django.contrib.auth.models import AbstractUser
+if TYPE_CHECKING:
+    # Not at runtime: ``baserow.core.mcp`` imports this package through
+    # ``core.tools.errors`` before Django is set up, from ``config/asgi.py``.
+    from django.contrib.auth.models import AbstractUser
 
-from baserow.core.models import Workspace
+    from baserow.core.models import Workspace
 
 
 def _ignore_status(message: str) -> None:
@@ -24,8 +27,8 @@ def _ignore_status(message: str) -> None:
 class ToolContext:
     """Who a shared tool acts for, and where it reports its progress."""
 
-    user: AbstractUser
-    workspace: Workspace
+    user: "AbstractUser"
+    workspace: "Workspace"
     update_status: Callable[[str], None] = field(default=_ignore_status)
     timezone: str | None = None
     """The timezone date values are in, UTC when None. Not read from ``user``,

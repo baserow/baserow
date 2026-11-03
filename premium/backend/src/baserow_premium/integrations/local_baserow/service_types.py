@@ -76,6 +76,8 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
     integration_type = LocalBaserowIntegrationType.type
     type = "local_baserow_grouped_aggregate_rows"
     model_class = LocalBaserowGroupedAggregateRows
+    # The aggregations the service can compute for a series.
+    aggregation_registry = grouped_aggregation_registry
     dispatch_types = [DispatchTypes.DATA]
     serializer_mixins = LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
 

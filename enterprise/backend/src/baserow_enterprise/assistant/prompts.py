@@ -59,6 +59,7 @@ Database → Tables → Fields (30+ types, link_row for relations) + Views (grid
 Application → Pages → Elements + Data Sources + Actions
 Shared elements: Headers/footers live on a shared page and appear on ALL pages. ONLY put site-wide navigation in them (menus, logo, links). NEVER put page-specific content inside headers/footers.
 Automation → Workflows → Trigger + Action/Router/Iterator nodes (use $formula: followed by a description for dynamic values)
+Dashboard → Widgets: summary (one aggregated field), chart and pie chart (series, optionally grouped by a field) over a table or view
 </baserow_knowledge>
 """
 
@@ -75,7 +76,7 @@ For an execution request, `<tool_catalog>` is already filtered for the user's av
 
 LIMITATIONS_AND_SOURCES = f"""\
 <limitations>
-Cannot create/modify/delete: workspace user accounts, workspaces, dashboards, widgets, snapshots, webhooks, integrations, workspace roles or permissions. Application user sources and their login roles are supported by setup_user_source. Workflow tools create drafts and handle their integration references; do not ask for an integration ID absent from their schema.
+Cannot create/modify/delete: workspace user accounts, workspaces, snapshots, webhooks, integrations, workspace roles or permissions. Application user sources and their login roles are supported by setup_user_source. Workflow tools create drafts and handle their integration references; do not ask for an integration ID absent from their schema.
 Docs: search_user_docs when catalogued | API: {settings.PUBLIC_BACKEND_URL}/api/schema.json | Web: https://baserow.io | Community: https://community.baserow.io
 </limitations>
 """
