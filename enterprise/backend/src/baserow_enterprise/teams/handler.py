@@ -9,13 +9,23 @@ from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
 
 from baserow.core.agents.subjects import AgentSubjectType
+from baserow.core.handler import CoreHandler
 from baserow.core.mixins import TrashableModelMixin
-from baserow.core.models import Workspace
+from baserow.core.models import Workspace, WorkspaceInvitation
+from baserow.core.operations import ListInvitationsWorkspaceOperationType
 from baserow.core.registries import subject_type_registry
 from baserow.core.subjects import UserSubjectType
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.user.utils import normalize_email_address
 from baserow.core.utils import atomic_if_not_already
-from baserow_enterprise.models import Role, RoleAssignment, Team, TeamSubject
+from baserow_enterprise.models import (
+    Role,
+    RoleAssignment,
+    Team,
+    TeamSubject,
+    WorkspaceTeamInvitation,
+)
+from baserow_enterprise.role.constants import NO_ROLE_LOW_PRIORITY_ROLE_UID
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.signals import (
     team_created,
@@ -26,12 +36,17 @@ from baserow_enterprise.signals import (
 )
 from baserow_enterprise.teams.exceptions import (
     TeamDoesNotExist,
+    TeamInvitationDoesNotExist,
     TeamNameNotUnique,
     TeamSubjectBadRequest,
     TeamSubjectBulkDoesNotExist,
     TeamSubjectDoesNotExist,
     TeamSubjectNotInGroup,
     TeamSubjectTypeUnsupported,
+)
+from baserow_enterprise.teams.operations import (
+    CreateTeamSubjectOperationType,
+    ListTeamSubjectsOperationType,
 )
 from baserow_premium.license.handler import LicenseHandler
 
@@ -580,3 +595,158 @@ class TeamHandler:
         team_subject_deleted.send(
             self, subject_id=subject.id, subject=subject, user=user
         )
+
+    def create_team_invitation(
+        self, user: AbstractUser, team: Team, email: str
+    ) -> WorkspaceTeamInvitation:
+        """
+        Invites the given email address to a team. The person joins the workspace
+        with the `NO_ROLE_LOW_PRIORITY` workspace role, so that the role of the team
+        applies, and is added to the team once they accept. If a pending invitation
+        already exists for the address it is reused: its workspace role is kept as it
+        is and the team is added to it, so one invitation can add the person to
+        several teams. Inviting the same address to the same team again sends the
+        invitation email again.
+
+        :param user: The user on whose behalf the invitation is created.
+        :param team: The team the person is invited to.
+        :param email: The email address of the person that is invited.
+        :raises WorkspaceUserAlreadyExists: If the address already belongs to a
+            member of the workspace, who should be added to the team directly.
+        :return: The created or existing team invitation.
+        """
+
+        workspace = team.workspace
+        LicenseHandler.raise_if_user_doesnt_have_feature(TEAMS, user, workspace)
+        CoreHandler().check_permissions(
+            user,
+            CreateTeamSubjectOperationType.type,
+            workspace=workspace,
+            context=team,
+        )
+
+        email = normalize_email_address(email)
+        existing_invitation = WorkspaceInvitation.objects.filter(
+            workspace=workspace, email=email
+        ).first()
+        permissions = (
+            existing_invitation.permissions
+            if existing_invitation
+            else NO_ROLE_LOW_PRIORITY_ROLE_UID
+        )
+        invitation = CoreHandler().create_workspace_invitation(
+            user, workspace, email, permissions
+        )
+
+        team_invitation, _ = WorkspaceTeamInvitation.objects.get_or_create(
+            invitation=invitation, team=team
+        )
+        return team_invitation
+
+    def list_team_invitations(
+        self, user: AbstractUser, team: Team
+    ) -> QuerySet[WorkspaceTeamInvitation]:
+        """
+        Returns the pending invitations to a team. They hold email addresses, so the
+        user must be allowed to list the invitations of the workspace as well as the
+        members of the team.
+
+        :param user: The user on whose behalf the invitations are listed.
+        :param team: The team the invitations add people to.
+        :return: A queryset of the team invitations, oldest first.
+        """
+
+        workspace = team.workspace
+        LicenseHandler.raise_if_user_doesnt_have_feature(TEAMS, user, workspace)
+        CoreHandler().check_permissions(
+            user,
+            ListTeamSubjectsOperationType.type,
+            workspace=workspace,
+            context=team,
+        )
+        CoreHandler().check_permissions(
+            user,
+            ListInvitationsWorkspaceOperationType.type,
+            workspace=workspace,
+            context=workspace,
+        )
+
+        return WorkspaceTeamInvitation.objects.filter(team=team).select_related(
+            "invitation"
+        )
+
+    def get_team_invitation(
+        self, team_invitation_id: int, team: Team
+    ) -> WorkspaceTeamInvitation:
+        """
+        Returns the invitation with the given id to the given team.
+
+        :param team_invitation_id: The id of the team invitation.
+        :param team: The team the invitation must belong to.
+        :raises TeamInvitationDoesNotExist: If it doesn't exist.
+        :return: The team invitation with its invitation loaded.
+        """
+
+        try:
+            return WorkspaceTeamInvitation.objects.select_related(
+                "invitation", "team__workspace"
+            ).get(id=team_invitation_id, team=team)
+        except WorkspaceTeamInvitation.DoesNotExist:
+            raise TeamInvitationDoesNotExist(
+                f"The team invitation with id {team_invitation_id} does not exist."
+            )
+
+    def delete_team_invitation(
+        self, user: AbstractUser, team_invitation: WorkspaceTeamInvitation
+    ):
+        """
+        Revokes the invitation of a person to a team. Only the team is removed, the
+        workspace invitation itself and the other teams or objects it carries are
+        kept.
+
+        :param user: The user revoking the team invitation.
+        :param team_invitation: The team invitation to delete.
+        """
+
+        team = team_invitation.team
+        LicenseHandler.raise_if_user_doesnt_have_feature(TEAMS, user, team.workspace)
+        # Whoever can invite someone to the team can take that invitation back.
+        CoreHandler().check_permissions(
+            user,
+            CreateTeamSubjectOperationType.type,
+            workspace=team.workspace,
+            context=team,
+        )
+
+        team_invitation.delete()
+
+    def add_invitee_to_teams(
+        self, invitation: WorkspaceInvitation, user: AbstractUser
+    ) -> List[TeamSubject]:
+        """
+        Adds the user who accepted a workspace invitation to the teams the
+        invitation carries. Teams that were trashed in the meantime, or that the
+        user is already in, are skipped, and so are all of them if the workspace
+        lost the teams feature, so the person always joins the workspace.
+
+        :param invitation: The accepted invitation, still carrying its teams.
+        :param user: The user who accepted it and is now a member of the workspace.
+        :return: The created team subjects.
+        """
+
+        if not LicenseHandler.workspace_has_feature(TEAMS, invitation.workspace):
+            return []
+
+        team_subjects = []
+        for team_invitation in invitation.team_invitations.select_related(
+            "team__workspace"
+        ):
+            team = team_invitation.team
+            if team.trashed:
+                continue
+            if self.get_teamsubject_subject_qs(user).filter(team=team).exists():
+                continue
+            team_subjects.append(
+                self.create_subject(user, {"id": user.id}, UserSubjectType.type, team)
+            )
+        return team_subjects

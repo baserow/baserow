@@ -12,6 +12,12 @@ ERROR_TEAM_DOES_NOT_EXIST = (
     "The requested team does not exist.",
 )
 
+ERROR_TEAM_INVITATION_DOES_NOT_EXIST = (
+    "ERROR_TEAM_INVITATION_DOES_NOT_EXIST",
+    HTTP_404_NOT_FOUND,
+    "The requested team invitation does not exist.",
+)
+
 ERROR_SUBJECT_DOES_NOT_EXIST = (
     "ERROR_SUBJECT_DOES_NOT_EXIST",
     HTTP_404_NOT_FOUND,
