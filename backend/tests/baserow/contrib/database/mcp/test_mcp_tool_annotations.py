@@ -74,7 +74,7 @@ EXPECTED = {
     "list_actions": (True, False),
     "create_actions": (False, False),
     "add_action_field_mapping": (False, False),
-    "update_action": (False, False),
+    "update_action": (False, True),
     # Disabled tools, annotated so they are ready when enabled.
     "update_table": (False, True),
     "delete_table": (False, True),

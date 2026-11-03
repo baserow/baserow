@@ -186,8 +186,8 @@ The automation and audit log tools are off in the "Read only" preset. Turn them
 on at consent or under **Settings > Connected apps**. The "Read only" preset
 includes reading dashboards and application builders, not changing them. The
 application builder tools are enterprise: an `OSS_ONLY` instance doesn't list
-them. `publish_workflow`, `update_element` and `set_theme` are marked
-destructive, so clients ask before running them.
+them. `publish_workflow`, `update_element`, `update_action` and `set_theme` are
+marked destructive, so clients ask before running them.
 
 ## 4. Test scenarios
 

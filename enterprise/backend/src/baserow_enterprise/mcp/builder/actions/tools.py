@@ -34,5 +34,5 @@ class UpdateActionMcpTool(FunctionMCPTool):
     group = GROUP_BUILDER_EDIT
     title = "Change a workflow action"
     read_only = False
-    destructive = False
+    destructive = True
     function = actions.update_action
