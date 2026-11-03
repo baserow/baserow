@@ -592,18 +592,31 @@ export const actions = {
 
       if (!widgetUpdates.has(state)) widgetUpdates.set(state, new Map())
       const updates = widgetUpdates.get(state)
-      let debouncedWidgetUpdate = updates.get(widgetId)
-      let previousOriginalValues = originalValues
-      if (debouncedWidgetUpdate) {
-        debouncedWidgetUpdate.cancel()
-        previousOriginalValues = debouncedWidgetUpdate.originalValues
+      let batch = updates.get(widgetId)
+      if (batch && !batch.started) {
+        // Keep every caller waiting for the combined save, with the latest value
+        // for each field and the earliest value for rolling that field back.
+        Object.assign(batch.values, values)
+        batch.originalValues = { ...originalValues, ...batch.originalValues }
+        batch.request = request
+        batch.waiters.push({ resolve, reject })
+        batch.run()
+        return
       }
 
-      debouncedWidgetUpdate = debounce(async () => {
+      batch = {
+        values: { ...values },
+        originalValues: { ...originalValues },
+        request,
+        waiters: [{ resolve, reject }],
+        started: false,
+      }
+      batch.run = debounce(async () => {
+        batch.started = true
+        const { values, originalValues, request } = batch
         try {
           await WidgetService($client).update(widgetId, values)
-          if (updates.get(widgetId) === debouncedWidgetUpdate)
-            updates.delete(widgetId)
+          if (updates.get(widgetId) === batch) updates.delete(widgetId)
           if (isDashboardRequestCurrent(state, request)) {
             const widget = state.widgets.find(
               (widget) => widget.id === widgetId
@@ -622,24 +635,30 @@ export const actions = {
           ) {
             await dispatch('fetchWidgets', request.dashboardId)
           }
-          resolve()
+          batch.waiters.forEach(({ resolve }) => resolve())
         } catch (error) {
-          if (updates.get(widgetId) === debouncedWidgetUpdate)
-            updates.delete(widgetId)
-          if (isFetchRequestCurrent(state, request, 'widgetFetchGeneration')) {
-            applyWidgetUpdate(context, $registry, {
-              widgetId,
-              values: previousOriginalValues,
-            })
-          } else if (isDashboardRequestCurrent(state, request)) {
-            await dispatch('fetchWidgets', request.dashboardId)
+          if (updates.get(widgetId) === batch) updates.delete(widgetId)
+          try {
+            if (
+              isFetchRequestCurrent(state, request, 'widgetFetchGeneration')
+            ) {
+              applyWidgetUpdate(context, $registry, {
+                widgetId,
+                values: originalValues,
+              })
+            } else if (isDashboardRequestCurrent(state, request)) {
+              await dispatch('fetchWidgets', request.dashboardId)
+            }
+          } catch {
+            // Report the original save error even if refreshing server state fails.
+          } finally {
+            // A failed recovery must also release every waiting component.
+            batch.waiters.forEach(({ reject }) => reject(error))
           }
-          reject(error)
         }
       }, 1000)
-      updates.set(widgetId, debouncedWidgetUpdate)
-      debouncedWidgetUpdate.originalValues = previousOriginalValues
-      debouncedWidgetUpdate()
+      updates.set(widgetId, batch)
+      batch.run()
     })
   },
   async handleWidgetUpdated(context, widget) {
