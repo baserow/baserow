@@ -18,6 +18,7 @@ from baserow.contrib.database.rows.handler import (
 )
 from baserow.contrib.database.rows.signals import rows_created, rows_updated
 from baserow.contrib.database.table.models import RichTextFieldMention
+from baserow.core.models import UserProfile
 from baserow.core.notifications.handler import (
     NotificationHandler,
     UserNotificationsGrouper,
@@ -26,6 +27,7 @@ from baserow.core.notifications.registries import (
     EmailNotificationTypeMixin,
     NotificationType,
 )
+from baserow.core.subjects import UserSubjectType
 
 if TYPE_CHECKING:
     from baserow.contrib.database.fields.models import Field
@@ -150,12 +152,26 @@ class CollaboratorAddedToRowNotificationType(
 
         notification_grouper = UserNotificationsGrouper()
 
-        iterator = cls._iter_field_row_and_collaborators_to_notify(
-            m2m_change_tracker, rows
+        assignments = list(
+            cls._iter_field_row_and_collaborators_to_notify(m2m_change_tracker, rows)
         )
-        for field, row, user_ids_to_notify in iterator:
-            notification = cls.construct_notification(sender=user, row=row, field=field)
-            notification_grouper.add(notification, list(user_ids_to_notify))
+        subject_ids = {
+            identity for _, _, identities in assignments for identity in identities
+        }
+        human_ids = dict(
+            UserProfile.objects.filter(
+                subject_id__in=subject_ids,
+                subject__type=UserSubjectType.type,
+                subject__state="live",
+            ).values_list("subject_id", "user_id")
+        )
+        for field, row, subject_ids_to_notify in assignments:
+            recipients = [human_ids[i] for i in subject_ids_to_notify if i in human_ids]
+            if recipients:
+                notification = cls.construct_notification(
+                    sender=user, row=row, field=field
+                )
+                notification_grouper.add(notification, recipients)
 
         if notification_grouper.has_notifications_to_send():
             notification_grouper.create_all_notifications_and_trigger_task()

@@ -305,8 +305,8 @@ def test_create_row_prepared_values_skip_defaults_and_preparation(data_fixture, 
 
     assert getattr(row, status_field.db_column).id == status.id
     assert list(getattr(row, tags_field.db_column).all()) == []
-    assert row.created_by == (None if force else user)
-    assert row.last_modified_by == (None if force else user)
+    assert row.created_by == (None if force else user.profile.subject)
+    assert row.last_modified_by == (None if force else user.profile.subject)
     assert values == {status_field.db_column: status}
 
 

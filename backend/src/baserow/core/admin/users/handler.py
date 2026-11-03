@@ -3,6 +3,7 @@ from typing import Optional
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import Q
 
 from baserow.core.admin.users.exceptions import (
@@ -58,6 +59,7 @@ class UserAdminHandler:
 
         return user
 
+    @transaction.atomic
     def update_user(
         self,
         requesting_user: User,

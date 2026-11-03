@@ -48,6 +48,7 @@ from baserow.contrib.database.fields.utils.duration import (
     D_H_M_S,
     postgres_interval_to_seconds,
 )
+from baserow.contrib.database.fields.utils.expression import CollaboratorNames
 from baserow.contrib.database.formula.ast.tree import (
     BaserowBooleanLiteral,
     BaserowDecimalLiteral,
@@ -76,7 +77,9 @@ from baserow.contrib.database.formula.types.formula_type import (
     UnTyped,
 )
 from baserow.core.db import collate_expression
+from baserow.core.models import Subject
 from baserow.core.storage import get_default_storage
+from baserow.core.subject.handler import workspace_subject_filter
 from baserow.core.utils import list_to_comma_separated_string
 
 
@@ -1797,19 +1800,37 @@ class BaserowFormulaMultipleCollaboratorsType(
     can_order_by_in_array = False
     can_group_by = False
 
+    def _get_name_filter(
+        self, builder, model_field, value, path="$[*].value[*]", **kwargs
+    ):
+        """Match canonical names and legacy names only where the canonical key is absent."""
+        canonical = builder(
+            model_field, value, query_path=f"{path} ? (exists(@.name)).name", **kwargs
+        )
+        legacy = builder(
+            model_field,
+            value,
+            query_path=f"{path} ? (!exists(@.name)).first_name",
+            **kwargs,
+        )
+        if isinstance(canonical, Q):
+            return canonical
+        return AnnotatedQ(
+            annotation={**canonical.annotation, **legacy.annotation},
+            q=canonical.q | legacy.q,
+        )
+
     def get_in_array_contains_word_query(
         self, field_name: str, value: str, model_field: DjangoField, field: "Field"
     ) -> OptionallyAnnotatedQ:
-        return get_jsonb_contains_word_filter_expr(
-            model_field, value, query_path="$[*].value.first_name"
+        return self._get_name_filter(
+            get_jsonb_contains_word_filter_expr, model_field, value
         )
 
     def get_in_array_contains_query(
         self, field_name: str, value: str, model_field: DjangoField, field: "Field"
     ) -> OptionallyAnnotatedQ:
-        return get_jsonb_contains_filter_expr(
-            model_field, value, query_path="$[*].value.first_name"
-        )
+        return self._get_name_filter(get_jsonb_contains_filter_expr, model_field, value)
 
     def get_in_array_is_query(
         self, field_name: str, value: str, model_field: DjangoField, field: "Field"
@@ -1844,10 +1865,11 @@ class BaserowFormulaMultipleCollaboratorsType(
             )
         else:
             empty_value = self.get_in_array_empty_value(field)
-            any_not_empty = get_jsonb_has_any_in_value_filter_expr(
+            any_not_empty = self._get_name_filter(
+                get_jsonb_has_any_in_value_filter_expr,
                 model_field,
                 empty_value,
-                query_path=f"$[*].first_name",
+                path="$[*]",
                 comparison_operator="!=",
                 join_operator="&&",
             )
@@ -1882,12 +1904,21 @@ class BaserowFormulaMultipleCollaboratorsType(
         return JSONField(default=list, **kwargs)
 
     def get_response_serializer_field(self, instance, **kwargs) -> Optional[Field]:
-        instance, field_type = super().get_baserow_field_instance_and_type()
-        return field_type.get_response_serializer_field(instance, **kwargs)
+        from baserow.contrib.database.api.fields.serializers import (
+            FormulaCollaboratorSerializer,
+        )
+
+        return FormulaCollaboratorSerializer(
+            **{
+                "required": False,
+                "allow_null": False,
+                "many": True,
+                **kwargs,
+            }
+        )
 
     def get_serializer_field(self, *args, **kwargs) -> Optional[Field]:
-        instance, field_type = super().get_baserow_field_instance_and_type()
-        return field_type.get_response_serializer_field(instance, **kwargs)
+        return self.get_response_serializer_field(*args, **kwargs)
 
     def get_export_value(self, value, field_object, rich_value=False):
         _, field_type = super().get_baserow_field_instance_and_type()
@@ -1895,16 +1926,41 @@ class BaserowFormulaMultipleCollaboratorsType(
         cache_key = f"_baserow_cache_{field_object['name']}_relations"
         field = field_object["formula_field"]
         if not hasattr(field, cache_key):
+            referenced_ids = (
+                field.table.get_model()
+                .objects.order_by()
+                .annotate(
+                    _subject_id=Cast(
+                        Func(
+                            F(field.db_column),
+                            Value("$.**.id"),
+                            function="jsonb_path_query",
+                        ),
+                        output_field=models.IntegerField(),
+                    )
+                )
+                .values("_subject_id")
+            )
             setattr(
                 field,
                 cache_key,
-                {usr.id: usr for usr in field.table.database.workspace.users.all()},
+                {
+                    subject.id: subject
+                    for subject in Subject.objects.filter(
+                        workspace_subject_filter(
+                            field.table.database.workspace_id, selectable=False
+                        )
+                        | Q(id__in=referenced_ids)
+                    ).distinct()
+                },
             )
 
         # Replace the JSON object with the actual user object, so we have
         # access to the user's email.
         users = getattr(field, cache_key)
-        value = [users[item["id"]] for item in value]
+        missing_ids = {item["id"] for item in value} - users.keys()
+        users.update(Subject.objects.in_bulk(missing_ids))
+        value = [users[item["id"]] for item in value if item["id"] in users]
 
         return field_type.get_export_value(value, field_object, rich_value=rich_value)
 
@@ -1917,25 +1973,16 @@ class BaserowFormulaMultipleCollaboratorsType(
         return True
 
     def get_search_expression(self, field, queryset):
-        return extract_jsonb_array_values_to_single_string(
-            field, queryset, [Value("first_name")]
+        return Func(
+            CollaboratorNames(F(field.db_column)),
+            Value(" "),
+            function="array_to_string",
+            output_field=TextField(),
         )
 
     def get_search_expression_in_array(self, field, queryset):
-        inner_expr = json_extract_path(
-            Func(
-                F(field.db_column),
-                function="jsonb_array_elements",
-                output_field=JSONField(),
-            ),
-            [Value("value")],
-            False,
-        )
-
         return Func(
-            extract_jsonb_list_values_to_array(
-                queryset, inner_expr, [Value("first_name")]
-            ),
+            CollaboratorNames(F(field.db_column), path="$[*].value[*]"),
             Value(" "),
             function="array_to_string",
             output_field=TextField(),
@@ -1978,7 +2025,7 @@ class BaserowFormulaMultipleCollaboratorsType(
         string aggregation.
         """
 
-        return "first_name"
+        return "name"
 
     @classmethod
     def get_serializer_field_overrides(cls):

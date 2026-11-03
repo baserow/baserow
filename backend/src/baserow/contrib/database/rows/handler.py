@@ -85,6 +85,7 @@ from baserow.core.exceptions import (
 from baserow.core.handler import CoreHandler
 from baserow.core.psycopg import is_index_row_size_error, is_unique_violation_error, sql
 from baserow.core.registries import OperationType
+from baserow.core.subject.handler import subject_for_actor
 from baserow.core.telemetry.utils import baserow_trace, baserow_trace_handler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.trash.registries import trash_item_type_registry
@@ -128,8 +129,7 @@ from .types import (
 
 
 def user_for_row_audit_columns(actor):
-    """Return a real user for generated-table user foreign keys."""
-
+    """Return a human sender for User-only notifications and trash records."""
     return actor if isinstance(actor, AbstractUser) and actor.id else None
 
 
@@ -1264,7 +1264,7 @@ class RowHandler:
         if signal_params is None:
             signal_params = {}
 
-        audit_user = user_for_row_audit_columns(user)
+        audit_user = subject_for_actor(user, for_write=True)
 
         unique_orders = self.get_unique_orders_before_row(
             before_row, model, amount=len(rows_values)
@@ -2348,7 +2348,7 @@ class RowHandler:
         if model is None:
             model = table.get_model()
 
-        audit_user = user_for_row_audit_columns(user)
+        audit_user = subject_for_actor(user, for_write=True)
 
         if values_already_prepared:
             # Row IDs are removed below, so do not mutate the caller's dictionaries.

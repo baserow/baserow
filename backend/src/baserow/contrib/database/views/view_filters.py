@@ -72,7 +72,9 @@ from baserow.contrib.database.formula.types.formula_types import (
     BaserowFormulaURLType,
 )
 from baserow.core.datetime import get_timezones
+from baserow.core.models import Subject as PersistentSubject
 from baserow.core.models import WorkspaceUser
+from baserow.core.subject.export import export_subject, import_subject
 
 from .registries import ViewFilterType
 
@@ -1523,41 +1525,18 @@ class MultipleCollaboratorsHasViewFilterType(ManyToManyHasBaseViewFilter):
     COLLABORATORS_KEY = f"available_collaborators"
 
     def get_export_serialized_value(self, value, id_mapping):
-        if value is None:
-            value = ""
-        if self.COLLABORATORS_KEY not in id_mapping:
-            workspace_id = id_mapping.get("workspace_id", None)
-            if workspace_id is None:
-                return value
-
-            id_mapping[self.COLLABORATORS_KEY] = defaultdict(list)
-
-            workspaceusers_from_workspace = WorkspaceUser.objects.filter(
-                workspace_id=workspace_id
-            ).select_related("user")
-
-            for workspaceuser in workspaceusers_from_workspace:
-                id_mapping[self.COLLABORATORS_KEY][str(workspaceuser.user.id)] = (
-                    workspaceuser.user.email
-                )
-
-        return id_mapping[self.COLLABORATORS_KEY].get(value, "")
+        if not str(value).isdigit():
+            return ""
+        key = "export_filter_subjects"
+        if key not in id_mapping:
+            id_mapping[key] = {}
+        if int(value) not in id_mapping[key]:
+            id_mapping[key].update(PersistentSubject.objects.in_bulk([int(value)]))
+        return export_subject(id_mapping[key].get(int(value))) or ""
 
     def set_import_serialized_value(self, value, id_mapping, field=None):
-        workspace_id = id_mapping.get("workspace_id", None)
-        if workspace_id is None:
-            return ""
-
-        if self.COLLABORATORS_KEY not in id_mapping:
-            id_mapping[self.COLLABORATORS_KEY] = defaultdict(list)
-            workspaceusers_from_workspace = WorkspaceUser.objects.filter(
-                workspace_id=workspace_id
-            ).select_related("user")
-            for workspaceuser in workspaceusers_from_workspace:
-                id_mapping[self.COLLABORATORS_KEY][str(workspaceuser.user.email)] = str(
-                    workspaceuser.user.id
-                )
-        return id_mapping[self.COLLABORATORS_KEY].get(value, "")
+        subject = import_subject(value, id_mapping.get("workspace_id"), id_mapping)
+        return str(subject.id) if subject else ""
 
 
 class MultipleCollaboratorsHasNotViewFilterType(

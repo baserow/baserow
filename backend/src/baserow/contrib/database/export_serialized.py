@@ -1,3 +1,6 @@
+from baserow.core.subject.export import export_subject
+
+
 class DatabaseExportSerializedStructure:
     @staticmethod
     def database(tables, integrations=None):
@@ -21,10 +24,10 @@ class DatabaseExportSerializedStructure:
         optional = {}
 
         if created_by:
-            optional["created_by"] = created_by.email
+            optional["created_by"] = export_subject(created_by)
 
         if last_modified_by:
-            optional["last_modified_by"] = last_modified_by.email
+            optional["last_modified_by"] = export_subject(last_modified_by)
 
         return {
             "id": id,

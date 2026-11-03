@@ -57,6 +57,7 @@ from django.db.models.functions import (
 from django.db.models.functions.datetime import TimezoneMixin
 
 from baserow.contrib.database.fields.models import NUMBER_MAX_DECIMAL_PLACES
+from baserow.contrib.database.fields.utils.expression import CollaboratorNames
 from baserow.contrib.database.formula.ast.function import (
     BaserowFunctionDefinition,
     CollapseManyBaserowFunction,
@@ -2137,8 +2138,7 @@ def aggregate_many_to_many_values(
     will be represented by a JSON object with an id, and the properties
     of the many-to-many field. For a multiple select field, the JSON
     object will contain a value and a color. For a multiple collaborators
-    field, the JSON object will contain a user id and the first_name of the
-    user.
+    field, the JSON object contains the Subject id, name and type.
 
     For example, consider a formula like `lookup('link_row_field',
     'multiple_select_field')`. This formula would call this function to
@@ -2389,7 +2389,7 @@ class BaserowStringAggManyToManyValues(OneArgumentBaserowFunction):
         if custom_value_key is None or custom_value_key == self.value_key:
             return func_call.with_valid_type(BaserowFormulaTextType())
         if custom_value_key == BaserowStringAggCollaboratorValues.value_key:
-            # The multiple collaborators type aggregates `first_name` instead
+            # The multiple collaborators type aggregates `name` instead
             # of `value`. Rewrite to the dedicated function so the key is bound
             # to the call instead of mutated on this singleton. Typing re-runs
             # whenever a formula is recompiled, so previously saved internal
@@ -2437,7 +2437,7 @@ class BaserowStringAggManyToManyValues(OneArgumentBaserowFunction):
 class BaserowStringAggCollaboratorValues(BaserowStringAggManyToManyValues):
     """
     Variant of `string_agg_many_to_many_values` for the multiple collaborators
-    type, which aggregates each collaborator's `first_name` rather than a
+    type, which aggregates each collaborator's `name` rather than a
     `value` key.
     """
 
@@ -2446,7 +2446,12 @@ class BaserowStringAggCollaboratorValues(BaserowStringAggManyToManyValues):
     # Matches `BaserowFormulaMultipleCollaboratorsType.custom_string_agg_value_key`.
     # The inherited `type_function` recognises the argument type's custom key as
     # this class's `value_key` and types the call as-is.
-    value_key = "first_name"
+    value_key = "name"
+
+    def to_django_expression(self, arg: Expression) -> Expression:
+        return Func(
+            CollaboratorNames(arg), function="unnest", output_field=fields.TextField()
+        )
 
 
 # Deprecated, use BaserowManyToManyAgg instead. This is kept for backwards compatibility

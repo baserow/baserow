@@ -140,6 +140,7 @@ class UserHandler:
         except User.DoesNotExist:
             raise UserNotFound("The user with the provided parameters is not found.")
 
+    @transaction.atomic
     def force_create_user(self, email, name, password, **kwargs):
         """
         Creates a new user and their profile.
@@ -362,6 +363,7 @@ class UserHandler:
 
         return user
 
+    @transaction.atomic
     def update_user(
         self,
         user: AbstractUser,
@@ -688,6 +690,7 @@ class UserHandler:
             )
             email.send()
 
+    @transaction.atomic
     def change_email(self, token: str) -> Tuple[AbstractUser, str]:
         """
         Changes the email address of a user if the provided token is valid.
