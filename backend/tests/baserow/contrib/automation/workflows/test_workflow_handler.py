@@ -1,7 +1,8 @@
 import datetime
+from threading import Thread
 from unittest.mock import MagicMock, patch
 
-from django.db import connection
+from django.db import connection, transaction
 from django.db.models import QuerySet
 from django.db.utils import IntegrityError
 from django.test import override_settings
@@ -536,7 +537,9 @@ def test_publish_preserves_local_baserow_authorized_subject(data_fixture):
 
 
 @pytest.mark.django_db
-def test_publish_cleans_up_old_workflows(data_fixture):
+def test_publish_cleans_up_old_workflows(
+    data_fixture, django_capture_on_commit_callbacks
+):
     workflow = data_fixture.create_automation_workflow()
     handler = AutomationWorkflowHandler()
 
@@ -550,21 +553,19 @@ def test_publish_cleans_up_old_workflows(data_fixture):
         status=HistoryStatusChoices.SUCCESS,
     )
 
-    published_1 = handler.publish(workflow)
-    published_2 = handler.publish(workflow)
-    published_3 = handler.publish(workflow)
-    published_4 = handler.publish(workflow)
+    with django_capture_on_commit_callbacks(execute=True):
+        published_1 = handler.publish(workflow)
+    with django_capture_on_commit_callbacks(execute=True):
+        published_2 = handler.publish(workflow)
+    with django_capture_on_commit_callbacks(execute=True):
+        published_3 = handler.publish(workflow)
 
-    # The first two published workflows should no longer exist
+    # The older published workflows should no longer exist
     assert AutomationWorkflow.objects_and_trash.filter(id=published_1.id).count() == 0
     assert AutomationWorkflow.objects_and_trash.filter(id=published_2.id).count() == 0
 
-    # The 3rd workflow should exist but in a disabled state
-    published_3.refresh_from_db()
-    assert published_3.is_published is False
-
     # The latest published workflow should be active
-    assert published_4.is_published is True
+    assert published_3.is_published is True
 
     # The test clone should still exist and the state should still be correct
     test_clone_workflow.refresh_from_db()
@@ -572,6 +573,159 @@ def test_publish_cleans_up_old_workflows(data_fixture):
         id=test_clone_workflow.id
     ).exists()
     assert test_clone_workflow.state == WorkflowState.TEST_CLONE
+
+
+@pytest.mark.django_db
+def test_publish_only_disables_older_copies_in_its_transaction(
+    data_fixture, django_capture_on_commit_callbacks
+):
+    workflow = data_fixture.create_automation_workflow()
+    handler = AutomationWorkflowHandler()
+
+    published_1 = handler.publish(workflow)
+    published_2 = handler.publish(workflow)
+    with patch(
+        "baserow.contrib.automation.workflows.handler."
+        "delete_superseded_published_automations"
+    ) as task:
+        with django_capture_on_commit_callbacks(execute=False) as callbacks:
+            published_3 = handler.publish(workflow)
+        task.delay.assert_not_called()
+
+        published_1.refresh_from_db()
+        published_2.refresh_from_db()
+        assert published_1.state == WorkflowState.DISABLED
+        assert published_2.state == WorkflowState.DISABLED
+        assert published_3.state == WorkflowState.LIVE
+        assert handler.get_published_workflow(workflow, with_cache=False) == published_3
+
+        for callback in callbacks:
+            callback()
+        task.delay.assert_called_once_with(workflow.id)
+
+
+@pytest.mark.django_db
+def test_first_publish_starts_no_clean_up(
+    data_fixture, django_capture_on_commit_callbacks
+):
+    workflow = data_fixture.create_automation_workflow()
+
+    with patch(
+        "baserow.contrib.automation.workflows.handler."
+        "delete_superseded_published_automations"
+    ) as task:
+        with django_capture_on_commit_callbacks(execute=True):
+            AutomationWorkflowHandler().publish(workflow)
+
+    task.delay.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_delete_superseded_keeps_the_current_copy_when_a_test_clone_is_newer(
+    data_fixture,
+):
+    workflow = data_fixture.create_automation_workflow()
+    handler = AutomationWorkflowHandler()
+    published_1 = handler.publish(workflow)
+    published_2 = handler.publish(workflow)
+    test_clone_automation, _ = handler._clone_workflow(
+        workflow, WorkflowState.TEST_CLONE
+    )
+
+    handler.delete_superseded_published_automations(workflow.id)
+
+    assert not AutomationWorkflow.objects.filter(id=published_1.id).exists()
+    assert handler.get_published_workflow(workflow, with_cache=False) == published_2
+    assert Automation.objects.filter(id=test_clone_automation.id).exists()
+
+
+@pytest.mark.django_db
+def test_delete_superseded_rechecks_history_when_it_runs(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    handler = AutomationWorkflowHandler()
+    published_1 = handler.publish(workflow)
+    published_2 = handler.publish(workflow)
+    # A run recorded after the publish that scheduled the deletion.
+    data_fixture.create_automation_workflow_history(
+        original_workflow=workflow,
+        workflow=published_1,
+        status=HistoryStatusChoices.SUCCESS,
+    )
+
+    handler.delete_superseded_published_automations(workflow.id)
+
+    assert AutomationWorkflow.objects.filter(id=published_1.id).exists()
+    assert AutomationWorkflow.objects.filter(id=published_2.id).exists()
+
+
+@pytest.mark.django_db
+def test_delete_superseded_keeps_only_the_newest_after_a_later_publish(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    handler = AutomationWorkflowHandler()
+    published_1 = handler.publish(workflow)
+    published_2 = handler.publish(workflow)
+    # The task of the first republish runs after the next publish committed.
+    published_3 = handler.publish(workflow)
+
+    handler.delete_superseded_published_automations(workflow.id)
+
+    remaining = AutomationWorkflow.objects.filter(automation__published_from=workflow)
+    assert list(remaining) == [published_3]
+    assert not {published_1.id, published_2.id} & {w.id for w in remaining}
+
+
+@pytest.mark.django_db
+def test_delete_superseded_survives_copies_already_gone(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    handler = AutomationWorkflowHandler()
+    handler.publish(workflow)
+    published_2 = handler.publish(workflow)
+
+    handler.delete_superseded_published_automations(workflow.id)
+    handler.delete_superseded_published_automations(workflow.id)
+    handler.delete_superseded_published_automations(0)
+
+    assert handler.get_published_workflow(workflow, with_cache=False) == published_2
+
+
+@pytest.mark.django_db(transaction=True)
+def test_delete_superseded_skips_a_copy_another_task_holds(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    handler = AutomationWorkflowHandler()
+    with patch(
+        "baserow.contrib.automation.workflows.handler."
+        "delete_superseded_published_automations"
+    ):
+        with transaction.atomic():
+            published_1 = handler.publish(workflow)
+        with transaction.atomic():
+            published_2 = handler.publish(workflow)
+    done = []
+
+    def other_task():
+        try:
+            handler.delete_superseded_published_automations(workflow.id)
+            done.append(
+                AutomationWorkflow.objects.filter(id=published_1.id).exists(),
+            )
+        finally:
+            connection.close()
+
+    # Holding the row as a running task does: the other one neither waits nor fails.
+    with transaction.atomic():
+        Automation.objects.select_for_update(of=("self",)).get(
+            id=published_1.automation_id
+        )
+        thread = Thread(target=other_task)
+        thread.start()
+        thread.join(timeout=30)
+        assert not thread.is_alive()
+
+    assert done == [True]
+
+    handler.delete_superseded_published_automations(workflow.id)
+    assert not AutomationWorkflow.objects.filter(id=published_1.id).exists()
+    assert AutomationWorkflow.objects.filter(id=published_2.id).exists()
 
 
 @pytest.mark.django_db
@@ -2152,7 +2306,9 @@ def test_ensure_published_for_run_ignores_published_workflow_states(data_fixture
 
 
 @pytest.mark.django_db
-def test_publish_preserves_old_live_automation_with_history(data_fixture):
+def test_publish_preserves_old_live_automation_with_history(
+    data_fixture, django_capture_on_commit_callbacks
+):
     """
     When re-publishing, old live automations that have history entries
     pointing at them should not be deleted.
@@ -2171,9 +2327,11 @@ def test_publish_preserves_old_live_automation_with_history(data_fixture):
         status=HistoryStatusChoices.SUCCESS,
     )
 
-    # Publish twice. Normally, this would deleted the oldest published entry.
-    handler.publish(workflow)
-    handler.publish(workflow)
+    # Normally, this would delete the oldest published entry.
+    with django_capture_on_commit_callbacks(execute=True):
+        handler.publish(workflow)
+    with django_capture_on_commit_callbacks(execute=True):
+        handler.publish(workflow)
 
     # The first automation shouldn't be deleted because it has history entries
     assert Automation.objects.filter(id=published_automation.id).exists()
