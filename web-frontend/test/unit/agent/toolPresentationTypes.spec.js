@@ -66,7 +66,14 @@ describe('Agent tool presentations', () => {
       expect(presenter.getLabel(t)).not.toMatch(/^agent\./)
       expect(presenter.getDescription(t)).not.toMatch(/^agent\./)
       const requested = { ...input, ...preview }
-      for (const status of ['running', 'done', 'failed', 'stopped']) {
+      for (const status of [
+        'running',
+        'waiting',
+        'done',
+        'failed',
+        'rejected',
+        'stopped',
+      ]) {
         const activity = toolActivity(
           step(name, status, { input: requested, facts }),
           registry,
@@ -100,6 +107,33 @@ describe('Agent tool presentations', () => {
       )
     }
   )
+
+  test.each([
+    ['create_rows', { requested_count: 3 }, 'Create 3 rows'],
+    ['create_rows', { requested_count: 1 }, 'Create 1 row'],
+    ['create_rows', {}, 'Create rows'],
+    ['delete_rows', { requested_count: 2 }, 'Delete 2 rows'],
+    ['create_fields', { requested_count: 1 }, 'Add 1 field'],
+  ])(
+    'titles a held %s call by what it asks to do: %j',
+    (tool, input, title) => {
+      for (const status of ['waiting', 'rejected']) {
+        expect(
+          toolActivity(step(tool, status, { input }), registry, t).title
+        ).toBe(title)
+      }
+    }
+  )
+
+  test.each(
+    cases.tools
+      .filter(({ name }) => step(name).changes_data)
+      .map(({ name }) => name)
+  )('a held %s call names its requested count', (tool) => {
+    const held = step(tool, 'waiting', { input: { requested_count: 2 } })
+
+    expect(toolActivity(held, registry, t).title).toMatch(/2/)
+  })
 
   test('completed changes use confirmed counts and missing counts keep action labels', () => {
     const data = step('create_rows', 'done', {

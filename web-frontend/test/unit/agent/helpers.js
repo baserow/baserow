@@ -105,6 +105,12 @@ export const mockSendMessage = (testApp, uuid, ...responses) =>
     ...responses
   )
 
+export const mockApprovals = (testApp, uuid, ...responses) =>
+  respond(
+    testApp.mock.onPost(`/agent/10/conversations/${uuid}/approvals/`),
+    ...responses
+  )
+
 export const sentBodies = (testApp) =>
   testApp.mock.history.post.map(({ data }) => JSON.parse(data))
 

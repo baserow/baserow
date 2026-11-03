@@ -63,4 +63,10 @@ export default (client) => ({
       values
     )
   },
+  decideApprovals(agentId, conversationUuid, decisions) {
+    return client.post(
+      `/agent/${agentId}/conversations/${conversationUuid}/approvals/`,
+      { decisions }
+    )
+  },
 })

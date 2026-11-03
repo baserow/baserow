@@ -36,8 +36,20 @@ class DatabaseToolPresentationType extends ToolPresentationType {
     return this.constructor.definition.read ? null : input
   }
 
+  /** A held call hasn't run, so it is titled by what it asks to do. */
+  getHeldActivity({ input }, t) {
+    const count = input.requested_count
+    if (this.constructor.definition.counted !== true || !countIsKnown(count)) {
+      return this.getLabel(t)
+    }
+    return t(`${this.labelKey}HeldCount`, { count }, count)
+  }
+
   getActivity({ status, input, facts }, t) {
     const { counted, table } = this.constructor.definition
+    if (status === STEP_STATUS.WAITING || status === STEP_STATUS.REJECTED) {
+      return this.getHeldActivity({ input }, t)
+    }
     if (status !== STEP_STATUS.RUNNING && status !== STEP_STATUS.DONE) {
       return this.getLabel(t)
     }
