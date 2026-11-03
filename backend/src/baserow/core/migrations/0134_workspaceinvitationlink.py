@@ -10,7 +10,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0133_template_shared_content'),
+        ('core', '0134_downloadusertemplatejob'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
