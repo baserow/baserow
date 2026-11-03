@@ -265,6 +265,32 @@ $dashboard-resources-row-min-width: 1044px;
   border-top: 1px solid $palette-neutral-200;
 }
 
+.dashboard-widget-filters--compact {
+  .dashboard-widget-filters__other-header {
+    margin-bottom: 4px;
+  }
+
+  .dashboard-widget-filters__source {
+    margin-top: 8px;
+  }
+
+  .dashboard-widget-filters__operator {
+    margin: 8px 0;
+  }
+
+  .expandable__header--card {
+    padding: 8px 12px;
+  }
+
+  .expandable__content--card {
+    padding: 12px;
+  }
+
+  .filters__items {
+    gap: 8px;
+  }
+}
+
 .dashboard-widget-filter-targets__help {
   margin: 0 0 12px;
   color: $palette-neutral-900;

@@ -105,4 +105,47 @@ test('summary sources expose the shared filter control and save permanent condit
     }
   )
   expect(context.find('[contenteditable=true]').exists()).toBe(false)
+
+  store.commit('dashboardApplication/ADD_WIDGET', {
+    id: 9,
+    type: 'text_filter',
+    title: 'Country',
+    target_filters: [
+      {
+        target_widget_id: widget.id,
+        empty_behavior: 'apply_nothing',
+        group: {
+          filter_type: 'AND',
+          filter_groups: [],
+          filters: [
+            {
+              id: 10,
+              field: 7,
+              type: 'equal',
+              value: { formula: 'France', mode: 'raw' },
+            },
+          ],
+        },
+      },
+    ],
+  })
+  await flushPromises()
+  expect(filterButton.text()).toBe('serviceRefinementForms.filterTabTitle - 2')
+  const inherited = context.find('.dashboard-widget-filters__source')
+  expect(inherited.text()).toContain('Country')
+  expect(inherited.find('input[disabled]').element.value).toBe('France')
+
+  await valueInput.setValue('Beta')
+  await valueInput.trigger('keydown', { key: 'Enter' })
+  await flushPromises()
+  const updates = dispatch.mock.calls.filter(
+    ([action]) => action === 'dashboardApplication/updateDataSource'
+  )
+  expect(updates.at(-1)[1].values.filters).toEqual([
+    expect.objectContaining({
+      field: 7,
+      value: expect.objectContaining({ formula: 'Beta' }),
+    }),
+  ])
+  expect(inherited.find('input[disabled]').element.value).toBe('France')
 })

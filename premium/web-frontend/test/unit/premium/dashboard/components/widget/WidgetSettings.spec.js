@@ -181,4 +181,58 @@ describe.each(['chart', 'pie_chart'])('%s filter settings', (type) => {
     expect(reloaded.findAll('.filters__item--level-2')).toHaveLength(2)
     expect(reloaded.findAll('.filters__item--level-1')).toHaveLength(1)
   })
+
+  test('includes linked filter conditions without saving them with the editable source filters', async () => {
+    const owner = {
+      id: 20,
+      type: 'text_filter',
+      title: 'Country',
+      target_filters: [
+        {
+          target_widget_id: widget.id,
+          empty_behavior: 'apply_nothing',
+          group: {
+            filter_type: 'AND',
+            filter_groups: [],
+            filters: [
+              {
+                id: 2,
+                field: 5,
+                type: 'equal',
+                value: { formula: 'France', mode: 'raw' },
+              },
+            ],
+          },
+        },
+      ],
+    }
+    testApp.store.commit('dashboardApplication/SET_WIDGETS', [widget, owner])
+    const wrapper = await openFilters()
+    expect(
+      wrapper.find('.iconoir-filter').element.parentElement.textContent
+    ).toContain('serviceRefinementForms.filterTabTitle - 2')
+    const inherited = wrapper.find('.dashboard-widget-filters__source')
+    expect(inherited.text()).toContain('Country')
+    expect(inherited.find('input[disabled]').element.value).toBe('France')
+    expect(inherited.find('.filters__remove').exists()).toBe(false)
+
+    const input = wrapper.find(
+      '.filters__value--formula-input input:not([disabled])'
+    )
+    await input.setValue('After')
+    await input.trigger('keydown', { key: 'Enter' })
+    await vi.waitFor(() => {
+      expect(savedDataSource.filters).toEqual([
+        {
+          id: 1,
+          field: 5,
+          type: 'equal',
+          value: { formula: 'After', mode: 'raw' },
+        },
+      ])
+    })
+    expect(owner.target_filters[0].group.filters[0].value.formula).toBe(
+      'France'
+    )
+  })
 })

@@ -241,6 +241,7 @@ import DashboardFormulaInput from '@baserow/modules/dashboard/components/Dashboa
 import WidgetFilterConfigurationModal from '@baserow/modules/dashboard/components/widget/WidgetFilterConfigurationModal'
 import FieldService from '@baserow/modules/database/services/field'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { getWidgetFilterGroups } from '@baserow/modules/dashboard/utils/widgetFilters'
 
 const props = defineProps({
   widget: { type: Object, required: true },
@@ -308,33 +309,15 @@ const readonlyGroups = computed(() => {
         },
       ]
     : []
-  for (const owner of $store.getters[
-    `${props.storePrefix}dashboardApplication/getWidgets`
-  ]) {
-    if (
-      owner.id === props.widget.id ||
-      !$registry.get('dashboardWidget', owner.type).isFilterWidget
-    )
-      continue
-    const contribution = (owner.target_filters || []).find(
-      (item) => item.target_widget_id === targetId.value
-    )
-    if (!contribution) continue
-    const alternativeGroup =
-      contribution.empty_behavior === 'apply_alternative' &&
-      hasConditions(contribution.alternative_group)
-        ? contribution.alternative_group
-        : null
-    if (!hasConditions(contribution.group) && !alternativeGroup) continue
-    groups.push({
-      key: owner.id,
-      title: owner.title,
-      group: contribution.group,
-      alternativeGroup,
-      owner,
-    })
-  }
-  return groups
+  return [
+    ...groups,
+    ...getWidgetFilterGroups(
+      $store.getters[`${props.storePrefix}dashboardApplication/getWidgets`],
+      targetId.value,
+      $registry,
+      props.widget.id
+    ),
+  ]
 })
 const linkedTargets = computed(() =>
   targets.value.filter((widget) => configured(widget.id))

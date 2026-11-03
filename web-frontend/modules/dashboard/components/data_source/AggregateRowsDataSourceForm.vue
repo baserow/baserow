@@ -116,18 +116,21 @@
         </Dropdown>
       </FormGroup>
     </FormSection>
-    <ServiceRefinementForms
+    <DashboardServiceRefinementForms
       v-if="values.table_id && !fieldHasErrors('table_id') && !fieldsLoading"
       small
       :values="values"
       :table-fields="tableFields"
+      :widget="widget"
+      :dashboard="dashboard"
+      :store-prefix="storePrefix"
       show-filter
     />
   </form>
 </template>
 
 <script>
-import ServiceRefinementForms from '@baserow/modules/integrations/localBaserow/components/services/ServiceRefinementForms'
+import DashboardServiceRefinementForms from '@baserow/modules/dashboard/components/data_source/DashboardServiceRefinementForms'
 import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
 import { required } from '@vuelidate/validators'
@@ -146,7 +149,7 @@ const includesIfSet = (array) => (value) => {
 
 export default {
   name: 'AggregateRowsDataSourceForm',
-  components: { ServiceRefinementForms },
+  components: { DashboardServiceRefinementForms },
   mixins: [form, tableFields],
   props: {
     dashboard: {
