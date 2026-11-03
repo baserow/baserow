@@ -148,5 +148,9 @@ def test_answers_from_chart_check_fails_on_an_added_widget_or_a_stray_2():
     assert not all(_run(case_id, good, change_and_add).values())
     stray = _output("update_widgets", answer="3 deals as of 2026-10-28.")
     assert not all(_run(case_id, stray, change).values())
-    lost = _output("update_widgets", answer="Won has 1 deal, Lost has 2.")
-    assert not all(_run(case_id, lost, change).values())
+    for answer in ["Won has 1 deal, Lost has 2.", "Lost has 2 deals, Won has 1."]:
+        lost = _output("update_widgets", answer=answer)
+        assert not all(_run(case_id, lost, change).values())
+    for answer in ["Won has 2 deals, Lost has 1.", "There are 2 Won deals and 1 Lost."]:
+        won = _output("update_widgets", "get_widget_data", answer=answer)
+        assert all(_run(case_id, won, change).values())

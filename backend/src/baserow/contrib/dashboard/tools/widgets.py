@@ -12,7 +12,6 @@ from django.db import transaction
 from django.utils.translation import gettext as _
 
 from pydantic import Field, TypeAdapter
-from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.dashboard.data_sources.actions import (
     UpdateDashboardDataSourceActionType,
@@ -49,7 +48,7 @@ from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.operations import ListViewsOperationType
 from baserow.core.db import specific_iterator
-from baserow.core.exceptions import InstanceTypeDoesNotExist, PermissionException
+from baserow.core.exceptions import PermissionException
 from baserow.core.handler import CoreHandler
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
@@ -290,8 +289,7 @@ def _unfitting_aggregation(
 ) -> DjangoValidationError | None:
     """
     The first aggregation of a data source that its service can't compute on its
-    field, as an error naming the ones it can. Called after the service refused the
-    values, to tell the caller what to use instead.
+    field, as an error naming the ones it can.
 
     :param tool_type: How the tools handle the widget's type.
     :param service: The specific service of the widget's data source.
@@ -370,21 +368,19 @@ def _update_data_source(
     """
 
     service = widget.data_source.service.specific
+    # Checked on the whole data source: the service only checks an aggregation
+    # sent with its field.
+    unfitting = _unfitting_aggregation(tool_type, service, config)
+    if unfitting is not None:
+        raise unfitting
     values = tool_type.data_source_values(config, previous, service)
-    try:
-        # The service checks that the view and fields belong to the table, and
-        # that each aggregation fits its field.
-        UpdateDashboardDataSourceActionType.do(
-            ctx.user,
-            widget.data_source_id,
-            service_type_registry.get_by_model(service),
-            values,
-        )
-    except (DRFValidationError, InstanceTypeDoesNotExist) as exc:
-        unfitting = _unfitting_aggregation(tool_type, service, config)
-        if unfitting is None:
-            raise
-        raise unfitting from exc
+    # The service checks that the view and fields belong to the table.
+    UpdateDashboardDataSourceActionType.do(
+        ctx.user,
+        widget.data_source_id,
+        service_type_registry.get_by_model(service),
+        values,
+    )
     return values
 
 

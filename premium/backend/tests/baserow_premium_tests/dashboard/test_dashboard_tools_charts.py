@@ -326,6 +326,24 @@ def test_changing_the_chart_type_keeps_series_colours(premium_data_fixture):
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_the_current_chart_type_redraws_a_series_drawn_otherwise(
+    premium_data_fixture,
+):
+    ctx, _, _, widget_id = _styled_chart(premium_data_fixture)
+
+    result = update_widgets(ctx, [{"widget_id": widget_id, "chart_type": "BAR"}])
+    again = update_widgets(ctx, [{"widget_id": widget_id, "chart_type": "BAR"}])
+
+    assert result["updated"][0]["chart_type"] == "BAR"
+    assert [s[1:] for s in _styles(widget_id)] == [
+        ("BAR", None),
+        ("BAR", "#ff0000"),
+    ]
+    assert again == {"updated": [], "errors": []}
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_changing_the_group_by_keeps_series_styles(premium_data_fixture):
     ctx, table, _, widget_id = _styled_chart(premium_data_fixture)
     region = premium_data_fixture.create_single_select_field(table=table, name="Region")

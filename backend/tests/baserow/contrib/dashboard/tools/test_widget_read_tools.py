@@ -4,6 +4,7 @@ import pytest
 
 from baserow.contrib.dashboard.tools.registries import widget_tool_type_registry
 from baserow.contrib.dashboard.tools.widgets import (
+    _widget_updates,
     describe_widget,
     get_widget_data,
     get_widget_in_workspace,
@@ -153,6 +154,9 @@ def test_a_widget_type_the_tools_dont_handle_is_only_described(
 ):
     ctx, _ = dashboard_ctx
     widget, _, _ = summary_widget
+    # Built with every type first, as in a running app, so the cached update
+    # model the other tests use still has the summary values.
+    _widget_updates()
     monkeypatch.delitem(widget_tool_type_registry.registry, "summary")
 
     assert describe_widget(widget) == {

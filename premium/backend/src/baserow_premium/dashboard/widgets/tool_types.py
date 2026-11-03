@@ -170,11 +170,9 @@ class ChartWidgetToolType(WidgetToolType):
     ) -> dict[str, Any]:
         changed = changed_keys(config, previous)
         values = {key: config[key] for key in changed & {"table_id", "view_id"}}
-        # A new table drops the series and group by of the old one.
-        table_changed = "table_id" in changed and previous is not None
         # The grouped aggregate service takes the series and group bys under the
         # names of their relations. It drops the sorts they no longer match.
-        if "series" in changed or table_changed:
+        if "series" in changed:
             existing = [
                 {
                     "id": series.id,
@@ -192,7 +190,7 @@ class ChartWidgetToolType(WidgetToolType):
                 }
                 for id_, series in zip(ids, config["series"])
             ]
-        if changed & {"group_by_field_id", "group_by_row_id"} or table_changed:
+        if changed & {"group_by_field_id", "group_by_row_id"}:
             group_by = config["group_by_field_id"]
             # A group by without a field groups by row id.
             values["service_aggregation_group_bys"] = (
@@ -217,9 +215,27 @@ class ChartWidgetToolType(WidgetToolType):
                 f"A {self.type} is drawn as {' or '.join(chart_types)}; use a "
                 f"{other_type} for {' or '.join(other_chart_types)}."
             )
-        if current is not None and chart_type == current["chart_type"]:
+        if (
+            current is not None
+            and chart_type == current["chart_type"]
+            and not self._drawn_otherwise(current["id"], chart_type)
+        ):
             return {}
         return {"default_series_chart_type": chart_type}
+
+    def _drawn_otherwise(self, widget_id: int, chart_type: str) -> bool:
+        """
+        :param widget_id: The chart.
+        :param chart_type: The chart type it is drawn as.
+        :return: Whether a series is drawn in another type, set in the UI.
+        """
+
+        model = widget_type_registry.get(self.type).model_class
+        return (
+            model.objects.get(id=widget_id)
+            .series_config.exclude(series_chart_type=chart_type)
+            .exists()
+        )
 
     def after_data_source_update(
         self,

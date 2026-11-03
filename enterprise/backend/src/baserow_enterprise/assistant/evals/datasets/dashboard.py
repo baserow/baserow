@@ -391,8 +391,20 @@ UNREQUESTED_WRITE_TOOLS = (
 )
 
 
-# The 2 next to Won, with no other number between them.
-WON_DEALS = re.compile(r"\b2\b[^.\d]{0,40}\bwon\b|\bwon\b[^.\d]{0,40}\b2\b", re.I)
+def _gives_2_won_deals(answer: str) -> bool:
+    """
+    Whether a part of the answer, split at punctuation and "and", names Won and
+    2 as its only number, without naming Lost.
+    """
+
+    for part in re.split(r"[.,;:\n]|\band\b", answer, flags=re.I):
+        if (
+            re.search(r"\bwon\b", part, re.I)
+            and not re.search(r"\blost\b", part, re.I)
+            and re.findall(r"\d+", part) == ["2"]
+        ):
+            return True
+    return False
 
 
 def _check_answers_from_chart(
@@ -413,7 +425,7 @@ def _check_answers_from_chart(
         ),
         CheckResult(
             "answer gives 2 Won deals",
-            WON_DEALS.search(output.answer) is not None,
+            _gives_2_won_deals(output.answer),
             hint=output.answer[:200],
         ),
         CheckResult(

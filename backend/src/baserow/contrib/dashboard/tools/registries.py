@@ -139,10 +139,13 @@ def changed_keys(config: dict[str, Any], previous: dict[str, Any] | None) -> set
     """
     :param config: The data source a widget gets.
     :param previous: The data source it has, or None for a new widget.
-    :return: The keys whose value changes, every key for a new widget.
+    :return: The keys whose value changes, every key for a new widget or a new
+        table, so the service checks the fields against the table.
     """
 
-    return {key for key in config if previous is None or previous[key] != config[key]}
+    if previous is None or previous["table_id"] != config["table_id"]:
+        return set(config)
+    return {key for key in config if previous[key] != config[key]}
 
 
 class WidgetToolTypeRegistry(Registry[WidgetToolType]):

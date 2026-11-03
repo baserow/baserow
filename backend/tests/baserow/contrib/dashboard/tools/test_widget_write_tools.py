@@ -286,6 +286,53 @@ def test_update_widget_reports_aggregation_that_does_not_fit(
 
 
 @pytest.mark.django_db
+def test_update_widget_checks_an_aggregation_given_alone(dashboard_ctx, sales_table):
+    ctx, dashboard = dashboard_ctx
+    table, name, _ = sales_table
+    widget_id = create_widgets(ctx, dashboard.id, [_summary(table, name, "count")])[
+        "created"
+    ][0]["id"]
+
+    result = update_widgets(
+        ctx,
+        [
+            {"widget_id": widget_id, "aggregation_type": "sum"},
+            {"widget_id": widget_id, "aggregation_type": "bogus"},
+        ],
+    )
+
+    assert result["updated"] == []
+    assert "sum can't be used on field 'Name'" in result["errors"][0]["error"]
+    assert "bogus can't be used on field 'Name'" in result["errors"][1]["error"]
+    (widget,) = list_widgets(ctx, dashboard.id)["widgets"]
+    assert widget["aggregation_type"] == "count"
+    assert get_widget_data(ctx, [widget_id])["widgets"][0]["configured"] is True
+
+
+@pytest.mark.django_db
+def test_update_widget_to_another_table_needs_its_field(
+    data_fixture, dashboard_ctx, sales_table
+):
+    ctx, dashboard = dashboard_ctx
+    table, _, amount = sales_table
+    other = data_fixture.create_database_table(database=table.database)
+    price = data_fixture.create_number_field(table=other, name="Price")
+    widget_id = create_widgets(ctx, dashboard.id, [_summary(table, amount)])["created"][
+        0
+    ]["id"]
+
+    refused = update_widgets(ctx, [{"widget_id": widget_id, "table_id": other.id}])
+    moved = update_widgets(
+        ctx, [{"widget_id": widget_id, "table_id": other.id, "field_id": price.id}]
+    )
+
+    assert refused["updated"] == []
+    assert "not related to the given table" in refused["errors"][0]["error"]
+    assert moved["errors"] == []
+    assert moved["updated"][0]["field_id"] == price.id
+
+
+@pytest.mark.django_db
 def test_update_summary_widget_rejects_chart_values(dashboard_ctx, sales_table):
     ctx, dashboard = dashboard_ctx
     table, _, amount = sales_table
