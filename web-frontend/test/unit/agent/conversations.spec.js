@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
+import Context from '@baserow/modules/core/components/Context'
 import {
   acceptConversation,
   agentData,
@@ -625,5 +626,57 @@ describe('Agent conversations', () => {
       'Conversation A',
       'Conversation B',
     ])
+  })
+
+  test('renames inline, then deletes and offers a restore, selecting the next one', async () => {
+    const renamed = conversation('conversation-a', 'Renamed')
+    twoConversations()
+    mockMessages(testApp, 'conversation-a', page([]))
+    mockMessages(testApp, 'conversation-b', page([]))
+    testApp.mock
+      .onPatch('/agent/10/conversations/conversation-a/')
+      .reply(200, renamed)
+    testApp.mock.onDelete('/agent/10/conversations/conversation-a/').reply(204)
+    const wrapper = await mount()
+    const chooseFromMenu = async (title, action) => {
+      await wrapper
+        .findAll('.agent-conversations__row')
+        .find((row) => row.text().includes(title))
+        .get('.agent-conversations__options')
+        .trigger('click')
+      await wrapper
+        .findComponent(Context)
+        .findAll('.context__menu-item-link')
+        .find((link) => link.text().includes(action))
+        .trigger('click')
+      await flushPromises()
+    }
+    await selectConversation(wrapper, 'Conversation A')
+
+    await chooseFromMenu('Conversation A', 'action.rename')
+    const input = wrapper.get('.agent-conversations__rename')
+    expect(document.activeElement).toBe(input.element)
+    await input.setValue('  Renamed ')
+    await input.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    expect(JSON.parse(testApp.mock.history.patch.at(-1).data)).toEqual({
+      title: 'Renamed',
+    })
+    expect(conversationTitles(wrapper)).toEqual(['Renamed', 'Conversation B'])
+
+    await chooseFromMenu('Renamed', 'action.delete')
+
+    expect(conversationTitles(wrapper)).toEqual(['Conversation B'])
+    expect(selected(wrapper).text()).toContain('Conversation B')
+    expect(testApp.store.state.toast.items).toContainEqual(
+      expect.objectContaining({
+        type: 'restore',
+        data: {
+          trash_item_type: 'agent_conversation',
+          trash_item_id: renamed.id,
+        },
+      })
+    )
   })
 })

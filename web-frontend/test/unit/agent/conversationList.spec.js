@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import AgentConversationList from '@baserow/modules/agent/components/AgentConversationList'
+import Context from '@baserow/modules/core/components/Context'
 
 describe('Agent conversation list', () => {
   let testApp, form
@@ -121,5 +122,35 @@ describe('Agent conversation list', () => {
     expect(wrapper.get('.agent-conversations__content').isVisible()).toBe(true)
     expect(wrapper.get('aside').attributes('aria-hidden')).toBeUndefined()
     expect(wrapper.find('.agent-conversations__footer').exists()).toBe(false)
+  })
+
+  test('offers a menu only for saved conversations and cancels a rename on Escape', async () => {
+    const wrapper = await testApp.mount(AgentConversationList, {
+      props: {
+        items: [
+          { uuid: 'saved', title: 'Saved conversation' },
+          { uuid: 'draft', title: '', local: true },
+        ],
+        canRename: true,
+        canDelete: true,
+      },
+    })
+    const [saved, draft] = wrapper.findAll('.agent-conversations__row')
+    expect(draft.find('.agent-conversations__options').exists()).toBe(false)
+
+    await saved.get('.agent-conversations__options').trigger('click')
+    await wrapper
+      .findComponent(Context)
+      .get('.context__menu-item-link')
+      .trigger('click')
+    const input = wrapper.get('.agent-conversations__rename')
+    await input.setValue('Unsaved title')
+    await input.trigger('keydown', { key: 'Escape' })
+
+    expect(wrapper.find('.agent-conversations__rename').exists()).toBe(false)
+    expect(wrapper.get('.agent-conversations__item').text()).toBe(
+      'Saved conversation'
+    )
+    expect(wrapper.emitted('rename')).toBeUndefined()
   })
 })

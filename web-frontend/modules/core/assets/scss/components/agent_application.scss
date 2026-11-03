@@ -88,8 +88,13 @@
     outline-offset: -2px;
   }
 
-  &.agent-conversations__item--selected {
+  &.agent-conversations__item--selected,
+  &.agent-conversations__item--renaming {
     background: rgba($palette-neutral-1300, 0.04);
+  }
+
+  &.agent-conversations__item--renaming {
+    cursor: default;
   }
 }
 
@@ -123,6 +128,72 @@
 .agent-conversations__draft {
   font-size: 11px;
   color: $palette-neutral-600;
+}
+
+.agent-conversations__rename {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid $palette-neutral-400;
+  background: $palette-neutral-0;
+  color: inherit;
+  font: inherit;
+  outline: none;
+
+  @include rounded($rounded);
+
+  &:focus {
+    border-color: $palette-blue-500;
+  }
+}
+
+.agent-conversations__options {
+  position: absolute;
+  top: 4px;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: $palette-neutral-900;
+  cursor: pointer;
+  opacity: 0;
+
+  @include rounded($rounded);
+
+  &:hover {
+    background: $palette-neutral-200;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+    outline-offset: -2px;
+  }
+}
+
+.agent-conversations__row {
+  position: relative;
+
+  &:hover > .agent-conversations__item {
+    background: $palette-neutral-100;
+  }
+
+  &.agent-conversations__row--menu-open,
+  &.agent-conversations__row--manageable:hover,
+  &.agent-conversations__row--manageable:focus-within {
+    .agent-conversations__options {
+      opacity: 1;
+    }
+
+    .agent-conversations__status {
+      visibility: hidden;
+    }
+  }
 }
 
 .agent-conversations__more {

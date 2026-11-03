@@ -19,8 +19,37 @@
         </div>
       </div>
       <ul v-if="items.length" class="agent-conversations__list">
-        <li v-for="item in items" :key="item.uuid">
+        <li
+          v-for="item in items"
+          :key="item.uuid"
+          class="agent-conversations__row"
+          :class="{
+            'agent-conversations__row--manageable': hasOptions(item),
+            'agent-conversations__row--menu-open': item.uuid === menuUuid,
+          }"
+        >
+          <div
+            v-if="item.uuid === renamingUuid"
+            class="agent-conversations__item agent-conversations__item--renaming"
+          >
+            <Icon
+              icon="iconoir-chat-bubble"
+              type="secondary"
+              aria-hidden="true"
+            />
+            <input
+              ref="renameInput"
+              v-model="renameTitle"
+              class="agent-conversations__rename"
+              maxlength="250"
+              :aria-label="$t('agent.conversationTitle')"
+              @keydown.enter.prevent="finishRename(item)"
+              @keydown.esc.prevent="renamingUuid = null"
+              @blur="finishRename(item)"
+            />
+          </div>
           <button
+            v-else
             type="button"
             class="agent-conversations__item"
             :class="{
@@ -49,6 +78,17 @@
               "
               aria-hidden="true"
             />
+          </button>
+          <button
+            v-if="hasOptions(item) && item.uuid !== renamingUuid"
+            type="button"
+            class="agent-conversations__options"
+            :aria-label="$t('agent.conversationOptions')"
+            aria-haspopup="menu"
+            :aria-expanded="item.uuid === menuUuid ? 'true' : 'false'"
+            @click="toggleMenu($event.currentTarget, item)"
+          >
+            <i class="baserow-icon-more-vertical" aria-hidden="true"></i>
           </button>
         </li>
       </ul>
@@ -86,13 +126,38 @@
         >{{ $t('agent.newConversation') }}</Button
       >
     </div>
+    <Context ref="menu" @hidden="menuUuid = null">
+      <ul class="context__menu">
+        <li v-if="canRename" class="context__menu-item">
+          <a class="context__menu-item-link" @click="startRename">
+            <i class="context__menu-item-icon iconoir-edit-pencil"></i>
+            {{ $t('action.rename') }}
+          </a>
+        </li>
+        <li
+          v-if="canDelete"
+          class="context__menu-item"
+          :class="{ 'context__menu-item--with-separator': canRename }"
+        >
+          <a
+            class="context__menu-item-link context__menu-link--delete"
+            @click="remove"
+          >
+            <i class="context__menu-item-icon iconoir-bin"></i>
+            {{ $t('action.delete') }}
+          </a>
+        </li>
+      </ul>
+    </Context>
   </aside>
 </template>
 
 <script setup>
+import { nextTick, ref } from 'vue'
 import Icon from '@baserow/modules/core/components/Icon'
+import Context from '@baserow/modules/core/components/Context'
 
-defineProps({
+const props = defineProps({
   items: { type: Array, required: true },
   selected: { type: String, default: null },
   loading: Boolean,
@@ -100,6 +165,53 @@ defineProps({
   hasMore: Boolean,
   canCreate: Boolean,
   readyToSend: Boolean,
+  canRename: Boolean,
+  canDelete: Boolean,
 })
-defineEmits(['select', 'retry', 'load-more', 'create'])
+const emit = defineEmits([
+  'select',
+  'retry',
+  'load-more',
+  'create',
+  'rename',
+  'delete',
+])
+
+const menu = ref(null)
+const menuItem = ref(null)
+const menuUuid = ref(null)
+const renameInput = ref([])
+const renamingUuid = ref(null)
+const renameTitle = ref('')
+
+// A draft exists only in this tab until its first message is sent.
+const hasOptions = (item) => !item.local && (props.canRename || props.canDelete)
+
+function toggleMenu(target, item) {
+  const otherItem = menuUuid.value !== item.uuid
+  menuItem.value = item
+  menuUuid.value = item.uuid
+  menu.value.toggle(target, 'bottom', 'right', 4, 0, otherItem || undefined)
+}
+
+async function startRename() {
+  menu.value.hide()
+  renameTitle.value = menuItem.value.title
+  renamingUuid.value = menuItem.value.uuid
+  await nextTick()
+  renameInput.value[0]?.focus()
+  renameInput.value[0]?.select()
+}
+
+function finishRename(item) {
+  if (renamingUuid.value !== item.uuid) return
+  renamingUuid.value = null
+  const title = renameTitle.value.trim()
+  if (title && title !== item.title) emit('rename', item, title)
+}
+
+function remove() {
+  menu.value.hide()
+  emit('delete', menuItem.value)
+}
 </script>

@@ -64,6 +64,12 @@ export function useAgentConversations(agent, configuration) {
   const canCreateMessage = computed(() =>
     permission('agent_application.create_message')
   )
+  const canRenameConversation = computed(() =>
+    permission('agent_application.update_conversation')
+  )
+  const canDeleteConversation = computed(() =>
+    permission('agent_application.delete_conversation')
+  )
 
   const conversations = ref([])
   const localConversations = ref([])
@@ -458,6 +464,54 @@ export function useAgentConversations(agent, configuration) {
     }
   }
 
+  async function renameConversation(conversation, title) {
+    const previous = conversation.title
+    conversation.title = title
+    try {
+      const { data } = await service.updateConversation(
+        agent.value.id,
+        conversation.uuid,
+        { title }
+      )
+      conversation.title = data.title
+    } catch (error) {
+      conversation.title = previous
+      notifyIf(error)
+    }
+  }
+
+  /** Drop a conversation, selecting the one that takes its place in the list. */
+  function removeConversation(conversationUuid) {
+    const index = conversationItems.value.findIndex(
+      (item) => item.uuid === conversationUuid
+    )
+    conversations.value = conversations.value.filter(
+      (item) => item.uuid !== conversationUuid
+    )
+    delete histories[conversationUuid]
+    delete drafts[conversationUuid]
+    if (selectedUuid.value !== conversationUuid) return
+    const next =
+      conversationItems.value[index] || conversationItems.value.at(-1)
+    selectedUuid.value = null
+    if (next) selectConversation(next)
+    else createLocalConversation()
+  }
+
+  async function deleteConversation(conversation) {
+    try {
+      await service.deleteConversation(agent.value.id, conversation.uuid)
+    } catch (error) {
+      notifyIf(error)
+      return
+    }
+    removeConversation(conversation.uuid)
+    await store.dispatch('toast/restore', {
+      trash_item_type: 'agent_conversation',
+      trash_item_id: conversation.id,
+    })
+  }
+
   async function stopReply() {
     const runId = replyFollower.value?.runId
     if (!runId) return
@@ -502,7 +556,12 @@ export function useAgentConversations(agent, configuration) {
     () => agent.value?._?.conversationUpdate,
     (update) => {
       if (!update || !canReadConversations.value) return
+      if (update.deleted) return removeConversation(update.uuid)
       const conversation = findConversation(update.uuid)
+      if (update.title !== undefined) {
+        if (conversation) conversation.title = update.title
+        return
+      }
       if (!conversation) return refreshConversations()
       mergeConversations([
         {
@@ -590,6 +649,8 @@ export function useAgentConversations(agent, configuration) {
   return {
     canReadConversations,
     canCreateConversation,
+    canRenameConversation,
+    canDeleteConversation,
     conversationItems,
     conversationsLoading,
     conversationsError,
@@ -609,5 +670,7 @@ export function useAgentConversations(agent, configuration) {
     updateMessage,
     sendMessage,
     stopReply,
+    renameConversation,
+    deleteConversation,
   }
 }
