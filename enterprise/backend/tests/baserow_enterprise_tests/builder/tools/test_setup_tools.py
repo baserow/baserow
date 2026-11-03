@@ -812,3 +812,27 @@ def test_set_theme_only_works_on_builders_of_the_workspace(data_fixture, builder
     for application_id in (database.id, other.id):
         with pytest.raises(ApplicationDoesNotExist):
             themes.set_theme(builder_ctx["ctx"], application_id, "eclipse")
+
+
+@pytest.mark.django_db
+def test_setup_page_keeps_the_order_of_children(builder_ctx):
+    result = setup(
+        builder_ctx,
+        elements=[
+            ElementItemCreate(ref="box", type="simple_container"),
+            ElementItemCreate(
+                ref="a", type="heading", value="First", parent_element="box"
+            ),
+            ElementItemCreate(
+                ref="b", type="heading", value="Second", parent_element="box"
+            ),
+        ],
+    )
+
+    by_ref = {item["ref"]: item["id"] for item in result["created_elements"]}
+    page = builder_ctx["page"]
+    page.reload_graph()
+    assert [child.id for child in page.get_graph().get_children(by_ref["box"])] == [
+        by_ref["a"],
+        by_ref["b"],
+    ]

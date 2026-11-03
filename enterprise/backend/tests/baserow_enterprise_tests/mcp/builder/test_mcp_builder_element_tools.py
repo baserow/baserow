@@ -228,3 +228,59 @@ def test_a_negative_size_is_an_input_error_over_mcp(data_fixture, builder_ctx):
     assert "-5" in result.content[0].text
     assert "Internal error" not in result.content[0].text
     assert Element.objects.get(id=button.id).style_padding_top == padding
+
+
+@pytest.mark.django_db
+def test_children_keep_their_order_over_mcp(data_fixture, builder_ctx):
+    endpoint = _endpoint(data_fixture, builder_ctx, [*READ_TOOLS, *WRITE_TOOLS])
+    page_id = builder_ctx["page"].id
+
+    async def callback(client):
+        layout = _load(
+            await client.call_tool(
+                "create_layout_elements",
+                {
+                    "page_id": page_id,
+                    "elements": [
+                        {"ref": "box", "type": "simple_container"},
+                        {"ref": "top", "type": "header"},
+                    ],
+                },
+            )
+        )["ref_to_id_map"]
+        _load(
+            await client.call_tool(
+                "create_display_elements",
+                {
+                    "page_id": page_id,
+                    "elements": [
+                        {
+                            "ref": ref,
+                            "type": element_type,
+                            "value": ref,
+                            "parent_element": layout[parent],
+                        }
+                        for ref, element_type, parent in (
+                            ("First", "heading", "box"),
+                            ("Second", "heading", "box"),
+                            ("One", "button", "top"),
+                            ("Two", "button", "top"),
+                        )
+                    ],
+                },
+            )
+        )
+        return layout
+
+    layout = _session(endpoint, callback)
+
+    def children(element_id):
+        container = Element.objects.get(id=element_id)
+        container.page.reload_graph()
+        return [
+            child.specific.value["formula"]
+            for child in container.page.get_graph().get_children(element_id)
+        ]
+
+    assert children(layout["box"]) == ["'First'", "'Second'"]
+    assert children(layout["top"]) == ["'One'", "'Two'"]

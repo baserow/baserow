@@ -80,6 +80,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowViewServiceType,
 )
 from baserow.core.actions import UpdateApplicationActionType
+from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
@@ -183,6 +184,31 @@ def forget_page_graphs(page: Page) -> None:
     for graph_page in (page, page.builder.shared_page):
         graph_page.reload_graph()
         ElementHandler().invalidate_element_cache(graph_page)
+
+
+def end_of_container(
+    page: Page, parent_id: int, place: str
+) -> tuple[int, GraphPointPositionType, str]:
+    """
+    Where an element goes to come last in a place of a container. Core puts a new
+    child first, so one call's children would come out reversed.
+
+    :param page: The page the container is on.
+    :param parent_id: The container.
+    :param place: The place inside it, "" by default.
+    :return: The reference element, the position and the place to create or move the
+        element with. Only the first child of a place names the place: the next ones
+        follow it.
+    """
+
+    graph = page.get_graph()
+    graph.lock_for_update()
+    children = (
+        graph.get_children(parent_id, place) if str(parent_id) in graph.graph else []
+    )
+    if children:
+        return children[-1].id, GraphPointPosition.SOUTH, ""
+    return parent_id, GraphPointPosition.CHILD, place
 
 
 def check_data_source_on_page(page: Page, data_source_id: int) -> None:
@@ -732,8 +758,11 @@ def create_element(
 
     parent_element_id = kwargs.pop("parent_element_id", None)
     if parent_element_id is not None:
-        reference_element_id = parent_element_id
-        position = "child"
+        reference_element_id, position, place = end_of_container(
+            target_page, parent_element_id, kwargs.pop("place_in_container", "") or ""
+        )
+        if place:
+            kwargs["place_in_container"] = place
     elif before is not None:
         reference_element_id = before.id
         position = "north"
@@ -825,12 +854,16 @@ def move_element(
     # refuses that combination; this keeps direct callers safe too.
     place = (element_move.place_in_container or "") if parent is not None else ""
 
-    if parent is not None:
-        position = "child"
-        reference_element_id = parent.id
+    if parent is not None and (before is None or before.parent_element_id != parent.id):
+        reference_element_id, position, place = end_of_container(
+            parent.page, parent.id, place
+        )
+        if reference_element_id == element.id:
+            return element  # Already the last one there.
     elif before is not None:
         position = "north"
         reference_element_id = before.id
+        place = ""
     else:
         # before_id=None means "move to end" — append after the current last element.
         # The lock reads the latest graph, as the move does.

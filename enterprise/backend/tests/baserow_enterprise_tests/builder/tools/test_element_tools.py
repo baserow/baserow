@@ -1499,3 +1499,194 @@ def test_a_default_value_outside_a_repeat_has_no_row_to_read(builder_ctx, table_
     )
 
     assert "inside a repeat or a table" in result["formula_errors"][0]["error"]
+
+
+# ---------------------------------------------------------------------------
+# The order of children
+# ---------------------------------------------------------------------------
+
+
+def children_of(parent_id, place=None):
+    """The text of a container's children as the page shows them, read again."""
+
+    page = Element.objects.get(id=parent_id).page
+    page.reload_graph()
+    return [
+        saved(child.id).value["formula"]
+        for child in page.get_graph().get_children(parent_id, place)
+    ]
+
+
+def text(ref, value, element_type="heading", **kwargs):
+    return ElementItemCreate(ref=ref, type=element_type, value=value, **kwargs)
+
+
+@pytest.mark.django_db
+def test_children_in_a_container_keep_their_order(builder_ctx):
+    result = elements.create_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            ElementItemCreate(ref="box", type="simple_container"),
+            text("a", "First", parent_element="box"),
+            text("b", "Second", parent_element="box"),
+        ],
+    )
+
+    assert children_of(result["ref_to_id_map"]["box"]) == ["'First'", "'Second'"]
+    assert (
+        saved(result["ref_to_id_map"]["b"]).parent_element_id
+        == (result["ref_to_id_map"]["box"])
+    )
+
+
+@pytest.mark.django_db
+def test_buttons_in_a_header_keep_their_order(builder_ctx):
+    result = elements.create_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            ElementItemCreate(ref="top", type="header"),
+            text("a", "First", "button", parent_element="top"),
+            text("b", "Second", "button", parent_element="top"),
+        ],
+    )
+
+    assert children_of(result["ref_to_id_map"]["top"]) == ["'First'", "'Second'"]
+
+
+@pytest.mark.django_db
+def test_children_added_in_a_later_call_go_last(builder_ctx):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    box = elements.create_elements(
+        ctx, page.id, [ElementItemCreate(ref="box", type="simple_container")]
+    )["ref_to_id_map"]["box"]
+
+    elements.create_elements(ctx, page.id, [text("a", "First", parent_element=box)])
+    elements.create_elements(ctx, page.id, [text("b", "Second", parent_element=box)])
+
+    assert children_of(box) == ["'First'", "'Second'"]
+
+
+@pytest.mark.django_db
+def test_children_keep_their_order_in_each_column(builder_ctx):
+    result = elements.create_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            ElementItemCreate(ref="cols", type="column", column_amount=2),
+            text("a", "First", parent_element="cols", place_in_container="1"),
+            text("b", "Other", parent_element="cols", place_in_container="0"),
+            text("c", "Second", parent_element="cols", place_in_container="1"),
+            text("d", "Unset", parent_element="cols"),
+        ],
+    )
+
+    assert not result.get("errors")
+    cols = result["ref_to_id_map"]["cols"]
+    assert children_of(cols, "1") == ["'First'", "'Second'"]
+    assert children_of(cols, "0") == ["'Other'", "'Unset'"]
+    assert saved(result["ref_to_id_map"]["c"]).place_in_container == "1"
+
+
+@pytest.mark.django_db
+def test_top_level_elements_keep_their_order(builder_ctx):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    ids = elements.create_elements(
+        ctx, page.id, [text("a", "First"), text("b", "Second")]
+    )["ref_to_id_map"]
+
+    page.reload_graph()
+    assert page.get_graph().get_next_points(saved(ids["a"])) == [saved(ids["b"])]
+
+
+@pytest.mark.django_db
+def test_elements_moved_into_a_container_keep_their_order(data_fixture, builder_ctx):
+    page = builder_ctx["page"]
+    box = data_fixture.create_builder_column_element(page=page, column_amount=2)
+    first = data_fixture.create_builder_heading_element(page=page, value="'First'")
+    second = data_fixture.create_builder_heading_element(page=page, value="'Second'")
+
+    result = elements.move_elements(
+        builder_ctx["ctx"],
+        [
+            ElementMove(
+                element_id=element.id, parent_element_id=box.id, place_in_container="1"
+            )
+            for element in (first, second)
+        ],
+    )
+
+    assert children_of(box.id, "1") == ["'First'", "'Second'"]
+    assert [move["place_in_container"] for move in result["moved_elements"]] == [
+        "1",
+        "1",
+    ]
+
+
+@pytest.mark.django_db
+def test_moving_the_last_child_into_its_container_changes_nothing(builder_ctx):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    ids = elements.create_elements(
+        ctx,
+        page.id,
+        [
+            ElementItemCreate(ref="box", type="simple_container"),
+            text("a", "First", parent_element="box"),
+            text("b", "Second", parent_element="box"),
+        ],
+    )["ref_to_id_map"]
+
+    result = elements.move_elements(
+        ctx, [ElementMove(element_id=ids["b"], parent_element_id=ids["box"])]
+    )
+
+    assert not result.get("errors")
+    assert children_of(ids["box"]) == ["'First'", "'Second'"]
+
+
+@pytest.mark.django_db
+def test_moving_a_child_to_the_end_of_its_container(builder_ctx):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    ids = elements.create_elements(
+        ctx,
+        page.id,
+        [
+            ElementItemCreate(ref="box", type="simple_container"),
+            text("a", "First", parent_element="box"),
+            text("b", "Second", parent_element="box"),
+        ],
+    )["ref_to_id_map"]
+
+    elements.move_elements(
+        ctx, [ElementMove(element_id=ids["a"], parent_element_id=ids["box"])]
+    )
+
+    assert children_of(ids["box"]) == ["'Second'", "'First'"]
+
+
+@pytest.mark.django_db
+def test_moving_into_a_container_before_one_of_its_children(data_fixture, builder_ctx):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    ids = elements.create_elements(
+        ctx,
+        page.id,
+        [
+            ElementItemCreate(ref="box", type="simple_container"),
+            text("a", "First", parent_element="box"),
+            text("b", "Second", parent_element="box"),
+        ],
+    )["ref_to_id_map"]
+    middle = data_fixture.create_builder_heading_element(page=page, value="'Middle'")
+
+    result = elements.move_elements(
+        ctx,
+        [
+            ElementMove(
+                element_id=middle.id, parent_element_id=ids["box"], before_id=ids["b"]
+            )
+        ],
+    )
+
+    assert not result.get("errors")
+    assert children_of(ids["box"]) == ["'First'", "'Middle'", "'Second'"]

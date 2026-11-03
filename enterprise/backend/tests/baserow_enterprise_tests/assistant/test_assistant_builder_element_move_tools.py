@@ -8,6 +8,7 @@ import pytest
 from pydantic import ValidationError
 
 from baserow.contrib.builder.elements.handler import ElementHandler
+from baserow.contrib.builder.elements.models import Element
 from baserow_enterprise.assistant.tools.builder.tools import (
     create_display_elements,
     create_layout_elements,
@@ -420,3 +421,62 @@ def test_create_display_element_without_parent_ignores_place_in_container(
             "Second-1": {},
         }
     )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_children_keep_their_order_when_created_and_moved(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+    ctx = make_test_ctx(user, workspace, create_fake_tool_helpers())
+
+    layout = create_layout_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            LayoutElementCreate(ref="box", type="simple_container"),
+            LayoutElementCreate(ref="top", type="header"),
+        ],
+        thought="test",
+    )["ref_to_id_map"]
+    create_display_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            DisplayElementCreate(
+                ref=value, type="heading", value=value, parent_element=layout["box"]
+            )
+            for value in ("First", "Second")
+        ]
+        + [
+            DisplayElementCreate(
+                ref=value, type="button", value=value, parent_element=layout["top"]
+            )
+            for value in ("One", "Two")
+        ],
+        thought="test",
+    )
+    loose = create_display_elements(
+        ctx,
+        page_id=page.id,
+        elements=[DisplayElementCreate(ref="h", type="heading", value="Third")],
+        thought="test",
+    )["ref_to_id_map"]["h"]
+    move_elements(
+        ctx,
+        page_id=page.id,
+        moves=[ElementMove(element_id=loose, parent_element_id=layout["box"])],
+        thought="test",
+    )
+
+    def children(element_id):
+        container = Element.objects.get(id=element_id)
+        container.page.reload_graph()
+        return [
+            child.specific.value["formula"]
+            for child in container.page.get_graph().get_children(element_id)
+        ]
+
+    assert children(layout["box"]) == ["'First'", "'Second'", "'Third'"]
+    assert children(layout["top"]) == ["'One'", "'Two'"]
