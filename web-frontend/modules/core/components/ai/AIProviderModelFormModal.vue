@@ -212,12 +212,17 @@ export default {
       if (!this.modelHasDependents(atRisk)) {
         return null
       }
-      const prefix = renamed
-        ? 'aiProviderAdmin.modelIdentifierRenamed'
-        : 'aiProviderAdmin.modelFeaturesRemoved'
       return {
-        title: this.$t(`${prefix}Title`, { name: this.model.model_identifier }),
-        description: this.$t(`${prefix}Description`),
+        title: renamed
+          ? this.$t('aiProviderAdmin.modelIdentifierRenamedTitle', {
+              name: this.model.model_identifier,
+            })
+          : this.$t('aiProviderAdmin.modelFeaturesRemovedTitle', {
+              name: this.model.model_identifier,
+            }),
+        description: renamed
+          ? this.$t('aiProviderAdmin.modelIdentifierRenamedDescription')
+          : this.$t('aiProviderAdmin.modelFeaturesRemovedDescription'),
         usage: atRisk,
       }
     },

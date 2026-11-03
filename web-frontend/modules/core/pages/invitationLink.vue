@@ -6,28 +6,21 @@
           <Logo />
         </NuxtLink>
       </div>
-      <h1 class="auth__head-title">
-        {{
-          $t(
-            roleUpgrade
-              ? 'invitationLinkJoin.upgradeTitle'
-              : 'invitationLinkJoin.title',
-            { workspace: invitationLink.workspace }
-          )
-        }}
-      </h1>
+      <h1 class="auth__head-title">{{ pageTitle }}</h1>
       <i18n-t
+        v-if="invitationLink.invited_by"
         scope="global"
-        :keypath="
-          invitationLink.invited_by
-            ? 'invitationMessage'
-            : 'invitationLinkMessage'
-        "
+        keypath="invitationMessage"
         tag="p"
       >
         <template #invitedBy>
           <strong>{{ invitationLink.invited_by }}</strong>
         </template>
+        <template #workspace>
+          <strong>{{ invitationLink.workspace }}</strong>
+        </template>
+      </i18n-t>
+      <i18n-t v-else scope="global" keypath="invitationLinkMessage" tag="p">
         <template #workspace>
           <strong>{{ invitationLink.workspace }}</strong>
         </template>
@@ -68,11 +61,9 @@
           @click="join"
         >
           {{
-            $t(
-              roleUpgrade
-                ? 'invitationLinkJoin.upgrade'
-                : 'invitationLinkJoin.join'
-            )
+            roleUpgrade
+              ? $t('invitationLinkJoin.upgrade')
+              : $t('invitationLinkJoin.join')
           }}
         </Button>
       </div>
@@ -88,7 +79,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import WorkspaceService from '@baserow/modules/core/services/workspace'
 
 definePageMeta({
@@ -123,17 +114,17 @@ const { data: invitationLink, error: fetchError } = await useAsyncData(
   }
 )
 
-useHead({
-  title: () =>
-    invitationLink.value
-      ? t(
-          roleUpgrade.value
-            ? 'invitationLinkJoin.upgradeTitle'
-            : 'invitationLinkJoin.title',
-          { workspace: invitationLink.value.workspace }
-        )
-      : '',
+const pageTitle = computed(() => {
+  if (!invitationLink.value) {
+    return ''
+  }
+  const params = { workspace: invitationLink.value.workspace }
+  return roleUpgrade.value
+    ? t('invitationLinkJoin.upgradeTitle', params)
+    : t('invitationLinkJoin.title', params)
 })
+
+useHead({ title: () => pageTitle.value })
 
 // Handle error - the link doesn't exist (anymore)
 if (fetchError.value) {

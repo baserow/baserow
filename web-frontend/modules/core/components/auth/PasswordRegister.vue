@@ -3,17 +3,19 @@
     <Alert v-if="invitationDetails !== null" type="info-primary">
       <template #title>{{ $t('invitationTitle') }}</template>
       <i18n-t
+        v-if="invitationDetails.invited_by"
         scope="global"
-        :keypath="
-          invitationDetails.invited_by
-            ? 'invitationMessage'
-            : 'invitationLinkMessage'
-        "
+        keypath="invitationMessage"
         tag="p"
       >
         <template #invitedBy>
           <strong>{{ invitationDetails.invited_by }}</strong>
         </template>
+        <template #workspace>
+          <strong>{{ invitationDetails.workspace }}</strong>
+        </template>
+      </i18n-t>
+      <i18n-t v-else scope="global" keypath="invitationLinkMessage" tag="p">
         <template #workspace>
           <strong>{{ invitationDetails.workspace }}</strong>
         </template>

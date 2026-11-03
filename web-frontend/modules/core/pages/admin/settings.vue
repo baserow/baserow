@@ -107,7 +107,7 @@
               }}
             </div>
             <div class="admin-settings__description">
-              {{ $t(allowSignupsViaWorkspaceInvitationsDescription) }}
+              {{ allowSignupsViaWorkspaceInvitationsDescription }}
             </div>
           </div>
           <div class="admin-settings__control">
@@ -300,8 +300,8 @@ const settings = computed(() => store.getters['settings/get'])
 // when the flag is enabled.
 const allowSignupsViaWorkspaceInvitationsDescription = computed(() =>
   $featureFlagIsEnabled(FF_RBAC_IMPROVEMENTS)
-    ? 'settings.settingAllowSignupsViaWorkspaceInvitationOrLinkDescription'
-    : 'settings.settingAllowSignupsViaWorkspaceInvitationDescription'
+    ? $t('settings.settingAllowSignupsViaWorkspaceInvitationOrLinkDescription')
+    : $t('settings.settingAllowSignupsViaWorkspaceInvitationDescription')
 )
 
 const emailVerificationOptions = computed(() => [
