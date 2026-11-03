@@ -121,6 +121,8 @@ class BaserowEnterpriseConfig(AppConfig):
 
         from baserow.core.mcp.groups import (
             AuditLogReadMCPToolGroup,
+            BuilderEditMCPToolGroup,
+            BuilderReadMCPToolGroup,
             mcp_tool_group_registry,
         )
         from baserow.core.mcp.registries import mcp_tool_registry
@@ -130,6 +132,8 @@ class BaserowEnterpriseConfig(AppConfig):
         )
 
         mcp_tool_group_registry.register(AuditLogReadMCPToolGroup())
+        mcp_tool_group_registry.register(BuilderReadMCPToolGroup())
+        mcp_tool_group_registry.register(BuilderEditMCPToolGroup())
         mcp_tool_registry.register(ListAuditLogMcpTool())
         mcp_tool_registry.register(SearchAuditLogMcpTool())
 

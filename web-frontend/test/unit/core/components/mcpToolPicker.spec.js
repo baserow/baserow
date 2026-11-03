@@ -278,6 +278,43 @@ describe('McpToolPicker', () => {
     expect(area.text()).not.toContain('Read dashboards')
   })
 
+  test('labels the application builder groups and area', async () => {
+    const { wrapper } = await mount({
+      groups: [
+        {
+          type: 'builder_read',
+          title: 'Read application builders',
+          area: 'builder',
+          read_only_preset: true,
+        },
+        {
+          type: 'builder_edit',
+          title: 'Edit application builders',
+          area: 'builder',
+          read_only_preset: false,
+        },
+      ],
+      tools: [
+        ['list_builders', 'builder_read'],
+        ['create_pages', 'builder_edit'],
+      ].map(([name, group]) => ({
+        name,
+        title: name,
+        read_only: group === 'builder_read',
+        destructive: false,
+        group,
+      })),
+    })
+    const area = wrapper.find('[data-test="mcp-tool-picker-area-builder"]')
+    const group = (key) =>
+      wrapper.find(`[data-test="mcp-tool-picker-group-${key}"]`)
+
+    expect(area.text()).toContain('mcpToolPicker.areaBuilder')
+    expect(group('builder_read').text()).toContain('mcpToolPicker.builderRead')
+    expect(group('builder_edit').text()).toContain('mcpToolPicker.builderEdit')
+    expect(area.text()).not.toContain('Read application builders')
+  })
+
   test('shows the ticked tools from the model value', async () => {
     const { wrapper } = await mount({ modelValue: ['create_rows'] })
     expect(ticked(wrapper)).toEqual(['create_rows'])
