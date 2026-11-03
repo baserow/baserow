@@ -34,7 +34,7 @@ class AgentChatRunType(ChatRunType):
     type = AGENT_RUN_TYPE
 
     def get_max_active_runs_per_user(self) -> int | None:
-        """No per-user limit: the workspace limit bounds the replies of all members."""
+        """No per-user limit: operators can bound replies at the workspace level."""
 
         return None
 

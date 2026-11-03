@@ -147,6 +147,7 @@ def test_retries_return_the_accepted_message_and_conflicts_are_rejected(
     messages_url = agent_url(agent, "messages", conversation_uuid=payload["uuid"])
     append = {"uuid": str(uuid4()), "content": "Next"}
     second = api_client.post(messages_url, append)
+    current_conversation = api_client.get(url).json()["results"][0]
     # Accepted retries and conflicts must not depend on the current readiness.
     agent.instructions = ""
     agent.save()
@@ -158,12 +159,20 @@ def test_retries_return_the_accepted_message_and_conflicts_are_rejected(
             first,
             {"status": "completed", "content": "Hello from the agent", "run_id": None},
         ),
+        (
+            messages_url,
+            {"uuid": payload["message_uuid"], "content": payload["content"]},
+            first,
+            {"status": "completed", "content": "Hello from the agent", "run_id": None},
+        ),
         (messages_url, append, second, {}),
     ]:
         retried = api_client.post(target, body).json()
         assert retried["message"] == accepted.json()["message"]
         # The reply is live state: the first one finished since its response.
         assert retried["reply"] == {**accepted.json()["reply"], **changed}
+        # An old reply's retry must not clear the newer reply's activity indicator.
+        assert retried["conversation"] == current_conversation
     for target, body in [
         (url, {**payload, "content": "Different"}),
         (url, {**payload, "message_uuid": str(uuid4())}),

@@ -118,13 +118,13 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
 .chat-message__actions {
   position: absolute;
-  top: calc(100% + 8px);
+  top: 100%;
   left: 0;
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 14px;
-  padding: 0 4px;
+  height: 22px;
+  padding: 8px 4px 0;
   white-space: nowrap;
   opacity: 0;
   transition: opacity 0.15s $chat-ease;
@@ -350,19 +350,16 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
 .chat-composer {
   position: relative;
-  padding-top: 40px;
 }
 
 .chat-composer__activity {
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 80px;
-  padding: 0 12px 40px;
+  min-height: 80px;
+  margin-bottom: -40px;
+  padding: 10px 12px 50px;
   border-radius: 12px 12px 6px 6px;
   background: $palette-cyan-50;
   font-size: 12px;
@@ -383,12 +380,24 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .chat-composer__activity-icon {
+  flex-shrink: 0;
   font-size: 14px;
   color: $palette-cyan-500;
 }
 
 .chat-composer__activity-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
   animation: chat-entrance 0.25s $chat-ease both;
+}
+
+.chat-composer__activity--error {
+  background: $palette-red-50;
+  color: $palette-red-800;
+
+  .chat-composer__activity-icon {
+    color: $palette-red-600;
+  }
 }
 
 .chat-composer__box {

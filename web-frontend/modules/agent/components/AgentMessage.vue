@@ -8,9 +8,7 @@
       :aria-busy="shown.replying"
     >
       <ChatTyping v-if="!shown.content" />
-      <ChatLoading v-else :loading="shown.replying">
-        <ChatMarkdown :content="shown.content" />
-      </ChatLoading>
+      <ChatMarkdown v-else :content="shown.content" />
     </div>
     <div
       v-if="outcome.error"
@@ -34,7 +32,6 @@
 import { computed } from 'vue'
 import { useStore } from 'vuex'
 import ChatCopyButton from '@baserow/modules/core/components/chat/ChatCopyButton'
-import ChatLoading from '@baserow/modules/core/components/chat/ChatLoading'
 import ChatMarkdown from '@baserow/modules/core/components/chat/ChatMarkdown'
 import ChatMessage from '@baserow/modules/core/components/chat/ChatMessage'
 import ChatTyping from '@baserow/modules/core/components/chat/ChatTyping'

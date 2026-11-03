@@ -402,6 +402,20 @@ def test_a_send_names_its_run_even_when_the_reply_ended_before_the_response(
 
 
 @pytest.mark.django_db
+def test_workspaces_have_no_reply_limit_by_default(
+    api_client, api_user, configured_agent
+):
+    agent = configured_agent(user=api_user)
+    for _ in range(11):
+        response = api_client.post(
+            agent_url(agent, "conversations"), new_conversation()
+        )
+        assert response.status_code == 200
+
+    assert ChatRun.objects.filter(status="queued").count() == 11
+
+
+@pytest.mark.django_db
 @override_settings(BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE=1)
 def test_busy_conversations_and_workspaces_are_refused_with_their_errors(
     api_client, api_user, configured_agent

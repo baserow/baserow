@@ -30,6 +30,7 @@ import {
   sendMessage,
   sentBodies,
   unavailableModel,
+  useFakeTimers,
   warning,
   withoutConfiguration,
   workspace,
@@ -181,8 +182,20 @@ describe('Agent conversations', () => {
     testApp.dontFailOnErrorResponses()
     mockStartConversation(testApp, [500, {}], acceptConversation)
     const wrapper = await mount()
+    useFakeTimers()
     await sendMessage(wrapper, 'Keep this draft')
 
+    const notice = wrapper.get('.chat-composer__activity[role="alert"]')
+    expect(notice.text()).toBe('agent.messageSaveError')
+    expect(notice.classes()).toContain('chat-composer__activity--error')
+    expect(composer(wrapper).attributes('aria-describedby')).toBe(
+      notice.attributes('id')
+    )
+    await vi.advanceTimersByTimeAsync(9999)
+    expect(wrapper.find('#agent-chat-send-error').exists()).toBe(true)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(wrapper.find('#agent-chat-send-error').exists()).toBe(false)
+    expect(composer(wrapper).attributes('aria-describedby')).toBeUndefined()
     expect(composer(wrapper).element.value).toBe('Keep this draft')
     expect(composer(wrapper).element.readOnly).toBe(true)
     expect(send(wrapper).attributes('aria-label')).toBe('action.retry')
@@ -193,6 +206,67 @@ describe('Agent conversations', () => {
     expect(retried).toEqual(failed)
     expect(messages(wrapper)).toEqual(['Keep this draft'])
     expect(composer(wrapper).element.readOnly).toBe(false)
+  })
+
+  test('shows a new notice for the same error when a safe retry fails again', async () => {
+    testApp.dontFailOnErrorResponses()
+    const retry = deferredReply()
+    mockStartConversation(testApp, [500, {}], retry.reply, acceptConversation)
+    const wrapper = await mount()
+    useFakeTimers()
+    await sendMessage(wrapper, 'Keep retrying safely')
+    await vi.advanceTimersByTimeAsync(9000)
+
+    await send(wrapper).trigger('click')
+    await flushPromises()
+    expect(wrapper.find('#agent-chat-send-error').exists()).toBe(false)
+    await vi.advanceTimersByTimeAsync(1000)
+    retry.resolve(500, {})
+    await flushPromises()
+
+    expect(wrapper.get('#agent-chat-send-error').text()).toBe(
+      'agent.messageSaveError'
+    )
+    await vi.advanceTimersByTimeAsync(9999)
+    expect(wrapper.find('#agent-chat-send-error').exists()).toBe(true)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(wrapper.find('#agent-chat-send-error').exists()).toBe(false)
+    await send(wrapper).trigger('click')
+    await flushPromises()
+
+    const [first, second, third] = sentBodies(testApp)
+    expect(second).toEqual(first)
+    expect(third).toEqual(first)
+    expect(messages(wrapper)).toEqual(['Keep retrying safely'])
+  })
+
+  test('keeps each notice expiry when switching conversations', async () => {
+    testApp.dontFailOnErrorResponses()
+    twoConversations()
+    for (const uuid of ['conversation-a', 'conversation-b']) {
+      mockMessages(testApp, uuid, page([]))
+      mockSendMessage(testApp, uuid, [500, {}])
+    }
+    const wrapper = await mount()
+    useFakeTimers()
+    await selectConversation(wrapper, 'Conversation A')
+    await sendMessage(wrapper, 'Draft A')
+    await vi.advanceTimersByTimeAsync(6000)
+    await selectConversation(wrapper, 'Conversation B')
+    await sendMessage(wrapper, 'Draft B')
+
+    await vi.advanceTimersByTimeAsync(4000)
+    expect(wrapper.get('#agent-chat-send-error').text()).toBe(
+      'agent.messageSaveError'
+    )
+    await selectConversation(wrapper, 'Conversation A')
+    expect(wrapper.find('#agent-chat-send-error').exists()).toBe(false)
+    expect(composer(wrapper).element.value).toBe('Draft A')
+    await selectConversation(wrapper, 'Conversation B')
+    expect(wrapper.find('#agent-chat-send-error').exists()).toBe(true)
+    await vi.advanceTimersByTimeAsync(6000)
+    expect(wrapper.find('#agent-chat-send-error').exists()).toBe(false)
+    expect(composer(wrapper).element.value).toBe('Draft B')
   })
 
   test('replaces the composer with the warning when a send finds the configuration invalid', async () => {

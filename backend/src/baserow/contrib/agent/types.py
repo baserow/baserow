@@ -19,10 +19,13 @@ class AgentConfiguration(TypedDict):
 
 @dataclass
 class AgentMessageCreated:
+    """An accepted message, its reply's run, and the conversation's current run."""
+
     conversation: AgentConversation
     message: AgentMessage
     reply: AgentMessage | None
     run_id: UUID | None
+    conversation_run_id: UUID | None
     created: bool
 
 

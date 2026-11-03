@@ -94,19 +94,25 @@ MESSAGE_WRITE_ERRORS = {
 
 def _accepted_context(result: AgentMessageCreated) -> dict[str, dict[int, UUID]]:
     """
-    Build the serializer context of an accepted message from the run its send
-    started, because a fast reply can end before the response is built.
+    Build the serializer context for the reply and the conversation independently.
+    New sends retain their run even if a fast reply ends before serialization.
 
     :param result: The accepted message with its reply and run.
     :return: The context, with the run id by reply id under ``active_runs`` and by
         conversation id under ``conversation_runs``.
     """
 
-    if not result.run_id:
-        return {}
     return {
-        "active_runs": {result.reply.id: result.run_id},
-        "conversation_runs": {result.conversation.id: result.run_id},
+        "active_runs": (
+            {result.reply.id: result.run_id}
+            if result.reply is not None and result.run_id is not None
+            else {}
+        ),
+        "conversation_runs": (
+            {result.conversation.id: result.conversation_run_id}
+            if result.conversation_run_id is not None
+            else {}
+        ),
     }
 
 

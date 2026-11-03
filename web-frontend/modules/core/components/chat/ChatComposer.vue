@@ -1,12 +1,21 @@
 <template>
   <form class="chat-composer" @submit.prevent="$emit('send')">
     <div
+      :id="error ? errorId : undefined"
       class="chat-composer__activity"
-      :class="{ 'chat-composer__activity--visible': Boolean(activity) }"
+      :class="{
+        'chat-composer__activity--visible': Boolean(error || activity),
+        'chat-composer__activity--error': Boolean(error),
+      }"
+      :role="error ? 'alert' : undefined"
     >
-      <i class="iconoir-sparks chat-composer__activity-icon"></i>
-      <span :key="activity" class="chat-composer__activity-text">{{
-        activity
+      <i
+        class="chat-composer__activity-icon"
+        :class="error ? 'iconoir-warning-circle' : 'iconoir-sparks'"
+        aria-hidden="true"
+      ></i>
+      <span :key="error || activity" class="chat-composer__activity-text">{{
+        error || activity
       }}</span>
     </div>
     <div class="chat-composer__box">
@@ -72,6 +81,9 @@ const props = defineProps({
   stopping: { type: Boolean, default: false },
   /** What the reply is doing, shown above the input while it runs. */
   activity: { type: String, default: '' },
+  /** A request error takes precedence over the reply's activity. */
+  error: { type: String, default: '' },
+  errorId: { type: String, default: undefined },
   sendLabel: { type: String, required: true },
   stopLabel: { type: String, required: true },
 })

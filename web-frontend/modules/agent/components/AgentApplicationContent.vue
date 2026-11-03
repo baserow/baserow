@@ -138,15 +138,6 @@
               </template>
             </template>
           </Alert>
-          <Alert
-            v-if="state.sendError"
-            id="agent-chat-send-error"
-            type="error"
-            role="alert"
-            class="margin-bottom-2"
-          >
-            {{ $t(state.sendError) }}
-          </Alert>
           <ChatComposer
             v-if="showComposer"
             ref="messageInput"
@@ -155,7 +146,7 @@
             :readonly="Boolean(state.currentDraft?.submission)"
             :placeholder="$t('agent.messagePlaceholder', { name: agent.name })"
             :described-by="
-              state.sendError ? 'agent-chat-send-error' : undefined
+              sendErrorVisible ? 'agent-chat-send-error' : undefined
             "
             :maxlength="100000"
             :can-send="
@@ -165,6 +156,8 @@
             :running="replyRunning"
             :stopping="Boolean(state.replyFollower?.stopRequested)"
             :activity="composerActivity ? $t(composerActivity) : ''"
+            :error="sendErrorVisible ? $t(state.sendError) : ''"
+            error-id="agent-chat-send-error"
             :send-label="$t(state.sendError ? 'action.retry' : 'agent.send')"
             :stop-label="$t('agent.stop')"
             @update:model-value="state.updateMessage"
@@ -248,6 +241,32 @@ const composerActivity = computed(() => {
   if (!replyRunning.value) return null
   return state.replyFollower.view.text ? 'agent.writing' : 'agent.thinking'
 })
+// Expire the notice without changing the draft or its safe retry identity.
+// Remember the expiry when switching chats so an old error cannot reappear.
+const sendErrorVisible = ref(false)
+const sendErrorExpiry = new WeakMap()
+watch(
+  [() => state.currentDraft, () => state.sendError],
+  ([draft, error], _, onCleanup) => {
+    sendErrorVisible.value = false
+    if (!draft) return
+    if (!error) {
+      sendErrorExpiry.delete(draft)
+      return
+    }
+    const expiry = sendErrorExpiry.get(draft) ?? Date.now() + 10000
+    sendErrorExpiry.set(draft, expiry)
+    const remaining = expiry - Date.now()
+    if (remaining <= 0) return
+    sendErrorVisible.value = true
+    const timeout = setTimeout(
+      () => (sendErrorVisible.value = false),
+      remaining
+    )
+    onCleanup(() => clearTimeout(timeout))
+  },
+  { immediate: true, flush: 'sync' }
+)
 watch(
   () => state.replyFollower,
   (follower, previous) => {

@@ -230,7 +230,8 @@ class AgentHandler:
 
         :param conversation: The conversation of the message.
         :param message: The accepted message.
-        :return: The conversation, the message, its reply and the run writing it.
+        :return: The conversation, the message, its reply, the run writing that reply
+            and the conversation's current run.
         """
 
         runs = self.get_active_reply_runs(conversation)
@@ -238,7 +239,14 @@ class AgentHandler:
         if reply is not None and reply.role != AgentMessage.Role.ASSISTANT:
             reply = None
         run_id = runs.get(reply.id) if reply else None
-        return AgentMessageCreated(conversation, message, reply, run_id, False)
+        return AgentMessageCreated(
+            conversation,
+            message,
+            reply,
+            run_id=run_id,
+            conversation_run_id=next(iter(runs.values()), None),
+            created=False,
+        )
 
     def create_conversation(
         self,
@@ -346,7 +354,14 @@ class AgentHandler:
             context={"reply_id": reply.id},
             created_event_data={},
         )
-        return AgentMessageCreated(conversation, message, reply, run.id, True)
+        return AgentMessageCreated(
+            conversation,
+            message,
+            reply,
+            run_id=run.id,
+            conversation_run_id=run.id,
+            created=True,
+        )
 
     def get_active_reply_runs(self, conversation: AgentConversation) -> dict[int, UUID]:
         """

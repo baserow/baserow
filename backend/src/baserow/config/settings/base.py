@@ -2013,8 +2013,8 @@ if SENTRY_DSN:
 else:
     BASEROW_LAZY_LOADED_LIBRARIES.append("sentry_sdk")
 
-BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE = int(
-    os.getenv("BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE", "") or 10
+BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE = (
+    int(os.getenv("BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE") or 0) or None
 )
 
 # Deprecated provider connection/model environment variables. Manage providers and

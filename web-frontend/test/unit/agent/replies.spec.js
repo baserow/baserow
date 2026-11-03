@@ -22,6 +22,7 @@ import {
   send,
   sendMessage,
   stop,
+  useFakeTimers,
 } from './helpers'
 
 vi.mock('@baserow/modules/core/services/chatRuns', () => ({ default: vi.fn() }))
@@ -113,7 +114,7 @@ describe('Agent replies', () => {
     await streamText('run-1', 'Hel')
 
     expect(messages(wrapper)).toEqual(['Hello', 'Hel'])
-    expect([typing(wrapper), spinning(wrapper)]).toEqual([false, true])
+    expect([typing(wrapper), spinning(wrapper)]).toEqual([false, false])
     expect(liveReply(wrapper).attributes('aria-busy')).toBe('true')
     expect(activity(wrapper).text()).toBe('agent.writing')
 
@@ -315,6 +316,9 @@ describe('Agent replies', () => {
 
       expect(messages(wrapper)).toEqual(expectedMessages)
       expect(wrapper.findAll('.chat-message__bubble--error')).toHaveLength(1)
+      expect(error(wrapper)).toBe(expected)
+      useFakeTimers()
+      await vi.advanceTimersByTimeAsync(11000)
       expect(error(wrapper)).toBe(expected)
     }
   )
