@@ -78,8 +78,9 @@ def create_builder(
 ) -> dict[str, Any]:
     """
     Create one application builder in the workspace, with a theme and a connection
-    to the workspace's data. Use create_pages to add pages to it. Returns its id
-    and name.
+    to the workspace's data. A request for an application, app or website means this
+    tool; use create_database, create_automation or create_dashboard only when the
+    user names those. Use create_pages to add pages to it. Returns its id and name.
     """
 
     ctx.update_status(_("Creating application %(name)s...") % {"name": name})

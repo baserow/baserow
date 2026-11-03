@@ -371,7 +371,7 @@ def create_builder(
     """\
     Create one new application.
 
-    WHEN to use: User wants a new application or website. For several, call this once per application.
+    WHEN to use: User wants a new application, app or website, which always means an application builder. Not for a database, automation or dashboard unless the user names one. For several, call this once per application.
     WHAT it does: Creates the application, or reuses one with exactly this name.
     RETURNS: created_builders and reused_builders, one of them holding the application with id, name, type.
     HOW: Pick a unique, descriptive name. Check existing builders with list_builders to avoid duplicates.
