@@ -284,7 +284,9 @@ def setup_page(
     Give dynamic values as formulas in Baserow formula syntax. A formula needs real
     IDs, like get('form_data.<element id>'), which a ref can't give: to read an input
     or data source made in this call, add the action or element in a second call with
-    the IDs from this one. Descriptions are not turned into formulas: a value that
+    the IDs from this one. Plain text in a title, description, parameter or action
+    field value is stored as fixed text: quote text that parses as a formula, like
+    'this'. Descriptions are not turned into formulas: a value that
     isn't a valid formula is left empty and listed in formula_errors. A get_row or row
     action can't run without its row_id, so one that isn't a valid formula is listed
     in errors and isn't created.

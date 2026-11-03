@@ -58,7 +58,7 @@ class FieldValueMapping(BaseModel):
     value: str = Field(
         ...,
         description=(
-            "Fixed text, or a formula or $formula: prefix + formula intent. "
+            "Fixed text, or a formula: see the tool description. "
             "Quote fixed text that parses as a formula: 'like this'."
         ),
     )
@@ -499,11 +499,11 @@ class ActionCreate(BaseModel):
     )
     row_id: str | None = Field(
         default=None,
-        description="(update_row, delete_row) Row ID formula. Supports $formula: prefix.",
+        description="(update_row, delete_row) Row ID formula. Can be a formula: see the tool description.",
     )
     field_values: list[FieldValueMapping] | None = Field(
         default=None,
-        description="(create_row, update_row) Field value mappings. Supports $formula: prefix.",
+        description="(create_row, update_row) Field value mappings. Can be a formula: see the tool description.",
     )
 
     # refresh_data_source

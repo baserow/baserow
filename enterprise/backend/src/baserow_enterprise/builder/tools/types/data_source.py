@@ -110,14 +110,14 @@ class DataSourceCreate(BaseModel):
     # get_row only
     row_id: str | None = Field(
         default=None,
-        description=("(get_row) Row ID. Supports $formula: prefix for dynamic values."),
+        description=("(get_row) Row ID. Can be a formula: see the tool description."),
     )
 
     # list_rows only
     search_query: str | None = Field(
         default=None,
         description=(
-            "(list_rows) Search query. Supports $formula: prefix for dynamic values."
+            "(list_rows) Search query. Can be a formula: see the tool description."
         ),
     )
     sortings: list[DataSourceSort] | None = Field(
@@ -299,11 +299,11 @@ class DataSourceUpdate(BaseModel):
     )
     row_id: str | None = Field(
         default=None,
-        description="(get_row) Row ID. Supports $formula: prefix.",
+        description="(get_row) Row ID. Can be a formula: see the tool description.",
     )
     search_query: str | None = Field(
         default=None,
-        description="(list_rows) Search query. Supports $formula: prefix.",
+        description="(list_rows) Search query. Can be a formula: see the tool description.",
     )
     view_id: int | None = Field(
         default=None,

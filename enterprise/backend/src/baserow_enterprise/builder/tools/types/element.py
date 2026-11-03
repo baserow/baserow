@@ -169,8 +169,8 @@ class TableFieldConfig(BaseModel):
     """
     One column of a table element.
 
-    - type="text" (default): ``value`` is the cell content — a literal or
-      "$formula: <intent>". Omit ``value`` to show the data source field
+    - type="text" (default): ``value`` is the cell content — a literal or a
+      formula (see the tool description). Omit ``value`` to show the data source field
       whose name matches ``name``.
     - type="button": ``label`` is the button caption. Its click actions attach
       to the table element (see create_actions).
@@ -188,7 +188,7 @@ class TableFieldConfig(BaseModel):
     # text columns
     value: str | None = Field(
         default=None,
-        description="(text) Cell value formula. Supports $formula: prefix.",
+        description="(text) Cell value formula. Can be a formula: see the tool description.",
     )
 
     # button columns
@@ -895,7 +895,7 @@ class ElementItemCreate(BaseModel):
 
     value: str | None = Field(
         default=None,
-        description="Display text (heading, text, button label, link text). Supports $formula: prefix.",
+        description="Display text (heading, text, button label, link text). Can be a formula: see the tool description.",
     )
     level: int | None = Field(default=None, description="(heading) Level 1-5.")
     format: str | None = Field(
@@ -915,7 +915,7 @@ class ElementItemCreate(BaseModel):
     )
     navigate_to_url: str | None = Field(
         default=None,
-        description="(link) Custom URL. Supports $formula: prefix.",
+        description="(link) Custom URL. Can be a formula: see the tool description.",
     )
     link_page_parameters: list[ParameterMapping] | None = Field(
         default=None, description="(link) Page parameter mappings."
@@ -931,11 +931,11 @@ class ElementItemCreate(BaseModel):
     )
     image_url: str | None = Field(
         default=None,
-        description="(image) Image URL. Supports $formula: prefix.",
+        description="(image) Image URL. Can be a formula: see the tool description.",
     )
     alt_text: str | None = Field(
         default=None,
-        description="(image) Alt text. Supports $formula: prefix.",
+        description="(image) Alt text. Can be a formula: see the tool description.",
     )
 
     # -- Column fields ------------------------------------------------------
@@ -970,7 +970,7 @@ class ElementItemCreate(BaseModel):
     )
     default_value: str | None = Field(
         default=None,
-        description="(form inputs) Default value. Supports $formula: prefix.",
+        description="(form inputs) Default value. Can be a formula: see the tool description.",
     )
     required: bool | None = Field(
         default=None, description="(form inputs) Required field."
@@ -1154,8 +1154,7 @@ class DisplayElementCreate(_ElementBase):
     """
     Create display elements: heading, text, button, link, image.
 
-    Use ``$formula:`` prefix for dynamic values (e.g. ``"$formula: the product name"``).
-    Static strings are auto-wrapped.
+    See the tool description for dynamic values. Static strings are auto-wrapped.
     """
 
     type: Literal["heading", "text", "button", "link", "image"] = Field(
@@ -1163,7 +1162,7 @@ class DisplayElementCreate(_ElementBase):
     )
     value: str | None = Field(
         default=None,
-        description="Display text (heading, text, button label, link text). Supports $formula: prefix.",
+        description="Display text (heading, text, button label, link text). Can be a formula: see the tool description.",
     )
     level: int | None = Field(default=None, description="(heading) Level 1-5.")
     format: str | None = Field(
@@ -1177,18 +1176,18 @@ class DisplayElementCreate(_ElementBase):
     )
     navigate_to_url: str | None = Field(
         default=None,
-        description="(link) Custom URL. Supports $formula: prefix.",
+        description="(link) Custom URL. Can be a formula: see the tool description.",
     )
     link_variant: Literal["link", "button"] | None = Field(
         default=None, description="(link) Display variant."
     )
     image_url: str | None = Field(
         default=None,
-        description="(image) Image URL. Supports $formula: prefix.",
+        description="(image) Image URL. Can be a formula: see the tool description.",
     )
     alt_text: str | None = Field(
         default=None,
-        description="(image) Alt text. Supports $formula: prefix.",
+        description="(image) Alt text. Can be a formula: see the tool description.",
     )
 
     def to_element_item_create(self) -> "ElementItemCreate":
@@ -1252,7 +1251,7 @@ class FormElementCreate(_ElementBase):
     Create form elements: form_container, input_text, choice, checkbox, datetime_picker, record_selector.
 
     Form inputs go inside a ``form_container`` (set ``parent_element`` to the form ref).
-    Use ``$formula:`` prefix for dynamic default values.
+    See the tool description for dynamic default values.
     """
 
     type: Literal[
@@ -1269,7 +1268,7 @@ class FormElementCreate(_ElementBase):
     )
     default_value: str | None = Field(
         default=None,
-        description="(form inputs) Default value. Supports $formula: prefix.",
+        description="(form inputs) Default value. Can be a formula: see the tool description.",
     )
     required: bool | None = Field(
         default=None, description="(form inputs) Required field."
@@ -1702,7 +1701,7 @@ class ElementUpdate(BaseModel):
     # -- Display fields -------------------------------------------------------
     value: str | None = Field(
         default=None,
-        description="Display text (heading, text, button, link). Supports $formula: prefix.",
+        description="Display text (heading, text, button, link). Can be a formula: see the tool description.",
     )
     level: int | None = Field(default=None, description="(heading) Level 1-5.")
     format: str | None = Field(
@@ -1721,7 +1720,7 @@ class ElementUpdate(BaseModel):
     )
     navigate_to_url: str | None = Field(
         default=None,
-        description="(link) Custom URL. Supports $formula: prefix.",
+        description="(link) Custom URL. Can be a formula: see the tool description.",
     )
     link_target: Literal["self", "blank"] | None = Field(
         default=None, description="(link) Navigation target."
@@ -1733,11 +1732,11 @@ class ElementUpdate(BaseModel):
     )
     image_url: str | None = Field(
         default=None,
-        description="(image) Image URL. Supports $formula: prefix.",
+        description="(image) Image URL. Can be a formula: see the tool description.",
     )
     alt_text: str | None = Field(
         default=None,
-        description="(image) Alt text. Supports $formula: prefix.",
+        description="(image) Alt text. Can be a formula: see the tool description.",
     )
 
     # -- Column fields --------------------------------------------------------
@@ -1763,7 +1762,7 @@ class ElementUpdate(BaseModel):
     )
     default_value: str | None = Field(
         default=None,
-        description="(form inputs) Default value. Supports $formula: prefix.",
+        description="(form inputs) Default value. Can be a formula: see the tool description.",
     )
     required: bool | None = Field(
         default=None, description="(form inputs) Required field."

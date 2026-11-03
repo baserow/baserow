@@ -1315,6 +1315,7 @@ def update_action(
     ## Dynamic Values with $formula:
     - title: "$formula: the name of the product"
     - row_id: "$formula: the id from the page parameter"
+    - field_values: {"field_id": "123", "value": "$formula: the Name form input"}
     """
 
     tool_context = ctx.deps.tool_context()
