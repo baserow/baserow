@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional
 
 from django.contrib.auth.models import AbstractUser
-from django.db.models import QuerySet
+from django.db.models import Prefetch, QuerySet
 
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
@@ -17,6 +17,7 @@ from baserow.contrib.database.views.registries import (
 )
 from baserow.contrib.database.views.utils import check_permissions_with_view_fallback
 from baserow.core.handler import CoreHandler
+from baserow.core.models import User
 from baserow.core.prosemirror.utils import (
     extract_mentioned_users_in_workspace,
     is_valid_prosemirror_document,
@@ -148,7 +149,7 @@ class RowCommentHandler:
 
         queryset = RowComment.objects.select_related(
             "table__database__workspace"
-        ).prefetch_related("mentions")
+        ).prefetch_related(Prefetch("mentions", queryset=User.objects_and_agents.all()))
 
         try:
             row_comment = queryset.get(pk=comment_id)
@@ -233,7 +234,7 @@ class RowCommentHandler:
         )
 
         if mentions:
-            row_comment.mentions.set(mentions)
+            row_comment.mentions(manager="objects_and_agents").set(mentions)
 
         row_comment_created.send(
             cls,
@@ -289,15 +290,14 @@ class RowCommentHandler:
 
         try:
             new_mentions = extract_mentioned_users_in_workspace(message, workspace)
-            old_mentions = row_comment.mentions.all()
+            old_mentions = set(row_comment.mentions(manager="objects_and_agents").all())
         except ValueError:
             raise InvalidRowCommentMentionException()
 
         row_comment.message = message
         row_comment.save(update_fields=["message", "updated_on"])
 
-        if new_mentions:
-            row_comment.mentions.set(new_mentions)
+        row_comment.mentions(manager="objects_and_agents").set(new_mentions)
 
         row = RowHandler().get_row(
             requesting_user, table, row_comment.row_id, view=view
@@ -351,7 +351,7 @@ class RowCommentHandler:
 
         TrashHandler.trash(requesting_user, database.workspace, database, row_comment)
 
-        mentions = list(row_comment.mentions.all())
+        mentions = list(row_comment.mentions(manager="objects_and_agents").all())
         row_comment_deleted.send(
             cls,
             row_comment=row_comment,

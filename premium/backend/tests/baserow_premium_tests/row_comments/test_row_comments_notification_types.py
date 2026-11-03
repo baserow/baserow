@@ -17,6 +17,7 @@ from baserow_premium.row_comments.handler import (
     RowCommentHandler,
     RowCommentsNotificationModes,
 )
+from baserow_premium.row_comments.models import RowCommentsNotificationMode
 from baserow_premium.row_comments.notification_types import (
     RowCommentMentionNotificationType,
     RowCommentNotificationType,
@@ -693,3 +694,52 @@ def test_can_get_row_comment_notification_mode_from_row_metadata(
     response = get_row_from_api_with_metadata()
     assert response.status_code == HTTP_200_OK
     assert response.json()["metadata"]["row_comments_notification_mode"] == "all"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_comment_retains_agent_mentions_without_notifications_or_subscriptions(
+    premium_data_fixture,
+):
+    user = premium_data_fixture.create_user(has_active_premium_license=True)
+    table, _, rows = premium_data_fixture.build_table(
+        columns=[("text", "text")], rows=["first row"], user=user
+    )
+    agent = premium_data_fixture.create_agent(workspace=table.database.workspace)
+    message = premium_data_fixture.create_comment_message_with_mentions([agent])
+
+    comment = RowCommentHandler.create_comment(user, table.id, rows[0].id, message)
+    assert list(comment.mentions(manager="objects_and_agents").all()) == [agent]
+    assert not NotificationRecipient.objects.filter(recipient=agent).exists()
+    assert not RowCommentsNotificationMode.objects.filter(user=agent).exists()
+
+    empty_message = premium_data_fixture.create_comment_message_with_mentions([])
+    RowCommentHandler.update_comment(user, comment, empty_message)
+    assert not comment.mentions(manager="objects_and_agents").exists()
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@pytest.mark.parametrize("state", ["disabled", "trashed", "other_workspace"])
+def test_comment_drops_mentions_of_unavailable_agents(premium_data_fixture, state):
+    """Agent users test plan 9.1.4."""
+
+    user = premium_data_fixture.create_user(has_active_premium_license=True)
+    table, _, rows = premium_data_fixture.build_table(
+        columns=[("text", "text")], rows=["first row"], user=user
+    )
+    agent = premium_data_fixture.create_agent(
+        workspace=(
+            premium_data_fixture.create_workspace()
+            if state == "other_workspace"
+            else table.database.workspace
+        ),
+        is_active=state != "disabled",
+        trashed=state == "trashed",
+    )
+    message = premium_data_fixture.create_comment_message_with_mentions([agent])
+
+    comment = RowCommentHandler.create_comment(user, table.id, rows[0].id, message)
+
+    assert not comment.mentions(manager="objects_and_agents").exists()
+    assert not NotificationRecipient.objects.filter(recipient=agent).exists()
