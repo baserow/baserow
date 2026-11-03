@@ -1,3 +1,4 @@
+import mimetypes
 from urllib.request import Request
 
 from django.conf import settings
@@ -21,6 +22,41 @@ from baserow_premium.license.exceptions import FeaturesNotAvailableError
 from baserow_premium.license.handler import LicenseHandler
 
 from .errors import ERROR_SECURE_FILE_SERVE_EXCEPTION
+
+# Types that can't run script on the Baserow origin. Everything else is downloaded.
+# Audio and video are left out because the CSP below leaves a dead player when they
+# are opened directly. <audio> and <video> ignore the attachment and still play them.
+# BMP is left out because the production image's mime.types calls it image/x-ms-bmp,
+# which Chromium and WebKit download anyway. <img> ignores the attachment and still
+# shows it.
+INLINE_SAFE_CONTENT_TYPES = frozenset(
+    {
+        "application/pdf",
+        "image/avif",
+        "image/gif",
+        "image/jpeg",
+        "image/png",
+        "image/tiff",
+        "image/vnd.microsoft.icon",
+        "image/webp",
+        "text/plain",
+    }
+)
+
+# Same policy the web servers set on /media/ in the Caddyfile and deploy configs.
+FILE_CONTENT_SECURITY_POLICY = (
+    "sandbox; default-src 'none'; script-src 'none'; object-src 'none'; base-uri 'none'"
+)
+
+
+def is_safe_to_display_inline(file_name: str) -> bool:
+    """
+    Whether the file can be displayed by the browser instead of being downloaded. Uses
+    the same guess as FileResponse, which sets the Content-Type from the file name.
+    """
+
+    content_type, encoding = mimetypes.guess_type(file_name)
+    return encoding is None and content_type in INLINE_SAFE_CONTENT_TYPES
 
 
 class BinaryRenderer(BaseRenderer):
@@ -78,10 +114,14 @@ class DownloadView(APIView):
         )
 
         download_file_name = request.GET.get("dl", "")
-        as_attachment = bool(download_file_name)
+        as_attachment = bool(download_file_name) or not is_safe_to_display_inline(
+            secure_file.name
+        )
 
-        return FileResponse(
+        response = FileResponse(
             secure_file.open(),
             as_attachment=as_attachment,
             filename=smart_str(download_file_name or secure_file.name),
         )
+        response.headers["Content-Security-Policy"] = FILE_CONTENT_SECURITY_POLICY
+        return response
