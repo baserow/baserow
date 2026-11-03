@@ -22,16 +22,16 @@ from baserow.core.exceptions import (
     PermissionException,
     UserNotInWorkspace,
 )
-from baserow.core.mcp.exceptions import (
-    INTERNAL_ERROR_MESSAGE,
-    MCPToolInputError,
-    _is_does_not_exist,
-    to_mcp_error,
-)
 from baserow.core.registries import subject_type_registry
 from baserow.core.registry import Instance, Registry
 from baserow.core.sentry import report_exception
 from baserow.core.tools import ToolContext
+from baserow.core.tools.errors import (
+    INTERNAL_ERROR_MESSAGE,
+    ToolInputError,
+    _is_does_not_exist,
+    tool_error_message,
+)
 
 StepResources = dict[tuple[str, int], str]
 
@@ -43,7 +43,7 @@ def _tool_error_code(exc: Exception) -> ChatRunStepErrorCode:
     :return: A fixed category safe for a translated frontend explanation.
     """
 
-    # Match MCP's existence hiding for resources in a different workspace.
+    # Match the shared tools' existence hiding across workspaces.
     if isinstance(exc, UserNotInWorkspace):
         return ChatRunStepErrorCode.NOT_FOUND
     if isinstance(exc, (PermissionException, DRFPermissionDenied)):
@@ -51,7 +51,7 @@ def _tool_error_code(exc: Exception) -> ChatRunStepErrorCode:
     if isinstance(
         exc,
         (
-            MCPToolInputError,
+            ToolInputError,
             DjangoValidationError,
             RequestBodyValidationException,
             DRFValidationError,
@@ -115,7 +115,7 @@ def _call_tool(
                 facts = {}
             return ToolReturn(return_value=result, metadata=facts)
     except Exception as exc:
-        message = to_mcp_error(exc)
+        message = tool_error_message(exc)
         if message is None:
             report_exception(
                 exc,
