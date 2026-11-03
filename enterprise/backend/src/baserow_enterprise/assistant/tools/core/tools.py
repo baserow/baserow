@@ -13,7 +13,11 @@ from baserow.core.actions import (
 )
 from baserow.core.tools import applications as shared_applications
 from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps
-from baserow_enterprise.assistant.tools.shared import ToolInputError, require_payload
+from baserow_enterprise.assistant.tools.shared import (
+    ToolInputError,
+    require_payload,
+    validation_messages,
+)
 from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 
 from . import helpers
@@ -252,8 +256,8 @@ def update_builder(
         except DRFValidationError as exc:
             # The builder refuses a login page it doesn't own.
             raise ToolInputError(
-                f"{' '.join(str(message) for message in exc.detail)} Use list_pages "
-                "to find valid page IDs. No changes were applied."
+                f"{validation_messages(exc)} Use list_pages to find valid page IDs. "
+                "No changes were applied."
             ) from exc
         app.refresh_from_db()
 

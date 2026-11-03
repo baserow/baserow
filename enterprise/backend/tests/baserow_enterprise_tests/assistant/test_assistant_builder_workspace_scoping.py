@@ -548,3 +548,25 @@ def test_data_source_refuses_a_view_of_another_table(two_tables):
     assert DataSource.objects.get(id=data_source.id).service.specific.view_id == (
         t["view"].id
     )
+
+
+@pytest.mark.django_db
+def test_update_builder_returns_a_field_validation_message(
+    data_fixture, two_workspaces, monkeypatch
+):
+    from baserow.core.actions import UpdateApplicationActionType
+
+    def refuse(*args, **kwargs):
+        raise DRFValidationError({"login_page_id": ["Pick a page of this builder."]})
+
+    monkeypatch.setattr(UpdateApplicationActionType, "do", refuse)
+    w = two_workspaces
+    page = data_fixture.create_builder_page(builder=w["here_page"].builder)
+
+    with pytest.raises(ToolInputError, match="Pick a page of this builder."):
+        update_builder(
+            make_test_ctx(w["user"], w["here"]),
+            builder_id=page.builder.id,
+            update=BuilderUpdate(login_page_id=page.id),
+            thought="login page",
+        )
