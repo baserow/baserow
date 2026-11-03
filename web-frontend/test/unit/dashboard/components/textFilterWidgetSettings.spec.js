@@ -305,10 +305,14 @@ test('edits one case at a time and preserves alternative conditions when navigat
   const modal = wrapper.findComponent({
     name: 'WidgetFilterConfigurationModal',
   })
-  const cases = modal.find('.dashboard-widget-filters__cases').findAll('button')
-  expect(cases.map((item) => item.text())).toEqual([
-    'textFilterWidget.withValue',
-    'textFilterWidget.whenEmpty',
+  const cases = modal
+    .find('.dashboard-widget-filters__cases')
+    .findAll('.tabs__item')
+  expect(cases[0].text()).toContain('textFilterWidget.withValue')
+  expect(cases[1].text()).toContain('textFilterWidget.whenEmpty')
+  expect(cases.map((item) => item.get('.badge--neutral').text())).toEqual([
+    '0',
+    '0',
   ])
   expect(modal.find('.filters__none').exists()).toBe(false)
   expect(modal.find('.dashboard-widget-filters__empty-behavior').exists()).toBe(
@@ -318,7 +322,7 @@ test('edits one case at a time and preserves alternative conditions when navigat
 
   await modal
     .find('.dashboard-widget-filters__cases')
-    .findAll('button')[1]
+    .findAll('.tabs__item')[1]
     .trigger('click')
   expect(dispatch).not.toHaveBeenCalled()
   expect(modal.findAllComponents({ name: 'TargetFilterGroup' })).toHaveLength(0)
@@ -336,11 +340,16 @@ test('edits one case at a time and preserves alternative conditions when navigat
   expect(widget.target_filters[0].group.filters).toHaveLength(0)
   expect(widget.target_filters[0].alternative_group.filters).toHaveLength(1)
   expect(widget.target_filters[0].alternative_group.filters[0].field).toBe(99)
+  expect(
+    modal
+      .findAll('.dashboard-widget-filters__cases .badge')
+      .map((badge) => badge.text())
+  ).toEqual(['0', '1'])
 
   dispatch.mockClear()
   await modal
     .find('.dashboard-widget-filters__cases')
-    .findAll('button')[0]
+    .findAll('.tabs__item')[0]
     .trigger('click')
   expect(modal.find('.dashboard-widget-filters__alternative').exists()).toBe(
     false
@@ -348,7 +357,7 @@ test('edits one case at a time and preserves alternative conditions when navigat
   expect(modal.find('.filters__item').exists()).toBe(false)
   await modal
     .find('.dashboard-widget-filters__cases')
-    .findAll('button')[1]
+    .findAll('.tabs__item')[1]
     .trigger('click')
   expect(
     modal.find('.dashboard-widget-filters__alternative .filters__item').exists()
@@ -406,7 +415,7 @@ test('keeps other owners’ alternative conditions read-only while editing the c
 
   await modal
     .find('.dashboard-widget-filters__cases')
-    .findAll('button')[1]
+    .findAll('.tabs__item')[1]
     .trigger('click')
   await modal.find('.dashboard-widget-filters__footer button').trigger('click')
   await vi.waitFor(() =>
@@ -417,7 +426,7 @@ test('keeps other owners’ alternative conditions read-only while editing the c
   const reopened = wrapper.findComponent({
     name: 'WidgetFilterConfigurationModal',
   })
-  expect(reopened.find('.segment-control__button--active').text()).toBe(
+  expect(reopened.find('.tabs__item--active').text()).toContain(
     'textFilterWidget.withValue'
   )
   expect(reopened.find('.dashboard-widget-filters__other').exists()).toBe(true)
@@ -459,7 +468,7 @@ test('saves a pending condition group when switching cases', async () => {
   // Navigate in the same tick, before TargetFilterGroup emits its batched save.
   await modal
     .find('.dashboard-widget-filters__cases')
-    .findAll('button')[1]
+    .findAll('.tabs__item')[1]
     .trigger('click')
   await add
   await flushPromises()
@@ -471,9 +480,14 @@ test('saves a pending condition group when switching cases', async () => {
   )
   await modal
     .find('.dashboard-widget-filters__cases')
-    .findAll('button')[0]
+    .findAll('.tabs__item')[0]
     .trigger('click')
   expect(modal.findAll('.filters__item--level-2')).toHaveLength(1)
+  expect(
+    modal
+      .findAll('.dashboard-widget-filters__cases .badge')
+      .map((badge) => badge.text())
+  ).toEqual(['1', '0'])
   expect(dispatch).toHaveBeenCalledOnce()
 })
 

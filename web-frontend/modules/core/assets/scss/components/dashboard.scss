@@ -199,14 +199,7 @@ $dashboard-resources-row-min-width: 1044px;
 }
 
 .dashboard-widget-filters__cases {
-  width: fit-content;
-  max-width: 100%;
   margin-bottom: 20px;
-
-  .segment-control__button {
-    flex: 0 0 auto;
-    padding: 0 12px;
-  }
 }
 
 .dashboard-widget-filters__empty-behavior {
