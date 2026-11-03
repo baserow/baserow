@@ -12,22 +12,28 @@ from django.utils.translation import gettext as _
 
 from pydantic import Field
 
+from baserow.api.errors import ERROR_UNTRUSTED_CONTENT_CANNOT_BE_PUBLISHED
 from baserow.contrib.automation.models import Automation
 from baserow.contrib.automation.tools.types import WorkflowCreate
 from baserow.contrib.automation.workflows.actions import (
     CreateAutomationWorkflowActionType,
 )
+from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.operations import (
     ReadAutomationWorkflowOperationType,
 )
-from baserow.core.exceptions import PermissionException
+from baserow.contrib.automation.workflows.service import AutomationWorkflowService
+from baserow.core.exceptions import (
+    PermissionException,
+    UntrustedContentCannotBePublished,
+)
 from baserow.core.handler import CoreHandler
 from baserow.core.service import CoreService
 from baserow.core.tools import ToolContext
 from baserow.core.tools.applications import visible_applications
-from baserow.core.tools.errors import item_error_message
+from baserow.core.tools.errors import ToolInputError, item_error_message
 
 
 def get_automation_in_workspace(ctx: ToolContext, automation_id: int) -> Automation:
@@ -70,7 +76,21 @@ def get_workflow_in_workspace(ctx: ToolContext, workflow_id: int) -> AutomationW
 
 
 def describe_workflow(workflow: AutomationWorkflow) -> dict[str, Any]:
-    return {"id": workflow.id, "name": workflow.name, "state": workflow.state}
+    """
+    The id, name and state of a workflow. Publishing copies a workflow, so its state
+    is the one of its published version, as the REST API reports it, and a workflow
+    without one is a draft.
+
+    :param workflow: A workflow from `annotate_published_workflow_data`, or one
+        just created.
+    """
+
+    state = getattr(workflow, "published_workflow_state", None)
+    return {
+        "id": workflow.id,
+        "name": workflow.name,
+        "state": WorkflowState(state or WorkflowState.DRAFT).value,
+    }
 
 
 def list_workflows(
@@ -85,8 +105,10 @@ def list_workflows(
 ) -> dict[str, Any]:
     """
     List the automations of the workspace with their workflows: id, name and state
-    (draft, live, paused or disabled). Pass automation_id to list one automation.
-    Use list_nodes to see the nodes of a workflow.
+    (draft, live, paused or disabled). A draft has never been published and doesn't
+    run. The other states are those of the last published version, so a live workflow
+    can have later edits that aren't running yet. Pass automation_id to list one
+    automation. Use list_nodes to see the nodes of a workflow.
     """
 
     if automation_id is None:
@@ -97,7 +119,9 @@ def list_workflows(
     workflows = CoreHandler().filter_queryset(
         ctx.user,
         ReadAutomationWorkflowOperationType.type,
-        AutomationWorkflow.objects.filter(automation__in=automations),
+        AutomationWorkflowHandler().annotate_published_workflow_data(
+            AutomationWorkflow.objects.filter(automation__in=automations)
+        ),
         workspace=ctx.workspace,
     )
     by_automation: dict[int, list[dict[str, Any]]] = {}
@@ -259,7 +283,9 @@ def create_workflows_in_automation(
     existing = CoreHandler().filter_queryset(
         ctx.user,
         ReadAutomationWorkflowOperationType.type,
-        AutomationWorkflow.objects.filter(automation=automation),
+        AutomationWorkflowHandler().annotate_published_workflow_data(
+            AutomationWorkflow.objects.filter(automation=automation)
+        ),
         workspace=ctx.workspace,
     )
     plan = plan_workflow_creation(workflows, existing)
@@ -321,7 +347,8 @@ def create_workflows(
     ],
 ) -> dict[str, Any]:
     """
-    Create workflows, each with a trigger and the nodes after it. Nodes follow
+    Create workflows, each with a trigger and the nodes after it. Created workflows
+    are drafts and don't run until published with publish_workflow. Nodes follow
     each other through previous_node_ref, the ref of an earlier node in the same
     workflow, and router_edge_label attaches a node to a router branch. A row
     trigger or row action needs the table_id and field IDs of a table in the
@@ -349,3 +376,38 @@ def create_workflows(
     return create_workflows_in_automation(ctx, automation, workflows).to_response(
         ctx.user
     )
+
+
+def publish_workflow(
+    ctx: ToolContext,
+    workflow_id: Annotated[
+        int,
+        Field(
+            description="The ID of the workflow to publish, from create_workflows or "
+            "list_workflows."
+        ),
+    ],
+) -> dict[str, Any]:
+    """
+    Publish a workflow, so it runs when its trigger fires. It is live when this
+    returns. A copy of the current workflow goes live and the workflow keeps its ID.
+    Later edits don't reach the live version until it is published again, which
+    replaces that version. Nothing checks that the nodes are configured: check
+    list_nodes and any formula_errors first. Imported content must be reviewed and
+    trusted in the app before it can be published.
+    """
+
+    workflow = get_workflow_in_workspace(ctx, workflow_id)
+    try:
+        # The publish locks the workflow, which needs a transaction.
+        with transaction.atomic():
+            published = AutomationWorkflowService().publish(ctx.user, workflow)
+    except UntrustedContentCannotBePublished as exc:
+        raise ToolInputError(ERROR_UNTRUSTED_CONTENT_CANNOT_BE_PUBLISHED[2]) from exc
+    return {
+        "published_workflow": {
+            "id": workflow.id,
+            "name": workflow.name,
+            "state": WorkflowState(published.state).value,
+        }
+    }

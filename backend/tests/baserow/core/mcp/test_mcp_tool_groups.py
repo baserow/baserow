@@ -86,6 +86,7 @@ def test_core_automation_tool_groups():
     assert groups["create_automation"] == GROUP_AUTOMATION_EDIT
     assert groups["update_automation"] == GROUP_AUTOMATION_EDIT
     assert groups["create_workflows"] == GROUP_AUTOMATION_EDIT
+    assert groups["publish_workflow"] == GROUP_AUTOMATION_EDIT
     assert groups["add_nodes"] == GROUP_AUTOMATION_EDIT
     assert groups["update_nodes"] == GROUP_AUTOMATION_EDIT
     assert groups["delete_nodes"] == GROUP_AUTOMATION_DELETE

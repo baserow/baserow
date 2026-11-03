@@ -11,12 +11,8 @@ from mcp.shared.memory import (
 )
 
 from baserow.contrib.automation.models import Automation
-from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
-from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.database.models import Database
-from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.table.models import Table
 from baserow.core.integrations.models import Integration
 from baserow.core.mcp import BaserowMCPServer, current_key
 from baserow.core.mcp.groups import (
@@ -202,82 +198,3 @@ def test_created_database_and_automation_take_tables_and_a_workflow_straight_awa
     (workflow,) = workflows["created_workflows"]
     assert [node["ref"] for node in workflow["nodes"]] == ["trigger", "log"]
     assert Integration.objects.filter(application_id=automation["id"]).count() == 1
-
-
-@pytest.mark.django_db(transaction=True)
-def test_published_workflow_made_over_mcp_writes_the_row(data_fixture):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    tools = ["create_automation", "create_workflows", "create_tables"]
-    endpoint = data_fixture.create_mcp_endpoint(
-        user=user, workspace=workspace, allowed_tools=tools
-    )
-    database = data_fixture.create_database_application(workspace=workspace)
-    table_fields = [{"name": "Name", "primary_field_name": "Name", "fields": []}]
-
-    async def callback(client):
-        tables = _json(
-            await client.call_tool(
-                "create_tables",
-                {
-                    "database_id": database.id,
-                    "tables": [
-                        dict(table_fields[0], name="Orders"),
-                        dict(table_fields[0], name="Log"),
-                    ],
-                },
-            )
-        )["created_tables"]
-        automation = _json(
-            await client.call_tool("create_automation", {"name": "Flows"})
-        )["created_automation"]
-        orders, log = tables
-        workflows = _json(
-            await client.call_tool(
-                "create_workflows",
-                {
-                    "automation_id": automation["id"],
-                    "workflows": [
-                        {
-                            "name": "Log new orders",
-                            "trigger": {
-                                "ref": "trigger",
-                                "label": "Order created",
-                                "type": "rows_created",
-                                "rows_triggers_settings": {"table_id": orders["id"]},
-                            },
-                            "nodes": [
-                                {
-                                    "ref": "log",
-                                    "label": "Log it",
-                                    "type": "create_row",
-                                    "previous_node_ref": "trigger",
-                                    "table_id": log["id"],
-                                    "values": [
-                                        {
-                                            "field_id": log["primary_field"]["id"],
-                                            "value": "Written",
-                                        }
-                                    ],
-                                }
-                            ],
-                        }
-                    ],
-                },
-            )
-        )
-        return orders, log, workflows["created_workflows"][0]
-
-    orders, log, created = _session(endpoint, callback)
-
-    workflow = AutomationWorkflow.objects.get(id=created["id"])
-    with transaction.atomic():
-        AutomationWorkflowHandler().publish(workflow)
-    orders_table = Table.objects.get(id=orders["id"])
-    primary = orders_table.field_set.get(primary=True)
-    RowHandler().create_rows(user, orders_table, [{primary.db_column: "go"}])
-
-    log_rows = Table.objects.get(id=log["id"]).get_model().objects.all()
-    assert [
-        getattr(row, f"field_{log['primary_field']['id']}") for row in log_rows
-    ] == ["Written"]

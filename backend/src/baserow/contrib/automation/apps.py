@@ -178,6 +178,7 @@ class AutomationConfig(AppConfig):
             CreateAutomationMcpTool,
             CreateWorkflowsMcpTool,
             ListWorkflowsMcpTool,
+            PublishWorkflowMcpTool,
             UpdateAutomationMcpTool,
         )
         from baserow.core.mcp.groups import (
@@ -196,6 +197,7 @@ class AutomationConfig(AppConfig):
         mcp_tool_registry.register(CreateAutomationMcpTool())
         mcp_tool_registry.register(UpdateAutomationMcpTool())
         mcp_tool_registry.register(CreateWorkflowsMcpTool())
+        mcp_tool_registry.register(PublishWorkflowMcpTool())
         mcp_tool_registry.register(AddNodesMcpTool())
         mcp_tool_registry.register(UpdateNodesMcpTool())
         mcp_tool_registry.register(DeleteNodesMcpTool())
