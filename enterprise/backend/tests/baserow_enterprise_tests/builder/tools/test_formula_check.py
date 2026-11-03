@@ -344,3 +344,34 @@ def test_a_data_source_context_must_be_on_the_page(data_fixture, site):
     refused = problem(site, f"get('data_source_context.{other.id}.total_count')")
     assert refused and "isn't on this page" in refused
     assert "isn't on this page" in problem(site, "get('data_source_context.x')")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "path",
+    [
+        "0.thumbnails",
+        "0.thumbnails.tiny.url",
+        "*.thumbnails.small.width",
+        "0.url",
+    ],
+)
+def test_a_file_field_thumbnail_can_be_read(data_fixture, site, row_heading, path):
+    table = site["rows"].service.specific.table
+    files = data_fixture.create_file_field(table=table, name="Files")
+
+    found = problem_in_row(
+        site, row_heading, f"get('current_record.field_{files.id}.{path}')"
+    )
+
+    assert found is None
+
+
+@pytest.mark.django_db
+def test_a_file_field_key_it_does_not_have_is_refused(data_fixture, site, row_heading):
+    table = site["rows"].service.specific.table
+    files = data_fixture.create_file_field(table=table, name="Files")
+
+    assert "nosuch" in problem_in_row(
+        site, row_heading, f"get('current_record.field_{files.id}.0.nosuch')"
+    )

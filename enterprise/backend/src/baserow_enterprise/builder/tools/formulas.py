@@ -476,7 +476,10 @@ def _matches_schema(segments: list[str], schema: dict[str, Any]) -> bool:
         # An object of unknown shape can hold anything; a plain value holds nothing.
         return schema.get("type") == "object"
     prop = properties.get(segments[0])
-    return prop is not None and _matches_schema(segments[1:], prop)
+    if prop is None:
+        # The schema of a file leaves out its thumbnails, which pages can read.
+        return segments[0] == "thumbnails" and "is_image" in properties
+    return _matches_schema(segments[1:], prop)
 
 
 def _listed(names: list[str]) -> str:
