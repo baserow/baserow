@@ -45,3 +45,12 @@ class PublishWorkflowMcpTool(FunctionMCPTool):
     read_only = False
     destructive = True
     function = workflows.publish_workflow
+
+
+class PauseWorkflowMcpTool(FunctionMCPTool):
+    type = "pause_workflow"
+    group = GROUP_AUTOMATION_EDIT
+    title = "Pause a workflow"
+    read_only = False
+    destructive = False
+    function = workflows.pause_workflow

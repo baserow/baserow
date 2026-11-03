@@ -1156,3 +1156,5 @@ def test_kuma_is_not_offered_publishing():
     assert "publish_workflow" not in create_workflows.__doc__
     assert "publish_workflow" not in AGENT_SYSTEM_PROMPT
     assert "publish_workflow" not in {tool.__name__ for tool in TOOL_FUNCTIONS}
+    assert "pause_workflow" not in AGENT_SYSTEM_PROMPT
+    assert "pause_workflow" not in {tool.__name__ for tool in TOOL_FUNCTIONS}

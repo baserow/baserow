@@ -17,6 +17,7 @@ from baserow.contrib.automation.models import Automation
 from baserow.contrib.automation.tools.types import WorkflowCreate
 from baserow.contrib.automation.workflows.actions import (
     CreateAutomationWorkflowActionType,
+    UpdateAutomationWorkflowActionType,
 )
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
@@ -24,9 +25,11 @@ from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.operations import (
     PublishAutomationWorkflowOperationType,
     ReadAutomationWorkflowOperationType,
+    UpdateAutomationWorkflowOperationType,
 )
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowTableService
+from baserow.core.cache import local_cache
 from baserow.core.exceptions import (
     PermissionException,
     UntrustedContentCannotBePublished,
@@ -452,7 +455,7 @@ def publish_workflow(
     A copy of the current workflow is live when this returns and the workflow keeps
     its ID. Later edits don't reach the live version until it is published again,
     which replaces that version. Republishing makes a paused or disabled workflow live
-    again with a fresh error count.
+    again with a fresh error count. pause_workflow stops a live workflow.
 
     A workflow with no trigger, or no action after its trigger, is refused. warnings
     lists nodes found to be misconfigured, which doesn't mean the others are sound.
@@ -484,3 +487,52 @@ def publish_workflow(
     if warnings:
         result["warnings"] = warnings
     return result
+
+
+def pause_workflow(
+    ctx: ToolContext,
+    workflow_id: Annotated[
+        int,
+        Field(
+            description="The ID of the workflow to pause, from create_workflows or "
+            "list_workflows."
+        ),
+    ],
+) -> dict[str, Any]:
+    """
+    Pause a live workflow, so its trigger no longer starts runs. Events while it is
+    paused aren't replayed. publish_workflow makes it live again. changed is false
+    when it was already paused. A workflow that was never published or was disabled
+    is refused.
+    """
+
+    workflow = get_workflow_in_workspace(ctx, workflow_id)
+    CoreHandler().check_permissions(
+        ctx.user,
+        UpdateAutomationWorkflowOperationType.type,
+        workspace=ctx.workspace,
+        context=workflow,
+    )
+    handler = AutomationWorkflowHandler()
+    # MCP calls don't pass the middleware that scopes this cache, and the update
+    # below finds the published version through it.
+    with local_cache.context(), transaction.atomic():
+        # Waits for a publish in progress, so what it leaves live is what gets paused.
+        handler.get_workflow(workflow.id, for_update=True)
+        published = handler.get_published_workflow(workflow, with_cache=False)
+        if published is None:
+            raise ToolInputError(
+                "This workflow has never been published, so it isn't running and "
+                "there is nothing to pause."
+            )
+        if published.state == WorkflowState.DISABLED:
+            raise ToolInputError(
+                "This workflow was disabled after too many failed runs, so it isn't "
+                "running and stays disabled. Publishing it again makes it live."
+            )
+        changed = published.state != WorkflowState.PAUSED
+        if changed:
+            UpdateAutomationWorkflowActionType.do(
+                ctx.user, workflow.id, {"state": WorkflowState.PAUSED}
+            )
+    return {"paused_workflow": describe_workflow(workflow), "changed": changed}

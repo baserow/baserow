@@ -1,4 +1,4 @@
-"""Publishing a workflow over MCP."""
+"""Publishing and pausing a workflow over MCP."""
 
 import json
 from unittest.mock import patch
@@ -11,12 +11,17 @@ from mcp.shared.memory import (
     create_connected_server_and_client_session as client_session,
 )
 
+from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.models import Automation
 from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.workflows.actions import (
+    UpdateAutomationWorkflowActionType,
+)
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.operations import (
     PublishAutomationWorkflowOperationType,
+    UpdateAutomationWorkflowOperationType,
 )
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.models import Table
@@ -37,6 +42,7 @@ TOOLS = [
     "create_tables",
     "list_workflows",
     "publish_workflow",
+    "pause_workflow",
 ]
 
 
@@ -531,3 +537,156 @@ def test_publish_tells_a_client_what_publishing_does(data_fixture):
     assert "earlier nodes" in tool.description
     assert "fresh error count" in tool.description
     assert "list_nodes" not in tool.description
+    assert "pause_workflow" in tool.description
+
+
+@pytest.mark.django_db(transaction=True)
+def test_pause_stops_a_live_workflow_until_it_is_published_again(data_fixture):
+    endpoint, orders, log, workflow = _build_workflow_over_mcp(data_fixture)
+    _json(_call(endpoint, "publish_workflow", {"workflow_id": workflow["id"]}))
+    _create_order(endpoint.user, orders)
+    assert _logged(log) == ["Written"]
+    runs = AutomationWorkflowHistory.objects.filter(original_workflow=workflow["id"])
+    assert runs.count() == 1
+
+    result = _json(_call(endpoint, "pause_workflow", {"workflow_id": workflow["id"]}))
+
+    assert result == {
+        "paused_workflow": {
+            "id": workflow["id"],
+            "name": "Log new orders",
+            "state": "paused",
+        },
+        "changed": True,
+    }
+    assert _listed_state(endpoint, workflow["id"]) == "paused"
+
+    # An event neither starts a run nor writes a row.
+    _create_order(endpoint.user, orders)
+    assert _logged(log) == ["Written"]
+    assert runs.count() == 1
+
+    republished = _json(
+        _call(endpoint, "publish_workflow", {"workflow_id": workflow["id"]})
+    )
+    assert republished["published_workflow"]["state"] == "live"
+    assert _listed_state(endpoint, workflow["id"]) == "live"
+
+    _create_order(endpoint.user, orders)
+    assert _logged(log) == ["Written", "Written"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_pause_acts_on_the_latest_published_version(data_fixture):
+    endpoint, orders, log, workflow = _build_workflow_over_mcp(data_fixture)
+    for _ in range(2):
+        _json(_call(endpoint, "publish_workflow", {"workflow_id": workflow["id"]}))
+
+    _json(_call(endpoint, "pause_workflow", {"workflow_id": workflow["id"]}))
+
+    _create_order(endpoint.user, orders)
+    assert _logged(log) == []
+    assert not _published(workflow["id"]).filter(state=WorkflowState.LIVE).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_pause_of_a_paused_workflow_changes_nothing(data_fixture):
+    endpoint, _, _, workflow = _build_workflow_over_mcp(data_fixture)
+    _json(_call(endpoint, "publish_workflow", {"workflow_id": workflow["id"]}))
+    _json(_call(endpoint, "pause_workflow", {"workflow_id": workflow["id"]}))
+
+    with patch.object(UpdateAutomationWorkflowActionType, "do") as update:
+        result = _json(
+            _call(endpoint, "pause_workflow", {"workflow_id": workflow["id"]})
+        )
+
+    update.assert_not_called()
+    assert result["changed"] is False
+    assert result["paused_workflow"]["state"] == "paused"
+
+
+@pytest.mark.django_db
+def test_pause_refuses_a_workflow_never_published(data_fixture):
+    endpoint = data_fixture.create_mcp_endpoint(allowed_tools=["pause_workflow"])
+    automation = data_fixture.create_automation_application(
+        workspace=endpoint.workspace
+    )
+    workflow, _ = create_workflow(endpoint.user, automation)
+
+    result = _call(endpoint, "pause_workflow", {"workflow_id": workflow.id})
+
+    assert result.isError is True
+    assert result.content[0].text == (
+        "This workflow has never been published, so it isn't running and there is "
+        "nothing to pause."
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_pause_leaves_a_disabled_workflow_disabled(data_fixture):
+    endpoint, _, _, workflow = _build_workflow_over_mcp(data_fixture)
+    _json(_call(endpoint, "publish_workflow", {"workflow_id": workflow["id"]}))
+    _published(workflow["id"]).update(state=WorkflowState.DISABLED)
+
+    result = _call(endpoint, "pause_workflow", {"workflow_id": workflow["id"]})
+
+    assert result.isError is True
+    assert result.content[0].text == (
+        "This workflow was disabled after too many failed runs, so it isn't running "
+        "and stays disabled. Publishing it again makes it live."
+    )
+    assert _listed_state(endpoint, workflow["id"]) == "disabled"
+
+
+@pytest.mark.django_db
+def test_pause_refuses_a_workflow_of_another_workspace(data_fixture):
+    endpoint = data_fixture.create_mcp_endpoint(allowed_tools=["pause_workflow"])
+    other = data_fixture.create_automation_application(
+        workspace=data_fixture.create_workspace(user=endpoint.user)
+    )
+    workflow, _ = create_workflow(endpoint.user, other)
+
+    result = _call(endpoint, "pause_workflow", {"workflow_id": workflow.id})
+
+    assert result.isError is True
+    assert result.content[0].text == "Not found in this workspace."
+
+
+@pytest.mark.django_db
+def test_automation_read_cannot_pause(data_fixture):
+    read_tools = [
+        tool.name
+        for tool in mcp_tool_registry.get_all()
+        if tool.group == GROUP_AUTOMATION_READ
+    ]
+    endpoint = data_fixture.create_mcp_endpoint(allowed_tools=read_tools)
+    automation = data_fixture.create_automation_application(
+        workspace=endpoint.workspace
+    )
+    workflow, _ = create_workflow(endpoint.user, automation)
+
+    result = _call(endpoint, "pause_workflow", {"workflow_id": workflow.id})
+
+    assert result.isError is True
+    assert result.content[0].text == "Tool 'pause_workflow' not found."
+
+
+@pytest.mark.django_db
+def test_pause_needs_the_update_permission(data_fixture):
+    endpoint = data_fixture.create_mcp_endpoint(allowed_tools=["pause_workflow"])
+    automation = data_fixture.create_automation_application(
+        workspace=endpoint.workspace
+    )
+    workflow, _ = create_workflow(endpoint.user, automation)
+    check_permissions = CoreHandler.check_permissions
+
+    def deny_update(self, actor, operation_name, *args, **kwargs):
+        if operation_name == UpdateAutomationWorkflowOperationType.type:
+            raise PermissionException(actor)
+        return check_permissions(self, actor, operation_name, *args, **kwargs)
+
+    with patch.object(CoreHandler, "check_permissions", deny_update):
+        result = _call(endpoint, "pause_workflow", {"workflow_id": workflow.id})
+
+    assert result.isError is True
+    assert "permission" in result.content[0].text

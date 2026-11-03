@@ -10,6 +10,8 @@ from mcp.shared.memory import (
 
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
+from baserow.contrib.automation.workflows.constants import WorkflowState
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.core.mcp import BaserowMCPServer, current_key
@@ -81,3 +83,31 @@ def test_only_a_builder_can_publish_over_mcp(team):
 
     assert result.isError is False, result.content[0].text
     assert json.loads(result.content[0].text)["published_workflow"]["state"] == "live"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_pause_uses_the_role_of_the_update_operation(team):
+    fixture, workspace, automation, builder, editor = team
+    workflow = _workflow_with_an_action(builder, automation)
+    with transaction.atomic():
+        AutomationWorkflowHandler().publish(workflow)
+    copy = AutomationWorkflow.objects.get(automation__published_from=workflow)
+
+    endpoint = fixture.create_mcp_endpoint(
+        user=editor, workspace=workspace, allowed_tools=["pause_workflow"]
+    )
+    result = _call(endpoint, "pause_workflow", {"workflow_id": workflow.id})
+
+    assert result.isError is True
+    assert "permission" in result.content[0].text
+    copy.refresh_from_db()
+    assert copy.state == WorkflowState.LIVE
+
+    endpoint = fixture.create_mcp_endpoint(
+        user=builder, workspace=workspace, allowed_tools=["pause_workflow"]
+    )
+    result = _call(endpoint, "pause_workflow", {"workflow_id": workflow.id})
+
+    assert result.isError is False, result.content[0].text
+    copy.refresh_from_db()
+    assert copy.state == WorkflowState.PAUSED

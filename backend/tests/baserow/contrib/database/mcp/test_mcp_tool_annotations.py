@@ -24,6 +24,7 @@ EXPECTED = {
     "list_nodes": (True, False),
     "create_workflows": (False, False),
     "publish_workflow": (False, True),
+    "pause_workflow": (False, False),
     "add_nodes": (False, False),
     "update_nodes": (False, True),
     "delete_nodes": (False, True),
