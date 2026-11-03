@@ -32,7 +32,6 @@ Immediate follow-ups to v1:
 
 In scope for v2:
 - Publishing credential changes independently of app changes.
-- Restoring workspace-level ownership on import.
 - Bulk replacement of references and demotion.
 - Builder-managed sharing.
 
@@ -81,7 +80,7 @@ Workspace exports and templates include referenced workspace integrations as app
 
 Each imported app receives its own copy; shared ownership is not preserved, even when importing into the original workspace. Local Baserow copies are re-authorised to the importer, while integrations such as SMTP require their credentials to be configured again.
 
-This retains a common export/import path and avoids leaving services without integrations after import. The cost is duplication: three apps using one workspace integration produce three app-level integrations on import. To keep that recoverable without a later change to the export format, each exported copy is marked as originating from the workspace level.
+This retains a common export/import path and avoids leaving services without integrations after import. The cost is duplication: three apps using one workspace integration produce three app-level integrations on import. Consolidating them afterwards is an Admin task using the ordinary tools: promote one copy and repoint the other services to it, by hand in v1 and with bulk replacement once it exists. Import itself will not recreate workspace-level ownership.
 
 ### 5. Admins manage, Builders list
 
@@ -109,7 +108,7 @@ For a Local Baserow integration authorised as someone other than the promoting A
 | Hide the shared application in backend managers | Requires separate lookup paths for APIs and consumers that need to resolve it; we instead hide it in the frontend and explicitly exclude it where necessary. |
 | Let published copies directly reference workspace integrations | Shared edits or deletion could immediately affect live apps and workflows. |
 | Omit workspace integrations from exports | Imported services would lose their integrations, with no bulk repair path in v1; templates also need portable copies. |
-| Deduplicate workspace integrations through a dedicated export manifest section | Requires additional import handling, workspace integration creation and Admin permissions; deferred to v2. |
+| Deduplicate workspace integrations through a dedicated export manifest section | Requires additional import handling, workspace integration creation and Admin permissions, while promotion and bulk replacement consolidate copies after import anyway. |
 | Reuse app-level integration permissions | Could allow Builders to manage shared integrations through the existing ownership chain. |
 | Let Builders manage workspace integrations | Shared changes affect multiple applications; v1 uses the stricter Admin boundary. |
 
@@ -122,7 +121,7 @@ For a Local Baserow integration authorised as someone other than the promoting A
 - **Portability cost:** Workspace imports and templates produce app-level copies rather than preserving shared ownership.
 - **Security boundary:** Workspace integrations can make an authorised Local Baserow identity usable from multiple apps; Builders may select but not manage these integrations.
 - **Follow-ups:** Usage counts on delete.
-- **v2 candidates:** integration-only publishing; shared ownership on import; bulk “Replace with” for services and user sources; demotion with checks for remaining consumers; and potentially allowing Builders to share integrations.
+- **v2 candidates:** integration-only publishing; bulk “Replace with” for services and user sources; demotion with checks for remaining consumers; and potentially allowing Builders to share integrations.
 
 ## Revisit triggers
 
