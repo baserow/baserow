@@ -4,6 +4,7 @@ from django.db.models import Q
 
 from baserow.contrib.database.fields.field_filters import (
     AnnotatedQ,
+    FilterBuilder,
     GroupedFiltersAdapter,
 )
 from baserow.contrib.database.views.registries import view_filter_type_registry
@@ -55,21 +56,34 @@ class LocalBaserowServiceGroupedFiltersAdapter(GroupedFiltersAdapter):
         view_filter_type = view_filter_type_registry.get(service_filter.type)
 
         try:
-            resolved_value = ensure_string(
-                resolve_formula(
-                    service_filter.value,
-                    formula_runtime_function_registry,
-                    self.dispatch_context,
-                )
+            resolved_value = resolve_formula(
+                service_filter.value,
+                formula_runtime_function_registry,
+                self.dispatch_context,
             )
+            values, operator = self.get_filter_values(resolved_value, view_filter_type)
         except Exception as exc:
             raise ServiceImproperlyConfiguredDispatchException(
                 f"The {field_name} service filter formula can't be resolved: {exc}"
             ) from exc
 
-        return view_filter_type.get_filter(
-            field_name, resolved_value, model_field, field_object["field"]
-        )
+        if len(values) == 1:
+            return view_filter_type.get_filter(
+                field_name, values[0], model_field, field_object["field"]
+            )
+        builder = FilterBuilder(operator)
+        for value in values:
+            builder.filter(
+                view_filter_type.get_filter(
+                    field_name, value, model_field, field_object["field"]
+                )
+            )
+        q, annotations = builder.get_filters_and_annotations()
+        return AnnotatedQ(annotations, q)
+
+    def get_filter_values(self, value, view_filter_type):
+        """Stored service conditions retain their existing scalar conversion."""
+        return [ensure_string(value)], "AND"
 
 
 def validate_runtime_filter_group(group, service):
@@ -188,6 +202,18 @@ class RuntimeFilterGroupAdapter(LocalBaserowServiceGroupedFiltersAdapter):
             SimpleNamespace(**{**f, "field_id": f["field"].id}) for f in filters
         ]
         self._groups = [SimpleNamespace(**g) for g in groups]
+
+    def get_filter_values(self, value, view_filter_type):
+        """Dashboard equality matches any selection; inequality excludes them all."""
+        if (
+            isinstance(value, list)
+            and value
+            and view_filter_type.type in ("equal", "not_equal")
+        ):
+            return [ensure_string(item) for item in value], (
+                "OR" if view_filter_type.type == "equal" else "AND"
+            )
+        return super().get_filter_values(value, view_filter_type)
 
     @property
     def filter_type(self):
