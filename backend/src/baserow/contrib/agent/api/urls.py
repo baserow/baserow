@@ -7,6 +7,7 @@ from .views import (
     AgentConversationView,
     AgentMessagesView,
     AgentRunAsSubjectsView,
+    AgentToolApprovalsView,
 )
 
 app_name = "baserow.contrib.agent"
@@ -37,5 +38,10 @@ urlpatterns = [
         "<int:agent_id>/conversations/<uuid:conversation_uuid>/messages/",
         AgentMessagesView.as_view(),
         name="messages",
+    ),
+    path(
+        "<int:agent_id>/conversations/<uuid:conversation_uuid>/approvals/",
+        AgentToolApprovalsView.as_view(),
+        name="approvals",
     ),
 ]

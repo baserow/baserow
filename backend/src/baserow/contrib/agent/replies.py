@@ -1,11 +1,19 @@
 import asyncio
 from functools import partial
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 
 from loguru import logger
-from pydantic_ai import Agent, AgentRunResultEvent, RunContext, WebSearchTool
+from pydantic_ai import (
+    Agent,
+    AgentRunResultEvent,
+    ConversationTypeAdapter,
+    DeferredToolRequests,
+    RunContext,
+    ToolDefinition,
+    WebSearchTool,
+)
 from pydantic_ai.capabilities import WebSearch
 from pydantic_ai.exceptions import ModelHTTPError
 from pydantic_ai.messages import (
@@ -25,7 +33,7 @@ from pydantic_ai.messages import (
 )
 from pydantic_ai.models import Model
 from pydantic_ai.run import AgentRunResult
-from pydantic_ai.toolsets import FunctionToolset
+from pydantic_ai.toolsets import AbstractToolset, FunctionToolset
 from pydantic_ai.usage import UsageLimits
 from pydantic_core import to_jsonable_python
 
@@ -210,8 +218,19 @@ class AgentResponder:
         self._text = ""
         self._parts: dict[int, str] = {}
         self._text_is_commentary = False
-        self._result: AgentRunResult[str] | None = None
-        self._steps = ChatRunSteps(journal, self._describe_call)
+        self._result: AgentRunResult[str | DeferredToolRequests] | None = None
+        resume = request.resume
+        self._steps = (
+            ChatRunSteps(journal, self._describe_call)
+            if resume is None
+            else ChatRunSteps(
+                journal,
+                self._describe_call,
+                resume.saved_steps,
+                resume.held_step_ids,
+                resume.approved_ids,
+            )
+        )
 
     def _describe_call(self, name: str, arguments: dict) -> dict | None:
         """
@@ -244,6 +263,7 @@ class AgentResponder:
         :return: How the reply ended, with its text and the model's transcript.
         """
 
+        self._steps.start()
         work = asyncio.create_task(self._stream())
         stop = asyncio.create_task(self._journal.wait_for_stop())
         try:
@@ -319,6 +339,7 @@ class AgentResponder:
 
         agent = Agent(
             instructions=self._get_instructions(web_search_tool),
+            output_type=[str, DeferredToolRequests],
             retries={"tools": TOOL_RETRIES},
             capabilities=[
                 WebSearch(native=partial(self._offered_web_search, web_search_tool))
@@ -328,9 +349,15 @@ class AgentResponder:
         )
         # Kuma enables content tracing for every Agent; conversations are private.
         agent.instrument = False
+        request = self._request
+        resume = request.resume
+        # A paused run carries its own history, and pydantic-ai refuses both.
+        history = build_history(request.history) if resume is None else None
         async with agent.run_stream_events(
-            self._request.prompt,
-            message_history=build_history(self._request.history),
+            request.prompt,
+            conversation=resume.paused_conversation if resume else None,
+            message_history=history,
+            deferred_tool_results=resume.deferred_tool_results if resume else None,
             model=self._model,
             model_settings=self._model_settings,
             usage_limits=UsageLimits(request_limit=REPLY_REQUEST_LIMIT),
@@ -375,7 +402,7 @@ class AgentResponder:
             return None
         return web_search_tool
 
-    def _toolsets(self) -> list[FunctionToolset]:
+    def _toolsets(self) -> list[AbstractToolset[None]]:
         """
         The tools the reply may call, acting as the Agent's identity.
 
@@ -396,8 +423,49 @@ class AgentResponder:
                     agent_tool_type_registry.get(name).get_tool(ctx)
                     for name in request.allowed_tool_names
                 ]
-            )
+            ).approval_required(self._requires_approval)
         ]
+
+    def _requires_approval(
+        self, ctx: RunContext[None], tool_def: ToolDefinition, arguments: dict[str, Any]
+    ) -> bool:
+        """
+        Decide whether a call waits for the owner's approval.
+
+        :param ctx: The run, with the response that made the call.
+        :param tool_def: The called tool.
+        :param arguments: Its validated arguments.
+        :return: Whether the call is held.
+        """
+
+        response = next(
+            message
+            for message in reversed(ctx.messages)
+            if isinstance(message, ModelResponse)
+        )
+        return ctx.tool_call_id in self._held_call_ids(response)
+
+    def _held_call_ids(self, response: ModelResponse) -> set[str]:
+        """
+        Hold the ask first calls of a model response, and the changes after a held
+        call, so that changes still run in the order the model asked for them.
+
+        :param response: A response of the model.
+        :return: The ids of its held calls.
+        """
+
+        request = self._request
+        held: set[str] = set()
+        for call in response.tool_calls:
+            changes_data = (
+                call.tool_name in request.allowed_tool_names
+                and agent_tool_type_registry.get(call.tool_name).changes_data
+            )
+            if call.tool_name in request.ask_first_tool_names or (
+                held and changes_data
+            ):
+                held.add(call.tool_call_id)
+        return held
 
     def _on_event(self, event: AgentStreamEvent | AgentRunResultEvent) -> None:
         """
@@ -434,7 +502,7 @@ class AgentResponder:
     def _outcome(self, work: asyncio.Task) -> ChatRunOutcome:
         result = self._reply_result()
         # A blank answer is no reply, and some providers reject it in the history.
-        if self._result is not None and result.text.strip():
+        if result.paused or (self._result is not None and result.text.strip()):
             return ChatRunOutcome(ChatRunStatus.COMPLETED, result=result)
         if self._journal.stop_reason == ChatRunStopReason.CANCELLED:
             return ChatRunOutcome(ChatRunStatus.CANCELLED, result=result)
@@ -456,12 +524,16 @@ class AgentResponder:
     def _reply_result(self) -> AgentReplyResult:
         """
         Collect what the reply produced: its text, the provider and model, and once
-        the model finished, its messages and usage.
+        the model finished or paused, its messages and usage. A paused reply keeps
+        the text the owner saw, the held calls and the run to resume.
 
         :return: The text and the execution details of the reply.
         """
 
-        steps = self._steps.finish() or None
+        paused = self._result is not None and isinstance(
+            self._result.output, DeferredToolRequests
+        )
+        steps = self._steps.finish(paused) or None
         if self._result is None:
             return AgentReplyResult(
                 text=self._text,
@@ -470,7 +542,7 @@ class AgentResponder:
                 steps=steps,
             )
         return AgentReplyResult(
-            text=remove_null_characters(self._result.output),
+            text=self._text if paused else remove_null_characters(self._result.output),
             provider_type=self._request.provider_type,
             model_identifier=self._request.model_identifier,
             model_messages=ModelMessagesTypeAdapter.dump_python(
@@ -478,4 +550,10 @@ class AgentResponder:
             ),
             usage=to_jsonable_python(self._result.usage),
             steps=steps,
+            waiting_calls=self._steps.waiting_calls() if paused else [],
+            paused_conversation=ConversationTypeAdapter.dump_python(
+                self._result.conversation, mode="json"
+            )
+            if paused
+            else None,
         )

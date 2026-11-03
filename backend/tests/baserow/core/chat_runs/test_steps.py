@@ -1,7 +1,9 @@
 from unittest.mock import Mock
 
 import pytest
+from pydantic_ai import DeferredToolRequests
 from pydantic_ai.messages import (
+    DeferredToolRequestsEvent,
     FunctionToolCallEvent,
     FunctionToolResultEvent,
     RetryPromptPart,
@@ -9,7 +11,13 @@ from pydantic_ai.messages import (
     ToolReturnPart,
 )
 
-from baserow.core.chat_runs.steps import ChatRunSteps, ToolCallInputEvent
+from baserow.core.chat_runs.steps import (
+    ChatRunSteps,
+    ToolCallInputEvent,
+    stop_running_steps,
+)
+
+HELD_CALL_IDS = ("approved", "rejected", "revoked")
 
 
 def call(call_id, name="create_rows", arguments=None, valid=True):
@@ -33,6 +41,16 @@ def describe(name, arguments):
         if "rows" in arguments
         else {},
     }
+
+
+def paused_run(journal: Mock | None = None) -> ChatRunSteps:
+    steps = ChatRunSteps(journal or Mock(), describe)
+    for call_id in ("read", *HELD_CALL_IDS, "unfinished"):
+        steps.on_event(call(call_id))
+    steps.on_event(result("read"))
+    held = [ToolCallPart("create_rows", {}, call_id) for call_id in HELD_CALL_IDS]
+    steps.on_event(DeferredToolRequestsEvent(DeferredToolRequests(approvals=held)))
+    return steps
 
 
 def test_steps_keep_call_order_and_distinct_ids_when_provider_ids_are_reused():
@@ -350,3 +368,70 @@ def test_messages_for_people_are_shortened_and_hints_left_out():
     assert step["error_message"] == "x" * 999 + "…"
     assert step["item_errors"][0]["message"] == "x" * 999 + "…"
     assert "HINT_CANARY" not in str(step)
+
+
+def test_held_calls_wait_only_while_the_run_is_paused():
+    journal = Mock()
+    steps = paused_run(journal)
+
+    paused = steps.finish(paused=True)
+    assert [step["status"] for step in paused] == [
+        "done",
+        "waiting",
+        "waiting",
+        "waiting",
+        "stopped",
+    ]
+    assert steps.waiting_calls() == [
+        (call_id, step["id"], "create_rows")
+        for call_id, step in zip(HELD_CALL_IDS, paused[1:4])
+    ]
+    assert journal.emit.call_args.args[1] == paused[3]
+    assert {step["status"] for step in steps.finish()} == {"done", "stopped"}
+    assert {step["status"] for step in stop_running_steps(paused)} == {
+        "done",
+        "stopped",
+    }
+
+
+def test_resumed_calls_update_their_saved_steps_in_place():
+    paused = paused_run()
+    saved = paused.finish(paused=True)
+    journal = Mock()
+    steps = ChatRunSteps(
+        journal,
+        describe,
+        saved_steps=saved,
+        held_step_ids={
+            call_id: step_id for call_id, step_id, _ in paused.waiting_calls()
+        },
+        approved_ids={"approved", "revoked"},
+    )
+
+    steps.start()
+    steps.on_event(call("approved"))
+    steps.on_event(call("rejected", valid=None))
+    steps.on_event(call("revoked", valid=None))
+    steps.on_event(result("approved", content={"changed": False}))
+    steps.on_event(result("rejected", outcome="denied"))
+    steps.on_event(result("revoked", outcome="denied"))
+    steps.on_event(call("approved"))
+
+    resumed = steps.finish()
+    assert [step["id"] for step in resumed[:5]] == [step["id"] for step in saved]
+    assert [(step["status"], step.get("error_code")) for step in resumed] == [
+        ("done", None),
+        ("done", None),
+        ("rejected", None),
+        ("failed", "permission_denied"),
+        ("stopped", None),
+        ("stopped", None),
+    ]
+    emitted = [entry.args[1] for entry in journal.emit.call_args_list]
+    assert emitted[:5] == saved
+    assert emitted[5]["status"] == "running"
+    assert [
+        step["status"]
+        for step in emitted
+        if step["id"] in (saved[2]["id"], saved[3]["id"])
+    ] == ["waiting", "waiting", "rejected", "failed"]

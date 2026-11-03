@@ -1627,7 +1627,7 @@ describe('Agent configuration', () => {
   test('restores saved tools and clears the section error when the identity becomes available again', async () => {
     mockConfiguration(
       testApp,
-      withTools(['create_rows'], { ...investor, trashed: true })
+      withTools(['create_rows'], { runAs: { ...investor, trashed: true } })
     )
     const wrapper = await mount()
     expect(workspaceAccessRow(wrapper).find('.icon--error').exists()).toBe(true)

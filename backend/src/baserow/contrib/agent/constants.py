@@ -39,6 +39,11 @@ INTERRUPTED_CHANGES_NOTE = (
     "[Changes started before the interruption: {changes}. A stopped change may "
     "have completed; check before repeating it.]"
 )
+REJECTED_TOOL_CALL_NOTE = (
+    "The user rejected this call, so it did not run. Don't repeat it: tell the "
+    "user, or follow their reason if they gave one."
+)
+DISALLOWED_TOOL_CALL_NOTE = "This tool is no longer allowed."
 UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS = (
     "The identity configured for your workspace access is no longer available. "
     "You cannot read or change workspace data. When a request needs workspace "

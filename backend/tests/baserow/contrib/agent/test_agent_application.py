@@ -5,8 +5,10 @@ from django.utils import timezone
 
 import pytest
 
+from baserow.contrib.agent import actions as agent_actions
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication
+from baserow.core.action.registries import ActionType, action_type_registry
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 from baserow.core.exceptions import FeatureDisabledException
 from baserow.core.feature_flags import FF_AGENT_BUILDER
@@ -46,6 +48,20 @@ def import_workspace_archive(data_fixture, user, agent):
     workspace = data_fixture.create_workspace(user=user)
     [imported] = handler.import_workspace_applications(user, workspace, resource)
     return imported
+
+
+AGENT_ACTION_TYPES = [
+    value
+    for value in vars(agent_actions).values()
+    if isinstance(value, type)
+    and issubclass(value, ActionType)
+    and value.__module__ == agent_actions.__name__
+]
+
+
+@pytest.mark.parametrize("action_type", AGENT_ACTION_TYPES, ids=lambda t: t.type)
+def test_every_agent_action_type_is_registered(action_type: type[ActionType]):
+    assert isinstance(action_type_registry.get(action_type.type), action_type)
 
 
 @pytest.mark.django_db
@@ -93,7 +109,10 @@ def test_new_agent_selects_the_first_enabled_model_and_starts_with_tools_off(
         ("openai", "first-enabled") if models_available else (None, None)
     )
     assert agent.instructions == ""
-    assert AgentHandler().get_allowed_tool_names(agent) == []
+    assert AgentHandler().get_tool_configuration(agent) == {
+        "allowed_tools": [],
+        "ask_first_tools": [],
+    }
     assert not agent.allowed_tools.exists()
 
 

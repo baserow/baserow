@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, NotRequired, TypedDict
+from typing import Any, NamedTuple, NotRequired, TypedDict
 
 from baserow.core.tools.errors import ToolErrorCode
 
@@ -19,6 +19,14 @@ class ChatRunStep(TypedDict):
     changes_data: bool
     input: dict[str, Any]
     facts: dict[str, Any]
+
+
+class ChatRunWaitingCall(NamedTuple):
+    """A tool call held for approval, joined to its step by ``step_id``."""
+
+    tool_call_id: str
+    step_id: str
+    tool_name: str
 
 
 @dataclass(frozen=True)

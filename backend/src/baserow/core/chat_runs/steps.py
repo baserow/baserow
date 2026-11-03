@@ -1,7 +1,8 @@
 import json
 from collections import defaultdict, deque
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
@@ -9,6 +10,7 @@ from loguru import logger
 from pydantic_ai import AgentRunResultEvent, AgentStreamEvent, CustomEvent
 from pydantic_ai.messages import (
     BaseToolCallPart,
+    DeferredToolRequestsEvent,
     FunctionToolCallEvent,
     FunctionToolResultEvent,
     NativeToolCallPart,
@@ -29,7 +31,7 @@ from .constants import (
     ChatRunStepStatus,
 )
 from .tool_input import shorten_text
-from .types import ChatRunStep
+from .types import ChatRunStep, ChatRunWaitingCall
 
 if TYPE_CHECKING:
     from .journal import ChatRunJournal
@@ -45,16 +47,22 @@ class ToolCallInputEvent(CustomEvent, ui=False):
     input: dict[str, Any]
 
 
-def stop_running_steps(steps: list[ChatRunStep]) -> list[ChatRunStep]:
+def stop_running_steps(
+    steps: list[ChatRunStep], keep_waiting: bool = False
+) -> list[ChatRunStep]:
     """Mark calls with unknown completion as stopped without implying rollback.
 
     :param steps: The steps in call order.
-    :return: Steps with none left running.
+    :param keep_waiting: Whether held calls stay waiting because the run paused.
+    :return: Steps with none left running, and none left waiting unless kept.
     """
 
+    unfinished = {ChatRunStepStatus.RUNNING}
+    if not keep_waiting:
+        unfinished.add(ChatRunStepStatus.WAITING)
     return [
         {**step, "status": ChatRunStepStatus.STOPPED}
-        if step["status"] == ChatRunStepStatus.RUNNING
+        if step["status"] in unfinished
         else step
         for step in steps
     ]
@@ -162,11 +170,17 @@ def _reports_native_failure(content: Any) -> bool:
 
 def _ended(
     part: ToolReturnPart | NativeToolReturnPart | RetryPromptPart,
+    held: bool = False,
+    approved: bool = False,
 ) -> _Ending:
     """
     Read a tool outcome without confusing domain errors with success.
 
     :param part: The tool result or validation retry.
+    :param held: Whether the call waited for the user's decision, so it keeps its
+        card even when it changed nothing.
+    :param approved: Whether the user approved the held call, so a denial is not
+        theirs.
     :return: Its status, facts, and what people may see of its failures.
     """
 
@@ -174,6 +188,8 @@ def _ended(
         return _Ending(ChatRunStepStatus.FAILED, error_code=ToolErrorCode.INVALID_INPUT)
     if part.outcome == "interrupted":
         return _Ending(ChatRunStepStatus.STOPPED)
+    if part.outcome == "denied" and held and not approved:
+        return _Ending(ChatRunStepStatus.REJECTED)
     if part.outcome == "denied":
         return _Ending(
             ChatRunStepStatus.FAILED, error_code=ToolErrorCode.PERMISSION_DENIED
@@ -197,7 +213,7 @@ def _ended(
             error_message=_message(error.get("message")),
             item_errors=_item_errors(content),
         )
-    if content.get("changed") is False:
+    if content.get("changed") is False and not held:
         return _Ending(ChatRunStepStatus.SKIPPED)
     return _Ending(
         ChatRunStepStatus.DONE,
@@ -213,6 +229,9 @@ class ChatRunSteps:
         self,
         journal: "ChatRunJournal",
         describe_call: Callable[[str, dict[str, Any]], dict[str, Any] | None],
+        saved_steps: Iterable[ChatRunStep] = (),
+        held_step_ids: Mapping[str, str] = MappingProxyType({}),
+        approved_ids: Iterable[str] = (),
     ) -> None:
         """
         :param journal: Receives a complete step whenever its state changes.
@@ -220,23 +239,39 @@ class ChatRunSteps:
             to None for a call the run never offered, which then has no step. Calls
             the provider runs itself, such as web searches, are described the same
             way.
+        :param saved_steps: The saved steps of a paused reply, in call order.
+        :param held_step_ids: The step id of each held call, by its tool call id.
+        :param approved_ids: The tool call ids the user approved.
         """
 
         self._journal = journal
         self._describe_call = describe_call
-        self._steps: dict[str, ChatRunStep] = {}
+        self._steps: dict[str, ChatRunStep] = {step["id"]: step for step in saved_steps}
+        self._held_step_ids: dict[str, str] = dict(held_step_ids)
+        self._approved_ids = frozenset(approved_ids)
+        self._resumed_step_ids: set[str] = set()
         self._pending: dict[str, deque[str]] = defaultdict(deque)
-        self._hidden_call_started = False
+        self._call_started = False
+
+    def start(self) -> None:
+        """Show a resumed reply's saved steps before any of its new activity."""
+
+        for step in self._steps.values():
+            self._journal.emit(ChatRunEventKind.STEP, step)
 
     def on_event(self, event: AgentStreamEvent | AgentRunResultEvent) -> None:
-        """Start and complete steps, ignoring unrelated model events.
+        """Start, hold and complete steps, ignoring unrelated model events.
 
         :param event: One event from the model run.
         """
 
         match event:
             case FunctionToolCallEvent(tool_call_id=tool_call_id, part=part):
-                self._start(tool_call_id, part, invalid=event.args_valid is False)
+                step_id = self._held_step_ids.pop(tool_call_id, None)
+                if step_id is None:
+                    self._start(tool_call_id, part, invalid=event.args_valid is False)
+                else:
+                    self._resume(tool_call_id, step_id, event.args_valid)
             case ToolCallInputEvent(tool_call_id=str() as tool_call_id):
                 self._add_input(tool_call_id, event.input)
             case FunctionToolResultEvent(tool_call_id=tool_call_id, part=part):
@@ -249,12 +284,21 @@ class ChatRunSteps:
                 self._end(part.tool_call_id, part)
             case PartEndEvent(part=NativeToolCallPart() as part):
                 self._describe_native_call(part)
+            case DeferredToolRequestsEvent(requests=requests):
+                for part in requests.approvals:
+                    pending = self._pending.get(part.tool_call_id)
+                    if pending:
+                        step = self._steps[pending[-1]]
+                        self._update({**step, "status": ChatRunStepStatus.WAITING})
 
     @property
     def started(self) -> bool:
-        """Whether the run has called a tool, which a retry could then repeat."""
+        """
+        Whether this run has called a tool, which a retry could then repeat. Saved
+        steps of a paused reply don't count, but resuming its held calls does.
+        """
 
-        return bool(self._steps) or self._hidden_call_started
+        return self._call_started
 
     def _describe(
         self, part: BaseToolCallPart, invalid: bool = False
@@ -283,10 +327,9 @@ class ChatRunSteps:
         :param invalid: Whether its arguments failed validation.
         """
 
+        self._call_started = True
         description = self._describe(part, invalid)
         if description is None:
-            # A hidden call still ran, so a retry could repeat it.
-            self._hidden_call_started = True
             return
         step: ChatRunStep = {
             "id": str(uuid4()),
@@ -302,6 +345,21 @@ class ChatRunSteps:
             step["error_code"] = ToolErrorCode.INVALID_INPUT
         self._pending[tool_call_id].append(step["id"])
         self._update(step)
+
+    def _resume(self, tool_call_id: str, step_id: str, args_valid: bool | None) -> None:
+        """Continue the saved step of a held call the user decided.
+
+        :param tool_call_id: The call's id, which its result refers to.
+        :param step_id: The id of its saved step.
+        :param args_valid: Whether pydantic-ai validated the call to run it.
+        """
+
+        self._call_started = True
+        self._resumed_step_ids.add(step_id)
+        # pydantic-ai doesn't validate a resumed call it won't run.
+        if args_valid is not None:
+            self._update({**self._steps[step_id], "status": ChatRunStepStatus.RUNNING})
+        self._pending[tool_call_id].append(step_id)
 
     def add_failed(self, tool: str, step_input: dict[str, Any]) -> None:
         """Add a failed step that no call of its own reports, such as a search the
@@ -367,7 +425,9 @@ class ChatRunSteps:
         step = self._steps[pending.popleft()]
         if not pending:
             del self._pending[tool_call_id]
-        ending = _ended(part)
+        held = step["id"] in self._resumed_step_ids
+        self._resumed_step_ids.discard(step["id"])
+        ending = _ended(part, held, held and tool_call_id in self._approved_ids)
         updated = {**step, "status": ending.status, "facts": ending.facts}
         # An invalid call starts failed, and a result can still end it otherwise.
         updated.pop("error_code", None)
@@ -379,13 +439,30 @@ class ChatRunSteps:
             updated["item_errors"] = ending.item_errors
         self._update(updated)
 
-    def finish(self) -> list[ChatRunStep]:
+    def waiting_calls(self) -> list[ChatRunWaitingCall]:
+        """
+        :return: The calls held for approval, in call order.
+        """
+
+        call_ids = {
+            step_id: call_id
+            for call_id, step_ids in self._pending.items()
+            for step_id in step_ids
+        }
+        return [
+            ChatRunWaitingCall(call_ids[step["id"]], step["id"], step["tool"])
+            for step in self._steps.values()
+            if step["status"] == ChatRunStepStatus.WAITING and step["id"] in call_ids
+        ]
+
+    def finish(self, paused: bool = False) -> list[ChatRunStep]:
         """Finish activity once the model run ends.
 
+        :param paused: Whether the run ended holding calls for approval.
         :return: Steps in call order, with unresolved calls marked stopped.
         """
 
-        return stop_running_steps(list(self._steps.values()))
+        return stop_running_steps(list(self._steps.values()), keep_waiting=paused)
 
     def _update(self, step: ChatRunStep) -> None:
         """
