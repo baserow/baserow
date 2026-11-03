@@ -23,11 +23,11 @@ test.describe("Builder element graph test suite", () => {
         .locator(".add-element-zone")
         .click();
       await page
-        .locator(".add-element-modal")
-        .getByText("Heading", { exact: true })
+        .locator(".item-picker-modal")
+        .getByRole("button", { name: "Heading", exact: true })
         .click();
       await expect(
-        page.locator(".add-element-modal").getByText("Add new element")
+        page.locator(".item-picker-modal").getByText("Add new element")
       ).toBeHidden();
       await expect(
         page
