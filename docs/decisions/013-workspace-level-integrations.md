@@ -29,11 +29,11 @@ In scope for v1:
 
 Immediate follow-ups to v1:
 - Usage counts on delete.
-- Bulk replacement of references and demotion.
 
 In scope for v2:
 - Publishing credential changes independently of app changes.
 - Restoring workspace-level ownership on import.
+- Bulk replacement of references and demotion.
 - Builder-managed sharing.
 
 Terms used in this record:
@@ -99,7 +99,7 @@ An Admin may promote an existing app-level integration by moving its `applicatio
 
 Promotion is undoable unless new services or user sources began referencing the integration after the move, in which case moving it back could break them.
 
-For a Local Baserow integration authorised as someone other than the promoting Admin, promotion must re-authorise it as the Admin or be rejected. Workspaces with duplicate integrations can promote one and manually repoint other apps' services to it in v1. Demotion and bulk replacement are follow-ups.
+For a Local Baserow integration authorised as someone other than the promoting Admin, promotion must re-authorise it as the Admin or be rejected. Workspaces with duplicate integrations can promote one and manually repoint other apps' services to it in v1. Demotion and bulk replacement are deferred to v2.
 
 ## Options considered
 
@@ -121,8 +121,8 @@ For a Local Baserow integration authorised as someone other than the promoting A
 - **Publishing cost:** Credential rotation across published copies requires republishing each affected app or workflow. Pushing integration changes without publishing unrelated app changes is deferred.
 - **Portability cost:** Workspace imports and templates produce app-level copies rather than preserving shared ownership.
 - **Security boundary:** Workspace integrations can make an authorised Local Baserow identity usable from multiple apps; Builders may select but not manage these integrations.
-- **Follow-ups:** Usage counts on delete; bulk “Replace with” for services and user sources; demotion with checks for remaining consumers.
-- **v2 candidates:** integration-only publishing; shared ownership on import; and potentially allowing Builders to share integrations.
+- **Follow-ups:** Usage counts on delete.
+- **v2 candidates:** integration-only publishing; shared ownership on import; bulk “Replace with” for services and user sources; demotion with checks for remaining consumers; and potentially allowing Builders to share integrations.
 
 ## Revisit triggers
 
