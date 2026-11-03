@@ -30,11 +30,12 @@ from baserow_enterprise.semantic_search.models import (
     SemanticSearchField,
     SemanticSearchPendingUpdate,
 )
-from baserow_enterprise.teams.models import Team, TeamSubject
+from baserow_enterprise.teams.models import Team, TeamSubject, WorkspaceTeamInvitation
 
 __all__ = [
     "Team",
     "TeamSubject",
+    "WorkspaceTeamInvitation",
     "Role",
     "RoleAssignment",
     "WorkspaceScopedInvitation",
