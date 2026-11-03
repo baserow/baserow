@@ -48,7 +48,7 @@ def _to_plain_text(message: dict[str, Any]) -> str:
     # prosemirror_doc_to_plain_text only reads a document's first block.
     return "\n".join(
         prosemirror_doc_to_plain_text({"type": "doc", "content": [block]})
-        for block in message["content"]
+        for block in message.get("content", [])
     )
 
 

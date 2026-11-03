@@ -198,6 +198,15 @@ def test_list_row_comments_reads_a_mention_without_a_label(premium_data_fixture)
 
 
 @pytest.mark.django_db
+def test_list_row_comments_reads_a_document_without_content(premium_data_fixture):
+    # The API accepts it, and one such comment must not make the row unreadable.
+    ctx, table, rows = _setup(premium_data_fixture, has_active_premium_license=True)
+    RowCommentHandler.create_comment(ctx.user, table.id, rows[0].id, {"type": "doc"})
+
+    assert list_row_comments(ctx, table.id, rows[0].id)["comments"][0]["text"] == ""
+
+
+@pytest.mark.django_db
 def test_create_row_comment_keeps_lines(premium_data_fixture):
     ctx, table, rows = _setup(premium_data_fixture, has_active_premium_license=True)
 
