@@ -1487,6 +1487,14 @@ class TestAssistantStreaming:
         assert len(ai_messages) == 1
         assert ai_messages[0].content == "Hello world"
         assert ai_messages[0].id is not None
+        saved = AssistantChatMessage.objects.get(id=ai_messages[0].id)
+        assert ai_messages[0].timestamp == saved.created_on
+        reloaded = next(
+            message
+            for message in assistant.list_chat_messages()
+            if message.id == saved.id
+        )
+        assert reloaded.timestamp == ai_messages[0].timestamp
 
         # Should also have AiMessageChunk(s)
         chunks = [

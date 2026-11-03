@@ -20,10 +20,10 @@
       {{ $t(outcome.note) }}
     </div>
     <template v-if="shown.content && !shown.replying" #actions>
-      <ChatCopyButton :text="shown.content" />
-      <span class="chat-message__time">{{
-        getHumanAgoLabel($t, message.created_on, now?.value)
-      }}</span>
+      <ChatMessageFooter
+        :text="shown.content"
+        :timestamp="message.created_on"
+      />
     </template>
   </ChatMessage>
 </template>
@@ -31,19 +31,16 @@
 <script setup>
 import { computed } from 'vue'
 import { useStore } from 'vuex'
-import ChatCopyButton from '@baserow/modules/core/components/chat/ChatCopyButton'
+import ChatMessageFooter from '@baserow/modules/core/components/chat/ChatMessageFooter'
 import ChatMarkdown from '@baserow/modules/core/components/chat/ChatMarkdown'
 import ChatMessage from '@baserow/modules/core/components/chat/ChatMessage'
 import ChatTyping from '@baserow/modules/core/components/chat/ChatTyping'
 import { isTerminalStatus } from '@baserow/modules/core/chatRuns/constants'
-import { injectNow } from '@baserow/modules/core/composables/useNow'
-import { getHumanAgoLabel } from '@baserow/modules/core/utils/date'
 import { replyOutcome } from '@baserow/modules/agent/utils/replies'
 
 const props = defineProps({ message: { type: Object, required: true } })
 
 const store = useStore()
-const now = injectNow()
 const own = computed(() => props.message.role === 'user')
 /** The saved message, or what its run wrote so far while it isn't saved. */
 const shown = computed(() => {

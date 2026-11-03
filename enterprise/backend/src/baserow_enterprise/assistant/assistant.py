@@ -476,6 +476,7 @@ class Assistant:
         )
         return AiMessage(
             id=ai_msg.id,
+            timestamp=ai_msg.created_on,
             content=answer,
             sources=sources,
             can_submit_feedback=True,

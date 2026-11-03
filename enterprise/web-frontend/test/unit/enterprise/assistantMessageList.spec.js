@@ -76,6 +76,7 @@ describe('AssistantMessageList', () => {
 
     const final = answer({
       _uuid: pending._uuid,
+      timestamp: '2026-11-03T10:00:00Z',
       sources: ['https://example.com/source'],
     })
     await wrapper.setProps({ messages: [final] })
@@ -90,6 +91,13 @@ describe('AssistantMessageList', () => {
     )
     expect(copy(wrapper).exists()).toBe(true)
     expect(wrapper.findAll('.assistant__feedback-button')).toHaveLength(2)
+    const footer = wrapper.get('.chat-message__footer')
+    expect([...footer.element.children].map((child) => child.tagName)).toEqual([
+      'BUTTON',
+      'DIV',
+      'TIME',
+    ])
+    expect(footer.get('time').attributes('datetime')).toBe(final.timestamp)
     expect(wrapper.get('.assistant__disclaimer').text()).toBe(
       'assistantMessageList.disclaimer'
     )
@@ -122,6 +130,7 @@ describe('AssistantMessageList', () => {
     expect(wrapper.findAll('button[aria-label="action.copy"]')).toHaveLength(2)
     expect(wrapper.find('.assistant__feedback').exists()).toBe(false)
     expect(wrapper.find('.assistant__disclaimer').exists()).toBe(false)
+    expect(wrapper.find('time').exists()).toBe(false)
     await copy(own).trigger('click')
     await flushPromises()
     expect(writeText).toHaveBeenCalledExactlyOnceWith(content)

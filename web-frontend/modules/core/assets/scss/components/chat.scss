@@ -169,6 +169,13 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
 
+.chat-message__footer {
+  display: inline-flex;
+  flex-direction: inherit;
+  align-items: center;
+  gap: 10px;
+}
+
 .chat-message__time {
   margin: 0 2px;
   font-size: 12px;

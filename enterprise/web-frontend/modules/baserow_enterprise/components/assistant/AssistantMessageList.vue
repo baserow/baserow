@@ -69,11 +69,16 @@
           "
           #actions
         >
-          <ChatCopyButton :text="message.content" @error="copyFailed" />
-          <AssistantMessageActions
-            v-if="message.can_submit_feedback"
-            :message="message"
-          />
+          <ChatMessageFooter
+            :text="message.content"
+            :timestamp="message.timestamp"
+            @error="copyFailed"
+          >
+            <AssistantMessageActions
+              v-if="message.can_submit_feedback"
+              :message="message"
+            />
+          </ChatMessageFooter>
         </template>
       </ChatMessage>
       <div
@@ -90,7 +95,7 @@
 import ChatMessage from '@baserow/modules/core/components/chat/ChatMessage'
 import ChatMarkdown from '@baserow/modules/core/components/chat/ChatMarkdown'
 import ChatTyping from '@baserow/modules/core/components/chat/ChatTyping'
-import ChatCopyButton from '@baserow/modules/core/components/chat/ChatCopyButton'
+import ChatMessageFooter from '@baserow/modules/core/components/chat/ChatMessageFooter'
 import AssistantMessageSources from './AssistantMessageSources'
 import AssistantMessageActions from './AssistantMessageActions'
 
@@ -100,7 +105,7 @@ export default {
     ChatMessage,
     ChatMarkdown,
     ChatTyping,
-    ChatCopyButton,
+    ChatMessageFooter,
     AssistantMessageSources,
     AssistantMessageActions,
   },

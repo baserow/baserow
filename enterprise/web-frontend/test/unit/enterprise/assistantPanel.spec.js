@@ -49,6 +49,7 @@ describe('AssistantPanel', () => {
     await testApp.afterEach()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+    vi.useRealTimers()
   })
 
   async function mountWithRunningChat() {
@@ -131,6 +132,42 @@ describe('AssistantPanel', () => {
       'false'
     )
     expect(wrapper.find('.chat-message__actions').exists()).toBe(true)
+  })
+
+  test('updates every message time from the panel clock without requesting messages', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] })
+    vi.setSystemTime(new Date('2026-11-03T10:03:00Z'))
+    const { wrapper } = await mountWithRunningChat()
+    store.commit('assistant/SET_ASSISTANT_RUNNING', {
+      chat: store.getters['assistant/currentChat'],
+      value: false,
+    })
+    store.commit('assistant/SET_MESSAGES', [
+      {
+        id: 1,
+        role: 'human',
+        content: 'Question',
+        timestamp: '2026-11-03T10:00:00Z',
+      },
+      {
+        id: 2,
+        role: 'ai',
+        content: 'Answer',
+        timestamp: '2026-11-03T10:00:00Z',
+      },
+    ])
+    await flushPromises()
+
+    expect(wrapper.findAll('time').map((time) => time.text())).toEqual([
+      'datetime.minutesAgo - 3',
+      'datetime.minutesAgo - 3',
+    ])
+    await vi.advanceTimersByTimeAsync(60000)
+    expect(wrapper.findAll('time').map((time) => time.text())).toEqual([
+      'datetime.minutesAgo - 4',
+      'datetime.minutesAgo - 4',
+    ])
+    expect(service.fetchChatMessages).not.toHaveBeenCalled()
   })
 
   test('ignores invisible thinking growth and follows answer text until the user scrolls up', async () => {

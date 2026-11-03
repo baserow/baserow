@@ -72,6 +72,7 @@ import AssistantMessageList from '@baserow_enterprise/components/assistant/Assis
 import AssistantChatHistoryContext from './AssistantChatHistoryContext'
 import { mapGetters, mapActions } from 'vuex'
 import { waitFor } from '@baserow/modules/core/utils/queue'
+import { provideNow } from '@baserow/modules/core/composables/useNow'
 
 export default {
   name: 'AssistantPanel',
@@ -87,6 +88,9 @@ export default {
       type: Object,
       required: true,
     },
+  },
+  setup() {
+    provideNow()
   },
   data() {
     return {
