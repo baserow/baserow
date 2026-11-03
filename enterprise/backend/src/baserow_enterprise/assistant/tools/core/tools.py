@@ -195,14 +195,7 @@ def list_audit_log(
 
 def search_audit_log(
     ctx: RunContext[AssistantDeps],
-    query: Annotated[
-        str,
-        Field(
-            min_length=2,
-            max_length=200,
-            description="Text to find in who did it, the action type and its short description. It matches literally, so use one short word like delete, not deleted or a phrase.",
-        ),
-    ],
+    query: shared_audit_log.SearchQuery,
     from_timestamp: Annotated[
         datetime, Field(description="The start of the range, in ISO format.")
     ],

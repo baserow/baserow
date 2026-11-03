@@ -345,3 +345,45 @@ def test_kuma_list_audit_log_returns_entries(admin_ctx):
 @pytest.mark.parametrize("name", AUDIT_LOG_TOOLS)
 def test_kuma_audit_log_tools_are_active_in_every_mode(mode, name):
     assert is_tool_active(name, mode)
+
+
+@pytest.mark.django_db
+def test_list_audit_log_rejects_reversed_range(admin_ctx):
+    # An empty page would read as nothing having happened in that period.
+    with pytest.raises(DjangoValidationError):
+        list_audit_log(
+            admin_ctx, from_timestamp=NOW, to_timestamp=NOW - timedelta(days=1)
+        )
+
+
+@pytest.mark.django_db
+def test_audit_log_reads_entries_with_an_unknown_timezone(admin_ctx):
+    # Kuma takes the timezone from what the browser reports, without checking it.
+    _entry(admin_ctx.workspace, admin_ctx.user)
+    admin_ctx.timezone = "Etc/Unknown"
+
+    assert len(list_audit_log(admin_ctx)["entries"]) == 1
+
+
+@pytest.mark.django_db
+def test_search_audit_log_over_mcp_refuses_a_blank_query(
+    admin_ctx, enterprise_data_fixture
+):
+    # Two spaces would run as a search and a blank result proves nothing.
+    endpoint = enterprise_data_fixture.create_mcp_endpoint(
+        user=admin_ctx.user,
+        workspace=admin_ctx.workspace,
+        allowed_tools=AUDIT_LOG_TOOLS,
+    )
+
+    result = _call(
+        endpoint,
+        "search_audit_log",
+        {
+            "query": "  ",
+            "from_timestamp": (NOW - timedelta(days=1)).isoformat(),
+            "to_timestamp": NOW.isoformat(),
+        },
+    )
+
+    assert result.isError
