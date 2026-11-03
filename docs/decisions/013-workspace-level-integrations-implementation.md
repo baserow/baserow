@@ -42,11 +42,17 @@ migration creates the table.
   `import_serialized` raise `ApplicationOperationNotSupported`, so it cannot be created
   through `POST /api/applications/workspace/<id>/` and never travels in an export.
 
-**Creation.** Lazy, in `CoreHandler.list_applications_in_workspaces()`
-(`core/handler.py:1659`): for every listed, non-trashed workspace without a shared app,
-lock the workspace row (`select_for_update`) and `get_or_create` it (name `__shared__`,
-order `0`). This covers new workspaces, existing ones after the upgrade and workspaces
-restored from a backup.
+**Creation.** Three mechanisms in v1, two of them transitional. New workspaces get the
+shared app when they are created (name `__shared__`, order `0`), as `Builder.save()`
+creates the shared page. Existing workspaces are backfilled by an idempotent Celery task
+that walks workspaces in batches and creates the missing shared app under the workspace
+row lock; it is submitted after `migrate` like `start_sync_templates_task_after_migrate`
+(`core/apps.py:763`) unless old workers could still be running then (open question 1).
+Until the task has reached a workspace, `CoreHandler.list_applications_in_workspaces()`
+(`core/handler.py:1659`) locks the workspace row (`select_for_update`) and
+`get_or_create`s it for every listed, non-trashed workspace without one. The next
+release adds a data migration for any workspace still missing one and removes the task
+and the lazy path.
 
 **Visibility.** The shared app stays in `Application.objects`,
 `workspace.application_set`, `CoreHandler.get_application()` and the application list
@@ -260,9 +266,10 @@ reloaded; this matches any release that adds an application type.
 
 ## 4. Open questions for reviewers
 
-1. **Lazy creation in the listing.** A `GET` writes a row under a lock. The
-   alternative is creating on first need (first workspace integration or promotion)
-   and letting the settings page handle "no shared app yet".
+1. **Creation details.** Where the eager hook lives, `CoreHandler.create_workspace()` or
+   `Workspace.save()` like `Builder.save()`; and whether the backfill task is submitted
+   from `post_migrate` like the template sync or from worker startup, since a worker
+   still on the old release rejects a task name it does not know.
 2. **Hiding by content type** in `objects_without_shared`, versus a `shared` boolean
    on `Application` like `Page.shared`. The content type lookup costs one query when
    Django's content type cache is cold.
