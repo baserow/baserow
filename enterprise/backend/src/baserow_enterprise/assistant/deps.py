@@ -26,6 +26,7 @@ class AgentMode(str, Enum):
     DATABASE = "database"
     APPLICATION = "application"
     AUTOMATION = "automation"
+    DASHBOARD = "dashboard"
     EXPLAIN = "explain"
 
 

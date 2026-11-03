@@ -383,6 +383,7 @@ def test_canonical_home_is_independent_from_shared_visibility() -> None:
 DATABASE = AgentMode.DATABASE
 APPLICATION = AgentMode.APPLICATION
 AUTOMATION = AgentMode.AUTOMATION
+DASHBOARD = AgentMode.DASHBOARD
 EXPLAIN = AgentMode.EXPLAIN
 EVERYWHERE = frozenset(AgentMode)
 
@@ -404,14 +405,17 @@ TOOL_VISIBILITY: dict[str, frozenset[AgentMode]] = {
     "create_tables": frozenset({DATABASE}),
     "create_view_filters": frozenset({DATABASE}),
     "create_views": frozenset({DATABASE}),
+    "create_widgets": frozenset({DASHBOARD}),
     "create_workflows": frozenset({AUTOMATION}),
     "delete_fields": frozenset({DATABASE}),
     "delete_nodes": frozenset({AUTOMATION}),
     "delete_row_colours": frozenset({DATABASE}),
     "delete_view_filters": frozenset({DATABASE}),
     "delete_views": frozenset({DATABASE}),
+    "delete_widgets": frozenset({DASHBOARD}),
     "generate_formula": frozenset({DATABASE}),
     "get_tables_schema": EVERYWHERE,
+    "get_widget_data": frozenset({DASHBOARD, EXPLAIN}),
     "list_actions": frozenset({APPLICATION, EXPLAIN}),
     "list_audit_log": EVERYWHERE,
     "list_builders": EVERYWHERE,
@@ -425,6 +429,7 @@ TOOL_VISIBILITY: dict[str, frozenset[AgentMode]] = {
     "list_rows": EVERYWHERE,
     "list_tables": EVERYWHERE,
     "list_views": EVERYWHERE,
+    "list_widgets": frozenset({DASHBOARD, EXPLAIN}),
     "list_workflows": frozenset({AUTOMATION, EXPLAIN}),
     "load_row_tools": frozenset({DATABASE}),
     "move_elements": frozenset({APPLICATION}),
@@ -444,6 +449,7 @@ TOOL_VISIBILITY: dict[str, frozenset[AgentMode]] = {
     "update_fields": frozenset({DATABASE}),
     "update_nodes": frozenset({AUTOMATION}),
     "update_page": frozenset({APPLICATION}),
+    "update_widgets": frozenset({DASHBOARD}),
 }
 
 

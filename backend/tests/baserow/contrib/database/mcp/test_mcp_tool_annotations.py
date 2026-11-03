@@ -37,6 +37,13 @@ EXPECTED = {
     "delete_row_colours": (False, True),
     "list_audit_log": (True, False),
     "search_audit_log": (True, False),
+    "list_dashboards": (True, False),
+    "list_widgets": (True, False),
+    "get_widget_data": (True, False),
+    "create_dashboards": (False, False),
+    "create_widgets": (False, False),
+    "update_widgets": (False, True),
+    "delete_widgets": (False, True),
     # Disabled tools, annotated so they are ready when enabled.
     "update_table": (False, True),
     "delete_table": (False, True),

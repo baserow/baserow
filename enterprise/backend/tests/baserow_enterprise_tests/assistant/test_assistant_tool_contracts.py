@@ -23,11 +23,14 @@ from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.models import Page
+from baserow.contrib.dashboard.models import Dashboard
+from baserow.contrib.dashboard.tools.widgets import create_widgets
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.table.models import Table
 from baserow.core.graph.types import GraphPointPosition
 from baserow.core.models import Workspace
 from baserow.core.prosemirror.utils import prosemirror_doc_from_plain_text
+from baserow.core.tools import ToolContext
 from baserow_enterprise.assistant.tools.automation.tools import (
     list_nodes,
     list_workflows,
@@ -43,6 +46,10 @@ from baserow_enterprise.assistant.tools.core.tools import (
     list_builders,
     search_audit_log,
     search_workspace,
+)
+from baserow_enterprise.assistant.tools.dashboard.tools import (
+    get_widget_data,
+    list_widgets,
 )
 from baserow_enterprise.assistant.tools.database.tools import (
     get_tables_schema,
@@ -98,6 +105,8 @@ class SeededWorkspace:
     button: Element
     automation: Automation
     workflow: AutomationWorkflow
+    dashboard: Dashboard
+    widget_id: int
 
 
 def _seed_database(fx: Any, user: AbstractUser, workspace: Workspace) -> dict[str, Any]:
@@ -255,6 +264,30 @@ def _seed_automation(
     return {"automation": automation, "workflow": workflow}
 
 
+def _seed_dashboard(
+    fx: Any, user: AbstractUser, workspace: Workspace, table: Table
+) -> dict[str, Any]:
+    dashboard = fx.create_dashboard_application(
+        user=user, workspace=workspace, name="Sales"
+    )
+    fx.create_local_baserow_integration(application=dashboard, authorized_user=user)
+    amount = table.field_set.get(name="Amount")
+    (widget,) = create_widgets(
+        ToolContext(user=user, workspace=workspace),
+        dashboard.id,
+        [
+            {
+                "type": "summary",
+                "title": "Total",
+                "table_id": table.id,
+                "field_id": amount.id,
+                "aggregation_type": "sum",
+            }
+        ],
+    )["created"]
+    return {"dashboard": dashboard, "widget_id": widget["id"]}
+
+
 @pytest.fixture
 def seed(premium_data_fixture: Any) -> SeededWorkspace:
     fx = premium_data_fixture
@@ -266,6 +299,7 @@ def seed(premium_data_fixture: Any) -> SeededWorkspace:
         fx, user, workspace, db_parts["table"], db_parts["name_field"]
     )
     automation_parts = _seed_automation(fx, user, workspace)
+    dashboard_parts = _seed_dashboard(fx, user, workspace, db_parts["table"])
 
     return SeededWorkspace(
         user=user,
@@ -278,6 +312,8 @@ def seed(premium_data_fixture: Any) -> SeededWorkspace:
         button=builder_parts["button"],
         automation=automation_parts["automation"],
         workflow=automation_parts["workflow"],
+        dashboard=dashboard_parts["dashboard"],
+        widget_id=dashboard_parts["widget_id"],
     )
 
 
@@ -470,6 +506,24 @@ def _check_list_workflows(result: Any, seed: SeededWorkspace) -> None:
     assert [w["id"] for w in result["workflows"]] == [seed.workflow.id]
 
 
+def _check_list_widgets(result: Any, seed: SeededWorkspace) -> None:
+    assert_items(
+        result["widgets"],
+        {"id": int, "type": str, "title": str, "table_id": int},
+        "list_widgets",
+    )
+    assert [w["id"] for w in result["widgets"]] == [seed.widget_id]
+
+
+def _check_get_widget_data(result: Any, seed: SeededWorkspace) -> None:
+    assert result == {
+        "widgets": [
+            {"widget_id": seed.widget_id, "configured": True, "data": {"result": "30"}}
+        ],
+        "errors": [],
+    }
+
+
 def _check_list_nodes(result: Any, seed: SeededWorkspace) -> None:
     assert_items(result["nodes"], {"id": int, "label": str, "type": str}, "list_nodes")
     assert len(result["nodes"]) == 3
@@ -605,6 +659,20 @@ READ_TOOL_CASES: list[ReadToolCase] = [
         _check_list_nodes,
     ),
     ReadToolCase(
+        "list_widgets",
+        lambda ctx, s: list_widgets(
+            ctx, dashboard_id=s.dashboard.id, thought="contract"
+        ),
+        _check_list_widgets,
+    ),
+    ReadToolCase(
+        "get_widget_data",
+        lambda ctx, s: get_widget_data(
+            ctx, widget_ids=[s.widget_id], thought="contract"
+        ),
+        _check_get_widget_data,
+    ),
+    ReadToolCase(
         "list_pages",
         lambda ctx, s: list_pages(ctx, application_id=s.builder.id, thought="contract"),
         _check_list_pages,
@@ -670,6 +738,9 @@ EXEMPT_TOOLS: dict[str, str] = {
     "add_nodes": _WRITE,
     "update_nodes": _WRITE,
     "delete_nodes": _WRITE,
+    "create_widgets": _WRITE,
+    "update_widgets": _WRITE,
+    "delete_widgets": _WRITE,
     "create_pages": _WRITE,
     "update_page": _WRITE,
     "create_data_sources": _WRITE,

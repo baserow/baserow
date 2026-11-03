@@ -68,6 +68,10 @@
     "automationRead": "Read workflows and nodes",
     "automationEdit": "Create and change",
     "automationDelete": "Delete",
+    "areaDashboard": "Dashboards",
+    "dashboardRead": "Read dashboards and widgets",
+    "dashboardEdit": "Create and change",
+    "dashboardDelete": "Delete",
     "areaAuditLog": "Audit log",
     "auditLogRead": "Read the audit log"
   },
@@ -176,6 +180,15 @@
     "installingTitle": "Installing {name}",
     "installedMessage": "Successfully installed {name}",
     "failedTitle": "{name} couldn't be installed",
+    "dismiss": "Dismiss"
+  },
+  "downloadTemplateToast": {
+    "preparingTitle": "Preparing download…",
+    "preparingMessage": "Exporting \"{name}\" as a workspace file",
+    "readyTitle": "Download ready",
+    "readyMessage": "\"{name}\" is ready to download",
+    "failedTitle": "Download failed",
+    "download": "Download",
     "dismiss": "Dismiss"
   },
   "sidebar": {
@@ -599,6 +612,7 @@
     "workspaceNoPermission": "You don't have permission to add applications to this workspace.",
     "more": "More",
     "copyLink": "Copy sharing link",
+    "download": "Download",
     "noWorkspace": "A template is installed into a workspace. Create a workspace first, then install the template into it.",
     "noWorkspaceAskInvite": "You aren't a member of any workspace. A template is installed into a workspace, so you will need to be invited to a workspace by an administrator first.",
     "createWorkspace": "Create workspace"
@@ -694,6 +708,7 @@
     "actions": "Actions",
     "editDetails": "Edit details",
     "updateContent": "Update template content",
+    "download": "Download",
     "delete": "Delete"
   },
   "trashSidebar": {

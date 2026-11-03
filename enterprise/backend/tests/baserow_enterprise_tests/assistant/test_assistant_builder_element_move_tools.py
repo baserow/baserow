@@ -48,7 +48,7 @@ def mock_formula_generators(monkeypatch):
     )
     monkeypatch.setattr(
         "baserow_enterprise.assistant.tools.builder.agents.update_single_data_source_formulas",
-        noop,
+        lambda *args, **kwargs: ([], []),
     )
 
 
@@ -119,6 +119,128 @@ def test_move_element_to_end(data_fixture):
             "First-0": {},
         }
     )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_move_element_to_end_keeps_the_request_cache(data_fixture):
+    from django.test import override_settings
+
+    from baserow.core.cache import local_cache
+
+    ctx, page, ref_to_id_map = _create_two_headings(data_fixture)
+
+    with override_settings(BASEROW_USE_LOCAL_CACHE=True), local_cache.context():
+        local_cache.get("kept", lambda: "value")
+        move_elements(
+            ctx,
+            page_id=page.id,
+            moves=[ElementMove(element_id=ref_to_id_map["h1"], before_id=None)],
+            thought="move to end",
+        )
+        assert local_cache.get("kept", lambda: "rebuilt") == "value"
+
+    page.refresh_from_db()
+    page.assert_reference(
+        {
+            "0": "Second-1",
+            "Second-1": {"next": {"": ["First-0"]}},
+            "First-0": {},
+        }
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_move_after_a_failed_move_reads_the_saved_graph(data_fixture, monkeypatch):
+    from django.test import override_settings
+
+    from baserow.core.cache import local_cache
+    from baserow_enterprise.assistant.tools.builder import helpers
+
+    ctx, page, ref_to_id_map = _create_two_headings(data_fixture)
+    move_element = helpers.move_element
+    calls = []
+
+    def fail_the_first_move(*args, **kwargs):
+        element = move_element(*args, **kwargs)
+        calls.append(element.id)
+        if len(calls) == 1:
+            raise ValueError("failed after moving")
+        return element
+
+    monkeypatch.setattr(helpers, "move_element", fail_the_first_move)
+    move_to_end = ElementMove(element_id=ref_to_id_map["h1"], before_id=None)
+
+    with override_settings(BASEROW_USE_LOCAL_CACHE=True), local_cache.context():
+        result = move_elements(
+            ctx, page_id=page.id, moves=[move_to_end, move_to_end], thought="t"
+        )
+
+    assert len(result["errors"]) == 1
+    page.refresh_from_db()
+    page.assert_reference(
+        {
+            "0": "Second-1",
+            "Second-1": {"next": {"": ["First-0"]}},
+            "First-0": {},
+        }
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_moves_keep_an_element_added_between_them(data_fixture, monkeypatch):
+    from threading import Thread
+
+    from django.db import connection
+    from django.test import override_settings
+
+    from baserow.contrib.builder.elements.registries import element_type_registry
+    from baserow.contrib.builder.elements.service import ElementService
+    from baserow.core.cache import local_cache
+
+    ctx, page, ref_to_id_map = _create_two_headings(data_fixture)
+    move_element = helpers.move_element
+    added = []
+
+    def add_heading_from_another_connection():
+        try:
+            added.append(
+                ElementService().create_element(
+                    ctx.deps.user,
+                    element_type_registry.get("heading"),
+                    page.__class__.objects.get(id=page.id),
+                    value="'Added'",
+                )
+            )
+        finally:
+            connection.close()
+
+    calls = []
+
+    def add_before_the_second_move(*args, **kwargs):
+        # The first move has committed and released its lock by now.
+        calls.append(1)
+        if len(calls) == 2:
+            thread = Thread(target=add_heading_from_another_connection)
+            thread.start()
+            thread.join(timeout=10)
+        return move_element(*args, **kwargs)
+
+    monkeypatch.setattr(helpers, "move_element", add_before_the_second_move)
+
+    with override_settings(BASEROW_USE_LOCAL_CACHE=True), local_cache.context():
+        result = move_elements(
+            ctx,
+            page_id=page.id,
+            moves=[
+                ElementMove(element_id=ref_to_id_map["h1"], before_id=None),
+                ElementMove(element_id=ref_to_id_map["h2"], before_id=None),
+            ],
+            thought="t",
+        )
+
+    assert "errors" not in result
+    page.refresh_from_db()
+    assert str(added[0].id) in page.graph
 
 
 @pytest.mark.django_db(transaction=True)

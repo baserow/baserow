@@ -76,6 +76,8 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
     integration_type = LocalBaserowIntegrationType.type
     type = "local_baserow_grouped_aggregate_rows"
     model_class = LocalBaserowGroupedAggregateRows
+    # The aggregations the service can compute for a series.
+    aggregation_registry = grouped_aggregation_registry
     dispatch_types = [DispatchTypes.DATA]
     serializer_mixins = LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
 
@@ -1028,7 +1030,11 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             def serialize_field(field):
                 if public:
                     return serialize_public_field(field)
-                return field_type_registry.get_serializer(field, FieldSerializer).data
+                # Like the data schema, this describes the values of the field, so
+                # the properties of field extensions are left out.
+                return field_type_registry.get_serializer(
+                    field, FieldSerializer, extra_params={"data_schema": True}
+                ).data
 
             fields = [
                 get_group_by_field(group_by.field)

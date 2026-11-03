@@ -13,6 +13,7 @@ from loguru import logger
 from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.toolsets.abstract import AgentDepsT, ToolsetTool
 from rest_framework.exceptions import APIException
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from typing_extensions import Self
 
 from baserow.core.exceptions import PermissionException, UserNotInWorkspace
@@ -20,7 +21,11 @@ from baserow.core.tools.errors import ToolInputError as SharedToolInputError
 from baserow.core.tools.errors import tool_error_message
 from baserow_enterprise.assistant.deps import AgentMode
 
-from .shared.errors import ToolInputError, permission_denied_result
+from .shared.errors import (
+    ToolInputError,
+    permission_denied_result,
+    validation_messages,
+)
 from .toolset import LENIENT_ARGS_VALIDATOR
 
 if TYPE_CHECKING:
@@ -88,6 +93,7 @@ def _tool_routes() -> dict[str, _ToolRoute]:
         switch_mode,
         update_builder,
     )
+    from .dashboard.tools import TOOL_FUNCTIONS as dashboard_tools
     from .database.tools import TOOL_FUNCTIONS as database_tools
     from .navigation.tools import navigate
     from .search_user_docs.tools import search_user_docs
@@ -97,6 +103,7 @@ def _tool_routes() -> dict[str, _ToolRoute]:
     database_mode = frozenset({AgentMode.DATABASE})
     application_mode = frozenset({AgentMode.APPLICATION})
     automation_mode = frozenset({AgentMode.AUTOMATION})
+    dashboard_mode = frozenset({AgentMode.DASHBOARD})
     explain_mode = frozenset({AgentMode.EXPLAIN})
 
     database_reads = [
@@ -107,6 +114,9 @@ def _tool_routes() -> dict[str, _ToolRoute]:
     ]
     automation_reads = [
         tool for tool in automation_tools if tool.__name__.startswith("list_")
+    ]
+    dashboard_reads = [
+        tool for tool in dashboard_tools if tool.__name__.startswith(("list_", "get_"))
     ]
 
     return {
@@ -123,6 +133,12 @@ def _tool_routes() -> dict[str, _ToolRoute]:
             automation_reads,
             AgentMode.AUTOMATION,
             automation_mode | explain_mode,
+        ),
+        **_routes_for(dashboard_tools, AgentMode.DASHBOARD, dashboard_mode),
+        **_routes_for(
+            dashboard_reads,
+            AgentMode.DASHBOARD,
+            dashboard_mode | explain_mode,
         ),
         **_routes_for(
             (
@@ -314,6 +330,9 @@ class ModeAwareToolset(AbstractToolset[AgentDepsT]):
             return await self._inner.call_tool(name, tool_args, ctx, tool)
         except ToolInputError as exc:
             return {"error": str(exc)}
+        except DRFValidationError as exc:
+            # A module refused the values the tool was called with.
+            return {"error": validation_messages(exc)}
         except UserNotInWorkspace:
             return {
                 "error": (

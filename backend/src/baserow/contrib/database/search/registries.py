@@ -144,6 +144,13 @@ class SearchDataUpdaterType(Instance):
 
         return None
 
+    def delete_data_marked_for_deletion(self):
+        """
+        Deletes the search data of permanently deleted tables, fields and rows. They
+        are marked in the queue instead of deleted directly, so that deleting many
+        of them is cheap, and a failure is retried by the next periodic check.
+        """
+
     def queue(
         self,
         table: "Table",

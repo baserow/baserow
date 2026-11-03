@@ -6,13 +6,20 @@ from django.utils.translation import gettext as _
 
 from pydantic import Field
 from pydantic_ai import ModelRetry, RunContext
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from baserow.core.actions import CreateApplicationActionType
-from baserow.core.service import CoreService
+from baserow.core.actions import (
+    CreateApplicationActionType,
+    UpdateApplicationActionType,
+)
 from baserow.core.tools import applications as shared_applications
 from baserow.core.tools import search as shared_search
 from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps
-from baserow_enterprise.assistant.tools.shared import require_payload
+from baserow_enterprise.assistant.tools.shared import (
+    ToolInputError,
+    require_payload,
+    validation_messages,
+)
 from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 from baserow_enterprise.audit_log import tools as shared_audit_log
 
@@ -319,12 +326,13 @@ def create_builders(
 def switch_mode(
     ctx: RunContext[AssistantDeps],
     mode: Annotated[
-        Literal["database", "application", "automation", "explain"],
+        Literal["database", "application", "automation", "dashboard", "explain"],
         Field(
             description=(
                 "Target mode: 'database' for table/field/view/row ops, "
                 "'application' for page/element/data-source ops, "
                 "'automation' for workflow/node ops, "
+                "'dashboard' for widget ops, "
                 "'explain' for answering Baserow questions."
             )
         ),
@@ -334,7 +342,7 @@ def switch_mode(
     ],
 ) -> str:
     """\
-    Switch between domain modes (database, application, automation, explain).
+    Switch between domain modes (database, application, automation, dashboard, explain).
 
     WHEN to use: Task needs tools from a different domain, or user asks a how-to question (→ "explain").
     WHAT it does: Changes the available toolset to the target domain's tools.
@@ -380,11 +388,9 @@ def update_builder(
     HOW: For setting a login page on a builder app, use setup_user_source first (which creates the login page), then call this if you need to change it.
     """
 
-    from baserow.core.handler import CoreHandler
-
     user = ctx.deps.user
 
-    app = CoreService().get_application(user, builder_id).specific
+    app = helpers.get_application(user, ctx.deps.workspace, builder_id)
     ctx.deps.tool_helpers.update_status(
         _("Updating %(app_name)s...") % {"app_name": app.name}
     )
@@ -396,7 +402,14 @@ def update_builder(
         if getattr(app, name) != value
     }
     if changes:
-        CoreHandler().update_application(user, app, **changes)
+        try:
+            UpdateApplicationActionType.do(user, app, **changes)
+        except DRFValidationError as exc:
+            # The builder refuses a login page it doesn't own.
+            raise ToolInputError(
+                f"{validation_messages(exc)} Use list_pages to find valid page IDs. "
+                "No changes were applied."
+            ) from exc
         app.refresh_from_db()
 
     result: dict[str, Any] = {

@@ -124,11 +124,10 @@ class DashboardItemCreate(BuilderItemCreate):
     type: Literal["dashboard"] = Field(...)
 
     def _post_creation_hook(self, user, builder_orm_instance):
-        IntegrationService().create_integration(
-            user,
-            integration_type_registry.get("local_baserow"),
-            builder_orm_instance,
-            name="Local Baserow",
+        # Adds the integration without the integration_created event, which the
+        # frontend only handles for the application builder.
+        application_type_registry.get("dashboard").init_application(
+            user, builder_orm_instance
         )
 
 

@@ -9,11 +9,15 @@ GROUP_DATABASE_DELETE = "database_delete"
 GROUP_AUTOMATION_READ = "automation_read"
 GROUP_AUTOMATION_EDIT = "automation_edit"
 GROUP_AUTOMATION_DELETE = "automation_delete"
+GROUP_DASHBOARD_READ = "dashboard_read"
+GROUP_DASHBOARD_EDIT = "dashboard_edit"
+GROUP_DASHBOARD_DELETE = "dashboard_delete"
 GROUP_AUDIT_LOG_READ = "audit_log_read"
 
 AREA_WORKSPACE = "workspace"
 AREA_DATABASE = "database"
 AREA_AUTOMATION = "automation"
+AREA_DASHBOARD = "dashboard"
 AREA_AUDIT_LOG = "audit_log"
 
 
@@ -93,6 +97,29 @@ class AutomationDeleteMCPToolGroup(MCPToolGroup):
     title = "Delete in automations"
     area = AREA_AUTOMATION
     order = 60
+
+
+class DashboardReadMCPToolGroup(MCPToolGroup):
+    type = GROUP_DASHBOARD_READ
+    title = "Read dashboards"
+    area = AREA_DASHBOARD
+    # Only the figures the user already sees on the dashboard.
+    read_only_preset = True
+    order = 70
+
+
+class DashboardEditMCPToolGroup(MCPToolGroup):
+    type = GROUP_DASHBOARD_EDIT
+    title = "Edit dashboards"
+    area = AREA_DASHBOARD
+    order = 80
+
+
+class DashboardDeleteMCPToolGroup(MCPToolGroup):
+    type = GROUP_DASHBOARD_DELETE
+    title = "Delete in dashboards"
+    area = AREA_DASHBOARD
+    order = 90
 
 
 class AuditLogReadMCPToolGroup(MCPToolGroup):

@@ -215,6 +215,7 @@ EXPECTED_CASE_IDS = {
         "builder/back-button-on-page-not-header",
         "builder/builds-demo-page-without-asking",
         "builder/builds-example-app-without-asking",
+        "builder/changes-detail-path-keeps-param-type",
         "builder/changes-theme",
         "builder/creates-app-when-table-exists",
         "builder/creates-app-with-theme",
@@ -223,6 +224,7 @@ EXPECTED_CASE_IDS = {
         "builder/creates-header-with-menu",
         "builder/creates-landing-page",
         "builder/creates-new-page-not-modifies-existing",
+        "builder/creates-product-detail-page",
         "builder/creates-table-with-edit-button",
         "builder/edits-table-columns",
         "builder/filtered-data-source-via-view",
@@ -238,6 +240,7 @@ EXPECTED_CASE_IDS = {
         "builder/moves-element-out-of-column",
         "builder/moves-table-column",
         "builder/page-specific-nav-on-page",
+        "builder/sets-detail-row-from-url",
         "builder/setup-user-source-existing-table",
         "builder/setup-user-source-new-table",
     ],
@@ -301,7 +304,7 @@ class TestDatasetCounts:
         assert len(grouped["kuma-core"]) == 7
         assert len(grouped["kuma-database"]) == 25
         assert len(grouped["kuma-docs"]) == 64
-        assert len(grouped["kuma-builder"]) == 32
+        assert len(grouped["kuma-builder"]) == 35
         assert len(grouped["kuma-automation"]) == 11
         assert len(grouped["kuma-prod-replay"]) == 9
 

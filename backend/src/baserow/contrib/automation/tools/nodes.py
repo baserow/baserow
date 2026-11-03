@@ -38,7 +38,6 @@ from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.database.fields.models import Field as DatabaseField
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import Table
-from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionException
 from baserow.core.handler import CoreHandler
 from baserow.core.tools import ToolContext
@@ -531,9 +530,8 @@ def _reload_graph(workflow: AutomationWorkflow) -> None:
     change would save them.
     """
 
-    local_cache.delete(f"cached_graph_{workflow._meta.label}_{workflow.id}")
+    workflow.reload_graph()
     AutomationNodeHandler().invalidate_node_cache(workflow)
-    workflow.refresh_from_db(fields=["graph"])
 
 
 def update_nodes(

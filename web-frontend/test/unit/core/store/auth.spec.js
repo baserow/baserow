@@ -264,12 +264,16 @@ describe('Auth store', () => {
     )
   })
 
-  test('clears a finished install toast on logout, and keeps the other toasts', async () => {
-    // The install finished and its result toast is still shown when the user
-    // logs out. The next user must not see it.
+  test('clears the finished install and download toasts on logout, and keeps the other toasts', async () => {
+    // The install and the download finished and their result toasts are still
+    // shown when the user logs out. The next user must not see them.
     await store.dispatch('toast/add', {
       type: 'installTemplate',
       data: { jobId: 10, template_name: 'Project Tracker', state: 'finished' },
+    })
+    await store.dispatch('toast/add', {
+      type: 'downloadTemplate',
+      data: { jobId: 11, template_name: 'Project Tracker', state: 'finished' },
     })
     await store.dispatch('toast/info', { title: 'Logged out', message: '' })
 
