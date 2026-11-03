@@ -1,5 +1,4 @@
 import pytest
-from baserow_enterprise_tests.assistant.utils import make_test_ctx
 
 from baserow.core.mcp.constants import LEGACY_DEFAULT_TOOLS
 from baserow.core.mcp.groups import (
@@ -19,6 +18,7 @@ from baserow_enterprise.builder.tools import (
     elements,
     pages,
 )
+from baserow_enterprise_tests.assistant.utils import make_test_ctx
 
 READ_TOOLS = [
     "list_builders",
