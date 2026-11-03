@@ -7,6 +7,8 @@ from datetime import timedelta
 from django.utils import timezone
 
 from baserow.contrib.automation.models import Automation
+from baserow.contrib.builder.models import Builder
+from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.search.handler import SearchHandler
 from baserow.test_utils.fixtures import Fixtures
@@ -28,6 +30,8 @@ PROMPT_LISTS_DATABASES = "What databases do I have in this workspace?"
 PROMPT_CREATES_DATABASE = "Create a new database called 'Customer Portal'"
 
 PROMPT_CREATES_AUTOMATION = "Create an empty automation called 'Overdue Task Reminder'."
+
+PROMPT_CREATES_APPLICATION = "create a new application website"
 
 
 PROMPT_SEARCH_FINDS_ROW = "Find the customer called Acme."
@@ -382,5 +386,60 @@ register_case(
         checks=_check_creates_automation,
         max_iters=15,
         max_tool_errors=1,
+    )
+)
+
+
+@register_scenario("core-creates-application")
+def _creates_application_scenario(fx: Fixtures) -> EvalScenario:
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    database = fx.create_database_application(workspace=workspace)
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_database_ui_context(user, workspace, database),
+        refs={"database": database},
+    )
+
+
+def _check_creates_application(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    workspace = scenario.workspace
+    builders = list(Builder.objects.filter(workspace=workspace))
+    # The scenario starts with one database and nothing else.
+    databases = Database.objects.filter(workspace=workspace).count()
+    automations = Automation.objects.filter(workspace=workspace).count()
+    dashboards = Dashboard.objects.filter(workspace=workspace).count()
+    return [
+        CheckResult(
+            "called create_builder", tool_called(output, "create_builder") >= 1
+        ),
+        CheckResult(
+            "a new application builder exists",
+            len(builders) == 1,
+            hint=f"found {len(builders)}: {[b.name for b in builders]}",
+        ),
+        CheckResult(
+            "no database, automation or dashboard created",
+            databases == 1 and automations == 0 and dashboards == 0,
+            hint=(
+                f"databases={databases}, automations={automations}, "
+                f"dashboards={dashboards}; tools called: {output.tool_calls}"
+            ),
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="core/creates-application",
+        dataset="kuma-core",
+        # A bare request for an application is a builder, made without asking.
+        prompt=PROMPT_CREATES_APPLICATION,
+        scenario="core-creates-application",
+        checks=_check_creates_application,
+        max_iters=15,
     )
 )

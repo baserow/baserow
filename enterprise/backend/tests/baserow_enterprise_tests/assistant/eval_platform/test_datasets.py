@@ -12,7 +12,9 @@ import pytest
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.evals.datasets.core import (
+    _check_creates_application,
     _check_creates_automation,
+    _creates_application_scenario,
     _creates_automation_scenario,
 )
 from baserow_enterprise.assistant.evals.registry import (
@@ -52,6 +54,61 @@ def test_create_automation_check_ignores_previous_runs(data_fixture):
             workspace=scenario.workspace, name="Overdue Task Reminder"
         )
         assert all(check.passed for check in case.checks(case, scenario, output))
+
+
+def _creates_application_output(tool_calls):
+    return EvalRunOutput(
+        answer="Done",
+        messages=[],
+        tool_calls=tool_calls,
+        tool_error_count=0,
+        tool_error_hint="",
+        sources=[],
+        request_count=1,
+        duration_s=0,
+    )
+
+
+def _creates_application_case():
+    return EvalCase(
+        id="core/creates-application",
+        dataset="kuma-core",
+        prompt="create a new application website",
+        scenario="core-creates-application",
+        checks=_check_creates_application,
+    )
+
+
+@pytest.mark.django_db
+def test_create_application_check_passes_for_one_new_builder(data_fixture):
+    case = _creates_application_case()
+    scenario = _creates_application_scenario(make_fixtures())
+    data_fixture.create_builder_application(
+        workspace=scenario.workspace, name="Website"
+    )
+
+    checks = case.checks(
+        case, scenario, _creates_application_output(["create_builder"])
+    )
+
+    assert all(check.passed for check in checks), checks
+
+
+@pytest.mark.django_db
+def test_create_application_check_fails_when_a_database_is_made_instead(data_fixture):
+    case = _creates_application_case()
+    scenario = _creates_application_scenario(make_fixtures())
+    data_fixture.create_database_application(workspace=scenario.workspace)
+
+    checks = case.checks(
+        case, scenario, _creates_application_output(["create_database"])
+    )
+
+    assert {c.name for c in checks if not c.passed} == {
+        "called create_builder",
+        "a new application builder exists",
+        "no database, automation or dashboard created",
+    }
 
 
 @pytest.mark.django_db
@@ -108,6 +165,7 @@ EXPECTED_CASE_IDS = {
     "kuma-core": [
         "core/audit-log-what-changed",
         "core/audit-log-who-deleted",
+        "core/creates-application",
         "core/creates-automation",
         "core/creates-database",
         "core/lists-databases",
@@ -301,7 +359,7 @@ class TestDatasetCounts:
     def test_case_counts_per_dataset(self):
         grouped = cases_by_dataset()
 
-        assert len(grouped["kuma-core"]) == 7
+        assert len(grouped["kuma-core"]) == 8
         assert len(grouped["kuma-database"]) == 25
         assert len(grouped["kuma-docs"]) == 64
         assert len(grouped["kuma-builder"]) == 35
