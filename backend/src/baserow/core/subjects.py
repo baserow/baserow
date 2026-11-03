@@ -2,8 +2,10 @@ from typing import List
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser, AnonymousUser
+from django.db import transaction
 from django.db.models import Case, CharField, F, IntegerField, Q, Value, When
 from django.db.models.functions import Cast
+from django.db.models.signals import post_delete, post_save
 
 from baserow.core.models import User, Workspace, WorkspaceUser
 from baserow.core.operations import ListWorkspaceUsersWorkspaceOperationType
@@ -18,6 +20,117 @@ class UserSubjectType(SubjectType):
     display_name_field = "first_name"
     lookup_fields = (*SubjectType.lookup_fields, "email")
     options_list_operation_type = ListWorkspaceUsersWorkspaceOperationType.type
+
+    supports_persistent_subjects = True
+
+    def register_lifecycle_signals(self):
+        """Account and Profile deletion both remove the executable human identity."""
+        from baserow.core.models import UserProfile
+
+        post_save.connect(
+            self._synchronize_saved_user,
+            sender=self.model_class,
+            dispatch_uid=f"{self.type}.sync_subject",
+            weak=False,
+        )
+        for model in (self.model_class, UserProfile):
+            post_delete.connect(
+                self._retain_deleted_user_subject,
+                sender=model,
+                dispatch_uid=f"{self.type}.retain_subject.{model._meta.label_lower}",
+                weak=False,
+            )
+
+    def _synchronize_saved_user(
+        self, sender, instance, raw, using, update_fields, **kwargs
+    ):
+        """Skip fixture loading and updates that cannot change cached attribution."""
+        if raw or (
+            update_fields is not None
+            and not {"first_name", "email"} & set(update_fields)
+        ):
+            return
+        self.synchronize_persistent_subject(instance, using=using)
+
+    def _retain_deleted_user_subject(self, sender, instance, using, **kwargs):
+        subject_id = instance.pk if sender is self.model_class else instance.subject_id
+        self.retain_persistent_subject(subject_id, using=using)
+
+    def synchronize_persistent_subject(self, actor, *, using="default"):
+        """Read authoritative persisted values while serializing concurrent edits."""
+        with transaction.atomic(using=using):
+            user = (
+                User.objects.using(using)
+                .select_for_update(no_key=True)
+                .get(pk=actor.pk)
+            )
+            self.synchronize_persistent_subjects([user], using=using)
+
+    def synchronize_persistent_subjects(self, actors, *, using="default"):
+        """Batch attribution for persisted Users; callers own the actor transaction."""
+        from baserow.core.models import Subject as PersistentSubject
+
+        subjects = [
+            PersistentSubject(
+                id=user.pk,
+                type=self.type,
+                name=user.first_name,
+                uid=user.email,
+                state="live",
+            )
+            for user in actors
+        ]
+        if (
+            PersistentSubject.objects.using(using)
+            .filter(pk__in=[subject.pk for subject in subjects])
+            .exclude(type=self.type)
+            .exists()
+        ):
+            raise ValueError("User Subject ID belongs to another identity type.")
+        PersistentSubject.objects.using(using).bulk_create(
+            subjects,
+            update_conflicts=True,
+            unique_fields=["id"],
+            update_fields=["name", "uid", "state"],
+        )
+
+    def get_persistent_subject_workspace_filter(self, workspace_id, *, selectable=True):
+        """Scope cached human identities using the existing membership rules."""
+        query = Q(user_profile__user__workspaceuser__workspace_id=workspace_id)
+        if selectable:
+            query &= Q(
+                user_profile__user__workspaceuser__workspace__trashed=False,
+                user_profile__user__is_active=True,
+                user_profile__to_be_deleted=False,
+            )
+        return query
+
+    def has_invalid_persistent_subjects(self):
+        """Verify human ID equality, linkage and authoritative cached values."""
+        return User.objects.filter(
+            Q(profile__subject_id__isnull=True)
+            | ~Q(profile__subject_id=F("id"))
+            | ~Q(profile__subject__name=F("first_name"))
+            | ~Q(profile__subject__uid=F("email"))
+            | ~Q(profile__subject__type=self.type)
+            | ~Q(profile__subject__state="live")
+        ).exists()
+
+    def get_legacy_persistent_subject_uid(self, value):
+        return value if isinstance(value, str) else None
+
+    def get_persistent_subject_export_value(self, subject, *, include_name=True):
+        if not include_name:
+            return subject.uid
+        return super().get_persistent_subject_export_value(subject)
+
+    def _get_persistent_subject(self, actor):
+        return actor.profile.subject
+
+    def resolve_persistent_subject(self, subject):
+        return User.objects.filter(
+            profile__subject=subject, is_active=True, profile__to_be_deleted=False
+        ).first()
 
     has_direct_workspace_roles = True
 

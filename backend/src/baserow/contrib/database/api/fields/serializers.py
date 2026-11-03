@@ -30,6 +30,7 @@ from baserow.contrib.database.fields.utils.duration import (
     postgres_interval_to_seconds,
     prepare_duration_value_for_db,
 )
+from baserow.core.subjects import UserSubjectType
 from baserow.core.utils import split_comma_separated_string
 
 
@@ -600,7 +601,17 @@ class CollaboratorField(serializers.Field):
 
 class CollaboratorSerializer(serializers.Serializer):
     id = serializers.IntegerField()
-    name = serializers.CharField(source="first_name", read_only=True)
+    name = serializers.CharField(read_only=True)
+    type = serializers.CharField(read_only=True, default=UserSubjectType.type)
+
+
+class FormulaCollaboratorSerializer(CollaboratorSerializer):
+    """Normalize legacy stored formula dictionaries at the formula API boundary."""
+
+    def to_representation(self, value):
+        if isinstance(value, dict) and "name" not in value:
+            value = {**value, "name": value.get("first_name", "")}
+        return super().to_representation(value)
 
 
 class CollaboratorRequestSerializer(serializers.ListSerializer):
@@ -626,7 +637,11 @@ class AvailableCollaboratorsSerializer(serializers.ListField):
 
         workspace = instance.table.database.workspace
         if not hasattr(workspace, "available_collaborators"):
-            workspace.available_collaborators = workspace.users.order_by("first_name")
+            from baserow.core.subject.handler import eligible_subjects
+
+            workspace.available_collaborators = eligible_subjects(
+                workspace.id
+            ).order_by("name", "id")
 
         return [
             CollaboratorSerializer(user).data

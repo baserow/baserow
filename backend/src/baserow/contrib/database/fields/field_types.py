@@ -184,13 +184,19 @@ from baserow.core.formula import BaserowFormulaException
 from baserow.core.formula.parser.exceptions import FormulaFunctionTypeDoesNotExist
 from baserow.core.handler import CoreHandler
 from baserow.core.import_export.utils import file_chunk_generator
-from baserow.core.models import UserFile, WorkspaceUser
+from baserow.core.models import Subject, UserFile, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import (
     ExportZipFile,
     OverwritingStorageHandler,
     get_default_storage,
 )
+from baserow.core.subject.export import (
+    export_subject,
+    human_readable_subject,
+    import_subject,
+)
+from baserow.core.subject.handler import eligible_subjects
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_files.exceptions import UserFileDoesNotExist
 from baserow.core.user_files.handler import UserFileHandler
@@ -2431,7 +2437,7 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
         kwargs["blank"] = True
         kwargs.update(self.model_field_kwargs)
         return SyncedUserForeignKeyField(
-            User,
+            Subject,
             on_delete=models.SET_NULL,
             related_name="+",
             related_query_name="+",
@@ -2441,7 +2447,7 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
 
     def get_group_by_label(self, value, field_object):
         """Show the user's name rather than their email in group labels."""
-        return value.first_name if value is not None else ""
+        return value.name if value is not None else ""
 
     def get_serializer_field(self, instance, **kwargs):
         return CollaboratorSerializer(required=False, **kwargs)
@@ -2517,7 +2523,7 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
         """
 
         user = self.get_internal_value_from_db(row, field_name)
-        return user.email if user else None
+        return export_subject(user)
 
     def set_import_serialized_value(
         self,
@@ -2549,7 +2555,9 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
         """
 
         user = value
-        return user.email if user else None
+        if user is None:
+            return None
+        return human_readable_subject(user, include_name=False)
 
     def get_order(
         self, field, field_name, order_direction, sort_type, table_model=None
@@ -2573,20 +2581,18 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
         value = getattr(row, field.db_column)
         if value is None:
             return None
-        return collate_expression(Value(value.first_name))
+        return collate_expression(Value(value.name))
 
     def get_search_expression(self, field: Field, queryset: QuerySet) -> Expression:
         return Subquery(
-            queryset.filter(pk=OuterRef("pk")).values(f"{field.db_column}__first_name")[
-                :1
-            ]
+            queryset.filter(pk=OuterRef("pk")).values(f"{field.db_column}__name")[:1]
         )
 
     def contains_query(self, field_name, value, model_field, field):
         value = value.strip()
         if value == "":
             return Q()
-        return Q(**{f"{field_name}__first_name__icontains": value})
+        return Q(**{f"{field_name}__name__icontains": value})
 
     def get_alter_column_prepare_new_value(self, connection, from_field, to_field):
         """
@@ -2632,10 +2638,10 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
         field_name: str,
         sort_type: str,
     ) -> Expression | F:
-        return F(f"{field_name}__first_name")
+        return F(f"{field_name}__name")
 
     def get_distribution_group_by_value(self, field_name: str):
-        return f"{field_name}__first_name"
+        return f"{field_name}__name"
 
 
 class CreatedByFieldType(ReadOnlyFieldType):
@@ -2661,7 +2667,7 @@ class CreatedByFieldType(ReadOnlyFieldType):
         kwargs["blank"] = True
         kwargs.update(self.model_field_kwargs)
         return SyncedUserForeignKeyField(
-            User,
+            Subject,
             on_delete=models.SET_NULL,
             related_name="+",
             related_query_name="+",
@@ -2671,7 +2677,7 @@ class CreatedByFieldType(ReadOnlyFieldType):
 
     def get_group_by_label(self, value, field_object):
         """Show the user's name rather than their email in group labels."""
-        return value.first_name if value is not None else ""
+        return value.name if value is not None else ""
 
     def get_serializer_field(self, instance, **kwargs):
         return CollaboratorSerializer(required=False, **kwargs)
@@ -2747,7 +2753,7 @@ class CreatedByFieldType(ReadOnlyFieldType):
         """
 
         user = self.get_internal_value_from_db(row, field_name)
-        return user.email if user else None
+        return export_subject(user)
 
     def set_import_serialized_value(
         self,
@@ -2779,7 +2785,9 @@ class CreatedByFieldType(ReadOnlyFieldType):
         """
 
         user = value
-        return user.email if user else None
+        if user is None:
+            return None
+        return human_readable_subject(user, include_name=False)
 
     def get_order(
         self, field, field_name, order_direction, sort_type, table_model=None
@@ -2803,20 +2811,18 @@ class CreatedByFieldType(ReadOnlyFieldType):
         value = getattr(row, field.db_column)
         if value is None:
             return None
-        return collate_expression(Value(value.first_name))
+        return collate_expression(Value(value.name))
 
     def get_search_expression(self, field: Field, queryset: QuerySet) -> Expression:
         return Subquery(
-            queryset.filter(pk=OuterRef("pk")).values(f"{field.db_column}__first_name")[
-                :1
-            ]
+            queryset.filter(pk=OuterRef("pk")).values(f"{field.db_column}__name")[:1]
         )
 
     def contains_query(self, field_name, value, model_field, field):
         value = value.strip()
         if value == "":
             return Q()
-        return Q(**{f"{field_name}__first_name__icontains": value})
+        return Q(**{f"{field_name}__name__icontains": value})
 
     def get_alter_column_prepare_new_value(self, connection, from_field, to_field):
         """
@@ -2862,10 +2868,10 @@ class CreatedByFieldType(ReadOnlyFieldType):
         field_name: str,
         sort_type: str,
     ) -> Expression | F:
-        return F(f"{field_name}__first_name")
+        return F(f"{field_name}__name")
 
     def get_distribution_group_by_value(self, field_name: str):
-        return f"{field_name}__first_name"
+        return f"{field_name}__name"
 
 
 class DurationFieldType(FieldType):
@@ -7872,7 +7878,7 @@ class MultipleCollaboratorsFieldType(
     model_class = MultipleCollaboratorsField
     can_get_unique_values = False
     allowed_fields = ["notify_user_when_added"]
-    request_serializer_field_names = ["notify_user_when_added"]
+    request_serializer_field_names = allowed_fields
     request_serializer_field_overrides = {
         "notify_user_when_added": serializers.BooleanField(required=False),
     }
@@ -7904,7 +7910,7 @@ class MultipleCollaboratorsFieldType(
         return Subquery(
             queryset.filter(pk=OuterRef("pk")).values(
                 aggregated=StringAgg(
-                    f"{field.db_column}__first_name",
+                    f"{field.db_column}__name",
                     " ",
                     output_field=models.TextField(),
                 )
@@ -7936,7 +7942,7 @@ class MultipleCollaboratorsFieldType(
                 return value
 
             users_by_id = {
-                user.id: user for user in get_user_model().objects.filter(id__in=value)
+                user.id: user for user in Subject.objects.filter(id__in=value)
             }
             users = [
                 users_by_id[user_id] for user_id in value if user_id in users_by_id
@@ -7946,7 +7952,7 @@ class MultipleCollaboratorsFieldType(
         return serialize
 
     def serialize_to_input_value(self, field: Field, value: any) -> any:
-        return [{"id": u.id, "name": u.first_name} for u in value.all()]
+        return [{"id": u.id, "name": u.name, "type": u.type} for u in value.all()]
 
     def prepare_value_for_db(self, instance, value):
         if not isinstance(
@@ -7970,9 +7976,9 @@ class MultipleCollaboratorsFieldType(
 
         user_ids = [v["id"] if isinstance(v, dict) else v for v in value]
         workspace = instance.table.database.workspace
-        workspace_users_count = WorkspaceUser.objects.filter(
-            user_id__in=user_ids, workspace_id=workspace.id
-        ).count()
+        workspace_users_count = (
+            eligible_subjects(workspace.id).filter(id__in=user_ids).count()
+        )
 
         if workspace_users_count != len(user_ids):
             raise AllProvidedCollaboratorIdsMustBeValidUsers(user_ids)
@@ -7994,9 +8000,11 @@ class MultipleCollaboratorsFieldType(
 
         workspace = instance.table.database.workspace
 
-        selected_ids = WorkspaceUser.objects.filter(
-            user_id__in=all_user_ids, workspace_id=workspace.id
-        ).values_list("user_id", flat=True)
+        selected_ids = (
+            eligible_subjects(workspace.id)
+            .filter(id__in=all_user_ids)
+            .values_list("id", flat=True)
+        )
 
         if len(selected_ids) != len(all_user_ids):
             invalid_ids = sorted(list(all_user_ids - set(selected_ids)))
@@ -8016,7 +8024,7 @@ class MultipleCollaboratorsFieldType(
         return (
             "This field accepts a list of objects representing the chosen "
             "collaborators through the object's `id` property. The id is Baserow "
-            "user id. The response objects also contains the collaborator name "
+            "Subject id. The response objects also contain the collaborator name and type "
             "directly along with its id."
         )
 
@@ -8027,7 +8035,7 @@ class MultipleCollaboratorsFieldType(
         if not value:
             return [] if rich_value else ""
 
-        result = [f"{user.first_name} <{user.email}>" for user in value]
+        result = [human_readable_subject(user) for user in value]
         if rich_value:
             return result
         else:
@@ -8043,7 +8051,7 @@ class MultipleCollaboratorsFieldType(
         """Use collaborator names without exposing email addresses in group labels."""
         if hasattr(value, "all"):
             value = value.all()
-        return ", ".join(user.first_name for user in (value or []))
+        return ", ".join(user.name for user in (value or []))
 
     def serialize_metadata_for_row_history(
         self,
@@ -8055,13 +8063,16 @@ class MultipleCollaboratorsFieldType(
 
         already_serialized_collaborators = {}
         if metadata and metadata.get("collaborators"):
-            already_serialized_collaborators = metadata["collaborators"]
+            already_serialized_collaborators = {
+                int(key): value for key, value in metadata["collaborators"].items()
+            }
 
         new_collaborators = getattr(row, field.db_column).all()
         new_serialized_collaborators = {
             collaborator.id: {
                 "id": collaborator.id,
-                "name": collaborator.first_name,
+                "name": collaborator.name,
+                "type": collaborator.type,
             }
             for collaborator in new_collaborators
         }
@@ -8069,8 +8080,8 @@ class MultipleCollaboratorsFieldType(
         return {
             **base,
             "collaborators": {
-                **already_serialized_collaborators,
                 **new_serialized_collaborators,
+                **already_serialized_collaborators,
             },
         }
 
@@ -8083,28 +8094,26 @@ class MultipleCollaboratorsFieldType(
         return None
 
     def after_model_generation(self, instance, model, field_name):
+        """Join Subjects through the unchanged legacy collaborator relation columns."""
+        # Retain the legacy generated class name: Django derives the existing
+        # through-table relation column from it (multiplecollaboratorsfieldNuser_id).
         user_meta = type(
             "Meta",
-            (AbstractUser.Meta,),
+            (),
             {
                 "managed": False,
                 "app_label": model._meta.app_label,
                 "db_tablespace": model._meta.db_tablespace,
-                "db_table": get_user_model().objects.model._meta.db_table,
+                "db_table": Subject._meta.db_table,
                 "apps": model._meta.apps,
             },
         )
         user_model = type(
-            str(f"MultipleCollaboratorsField{instance.id}User"),
-            (AbstractUser,),
+            f"MultipleCollaboratorsField{instance.id}User",
+            (models.Model,),
             {
-                # We need to override the `workspaces` and `user_permissions` here
-                # because they're normally many to many relationships with the
-                # `Workspace` and `Permission` model. This is something that we do not
-                # need and we don't want to create reversed relationships for generated
-                # model.
-                "groups": None,
-                "user_permissions": None,
+                **{field.name: field.clone() for field in Subject._meta.local_fields},
+                "get_type": Subject.get_type,
                 "Meta": user_meta,
                 "__module__": model.__module__,
                 "_generated_table_model": True,
@@ -8118,11 +8127,7 @@ class MultipleCollaboratorsFieldType(
             "db_table": instance.through_table_name,
             "db_constraint": False,
         }
-        additional_filters = {
-            "id__in": WorkspaceUser.objects.filter(
-                workspace_id=instance.table.database.workspace_id
-            ).values_list("user_id", flat=True)
-        }
+        additional_filters = {}
 
         MultipleSelectManyToManyField(
             to=user_model,
@@ -8141,106 +8146,71 @@ class MultipleCollaboratorsFieldType(
         return queryset.prefetch_related(name)
 
     def get_export_serialized_value(self, row, field_name, cache, files_zip, storage):
+        """Cache all through-table references once per field export."""
         cache_entry = f"{field_name}_relations_export"
         if cache_entry not in cache:
-            # In order to prevent a lot of lookup queries in the through table, we want
-            # to fetch all the relations and add it to a temporary in memory cache
-            # containing a mapping of the row ids to collaborator emails.
             cache[cache_entry] = defaultdict(list)
             through_model = row._meta.get_field(field_name).remote_field.through
-            through_model_fields = through_model._meta.get_fields()
-            current_field_name = through_model_fields[1].name
-            relation_field_name = through_model_fields[2].name
-            users_relation = through_model.objects.select_related(relation_field_name)
-            for relation in users_relation:
-                cache[cache_entry][
-                    getattr(relation, f"{current_field_name}_id")
-                ].append(getattr(relation, relation_field_name).email)
+            current_field, relation_field = through_model._meta.get_fields()[1:3]
+            for relation in through_model.objects.select_related(relation_field.name):
+                cache[cache_entry][getattr(relation, current_field.attname)].append(
+                    export_subject(getattr(relation, relation_field.name))
+                )
         return cache[cache_entry][row.id]
 
     def set_import_serialized_value(
         self, row, field_name, value, id_mapping, cache, files_zip, storage
     ):
-        workspace_id = id_mapping["import_workspace_id"]
-        cache_entry = f"{field_name}_relations_import"
-        if cache_entry not in cache:
-            # In order to prevent a lot of lookup queries in the through table, we want
-            # to fetch all the relations and add it to a temporary in memory cache
-            # containing a mapping of the row ids to collaborator emails.
-            cache[cache_entry] = defaultdict(list)
-
-            workspaceusers_from_workspace = WorkspaceUser.objects.filter(
-                workspace_id=workspace_id
-            ).select_related("user")
-
-            for workspaceuser in workspaceusers_from_workspace:
-                cache[cache_entry][workspaceuser.user.email] = workspaceuser.user.id
-
+        """Remap references in bulk-import's shared cache, never source numeric IDs."""
         through_model = row._meta.get_field(field_name).remote_field.through
-        through_model_fields = through_model._meta.get_fields()
-        current_field_name = through_model_fields[1].name
-        relation_field_name = through_model_fields[2].name
-
-        through_objects = []
-        for email in value:
-            user_id = cache[cache_entry].get(email, None)
-            if user_id is not None:
-                through_objects.append(
+        current_field, relation_field = through_model._meta.get_fields()[1:3]
+        cache["subject_identity_mapping"] = id_mapping.setdefault(
+            "subject_identity_mapping", {}
+        )
+        relations = []
+        for identity in value:
+            subject = import_subject(identity, id_mapping["import_workspace_id"], cache)
+            if subject is not None:
+                relations.append(
                     through_model(
                         **{
-                            f"{current_field_name}_id": row.id,
-                            f"{relation_field_name}_id": cache[cache_entry].get(
-                                email, None
-                            ),
+                            current_field.attname: row.id,
+                            relation_field.attname: subject.id,
                         }
                     )
                 )
-
-        return through_objects
+        return relations
 
     def export_serialized_default_value(self, value, field, workspace_id, cache):
+        """Serialize fixed view defaults using portable Subject identities."""
         if not isinstance(value, list):
             return value
-
-        cache_entry = f"collaborator_id_to_email_export_{workspace_id}"
-        if cache_entry not in cache:
-            cache[cache_entry] = dict(
-                WorkspaceUser.objects.filter(workspace_id=workspace_id).values_list(
-                    "user_id", "user__email"
-                )
-            )
-
-        id_to_email = cache[cache_entry]
+        key = ("subject_defaults", workspace_id)
+        if key not in cache:
+            cache[key] = {}
+        ids = {item["id"] for item in value}
+        cache[key].update(Subject.objects.in_bulk(ids - cache[key].keys()))
         return [
-            id_to_email[user["id"]]
-            for user in value
-            if isinstance(user["id"], int) and user["id"] in id_to_email
+            export_subject(cache[key][item["id"]])
+            for item in value
+            if item["id"] in cache[key]
         ]
 
     def import_serialized_default_value(self, value, id_mapping, workspace_id, cache):
+        """Preserve attribution defaults; eligibility is enforced when writing a row."""
         if not isinstance(value, list):
             return value
-
-        cache_key = f"collaborator_email_to_id_import_{workspace_id}"
-        if cache_key not in cache:
-            cache[cache_key] = {
-                workspace_user["user__email"]: workspace_user
-                for workspace_user in WorkspaceUser.objects.filter(
-                    workspace_id=workspace_id
+        cache["subject_identity_mapping"] = id_mapping.setdefault(
+            "subject_identity_mapping", {}
+        )
+        result = []
+        for identity in value:
+            subject = import_subject(identity, workspace_id, cache)
+            if subject is not None:
+                result.append(
+                    {"id": subject.id, "name": subject.name, "type": subject.type}
                 )
-                .select_related("user")
-                .values("user__email", "user__first_name", "user_id")
-            }
-
-        email_to_id = cache[cache_key]
-        return [
-            {
-                "id": email_to_id[email]["user_id"],
-                "name": email_to_id[email]["user__first_name"],
-            }
-            for email in value
-            if isinstance(email, str) and email in email_to_id
-        ]
+        return result
 
     def random_value(self, instance, fake, cache):
         """
@@ -8290,7 +8260,7 @@ class MultipleCollaboratorsFieldType(
                     .values(f"{reversed_field}_id")
                     .annotate(
                         _agg=StringAgg(
-                            F(f"{related_field}__first_name"),
+                            F(f"{related_field}__name"),
                             "",
                             ordering=F("id"),
                             output_field=models.TextField(),
@@ -8338,7 +8308,7 @@ class MultipleCollaboratorsFieldType(
         pair_field = ArrayField(models.TextField(), size=2)
         sort_key_field = ArrayField(pair_field)
 
-        collated_name = collate_expression(F(f"{field_name}__first_name"))
+        collated_name = collate_expression(F(f"{field_name}__name"))
 
         option_key = Func(
             collated_name,
@@ -8383,7 +8353,7 @@ class MultipleCollaboratorsFieldType(
 
     def get_value_for_filter(self, row: "GeneratedTableModel", field) -> any:
         related_objects = getattr(row, field.db_column)
-        values = [related_object.first_name for related_object in related_objects.all()]
+        values = [related_object.name for related_object in related_objects.all()]
         value = list_to_comma_separated_string(values)
         return value
 
@@ -8393,12 +8363,12 @@ class MultipleCollaboratorsFieldType(
         field_name: str,
         sort_type: str,
     ) -> Expression | F:
-        return F(f"{field_name}__first_name")
+        return F(f"{field_name}__name")
 
     def get_group_by_display_values(self, field, field_name, raw_values):
         ids = {uid for value in raw_values for uid in (value or [])}
         names = (
-            dict(User.objects.filter(id__in=ids).values_list("id", "first_name"))
+            dict(Subject.objects.filter(id__in=ids).values_list("id", "name"))
             if ids
             else {}
         )

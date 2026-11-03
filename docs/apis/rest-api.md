@@ -106,3 +106,19 @@ JSON format.
 ```
 Content-Type: application/json
 ```
+
+## Row authors and collaborators
+
+Created-by, last-modified-by and multiple-collaborators values identify retained
+Subjects. Responses contain `{ "id": 123, "name": "Alex", "type": "auth.User" }`
+or `{ "id": 456, "name": "Assistant", "type": "core.Agent" }`. UID and email are
+not exposed by these values. Existing human IDs stay equal to their User IDs;
+Agent Subject IDs are independent of Agent API IDs.
+
+Collaborator requests continue accepting lists such as `[{ "id": 456 }]`.
+Only eligible identities from the table's workspace can be selected. Assignment
+never grants workspace or table access. Removed and deleted identities remain
+visible in existing values. Human-only mentions still use User IDs.
+
+Agent field references require the `agents` feature flag and the persisted
+[Subject rollout gate](../technical/subject-rollout.md).

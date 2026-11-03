@@ -1,3 +1,5 @@
+import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
+import { getCollaboratorName } from '@baserow/modules/core/utils/collaborator'
 import BigNumber from 'bignumber.js'
 import {
   DURATION_FORMATS,
@@ -3073,30 +3075,12 @@ export class LastModifiedByFieldType extends FieldType {
   }
 
   getSort(name, order) {
-    return (a, b) => {
-      let userNameA = a[name] === null ? '' : a[name].name
-      let userNameB = b[name] === null ? '' : b[name].name
-
-      const workspaces = this.app.$store.getters['workspace/getAll']
-      const workspaceAvailable = workspaces.length > 0
-      if (workspaceAvailable) {
-        if (a[name] !== null) {
-          const workspaceUserA = this.app.$store.getters[
-            'workspace/getUserById'
-          ](a[name].id)
-          userNameA = workspaceUserA ? workspaceUserA.name : userNameA
-        }
-
-        if (b[name] !== null) {
-          const workspaceUserB = this.app.$store.getters[
-            'workspace/getUserById'
-          ](b[name].id)
-          userNameB = workspaceUserB ? workspaceUserB.name : userNameB
-        }
-      }
-
-      return collatedStringCompare(userNameA, userNameB, order)
-    }
+    return (a, b) =>
+      collatedStringCompare(
+        getCollaboratorName(a[name], this.app.$store, this.app.$registry),
+        getCollaboratorName(b[name], this.app.$store, this.app.$registry),
+        order
+      )
   }
 
   canBeReferencedByFormulaField() {
@@ -3107,6 +3091,7 @@ export class LastModifiedByFieldType extends FieldType {
     return {
       id: this.app.$store.getters['auth/getUserId'],
       name: this.app.$store.getters['auth/getName'],
+      type: UserSubjectType.getType(),
     }
   }
 
@@ -3119,21 +3104,7 @@ export class LastModifiedByFieldType extends FieldType {
   }
 
   prepareValueForCopy(field, value) {
-    if (value === undefined || value === null) {
-      return ''
-    }
-
-    const name = value.name
-
-    const workspaces = this.app.$store.getters['workspace/getAll']
-    if (workspaces.length > 0) {
-      const workspaceUser = this.app.$store.getters['workspace/getUserById'](
-        value.id
-      )
-      return workspaceUser ? workspaceUser.name : name
-    }
-
-    return name
+    return getCollaboratorName(value, this.app.$store, this.app.$registry)
   }
 
   toHumanReadableString(field, value, delimiter = ', ') {
@@ -3215,30 +3186,12 @@ export class CreatedByFieldType extends FieldType {
   }
 
   getSort(name, order) {
-    return (a, b) => {
-      let userNameA = a[name] === null ? '' : a[name].name
-      let userNameB = b[name] === null ? '' : b[name].name
-
-      const workspaces = this.app.$store.getters['workspace/getAll']
-      const workspaceAvailable = workspaces.length > 0
-      if (workspaceAvailable) {
-        if (a[name] !== null) {
-          const workspaceUserA = this.app.$store.getters[
-            'workspace/getUserById'
-          ](a[name].id)
-          userNameA = workspaceUserA ? workspaceUserA.name : userNameA
-        }
-
-        if (b[name] !== null) {
-          const workspaceUserB = this.app.$store.getters[
-            'workspace/getUserById'
-          ](b[name].id)
-          userNameB = workspaceUserB ? workspaceUserB.name : userNameB
-        }
-      }
-
-      return collatedStringCompare(userNameA, userNameB, order)
-    }
+    return (a, b) =>
+      collatedStringCompare(
+        getCollaboratorName(a[name], this.app.$store, this.app.$registry),
+        getCollaboratorName(b[name], this.app.$store, this.app.$registry),
+        order
+      )
   }
 
   canBeReferencedByFormulaField() {
@@ -3249,6 +3202,7 @@ export class CreatedByFieldType extends FieldType {
     return {
       id: this.app.$store.getters['auth/getUserId'],
       name: this.app.$store.getters['auth/getName'],
+      type: UserSubjectType.getType(),
     }
   }
 
@@ -3261,21 +3215,7 @@ export class CreatedByFieldType extends FieldType {
   }
 
   prepareValueForCopy(field, value) {
-    if (value === undefined || value === null) {
-      return ''
-    }
-
-    const name = value.name
-
-    const workspaces = this.app.$store.getters['workspace/getAll']
-    if (workspaces.length > 0) {
-      const workspaceUser = this.app.$store.getters['workspace/getUserById'](
-        value.id
-      )
-      return workspaceUser ? workspaceUser.name : name
-    }
-
-    return name
+    return getCollaboratorName(value, this.app.$store, this.app.$registry)
   }
 
   toHumanReadableString(field, value, delimiter = ', ') {
@@ -5060,50 +5000,25 @@ export class MultipleCollaboratorsFieldType extends FieldType {
   }
 
   getSort(name, order) {
-    return (a, b) => {
-      const valuesA = a[name]
-      const valuesB = b[name]
-
-      let stringA = ''
-      let stringB = ''
-
-      const workspaces = this.app.$store.getters['workspace/getAll']
-
-      if (valuesA.length > 0 && workspaces.length > 0) {
-        stringA = valuesA
-          .map(
-            (obj) =>
-              this.app.$store.getters['workspace/getUserById'](obj.id).name
+    return (a, b) =>
+      collatedStringCompare(
+        a[name]
+          .map((value) =>
+            getCollaboratorName(value, this.app.$store, this.app.$registry)
           )
-          .join('')
-      } else if (valuesA.length > 0) {
-        stringA = valuesA.map((obj) => obj.name).join('')
-      }
-
-      if (valuesB.length > 0 && workspaces.length > 0) {
-        stringB = valuesB
-          .map(
-            (obj) =>
-              this.app.$store.getters['workspace/getUserById'](obj.id).name
+          .join(''),
+        b[name]
+          .map((value) =>
+            getCollaboratorName(value, this.app.$store, this.app.$registry)
           )
-          .join('')
-      } else if (valuesB.length > 0) {
-        stringB = valuesB.map((obj) => obj.name).join('')
-      }
-
-      return collatedStringCompare(stringA, stringB, order)
-    }
+          .join(''),
+        order
+      )
   }
 
   getGroupBySort(name, order, field) {
-    const resolveName = (obj) => {
-      const workspaces = this.app.$store.getters['workspace/getAll']
-      if (workspaces.length > 0) {
-        const user = this.app.$store.getters['workspace/getUserById'](obj.id)
-        return user?.name ?? obj.name ?? ''
-      }
-      return obj.name ?? ''
-    }
+    const resolveName = (obj) =>
+      getCollaboratorName(obj, this.app.$store, this.app.$registry) ?? ''
 
     const sortKey = (values) => {
       if (!values || values.length === 0) {
@@ -5142,21 +5057,9 @@ export class MultipleCollaboratorsFieldType extends FieldType {
   }
 
   _collaboratorCellValueToListOfNames(value) {
-    const workspaces = this.app.$store.getters['workspace/getAll']
-
-    if (workspaces.length > 0) {
-      return value.map((value) => {
-        const workspaceUser = this.app.$store.getters['workspace/getUserById'](
-          value.id
-        )
-        return workspaceUser.name
-      })
-    } else {
-      // public views
-      return value.map((value) => {
-        return value.name
-      })
-    }
+    return value.map((item) =>
+      getCollaboratorName(item, this.app.$store, this.app.$registry)
+    )
   }
 
   prepareRichValueForCopy(field, value) {

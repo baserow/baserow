@@ -2,8 +2,10 @@ from typing import List
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
-from django.db.models import CharField, F, IntegerField, Value
+from django.db import transaction
+from django.db.models import CharField, F, IntegerField, Q, TextField, Value
 from django.db.models.functions import Cast
+from django.db.models.signals import post_delete
 
 from baserow.core.agents.handler import AgentHandler
 from baserow.core.agents.operations import ListAgentsWorkspaceOperationType
@@ -17,6 +19,95 @@ class AgentSubjectType(SubjectType):
     model_class = Agent
     display_name_field = "name"
     options_list_operation_type = ListAgentsWorkspaceOperationType.type
+
+    supports_persistent_subjects = True
+    persistent_subject_disabled_message = (
+        "Agent field references have not been activated."
+    )
+
+    def register_lifecycle_signals(self):
+        """Retain Agent attribution on permanent deletion, including cascades."""
+        post_delete.connect(
+            self._retain_deleted_agent_subject,
+            sender=self.model_class,
+            dispatch_uid=f"{self.type}.retain_subject",
+            weak=False,
+        )
+
+    def _retain_deleted_agent_subject(self, sender, instance, using, **kwargs):
+        self.retain_persistent_subject(instance.subject_id, using=using)
+
+    def synchronize_persistent_subject(self, actor, *, using="default"):
+        """Keep the independent Agent ID and its cached identity transactionally linked."""
+        from baserow.core.models import Subject as PersistentSubject
+        from baserow.core.subject.handler import allocate_subject_id
+
+        with transaction.atomic(using=using):
+            agent = (
+                Agent._base_manager.using(using).select_for_update().get(pk=actor.pk)
+            )
+            subject_id = agent.subject_id
+            if subject_id is None:
+                subject_id = allocate_subject_id(using=using)
+            subject, created = PersistentSubject.objects.using(using).get_or_create(
+                pk=subject_id,
+                defaults={
+                    "type": self.type,
+                    "name": agent.name,
+                    "uid": str(agent.uid),
+                    "state": "trashed" if agent.trashed else "live",
+                },
+            )
+            if subject.type != self.type:
+                raise ValueError("Agent Subject ID belongs to another identity type.")
+            subject.name, subject.uid = agent.name, str(agent.uid)
+            subject.state = "trashed" if agent.trashed else "live"
+            if not created:
+                subject.save(using=using, update_fields=["name", "uid", "state"])
+            if agent.subject_id is None:
+                Agent._base_manager.using(using).filter(pk=agent.pk).update(
+                    subject_id=subject_id
+                )
+            actor.subject = subject
+
+    def persistent_subject_references_enabled(self):
+        """Require both the Agent feature flag and persisted rollout activation."""
+        from baserow.core.feature_flags import FF_AGENTS, feature_flag_is_enabled
+        from baserow.core.models import SubjectRollout
+
+        return (
+            feature_flag_is_enabled(FF_AGENTS)
+            and SubjectRollout.objects.filter(
+                pk=1, agent_references_enabled=True
+            ).exists()
+        )
+
+    def get_persistent_subject_workspace_filter(self, workspace_id, *, selectable=True):
+        query = Q(agent__workspace_id=workspace_id)
+        if selectable:
+            query &= Q(agent__trashed=False, agent__workspace__trashed=False)
+        return query
+
+    def has_invalid_persistent_subjects(self):
+        """Verify Agent linkage, UUID, name and trash state without actor lookups."""
+        return (
+            Agent.objects_and_trash.annotate(uid_text=Cast("uid", TextField()))
+            .filter(
+                Q(subject_id__isnull=True)
+                | ~Q(subject__type=self.type)
+                | ~Q(subject__name=F("name"))
+                | ~Q(subject__uid=F("uid_text"))
+                | (Q(trashed=True) & ~Q(subject__state="trashed"))
+                | (Q(trashed=False) & ~Q(subject__state="live"))
+            )
+            .exists()
+        )
+
+    def _get_persistent_subject(self, actor):
+        return actor.subject
+
+    def resolve_persistent_subject(self, subject):
+        return Agent.objects.filter(subject=subject, workspace__trashed=False).first()
 
     has_direct_workspace_roles = True
 

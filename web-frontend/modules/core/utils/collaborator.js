@@ -1,9 +1,24 @@
-/**
- * Returns the display name of a collaborator value, preferring the name in the
- * workspace store so a rename shows without a reload.
- */
-export function getCollaboratorName(collaboratorValue, store) {
-  // Workaround for field conversion not to produce console errors
+import {
+  SubjectType,
+  UserSubjectType,
+} from '@baserow/modules/core/subjectTypes'
+
+const userSubjectType = new UserSubjectType()
+const fallbackSubjectType = new SubjectType()
+
+/** Resolve a typed value while retaining compatibility with legacy User values. */
+export function getCollaboratorSubjectType(value, registry) {
+  const type = value?.type ?? UserSubjectType.getType()
+  if (registry?.exists('subject', type)) {
+    return registry.get('subject', type)
+  }
+  return type === UserSubjectType.getType()
+    ? userSubjectType
+    : fallbackSubjectType
+}
+
+/** Resolve display names without interpreting non-human Subject IDs as User IDs. */
+export function getCollaboratorName(collaboratorValue, store, registry) {
   if (
     !collaboratorValue ||
     typeof collaboratorValue !== 'object' ||
@@ -11,19 +26,13 @@ export function getCollaboratorName(collaboratorValue, store) {
   ) {
     return ''
   }
-
-  // If workspaces are unavailable, public views are served
-  const workspaces = store.getters['workspace/getAll']
-  if (workspaces.length === 0) {
-    return collaboratorValue.name
-  }
-
-  // Otherwise, get name from the store to reflect real-time updates
-  const user = store.getters['workspace/getUserById'](collaboratorValue.id)
-  if (user) {
-    return user.name
-  }
-
-  // Fallback if for some reason the user is missing from the store
-  return collaboratorValue.name
+  const subjectType = getCollaboratorSubjectType(collaboratorValue, registry)
+  return subjectType.getDisplayName(collaboratorValue, {
+    resolveUserName: (value) => {
+      if (store.getters['workspace/getAll'].length === 0) return value.name
+      return (
+        store.getters['workspace/getUserById'](value.id)?.name ?? value.name
+      )
+    },
+  })
 }

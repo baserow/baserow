@@ -1,10 +1,12 @@
 import abc
 import dataclasses
+import json
 from collections import defaultdict
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, TypeVar, Union
 from zipfile import ZipFile
 
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.files.storage import Storage
 from django.db.models import Q, QuerySet
 from django.db.transaction import Atomic
@@ -1467,6 +1469,130 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
     This type describes a subject that exists in Baserow. A subject is anything that
     can execute an operation.
     """
+
+    # Permission actors opt in explicitly; teams and anonymous actors have no
+    # persistent row identity merely because they are registered subject types.
+    supports_persistent_subjects = False
+    persistent_subject_disabled_message = (
+        "Field references are disabled for this subject type."
+    )
+
+    def register_lifecycle_signals(self):
+        """Connect type-owned identity lifecycle receivers at application startup."""
+
+    def retain_persistent_subject(self, subject_id, *, using="default"):
+        """Keep attribution after its actor or link disappears."""
+        from baserow.core.models import Subject
+
+        if subject_id is not None:
+            Subject.objects.using(using).filter(pk=subject_id, type=self.type).update(
+                state="retained"
+            )
+
+    def synchronize_persistent_subject(self, actor, *, using="default"):
+        """Synchronize attribution after saving an actor, within its transaction."""
+        raise NotImplementedError()
+
+    def persistent_subject_references_enabled(self):
+        """Whether new field references to this type can currently be written."""
+        return self.supports_persistent_subjects
+
+    def get_persistent_subject_workspace_filter(self, workspace_id, *, selectable=True):
+        """Return a Q over core.Subject, suitable for composing one batched query."""
+        return Q(pk__in=[])
+
+    def has_invalid_persistent_subjects(self):
+        """Check live actor links and cached identity values before activation."""
+        raise NotImplementedError()
+
+    def get_legacy_persistent_subject_uid(self, value):
+        """Recognize legacy portable values owned by this type, if any."""
+        return None
+
+    def export_persistent_subject(self, subject):
+        """Export retained identity metadata without resolving the concrete actor."""
+        return {
+            "version": 1,
+            "type": self.type,
+            "uid": subject.uid,
+            "name": subject.name,
+        }
+
+    def import_persistent_subject(self, identity, workspace_id, cache):
+        """Match eligible identities or retain metadata without creating an actor.
+
+        Legacy values only match existing workspace identities. The operation cache
+        shares eligibility, activation and retained identities across all references.
+        """
+        from baserow.core.models import Subject as PersistentSubject
+        from baserow.core.subject.handler import (
+            allocate_subject_id,
+            eligible_subjects,
+            persistent_subject_references_enabled,
+        )
+
+        if not self.supports_persistent_subjects:
+            raise ValueError("Unsupported exported Subject identity")
+        cache = cache.setdefault("subject_identity_mapping", {})
+        legacy = isinstance(identity, str)
+        if legacy:
+            uid = self.get_legacy_persistent_subject_uid(identity)
+            if uid is None:
+                return None
+        else:
+            if (
+                not isinstance(identity, dict)
+                or identity.get("version") != 1
+                or identity.get("type") != self.type
+            ):
+                raise ValueError("Unsupported exported Subject identity")
+            uid = identity.get("uid")
+            if not isinstance(uid, str) or not isinstance(identity.get("name"), str):
+                raise ValueError("Invalid exported Subject identity")
+            if not persistent_subject_references_enabled(self, cache):
+                raise ValidationError(self.persistent_subject_disabled_message)
+        key = ("identity_import", workspace_id)
+        if key not in cache:
+            cache[key] = {(s.type, s.uid): s for s in eligible_subjects(workspace_id)}
+        match = cache[key].get((self.type, uid))
+        if match is not None or legacy:
+            return match
+        retained_key = ("retained_identity", json.dumps(identity, sort_keys=True))
+        if retained_key not in cache:
+            cache[retained_key] = PersistentSubject.objects.create(
+                id=allocate_subject_id(),
+                type=self.type,
+                uid=uid,
+                name=identity["name"],
+                state="retained",
+            )
+        return cache[retained_key]
+
+    def get_persistent_subject_export_value(self, subject, *, include_name=True):
+        """Format retained attribution without resolving a potentially deleted actor."""
+        return f"{subject.name} <{subject.uid}>"
+
+    def get_persistent_subject(self, actor, *, for_write=False):
+        """Resolve live attribution, enforcing type capabilities and write activation."""
+        if not self.supports_persistent_subjects or not getattr(actor, "pk", None):
+            return None
+        try:
+            subject = self._get_persistent_subject(actor)
+        except ObjectDoesNotExist:
+            return None
+        if subject is None or subject.state != "live":
+            return None
+        if for_write and not self.persistent_subject_references_enabled():
+            return None
+        return subject
+
+    def _get_persistent_subject(self, actor):
+        """Look up this concrete actor's retained identity without granting access."""
+        return None
+
+    def resolve_persistent_subject(self, subject):
+        """Return a live actor, or None when execution is unavailable."""
+        return None
 
     # Interactive users can persist undoable actions and emit product analytics.
     is_interactive_user = False

@@ -189,7 +189,9 @@ def test_get_set_export_serialized_value_multiple_collaborators_field(data_fixtu
     assert len(imported_row_2_field) == 2
     assert imported_row_2_field[0].id == user.id
     assert imported_row_2_field[1].id == user_2.id
-    assert len(imported_row_3_field) == 1
+    assert len(imported_row_3_field) == 2
+    assert imported_row_3_field[1].state == "retained"
+    assert imported_row_3_field[1].name == user_3.first_name
     assert imported_row_3_field[0].id == user.id
 
 
@@ -265,8 +267,9 @@ def test_export_import_multiple_collaborators_default_value_across_workspaces(
     collaborators = list(
         getattr(imported_row, f"field_{imported_field.id}").order_by("id").all()
     )
-    assert len(collaborators) == 1
+    assert len(collaborators) == 2
     assert collaborators[0].id == user.id
+    assert collaborators[1].state == "retained"
 
     # Verify the default value: only user (shared) should be present.
     from baserow.contrib.database.views.models import ViewDefaultValue
@@ -276,7 +279,7 @@ def test_export_import_multiple_collaborators_default_value_across_workspaces(
     )
     assert default_value.enabled is True
     assert default_value.field_type == "multiple_collaborators"
-    assert len(default_value.value) == 1
+    assert len(default_value.value) == 2
     assert default_value.value[0]["id"] == user.id
     assert default_value.value[0]["name"] == user.first_name
 
@@ -402,8 +405,7 @@ def test_multiple_collaborators_model_field(data_fixture):
     row_3_relation_ids = [u.id for u in row_3_relations]
     assert row_3_relation_ids == [user_3.id, user_2.id, user.id]
 
-    # After deleting workspace user 3, we don't expect user_3 to be returned here
-    # anymore.
+    # Removed members remain displayable as attribution, but cannot be selected.
     workspace_user_3.delete()
 
     rows = list(model.objects.all().order_by("id"))
@@ -414,11 +416,11 @@ def test_multiple_collaborators_model_field(data_fixture):
 
     row_2_relations = getattr(rows[1], f"field_{field.id}").all()
     row_2_relation_ids = [u.id for u in row_2_relations]
-    assert row_2_relation_ids == [user_2.id]
+    assert row_2_relation_ids == [user_2.id, user_3.id]
 
     row_3_relations = getattr(rows[2], f"field_{field.id}").all()
     row_3_relation_ids = [u.id for u in row_3_relations]
-    assert row_3_relation_ids == [user_2.id, user.id]
+    assert row_3_relation_ids == [user_3.id, user_2.id, user.id]
 
 
 @pytest.mark.django_db
@@ -487,11 +489,11 @@ def test_multiple_collaborators_model_enhanced_field(
 
         row_2_relations = getattr(rows[1], f"field_{field.id}").all()
         row_2_relation_ids = [u.id for u in row_2_relations]
-        assert row_2_relation_ids == [user_2.id]
+        assert row_2_relation_ids == [user_2.id, user_3.id]
 
         row_3_relations = getattr(rows[2], f"field_{field.id}").all()
         row_3_relation_ids = [u.id for u in row_3_relations]
-        assert row_3_relation_ids == [user_2.id, user.id]
+        assert row_3_relation_ids == [user_3.id, user_2.id, user.id]
 
 
 @pytest.mark.django_db
@@ -627,14 +629,17 @@ def test_multiple_collaborators_serialize_metadata_for_row_history(
                 user.id: {
                     "id": user.id,
                     "name": user.first_name,
+                    "type": "auth.User",
                 },
                 user2.id: {
                     "id": user2.id,
                     "name": user2.first_name,
+                    "type": "auth.User",
                 },
                 user3.id: {
                     "id": user3.id,
                     "name": user3.first_name,
+                    "type": "auth.User",
                 },
             },
             "type": "multiple_collaborators",
@@ -793,7 +798,7 @@ def test_multiple_collaborators_field_type_get_order_collate(data_fixture):
     result = ""
     for char in queryset:
         all_collaborators = list(getattr(char, field_name).all())
-        result += all_collaborators[0].first_name
+        result += all_collaborators[0].name
 
     assert result == sorted_chars
 
@@ -825,7 +830,11 @@ def test_multiple_collaborators_field_type_can_be_referenced_in_formula(data_fix
     )
     row = table.get_model().objects.first()
     assert getattr(row, ref_collaborator_field.db_column) == [
-        {"id": user.id, "first_name": user.first_name}
+        {
+            "id": user.id,
+            "name": user.first_name,
+            "type": "auth.User",
+        }
     ]
 
     ref_ref_collaborator_field = data_fixture.create_formula_field(
@@ -836,7 +845,11 @@ def test_multiple_collaborators_field_type_can_be_referenced_in_formula(data_fix
     )
     row = table.get_model().objects.first()
     assert getattr(row, ref_ref_collaborator_field.db_column) == [
-        {"id": user.id, "first_name": user.first_name}
+        {
+            "id": user.id,
+            "name": user.first_name,
+            "type": "auth.User",
+        }
     ]
 
 
@@ -877,7 +890,16 @@ def test_multiple_collaborators_field_type_can_be_looked_up(data_fixture):
     )
     row_a = table_a.get_model().objects.first()
     expected_content = [
-        {"id": row_a_to_b.id, "value": [{"id": user.id, "first_name": user.first_name}]}
+        {
+            "id": row_a_to_b.id,
+            "value": [
+                {
+                    "id": user.id,
+                    "name": user.first_name,
+                    "type": "auth.User",
+                }
+            ],
+        }
     ]
     assert getattr(row_a, lookup_field.db_column) == expected_content
     assert getattr(row_a, ref_lookup_field.db_column) == expected_content

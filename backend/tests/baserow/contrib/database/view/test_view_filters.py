@@ -6373,12 +6373,16 @@ def test_multiple_collaborators_has_filter_type_export_import(data_fixture):
     workspace = data_fixture.create_workspace()
     user = data_fixture.create_user(workspace=workspace)
     view_filter_type = view_filter_type_registry.get("multiple_collaborators_has")
-    assert (
-        view_filter_type.get_export_serialized_value(
-            f"{user.id}", {"workspace_id": workspace.id}
-        )
-        == f"{user.email}"
-    )
+    assert view_filter_type.get_export_serialized_value(
+        f"{user.id}", {"workspace_id": workspace.id}
+    ) == {
+        "subject": {
+            "version": 1,
+            "type": "auth.User",
+            "uid": user.email,
+            "name": user.first_name,
+        }
+    }
     id_mapping = {"workspace_id": workspace.id}
     assert view_filter_type.set_import_serialized_value(user.email, id_mapping) == str(
         user.id

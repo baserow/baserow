@@ -68,6 +68,7 @@ from baserow.core.mixins import (
     OrderableMixin,
     TrashableModelMixin,
 )
+from baserow.core.models import Subject
 from baserow.core.telemetry.utils import baserow_trace
 from baserow.core.utils import are_kwargs_default
 
@@ -1250,7 +1251,7 @@ class Table(
 
     def _add_created_by(self, field_attrs, indexes):
         field_attrs[CREATED_BY_COLUMN_NAME] = IgnoreMissingForeignKey(
-            User,
+            Subject,
             null=True,
             related_name="+",
             related_query_name="+",
@@ -1261,7 +1262,7 @@ class Table(
 
     def _add_last_modified_by(self, field_attrs, indexes):
         field_attrs[LAST_MODIFIED_BY_COLUMN_NAME] = IgnoreMissingForeignKey(
-            User,
+            Subject,
             null=True,
             related_name="+",
             related_query_name="+",
