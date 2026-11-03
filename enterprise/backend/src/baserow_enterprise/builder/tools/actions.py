@@ -227,8 +227,9 @@ def update_action(
     Give dynamic values as formulas in Baserow formula syntax, like
     get('form_data.<element id>'). Plain text in a title, description or parameter is
     stored as fixed text. A row_id or field value is always a formula, so quote fixed
-    text: 'like this'. A value that isn't a valid formula keeps its previous value and
-    is listed in formula_errors.
+    text: 'like this'. A whole value that is a function call, like upper('abc'), is
+    treated as a formula. A value that isn't a valid formula keeps its previous value
+    and is listed in formula_errors.
 
     page_parameters must name exactly the parameters of the page the action opens,
     and replace the whole list: read the current one with list_actions. Moving to

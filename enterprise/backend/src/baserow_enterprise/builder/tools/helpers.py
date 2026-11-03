@@ -1308,13 +1308,19 @@ def check_open_page_parameters(
     """
     Check that the page parameters an open_page update leaves on the action are the
     ones the page it opens has. Only a call that gives the page or the parameters is
-    checked. A page that isn't in the action's application is left to the writer.
+    checked. A page that isn't in the action's application is left to the writer, and
+    so is an action that goes to a custom URL.
 
     :raises ToolInputError: When parameters are missing or unknown.
     """
 
     if item.type != "open_page" or (
         item.page_parameters is None and item.navigate_to_page_id is None
+    ):
+        return
+
+    if item.navigate_to_page_id is None and (
+        getattr(action, "navigation_type", None) == "custom"
     ):
         return
 

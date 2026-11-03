@@ -13,6 +13,7 @@ from baserow.api.sessions import (
     set_client_undo_redo_action_group_id,
     set_untrusted_client_session_id,
 )
+from baserow.contrib.automation.tools.formulas import wrap_static_string
 from baserow.contrib.builder.action_scopes import PageActionScopeType
 from baserow.contrib.builder.workflow_actions.models import (
     BuilderWorkflowAction,
@@ -1567,6 +1568,104 @@ def test_create_actions_still_takes_parameters_the_page_does_not_have(builder_ct
     )
 
     assert "errors" not in result
+
+
+FUNCTION_CALLS = [
+    "generate_uuid()",
+    "upper('abc')",
+    "random_int(1, 10)",
+    "add(1, 2)",
+]
+TEXTS = ["Hello (world)", "foo(bar)", "'upper(x)'", "add(1", "add(1, 2) trailing"]
+
+
+def _store_title(action, formula):
+    action.title = {"formula": formula, "mode": BASEROW_FORMULA_MODE_ADVANCED}
+    action.save()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("formula", FUNCTION_CALLS)
+def test_a_function_call_in_a_title_survives_a_round_trip(builder_ctx, titled, formula):
+    _store_title(stored(titled.id), formula)
+    before = listed(builder_ctx, titled.id)
+    assert before["title"] == formula
+
+    result = update(builder_ctx, titled.id, title=before["title"])
+
+    assert "formula_errors" not in result
+    assert stored(titled.id).title["formula"] == formula
+    assert listed(builder_ctx, titled.id)["title"] == formula
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("formula", FUNCTION_CALLS)
+def test_a_function_call_in_a_parameter_survives_a_round_trip(
+    builder_ctx, opens_detail, formula
+):
+    action = stored(opens_detail.id)
+    action.page_parameters = [
+        {
+            "name": "id",
+            "value": {"formula": formula, "mode": BASEROW_FORMULA_MODE_ADVANCED},
+        }
+    ]
+    action.save()
+    before = listed(builder_ctx, opens_detail.id)
+
+    result = update(
+        builder_ctx, opens_detail.id, page_parameters=before["page_parameters"]
+    )
+
+    assert "formula_errors" not in result
+    assert stored(opens_detail.id).page_parameters[0]["value"]["formula"] == formula
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("text", TEXTS)
+def test_text_that_is_not_a_function_call_stays_text(builder_ctx, titled, text):
+    result = update(builder_ctx, titled.id, title=text)
+
+    assert "formula_errors" not in result
+    assert stored(titled.id).title["formula"] == wrap_static_string(text)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("text", TEXTS)
+def test_parameter_text_that_is_not_a_function_call_stays_text(
+    builder_ctx, opens_detail, text
+):
+    update(
+        builder_ctx, opens_detail.id, page_parameters=[{"name": "id", "value": text}]
+    )
+
+    value = stored(opens_detail.id).page_parameters[0]["value"]["formula"]
+    assert value == wrap_static_string(text)
+
+
+@pytest.mark.django_db
+def test_a_function_call_that_is_not_valid_here_keeps_the_old_title(
+    builder_ctx, titled
+):
+    result = update(
+        builder_ctx, titled.id, title="add(1, get('page_parameter.nosuch'))"
+    )
+
+    assert result["formula_errors"][0]["field"] == "title"
+    assert stored(titled.id).title["formula"] == "'Old'"
+
+
+@pytest.mark.django_db
+def test_a_custom_navigation_action_is_not_checked_against_its_old_page(
+    builder_ctx, opens_two
+):
+    action = stored(opens_two.id)
+    action.navigation_type = "custom"
+    action.save()
+
+    update(builder_ctx, opens_two.id, page_parameters=[])
+
+    assert stored(opens_two.id).page_parameters == []
 
 
 # ---------------------------------------------------------------------------
