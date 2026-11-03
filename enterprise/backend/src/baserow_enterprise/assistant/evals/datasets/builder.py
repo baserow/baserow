@@ -2480,6 +2480,9 @@ def _check_asks_once_when_goal_unclear(
         + tool_called(output, "create_pages")
         + tool_called(output, "setup_page")
         + tool_called(output, "create_builder")
+        + tool_called(output, "create_database")
+        + tool_called(output, "create_automation")
+        + tool_called(output, "create_dashboard")
     )
 
     return [

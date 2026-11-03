@@ -10,6 +10,7 @@ from baserow.contrib.database.models import Database
 from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.service import IntegrationService
+from baserow.core.service import CoreService
 from baserow.core.tools.errors import ToolInputError, tool_error_message
 from baserow_enterprise.builder.tools import applications
 from baserow_enterprise.builder.tools.themes import builder_uses_theme
@@ -130,3 +131,18 @@ def test_update_builder_with_an_id_of_another_application_type_is_not_found(
     assert tool_error_message(exc.value) == "Not found in this workspace."
     database.refresh_from_db()
     assert database.name != "Renamed"
+
+
+@pytest.mark.django_db
+def test_update_builder_reports_a_hidden_builder_as_not_found(builder_ctx, monkeypatch):
+    builder = Builder.objects.create(
+        workspace=builder_ctx["workspace"], name="Portal", order=1
+    )
+
+    def deny(*args, **kwargs):
+        raise PermissionException()
+
+    monkeypatch.setattr(CoreService, "get_application", deny)
+
+    with pytest.raises(ApplicationDoesNotExist):
+        applications.get_builder_in_workspace(builder_ctx["ctx"], builder.id)

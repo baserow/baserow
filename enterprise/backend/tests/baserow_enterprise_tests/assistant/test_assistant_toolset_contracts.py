@@ -31,6 +31,7 @@ from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.toolsets.abstract import ToolsetTool
 from pydantic_ai.usage import RunUsage
 
+from baserow.contrib.automation.models import Automation
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.models import Workspace
 from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps
@@ -182,6 +183,57 @@ def test_wrong_mode_tools_are_deferred_but_resolvable(built: BuiltToolset) -> No
     assert managed["list_workflows"].tool_def.metadata["assistant_mode"] == (
         "automation"
     )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_model_can_search_and_create_an_automation_from_database_mode(
+    built: BuiltToolset,
+) -> None:
+    built.deps.mode = AgentMode.DATABASE
+    requests: list[dict[str, Any]] = []
+
+    def model_function(messages, info: AgentInfo) -> ModelResponse:
+        visible = {tool.name: tool for tool in info.function_tools}
+        requests.append(visible)
+        call = ToolCallPart(
+            tool_name="create_automation",
+            args={"name": "Order flow", "thought": "Creating the automation"},
+        )
+        if len(requests) == 1:
+            assert "create_automation" not in visible
+            return ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="search_tools",
+                        args={"queries": ["create_automation"]},
+                    )
+                ]
+            )
+        if len(requests) == 2:
+            assert visible["create_automation"].defer_loading
+            return ModelResponse(parts=[call])
+        last = messages[-1].parts[-1]
+        assert isinstance(last, ToolReturnPart)
+        assert last.tool_name == "create_automation"
+        if "created_builders" not in last.content:
+            # The first call only switched mode and was not run; call again.
+            return ModelResponse(parts=[call])
+        return ModelResponse(parts=[TextPart(content="done")])
+
+    gpt_oss = GroqModel(
+        "openai/gpt-oss-120b", provider=GroqProvider(api_key="not-used")
+    )
+    agent: Agent[AssistantDeps, str] = Agent(
+        model=FunctionModel(model_function, profile=gpt_oss.profile),
+        deps_type=AssistantDeps,
+        output_type=str,
+        toolsets=[built.toolset],
+    )
+    agent.run_sync("create an automation", deps=built.deps)
+
+    assert built.deps.mode == AgentMode.AUTOMATION
+    automations = Automation.objects.filter(workspace=built.deps.workspace)
+    assert [a.name for a in automations] == ["Order flow"]
 
 
 @pytest.mark.django_db(transaction=True)

@@ -36,7 +36,9 @@ def create_database(
 
 def update_database(
     ctx: ToolContext,
-    database_id: Annotated[int, Field(description="The ID of the database.")],
+    database_id: Annotated[
+        int, Field(description="The ID of the database, from list_applications.")
+    ],
     name: Annotated[
         ApplicationName,
         Field(description="The new name, at most 160 characters."),

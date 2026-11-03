@@ -47,7 +47,7 @@ from baserow.contrib.database.tools.fields import (
     option_value_key,
 )
 from baserow.core.db import specific_iterator
-from baserow.core.exceptions import PermissionException
+from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
 from baserow.core.service import CoreService
 from baserow.core.tools import ToolContext
 
@@ -639,15 +639,20 @@ def get_database(ctx: ToolContext, database_id: int) -> Database:
     """
     Get a database of the context's workspace.
 
-    :raises ApplicationDoesNotExist: When the database is not in the workspace.
+    :raises ApplicationDoesNotExist: When the database is not in the workspace or
+        is hidden from the user.
     """
 
-    return CoreService().get_application(
-        ctx.user,
-        database_id,
-        specific=False,
-        base_queryset=Database.objects.filter(workspace=ctx.workspace),
-    )
+    try:
+        return CoreService().get_application(
+            ctx.user,
+            database_id,
+            specific=False,
+            base_queryset=Database.objects.filter(workspace=ctx.workspace),
+        )
+    except PermissionException:
+        # Not found, like a missing database, so the result doesn't tell which.
+        raise ApplicationDoesNotExist(database_id)
 
 
 def _non_primary_fields(table: TableItemCreate) -> list[FieldItemCreate]:

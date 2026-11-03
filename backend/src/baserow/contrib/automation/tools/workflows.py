@@ -30,6 +30,7 @@ from baserow.contrib.automation.workflows.operations import (
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowTableService
 from baserow.core.exceptions import (
+    ApplicationDoesNotExist,
     PermissionException,
     UntrustedContentCannotBePublished,
 )
@@ -46,15 +47,19 @@ def get_automation_in_workspace(ctx: ToolContext, automation_id: int) -> Automat
     """
     Get an automation of the context's workspace.
 
-    :raises ApplicationDoesNotExist: When the automation is missing, trashed or in
-        another workspace.
+    :raises ApplicationDoesNotExist: When the automation is missing, trashed, in
+        another workspace or hidden from the user.
     """
 
-    return CoreService().get_application(
-        ctx.user,
-        automation_id,
-        base_queryset=Automation.objects.filter(workspace=ctx.workspace),
-    )
+    try:
+        return CoreService().get_application(
+            ctx.user,
+            automation_id,
+            base_queryset=Automation.objects.filter(workspace=ctx.workspace),
+        )
+    except PermissionException:
+        # Not found, like a missing automation, so the result doesn't tell which.
+        raise ApplicationDoesNotExist(automation_id)
 
 
 def get_workflow_in_workspace(ctx: ToolContext, workflow_id: int) -> AutomationWorkflow:

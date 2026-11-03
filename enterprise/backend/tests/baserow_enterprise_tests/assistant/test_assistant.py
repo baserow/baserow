@@ -844,7 +844,6 @@ class TestCompactMessageHistory:
         assert outcomes[-1]["result"] == {"created_builders": [{"id": 20}]}
 
     def test_action_fingerprints_use_complete_arguments(self):
-        shared = [{"name": f"Shared {index}"} for index in range(12)]
         messages = []
         for index, final_name in enumerate(("First", "Second")):
             call_id = f"large-{index}"
@@ -855,7 +854,7 @@ class TestCompactMessageHistory:
                         parts=[
                             ToolCallPart(
                                 tool_name="create_database",
-                                args={"builders": [*shared, {"name": final_name}]},
+                                args={"name": "x" * 5000 + final_name},
                                 tool_call_id=call_id,
                             )
                         ]

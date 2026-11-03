@@ -10,7 +10,7 @@ from django.db import transaction
 from django.db.models import QuerySet
 from django.utils.translation import gettext as _
 
-from pydantic import Field, TypeAdapter
+from pydantic import Field, StringConstraints, TypeAdapter
 
 from baserow.core.actions import (
     CreateApplicationActionType,
@@ -23,7 +23,9 @@ from baserow.core.tools import ToolContext
 
 MAX_PAGE_SIZE = 100
 
-ApplicationName = Annotated[str, Field(min_length=1, max_length=160)]
+ApplicationName = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=160)
+]
 _APPLICATION_NAME = TypeAdapter(ApplicationName)
 
 
