@@ -32,10 +32,14 @@ class DisplayWidgetTypeMixin:
     def before_trashed(self, instance, requesting_user, trash_entry):
         """Snapshot and remove filter links before trashing the display's source."""
         from baserow.contrib.dashboard.widgets.handler import WidgetHandler
+        from baserow.contrib.dashboard.widgets.models import Widget
         from baserow.contrib.dashboard.widgets.signals import widget_updated
 
         links = {}
-        for widget in WidgetHandler().get_widgets_for_update(instance.dashboard):
+        # Trashed filters can be restored before this target, so clean their links too.
+        for widget in WidgetHandler().get_widgets_for_update(
+            instance.dashboard, base_queryset=Widget.objects_and_trash.all()
+        ):
             widget = widget.specific
             filter_type = widget.get_type()
             if not filter_type.is_filter_widget:
@@ -54,7 +58,8 @@ class DisplayWidgetTypeMixin:
                         if link["target_widget_id"] != instance.id
                     ],
                 )
-                widget_updated.send(self, widget=widget, user=requesting_user)
+                if not widget.trashed:
+                    widget_updated.send(self, widget=widget, user=requesting_user)
         trash_entry.additional_restoration_data = {
             **(trash_entry.additional_restoration_data or {}),
             "target_links": links,
@@ -73,7 +78,7 @@ class DisplayWidgetTypeMixin:
         super().before_restore(instance, trash_entry)
 
     def after_restore(self, instance, trash_entry):
-        """Recover saved links for active filter owners without replacing new links."""
+        """Recover links for active or trashed owners without replacing new links."""
         from baserow.contrib.dashboard.widgets.models import Widget
         from baserow.contrib.dashboard.widgets.signals import widget_updated
 
@@ -83,7 +88,7 @@ class DisplayWidgetTypeMixin:
             .items()
         ):
             widget = (
-                Widget.objects.select_for_update()
+                Widget.objects_and_trash.select_for_update()
                 .filter(id=widget_id, dashboard_id=instance.dashboard_id)
                 .first()
             )
@@ -106,7 +111,8 @@ class DisplayWidgetTypeMixin:
                     ],
                 ],
             )
-            widget_updated.send(self, widget=widget, user=None)
+            if not widget.trashed:
+                widget_updated.send(self, widget=widget, user=None)
         super().after_restore(instance, trash_entry)
 
 
