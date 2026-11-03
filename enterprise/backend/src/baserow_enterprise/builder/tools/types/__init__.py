@@ -52,17 +52,21 @@ from .table_columns import (
     TableColumnUpdate,
 )
 from .workflow_action import (
+    ActionChanges,
     ActionCreate,
     ActionItem,
     ActionType,
+    ActionUpdate,
     FieldMappingItem,
     FieldValueMapping,
 )
 
 __all__ = [
+    "ActionChanges",
     "ActionCreate",
     "ActionItem",
     "ActionType",
+    "ActionUpdate",
     "BuilderCreate",
     "ButtonStyleOverride",
     "ChoiceOption",

@@ -10,7 +10,9 @@ from typing import TYPE_CHECKING, Any, Literal
 from pydantic import Field, model_validator
 
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
+from baserow.core.tools.errors import ToolInputError
 from baserow_enterprise.tools.formula_utils import (
+    EMPTY_FORMULA,
     formula_desc,
     formula_object,
     literal_or_placeholder,
@@ -64,6 +66,23 @@ _REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
     "create_row": ("table_id", "field_values"),
     "update_row": ("table_id", "row_id", "field_values"),
     "delete_row": ("table_id", "row_id"),
+    "refresh_data_source": ("data_source",),
+}
+
+# What ``update_action`` can change on each type of action.
+_CHANGEABLE_FIELDS: dict[str, tuple[str, ...]] = {
+    "notification": ("title", "description"),
+    "open_page": (
+        "navigate_to_page_id",
+        "page_parameters",
+        "query_parameters",
+        "target",
+    ),
+    "create_row": ("table_id", "field_values"),
+    "update_row": ("table_id", "row_id", "field_values"),
+    "delete_row": ("table_id", "row_id"),
+    "refresh_data_source": ("data_source",),
+    "logout": (),
 }
 
 # Fields that carry a database ID when given as an int; refs stay strings.
@@ -164,20 +183,19 @@ _SERVICE_TYPE: dict[str, str | None] = {
 }
 
 
-def _row_service_kwargs(action: "ActionCreate", user, workspace) -> dict:
+def _row_action_table(action: "ActionCreate", user, workspace) -> Any:
     """
-    Build service kwargs for row-based actions (create/update/delete).
+    The table a row action writes to.
 
-    :raises ToolInputError: When the referenced table does not exist.
+    :raises ToolInputError: When the table does not exist, or a field the action
+        names isn't in it.
     """
 
     from baserow.contrib.database.mcp.services import filter_tables
-    from baserow.core.tools.errors import ToolInputError
 
     table = filter_tables(user, workspace).filter(id=action.table_id).first()
     if table is None:
         raise ToolInputError(f"Table with id {action.table_id} not found.")
-    kwargs: dict[str, Any] = {"table": table}
 
     field_ids = {fv.field_id.strip() for fv in action.field_values or []}
     in_table = {str(id) for id in table.field_set.values_list("id", flat=True)}
@@ -186,6 +204,17 @@ def _row_service_kwargs(action: "ActionCreate", user, workspace) -> dict:
             f"Field {sorted(field_ids - in_table)[0]} is not in the table this action "
             "writes to. Use the IDs of that table's fields."
         )
+    return table
+
+
+def _row_service_kwargs(action: "ActionCreate", user, workspace) -> dict:
+    """
+    Build service kwargs for row-based actions (create/update/delete).
+
+    :raises ToolInputError: When the referenced table does not exist.
+    """
+
+    kwargs: dict[str, Any] = {"table": _row_action_table(action, user, workspace)}
 
     if action.type in ("update_row", "delete_row") and action.row_id:
         kwargs["row_id"] = formula_object(
@@ -316,6 +345,16 @@ def _row_formula_values(
                 "value": mapping.value if formula is None else _advanced(formula),
             }
         )
+    # An update can name a field the action doesn't write to yet.
+    mapped = {mapping["field_id"] for mapping in mappings}
+    for field_value in action.field_values or []:
+        field_id = int(field_value.field_id)
+        formula = formulas.get(f"field_{field_value.field_id}")
+        if formula is not None and field_id not in mapped:
+            mapped.add(field_id)
+            mappings.append(
+                {"field_id": field_id, "enabled": True, "value": _advanced(formula)}
+            )
     # The service replaces its whole list of mappings.
     if any(f"field_{mapping['field_id']}" in formulas for mapping in mappings):
         service_values["field_mappings"] = mappings
@@ -465,7 +504,11 @@ class ActionCreate(BaseModel):
             name
             for name in required
             if getattr(self, name) is None
-            or (name == "row_id" and not getattr(self, name).strip())
+            or (
+                name in ("row_id", "data_source")
+                and isinstance(getattr(self, name), str)
+                and not getattr(self, name).strip()
+            )
         ]
         if missing:
             raise ValueError(
@@ -540,6 +583,233 @@ class ActionCreate(BaseModel):
 
         fn = _FORMULA_VALUES.get(self.type)
         return fn(self, orm_action, formulas) if fn and formulas else {}
+
+
+# ---------------------------------------------------------------------------
+# Changes to an existing action
+# ---------------------------------------------------------------------------
+
+
+def _notification_update_values(
+    action: "ActionUpdate", orm_action: "BuilderWorkflowAction"
+) -> dict[str, Any]:
+    return {
+        name: _advanced(literal_or_placeholder(value))
+        for name, value in [
+            ("title", action.title),
+            ("description", action.description),
+        ]
+        if value is not None and not needs_formula(value)
+    }
+
+
+def _parameters_update_values(
+    params: list[ParameterMapping], stored: list[dict] | None
+) -> list[dict]:
+    """A value still to be checked keeps the one its parameter has until it passes."""
+
+    stored_values = {param["name"]: param["value"] for param in stored or []}
+    return [
+        {
+            "name": param.name,
+            "value": (
+                stored_values.get(param.name, _advanced(EMPTY_FORMULA))
+                if needs_formula(param.value)
+                else _advanced(literal_or_placeholder(param.value))
+            ),
+        }
+        for param in params
+    ]
+
+
+def _open_page_update_values(
+    action: "ActionUpdate", orm_action: "BuilderWorkflowAction"
+) -> dict[str, Any]:
+    values: dict[str, Any] = {}
+    if action.navigate_to_page_id is not None:
+        values["navigation_type"] = "page"
+        values["navigate_to_page_id"] = action.navigate_to_page_id
+    if action.target is not None:
+        values["target"] = action.target
+    for field in ("page_parameters", "query_parameters"):
+        params = getattr(action, field)
+        if params is not None:
+            values[field] = _parameters_update_values(
+                params, getattr(orm_action, field)
+            )
+    return values
+
+
+def _row_update_values(
+    action: "ActionUpdate", orm_action: "BuilderWorkflowAction", user, workspace
+) -> dict[str, Any]:
+    """Row values all go through the formula step, so only the table is left here."""
+
+    if action.table_id is None and not action.field_values:
+        return {}
+    service = orm_action.service.specific
+    table_id = action.table_id or service.table_id
+    if table_id is None:
+        raise ToolInputError(
+            f"Action {orm_action.id} has no table selected. Give table_id as well."
+        )
+    table = _row_action_table(
+        action.model_copy(update={"table_id": table_id}), user, workspace
+    )
+    if table_id == service.table_id:
+        return {}
+    service_values: dict[str, Any] = {"table": table}
+    # What the action wrote to the old table doesn't apply to the new one.
+    if action.type != "delete_row":
+        service_values["field_mappings"] = []
+    return {"service": service_values}
+
+
+class ActionUpdate(ActionCreate):
+    """
+    An existing action with the values to change, for the formula step. Made by
+    ``ActionChanges.for_action``, without the checks of a complete new action. A value
+    left out is None.
+    """
+
+    def get_formulas_to_create(
+        self,
+        orm_action: "BuilderWorkflowAction",
+        context: "BuilderFormulaContext",
+    ) -> dict[str, str]:
+        """A new row_id or field value has to be a formula, whatever it looks like."""
+
+        return {
+            **super().get_formulas_to_create(orm_action, context),
+            **self.get_required_formulas(),
+            **{
+                f"field_{field_value.field_id}": _strip_formula_prefix(
+                    field_value.value
+                )
+                for field_value in self.field_values or []
+            },
+        }
+
+    def update_values(
+        self, orm_action: "BuilderWorkflowAction", user, workspace
+    ) -> dict[str, Any]:
+        """The values to change that the formula step doesn't store."""
+
+        if self.type == "notification":
+            return _notification_update_values(self, orm_action)
+        if self.type == "open_page":
+            return _open_page_update_values(self, orm_action)
+        if self.type == "refresh_data_source":
+            return {"data_source_id": self.data_source}
+        if self.get_service_type() is not None:
+            return _row_update_values(self, orm_action, user, workspace)
+        return {}
+
+
+class ActionChanges(BaseModel):
+    """
+    The values to change on a workflow action. Set only what should change, and only
+    what its type takes:
+    - notification: title, description
+    - open_page: navigate_to_page_id, page_parameters, query_parameters, target
+    - create_row: table_id, field_values
+    - update_row: table_id, row_id, field_values
+    - delete_row: table_id, row_id
+    - refresh_data_source: data_source
+
+    Its type, element and event can't be changed.
+    """
+
+    title: str | None = Field(default=None, description="(notification) Title formula.")
+    description: str | None = Field(
+        default=None, description="(notification) Message formula."
+    )
+    navigate_to_page_id: int | None = Field(
+        default=None, description="(open_page) Target page ID."
+    )
+    page_parameters: list[ParameterMapping] | None = Field(
+        default=None,
+        description="(open_page) Page parameter mappings. Replaces the whole list.",
+    )
+    query_parameters: list[ParameterMapping] | None = Field(
+        default=None,
+        description="(open_page) Query parameter mappings. Replaces the whole list.",
+    )
+    target: Literal["self", "blank"] | None = Field(
+        default=None, description="(open_page) Navigation target."
+    )
+    table_id: int | None = Field(
+        default=None,
+        description=(
+            "(row actions) Target table ID. Moving to another table clears the "
+            "field values, so send the new ones with it."
+        ),
+    )
+    row_id: str | None = Field(
+        default=None, description="(update_row, delete_row) Row ID formula."
+    )
+    field_values: list[FieldValueMapping] | None = Field(
+        default=None,
+        description=(
+            "(create_row, update_row) Field value formulas. Fields not named here "
+            "keep their value."
+        ),
+    )
+    data_source: int | None = Field(
+        default=None, description="(refresh_data_source) Data source ID."
+    )
+
+    @model_validator(mode="after")
+    def _check_values(self) -> "ActionChanges":
+        if self.row_id is not None and not self.row_id.strip():
+            raise ValueError("'row_id' can't be empty. Leave it out to keep it.")
+        for name in _ID_FIELDS:
+            value = getattr(self, name, None)
+            if isinstance(value, int) and value <= 0:
+                raise ValueError(
+                    f"'{name}' is {value}, which is never a valid ID. Use an ID "
+                    "returned by an earlier tool result."
+                )
+        return self
+
+    def for_action(self, orm_action: "BuilderWorkflowAction") -> ActionUpdate:
+        """
+        These changes as the item the formula step and the action writer work with.
+
+        :raises ToolInputError: When there is nothing to change, or the action's type
+            doesn't take a value or can't be changed.
+        """
+
+        action_type = orm_action.get_type().type
+        changeable = _CHANGEABLE_FIELDS.get(action_type)
+        if changeable is None:
+            raise ToolInputError(
+                f"A '{action_type}' action can't be changed with this tool."
+            )
+        given = [
+            name for name in type(self).model_fields if getattr(self, name) is not None
+        ]
+        if not given:
+            raise ToolInputError("There is nothing to change: give a value to change.")
+        wrong = [name for name in given if name not in changeable]
+        if wrong:
+            raise ToolInputError(
+                f"{', '.join(wrong)} can't be set on a {action_type} action. It takes: "
+                f"{', '.join(changeable) or 'nothing'}."
+            )
+        # Every value is set, so ``target`` doesn't take its default for a new action.
+        values = {name: getattr(self, name) for name in type(self).model_fields}
+        if self.field_values is not None:
+            values["field_values"] = [
+                FieldValueMapping(field_id=item.field_id.strip(), value=item.value)
+                for item in self.field_values
+            ]
+        return ActionUpdate.model_construct(
+            type=action_type,
+            element=orm_action.element_id,
+            event=orm_action.event,
+            **values,
+        )
 
 
 # ---------------------------------------------------------------------------

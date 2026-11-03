@@ -134,6 +134,7 @@ class BaserowEnterpriseConfig(AppConfig):
             AddActionFieldMappingMcpTool,
             CreateActionsMcpTool,
             ListActionsMcpTool,
+            UpdateActionMcpTool,
         )
         from baserow_enterprise.mcp.builder.applications.tools import (
             CreateBuildersMcpTool,
@@ -191,6 +192,7 @@ class BaserowEnterpriseConfig(AppConfig):
         mcp_tool_registry.register(MoveElementsMcpTool())
         mcp_tool_registry.register(CreateActionsMcpTool())
         mcp_tool_registry.register(AddActionFieldMappingMcpTool())
+        mcp_tool_registry.register(UpdateActionMcpTool())
         mcp_tool_registry.register(SetupPageMcpTool())
         mcp_tool_registry.register(SetupUserSourceMcpTool())
         mcp_tool_registry.register(SetThemeMcpTool())

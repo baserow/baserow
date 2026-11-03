@@ -752,7 +752,7 @@ def write_builder_formulas(
         _WRITERS[kind](user, source, item, formulas)
 
 
-def _page_read_from(page: Page, kind: BuilderFormulaKind, source: Any) -> Page:
+def page_read_from(page: Page, kind: BuilderFormulaKind, source: Any) -> Page:
     """
     The page whose values an item can read. Elements and actions on the shared page
     show on every page, so what one page has isn't theirs to read. They read what
@@ -769,7 +769,7 @@ def check_formula_on_action(
 ) -> str | None:
     """Why a value can't be stored on an action, if so."""
 
-    context = page_formula_context(_page_read_from(page, "action", action))
+    context = page_formula_context(page_read_from(page, "action", action))
     with current_record_of(context, "action", action):
         return formula_problem(field, formula, context, allow_previous_action=True)
 
@@ -788,7 +788,7 @@ def check_required_action_formulas(
     formulas = item.get_required_formulas()
     if not formulas:
         return
-    read_from = _page_read_from(page, "action", action)
+    read_from = page_read_from(page, "action", action)
     if read_from.id not in contexts:
         contexts[read_from.id] = page_formula_context(read_from)
     context = contexts[read_from.id]
@@ -822,7 +822,7 @@ def apply_builder_formulas(
             pending = _formulas_of(source, item)
             if not pending:
                 continue
-            read_from = _page_read_from(page, kind, source)
+            read_from = page_read_from(page, kind, source)
             if read_from.id not in contexts:
                 contexts[read_from.id] = page_formula_context(read_from)
             context = contexts[read_from.id]

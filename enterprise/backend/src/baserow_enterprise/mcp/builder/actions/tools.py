@@ -27,3 +27,12 @@ class AddActionFieldMappingMcpTool(FunctionMCPTool):
     read_only = False
     destructive = False
     function = actions.add_action_field_mapping
+
+
+class UpdateActionMcpTool(FunctionMCPTool):
+    type = "update_action"
+    group = GROUP_BUILDER_EDIT
+    title = "Change a workflow action"
+    read_only = False
+    destructive = False
+    function = actions.update_action

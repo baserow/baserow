@@ -13,6 +13,7 @@ from pydantic import Field
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
+from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import ToolInputError, raise_if_permission_denied
 
@@ -20,12 +21,13 @@ from . import BuilderWriteOptions, helpers
 from .errors import client_item_error
 from .formulas import (
     BuilderFormulaContext,
+    BuilderFormulaError,
     apply_builder_formulas,
     check_formula_on_action,
     check_required_action_formulas,
 )
 from .pages import get_page_in_workspace
-from .types import ActionCreate, ActionItem
+from .types import ActionChanges, ActionCreate, ActionItem
 
 
 def list_actions(
@@ -36,7 +38,9 @@ def list_actions(
     List the workflow actions of a page of an application builder: id, type, the
     element they belong to, the event that runs them (like click or submit) and
     their field mappings. Actions run when a visitor uses an element, like
-    opening a page, showing a notification or changing rows.
+    opening a page, showing a notification or changing rows. The actions of elements
+    on the shared page, like a header or footer, are listed too: they run on every
+    page.
     """
 
     page = get_page_in_workspace(ctx, page_id)
@@ -134,6 +138,9 @@ def create_actions(
     left empty and listed in formula_errors. A field value can then be set with
     add_action_field_mapping. A row action can't run without its row_id, so one that
     isn't a valid formula or number is listed in errors and that action isn't created.
+
+    Fix a value listed in formula_errors with update_action. Don't call this tool
+    again for it: that adds a second action, and both run.
     """
 
     return create_actions_with_options(
@@ -179,3 +186,56 @@ def add_action_field_mapping(
     )
     updated = BuilderWorkflowActionHandler().get_workflow_action(action_id)
     return {"updated_action": ActionItem.from_orm(updated).model_dump()}
+
+
+def update_action_values(
+    ctx: ToolContext, action_id: int, changes: ActionChanges
+) -> tuple[BuilderWorkflowAction, list[BuilderFormulaError]]:
+    """
+    Store the changes to an action, and report the formulas that weren't stored.
+
+    :return: The action as it was read, and the ``formula_errors``.
+    """
+
+    action = helpers.get_writable_action(ctx.user, ctx.workspace, action_id)
+    item = changes.for_action(action)
+    ctx.update_status(_("Updating action %(id)d...") % {"id": action_id})
+
+    helpers.update_workflow_action(ctx.user, ctx.workspace, action, item)
+    formula_errors = apply_builder_formulas(
+        ctx, action.page, [(action, item)], "action"
+    )
+    return action, formula_errors
+
+
+def update_action(
+    ctx: ToolContext,
+    action_id: Annotated[
+        int, Field(description="The ID of the action, from list_actions.")
+    ],
+    changes: Annotated[
+        ActionChanges,
+        Field(description="The changes. Set only what should change."),
+    ],
+) -> dict[str, Any]:
+    """
+    Change the values of a workflow action, the ones create_actions takes for its type.
+    This is how to fix a value create_actions listed in formula_errors. The action's
+    type, element and event stay as they are.
+
+    Give dynamic values as formulas in Baserow formula syntax, like
+    get('form_data.<element id>'). Plain text in a title, description or parameter is
+    stored as fixed text. A row_id or field value is always a formula, so quote fixed
+    text: 'like this'. A value that isn't a valid formula keeps its previous value and
+    is listed in formula_errors.
+    """
+
+    _action, formula_errors = update_action_values(ctx, action_id, changes)
+
+    updated = BuilderWorkflowActionHandler().get_workflow_action(action_id)
+    result: dict[str, Any] = {
+        "updated_action": ActionItem.from_orm(updated).model_dump()
+    }
+    if formula_errors:
+        result["formula_errors"] = formula_errors
+    return result

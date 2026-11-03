@@ -17,9 +17,11 @@ from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import PERMISSION_DENIED_MESSAGE
 from baserow_enterprise.assistant.tools.shared.agents import get_formula_generator
 from baserow_enterprise.builder.tools.formulas import (
+    BuilderFormulaContext,
     BuilderFormulaError,
     current_record_of,
     page_formula_context,
+    page_read_from,
     write_builder_formulas,
 )
 from baserow_enterprise.builder.tools.types import (
@@ -86,7 +88,6 @@ def repair_builder_formula_errors(
         return remaining
 
     try:
-        context = page_formula_context(page)
         generate_formulas = get_formula_generator(
             BUILDER_FORMULA_PROMPT, tool_helpers.model_profile
         )
@@ -99,12 +100,17 @@ def repair_builder_formula_errors(
                 remaining.append(entry)
         return remaining
 
+    contexts: dict[int, BuilderFormulaContext] = {}
     for entries in by_item.values():
         first = entries[0]
         formulas = {entry["field"]: entry["formula"] for entry in entries}
         tool_helpers.update_status(_repair_status(first))
         denied = False
         try:
+            read_from = page_read_from(page, first.kind, first.source)
+            if read_from.id not in contexts:
+                contexts[read_from.id] = page_formula_context(read_from)
+            context = contexts[read_from.id]
             with (
                 current_record_of(context, first.kind, first.source),
                 context.scope_to_current_record(),

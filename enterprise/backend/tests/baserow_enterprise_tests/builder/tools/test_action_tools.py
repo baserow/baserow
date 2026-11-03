@@ -3,9 +3,16 @@ The shared action tools store the formulas they are given and report the rest,
 without a model. The conftest of this folder fails any model call.
 """
 
-import pytest
+import uuid
 
-from baserow.api.sessions import set_untrusted_client_session_id
+import pytest
+from pydantic import ValidationError as PydanticValidationError
+from rest_framework.exceptions import ValidationError as DRFValidationError
+
+from baserow.api.sessions import (
+    set_client_undo_redo_action_group_id,
+    set_untrusted_client_session_id,
+)
 from baserow.contrib.builder.action_scopes import PageActionScopeType
 from baserow.contrib.builder.workflow_actions.models import (
     BuilderWorkflowAction,
@@ -16,7 +23,7 @@ from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.services.models import Service
 from baserow.core.tools.errors import ToolInputError
 from baserow_enterprise.builder.tools import BuilderWriteOptions, actions
-from baserow_enterprise.builder.tools.types import ActionCreate
+from baserow_enterprise.builder.tools.types import ActionChanges, ActionCreate
 
 
 def notification(element, title="Hi", **kwargs):
@@ -613,3 +620,654 @@ def test_add_action_field_mapping_on_a_notification_is_refused(builder_ctx):
         actions.add_action_field_mapping(
             builder_ctx["ctx"], builder_ctx["action"].id, 1, "'x'"
         )
+
+
+# ---------------------------------------------------------------------------
+# A data source on the shared page rule, and what a data source value means
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def shared_button(data_fixture, builder_ctx):
+    return data_fixture.create_builder_button_element(
+        page=builder_ctx["builder"].shared_page
+    )
+
+
+@pytest.fixture
+def shared_data_source(data_fixture, builder_ctx):
+    return data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=builder_ctx["builder"].shared_page,
+        table=builder_ctx["data_source"].service.specific.table,
+        name="Everywhere",
+    )
+
+
+@pytest.mark.django_db
+def test_a_shared_page_action_can_not_refresh_a_data_source_of_one_page_by_id(
+    builder_ctx, shared_button
+):
+    result = create(
+        builder_ctx,
+        ActionCreate(
+            type="refresh_data_source",
+            element=shared_button.id,
+            data_source=builder_ctx["data_source"].id,
+        ),
+    )
+
+    assert result["created_actions"] == []
+    assert "shared page" in result["errors"][0]
+
+
+@pytest.mark.django_db
+def test_a_shared_page_action_can_not_refresh_a_data_source_of_one_page_by_ref(
+    builder_ctx, shared_button
+):
+    result = actions.create_actions_with_options(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            ActionCreate(
+                type="refresh_data_source",
+                element=shared_button.id,
+                data_source="products",
+            )
+        ],
+        BuilderWriteOptions(
+            known_data_source_refs={"products": builder_ctx["data_source"].id}
+        ),
+    )
+
+    assert result["created_actions"] == []
+    assert "shared page" in result["errors"][0]
+
+
+@pytest.mark.django_db
+def test_a_shared_page_action_can_refresh_a_shared_page_data_source(
+    builder_ctx, shared_button, shared_data_source
+):
+    result = actions.create_actions_with_options(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            ActionCreate(
+                type="refresh_data_source",
+                element=shared_button.id,
+                data_source=shared_data_source.id,
+            ),
+            ActionCreate(
+                type="refresh_data_source",
+                element=shared_button.id,
+                data_source="everywhere",
+            ),
+        ],
+        BuilderWriteOptions(
+            known_data_source_refs={"everywhere": shared_data_source.id}
+        ),
+    )
+
+    assert "errors" not in result
+    assert saved(result).data_source_id == shared_data_source.id
+    assert saved(result, 1).data_source_id == shared_data_source.id
+
+
+@pytest.mark.django_db
+def test_an_action_on_a_page_can_refresh_a_shared_page_data_source(
+    builder_ctx, shared_data_source
+):
+    result = create(
+        builder_ctx,
+        ActionCreate(
+            type="refresh_data_source",
+            element=builder_ctx["button"].id,
+            data_source=shared_data_source.id,
+        ),
+    )
+
+    assert saved(result).data_source_id == shared_data_source.id
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("value", ["", "  ", "foo"])
+def test_a_data_source_means_nothing_on_other_action_types(builder_ctx, value):
+    result = create(
+        builder_ctx, notification(builder_ctx["button"].id, data_source=value)
+    )
+
+    assert len(result["created_actions"]) == 1
+    assert "errors" not in result
+
+
+@pytest.mark.parametrize("data_source", [None, "", "  "])
+def test_refresh_data_source_needs_a_data_source(data_source):
+    with pytest.raises(PydanticValidationError, match="requires all of: data_source"):
+        ActionCreate(type="refresh_data_source", element=1, data_source=data_source)
+
+
+# ---------------------------------------------------------------------------
+# update_action
+# ---------------------------------------------------------------------------
+
+
+def changes(**kwargs):
+    return ActionChanges(**kwargs)
+
+
+def update(builder_ctx, action_id, **kwargs):
+    return actions.update_action(builder_ctx["ctx"], action_id, changes(**kwargs))
+
+
+def stored(action_id):
+    return BuilderWorkflowAction.objects.get(id=action_id).specific
+
+
+@pytest.fixture
+def detail_page(data_fixture, builder_ctx):
+    return data_fixture.create_builder_page(
+        builder=builder_ctx["builder"],
+        name="Detail",
+        path="/detail/:id",
+        path_params=[{"name": "id", "type": "text"}],
+    )
+
+
+@pytest.fixture
+def titled(builder_ctx):
+    return saved(
+        create(
+            builder_ctx,
+            notification(builder_ctx["button"].id, title="Old", description="Text"),
+        )
+    )
+
+
+@pytest.fixture
+def opens_detail(builder_ctx, detail_page):
+    return saved(
+        create(
+            builder_ctx,
+            ActionCreate(
+                type="open_page",
+                element=builder_ctx["button"].id,
+                navigate_to_page_id=detail_page.id,
+                page_parameters=[{"name": "id", "value": "Fixed"}],
+            ),
+        )
+    )
+
+
+@pytest.mark.django_db
+def test_update_action_fixes_a_notification_title_refused_on_create(builder_ctx):
+    created = create(
+        builder_ctx,
+        notification(builder_ctx["button"].id, title="$formula: the product name"),
+    )
+    action_id = created["created_actions"][0]["id"]
+    assert created["formula_errors"][0]["field"] == "title"
+    data_source_id = builder_ctx["data_source"].id
+
+    result = update(
+        builder_ctx, action_id, title=f"get('data_source.{data_source_id}.0.id')"
+    )
+
+    assert set(result) == {"updated_action"}
+    assert result["updated_action"]["id"] == action_id
+    assert stored(action_id).title == {
+        "formula": f"get('data_source.{data_source_id}.0.id')",
+        "mode": BASEROW_FORMULA_MODE_ADVANCED,
+        "version": "0.1",
+    }
+    assert not BuilderWorkflowAction.objects.filter(
+        element=builder_ctx["button"], id__gt=action_id
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_update_action_fixes_an_open_page_parameter_refused_on_create(
+    builder_ctx, detail_page
+):
+    created = create(
+        builder_ctx,
+        ActionCreate(
+            type="open_page",
+            element=builder_ctx["button"].id,
+            navigate_to_page_id=detail_page.id,
+            page_parameters=[{"name": "id", "value": "$formula: the row id"}],
+        ),
+    )
+    action_id = created["created_actions"][0]["id"]
+    assert created["formula_errors"][0]["field"] == "page_param_0"
+    data_source_id = builder_ctx["data_source"].id
+    formula = f"get('data_source.{data_source_id}.0.id')"
+
+    result = update(
+        builder_ctx, action_id, page_parameters=[{"name": "id", "value": formula}]
+    )
+
+    assert "formula_errors" not in result
+    assert stored(action_id).page_parameters == [
+        {
+            "name": "id",
+            "value": {
+                "formula": formula,
+                "mode": BASEROW_FORMULA_MODE_ADVANCED,
+                "version": "0.1",
+            },
+        }
+    ]
+
+
+@pytest.mark.django_db
+def test_update_action_keeps_the_old_title_when_the_new_one_is_refused(
+    builder_ctx, titled
+):
+    result = update(builder_ctx, titled.id, title="$formula: the product name")
+
+    assert stored(titled.id).title["formula"] == "'Old'"
+    entry = result["formula_errors"][0]
+    assert entry["action_id"] == titled.id
+    assert entry["field"] == "title"
+    assert entry["formula"] == "the product name"
+    assert "needs a formula" in entry["error"]
+
+
+@pytest.mark.django_db
+def test_update_action_keeps_the_old_parameter_when_the_new_one_is_refused(
+    builder_ctx, opens_detail
+):
+    result = update(
+        builder_ctx,
+        opens_detail.id,
+        page_parameters=[{"name": "id", "value": "get('page_parameter.nope')"}],
+        query_parameters=[{"name": "tab", "value": "$formula: the tab"}],
+    )
+
+    action = stored(opens_detail.id)
+    assert action.page_parameters[0]["value"]["formula"] == "'Fixed'"
+    assert action.query_parameters[0]["value"]["formula"] == "''"
+    assert [entry["field"] for entry in result["formula_errors"]] == [
+        "page_param_0",
+        "query_param_0",
+    ]
+
+
+@pytest.mark.django_db
+def test_update_action_changes_only_what_it_is_given(builder_ctx, titled):
+    result = update(builder_ctx, titled.id, description="New text")
+
+    action = stored(titled.id)
+    assert action.title["formula"] == "'Old'"
+    assert action.description["formula"] == "'New text'"
+    assert action.description["mode"] == BASEROW_FORMULA_MODE_ADVANCED
+    assert action.event == "click"
+    assert action.element_id == builder_ctx["button"].id
+    assert "formula_errors" not in result
+
+
+@pytest.mark.django_db
+def test_update_action_stores_fixed_text_and_a_formula_in_one_call(builder_ctx, titled):
+    formula = f"get('data_source.{builder_ctx['data_source'].id}.0.id')"
+
+    result = update(builder_ctx, titled.id, title=formula, description="Fixed")
+
+    action = stored(titled.id)
+    assert action.title["formula"] == formula
+    assert action.description["formula"] == "'Fixed'"
+    assert "formula_errors" not in result
+
+
+@pytest.mark.django_db
+def test_update_action_changes_where_a_page_opens(
+    data_fixture, builder_ctx, opens_detail
+):
+    other = data_fixture.create_builder_page(builder=builder_ctx["builder"], path="/o")
+
+    update(
+        builder_ctx,
+        opens_detail.id,
+        navigate_to_page_id=other.id,
+        page_parameters=[],
+        target="blank",
+    )
+
+    action = stored(opens_detail.id)
+    assert action.navigate_to_page_id == other.id
+    assert action.navigation_type == "page"
+    assert action.page_parameters == []
+    assert action.target == "blank"
+
+
+@pytest.mark.django_db
+def test_update_action_can_not_open_a_page_of_another_application(
+    data_fixture, builder_ctx, opens_detail, detail_page
+):
+    other = data_fixture.create_builder_page(
+        builder=data_fixture.create_builder_application(
+            workspace=builder_ctx["workspace"]
+        )
+    )
+
+    with pytest.raises(DRFValidationError):
+        update(builder_ctx, opens_detail.id, navigate_to_page_id=other.id)
+
+    assert stored(opens_detail.id).navigate_to_page_id == detail_page.id
+
+
+@pytest.mark.django_db
+def test_update_action_on_another_workspace_is_refused(data_fixture, builder_ctx):
+    other = data_fixture.create_workspace(user=builder_ctx["user"])
+    page = data_fixture.create_builder_page(
+        builder=data_fixture.create_builder_application(workspace=other)
+    )
+    button = data_fixture.create_builder_button_element(page=page)
+    action = data_fixture.create_notification_workflow_action(
+        page=page, element=button, event="click"
+    )
+
+    title = stored(action.id).title
+
+    with pytest.raises(ToolInputError, match="not found in this workspace"):
+        update(builder_ctx, action.id, title="Taken")
+
+    assert stored(action.id).title == title
+
+
+@pytest.mark.django_db
+def test_update_action_can_be_undone(builder_ctx, titled):
+    user = builder_ctx["user"]
+    session_id = "session-id"
+    set_untrusted_client_session_id(user, session_id)
+    scopes = [PageActionScopeType.value(builder_ctx["page"].id)]
+    formula = f"get('data_source.{builder_ctx['data_source'].id}.0.id')"
+
+    update(builder_ctx, titled.id, title=formula)
+    assert stored(titled.id).title["formula"] == formula
+
+    ActionHandler.undo(user, scopes, session_id)
+
+    assert stored(titled.id).title["formula"] == "'Old'"
+
+
+@pytest.mark.django_db
+def test_update_action_in_one_action_group_is_undone_in_one_step(builder_ctx, titled):
+    user = builder_ctx["user"]
+    session_id = "session-id"
+    set_untrusted_client_session_id(user, session_id)
+    set_client_undo_redo_action_group_id(user, str(uuid.uuid4()))
+    scopes = [PageActionScopeType.value(builder_ctx["page"].id)]
+    formula = f"get('data_source.{builder_ctx['data_source'].id}.0.id')"
+
+    update(builder_ctx, titled.id, title=formula, description="Fixed")
+
+    ActionHandler.undo(user, scopes, session_id)
+
+    action = stored(titled.id)
+    assert action.title["formula"] == "'Old'"
+    assert action.description["formula"] == "'Text'"
+
+
+@pytest.mark.django_db
+def test_update_action_of_a_shared_page_element_reads_the_shared_page(
+    data_fixture, builder_ctx, shared_button
+):
+    builder_ctx["page"].path_params = [{"name": "id", "type": "text"}]
+    builder_ctx["page"].path = "/home/:id"
+    builder_ctx["page"].save()
+    action = saved(create(builder_ctx, notification(shared_button.id, title="Old")))
+
+    result = update(builder_ctx, action.id, title="get('page_parameter.id')")
+
+    assert stored(action.id).title["formula"] == "'Old'"
+    assert result["formula_errors"][0]["field"] == "title"
+
+
+@pytest.mark.django_db
+def test_update_action_reads_the_row_of_a_table_button(builder_ctx, table_with_button):
+    action = saved(
+        create(
+            builder_ctx,
+            notification(table_with_button.id, title="Old", event="View_click"),
+        )
+    )
+
+    result = update(builder_ctx, action.id, title="get('current_record.id')")
+
+    assert stored(action.id).title["formula"] == "get('current_record.id')"
+    assert "formula_errors" not in result
+
+
+@pytest.mark.django_db
+def test_update_action_refuses_what_its_type_does_not_take(builder_ctx, titled):
+    with pytest.raises(ToolInputError, match="navigate_to_page_id.*notification"):
+        update(builder_ctx, titled.id, navigate_to_page_id=1)
+
+
+@pytest.mark.django_db
+def test_update_action_with_nothing_to_change_is_refused(builder_ctx, titled):
+    with pytest.raises(ToolInputError, match="nothing to change"):
+        update(builder_ctx, titled.id)
+
+
+@pytest.mark.parametrize(
+    "name,value", [("type", "logout"), ("element", 1), ("event", "submit")]
+)
+def test_update_action_can_not_change_what_identifies_the_action(name, value):
+    with pytest.raises(PydanticValidationError):
+        changes(**{name: value})
+
+
+@pytest.mark.django_db
+def test_update_action_of_a_type_it_does_not_know_is_refused(data_fixture, builder_ctx):
+    action = data_fixture.create_core_http_request_workflow_action(
+        page=builder_ctx["page"],
+        element=builder_ctx["button"],
+        event="click",
+    )
+
+    with pytest.raises(ToolInputError, match="can't be changed"):
+        update(builder_ctx, action.id, title="Hi")
+
+
+@pytest.mark.django_db
+def test_update_action_refreshes_another_data_source(
+    data_fixture, builder_ctx, shared_data_source
+):
+    action = saved(
+        create(
+            builder_ctx,
+            ActionCreate(
+                type="refresh_data_source",
+                element=builder_ctx["button"].id,
+                data_source=builder_ctx["data_source"].id,
+            ),
+        )
+    )
+
+    update(builder_ctx, action.id, data_source=shared_data_source.id)
+
+    assert stored(action.id).data_source_id == shared_data_source.id
+
+
+@pytest.mark.django_db
+def test_update_action_on_the_shared_page_can_not_name_a_data_source_of_one_page(
+    builder_ctx, shared_button, shared_data_source
+):
+    action = saved(
+        create(
+            builder_ctx,
+            ActionCreate(
+                type="refresh_data_source",
+                element=shared_button.id,
+                data_source=shared_data_source.id,
+            ),
+        )
+    )
+
+    with pytest.raises(ToolInputError, match="shared page"):
+        update(builder_ctx, action.id, data_source=builder_ctx["data_source"].id)
+
+    assert stored(action.id).data_source_id == shared_data_source.id
+
+
+@pytest.mark.django_db
+def test_update_action_fixes_and_keeps_a_row_id(builder_ctx):
+    action = saved(
+        create(builder_ctx, row_action(builder_ctx, builder_ctx["button"].id))
+    )
+    formula = f"get('data_source.{builder_ctx['data_source'].id}.0.id')"
+
+    fixed = update(builder_ctx, action.id, row_id=formula)
+    refused = update(builder_ctx, action.id, row_id="the row")
+
+    assert "formula_errors" not in fixed
+    assert stored(action.id).service.specific.row_id["formula"] == formula
+    assert refused["formula_errors"][0]["field"] == "row_id"
+    assert refused["updated_action"]["row_id_formula"]
+
+
+@pytest.mark.django_db
+def test_update_action_changes_the_row_id_of_a_delete(builder_ctx):
+    action = saved(
+        create(
+            builder_ctx,
+            row_action(builder_ctx, builder_ctx["button"].id, type="delete_row"),
+        )
+    )
+
+    result = update(builder_ctx, action.id, row_id="'2'")
+
+    assert "formula_errors" not in result
+    assert stored(action.id).service.specific.row_id["formula"] == "'2'"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("row_id", ["", "  "])
+def test_update_action_refuses_an_empty_row_id(row_id):
+    with pytest.raises(PydanticValidationError, match="row_id"):
+        changes(row_id=row_id)
+
+
+def _mappings(action_id):
+    service = stored(action_id).service.specific
+    return {m.field_id: m.value["formula"] for m in service.field_mappings.all()}
+
+
+@pytest.mark.django_db
+def test_update_action_changes_the_fields_it_names(
+    data_fixture, builder_ctx, row_action_with_mapping
+):
+    action, table, field = row_action_with_mapping
+    second = data_fixture.create_text_field(table=table, name="Second")
+    actions.add_action_field_mapping(builder_ctx["ctx"], action.id, second.id, "'b'")
+    third = data_fixture.create_text_field(table=table, name="Third")
+
+    result = update(
+        builder_ctx,
+        action.id,
+        field_values=[
+            {"field_id": str(second.id), "value": "'c'"},
+            {"field_id": f" {third.id} ", "value": "'d'"},
+        ],
+    )
+
+    assert "formula_errors" not in result
+    assert _mappings(action.id) == {field.id: "'x'", second.id: "'c'", third.id: "'d'"}
+
+
+@pytest.mark.django_db
+def test_update_action_leaves_a_refused_field_value_as_it_was(
+    data_fixture, builder_ctx, row_action_with_mapping
+):
+    action, table, field = row_action_with_mapping
+    new_field = data_fixture.create_text_field(table=table, name="New")
+
+    result = update(
+        builder_ctx,
+        action.id,
+        field_values=[
+            {"field_id": str(field.id), "value": "$formula: the name"},
+            {"field_id": str(new_field.id), "value": "not a formula"},
+        ],
+    )
+
+    assert _mappings(action.id) == {field.id: "'x'"}
+    assert {entry["field"] for entry in result["formula_errors"]} == {
+        f"field_{field.id}",
+        f"field_{new_field.id}",
+    }
+
+
+@pytest.mark.django_db
+def test_update_action_refuses_a_field_of_another_table(
+    data_fixture, builder_ctx, row_action_with_mapping
+):
+    action, _table, field = row_action_with_mapping
+    other = data_fixture.create_text_field(
+        table=data_fixture.create_database_table(
+            database=data_fixture.create_database_application(
+                workspace=builder_ctx["workspace"]
+            )
+        )
+    )
+
+    with pytest.raises(ToolInputError, match="not in the table"):
+        update(
+            builder_ctx,
+            action.id,
+            field_values=[{"field_id": str(other.id), "value": "'y'"}],
+        )
+
+    assert _mappings(action.id) == {field.id: "'x'"}
+
+
+@pytest.mark.django_db
+def test_update_action_moves_to_another_table_and_can_be_undone(
+    data_fixture, builder_ctx, row_action_with_mapping
+):
+    action, table, field = row_action_with_mapping
+    other_table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=builder_ctx["workspace"]
+        )
+    )
+    other_field = data_fixture.create_text_field(table=other_table, name="Other")
+    user = builder_ctx["user"]
+    session_id = "session-id"
+    set_untrusted_client_session_id(user, session_id)
+    set_client_undo_redo_action_group_id(user, str(uuid.uuid4()))
+
+    result = update(
+        builder_ctx,
+        action.id,
+        table_id=other_table.id,
+        field_values=[{"field_id": str(other_field.id), "value": "'y'"}],
+    )
+
+    assert "formula_errors" not in result
+    assert stored(action.id).service.specific.table_id == other_table.id
+    assert _mappings(action.id) == {other_field.id: "'y'"}
+
+    ActionHandler.undo(
+        user, [PageActionScopeType.value(builder_ctx["page"].id)], session_id
+    )
+
+    assert stored(action.id).service.specific.table_id == table.id
+    assert _mappings(action.id) == {field.id: "'x'"}
+
+
+@pytest.mark.django_db
+def test_update_action_refuses_a_table_of_another_workspace(
+    data_fixture, builder_ctx, row_action_with_mapping
+):
+    action, table, _field = row_action_with_mapping
+    other = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=data_fixture.create_workspace(user=builder_ctx["user"])
+        )
+    )
+
+    with pytest.raises(ToolInputError, match="not found"):
+        update(builder_ctx, action.id, table_id=other.id)
+
+    assert stored(action.id).service.specific.table_id == table.id

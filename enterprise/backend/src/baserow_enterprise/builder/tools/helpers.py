@@ -61,6 +61,9 @@ from baserow.contrib.builder.pages.operations import ReadPageOperationType
 from baserow.contrib.builder.workflow_actions.actions import (
     CreateBuilderWorkflowActionActionType,
 )
+from baserow.contrib.builder.workflow_actions.handler import (
+    BuilderWorkflowActionHandler,
+)
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.contrib.builder.workflow_actions.operations import (
     ReadBuilderWorkflowActionOperationType,
@@ -96,6 +99,7 @@ from .registries import assistant_element_type_registry
 from .types import (
     ActionCreate,
     ActionItem,
+    ActionUpdate,
     DataSourceCreate,
     DataSourceItem,
     DataSourceUpdate,
@@ -188,6 +192,12 @@ def check_data_source_on_page(page: Page, data_source_id: int) -> None:
     """
 
     if not DataSource.objects.filter(on_page(page), id=data_source_id).exists():
+        if page.shared:
+            raise ToolInputError(
+                f"Data source with ID {data_source_id} is not on the shared page. A "
+                "header or footer shows on every page, so its actions and elements "
+                "can only use a data source of the shared page."
+            )
         raise ToolInputError(
             f"Data source with ID {data_source_id} not found on this page. "
             "Use list_data_sources to find valid data source IDs. No changes were "
@@ -1132,6 +1142,32 @@ def _resolve_event(
     )
 
 
+def _action_data_source_id(
+    data_source: int | str, page: Page, data_source_ref_to_id_map: dict[str, int]
+) -> int:
+    """
+    The ID of the data source a refresh action names.
+
+    :param page: The page of the action's element, which decides what it can reach.
+    :raises ToolInputError: When it's an unknown ref or the element can't reach it.
+    """
+
+    if isinstance(data_source, str) and data_source in data_source_ref_to_id_map:
+        data_source_id = data_source_ref_to_id_map[data_source]
+    # An id sent as text, such as "12", still names an existing data source.
+    elif isinstance(data_source, str) and not data_source.strip().isdecimal():
+        raise UnknownRefError(
+            f"Unknown data source ref '{data_source}'. Refs only work inside one "
+            "call; use the data source ID from list_data_sources.",
+            f"Data source ref '{data_source}' not found. Create the data source with "
+            "create_data_sources first, or use an id from list_data_sources.",
+        )
+    else:
+        data_source_id = int(data_source)
+    check_data_source_on_page(page, data_source_id)
+    return data_source_id
+
+
 def create_workflow_action(
     user: AbstractUser,
     page: Page,
@@ -1180,21 +1216,10 @@ def create_workflow_action(
             service_kwargs["field_mappings"] = field_mappings
         kwargs["service"] = service_kwargs
 
-    # Resolve data source for refresh_data_source
-    ds = action_create.data_source
-    if isinstance(ds, str) and ds in data_source_ref_to_id_map:
-        kwargs["data_source_id"] = data_source_ref_to_id_map[ds]
-    # An id sent as text, such as "12", still names an existing data source.
-    elif isinstance(ds, str) and not ds.strip().isdecimal():
-        raise UnknownRefError(
-            f"Unknown data source ref '{ds}'. Refs only work inside one call; use the "
-            "data source ID from list_data_sources.",
-            f"Data source ref '{ds}' not found. Create the data source with "
-            "create_data_sources first, or use an id from list_data_sources.",
+    if action_create.type == "refresh_data_source":
+        kwargs["data_source_id"] = _action_data_source_id(
+            action_create.data_source, element.page, data_source_ref_to_id_map
         )
-    elif ds is not None:
-        check_data_source_on_page(page, int(ds))
-        kwargs["data_source_id"] = int(ds)
     # An element's actions are read from the page it is on, so a header's button
     # keeps its action on the shared page.
     action = CreateBuilderWorkflowActionActionType.do(
@@ -1275,6 +1300,38 @@ def get_writable_action(
             user, operation_type.type, workspace=workspace, context=action
         )
     return action
+
+
+def update_workflow_action(
+    user: AbstractUser,
+    workspace: Workspace,
+    action: BuilderWorkflowAction,
+    item: ActionUpdate,
+) -> None:
+    """
+    Store the changes to an action that the formula step doesn't, in one transaction.
+
+    :raises ToolInputError: When a value can't be used on this action.
+    """
+
+    from baserow.contrib.builder.workflow_actions.actions import (
+        UpdateBuilderWorkflowActionActionType,
+    )
+    from baserow.core.services.models import Service
+
+    if item.data_source is not None:
+        page = action.element.page if action.element_id else action.page
+        check_data_source_on_page(page, item.data_source)
+
+    with transaction.atomic():
+        # A row action's mappings are replaced as a whole list.
+        service_id = getattr(action, "service_id", None)
+        if service_id is not None:
+            Service.objects.select_for_update().filter(id=service_id).first()
+        fresh = BuilderWorkflowActionHandler().get_workflow_action(action.id)
+        values = item.update_values(fresh, user, workspace)
+        if values:
+            UpdateBuilderWorkflowActionActionType.do(user, fresh, **values)
 
 
 def add_field_mapping_to_action(

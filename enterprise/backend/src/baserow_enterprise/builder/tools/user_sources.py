@@ -59,11 +59,14 @@ def setup_user_source(
     With database_id, a new Users table is created with example users, one per role.
     With table_id, the table needs an email field and a name or primary field; a
     password field is added if it has none. A user source already on that table is
-    reused, and returned as reused_user_source instead of created_user_source.
+    reused, and returned as reused_user_source instead of created_user_source. Calling
+    this again with database_id creates a second table and user source.
 
     The login page is the one already set, or a page at /login that anyone can see, or
-    a new one, which created_pages lists. Set a password for each user before they can
-    log in. Nothing is saved if a step fails.
+    a new one, which created_pages lists. A login page that exists keeps its form, so
+    people can't log in through a second user source from it. Set a password for each
+    user before they can log in. If a step fails, no table, field, user source or page
+    is saved.
     """
 
     builder = get_builder_in_workspace(ctx, builder_id)

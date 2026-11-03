@@ -12,6 +12,7 @@ from .test_mcp_builder_read_tools import READ_TOOLS, _endpoint, _session
 WRITE_TOOLS = [
     "create_actions",
     "add_action_field_mapping",
+    "update_action",
     "setup_page",
     "setup_user_source",
     "set_theme",
@@ -74,6 +75,10 @@ def _calls(builder_ctx, users_table, mapping_action):
             "field_id": table.field_set.first().id,
             "value_formula": "'x'",
         },
+        "update_action": {
+            "action_id": builder_ctx["action"].id,
+            "changes": {"title": "Hello"},
+        },
         "setup_page": {
             "page_id": builder_ctx["page"].id,
             "elements": [{"ref": "h", "type": "heading", "value": "Hi"}],
@@ -128,6 +133,10 @@ def test_write_tools_with_builder_edit_turned_on(
         "field_id",
         "value_formula",
     }
+    assert set(tools["update_action"].inputSchema["properties"]) == {
+        "action_id",
+        "changes",
+    }
     assert set(tools["setup_page"].inputSchema["properties"]) == {
         "page_id",
         "data_sources",
@@ -148,6 +157,9 @@ def test_write_tools_with_builder_edit_turned_on(
     )
     assert _load(results["add_action_field_mapping"])["updated_action"]["id"] == (
         mapping_action.id
+    )
+    assert _load(results["update_action"])["updated_action"]["id"] == (
+        builder_ctx["action"].id
     )
     assert _load(results["setup_page"])["created_elements"][0]["ref"] == "h"
     created = _load(results["setup_user_source"])
@@ -206,6 +218,127 @@ def test_a_notification_description_gives_a_formula_error_over_mcp(
         result["formula_errors"][0]["action_id"] == result["created_actions"][0]["id"]
     )
     assert result["formula_errors"][0]["field"] == "title"
+
+
+@pytest.mark.django_db
+def test_a_refused_title_is_fixed_with_update_action_over_mcp(
+    data_fixture, builder_ctx
+):
+    endpoint = _endpoint(data_fixture, builder_ctx, [*READ_TOOLS, *WRITE_TOOLS])
+    formula = f"get('data_source.{builder_ctx['data_source'].id}.0.id')"
+
+    async def callback(client):
+        created = _load(
+            await client.call_tool(
+                "create_actions",
+                {
+                    "page_id": builder_ctx["page"].id,
+                    "actions": [
+                        {
+                            "type": "notification",
+                            "element": builder_ctx["button"].id,
+                            "title": "$formula: the product name",
+                        }
+                    ],
+                },
+            )
+        )
+        action_id = created["formula_errors"][0]["action_id"]
+        refused = _load(
+            await client.call_tool(
+                "update_action",
+                {"action_id": action_id, "changes": {"title": "get('nope.x')"}},
+            )
+        )
+        fixed = _load(
+            await client.call_tool(
+                "update_action",
+                {"action_id": action_id, "changes": {"title": formula}},
+            )
+        )
+        return action_id, refused, fixed
+
+    action_id, refused, fixed = _session(endpoint, callback)
+
+    assert refused["formula_errors"][0]["field"] == "title"
+    assert "formula_errors" not in fixed
+    action = BuilderWorkflowAction.objects.get(id=action_id).specific
+    assert action.title["formula"] == formula
+
+
+@pytest.mark.django_db
+def test_an_open_page_parameter_is_fixed_with_update_action_over_mcp(
+    data_fixture, builder_ctx
+):
+    detail = data_fixture.create_builder_page(
+        builder=builder_ctx["builder"],
+        path="/detail/:id",
+        path_params=[{"name": "id", "type": "text"}],
+    )
+    endpoint = _endpoint(data_fixture, builder_ctx, [*READ_TOOLS, *WRITE_TOOLS])
+    formula = f"get('data_source.{builder_ctx['data_source'].id}.0.id')"
+
+    async def callback(client):
+        created = _load(
+            await client.call_tool(
+                "create_actions",
+                {
+                    "page_id": builder_ctx["page"].id,
+                    "actions": [
+                        {
+                            "type": "open_page",
+                            "element": builder_ctx["button"].id,
+                            "navigate_to_page_id": detail.id,
+                            "page_parameters": [
+                                {"name": "id", "value": "$formula: the row id"}
+                            ],
+                        }
+                    ],
+                },
+            )
+        )
+        action_id = created["formula_errors"][0]["action_id"]
+        fixed = _load(
+            await client.call_tool(
+                "update_action",
+                {
+                    "action_id": action_id,
+                    "changes": {"page_parameters": [{"name": "id", "value": formula}]},
+                },
+            )
+        )
+        return action_id, fixed
+
+    action_id, fixed = _session(endpoint, callback)
+
+    assert "formula_errors" not in fixed
+    action = BuilderWorkflowAction.objects.get(id=action_id).specific
+    assert action.page_parameters[0]["value"]["formula"] == formula
+
+
+@pytest.mark.django_db
+def test_update_action_outside_the_workspace_is_refused_over_mcp(
+    data_fixture, builder_ctx
+):
+    other = data_fixture.create_workspace(user=builder_ctx["user"])
+    page = data_fixture.create_builder_page(
+        builder=data_fixture.create_builder_application(workspace=other)
+    )
+    action = data_fixture.create_notification_workflow_action(
+        page=page,
+        element=data_fixture.create_builder_button_element(page=page),
+        event="click",
+    )
+
+    result = _call(
+        data_fixture,
+        builder_ctx,
+        "update_action",
+        {"action_id": action.id, "changes": {"title": "Taken"}},
+    )
+
+    assert result.isError is True
+    assert "not found in this workspace" in result.content[0].text
 
 
 @pytest.mark.django_db

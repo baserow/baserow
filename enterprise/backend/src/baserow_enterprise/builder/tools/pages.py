@@ -275,7 +275,7 @@ def setup_page(
     workflow actions. Each of the three is saved before the next starts and each item
     on its own, so an item that fails is listed in errors, as "element <ref>:
     <message>", and the others are kept. Give at least one of the three. A call made
-    twice creates everything twice.
+    twice creates everything twice, so after errors resend only the failed items.
 
     Refs link items inside this call: an element's data_source and parent_element, an
     action's element and data_source. Elements of every type can be created here,

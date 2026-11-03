@@ -754,6 +754,7 @@ EXEMPT_TOOLS: dict[str, str] = {
     "move_elements": _WRITE,
     "create_actions": _WRITE,
     "add_action_field_mapping": _WRITE,
+    "update_action": _WRITE,
     "setup_page": _WRITE,
     "setup_user_source": _WRITE,
     "set_theme": _WRITE,

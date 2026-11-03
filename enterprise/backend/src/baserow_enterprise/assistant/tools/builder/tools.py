@@ -15,6 +15,9 @@ from pydantic_ai import ModelRetry, RunContext
 
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.handler import PageHandler
+from baserow.contrib.builder.workflow_actions.handler import (
+    BuilderWorkflowActionHandler,
+)
 from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.tools.shared import (
@@ -37,7 +40,9 @@ from baserow_enterprise.builder.tools.formulas import BuilderFormulaError
 from baserow_enterprise.builder.tools.registries import assistant_element_type_registry
 from baserow_enterprise.builder.tools.themes import THEME_CATALOG, ThemeName
 from baserow_enterprise.builder.tools.types import (
+    ActionChanges,
     ActionCreate,
+    ActionItem,
     CollectionElementCreate,
     DataSourceCreate,
     DataSourceUpdate,
@@ -458,15 +463,7 @@ def update_data_source(
     remaining = agents.repair_builder_formula_errors(
         tool_context, tool_helpers, page, formula_errors
     )
-    fields_by_error: dict[str, list[str]] = {}
-    for entry in remaining:
-        if entry.permission_denied:
-            raise PermissionException()
-        fields_by_error.setdefault(entry["error"], []).append(entry["field"])
-    errors = [
-        _update_data_source_formula_error(error, fields)
-        for error, fields in fields_by_error.items()
-    ]
+    errors = _kept_value_errors(remaining)
     not_applied = {entry["field"] for entry in remaining}
     updated_fields = [
         field
@@ -485,9 +482,24 @@ def update_data_source(
     return result
 
 
-def _update_data_source_formula_error(error: str, fields: list[str]) -> str:
-    """How Kuma words values the repair of an updated data source couldn't fill."""
+def _kept_value_errors(remaining: list[BuilderFormulaError]) -> list[str]:
+    """
+    How Kuma words values the repair of an updated item couldn't fill.
 
+    :raises PermissionException: When the user may not write one of them.
+    """
+
+    fields_by_error: dict[str, list[str]] = {}
+    for entry in remaining:
+        if entry.permission_denied:
+            raise PermissionException()
+        fields_by_error.setdefault(entry["error"], []).append(entry["field"])
+    return [
+        _kept_value_error(error, fields) for error, fields in fields_by_error.items()
+    ]
+
+
+def _kept_value_error(error: str, fields: list[str]) -> str:
     names = ", ".join(sorted(fields))
     if error == agents.NO_VALID_FORMULA:
         return (
@@ -1276,6 +1288,49 @@ def add_action_field_mapping(
     )
 
 
+def update_action(
+    ctx: RunContext[AssistantDeps],
+    action_id: Annotated[int, Field(description="The workflow action ID.")],
+    changes: Annotated[
+        ActionChanges,
+        Field(description="The values to change. Set only what should change."),
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+) -> dict[str, Any]:
+    """\
+    Change the values of an existing workflow action.
+
+    WHEN to use: A notification, open_page, row or refresh_data_source action should do something else, like a new title, target page or row_id.
+    WHAT it does: Changes the given values. Its type, element and event stay as they are. page_parameters and query_parameters replace the whole list; field_values change the named fields only.
+    RETURNS: The updated action, with errors for values that kept their previous value.
+    DO NOT USE when: The action doesn't exist yet — use create_actions instead.
+
+    ## Dynamic Values with $formula:
+    - title: "$formula: the name of the product"
+    - row_id: "$formula: the id from the page parameter"
+    """
+
+    tool_context = ctx.deps.tool_context()
+    action, formula_errors = shared_actions.update_action_values(
+        tool_context, action_id, changes
+    )
+
+    errors = _kept_value_errors(
+        agents.repair_builder_formula_errors(
+            tool_context, ctx.deps.tool_helpers, action.page, formula_errors
+        )
+    )
+    updated = BuilderWorkflowActionHandler().get_workflow_action(action_id)
+    result: dict[str, Any] = {
+        "updated_action": ActionItem.from_orm(updated).model_dump()
+    }
+    if errors:
+        result["errors"] = errors
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Composite page setup tool
 # ---------------------------------------------------------------------------
@@ -1582,6 +1637,7 @@ TOOL_FUNCTIONS = [
     list_actions,
     create_actions,
     add_action_field_mapping,
+    update_action,
     setup_page,
     setup_user_source,
     set_theme,

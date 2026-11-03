@@ -442,6 +442,7 @@ TOOL_VISIBILITY: dict[str, frozenset[AgentMode]] = {
     "setup_page": frozenset({APPLICATION}),
     "setup_user_source": frozenset({APPLICATION}),
     "switch_mode": EVERYWHERE,
+    "update_action": frozenset({APPLICATION}),
     "update_builder": EVERYWHERE - {EXPLAIN},
     "update_data_source": frozenset({APPLICATION}),
     "update_element": frozenset({APPLICATION}),

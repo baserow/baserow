@@ -30,6 +30,7 @@ from baserow_enterprise.assistant.tools.builder.tools import (
     set_theme,
     setup_page,
     setup_user_source,
+    update_action,
     update_data_source,
     update_element,
     update_page,
@@ -37,6 +38,7 @@ from baserow_enterprise.assistant.tools.builder.tools import (
 from baserow_enterprise.builder.tools import formulas
 from baserow_enterprise.builder.tools.formulas import apply_builder_formulas
 from baserow_enterprise.builder.tools.types import (
+    ActionChanges,
     ActionCreate,
     CollectionElementCreate,
     DataSourceCreate,
@@ -1112,3 +1114,133 @@ def test_set_theme_reports_a_theme_it_can_not_load_as_before(site, monkeypatch):
         "theme": "eclipse",
         "error": "Theme template 'eclipse' could not be loaded.",
     }
+
+
+# ---------------------------------------------------------------------------
+# What the repair reads, and a shared page data source
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def shared_button(data_fixture, site):
+    return data_fixture.create_builder_button_element(page=site["builder"].shared_page)
+
+
+@pytest.mark.django_db
+def test_the_repair_reads_the_shared_page_for_a_shared_page_action(
+    site, button, shared_button, monkeypatch
+):
+    pages = {}
+
+    def generate(formulas, context):
+        pages[next(iter(formulas.values()))] = context.page
+        return {}
+
+    use_generator(monkeypatch, generate)
+
+    create_actions(
+        site["ctx"],
+        page_id=site["page"].id,
+        actions=[
+            ActionCreate(
+                type="notification", element=shared_button.id, title="$formula: header"
+            ),
+            ActionCreate(
+                type="notification", element=button.id, title="$formula: body"
+            ),
+        ],
+        thought="test",
+    )
+
+    assert pages == {
+        "header": site["builder"].shared_page,
+        "body": site["page"],
+    }
+
+
+@pytest.mark.django_db
+def test_kuma_keeps_a_shared_page_action_off_a_data_source_of_one_page(
+    data_fixture, site, shared_button
+):
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=site["page"], table=site["table"], name="Rows"
+    )
+    tool_helpers = site["ctx"].deps.tool_helpers
+    tool_helpers.request_context[f"builder_page_{site['page'].id}"] = {
+        "element_refs": {},
+        "data_source_refs": {"rows": data_source.id},
+    }
+
+    result = create_actions(
+        site["ctx"],
+        page_id=site["page"].id,
+        actions=[
+            ActionCreate(
+                type="refresh_data_source",
+                element=shared_button.id,
+                data_source=data_source.id,
+            ),
+            ActionCreate(
+                type="refresh_data_source",
+                element=shared_button.id,
+                data_source="rows",
+            ),
+        ],
+        thought="test",
+    )
+
+    assert result["created_actions"] == []
+    assert len(result["errors"]) == 2
+    assert all("shared page" in error for error in result["errors"])
+
+
+@pytest.mark.django_db
+def test_kuma_update_action_fills_a_description(site, button, monkeypatch):
+    action = BuilderWorkflowAction.objects.get(
+        id=create_actions(
+            site["ctx"],
+            page_id=site["page"].id,
+            actions=[ActionCreate(type="notification", element=button.id, title="Old")],
+            thought="test",
+        )["created_actions"][0]["id"]
+    )
+    asked = use_generator(
+        monkeypatch, lambda formulas, context: {"title": "get('page_parameter.id')"}
+    )
+
+    result = update_action(
+        site["ctx"],
+        action_id=action.id,
+        changes=ActionChanges(title="$formula: the id"),
+        thought="test",
+    )
+
+    assert asked == [{"title": "the id"}]
+    assert result["updated_action"]["id"] == action.id
+    assert "errors" not in result
+    assert action.specific.title["formula"] == "get('page_parameter.id')"
+
+
+@pytest.mark.django_db
+def test_kuma_update_action_says_the_old_value_was_kept(site, button, monkeypatch):
+    action = BuilderWorkflowAction.objects.get(
+        id=create_actions(
+            site["ctx"],
+            page_id=site["page"].id,
+            actions=[ActionCreate(type="notification", element=button.id, title="Old")],
+            thought="test",
+        )["created_actions"][0]["id"]
+    )
+    use_generator(monkeypatch, lambda formulas, context: {})
+
+    result = update_action(
+        site["ctx"],
+        action_id=action.id,
+        changes=ActionChanges(title="$formula: the id"),
+        thought="test",
+    )
+
+    assert result["errors"] == [
+        "No valid formula was generated for title. The previous value was kept."
+    ]
+    assert action.specific.title["formula"] == "'Old'"

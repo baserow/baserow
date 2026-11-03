@@ -654,24 +654,30 @@ def test_setup_user_source_does_not_take_a_private_login_path(
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("source", ["table_id", "database_id"])
 def test_setup_user_source_writes_nothing_when_the_login_page_fails(
-    builder_ctx, users_table, monkeypatch
+    builder_ctx, users_table, monkeypatch, source
 ):
     def fail(*args, **kwargs):
         raise ToolInputError("No login page.")
 
     monkeypatch.setattr(helpers, "create_login_page", fail)
     fields = Field.objects.filter(table=users_table).count()
+    tables = Table.objects.count()
+    setup = (
+        UserSourceSetup(name="People", table_id=users_table.id)
+        if source == "table_id"
+        else UserSourceSetup(name="People", database_id=users_table.database_id)
+    )
 
     with pytest.raises(ToolInputError, match="No login page"):
         user_sources.setup_user_source(
-            builder_ctx["ctx"],
-            builder_ctx["builder"].id,
-            UserSourceSetup(name="People", table_id=users_table.id),
+            builder_ctx["ctx"], builder_ctx["builder"].id, setup
         )
 
     assert not UserSource.objects.filter(application=builder_ctx["builder"]).exists()
     assert Field.objects.filter(table=users_table).count() == fields
+    assert Table.objects.count() == tables
 
 
 @pytest.mark.django_db
