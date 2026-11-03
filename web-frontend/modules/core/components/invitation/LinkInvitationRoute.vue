@@ -100,7 +100,7 @@ import InvitationLinkAdminConfirmModal from '@baserow/modules/core/components/in
 import InvitationLinkDeleteModal from '@baserow/modules/core/components/invitation/InvitationLinkDeleteModal'
 import WorkspaceRoleSelector from '@baserow/modules/core/components/workspace/WorkspaceRoleSelector'
 import error from '@baserow/modules/core/mixins/error'
-import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
+import { copyToClipboard } from '@baserow/modules/core/utils/clipboard'
 
 const ADMIN_ROLE_UID = 'ADMIN'
 
