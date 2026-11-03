@@ -136,20 +136,18 @@ the workspace integrations its services use are handled per path:
 | -------------------------------------------------- | ------------------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------- |
 | Publish: builder domain, workflow and test clone   | `is_publishing`                       | Inlined as app-level copies with credentials     | Created on the published copy; services remapped to the copy           |
 | Duplicate app, snapshot create and restore         | `is_duplicate` and not `is_template`  | Not exported                                     | Services keep the unmapped id when it belongs to the destination workspace's shared app |
-| Workspace export, templates                        | `exclude_sensitive_data`, `is_template` or `is_user_template` | Inlined as app-level copies, secrets stripped, origin flag set | Created on the imported app; the flag is ignored                       |
+| Workspace export, templates                        | `exclude_sensitive_data`, `is_template` or `is_user_template` | Inlined as app-level copies, secrets stripped    | Created on the imported app                                            |
 
 - `IntegrationHandler.export_referenced_workspace_integrations(...)` collects the
   `integration_id` values in the serialised content, loads those owned by the
   workspace's shared app and appends their `export_integration()` output to the app's
-  `integrations`, each with an origin flag (name open, see 4). The four application
-  types call it after serialising their own integrations and skip it on
-  `is_duplicate and not is_template` (the builder already branches on these flags at
-  `application_types.py:411`).
+  `integrations`. The four application types call it after serialising their own
+  integrations and skip it on `is_duplicate and not is_template` (the builder already
+  branches on these flags at `application_types.py:411`).
 - `get_integration_for_import()` (`handler.py:92`) callers pass
   `keep_unmapped = is_duplicate and not is_template`; the widened check in 1.4 then
   accepts the destination workspace's shared app. File imports and templates drop an
   unmapped id as today.
-- `IntegrationType.import_serialized` pops the origin flag.
 - Local Baserow needs nothing: `export_serialized` keeps the subject on publish and
   `after_import` keeps it on a published copy, re-authorising to the importer otherwise
   (`local_baserow/integration_types.py:170-240`).
@@ -273,9 +271,7 @@ reloaded; this matches any release that adds an application type.
 4. **Export inlining** by scanning the serialised content for `integration_id`, versus
    a per-application-type query over `integration.services` and
    `integration.user_sources`.
-5. **Origin flag** name on exported copies, for example `workspace_level: true`, and
-   whether publish exports carry it as well.
-6. **Local Baserow promotion**: re-authorise to the promoting Admin with a confirmation,
+5. **Local Baserow promotion**: re-authorise to the promoting Admin with a confirmation,
    or reject and ask the Admin to re-authorise first.
-7. **Promotion through `PATCH ... application_id`** versus a dedicated `promote/`
+6. **Promotion through `PATCH ... application_id`** versus a dedicated `promote/`
    endpoint.
