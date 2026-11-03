@@ -454,14 +454,15 @@ class PageHandler:
         """
         Check that every `navigate_to_page_id` in the values of an element or
         workflow action, nested ones such as menu items and table columns included,
-        names a page of the builder.
+        names a page of the builder other than its shared page.
 
         :param builder: The builder the element or workflow action is in.
         :param values: The values it's created or updated with.
         :param instance: The element or workflow action being updated. Its saved
             link fills in whichever of `navigation_type` and `navigate_to_page_id`
             the values leave out.
-        :raises ValidationError: When one names a page of another builder.
+        :raises ValidationError: When one names a page of another builder or the
+            shared page.
         """
 
         if instance is not None and (
