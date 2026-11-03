@@ -1,9 +1,16 @@
+from uuid import uuid4
+
+from django.db import transaction
+
 import pytest
 
+from baserow.api.sessions import set_client_undo_redo_action_group_id
 from baserow.contrib.automation.models import Automation
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.database.models import Database
+from baserow.core.action.handler import ActionHandler
+from baserow.core.action.scopes import WorkspaceActionScopeType
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.integrations.models import Integration
 from baserow.core.models import Application
@@ -422,3 +429,31 @@ def test_update_builder_with_nothing_to_change_is_a_no_op(data_fixture):
     assert result["changed"] is False
     builder.refresh_from_db()
     assert builder.name == "Unchanged"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_redo_of_a_message_that_created_an_automation_restores_it(data_fixture):
+    session_id = "session-id"
+    user = data_fixture.create_user(session_id=session_id)
+    workspace = data_fixture.create_workspace(user=user)
+    scopes = [WorkspaceActionScopeType.value(workspace_id=workspace.id)]
+    # The assistant view sets one action group per message.
+    set_client_undo_redo_action_group_id(user, str(uuid4()))
+
+    ctx = make_test_ctx(user, workspace)
+    (created,) = create_automation(ctx, name="Flows", thought="test")[
+        "created_builders"
+    ]
+    (database,) = create_database(ctx, name="Data", thought="test")["created_builders"]
+    ids = [created["id"], database["id"]]
+
+    with transaction.atomic():
+        ActionHandler.undo(user, scopes, session_id)
+    assert not Application.objects.filter(id__in=ids).exists()
+
+    with transaction.atomic():
+        redone = ActionHandler.redo(user, scopes, session_id)
+
+    assert [action.error for action in redone] == [None, None]
+    assert Application.objects.filter(id__in=ids).count() == 2
+    assert Automation.objects.filter(id=created["id"]).exists()

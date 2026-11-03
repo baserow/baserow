@@ -29,6 +29,7 @@ from baserow.core.models import (
 )
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.trash.registries import trash_item_type_registry
 from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.utils import ChildProgressBuilder
 
@@ -369,6 +370,22 @@ class OrderApplicationsActionType(UndoableActionType):
         CoreHandler().order_applications(user, workspace, params.application_ids)
 
 
+def _restore_application(user: AbstractUser, application_id: int) -> None:
+    """
+    Restores a trashed application under its own trash type, as some application
+    types have their own, like the automation.
+
+    :param user: The user restoring the application.
+    :param application_id: The id of the trashed application.
+    """
+
+    application = Application.objects_and_trash.get(id=application_id)
+    trash_type = trash_item_type_registry.get_by_model(application.specific_class)
+    TrashHandler.restore_item(
+        user, trash_type.type, application_id, parent_trash_item_id=None
+    )
+
+
 class CreateApplicationActionType(UndoableActionType):
     type = "create_application"
     description = ActionTypeDescription(
@@ -446,9 +463,7 @@ class CreateApplicationActionType(UndoableActionType):
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
-        TrashHandler.restore_item(
-            user, "application", params.application_id, parent_trash_item_id=None
-        )
+        _restore_application(user, params.application_id)
 
 
 class DeleteApplicationActionType(UndoableActionType):
@@ -510,9 +525,7 @@ class DeleteApplicationActionType(UndoableActionType):
 
     @classmethod
     def undo(cls, user, params: Params, action_being_undone: Action):
-        TrashHandler.restore_item(
-            user, "application", params.application_id, parent_trash_item_id=None
-        )
+        _restore_application(user, params.application_id)
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
@@ -718,9 +731,7 @@ class DuplicateApplicationActionType(UndoableActionType):
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
-        TrashHandler.restore_item(
-            user, "application", params.application_id, parent_trash_item_id=None
-        )
+        _restore_application(user, params.application_id)
 
 
 class InstallTemplateActionType(UndoableActionType):
@@ -818,9 +829,7 @@ class InstallTemplateActionType(UndoableActionType):
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
         for application_id in params.installed_application_ids:
-            TrashHandler.restore_item(
-                user, "application", application_id, parent_trash_item_id=None
-            )
+            _restore_application(user, application_id)
 
 
 class CreateWorkspaceInvitationActionType(ActionType):
