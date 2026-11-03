@@ -9,7 +9,12 @@ import json
 
 import pytest
 
+from baserow.contrib.builder.workflow_actions.models import (
+    NotificationWorkflowAction,
+    OpenPageWorkflowAction,
+)
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.core.formula.types import BaserowFormulaObject
 from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.evals.datasets.core import (
     _check_creates_application,
@@ -152,6 +157,149 @@ def test_updates_select_options_check_catches_lost_ids_colors_and_cells(
     assert {check.name for check in checks if not check.passed} == failing_checks
 
 
+def _failed(case_id, scenario_name, tool_calls, prepare=None):
+    """Names of the checks of a case that fail after ``prepare`` changed the data."""
+
+    case = next(c for c in all_cases() if c.id == case_id)
+    scenario = get_scenario(scenario_name)(make_fixtures())
+    if prepare:
+        prepare(scenario)
+    checks = case.checks(case, scenario, _creates_application_output(tool_calls))
+    return {check.name for check in checks if not check.passed}
+
+
+@pytest.mark.django_db
+def test_creates_dashboard_check_needs_a_dashboard_and_the_right_tool(data_fixture):
+    def made(scenario):
+        data_fixture.create_dashboard_application(
+            workspace=scenario.workspace, name="Sales Overview"
+        )
+
+    def wrong(scenario):
+        data_fixture.create_builder_application(
+            workspace=scenario.workspace, name="Sales Overview"
+        )
+
+    args = ("core/creates-dashboard", "core-creates-dashboard")
+
+    assert _failed(*args, ["create_dashboard"], made) == set()
+    assert _failed(*args, ["create_builder"], wrong) == {
+        "called create_dashboard",
+        "exactly one dashboard, named Sales Overview",
+        "no application builder created",
+    }
+
+
+@pytest.mark.django_db
+def test_creates_several_applications_check_needs_one_of_each(data_fixture):
+    def made(scenario, dashboard=True):
+        workspace = scenario.workspace
+        data_fixture.create_database_application(workspace=workspace, name="Inventory")
+        data_fixture.create_automation_application(
+            workspace=workspace, name="Stock Alerts"
+        )
+        if dashboard:
+            data_fixture.create_dashboard_application(
+                workspace=workspace, name="Stock Overview"
+            )
+        else:
+            data_fixture.create_builder_application(
+                workspace=workspace, name="Stock Overview"
+            )
+
+    args = ("core/creates-several-applications", "core-creates-several-applications")
+    tools = ["create_database", "create_automation", "create_dashboard"]
+
+    assert _failed(*args, tools, made) == set()
+    assert _failed(
+        *args,
+        ["create_database", "create_automation", "create_builder"],
+        lambda scenario: made(scenario, dashboard=False),
+    ) == {
+        "called create_dashboard",
+        "exactly one dashboard named 'Stock Overview'",
+        "no application builder added",
+    }
+
+
+@pytest.mark.django_db
+def test_renames_automation_check_needs_the_automation_renamed(data_fixture):
+    def renamed(scenario):
+        automation = scenario.refs["automation"]
+        automation.name = "Order Pipeline"
+        automation.save()
+
+    def recreated(scenario):
+        data_fixture.create_automation_application(
+            workspace=scenario.workspace, name="Order Pipeline"
+        )
+
+    args = ("core/renames-automation", "core-renames-automation")
+
+    assert _failed(*args, ["update_automation"], renamed) == set()
+    assert _failed(*args, ["create_automation"], recreated) == {
+        "called update_automation",
+        "automation renamed to Order Pipeline",
+        "no new application",
+    }
+
+
+@pytest.mark.django_db
+def test_changes_notification_title_check_needs_the_same_action_updated(data_fixture):
+    def updated(scenario):
+        action = NotificationWorkflowAction.objects.get(
+            id=scenario.refs["save_action_id"]
+        )
+        action.title = "'All done!'"
+        action.save()
+
+    def added(scenario):
+        data_fixture.create_notification_workflow_action(
+            page=scenario.refs["save_button"].page,
+            element=scenario.refs["save_button"],
+            event="click",
+            title="'All done!'",
+        )
+
+    args = ("builder/changes-notification-title", "builder-changes-actions")
+
+    assert _failed(*args, ["update_action"], updated) == set()
+    assert _failed(*args, ["create_actions"], added) == {
+        "called update_action",
+        "Save button still has one action, the same one",
+        "message is 'All done!'",
+    }
+
+
+@pytest.mark.django_db
+def test_changes_open_page_parameter_check_needs_slug_changed_and_id_kept(
+    data_fixture,
+):
+    def set_parameters(slug, id_value="'42'"):
+        def prepare(scenario):
+            action = OpenPageWorkflowAction.objects.get(
+                id=scenario.refs["open_action_id"]
+            )
+            action.page_parameters = [
+                {"name": "id", "value": BaserowFormulaObject.create(id_value)},
+                {"name": "slug", "value": BaserowFormulaObject.create(slug)},
+            ]
+            action.save()
+
+        return prepare
+
+    args = ("builder/changes-open-page-parameter", "builder-changes-actions")
+
+    assert _failed(*args, ["update_action"], set_parameters("'latest'")) == set()
+    assert _failed(*args, ["update_action"], set_parameters("'latest'", "'7'")) == {
+        "id is unchanged"
+    }
+    assert _failed(*args, [], set_parameters("'first'")) == {
+        "called update_action",
+        "slug is 'latest'",
+    }
+
+
 _OUR_DATASETS = {
     "kuma-core",
     "kuma-database",
@@ -167,8 +315,11 @@ EXPECTED_CASE_IDS = {
         "core/audit-log-who-deleted",
         "core/creates-application",
         "core/creates-automation",
+        "core/creates-dashboard",
         "core/creates-database",
+        "core/creates-several-applications",
         "core/lists-databases",
+        "core/renames-automation",
         "core/search-finds-row",
         "core/search-finds-table",
     ],
@@ -274,6 +425,8 @@ EXPECTED_CASE_IDS = {
         "builder/builds-demo-page-without-asking",
         "builder/builds-example-app-without-asking",
         "builder/changes-detail-path-keeps-param-type",
+        "builder/changes-notification-title",
+        "builder/changes-open-page-parameter",
         "builder/changes-theme",
         "builder/creates-app-when-table-exists",
         "builder/creates-app-with-theme",
@@ -359,10 +512,10 @@ class TestDatasetCounts:
     def test_case_counts_per_dataset(self):
         grouped = cases_by_dataset()
 
-        assert len(grouped["kuma-core"]) == 8
+        assert len(grouped["kuma-core"]) == 11
         assert len(grouped["kuma-database"]) == 25
         assert len(grouped["kuma-docs"]) == 64
-        assert len(grouped["kuma-builder"]) == 35
+        assert len(grouped["kuma-builder"]) == 37
         assert len(grouped["kuma-automation"]) == 11
         assert len(grouped["kuma-prod-replay"]) == 9
 

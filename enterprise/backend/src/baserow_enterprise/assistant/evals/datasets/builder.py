@@ -177,6 +177,16 @@ PROMPT_ADD_EDITAR_BUTTON_COLUMN = (
     "the table, with a button that opens the Edit student page for that row."
 )
 
+PROMPT_CHANGE_NOTIFICATION_TITLE = (
+    "In builder '{builder_name}', change the message the Save button shows to "
+    "'All done!'."
+)
+
+PROMPT_CHANGE_OPEN_PAGE_PARAMETER = (
+    "In builder '{builder_name}', make the Open button's slug parameter 'latest' "
+    "and leave its id as it is."
+)
+
 # ---------------------------------------------------------------------------
 # Local helpers — args inspection over output.messages (assistant-side entries)
 # ---------------------------------------------------------------------------
@@ -3186,6 +3196,132 @@ register_case(
         prompt=PROMPT_DETAIL_ROW_FROM_URL.format(builder_name="Shop"),
         scenario="builder-product-detail-page",
         checks=_check_detail_row_from_url,
+        mode=AgentMode.APPLICATION,
+        max_iters=15,
+    )
+)
+
+
+@register_scenario("builder-changes-actions")
+def _changes_actions_scenario(fx: Fixtures) -> EvalScenario:
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    builder = fx.create_builder_application(user=user, workspace=workspace, name="Shop")
+    home = fx.create_builder_page(builder=builder, name="Home", path="/")
+    detail = fx.create_builder_page(
+        builder=builder,
+        name="Detail",
+        path="/d/:id/:slug",
+        path_params=[{"name": "id", "type": "text"}, {"name": "slug", "type": "text"}],
+    )
+    save_button = fx.create_builder_button_element(page=home, value="'Save'")
+    open_button = fx.create_builder_button_element(page=home, value="'Open'")
+    save_action = fx.create_notification_workflow_action(
+        page=home, element=save_button, event="click", title="'Saved'"
+    )
+    open_action = fx.create_open_page_workflow_action(
+        page=home,
+        element=open_button,
+        event="click",
+        navigation_type="page",
+        navigate_to_page=detail,
+        page_parameters=[
+            {"name": "id", "value": BaserowFormulaObject.create("'42'")},
+            {"name": "slug", "value": BaserowFormulaObject.create("'first'")},
+        ],
+    )
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_builder_ui_context(user, workspace, builder),
+        refs={
+            "builder": builder,
+            "save_button": save_button,
+            "open_button": open_button,
+            "save_action_id": save_action.id,
+            "open_action_id": open_action.id,
+        },
+    )
+
+
+def _actions_of(button) -> list[BuilderWorkflowAction]:
+    return list(BuilderWorkflowAction.objects.filter(element_id=button.id))
+
+
+def _check_changes_notification_title(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    actions = _actions_of(scenario.refs["save_button"])
+    action = actions[0].specific if len(actions) == 1 else None
+    return [
+        CheckResult("called update_action", tool_called(output, "update_action") >= 1),
+        CheckResult(
+            "Save button still has one action, the same one",
+            len(actions) == 1 and actions[0].id == scenario.refs["save_action_id"],
+            hint=f"actions: {[(a.id, type(a).__name__) for a in actions]}",
+        ),
+        CheckResult(
+            "message is 'All done!'",
+            action is not None
+            and _render_saved_formula(getattr(action, "title", "")) == "All done!",
+            hint=f"title: {_formula_text(getattr(action, 'title', None))}",
+        ),
+        CheckResult(
+            "Open button's action untouched",
+            [a.id for a in _actions_of(scenario.refs["open_button"])]
+            == [scenario.refs["open_action_id"]],
+        ),
+    ]
+
+
+def _check_changes_open_page_parameter(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    actions = _actions_of(scenario.refs["open_button"])
+    action = actions[0].specific if len(actions) == 1 else None
+    parameters = {
+        parameter["name"]: _render_saved_formula(parameter.get("value"))
+        for parameter in (getattr(action, "page_parameters", None) or [])
+    }
+    return [
+        CheckResult("called update_action", tool_called(output, "update_action") >= 1),
+        CheckResult(
+            "Open button still has one action, the same one",
+            len(actions) == 1 and actions[0].id == scenario.refs["open_action_id"],
+            hint=f"actions: {[(a.id, type(a).__name__) for a in actions]}",
+        ),
+        CheckResult(
+            "slug is 'latest'",
+            parameters.get("slug") == "latest",
+            hint=f"parameters: {parameters}",
+        ),
+        CheckResult(
+            "id is unchanged",
+            parameters.get("id") == "42",
+            hint=f"parameters: {parameters}",
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="builder/changes-notification-title",
+        dataset="kuma-builder",
+        prompt=PROMPT_CHANGE_NOTIFICATION_TITLE.format(builder_name="Shop"),
+        scenario="builder-changes-actions",
+        checks=_check_changes_notification_title,
+        mode=AgentMode.APPLICATION,
+        max_iters=15,
+    )
+)
+
+register_case(
+    EvalCase(
+        id="builder/changes-open-page-parameter",
+        dataset="kuma-builder",
+        prompt=PROMPT_CHANGE_OPEN_PAGE_PARAMETER.format(builder_name="Shop"),
+        scenario="builder-changes-actions",
+        checks=_check_changes_open_page_parameter,
         mode=AgentMode.APPLICATION,
         max_iters=15,
     )
