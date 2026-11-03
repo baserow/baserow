@@ -340,13 +340,15 @@ def test_oauth2_callback_signup_workspace_invitation_email_mismatch(
 
 
 def _oauth2_callback_with_invitation_link(api_client, provider, slug):
+    """Complete a callback with provider-bound state and invitation-link data."""
+
     with patch(GET_USER_INFO, create_get_user_info_stub(provider)):
         session = api_client.session
+        provider.get_type().store_oauth_state(provider, session, OAUTH_STATE)
         session["oauth_request_data"] = json.dumps(
             {
                 "original": "templates",
                 "workspace_invitation_link_slug": slug,
-                "oauth_state": "generated_oauth_state",
             }
         )
         session.save()
@@ -357,7 +359,7 @@ def _oauth2_callback_with_invitation_link(api_client, provider, slug):
                 "api:enterprise_sso_oauth2:callback",
                 kwargs={"provider_id": provider.id},
             )
-            + "?code=validcode",
+            + f"?code=validcode&state={OAUTH_STATE}",
             format="json",
         )
 
