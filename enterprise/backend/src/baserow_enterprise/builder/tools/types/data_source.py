@@ -10,18 +10,18 @@ from typing import TYPE_CHECKING, Any, Callable, Literal
 from pydantic import Field, PrivateAttr, model_serializer, model_validator
 
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
-from baserow_enterprise.assistant.tools.shared.formula_utils import (
+from baserow_enterprise.tools.formula_utils import (
     formula_desc,
     formula_object,
     literal_or_placeholder,
     needs_formula,
 )
-from baserow_enterprise.assistant.types import BaseModel
+from baserow_enterprise.tools.types import BaseModel
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
 
-    from baserow_enterprise.assistant.tools.builder.agents import BuilderFormulaContext
+    from baserow_enterprise.builder.tools.formulas import BuilderFormulaContext
 
 # ---------------------------------------------------------------------------
 # Data source sort
@@ -173,8 +173,8 @@ class DataSourceCreate(BaseModel):
         :raises ToolInputError: When the referenced table does not exist.
         """
 
-        from baserow_enterprise.assistant.tools.database.helpers import filter_tables
-        from baserow_enterprise.assistant.tools.shared.errors import ToolInputError
+        from baserow.contrib.database.mcp.services import filter_tables
+        from baserow.core.tools.errors import ToolInputError
 
         table = filter_tables(user, workspace).filter(id=self.table_id).first()
         if table is None:
@@ -194,10 +194,12 @@ class DataSourceCreate(BaseModel):
             )
 
         if self.view_id is not None:
-            from baserow_enterprise.assistant.tools.database.helpers import get_view
+            from baserow.contrib.database.tools.views import get_view
+            from baserow.core.tools import ToolContext
 
             # The service type checks the view belongs to the table.
-            kwargs["view_id"] = get_view(user, workspace, self.view_id).id
+            ctx = ToolContext(user=user, workspace=workspace)
+            kwargs["view_id"] = get_view(ctx, self.view_id).id
 
         return kwargs
 
@@ -319,10 +321,8 @@ class DataSourceUpdate(BaseModel):
             kwargs["name"] = self.name
 
         if self.table_id is not None:
-            from baserow_enterprise.assistant.tools.database.helpers import (
-                filter_tables,
-            )
-            from baserow_enterprise.assistant.tools.shared.errors import ToolInputError
+            from baserow.contrib.database.mcp.services import filter_tables
+            from baserow.core.tools.errors import ToolInputError
 
             table = filter_tables(user, workspace).filter(id=self.table_id).first()
             if table is None:
@@ -340,10 +340,12 @@ class DataSourceUpdate(BaseModel):
                 )
 
         if self.view_id is not None:
-            from baserow_enterprise.assistant.tools.database.helpers import get_view
+            from baserow.contrib.database.tools.views import get_view
+            from baserow.core.tools import ToolContext
 
             # The service type checks the view belongs to the table.
-            kwargs["view_id"] = get_view(user, workspace, self.view_id).id
+            ctx = ToolContext(user=user, workspace=workspace)
+            kwargs["view_id"] = get_view(ctx, self.view_id).id
 
         return kwargs
 

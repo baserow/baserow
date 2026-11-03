@@ -87,7 +87,7 @@ class ApplicationItemCreate(BuilderItemCreate):
             builder_orm_instance,
             name="Local Baserow",
         )
-        from baserow_enterprise.assistant.tools.builder.themes import apply_theme
+        from baserow_enterprise.builder.tools.themes import apply_theme
 
         apply_theme(builder_orm_instance, self.theme or "baserow", user=user)
 

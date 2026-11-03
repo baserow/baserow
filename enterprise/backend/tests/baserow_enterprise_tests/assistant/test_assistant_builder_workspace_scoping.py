@@ -17,8 +17,11 @@ from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.trash.handler import TrashHandler
-from baserow_enterprise.assistant.tools.builder import helpers
-from baserow_enterprise.assistant.tools.builder.types import (
+from baserow_enterprise.assistant.tools.core.tools import update_builder
+from baserow_enterprise.assistant.tools.core.types import BuilderUpdate
+from baserow_enterprise.assistant.tools.shared import ToolInputError
+from baserow_enterprise.builder.tools import helpers
+from baserow_enterprise.builder.tools.types import (
     ActionCreate,
     DataSourceCreate,
     DataSourceSort,
@@ -30,9 +33,6 @@ from baserow_enterprise.assistant.tools.builder.types import (
     MenuItemCreate,
     PageUpdate,
 )
-from baserow_enterprise.assistant.tools.core.tools import update_builder
-from baserow_enterprise.assistant.tools.core.types import BuilderUpdate
-from baserow_enterprise.assistant.tools.shared import ToolInputError
 
 from .utils import make_test_ctx
 

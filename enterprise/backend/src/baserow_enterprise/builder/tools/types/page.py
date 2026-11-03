@@ -9,7 +9,7 @@ from typing import Literal
 from pydantic import Field, model_validator
 
 from baserow.contrib.builder.pages.handler import PageHandler
-from baserow_enterprise.assistant.types import BaseModel
+from baserow_enterprise.tools.types import BaseModel
 
 RoleType = Literal["allow_all", "allow_all_except", "disallow_all_except"]
 

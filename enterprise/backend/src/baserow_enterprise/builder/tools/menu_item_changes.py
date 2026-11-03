@@ -9,7 +9,7 @@ from django.db.models import Count
 from baserow.contrib.builder.elements.models import MenuElement, MenuItemElement
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
-from baserow_enterprise.assistant.tools.shared import ToolInputError
+from baserow.core.tools.errors import ToolInputError
 
 from .types.changes import NO_CHANGES, canonical_uid, name_key, unique_in_order
 from .types.menu_items import (

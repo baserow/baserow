@@ -7,7 +7,7 @@ tables and authentication providers.
 
 from pydantic import Field, model_validator
 
-from baserow_enterprise.assistant.types import BaseModel
+from baserow_enterprise.tools.types import BaseModel
 
 _DEFAULT_ROLES = ["Admin", "Member", "Viewer"]
 

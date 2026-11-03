@@ -67,9 +67,9 @@ from baserow_enterprise.assistant.evals.types import (
     EvalRunOutput,
     EvalScenario,
 )
-from baserow_enterprise.assistant.tools.builder.themes import builder_uses_theme
-from baserow_enterprise.assistant.tools.builder.types.changes import name_key
-from baserow_enterprise.assistant.tools.builder.types.menu_items import new_menu_link
+from baserow_enterprise.builder.tools.themes import builder_uses_theme
+from baserow_enterprise.builder.tools.types.changes import name_key
+from baserow_enterprise.builder.tools.types.menu_items import new_menu_link
 
 # ---------------------------------------------------------------------------
 # Prompts — verbatim from the legacy files

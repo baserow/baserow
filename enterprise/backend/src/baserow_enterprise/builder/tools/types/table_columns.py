@@ -10,8 +10,8 @@ from baserow.contrib.database.fields.utils import (
     guess_json_type_from_response_serializer_field,
 )
 from baserow.core.db import specific_iterator
-from baserow_enterprise.assistant.tools.shared import ToolInputError
-from baserow_enterprise.assistant.types import BaseModel
+from baserow.core.tools.errors import ToolInputError
+from baserow_enterprise.tools.types import BaseModel
 
 from .changes import NO_CHANGES, name_key
 

@@ -60,7 +60,15 @@ from baserow_enterprise.assistant.tools.builder.tools import (
     list_elements,
     setup_page,
 )
-from baserow_enterprise.assistant.tools.builder.types import (
+from baserow_enterprise.assistant.tools.core.tools import create_builders
+from baserow_enterprise.assistant.tools.core.types import BuilderItemCreate
+from baserow_enterprise.assistant.tools.database.tools import create_tables
+from baserow_enterprise.assistant.tools.database.types import (
+    FieldItemCreate,
+    SelectOptionCreate,
+    TableItemCreate,
+)
+from baserow_enterprise.builder.tools.types import (
     ActionCreate,
     CollectionElementCreate,
     DataSourceCreate,
@@ -70,14 +78,6 @@ from baserow_enterprise.assistant.tools.builder.types import (
     LayoutElementCreate,
     PageCreate,
     TableFieldConfig,
-)
-from baserow_enterprise.assistant.tools.core.tools import create_builders
-from baserow_enterprise.assistant.tools.core.types import BuilderItemCreate
-from baserow_enterprise.assistant.tools.database.tools import create_tables
-from baserow_enterprise.assistant.tools.database.types import (
-    FieldItemCreate,
-    SelectOptionCreate,
-    TableItemCreate,
 )
 
 from .utils import create_fake_tool_helpers, make_test_ctx

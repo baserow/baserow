@@ -10,17 +10,17 @@ from typing import TYPE_CHECKING, Any, Literal
 from pydantic import Field, model_validator
 
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
-from baserow_enterprise.assistant.tools.shared.formula_utils import (
+from baserow_enterprise.tools.formula_utils import (
     formula_desc,
     formula_object,
     literal_or_placeholder,
     needs_formula,
 )
-from baserow_enterprise.assistant.types import BaseModel
+from baserow_enterprise.tools.types import BaseModel
 
 if TYPE_CHECKING:
     from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
-    from baserow_enterprise.assistant.tools.builder.agents import BuilderFormulaContext
+    from baserow_enterprise.builder.tools.formulas import BuilderFormulaContext
 
 # ---------------------------------------------------------------------------
 # Sub-models
@@ -171,8 +171,8 @@ def _row_service_kwargs(action: "ActionCreate", user, workspace) -> dict:
     :raises ToolInputError: When the referenced table does not exist.
     """
 
-    from baserow_enterprise.assistant.tools.database.helpers import filter_tables
-    from baserow_enterprise.assistant.tools.shared.errors import ToolInputError
+    from baserow.contrib.database.mcp.services import filter_tables
+    from baserow.core.tools.errors import ToolInputError
 
     table = filter_tables(user, workspace).filter(id=action.table_id).first()
     if table is None:

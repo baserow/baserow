@@ -16,11 +16,6 @@ from pydantic_ai import ModelRetry, RunContext
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.core.exceptions import PermissionException
 from baserow_enterprise.assistant.deps import AssistantDeps
-from baserow_enterprise.assistant.tools.builder.themes import (
-    THEME_CATALOG,
-    ThemeName,
-    apply_theme,
-)
 from baserow_enterprise.assistant.tools.shared import (
     permission_denied_result,
     raise_if_permission_denied,
@@ -28,11 +23,15 @@ from baserow_enterprise.assistant.tools.shared import (
 )
 from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 from baserow_enterprise.assistant.types import BuilderPageNavigationType
-
-from . import agents, helpers
-from .errors import is_input_error, item_error
-from .registries import assistant_element_type_registry
-from .types import (
+from baserow_enterprise.builder.tools import helpers
+from baserow_enterprise.builder.tools.errors import is_input_error, item_error
+from baserow_enterprise.builder.tools.registries import assistant_element_type_registry
+from baserow_enterprise.builder.tools.themes import (
+    THEME_CATALOG,
+    ThemeName,
+    apply_theme,
+)
+from baserow_enterprise.builder.tools.types import (
     ActionCreate,
     CollectionElementCreate,
     DataSourceCreate,
@@ -48,7 +47,9 @@ from .types import (
     PageItem,
     PageUpdate,
 )
-from .types.user_source import UserSourceSetup
+from baserow_enterprise.builder.tools.types.user_source import UserSourceSetup
+
+from . import agents
 
 # ---------------------------------------------------------------------------
 # Page-scoped ref tracking

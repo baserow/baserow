@@ -73,7 +73,7 @@ from baserow.core.integrations.service import IntegrationService
 from baserow.core.models import Workspace
 from baserow.core.service import CoreService
 from baserow.core.services.registries import service_type_registry
-from baserow_enterprise.assistant.tools.shared import (
+from baserow.core.tools.errors import (
     ToolInputError,
     raise_if_permission_denied,
     validation_messages,
@@ -1220,7 +1220,7 @@ def add_field_mapping_to_action(
     )
     from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
     from baserow.core.services.models import Service
-    from baserow_enterprise.assistant.tools.shared.formula_utils import formula_object
+    from baserow_enterprise.tools.formula_utils import formula_object
 
     try:
         action = (
@@ -1408,8 +1408,8 @@ def resolve_existing_table(
         SingleSelectField,
         TextField,
     )
+    from baserow.contrib.database.mcp.services import filter_tables
     from baserow.core.db import specific_iterator
-    from baserow_enterprise.assistant.tools.database.helpers import filter_tables
 
     table = filter_tables(user, workspace).get(id=table_id)
 

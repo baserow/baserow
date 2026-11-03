@@ -24,14 +24,14 @@ from baserow.core.exceptions import PermissionDenied
 from baserow.core.formula.types import BaserowFormulaObject
 from baserow.test_utils.fixtures import Fixtures
 from baserow_enterprise.assistant.tools.builder.tools import update_element
-from baserow_enterprise.assistant.tools.builder.types import (
+from baserow_enterprise.assistant.tools.shared import ToolInputError
+from baserow_enterprise.builder.tools.types import (
     ElementUpdate,
     TableColumnUpdate,
 )
-from baserow_enterprise.assistant.tools.builder.types.table_columns import (
+from baserow_enterprise.builder.tools.types.table_columns import (
     data_source_fields,
 )
-from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 

@@ -33,9 +33,6 @@ from baserow_enterprise.assistant.tools.automation.types.node import (
     ActionNodeCreate,
     TriggerNodeCreate,
 )
-from baserow_enterprise.assistant.tools.builder.types.data_source import (
-    DataSourceCreate,
-)
 from baserow_enterprise.assistant.tools.database.tools import (
     create_fields,
     create_tables,
@@ -55,6 +52,9 @@ from baserow_enterprise.assistant.tools.toolset import (
     move_thought_to_top_level,
 )
 from baserow_enterprise.assistant.types import BaseModel as AssistantBaseModel
+from baserow_enterprise.builder.tools.types.data_source import (
+    DataSourceCreate,
+)
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
 
 from .utils import make_test_ctx

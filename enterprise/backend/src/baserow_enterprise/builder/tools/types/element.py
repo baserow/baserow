@@ -25,17 +25,17 @@ from pydantic import Field, field_validator, model_validator
 
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.graph.types import GraphPointPosition
-from baserow_enterprise.assistant.tools.builder.registries import (
+from baserow_enterprise.builder.tools.registries import (
     assistant_element_type_registry,
 )
-from baserow_enterprise.assistant.tools.shared.formula_utils import (
+from baserow_enterprise.tools.formula_utils import (
     formula_desc,
     formula_object,
     literal_or_placeholder,
     needs_formula,
     wrap_static_string,
 )
-from baserow_enterprise.assistant.types import BaseModel
+from baserow_enterprise.tools.types import BaseModel
 
 from .changes import name_key
 from .menu_items import (
@@ -57,7 +57,7 @@ if TYPE_CHECKING:
 
     from baserow.contrib.builder.elements.models import Element
     from baserow.contrib.builder.pages.models import Page
-    from baserow_enterprise.assistant.tools.builder.agents import BuilderFormulaContext
+    from baserow_enterprise.builder.tools.formulas import BuilderFormulaContext
 
 # ---------------------------------------------------------------------------
 # Element type literal (excluding iframe)
@@ -550,7 +550,7 @@ def _table_post_create(el: "ElementItemCreate", user, orm_element, page) -> list
         return []
 
     from baserow.contrib.builder.elements.models import CollectionElementPropertyOptions
-    from baserow_enterprise.assistant.tools.builder.helpers import (
+    from baserow_enterprise.builder.tools.helpers import (
         create_table_button_actions,
         get_local_baserow_integration,
     )

@@ -60,7 +60,8 @@ from baserow_enterprise.assistant.tools.builder.tools import (
     update_element_style,
     update_page,
 )
-from baserow_enterprise.assistant.tools.builder.types import (
+from baserow_enterprise.assistant.tools.shared import ToolInputError
+from baserow_enterprise.builder.tools.types import (
     ActionCreate,
     ButtonStyleOverride,
     CollectionElementCreate,
@@ -85,11 +86,12 @@ from baserow_enterprise.assistant.tools.builder.types import (
     TableFieldConfig,
     TypographyStyleOverride,
 )
-from baserow_enterprise.assistant.tools.builder.types.table_columns import (
+from baserow_enterprise.builder.tools.types.table_columns import (
     stored_formula_text,
 )
-from baserow_enterprise.assistant.tools.shared import ToolInputError
-from baserow_enterprise.assistant.tools.shared.formula_utils import (
+from baserow_enterprise.role.handler import RoleAssignmentHandler
+from baserow_enterprise.role.models import Role
+from baserow_enterprise.tools.formula_utils import (
     ensure_valid_formula,
     formula_desc,
     formula_object,
@@ -98,8 +100,6 @@ from baserow_enterprise.assistant.tools.shared.formula_utils import (
     needs_formula,
     wrap_static_string,
 )
-from baserow_enterprise.role.handler import RoleAssignmentHandler
-from baserow_enterprise.role.models import Role
 
 from .utils import create_fake_tool_helpers, make_test_ctx
 
@@ -724,9 +724,7 @@ def test_create_elements_propagates_permission_denied(data_fixture, monkeypatch)
     def deny(*args, **kwargs):
         raise PermissionDenied()
 
-    monkeypatch.setattr(
-        "baserow_enterprise.assistant.tools.builder.helpers.create_element", deny
-    )
+    monkeypatch.setattr("baserow_enterprise.builder.tools.helpers.create_element", deny)
 
     with pytest.raises(PermissionDenied):
         create_display_elements(
@@ -1684,7 +1682,7 @@ def test_create_open_page_action(data_fixture):
 def test_open_page_action_extracts_page_param_formulas():
     """open_page actions with $formula: page parameters should produce formulas."""
 
-    from baserow_enterprise.assistant.tools.builder.types.workflow_action import (
+    from baserow_enterprise.builder.tools.types.workflow_action import (
         ParameterMapping,
     )
 
@@ -1704,7 +1702,7 @@ def test_open_page_action_extracts_page_param_formulas():
 def test_open_page_action_no_formulas_for_static():
     """open_page actions without $formula: should produce no formulas."""
 
-    from baserow_enterprise.assistant.tools.builder.types.workflow_action import (
+    from baserow_enterprise.builder.tools.types.workflow_action import (
         ParameterMapping,
     )
 
@@ -1754,7 +1752,7 @@ def test_create_row_action(data_fixture):
         thought="test",
     )
 
-    from baserow_enterprise.assistant.tools.builder.types import FieldValueMapping
+    from baserow_enterprise.builder.tools.types import FieldValueMapping
 
     result = create_actions(
         ctx,
@@ -1817,7 +1815,7 @@ def test_add_action_field_mapping_creates_mapping(data_fixture):
     ctx = make_test_ctx(user, workspace, tool_helpers)
 
     # Create a form and create_row action with one field mapping
-    from baserow_enterprise.assistant.tools.builder.types import FieldValueMapping
+    from baserow_enterprise.builder.tools.types import FieldValueMapping
 
     create_form_elements(
         ctx,
@@ -1878,7 +1876,7 @@ def test_add_action_field_mapping_updates_existing(data_fixture):
     tool_helpers = create_fake_tool_helpers()
     ctx = make_test_ctx(user, workspace, tool_helpers)
 
-    from baserow_enterprise.assistant.tools.builder.types import FieldValueMapping
+    from baserow_enterprise.builder.tools.types import FieldValueMapping
 
     create_form_elements(
         ctx,
@@ -2039,7 +2037,7 @@ def test_add_action_field_mapping_locks_the_service_before_reading(data_fixture)
 
 
 def _create_row_action_on_form(ctx, page, table, field) -> BuilderWorkflowAction:
-    from baserow_enterprise.assistant.tools.builder.types import FieldValueMapping
+    from baserow_enterprise.builder.tools.types import FieldValueMapping
 
     create_form_elements(
         ctx,
@@ -2268,7 +2266,7 @@ def test_set_theme(data_fixture, monkeypatch):
 def test_apply_theme_function(data_fixture):
     """apply_theme should update theme properties on an existing builder."""
 
-    from baserow_enterprise.assistant.tools.builder.themes import apply_theme
+    from baserow_enterprise.builder.tools.themes import apply_theme
 
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -3821,7 +3819,7 @@ def test_setup_user_source_new_table(data_fixture):
     from baserow.contrib.database.fields.models import Field
     from baserow.core.db import specific_iterator
     from baserow_enterprise.assistant.tools.builder.tools import setup_user_source
-    from baserow_enterprise.assistant.tools.builder.types.user_source import (
+    from baserow_enterprise.builder.tools.types.user_source import (
         UserSourceSetup,
     )
 
@@ -3897,7 +3895,7 @@ def test_setup_user_source_existing_table(data_fixture):
     """Use an existing table that has the required fields."""
 
     from baserow_enterprise.assistant.tools.builder.tools import setup_user_source
-    from baserow_enterprise.assistant.tools.builder.types.user_source import (
+    from baserow_enterprise.builder.tools.types.user_source import (
         UserSourceSetup,
     )
 
@@ -3934,7 +3932,7 @@ def test_setup_user_source_existing_table_creates_password_field(data_fixture):
     from baserow.contrib.database.fields.models import Field
     from baserow.core.db import specific_iterator
     from baserow_enterprise.assistant.tools.builder.tools import setup_user_source
-    from baserow_enterprise.assistant.tools.builder.types.user_source import (
+    from baserow_enterprise.builder.tools.types.user_source import (
         UserSourceSetup,
     )
 
@@ -4164,13 +4162,13 @@ def test_setup_user_source_puts_the_login_form_on_the_login_path(
     data_fixture, trashed, visibility, existing_form, expected_path, reuses_page, forms
 ):
     from baserow_enterprise.assistant.tools.builder.tools import setup_user_source
-    from baserow_enterprise.assistant.tools.builder.types.user_source import (
-        UserSourceSetup,
-    )
     from baserow_enterprise.builder.elements.element_types import (
         AuthFormElementType,
     )
     from baserow_enterprise.builder.elements.models import AuthFormElement
+    from baserow_enterprise.builder.tools.types.user_source import (
+        UserSourceSetup,
+    )
 
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 from pydantic import Field, field_validator, model_validator
 
 from baserow.contrib.builder.elements.models import MenuItemElement
-from baserow_enterprise.assistant.types import BaseModel
+from baserow_enterprise.tools.types import BaseModel
 
 if TYPE_CHECKING:
     from baserow.contrib.builder.elements.models import MenuElement

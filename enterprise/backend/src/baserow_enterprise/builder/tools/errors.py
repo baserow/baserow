@@ -11,10 +11,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.api.utils import apply_exception_mapping
-from baserow_enterprise.assistant.tools.shared import (
-    ToolInputError,
-    validation_messages,
-)
+from baserow.core.tools.errors import ToolInputError, validation_messages
 
 
 def _user_error_mapping() -> dict[type[Exception], Any]:

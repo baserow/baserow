@@ -4,11 +4,11 @@ from django.contrib.auth.models import AbstractUser
 
 from baserow.core.models import Application, Workspace
 from baserow.core.service import CoreService
-from baserow_enterprise.assistant.tools.builder.themes import builder_uses_theme
 from baserow_enterprise.assistant.tools.shared import (
     ToolInputError,
     raise_if_permission_denied,
 )
+from baserow_enterprise.builder.tools.themes import builder_uses_theme
 
 from .types import BuilderItem, BuilderItemCreate, builder_type_registry
 

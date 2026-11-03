@@ -2,10 +2,6 @@ import pytest
 from pydantic_ai import ModelRetry
 
 from baserow.test_utils.helpers import AnyInt
-from baserow_enterprise.assistant.tools.builder.themes import (
-    apply_theme,
-    builder_uses_theme,
-)
 from baserow_enterprise.assistant.tools.core.tools import (
     create_builders,
     list_builders,
@@ -14,6 +10,10 @@ from baserow_enterprise.assistant.tools.core.tools import (
 from baserow_enterprise.assistant.tools.core.types import (
     BuilderItemCreate,
     BuilderUpdate,
+)
+from baserow_enterprise.builder.tools.themes import (
+    apply_theme,
+    builder_uses_theme,
 )
 
 from .utils import make_test_ctx

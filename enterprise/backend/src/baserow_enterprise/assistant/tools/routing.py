@@ -17,7 +17,6 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from typing_extensions import Self
 
 from baserow.core.exceptions import PermissionException, UserNotInWorkspace
-from baserow.core.tools.errors import ToolInputError as SharedToolInputError
 from baserow.core.tools.errors import tool_error_message
 from baserow_enterprise.assistant.deps import AgentMode
 
@@ -343,7 +342,7 @@ class ModeAwareToolset(AbstractToolset[AgentDepsT]):
             }
         except PermissionException:
             return permission_denied_result(name)
-        except (SharedToolInputError, DjangoValidationError, APIException) as exc:
+        except (DjangoValidationError, APIException) as exc:
             # What the shared tools raise for the model to act on, like a feature
             # that needs a licence. A server error has no message and is raised.
             message = tool_error_message(exc)
