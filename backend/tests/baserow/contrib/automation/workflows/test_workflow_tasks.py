@@ -372,5 +372,5 @@ def test_delete_superseded_published_automations_task(data_fixture):
     assert handler.get_published_workflow(workflow, with_cache=False) == published_2
 
 
-def test_delete_superseded_published_automations_task_uses_the_automation_queue():
-    assert delete_superseded_published_automations.queue == "automation_workflow"
+def test_delete_superseded_published_automations_task_runs_on_the_export_queue():
+    assert delete_superseded_published_automations.queue == "export"

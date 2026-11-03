@@ -80,7 +80,7 @@ def handle_workflow_dispatch_done(
         )
 
 
-@app.task(queue="automation_workflow")
+@app.task(queue="export")
 def delete_superseded_published_automations(workflow_id: int):
     from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 

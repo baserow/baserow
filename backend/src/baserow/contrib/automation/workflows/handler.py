@@ -63,6 +63,7 @@ from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.exceptions import IdDoesNotExist, UntrustedContentCannotBePublished
 from baserow.core.import_export.untrusted_content import defer_untrusted_content_update
 from baserow.core.registries import ImportExportConfig, subject_type_registry
+from baserow.core.services.deferred_deletion import deferred_service_deletion_context
 from baserow.core.storage import ExportZipFile, get_default_storage
 from baserow.core.subjects import UserSubjectType
 from baserow.core.telemetry.utils import baserow_trace, baserow_trace_handler
@@ -740,7 +741,9 @@ class AutomationWorkflowHandler:
 
         workflow_id = workflow.id
         transaction.on_commit(
-            lambda: delete_superseded_published_automations.delay(workflow_id)
+            lambda: delete_superseded_published_automations.apply_async(
+                args=[workflow_id], countdown=60
+            )
         )
 
     @baserow_trace(tracer)
@@ -781,7 +784,8 @@ class AutomationWorkflowHandler:
             .values_list("id", flat=True)
         )
         if ids_to_delete:
-            Automation.objects.filter(id__in=ids_to_delete).delete()
+            with deferred_service_deletion_context():
+                Automation.objects.filter(id__in=ids_to_delete).delete()
 
     def _clone_workflow(
         self,

@@ -19,6 +19,7 @@ from baserow.contrib.automation.history.models import (
     AutomationWorkflowHistory,
 )
 from baserow.contrib.automation.models import Automation, AutomationWorkflow
+from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import (
     CoreManualTriggerNodeType,
     CorePeriodicTriggerNodeType,
@@ -50,6 +51,7 @@ from baserow.core.cache import global_cache, local_cache
 from baserow.core.models import Agent
 from baserow.core.notifications.models import Notification, NotificationRecipient
 from baserow.core.registries import ImportExportConfig
+from baserow.core.services.models import Service
 from baserow.core.subjects import UserSubjectType
 from baserow.core.trash.handler import TrashHandler
 from tests.baserow.contrib.automation.history.utils import assert_history
@@ -590,7 +592,7 @@ def test_publish_only_disables_older_copies_in_its_transaction(
     ) as task:
         with django_capture_on_commit_callbacks(execute=False) as callbacks:
             published_3 = handler.publish(workflow)
-        task.delay.assert_not_called()
+        task.apply_async.assert_not_called()
 
         published_1.refresh_from_db()
         published_2.refresh_from_db()
@@ -601,7 +603,7 @@ def test_publish_only_disables_older_copies_in_its_transaction(
 
         for callback in callbacks:
             callback()
-        task.delay.assert_called_once_with(workflow.id)
+        task.apply_async.assert_called_once_with(args=[workflow.id], countdown=60)
 
 
 @pytest.mark.django_db
@@ -617,7 +619,7 @@ def test_first_publish_starts_no_clean_up(
         with django_capture_on_commit_callbacks(execute=True):
             AutomationWorkflowHandler().publish(workflow)
 
-    task.delay.assert_not_called()
+    task.apply_async.assert_not_called()
 
 
 @pytest.mark.django_db
@@ -656,6 +658,35 @@ def test_delete_superseded_rechecks_history_when_it_runs(data_fixture):
 
     assert AutomationWorkflow.objects.filter(id=published_1.id).exists()
     assert AutomationWorkflow.objects.filter(id=published_2.id).exists()
+
+
+@pytest.mark.django_db
+def test_delete_superseded_leaves_no_service_of_the_deleted_copy(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    data_fixture.create_local_baserow_rows_created_trigger_node(workflow=workflow)
+    data_fixture.create_local_baserow_create_row_action_node(workflow=workflow)
+    handler = AutomationWorkflowHandler()
+    published_1 = handler.publish(workflow)
+    published_2 = handler.publish(workflow)
+
+    def service_ids(published):
+        return list(
+            AutomationNode.objects.filter(workflow=published).values_list(
+                "service_id", flat=True
+            )
+        )
+
+    old_service_ids = service_ids(published_1)
+    kept_service_ids = service_ids(published_2)
+    assert len(old_service_ids) == len(kept_service_ids) >= 2
+
+    handler.delete_superseded_published_automations(workflow.id)
+
+    assert not Service.objects_and_trash.filter(id__in=old_service_ids).exists()
+    assert Service.objects.filter(id__in=kept_service_ids).count() == len(
+        kept_service_ids
+    )
 
 
 @pytest.mark.django_db
