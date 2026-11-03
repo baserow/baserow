@@ -123,6 +123,8 @@ The following tools are currently enabled:
 | `list_views` | List the views of a table |
 | `list_row_comments` | List a row's comments (premium) |
 | `create_row_comments` | Post comments on rows (premium) |
+| `create_database` | Create one database |
+| `update_database` | Rename a database |
 | `create_tables` | Create tables with their fields |
 | `create_fields` | Add fields to a table |
 | `update_fields` | Rename fields or change their settings |
@@ -137,23 +139,55 @@ The following tools are currently enabled:
 | `delete_row_colours` | Remove row colours from views |
 | `list_workflows` | List automations and their workflows |
 | `list_nodes` | List a workflow's nodes with their output paths |
-| `create_workflows` | Create workflows with a trigger and nodes |
+| `create_automation` | Create one empty automation |
+| `update_automation` | Rename an automation |
+| `create_workflows` | Create draft workflows with a trigger and nodes |
+| `publish_workflow` | Make a workflow live |
+| `pause_workflow` | Pause a live workflow |
 | `add_nodes` | Add nodes to a workflow |
 | `update_nodes` | Change node labels, settings and router conditions |
 | `delete_nodes` | Delete (trash) workflow nodes |
 | `list_dashboards` | List the dashboards of the workspace |
 | `list_widgets` | List a dashboard's widgets and what they show |
 | `get_widget_data` | Read the figures widgets show |
-| `create_dashboards` | Create empty dashboards |
+| `create_dashboard` | Create one empty dashboard |
+| `update_dashboard` | Rename a dashboard |
 | `create_widgets` | Add summary, chart and pie chart widgets |
 | `update_widgets` | Change a widget's title, chart type, or what it shows |
 | `delete_widgets` | Delete (trash) widgets |
+| `list_builders` | List the application builders of the workspace |
+| `list_pages` | List the pages of an application builder |
+| `list_data_sources` | List the data sources of a page |
+| `list_elements` | List the elements of a page |
+| `list_actions` | List the workflow actions of a page |
+| `create_builder` | Create one application builder |
+| `update_builder` | Rename an application builder or set its login page |
+| `create_pages` | Create pages |
+| `update_page` | Change a page's name, path, parameters or visibility |
+| `create_data_sources` | Create data sources on a page |
+| `update_data_source` | Change a data source |
+| `create_display_elements` | Add headings, text, buttons, links and images |
+| `create_layout_elements` | Add columns, containers, headers, footers and menus |
+| `create_form_elements` | Add forms and form inputs |
+| `create_collection_elements` | Add tables and repeats over a data source |
+| `update_element` | Change an element's text, settings, columns or menu items |
+| `update_element_style` | Change how an element looks |
+| `move_elements` | Move elements within a page |
+| `create_actions` | Add workflow actions to elements |
+| `add_action_field_mapping` | Set the value a row action writes to a field |
+| `update_action` | Change a workflow action |
+| `setup_page` | Add data sources, elements and actions to a page in one call |
+| `setup_user_source` | Set up password login and a login page |
+| `set_theme` | Replace the theme of an application builder |
 | `list_audit_log` | List who did what in this workspace (enterprise, admin) |
 | `search_audit_log` | Search the workspace's audit log within 90 days (enterprise, admin) |
 
 The automation and audit log tools are off in the "Read only" preset. Turn them
 on at consent or under **Settings > Connected apps**. The "Read only" preset
-includes reading dashboards, not changing them.
+includes reading dashboards and application builders, not changing them. The
+application builder tools are enterprise: an `OSS_ONLY` instance doesn't list
+them. `publish_workflow`, `update_element` and `set_theme` are marked
+destructive, so clients ask before running them.
 
 ## 4. Test scenarios
 
@@ -273,7 +307,7 @@ them with their widget count.
 Turn on the dashboard editing tools under **Settings > Connected apps**. Ask
 Claude: *"Create a dashboard called Sales with the total of [number field] in
 [table], and a line chart of [number field] by [single select field]."*
-Expected: `create_dashboards`, then `create_widgets` with a `summary` and a
+Expected: `create_dashboard`, then `create_widgets` with a `summary` and a
 `chart` widget. Both appear on the new dashboard in Baserow, the chart drawn
 as lines.
 
@@ -292,6 +326,76 @@ trash, and restoring it from the trash brings it back.
 
 In a workspace without a premium licence, ask for a chart. Expected: the
 error says the feature needs a licence, not "Internal error."
+
+### Create and rename applications
+
+Turn on the edit tools of each area. Ask Claude: *"Create a database called
+Test Data, an automation called Test Flows, a dashboard called Test Figures
+and an application called Test App."*
+
+Expected: `create_database`, `create_automation`, `create_dashboard` and
+`create_builder` are called once each, and the four applications show in the
+sidebar. Ask Claude to rename each one: the matching `update_` tool is called
+and the sidebar shows the new name. A name of only spaces is refused.
+
+These writes can't be undone with Ctrl+Z in Baserow, because the action is
+stored without a client session id. Delete the application to take it back; it
+goes to the trash.
+
+### Create a new application website
+
+Needs an enterprise licence. Connect with `builder_edit` ticked. Ask Claude:
+*"create a new application website"*
+
+Expected: Claude calls `create_builder` and nothing else that creates an
+application. A new application builder shows in the UI sidebar of the
+workspace, with no new database, automation or dashboard.
+
+### Application builders
+
+Connect with the "Read only" preset. Ask Claude: *"What application builders
+and pages do I have?"* Expected: `list_builders`, then `list_pages`. Asking it
+to add a page fails, because `create_pages` is not in the list.
+
+Turn on **Edit application builders** under **Settings > Connected apps**, then
+ask Claude, one request at a time:
+
+1. *"Create an application called Shop with two pages, Home and Products."*
+   Expected: `create_builder`, then `create_pages`. Both pages show in the
+   builder.
+2. *"On Products, list the rows of [table name] and show them in a table."*
+   Expected: `create_data_sources`, then `create_collection_elements`. The
+   table shows the rows.
+3. *"Filter that data source with a formula."* Give a formula that doesn't
+   parse. Expected: the item is created and listed in `formula_errors`, and
+   Claude repairs it with `update_data_source`. No model is called by Baserow.
+4. *"Add a button on Home that opens Products."* Expected: `create_display_elements`,
+   then `create_actions`.
+5. *"Let people log in with the [users table]."* Expected: `setup_user_source`
+   adds a `/login` page with a login form.
+6. *"Change the title on Home to 'Welcome'"* and *"Move the button above it"*.
+   Expected: `update_element`, `move_elements`.
+7. *"Use the eclipse theme."* Expected: `set_theme`. The client asks for
+   confirmation first, and every theme setting is replaced.
+
+Ask Claude to delete the page. Expected: no tool does it, and Claude says so.
+In an `OSS_ONLY` instance none of the builder tools are listed.
+
+### Publish and pause a workflow
+
+Turn on the automation edit tools. Ask Claude: *"Create a workflow in
+[automation] that sends me an email when a row is created in [table name]."*
+Expected: `create_workflows` makes a draft, and Claude says it is a draft.
+
+Ask Claude to publish it. Expected: the client asks for confirmation, then
+`publish_workflow` runs and the workflow is live. Add a row: the email arrives.
+
+Ask Claude to pause it, then add a row. Expected: `pause_workflow` runs and no
+email arrives. Ask Claude to publish again: the workflow is live with the
+current draft.
+
+Ask Claude to publish a workflow with no nodes after the trigger. Expected:
+refused, and nothing goes live.
 
 ## 5. Verify disabled tools are not exposed
 

@@ -37,7 +37,7 @@ prompts:
 | Tool | Prompt |
 |------|--------|
 | `navigate` | "Go to the Customers table" |
-| `list_builders` | "What builders do I have?" |
+| `list_builders` | "What applications do I have?" |
 | `create_database` | "Create a new database called Test Data" |
 | `update_database` | "Rename the Test Data database to Team Data" |
 | `create_builder` | "Create a new application called Test App" |
@@ -69,6 +69,14 @@ prompts:
 | `search_user_docs` | "How do I create a lookup field?"* |
 
 * Make sure you synced the knowledge base first, look at [ai-assistant.md](../installation/ai-assistant.md) for more info.
+
+#### A bare request to create an application
+
+Send in a new chat: "create a new application website".
+
+Expected: the assistant calls `create_builder` without asking first, and a new
+application builder shows in the sidebar. No database, automation or dashboard
+is created. The same prompt is the eval case `core/creates-application`.
 
 ### 4. Manual: Feedback
 
