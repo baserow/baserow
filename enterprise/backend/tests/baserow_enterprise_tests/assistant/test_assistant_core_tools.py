@@ -227,7 +227,7 @@ def test_create_tool_keeps_nothing_when_denied(data_fixture):
 
 
 @pytest.mark.django_db
-def test_create_automation_adds_no_integration(data_fixture):
+def test_create_automation_adds_its_local_baserow_integration(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
 
@@ -235,9 +235,12 @@ def test_create_automation_adds_no_integration(data_fixture):
         make_test_ctx(user, workspace), name="Flows", thought="create"
     )
 
-    assert not Integration.objects.filter(
-        application_id=result["created_builders"][0]["id"]
-    ).exists()
+    assert (
+        Integration.objects.filter(
+            application_id=result["created_builders"][0]["id"]
+        ).count()
+        == 1
+    )
 
 
 @pytest.mark.django_db

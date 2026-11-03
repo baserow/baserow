@@ -25,14 +25,15 @@ def ctx(data_fixture):
 
 
 @pytest.mark.django_db
-def test_create_automation_creates_only_the_automation(ctx):
+def test_create_automation_creates_the_automation_and_its_integration(ctx):
     result = create_automation(ctx, "Flows")
 
     automation = Automation.objects.get(id=result["created_automation"]["id"])
     assert result == {"created_automation": {"id": automation.id, "name": "Flows"}}
     assert automation.workspace_id == ctx.workspace.id
     assert not AutomationWorkflow.objects.exists()
-    assert not Integration.objects.filter(application=automation).exists()
+    (integration,) = Integration.objects.filter(application=automation)
+    assert integration.get_type().type == "local_baserow"
     assert not Database.objects.exists()
     assert not Builder.objects.exists()
     assert not Dashboard.objects.exists()
@@ -56,6 +57,7 @@ def test_create_automation_keeps_nothing_when_denied(data_fixture):
         create_automation(ctx, "Flows")
 
     assert not Automation.objects.exists()
+    assert not Integration.objects.exists()
 
 
 @pytest.mark.django_db
