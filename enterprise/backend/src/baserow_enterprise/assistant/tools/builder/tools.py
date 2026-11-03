@@ -1310,6 +1310,7 @@ def update_action(
     WHAT it does: Changes the given values. Its type, element and event stay as they are. page_parameters and query_parameters replace the whole list; field_values change the named fields only.
     RETURNS: The updated action, with errors for values that kept their previous value.
     DO NOT USE when: The action doesn't exist yet — use create_actions instead.
+    EXAMPLE: {"action_id": 12, "changes": {"title": "'Order placed'"}, "thought": "Change the message of the Buy button's notification."}. thought is required, however small the change.
 
     ## Dynamic Values with $formula:
     - title: "$formula: the name of the product"
