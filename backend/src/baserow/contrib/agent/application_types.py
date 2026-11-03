@@ -127,7 +127,7 @@ class AgentApplicationType(ApplicationType):
             instructions=application.instructions,
             provider_type=application.provider_type,
             model_identifier=application.model_identifier,
-            allowed_tools=AgentHandler().get_allowed_tool_names(application),
+            **AgentHandler().get_tool_configuration(application),
         )
         # Identity ids are local references, not portable configuration.
         if (
@@ -174,15 +174,23 @@ class AgentApplicationType(ApplicationType):
         )
         application.save()
         registered = agent_tool_type_registry.get_types()
-        AgentHandler().set_allowed_tools(
-            application,
+        allowed_tools = (
             [
                 name
                 for name in serialized_values.get("allowed_tools", [])
                 if name in registered
             ]
             if application.run_as_subject_type and application.run_as_subject_id
-            else [],
+            else []
+        )
+        # Exports made before tools could ask first get the default rule.
+        ask_first_tools = serialized_values.get("ask_first_tools")
+        AgentHandler().set_allowed_tools(
+            application,
+            allowed_tools,
+            None
+            if ask_first_tools is None
+            else [name for name in ask_first_tools if name in allowed_tools],
         )
         if self._includes_conversations(import_export_config):
             AgentHandler().import_conversations(

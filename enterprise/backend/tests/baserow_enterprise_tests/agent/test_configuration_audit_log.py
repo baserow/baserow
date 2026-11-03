@@ -32,6 +32,7 @@ def test_configuration_audit_log_persists_full_before_and_after_snapshots(
         "run_as_subject_type": None,
         "run_as_subject_id": None,
         "allowed_tools": [],
+        "ask_first_tools": [],
     }
     changed_values = {
         "instructions": "Updated private instructions",

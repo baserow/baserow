@@ -16,9 +16,9 @@ from baserow.core.action.registries import (
 from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.trash.handler import TrashHandler
 
-from .models import AgentConversation
+from .models import AgentConversation, AgentMessage, AgentToolApproval
 from .service import AgentService
-from .types import AgentConfiguration, AgentMessageCreated
+from .types import AgentConfiguration, AgentMessageCreated, AgentToolDecision
 
 
 class CreateAgentConversationActionType(ActionType):
@@ -119,6 +119,78 @@ class CreateAgentMessageActionType(ActionType):
                 result.conversation.agent.workspace,
             )
         return result
+
+    @classmethod
+    def scope(cls, agent_id: int) -> ActionScopeStr:
+        return ApplicationActionScopeType.value(agent_id)
+
+
+class DecideAgentToolApprovalsActionType(ActionType):
+    type = "decide_agent_tool_approvals"
+    description = ActionTypeDescription(
+        _("Decide agent tool approvals"),
+        _("Held steps of reply (%(reply_id)s) decided in agent (%(agent_id)s)."),
+    )
+    analytics_params = ["agent_id", "approved", "rejected"]
+
+    @dataclass
+    class Params:
+        agent_id: int
+        conversation_id: int
+        reply_id: int
+        approved: list[str]
+        rejected: list[str]
+
+    @classmethod
+    @transaction.atomic
+    def do(
+        cls,
+        user: AbstractUser,
+        agent_id: int,
+        conversation_uuid: UUID,
+        decisions: list[AgentToolDecision],
+    ) -> tuple[AgentMessage, UUID | None]:
+        """
+        Approve or reject held calls, auditing the tools decided but never the
+        rejection reasons, which can quote the private conversation.
+
+        :param user: The user deciding.
+        :param agent_id: The id of the agent.
+        :param conversation_uuid: The uuid of the conversation.
+        :param decisions: Whether each held call may run, by approval id, with the
+            reason for a rejection.
+        :return: The reply with its approvals, and the run continuing it, or None
+            while some held calls are still undecided.
+        """
+
+        reply, run_id = AgentService().decide_approvals(
+            user, agent_id, conversation_uuid, decisions
+        )
+        decided_ids = {decision["id"] for decision in decisions}
+        decided = [
+            approval for approval in reply.approvals.all() if approval.id in decided_ids
+        ]
+        cls.register_action(
+            user,
+            cls.Params(
+                agent_id,
+                reply.conversation_id,
+                reply.id,
+                approved=[
+                    approval.tool_name
+                    for approval in decided
+                    if approval.status == AgentToolApproval.Status.APPROVED
+                ],
+                rejected=[
+                    approval.tool_name
+                    for approval in decided
+                    if approval.status == AgentToolApproval.Status.REJECTED
+                ],
+            ),
+            cls.scope(agent_id),
+            reply.conversation.agent.workspace,
+        )
+        return reply, run_id
 
     @classmethod
     def scope(cls, agent_id: int) -> ActionScopeStr:
