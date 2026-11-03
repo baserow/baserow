@@ -2623,3 +2623,19 @@ def test_update_builder_sets_and_clears_its_login_page(data_fixture):
 
     CoreHandler().update_application(user, builder, login_page_id=None)
     assert builder.login_page_id is None
+
+
+@pytest.mark.django_db
+def test_create_builder_refuses_a_login_page(data_fixture):
+    from rest_framework.exceptions import ValidationError
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    page = data_fixture.create_builder_page(user=user)
+
+    with pytest.raises(ValidationError):
+        CoreHandler().create_application(
+            user, workspace, type_name="builder", login_page_id=page.id
+        )
+
+    assert not Builder.objects.filter(workspace=workspace).exists()

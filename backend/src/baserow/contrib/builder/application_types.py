@@ -149,16 +149,15 @@ class BuilderApplicationType(ApplicationType):
     def prepare_value_for_db(self, values: dict, instance: "Builder | None" = None):
         """
         A builder's login page must be one of its own pages, and not its shared
-        page.
+        page. A new builder has no pages yet.
 
         :raises ValidationError: When the login page is another builder's page.
         """
 
         login_page_id = values.get("login_page_id")
-        if (
-            instance is not None
-            and login_page_id is not None
-            and not Page.objects_without_shared.filter(
+        if login_page_id is not None and (
+            instance is None
+            or not Page.objects_without_shared.filter(
                 builder=instance, id=login_page_id
             ).exists()
         ):
