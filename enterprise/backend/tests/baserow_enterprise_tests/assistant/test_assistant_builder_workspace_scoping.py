@@ -18,7 +18,6 @@ from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowActio
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.assistant.tools.core.tools import update_builder
-from baserow_enterprise.assistant.tools.core.types import BuilderUpdate
 from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.builder.tools import helpers
 from baserow_enterprise.builder.tools.types import (
@@ -349,7 +348,7 @@ def test_update_builder_from_other_workspace_is_not_found(two_workspaces):
         update_builder(
             ctx,
             builder_id=builder.id,
-            update=BuilderUpdate(name="Changed"),
+            name="Changed",
             thought="rename",
         )
 
@@ -377,7 +376,7 @@ def test_update_builder_refuses_a_login_page_outside_the_builder(
             update_builder(
                 ctx,
                 builder_id=builder.id,
-                update=BuilderUpdate(login_page_id=page_id),
+                login_page_id=page_id,
                 thought="login page",
             )
 
@@ -567,7 +566,7 @@ def test_update_builder_returns_a_field_validation_message(
         update_builder(
             make_test_ctx(w["user"], w["here"]),
             builder_id=page.builder.id,
-            update=BuilderUpdate(login_page_id=page.id),
+            login_page_id=page.id,
             thought="login page",
         )
 

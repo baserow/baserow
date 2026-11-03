@@ -393,7 +393,13 @@ TOOL_VISIBILITY: dict[str, frozenset[AgentMode]] = {
     "add_nodes": frozenset({AUTOMATION}),
     "ask_user": EVERYWHERE,
     "create_actions": frozenset({APPLICATION}),
-    "create_builders": EVERYWHERE - {EXPLAIN},
+    "create_database": frozenset({DATABASE}),
+    "create_automation": frozenset({AUTOMATION}),
+    "create_dashboard": frozenset({DASHBOARD}),
+    "create_builder": frozenset({APPLICATION}),
+    "update_database": frozenset({DATABASE}),
+    "update_automation": frozenset({AUTOMATION}),
+    "update_dashboard": frozenset({DASHBOARD}),
     "create_collection_elements": frozenset({APPLICATION}),
     "create_data_sources": frozenset({APPLICATION}),
     "create_display_elements": frozenset({APPLICATION}),
@@ -443,7 +449,7 @@ TOOL_VISIBILITY: dict[str, frozenset[AgentMode]] = {
     "setup_user_source": frozenset({APPLICATION}),
     "switch_mode": EVERYWHERE,
     "update_action": frozenset({APPLICATION}),
-    "update_builder": EVERYWHERE - {EXPLAIN},
+    "update_builder": frozenset({APPLICATION}),
     "update_data_source": frozenset({APPLICATION}),
     "update_element": frozenset({APPLICATION}),
     "update_element_style": frozenset({APPLICATION}),
@@ -461,6 +467,22 @@ def test_every_routed_tool_has_the_expected_reach() -> None:
     }
 
     assert actual == TOOL_VISIBILITY
+
+
+@pytest.mark.parametrize(
+    "application_type,mode",
+    [
+        ("database", DATABASE),
+        ("automation", AUTOMATION),
+        ("dashboard", DASHBOARD),
+        ("builder", APPLICATION),
+    ],
+)
+def test_application_tools_live_in_the_mode_of_their_type(application_type, mode):
+    # A routed tool that is not active in a mode is deferred there, so tool search
+    # finds it.
+    assert tool_home(f"create_{application_type}") == mode
+    assert tool_home(f"update_{application_type}") == mode
 
 
 @pytest.mark.django_db

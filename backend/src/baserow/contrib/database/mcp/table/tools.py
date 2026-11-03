@@ -8,7 +8,7 @@ from baserow.contrib.database.mcp.table.schemas import (
     ListDatabasesInput,
     UpdateTableInput,
 )
-from baserow.contrib.database.tools import tables
+from baserow.contrib.database.tools import databases, tables
 from baserow.core.mcp.groups import (
     GROUP_DATABASE_DELETE,
     GROUP_DATABASE_EDIT,
@@ -80,6 +80,24 @@ class ListTablesMcpTool(FunctionMCPTool):
     function = tables.list_tables
     # A legacy default tool, whose clients may still send arguments it dropped.
     ignore_extra_arguments = True
+
+
+class CreateDatabaseMcpTool(FunctionMCPTool):
+    type = "create_database"
+    group = GROUP_DATABASE_EDIT
+    title = "Create a database"
+    read_only = False
+    destructive = False
+    function = databases.create_database
+
+
+class UpdateDatabaseMcpTool(FunctionMCPTool):
+    type = "update_database"
+    group = GROUP_DATABASE_EDIT
+    title = "Rename a database"
+    read_only = False
+    destructive = False
+    function = databases.update_database
 
 
 class CreateTablesMcpTool(FunctionMCPTool):

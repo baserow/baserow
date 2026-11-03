@@ -1,39 +1,29 @@
+from collections.abc import Callable
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
-from django.db import transaction
 from django.utils.translation import gettext as _
 
 from pydantic import Field
-from pydantic_ai import ModelRetry, RunContext
-from rest_framework.exceptions import ValidationError as DRFValidationError
+from pydantic_ai import RunContext
 
-from baserow.core.actions import (
-    CreateApplicationActionType,
-    UpdateApplicationActionType,
-)
+from baserow.contrib.automation.tools import automations as shared_automations
+from baserow.contrib.dashboard.tools import dashboards as shared_dashboards
+from baserow.contrib.database.tools import databases as shared_databases
+from baserow.core.exceptions import ApplicationDoesNotExist
 from baserow.core.tools import applications as shared_applications
 from baserow.core.tools import search as shared_search
 from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps
-from baserow_enterprise.assistant.tools.shared import (
-    ToolInputError,
-    require_payload,
-    validation_messages,
-)
+from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 from baserow_enterprise.audit_log import tools as shared_audit_log
+from baserow_enterprise.builder.tools import applications as shared_builders
+from baserow_enterprise.builder.tools.themes import ThemeName
 
 from . import helpers
-from .types import BuilderItem, BuilderItemCreate, BuilderUpdate
+from .helpers import APPLICATION_TYPES
 
-# Kuma's builder types and the application types they are.
-_APPLICATION_TYPES = {
-    "database": "database",
-    "application": "builder",
-    "automation": "automation",
-    "dashboard": "dashboard",
-}
-_BUILDER_TYPES = {value: key for key, value in _APPLICATION_TYPES.items()}
+_BUILDER_TYPES = {value: key for key, value in APPLICATION_TYPES.items()}
 
 
 def list_builders(
@@ -77,7 +67,7 @@ def list_builders(
 
     result = shared_applications.list_applications(
         ctx.deps.tool_context(),
-        types=[_APPLICATION_TYPES[t] for t in builder_types or _APPLICATION_TYPES],
+        types=[APPLICATION_TYPES[t] for t in builder_types or APPLICATION_TYPES],
         page=page,
         size=size,
     )
@@ -247,79 +237,159 @@ def search_audit_log(
     )
 
 
-def create_builders(
+def _create_or_reuse(
     ctx: RunContext[AssistantDeps],
-    builders: Annotated[
-        list[BuilderItemCreate],
-        Field(description="List of builders to create, each with a name and type."),
+    builder_type: str,
+    name: str,
+    create: Callable[[], dict[str, Any]],
+) -> dict[str, Any]:
+    """
+    Reuse the builder of this type with exactly this name, or create it.
+
+    :param ctx: The run context.
+    :param builder_type: Kuma's type of the builder.
+    :param name: The exact name.
+    :param create: Creates the builder and returns its id and name.
+    :return: The created and the reused builder, each in a list that may be empty.
+    """
+
+    ctx.deps.tool_helpers.raise_if_cancelled()
+    existing = helpers.find_builder(ctx.deps.tool_context(), builder_type, name)
+    if existing is not None:
+        return {"created_builders": [], "reused_builders": [existing]}
+    return {
+        "created_builders": [{**create(), "type": builder_type}],
+        "reused_builders": [],
+    }
+
+
+def create_database(
+    ctx: RunContext[AssistantDeps],
+    name: Annotated[
+        shared_applications.ApplicationName,
+        Field(description="Name of the database, at most 160 characters."),
     ],
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
     ],
 ) -> dict[str, Any]:
     """\
-    Create a new database, application, or automation.
+    Create one new database.
 
-    WHEN to use: User wants a new database, application, or automation created in the workspace.
-    WHAT it does: Creates missing builders and reuses an exact name-and-type match in the workspace.
-    RETURNS: Created and reused builders with id, name, type.
-    HOW: Pick a unique, descriptive name. Check existing builders with list_builders to avoid duplicates.
-    THEME (applications only): Pick a theme matching the app purpose — baserow (clean light, default), eclipse (dark, dashboards/analytics), ivory (warm light, blogs/portfolios).
-    ASK FIRST: An application needs a purpose — what it manages or shows. For a bare request such as "create an app for my team", call ask_user before creating anything. A request that names the builder or asks for an empty one (e.g. "create an empty automation called X") is enough to create it.
+    WHEN to use: User wants a new database. For several, call this once per database.
+    WHAT it does: Creates the database, or reuses one with exactly this name.
+    RETURNS: created_builders and reused_builders, one of them holding the database with id, name, type.
+    HOW: Pick a unique, descriptive name. Check existing builders with list_builders to avoid duplicates. Add tables with create_tables.
     NOT FOR APP RECORDS: Never create a database to hold records an app should show unless the user asked for new data storage or an example, demo, or sample app. Call list_tables and, if nothing matches, ask the user instead.
     """
 
-    user = ctx.deps.user
-    workspace = ctx.deps.workspace
-    tool_helpers = ctx.deps.tool_helpers
+    tool_context = ctx.deps.tool_context()
+    return _create_or_reuse(
+        ctx,
+        "database",
+        name,
+        lambda: shared_databases.create_database(tool_context, name)[
+            "created_database"
+        ],
+    )
 
-    require_payload("create_builders", "builders", builders)
-    requested_builders, conflicting_names = helpers.canonical_builder_requests(builders)
-    if conflicting_names:
-        names = ", ".join(conflicting_names)
-        raise ModelRetry(
-            f"Conflicting builder definitions use the same name and type: {names}. "
-            "Submit one definition per builder."
-        )
 
-    existing_builders = {
-        (builder.type, builder.name): builder.model_dump()
-        for builder in helpers.list_builder_items(user, workspace)
-    }
+def create_automation(
+    ctx: RunContext[AssistantDeps],
+    name: Annotated[
+        shared_applications.ApplicationName,
+        Field(description="Name of the automation, at most 160 characters."),
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+) -> dict[str, Any]:
+    """\
+    Create one new automation.
 
-    created_builders = []
-    reused_builders = []
-    reused_requests = []
-    with transaction.atomic():
-        for builder in requested_builders:
-            tool_helpers.raise_if_cancelled()
-            key = (builder.type, builder.name)
-            if existing := existing_builders.get(key):
-                reused_builders.append(existing)
-                reused_requests.append((builder, existing))
-                continue
+    WHEN to use: User wants a new automation. A request that names it or asks for an empty one is enough. For several, call this once per automation.
+    WHAT it does: Creates the automation, or reuses one with exactly this name.
+    RETURNS: created_builders and reused_builders, one of them holding the automation with id, name, type.
+    HOW: Pick a unique, descriptive name. Check existing builders with list_builders to avoid duplicates. Add workflows with create_workflows.
+    """
 
-            tool_helpers.update_status(
-                _("Creating %(builder_type)s %(builder_name)s...")
-                % {"builder_type": builder.type, "builder_name": builder.name}
-            )
-            application = CreateApplicationActionType.do(
-                user, workspace, builder.get_orm_type(), name=builder.name
-            )
-            builder.post_creation_hook(user, application)
-            created_builder = BuilderItem(
-                id=application.id,
-                name=application.name,
-                type=builder.type,
-            ).model_dump()
-            created_builders.append(created_builder)
-            existing_builders[key] = created_builder
+    tool_context = ctx.deps.tool_context()
+    return _create_or_reuse(
+        ctx,
+        "automation",
+        name,
+        lambda: shared_automations.create_automation(tool_context, name)[
+            "created_automation"
+        ],
+    )
 
-    result = {
-        "created_builders": created_builders,
-        "reused_builders": reused_builders,
-    }
-    result.update(helpers.reused_builder_report(user, reused_requests))
+
+def create_dashboard(
+    ctx: RunContext[AssistantDeps],
+    name: Annotated[
+        shared_applications.ApplicationName,
+        Field(description="Name of the dashboard, at most 160 characters."),
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+) -> dict[str, Any]:
+    """\
+    Create one new dashboard.
+
+    WHEN to use: User wants a new dashboard. For several, call this once per dashboard.
+    WHAT it does: Creates the dashboard, or reuses one with exactly this name.
+    RETURNS: created_builders and reused_builders, one of them holding the dashboard with id, name, type.
+    HOW: Pick a unique, descriptive name. Check existing builders with list_builders to avoid duplicates. Add widgets with create_widgets.
+    """
+
+    tool_context = ctx.deps.tool_context()
+    return _create_or_reuse(
+        ctx,
+        "dashboard",
+        name,
+        lambda: shared_dashboards.create_dashboard(tool_context, name)[
+            "created_dashboard"
+        ],
+    )
+
+
+def create_builder(
+    ctx: RunContext[AssistantDeps],
+    name: Annotated[
+        shared_applications.ApplicationName,
+        Field(description="Name of the application, at most 160 characters."),
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+    theme: Annotated[
+        ThemeName | None,
+        Field(description="Theme to start with. The default is baserow."),
+    ] = None,
+) -> dict[str, Any]:
+    """\
+    Create one new application.
+
+    WHEN to use: User wants a new application or website. For several, call this once per application.
+    WHAT it does: Creates the application, or reuses one with exactly this name.
+    RETURNS: created_builders and reused_builders, one of them holding the application with id, name, type.
+    HOW: Pick a unique, descriptive name. Check existing builders with list_builders to avoid duplicates.
+    THEME: Pick a theme matching the app purpose — baserow (clean light, default), eclipse (dark, dashboards/analytics), ivory (warm light, blogs/portfolios).
+    ASK FIRST: An application needs a purpose — what it manages or shows. For a bare request such as "create an app for my team", call ask_user before creating anything. A request that names the application or asks for an empty one is enough to create it.
+    """
+
+    tool_context = ctx.deps.tool_context()
+    result = _create_or_reuse(
+        ctx,
+        "application",
+        name,
+        lambda: shared_builders.create_builder(tool_context, name, theme)[
+            "created_builder"
+        ],
+    )
+    for reused in result["reused_builders"]:
+        result.update(helpers.reused_builder_report(ctx.deps.user, reused, theme))
     return result
 
 
@@ -363,63 +433,143 @@ def switch_mode(
     return f"Switched to {target.value} mode."
 
 
-def update_builder(
+def _application_not_found(application_id: int) -> ToolInputError:
+    return ToolInputError(
+        f"Application with ID {application_id} not found in this workspace. "
+        "Use list_builders to find valid application IDs."
+    )
+
+
+def update_database(
     ctx: RunContext[AssistantDeps],
-    builder_id: Annotated[
+    database_id: Annotated[
         int,
-        Field(
-            description="ID of the builder to update, as returned by list_builders or create_builders."
-        ),
+        Field(description="ID of the database, from list_builders or create_database."),
     ],
-    update: Annotated[
-        BuilderUpdate,
-        Field(description="Settings to change. Set only the fields you want changed."),
+    name: Annotated[
+        shared_applications.ApplicationName,
+        Field(description="New name, at most 160 characters."),
     ],
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
     ],
 ) -> dict[str, Any]:
     """\
-    Update an application's settings (name, login page, etc.).
+    Rename a database.
 
-    WHEN to use: User wants to rename an application, set a login page, or change application-level settings.
-    WHAT it does: Updates the specified application's settings. Fields are type-specific.
-    RETURNS: Updated application info.
-    HOW: For setting a login page on a builder app, use setup_user_source first (which creates the login page), then call this if you need to change it.
+    WHEN to use: User wants to rename a database.
+    RETURNS: id, name, and changed, which is false when it already had that name.
     """
 
-    user = ctx.deps.user
+    try:
+        result = shared_databases.update_database(
+            ctx.deps.tool_context(), database_id, name
+        )
+    except ApplicationDoesNotExist as exc:
+        raise _application_not_found(database_id) from exc
+    return {**result["updated_database"], "changed": result["changed"]}
 
-    app = helpers.get_application(user, ctx.deps.workspace, builder_id)
-    ctx.deps.tool_helpers.update_status(
-        _("Updating %(app_name)s...") % {"app_name": app.name}
-    )
 
-    requested_changes = update.to_update_kwargs(app)
-    changes = {
-        name: value
-        for name, value in requested_changes.items()
-        if getattr(app, name) != value
-    }
-    if changes:
-        try:
-            UpdateApplicationActionType.do(user, app, **changes)
-        except DRFValidationError as exc:
-            # The builder refuses a login page it doesn't own.
-            raise ToolInputError(
-                f"{validation_messages(exc)} Use list_pages to find valid page IDs. "
-                "No changes were applied."
-            ) from exc
-        app.refresh_from_db()
+def update_automation(
+    ctx: RunContext[AssistantDeps],
+    automation_id: Annotated[
+        int,
+        Field(
+            description="ID of the automation, from list_builders or create_automation."
+        ),
+    ],
+    name: Annotated[
+        shared_applications.ApplicationName,
+        Field(description="New name, at most 160 characters."),
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+) -> dict[str, Any]:
+    """\
+    Rename an automation.
 
-    result: dict[str, Any] = {
-        "id": app.id,
-        "name": app.name,
-        "changed": bool(changes),
-    }
-    if hasattr(app, "login_page_id"):
-        result["login_page_id"] = app.login_page_id
-    return result
+    WHEN to use: User wants to rename an automation.
+    RETURNS: id, name, and changed, which is false when it already had that name.
+    """
+
+    try:
+        result = shared_automations.update_automation(
+            ctx.deps.tool_context(), automation_id, name
+        )
+    except ApplicationDoesNotExist as exc:
+        raise _application_not_found(automation_id) from exc
+    return {**result["updated_automation"], "changed": result["changed"]}
+
+
+def update_dashboard(
+    ctx: RunContext[AssistantDeps],
+    dashboard_id: Annotated[
+        int,
+        Field(
+            description="ID of the dashboard, from list_builders or create_dashboard."
+        ),
+    ],
+    name: Annotated[
+        shared_applications.ApplicationName,
+        Field(description="New name, at most 160 characters."),
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+) -> dict[str, Any]:
+    """\
+    Rename a dashboard.
+
+    WHEN to use: User wants to rename a dashboard.
+    RETURNS: id, name, and changed, which is false when it already had that name.
+    """
+
+    try:
+        result = shared_dashboards.update_dashboard(
+            ctx.deps.tool_context(), dashboard_id, name
+        )
+    except ApplicationDoesNotExist as exc:
+        raise _application_not_found(dashboard_id) from exc
+    return {**result["updated_dashboard"], "changed": result["changed"]}
+
+
+def update_builder(
+    ctx: RunContext[AssistantDeps],
+    builder_id: Annotated[
+        int,
+        Field(
+            description="ID of the application, from list_builders or create_builder."
+        ),
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+    name: Annotated[
+        shared_applications.ApplicationName | None,
+        Field(description="New name, at most 160 characters."),
+    ] = None,
+    login_page_id: Annotated[
+        int | None,
+        Field(description="ID of the page to use as the login page."),
+    ] = None,
+) -> dict[str, Any]:
+    """\
+    Update an application: its name or its login page.
+
+    WHEN to use: User wants to rename an application or set its login page.
+    WHAT it does: Updates what is set and leaves the rest.
+    RETURNS: id, name, login_page_id, and changed, which is false when there was nothing to change.
+    HOW: For a login page, use setup_user_source first (which creates the login page), then call this if you need to change it.
+    """
+
+    try:
+        result = shared_builders.update_builder(
+            ctx.deps.tool_context(), builder_id, name, login_page_id
+        )
+    except ApplicationDoesNotExist as exc:
+        raise _application_not_found(builder_id) from exc
+    return {**result["updated_builder"], "changed": result["changed"]}
 
 
 def ask_user(
@@ -461,7 +611,13 @@ TOOL_FUNCTIONS = [
     search_workspace,
     list_audit_log,
     search_audit_log,
-    create_builders,
+    create_database,
+    create_automation,
+    create_dashboard,
+    create_builder,
+    update_database,
+    update_automation,
+    update_dashboard,
     update_builder,
     switch_mode,
     ask_user,

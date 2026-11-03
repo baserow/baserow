@@ -300,7 +300,7 @@ def _check_creates_database(
     )
     return [
         CheckResult(
-            "called create_builders", tool_called(output, "create_builders") >= 1
+            "called create_database", tool_called(output, "create_database") >= 1
         ),
         CheckResult(
             "database 'Customer Portal' exists",
@@ -345,7 +345,7 @@ def _check_creates_automation(
     automation = created[0] if created else None
     return [
         CheckResult(
-            "called create_builders", tool_called(output, "create_builders") >= 1
+            "called create_automation", tool_called(output, "create_automation") >= 1
         ),
         CheckResult(
             "exactly 1 automation created",

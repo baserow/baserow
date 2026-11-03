@@ -1582,7 +1582,7 @@ def set_theme(
     WHEN to use: User wants to change the look and feel of an existing application.
     WHAT it does: Applies a predefined theme (colors, typography, button styles, etc.) to the application.
     RETURNS: Confirmation with applied theme name.
-    DO NOT USE when: Creating a new application — use the theme parameter on create_builders instead.
+    DO NOT USE when: Creating a new application — use the theme parameter on create_builder instead.
 
     ## Available Themes
     {theme_list}

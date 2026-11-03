@@ -1,4 +1,4 @@
-from baserow.contrib.automation.tools import workflows
+from baserow.contrib.automation.tools import automations, workflows
 from baserow.core.mcp.groups import GROUP_AUTOMATION_EDIT, GROUP_AUTOMATION_READ
 from baserow.core.mcp.registries import FunctionMCPTool
 
@@ -9,6 +9,24 @@ class ListWorkflowsMcpTool(FunctionMCPTool):
     title = "List workflows"
     read_only = True
     function = workflows.list_workflows
+
+
+class CreateAutomationMcpTool(FunctionMCPTool):
+    type = "create_automation"
+    group = GROUP_AUTOMATION_EDIT
+    title = "Create an automation"
+    read_only = False
+    destructive = False
+    function = automations.create_automation
+
+
+class UpdateAutomationMcpTool(FunctionMCPTool):
+    type = "update_automation"
+    group = GROUP_AUTOMATION_EDIT
+    title = "Rename an automation"
+    read_only = False
+    destructive = False
+    function = automations.update_automation
 
 
 class CreateWorkflowsMcpTool(FunctionMCPTool):

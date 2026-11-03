@@ -39,7 +39,7 @@ def test_create_automation_check_ignores_previous_runs(data_fixture):
     output = EvalRunOutput(
         answer="Created it",
         messages=[],
-        tool_calls=["create_builders"],
+        tool_calls=["create_automation"],
         tool_error_count=0,
         tool_error_hint="",
         sources=[],

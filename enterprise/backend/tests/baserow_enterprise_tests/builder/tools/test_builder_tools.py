@@ -1,49 +1,70 @@
 """The shared tools that create and update application builders (B18)."""
 
+import pydantic
 import pytest
 
+from baserow.contrib.automation.models import Automation
 from baserow.contrib.builder.models import Builder
-from baserow.core.actions import CreateApplicationActionType
+from baserow.contrib.dashboard.models import Dashboard
+from baserow.contrib.database.models import Database
 from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
 from baserow.core.integrations.models import Integration
+from baserow.core.integrations.service import IntegrationService
 from baserow.core.tools.errors import ToolInputError, tool_error_message
 from baserow_enterprise.builder.tools import applications
 from baserow_enterprise.builder.tools.themes import builder_uses_theme
-from baserow_enterprise.builder.tools.types import BuilderCreate
-
-
-def test_builder_create_has_no_type():
-    assert "type" not in BuilderCreate.model_fields
 
 
 @pytest.mark.django_db
-def test_create_builders_makes_builders_with_their_theme_and_integration(builder_ctx):
-    result = applications.create_builders(
-        builder_ctx["ctx"],
-        [BuilderCreate(name="Portal", theme="eclipse"), BuilderCreate(name="Plain")],
-    )
+def test_create_builder_makes_one_builder_with_its_theme_and_integration(builder_ctx):
+    result = applications.create_builder(builder_ctx["ctx"], "Portal", theme="eclipse")
 
-    assert "errors" not in result
-    assert [b["name"] for b in result["created_builders"]] == ["Portal", "Plain"]
-    portal = Builder.objects.get(id=result["created_builders"][0]["id"])
+    portal = Builder.objects.get(id=result["created_builder"]["id"])
+    assert result == {"created_builder": {"id": portal.id, "name": "Portal"}}
     assert portal.workspace_id == builder_ctx["workspace"].id
-    assert result["created_builders"][0]["type"] == "builder"
     assert builder_uses_theme(portal, "eclipse")
-    plain = Builder.objects.get(id=result["created_builders"][1]["id"])
-    assert builder_uses_theme(plain, "baserow")
     integration = Integration.objects.get(application=portal)
     assert integration.get_type().type == "local_baserow"
 
 
 @pytest.mark.django_db
-def test_create_builders_stops_when_permission_is_denied(builder_ctx, monkeypatch):
+def test_create_builder_defaults_to_the_baserow_theme(builder_ctx):
+    result = applications.create_builder(builder_ctx["ctx"], "Plain")
+
+    plain = Builder.objects.get(id=result["created_builder"]["id"])
+    assert builder_uses_theme(plain, "baserow")
+
+
+@pytest.mark.django_db
+def test_create_builder_creates_only_a_builder(builder_ctx):
+    applications.create_builder(builder_ctx["ctx"], "Portal")
+
+    workspace = builder_ctx["workspace"]
+    assert not Automation.objects.filter(workspace=workspace).exists()
+    assert not Dashboard.objects.filter(workspace=workspace).exists()
+    assert not Database.objects.filter(workspace=workspace, name="Portal").exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("name", ["", "x" * 161])
+def test_create_builder_rejects_an_invalid_name(builder_ctx, name):
+    with pytest.raises(pydantic.ValidationError):
+        applications.create_builder(builder_ctx["ctx"], name)
+
+    assert not Builder.objects.filter(name=name).exists()
+
+
+@pytest.mark.django_db
+def test_create_builder_keeps_nothing_when_denied(builder_ctx, monkeypatch):
     def denied(*args, **kwargs):
         raise PermissionException()
 
-    monkeypatch.setattr(CreateApplicationActionType, "do", denied)
+    monkeypatch.setattr(IntegrationService, "create_integration", denied)
 
     with pytest.raises(PermissionException):
-        applications.create_builders(builder_ctx["ctx"], [BuilderCreate(name="Portal")])
+        applications.create_builder(builder_ctx["ctx"], "Portal")
+
+    assert not Builder.objects.filter(name="Portal").exists()
 
 
 @pytest.mark.django_db
@@ -60,11 +81,23 @@ def test_update_builder_changes_the_name_and_login_page(builder_ctx):
             "id": builder.id,
             "name": "Renamed",
             "login_page_id": page.id,
-        }
+        },
+        "changed": True,
     }
     builder.refresh_from_db()
     assert builder.name == "Renamed"
     assert builder.login_page_id == page.id
+
+
+@pytest.mark.django_db
+def test_update_builder_with_nothing_to_change_reports_no_change(builder_ctx):
+    builder = builder_ctx["builder"]
+
+    result = applications.update_builder(
+        builder_ctx["ctx"], builder.id, name=builder.name
+    )
+
+    assert result["changed"] is False
 
 
 @pytest.mark.django_db

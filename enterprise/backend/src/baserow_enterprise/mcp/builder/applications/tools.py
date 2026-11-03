@@ -11,13 +11,13 @@ class ListBuildersMcpTool(FunctionMCPTool):
     function = applications.list_builders
 
 
-class CreateBuildersMcpTool(FunctionMCPTool):
-    type = "create_builders"
+class CreateBuilderMcpTool(FunctionMCPTool):
+    type = "create_builder"
     group = GROUP_BUILDER_EDIT
-    title = "Create application builders"
+    title = "Create an application builder"
     read_only = False
     destructive = False
-    function = applications.create_builders
+    function = applications.create_builder
 
 
 class UpdateBuilderMcpTool(FunctionMCPTool):

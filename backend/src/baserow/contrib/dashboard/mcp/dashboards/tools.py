@@ -11,10 +11,19 @@ class ListDashboardsMcpTool(FunctionMCPTool):
     function = dashboards.list_dashboards
 
 
-class CreateDashboardsMcpTool(FunctionMCPTool):
-    type = "create_dashboards"
+class CreateDashboardMcpTool(FunctionMCPTool):
+    type = "create_dashboard"
     group = GROUP_DASHBOARD_EDIT
-    title = "Create dashboards"
+    title = "Create a dashboard"
     read_only = False
     destructive = False
-    function = dashboards.create_dashboards
+    function = dashboards.create_dashboard
+
+
+class UpdateDashboardMcpTool(FunctionMCPTool):
+    type = "update_dashboard"
+    group = GROUP_DASHBOARD_EDIT
+    title = "Rename a dashboard"
+    read_only = False
+    destructive = False
+    function = dashboards.update_dashboard

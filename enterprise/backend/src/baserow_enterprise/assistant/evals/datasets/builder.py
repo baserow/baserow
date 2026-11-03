@@ -986,7 +986,7 @@ def _check_creates_app_with_theme(
 
     return [
         CheckResult(
-            "called create_builders", tool_called(output, "create_builders") >= 1
+            "called create_builder", tool_called(output, "create_builder") >= 1
         ),
         CheckResult(
             "builder 'Dashboard' created",
@@ -2479,7 +2479,7 @@ def _check_asks_once_when_goal_unclear(
         tool_called(output, "create_tables")
         + tool_called(output, "create_pages")
         + tool_called(output, "setup_page")
-        + tool_called(output, "create_builders")
+        + tool_called(output, "create_builder")
     )
 
     return [

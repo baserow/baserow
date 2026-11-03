@@ -11,24 +11,15 @@ from pydantic import Field
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.builder.models import Builder
-from baserow.core.actions import (
-    CreateApplicationActionType,
-    UpdateApplicationActionType,
-)
+from baserow.core.actions import UpdateApplicationActionType
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
 from baserow.core.service import CoreService
 from baserow.core.tools import ToolContext
 from baserow.core.tools import applications as shared_applications
-from baserow.core.tools.errors import (
-    ToolInputError,
-    item_error_message,
-    raise_if_permission_denied,
-    validation_messages,
-)
+from baserow.core.tools.errors import ToolInputError, validation_messages
 
-from .themes import apply_theme
-from .types import BuilderCreate
+from .themes import ThemeName, apply_theme
 
 
 def get_builder_in_workspace(ctx: ToolContext, builder_id: int) -> Builder:
@@ -67,46 +58,36 @@ def list_builders(
     return shared_applications.list_applications(ctx, ["builder"], page, size)
 
 
-def create_builders(
+def create_builder(
     ctx: ToolContext,
-    builders: Annotated[
-        list[BuilderCreate], Field(description="The application builders to create.")
+    name: Annotated[
+        shared_applications.ApplicationName,
+        Field(
+            description="The name of the application builder, at most 160 characters."
+        ),
     ],
+    theme: Annotated[
+        ThemeName | None,
+        Field(description="The theme to start with. The default is 'baserow'."),
+    ] = None,
 ) -> dict[str, Any]:
     """
-    Create application builders in the workspace, each with a theme and a connection
-    to the workspace's data. Use create_pages to add pages to them.
+    Create one application builder in the workspace, with a theme and a connection
+    to the workspace's data. Use create_pages to add pages to it. Returns its id
+    and name.
     """
 
-    created: list[dict] = []
-    errors: list[str] = []
+    ctx.update_status(_("Creating application %(name)s...") % {"name": name})
     with transaction.atomic():
-        for builder_create in builders:
-            ctx.update_status(
-                _("Creating application %(name)s...") % {"name": builder_create.name}
-            )
-            try:
-                with transaction.atomic():
-                    builder = CreateApplicationActionType.do(
-                        ctx.user, ctx.workspace, "builder", name=builder_create.name
-                    )
-                    IntegrationService().create_integration(
-                        ctx.user,
-                        integration_type_registry.get("local_baserow"),
-                        builder,
-                        name="Local Baserow",
-                    )
-                    apply_theme(builder, builder_create.theme or "baserow", ctx.user)
-            except Exception as exc:
-                raise_if_permission_denied(exc)
-                errors.append(f"{builder_create.name}: {item_error_message(exc)}")
-                continue
-            created.append({"id": builder.id, "name": builder.name, "type": "builder"})
-
-    result: dict[str, Any] = {"created_builders": created}
-    if errors:
-        result["errors"] = errors
-    return result
+        builder = shared_applications.create_application(ctx, "builder", name)
+        IntegrationService().create_integration(
+            ctx.user,
+            integration_type_registry.get("local_baserow"),
+            builder,
+            name="Local Baserow",
+        )
+        apply_theme(builder, theme or "baserow", ctx.user)
+    return {"created_builder": {"id": builder.id, "name": builder.name}}
 
 
 def update_builder(
@@ -114,7 +95,10 @@ def update_builder(
     builder_id: Annotated[
         int, Field(description="The ID of the application builder, from list_builders.")
     ],
-    name: Annotated[str | None, Field(description="The new name.")] = None,
+    name: Annotated[
+        shared_applications.ApplicationName | None,
+        Field(description="The new name, at most 160 characters."),
+    ] = None,
     login_page_id: Annotated[
         int | None,
         Field(description="The ID of one of its pages, to use as the login page."),
@@ -122,7 +106,8 @@ def update_builder(
 ) -> dict[str, Any]:
     """
     Update an application builder: its name or its login page. Set only what should
-    change.
+    change. Returns its id, name and login page, and changed, which is false when
+    there was nothing to change.
     """
 
     builder = get_builder_in_workspace(ctx, builder_id)
@@ -150,5 +135,6 @@ def update_builder(
             "id": builder.id,
             "name": builder.name,
             "login_page_id": builder.login_page_id,
-        }
+        },
+        "changed": bool(changes),
     }

@@ -9,7 +9,7 @@ from baserow.contrib.builder.pages.models import Page
 
 from .test_mcp_builder_read_tools import READ_TOOLS, _endpoint, _session
 
-WRITE_TOOLS = ["create_builders", "update_builder", "create_pages", "update_page"]
+WRITE_TOOLS = ["create_builder", "update_builder", "create_pages", "update_page"]
 
 
 def _load(result):
@@ -19,7 +19,7 @@ def _load(result):
 
 def _calls(builder_ctx):
     return {
-        "create_builders": {"builders": [{"name": "Portal", "theme": "eclipse"}]},
+        "create_builder": {"name": "Portal", "theme": "eclipse"},
         "update_builder": {"builder_id": builder_ctx["builder"].id, "name": "Renamed"},
         "create_pages": {
             "builder_id": builder_ctx["builder"].id,
@@ -53,7 +53,7 @@ def test_write_tools_with_builder_edit_turned_on(data_fixture, builder_ctx):
         assert tools[name].annotations.destructiveHint is False
     assert set(tools["update_page"].inputSchema["properties"]) == {"page_id", "page"}
 
-    created_builder = _load(results["create_builders"])["created_builders"][0]
+    created_builder = _load(results["create_builder"])["created_builder"]
     assert Builder.objects.filter(id=created_builder["id"]).exists()
     assert _load(results["update_builder"])["updated_builder"]["name"] == "Renamed"
     assert _load(results["create_pages"])["created_pages"][0]["path"] == "/new"
@@ -87,7 +87,7 @@ def test_write_tools_with_only_builder_read_turned_on_are_refused(
 
 
 @pytest.mark.django_db
-def test_create_builders_over_mcp_has_no_type_and_ignores_other_applications(
+def test_create_builder_over_mcp_has_no_type_and_ignores_other_applications(
     data_fixture, builder_ctx
 ):
     endpoint = _endpoint(data_fixture, builder_ctx, WRITE_TOOLS)
@@ -97,9 +97,7 @@ def test_create_builders_over_mcp_has_no_type_and_ignores_other_applications(
 
     async def callback(client):
         return (
-            await client.call_tool(
-                "create_builders", {"builders": [{"name": "X", "type": "database"}]}
-            ),
+            await client.call_tool("create_builder", {"name": "X", "type": "database"}),
             await client.call_tool(
                 "update_builder", {"builder_id": database.id, "name": "Renamed"}
             ),

@@ -137,7 +137,7 @@ class BaserowEnterpriseConfig(AppConfig):
             UpdateActionMcpTool,
         )
         from baserow_enterprise.mcp.builder.applications.tools import (
-            CreateBuildersMcpTool,
+            CreateBuilderMcpTool,
             ListBuildersMcpTool,
             UpdateBuilderMcpTool,
         )
@@ -177,7 +177,7 @@ class BaserowEnterpriseConfig(AppConfig):
         mcp_tool_registry.register(ListDataSourcesMcpTool())
         mcp_tool_registry.register(ListElementsMcpTool())
         mcp_tool_registry.register(ListActionsMcpTool())
-        mcp_tool_registry.register(CreateBuildersMcpTool())
+        mcp_tool_registry.register(CreateBuilderMcpTool())
         mcp_tool_registry.register(UpdateBuilderMcpTool())
         mcp_tool_registry.register(CreatePagesMcpTool())
         mcp_tool_registry.register(UpdatePageMcpTool())

@@ -38,7 +38,14 @@ prompts:
 |------|--------|
 | `navigate` | "Go to the Customers table" |
 | `list_builders` | "What builders do I have?" |
-| `create_builders` | "Create a new application called Test App" |
+| `create_database` | "Create a new database called Test Data" |
+| `update_database` | "Rename the Test Data database to Team Data" |
+| `create_builder` | "Create a new application called Test App" |
+| `update_builder` | "Rename the Test App application to Team App" |
+| `create_automation` | "Create an empty automation called Test Flows" |
+| `update_automation` | "Rename the Test Flows automation to Team Flows" |
+| `create_dashboard` | "Create an empty dashboard called Test Figures" |
+| `update_dashboard` | "Rename the Test Figures dashboard to Team Figures" |
 | `list_tables` | "What tables are in my database?" |
 | `get_tables_schema` | "Show me the schema of the Customers table" |
 | `list_rows` | "Show me the first rows of the Customers table" |

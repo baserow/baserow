@@ -156,8 +156,9 @@ class DashboardConfig(AppConfig):
         workspace_search_registry.register(DashboardSearchType())
 
         from baserow.contrib.dashboard.mcp.dashboards.tools import (
-            CreateDashboardsMcpTool,
+            CreateDashboardMcpTool,
             ListDashboardsMcpTool,
+            UpdateDashboardMcpTool,
         )
         from baserow.contrib.dashboard.mcp.widgets.tools import (
             CreateWidgetsMcpTool,
@@ -188,7 +189,8 @@ class DashboardConfig(AppConfig):
         mcp_tool_registry.register(ListDashboardsMcpTool())
         mcp_tool_registry.register(ListWidgetsMcpTool())
         mcp_tool_registry.register(GetWidgetDataMcpTool())
-        mcp_tool_registry.register(CreateDashboardsMcpTool())
+        mcp_tool_registry.register(CreateDashboardMcpTool())
+        mcp_tool_registry.register(UpdateDashboardMcpTool())
         mcp_tool_registry.register(CreateWidgetsMcpTool())
         mcp_tool_registry.register(UpdateWidgetsMcpTool())
         mcp_tool_registry.register(DeleteWidgetsMcpTool())

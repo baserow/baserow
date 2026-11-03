@@ -540,8 +540,8 @@ class TestCompactMessageHistory:
             ModelResponse(
                 parts=[
                     ToolCallPart(
-                        tool_name="create_builders",
-                        args={"builders": [{"name": "Restaurant"}]},
+                        tool_name="create_database",
+                        args={"name": "Restaurant"},
                         tool_call_id="failed-1",
                     )
                 ]
@@ -549,7 +549,7 @@ class TestCompactMessageHistory:
             ModelRequest(
                 parts=[
                     ToolReturnPart(
-                        tool_name="create_builders",
+                        tool_name="create_database",
                         content={
                             "created_builders": [],
                             "error": "Permission denied",
@@ -818,8 +818,8 @@ class TestCompactMessageHistory:
                     ModelResponse(
                         parts=[
                             ToolCallPart(
-                                tool_name="create_builders",
-                                args={"builders": [{"name": f"DB {index}"}]},
+                                tool_name="create_database",
+                                args={"name": f"DB {index}"},
                                 tool_call_id=call_id,
                             )
                         ]
@@ -827,7 +827,7 @@ class TestCompactMessageHistory:
                     ModelRequest(
                         parts=[
                             ToolReturnPart(
-                                tool_name="create_builders",
+                                tool_name="create_database",
                                 content={"created_builders": [{"id": index + 1}]},
                                 tool_call_id=call_id,
                             )
@@ -854,7 +854,7 @@ class TestCompactMessageHistory:
                     ModelResponse(
                         parts=[
                             ToolCallPart(
-                                tool_name="create_builders",
+                                tool_name="create_database",
                                 args={"builders": [*shared, {"name": final_name}]},
                                 tool_call_id=call_id,
                             )
@@ -863,7 +863,7 @@ class TestCompactMessageHistory:
                     ModelRequest(
                         parts=[
                             ToolReturnPart(
-                                tool_name="create_builders",
+                                tool_name="create_database",
                                 content={"created_builders": [{"id": index + 1}]},
                                 tool_call_id=call_id,
                             )
@@ -992,11 +992,11 @@ class TestCompactMessageHistory:
         assert evidence == []
 
     def test_identical_reused_retry_keeps_created_outcome(self):
-        arguments = {"builders": [{"name": "Restaurant", "type": "database"}]}
+        arguments = {"name": "Restaurant"}
         created = [
             ModelRequest(parts=[UserPromptPart(content="create Restaurant")]),
             *_mutation_messages(
-                "create_builders",
+                "create_database",
                 arguments,
                 {
                     "created_builders": [
@@ -1009,8 +1009,8 @@ class TestCompactMessageHistory:
             ModelResponse(parts=[TextPart(content="Done")]),
             ModelRequest(parts=[UserPromptPart(content="create Inventory")]),
             *_mutation_messages(
-                "create_builders",
-                {"builders": [{"name": "Inventory", "type": "database"}]},
+                "create_database",
+                {"name": "Inventory"},
                 {
                     "created_builders": [
                         {"id": 2, "name": "Inventory", "type": "database"}
@@ -1028,7 +1028,7 @@ class TestCompactMessageHistory:
             ModelResponse(
                 parts=[
                     ToolCallPart(
-                        tool_name="create_builders",
+                        tool_name="create_database",
                         args=arguments,
                         tool_call_id="reused-builder",
                     )
@@ -1037,7 +1037,7 @@ class TestCompactMessageHistory:
             ModelRequest(
                 parts=[
                     ToolReturnPart(
-                        tool_name="create_builders",
+                        tool_name="create_database",
                         content={
                             "created_builders": [],
                             "reused_builders": [
@@ -1222,7 +1222,7 @@ class TestAssistantLicenseTier:
     def test_verified_outcomes_are_injected_as_facts_not_completion(self):
         ctx = MagicMock()
         ctx.deps.verified_tool_outcomes = [
-            {"tool": "create_builders", "result": {"id": 42}}
+            {"tool": "create_database", "result": {"id": 42}}
         ]
 
         rendered = dynamic_verified_tool_outcomes(ctx)
@@ -2189,7 +2189,7 @@ class TestFinalAnswerValidation:
             ("update_builder", {"id": 3, "name": "Storefront", "changed": False}),
             ("update_builder", {"error": "Permission denied"}),
             (
-                "create_builders",
+                "create_database",
                 {"created_builders": [], "reused_builders": [{"id": 3}]},
             ),
         ],
@@ -2256,14 +2256,14 @@ class TestFinalAnswerValidation:
         model_calls = []
         mutations = []
 
-        def create_builders():
+        def create_builder():
             mutations.append("Customer Portal")
             return {"created_builders": [{"id": 3, "name": "Customer Portal"}]}
 
         def model(messages, info):
             model_calls.append(messages)
             if len(model_calls) == 2:
-                return ModelResponse(parts=[ToolCallPart("create_builders", {})])
+                return ModelResponse(parts=[ToolCallPart("create_builder", {})])
             return ModelResponse(parts=[TextPart(content=claim)])
 
         deps = AssistantDeps(
@@ -2276,7 +2276,7 @@ class TestFinalAnswerValidation:
             deps=deps,
             model=FunctionModel(model),
             message_history=history,
-            toolsets=[FunctionToolset(tools=[create_builders])],
+            toolsets=[FunctionToolset(tools=[create_builder])],
         )
 
         assert len(model_calls) == 3
@@ -2660,8 +2660,8 @@ class TestFinalAnswerValidation:
         ctx = MagicMock()
         ctx.messages = [
             *_mutation_messages(
-                "create_builders",
-                {"builders": [{"name": "Restaurant", "type": "database"}]},
+                "create_database",
+                {"name": "Restaurant"},
                 {"created_builders": [{"id": 1, "type": "database"}]},
                 "database",
             ),
@@ -2689,7 +2689,7 @@ class TestFinalAnswerValidation:
                 parts=[
                     ToolCallPart(
                         tool_name="update_builder",
-                        args={"builder_id": 1, "update": {}},
+                        args={"builder_id": 1},
                         tool_call_id="update",
                     )
                 ]
@@ -2728,8 +2728,8 @@ class TestFinalAnswerValidation:
             ModelResponse(
                 parts=[
                     ToolCallPart(
-                        tool_name="create_builders",
-                        args={"builders": [{"name": "Restaurant", "type": "database"}]},
+                        tool_name="create_database",
+                        args={"name": "Restaurant"},
                         tool_call_id="reuse-builder",
                     )
                 ]
@@ -2737,7 +2737,7 @@ class TestFinalAnswerValidation:
             ModelRequest(
                 parts=[
                     ToolReturnPart(
-                        tool_name="create_builders",
+                        tool_name="create_database",
                         content={
                             "created_builders": [],
                             "reused_builders": [
