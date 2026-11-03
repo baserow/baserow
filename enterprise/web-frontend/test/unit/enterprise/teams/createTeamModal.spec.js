@@ -3,79 +3,36 @@ import { flushPromises } from '@vue/test-utils'
 import { expect, test, vi } from 'vitest'
 import CreateTeamModal from '@baserow_enterprise/components/teams/CreateTeamModal'
 
-test('opens the user picker when loading agents fails', async () => {
-  const handled = vi.fn()
-  const client = {
-    get: vi.fn().mockRejectedValue({
-      handler: {
-        getMessage: () => ({
-          title: 'Unable to load agents',
-          message: 'Try again',
-        }),
-        handled,
-      },
-    }),
-  }
-  const subjectTypes = {
-    'auth.User': {
-      type: 'auth.User',
-      getId: (subject) => subject.user_id,
-    },
-    'core.Agent': {
-      type: 'core.Agent',
-      getId: (subject) => subject.id,
-    },
-  }
+test('creates the team with its name and role only', async () => {
+  const team = { id: 3, name: 'Sales', default_role: 'EDITOR' }
+  const client = { post: vi.fn().mockResolvedValue({ data: team }) }
   const wrapper = await mountSuspended(CreateTeamModal, {
-    props: {
-      workspace: {
-        id: 12,
-        users: [{ user_id: 5, name: 'Workspace user' }],
-      },
-    },
+    props: { workspace: { id: 12, users: [] } },
     global: {
-      mocks: {
-        $client: client,
-        $featureFlagIsEnabled: () => true,
-        $hasPermission: () => true,
-        $registry: { get: (_, type) => subjectTypes[type] },
-        $t: (key) => key,
-      },
+      mocks: { $client: client },
       stubs: {
-        Error: {
-          props: ['error'],
-          template: '<div v-if="error.visible">{{ error.title }}</div>',
+        Modal: {
+          template: '<div><slot /></div>',
+          methods: { show() {}, hide() {} },
         },
-        Modal: { template: '<div><slot /></div>' },
         ManageTeamForm: {
+          methods: { reset() {} },
           template:
-            '<button class="invite" @click="$emit(\'invite\')">Invite</button>',
-        },
-        MemberAssignmentModal: {
-          props: ['members'],
-          data: () => ({ visible: false }),
-          methods: {
-            show() {
-              this.visible = true
-            },
-          },
-          template:
-            '<div v-if="visible" class="picker"><span v-for="member in members" :key="member.id">{{ member.name }}</span></div>',
+            "<button class=\"save\" @click=\"$emit('submitted', { name: 'Sales', default_role: 'EDITOR' })\">Save</button>",
         },
       },
     },
   })
 
   try {
-    await wrapper.find('.invite').trigger('click')
+    await wrapper.find('.save').trigger('click')
     await flushPromises()
 
-    expect(client.get).toHaveBeenCalledWith('/agents/workspace/12/', {
-      params: { size: 200, page: 1 },
+    expect(client.post).toHaveBeenCalledWith('/teams/workspace/12/', {
+      name: 'Sales',
+      default_role: 'EDITOR',
     })
-    expect(wrapper.find('.picker').text()).toContain('Workspace user')
-    expect(wrapper.text()).toContain('Unable to load agents')
-    expect(handled).toHaveBeenCalledOnce()
+    expect(wrapper.emitted('created')).toEqual([[team]])
   } finally {
     wrapper.unmount()
   }

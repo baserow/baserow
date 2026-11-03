@@ -97,7 +97,7 @@ class UpdateTeamActionType(ActionType):
         original_name: str
         name: str
         workspace_id: int
-        subjects: List[Dict]
+        subjects: Optional[List[Dict]]
         original_default_role_uid: Union[str, None]
         default_role_uid: Union[str, None]
 
@@ -118,14 +118,12 @@ class UpdateTeamActionType(ActionType):
         :param user: The user on whose behalf the team is updated.
         :param team: The team instance that needs to be updated.
         :param name: The new name of the team.
-        :param subjects: An array of subject ID/type objects.
+        :param subjects: An array of subject ID/type objects, or `None` to leave
+            the members of the team as they are.
         :param default_role: The default role to apply to the workspace.
         :raises ValueError: If one of the provided parameters is invalid.
         :return: The updated team instance.
         """
-
-        if subjects is None:
-            subjects = []
 
         # Stash the original name and default role.
         original_name = team.name

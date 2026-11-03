@@ -87,9 +87,12 @@ class TeamSerializer(
     )
     subjects = TeamSubjectSerializer(
         many=True,
-        default=[],
         required=False,
-        help_text="An array of subject ID/type objects to be used during team create and update.",
+        help_text=(
+            "An array of subject ID/type objects to be used during team create and "
+            "update. When updating, omit it to keep the members of the team as "
+            "they are."
+        ),
     )
 
     class Meta:

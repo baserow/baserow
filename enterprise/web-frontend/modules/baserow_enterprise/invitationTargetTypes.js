@@ -157,3 +157,43 @@ export class ScopeInvitationTargetType extends InvitationTargetType {
     })
   }
 }
+
+/**
+ * The members of one team. The target is `{ type: 'team', team }`. Joining a
+ * team comes with the team's own role rather than one per member, so there are
+ * no roles to choose from.
+ */
+export class TeamInvitationTargetType extends InvitationTargetType {
+  static getType() {
+    return 'team'
+  }
+
+  getRoles(workspace, target) {
+    return []
+  }
+
+  getNavigationLabel(workspace, target) {
+    return this.$t('teamInvitationTarget.navigationLabel')
+  }
+
+  getTitle(workspace, { team }) {
+    return this.$t('teamInvitationTarget.title', { name: team.name })
+  }
+
+  /**
+   * Where the team lives and the role it gives, as "Team in Workspace • Editor".
+   */
+  getSubtitle(workspace, { team }) {
+    const role = workspace._.roles.find(({ uid }) => uid === team.default_role)
+    return role
+      ? this.$t('teamInvitationTarget.subtitleWithRole', {
+          workspace: workspace.name,
+          role: role.name,
+        })
+      : this.$t('teamInvitationTarget.subtitle', { workspace: workspace.name })
+  }
+
+  sendInvitation(workspace, target, values) {
+    throw new Error('Teams can only be joined by members of the workspace.')
+  }
+}
