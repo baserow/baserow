@@ -345,6 +345,16 @@ def test_create_page_derives_omitted_path_parameters(data_fixture, parameters):
     ]
 
 
+def test_create_page_lists_path_parameters_in_path_order():
+    page = PageCreate(
+        name="Edit",
+        path="/edit/:id/:slug",
+        path_params=[PagePathParam(name="slug", type="numeric")],
+    )
+
+    assert [param.name for param in page.path_params] == ["id", "slug"]
+
+
 @pytest.mark.parametrize(
     "path, parameters",
     [("/edit/:id/:id", []), ("/edit/:id", [PagePathParam(name="other")])],

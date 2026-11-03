@@ -32,7 +32,8 @@ def with_path_parameters(
     path: str, path_params: list[PagePathParam]
 ) -> list[PagePathParam]:
     """
-    Add the parameters of ``path`` missing from ``path_params``, as text.
+    Add the parameters of ``path`` missing from ``path_params``, as text, and list
+    them in the path's order.
 
     :raises ValueError: When the parameters don't match the ones in the path.
     """
@@ -47,7 +48,12 @@ def with_path_parameters(
         path, [parameter.model_dump() for parameter in path_params]
     ):
         raise ValueError("Path parameters must match unique parameters in the URL.")
-    return path_params
+    return sorted(
+        path_params,
+        key=lambda param: (
+            names.index(param.name) if param.name in names else len(names)
+        ),
+    )
 
 
 class PageCreate(BaseModel):
