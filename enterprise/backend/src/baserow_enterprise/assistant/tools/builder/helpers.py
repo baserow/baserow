@@ -63,6 +63,9 @@ from baserow.contrib.builder.workflow_actions.service import (
     BuilderWorkflowActionService,
 )
 from baserow.contrib.database.fields.models import Field
+from baserow.contrib.integrations.local_baserow.service_types import (
+    LocalBaserowViewServiceType,
+)
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
@@ -544,6 +547,14 @@ def update_data_source(
         service_type_registry.get_by_model(ds.service.specific) if ds.service else None
     )
     kwargs = ds_update.to_update_kwargs(user, workspace)
+    if "view_id" in kwargs and not isinstance(
+        service_type, LocalBaserowViewServiceType
+    ):
+        # Other services leave a view out without saying so.
+        raise ToolInputError(
+            f"Data source {ds.id} can't use a view. Only list_rows and get_row data "
+            "sources read through a view. No changes were applied."
+        )
     if kwargs:
         ds = (
             DataSourceService()

@@ -570,3 +570,17 @@ def test_update_builder_returns_a_field_validation_message(
             update=BuilderUpdate(login_page_id=page.id),
             thought="login page",
         )
+
+
+@pytest.mark.django_db
+def test_data_source_without_a_view_service_refuses_a_view(data_fixture, two_tables):
+    t = two_tables
+    data_source = data_fixture.create_builder_data_source(page=t["page"])
+    assert data_source.service is None
+
+    with pytest.raises(ToolInputError, match="can't use a view"):
+        helpers.update_data_source(
+            t["user"],
+            t["page"],
+            DataSourceUpdate(data_source_id=data_source.id, view_id=t["view"].id),
+        )
