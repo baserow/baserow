@@ -81,6 +81,183 @@ const settle = async () => {
 }
 
 describe('Dashboard filter dispatch', () => {
+  test.each([12, 13])(
+    'releases a shared source only after both filter saves finish (first: %s)',
+    async (firstId) => {
+      const finish = {}
+      store.$client.patch = vi.fn(
+        (url) =>
+          new Promise((resolve) => {
+            finish[url] = () => resolve({ data: {} })
+          })
+      )
+      store.$client.get = vi.fn(async () => ({
+        data: [...store.state.dashboardApplication.widgets],
+      }))
+      const saving = {}
+      for (const id of [12, 13]) {
+        saving[id] = store.dispatch('dashboardApplication/updateWidget', {
+          widgetId: id,
+          values: { default_value: 'New' },
+          originalValues: { default_value: id === 12 ? 'Alpha' : '' },
+        })
+      }
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(post).not.toHaveBeenCalled()
+      finish[`/dashboard/widgets/${firstId}/`]()
+      await saving[firstId]
+      await vi.advanceTimersByTimeAsync(300)
+      const firstSource = firstId === 12 ? 1 : 2
+      expect(requests.map(({ url }) => url)).toEqual([
+        `/dashboard/data-sources/${firstSource}/dispatch/`,
+      ])
+      await settle()
+      const secondId = firstId === 12 ? 13 : 12
+      finish[`/dashboard/widgets/${secondId}/`]()
+      await saving[secondId]
+      await vi.advanceTimersByTimeAsync(300)
+      const secondSource = firstId === 12 ? 2 : 1
+      expect(requests.map(({ url }) => url).sort()).toEqual([
+        `/dashboard/data-sources/${secondSource}/dispatch/`,
+        '/dashboard/data-sources/3/dispatch/',
+      ])
+      await settle()
+    }
+  )
+
+  test('does not resume pending refreshes after navigating away during a save', async () => {
+    let finishSave
+    store.$client.patch = vi.fn(
+      () => new Promise((resolve) => (finishSave = resolve))
+    )
+    const saving = store.dispatch('dashboardApplication/updateWidget', {
+      widgetId: 12,
+      values: { default_value: 'New' },
+      originalValues: { default_value: 'Alpha' },
+    })
+    await vi.advanceTimersByTimeAsync(1000)
+    store.commit('dashboardApplication/RESET')
+    finishSave({ data: {} })
+    await saving
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(post).not.toHaveBeenCalled()
+  })
+
+  test('keeps the shared dispatch payload valid while a filter changes value shape', async () => {
+    await store.dispatch('dashboardApplication/forceUpdateWidget', {
+      widgetId: 13,
+      values: { mode: 'dropdown', multiple: false },
+    })
+    let finishSave
+    store.$client.patch = vi.fn(
+      () => new Promise((resolve) => (finishSave = resolve))
+    )
+    const saving = store.dispatch('dashboardApplication/updateWidget', {
+      widgetId: 13,
+      values: { multiple: true },
+      originalValues: { multiple: false },
+    })
+    await change(12, 'Beta')
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(post).not.toHaveBeenCalled()
+    finishSave({ data: {} })
+    await saving
+    await vi.advanceTimersByTimeAsync(300)
+    expect(requests.map(({ url }) => url)).toContain(
+      '/dashboard/data-sources/1/dispatch/'
+    )
+    expect(requests[0].payload.widget_data[13]).toEqual([])
+    await settle()
+  })
+
+  test.each([23, 20])(
+    'does not wait for a title save on display widget %s',
+    async (widgetId) => {
+      let finishSave
+      store.$client.patch = vi.fn(
+        () => new Promise((resolve) => (finishSave = resolve))
+      )
+      const saving = store.dispatch('dashboardApplication/updateWidget', {
+        widgetId,
+        values: { title: 'Renamed' },
+        originalValues: { title: '' },
+      })
+      await change(12, 'Beta')
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(requests.map(({ url }) => url)).toEqual([
+        '/dashboard/data-sources/1/dispatch/',
+        '/dashboard/data-sources/3/dispatch/',
+      ])
+      await settle()
+      finishSave({ data: {} })
+      await saving
+    }
+  )
+
+  test.each([false, true])(
+    'only holds sources affected by a pending filter save (failure: %s)',
+    async (failure) => {
+      let finishSave
+      store.$client.patch = vi.fn(
+        () =>
+          new Promise((resolve, reject) => {
+            finishSave = failure
+              ? () => reject(new Error('Save failed'))
+              : () => resolve({ data: {} })
+          })
+      )
+      const saving = store
+        .dispatch('dashboardApplication/updateWidget', {
+          widgetId: 13,
+          values: { default_value: 'Other' },
+          originalValues: { default_value: '' },
+        })
+        .catch(() => {})
+      await change(12, 'Beta')
+      await vi.advanceTimersByTimeAsync(1000)
+      // Source 3 is shared by both filters; source 1 does not depend on filter 13.
+      expect(requests.map(({ url }) => url)).toEqual([
+        '/dashboard/data-sources/1/dispatch/',
+      ])
+      await settle()
+      post.mockClear()
+      await vi.advanceTimersByTimeAsync(1500)
+      expect(post).not.toHaveBeenCalled()
+      finishSave()
+      await saving
+      await vi.advanceTimersByTimeAsync(300)
+      expect(requests.map(({ url }) => url).sort()).toEqual([
+        '/dashboard/data-sources/2/dispatch/',
+        '/dashboard/data-sources/3/dispatch/',
+      ])
+      expect(requests[0].payload.widget_data[13]).toBe(failure ? '' : 'Other')
+      await settle()
+    }
+  )
+
+  test('waits for removed targets as well as newly added targets', async () => {
+    let finishSave
+    store.$client.patch = vi.fn(
+      () => new Promise((resolve) => (finishSave = resolve))
+    )
+    const saving = store.dispatch('dashboardApplication/updateWidget', {
+      widgetId: 12,
+      values: { target_filters: [{ target_widget_id: 21 }] },
+      originalValues: { target_filters: widget.target_filters },
+    })
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(post).not.toHaveBeenCalled()
+    finishSave({ data: {} })
+    await saving
+    await vi.advanceTimersByTimeAsync(300)
+    expect(requests.map(({ url }) => url).sort()).toEqual([
+      '/dashboard/data-sources/1/dispatch/',
+      '/dashboard/data-sources/2/dispatch/',
+      '/dashboard/data-sources/3/dispatch/',
+    ])
+    await settle()
+  })
+
   test.each([false, true])(
     'waits for selection mode persistence before dispatching (failure: %s)',
     async (failure) => {
