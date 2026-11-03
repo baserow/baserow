@@ -157,8 +157,8 @@ def set_view_sorts(
         _get_field(fields, field_id)
 
     existing = list(ViewSort.objects.filter(view=view).order_by("priority", "id"))
-    # Sorts apply in the order they were created. Those at the start that already
-    # match are kept, the others are recreated to end up in the order of the list.
+    # A new sort goes after the others. Those at the start that already match are
+    # kept, the others are recreated to end up in the order of the list.
     keep = 0
     while (
         keep < min(len(existing), len(sorts))
