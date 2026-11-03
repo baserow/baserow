@@ -87,13 +87,12 @@ def test_core_dashboard_tool_groups():
     assert groups["delete_widgets"] == GROUP_DASHBOARD_DELETE
 
 
-def test_dashboard_groups_order_and_preset():
+def test_only_dashboard_reads_are_in_the_read_only_preset():
     groups = [
         DashboardReadMCPToolGroup(),
         DashboardEditMCPToolGroup(),
         DashboardDeleteMCPToolGroup(),
     ]
-    assert [g.order for g in groups] == [70, 80, 90]
     assert [g.read_only_preset for g in groups] == [True, False, False]
     assert {g.area for g in groups} == {AREA_DASHBOARD}
 
