@@ -64,7 +64,7 @@
       </Button>
     </div>
   </Modal>
-  <AIProviderConfirmModal
+  <ConfirmModal
     v-if="saveConfirmation"
     ref="confirmModal"
     :title="saveConfirmation.title"
@@ -79,7 +79,7 @@
 </template>
 
 <script>
-import AIProviderConfirmModal from '@baserow/modules/core/components/ai/AIProviderConfirmModal'
+import ConfirmModal from '@baserow/modules/core/components/modals/ConfirmModal'
 import AIProviderModelCombobox from '@baserow/modules/core/components/ai/AIProviderModelCombobox'
 import AIProviderModelFeatureSelector from '@baserow/modules/core/components/ai/AIProviderModelFeatureSelector'
 import aiProviderModelUsage from '@baserow/modules/core/mixins/aiProviderModelUsage'
@@ -89,7 +89,7 @@ import { aiProviderErrorMessage } from '@baserow/modules/core/utils/aiProvider'
 export default {
   name: 'AIProviderModelFormModal',
   components: {
-    AIProviderConfirmModal,
+    ConfirmModal,
     AIProviderModelCombobox,
     AIProviderModelFeatureSelector,
   },

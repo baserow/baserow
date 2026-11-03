@@ -81,8 +81,13 @@
       :disabled="defaultRoleUid === null"
       @click="create"
     />
-    <InvitationLinkAdminConfirmModal
+    <ConfirmModal
       ref="adminConfirmModal"
+      :title="$t('invitationLinkAdminConfirmModal.title')"
+      :message="$t('invitationLinkAdminConfirmModal.message')"
+      :confirm-label="$t('invitationLinkAdminConfirmModal.confirm')"
+      danger
+      @hidden="pendingChange = null"
       @confirm="confirmPendingChange"
     />
     <InvitationLinkDeleteModal
@@ -96,7 +101,7 @@
 </template>
 
 <script>
-import InvitationLinkAdminConfirmModal from '@baserow/modules/core/components/invitation/InvitationLinkAdminConfirmModal'
+import ConfirmModal from '@baserow/modules/core/components/modals/ConfirmModal'
 import InvitationLinkDeleteModal from '@baserow/modules/core/components/invitation/InvitationLinkDeleteModal'
 import WorkspaceRoleSelector from '@baserow/modules/core/components/workspace/WorkspaceRoleSelector'
 import error from '@baserow/modules/core/mixins/error'
@@ -115,7 +120,7 @@ const ADMIN_ROLE_UID = 'ADMIN'
 export default {
   name: 'LinkInvitationRoute',
   components: {
-    InvitationLinkAdminConfirmModal,
+    ConfirmModal,
     InvitationLinkDeleteModal,
     WorkspaceRoleSelector,
   },
@@ -207,6 +212,7 @@ export default {
     confirmPendingChange() {
       const change = this.pendingChange
       this.pendingChange = null
+      this.$refs.adminConfirmModal.hide()
       change?.()
     },
     create() {

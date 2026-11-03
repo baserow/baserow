@@ -3,7 +3,7 @@ import { vi } from 'vitest'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import LinkInvitationRoute from '@baserow/modules/core/components/invitation/LinkInvitationRoute'
-import InvitationLinkAdminConfirmModal from '@baserow/modules/core/components/invitation/InvitationLinkAdminConfirmModal'
+import ConfirmModal from '@baserow/modules/core/components/modals/ConfirmModal'
 import InvitationLinkDeleteModal from '@baserow/modules/core/components/invitation/InvitationLinkDeleteModal'
 import WorkspaceRoleSelector from '@baserow/modules/core/components/workspace/WorkspaceRoleSelector'
 
@@ -174,7 +174,7 @@ describe('LinkInvitationRoute', () => {
       .onPatch('/workspaces/invitation-links/1/')
       .reply(200, { id: 1, slug: 'first', permissions: 'ADMIN' })
     const wrapper = await mountRoute()
-    const confirmModal = wrapper.findComponent(InvitationLinkAdminConfirmModal)
+    const confirmModal = wrapper.findComponent(ConfirmModal)
     const show = vi.spyOn(confirmModal.vm, 'show')
 
     wrapper
@@ -185,13 +185,41 @@ describe('LinkInvitationRoute', () => {
     expect(show).toHaveBeenCalled()
     expect(mockServer.mock.history.patch).toHaveLength(0)
 
-    confirmModal.vm.$emit('confirm')
+    await confirmModal.find('button').trigger('click')
     await flushPromises()
 
     expect(mockServer.mock.history.patch).toHaveLength(1)
     expect(JSON.parse(mockServer.mock.history.patch[0].data)).toEqual({
       permissions: 'ADMIN',
     })
+    await vi.waitFor(() => {
+      expect(confirmModal.find('.modal__wrapper').exists()).toBe(false)
+    })
+  })
+
+  test('cancels an admin role change without updating the link', async () => {
+    mockLinks([{ id: 1, slug: 'first', permissions: 'MEMBER' }])
+    const wrapper = await mountRoute()
+
+    wrapper
+      .findComponent(WorkspaceRoleSelector)
+      .vm.$emit('update:modelValue', 'ADMIN')
+    await flushPromises()
+
+    const confirmModal = wrapper.findComponent(ConfirmModal)
+    expect(confirmModal.text()).toContain(
+      'invitationLinkAdminConfirmModal.message'
+    )
+    await confirmModal.find('.action__links a').trigger('click')
+    await flushPromises()
+
+    expect(mockServer.mock.history.patch).toHaveLength(0)
+    await vi.waitFor(() => {
+      expect(confirmModal.find('.modal__wrapper').exists()).toBe(false)
+    })
+    expect(
+      wrapper.findComponent(WorkspaceRoleSelector).props('modelValue')
+    ).toBe('MEMBER')
   })
 
   test('deletes a link only after confirming', async () => {
