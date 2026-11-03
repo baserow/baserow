@@ -81,11 +81,29 @@ class CreateUserTemplateJob(
     )
 
 
+class DownloadUserTemplateJob(Job):
+    """
+    Builds the downloadable archive of a revision of a user template, unless it
+    has a valid one already.
+    """
+
+    revision = models.ForeignKey(
+        Template,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        help_text="The revision whose archive is downloaded. Empty once the "
+        "template was deleted permanently.",
+    )
+
+
 class UserTemplateContentToDelete(models.Model):
     """
     The workspace and archive copied by a create job that was deleted before they
     were, or of a user template that was removed permanently. It keeps track of
     them until their deletion succeeds, so that the sweep retries a failed one.
+    The archive is either one file, or the directory of a removed revision with
+    all the archives built for it, see `template_archive_dir`.
     """
 
     workspace_id = models.PositiveIntegerField(
@@ -99,5 +117,8 @@ class UserTemplateContentToDelete(models.Model):
         max_length=255,
         blank=True,
         default="",
-        help_text="The name of the stored archive of the template.",
+        help_text=(
+            "The name of the stored archive of the template, or the directory of "
+            "a revision's archives, which ends with a `/`."
+        ),
     )

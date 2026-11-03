@@ -90,7 +90,7 @@ describe('TemplateDetails', () => {
       .find('.template-install__actions .button-icon')
       .trigger('click')
     const links = wrapper.findAll('.context__menu-item-link')
-    expect(links).toHaveLength(1)
+    expect(links).toHaveLength(2)
     expect(links[0].text()).toContain('templateInstall.copyLink')
   })
 
@@ -109,6 +109,7 @@ describe('TemplateDetails', () => {
     expect(links.map((link) => link.text())).toStrictEqual([
       'templateDetails.editDetails',
       'templateDetails.updateContent',
+      'templateInstall.download',
       'templateDetails.delete',
     ])
 

@@ -85,6 +85,9 @@
                   {{ $t('templateDetails.updateContent') }}
                 </a>
               </li>
+            </template>
+            <!-- Delete comes last, after the items of every template. -->
+            <template v-if="isOwn" #menu-items-end="{ hide }">
               <li class="context__menu-item context__menu-item--with-separator">
                 <a
                   class="context__menu-item-link context__menu-item-link--delete"
