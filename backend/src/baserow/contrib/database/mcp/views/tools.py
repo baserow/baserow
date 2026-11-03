@@ -38,7 +38,7 @@ class SetViewSortsMcpTool(FunctionMCPTool):
     group = GROUP_DATABASE_EDIT
     title = "Set view sorts"
     read_only = False
-    destructive = False
+    destructive = True
     function = view_config.set_view_sorts
 
 
