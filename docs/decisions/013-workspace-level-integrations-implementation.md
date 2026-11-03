@@ -5,25 +5,27 @@
 > once the implementation is reviewed.
 
 Issue: https://github.com/baserow/baserow/issues/6015. The terms *app*, *shared
-application*, *workspace integration* and *published copies* are the ADR's.
+application*, *workspace integration*, *promotion* and *published copies* are the ADR's.
 
 ## Overview
 
 A hidden `SharedApplication` per workspace owns the workspace integrations. The
 `Integration` model, `IntegrationSerializer` and the integration URLs do not change.
-The work is: a new application type, six workspace-scoped operations, a widened
-ownership check, export changes on three paths, trash placement, promotion through the
-existing update endpoint, and a workspace settings page plus dropdown grouping.
+The work is: a new application type, created with each workspace and backfilled for
+existing ones, six workspace-scoped operations, a widened ownership check, export
+changes on three paths, trash placement, promotion through the existing update
+endpoint, and a workspace settings page plus dropdown grouping.
 
-| ADR decision                                   | Section  |
-| ---------------------------------------------- | -------- |
-| 1. Hidden shared application                   | 1.1      |
-| 2. App or workspace integration                | 1.4      |
-| 3. Publish copies, duplicates/snapshots link   | 1.5      |
-| 4. Workspace exports and templates flatten     | 1.5      |
-| 5. Admins manage, Builders list                | 1.2, 1.3 |
-| 6. Every integration type                      | 1.1      |
-| 7. Promotion as a one-row move                 | 1.7      |
+| ADR decision                                   | Section            |
+| ---------------------------------------------- | ------------------ |
+| 1. Hidden shared application                   | 1.1                |
+| 2. Managed in Workspace settings, existing API | 1.3, 2.2, 2.3, 2.5 |
+| 3. App or workspace integration                | 1.4                |
+| 4. Publish copies, duplicates/snapshots link   | 1.5                |
+| 5. Workspace exports and templates flatten     | 1.5                |
+| 6. Admins manage, Builders list                | 1.2, 1.3           |
+| 7. Every integration type                      | 1.1                |
+| 8. Promotion as a one-row move                 | 1.7, 2.5           |
 
 ## 1. Backend
 
@@ -141,7 +143,7 @@ the workspace integrations its services use are handled per path:
 | Path                                               | Config                                | Workspace integrations in the export             | On import                                                              |
 | -------------------------------------------------- | ------------------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------- |
 | Publish: builder domain, workflow and test clone   | `is_publishing`                       | Inlined as app-level copies with credentials     | Created on the published copy; services remapped to the copy           |
-| Duplicate app, snapshot create and restore         | `is_duplicate` and not `is_template`  | Not exported                                     | Services keep the unmapped id when it belongs to the destination workspace's shared app |
+| Duplicate app, snapshot create and restore         | `is_duplicate` and not `is_template`  | Not exported                                     | Services keep their reference to the existing workspace integration, which was not copied; the ownership check drops it otherwise |
 | Workspace export, templates                        | `exclude_sensitive_data`, `is_template` or `is_user_template` | Inlined as app-level copies, secrets stripped    | Created on the imported app                                            |
 
 - `IntegrationHandler.export_referenced_workspace_integrations(...)` collects the
@@ -256,10 +258,13 @@ as the current user. It calls `integration/update` with the shared app's
 
 ## 3. Delivery
 
-One migration (`SharedApplication`).
+v1 ships one schema migration (`SharedApplication`) and the backfill task. The next
+release adds the data migration for workspaces still missing a shared app and removes
+the task and the lazy path (ADR follow-up).
 
-The change is additive. The shared app appears in a workspace's listing
-only once the new backend serves it, and the frontend type ships in the same release.
+The change is additive. The shared app appears in a workspace's listing only once the
+new backend serves it or the backfill reaches it, and the frontend type ships in the
+same release.
 A tab still running the previous bundle throws on an unknown application type
 (`populateApplication`, `core/store/application.js:12`) at its next listing until it is
 reloaded; this matches any release that adds an application type.
