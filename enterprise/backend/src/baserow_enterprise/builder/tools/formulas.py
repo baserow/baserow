@@ -20,7 +20,10 @@ from baserow.contrib.builder.data_sources.actions import UpdateDataSourceActionT
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.elements.actions import UpdateElementActionType
 from baserow.contrib.builder.elements.handler import ElementHandler
-from baserow.contrib.builder.elements.mixins import CollectionElementTypeMixin
+from baserow.contrib.builder.elements.mixins import (
+    CollectionElementTypeMixin,
+    FormElementTypeMixin,
+)
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.actions import (
     UpdateBuilderWorkflowActionActionType,
@@ -648,14 +651,36 @@ def _formulas_of(source: Any, item: Any) -> dict[str, str]:
     return item.get_formulas_to_create(source, None)
 
 
+def _is_collection(element: Any) -> bool:
+    return isinstance(element.get_type(), CollectionElementTypeMixin)
+
+
+def _collection_read_by(element: Any) -> Any:
+    """
+    The collection whose row an element's formulas read. A record selector is a
+    collection too, but what it reads is the row around it: only its option suffix,
+    which no tool sets, reads its own rows.
+    """
+
+    if not isinstance(element.get_type(), FormElementTypeMixin):
+        return ElementHandler().get_first_ancestor_of_type(
+            element, CollectionElementTypeMixin
+        )
+    ancestors = ElementHandler().get_ancestors(
+        element, element.page, predicate=_is_collection
+    )
+    return ancestors[0] if ancestors else None
+
+
 @contextmanager
 def current_record_of(
     context: BuilderFormulaContext, kind: BuilderFormulaKind, source: Any
 ):
     """
     Offer the row of the collection around an element or action, or of a collection
-    element itself, as current_record. A collection bound through a schema property
-    has no data source of its own, and its row is only known when the page runs.
+    element itself unless it's a form element, as current_record. A collection bound
+    through a schema property has no data source of its own, and its row is only known
+    when the page runs.
     """
 
     collection = None
@@ -663,9 +688,7 @@ def current_record_of(
         element = source if kind == "element" else source.element
         try:
             # An action can be on the page rather than on an element.
-            collection = element and ElementHandler().get_first_ancestor_of_type(
-                element, CollectionElementTypeMixin
-            )
+            collection = element and _collection_read_by(element)
         except KeyError:
             # The parent can be on another page, like a shared page header.
             collection = None

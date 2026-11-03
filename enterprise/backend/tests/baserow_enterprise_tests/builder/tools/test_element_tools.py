@@ -1384,3 +1384,118 @@ def test_a_stored_column_does_not_block_an_unrelated_change(
         "Fixed",
         "Bound",
     ]
+
+
+# ---------------------------------------------------------------------------
+# A form element's default value
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def own_rows(data_fixture, builder_ctx):
+    """A data source reading another table, and that table's field."""
+
+    other = data_fixture.create_database_table(
+        database=builder_ctx["data_source"].service.specific.table.database
+    )
+    own_field = data_fixture.create_text_field(table=other, name="Own", primary=True)
+    own_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=builder_ctx["page"], table=other, name="Own rows"
+    )
+    return own_source, own_field
+
+
+@pytest.fixture
+def selector_in_repeat(builder_ctx, repeat, own_rows):
+    """A record selector inside a repeat, reading rows of another table."""
+
+    own_source, own_field = own_rows
+    result = elements.create_form_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            FormElementCreate(
+                ref="selector",
+                type="record_selector",
+                parent_element=repeat.id,
+                data_source=own_source.id,
+            )
+        ],
+    )
+    assert not result.get("errors")
+    selector = saved(result["ref_to_id_map"]["selector"])
+    assert selector.parent_element_id == repeat.id
+    return selector, own_field
+
+
+@pytest.mark.django_db
+def test_a_default_value_reads_the_row_of_the_repeat_around_it(
+    builder_ctx, table_field, selector_in_repeat
+):
+    selector, _own_field = selector_in_repeat
+    formula = f"get('current_record.field_{table_field.id}')"
+
+    result = elements.update_element(
+        builder_ctx["ctx"], selector.id, ElementChanges(default_value=formula)
+    )
+
+    assert "formula_errors" not in result
+    assert saved(selector.id).default_value["formula"] == formula
+
+
+@pytest.mark.django_db
+def test_a_default_value_can_not_read_the_selectors_own_rows(
+    builder_ctx, selector_in_repeat
+):
+    selector, own_field = selector_in_repeat
+
+    result = elements.update_element(
+        builder_ctx["ctx"],
+        selector.id,
+        ElementChanges(default_value=f"get('current_record.field_{own_field.id}')"),
+    )
+
+    assert [e["field"] for e in result["formula_errors"]] == ["default_value"]
+    assert saved(selector.id).default_value["formula"] == "''"
+
+
+@pytest.mark.django_db
+def test_a_default_value_of_a_new_selector_reads_the_repeat_around_it(
+    builder_ctx, repeat, table_field, own_rows
+):
+    formula = f"get('current_record.field_{table_field.id}')"
+    result = elements.create_form_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            FormElementCreate(
+                ref="selector",
+                type="record_selector",
+                parent_element=repeat.id,
+                data_source=own_rows[0].id,
+                default_value=formula,
+            )
+        ],
+    )
+
+    assert "formula_errors" not in result
+    selector = saved(result["ref_to_id_map"]["selector"])
+    assert selector.default_value["formula"] == formula
+
+
+@pytest.mark.django_db
+def test_a_default_value_outside_a_repeat_has_no_row_to_read(builder_ctx, table_field):
+    result = elements.create_form_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            FormElementCreate(
+                ref="selector",
+                type="record_selector",
+                data_source=builder_ctx["data_source"].id,
+                default_value=f"get('current_record.field_{table_field.id}')",
+            )
+        ],
+    )
+
+    assert "inside a repeat or a table" in result["formula_errors"][0]["error"]
