@@ -10,12 +10,17 @@ import jsonschema
 from loguru import logger
 from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.toolsets.abstract import AgentDepsT, ToolsetTool
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from typing_extensions import Self
 
 from baserow.core.exceptions import PermissionException, UserNotInWorkspace
 from baserow_enterprise.assistant.deps import AgentMode
 
-from .shared.errors import ToolInputError, permission_denied_result
+from .shared.errors import (
+    ToolInputError,
+    permission_denied_result,
+    validation_messages,
+)
 from .toolset import LENIENT_ARGS_VALIDATOR
 
 if TYPE_CHECKING:
@@ -298,6 +303,9 @@ class ModeAwareToolset(AbstractToolset[AgentDepsT]):
             return await self._inner.call_tool(name, tool_args, ctx, tool)
         except ToolInputError as exc:
             return {"error": str(exc)}
+        except DRFValidationError as exc:
+            # A module refused the values the tool was called with.
+            return {"error": validation_messages(exc)}
         except UserNotInWorkspace:
             return {
                 "error": (

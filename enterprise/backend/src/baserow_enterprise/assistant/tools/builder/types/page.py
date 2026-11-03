@@ -8,10 +8,6 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
-from baserow.contrib.builder.pages.constants import (
-    PAGE_PATH_PARAM_PREFIX,
-    PATH_PARAM_REGEX,
-)
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow_enterprise.assistant.types import BaseModel
 
@@ -30,6 +26,34 @@ class PageQueryParam(BaseModel):
 
     name: str = Field(..., description="Parameter name.")
     type: Literal["text", "numeric"] = Field("text", description="Parameter type.")
+
+
+def with_path_parameters(
+    path: str, path_params: list[PagePathParam]
+) -> list[PagePathParam]:
+    """
+    Add the parameters of ``path`` missing from ``path_params``, as text, and list
+    them in the path's order.
+
+    :raises ValueError: When the parameters don't match the ones in the path.
+    """
+
+    names = PageHandler().get_path_param_names(path)
+    path_params = list(path_params)
+    given = {parameter.name for parameter in path_params}
+    for name in dict.fromkeys(names):
+        if name not in given:
+            path_params.append(PagePathParam(name=name))
+    if not PageHandler().is_page_path_valid(
+        path, [parameter.model_dump() for parameter in path_params]
+    ):
+        raise ValueError("Path parameters must match unique parameters in the URL.")
+    return sorted(
+        path_params,
+        key=lambda param: (
+            names.index(param.name) if param.name in names else len(names)
+        ),
+    )
 
 
 class PageCreate(BaseModel):
@@ -61,15 +85,7 @@ class PageCreate(BaseModel):
 
     @model_validator(mode="after")
     def _default_path_parameters(self):
-        names = {parameter.name for parameter in self.path_params}
-        for token in dict.fromkeys(PATH_PARAM_REGEX.findall(self.path)):
-            name = token.removeprefix(PAGE_PATH_PARAM_PREFIX)
-            if name not in names:
-                self.path_params.append(PagePathParam(name=name))
-        if not PageHandler().is_page_path_valid(
-            self.path, [parameter.model_dump() for parameter in self.path_params]
-        ):
-            raise ValueError("Path parameters must match unique parameters in the URL.")
+        self.path_params = with_path_parameters(self.path, self.path_params)
         return self
 
 
