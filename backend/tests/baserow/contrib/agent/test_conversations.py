@@ -13,6 +13,8 @@ from rest_framework.exceptions import ValidationError
 from baserow.contrib.agent.actions import (
     CreateAgentConversationActionType,
     CreateAgentMessageActionType,
+    DeleteAgentConversationActionType,
+    RenameAgentConversationActionType,
 )
 from baserow.contrib.agent.exceptions import (
     AgentConversationDoesNotExist,
@@ -23,7 +25,9 @@ from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentConversation, AgentMessage
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.signals import agent_conversation_updated
+from baserow.core.action.handler import ActionHandler
 from baserow.core.action.models import Action
+from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.exceptions import FeatureDisabledException
@@ -625,3 +629,26 @@ def test_a_deleted_conversation_stops_its_reply_and_only_its_owner_restores_it(
     TrashHandler.restore_item(api_user, "agent_conversation", entry.trash_item_id)
 
     assert api_client.get(messages_url).json()["count"] == 2
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_renaming_and_deleting_can_be_undone_and_redone(data_fixture, configured_agent):
+    user = data_fixture.create_user(session_id="session")
+    agent = configured_agent(user=user)
+    conversation = data_fixture.create_agent_conversation(
+        user=user, agent=agent, title="Original"
+    )
+    scopes = [ApplicationActionScopeType.value(agent.id)]
+    RenameAgentConversationActionType.do(user, agent.id, conversation.uuid, "Renamed")
+    DeleteAgentConversationActionType.do(user, agent.id, conversation.uuid)
+
+    ActionHandler.undo(user, scopes, "session")
+    assert AgentConversation.objects.get().title == "Renamed"
+    ActionHandler.undo(user, scopes, "session")
+    assert AgentConversation.objects.get().title == "Original"
+
+    ActionHandler.redo(user, scopes, "session")
+    ActionHandler.redo(user, scopes, "session")
+    assert not AgentConversation.objects.exists()
+    assert AgentConversation.trash.get().title == "Renamed"

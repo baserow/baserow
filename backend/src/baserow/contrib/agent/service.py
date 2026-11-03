@@ -175,7 +175,7 @@ class AgentService:
     @transaction.atomic
     def rename_conversation(
         self, user: AbstractUser, agent_id: int, conversation_uuid: UUID, title: str
-    ) -> AgentConversation:
+    ) -> tuple[AgentConversation, str]:
         """
         Rename one of the user's conversations.
 
@@ -187,16 +187,17 @@ class AgentService:
             the agent.
         :raises AgentConversationDoesNotExist: When the user has no conversation with
             this uuid in the agent.
-        :return: The renamed conversation.
+        :return: The renamed conversation and its previous title.
         """
 
         agent = self._get_authorized_agent(
             user, agent_id, UpdateAgentConversationOperationType.type
         )
         conversation = self.handler.get_conversation(agent, user, conversation_uuid)
+        original_title = conversation.title
         self.handler.rename_conversation(conversation, title)
         agent_conversation_renamed.send(self, conversation=conversation, user=user)
-        return conversation
+        return conversation, original_title
 
     @transaction.atomic
     def delete_conversation(

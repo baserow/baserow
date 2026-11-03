@@ -6,12 +6,15 @@ from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 
+from baserow.core.action.models import Action
 from baserow.core.action.registries import (
     ActionScopeStr,
     ActionType,
     ActionTypeDescription,
+    UndoableActionType,
 )
 from baserow.core.action.scopes import ApplicationActionScopeType
+from baserow.core.trash.handler import TrashHandler
 
 from .models import AgentConversation
 from .service import AgentService
@@ -122,7 +125,7 @@ class CreateAgentMessageActionType(ActionType):
         return ApplicationActionScopeType.value(agent_id)
 
 
-class RenameAgentConversationActionType(ActionType):
+class RenameAgentConversationActionType(UndoableActionType):
     type = "rename_agent_conversation"
     description = ActionTypeDescription(
         _("Rename agent conversation"),
@@ -134,6 +137,9 @@ class RenameAgentConversationActionType(ActionType):
     class Params:
         agent_id: int
         conversation_id: int
+        conversation_uuid: str
+        title: str
+        original_title: str
 
     @classmethod
     @transaction.atomic
@@ -141,7 +147,8 @@ class RenameAgentConversationActionType(ActionType):
         cls, user: AbstractUser, agent_id: int, conversation_uuid: UUID, title: str
     ) -> AgentConversation:
         """
-        Rename a conversation, auditing it by ids because titles are private.
+        Rename a conversation. The description names it by id because titles are
+        private.
 
         :param user: The user renaming the conversation.
         :param agent_id: The id of the agent.
@@ -150,12 +157,18 @@ class RenameAgentConversationActionType(ActionType):
         :return: The renamed conversation.
         """
 
-        conversation = AgentService().rename_conversation(
+        conversation, original_title = AgentService().rename_conversation(
             user, agent_id, conversation_uuid, title
         )
         cls.register_action(
             user,
-            cls.Params(agent_id, conversation.id),
+            cls.Params(
+                agent_id,
+                conversation.id,
+                str(conversation.uuid),
+                conversation.title,
+                original_title,
+            ),
             cls.scope(agent_id),
             conversation.agent.workspace,
         )
@@ -165,8 +178,20 @@ class RenameAgentConversationActionType(ActionType):
     def scope(cls, agent_id: int) -> ActionScopeStr:
         return ApplicationActionScopeType.value(agent_id)
 
+    @classmethod
+    def undo(cls, user: AbstractUser, params: Params, action_being_undone: Action):
+        AgentService().rename_conversation(
+            user, params.agent_id, UUID(params.conversation_uuid), params.original_title
+        )
 
-class DeleteAgentConversationActionType(ActionType):
+    @classmethod
+    def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
+        AgentService().rename_conversation(
+            user, params.agent_id, UUID(params.conversation_uuid), params.title
+        )
+
+
+class DeleteAgentConversationActionType(UndoableActionType):
     type = "delete_agent_conversation"
     description = ActionTypeDescription(
         _("Delete agent conversation"),
@@ -178,6 +203,7 @@ class DeleteAgentConversationActionType(ActionType):
     class Params:
         agent_id: int
         conversation_id: int
+        conversation_uuid: str
 
     @classmethod
     @transaction.atomic
@@ -185,7 +211,8 @@ class DeleteAgentConversationActionType(ActionType):
         cls, user: AbstractUser, agent_id: int, conversation_uuid: UUID
     ) -> AgentConversation:
         """
-        Move a conversation to the trash, auditing it by ids.
+        Move a conversation to the trash. Undoing restores it and redoing trashes
+        it again.
 
         :param user: The user deleting the conversation.
         :param agent_id: The id of the agent.
@@ -198,7 +225,7 @@ class DeleteAgentConversationActionType(ActionType):
         )
         cls.register_action(
             user,
-            cls.Params(agent_id, conversation.id),
+            cls.Params(agent_id, conversation.id, str(conversation.uuid)),
             cls.scope(agent_id),
             conversation.agent.workspace,
         )
@@ -207,6 +234,16 @@ class DeleteAgentConversationActionType(ActionType):
     @classmethod
     def scope(cls, agent_id: int) -> ActionScopeStr:
         return ApplicationActionScopeType.value(agent_id)
+
+    @classmethod
+    def undo(cls, user: AbstractUser, params: Params, action_being_undone: Action):
+        TrashHandler.restore_item(user, "agent_conversation", params.conversation_id)
+
+    @classmethod
+    def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
+        AgentService().delete_conversation(
+            user, params.agent_id, UUID(params.conversation_uuid)
+        )
 
 
 class UpdateAgentConfigurationActionType(ActionType):
