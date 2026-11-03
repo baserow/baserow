@@ -467,7 +467,7 @@
   "inviteModal": {
     "backTo": "Back to {level}: {title}",
     "emailRoute": "Email invite",
-    "linkRoute": "Create link",
+    "linkRoute": "Invite links",
     "emailTitle": "Invite members by email",
     "linkTitle": "Invite members with a link",
     "linkEmptyTitle": "You have not yet created an invite link",
