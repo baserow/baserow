@@ -1683,7 +1683,7 @@ class ElementUpdate(BaseModel):
     Flat model for updating an existing builder UI element.
 
     All properties are optional. Only non-None properties are sent to the service
-    layer. The element type is read from the database, not passed by the LLM.
+    layer. The element type is read from the database.
     """
 
     element_id: int = Field(..., description="ID of the element to update.")

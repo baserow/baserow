@@ -104,7 +104,7 @@ OpenAI verifies the domain of a submitted ChatGPT app by fetching `/.well-known/
 |---|---|---|---|---|
 | `search_workspace` | `workspace_read` | on | no | Search the workspace by name or content, optionally by type (shared with Kuma) |
 | `list_databases` | `database_read` | on | no | List all databases in the workspace (kept for existing connections, until 2.6) |
-| `list_applications` | `database_read` | on | no | List the workspace's databases, builders, automations and dashboards, a page at a time (shared with Kuma) |
+| `list_applications` | `database_read` | on | no | List the workspace's databases, a page at a time (shared with Kuma) |
 | `list_tables` | `database_read` | on | no | List tables, optionally filtered by database or table name (shared with Kuma) |
 | `get_table_schema` | `database_read` | on | no | Get field definitions for one or more tables (shared with Kuma) |
 | `list_table_rows` | `database_read` | on | no | List rows with optional search and pagination |
@@ -171,7 +171,7 @@ OpenAI verifies the domain of a submitted ChatGPT app by fetching `/.well-known/
 | `create_actions` | `builder_edit` | off | no | Add workflow actions to buttons, forms and pages (shared with Kuma) |
 | `add_action_field_mapping` | `builder_edit` | off | no | Set the value a create row or update row action writes to one field (shared with Kuma) |
 | `update_action` | `builder_edit` | off | yes | Change a workflow action. Moving it to another table clears its field values (shared with Kuma) |
-| `setup_page` | `builder_edit` | off | no | Create a page with its data sources, elements and actions in one call (shared with Kuma) |
+| `setup_page` | `builder_edit` | off | no | Add data sources, elements and actions to an existing page in one call (shared with Kuma) |
 | `setup_user_source` | `builder_edit` | off | no | Set up password login on a users table, with a login page (shared with Kuma) |
 | `set_theme` | `builder_edit` | off | yes | Replace every theme setting of an application builder. Can't be undone (shared with Kuma) |
 
@@ -194,7 +194,7 @@ The application tools `create_database`, `create_automation`, `create_dashboard`
 
 `create_workflows` makes draft workflows, which do nothing. `publish_workflow` makes one live and is destructive, because it replaces the live copy and starts real effects such as sent emails and written rows; the client should ask the user first. `pause_workflow` stops a live workflow, and publishing again makes it live with the current draft.
 
-The application builder tools are registered by the enterprise app (`baserow_enterprise.mcp.builder`) and are enterprise code, so an instance running with `OSS_ONLY` does not have them. They are in the `builder_read` and `builder_edit` groups. `builder_read` is part of the "Read only" preset. There is no builder delete group and no tool deletes an application or any builder item. The shared code is in `baserow_enterprise/builder/tools/`, and an MCP tool never offers the Kuma-only parameters (`known_refs`, `known_data_source_refs`, `defer_required_formulas`). A formula that is not valid comes back in `formula_errors` for the client to fix with the matching `update_` tool, and no model is called. `set_theme`, `update_element` and `update_action` are destructive: `set_theme` replaces every theme setting, `update_element` can overwrite an element's settings, and `update_action` clears an action's field values when it moves to another table.
+The application builder tools are registered by the enterprise app (`baserow_enterprise.mcp.builder`) and are enterprise code, so an instance running with `BASEROW_OSS_ONLY` does not have them. They are in the `builder_read` and `builder_edit` groups. `builder_read` is part of the "Read only" preset. There is no builder delete group and no tool deletes an application or any builder item. The shared code is in `baserow_enterprise/builder/tools/`, and an MCP tool never offers the Kuma-only parameters (`known_refs`, `known_data_source_refs`, `defer_required_formulas`). A formula that is not valid comes back in `formula_errors` for the client to fix with the matching `update_` tool, and no model is called. A table column's formula is the exception: a new or changed one that is not valid refuses the whole `update_element`. When `update_element` changes the text of a button that also shows a notification, the result has a `note` naming that action, which stays as it was. `set_theme`, `update_element` and `update_action` are destructive: `set_theme` replaces every theme setting, `update_element` can overwrite an element's settings, and `update_action` clears an action's field values when it moves to another table.
 
 Writes over MCP can't be undone from Baserow's undo (Ctrl+Z). The action is stored without a client session id, and undo only finds actions made with the same session id as the browser, so nothing in the UI reaches it. To take back a create, delete the application, which moves it to the trash.
 
