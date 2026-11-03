@@ -16,6 +16,7 @@ from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowActio
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.table.models import Table
 from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
+from baserow.core.integrations.models import Integration
 from baserow.core.tools.errors import PERMISSION_DENIED_MESSAGE, ToolInputError
 from baserow.core.user_sources.models import UserSource
 from baserow_enterprise.builder.elements.element_types import AuthFormElementType
@@ -663,6 +664,92 @@ def test_setup_user_source_on_a_table_without_an_email_says_so(
             builder_ctx["builder"].id,
             UserSourceSetup(name="People", table_id=table.id),
         )
+
+
+def _users_table(data_fixture, builder_ctx):
+    database = data_fixture.create_database_application(
+        workspace=builder_ctx["workspace"]
+    )
+    return data_fixture.create_database_table(database=database, name="People")
+
+
+def _refused_setup_writes_nothing(data_fixture, builder_ctx, table, message):
+    builder = data_fixture.create_builder_application(
+        workspace=builder_ctx["workspace"]
+    )
+    pages = Page.objects.filter(builder=builder).count()
+    fields = table.field_set.count()
+
+    with pytest.raises(ToolInputError, match=message):
+        user_sources.setup_user_source(
+            builder_ctx["ctx"],
+            builder.id,
+            UserSourceSetup(name="People", table_id=table.id),
+        )
+
+    assert table.field_set.count() == fields
+    assert Page.objects.filter(builder=builder).count() == pages
+    assert not UserSource.objects.filter(application=builder).exists()
+    assert not Integration.objects.filter(application=builder).exists()
+
+
+@pytest.mark.django_db
+def test_setup_user_source_refuses_a_password_name_taken_by_another_type(
+    data_fixture, builder_ctx
+):
+    table = _users_table(data_fixture, builder_ctx)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    data_fixture.create_email_field(table=table, name="Email")
+    data_fixture.create_text_field(table=table, name="Password")
+
+    _refused_setup_writes_nothing(
+        data_fixture, builder_ctx, table, "field named 'Password'.*Rename"
+    )
+
+
+@pytest.mark.django_db
+def test_setup_user_source_uses_a_password_field_of_any_name(data_fixture, builder_ctx):
+    table = _users_table(data_fixture, builder_ctx)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    data_fixture.create_email_field(table=table, name="Email")
+    secret = data_fixture.create_password_field(table=table, name="Password")
+
+    result = user_sources.setup_user_source(
+        builder_ctx["ctx"],
+        builder_ctx["builder"].id,
+        UserSourceSetup(name="People", table_id=table.id),
+    )
+
+    assert table.field_set.count() == 3
+    source = UserSource.objects.get(id=result["created_user_source"]["id"]).specific
+    provider = source.auth_providers.get().specific
+    assert provider.password_field_id == secret.id
+
+
+@pytest.mark.django_db
+def test_setup_user_source_refuses_an_email_field_of_the_wrong_type(
+    data_fixture, builder_ctx
+):
+    table = _users_table(data_fixture, builder_ctx)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    data_fixture.create_number_field(table=table, name="Email")
+
+    _refused_setup_writes_nothing(
+        data_fixture, builder_ctx, table, "missing required fields: email.*Add"
+    )
+
+
+@pytest.mark.django_db
+def test_setup_user_source_refuses_a_primary_field_that_can_not_be_a_name(
+    data_fixture, builder_ctx
+):
+    table = _users_table(data_fixture, builder_ctx)
+    data_fixture.create_date_field(table=table, name="Joined", primary=True)
+    data_fixture.create_email_field(table=table, name="Email")
+
+    _refused_setup_writes_nothing(
+        data_fixture, builder_ctx, table, "missing required fields: name.*Add"
+    )
 
 
 @pytest.mark.django_db

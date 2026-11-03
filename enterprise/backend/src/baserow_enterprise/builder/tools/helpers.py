@@ -1574,6 +1574,7 @@ def resolve_existing_table(
     )
     from baserow.contrib.database.mcp.services import filter_tables
     from baserow.core.db import specific_iterator
+    from baserow.core.user_sources.registries import user_source_type_registry
 
     table = filter_tables(user, workspace).filter(id=table_id).first()
     if table is None:
@@ -1611,8 +1612,11 @@ def resolve_existing_table(
 
     # Fall back to primary field for name
     if "name" not in field_map:
+        name_types = user_source_type_registry.get(
+            "local_baserow"
+        ).field_types_allowed_as_name
         for field in fields:
-            if field.primary:
+            if field.primary and field.get_type().type in name_types:
                 field_map["name"] = field
                 break
 
@@ -1620,14 +1624,27 @@ def resolve_existing_table(
     if "email" not in field_map:
         missing.append("email (EmailField or TextField with 'email' in name)")
     if "name" not in field_map:
-        missing.append("name (TextField with 'name' in name, or a primary field)")
+        missing.append(
+            "name (TextField with 'name' in name, or a text, email, number or uuid "
+            "primary field)"
+        )
     if missing:
         raise ToolInputError(
-            f"Table '{table.name}' is missing required fields: {', '.join(missing)}"
+            f"Table '{table.name}' is missing required fields: {', '.join(missing)}. "
+            "Add them or change a field to fit, then call this again. No changes were "
+            "applied."
         )
 
     # Create password field if missing
     if "password" not in field_map:
+        taken = next((field for field in fields if field.name == "Password"), None)
+        if taken is not None:
+            raise ToolInputError(
+                f"Table '{table.name}' has a field named 'Password' of type "
+                f"{taken.get_type().type}, which can't hold login passwords. Rename "
+                "it or change it to a password field, then call this again. No "
+                "changes were applied."
+            )
         field_map["password"] = CreateFieldActionType.do(
             user, table, "password", name="Password"
         )

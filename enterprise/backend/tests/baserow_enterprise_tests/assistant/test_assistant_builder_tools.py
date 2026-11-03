@@ -3907,6 +3907,44 @@ def test_setup_user_source_existing_table(data_fixture):
     assert us.table_id == table.id
 
 
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "name,email,password,message",
+    [
+        ("text", "email", "text", "field named 'Password'"),
+        ("text", "number", "password", "missing required fields: email"),
+        ("date", "email", "password", "missing required fields: name"),
+    ],
+    ids=["password", "email", "name"],
+)
+def test_setup_user_source_reports_a_field_of_the_wrong_type(
+    data_fixture, name, email, password, message
+):
+    from baserow_enterprise.assistant.tools.builder.tools import setup_user_source
+    from baserow_enterprise.builder.tools.types.user_source import UserSourceSetup
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="People")
+    getattr(data_fixture, f"create_{name}_field")(
+        table=table, name="Name", primary=True
+    )
+    getattr(data_fixture, f"create_{email}_field")(table=table, name="Email")
+    getattr(data_fixture, f"create_{password}_field")(table=table, name="Password")
+
+    result = setup_user_source(
+        make_test_ctx(user, workspace),
+        application_id=builder.id,
+        setup=UserSourceSetup(name="People", table_id=table.id),
+        thought="test",
+    )
+
+    assert message in result["error"]
+    assert table.field_set.count() == 3
+
+
 @pytest.mark.django_db(transaction=True)
 def test_setup_user_source_existing_table_creates_password_field(data_fixture):
     """If the existing table lacks a password field, one is created."""

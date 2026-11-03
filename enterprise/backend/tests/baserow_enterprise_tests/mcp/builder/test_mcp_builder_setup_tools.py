@@ -192,6 +192,45 @@ def test_write_tools_with_only_builder_read_turned_on_are_refused(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "name,email,password,message",
+    [
+        ("text", "email", "text", "field named 'Password'"),
+        ("text", "number", "password", "missing required fields: email"),
+        ("date", "email", "password", "missing required fields: name"),
+    ],
+    ids=["password", "email", "name"],
+)
+def test_setup_user_source_names_a_field_of_the_wrong_type_over_mcp(
+    data_fixture, builder_ctx, name, email, password, message
+):
+    database = data_fixture.create_database_application(
+        workspace=builder_ctx["workspace"]
+    )
+    table = data_fixture.create_database_table(database=database, name="People")
+    getattr(data_fixture, f"create_{name}_field")(
+        table=table, name="Name", primary=True
+    )
+    getattr(data_fixture, f"create_{email}_field")(table=table, name="Email")
+    getattr(data_fixture, f"create_{password}_field")(table=table, name="Password")
+
+    result = _call(
+        data_fixture,
+        builder_ctx,
+        "setup_user_source",
+        {
+            "builder_id": builder_ctx["builder"].id,
+            "setup": {"name": "People", "table_id": table.id},
+        },
+    )
+
+    assert result.isError is True
+    assert message in result.content[0].text
+    assert table.field_set.count() == 3
+    assert not UserSource.objects.exists()
+
+
+@pytest.mark.django_db
 def test_a_refused_title_is_fixed_with_update_action_over_mcp(
     data_fixture, builder_ctx
 ):
