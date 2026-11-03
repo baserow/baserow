@@ -446,3 +446,33 @@ def test_permanently_deleting_rows_queries_semantic_search_once_per_trash_entry(
     assert two_entries == one_row * 2
     periodic_check_pending_search_data()
     assert get_chunk_counts(field) == {row_id: 1 for row_id in row_ids[23:]}
+
+
+@pytest.mark.django_db
+def test_vector_tables_of_workspaces_with_a_clashing_unique_together_name(
+    semantic_search,
+):
+    # Django names the `unique_together` constraint of both these workspaces
+    # the same, so the second table wasn't created.
+    for workspace_id in (71256, 100624):
+        SemanticSearchVectorTable(workspace_id).create_if_not_exists()
+
+    assert SemanticSearchVectorTable(71256).exists()
+    assert SemanticSearchVectorTable(100624).exists()
+
+
+@pytest.mark.django_db
+def test_create_vector_table_exits_its_transaction_if_the_index_fails(
+    data_fixture, semantic_search
+):
+    workspace = data_fixture.create_workspace()
+    vector_table = SemanticSearchVectorTable(workspace.id)
+    # Taking the index's name makes the deferred CREATE INDEX fail.
+    with connection.cursor() as cursor:
+        cursor.execute(f"CREATE TABLE {vector_table.name}_embedding_idx (id int)")
+    savepoint_ids = list(connection.savepoint_ids)
+
+    vector_table.create_if_not_exists()
+
+    assert connection.savepoint_ids == savepoint_ids
+    assert not vector_table.exists()

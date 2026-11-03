@@ -3,7 +3,7 @@ from functools import lru_cache
 from typing import Type
 
 from django.db import IntegrityError, ProgrammingError, connection, router, transaction
-from django.db.models import Exists, Model, OuterRef, QuerySet
+from django.db.models import Exists, Model, OuterRef, QuerySet, UniqueConstraint
 
 from loguru import logger
 from pgvector.django import HnswIndex
@@ -75,7 +75,14 @@ def _generate_vector_table_model(
             "managed": managed,
             "db_table": table_name,
             "app_label": app_label,
-            "unique_together": [("field_id", "row_id", "chunk_index")],
+            # The name Django generates for `unique_together` is cut to the same
+            # prefix and an 8-character hash, which isn't unique across workspaces.
+            "constraints": [
+                UniqueConstraint(
+                    fields=("field_id", "row_id", "chunk_index"),
+                    name=f"semantic_search_{workspace_id}_field_row_chunk_uniq",
+                )
+            ],
             "indexes": [
                 HnswIndex(
                     name=f"{table_name}_embedding_idx",
@@ -152,9 +159,10 @@ class SemanticSearchVectorTable:
         # a large table.
         model = _generate_vector_table_model(self.workspace_id, managed=True)
         try:
-            with transaction.atomic():
-                with connection.schema_editor() as schema_editor:
-                    schema_editor.create_model(model)
+            # Unlike `connection.schema_editor()`, this one also exits its transaction
+            # if a deferred statement, like creating the index, fails.
+            with safe_django_schema_editor() as schema_editor:
+                schema_editor.create_model(model)
         except ProgrammingError as exc:
             if isinstance(
                 exc.__cause__, (errors.DuplicateTable, errors.DuplicateObject)
