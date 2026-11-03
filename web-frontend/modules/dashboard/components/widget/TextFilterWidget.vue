@@ -52,12 +52,19 @@
           }}
         </template>
         <template #footer>
-          <ButtonText v-if="optionState.error" @click="loadOptions(true)">{{
-            $t('action.retry')
-          }}</ButtonText>
-          <ButtonText v-if="hasValue" @click="value = multiple ? [] : ''">{{
-            $t('textFilterWidget.clear')
-          }}</ButtonText>
+          <div class="dashboard-text-filter-widget__footer">
+            <ButtonText v-if="optionState.error" @click="loadOptions(true)">{{
+              $t('action.retry')
+            }}</ButtonText>
+            <Button
+              v-if="hasValue"
+              type="secondary"
+              size="small"
+              button-type="button"
+              @click="value = multiple ? [] : ''"
+              >{{ $t('textFilterWidget.clear') }}</Button
+            >
+          </div>
         </template>
       </Dropdown>
       <div class="dashboard-text-filter-widget__actions">
