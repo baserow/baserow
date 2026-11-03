@@ -377,7 +377,7 @@ def create_builder(
     HOW: Pick a unique, descriptive name. Check existing builders with list_builders to avoid duplicates.
     THEME: Pick a theme matching the app purpose — baserow (clean light, default), eclipse (dark, dashboards/analytics), ivory (warm light, blogs/portfolios).
     NAME: Pick a sensible name yourself. Never call ask_user only to get a name.
-    ASK FIRST: Only a bare request with no purpose, such as "create an app for my team", needs ask_user before creating anything. A request that says what the application is ("a website", "a project tracker") or asks for an empty one is enough to create it.
+    ASK FIRST: A bare request with no purpose, such as "create an app for my team", needs ask_user about what it should manage before creating anything; who it is for is not a purpose. A request that says what the application is ("a website", "a project tracker") or asks for an empty one is enough to create it.
     NOT FOR APP RECORDS: Creating the application does not authorize creating a database or tables for the records it shows, unless the user asked for new data storage or an example, demo, or sample app. Call list_tables and, if nothing matches, ask the user instead.
     """
 
