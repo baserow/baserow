@@ -49,7 +49,7 @@ nodes = {
                 },
             }
         ],
-        "toText": lambda node, _: "@" + node.attrs["label"],
+        "toText": lambda node, _: "@" + (node.attrs["label"] or ""),
     },
 }
 
