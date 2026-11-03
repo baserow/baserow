@@ -426,19 +426,24 @@ def update_page(
     kwargs = page_update.to_update_kwargs()
     if "path" in kwargs:
         # Parameters left out of path_params keep their type if the new path still
-        # names them; new ones are text.
+        # names them; new ones are text. They're saved in the path's order.
+        names = PageHandler().get_path_param_names(kwargs["path"])
         given = page_update.path_params or []
         given_names = {param.name for param in given}
-        names = PageHandler().get_path_param_names(kwargs["path"])
-        kept = [
-            PagePathParam(**param)
-            for param in page.path_params
-            if param["name"] in names and param["name"] not in given_names
-        ]
         try:
+            kept = [
+                PagePathParam(**param)
+                for param in page.path_params
+                if param["name"] in names and param["name"] not in given_names
+            ]
             path_params = with_path_parameters(kwargs["path"], [*given, *kept])
         except ValueError as exc:
             raise ToolInputError(f"{exc} Nothing was changed in this call.") from exc
+        path_params.sort(
+            key=lambda param: (
+                names.index(param.name) if param.name in names else len(names)
+            )
+        )
         kwargs["path_params"] = [param.model_dump() for param in path_params]
     if kwargs:
         try:

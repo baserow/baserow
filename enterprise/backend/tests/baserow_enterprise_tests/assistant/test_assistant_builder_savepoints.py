@@ -335,7 +335,7 @@ def test_update_page_keeps_the_type_of_a_path_param_it_leaves_out(data_fixture, 
     )
 
     page.refresh_from_db()
-    assert sorted(page.path_params, key=lambda param: param["name"]) == [
+    assert page.path_params == [
         {"name": "id", "type": "numeric"},
         {"name": "slug", "type": "text"},
     ]
