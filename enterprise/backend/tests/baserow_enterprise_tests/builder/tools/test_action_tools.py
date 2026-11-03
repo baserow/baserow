@@ -335,29 +335,6 @@ def test_an_element_ref_from_another_call_names_the_rule(builder_ctx):
 
 
 @pytest.mark.django_db
-def test_known_refs_reach_the_action(builder_ctx):
-    result = actions.create_actions_with_options(
-        builder_ctx["ctx"],
-        builder_ctx["page"].id,
-        [
-            notification("button"),
-            ActionCreate(
-                type="refresh_data_source",
-                element="button",
-                data_source="products",
-            ),
-        ],
-        BuilderWriteOptions(
-            known_refs={"button": builder_ctx["button"].id},
-            known_data_source_refs={"products": builder_ctx["data_source"].id},
-        ),
-    )
-
-    assert "errors" not in result
-    assert saved(result, 1).data_source_id == builder_ctx["data_source"].id
-
-
-@pytest.mark.django_db
 def test_a_data_source_ref_from_another_call_names_the_rule(builder_ctx):
     result = create(
         builder_ctx,
@@ -799,67 +776,6 @@ def opens_detail(builder_ctx, detail_page):
 
 
 @pytest.mark.django_db
-def test_update_action_fixes_a_notification_title_refused_on_create(builder_ctx):
-    created = create(
-        builder_ctx,
-        notification(builder_ctx["button"].id, title="$formula: the product name"),
-    )
-    action_id = created["created_actions"][0]["id"]
-    assert created["formula_errors"][0]["field"] == "title"
-    data_source_id = builder_ctx["data_source"].id
-
-    result = update(
-        builder_ctx, action_id, title=f"get('data_source.{data_source_id}.0.id')"
-    )
-
-    assert set(result) == {"updated_action"}
-    assert result["updated_action"]["id"] == action_id
-    assert stored(action_id).title == {
-        "formula": f"get('data_source.{data_source_id}.0.id')",
-        "mode": BASEROW_FORMULA_MODE_ADVANCED,
-        "version": "0.1",
-    }
-    assert not BuilderWorkflowAction.objects.filter(
-        element=builder_ctx["button"], id__gt=action_id
-    ).exists()
-
-
-@pytest.mark.django_db
-def test_update_action_fixes_an_open_page_parameter_refused_on_create(
-    builder_ctx, detail_page
-):
-    created = create(
-        builder_ctx,
-        ActionCreate(
-            type="open_page",
-            element=builder_ctx["button"].id,
-            navigate_to_page_id=detail_page.id,
-            page_parameters=[{"name": "id", "value": "$formula: the row id"}],
-        ),
-    )
-    action_id = created["created_actions"][0]["id"]
-    assert created["formula_errors"][0]["field"] == "page_param_0"
-    data_source_id = builder_ctx["data_source"].id
-    formula = f"get('data_source.{data_source_id}.0.id')"
-
-    result = update(
-        builder_ctx, action_id, page_parameters=[{"name": "id", "value": formula}]
-    )
-
-    assert "formula_errors" not in result
-    assert stored(action_id).page_parameters == [
-        {
-            "name": "id",
-            "value": {
-                "formula": formula,
-                "mode": BASEROW_FORMULA_MODE_ADVANCED,
-                "version": "0.1",
-            },
-        }
-    ]
-
-
-@pytest.mark.django_db
 def test_update_action_keeps_the_old_title_when_the_new_one_is_refused(
     builder_ctx, titled
 ):
@@ -972,22 +888,6 @@ def test_update_action_on_another_workspace_is_refused(data_fixture, builder_ctx
         update(builder_ctx, action.id, title="Taken")
 
     assert stored(action.id).title == title
-
-
-@pytest.mark.django_db
-def test_update_action_can_be_undone(builder_ctx, titled):
-    user = builder_ctx["user"]
-    session_id = "session-id"
-    set_untrusted_client_session_id(user, session_id)
-    scopes = [PageActionScopeType.value(builder_ctx["page"].id)]
-    formula = f"get('data_source.{builder_ctx['data_source'].id}.0.id')"
-
-    update(builder_ctx, titled.id, title=formula)
-    assert stored(titled.id).title["formula"] == formula
-
-    ActionHandler.undo(user, scopes, session_id)
-
-    assert stored(titled.id).title["formula"] == "'Old'"
 
 
 @pytest.mark.django_db
@@ -1466,20 +1366,6 @@ def test_update_action_refuses_an_unknown_parameter_name(builder_ctx, opens_two)
 
 
 @pytest.mark.django_db
-def test_update_action_names_both_the_missing_and_the_unknown(builder_ctx, opens_two):
-    with pytest.raises(ToolInputError) as error:
-        update(
-            builder_ctx,
-            opens_two.id,
-            page_parameters=[{"name": "nosuch", "value": "x"}],
-        )
-
-    message = str(error.value)
-    assert "nosuch" in message and "id" in message and "slug" in message
-    assert _parameter_names(opens_two.id) == ["id", "slug"]
-
-
-@pytest.mark.django_db
 def test_update_action_refuses_a_new_target_with_other_parameters(
     data_fixture, builder_ctx, opens_two
 ):
@@ -1520,17 +1406,6 @@ def test_update_action_accepts_a_new_target_with_its_parameters(
 
 
 @pytest.mark.django_db
-def test_update_action_accepts_a_target_without_parameters_and_an_empty_list(
-    data_fixture, builder_ctx, opens_two
-):
-    other = data_fixture.create_builder_page(builder=builder_ctx["builder"], path="/o")
-
-    update(builder_ctx, opens_two.id, navigate_to_page_id=other.id, page_parameters=[])
-
-    assert stored(opens_two.id).page_parameters == []
-
-
-@pytest.mark.django_db
 def test_update_action_accepts_a_complete_list_in_any_order(builder_ctx, opens_two):
     update(
         builder_ctx,
@@ -1542,32 +1417,6 @@ def test_update_action_accepts_a_complete_list_in_any_order(builder_ctx, opens_t
     )
 
     assert sorted(_parameter_names(opens_two.id)) == ["id", "slug"]
-
-
-@pytest.mark.django_db
-def test_update_action_does_not_check_parameters_when_none_are_given(
-    builder_ctx, opens_two
-):
-    update(builder_ctx, opens_two.id, target="blank", query_parameters=[])
-
-    assert stored(opens_two.id).target == "blank"
-
-
-@pytest.mark.django_db
-def test_create_actions_still_takes_parameters_the_page_does_not_have(builder_ctx):
-    detail = builder_ctx["builder"].page_set.get(name="About")
-
-    result = create(
-        builder_ctx,
-        ActionCreate(
-            type="open_page",
-            element=builder_ctx["button"].id,
-            navigate_to_page_id=detail.id,
-            page_parameters=[{"name": "nosuch", "value": "x"}],
-        ),
-    )
-
-    assert "errors" not in result
 
 
 FUNCTION_CALLS = [

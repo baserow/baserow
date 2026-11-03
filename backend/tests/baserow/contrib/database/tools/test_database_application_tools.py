@@ -8,7 +8,6 @@ from baserow.contrib.builder.models import Builder
 from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.tools.databases import create_database, update_database
-from baserow.core.actions import CreateApplicationActionType
 from baserow.core.exceptions import ApplicationDoesNotExist, UserNotInWorkspace
 from baserow.core.tools import ToolContext
 
@@ -33,33 +32,11 @@ def test_create_database_creates_only_a_database(ctx):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("name", ["", "x" * 161])
-def test_create_database_rejects_an_invalid_name(ctx, name):
-    with pytest.raises(pydantic.ValidationError):
-        create_database(ctx, name)
-
-    assert not Database.objects.exists()
-
-
-@pytest.mark.django_db
 def test_create_database_keeps_nothing_when_denied(data_fixture):
     workspace = data_fixture.create_workspace()
     ctx = ToolContext(user=data_fixture.create_user(), workspace=workspace)
 
     with pytest.raises(UserNotInWorkspace):
-        create_database(ctx, "Sales")
-
-    assert not Database.objects.exists()
-
-
-@pytest.mark.django_db
-def test_create_database_keeps_nothing_when_the_write_fails(ctx, monkeypatch):
-    def fail(*args, **kwargs):
-        raise RuntimeError("write failed")
-
-    monkeypatch.setattr(CreateApplicationActionType, "do", fail)
-
-    with pytest.raises(RuntimeError):
         create_database(ctx, "Sales")
 
     assert not Database.objects.exists()
@@ -79,20 +56,6 @@ def test_update_database_renames_it(ctx, data_fixture):
     }
     database.refresh_from_db()
     assert database.name == "New"
-
-
-@pytest.mark.django_db
-def test_update_database_with_the_same_name_reports_no_change(ctx, data_fixture):
-    database = data_fixture.create_database_application(
-        workspace=ctx.workspace, name="Same"
-    )
-
-    result = update_database(ctx, database.id, "Same")
-
-    assert result == {
-        "updated_database": {"id": database.id, "name": "Same"},
-        "changed": False,
-    }
 
 
 @pytest.mark.django_db

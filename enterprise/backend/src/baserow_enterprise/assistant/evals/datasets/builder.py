@@ -2791,6 +2791,15 @@ def _check_menu_button_opens_page(
             ),
             hint=f"actions on {help_click}: {[type(a).__name__ for a in actions]}",
         ),
+        CheckResult(
+            "Help's click action is stored on the shared page",
+            bool(actions)
+            and all(
+                action.page_id == scenario.refs["builder"].shared_page.id
+                for action in actions
+            ),
+            hint=f"pages: {[a.page_id for a in actions]}",
+        ),
     ]
 
 

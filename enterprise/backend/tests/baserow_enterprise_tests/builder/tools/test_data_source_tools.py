@@ -123,7 +123,10 @@ def test_create_makes_a_list_rows_on_a_table_that_already_has_one(site):
 
 
 @pytest.mark.django_db
-def test_get_row_with_a_description_for_row_id_is_not_created(site):
+@pytest.mark.parametrize(
+    "row_id", ["$formula: the id page parameter", "get('page_parameter.missing')"]
+)
+def test_get_row_with_a_row_id_that_is_not_a_formula_is_not_created(site, row_id):
     result = data_sources.create_data_sources(
         site["ctx"],
         site["page"].id,
@@ -133,7 +136,7 @@ def test_get_row_with_a_description_for_row_id_is_not_created(site):
                 name="Row",
                 type="get_row",
                 table_id=site["table"].id,
-                row_id="$formula: the id page parameter",
+                row_id=row_id,
             ),
             DataSourceCreate(
                 ref="other", name="Other", type="list_rows", table_id=site["table"].id
@@ -150,7 +153,10 @@ def test_get_row_with_a_description_for_row_id_is_not_created(site):
 
 
 @pytest.mark.django_db
-def test_get_row_with_a_formula_that_does_not_resolve_is_not_created(site):
+@pytest.mark.parametrize(
+    "row_id", ["get('page_parameter.id')", "add(get('page_parameter.id'), 1)"]
+)
+def test_get_row_with_an_explicit_row_id_is_created_and_stored(site, row_id):
     result = data_sources.create_data_sources(
         site["ctx"],
         site["page"].id,
@@ -160,34 +166,15 @@ def test_get_row_with_a_formula_that_does_not_resolve_is_not_created(site):
                 name="Row",
                 type="get_row",
                 table_id=site["table"].id,
-                row_id="get('page_parameter.missing')",
+                row_id=row_id,
             )
         ],
     )
 
-    assert result["created_data_sources"] == []
-    assert result["errors"][0].startswith("row: ")
-
-
-@pytest.mark.django_db
-def test_get_row_with_an_explicit_row_id_is_created_and_stored(site):
-    result = data_sources.create_data_sources(
-        site["ctx"],
-        site["page"].id,
-        [
-            DataSourceCreate(
-                ref="row",
-                name="Row",
-                type="get_row",
-                table_id=site["table"].id,
-                row_id="get('page_parameter.id')",
-            )
-        ],
-    )
-
-    row_id = service_of(result["ref_to_id_map"]["row"]).row_id
-    assert row_id["formula"] == "get('page_parameter.id')"
-    assert row_id["mode"] == BASEROW_FORMULA_MODE_ADVANCED
+    stored = service_of(result["ref_to_id_map"]["row"]).row_id
+    assert stored["formula"] == row_id
+    assert stored["mode"] == BASEROW_FORMULA_MODE_ADVANCED
+    assert "errors" not in result
     assert "formula_errors" not in result
 
 
@@ -307,29 +294,6 @@ def test_update_of_a_data_source_of_another_workspace_is_not_found(data_fixture,
             site["ctx"], other.id, DataSourceChanges(name="Stolen")
         )
     assert tool_error_message(exc.value) == "Not found in this workspace."
-
-
-@pytest.mark.django_db
-def test_get_row_on_a_numeric_parameter_with_a_calculation_is_created(site):
-    result = data_sources.create_data_sources(
-        site["ctx"],
-        site["page"].id,
-        [
-            DataSourceCreate(
-                ref="row",
-                name="Row",
-                type="get_row",
-                table_id=site["table"].id,
-                row_id="add(get('page_parameter.id'), 1)",
-            )
-        ],
-    )
-
-    assert "errors" not in result
-    assert "formula_errors" not in result
-    assert service_of(result["ref_to_id_map"]["row"]).row_id["formula"] == (
-        "add(get('page_parameter.id'), 1)"
-    )
 
 
 @pytest.mark.parametrize("row_id", ["", "   "])

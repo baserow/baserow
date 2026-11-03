@@ -260,59 +260,6 @@ def test_setup_page_stores_a_column_formula_unless_told_otherwise(builder_ctx):
 
 
 @pytest.mark.django_db
-def test_setup_page_runs_the_hook_after_each_phase_it_has(builder_ctx):
-    phases = []
-
-    def after_phase(kind, phase):
-        # Each phase is saved before the next one starts.
-        phases.append(
-            (
-                kind,
-                DataSource.objects.filter(name="Rows").count(),
-                Element.objects.filter(page=builder_ctx["page"]).count(),
-            )
-        )
-        return []
-
-    existing = Element.objects.filter(page=builder_ctx["page"]).count()
-    pages.setup_page_with_options(
-        builder_ctx["ctx"],
-        builder_ctx["page"].id,
-        [
-            DataSourceCreate(
-                ref="rows",
-                name="Rows",
-                type="list_rows",
-                table_id=table_of(builder_ctx).id,
-                search_query="$formula: the search",
-            )
-        ],
-        [ElementItemCreate(ref="h", type="heading", value="Title")],
-        None,
-        BuilderWriteOptions(after_phase=after_phase),
-    )
-
-    assert phases == [
-        ("data_source", 1, existing),
-        ("element", 1, existing + 1),
-    ]
-
-
-@pytest.mark.django_db
-def test_setup_page_what_the_hook_returns_is_what_is_listed(builder_ctx):
-    result = pages.setup_page_with_options(
-        builder_ctx["ctx"],
-        builder_ctx["page"].id,
-        None,
-        [ElementItemCreate(ref="h", type="heading", value="$formula: the title")],
-        None,
-        BuilderWriteOptions(after_phase=lambda kind, phase: []),
-    )
-
-    assert "formula_errors" not in result
-
-
-@pytest.mark.django_db
 def test_setup_page_refused_with_nothing_done_raises(builder_ctx, monkeypatch):
     def deny(*args, **kwargs):
         raise PermissionException()

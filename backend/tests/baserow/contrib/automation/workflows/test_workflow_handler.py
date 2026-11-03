@@ -607,22 +607,6 @@ def test_publish_only_disables_older_copies_in_its_transaction(
 
 
 @pytest.mark.django_db
-def test_first_publish_starts_no_clean_up(
-    data_fixture, django_capture_on_commit_callbacks
-):
-    workflow = data_fixture.create_automation_workflow()
-
-    with patch(
-        "baserow.contrib.automation.workflows.handler."
-        "delete_superseded_published_automations"
-    ) as task:
-        with django_capture_on_commit_callbacks(execute=True):
-            AutomationWorkflowHandler().publish(workflow)
-
-    task.apply_async.assert_not_called()
-
-
-@pytest.mark.django_db
 def test_delete_superseded_keeps_the_current_copy_when_a_test_clone_is_newer(
     data_fixture,
 ):

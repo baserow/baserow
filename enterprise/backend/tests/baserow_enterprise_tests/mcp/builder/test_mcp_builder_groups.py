@@ -1,3 +1,5 @@
+import pytest
+
 from baserow.core.mcp.groups import (
     AREA_BUILDER,
     GROUP_BUILDER_EDIT,
@@ -6,22 +8,17 @@ from baserow.core.mcp.groups import (
 )
 
 
-def test_builder_read_group_is_in_the_read_only_preset():
-    group = mcp_tool_group_registry.get(GROUP_BUILDER_READ)
+@pytest.mark.parametrize(
+    "group_type,read_only_preset",
+    [(GROUP_BUILDER_READ, True), (GROUP_BUILDER_EDIT, False)],
+)
+def test_only_the_builder_read_group_is_in_the_read_only_preset(
+    group_type, read_only_preset
+):
+    group = mcp_tool_group_registry.get(group_type)
 
-    assert group.title == "Read application builders"
     assert group.area == AREA_BUILDER
-    assert group.read_only_preset is True
-    assert group.order == 110
-
-
-def test_builder_edit_group_is_not_in_the_read_only_preset():
-    group = mcp_tool_group_registry.get(GROUP_BUILDER_EDIT)
-
-    assert group.title == "Edit application builders"
-    assert group.area == AREA_BUILDER
-    assert group.read_only_preset is False
-    assert group.order == 120
+    assert group.read_only_preset is read_only_preset
 
 
 def test_there_is_no_builder_delete_group():

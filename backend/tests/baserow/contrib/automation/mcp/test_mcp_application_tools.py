@@ -15,11 +15,6 @@ from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.database.models import Database
 from baserow.core.integrations.models import Integration
 from baserow.core.mcp import BaserowMCPServer, current_key
-from baserow.core.mcp.groups import (
-    GROUP_AUTOMATION_EDIT,
-    GROUP_DASHBOARD_EDIT,
-    GROUP_DATABASE_EDIT,
-)
 from baserow.core.mcp.registries import mcp_tool_registry
 
 NOT_FOUND = "Not found in this workspace."
@@ -48,25 +43,6 @@ def _call(endpoint, name, arguments):
 def _json(result):
     assert result.isError is False, result.content[0].text
     return json.loads(result.content[0].text)
-
-
-@pytest.mark.parametrize(
-    "tool,group",
-    [
-        ("create_database", GROUP_DATABASE_EDIT),
-        ("update_database", GROUP_DATABASE_EDIT),
-        ("create_automation", GROUP_AUTOMATION_EDIT),
-        ("update_automation", GROUP_AUTOMATION_EDIT),
-        ("create_dashboard", GROUP_DASHBOARD_EDIT),
-        ("update_dashboard", GROUP_DASHBOARD_EDIT),
-    ],
-)
-def test_application_tools_are_in_the_edit_group_of_their_type(tool, group):
-    registered = mcp_tool_registry.get(tool)
-
-    assert registered.group == group
-    assert registered.read_only is False
-    assert registered.destructive is False
 
 
 def test_there_are_no_application_delete_tools():

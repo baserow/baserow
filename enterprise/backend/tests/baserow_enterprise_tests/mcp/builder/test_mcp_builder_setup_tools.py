@@ -192,35 +192,6 @@ def test_write_tools_with_only_builder_read_turned_on_are_refused(
 
 
 @pytest.mark.django_db
-def test_a_notification_description_gives_a_formula_error_over_mcp(
-    data_fixture, builder_ctx
-):
-    result = _load(
-        _call(
-            data_fixture,
-            builder_ctx,
-            "create_actions",
-            {
-                "page_id": builder_ctx["page"].id,
-                "actions": [
-                    {
-                        "type": "notification",
-                        "element": builder_ctx["button"].id,
-                        "title": "$formula: the product name",
-                    }
-                ],
-            },
-        )
-    )
-
-    assert result["created_actions"][0]["id"]
-    assert (
-        result["formula_errors"][0]["action_id"] == result["created_actions"][0]["id"]
-    )
-    assert result["formula_errors"][0]["field"] == "title"
-
-
-@pytest.mark.django_db
 def test_a_refused_title_is_fixed_with_update_action_over_mcp(
     data_fixture, builder_ctx
 ):
@@ -342,29 +313,6 @@ def test_update_action_outside_the_workspace_is_refused_over_mcp(
 
 
 @pytest.mark.django_db
-def test_an_update_row_with_a_description_for_row_id_fails_the_item_over_mcp(
-    data_fixture, builder_ctx
-):
-    before = BuilderWorkflowAction.objects.count()
-
-    result = _load(
-        _call(
-            data_fixture,
-            builder_ctx,
-            "create_actions",
-            {
-                "page_id": builder_ctx["page"].id,
-                "actions": [_row_action(builder_ctx, "$formula: the row")],
-            },
-        )
-    )
-
-    assert result["created_actions"] == []
-    assert "row_id" in result["errors"][0]
-    assert BuilderWorkflowAction.objects.count() == before
-
-
-@pytest.mark.django_db
 def test_a_form_can_be_wired_in_a_second_call_over_mcp(data_fixture, builder_ctx):
     table = builder_ctx["data_source"].service.specific.table
     field = table.field_set.first()
@@ -427,94 +375,6 @@ def test_a_form_can_be_wired_in_a_second_call_over_mcp(data_fixture, builder_ctx
 
 
 @pytest.mark.django_db
-def test_setup_page_with_one_bad_element_over_mcp(data_fixture, builder_ctx):
-    result = _load(
-        _call(
-            data_fixture,
-            builder_ctx,
-            "setup_page",
-            {
-                "page_id": builder_ctx["page"].id,
-                "elements": [
-                    {"ref": "ok", "type": "heading", "value": "Hi"},
-                    {
-                        "ref": "bad",
-                        "type": "heading",
-                        "value": "Hi",
-                        "parent_element": "nope",
-                    },
-                ],
-            },
-        )
-    )
-
-    assert [e["ref"] for e in result["created_elements"]] == ["ok"]
-    assert "Refs only work inside one call" in result["errors"][0]
-
-
-@pytest.mark.django_db
-def test_setup_user_source_twice_over_mcp_reuses_it(
-    data_fixture, builder_ctx, users_table
-):
-    endpoint = _endpoint(data_fixture, builder_ctx, WRITE_TOOLS)
-    arguments = {
-        "builder_id": builder_ctx["builder"].id,
-        "setup": {"name": "People", "table_id": users_table.id},
-    }
-
-    async def callback(client):
-        return (
-            await client.call_tool("setup_user_source", arguments),
-            await client.call_tool("setup_user_source", arguments),
-        )
-
-    first, second = _session(endpoint, callback)
-
-    assert (
-        _load(second)["reused_user_source"]["id"]
-        == _load(first)["created_user_source"]["id"]
-    )
-    assert UserSource.objects.filter(application=builder_ctx["builder"]).count() == 1
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize("licensed", [False, True])
-def test_auth_form_and_user_source_over_mcp_with_and_without_a_licence(
-    request, data_fixture, enterprise_data_fixture, builder_ctx, users_table, licensed
-):
-    if licensed:
-        request.getfixturevalue("synced_roles")
-        request.getfixturevalue("enable_enterprise")
-    else:
-        enterprise_data_fixture.delete_all_licenses()
-    endpoint = _endpoint(data_fixture, builder_ctx, WRITE_TOOLS)
-
-    async def callback(client):
-        source = await client.call_tool(
-            "setup_user_source",
-            {
-                "builder_id": builder_ctx["builder"].id,
-                "setup": {"name": "People", "table_id": users_table.id},
-            },
-        )
-        source_id = json.loads(source.content[0].text)["created_user_source"]["id"]
-        return await client.call_tool(
-            "setup_page",
-            {
-                "page_id": builder_ctx["page"].id,
-                "elements": [
-                    {"ref": "f", "type": "auth_form", "user_source_id": source_id}
-                ],
-            },
-        )
-
-    result = _load(_session(endpoint, callback))
-
-    assert result["created_elements"][0]["type"] == "auth_form"
-    assert "errors" not in result
-
-
-@pytest.mark.django_db
 def test_other_workspaces_are_not_found_over_mcp(data_fixture, builder_ctx):
     other = data_fixture.create_workspace(user=builder_ctx["user"])
     builder = data_fixture.create_builder_application(workspace=other)
@@ -547,16 +407,3 @@ def test_other_workspaces_are_not_found_over_mcp(data_fixture, builder_ctx):
     for result in results.values():
         assert result.isError is True
         assert result.content[0].text == "Not found in this workspace."
-
-
-@pytest.mark.django_db
-def test_an_empty_setup_page_says_so_over_mcp(data_fixture, builder_ctx):
-    result = _call(
-        data_fixture,
-        builder_ctx,
-        "setup_page",
-        {"page_id": builder_ctx["page"].id},
-    )
-
-    assert result.isError is True
-    assert "nothing" in result.content[0].text

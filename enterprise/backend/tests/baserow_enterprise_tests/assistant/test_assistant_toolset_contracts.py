@@ -215,9 +215,7 @@ def test_model_can_search_and_create_an_automation_from_database_mode(
         last = messages[-1].parts[-1]
         assert isinstance(last, ToolReturnPart)
         assert last.tool_name == "create_automation"
-        if "created_builders" not in last.content:
-            # The first call only switched mode and was not run; call again.
-            return ModelResponse(parts=[call])
+        assert last.content["created_builders"][0]["name"] == "Order flow"
         return ModelResponse(parts=[TextPart(content="done")])
 
     gpt_oss = GroqModel(
@@ -231,6 +229,7 @@ def test_model_can_search_and_create_an_automation_from_database_mode(
     )
     agent.run_sync("create an automation", deps=built.deps)
 
+    assert len(requests) == 3
     assert built.deps.mode == AgentMode.AUTOMATION
     automations = Automation.objects.filter(workspace=built.deps.workspace)
     assert [a.name for a in automations] == ["Order flow"]
@@ -290,8 +289,8 @@ def test_gpt_oss_model_can_discover_route_and_execute_a_wrong_mode_tool(
             return ModelResponse(parts=[call])
 
         if request_number == 3:
-            # The retry triggered by the discovered call switched modes. The
-            # next request now contains the active, non-deferred schema.
+            # The first call ran and switched modes. The next request holds the
+            # active, non-deferred schema, and the model calls the tool again.
             assert built.deps.mode == AgentMode.AUTOMATION
             assert not visible["list_workflows"].defer_loading
             return ModelResponse(parts=[call])

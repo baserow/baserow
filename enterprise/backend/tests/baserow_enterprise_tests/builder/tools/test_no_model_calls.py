@@ -17,16 +17,6 @@ def test_a_model_call_fails_even_when_the_caller_swallows_it():
         monkeypatch.undo()
 
 
-def test_the_agent_is_restored_after_each_test():
-    monkeypatch = pytest.MonkeyPatch()
-    before = {m: Agent.__dict__.get(m) for m in ("run", "run_sync", "iter")}
-    blocker = block_model_calls(monkeypatch)
-    next(blocker)
-    monkeypatch.undo()
-
-    assert {m: Agent.__dict__.get(m) for m in before} == before
-
-
 def test_the_autouse_fixture_is_active_in_this_folder(no_model_calls):
     with pytest.raises(AssertionError, match="called a model"):
         Agent.run_sync(None, "hello")

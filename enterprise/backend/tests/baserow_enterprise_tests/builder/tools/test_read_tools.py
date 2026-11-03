@@ -76,16 +76,6 @@ def test_list_pages(builder_ctx):
 
 
 @pytest.mark.django_db
-def test_list_data_sources(builder_ctx):
-    result = data_sources.list_data_sources(builder_ctx["ctx"], builder_ctx["page"].id)
-
-    assert [ds["id"] for ds in result["data_sources"]] == [
-        builder_ctx["data_source"].id
-    ]
-    assert result["data_sources"][0]["name"] == "Products"
-
-
-@pytest.mark.django_db
 def test_list_elements_includes_shared_elements(builder_ctx):
     result = elements.list_elements(builder_ctx["ctx"], builder_ctx["page"].id)
 

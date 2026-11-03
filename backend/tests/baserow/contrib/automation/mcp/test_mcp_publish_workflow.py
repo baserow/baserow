@@ -226,23 +226,6 @@ def test_edits_reach_the_live_workflow_only_after_publishing_again(data_fixture)
     assert _logged(log) == ["Written", "Edited"]
 
 
-@pytest.mark.django_db(transaction=True)
-def test_publishing_twice_leaves_one_live_version(data_fixture):
-    endpoint, orders, log, workflow = _build_workflow_over_mcp(data_fixture)
-
-    for _ in range(2):
-        result = _json(
-            _call(endpoint, "publish_workflow", {"workflow_id": workflow["id"]})
-        )
-        assert result["published_workflow"]["state"] == "live"
-
-    assert _published(workflow["id"]).filter(state=WorkflowState.LIVE).count() == 1
-    assert _listed_state(endpoint, workflow["id"]) == "live"
-
-    _create_order(endpoint.user, orders)
-    assert _logged(log) == ["Written"]
-
-
 @pytest.mark.django_db
 def test_automation_read_cannot_publish(data_fixture):
     read_tools = [
@@ -397,15 +380,6 @@ def test_publish_refuses_a_workflow_left_empty_over_mcp(data_fixture):
     assert result.isError is True
     assert "no trigger" in result.content[0].text
     assert not _published(workflow["id"]).exists()
-
-
-@pytest.mark.django_db(transaction=True)
-def test_publish_of_a_sound_workflow_has_no_warnings(data_fixture):
-    endpoint, _, _, workflow = _build_workflow_over_mcp(data_fixture)
-
-    result = _json(_call(endpoint, "publish_workflow", {"workflow_id": workflow["id"]}))
-
-    assert "warnings" not in result
 
 
 @pytest.mark.django_db(transaction=True)

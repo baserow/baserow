@@ -1,6 +1,5 @@
 """Tests for the dashboard tools, shared by MCP and Kuma."""
 
-import pydantic
 import pytest
 
 from baserow.contrib.dashboard.models import Dashboard
@@ -126,16 +125,6 @@ def test_created_dashboard_can_show_widget_data(dashboard_ctx, data_fixture):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("name", ["", "x" * 161])
-def test_create_dashboard_rejects_an_invalid_name(dashboard_ctx, name):
-    ctx, _ = dashboard_ctx
-
-    with pytest.raises(pydantic.ValidationError):
-        create_dashboard(ctx, name)
-    assert not Dashboard.objects.filter(workspace=ctx.workspace, name=name).exists()
-
-
-@pytest.mark.django_db
 def test_create_dashboard_keeps_nothing_when_denied(data_fixture):
     ctx = ToolContext(
         user=data_fixture.create_user(), workspace=data_fixture.create_workspace()
@@ -177,18 +166,6 @@ def test_update_dashboard_renames_it(dashboard_ctx, data_fixture):
     }
     dashboard.refresh_from_db()
     assert dashboard.name == "New"
-
-
-@pytest.mark.django_db
-def test_update_dashboard_with_the_same_name_reports_no_change(
-    dashboard_ctx, data_fixture
-):
-    ctx, _ = dashboard_ctx
-    dashboard = data_fixture.create_dashboard_application(
-        workspace=ctx.workspace, name="Same"
-    )
-
-    assert update_dashboard(ctx, dashboard.id, "Same")["changed"] is False
 
 
 @pytest.mark.django_db

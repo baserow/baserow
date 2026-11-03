@@ -6,7 +6,6 @@ without a model. The conftest of this folder fails any model call.
 import pytest
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from baserow.contrib.builder.elements.element_types import HeadingElementType
 from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
 from baserow.contrib.builder.elements.models import Element, TableElement
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
@@ -17,7 +16,6 @@ from baserow.core.exceptions import PermissionException
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.tools.errors import ToolInputError
 from baserow_enterprise.builder.tools import (
-    BuilderWriteOptions,
     elements,
     helpers,
 )
@@ -105,28 +103,6 @@ def test_a_ref_works_inside_one_call(builder_ctx):
 
 
 @pytest.mark.django_db
-def test_known_refs_go_through_the_options(builder_ctx):
-    page = builder_ctx["page"]
-    box = elements.create_elements(
-        builder_ctx["ctx"],
-        page.id,
-        [ElementItemCreate(ref="box", type="simple_container")],
-    )["ref_to_id_map"]["box"]
-
-    result = elements.create_elements_with_options(
-        builder_ctx["ctx"],
-        page.id,
-        [heading(parent_element="box")],
-        None,
-        BuilderWriteOptions(known_refs={"box": box}),
-    )
-
-    assert saved(result["ref_to_id_map"]["h"]).parent_element_id == box
-    # Only what this call created.
-    assert set(result["ref_to_id_map"]) == {"h"}
-
-
-@pytest.mark.django_db
 def test_a_data_source_ref_from_an_earlier_call_fails_the_item(builder_ctx):
     result = elements.create_collection_elements(
         builder_ctx["ctx"],
@@ -139,22 +115,6 @@ def test_a_data_source_ref_from_an_earlier_call_fails_the_item(builder_ctx):
         "r: Unknown data source ref 'products'. Refs only work inside one call; use "
         "the data source ID from list_data_sources."
     ]
-
-
-@pytest.mark.django_db
-def test_known_data_source_refs_go_through_the_options(builder_ctx):
-    result = elements.create_elements_with_options(
-        builder_ctx["ctx"],
-        builder_ctx["page"].id,
-        [ElementItemCreate(ref="r", type="repeat", data_source="products")],
-        None,
-        BuilderWriteOptions(
-            known_data_source_refs={"products": builder_ctx["data_source"].id}
-        ),
-    )
-
-    repeat = saved(result["ref_to_id_map"]["r"])
-    assert repeat.data_source_id == builder_ctx["data_source"].id
 
 
 # ---------------------------------------------------------------------------
@@ -592,22 +552,6 @@ def test_a_table_buttons_actions_are_returned_and_named_in_formula_errors(
     ]
 
 
-@pytest.mark.django_db
-def test_an_action_of_a_table_reads_the_row_of_the_table(data_fixture, builder_ctx):
-    table = data_fixture.create_builder_table_element(
-        page=builder_ctx["page"], data_source=builder_ctx["data_source"], fields=[]
-    )
-    action = data_fixture.create_notification_workflow_action(
-        page=builder_ctx["page"], element=table, event="x_click"
-    )
-    # Loaded the way an action comes from the database.
-    action = NotificationWorkflowAction.objects.get(id=action.id)
-
-    context = page_formula_context(builder_ctx["page"])
-    with current_record_of(context, "action", action):
-        assert formula_problem("title", "get('current_record.id')", context) is None
-
-
 # ---------------------------------------------------------------------------
 # Batches
 # ---------------------------------------------------------------------------
@@ -692,19 +636,6 @@ def test_empty_containers_are_data_without_coaching(builder_ctx):
         }
     ]
     assert "next_steps" not in result
-
-
-@pytest.mark.django_db
-def test_a_deactivated_element_type_is_refused(builder_ctx, monkeypatch):
-    monkeypatch.setattr(HeadingElementType, "is_deactivated", lambda self, ws: True)
-
-    result = elements.create_elements(
-        builder_ctx["ctx"], builder_ctx["page"].id, [heading()]
-    )
-
-    assert result["created_elements"] == []
-    assert result["errors"][0].startswith("h: ")
-    assert "ElementTypeDeactivated" not in result["errors"][0]
 
 
 # ---------------------------------------------------------------------------

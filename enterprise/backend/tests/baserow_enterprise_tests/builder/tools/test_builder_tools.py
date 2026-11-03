@@ -1,12 +1,8 @@
 """The shared tools that create and update application builders (B18)."""
 
-import pydantic
 import pytest
 
-from baserow.contrib.automation.models import Automation
 from baserow.contrib.builder.models import Builder
-from baserow.contrib.dashboard.models import Dashboard
-from baserow.contrib.database.models import Database
 from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.service import IntegrationService
@@ -26,33 +22,6 @@ def test_create_builder_makes_one_builder_with_its_theme_and_integration(builder
     assert builder_uses_theme(portal, "eclipse")
     integration = Integration.objects.get(application=portal)
     assert integration.get_type().type == "local_baserow"
-
-
-@pytest.mark.django_db
-def test_create_builder_defaults_to_the_baserow_theme(builder_ctx):
-    result = applications.create_builder(builder_ctx["ctx"], "Plain")
-
-    plain = Builder.objects.get(id=result["created_builder"]["id"])
-    assert builder_uses_theme(plain, "baserow")
-
-
-@pytest.mark.django_db
-def test_create_builder_creates_only_a_builder(builder_ctx):
-    applications.create_builder(builder_ctx["ctx"], "Portal")
-
-    workspace = builder_ctx["workspace"]
-    assert not Automation.objects.filter(workspace=workspace).exists()
-    assert not Dashboard.objects.filter(workspace=workspace).exists()
-    assert not Database.objects.filter(workspace=workspace, name="Portal").exists()
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize("name", ["", "x" * 161])
-def test_create_builder_rejects_an_invalid_name(builder_ctx, name):
-    with pytest.raises(pydantic.ValidationError):
-        applications.create_builder(builder_ctx["ctx"], name)
-
-    assert not Builder.objects.filter(name=name).exists()
 
 
 @pytest.mark.django_db

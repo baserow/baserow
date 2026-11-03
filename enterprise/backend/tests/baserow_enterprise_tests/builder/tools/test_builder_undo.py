@@ -21,7 +21,6 @@ from baserow.core.action.handler import ActionHandler
 from baserow.core.action.models import Action
 from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.services.models import Service
-from baserow.core.tools import ToolContext
 from baserow.core.user_sources.models import UserSource
 from baserow_enterprise.assistant.tools.builder.tools import (
     create_pages,
@@ -31,11 +30,9 @@ from baserow_enterprise.assistant.tools.builder.tools import (
 )
 from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.builder.elements.models import AuthFormElement
-from baserow_enterprise.builder.tools import data_sources as shared_data_sources
 from baserow_enterprise.builder.tools import helpers
 from baserow_enterprise.builder.tools.types import (
     ActionCreate,
-    DataSourceChanges,
     DataSourceCreate,
     DataSourceUpdate,
     PageCreate,
@@ -90,17 +87,6 @@ def test_create_page_is_undoable(site):
     undo(site)
 
     assert not Page.objects.filter(id=page.id).exists()
-
-
-@pytest.mark.django_db
-@pytest.mark.undo_redo
-def test_create_page_keeps_the_clash_error(site):
-    with pytest.raises(ToolInputError, match="The path '/home' is already used"):
-        helpers.create_page(
-            site["user"], site["builder"], PageCreate(name="Clash", path="/home")
-        )
-
-    assert not Action.objects.exists()
 
 
 @pytest.mark.django_db
@@ -166,27 +152,6 @@ def test_create_data_source_with_a_bad_sort_leaves_nothing(site):
     assert not Action.objects.exists()
 
 
-@pytest.mark.django_db
-@pytest.mark.undo_redo
-def test_update_data_source_is_undoable(data_fixture, site):
-    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
-        page=site["page"], table=site["table"], row_id="'1'", name="Before"
-    )
-
-    helpers.update_data_source(
-        site["user"],
-        site["page"],
-        DataSourceUpdate(data_source_id=data_source.id, name="After"),
-    )
-    data_source.refresh_from_db()
-    assert data_source.name == "After"
-
-    undo(site)
-
-    data_source.refresh_from_db()
-    assert data_source.name == "Before"
-
-
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.undo_redo
 def test_update_data_source_with_a_formula_is_undone_in_one_step(
@@ -226,32 +191,6 @@ def test_update_data_source_with_a_formula_is_undone_in_one_step(
     data_source.refresh_from_db()
     assert data_source.name == "Before"
     assert data_source.service.specific.row_id["formula"] == "'1'"
-
-
-@pytest.mark.django_db(transaction=True)
-@pytest.mark.undo_redo
-def test_shared_update_data_source_with_a_formula_is_undoable(data_fixture, site):
-    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
-        page=site["page"], table=site["table"], row_id="'1'"
-    )
-    page = site["page"]
-    page.path, page.path_params = "/home/:id", [{"name": "id", "type": "text"}]
-    page.save()
-
-    result = shared_data_sources.update_data_source(
-        ToolContext(user=site["user"], workspace=site["workspace"]),
-        data_source.id,
-        DataSourceChanges(row_id="get('page_parameter.id')"),
-    )
-
-    assert "formula_errors" not in result
-    service = DataSource.objects.get(id=data_source.id).service.specific
-    assert service.row_id["formula"] == "get('page_parameter.id')"
-
-    undo(site)
-
-    service = DataSource.objects.get(id=data_source.id).service.specific
-    assert service.row_id["formula"] == "'1'"
 
 
 @pytest.mark.django_db

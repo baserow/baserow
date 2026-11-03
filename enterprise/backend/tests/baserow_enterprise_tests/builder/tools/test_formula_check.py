@@ -148,6 +148,9 @@ def test_a_data_source_without_a_table_reads_anything(data_fixture, site):
         ("get('data_source.rows')", "rows"),
         ("get('current_record.id')", "current_record"),
         ("get('previous_action.5.id')", "previous_action"),
+        ("to_duration(99999999999999999999)", "not a valid formula"),
+        ("duration_format(99999999999999999999,'a')", "not a valid formula"),
+        ("get('[')", "doesn't name anything"),
     ],
 )
 def test_refused_with_a_useful_message(site, formula, expected):
@@ -241,6 +244,9 @@ def test_update_leaves_row_id_alone_when_it_is_not_given(site):
     )
 
     assert result["updated_data_source"]["name"] == "Renamed"
+    service = site["row"].service.specific
+    service.refresh_from_db()
+    assert service.row_id["formula"] == "'1'"
 
 
 @pytest.mark.django_db
@@ -274,24 +280,3 @@ def test_a_data_source_context_must_be_on_the_page(data_fixture, site):
     refused = problem(site, f"get('data_source_context.{other.id}.total_count')")
     assert refused and "isn't on this page" in refused
     assert "isn't on this page" in problem(site, "get('data_source_context.x')")
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize(
-    "formula",
-    [
-        "to_duration(99999999999999999999)",
-        "duration_format(99999999999999999999,'a')",
-    ],
-)
-def test_a_number_too_large_for_a_function_is_refused(site, formula):
-    refused = problem(site, formula)
-
-    assert refused and "not a valid formula" in refused
-
-
-@pytest.mark.django_db
-def test_a_get_without_a_path_is_refused_with_a_message(site):
-    refused = problem(site, "get('[')")
-
-    assert refused and "doesn't name anything" in refused

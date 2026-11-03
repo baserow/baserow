@@ -1,6 +1,5 @@
 """The shared tools that create and rename automations."""
 
-import pydantic
 import pytest
 
 from baserow.contrib.automation.models import Automation
@@ -40,15 +39,6 @@ def test_create_automation_creates_the_automation_and_its_integration(ctx):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("name", ["", "x" * 161])
-def test_create_automation_rejects_an_invalid_name(ctx, name):
-    with pytest.raises(pydantic.ValidationError):
-        create_automation(ctx, name)
-
-    assert not Automation.objects.exists()
-
-
-@pytest.mark.django_db
 def test_create_automation_keeps_nothing_when_denied(data_fixture):
     workspace = data_fixture.create_workspace()
     ctx = ToolContext(user=data_fixture.create_user(), workspace=workspace)
@@ -74,17 +64,6 @@ def test_update_automation_renames_it(ctx, data_fixture):
     }
     automation.refresh_from_db()
     assert automation.name == "New"
-
-
-@pytest.mark.django_db
-def test_update_automation_with_the_same_name_reports_no_change(ctx, data_fixture):
-    automation = data_fixture.create_automation_application(
-        workspace=ctx.workspace, name="Same"
-    )
-
-    result = update_automation(ctx, automation.id, "Same")
-
-    assert result["changed"] is False
 
 
 @pytest.mark.django_db

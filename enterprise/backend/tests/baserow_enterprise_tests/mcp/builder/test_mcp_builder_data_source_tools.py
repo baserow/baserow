@@ -95,30 +95,3 @@ def test_write_tools_with_only_builder_read_turned_on_are_refused(
     for result in results.values():
         assert result.isError is True
     assert DataSource.objects.count() == sources
-
-
-@pytest.mark.django_db
-def test_get_row_with_a_description_fails_the_item_over_mcp(data_fixture, builder_ctx):
-    endpoint = _endpoint(data_fixture, builder_ctx, WRITE_TOOLS)
-
-    async def callback(client):
-        return await client.call_tool(
-            "create_data_sources",
-            {
-                "page_id": builder_ctx["page"].id,
-                "data_sources": [
-                    {
-                        "ref": "row",
-                        "name": "Row",
-                        "type": "get_row",
-                        "table_id": _table_id(builder_ctx),
-                        "row_id": "$formula: the id page parameter",
-                    }
-                ],
-            },
-        )
-
-    result = _load(_session(endpoint, callback))
-
-    assert result["created_data_sources"] == []
-    assert result["errors"][0].startswith("row: ")

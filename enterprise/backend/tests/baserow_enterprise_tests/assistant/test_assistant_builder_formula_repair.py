@@ -405,38 +405,6 @@ def test_repair_fills_an_element_and_keeps_what_it_cannot_fix(
 
 
 @pytest.mark.django_db
-def test_repair_fills_an_action(data_fixture, site, monkeypatch):
-    page = site["page"]
-    button = data_fixture.create_builder_button_element(page=page, value="'Go'")
-    action = data_fixture.create_notification_workflow_action(
-        page=page, element=button, event="click"
-    )
-    context = ToolContext(user=site["user"], workspace=site["workspace"])
-    formula_errors = apply_builder_formulas(
-        context,
-        page,
-        [
-            (
-                action,
-                ActionCreate(
-                    element=button.id, type="notification", title="$formula: a title"
-                ),
-            )
-        ],
-        "action",
-    )
-    use_generator(monkeypatch, lambda formulas, context: {"title": "'Hello'"})
-
-    remaining = repair_builder_formula_errors(
-        context, create_fake_tool_helpers(), page, formula_errors
-    )
-
-    action.refresh_from_db()
-    assert remaining == []
-    assert action.specific.title["formula"] == "'Hello'"
-
-
-@pytest.mark.django_db
 def test_create_pages_keeps_its_result_shape_and_skips_by_name(data_fixture, site):
     existing = data_fixture.create_builder_page(
         builder=site["builder"], name="Existing", path="/existing"

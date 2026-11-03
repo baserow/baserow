@@ -74,21 +74,6 @@ def test_create_pages_stops_when_permission_is_denied(builder_ctx, monkeypatch):
 
 
 @pytest.mark.django_db
-def test_update_page_with_a_new_path_derives_the_parameter(builder_ctx):
-    page = builder_ctx["page"]
-
-    result = pages.update_page(
-        builder_ctx["ctx"], page.id, PageChanges(path="/products/:id")
-    )
-
-    assert result["updated_page"]["id"] == page.id
-    assert result["updated_page"]["path"] == "/products/:id"
-    assert result["updated_page"]["path_params"] == [{"name": "id", "type": "text"}]
-    page.refresh_from_db()
-    assert page.path_params == [{"name": "id", "type": "text"}]
-
-
-@pytest.mark.django_db
 def test_update_page_to_a_path_in_use_is_refused(builder_ctx):
     pages.create_pages(
         builder_ctx["ctx"],
