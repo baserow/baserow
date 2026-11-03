@@ -102,4 +102,32 @@ describe('AssistantPanel', () => {
     expect(service.fetchChats).toHaveBeenCalledOnce()
     expect(service.fetchChats).toHaveBeenCalledWith(workspace.id)
   })
+
+  test('keeps response actions hidden until the chat finishes after its first chunk', async () => {
+    const { wrapper } = await mountWithRunningChat()
+    store.commit('assistant/SET_MESSAGES', [
+      {
+        id: 7,
+        role: 'ai',
+        content: 'Partial response',
+        loading: false,
+        can_submit_feedback: true,
+      },
+    ])
+    await flushPromises()
+    expect(wrapper.get('.chat-message__bubble').attributes('aria-busy')).toBe(
+      'true'
+    )
+    expect(wrapper.find('.chat-message__actions').exists()).toBe(false)
+
+    store.commit('assistant/SET_ASSISTANT_RUNNING', {
+      chat: store.getters['assistant/currentChat'],
+      value: false,
+    })
+    await flushPromises()
+    expect(wrapper.get('.chat-message__bubble').attributes('aria-busy')).toBe(
+      'false'
+    )
+    expect(wrapper.find('.chat-message__actions').exists()).toBe(true)
+  })
 })

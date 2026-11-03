@@ -15,11 +15,17 @@
 import { ref } from 'vue'
 
 const props = defineProps({ text: { type: String, required: true } })
+const emit = defineEmits(['error'])
 
 const copied = ref(null)
 
 async function copy() {
-  await navigator.clipboard.writeText(props.text)
-  copied.value.show()
+  try {
+    await navigator.clipboard.writeText(props.text)
+  } catch (error) {
+    emit('error', error)
+    return
+  }
+  copied.value?.show()
 }
 </script>

@@ -42,6 +42,7 @@
       <AssistantMessageList
         v-if="currentChatId"
         :messages="messages"
+        :running="isAssistantRunning"
       ></AssistantMessageList>
       <AssistantWelcomeMessage
         v-else
