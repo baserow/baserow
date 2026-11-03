@@ -53,6 +53,8 @@ def test_list_views_tool(data_fixture):
                 "row_height": "small",
                 "sorts": [],
                 "filters": [],
+                "filter_type": "AND",
+                "filter_groups": [],
                 "row_colours": [],
                 "hidden_field_ids": [],
             }
