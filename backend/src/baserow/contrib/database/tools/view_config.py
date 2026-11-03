@@ -359,9 +359,9 @@ def set_row_colours(
     colour: Annotated[RowColour, Field(description="How to colour the rows.")],
 ) -> dict[str, Any]:
     """
-    Colour the rows of a grid or gallery view, by a single select field or by
-    conditions. Adds to the colours the view already has, which list_views shows.
-    Needs a premium licence.
+    Colour the rows of a view, by a single select field or by conditions. A form view
+    has no rows to colour. Adds to the colours the view already has, which list_views
+    shows. Needs a premium licence.
     """
 
     view = get_view(ctx, view_id)

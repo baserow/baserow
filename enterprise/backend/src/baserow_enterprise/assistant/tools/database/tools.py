@@ -373,10 +373,9 @@ def list_views(
     """\
     List views in a table.
 
-    WHEN to use: Before creating views (to avoid duplicate names), or to find existing view IDs.
-    WHAT it does: Lists all views in a table with their id, name, and type.
-    RETURNS: Views array with id, name, type configuration.
-    DO NOT USE when: You already have the view IDs you need.
+    WHEN to use: Before creating views (to avoid duplicate names), to find existing view IDs, or to see how a view is set up before changing it.
+    WHAT it does: Lists all views in a table with their id, name, type, sorts, filters, row colours and hidden fields.
+    RETURNS: Views array with their configuration.
     """
 
     try:
@@ -1431,7 +1430,7 @@ def set_row_colours(
     ],
 ) -> dict[str, Any]:
     """\
-    Colour the rows of a grid or gallery view.
+    Colour the rows of a view. A form view has no rows to colour.
 
     WHEN to use: User wants rows coloured by a single select field, or by conditions like "red when the amount is over 100".
     WHAT it does: Adds a colouring to the view. list_views shows the ones it already has under row_colours; remove one that gets replaced with delete_row_colours.
