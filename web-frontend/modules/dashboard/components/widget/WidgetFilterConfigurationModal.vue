@@ -21,13 +21,25 @@
           class="margin-bottom-2"
           >{{ $t('textFilterWidget.incompatibleConditions') }}</Alert
         >
-        <h3 class="dashboard-widget-filters__title">{{ widget.title }}</h3>
-        <SegmentControl
-          v-model:active-index="selectedCase"
+        <Tabs
+          v-model:selected-index="selectedCase"
           class="dashboard-widget-filters__cases"
-          :segments="[
-            { label: $t('textFilterWidget.withValue') },
-            { label: $t('textFilterWidget.whenEmpty') },
+          header-no-padding
+          :tab-items="[
+            {
+              title: $t('textFilterWidget.withValue'),
+              badge: String(link.group?.filters?.length || 0),
+              badgeColor: 'neutral',
+            },
+            {
+              title: $t('textFilterWidget.whenEmpty'),
+              badge: String(
+                link.empty_behavior === 'apply_alternative'
+                  ? link.alternative_group?.filters?.length || 0
+                  : 0
+              ),
+              badgeColor: 'neutral',
+            },
           ]"
         />
         <TargetFilterGroup
