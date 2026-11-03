@@ -26,6 +26,7 @@ from baserow.core.mcp import BaserowMCPServer, current_key
 from baserow.core.mcp.groups import GROUP_AUTOMATION_READ
 from baserow.core.mcp.registries import mcp_tool_registry
 from tests.baserow.contrib.automation.tools.conftest import (
+    create_node,
     create_workflow,
 )
 
@@ -311,9 +312,10 @@ def test_publish_refuses_untrusted_content_like_the_api(data_fixture):
     automation = data_fixture.create_automation_application(
         workspace=endpoint.workspace
     )
-    workflow = data_fixture.create_automation_workflow(
-        user=endpoint.user, automation=automation, untrusted_content=True
-    )
+    workflow, trigger = create_workflow(endpoint.user, automation)
+    _add_create_row_node(endpoint, workflow, trigger)
+    workflow.untrusted_content = True
+    workflow.save(update_fields=["untrusted_content"])
 
     result = _call(endpoint, "publish_workflow", {"workflow_id": workflow.id})
 
@@ -325,23 +327,150 @@ def test_publish_refuses_untrusted_content_like_the_api(data_fixture):
     assert not _published(workflow.id).exists()
 
 
-@pytest.mark.django_db(transaction=True)
-@pytest.mark.parametrize("create_trigger", [True, False])
-def test_publish_takes_what_the_api_takes_without_a_usable_trigger(
-    data_fixture, create_trigger
-):
-    # The API has no refusal for a missing or unconfigured trigger.
+def _add_create_row_node(endpoint, workflow, reference_node):
+    """An action node after the reference node, with no table."""
+
+    return create_node(
+        endpoint.user,
+        workflow,
+        "local_baserow_create_row",
+        service={},
+        reference_node_id=reference_node.id,
+    )
+
+
+@pytest.mark.django_db
+def test_publish_refuses_a_workflow_without_a_trigger(data_fixture):
     endpoint = data_fixture.create_mcp_endpoint(allowed_tools=["publish_workflow"])
     automation = data_fixture.create_automation_application(
         workspace=endpoint.workspace
     )
     workflow = data_fixture.create_automation_workflow(
-        user=endpoint.user, automation=automation, create_trigger=create_trigger
+        user=endpoint.user, automation=automation, create_trigger=False
     )
+
+    result = _call(endpoint, "publish_workflow", {"workflow_id": workflow.id})
+
+    assert result.isError is True
+    assert result.content[0].text == (
+        "This workflow has no trigger, so it would never run. Nothing was published."
+    )
+    assert not _published(workflow.id).exists()
+
+
+@pytest.mark.django_db
+def test_publish_refuses_a_workflow_with_nothing_after_its_trigger(data_fixture):
+    endpoint = data_fixture.create_mcp_endpoint(allowed_tools=["publish_workflow"])
+    automation = data_fixture.create_automation_application(
+        workspace=endpoint.workspace
+    )
+    workflow, _ = create_workflow(endpoint.user, automation)
+
+    result = _call(endpoint, "publish_workflow", {"workflow_id": workflow.id})
+
+    assert result.isError is True
+    assert result.content[0].text == (
+        "This workflow has no action after its trigger, so it would do nothing. "
+        "Nothing was published."
+    )
+    assert not _published(workflow.id).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_publish_refuses_a_workflow_left_empty_over_mcp(data_fixture):
+    endpoint, orders, _, workflow = _build_workflow_over_mcp(data_fixture)
+    endpoint.allowed_tools = [*TOOLS, "delete_nodes"]
+    endpoint.save()
+    nodes = AutomationNode.objects.filter(workflow_id=workflow["id"])
+    for node in nodes.order_by("-id"):
+        _json(_call(endpoint, "delete_nodes", {"node_ids": [node.id]}))
+
+    result = _call(endpoint, "publish_workflow", {"workflow_id": workflow["id"]})
+
+    assert result.isError is True
+    assert "no trigger" in result.content[0].text
+    assert not _published(workflow["id"]).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_publish_of_a_sound_workflow_has_no_warnings(data_fixture):
+    endpoint, _, _, workflow = _build_workflow_over_mcp(data_fixture)
+
+    result = _json(_call(endpoint, "publish_workflow", {"workflow_id": workflow["id"]}))
+
+    assert "warnings" not in result
+
+
+@pytest.mark.django_db(transaction=True)
+def test_publish_warns_about_a_row_trigger_and_action_with_no_table(data_fixture):
+    endpoint = data_fixture.create_mcp_endpoint(allowed_tools=["publish_workflow"])
+    automation = data_fixture.create_automation_application(
+        workspace=endpoint.workspace
+    )
+    workflow, trigger = create_workflow(endpoint.user, automation)
+    action = _add_create_row_node(endpoint, workflow, trigger)
 
     result = _json(_call(endpoint, "publish_workflow", {"workflow_id": workflow.id}))
 
     assert result["published_workflow"]["state"] == "live"
+    assert result["warnings"] == [
+        f"Node {trigger.id} ({trigger.label}): no table is set, so it never fires.",
+        f"Node {action.id} ({action.label}): no table is set, so every run fails here.",
+    ]
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("node_type", ["update_row", "delete_row"])
+def test_publish_warns_about_a_row_id_left_empty_by_a_bad_formula(
+    data_fixture, node_type
+):
+    endpoint, orders, log, _ = _build_workflow_over_mcp(data_fixture)
+    automation = Automation.objects.filter(workspace=endpoint.workspace).get()
+    values = (
+        {"values": [{"field_id": log["primary_field"]["id"], "value": "Changed"}]}
+        if node_type == "update_row"
+        else {}
+    )
+    created = _json(
+        _call(
+            endpoint,
+            "create_workflows",
+            {
+                "automation_id": automation.id,
+                "workflows": [
+                    {
+                        "name": "Bad row",
+                        "trigger": {
+                            "ref": "trigger",
+                            "label": "Order created",
+                            "type": "rows_created",
+                            "rows_triggers_settings": {"table_id": orders["id"]},
+                        },
+                        "nodes": [
+                            {
+                                "ref": "change",
+                                "label": "Change it",
+                                "type": node_type,
+                                "previous_node_ref": "trigger",
+                                "table_id": log["id"],
+                                "row_id": "get('previous_node.nothing.0.id')",
+                                **values,
+                            }
+                        ],
+                    }
+                ],
+            },
+        )
+    )
+    (workflow,) = created["created_workflows"]
+    assert created["formula_errors"][0]["field"] == "row_id"
+    node = AutomationNode.objects.get(workflow_id=workflow["id"], label="Change it")
+
+    result = _json(_call(endpoint, "publish_workflow", {"workflow_id": workflow["id"]}))
+
+    assert result["warnings"] == [
+        f"Node {node.id} (Change it): no row_id is set, so every run fails here."
+    ]
 
 
 @pytest.mark.django_db
@@ -386,3 +515,19 @@ def test_create_workflows_reports_the_state_of_a_reused_live_workflow(data_fixtu
     )
 
     assert result["reused_workflows"][0]["state"] == "live"
+
+
+@pytest.mark.django_db
+def test_publish_tells_a_client_what_publishing_does(data_fixture):
+    endpoint = data_fixture.create_mcp_endpoint(allowed_tools=["publish_workflow"])
+
+    async def callback(client):
+        return (await client.list_tools()).tools
+
+    (tool,) = _session(endpoint, callback)
+
+    assert tool.annotations.destructiveHint is True
+    assert "approval" in tool.description
+    assert "earlier nodes" in tool.description
+    assert "fresh error count" in tool.description
+    assert "list_nodes" not in tool.description

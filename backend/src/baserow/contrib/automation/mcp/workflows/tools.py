@@ -43,5 +43,5 @@ class PublishWorkflowMcpTool(FunctionMCPTool):
     group = GROUP_AUTOMATION_EDIT
     title = "Publish a workflow"
     read_only = False
-    destructive = False
+    destructive = True
     function = workflows.publish_workflow

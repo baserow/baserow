@@ -6,6 +6,7 @@ from django.test.utils import CaptureQueriesContext
 import pytest
 
 from baserow.contrib.automation.tools.workflows import (
+    describe_workflow,
     get_workflow_in_workspace,
     list_workflows,
 )
@@ -14,6 +15,7 @@ from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.exceptions import ApplicationDoesNotExist
 from baserow.core.tools import ToolContext
 
@@ -178,3 +180,15 @@ def test_list_workflows_runs_no_query_per_workflow(automation_ctx):
         list_workflows(ctx)
 
     assert len(four_workflows) == len(one_workflow)
+
+
+@pytest.mark.django_db
+def test_describe_workflow_reads_the_state_when_not_annotated(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, _ = create_workflow(ctx.user, automation, "Flow", table)
+    assert describe_workflow(workflow)["state"] == "draft"
+
+    _publish(workflow)
+
+    plain = AutomationWorkflow.objects.get(id=workflow.id)
+    assert describe_workflow(plain)["state"] == "live"

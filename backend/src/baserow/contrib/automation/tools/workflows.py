@@ -22,9 +22,11 @@ from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.operations import (
+    PublishAutomationWorkflowOperationType,
     ReadAutomationWorkflowOperationType,
 )
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
+from baserow.contrib.integrations.local_baserow.models import LocalBaserowTableService
 from baserow.core.exceptions import (
     PermissionException,
     UntrustedContentCannotBePublished,
@@ -34,6 +36,8 @@ from baserow.core.service import CoreService
 from baserow.core.tools import ToolContext
 from baserow.core.tools.applications import visible_applications
 from baserow.core.tools.errors import ToolInputError, item_error_message
+
+NODE_TYPES_NEEDING_A_ROW_ID = {"local_baserow_update_row", "local_baserow_delete_row"}
 
 
 def get_automation_in_workspace(ctx: ToolContext, automation_id: int) -> Automation:
@@ -81,11 +85,17 @@ def describe_workflow(workflow: AutomationWorkflow) -> dict[str, Any]:
     is the one of its published version, as the REST API reports it, and a workflow
     without one is a draft.
 
-    :param workflow: A workflow from `annotate_published_workflow_data`, or one
-        just created.
+    :param workflow: The workflow. One from `annotate_published_workflow_data` runs
+        no query.
     """
 
-    state = getattr(workflow, "published_workflow_state", None)
+    try:
+        state = workflow.published_workflow_state
+    except AttributeError:
+        published = AutomationWorkflowHandler().get_published_workflow(
+            workflow, with_cache=False
+        )
+        state = published.state if published else None
     return {
         "id": workflow.id,
         "name": workflow.name,
@@ -378,6 +388,52 @@ def create_workflows(
     )
 
 
+def check_workflow_can_run(ctx: ToolContext, workflow: AutomationWorkflow) -> list[str]:
+    """
+    Checks what can be told about a workflow before it goes live. This isn't a full
+    check: a node can still fail when it runs.
+
+    :raises ToolInputError: When the workflow can never do anything.
+    :return: A warning for each node that is found to be misconfigured.
+    """
+
+    from baserow.contrib.automation.tools.nodes import nodes_in_order
+
+    nodes = [node for node, *_ in nodes_in_order(ctx.user, workflow)]
+    if not nodes or not nodes[0].get_type().is_workflow_trigger:
+        raise ToolInputError(
+            "This workflow has no trigger, so it would never run. Nothing was "
+            "published."
+        )
+    if not any(node.get_type().is_workflow_action for node in nodes[1:]):
+        raise ToolInputError(
+            "This workflow has no action after its trigger, so it would do nothing. "
+            "Nothing was published."
+        )
+
+    warnings = []
+    for node in nodes:
+        node_type = node.get_type()
+        problem = None
+        if (
+            isinstance(node.service, LocalBaserowTableService)
+            and node.service.table_id is None
+        ):
+            problem = (
+                "no table is set, so it never fires."
+                if node_type.is_workflow_trigger
+                else "no table is set, so every run fails here."
+            )
+        elif (
+            node_type.type in NODE_TYPES_NEEDING_A_ROW_ID
+            and not node.service.row_id["formula"]
+        ):
+            problem = "no row_id is set, so every run fails here."
+        if problem:
+            warnings.append(f"Node {node.id} ({node.label}): {problem}")
+    return warnings
+
+
 def publish_workflow(
     ctx: ToolContext,
     workflow_id: Annotated[
@@ -389,25 +445,42 @@ def publish_workflow(
     ],
 ) -> dict[str, Any]:
     """
-    Publish a workflow, so it runs when its trigger fires. It is live when this
-    returns. A copy of the current workflow goes live and the workflow keeps its ID.
-    Later edits don't reach the live version until it is published again, which
-    replaces that version. Nothing checks that the nodes are configured: check
-    list_nodes and any formula_errors first. Imported content must be reviewed and
-    trusted in the app before it can be published.
+    Publish a workflow, so it runs when its trigger fires. Effects are real and start
+    straight away: rows written or deleted, emails sent, HTTP calls made. Get the
+    user's approval first. A run that fails keeps what earlier nodes did.
+
+    A copy of the current workflow is live when this returns and the workflow keeps
+    its ID. Later edits don't reach the live version until it is published again,
+    which replaces that version. Republishing makes a paused or disabled workflow live
+    again with a fresh error count.
+
+    A workflow with no trigger, or no action after its trigger, is refused. warnings
+    lists nodes found to be misconfigured, which doesn't mean the others are sound.
+    Imported content must be reviewed and trusted in the app before it can be
+    published.
     """
 
     workflow = get_workflow_in_workspace(ctx, workflow_id)
+    CoreHandler().check_permissions(
+        ctx.user,
+        PublishAutomationWorkflowOperationType.type,
+        workspace=ctx.workspace,
+        context=workflow.automation,
+    )
+    warnings = check_workflow_can_run(ctx, workflow)
     try:
         # The publish locks the workflow, which needs a transaction.
         with transaction.atomic():
             published = AutomationWorkflowService().publish(ctx.user, workflow)
     except UntrustedContentCannotBePublished as exc:
         raise ToolInputError(ERROR_UNTRUSTED_CONTENT_CANNOT_BE_PUBLISHED[2]) from exc
-    return {
+    result: dict[str, Any] = {
         "published_workflow": {
             "id": workflow.id,
             "name": workflow.name,
             "state": WorkflowState(published.state).value,
         }
     }
+    if warnings:
+        result["warnings"] = warnings
+    return result
