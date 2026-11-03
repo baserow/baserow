@@ -14,6 +14,20 @@ from baserow.api.utils import apply_exception_mapping
 from baserow.core.tools.errors import ToolInputError, validation_messages
 
 
+class UnknownRefError(ToolInputError):
+    """
+    A ref that nothing in the call defined. The message is for a client whose refs
+    only last one call.
+
+    :param remembered_refs_message: The message for a client that remembers refs
+        across calls.
+    """
+
+    def __init__(self, message: str, remembered_refs_message: str):
+        super().__init__(message)
+        self.remembered_refs_message = remembered_refs_message
+
+
 def _user_error_mapping() -> dict[type[Exception], Any]:
     """
     Builder exceptions that a client causes with its input, mapped to the REST API's
@@ -54,6 +68,8 @@ def user_error_message(exc: Exception) -> str | None:
 def item_error(exc: Exception) -> str:
     """The message reported for one item of a batch that failed with ``exc``."""
 
+    if isinstance(exc, UnknownRefError):
+        return exc.remembered_refs_message
     if isinstance(exc, DRFValidationError):
         return validation_messages(exc)
     return user_error_message(exc) or str(exc)

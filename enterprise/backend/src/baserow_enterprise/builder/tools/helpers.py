@@ -91,6 +91,7 @@ from baserow.core.tools.errors import (
 )
 from baserow.core.user_sources.actions import CreateUserSourceActionType
 
+from .errors import UnknownRefError
 from .registries import assistant_element_type_registry
 from .types import (
     ActionCreate,
@@ -645,10 +646,12 @@ def create_element(
         element_create.data_source = data_source_ref_to_id_map[ds]
     # An id sent as text, such as "12", still names an existing data source.
     elif isinstance(ds, str) and not ds.strip().isdecimal():
-        raise ToolInputError(
+        raise UnknownRefError(
+            f"Unknown data source ref '{ds}'. Refs only work inside one call; use the "
+            "data source ID from list_data_sources.",
             f"Data source ref '{ds}' not found. Create the data source with "
             "create_data_sources first, or use an id from list_data_sources. No "
-            "changes were applied."
+            "changes were applied.",
         )
     # Checked before to_orm_kwargs, which reads the data source's table fields.
     if element_create.data_source is not None:
@@ -666,9 +669,11 @@ def create_element(
         kwargs["parent_element_id"] = parent
     elif isinstance(parent, str):
         if parent not in ref_to_id_map:
-            raise ToolInputError(
+            raise UnknownRefError(
+                f"Unknown ref '{parent}'. Refs only work inside one call; use the "
+                "element ID.",
                 f"Parent ref '{parent}' not found. "
-                "Define parent elements before children."
+                "Define parent elements before children.",
             )
         kwargs["parent_element_id"] = ref_to_id_map[parent]
 
@@ -1275,7 +1280,7 @@ def add_field_mapping_to_action(
     ).exists():
         raise ToolInputError(
             f"Field {field_id} is not in the table this action writes to. "
-            "Use get_tables_schema to find the table's field IDs."
+            "Use the IDs of that table's fields."
         )
 
     # The service replaces its whole list of mappings, mappings on trashed fields

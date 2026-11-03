@@ -73,6 +73,8 @@ class BuilderFormulaContext:
         self.data_sources: dict[int, dict[str, Any]] = {}
         self._current_record_stack: list[int] = []
         self._row_scoped_data_source: int | None = None
+        # Whether the collection in the stack has nothing to read a row from.
+        self.in_unbound_collection = False
 
     def load_page_context(self) -> None:
         """Load all available data providers into the formula context."""
@@ -546,6 +548,10 @@ def _get_path_problem(
             )
     if root == "current_record" and not context._current_record_stack:
         return f"'{path}' can only be read inside a repeat or a table."
+    if root == "current_record" and context.in_unbound_collection:
+        return (
+            f"'{path}' can't be read: the repeat or table around it has no data source."
+        )
     if root == "previous_action" and not allow_previous_action:
         return f"'{path}' can only be read in a workflow action."
     return None
@@ -631,29 +637,36 @@ def current_record_of(
 ):
     """
     Offer the row of the collection around an element or action, or of a collection
-    element itself, as current_record.
+    element itself, as current_record. A collection bound through a schema property
+    has no data source of its own, and its row is only known when the page runs.
     """
 
-    data_source_id = None
+    collection = None
     if kind != "data_source":
         element = source if kind == "element" else source.element
         try:
-            ancestor = ElementHandler().get_first_ancestor_of_type(
+            collection = ElementHandler().get_first_ancestor_of_type(
                 element, CollectionElementTypeMixin
             )
         except KeyError:
             # The parent can be on another page, like a shared page header.
-            ancestor = None
-        if ancestor:
-            data_source_id = ancestor.data_source_id
+            collection = None
 
-    if data_source_id:
-        context.push_current_record_context(data_source_id)
+    if collection is None:
+        yield
+        return
+
+    # An action's element isn't loaded as its specific type.
+    collection = collection.specific
+    context.push_current_record_context(collection.data_source_id)
+    context.in_unbound_collection = not (
+        collection.data_source_id or collection.schema_property
+    )
     try:
         yield
     finally:
-        if data_source_id:
-            context.pop_current_record_context()
+        context.in_unbound_collection = False
+        context.pop_current_record_context()
 
 
 def _write_element_formulas(
@@ -735,6 +748,18 @@ def write_builder_formulas(
         _WRITERS[kind](user, source, item, formulas)
 
 
+def _page_read_from(page: Page, kind: BuilderFormulaKind, source: Any) -> Page:
+    """
+    The page whose values an item can read. Elements and actions on the shared page
+    show on every page, so what one page has isn't theirs to read. They read what
+    the shared page has, like the inputs of a form in a header.
+    """
+
+    if kind != "data_source" and source.page.shared:
+        return source.page
+    return page
+
+
 def apply_builder_formulas(
     ctx: ToolContext,
     page: Page,
@@ -754,15 +779,17 @@ def apply_builder_formulas(
     """
 
     entries: list[BuilderFormulaError] = []
-    context = None
+    contexts: dict[int, BuilderFormulaContext] = {}
     for source, item in items:
         pending: dict[str, str] = {}
         try:
             pending = _formulas_of(source, item)
             if not pending:
                 continue
-            if context is None:
-                context = page_formula_context(page)
+            read_from = _page_read_from(page, kind, source)
+            if read_from.id not in contexts:
+                contexts[read_from.id] = page_formula_context(read_from)
+            context = contexts[read_from.id]
 
             with current_record_of(context, kind, source):
                 problems = {

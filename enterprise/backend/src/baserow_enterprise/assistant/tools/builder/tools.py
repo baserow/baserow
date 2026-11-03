@@ -517,6 +517,47 @@ def list_elements(
         raise _page_not_found(page_id)
 
 
+def _create_element_formula_errors(entries: list[BuilderFormulaError]) -> list[str]:
+    """
+    How Kuma words the values the repair of new elements couldn't fill: one error per
+    item. A value the model left out isn't reported.
+    """
+
+    errors: list[str] = []
+    reported: set[tuple[str, int]] = set()
+    for entry in entries:
+        item_key = (entry.kind, entry.source.id)
+        if entry["error"] == agents.NO_VALID_FORMULA or item_key in reported:
+            continue
+        reported.add(item_key)
+        errors.append(_new_item_formula_error(entry))
+    return errors
+
+
+def _new_item_formula_error(entry: BuilderFormulaError) -> str:
+    item = entry.item
+    if entry.kind == "element":
+        if entry.permission_denied:
+            return (
+                f"Permission denied while configuring element '{item.ref}'. "
+                "The element was created, but its formulas were not applied. "
+                "Do not retry the denied operation."
+            )
+        return f"Formula generation failed for '{item.ref}': {entry['error']}"
+    if entry.permission_denied:
+        return (
+            f"Permission denied while configuring action on '{item.element}'. "
+            "The action was created, but its formulas were not applied. "
+            "Do not retry the denied operation."
+        )
+    ref = (
+        item.element
+        if isinstance(item.element, str)
+        else f"element_{entry.source.element_id}"
+    )
+    return f"Formula generation failed for action on '{ref}': {entry['error']}"
+
+
 def _create_elements_internal(
     ctx: RunContext[AssistantDeps],
     page_id: int,
@@ -525,66 +566,42 @@ def _create_elements_internal(
 ) -> dict[str, Any]:
     """Shared implementation for all create_*_elements tools."""
 
-    user = ctx.deps.user
     tool_helpers = ctx.deps.tool_helpers
 
-    page = helpers.get_page(user, ctx.deps.workspace, page_id)
+    page = helpers.get_page(ctx.deps.user, ctx.deps.workspace, page_id)
     shared_page = PageHandler().get_shared_page(page.builder)
 
-    tool_helpers.update_status(
-        _("Creating %(count)d elements on %(name)s...")
-        % {"count": len(elements), "name": page.name}
-    )
-
-    ref_to_id: dict[str, int] = _get_element_refs(tool_helpers, page_id)
-    element_mapping: dict[str, tuple[Any, ElementItemCreate]] = {}
-    created_elements_by_id: dict[int, Any] = {}
-    ds_ref_to_id = _get_data_source_refs(tool_helpers, page_id)
+    known_refs = _get_element_refs(tool_helpers, page_id)
     shared_page_refs: set[str] = set(
         _get_element_refs(tool_helpers, shared_page.id).keys()
     )
-    created: list[dict] = []
 
-    errors: list[str] = []
-    table_action_pairs: list[tuple] = []
-    with transaction.atomic():
-        for el_create in elements:
-            tool_helpers.raise_if_cancelled()
-            try:
-                with transaction.atomic():
-                    element, el_id, action_pairs = helpers.create_element(
-                        user,
-                        page,
-                        el_create,
-                        ref_to_id,
-                        ds_ref_to_id,
-                        shared_page_refs,
-                        before_element_id,
-                    )
-            except Exception as exc:
-                raise_if_permission_denied(exc)
-                helpers.forget_page_graphs(page)
-                errors.append(f"{el_create.ref}: {item_error(exc)}")
-                continue
-            ref_to_id[el_create.ref] = el_id
-            element_mapping[el_create.ref] = (element, el_create)
-            created_elements_by_id[el_id] = element
-            table_action_pairs.extend(action_pairs)
-            created.append({"id": el_id, "ref": el_create.ref, "type": el_create.type})
+    tool_context = ctx.deps.tool_context()
+    shared = shared_elements.create_elements_with_options(
+        tool_context,
+        page_id,
+        elements,
+        before_element_id,
+        BuilderWriteOptions(
+            known_refs=known_refs,
+            known_data_source_refs=_get_data_source_refs(tool_helpers, page_id),
+            known_shared_page_refs=shared_page_refs,
+            column_name_beats_formula=True,
+            item_error=item_error,
+        ),
+    )
+    created = shared["created_elements"]
+    ref_to_id = {**known_refs, **shared["ref_to_id_map"]}
 
     # Formula generation (separate transactions)
+    errors = shared.get("errors", [])
     errors.extend(
-        agents.update_element_formulas(
-            user, page, elements, element_mapping, tool_helpers
-        )
-    )
-
-    if table_action_pairs:
-        errors.extend(
-            agents.update_workflow_action_formulas(
-                user, page, table_action_pairs, tool_helpers
+        _create_element_formula_errors(
+            agents.repair_builder_formula_errors(
+                tool_context, tool_helpers, page, shared.get("formula_errors", [])
             )
         )
+    )
 
     _track_element_refs(tool_helpers, page_id, ref_to_id)
     _track_element_refs(
@@ -598,14 +615,7 @@ def _create_elements_internal(
     if errors:
         result["errors"] = errors
 
-    # Report the saved graph after the entire batch, including children added by
-    # post-create hooks. A container's successful creation does not add content.
-    empty_containers = [
-        item
-        for item in created
-        if (element := created_elements_by_id[item["id"]]).get_type().is_container
-        and not element.page.get_graph().get_children(element)
-    ]
+    empty_containers = shared.get("empty_containers")
     next_steps = []
     if empty_containers:
         result["empty_containers"] = empty_containers
@@ -619,10 +629,11 @@ def _create_elements_internal(
         )
 
     # Guide the model to create workflow actions for interactive elements.
+    created_refs = {item["ref"] for item in created}
     actionable = [
         el.ref
         for el in elements
-        if el.ref in element_mapping and el.type in ("button", "form_container")
+        if el.ref in created_refs and el.type in ("button", "form_container")
     ]
     if actionable:
         next_steps.append(
@@ -909,24 +920,20 @@ def update_element(
         _("Updating element %(id)d...") % {"id": element.element_id}
     )
 
-    with transaction.atomic():
-        outcome = helpers.update_element(user, page, element)
+    tool_context = ctx.deps.tool_context()
+    outcome, formula_errors = shared_elements.update_element_on_page(
+        tool_context, page, element
+    )
     orm_element, element_type = outcome.element, outcome.element_type
 
     # Handle formula generation for $formula: fields (separate transaction)
+    remaining = agents.repair_builder_formula_errors(
+        tool_context, tool_helpers, page, formula_errors
+    )
+    errors = _update_element_formula_errors(element.element_id, remaining)
+    not_applied = {entry["field"] for entry in remaining}
     formulas = element.get_formulas_to_update(orm_element, None, element_type)
-    applied_formulas: list[str] = []
-    errors: list[str] = []
-    if formulas:
-        try:
-            applied_formulas, errors = agents.update_single_element_formulas(
-                user, page, orm_element, element, element_type, tool_helpers
-            )
-        except PermissionException:
-            errors = [
-                "Permission denied while applying element formulas. "
-                "Previous formula values were retained. Do not retry the denied operation."
-            ]
+    applied_formulas = [field for field in formulas if field not in not_applied]
 
     dependent_fields = element.get_formula_dependent_fields(element_type)
     property_aliases = assistant_element_type_registry.get_for(
@@ -948,6 +955,33 @@ def update_element(
     if errors:
         result["errors"] = errors
     return result
+
+
+def _update_element_formula_errors(
+    element_id: int, entries: list[BuilderFormulaError]
+) -> list[str]:
+    """How Kuma words values the repair of an updated element couldn't fill."""
+
+    if any(entry.permission_denied for entry in entries):
+        return [
+            "Permission denied while applying element formulas. "
+            "Previous formula values were retained. Do not retry the denied operation."
+        ]
+    fields_by_error: dict[str, list[str]] = {}
+    for entry in entries:
+        fields_by_error.setdefault(entry["error"], []).append(entry["field"])
+    return [
+        (
+            "No valid formula was generated for: "
+            f"{', '.join(sorted(fields))}. Previous values were retained."
+        )
+        if error == agents.NO_VALID_FORMULA
+        else (
+            f"Formula generation failed for element {element_id}: {error}. "
+            "Previous formula values were retained."
+        )
+        for error, fields in fields_by_error.items()
+    ]
 
 
 # ---------------------------------------------------------------------------

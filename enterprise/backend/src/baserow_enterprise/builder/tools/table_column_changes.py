@@ -383,7 +383,7 @@ def _check_field_ids(
         raise ToolInputError(
             f"Fields {unknown} are not fields of table {source.table.id} "
             f"'{source.table.name}', which the data source of table element "
-            f"{element.id} reads. Use field ids of that table from get_tables_schema. "
+            f"{element.id} reads. Use field ids of that table. "
             f"{NO_CHANGES}"
         )
 
@@ -407,7 +407,7 @@ def _check_new_columns_not_empty(
             if name_key(name) not in source.fields_by_name
         ]
         remedy = (
-            "Set field_id (from get_tables_schema) or value; value '' keeps it empty "
+            "Set field_id (a field of that table) or value; value '' keeps it empty "
             "on purpose."
         )
     if empty:

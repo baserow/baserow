@@ -51,7 +51,7 @@ class TableColumnAdd(BaseModel):
     )
     field_id: int | None = Field(
         default=None,
-        description="(text) Database field to show, from get_tables_schema.",
+        description="(text) ID of the database field to show.",
     )
     label: str | None = Field(
         default=None,
@@ -82,7 +82,7 @@ class TableColumnUpdate(BaseModel):
     )
     field_id: int | None = Field(
         default=None,
-        description="(text, boolean, rating) Database field to show instead, from get_tables_schema.",
+        description="(text, boolean, rating) ID of the database field to show instead.",
     )
     label: str | None = Field(default=None, description="(button) New button caption.")
 

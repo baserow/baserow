@@ -18,20 +18,29 @@ from baserow_enterprise.assistant.tools.builder.agents import (
     repair_builder_formula_errors,
 )
 from baserow_enterprise.assistant.tools.builder.tools import (
+    create_collection_elements,
     create_data_sources,
+    create_display_elements,
+    create_layout_elements,
     create_pages,
     update_data_source,
+    update_element,
     update_page,
 )
 from baserow_enterprise.builder.tools import formulas
 from baserow_enterprise.builder.tools.formulas import apply_builder_formulas
 from baserow_enterprise.builder.tools.types import (
     ActionCreate,
+    CollectionElementCreate,
     DataSourceCreate,
     DataSourceUpdate,
     DisplayElementCreate,
+    ElementItemCreate,
+    ElementUpdate,
+    LayoutElementCreate,
     PageCreate,
     PageUpdate,
+    TableFieldConfig,
 )
 
 from .utils import create_fake_tool_helpers, make_test_ctx
@@ -450,3 +459,297 @@ def test_update_page_keeps_its_result_shape(site):
     assert result["status"] == "ok"
     assert result["page"]["name"] == "Renamed"
     assert result["updated_fields"] == ["name"]
+
+
+# ---------------------------------------------------------------------------
+# Elements
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def listed(data_fixture, site):
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=site["page"], table=site["table"], name="People"
+    )
+    repeat = data_fixture.create_builder_repeat_element(
+        page=site["page"], data_source=data_source
+    )
+    return {**site, "data_source": data_source, "repeat": repeat}
+
+
+def heading(ref="h", value="Hi", **kwargs):
+    return DisplayElementCreate(ref=ref, type="heading", value=value, **kwargs)
+
+
+@pytest.mark.django_db
+def test_an_explicit_element_formula_needs_no_model(site, monkeypatch):
+    asked = use_generator(monkeypatch, lambda formulas, context: {})
+
+    result = create_display_elements(
+        site["ctx"],
+        page_id=site["page"].id,
+        elements=[heading(value="$formula: get('page_parameter.id')")],
+        thought="test",
+    )
+
+    assert asked == []
+    element = ElementHandler().get_element(result["ref_to_id_map"]["h"])
+    assert element.value["formula"] == "get('page_parameter.id')"
+
+
+@pytest.mark.django_db
+def test_a_refused_explicit_formula_in_a_repeat_goes_to_the_model(listed, monkeypatch):
+    missing = "get('data_source.999999.0.id')"
+    asked = use_generator(
+        monkeypatch, lambda formulas, context: {"value": "get('current_record.id')"}
+    )
+
+    result = create_display_elements(
+        listed["ctx"],
+        page_id=listed["page"].id,
+        elements=[heading(value=missing, parent_element=listed["repeat"].id)],
+        thought="test",
+    )
+
+    assert asked == [{"value": missing}]
+    assert "errors" not in result
+    element = ElementHandler().get_element(result["ref_to_id_map"]["h"])
+    assert element.value["formula"] == "get('current_record.id')"
+
+
+@pytest.mark.django_db
+def test_create_elements_reports_a_generation_failure_once_per_element(
+    site, monkeypatch
+):
+    def fail(formulas, context):
+        raise ValueError("no luck")
+
+    use_generator(monkeypatch, fail)
+
+    result = create_display_elements(
+        site["ctx"],
+        page_id=site["page"].id,
+        elements=[
+            DisplayElementCreate(
+                ref="img",
+                type="image",
+                image_url="$formula: the url",
+                alt_text="$formula: the alt text",
+            )
+        ],
+        thought="test",
+    )
+
+    assert result["errors"] == ["Formula generation failed for 'img': no luck"]
+    assert [item["ref"] for item in result["created_elements"]] == ["img"]
+
+
+@pytest.mark.django_db
+def test_create_elements_stays_silent_on_a_value_the_model_left_out(site, monkeypatch):
+    use_generator(monkeypatch, lambda formulas, context: {})
+
+    result = create_display_elements(
+        site["ctx"],
+        page_id=site["page"].id,
+        elements=[heading(value="$formula: a title")],
+        thought="test",
+    )
+
+    assert "errors" not in result
+
+
+@pytest.mark.django_db
+def test_created_elements_are_reported_when_generation_can_not_start(site, monkeypatch):
+    def broken(*args):
+        raise ValueError("no model")
+
+    monkeypatch.setattr(GENERATOR, broken)
+
+    result = create_display_elements(
+        site["ctx"],
+        page_id=site["page"].id,
+        elements=[heading(value="$formula: a title")],
+        thought="test",
+    )
+
+    assert [item["ref"] for item in result["created_elements"]] == ["h"]
+    assert result["errors"] == ["Formula generation failed for 'h': no model"]
+
+
+@pytest.mark.django_db
+def test_kuma_remembers_element_refs_across_calls(site):
+    ctx = site["ctx"]
+    first = create_layout_elements(
+        ctx,
+        page_id=site["page"].id,
+        elements=[LayoutElementCreate(ref="box", type="simple_container")],
+        thought="test",
+    )
+
+    second = create_display_elements(
+        ctx,
+        page_id=site["page"].id,
+        elements=[heading(parent_element="box")],
+        thought="test",
+    )
+
+    box = first["ref_to_id_map"]["box"]
+    assert first["empty_containers"][0]["ref"] == "box"
+    assert "empty_containers have no child elements" in first["next_steps"]
+    assert second["ref_to_id_map"]["box"] == box
+    element = ElementHandler().get_element(second["ref_to_id_map"]["h"])
+    assert element.parent_element_id == box
+
+
+@pytest.mark.django_db
+def test_kuma_keeps_its_wording_for_an_unknown_ref(site):
+    result = create_display_elements(
+        site["ctx"],
+        page_id=site["page"].id,
+        elements=[heading(parent_element="nope")],
+        thought="test",
+    )
+
+    assert result["errors"] == [
+        "h: Parent ref 'nope' not found. Define parent elements before children."
+    ]
+    assert "next_steps" not in result
+
+
+@pytest.mark.django_db
+def test_kuma_children_of_a_remembered_header_stay_on_the_shared_page(site):
+    ctx = site["ctx"]
+    create_layout_elements(
+        ctx,
+        page_id=site["page"].id,
+        elements=[LayoutElementCreate(ref="top", type="header")],
+        thought="test",
+    )
+
+    result = create_display_elements(
+        ctx,
+        page_id=site["page"].id,
+        elements=[heading(parent_element="top")],
+        thought="test",
+    )
+
+    element = ElementHandler().get_element(result["ref_to_id_map"]["h"])
+    assert element.page == site["builder"].shared_page
+
+
+@pytest.mark.django_db
+def test_kuma_column_named_like_a_field_shows_that_field(listed, monkeypatch):
+    asked = use_generator(monkeypatch, lambda formulas, context: {})
+
+    result = create_collection_elements(
+        listed["ctx"],
+        page_id=listed["page"].id,
+        elements=[
+            CollectionElementCreate(
+                ref="t",
+                type="table",
+                data_source=listed["data_source"].id,
+                fields=[TableFieldConfig(name="Name", value="$formula: the name")],
+            )
+        ],
+        thought="test",
+    )
+
+    assert asked == []
+    table = ElementHandler().get_element(result["ref_to_id_map"]["t"])
+    assert "field_" in table.fields.get().config["value"]["formula"]
+
+
+@pytest.mark.django_db
+def test_kuma_table_columns_are_repaired_by_their_path(listed, monkeypatch):
+    asked = use_generator(
+        monkeypatch,
+        lambda formulas, context: {"fields.0.value": "get('current_record.id')"},
+    )
+
+    result = create_collection_elements(
+        listed["ctx"],
+        page_id=listed["page"].id,
+        elements=[
+            CollectionElementCreate(
+                ref="t",
+                type="table",
+                data_source=listed["data_source"].id,
+                fields=[TableFieldConfig(name="Id", value="$formula: the id")],
+            )
+        ],
+        thought="test",
+    )
+
+    assert asked == [{"fields.0.value": "the id"}]
+    table = ElementHandler().get_element(result["ref_to_id_map"]["t"])
+    assert table.fields.get().config["value"]["formula"] == "get('current_record.id')"
+
+
+@pytest.mark.django_db
+def test_kuma_repairs_a_table_button_action_with_its_own_wording(
+    data_fixture, listed, monkeypatch
+):
+    def with_action(self, user, orm_element, page):
+        action = data_fixture.create_notification_workflow_action(
+            page=page, element=orm_element, event="x_click"
+        )
+        return [
+            (
+                action,
+                ActionCreate(
+                    type="notification",
+                    element=self.ref,
+                    title="$formula: the title",
+                ),
+            )
+        ]
+
+    def fail(formulas, context):
+        raise ValueError("no luck")
+
+    monkeypatch.setattr(ElementItemCreate, "post_create", with_action)
+    use_generator(monkeypatch, fail)
+
+    result = create_collection_elements(
+        listed["ctx"],
+        page_id=listed["page"].id,
+        elements=[
+            CollectionElementCreate(
+                ref="t",
+                type="table",
+                data_source=listed["data_source"].id,
+                fields=[TableFieldConfig(name="Go", type="button", label="Go")],
+            )
+        ],
+        thought="test",
+    )
+
+    assert result["errors"] == ["Formula generation failed for action on 't': no luck"]
+    assert "created_actions" not in result
+
+
+@pytest.mark.django_db
+def test_kuma_update_stores_an_explicit_formula_and_repairs_a_description(
+    data_fixture, site, monkeypatch
+):
+    image = data_fixture.create_builder_image_element(page=site["page"])
+    asked = use_generator(monkeypatch, lambda formulas, context: {})
+
+    result = update_element(
+        site["ctx"],
+        page_id=site["page"].id,
+        element=ElementUpdate(
+            element_id=image.id,
+            image_url="get('page_parameter.id')",
+            alt_text="$formula: the alt text",
+        ),
+        thought="test",
+    )
+
+    assert asked == [{"alt_text": "the alt text"}]
+    assert result["status"] == "partial"
+    assert result["updated_fields"] == ["image_url"]
+    assert result["errors"] == [
+        "No valid formula was generated for: alt_text. Previous values were retained."
+    ]

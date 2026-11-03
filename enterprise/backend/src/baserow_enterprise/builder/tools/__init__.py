@@ -17,6 +17,14 @@ class BuilderWriteOptions:
     known_data_source_refs: dict[str, int] = field(default_factory=dict)
     """Data source refs from earlier calls."""
 
+    known_shared_page_refs: set[str] = field(default_factory=set)
+    """Which of ``known_refs`` are on the shared page. The call adds the refs of the
+    shared page elements it creates."""
+
+    column_name_beats_formula: bool = False
+    """A new table column named like a field shows that field, even when it has a
+    formula or description of its own."""
+
     defer_required_formulas: bool = False
     """Create an item whose value to run isn't a usable formula, with a placeholder,
     and report the value in ``formula_errors`` for the caller to fill."""

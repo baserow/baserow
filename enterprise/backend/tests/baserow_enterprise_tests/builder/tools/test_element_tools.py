@@ -1,0 +1,1147 @@
+"""
+The shared element tools store the formulas they are given and report the rest,
+without a model. The conftest of this folder fails any model call.
+"""
+
+import pytest
+
+from baserow.contrib.builder.elements.element_types import HeadingElementType
+from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
+from baserow.contrib.builder.elements.models import Element, TableElement
+from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
+from baserow.contrib.builder.workflow_actions.models import (
+    NotificationWorkflowAction,
+)
+from baserow.core.exceptions import PermissionException
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
+from baserow.core.tools.errors import ToolInputError
+from baserow_enterprise.builder.tools import (
+    BuilderWriteOptions,
+    elements,
+    helpers,
+)
+from baserow_enterprise.builder.tools.formulas import (
+    current_record_of,
+    formula_problem,
+    page_formula_context,
+)
+from baserow_enterprise.builder.tools.types import (
+    ActionCreate,
+    CollectionElementCreate,
+    DisplayElementCreate,
+    ElementChanges,
+    ElementItemCreate,
+    ElementMove,
+    ElementStyleChanges,
+    FormElementCreate,
+    LayoutElementCreate,
+    MenuItemCreate,
+    TableColumnAdd,
+    TableColumnUpdate,
+    TableFieldConfig,
+)
+from baserow_enterprise.builder.tools.types.menu_items import MenuItemAdd
+
+
+def heading(ref="h", **kwargs):
+    return ElementItemCreate(ref=ref, type="heading", value="Hi", **kwargs)
+
+
+def saved(element_id):
+    return Element.objects.get(id=element_id).specific
+
+
+@pytest.fixture
+def table_field(builder_ctx):
+    table = builder_ctx["data_source"].service.specific.table
+    return table.field_set.get(name="Name")
+
+
+@pytest.fixture
+def repeat(data_fixture, builder_ctx):
+    return data_fixture.create_builder_repeat_element(
+        page=builder_ctx["page"], data_source=builder_ctx["data_source"]
+    )
+
+
+# ---------------------------------------------------------------------------
+# Refs
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_a_ref_from_an_earlier_call_fails_the_item(builder_ctx):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    first = elements.create_elements(
+        ctx, page.id, [ElementItemCreate(ref="box", type="simple_container")]
+    )
+    count = Element.objects.count()
+
+    result = elements.create_elements(ctx, page.id, [heading(parent_element="box")])
+
+    assert first["ref_to_id_map"]["box"]
+    assert result["created_elements"] == []
+    assert result["errors"] == [
+        "h: Unknown ref 'box'. Refs only work inside one call; use the element ID."
+    ]
+    assert Element.objects.count() == count
+
+
+@pytest.mark.django_db
+def test_a_ref_works_inside_one_call(builder_ctx):
+    result = elements.create_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            ElementItemCreate(ref="box", type="simple_container"),
+            heading(parent_element="box"),
+        ],
+    )
+
+    ids = result["ref_to_id_map"]
+    assert saved(ids["h"]).parent_element_id == ids["box"]
+    assert "errors" not in result
+
+
+@pytest.mark.django_db
+def test_known_refs_go_through_the_options(builder_ctx):
+    page = builder_ctx["page"]
+    box = elements.create_elements(
+        builder_ctx["ctx"],
+        page.id,
+        [ElementItemCreate(ref="box", type="simple_container")],
+    )["ref_to_id_map"]["box"]
+
+    result = elements.create_elements_with_options(
+        builder_ctx["ctx"],
+        page.id,
+        [heading(parent_element="box")],
+        None,
+        BuilderWriteOptions(known_refs={"box": box}),
+    )
+
+    assert saved(result["ref_to_id_map"]["h"]).parent_element_id == box
+    # Only what this call created.
+    assert set(result["ref_to_id_map"]) == {"h"}
+
+
+@pytest.mark.django_db
+def test_a_data_source_ref_from_an_earlier_call_fails_the_item(builder_ctx):
+    result = elements.create_collection_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [CollectionElementCreate(ref="r", type="repeat", data_source="products")],
+    )
+
+    assert result["created_elements"] == []
+    assert result["errors"] == [
+        "r: Unknown data source ref 'products'. Refs only work inside one call; use "
+        "the data source ID from list_data_sources."
+    ]
+
+
+@pytest.mark.django_db
+def test_known_data_source_refs_go_through_the_options(builder_ctx):
+    result = elements.create_elements_with_options(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [ElementItemCreate(ref="r", type="repeat", data_source="products")],
+        None,
+        BuilderWriteOptions(
+            known_data_source_refs={"products": builder_ctx["data_source"].id}
+        ),
+    )
+
+    repeat = saved(result["ref_to_id_map"]["r"])
+    assert repeat.data_source_id == builder_ctx["data_source"].id
+
+
+# ---------------------------------------------------------------------------
+# Shared page
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_a_header_lands_on_the_shared_page_and_shows_on_other_pages(
+    data_fixture, builder_ctx
+):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    other = data_fixture.create_builder_page(builder=builder_ctx["builder"])
+
+    result = elements.create_layout_elements(
+        ctx,
+        page.id,
+        [
+            LayoutElementCreate(ref="top", type="header"),
+            LayoutElementCreate(
+                ref="box", type="simple_container", parent_element="top"
+            ),
+        ],
+    )
+
+    ids = result["ref_to_id_map"]
+    assert saved(ids["top"]).page == builder_ctx["builder"].shared_page
+    # A child of a shared page element goes to the shared page too.
+    assert saved(ids["box"]).page == builder_ctx["builder"].shared_page
+    listed = elements.list_elements(ctx, other.id)["elements"]
+    assert {ids["top"], ids["box"]} <= {element["id"] for element in listed}
+
+
+@pytest.mark.django_db
+def test_a_header_form_can_read_its_own_inputs(data_fixture, builder_ctx):
+    ctx, builder = builder_ctx["ctx"], builder_ctx["builder"]
+    created = elements.create_elements(
+        ctx,
+        builder_ctx["page"].id,
+        [
+            ElementItemCreate(ref="top", type="header"),
+            ElementItemCreate(ref="form", type="form_container", parent_element="top"),
+            ElementItemCreate(ref="in", type="input_text", parent_element="form"),
+        ],
+    )["ref_to_id_map"]
+
+    result = elements.create_elements(
+        ctx,
+        builder_ctx["page"].id,
+        [
+            ElementItemCreate(
+                ref="echo",
+                type="heading",
+                parent_element=created["form"],
+                value=f"get('form_data.{created['in']}')",
+            )
+        ],
+    )
+
+    assert "formula_errors" not in result
+    echo = saved(result["ref_to_id_map"]["echo"])
+    assert echo.page == builder.shared_page
+    assert echo.value["formula"] == f"get('form_data.{created['in']}')"
+
+
+@pytest.mark.django_db
+def test_a_header_can_not_read_what_only_one_page_has(data_fixture, builder_ctx):
+    page = data_fixture.create_builder_page(
+        builder=builder_ctx["builder"],
+        name="Item",
+        path="/item/:id",
+        path_params=[{"name": "id", "type": "numeric"}],
+    )
+
+    result = elements.create_elements(
+        builder_ctx["ctx"],
+        page.id,
+        [
+            ElementItemCreate(ref="top", type="header"),
+            ElementItemCreate(
+                ref="h",
+                type="heading",
+                parent_element="top",
+                value="get('page_parameter.id')",
+            ),
+        ],
+    )
+
+    entry = result["formula_errors"][0]
+    assert entry["element_id"] == result["ref_to_id_map"]["h"]
+    assert "page parameter" in entry["error"]
+
+
+@pytest.mark.django_db
+def test_a_normal_page_can_not_read_a_header_form(builder_ctx):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    created = elements.create_elements(
+        ctx,
+        page.id,
+        [
+            ElementItemCreate(ref="top", type="header"),
+            ElementItemCreate(ref="form", type="form_container", parent_element="top"),
+            ElementItemCreate(ref="in", type="input_text", parent_element="form"),
+        ],
+    )["ref_to_id_map"]
+
+    result = elements.create_elements(
+        ctx,
+        page.id,
+        [
+            ElementItemCreate(
+                ref="echo", type="heading", value=f"get('form_data.{created['in']}')"
+            )
+        ],
+    )
+
+    assert "form element" in result["formula_errors"][0]["error"]
+
+
+# ---------------------------------------------------------------------------
+# Formulas
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_a_description_inside_a_repeat_is_reported(builder_ctx, repeat):
+    result = elements.create_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            ElementItemCreate(
+                ref="child",
+                type="heading",
+                parent_element=repeat.id,
+                value="$formula: the name of the product",
+            )
+        ],
+    )
+
+    child = result["ref_to_id_map"]["child"]
+    assert saved(child).value["formula"] == "''"
+    assert result["formula_errors"] == [
+        {
+            "element_id": child,
+            "field": "value",
+            "formula": "the name of the product",
+            "error": (
+                "'value' needs a formula, not a description. Write it in Baserow "
+                "formula syntax, like get('page_parameter.id')."
+            ),
+        }
+    ]
+
+
+@pytest.mark.django_db
+def test_an_explicit_formula_inside_a_repeat_is_stored(builder_ctx, repeat):
+    result = elements.create_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            ElementItemCreate(
+                ref="child",
+                type="heading",
+                parent_element=repeat.id,
+                value="get('current_record.id')",
+            )
+        ],
+    )
+
+    value = saved(result["ref_to_id_map"]["child"]).value
+    assert value["formula"] == "get('current_record.id')"
+    assert value["mode"] == BASEROW_FORMULA_MODE_ADVANCED
+    assert "formula_errors" not in result
+
+
+@pytest.mark.django_db
+def test_current_record_is_refused_outside_a_collection(builder_ctx):
+    result = elements.create_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [ElementItemCreate(ref="h", type="heading", value="get('current_record.id')")],
+    )
+
+    assert "inside a repeat or a table" in result["formula_errors"][0]["error"]
+
+
+@pytest.mark.django_db
+def test_current_record_in_a_repeat_without_a_data_source_says_so(
+    data_fixture, builder_ctx
+):
+    repeat = data_fixture.create_builder_repeat_element(page=builder_ctx["page"])
+    repeat.data_source = None
+    repeat.save()
+
+    result = elements.create_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            ElementItemCreate(
+                ref="h",
+                type="heading",
+                parent_element=repeat.id,
+                value="get('current_record.id')",
+            )
+        ],
+    )
+
+    assert "has no data source" in result["formula_errors"][0]["error"]
+
+
+@pytest.mark.django_db
+def test_a_repeat_bound_through_a_schema_property_offers_current_record(
+    data_fixture, builder_ctx
+):
+    page = builder_ctx["page"]
+    outer = data_fixture.create_builder_repeat_element(
+        page=page, data_source=builder_ctx["data_source"]
+    )
+    nested = data_fixture.create_builder_repeat_element(
+        page=page, parent_element=outer, schema_property="field_1"
+    )
+    nested.data_source = None
+    nested.save()
+
+    result = elements.create_elements(
+        builder_ctx["ctx"],
+        page.id,
+        [
+            ElementItemCreate(
+                ref="h",
+                type="heading",
+                parent_element=nested.id,
+                value="get('current_record.value')",
+            )
+        ],
+    )
+
+    assert "formula_errors" not in result
+
+    context = page_formula_context(page)
+    with current_record_of(context, "element", nested):
+        assert formula_problem("value", "get('current_record.id')", context) is None
+    assert context._current_record_stack == []
+
+
+@pytest.mark.django_db
+def test_table_columns_store_formulas_and_report_descriptions(builder_ctx):
+    data_source = builder_ctx["data_source"]
+    result = elements.create_collection_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            CollectionElementCreate(
+                ref="t",
+                type="table",
+                data_source=data_source.id,
+                fields=[
+                    TableFieldConfig(name="Id", value="get('current_record.id')"),
+                    TableFieldConfig(name="Described", value="$formula: the price"),
+                    TableFieldConfig(
+                        name="Go", type="button", label="$formula: the action"
+                    ),
+                ],
+            )
+        ],
+    )
+
+    table = TableElement.objects.get(id=result["ref_to_id_map"]["t"])
+    columns = list(table.fields.order_by("order"))
+    assert columns[0].config["value"]["formula"] == "get('current_record.id')"
+    assert columns[1].config["value"]["formula"] == "''"
+    assert [
+        (entry["element_id"], entry["field"], entry["formula"])
+        for entry in result["formula_errors"]
+    ] == [
+        (table.id, "fields.1.value", "the price"),
+        (table.id, "fields.2.label", "the action"),
+    ]
+
+
+@pytest.mark.django_db
+def test_a_column_named_like_a_field_keeps_its_own_formula(builder_ctx):
+    result = elements.create_collection_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            CollectionElementCreate(
+                ref="t",
+                type="table",
+                data_source=builder_ctx["data_source"].id,
+                fields=[
+                    TableFieldConfig(name="Name", value="get('current_record.id')")
+                ],
+            ),
+            CollectionElementCreate(
+                ref="t2",
+                type="table",
+                data_source=builder_ctx["data_source"].id,
+                fields=[TableFieldConfig(name="Name", value="$formula: upper name")],
+            ),
+        ],
+    )
+
+    explicit = TableElement.objects.get(id=result["ref_to_id_map"]["t"])
+    assert (
+        explicit.fields.get().config["value"]["formula"] == "get('current_record.id')"
+    )
+    described = TableElement.objects.get(id=result["ref_to_id_map"]["t2"])
+    assert described.fields.get().config["value"]["formula"] == "''"
+    assert [(e["element_id"], e["field"]) for e in result["formula_errors"]] == [
+        (described.id, "fields.0.value")
+    ]
+
+
+@pytest.mark.django_db
+def test_a_column_named_like_a_field_without_a_value_shows_that_field(
+    builder_ctx, table_field
+):
+    result = elements.create_collection_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            CollectionElementCreate(
+                ref="t",
+                type="table",
+                data_source=builder_ctx["data_source"].id,
+                fields=[TableFieldConfig(name="Name")],
+            )
+        ],
+    )
+
+    table = TableElement.objects.get(id=result["ref_to_id_map"]["t"])
+    assert f"field_{table_field.id}" in table.fields.get().config["value"]["formula"]
+    assert "formula_errors" not in result
+
+
+@pytest.mark.django_db
+def test_a_table_without_columns_says_so(builder_ctx):
+    result = elements.create_collection_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            CollectionElementCreate(
+                ref="t", type="table", data_source=builder_ctx["data_source"].id
+            )
+        ],
+    )
+
+    assert result["created_elements"] == []
+    assert "needs fields" in result["errors"][0]
+
+
+@pytest.mark.django_db
+def test_form_fields_store_formulas_and_report_descriptions(data_fixture, builder_ctx):
+    page = data_fixture.create_builder_page(
+        builder=builder_ctx["builder"],
+        name="Item",
+        path="/item/:id",
+        path_params=[{"name": "id", "type": "numeric"}],
+    )
+    result = elements.create_form_elements(
+        builder_ctx["ctx"],
+        page.id,
+        [
+            FormElementCreate(ref="form", type="form_container"),
+            FormElementCreate(
+                ref="a",
+                type="input_text",
+                parent_element="form",
+                label="A",
+                default_value="get('page_parameter.id')",
+            ),
+            FormElementCreate(
+                ref="b",
+                type="input_text",
+                parent_element="form",
+                label="B",
+                default_value="$formula: the id",
+            ),
+        ],
+    )
+
+    ids = result["ref_to_id_map"]
+    assert saved(ids["a"]).default_value["formula"] == "get('page_parameter.id')"
+    assert saved(ids["b"]).default_value["formula"] == "''"
+    assert [(e["element_id"], e["field"]) for e in result["formula_errors"]] == [
+        (ids["b"], "default_value")
+    ]
+
+
+@pytest.mark.django_db
+def test_a_table_buttons_actions_are_returned_and_named_in_formula_errors(
+    data_fixture, builder_ctx, monkeypatch
+):
+    data_source = builder_ctx["data_source"]
+
+    def with_action(self, user, orm_element, page):
+        action = data_fixture.create_notification_workflow_action(
+            page=page, element=orm_element, event="x_click"
+        )
+        return [
+            (
+                action,
+                ActionCreate(
+                    type="notification",
+                    element=orm_element.id,
+                    title="$formula: the title",
+                ),
+            )
+        ]
+
+    monkeypatch.setattr(ElementItemCreate, "post_create", with_action)
+
+    result = elements.create_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            ElementItemCreate(
+                ref="t",
+                type="table",
+                data_source=data_source.id,
+                fields=[TableFieldConfig(name="Go", type="button", label="Go")],
+            )
+        ],
+    )
+
+    action = NotificationWorkflowAction.objects.get(
+        element_id=result["ref_to_id_map"]["t"]
+    )
+    assert result["created_actions"] == [
+        {"id": action.id, "element_id": action.element_id, "event": "x_click"}
+    ]
+    assert [(e["action_id"], e["field"]) for e in result["formula_errors"]] == [
+        (action.id, "title")
+    ]
+
+
+@pytest.mark.django_db
+def test_an_action_of_a_table_reads_the_row_of_the_table(data_fixture, builder_ctx):
+    table = data_fixture.create_builder_table_element(
+        page=builder_ctx["page"], data_source=builder_ctx["data_source"], fields=[]
+    )
+    action = data_fixture.create_notification_workflow_action(
+        page=builder_ctx["page"], element=table, event="x_click"
+    )
+    # Loaded the way an action comes from the database.
+    action = NotificationWorkflowAction.objects.get(id=action.id)
+
+    context = page_formula_context(builder_ctx["page"])
+    with current_record_of(context, "action", action):
+        assert formula_problem("title", "get('current_record.id')", context) is None
+
+
+# ---------------------------------------------------------------------------
+# Batches
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_one_bad_element_in_a_batch_keeps_the_rest(builder_ctx):
+    result = elements.create_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            heading("first"),
+            heading("bad", parent_element=999999),
+            heading("last"),
+        ],
+    )
+
+    assert [item["ref"] for item in result["created_elements"]] == ["first", "last"]
+    assert result["errors"][0].startswith("bad: Parent element with ID 999999")
+    assert set(result["ref_to_id_map"]) == {"first", "last"}
+    assert saved(result["ref_to_id_map"]["last"])
+
+
+@pytest.mark.django_db
+def test_navigation_on_a_type_without_it_is_a_message_not_an_internal_error(
+    builder_ctx,
+):
+    result = elements.create_display_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            DisplayElementCreate(
+                ref="h", type="heading", value="Hi", navigate_to_url="https://a.b"
+            )
+        ],
+    )
+
+    assert result["errors"][0].startswith(
+        "h: Unsupported properties for heading: navigate_to_url."
+    )
+
+
+@pytest.mark.django_db
+def test_a_denied_create_stops_the_call_and_keeps_nothing(builder_ctx, monkeypatch):
+    count = Element.objects.count()
+    original = helpers.create_element
+
+    def deny_the_second(user, page, element_create, *args, **kwargs):
+        if element_create.ref == "second":
+            raise PermissionException()
+        return original(user, page, element_create, *args, **kwargs)
+
+    monkeypatch.setattr(helpers, "create_element", deny_the_second)
+
+    with pytest.raises(PermissionException):
+        elements.create_elements(
+            builder_ctx["ctx"],
+            builder_ctx["page"].id,
+            [heading("first"), heading("second")],
+        )
+
+    assert Element.objects.count() == count
+
+
+@pytest.mark.django_db
+def test_empty_containers_are_data_without_coaching(builder_ctx):
+    result = elements.create_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            ElementItemCreate(ref="empty", type="simple_container"),
+            ElementItemCreate(ref="full", type="simple_container"),
+            heading(parent_element="full"),
+        ],
+    )
+
+    assert result["empty_containers"] == [
+        {
+            "id": result["ref_to_id_map"]["empty"],
+            "ref": "empty",
+            "type": "simple_container",
+        }
+    ]
+    assert "next_steps" not in result
+
+
+@pytest.mark.django_db
+def test_a_deactivated_element_type_is_refused(builder_ctx, monkeypatch):
+    monkeypatch.setattr(HeadingElementType, "is_deactivated", lambda self, ws: True)
+
+    result = elements.create_elements(
+        builder_ctx["ctx"], builder_ctx["page"].id, [heading()]
+    )
+
+    assert result["created_elements"] == []
+    assert result["errors"][0].startswith("h: ")
+    assert "ElementTypeDeactivated" not in result["errors"][0]
+
+
+# ---------------------------------------------------------------------------
+# Scoping
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def elsewhere(data_fixture, builder_ctx):
+    """A page of the same builder, a sibling builder and another workspace."""
+
+    user = builder_ctx["user"]
+    same_builder = data_fixture.create_builder_page(
+        builder=builder_ctx["builder"], name="Same builder"
+    )
+    sibling = data_fixture.create_builder_application(
+        workspace=builder_ctx["workspace"]
+    )
+    sibling_page = data_fixture.create_builder_page(builder=sibling, name="Sibling")
+    other_workspace = data_fixture.create_workspace(user=user)
+    other = data_fixture.create_builder_application(workspace=other_workspace)
+    other_page = data_fixture.create_builder_page(builder=other, name="Other")
+    return {
+        "same_builder": same_builder,
+        "same_builder_box": data_fixture.create_builder_column_element(
+            page=same_builder
+        ),
+        "sibling_page": sibling_page,
+        "sibling_box": data_fixture.create_builder_column_element(page=sibling_page),
+        "sibling_data_source": (
+            data_fixture.create_builder_local_baserow_list_rows_data_source(
+                page=sibling_page
+            )
+        ),
+        "other_page": other_page,
+        "other_box": data_fixture.create_builder_column_element(page=other_page),
+    }
+
+
+@pytest.mark.django_db
+def test_create_refuses_a_page_of_another_workspace(builder_ctx, elsewhere):
+    with pytest.raises(PageDoesNotExist):
+        elements.create_elements(
+            builder_ctx["ctx"], elsewhere["other_page"].id, [heading()]
+        )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("box", ["same_builder_box", "sibling_box", "other_box"])
+def test_create_refuses_a_parent_or_before_element_elsewhere(
+    builder_ctx, elsewhere, box
+):
+    box_id = elsewhere[box].id
+    count = Element.objects.count()
+    ctx, page_id = builder_ctx["ctx"], builder_ctx["page"].id
+
+    as_parent = elements.create_elements(ctx, page_id, [heading(parent_element=box_id)])
+    as_before = elements.create_elements(ctx, page_id, [heading()], box_id)
+
+    assert "not found on this page" in as_parent["errors"][0]
+    assert "not found on this page" in as_before["errors"][0]
+    assert Element.objects.count() == count
+
+
+@pytest.mark.django_db
+def test_create_refuses_a_data_source_of_another_builder(builder_ctx, elsewhere):
+    result = elements.create_collection_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            CollectionElementCreate(
+                ref="r", type="repeat", data_source=elsewhere["sibling_data_source"].id
+            )
+        ],
+    )
+
+    assert result["created_elements"] == []
+    assert "not found on this page" in result["errors"][0]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("target", ["sibling_page", "other_page"])
+def test_nested_page_ids_must_be_of_this_builder(builder_ctx, elsewhere, target):
+    page_id = elsewhere[target].id
+    count = Element.objects.count()
+
+    result = elements.create_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            ElementItemCreate(
+                ref="link",
+                type="link",
+                value="Go",
+                navigation_type="page",
+                navigate_to_page_id=page_id,
+            ),
+            ElementItemCreate(
+                ref="menu",
+                type="menu",
+                menu_items=[MenuItemCreate(name="Away", page_id=page_id)],
+            ),
+            ElementItemCreate(
+                ref="top",
+                type="header",
+                menu_items=[MenuItemCreate(name="Away", page_id=page_id)],
+            ),
+            ElementItemCreate(
+                ref="only", type="header", share_type="only", page_ids=[page_id]
+            ),
+        ],
+    )
+
+    assert result["created_elements"] == []
+    assert [error.split(":")[0] for error in result["errors"]] == [
+        "link",
+        "menu",
+        "top",
+        "only",
+    ]
+    assert Element.objects.count() == count
+
+
+@pytest.mark.django_db
+def test_update_scopes_the_element_to_the_workspace(builder_ctx, elsewhere):
+    ctx = builder_ctx["ctx"]
+    changes = ElementChanges(column_amount=3)
+
+    with pytest.raises(ElementDoesNotExist):
+        elements.update_element(ctx, elsewhere["other_box"].id, changes)
+    with pytest.raises(ElementDoesNotExist):
+        elements.update_element_style(
+            ctx, elsewhere["other_box"].id, ElementStyleChanges(padding=1)
+        )
+
+
+@pytest.mark.django_db
+def test_update_refuses_a_link_or_menu_item_to_another_builder(builder_ctx, elsewhere):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    created = elements.create_elements(
+        ctx,
+        page.id,
+        [
+            ElementItemCreate(ref="link", type="link", value="Go"),
+            ElementItemCreate(ref="menu", type="menu"),
+        ],
+    )["ref_to_id_map"]
+    away = elsewhere["sibling_page"].id
+
+    with pytest.raises(Exception, match="doesn't exist"):
+        elements.update_element(
+            ctx,
+            created["link"],
+            ElementChanges(navigate_to_page_id=away),
+        )
+    with pytest.raises(ToolInputError):
+        elements.update_element(
+            ctx,
+            created["menu"],
+            ElementChanges(add_menu_items=[MenuItemAdd(name="Away", page_id=away)]),
+        )
+
+
+@pytest.mark.django_db
+def test_move_to_a_container_on_another_page_is_refused(
+    data_fixture, builder_ctx, elsewhere
+):
+    element = builder_ctx["button"]
+    before = (element.parent_element_id, element.page_id)
+    for box in ("same_builder_box", "sibling_box", "other_box"):
+        result = elements.move_elements(
+            builder_ctx["ctx"],
+            [ElementMove(element_id=element.id, parent_element_id=elsewhere[box].id)],
+        )
+        assert result["moved_elements"] == []
+        assert result["errors"][0].startswith(f"{element.id}: ")
+
+    element.refresh_from_db()
+    assert (element.parent_element_id, element.page_id) == before
+
+
+@pytest.mark.django_db
+def test_move_into_the_shared_page_is_refused(data_fixture, builder_ctx):
+    element = builder_ctx["button"]
+    header = data_fixture.create_builder_column_element(
+        page=builder_ctx["builder"].shared_page
+    )
+
+    result = elements.move_elements(
+        builder_ctx["ctx"],
+        [
+            ElementMove(
+                element_id=element.id,
+                parent_element_id=header.id,
+                place_in_container="0",
+            )
+        ],
+    )
+
+    assert result["moved_elements"] == []
+    assert result["errors"][0].startswith(f"{element.id}: ")
+    element.refresh_from_db()
+    assert element.page_id == builder_ctx["page"].id
+
+
+@pytest.mark.django_db
+def test_move_of_an_element_in_another_workspace_is_refused(builder_ctx, elsewhere):
+    result = elements.move_elements(
+        builder_ctx["ctx"], [ElementMove(element_id=elsewhere["other_box"].id)]
+    )
+
+    assert result["moved_elements"] == []
+    assert result["errors"] == [
+        f"{elsewhere['other_box'].id}: Not found in this workspace."
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Moves
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_move_keeps_the_good_moves(data_fixture, builder_ctx):
+    page = builder_ctx["page"]
+    box = data_fixture.create_builder_column_element(page=page, column_amount=2)
+    element = builder_ctx["button"]
+
+    result = elements.move_elements(
+        builder_ctx["ctx"],
+        [
+            ElementMove(element_id=999999),
+            ElementMove(
+                element_id=element.id, parent_element_id=box.id, place_in_container="1"
+            ),
+        ],
+    )
+
+    assert result["moved_elements"] == [
+        {
+            "element_id": element.id,
+            "parent_element_id": box.id,
+            "place_in_container": "1",
+        }
+    ]
+    assert result["errors"] == ["999999: Not found in this workspace."]
+
+
+@pytest.mark.django_db
+def test_a_denied_move_stops_the_call(builder_ctx, monkeypatch):
+    def deny(*args, **kwargs):
+        raise PermissionException()
+
+    monkeypatch.setattr(helpers, "move_element", deny)
+
+    with pytest.raises(PermissionException):
+        elements.move_elements(
+            builder_ctx["ctx"], [ElementMove(element_id=builder_ctx["button"].id)]
+        )
+
+
+# ---------------------------------------------------------------------------
+# Updates
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_update_stores_a_formula_and_returns_the_element(data_fixture, builder_ctx):
+    page = data_fixture.create_builder_page(
+        builder=builder_ctx["builder"],
+        name="Item",
+        path="/item/:id",
+        path_params=[{"name": "id", "type": "numeric"}],
+    )
+    element = data_fixture.create_builder_heading_element(page=page, value="'Old'")
+
+    result = elements.update_element(
+        builder_ctx["ctx"],
+        element.id,
+        ElementChanges(value="get('page_parameter.id')", level=2),
+    )
+
+    assert result["updated_element"]["id"] == element.id
+    assert "formula_errors" not in result
+    element = saved(element.id)
+    assert element.value["formula"] == "get('page_parameter.id')"
+    assert element.value["mode"] == BASEROW_FORMULA_MODE_ADVANCED
+    assert element.level == 2
+
+
+@pytest.mark.django_db
+def test_update_keeps_the_old_value_for_a_description(data_fixture, builder_ctx):
+    element = data_fixture.create_builder_heading_element(
+        page=builder_ctx["page"], value="'Old'"
+    )
+
+    result = elements.update_element(
+        builder_ctx["ctx"],
+        element.id,
+        ElementChanges(value="$formula: a new title", level=3),
+    )
+
+    assert result["formula_errors"][0]["element_id"] == element.id
+    assert result["formula_errors"][0]["field"] == "value"
+    element = saved(element.id)
+    assert element.value["formula"] == "'Old'"
+    assert element.level == 3
+
+
+@pytest.mark.django_db
+def test_update_a_link_url_formula_switches_its_type_only_when_stored(
+    data_fixture, builder_ctx
+):
+    element = data_fixture.create_builder_link_element(
+        page=builder_ctx["page"], navigation_type="page"
+    )
+    ctx = builder_ctx["ctx"]
+
+    described = elements.update_element(
+        ctx,
+        element.id,
+        ElementChanges(navigation_type="custom", navigate_to_url="$formula: a url"),
+    )
+    assert described["formula_errors"][0]["field"] == "navigate_to_url"
+    assert saved(element.id).navigation_type == "page"
+
+    stored = elements.update_element(
+        ctx,
+        element.id,
+        ElementChanges(navigation_type="custom", navigate_to_url="get('user.email')"),
+    )
+    assert "formula_errors" not in stored
+    element = saved(element.id)
+    assert element.navigation_type == "custom"
+    assert element.navigate_to_url["formula"] == "get('user.email')"
+
+
+@pytest.mark.django_db
+def test_update_changes_table_columns_and_menu_items(data_fixture, builder_ctx):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    created = elements.create_elements(
+        ctx,
+        page.id,
+        [
+            ElementItemCreate(
+                ref="t",
+                type="table",
+                data_source=builder_ctx["data_source"].id,
+                fields=[TableFieldConfig(name="Name")],
+            ),
+            ElementItemCreate(ref="menu", type="menu"),
+        ],
+    )["ref_to_id_map"]
+
+    table = elements.update_element(
+        ctx,
+        created["t"],
+        ElementChanges(
+            add_table_columns=[
+                TableColumnAdd(name="Id", value="get('current_record.id')")
+            ]
+        ),
+    )
+    uid = table["updated_element"]["table_columns"][0]["uid"]
+    renamed = elements.update_element(
+        ctx,
+        created["t"],
+        ElementChanges(
+            update_table_columns=[TableColumnUpdate(uid=uid, name="Renamed")]
+        ),
+    )
+    menu = elements.update_element(
+        ctx,
+        created["menu"],
+        ElementChanges(add_menu_items=[MenuItemAdd(name="Home", page_id=page.id)]),
+    )
+
+    assert [c["name"] for c in table["updated_element"]["table_columns"]] == [
+        "Name",
+        "Id",
+    ]
+    assert renamed["updated_element"]["table_columns"][0]["name"] == "Renamed"
+    assert [i["name"] for i in menu["updated_element"]["menu_items"]] == ["Home"]
+
+
+@pytest.mark.django_db
+def test_update_a_header_changes_its_menu_and_returns_it(data_fixture, builder_ctx):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    header = elements.create_layout_elements(
+        ctx, page.id, [LayoutElementCreate(ref="top", type="header")]
+    )["ref_to_id_map"]["top"]
+
+    result = elements.update_element(
+        ctx,
+        header,
+        ElementChanges(add_menu_items=[MenuItemAdd(name="Home", page_id=page.id)]),
+    )
+
+    assert result["updated_element"]["page_name"] == "[shared]"
+    assert [item["name"] for item in result["menu_items"]] == ["Home"]
+
+
+@pytest.mark.django_db
+def test_update_of_an_unknown_property_changes_nothing(data_fixture, builder_ctx):
+    element = data_fixture.create_builder_heading_element(
+        page=builder_ctx["page"], value="'Old'"
+    )
+
+    with pytest.raises(ToolInputError, match="Unsupported properties"):
+        elements.update_element(
+            builder_ctx["ctx"],
+            element.id,
+            ElementChanges(column_amount=3, value="New"),
+        )
+
+    assert saved(element.id).value["formula"] == "'Old'"
+
+
+@pytest.mark.django_db
+def test_update_element_style(data_fixture, builder_ctx):
+    element = data_fixture.create_builder_heading_element(page=builder_ctx["page"])
+
+    result = elements.update_element_style(
+        builder_ctx["ctx"], element.id, ElementStyleChanges(padding=7)
+    )
+
+    assert result["updated_element"]["id"] == element.id
+    assert "style_padding_top" in result["updated_fields"]
+    assert saved(element.id).style_padding_top == 7
+
+
+@pytest.mark.django_db
+def test_update_element_style_with_a_bad_side_is_an_input_error(
+    data_fixture, builder_ctx
+):
+    element = data_fixture.create_builder_heading_element(page=builder_ctx["page"])
+
+    with pytest.raises(ToolInputError):
+        elements.update_element_style(
+            builder_ctx["ctx"], element.id, ElementStyleChanges(padding={"up": 1})
+        )

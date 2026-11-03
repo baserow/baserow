@@ -21,10 +21,11 @@ Not all tables need entries — only add to those relevant for the new type.
 
 from typing import TYPE_CHECKING, Any, Literal
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, PrivateAttr, field_validator, model_validator
 
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.graph.types import GraphPointPosition
+from baserow.core.tools.errors import ToolInputError
 from baserow_enterprise.builder.tools.registries import (
     assistant_element_type_registry,
 )
@@ -35,7 +36,7 @@ from baserow_enterprise.tools.formula_utils import (
     needs_formula,
     wrap_static_string,
 )
-from baserow_enterprise.tools.types import BaseModel
+from baserow_enterprise.tools.types import BaseModel, without_field
 
 from .changes import name_key
 from .menu_items import (
@@ -412,20 +413,10 @@ def _table_orm(el: "ElementItemCreate", user, page) -> dict:
     if el.fields:
         kwargs["fields"] = _convert_table_fields(el)
     elif el.data_source:
-        # Auto-generate default fields from data source
-        from baserow.contrib.builder.data_sources.service import DataSourceService
-
-        data_source = next(
-            iter(
-                DataSourceService()
-                .get_data_sources(user, page, with_shared=True)
-                .filter(id=el.data_source)
-            ),
-            None,
+        raise ToolInputError(
+            "A table with a data source needs fields, the columns it shows. Each "
+            "column has a name and a type."
         )
-        if data_source and hasattr(data_source.service, "table_id"):
-            service = data_source.service
-            kwargs["fields"] = service.get_type().get_default_collection_fields(service)
 
     return kwargs
 
@@ -767,6 +758,8 @@ def _convert_table_fields(el: "ElementItemCreate") -> list[dict]:
             value = field_cfg.value or ""
             if value and not needs_formula(value):
                 value_formula = wrap_static_string(value)
+            elif value and not el._column_name_beats_formula:
+                value_formula = "''"
             else:
                 match = table_fields.get(name_key(field_cfg.name))
                 value_formula = field_formula(match) if match else "''"
@@ -811,6 +804,8 @@ class ElementItemCreate(BaseModel):
     Type-specific fields are optional. Dispatch tables route ORM conversion,
     post-creation hooks, and formula handling based on the ``type`` field.
     """
+
+    _column_name_beats_formula: bool = PrivateAttr(default=True)
 
     ref: str = Field(..., description="Unique reference for this element.")
     type: ElementType = Field(..., description="Element type.")
@@ -1024,7 +1019,7 @@ class ElementItemCreate(BaseModel):
                 if self.type == "button"
                 else "Navigation properties are supported by link elements."
             )
-            raise ValueError(
+            raise ToolInputError(
                 f"Unsupported properties for {self.type}: {', '.join(navigation)}. "
                 f"{guidance}"
             )
@@ -1902,6 +1897,9 @@ class ElementUpdate(BaseModel):
         ]
 
 
+ElementChanges = without_field(ElementUpdate, "ElementChanges", "element_id")
+
+
 class ElementItem(BaseModel):
     """Existing element with ID."""
 
@@ -2280,6 +2278,11 @@ class ElementStyleUpdate(BaseModel):
             kwargs["styles"] = styles
 
         return kwargs
+
+
+ElementStyleChanges = without_field(
+    ElementStyleUpdate, "ElementStyleChanges", "element_id"
+)
 
 
 class ElementMove(BaseModel):

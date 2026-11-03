@@ -262,111 +262,6 @@ def update_data_source_formulas(
     return errors
 
 
-def update_single_element_formulas(
-    user: "AbstractUser",
-    page: Page,
-    orm_element: Any,
-    element_update: ElementUpdate,
-    element_type: str,
-    tool_helpers: "ToolHelpers",
-) -> tuple[list[str], list[str]]:
-    """Generate and apply formulas for one updated element.
-
-    :param user: The user whose element permissions apply.
-    :param page: The page containing the element.
-    :param orm_element: The persisted element to update.
-    :param element_update: The assistant update containing formula requests.
-    :param element_type: The registered type name of the element.
-    :param tool_helpers: Helpers for status updates and the request model profile.
-    :return: Applied formula fields and formula-generation errors.
-    """
-
-    from baserow.contrib.builder.elements.actions import UpdateElementActionType
-
-    context = BuilderFormulaContext(page)
-    context.load_page_context()
-    applied: list[str] = []
-    errors: list[str] = []
-
-    # Push collection context if inside a repeat/table
-    pushed = False
-    try:
-        ancestor = ElementHandler().get_first_ancestor_of_type(
-            orm_element, CollectionElementTypeMixin
-        )
-    except KeyError:
-        # Parent element may be on a different page (e.g. shared page header)
-        ancestor = None
-    if ancestor:
-        context.push_current_record_context(ancestor.data_source_id)
-        pushed = True
-    elif (
-        isinstance(element_type_registry.get(element_type), CollectionElementTypeMixin)
-        and hasattr(orm_element, "data_source_id")
-        and orm_element.data_source_id
-    ):
-        context.push_current_record_context(orm_element.data_source_id)
-        pushed = True
-
-    try:
-        formulas = element_update.get_formulas_to_update(
-            orm_element, context, element_type
-        )
-        if formulas:
-            tool_helpers.update_status(
-                _("Generating formulas for element %(id)d...")
-                % {"id": element_update.element_id}
-            )
-            generate_formulas = get_formula_generator(
-                BUILDER_FORMULA_PROMPT, tool_helpers.model_profile
-            )
-            try:
-                generated = _generate_formulas(generate_formulas, formulas, context)
-                kwargs = {}
-                for field_name, formula in (generated or {}).items():
-                    if "." not in field_name and hasattr(orm_element, field_name):
-                        kwargs[field_name] = formula_object(
-                            formula,
-                            mode=BASEROW_FORMULA_MODE_ADVANCED,
-                        )
-                dependent_fields = element_update.get_formula_dependent_fields(
-                    element_type
-                )
-                for dependent_field, formula_field in dependent_fields.items():
-                    if formula_field in kwargs:
-                        kwargs[dependent_field] = getattr(
-                            element_update, dependent_field
-                        )
-                if kwargs:
-                    with transaction.atomic():
-                        UpdateElementActionType.do(
-                            user, _element_for_update(orm_element), kwargs
-                        )
-                    applied.extend(field for field in kwargs if field in formulas)
-                missing = set(formulas) - set(applied)
-                if missing:
-                    errors.append(
-                        "No valid formula was generated for: "
-                        f"{', '.join(sorted(missing))}. Previous values were retained."
-                    )
-            except Exception as exc:
-                applied.clear()
-                raise_if_permission_denied(exc)
-                logger.exception(
-                    "Failed to generate formulas for element {}: {}",
-                    orm_element.id,
-                    exc,
-                )
-                errors.append(
-                    f"Formula generation failed for element {orm_element.id}: {exc}. "
-                    "Previous formula values were retained."
-                )
-    finally:
-        if pushed:
-            context.pop_current_record_context()
-    return applied, errors
-
-
 def update_workflow_action_formulas(
     user: "AbstractUser",
     page: Page,
@@ -514,18 +409,33 @@ def repair_builder_formula_errors(
     if not by_item:
         return remaining
 
-    context = page_formula_context(page)
-    generate_formulas = get_formula_generator(
-        BUILDER_FORMULA_PROMPT, tool_helpers.model_profile
-    )
+    try:
+        context = page_formula_context(page)
+        generate_formulas = get_formula_generator(
+            BUILDER_FORMULA_PROMPT, tool_helpers.model_profile
+        )
+    except Exception as exc:
+        # The items are created, so they are still reported.
+        logger.exception("Failed to prepare formula generation: {}", exc)
+        for entries in by_item.values():
+            for entry in entries:
+                entry["error"] = str(exc)
+                remaining.append(entry)
+        return remaining
+
     for entries in by_item.values():
         first = entries[0]
         formulas = {entry["field"]: entry["formula"] for entry in entries}
         tool_helpers.update_status(_repair_status(first))
         denied = False
         try:
-            with current_record_of(context, first.kind, first.source):
-                generated = _generate_formulas(generate_formulas, formulas, context)
+            with (
+                current_record_of(context, first.kind, first.source),
+                context.scope_to_current_record(),
+            ):
+                # Everything here was refused or is a description, so the model
+                # gets it as it is, even when it looks like a formula.
+                generated = generate_formulas(formulas, context)
             if generated:
                 write_builder_formulas(
                     tool_context.user, first.kind, first.source, first.item, generated

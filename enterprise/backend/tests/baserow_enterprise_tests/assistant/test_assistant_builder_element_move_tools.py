@@ -43,10 +43,6 @@ def mock_formula_generators(monkeypatch):
         noop,
     )
     monkeypatch.setattr(
-        "baserow_enterprise.assistant.tools.builder.agents.update_single_element_formulas",
-        noop,
-    )
-    monkeypatch.setattr(
         "baserow_enterprise.assistant.tools.builder.agents.repair_builder_formula_errors",
         noop,
     )

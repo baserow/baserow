@@ -1431,7 +1431,7 @@ def test_a_field_id_of_another_table_is_refused(
         seeded,
         f"Fields [{elsewhere.id}, {missing_id}] are not fields of table "
         f"{seeded.people.id} 'People', which the data source of table element "
-        f"{seeded.table.id} reads. Use field ids of that table from get_tables_schema. "
+        f"{seeded.table.id} reads. Use field ids of that table. "
         "No changes were applied.",
         update_table_columns=[{"uid": seeded.uids["Note"], "field_id": elsewhere.id}],
         add_table_columns=[
@@ -1448,7 +1448,7 @@ def test_a_new_text_column_without_a_field_named_like_it_is_refused(
     _assert_refused(
         seeded,
         f"The new column 'Phone' would be empty: table {seeded.people.id} 'People' "
-        "has no field named 'Phone'. Set field_id (from get_tables_schema) or value; "
+        "has no field named 'Phone'. Set field_id (a field of that table) or value; "
         "value '' keeps it empty on purpose. No changes were applied.",
         add_table_columns=[{"name": "Phone"}],
     )
@@ -1464,7 +1464,7 @@ def test_every_new_text_column_without_a_field_named_like_it_is_named(
         seeded,
         f"The new column 'Phone' would be empty: {people} has no field named "
         f"'Phone'. The new column 'Fax' would be empty: {people} has no field named "
-        "'Fax'. Set field_id (from get_tables_schema) or value; value '' keeps it "
+        "'Fax'. Set field_id (a field of that table) or value; value '' keeps it "
         "empty on purpose. No changes were applied.",
         add_table_columns=[{"name": "Phone"}, {"name": "Email"}, {"name": "Fax"}],
     )

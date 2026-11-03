@@ -36,8 +36,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.services.models import Service
 from baserow.test_utils.fixtures import Fixtures
 from baserow_enterprise.assistant.tools.builder.agents import (
-    update_element_formulas,
-    update_single_element_formulas,
+    repair_builder_formula_errors,
     update_workflow_action_formulas,
 )
 from baserow_enterprise.assistant.tools.builder.tools import (
@@ -122,10 +121,6 @@ def mock_formula_generators(monkeypatch):
     monkeypatch.setattr(
         "baserow_enterprise.assistant.tools.builder.agents.update_workflow_action_formulas",
         noop,
-    )
-    monkeypatch.setattr(
-        "baserow_enterprise.assistant.tools.builder.agents.update_single_element_formulas",
-        lambda *args, **kwargs: ([], []),
     )
     monkeypatch.setattr(
         "baserow_enterprise.assistant.tools.builder.agents.repair_builder_formula_errors",
@@ -583,8 +578,8 @@ def test_created_elements_are_reported_when_formula_update_is_denied(
         lambda *args: lambda *args: {"value": "'Welcome'"},
     )
     monkeypatch.setattr(
-        "baserow_enterprise.assistant.tools.builder.agents.update_element_formulas",
-        update_element_formulas,
+        "baserow_enterprise.assistant.tools.builder.agents.repair_builder_formula_errors",
+        repair_builder_formula_errors,
     )
 
     result = create_display_elements(
@@ -650,8 +645,8 @@ def test_formula_update_denial_preserves_previous_value(
         lambda *args: generate_after_losing_update_permission,
     )
     monkeypatch.setattr(
-        "baserow_enterprise.assistant.tools.builder.agents.update_single_element_formulas",
-        update_single_element_formulas,
+        "baserow_enterprise.assistant.tools.builder.agents.repair_builder_formula_errors",
+        repair_builder_formula_errors,
     )
 
     result = update_element(

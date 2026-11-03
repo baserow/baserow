@@ -141,7 +141,16 @@ class BaserowEnterpriseConfig(AppConfig):
             ListDataSourcesMcpTool,
             UpdateDataSourceMcpTool,
         )
-        from baserow_enterprise.mcp.builder.elements.tools import ListElementsMcpTool
+        from baserow_enterprise.mcp.builder.elements.tools import (
+            CreateCollectionElementsMcpTool,
+            CreateDisplayElementsMcpTool,
+            CreateFormElementsMcpTool,
+            CreateLayoutElementsMcpTool,
+            ListElementsMcpTool,
+            MoveElementsMcpTool,
+            UpdateElementMcpTool,
+            UpdateElementStyleMcpTool,
+        )
         from baserow_enterprise.mcp.builder.pages.tools import (
             CreatePagesMcpTool,
             ListPagesMcpTool,
@@ -164,6 +173,13 @@ class BaserowEnterpriseConfig(AppConfig):
         mcp_tool_registry.register(UpdatePageMcpTool())
         mcp_tool_registry.register(CreateDataSourcesMcpTool())
         mcp_tool_registry.register(UpdateDataSourceMcpTool())
+        mcp_tool_registry.register(CreateDisplayElementsMcpTool())
+        mcp_tool_registry.register(CreateLayoutElementsMcpTool())
+        mcp_tool_registry.register(CreateFormElementsMcpTool())
+        mcp_tool_registry.register(CreateCollectionElementsMcpTool())
+        mcp_tool_registry.register(UpdateElementMcpTool())
+        mcp_tool_registry.register(UpdateElementStyleMcpTool())
+        mcp_tool_registry.register(MoveElementsMcpTool())
 
         job_type_registry.register(DataScanResultExportJobType())
         agent_extension_type_registry.register(EnterpriseAgentExtensionType())
