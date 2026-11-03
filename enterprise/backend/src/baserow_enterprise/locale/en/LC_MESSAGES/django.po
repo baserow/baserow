@@ -622,3 +622,21 @@ msgstr ""
 #, python-format
 msgid "Subject (%(subject_id)s) deleted"
 msgstr ""
+
+#: src/baserow_enterprise/teams/actions.py:315
+msgid "Create team invitation"
+msgstr ""
+
+#: src/baserow_enterprise/teams/actions.py:316
+#, python-format
+msgid "Invitation created for \"%(email)s\" to join the workspace"
+msgstr ""
+
+#: src/baserow_enterprise/teams/actions.py:365
+msgid "Delete team invitation"
+msgstr ""
+
+#: src/baserow_enterprise/teams/actions.py:366
+#, python-format
+msgid "Invitation (%(invitation_id)s) for \"%(email)s\" revoked"
+msgstr ""

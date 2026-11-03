@@ -10,7 +10,7 @@ from baserow.core.action.registries import (
     ActionTypeDescription,
 )
 from baserow.core.models import Workspace
-from baserow_enterprise.models import Team, TeamSubject
+from baserow_enterprise.models import Team, TeamSubject, WorkspaceTeamInvitation
 from baserow_enterprise.role.models import Role
 from baserow_enterprise.scopes import TeamsActionScopeType
 from baserow_enterprise.teams.handler import TeamHandler
@@ -307,3 +307,104 @@ class DeleteTeamSubjectActionType(ActionType):
     @classmethod
     def scope(cls, team_id: int) -> ActionScopeStr:
         return TeamsActionScopeType.value(team_id)
+
+
+class CreateTeamInvitationActionType(ActionType):
+    type = "create_team_invitation"
+    description = ActionTypeDescription(
+        _("Create team invitation"),
+        _('Invitation created for "%(email)s" to join the workspace'),
+        TEAM_CONTEXT,
+    )
+    analytics_params = [
+        "team_id",
+        "workspace_id",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        team_id: int
+        team_name: str
+        team_invitation_id: int
+        invitation_id: int
+        email: str
+        workspace_id: int
+
+    @classmethod
+    def do(cls, user: AbstractUser, team: Team, email: str) -> WorkspaceTeamInvitation:
+        """
+        Invites an email address to a team and sends the invitation email. Look into
+        `TeamHandler.create_team_invitation` for further details.
+        """
+
+        team_invitation = TeamHandler().create_team_invitation(user, team, email)
+
+        cls.register_action(
+            user=user,
+            params=cls.Params(
+                team.id,
+                team.name,
+                team_invitation.id,
+                team_invitation.invitation_id,
+                team_invitation.invitation.email,
+                team.workspace_id,
+            ),
+            scope=cls.scope(team.workspace_id),
+            workspace=team.workspace,
+        )
+        return team_invitation
+
+    @classmethod
+    def scope(cls, workspace_id: int) -> ActionScopeStr:
+        return TeamsActionScopeType.value(workspace_id)
+
+
+class DeleteTeamInvitationActionType(ActionType):
+    type = "delete_team_invitation"
+    description = ActionTypeDescription(
+        _("Delete team invitation"),
+        _('Invitation (%(invitation_id)s) for "%(email)s" revoked'),
+        TEAM_CONTEXT,
+    )
+    analytics_params = [
+        "team_id",
+        "workspace_id",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        team_id: int
+        team_name: str
+        team_invitation_id: int
+        invitation_id: int
+        email: str
+        workspace_id: int
+
+    @classmethod
+    def do(cls, user: AbstractUser, team_invitation: WorkspaceTeamInvitation):
+        """
+        Revokes the invitation of a person to a team. Look into
+        `TeamHandler.delete_team_invitation` for further details.
+        """
+
+        team = team_invitation.team
+        params = cls.Params(
+            team.id,
+            team.name,
+            team_invitation.id,
+            team_invitation.invitation_id,
+            team_invitation.invitation.email,
+            team.workspace_id,
+        )
+        TeamHandler().delete_team_invitation(user, team_invitation)
+
+        cls.register_action(
+            user=user,
+            params=params,
+            scope=cls.scope(team.workspace_id),
+            workspace=team.workspace,
+        )
+
+    @classmethod
+    def scope(cls, workspace_id: int) -> ActionScopeStr:
+        return TeamsActionScopeType.value(workspace_id)

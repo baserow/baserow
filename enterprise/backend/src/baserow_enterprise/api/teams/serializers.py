@@ -8,7 +8,7 @@ from baserow_enterprise.api.role.serializers import RoleField
 from baserow_enterprise.exceptions import RoleNotExist
 from baserow_enterprise.role.models import Role
 from baserow_enterprise.teams.handler import SUPPORTED_SUBJECT_TYPES
-from baserow_enterprise.teams.models import Team, TeamSubject
+from baserow_enterprise.teams.models import Team, TeamSubject, WorkspaceTeamInvitation
 
 __all__ = [
     "TeamSerializer",
@@ -17,6 +17,8 @@ __all__ = [
     "GetTeamsViewParamsSerializer",
     "TeamSubjectResponseSerializer",
     "WorkspaceUserEnterpriseTeamSerializer",
+    "TeamInvitationSerializer",
+    "CreateTeamInvitationSerializer",
 ]
 
 
@@ -187,4 +189,27 @@ class WorkspaceUserEnterpriseTeamSerializer(serializers.Serializer):
     )
     name = serializers.CharField(
         read_only=True, help_text="The team name that this workspace user belongs to."
+    )
+
+
+class TeamInvitationSerializer(serializers.ModelSerializer):
+    """Serializer of a pending invitation that adds a person to a team."""
+
+    email = serializers.EmailField(source="invitation.email", read_only=True)
+
+    class Meta:
+        model = WorkspaceTeamInvitation
+        fields = ("id", "invitation_id", "email", "team_id", "created_on")
+        read_only_fields = fields
+
+
+class CreateTeamInvitationSerializer(serializers.Serializer):
+    email = serializers.EmailField(
+        help_text="The email address of the person that is invited to the team."
+    )
+    captcha_token = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="The captcha token proving the request comes from a person, only "
+        "required if a captcha provider is enabled for workspace invitations.",
     )

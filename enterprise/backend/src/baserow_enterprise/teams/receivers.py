@@ -1,10 +1,28 @@
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.db.models.signals import post_delete
+from django.dispatch import receiver
 
+from baserow.core.models import WorkspaceInvitation
+from baserow.core.signals import workspace_invitation_accepted
 from baserow_enterprise.teams.subjects import TeamSubjectType
 
 User = get_user_model()
+
+
+@receiver(workspace_invitation_accepted)
+def add_invitee_to_teams_when_invitation_accepted(
+    sender, invitation: WorkspaceInvitation, user: User, **kwargs
+):
+    """
+    Adds the new member to the teams attached to the accepted invitation. The
+    signal fires before the invitation row is deleted, so its team invitations are
+    still there.
+    """
+
+    from .handler import TeamHandler
+
+    TeamHandler().add_invitee_to_teams(invitation, user)
 
 
 def cascade_subject_delete(sender, instance, **kwargs):
