@@ -57,7 +57,9 @@ all rows of a field first, then single cells in batches, and only deletes the up
 that were queued before it read them, so changes made in the meantime are processed by
 a next run. When a task runs out of its time budget, or new changes arrived while it
 ran, it reschedules itself. The periodic check every 15 minutes starts the tasks of
-tables that still have pending updates, for example after a worker restart.
+tables that still have pending updates, for example after a worker restart. It also
+deletes the search data that's marked for deletion in the queue, per workspace, so that
+deleting many fields or rows is cheap and a failure is retried by its next run.
 
 ## Example
 
@@ -81,7 +83,22 @@ tables that still have pending updates, for example after a worker restart.
 - Without pgvector, the embeddings service or the Advanced plan, the setting is kept
   but indexing pauses, and the field shows `unavailable` or `paused`.
 - Disabling semantic search, converting the field to an unsupported type, or
-  permanently deleting the field, table or workspace deletes its vectors. Trashed
-  items keep them, so restoring doesn't embed everything again.
+  permanently deleting the field, table or rows marks their vectors for deletion,
+  like the full-text search data, and the periodic check deletes them. Permanently
+  deleting the workspace drops its vector table. Trashed items keep their vectors, so
+  restoring doesn't embed everything again. Re-enabling semantic search before the
+  periodic check keeps the vectors, and only changed values are embedded again.
+- When a change of another field makes the field's value something else than text,
+  like deleting a field that a formula uses, semantic search stays enabled with the
+  `incompatible` status. Its vectors are marked for deletion, and it's indexed again
+  as soon as its value is text again, for example when the deleted field is
+  restored. Converting the field itself to an unsupported type disables it.
+- The hash of every indexed value includes `BASEROW_EMBEDDINGS_API_URL`,
+  `BASEROW_SEMANTIC_SEARCH_CHUNK_SIZE`, `BASEROW_SEMANTIC_SEARCH_CHUNK_OVERLAP` and
+  `BASEROW_SEMANTIC_SEARCH_MAX_CHUNKS_PER_CELL`, but changing them doesn't queue
+  anything. Existing values keep their old vectors until they're changed. To index a
+  field again with the new settings, turn its semantic search off and on: the update
+  of all rows that's queued then embeds every value again, because their hashes
+  changed.
 - Searching the index, including ranking and permissions, belongs to the semantic
   search action, not to the updaters.

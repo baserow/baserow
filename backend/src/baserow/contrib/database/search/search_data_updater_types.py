@@ -50,6 +50,10 @@ class FullTextSearchDataUpdaterType(SearchDataUpdaterType):
     def should_queue(self) -> bool:
         return SearchHandler.full_text_enabled()
 
+    def delete_data_marked_for_deletion(self):
+        if SearchHandler.full_text_enabled():
+            SearchHandler.process_search_data_marked_for_deletion()
+
     def get_queued_field_ids(
         self, table: Table, field_ids: list[int] | None
     ) -> list[int]:

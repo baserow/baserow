@@ -1028,7 +1028,11 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             def serialize_field(field):
                 if public:
                     return serialize_public_field(field)
-                return field_type_registry.get_serializer(field, FieldSerializer).data
+                # Like the data schema, this describes the values of the field, so
+                # the properties of field extensions are left out.
+                return field_type_registry.get_serializer(
+                    field, FieldSerializer, extra_params={"data_schema": True}
+                ).data
 
             fields = [
                 get_group_by_field(group_by.field)

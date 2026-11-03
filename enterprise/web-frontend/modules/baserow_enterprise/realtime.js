@@ -41,4 +41,14 @@ export const registerRealtimeEvents = (realtime) => {
       updateWorkspacePermissions(store, workspaceId)
     }
   )
+
+  realtime.registerEvent(
+    'semantic_search_field_status_updated',
+    ({ store }, { field_id: fieldId, semantic_search_status: status }) => {
+      store.commit('field/SET_ITEM_VALUES', {
+        id: fieldId,
+        values: { semantic_search_status: status },
+      })
+    }
+  )
 }

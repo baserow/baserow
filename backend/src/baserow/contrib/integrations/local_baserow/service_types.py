@@ -910,8 +910,12 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         for field_object in field_objects:
             field_type = field_object["type"]
             if field_type.can_have_select_options:
+                # Like the data schema, without the properties of field extensions,
+                # which would otherwise be looked up for every field.
                 field_serializer = field_type.get_serializer(
-                    field_object["field"], FieldSerializer
+                    field_object["field"],
+                    FieldSerializer,
+                    extra_params={"data_schema": True},
                 )
                 ret[field_object["name"]] = field_serializer.data["select_options"]
 
@@ -1540,8 +1544,10 @@ class LocalBaserowAggregateRowsUserServiceType(
             if public:
                 serialized_field = serialize_public_field(service.field)
             else:
+                # Like the data schema, this describes the values of the field, so
+                # the properties of field extensions are left out.
                 serialized_field = field_type_registry.get_serializer(
-                    service.field, FieldSerializer
+                    service.field, FieldSerializer, extra_params={"data_schema": True}
                 ).data
             context_data["field"] = serialized_field
         return context_data
