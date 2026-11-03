@@ -312,15 +312,45 @@ def list_data_sources(user: AbstractUser, page: Page) -> list[DataSourceItem]:
     ]
 
 
+def _in_page_order(page: Page, elements: list) -> list:
+    """
+    Sort a page's elements by their place in its graph, with a container's children
+    right after it. Elements the graph doesn't reach go last.
+    """
+
+    graph = page.get_graph().graph
+    position: dict[int, int] = {}
+    stack = [graph["0"]] if graph.get("0") is not None else []
+    while stack:
+        current = int(stack.pop())
+        if current in position:
+            continue
+        position[current] = len(position)
+        info = graph.get(str(current))
+        if not isinstance(info, dict):
+            continue
+        children = info.get("children") or {}
+        if isinstance(children, list):
+            children = {"": children}
+        following = [*info.get("next", {}).get("", [])]
+        for ids in reversed(list(children.values())):
+            following = [*ids, *following]
+        stack.extend(reversed(following))
+    return sorted(elements, key=lambda el: position.get(el.id, len(position)))
+
+
 def list_elements(user: AbstractUser, page: Page) -> list[ElementItem]:
-    """List all elements on a page, including shared elements visible on it."""
-    elements = list(ElementService().get_elements(user, page))
+    """
+    List all elements on a page, including shared elements visible on it.
+    Elements are listed in page order, with a container's children right after it.
+    """
+    elements = _in_page_order(page, list(ElementService().get_elements(user, page)))
 
     # Also include shared elements (headers/footers) visible on this page
     if not page.shared:
         shared_page = page.builder.shared_page
         shared_elements = ElementService().get_elements(user, shared_page)
-        elements = list(shared_elements) + elements
+        elements = _in_page_order(shared_page, list(shared_elements)) + elements
 
     return [ElementItem.from_orm(el) for el in elements]
 
@@ -855,6 +885,16 @@ def move_element(
         if reference_element_id == element.id:
             return element  # Already the last one there.
     elif before is not None:
+        if (
+            parent is not None
+            and element_move.place_in_container is not None
+            and element_move.place_in_container != before.place_in_container
+        ):
+            raise ToolInputError(
+                f"Element {before.id} is in place '{before.place_in_container}' of "
+                f"element {parent.id}, not '{element_move.place_in_container}'. "
+                "Leave place_in_container out to move before it."
+            )
         position = "north"
         reference_element_id = before.id
         place = ""

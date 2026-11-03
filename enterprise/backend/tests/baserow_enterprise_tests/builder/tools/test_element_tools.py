@@ -1639,3 +1639,58 @@ def test_moving_into_a_container_before_one_of_its_children(data_fixture, builde
 
     assert not result.get("errors")
     assert children_of(ids["box"]) == ["'First'", "'Middle'", "'Second'"]
+
+
+@pytest.mark.django_db
+def test_elements_are_listed_in_page_order_with_children_after_their_container(
+    data_fixture, builder_ctx
+):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    ids = elements.create_elements(
+        ctx,
+        page.id,
+        [
+            text("a", "A"),
+            ElementItemCreate(ref="box", type="simple_container"),
+            text("in", "Inside", parent_element="box"),
+            text("b", "B"),
+        ],
+    )["ref_to_id_map"]
+
+    elements.move_elements(ctx, [ElementMove(element_id=ids["b"], before_id=ids["a"])])
+
+    listed = [e["id"] for e in elements.list_elements(ctx, page.id)["elements"]]
+    assert [i for i in listed if i in ids.values()] == [
+        ids["b"],
+        ids["a"],
+        ids["box"],
+        ids["in"],
+    ]
+
+
+@pytest.mark.django_db
+def test_move_before_a_child_in_another_place_is_refused(data_fixture, builder_ctx):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    ids = elements.create_elements(
+        ctx,
+        page.id,
+        [
+            ElementItemCreate(ref="cols", type="column"),
+            text("a", "A", parent_element="cols"),
+        ],
+    )["ref_to_id_map"]
+    moved = data_fixture.create_builder_heading_element(page=page, value="'M'")
+
+    result = elements.move_elements(
+        ctx,
+        [
+            ElementMove(
+                element_id=moved.id,
+                parent_element_id=ids["cols"],
+                before_id=ids["a"],
+                place_in_container="1",
+            )
+        ],
+    )
+
+    assert "not '1'" in str(result["errors"])
