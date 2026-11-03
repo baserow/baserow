@@ -4,6 +4,7 @@ Sub-agents for the builder assistant tools.
 Contains:
 - ``update_element_formulas()``: Generates formulas for elements.
 - ``update_data_source_formulas()``: Generates formulas for data sources.
+- ``repair_builder_formula_errors()``: Generates what the shared formula step left.
 - ``update_workflow_action_formulas()``: Generates formulas for workflow actions.
 """
 
@@ -14,7 +15,6 @@ from django.utils.translation import gettext as _
 
 from loguru import logger
 
-from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.mixins import CollectionElementTypeMixin
 from baserow.contrib.builder.elements.registries import element_type_registry
@@ -30,9 +30,17 @@ from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.services.models import Service
+from baserow.core.tools import ToolContext
+from baserow.core.tools.errors import PERMISSION_DENIED_MESSAGE
 from baserow_enterprise.assistant.tools.shared import raise_if_permission_denied
 from baserow_enterprise.assistant.tools.shared.agents import get_formula_generator
-from baserow_enterprise.builder.tools.formulas import BuilderFormulaContext
+from baserow_enterprise.builder.tools.formulas import (
+    BuilderFormulaContext,
+    BuilderFormulaError,
+    current_record_of,
+    page_formula_context,
+    write_builder_formulas,
+)
 from baserow_enterprise.builder.tools.types import (
     ActionCreate,
     DataSourceCreate,
@@ -52,6 +60,9 @@ if TYPE_CHECKING:
 
     from baserow_enterprise.assistant.deps import ToolHelpers
 
+
+# An entry of ``formula_errors`` for a value the model left out.
+NO_VALID_FORMULA = "No valid formula was generated."
 
 # ---------------------------------------------------------------------------
 # Formula update orchestrators
@@ -249,88 +260,6 @@ def update_data_source_formulas(
             errors.append(f"Error processing data source '{ds_create.name}': {exc}")
 
     return errors
-
-
-def update_single_data_source_formulas(
-    user: "AbstractUser",
-    page: Page,
-    orm_ds: Any,
-    ds_update: DataSourceUpdate,
-    tool_helpers: "ToolHelpers",
-) -> tuple[list[str], list[str]]:
-    """Generate and apply formulas for one updated data source.
-
-    A field whose formula isn't generated or saved keeps its previous value.
-
-    :param user: The user whose data-source permissions apply.
-    :param page: The page containing the data source.
-    :param orm_ds: The persisted data source to update.
-    :param ds_update: The assistant update containing formula requests.
-    :param tool_helpers: Helpers for status updates and the request model profile.
-    :return: Applied formula fields and formula errors.
-    """
-
-    from baserow.contrib.builder.data_sources.actions import (
-        UpdateDataSourceActionType,
-    )
-    from baserow.core.services.registries import service_type_registry
-
-    context = BuilderFormulaContext(page)
-    context.load_page_context()
-
-    formulas = ds_update.get_formulas_to_update(orm_ds, context)
-    if not formulas:
-        return [], []
-
-    tool_helpers.update_status(
-        _("Generating formulas for data source %(id)d...")
-        % {"id": ds_update.data_source_id}
-    )
-    generate_formulas = get_formula_generator(
-        BUILDER_FORMULA_PROMPT, tool_helpers.model_profile
-    )
-    try:
-        generated = generate_formulas(formulas, context)
-        service_kwargs = {
-            field: formula_object(generated[field], mode=BASEROW_FORMULA_MODE_ADVANCED)
-            for field in ("row_id", "search_query")
-            if field in formulas and field in generated
-        }
-        if service_kwargs:
-            with transaction.atomic():
-                ds_for_update = DataSourceHandler().get_data_source_for_update(
-                    orm_ds.id
-                )
-                service_type = service_type_registry.get_by_model(
-                    ds_for_update.service.specific
-                )
-                # An action of its own, so undo restores the previous formula.
-                UpdateDataSourceActionType.do(
-                    user,
-                    ds_for_update,
-                    service_type=service_type,
-                    **service_kwargs,
-                )
-    except Exception as exc:
-        raise_if_permission_denied(exc)
-        logger.exception(
-            "Failed to generate formulas for data source {}: {}",
-            orm_ds.id,
-            exc,
-        )
-        return [], [
-            f"Formula generation failed for {', '.join(sorted(formulas))}: {exc}. "
-            "The previous value was kept."
-        ]
-
-    applied = sorted(service_kwargs)
-    missing = sorted(set(formulas) - set(service_kwargs))
-    if missing:
-        return applied, [
-            f"No valid formula was generated for {', '.join(missing)}. "
-            "The previous value was kept."
-        ]
-    return applied, []
 
 
 def update_single_element_formulas(
@@ -535,3 +464,86 @@ def update_workflow_action_formulas(
                 context.pop_current_record_context()
 
     return errors
+
+
+def _repair_status(entry: BuilderFormulaError) -> str:
+    source, item = entry.source, entry.item
+    if isinstance(item, DataSourceUpdate):
+        return _("Generating formulas for data source %(id)d...") % {"id": source.id}
+    if isinstance(item, ElementUpdate):
+        return _("Generating formulas for element %(id)d...") % {"id": source.id}
+    if entry.kind == "data_source":
+        return _("Generating formulas for data source '%(name)s'...") % {
+            "name": item.name
+        }
+    if entry.kind == "element":
+        return _("Generating formulas for element '%(ref)s'...") % {"ref": item.ref}
+    ref = (
+        item.element
+        if isinstance(item.element, str)
+        else f"element_{source.element_id}"
+    )
+    return _("Generating formulas for action on '%(ref)s'...") % {"ref": ref}
+
+
+def repair_builder_formula_errors(
+    tool_context: ToolContext,
+    tool_helpers: "ToolHelpers",
+    page: Page,
+    formula_errors: list[dict],
+) -> list[dict]:
+    """
+    Generate the values the shared formula step left, one model call per item, each
+    item written in its own transaction. No transaction is held across a model call.
+
+    :param tool_context: Who the values are written for.
+    :param tool_helpers: Helpers for status updates and the request model profile.
+    :param page: The page of the items.
+    :param formula_errors: The entries ``apply_builder_formulas`` returned.
+    :return: The entries that are still not stored. A write that was denied has
+        ``PERMISSION_DENIED_MESSAGE`` as its error and a value the model left out
+        has ``NO_VALID_FORMULA``.
+    """
+
+    by_item: dict[tuple[str, int], list[BuilderFormulaError]] = {}
+    remaining: list[dict] = []
+    for entry in formula_errors:
+        if entry["error"] == PERMISSION_DENIED_MESSAGE:
+            remaining.append(entry)
+        else:
+            by_item.setdefault((entry.kind, entry.source.id), []).append(entry)
+    if not by_item:
+        return remaining
+
+    context = page_formula_context(page)
+    generate_formulas = get_formula_generator(
+        BUILDER_FORMULA_PROMPT, tool_helpers.model_profile
+    )
+    for entries in by_item.values():
+        first = entries[0]
+        formulas = {entry["field"]: entry["formula"] for entry in entries}
+        tool_helpers.update_status(_repair_status(first))
+        try:
+            with current_record_of(context, first.kind, first.source):
+                generated = _generate_formulas(generate_formulas, formulas, context)
+            if generated:
+                write_builder_formulas(
+                    tool_context.user, first.kind, first.source, first.item, generated
+                )
+        except PermissionException:
+            error, generated = PERMISSION_DENIED_MESSAGE, {}
+        except Exception as exc:
+            logger.exception(
+                "Failed to generate formulas for {} {}: {}",
+                first.kind,
+                first.source.id,
+                exc,
+            )
+            error, generated = str(exc), {}
+        else:
+            error = NO_VALID_FORMULA
+        for entry in entries:
+            if entry["field"] not in generated:
+                entry["error"] = error
+                remaining.append(entry)
+    return remaining

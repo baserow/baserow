@@ -1,20 +1,54 @@
 """
-Formula context of a builder page, used to generate the formulas of its elements,
-data sources and workflow actions.
+Formula context of a builder page, used to check and generate the formulas of its
+elements, data sources and workflow actions, and the step that stores the formulas a
+tool call was given. No model is called here.
 """
 
 import json
 from contextlib import contextmanager
-from typing import Any
+from typing import Any, Literal
 
+from django.contrib.auth.models import AbstractUser
+from django.db import transaction
+
+from baserow.contrib.builder.data_sources.actions import UpdateDataSourceActionType
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
+from baserow.contrib.builder.elements.actions import UpdateElementActionType
 from baserow.contrib.builder.elements.handler import ElementHandler
+from baserow.contrib.builder.elements.mixins import CollectionElementTypeMixin
 from baserow.contrib.builder.pages.models import Page
+from baserow.contrib.builder.workflow_actions.actions import (
+    UpdateBuilderWorkflowActionActionType,
+)
+from baserow.contrib.builder.workflow_actions.handler import (
+    BuilderWorkflowActionHandler,
+)
+from baserow.core.exceptions import PermissionException
+from baserow.core.formula import resolve_formula
+from baserow.core.formula.registries import formula_runtime_function_registry
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_ADVANCED,
+    BaserowFormulaObject,
+)
+from baserow.core.services.models import Service
+from baserow.core.services.registries import service_type_registry
+from baserow.core.tools import ToolContext
+from baserow.core.tools.errors import (
+    PERMISSION_DENIED_MESSAGE,
+    ToolInputError,
+    item_error_message,
+)
 from baserow.core.utils import to_path
 from baserow_enterprise.tools.formula_utils import (
     create_example_from_json_schema,
+    formula_object,
+    is_valid_formula,
     minimize_json_schema,
 )
+
+from .types import DataSourceCreate, DataSourceUpdate, ElementUpdate
+
+BuilderFormulaKind = Literal["element", "data_source", "action"]
 
 
 class BuilderFormulaContext:
@@ -332,3 +366,255 @@ class BuilderFormulaContext:
                 f"Value for '{key}' is not a primitive. Got {type(value).__name__}."
             )
         return value
+
+
+def page_formula_context(page: Page) -> BuilderFormulaContext:
+    """The formula context of a page, with its data providers loaded."""
+
+    context = BuilderFormulaContext(page)
+    context.load_page_context()
+    return context
+
+
+class BuilderFormulaError(dict):
+    """
+    A ``formula_errors`` entry. ``source`` and ``item`` stay off the entry the client
+    gets, and let a caller that can fill the value write it the way this step would.
+
+    :param kind: The kind of the item.
+    :param source: The element, data source or workflow action.
+    :param item: The input it was created or updated with.
+    """
+
+    def __init__(
+        self,
+        kind: BuilderFormulaKind,
+        source: Any,
+        item: Any,
+        field: str,
+        formula: str,
+        error: str,
+    ):
+        super().__init__(
+            {
+                f"{kind}_id": source.id,
+                "field": field,
+                "formula": formula,
+                "error": error,
+            }
+        )
+        self.kind = kind
+        self.source = source
+        self.item = item
+
+
+def formula_problem(
+    field: str, formula: str, context: BuilderFormulaContext
+) -> str | None:
+    """
+    Why a value can't be stored as a formula: it is a description, or it doesn't
+    resolve on the page. This is the same check generated formulas pass.
+
+    :return: The problem, or None when the formula is valid.
+    """
+
+    if not formula.strip() or not is_valid_formula(formula):
+        return (
+            f"'{field}' needs a formula, not a description. Write it in Baserow "
+            "formula syntax, like get('page_parameter.id')."
+        )
+    try:
+        resolve_formula(
+            BaserowFormulaObject.create(formula, mode=BASEROW_FORMULA_MODE_ADVANCED),
+            formula_runtime_function_registry,
+            context,
+        )
+    except Exception as exc:
+        return f"'{field}' can't be resolved on this page: {exc}"
+    return None
+
+
+def check_required_formulas(
+    formulas: dict[str, str], context: BuilderFormulaContext | None
+) -> None:
+    """
+    :param formulas: The values the item can't run without, by field.
+    :raises ToolInputError: When one of them can't be stored.
+    """
+
+    for field, formula in formulas.items():
+        problem = formula_problem(field, formula, context)
+        if problem:
+            raise ToolInputError(
+                f"{problem} It can't run without it, so it wasn't created."
+            )
+
+
+def _formulas_of(kind: BuilderFormulaKind, source: Any, item: Any) -> dict[str, str]:
+    if isinstance(item, ElementUpdate):
+        return item.get_formulas_to_update(source, None, source.get_type().type)
+    if isinstance(item, DataSourceUpdate):
+        return item.get_formulas_to_update(source, None)
+    return item.get_formulas_to_create(source, None)
+
+
+@contextmanager
+def current_record_of(
+    context: BuilderFormulaContext, kind: BuilderFormulaKind, source: Any
+):
+    """
+    Offer the row of the collection around an element or action, or of a collection
+    element itself, as current_record.
+    """
+
+    data_source_id = None
+    if kind != "data_source":
+        element = source if kind == "element" else source.element
+        try:
+            ancestor = ElementHandler().get_first_ancestor_of_type(
+                element, CollectionElementTypeMixin
+            )
+        except KeyError:
+            # The parent can be on another page, like a shared page header.
+            ancestor = None
+        if ancestor:
+            data_source_id = ancestor.data_source_id
+
+    if data_source_id:
+        context.push_current_record_context(data_source_id)
+    try:
+        yield
+    finally:
+        if data_source_id:
+            context.pop_current_record_context()
+
+
+def _write_element_formulas(
+    user: AbstractUser, element: Any, item: Any, formulas: dict[str, str]
+) -> None:
+    fresh = ElementHandler().get_element_for_update(element.id)
+    if not isinstance(item, ElementUpdate):
+        item.update_with_formulas(user, fresh, formulas)
+        return
+    values = {
+        field: formula_object(formula, mode=BASEROW_FORMULA_MODE_ADVANCED)
+        for field, formula in formulas.items()
+        if "." not in field and hasattr(element, field)
+    }
+    dependent = item.get_formula_dependent_fields(element.get_type().type)
+    for dependent_field, formula_field in dependent.items():
+        if formula_field in values:
+            values[dependent_field] = getattr(item, dependent_field)
+    if values:
+        UpdateElementActionType.do(user, fresh, values)
+
+
+def _write_data_source_formulas(
+    user: AbstractUser, data_source: Any, item: Any, formulas: dict[str, str]
+) -> None:
+    if isinstance(item, DataSourceCreate):
+        # Undoing the create removes these too.
+        item.update_with_formulas(user, data_source, formulas)
+        return
+    fresh = DataSourceHandler().get_data_source_for_update(data_source.id)
+    service_type = service_type_registry.get_by_model(fresh.service.specific)
+    # An action of its own, so undo restores the previous formula.
+    UpdateDataSourceActionType.do(
+        user,
+        fresh,
+        service_type=service_type,
+        **{
+            field: formula_object(formula, mode=BASEROW_FORMULA_MODE_ADVANCED)
+            for field, formula in formulas.items()
+        },
+    )
+
+
+def _write_action_formulas(
+    user: AbstractUser, action: Any, item: Any, formulas: dict[str, str]
+) -> None:
+    # A row action's mappings are replaced as a whole list, so a concurrent
+    # add_action_field_mapping waits for this.
+    service_id = getattr(action, "service_id", None)
+    if service_id is not None:
+        Service.objects.select_for_update().filter(id=service_id).first()
+    fresh = BuilderWorkflowActionHandler().get_workflow_action(action.id)
+    values = item.formula_values(fresh, formulas)
+    if values:
+        UpdateBuilderWorkflowActionActionType.do(user, fresh, **values)
+
+
+_WRITERS = {
+    "element": _write_element_formulas,
+    "data_source": _write_data_source_formulas,
+    "action": _write_action_formulas,
+}
+
+
+def write_builder_formulas(
+    user: AbstractUser,
+    kind: BuilderFormulaKind,
+    source: Any,
+    item: Any,
+    formulas: dict[str, str],
+) -> None:
+    """
+    Store formulas on an item, in ADVANCED mode, in a transaction of their own. The
+    item is loaded again, locked, so a change made since it was read is kept.
+    """
+
+    with transaction.atomic():
+        _WRITERS[kind](user, source, item, formulas)
+
+
+def apply_builder_formulas(
+    ctx: ToolContext,
+    page: Page,
+    items: list[tuple[Any, Any]],
+    kind: BuilderFormulaKind,
+) -> list[dict]:
+    """
+    Store the valid formulas of created or updated items and report the others.
+
+    :param items: The elements, data sources or workflow actions, with the input
+        they were created or updated with.
+    :param kind: What the items are.
+    :return: A ``formula_errors`` entry for each value that was not stored: a
+        description, a formula that isn't valid on the page, or a write that failed.
+    """
+
+    entries: list[dict] = []
+    context = None
+    for source, item in items:
+        formulas = _formulas_of(kind, source, item)
+        if not formulas:
+            continue
+        if context is None:
+            context = page_formula_context(page)
+
+        valid: dict[str, str] = {}
+        with current_record_of(context, kind, source):
+            for field, formula in formulas.items():
+                problem = formula_problem(field, formula, context)
+                if problem:
+                    entries.append(
+                        BuilderFormulaError(kind, source, item, field, formula, problem)
+                    )
+                else:
+                    valid[field] = formula
+        if not valid:
+            continue
+
+        try:
+            write_builder_formulas(ctx.user, kind, source, item, valid)
+        except Exception as exc:
+            error = (
+                PERMISSION_DENIED_MESSAGE
+                if isinstance(exc, PermissionException)
+                else item_error_message(exc)
+            )
+            entries.extend(
+                BuilderFormulaError(kind, source, item, field, formula, error)
+                for field, formula in valid.items()
+            )
+    return entries

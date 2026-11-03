@@ -47,8 +47,8 @@ def mock_formula_generators(monkeypatch):
         noop,
     )
     monkeypatch.setattr(
-        "baserow_enterprise.assistant.tools.builder.agents.update_single_data_source_formulas",
-        lambda *args, **kwargs: ([], []),
+        "baserow_enterprise.assistant.tools.builder.agents.repair_builder_formula_errors",
+        noop,
     )
 
 

@@ -16,6 +16,7 @@ from pydantic_ai import ModelRetry, RunContext
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
+from baserow.core.tools.errors import PERMISSION_DENIED_MESSAGE
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.tools.shared import (
     ToolInputError,
@@ -25,8 +26,8 @@ from baserow_enterprise.assistant.tools.shared import (
 )
 from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 from baserow_enterprise.assistant.types import BuilderPageNavigationType
-from baserow_enterprise.builder.tools import actions as shared_actions
 from baserow_enterprise.builder.tools import BuilderWriteOptions, helpers
+from baserow_enterprise.builder.tools import actions as shared_actions
 from baserow_enterprise.builder.tools import data_sources as shared_data_sources
 from baserow_enterprise.builder.tools import elements as shared_elements
 from baserow_enterprise.builder.tools import pages as shared_pages
@@ -95,7 +96,6 @@ def _page_not_found(page_id: int) -> ToolInputError:
     )
 
 
-# ---------------------------------------------------------------------------
 def _input_item_error(exc: Exception) -> str:
     """
     The message for an item of a batch whose input is at fault. Anything else is a
@@ -107,6 +107,7 @@ def _input_item_error(exc: Exception) -> str:
     return item_error(exc)
 
 
+# ---------------------------------------------------------------------------
 # Page tools
 # ---------------------------------------------------------------------------
 
@@ -336,66 +337,64 @@ def create_data_sources(
     require_payload("create_data_sources", "data_sources", data_sources)
 
     page = helpers.get_page(user, ctx.deps.workspace, page_id)
-    integration = helpers.get_local_baserow_integration(user, page.builder)
 
+    # Skip duplicates
     existing_ds = helpers.list_data_sources(user, page)
     existing_by_name = {ds.name.lower(): ds for ds in existing_ds}
-    ref_to_id: dict[str, int] = {}
-    created: list[dict] = []
-    ds_pairs: list[tuple] = []
-    errors: list[str] = []
-
-    with transaction.atomic():
-        for ds_create in data_sources:
-            tool_helpers.raise_if_cancelled()
-            ex = existing_by_name.get(ds_create.name.lower())
-            if not ex:
-                ex = next(
-                    (ds for ds in existing_ds if ds_create.matches_existing(ds)), None
-                )
-            if ex:
-                ref_to_id[ds_create.ref] = ex.id
-                continue
-
-            tool_helpers.update_status(
-                _("Creating data source '%(name)s'...") % {"name": ds_create.name}
+    reused: dict[str, int] = {}
+    new_data_sources: list[DataSourceCreate] = []
+    for ds_create in data_sources:
+        ex = existing_by_name.get(ds_create.name.lower())
+        if not ex:
+            ex = next(
+                (ds for ds in existing_ds if ds_create.matches_existing(ds)), None
             )
-            try:
-                with transaction.atomic():
-                    orm_ds, ds_id = helpers.create_data_source(
-                        user, page, ds_create, integration
-                    )
-            except Exception as exc:
-                raise_if_permission_denied(exc)
-                if not is_input_error(exc):
-                    raise
-                errors.append(f"{ds_create.ref}: {item_error(exc)}")
-                continue
-            ref_to_id[ds_create.ref] = ds_id
-            ds_pairs.append((orm_ds, ds_create))
-            created.append(
-                {
-                    "id": ds_id,
-                    "ref": ds_create.ref,
-                    "name": ds_create.name,
-                    "type": ds_create.type,
-                }
-            )
+        if ex:
+            reused[ds_create.ref] = ex.id
+        else:
+            new_data_sources.append(ds_create)
 
-    # Formula generation (separate transactions)
-    errors.extend(
-        agents.update_data_source_formulas(user, page, ds_pairs, tool_helpers)
+    tool_context = ctx.deps.tool_context()
+    created = shared_data_sources.create_data_sources_with_options(
+        tool_context,
+        page_id,
+        new_data_sources,
+        BuilderWriteOptions(defer_required_formulas=True, item_error=_input_item_error),
     )
 
+    # Formula generation (separate transactions)
+    errors = created.get("errors", [])
+    errors.extend(
+        _create_data_source_formula_error(entry)
+        for entry in agents.repair_builder_formula_errors(
+            tool_context, tool_helpers, page, created.get("formula_errors", [])
+        )
+    )
+
+    ids = {**reused, **created["ref_to_id_map"]}
+    ref_to_id = {ds.ref: ids[ds.ref] for ds in data_sources if ds.ref in ids}
     _track_data_source_refs(tool_helpers, page_id, ref_to_id)
 
     result: dict[str, Any] = {
-        "created_data_sources": created,
+        "created_data_sources": created["created_data_sources"],
         "ref_to_id_map": ref_to_id,
     }
     if errors:
         result["errors"] = errors
     return result
+
+
+def _create_data_source_formula_error(entry: dict) -> str:
+    """How Kuma words a value the repair of a new data source couldn't fill."""
+
+    name = entry.item.name
+    if entry["error"] == PERMISSION_DENIED_MESSAGE:
+        return (
+            f"Permission denied while configuring data source '{name}'. "
+            "It was created, but its formulas were not applied. "
+            "Do not retry the denied operation."
+        )
+    return f"Formula generation failed for data source '{name}': {entry['error']}"
 
 
 # ---------------------------------------------------------------------------
@@ -440,22 +439,30 @@ def update_data_source(
         _("Updating data source %(id)d...") % {"id": data_source.data_source_id}
     )
 
-    with transaction.atomic():
-        orm_ds, ds_type = helpers.update_data_source(user, page, data_source)
+    tool_context = ctx.deps.tool_context()
+    _orm_ds, ds_type, formula_errors = shared_data_sources.update_data_source_on_page(
+        tool_context, page, data_source
+    )
 
     # Handle formula generation for $formula: fields (separate transaction)
-    errors: list[str] = []
-    updated_fields = data_source.get_updated_field_names()
-    formulas = data_source.get_formulas_to_update(orm_ds, None)
-    if formulas:
-        applied, errors = agents.update_single_data_source_formulas(
-            user, page, orm_ds, data_source, tool_helpers
-        )
-        updated_fields = [
-            field
-            for field in updated_fields
-            if field not in formulas or field in applied
-        ]
+    remaining = agents.repair_builder_formula_errors(
+        tool_context, tool_helpers, page, formula_errors
+    )
+    fields_by_error: dict[str, list[str]] = {}
+    for entry in remaining:
+        if entry["error"] == PERMISSION_DENIED_MESSAGE:
+            raise PermissionException()
+        fields_by_error.setdefault(entry["error"], []).append(entry["field"])
+    errors = [
+        _update_data_source_formula_error(error, fields)
+        for error, fields in fields_by_error.items()
+    ]
+    not_applied = {entry["field"] for entry in remaining}
+    updated_fields = [
+        field
+        for field in data_source.get_updated_field_names()
+        if field not in not_applied
+    ]
 
     result: dict[str, Any] = {
         "status": "partial" if errors else "ok",
@@ -466,6 +473,19 @@ def update_data_source(
     if errors:
         result["errors"] = errors
     return result
+
+
+def _update_data_source_formula_error(error: str, fields: list[str]) -> str:
+    """How Kuma words values the repair of an updated data source couldn't fill."""
+
+    names = ", ".join(sorted(fields))
+    if error == agents.NO_VALID_FORMULA:
+        return (
+            f"No valid formula was generated for {names}. The previous value was kept."
+        )
+    return (
+        f"Formula generation failed for {names}: {error}. The previous value was kept."
+    )
 
 
 # ---------------------------------------------------------------------------

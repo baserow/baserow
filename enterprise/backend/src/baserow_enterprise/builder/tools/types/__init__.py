@@ -1,5 +1,6 @@
 from .application import BuilderCreate
 from .data_source import (
+    DataSourceChanges,
     DataSourceCreate,
     DataSourceItem,
     DataSourceSort,
@@ -64,6 +65,7 @@ __all__ = [
     "ButtonStyleOverride",
     "ChoiceOption",
     "CollectionElementCreate",
+    "DataSourceChanges",
     "DataSourceCreate",
     "DataSourceItem",
     "DataSourceSort",

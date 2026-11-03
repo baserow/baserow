@@ -16,7 +16,7 @@ from baserow_enterprise.tools.formula_utils import (
     literal_or_placeholder,
     needs_formula,
 )
-from baserow_enterprise.tools.types import BaseModel
+from baserow_enterprise.tools.types import BaseModel, without_field
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
@@ -234,6 +234,12 @@ class DataSourceCreate(BaseModel):
 
         return formulas
 
+    def get_required_formulas(self) -> dict[str, str]:
+        """Return the formulas this data source can't run without."""
+
+        formulas = self.get_formulas_to_create(None, None)
+        return {"row_id": formulas["row_id"]} if "row_id" in formulas else {}
+
     def update_with_formulas(
         self,
         user: "AbstractUser",
@@ -372,6 +378,11 @@ class DataSourceUpdate(BaseModel):
             for name in self.__class__.model_fields
             if name not in skip and getattr(self, name) is not None
         ]
+
+
+DataSourceChanges = without_field(
+    DataSourceUpdate, "DataSourceChanges", "data_source_id"
+)
 
 
 # ---------------------------------------------------------------------------
