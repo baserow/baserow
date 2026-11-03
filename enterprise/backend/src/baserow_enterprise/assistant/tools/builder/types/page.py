@@ -29,19 +29,15 @@ class PageQueryParam(BaseModel):
 
 
 def with_path_parameters(
-    path: str, path_params: list[PagePathParam], drop_unused: bool = False
+    path: str, path_params: list[PagePathParam]
 ) -> list[PagePathParam]:
     """
     Add the parameters of ``path`` missing from ``path_params``, as text.
 
-    :param drop_unused: Leave out the given parameters the path doesn't name,
-        instead of refusing them.
     :raises ValueError: When the parameters don't match the ones in the path.
     """
 
     names = PageHandler().get_path_param_names(path)
-    if drop_unused:
-        path_params = [param for param in path_params if param.name in names]
     path_params = list(path_params)
     given = {parameter.name for parameter in path_params}
     for name in dict.fromkeys(names):
@@ -112,14 +108,6 @@ class PageUpdate(BaseModel):
     roles: list[str] | None = Field(
         default=None, description="Role names for the access strategy."
     )
-
-    @model_validator(mode="after")
-    def _default_path_parameters(self):
-        # Without path_params, the page's own parameters are kept for the new path
-        # when the page is updated.
-        if self.path is not None and self.path_params is not None:
-            self.path_params = with_path_parameters(self.path, self.path_params)
-        return self
 
     def to_update_kwargs(self) -> dict:
         """Return kwargs for ``PageService.update_page()``."""

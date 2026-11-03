@@ -35,7 +35,10 @@ from baserow_enterprise.assistant.tools.builder.types import (
     PageCreate,
     PageUpdate,
 )
-from baserow_enterprise.assistant.tools.builder.types.page import PageQueryParam
+from baserow_enterprise.assistant.tools.builder.types.page import (
+    PagePathParam,
+    PageQueryParam,
+)
 from baserow_enterprise.assistant.tools.builder.types.workflow_action import (
     FieldValueMapping,
 )
@@ -308,6 +311,31 @@ def test_update_page_keeps_the_type_of_a_path_param_it_keeps(data_fixture, site)
     assert result["updated_fields"] == ["path"]
     page.refresh_from_db()
     assert page.path_params == [
+        {"name": "id", "type": "numeric"},
+        {"name": "slug", "type": "text"},
+    ]
+
+
+@pytest.mark.django_db
+def test_update_page_keeps_the_type_of_a_path_param_it_leaves_out(data_fixture, site):
+    page = data_fixture.create_builder_page(
+        builder=site["builder"],
+        path="/product/:id",
+        path_params=[{"name": "id", "type": "numeric"}],
+    )
+
+    update_page(
+        site["ctx"],
+        page=PageUpdate(
+            page_id=page.id,
+            path="/item/:id/:slug",
+            path_params=[PagePathParam(name="slug")],
+        ),
+        thought="test",
+    )
+
+    page.refresh_from_db()
+    assert sorted(page.path_params, key=lambda param: param["name"]) == [
         {"name": "id", "type": "numeric"},
         {"name": "slug", "type": "text"},
     ]

@@ -421,14 +421,19 @@ def update_page(
 
     page = get_page(user, workspace, page_update.page_id)
     kwargs = page_update.to_update_kwargs()
-    if "path" in kwargs and "path_params" not in kwargs:
-        # Parameters the new path keeps keep their type; new ones are text.
+    if "path" in kwargs:
+        # Parameters left out of path_params keep their type if the new path still
+        # names them; new ones are text.
+        given = page_update.path_params or []
+        given_names = {param.name for param in given}
+        names = PageHandler().get_path_param_names(kwargs["path"])
+        kept = [
+            PagePathParam(**param)
+            for param in page.path_params
+            if param["name"] in names and param["name"] not in given_names
+        ]
         try:
-            path_params = with_path_parameters(
-                kwargs["path"],
-                [PagePathParam(**param) for param in page.path_params],
-                drop_unused=True,
-            )
+            path_params = with_path_parameters(kwargs["path"], [*given, *kept])
         except ValueError as exc:
             raise ToolInputError(f"{exc} Nothing was changed in this call.") from exc
         kwargs["path_params"] = [param.model_dump() for param in path_params]
