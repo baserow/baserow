@@ -79,100 +79,13 @@
             />
           </div>
         </template>
-        <div
-          v-if="readonlyGroups.length"
-          class="dashboard-widget-filters__operator"
-        >
-          <Badge size="small">{{ source.filter_type }}</Badge>
-        </div>
-        <section
-          v-if="readonlyGroups.length"
-          class="dashboard-widget-filters__other"
-        >
-          <div class="dashboard-widget-filters__other-header">
-            <h3 class="dashboard-widget-filters__title">
-              {{ $t('textFilterWidget.otherConditions') }}
-            </h3>
-            <Badge size="small">{{ otherConditionCount }}</Badge>
-          </div>
-          <template
-            v-for="(context, index) in readonlyGroups"
-            :key="context.key"
-          >
-            <div v-if="index" class="dashboard-widget-filters__operator">
-              <Badge size="small">{{ source.filter_type }}</Badge>
-            </div>
-            <Expandable
-              :default-expanded="readonlyGroups.length === 1"
-              card
-              toggle-on-click
-              class="dashboard-widget-filters__source"
-            >
-              <template #header="{ toggle, expanded }">
-                <div class="dashboard-widget-filters__source-header">
-                  <ButtonText
-                    type="secondary"
-                    class="dashboard-widget-filters__source-toggle"
-                    :icon="
-                      expanded
-                        ? 'iconoir-nav-arrow-down'
-                        : 'iconoir-nav-arrow-right'
-                    "
-                    :aria-expanded="expanded"
-                    :title="context.title"
-                    @click.stop="toggle"
-                    >{{ context.title }}</ButtonText
-                  >
-                  <HelpIcon
-                    icon="iconoir-lock"
-                    class="dashboard-widget-filters__source-lock"
-                    :tooltip="
-                      context.owner
-                        ? $t('textFilterWidget.editFilterConditions', {
-                            filter: context.title,
-                          })
-                        : $t('textFilterWidget.editWidgetConditions')
-                    "
-                    @click.stop
-                  />
-                </div>
-              </template>
-              <div class="dashboard-widget-filters__source-detail">
-                <FormGroup
-                  v-if="context.group.filters.length"
-                  small-label
-                  :label="
-                    context.owner ? $t('textFilterWidget.withValue') : null
-                  "
-                  required
-                >
-                  <TargetFilterGroup
-                    :group="context.group"
-                    :fields="fields"
-                    :dashboard="dashboard"
-                    :owner="context.owner"
-                    read-only
-                  />
-                </FormGroup>
-                <FormGroup
-                  v-if="context.alternativeGroup"
-                  small-label
-                  :label="$t('textFilterWidget.whenEmpty')"
-                  class="margin-top-2"
-                  required
-                >
-                  <TargetFilterGroup
-                    :group="context.alternativeGroup"
-                    :fields="fields"
-                    :dashboard="dashboard"
-                    :owner="context.owner"
-                    read-only
-                  />
-                </FormGroup>
-              </div>
-            </Expandable>
-          </template>
-        </section>
+        <WidgetFilterGroups
+          :groups="readonlyGroups"
+          :dashboard="dashboard"
+          :fields="fields"
+          :filter-type="source?.filter_type || 'AND'"
+          :title="$t('textFilterWidget.otherConditions')"
+        />
       </template>
       <div class="dashboard-widget-filters__footer">
         <Button type="secondary" @click="hide()">{{
@@ -185,6 +98,7 @@
 
 <script setup>
 import TargetFilterGroup from '@baserow/modules/dashboard/components/widget/TargetFilterGroup'
+import WidgetFilterGroups from '@baserow/modules/dashboard/components/widget/WidgetFilterGroups'
 
 const props = defineProps({
   widget: { type: Object, required: true },
@@ -201,14 +115,6 @@ const props = defineProps({
 })
 const emit = defineEmits(['update', 'retry'])
 
-const conditionCount = (context) =>
-  context.group.filters.length + (context.alternativeGroup?.filters.length || 0)
-const otherConditionCount = computed(() =>
-  props.readonlyGroups.reduce(
-    (count, context) => count + conditionCount(context),
-    0
-  )
-)
 const selectedCase = ref(0)
 const modal = ref(null)
 const modalOpen = ref(false)

@@ -18,3 +18,52 @@ export const refreshWidgetSources = (widget, { state, dispatch, registry }) => {
       .map((source) => source.id)
   )
 }
+
+/** Read the configured conditions contributed by each filter widget to a target. */
+export const getWidgetFilterGroups = (
+  widgets,
+  targetWidgetId,
+  registry,
+  excludedOwnerId = null
+) => {
+  if (targetWidgetId == null) return []
+
+  const groups = []
+  for (const owner of widgets) {
+    if (
+      owner.id === excludedOwnerId ||
+      !registry.get('dashboardWidget', owner.type).isFilterWidget
+    )
+      continue
+
+    const contribution = (owner.target_filters || []).find(
+      (link) => link.target_widget_id === targetWidgetId
+    )
+    if (!contribution) continue
+
+    const alternativeGroup =
+      contribution.empty_behavior === 'apply_alternative' &&
+      contribution.alternative_group?.filters?.length
+        ? contribution.alternative_group
+        : null
+    if (!contribution.group?.filters?.length && !alternativeGroup) continue
+
+    groups.push({
+      key: owner.id,
+      title: owner.title,
+      group: contribution.group,
+      alternativeGroup,
+      owner,
+    })
+  }
+  return groups
+}
+
+export const countFilterGroupConditions = (groups) =>
+  groups.reduce(
+    (count, { group, alternativeGroup }) =>
+      count +
+      (group?.filters?.length || 0) +
+      (alternativeGroup?.filters?.length || 0),
+    0
+  )
