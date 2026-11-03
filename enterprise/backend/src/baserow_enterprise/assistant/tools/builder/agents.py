@@ -270,7 +270,9 @@ def update_single_data_source_formulas(
     :return: Applied formula fields and formula errors.
     """
 
-    from baserow.contrib.builder.data_sources.service import DataSourceService
+    from baserow.contrib.builder.data_sources.actions import (
+        UpdateDataSourceActionType,
+    )
     from baserow.core.services.registries import service_type_registry
 
     context = BuilderFormulaContext(page)
@@ -302,7 +304,8 @@ def update_single_data_source_formulas(
                 service_type = service_type_registry.get_by_model(
                     ds_for_update.service.specific
                 )
-                DataSourceService().update_data_source(
+                # An action of its own, so undo restores the previous formula.
+                UpdateDataSourceActionType.do(
                     user,
                     ds_for_update,
                     service_type=service_type,

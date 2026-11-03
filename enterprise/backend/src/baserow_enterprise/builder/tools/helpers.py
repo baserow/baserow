@@ -14,6 +14,10 @@ from django.db.models import Q, QuerySet
 
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
+from baserow.contrib.builder.data_sources.actions import (
+    CreateDataSourceActionType,
+    UpdateDataSourceActionType,
+)
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.data_sources.operations import (
@@ -37,6 +41,10 @@ from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.operations import ListPagesBuilderOperationType
+from baserow.contrib.builder.pages.actions import (
+    CreatePageActionType,
+    UpdatePageActionType,
+)
 from baserow.contrib.builder.pages.exceptions import (
     DuplicatePageParams,
     DuplicatePathParamsInPath,
@@ -50,7 +58,9 @@ from baserow.contrib.builder.pages.exceptions import (
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.pages.operations import ReadPageOperationType
-from baserow.contrib.builder.pages.service import PageService
+from baserow.contrib.builder.workflow_actions.actions import (
+    CreateBuilderWorkflowActionActionType,
+)
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.contrib.builder.workflow_actions.operations import (
     ReadBuilderWorkflowActionOperationType,
@@ -66,6 +76,7 @@ from baserow.contrib.database.fields.models import Field
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowViewServiceType,
 )
+from baserow.core.actions import UpdateApplicationActionType
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
@@ -78,6 +89,7 @@ from baserow.core.tools.errors import (
     raise_if_permission_denied,
     validation_messages,
 )
+from baserow.core.user_sources.actions import CreateUserSourceActionType
 
 from .registries import assistant_element_type_registry
 from .types import (
@@ -371,9 +383,8 @@ def create_page(user: AbstractUser, builder: Builder, page_create: PageCreate) -
         parameters are not valid.
     """
 
-    svc = PageService()
     try:
-        page = svc.create_page(
+        page = CreatePageActionType.do(
             user,
             builder,
             page_create.name,
@@ -389,8 +400,8 @@ def create_page(user: AbstractUser, builder: Builder, page_create: PageCreate) -
     except _PAGE_PARAM_ERRORS as exc:
         raise ToolInputError(f"{exc}. This page was not created.")
 
-    # PageService.create_page doesn't accept visibility/role kwargs,
-    # so we update them separately if non-default.
+    # Page creation doesn't accept visibility/role kwargs, so they are set with
+    # an update if non-default.
     update_kwargs: dict = {}
     if page_create.visibility != "all":
         update_kwargs["visibility"] = page_create.visibility
@@ -399,7 +410,7 @@ def create_page(user: AbstractUser, builder: Builder, page_create: PageCreate) -
     if page_create.roles:
         update_kwargs["roles"] = page_create.roles
     if update_kwargs:
-        page = svc.update_page(user, page, **update_kwargs)
+        page = UpdatePageActionType.do(user, page, **update_kwargs)
 
     return page
 
@@ -442,7 +453,7 @@ def update_page(
         kwargs["path_params"] = [param.model_dump() for param in path_params]
     if kwargs:
         try:
-            PageService().update_page(user, page, **kwargs)
+            UpdatePageActionType.do(user, page, **kwargs)
         except PagePathNotUnique:
             raise _taken_path_error(
                 page.builder, kwargs.get("path", page.path), page_id=page.id
@@ -479,25 +490,21 @@ def create_data_source(
     service_kwargs["integration"] = integration
     sortings = ds_create.get_sortings()
     with transaction.atomic():
-        data_source = DataSourceService().create_data_source(
-            user=user,
-            page=page,
-            name=ds_create.name,
+        data_source = CreateDataSourceActionType.do(
+            user,
+            page,
             service_type=service_type,
+            name=ds_create.name,
             **service_kwargs,
         )
 
         if sortings:
             try:
-                data_source = (
-                    DataSourceService()
-                    .update_data_source(
-                        user,
-                        data_source,
-                        service_type=service_type,
-                        service_sorts=sortings,
-                    )
-                    .data_source
+                data_source = UpdateDataSourceActionType.do(
+                    user,
+                    data_source,
+                    service_type=service_type,
+                    service_sorts=sortings,
                 )
             except DRFValidationError as exc:
                 # The service refuses a sort on a field of another table.
@@ -556,10 +563,8 @@ def update_data_source(
             "sources read through a view. No changes were applied."
         )
     if kwargs:
-        ds = (
-            DataSourceService()
-            .update_data_source(user, ds, service_type=service_type, **kwargs)
-            .data_source
+        ds = UpdateDataSourceActionType.do(
+            user, ds, service_type=service_type, **kwargs
         )
     else:
         # Formulas are written once generated; refuse before asking the model.
@@ -1135,7 +1140,6 @@ def create_workflow_action(
     event = _resolve_event(user, page, element_id, action_create.event)
 
     kwargs: dict[str, Any] = {
-        "page": page,
         "element_id": element_id,
         "event": event,
     }
@@ -1157,9 +1161,7 @@ def create_workflow_action(
     elif isinstance(ds, int):
         check_data_source_on_page(page, ds)
         kwargs["data_source_id"] = ds
-    action = BuilderWorkflowActionService().create_workflow_action(
-        user, action_type, **kwargs
-    )
+    action = CreateBuilderWorkflowActionActionType.do(user, action_type, page, **kwargs)
     return action, action.id
 
 
@@ -1485,7 +1487,6 @@ def create_user_source(
     """
 
     from baserow.core.user_sources.registries import user_source_type_registry
-    from baserow.core.user_sources.service import UserSourceService
 
     us_type = user_source_type_registry.get("local_baserow")
 
@@ -1506,7 +1507,7 @@ def create_user_source(
     if "role" in field_map:
         kwargs["role_field_id"] = field_map["role"].id
 
-    return UserSourceService().create_user_source(user, us_type, application, **kwargs)
+    return CreateUserSourceActionType.do(user, us_type, application, **kwargs)
 
 
 def create_login_page(
@@ -1533,7 +1534,7 @@ def create_login_page(
         while not PageHandler().is_page_path_unique(builder, path):
             suffix += 1
             path = f"/login-{suffix}"
-        page = PageService().create_page(user, builder, "Login", path)
+        page = CreatePageActionType.do(user, builder, "Login", path)
 
     auth_forms = AuthFormElement.objects.filter(page=page)
     # A form without a user source can't log anyone in, so it gets this one.
@@ -1545,6 +1546,5 @@ def create_login_page(
             user, auth_form_type, page, {"user_source_id": user_source_id}
         )
 
-    CoreHandler().update_application(user, builder, login_page_id=page.id)
-    builder.refresh_from_db()
+    UpdateApplicationActionType.do(user, builder, login_page_id=page.id)
     return page
