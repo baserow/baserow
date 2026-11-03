@@ -155,8 +155,18 @@ def _view_config(view: View, hidden_field_ids: list[int] | None) -> dict[str, An
                 "field_id": view_filter.field_id,
                 "type": view_filter.type,
                 "value": view_filter.value,
+                "group_id": view_filter.group_id,
             }
             for view_filter in view.viewfilter_set.all()
+        ],
+        "filter_type": view.filter_type,
+        "filter_groups": [
+            {
+                "id": group.id,
+                "filter_type": group.filter_type,
+                "parent_group_id": group.parent_group_id,
+            }
+            for group in view.filter_groups.all()
         ],
         "row_colours": [
             {

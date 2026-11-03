@@ -328,10 +328,35 @@ def test_list_views_returns_what_the_config_tools_need(data_fixture, grid):
             "field_id": primary.id,
             "type": "contains",
             "value": "x",
+            "group_id": None,
         }
     ]
     assert listed["hidden_field_ids"] == [due.id]
     assert listed["row_colours"] == []
+
+
+@pytest.mark.django_db
+def test_list_views_shows_how_filters_combine(data_fixture, grid):
+    # Without this a view matching any filter reads like one matching all of them.
+    ctx, view, primary, amount, due = grid
+    view.filter_type = "OR"
+    view.save()
+    group = data_fixture.create_view_filter_group(view=view, filter_type="AND")
+    top = data_fixture.create_view_filter(
+        view=view, field=primary, type="contains", value="x"
+    )
+    nested = data_fixture.create_view_filter(
+        view=view, field=amount, type="equal", value="1", group=group
+    )
+
+    listed = list_views(ctx, view.table_id)["views"][0]
+
+    assert listed["filter_type"] == "OR"
+    assert listed["filter_groups"] == [
+        {"id": group.id, "filter_type": "AND", "parent_group_id": None}
+    ]
+    groups = {item["id"]: item["group_id"] for item in listed["filters"]}
+    assert groups == {top.id: None, nested.id: group.id}
 
 
 @pytest.mark.django_db
