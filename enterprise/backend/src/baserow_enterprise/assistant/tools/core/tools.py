@@ -253,14 +253,13 @@ def update_builder(
     }
     if changes:
         try:
-            UpdateApplicationActionType.do(user, app, **changes)
+            app = UpdateApplicationActionType.do(user, app, **changes)
         except DRFValidationError as exc:
             # The builder refuses a login page it doesn't own.
             raise ToolInputError(
                 f"{validation_messages(exc)} Use list_pages to find valid page IDs. "
                 "No changes were applied."
             ) from exc
-        app.refresh_from_db()
 
     result: dict[str, Any] = {
         "id": app.id,
