@@ -360,6 +360,16 @@ def test_list_views_shows_how_filters_combine(data_fixture, grid):
 
 
 @pytest.mark.django_db
+def test_list_views_shows_filters_that_are_switched_off(data_fixture, grid):
+    # Those filters hide no rows, though they are still listed.
+    ctx, view, primary, amount, due = grid
+    view.filters_disabled = True
+    view.save()
+
+    assert list_views(ctx, view.table_id)["views"][0]["filters_disabled"] is True
+
+
+@pytest.mark.django_db
 def test_list_views_reports_fields_a_gallery_hides_by_default(data_fixture, grid):
     # A gallery's field options hide a field until the user shows it, also when no
     # option has been stored for it yet.

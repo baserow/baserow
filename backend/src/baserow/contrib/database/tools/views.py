@@ -160,6 +160,7 @@ def _view_config(view: View, hidden_field_ids: list[int] | None) -> dict[str, An
             for view_filter in view.viewfilter_set.all()
         ],
         "filter_type": view.filter_type,
+        "filters_disabled": view.filters_disabled,
         "filter_groups": [
             {
                 "id": group.id,

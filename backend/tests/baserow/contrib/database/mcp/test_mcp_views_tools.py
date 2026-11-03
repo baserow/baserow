@@ -60,6 +60,7 @@ def test_list_views_over_mcp(data_fixture):
                 "sorts": [],
                 "filters": [],
                 "filter_type": "AND",
+                "filters_disabled": False,
                 "filter_groups": [],
                 "row_colours": [],
                 "hidden_field_ids": [],
@@ -151,6 +152,7 @@ def test_shared_list_views_loads_form_options_in_one_query(data_fixture):
         "sorts": [],
         "filters": [],
         "filter_type": "AND",
+        "filters_disabled": False,
         "filter_groups": [],
         "row_colours": [],
     }

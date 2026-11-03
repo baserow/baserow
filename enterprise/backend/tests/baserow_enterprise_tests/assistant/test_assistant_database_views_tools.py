@@ -54,6 +54,7 @@ def test_list_views_tool(data_fixture):
                 "sorts": [],
                 "filters": [],
                 "filter_type": "AND",
+                "filters_disabled": False,
                 "filter_groups": [],
                 "row_colours": [],
                 "hidden_field_ids": [],
