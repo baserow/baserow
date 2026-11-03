@@ -593,7 +593,11 @@ def test_renaming_collapses_whitespace_and_keeps_the_list_order(
 
 @pytest.mark.django_db
 def test_a_deleted_conversation_stops_its_reply_and_only_its_owner_restores_it(
-    data_fixture, configured_agent, api_client, api_user
+    data_fixture,
+    configured_agent,
+    api_client,
+    api_user,
+    django_capture_on_commit_callbacks,
 ):
     member = data_fixture.create_user()
     agent = configured_agent(
@@ -604,7 +608,8 @@ def test_a_deleted_conversation_stops_its_reply_and_only_its_owner_restores_it(
     url = agent_url(agent, "conversation", conversation_uuid=payload["uuid"])
     messages_url = agent_url(agent, "messages", conversation_uuid=payload["uuid"])
 
-    assert api_client.delete(url).status_code == 204
+    with django_capture_on_commit_callbacks(execute=True):
+        assert api_client.delete(url).status_code == 204
 
     reply = AgentMessage.objects.get(role="assistant")
     assert ChatRun.objects.get().status == reply.status == "cancelled"

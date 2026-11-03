@@ -386,7 +386,10 @@ class AgentHandler:
         TrashHandler.trash(user, agent.workspace, agent, conversation)
         run = ChatRunHandler().get_active_run(AGENT_RUN_TYPE, conversation.id)
         if run is not None:
-            ChatRunHandler().request_cancel(run.id)
+            # Runs are locked before their conversation, so stop it after commit.
+            transaction.on_commit(
+                lambda: ChatRunHandler().request_cancel(run.id), robust=True
+            )
 
     def get_creation_retry(
         self,
