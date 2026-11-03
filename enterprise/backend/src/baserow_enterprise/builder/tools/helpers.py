@@ -509,8 +509,8 @@ def create_data_source(
             except DRFValidationError as exc:
                 # The service refuses a sort on a field of another table.
                 raise ToolInputError(
-                    f"{validation_messages(exc)} Use get_tables_schema to find valid "
-                    "field IDs. No changes were applied."
+                    f"{validation_messages(exc)} Use a field of the data source's "
+                    "table. No changes were applied."
                 ) from exc
 
     return data_source, data_source.id

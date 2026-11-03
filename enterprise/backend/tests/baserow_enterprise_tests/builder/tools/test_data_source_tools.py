@@ -4,13 +4,20 @@ without a model. The conftest of this folder fails any model call.
 """
 
 import pytest
+from pydantic import ValidationError
 
 from baserow.contrib.builder.data_sources.exceptions import DataSourceDoesNotExist
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
+from baserow.core.exceptions import PermissionException
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.tools.errors import tool_error_message
-from baserow_enterprise.builder.tools import BuilderWriteOptions, data_sources
+from baserow_enterprise.builder.tools import (
+    BuilderWriteOptions,
+    data_sources,
+    formulas,
+    helpers,
+)
 from baserow_enterprise.builder.tools.types import DataSourceChanges, DataSourceCreate
 
 
@@ -300,3 +307,102 @@ def test_update_of_a_data_source_of_another_workspace_is_not_found(data_fixture,
             site["ctx"], other.id, DataSourceChanges(name="Stolen")
         )
     assert tool_error_message(exc.value) == "Not found in this workspace."
+
+
+@pytest.mark.django_db
+def test_get_row_on_a_numeric_parameter_with_a_calculation_is_created(site):
+    result = data_sources.create_data_sources(
+        site["ctx"],
+        site["page"].id,
+        [
+            DataSourceCreate(
+                ref="row",
+                name="Row",
+                type="get_row",
+                table_id=site["table"].id,
+                row_id="add(get('page_parameter.id'), 1)",
+            )
+        ],
+    )
+
+    assert "errors" not in result
+    assert "formula_errors" not in result
+    assert service_of(result["ref_to_id_map"]["row"]).row_id["formula"] == (
+        "add(get('page_parameter.id'), 1)"
+    )
+
+
+@pytest.mark.parametrize("row_id", ["", "   "])
+def test_get_row_with_a_blank_row_id_is_refused(row_id):
+    with pytest.raises(ValidationError, match="row_id"):
+        DataSourceCreate(
+            ref="row", name="Row", type="get_row", table_id=1, row_id=row_id
+        )
+
+
+@pytest.mark.django_db
+def test_create_stops_when_permission_is_denied(site, monkeypatch):
+    def denied(*args, **kwargs):
+        raise PermissionException()
+
+    monkeypatch.setattr(helpers, "create_data_source", denied)
+
+    with pytest.raises(PermissionException):
+        data_sources.create_data_sources(
+            site["ctx"],
+            site["page"].id,
+            [
+                DataSourceCreate(
+                    ref="a", name="A", type="list_rows", table_id=site["table"].id
+                )
+            ],
+        )
+
+
+@pytest.mark.django_db
+def test_an_error_after_the_batch_committed_still_reports_what_was_created(
+    site, monkeypatch
+):
+    def broken(page):
+        raise RuntimeError("broken")
+
+    monkeypatch.setattr(formulas, "page_formula_context", broken)
+
+    result = data_sources.create_data_sources(
+        site["ctx"],
+        site["page"].id,
+        [
+            DataSourceCreate(
+                ref="ds",
+                name="Search",
+                type="list_rows",
+                table_id=site["table"].id,
+                search_query="get('page_parameter.id')",
+            )
+        ],
+    )
+
+    assert [ds["ref"] for ds in result["created_data_sources"]] == ["ds"]
+    assert result["formula_errors"][0]["error"] == "Internal error."
+
+
+@pytest.mark.django_db
+def test_a_bad_sort_field_names_no_tool(site, data_fixture):
+    other_field = data_fixture.create_text_field()
+
+    result = data_sources.create_data_sources(
+        site["ctx"],
+        site["page"].id,
+        [
+            DataSourceCreate(
+                ref="ds",
+                name="Sorted",
+                type="list_rows",
+                table_id=site["table"].id,
+                sortings=[{"field_id": other_field.id}],
+            )
+        ],
+    )
+
+    assert result["errors"][0].startswith("ds: ")
+    assert "get_table" not in result["errors"][0]

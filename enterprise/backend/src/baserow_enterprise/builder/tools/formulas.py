@@ -50,6 +50,24 @@ from .types import DataSourceCreate, DataSourceUpdate, ElementUpdate
 
 BuilderFormulaKind = Literal["element", "data_source", "action"]
 
+# Example values, of the type a formula meets when the page runs.
+_EXAMPLE_TEXT = "example_value"
+_EXAMPLE_NUMBER = 1
+_EXAMPLE_DATETIME = "2026-01-15T10:30:00Z"
+_FORM_DATA_TYPES = {
+    "input_text": "string",
+    "choice": "string",
+    "checkbox": "boolean",
+    "datetime_picker": "string",
+    "record_selector": "number",
+    "rating_input": "number",
+}
+_FORM_DATA_EXAMPLES = {
+    "string": _EXAMPLE_TEXT,
+    "boolean": True,
+    "number": _EXAMPLE_NUMBER,
+}
+
 
 class BuilderFormulaContext:
     """
@@ -114,14 +132,14 @@ class BuilderFormulaContext:
     def _load_page_parameters(self) -> None:
         """Load page path and query parameters."""
 
-        params: dict[str, str] = {}
+        params: dict[str, Any] = {}
         params_meta: dict[str, dict] = {}
 
         for source in (self.page.path_params or [], self.page.query_params or []):
             for p in source:
                 name = p.get("name") if isinstance(p, dict) else p
                 ptype = p.get("type", "text") if isinstance(p, dict) else "text"
-                params[name] = "example_value"
+                params[name] = _EXAMPLE_NUMBER if ptype == "numeric" else _EXAMPLE_TEXT
                 params_meta[name] = {"type": ptype}
 
         if params:
@@ -153,16 +171,8 @@ class BuilderFormulaContext:
 
         from baserow.contrib.builder.elements.mixins import FormElementTypeMixin
 
-        form_data: dict[str, str] = {}
+        form_data: dict[str, Any] = {}
         form_meta: dict[str, dict] = {}
-
-        type_map = {
-            "input_text": "string",
-            "choice": "string",
-            "checkbox": "boolean",
-            "datetime_picker": "string",
-            "record_selector": "number",
-        }
 
         for element in elements:
             el_type = element.get_type()
@@ -175,8 +185,17 @@ class BuilderFormulaContext:
                 label = label["formula"]
             label = str(label) if label else el_type.type
 
-            data_type = type_map.get(el_type.type, "string")
-            form_data[str(el.id)] = data_type
+            data_type = _FORM_DATA_TYPES.get(el_type.type, "string")
+            if getattr(el, "validation_type", None) == "integer":
+                data_type = "number"
+            example = (
+                _EXAMPLE_DATETIME
+                if el_type.type == "datetime_picker"
+                else _FORM_DATA_EXAMPLES[data_type]
+            )
+            form_data[str(el.id)] = (
+                [example] if getattr(el, "multiple", False) else example
+            )
             form_meta[str(el.id)] = {
                 "type": el_type.type,
                 "data_type": data_type,
@@ -384,6 +403,9 @@ class BuilderFormulaError(dict):
     :param kind: The kind of the item.
     :param source: The element, data source or workflow action.
     :param item: The input it was created or updated with.
+    :param can_repair: False when the value is fine and something else failed, so
+        asking for another formula wouldn't help.
+    :param permission_denied: Whether the user may not write the value.
     """
 
     def __init__(
@@ -394,6 +416,8 @@ class BuilderFormulaError(dict):
         field: str,
         formula: str,
         error: str,
+        can_repair: bool = True,
+        permission_denied: bool = False,
     ):
         super().__init__(
             {
@@ -406,6 +430,8 @@ class BuilderFormulaError(dict):
         self.kind = kind
         self.source = source
         self.item = item
+        self.can_repair = can_repair
+        self.permission_denied = permission_denied
 
 
 def formula_problem(
@@ -450,7 +476,7 @@ def check_required_formulas(
             )
 
 
-def _formulas_of(kind: BuilderFormulaKind, source: Any, item: Any) -> dict[str, str]:
+def _formulas_of(source: Any, item: Any) -> dict[str, str]:
     if isinstance(item, ElementUpdate):
         return item.get_formulas_to_update(source, None, source.get_type().type)
     if isinstance(item, DataSourceUpdate):
@@ -560,7 +586,8 @@ def write_builder_formulas(
 ) -> None:
     """
     Store formulas on an item, in ADVANCED mode, in a transaction of their own. The
-    item is loaded again, locked, so a change made since it was read is kept.
+    item is loaded again inside it, so a change made since it was read is kept. An
+    element or data source is locked; for an action, its service is.
     """
 
     with transaction.atomic():
@@ -572,7 +599,7 @@ def apply_builder_formulas(
     page: Page,
     items: list[tuple[Any, Any]],
     kind: BuilderFormulaKind,
-) -> list[dict]:
+) -> list[BuilderFormulaError]:
     """
     Store the valid formulas of created or updated items and report the others.
 
@@ -580,41 +607,51 @@ def apply_builder_formulas(
         they were created or updated with.
     :param kind: What the items are.
     :return: A ``formula_errors`` entry for each value that was not stored: a
-        description, a formula that isn't valid on the page, or a write that failed.
+        description, a formula that isn't valid on the page, or a failure while
+        checking or writing it. The items are already saved, so a failure is reported
+        with its item and never stops the others.
     """
 
-    entries: list[dict] = []
+    entries: list[BuilderFormulaError] = []
     context = None
     for source, item in items:
-        formulas = _formulas_of(kind, source, item)
-        if not formulas:
-            continue
-        if context is None:
-            context = page_formula_context(page)
+        pending: dict[str, str] = {}
+        try:
+            pending = _formulas_of(source, item)
+            if not pending:
+                continue
+            if context is None:
+                context = page_formula_context(page)
 
-        valid: dict[str, str] = {}
-        with current_record_of(context, kind, source):
-            for field, formula in formulas.items():
-                problem = formula_problem(field, formula, context)
+            with current_record_of(context, kind, source):
+                problems = {
+                    field: formula_problem(field, formula, context)
+                    for field, formula in pending.items()
+                }
+            for field, problem in problems.items():
                 if problem:
                     entries.append(
-                        BuilderFormulaError(kind, source, item, field, formula, problem)
+                        BuilderFormulaError(
+                            kind, source, item, field, pending.pop(field), problem
+                        )
                     )
-                else:
-                    valid[field] = formula
-        if not valid:
-            continue
-
-        try:
-            write_builder_formulas(ctx.user, kind, source, item, valid)
+            if pending:
+                write_builder_formulas(ctx.user, kind, source, item, pending)
         except Exception as exc:
-            error = (
-                PERMISSION_DENIED_MESSAGE
-                if isinstance(exc, PermissionException)
-                else item_error_message(exc)
-            )
+            denied = isinstance(exc, PermissionException)
+            error = PERMISSION_DENIED_MESSAGE if denied else item_error_message(exc)
             entries.extend(
-                BuilderFormulaError(kind, source, item, field, formula, error)
-                for field, formula in valid.items()
+                BuilderFormulaError(
+                    kind,
+                    source,
+                    item,
+                    field,
+                    formula,
+                    error,
+                    can_repair=False,
+                    permission_denied=denied,
+                )
+                # No fields means reading them failed, which is still reported.
+                for field, formula in (pending or {"": ""}).items()
             )
     return entries

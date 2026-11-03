@@ -136,7 +136,8 @@ class DataSourceCreate(BaseModel):
     @model_validator(mode="after")
     def _check_required(self):
         for field_name in _REQUIRED_FIELDS.get(self.type, ()):
-            if getattr(self, field_name) is None:
+            value = getattr(self, field_name)
+            if value is None or (isinstance(value, str) and not value.strip()):
                 raise ValueError(f"'{field_name}' is required for type '{self.type}'.")
         return self
 

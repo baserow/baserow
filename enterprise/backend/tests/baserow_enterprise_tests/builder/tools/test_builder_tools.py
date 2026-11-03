@@ -3,7 +3,8 @@
 import pytest
 
 from baserow.contrib.builder.models import Builder
-from baserow.core.exceptions import ApplicationDoesNotExist
+from baserow.core.actions import CreateApplicationActionType
+from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
 from baserow.core.integrations.models import Integration
 from baserow.core.tools.errors import ToolInputError, tool_error_message
 from baserow_enterprise.builder.tools import applications
@@ -32,6 +33,17 @@ def test_create_builders_makes_builders_with_their_theme_and_integration(builder
     assert builder_uses_theme(plain, "baserow")
     integration = Integration.objects.get(application=portal)
     assert integration.get_type().type == "local_baserow"
+
+
+@pytest.mark.django_db
+def test_create_builders_stops_when_permission_is_denied(builder_ctx, monkeypatch):
+    def denied(*args, **kwargs):
+        raise PermissionException()
+
+    monkeypatch.setattr(CreateApplicationActionType, "do", denied)
+
+    with pytest.raises(PermissionException):
+        applications.create_builders(builder_ctx["ctx"], [BuilderCreate(name="Portal")])
 
 
 @pytest.mark.django_db

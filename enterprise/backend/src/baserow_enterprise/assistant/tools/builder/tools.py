@@ -16,7 +16,6 @@ from pydantic_ai import ModelRetry, RunContext
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
-from baserow.core.tools.errors import PERMISSION_DENIED_MESSAGE
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.tools.shared import (
     ToolInputError,
@@ -32,6 +31,7 @@ from baserow_enterprise.builder.tools import data_sources as shared_data_sources
 from baserow_enterprise.builder.tools import elements as shared_elements
 from baserow_enterprise.builder.tools import pages as shared_pages
 from baserow_enterprise.builder.tools.errors import is_input_error, item_error
+from baserow_enterprise.builder.tools.formulas import BuilderFormulaError
 from baserow_enterprise.builder.tools.registries import assistant_element_type_registry
 from baserow_enterprise.builder.tools.themes import (
     THEME_CATALOG,
@@ -384,11 +384,11 @@ def create_data_sources(
     return result
 
 
-def _create_data_source_formula_error(entry: dict) -> str:
+def _create_data_source_formula_error(entry: BuilderFormulaError) -> str:
     """How Kuma words a value the repair of a new data source couldn't fill."""
 
     name = entry.item.name
-    if entry["error"] == PERMISSION_DENIED_MESSAGE:
+    if entry.permission_denied:
         return (
             f"Permission denied while configuring data source '{name}'. "
             "It was created, but its formulas were not applied. "
@@ -450,7 +450,7 @@ def update_data_source(
     )
     fields_by_error: dict[str, list[str]] = {}
     for entry in remaining:
-        if entry["error"] == PERMISSION_DENIED_MESSAGE:
+        if entry.permission_denied:
             raise PermissionException()
         fields_by_error.setdefault(entry["error"], []).append(entry["field"])
     errors = [

@@ -474,7 +474,7 @@ def test_data_source_refuses_a_sort_field_of_another_table(two_tables):
 
     with pytest.raises(
         ToolInputError,
-        match=f"field with id {t['other_field'].id} .* Use get_tables_schema ",
+        match=f"field with id {t['other_field'].id} .* Use a field of the data source's ",
     ):
         helpers.create_data_source(
             t["user"],

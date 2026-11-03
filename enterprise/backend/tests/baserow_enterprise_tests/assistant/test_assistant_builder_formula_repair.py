@@ -23,6 +23,7 @@ from baserow_enterprise.assistant.tools.builder.tools import (
     update_data_source,
     update_page,
 )
+from baserow_enterprise.builder.tools import formulas
 from baserow_enterprise.builder.tools.formulas import apply_builder_formulas
 from baserow_enterprise.builder.tools.types import (
     ActionCreate,
@@ -136,6 +137,33 @@ def test_a_formula_that_does_not_resolve_goes_to_the_model(site, monkeypatch):
     assert asked == [{"row_id": "get('page_parameter.identifier')"}]
     data_source = DataSource.objects.get(page=site["page"])
     assert data_source.service.specific.row_id["formula"] == "get('page_parameter.id')"
+
+
+@pytest.mark.django_db
+def test_a_failed_write_of_an_explicit_formula_does_not_reach_the_model(
+    site, monkeypatch
+):
+    asked = use_generator(monkeypatch, lambda formulas, context: {"row_id": "'9'"})
+
+    def broken(*args):
+        raise RuntimeError("the database went away")
+
+    monkeypatch.setattr(formulas, "write_builder_formulas", broken)
+
+    result = create_data_sources(
+        site["ctx"],
+        site["page"].id,
+        [get_row(site, row_id="get('page_parameter.id')")],
+        thought="test",
+    )
+
+    assert asked == []
+    assert result["created_data_sources"][0]["ref"] == "row"
+    assert result["errors"] == [
+        "Formula generation failed for data source 'Row': Internal error."
+    ]
+    service = DataSource.objects.get(page=site["page"]).service.specific
+    assert service.row_id["formula"] == "''"
 
 
 @pytest.mark.django_db

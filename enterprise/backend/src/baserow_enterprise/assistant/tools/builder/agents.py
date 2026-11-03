@@ -490,8 +490,8 @@ def repair_builder_formula_errors(
     tool_context: ToolContext,
     tool_helpers: "ToolHelpers",
     page: Page,
-    formula_errors: list[dict],
-) -> list[dict]:
+    formula_errors: list[BuilderFormulaError],
+) -> list[BuilderFormulaError]:
     """
     Generate the values the shared formula step left, one model call per item, each
     item written in its own transaction. No transaction is held across a model call.
@@ -500,15 +500,14 @@ def repair_builder_formula_errors(
     :param tool_helpers: Helpers for status updates and the request model profile.
     :param page: The page of the items.
     :param formula_errors: The entries ``apply_builder_formulas`` returned.
-    :return: The entries that are still not stored. A write that was denied has
-        ``PERMISSION_DENIED_MESSAGE`` as its error and a value the model left out
-        has ``NO_VALID_FORMULA``.
+    :return: The entries that are still not stored. A value the model left out has
+        ``NO_VALID_FORMULA`` as its error.
     """
 
     by_item: dict[tuple[str, int], list[BuilderFormulaError]] = {}
-    remaining: list[dict] = []
+    remaining: list[BuilderFormulaError] = []
     for entry in formula_errors:
-        if entry["error"] == PERMISSION_DENIED_MESSAGE:
+        if not entry.can_repair:
             remaining.append(entry)
         else:
             by_item.setdefault((entry.kind, entry.source.id), []).append(entry)
@@ -523,6 +522,7 @@ def repair_builder_formula_errors(
         first = entries[0]
         formulas = {entry["field"]: entry["formula"] for entry in entries}
         tool_helpers.update_status(_repair_status(first))
+        denied = False
         try:
             with current_record_of(context, first.kind, first.source):
                 generated = _generate_formulas(generate_formulas, formulas, context)
@@ -531,6 +531,7 @@ def repair_builder_formula_errors(
                     tool_context.user, first.kind, first.source, first.item, generated
                 )
         except PermissionException:
+            denied = True
             error, generated = PERMISSION_DENIED_MESSAGE, {}
         except Exception as exc:
             logger.exception(
@@ -545,5 +546,6 @@ def repair_builder_formula_errors(
         for entry in entries:
             if entry["field"] not in generated:
                 entry["error"] = error
+                entry.permission_denied = denied
                 remaining.append(entry)
     return remaining
