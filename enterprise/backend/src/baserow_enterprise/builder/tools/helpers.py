@@ -294,10 +294,13 @@ def list_elements(user: AbstractUser, page: Page) -> list[ElementItem]:
 
 
 def list_workflow_actions(user: AbstractUser, page: Page) -> list[ActionItem]:
-    """List all workflow actions on a page."""
+    """List the workflow actions of a page and of its builder's shared page."""
+
+    service = BuilderWorkflowActionService()
     return [
-        ActionItem.from_orm(a)
-        for a in BuilderWorkflowActionService().get_workflow_actions(user, page)
+        ActionItem.from_orm(action)
+        for listed_page in dict.fromkeys((page, page.builder.shared_page))
+        for action in service.get_workflow_actions(user, listed_page)
     ]
 
 
@@ -1052,7 +1055,9 @@ def update_element_style(
 # ---------------------------------------------------------------------------
 
 
-def _resolve_event(user: AbstractUser, page: Page, element_id: int, event: str) -> str:
+def _resolve_event(
+    user: AbstractUser, page: Page, element_id: int, event: str
+) -> tuple[str, Element]:
     """
     Resolve a human-friendly event name to the actual event string for
     any element type.
@@ -1065,6 +1070,8 @@ def _resolve_event(user: AbstractUser, page: Page, element_id: int, event: str) 
     For all other elements (``ButtonElement``, ``FormContainerElement``,
     etc.) the event is returned unchanged since they use static event
     names (``"click"``, ``"submit"``, ``"after_login"``).
+
+    :return: The event, and the element it belongs to.
     """
 
     try:
@@ -1091,17 +1098,17 @@ def _resolve_event(user: AbstractUser, page: Page, element_id: int, event: str) 
     # Check if the element has a `fields` relation to CollectionField
     # (currently TableElement; works for any future collection element).
     if not hasattr(element, "fields"):
-        return event
+        return event, element
 
     button_fields = list(element.fields.filter(type="button").order_by("order"))
     if not button_fields:
-        return event
+        return event, element
 
     if event in {f"{field.uid}_click" for field in button_fields}:
-        return event
+        return event, element
 
     if event == "click" and len(button_fields) == 1:
-        return f"{button_fields[0].uid}_click"
+        return f"{button_fields[0].uid}_click", element
 
     if event.endswith("_click"):
         name = event.removesuffix("_click").strip().casefold()
@@ -1109,7 +1116,7 @@ def _resolve_event(user: AbstractUser, page: Page, element_id: int, event: str) 
             field for field in button_fields if field.name.strip().casefold() == name
         ]
         if len(matching_fields) == 1:
-            return f"{matching_fields[0].uid}_click"
+            return f"{matching_fields[0].uid}_click", element
 
     name_counts = Counter(field.name.strip().casefold() for field in button_fields)
     valid_events = ", ".join(
@@ -1141,7 +1148,11 @@ def create_workflow_action(
         element_id = el
     elif isinstance(el, str):
         if el not in element_ref_to_id_map:
-            raise ToolInputError(f"Element ref '{el}' not found.")
+            raise UnknownRefError(
+                f"Unknown ref '{el}'. Refs only work inside one call; use the element "
+                "ID.",
+                f"Element ref '{el}' not found.",
+            )
         element_id = element_ref_to_id_map[el]
     else:
         raise ValueError("element is required for workflow actions.")
@@ -1152,7 +1163,7 @@ def create_workflow_action(
 
     # Resolve human-friendly event names (e.g. "click" → "{uid}_click"
     # for collection elements with button fields).
-    event = _resolve_event(user, page, element_id, action_create.event)
+    event, element = _resolve_event(user, page, element_id, action_create.event)
 
     kwargs: dict[str, Any] = {
         "element_id": element_id,
@@ -1173,10 +1184,22 @@ def create_workflow_action(
     ds = action_create.data_source
     if isinstance(ds, str) and ds in data_source_ref_to_id_map:
         kwargs["data_source_id"] = data_source_ref_to_id_map[ds]
-    elif isinstance(ds, int):
-        check_data_source_on_page(page, ds)
-        kwargs["data_source_id"] = ds
-    action = CreateBuilderWorkflowActionActionType.do(user, action_type, page, **kwargs)
+    # An id sent as text, such as "12", still names an existing data source.
+    elif isinstance(ds, str) and not ds.strip().isdecimal():
+        raise UnknownRefError(
+            f"Unknown data source ref '{ds}'. Refs only work inside one call; use the "
+            "data source ID from list_data_sources.",
+            f"Data source ref '{ds}' not found. Create the data source with "
+            "create_data_sources first, or use an id from list_data_sources.",
+        )
+    elif ds is not None:
+        check_data_source_on_page(page, int(ds))
+        kwargs["data_source_id"] = int(ds)
+    # An element's actions are read from the page it is on, so a header's button
+    # keeps its action on the shared page.
+    action = CreateBuilderWorkflowActionActionType.do(
+        user, action_type, element.page, **kwargs
+    )
     return action, action.id
 
 
@@ -1220,24 +1243,16 @@ def create_table_button_actions(
 # ---------------------------------------------------------------------------
 
 
-def add_field_mapping_to_action(
-    user: AbstractUser,
-    workspace: Workspace,
-    action_id: int,
-    field_id: int,
-    value_formula: str,
-) -> dict[str, Any]:
-    """Add or update a field mapping on a create_row/update_row workflow action."""
+def get_writable_action(
+    user: AbstractUser, workspace: Workspace, action_id: int
+) -> BuilderWorkflowAction:
+    """
+    Get a workflow action of the workspace the user can read and update.
 
-    from baserow.contrib.builder.workflow_actions.actions import (
-        UpdateBuilderWorkflowActionActionType,
-    )
-    from baserow.contrib.integrations.local_baserow.models import (
-        LocalBaserowTableServiceFieldMapping,
-    )
-    from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
-    from baserow.core.services.models import Service
-    from baserow_enterprise.tools.formula_utils import formula_object
+    :raises ToolInputError: When it is missing, or its application is trashed or in
+        another workspace.
+    :raises PermissionException: When the user can't read or update it.
+    """
 
     try:
         action = (
@@ -1259,6 +1274,29 @@ def add_field_mapping_to_action(
         CoreHandler().check_permissions(
             user, operation_type.type, workspace=workspace, context=action
         )
+    return action
+
+
+def add_field_mapping_to_action(
+    user: AbstractUser,
+    workspace: Workspace,
+    action_id: int,
+    field_id: int,
+    value_formula: str,
+) -> dict[str, Any]:
+    """Add or update a field mapping on a create_row/update_row workflow action."""
+
+    from baserow.contrib.builder.workflow_actions.actions import (
+        UpdateBuilderWorkflowActionActionType,
+    )
+    from baserow.contrib.integrations.local_baserow.models import (
+        LocalBaserowTableServiceFieldMapping,
+    )
+    from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
+    from baserow.core.services.models import Service
+    from baserow_enterprise.tools.formula_utils import formula_object
+
+    action = get_writable_action(user, workspace, action_id)
     action_type = action.get_type().type
 
     if action_type not in ("create_row", "update_row"):
@@ -1359,7 +1397,9 @@ def create_users_table(
         .first()
     )
     if not database:
-        raise ValueError(f"Database with ID {database_id} not found in this workspace.")
+        raise ToolInputError(
+            f"Database with ID {database_id} not found in this workspace."
+        )
     table, _ = CreateTableActionType.do(user, database, "Users", fill_example=False)
 
     # The table comes with a primary "Name" text field already
@@ -1413,7 +1453,8 @@ def resolve_existing_table(
 
     :returns: (table, field_map) with keys "name", "email", "password",
               and optionally "role".
-    :raises ValueError: If required fields can't be detected.
+    :raises ToolInputError: If the table is missing, or required fields can't be
+        detected.
     """
 
     from baserow.contrib.database.fields.actions import CreateFieldActionType
@@ -1428,7 +1469,9 @@ def resolve_existing_table(
     from baserow.contrib.database.mcp.services import filter_tables
     from baserow.core.db import specific_iterator
 
-    table = filter_tables(user, workspace).get(id=table_id)
+    table = filter_tables(user, workspace).filter(id=table_id).first()
+    if table is None:
+        raise ToolInputError(f"Table with id {table_id} not found.")
 
     fields_qs = Field.objects.filter(table=table).order_by("order", "id")
     fields = list(specific_iterator(fields_qs.select_related("content_type")))
@@ -1473,7 +1516,7 @@ def resolve_existing_table(
     if "name" not in field_map:
         missing.append("name (TextField with 'name' in name, or a primary field)")
     if missing:
-        raise ValueError(
+        raise ToolInputError(
             f"Table '{table.name}' is missing required fields: {', '.join(missing)}"
         )
 
@@ -1525,6 +1568,17 @@ def create_user_source(
     return CreateUserSourceActionType.do(user, us_type, application, **kwargs)
 
 
+def find_public_login_page(builder: Builder) -> Page | None:
+    """The page at /login, when anonymous visitors can see it."""
+
+    return Page.objects.filter(
+        builder=builder,
+        path="/login",
+        shared=False,
+        visibility=Page.VISIBILITY_TYPES.ALL,
+    ).first()
+
+
 def create_login_page(
     user: AbstractUser, builder: Builder, user_source_id: int
 ) -> Page:
@@ -1537,12 +1591,7 @@ def create_login_page(
 
     from baserow_enterprise.builder.elements.models import AuthFormElement
 
-    page = Page.objects.filter(
-        builder=builder,
-        path="/login",
-        shared=False,
-        visibility=Page.VISIBILITY_TYPES.ALL,
-    ).first()
+    page = find_public_login_page(builder)
     if page is None:
         path = "/login"
         suffix = 0

@@ -27,3 +27,12 @@ class UpdatePageMcpTool(FunctionMCPTool):
     read_only = False
     destructive = False
     function = pages.update_page
+
+
+class SetupPageMcpTool(FunctionMCPTool):
+    type = "setup_page"
+    group = GROUP_BUILDER_EDIT
+    title = "Set up a page"
+    read_only = False
+    destructive = False
+    function = pages.setup_page

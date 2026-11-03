@@ -16,12 +16,11 @@ from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import (
     ToolInputError,
     format_validation_error,
-    item_error_message,
     raise_if_permission_denied,
 )
 
 from . import BuilderWriteOptions, helpers
-from .errors import user_error_message
+from .errors import client_item_error
 from .formulas import BuilderFormulaError, apply_builder_formulas
 from .pages import get_page_in_workspace
 from .types import (
@@ -62,10 +61,6 @@ def list_elements(
 
     elements = helpers.list_elements(ctx.user, page)
     return {"elements": [el.model_dump() for el in elements]}
-
-
-def _item_error(exc: Exception) -> str:
-    return user_error_message(exc) or item_error_message(exc)
 
 
 def _element_in_workspace(ctx: ToolContext, element_id: int) -> Element:
@@ -193,7 +188,7 @@ def create_elements(
         page_id,
         elements,
         before_element_id,
-        BuilderWriteOptions(item_error=_item_error),
+        BuilderWriteOptions(item_error=client_item_error),
     )
 
 
@@ -467,7 +462,7 @@ def move_elements(
                     element = helpers.move_element(ctx.user, page, element_move)
             except Exception as exc:
                 raise_if_permission_denied(exc)
-                errors.append(f"{element_move.element_id}: {_item_error(exc)}")
+                errors.append(f"{element_move.element_id}: {client_item_error(exc)}")
             else:
                 moved.append(
                     {

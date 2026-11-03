@@ -1,7 +1,11 @@
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Any, Callable
 
 from baserow.core.tools.errors import item_error_message
+
+
+def _phase_formula_errors(kind: str, phase: dict[str, Any]) -> list:
+    return phase.get("formula_errors", [])
 
 
 @dataclass
@@ -31,3 +35,8 @@ class BuilderWriteOptions:
 
     item_error: Callable[[Exception], str] = item_error_message
     """The message for an item that failed. It may raise to stop the call."""
+
+    after_phase: Callable[[str, dict[str, Any]], list] = _phase_formula_errors
+    """Called by ``setup_page`` when a phase is saved, with what the phase created
+    ("data_source", "element" or "action") and its result. Returns the
+    ``formula_errors`` to report for that phase."""

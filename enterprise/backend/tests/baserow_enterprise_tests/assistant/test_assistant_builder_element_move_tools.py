@@ -31,18 +31,6 @@ def mock_formula_generators(monkeypatch):
         return []
 
     monkeypatch.setattr(
-        "baserow_enterprise.assistant.tools.builder.agents.update_element_formulas",
-        noop,
-    )
-    monkeypatch.setattr(
-        "baserow_enterprise.assistant.tools.builder.agents.update_data_source_formulas",
-        noop,
-    )
-    monkeypatch.setattr(
-        "baserow_enterprise.assistant.tools.builder.agents.update_workflow_action_formulas",
-        noop,
-    )
-    monkeypatch.setattr(
         "baserow_enterprise.assistant.tools.builder.agents.repair_builder_formula_errors",
         noop,
     )

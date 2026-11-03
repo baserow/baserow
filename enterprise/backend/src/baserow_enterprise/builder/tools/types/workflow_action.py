@@ -179,6 +179,14 @@ def _row_service_kwargs(action: "ActionCreate", user, workspace) -> dict:
         raise ToolInputError(f"Table with id {action.table_id} not found.")
     kwargs: dict[str, Any] = {"table": table}
 
+    field_ids = {fv.field_id.strip() for fv in action.field_values or []}
+    in_table = {str(id) for id in table.field_set.values_list("id", flat=True)}
+    if field_ids - in_table:
+        raise ToolInputError(
+            f"Field {sorted(field_ids - in_table)[0]} is not in the table this action "
+            "writes to. Use the IDs of that table's fields."
+        )
+
     if action.type in ("update_row", "delete_row") and action.row_id:
         kwargs["row_id"] = formula_object(
             _strip_formula_prefix(action.row_id),
@@ -512,6 +520,13 @@ class ActionCreate(BaseModel):
         """Return ``{field_path: description}`` for LLM formula generation."""
         fn = _GET_FORMULAS.get(self.type)
         return fn(self, orm_action, context) if fn else {}
+
+    def get_required_formulas(self) -> dict[str, str]:
+        """Return the formulas this action can't run without."""
+
+        if self.type not in ("update_row", "delete_row") or not self.row_id:
+            return {}
+        return {"row_id": _strip_formula_prefix(self.row_id)}
 
     def formula_values(
         self,

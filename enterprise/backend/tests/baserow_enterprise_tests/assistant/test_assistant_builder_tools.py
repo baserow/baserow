@@ -37,7 +37,6 @@ from baserow.core.services.models import Service
 from baserow.test_utils.fixtures import Fixtures
 from baserow_enterprise.assistant.tools.builder.agents import (
     repair_builder_formula_errors,
-    update_workflow_action_formulas,
 )
 from baserow_enterprise.assistant.tools.builder.tools import (
     add_action_field_mapping,
@@ -110,18 +109,6 @@ def mock_formula_generators(monkeypatch):
     def noop(*args, **kwargs):
         return []
 
-    monkeypatch.setattr(
-        "baserow_enterprise.assistant.tools.builder.agents.update_element_formulas",
-        noop,
-    )
-    monkeypatch.setattr(
-        "baserow_enterprise.assistant.tools.builder.agents.update_data_source_formulas",
-        noop,
-    )
-    monkeypatch.setattr(
-        "baserow_enterprise.assistant.tools.builder.agents.update_workflow_action_formulas",
-        noop,
-    )
     monkeypatch.setattr(
         "baserow_enterprise.assistant.tools.builder.agents.repair_builder_formula_errors",
         noop,
@@ -1353,8 +1340,8 @@ def test_table_button_actions_attach_to_distinct_columns(
     data_fixture, monkeypatch, use_uid
 ):
     monkeypatch.setattr(
-        "baserow_enterprise.assistant.tools.builder.agents.update_workflow_action_formulas",
-        update_workflow_action_formulas,
+        "baserow_enterprise.assistant.tools.builder.agents.repair_builder_formula_errors",
+        repair_builder_formula_errors,
     )
     monkeypatch.setattr(
         "baserow_enterprise.assistant.tools.builder.agents.get_formula_generator",
@@ -2239,7 +2226,7 @@ def test_set_theme(data_fixture, monkeypatch):
         return True
 
     monkeypatch.setattr(
-        "baserow_enterprise.assistant.tools.builder.tools.apply_theme",
+        "baserow_enterprise.builder.tools.themes.apply_theme",
         fake_apply_theme,
     )
 

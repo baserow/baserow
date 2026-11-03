@@ -30,8 +30,10 @@ from baserow_enterprise.builder.tools.registries import (
     assistant_element_type_registry,
 )
 from baserow_enterprise.tools.formula_utils import (
+    EMPTY_FORMULA,
     formula_desc,
     formula_object,
+    is_valid_formula,
     literal_or_placeholder,
     needs_formula,
     wrap_static_string,
@@ -234,8 +236,18 @@ def _button_orm(el: "ElementItemCreate", user, page) -> dict:
     }
 
 
+def _link_parameter_is_formula(value: str) -> bool:
+    """Whether a link page parameter goes through the formula step, or is fixed text."""
+
+    return needs_formula(value) or is_valid_formula(value)
+
+
+def _link_navigation(el: "ElementItemCreate") -> str:
+    return el.navigation_type or ("custom" if el.navigate_to_url else "page")
+
+
 def _link_orm(el: "ElementItemCreate", user, page) -> dict:
-    nav = el.navigation_type or ("custom" if el.navigate_to_url else "page")
+    nav = _link_navigation(el)
     kwargs: dict[str, Any] = {
         "value": formula_object(
             literal_or_placeholder(el.value)
@@ -253,7 +265,10 @@ def _link_orm(el: "ElementItemCreate", user, page) -> dict:
         kwargs["page_parameters"] = [
             {
                 "name": p.name,
-                "value": formula_object(p.value, mode=BASEROW_FORMULA_MODE_ADVANCED),
+                "value": formula_object(
+                    EMPTY_FORMULA if _link_parameter_is_formula(p.value) else p.value,
+                    mode=BASEROW_FORMULA_MODE_ADVANCED,
+                ),
             }
             for p in (el.link_page_parameters or [])
         ]
@@ -618,6 +633,10 @@ def _link_formulas(el: "ElementItemCreate", orm_element, context) -> dict[str, s
         formulas["value"] = formula_desc(el.value)
     if el.navigate_to_url and needs_formula(el.navigate_to_url):
         formulas["navigate_to_url"] = formula_desc(el.navigate_to_url)
+    if el.navigate_to_page_id and _link_navigation(el) == "page":
+        for i, param in enumerate(el.link_page_parameters or []):
+            if _link_parameter_is_formula(param.value):
+                formulas[f"page_param_{i}"] = formula_desc(param.value)
     return formulas
 
 
@@ -753,8 +772,40 @@ def _update_table_formulas(
         UpdateElementActionType.do(user, orm_element, {"fields": columns})
 
 
+def _update_link_create_formulas(
+    el: "ElementItemCreate",
+    user: "AbstractUser",
+    orm_element: "Element",
+    formulas: dict[str, str],
+) -> None:
+    """Update a new link, whose page parameters are replaced as a whole list."""
+
+    from baserow.contrib.builder.elements.actions import UpdateElementActionType
+
+    params = [dict(param) for param in orm_element.page_parameters or []]
+    changed = False
+    for i, param in enumerate(params):
+        formula = formulas.get(f"page_param_{i}")
+        if formula is not None:
+            param["value"] = formula_object(formula, mode=BASEROW_FORMULA_MODE_ADVANCED)
+            changed = True
+    if changed:
+        UpdateElementActionType.do(user, orm_element, {"page_parameters": params})
+    _update_simple_formulas(
+        el,
+        user,
+        orm_element,
+        {
+            field: formula
+            for field, formula in formulas.items()
+            if not field.startswith("page_param_")
+        },
+    )
+
+
 _UPDATE_FORMULAS: dict[str, Any] = {
     "table": _update_table_formulas,
+    "link": _update_link_create_formulas,
 }
 
 

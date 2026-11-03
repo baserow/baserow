@@ -10,19 +10,26 @@ import pytest
 
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.handler import ElementHandler
+from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.pages.models import Page
+from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.exceptions import PermissionException
 from baserow.core.tools import ToolContext
+from baserow.core.user_sources.models import UserSource
 from baserow_enterprise.assistant.tools.builder import agents
 from baserow_enterprise.assistant.tools.builder.agents import (
     repair_builder_formula_errors,
 )
 from baserow_enterprise.assistant.tools.builder.tools import (
+    create_actions,
     create_collection_elements,
     create_data_sources,
     create_display_elements,
     create_layout_elements,
     create_pages,
+    set_theme,
+    setup_page,
+    setup_user_source,
     update_data_source,
     update_element,
     update_page,
@@ -42,6 +49,7 @@ from baserow_enterprise.builder.tools.types import (
     PageUpdate,
     TableFieldConfig,
 )
+from baserow_enterprise.builder.tools.types.user_source import UserSourceSetup
 
 from .utils import create_fake_tool_helpers, make_test_ctx
 
@@ -753,3 +761,354 @@ def test_kuma_update_stores_an_explicit_formula_and_repairs_a_description(
     assert result["errors"] == [
         "No valid formula was generated for: alt_text. Previous values were retained."
     ]
+
+
+# ---------------------------------------------------------------------------
+# Actions and setup_page
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def button(data_fixture, site):
+    return data_fixture.create_builder_button_element(page=site["page"])
+
+
+def update_row(site, element, row_id="$formula: the id"):
+    field = site["table"].field_set.first()
+    return ActionCreate(
+        type="update_row",
+        element=element,
+        table_id=site["table"].id,
+        row_id=row_id,
+        field_values=[{"field_id": str(field.id), "value": "'x'"}],
+    )
+
+
+@pytest.mark.django_db
+def test_update_row_with_a_description_is_created_and_its_row_id_filled(
+    site, button, monkeypatch
+):
+    asked = use_generator(
+        monkeypatch, lambda formulas, context: {"row_id": "get('previous_action.1.id')"}
+    )
+
+    result = create_actions(
+        site["ctx"],
+        page_id=site["page"].id,
+        actions=[update_row(site, button.id)],
+        thought="test",
+    )
+
+    assert asked == [{"row_id": "the id"}]
+    assert "errors" not in result
+    assert "formula_errors" not in result
+    action = BuilderWorkflowAction.objects.get(
+        id=result["created_actions"][0]["id"]
+    ).specific
+    assert action.service.specific.row_id["formula"] == "get('previous_action.1.id')"
+
+
+@pytest.mark.django_db
+def test_create_actions_reports_a_generation_failure_as_before(
+    site, button, monkeypatch
+):
+    def fail(formulas, context):
+        raise RuntimeError("the model is down")
+
+    use_generator(monkeypatch, fail)
+
+    result = create_actions(
+        site["ctx"],
+        page_id=site["page"].id,
+        actions=[update_row(site, button.id)],
+        thought="test",
+    )
+
+    assert len(result["created_actions"]) == 1
+    assert result["errors"] == [
+        f"Formula generation failed for action on 'element_{button.id}': "
+        "the model is down"
+    ]
+
+
+@pytest.mark.django_db
+def test_create_actions_keeps_refs_from_earlier_calls(site, monkeypatch):
+    use_generator(monkeypatch, lambda formulas, context: {})
+    tool_helpers = create_fake_tool_helpers()
+    ctx = make_test_ctx(site["user"], site["workspace"], tool_helpers)
+    create_display_elements(
+        ctx,
+        page_id=site["page"].id,
+        elements=[DisplayElementCreate(ref="btn", type="button", value="Go")],
+        thought="test",
+    )
+
+    result = create_actions(
+        ctx,
+        page_id=site["page"].id,
+        actions=[
+            ActionCreate(type="notification", element="btn", title="Hi"),
+            ActionCreate(type="notification", element="nope", title="Hi"),
+        ],
+        thought="test",
+    )
+
+    assert [a["element"] for a in result["created_actions"]] == ["btn"]
+    assert result["errors"] == ["notification on nope: Element ref 'nope' not found."]
+
+
+@pytest.mark.django_db
+def test_setup_page_creates_and_repairs_a_get_row_description(site, monkeypatch):
+    asked = use_generator(
+        monkeypatch,
+        lambda formulas, context: {
+            field: "get('page_parameter.id')" for field in formulas
+        },
+    )
+    site["page"].path = "/product/:id"
+    site["page"].path_params = [{"name": "id", "type": "text"}]
+    site["page"].save()
+
+    result = setup_page(
+        site["ctx"],
+        page_id=site["page"].id,
+        data_sources=[get_row(site)],
+        thought="test",
+    )
+
+    assert asked == [{"row_id": "the id"}]
+    assert "errors" not in result
+    assert "formula_errors" not in result
+    data_source = DataSource.objects.get(id=result["created_data_sources"][0]["id"])
+    assert data_source.service.specific.row_id["formula"] == "get('page_parameter.id')"
+
+
+@pytest.mark.django_db
+def test_setup_page_repairs_each_phase_before_the_next_one(site, monkeypatch):
+    order = []
+    real = agents.repair_builder_formula_errors
+
+    def recording(tool_context, tool_helpers, page, entries):
+        order.append(
+            (
+                {entry.kind for entry in entries},
+                DataSource.objects.filter(page=page).count(),
+                BuilderWorkflowAction.objects.filter(page=page).count(),
+            )
+        )
+        return real(tool_context, tool_helpers, page, entries)
+
+    monkeypatch.setattr(agents, "repair_builder_formula_errors", recording)
+    use_generator(
+        monkeypatch, lambda formulas, context: {field: "'x'" for field in formulas}
+    )
+
+    result = setup_page(
+        site["ctx"],
+        page_id=site["page"].id,
+        data_sources=[
+            DataSourceCreate(
+                ref="rows",
+                name="Rows",
+                type="list_rows",
+                table_id=site["table"].id,
+                search_query="$formula: the query",
+            )
+        ],
+        elements=[ElementItemCreate(ref="b", type="button", value="$formula: label")],
+        actions=[ActionCreate(type="notification", element="b", title="$formula: t")],
+        thought="test",
+    )
+
+    assert order == [
+        ({"data_source"}, 1, 0),
+        ({"element"}, 1, 0),
+        ({"action"}, 1, 1),
+    ]
+    assert "errors" not in result
+    action = BuilderWorkflowAction.objects.get(
+        id=result["created_actions"][0]["id"]
+    ).specific
+    assert action.title["formula"] == "'x'"
+
+
+@pytest.mark.django_db
+def test_setup_page_keeps_refs_and_reuses_data_sources(site, monkeypatch):
+    use_generator(monkeypatch, lambda formulas, context: {})
+    existing = DataSource.objects.get(
+        id=create_data_sources(
+            site["ctx"],
+            page_id=site["page"].id,
+            data_sources=[
+                DataSourceCreate(
+                    ref="rows", name="Rows", type="list_rows", table_id=site["table"].id
+                )
+            ],
+            thought="test",
+        )["ref_to_id_map"]["rows"]
+    )
+
+    first = setup_page(
+        site["ctx"],
+        page_id=site["page"].id,
+        data_sources=[
+            DataSourceCreate(
+                ref="again", name="ROWS", type="list_rows", table_id=site["table"].id
+            )
+        ],
+        elements=[ElementItemCreate(ref="box", type="simple_container")],
+        thought="test",
+    )
+    second = setup_page(
+        site["ctx"],
+        page_id=site["page"].id,
+        elements=[
+            ElementItemCreate(
+                ref="child", type="heading", value="Hi", parent_element="box"
+            ),
+            ElementItemCreate(
+                ref="list",
+                type="table",
+                data_source="again",
+                fields=[TableFieldConfig(name="Name")],
+            ),
+        ],
+        thought="test",
+    )
+
+    assert "created_data_sources" not in first
+    assert "errors" not in second
+    elements = {e["ref"]: e["id"] for e in second["created_elements"]}
+    assert (
+        Element.objects.get(id=elements["child"]).parent_element_id
+        == first["created_elements"][0]["id"]
+    )
+    assert Element.objects.get(id=elements["list"]).specific.data_source_id == (
+        existing.id
+    )
+
+
+@pytest.mark.django_db
+def test_setup_page_words_what_the_repair_could_not_fill_as_before(site, monkeypatch):
+    def fail(formulas, context):
+        raise RuntimeError("the model is down")
+
+    use_generator(monkeypatch, fail)
+
+    result = setup_page(
+        site["ctx"],
+        page_id=site["page"].id,
+        data_sources=[get_row(site)],
+        elements=[ElementItemCreate(ref="b", type="button", value="$formula: label")],
+        actions=[ActionCreate(type="notification", element="b", title="$formula: t")],
+        thought="test",
+    )
+
+    assert result["errors"] == [
+        "Formula generation failed for data source 'Row': the model is down",
+        "Formula generation failed for 'b': the model is down",
+        "Formula generation failed for action on 'b': the model is down",
+    ]
+    assert "formula_errors" not in result
+
+
+@pytest.mark.django_db
+def test_setup_page_fills_a_link_page_parameter_description(site, monkeypatch):
+    asked = use_generator(
+        monkeypatch, lambda formulas, context: {"page_param_0": "'7'"}
+    )
+    target = Page.objects.create(
+        builder=site["builder"],
+        name="Target",
+        order=100,
+        path="/target/:id",
+        path_params=[{"name": "id", "type": "text"}],
+    )
+
+    result = setup_page(
+        site["ctx"],
+        page_id=site["page"].id,
+        elements=[
+            ElementItemCreate(
+                ref="go",
+                type="link",
+                value="Go",
+                navigation_type="page",
+                navigate_to_page_id=target.id,
+                link_page_parameters=[{"name": "id", "value": "$formula: the id"}],
+            )
+        ],
+        thought="test",
+    )
+
+    assert asked == [{"page_param_0": "the id"}]
+    assert "errors" not in result
+    element = Element.objects.get(id=result["created_elements"][0]["id"]).specific
+    assert element.page_parameters[0]["value"]["formula"] == "'7'"
+
+
+@pytest.mark.django_db
+def test_setup_user_source_keeps_its_shape_and_reuses_on_the_same_table(
+    data_fixture, site
+):
+    data_fixture.create_email_field(table=site["table"], name="Email")
+    arguments = dict(
+        application_id=site["builder"].id,
+        setup=UserSourceSetup(name="People", table_id=site["table"].id),
+        thought="test",
+    )
+
+    first = setup_user_source(site["ctx"], **arguments)
+    second = setup_user_source(site["ctx"], **arguments)
+
+    assert set(first) == {"user_source_id", "table_id", "roles", "login_page_id"}
+    assert second["user_source_id"] == first["user_source_id"]
+    assert UserSource.objects.filter(application=site["builder"]).count() == 1
+
+
+@pytest.mark.django_db
+def test_setup_user_source_reports_a_bad_table_as_before(data_fixture, site):
+    result = setup_user_source(
+        site["ctx"],
+        application_id=site["builder"].id,
+        setup=UserSourceSetup(name="People", table_id=site["table"].id),
+        thought="test",
+    )
+
+    assert "missing required fields: email" in result["error"]
+
+
+@pytest.mark.django_db
+def test_set_theme_keeps_its_shape(site):
+    result = set_theme(
+        site["ctx"],
+        application_id=site["builder"].id,
+        theme_name="eclipse",
+        thought="test",
+    )
+
+    assert result["status"] == "ok"
+    assert result["application_id"] == site["builder"].id
+    assert result["theme"] == "eclipse"
+    assert result["description"]
+
+
+@pytest.mark.django_db
+def test_set_theme_reports_a_theme_it_can_not_load_as_before(site, monkeypatch):
+    monkeypatch.setattr(
+        "baserow_enterprise.builder.tools.themes._load_theme_data", lambda name: None
+    )
+
+    result = set_theme(
+        site["ctx"],
+        application_id=site["builder"].id,
+        theme_name="eclipse",
+        thought="test",
+    )
+
+    assert result == {
+        "status": "error",
+        "application_id": site["builder"].id,
+        "theme": "eclipse",
+        "error": "Theme template 'eclipse' could not be loaded.",
+    }

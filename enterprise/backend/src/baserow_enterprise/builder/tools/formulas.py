@@ -608,15 +608,18 @@ def formula_problem(
 
 
 def check_required_formulas(
-    formulas: dict[str, str], context: BuilderFormulaContext | None
+    formulas: dict[str, str],
+    context: BuilderFormulaContext | None,
+    allow_previous_action: bool = False,
 ) -> None:
     """
     :param formulas: The values the item can't run without, by field.
+    :param allow_previous_action: Whether they can read earlier workflow actions.
     :raises ToolInputError: When one of them can't be stored.
     """
 
     for field, formula in formulas.items():
-        problem = formula_problem(field, formula, context)
+        problem = formula_problem(field, formula, context, allow_previous_action)
         if problem:
             raise ToolInputError(
                 f"{problem} It can't run without it, so it wasn't created."
@@ -645,7 +648,8 @@ def current_record_of(
     if kind != "data_source":
         element = source if kind == "element" else source.element
         try:
-            collection = ElementHandler().get_first_ancestor_of_type(
+            # An action can be on the page rather than on an element.
+            collection = element and ElementHandler().get_first_ancestor_of_type(
                 element, CollectionElementTypeMixin
             )
         except KeyError:
@@ -760,6 +764,38 @@ def _page_read_from(page: Page, kind: BuilderFormulaKind, source: Any) -> Page:
     return page
 
 
+def check_formula_on_action(
+    page: Page, action: Any, field: str, formula: str
+) -> str | None:
+    """Why a value can't be stored on an action, if so."""
+
+    context = page_formula_context(_page_read_from(page, "action", action))
+    with current_record_of(context, "action", action):
+        return formula_problem(field, formula, context, allow_previous_action=True)
+
+
+def check_required_action_formulas(
+    contexts: dict[int, BuilderFormulaContext], page: Page, action: Any, item: Any
+) -> None:
+    """
+    Check the values a created action can't run without, reading what its element
+    can read.
+
+    :param contexts: The formula contexts loaded so far, by page ID.
+    :raises ToolInputError: When one of them can't be stored.
+    """
+
+    formulas = item.get_required_formulas()
+    if not formulas:
+        return
+    read_from = _page_read_from(page, "action", action)
+    if read_from.id not in contexts:
+        contexts[read_from.id] = page_formula_context(read_from)
+    context = contexts[read_from.id]
+    with current_record_of(context, "action", action):
+        check_required_formulas(formulas, context, allow_previous_action=True)
+
+
 def apply_builder_formulas(
     ctx: ToolContext,
     page: Page,
@@ -793,7 +829,12 @@ def apply_builder_formulas(
 
             with current_record_of(context, kind, source):
                 problems = {
-                    field: formula_problem(field, formula, context)
+                    field: formula_problem(
+                        field,
+                        formula,
+                        context,
+                        allow_previous_action=kind == "action",
+                    )
                     for field, formula in pending.items()
                 }
             for field, problem in problems.items():

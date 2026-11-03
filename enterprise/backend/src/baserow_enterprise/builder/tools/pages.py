@@ -2,6 +2,7 @@
 Application builder page tools shared by the clients that act for a user.
 """
 
+from dataclasses import replace
 from typing import Annotated, Any
 
 from django.db import transaction
@@ -15,12 +16,25 @@ from baserow.contrib.builder.pages.operations import ReadPageOperationType
 from baserow.core.exceptions import PermissionException
 from baserow.core.handler import CoreHandler
 from baserow.core.tools import ToolContext
-from baserow.core.tools.errors import raise_if_permission_denied
+from baserow.core.tools.errors import (
+    PERMISSION_DENIED_MESSAGE,
+    ToolInputError,
+    raise_if_permission_denied,
+)
 from baserow.core.user_sources.service import UserSourceService
 
 from . import BuilderWriteOptions, helpers
 from .applications import get_builder_in_workspace
-from .types import PageChanges, PageCreate, PageItem, PageUpdate
+from .errors import client_item_error
+from .types import (
+    ActionCreate,
+    DataSourceCreate,
+    ElementItemCreate,
+    PageChanges,
+    PageCreate,
+    PageItem,
+    PageUpdate,
+)
 
 
 def get_page_in_workspace(ctx: ToolContext, page_id: int) -> Page:
@@ -156,3 +170,148 @@ def update_page(
         PageUpdate(page_id=page_id, **page.model_dump(exclude={"page_id"})),
     )
     return {"updated_page": PageItem.from_orm(updated).model_dump()}
+
+
+def setup_page_with_options(
+    ctx: ToolContext,
+    page_id: int,
+    data_sources: list[DataSourceCreate] | None,
+    elements: list[ElementItemCreate] | None,
+    actions: list[ActionCreate] | None,
+    options: BuilderWriteOptions,
+) -> dict[str, Any]:
+    """
+    ``setup_page`` with what a client adds to it. Data sources, then elements, then
+    actions, each saved before the next starts.
+
+    :return: As ``setup_page``. When the user was refused a write the phases after it
+        don't run, and ``permission_denied`` holds the refusal.
+    """
+
+    # These modules read pages through this one.
+    from .actions import create_actions_with_options
+    from .data_sources import create_data_sources_with_options
+    from .elements import create_elements_with_options
+
+    data_source_refs = dict(options.known_data_source_refs)
+    element_refs = dict(options.known_refs)
+    result: dict[str, Any] = {
+        "created_data_sources": [],
+        "created_elements": [],
+        "created_actions": [],
+    }
+    formula_errors: list = []
+    errors: list[str] = []
+
+    def finish_phase(kind: str, phase: dict[str, Any], error_prefix: str) -> None:
+        errors.extend(f"{error_prefix}{error}" for error in phase.get("errors", []))
+        formula_errors.extend(options.after_phase(kind, phase))
+
+    try:
+        if data_sources:
+            phase = create_data_sources_with_options(
+                ctx, page_id, data_sources, options
+            )
+            result["created_data_sources"] = phase["created_data_sources"]
+            data_source_refs.update(phase["ref_to_id_map"])
+            finish_phase("data_source", phase, "data_source ")
+        if elements:
+            phase = create_elements_with_options(
+                ctx,
+                page_id,
+                elements,
+                None,
+                replace(
+                    options,
+                    known_refs=element_refs,
+                    known_data_source_refs=data_source_refs,
+                ),
+            )
+            result["created_elements"] = phase["created_elements"]
+            result["created_actions"].extend(phase.get("created_actions", []))
+            element_refs.update(phase["ref_to_id_map"])
+            finish_phase("element", phase, "element ")
+        if actions:
+            phase = create_actions_with_options(
+                ctx,
+                page_id,
+                actions,
+                replace(
+                    options,
+                    known_refs=element_refs,
+                    known_data_source_refs=data_source_refs,
+                ),
+            )
+            result["created_actions"].extend(phase["created_actions"])
+            finish_phase("action", phase, "action ")
+    except PermissionException as exc:
+        result["permission_denied"] = exc
+
+    if formula_errors:
+        result["formula_errors"] = formula_errors
+    if errors:
+        result["errors"] = errors
+    return result
+
+
+def setup_page(
+    ctx: ToolContext,
+    page_id: Annotated[int, Field(description="The ID of the page, from list_pages.")],
+    data_sources: Annotated[
+        list[DataSourceCreate] | None,
+        Field(description="The data sources to create."),
+    ] = None,
+    elements: Annotated[
+        list[ElementItemCreate] | None,
+        Field(description="The elements to create, parents before children."),
+    ] = None,
+    actions: Annotated[
+        list[ActionCreate] | None,
+        Field(description="The workflow actions to create."),
+    ] = None,
+) -> dict[str, Any]:
+    """
+    Add content to an existing page in one call: data sources, then elements, then
+    workflow actions. Each of the three is saved before the next starts and each item
+    on its own, so an item that fails is listed in errors, as "element <ref>:
+    <message>", and the others are kept. Give at least one of the three. A call made
+    twice creates everything twice.
+
+    Refs link items inside this call: an element's data_source and parent_element, an
+    action's element and data_source. Elements of every type can be created here,
+    including auth_form, with a user_source_id from setup_user_source. A header or
+    footer, and anything inside one, goes on the shared page and shows on every page.
+
+    Give dynamic values as formulas in Baserow formula syntax. A formula needs real
+    IDs, like get('form_data.<element id>'), which a ref can't give: to read an input
+    or data source made in this call, add the action or element in a second call with
+    the IDs from this one. Descriptions are not turned into formulas: a value that
+    isn't a valid formula is left empty and listed in formula_errors. A get_row or row
+    action can't run without its row_id, so one that isn't a valid formula is listed
+    in errors and isn't created.
+
+    If you may not do something, what was saved before it is returned with the refusal
+    in errors, and the rest isn't attempted.
+    """
+
+    if not data_sources and not elements and not actions:
+        raise ToolInputError(
+            "There is nothing to do: give data_sources, elements or actions."
+        )
+    result = setup_page_with_options(
+        ctx,
+        page_id,
+        data_sources,
+        elements,
+        actions,
+        BuilderWriteOptions(item_error=client_item_error),
+    )
+    denied = result.pop("permission_denied", None)
+    if denied:
+        if not any(
+            result[key]
+            for key in ("created_data_sources", "created_elements", "created_actions")
+        ):
+            raise denied
+        result.setdefault("errors", []).append(PERMISSION_DENIED_MESSAGE)
+    return result

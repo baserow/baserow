@@ -11,7 +11,11 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.api.utils import apply_exception_mapping
-from baserow.core.tools.errors import ToolInputError, validation_messages
+from baserow.core.tools.errors import (
+    ToolInputError,
+    item_error_message,
+    validation_messages,
+)
 
 
 class UnknownRefError(ToolInputError):
@@ -63,6 +67,12 @@ def user_error_message(exc: Exception) -> str | None:
     if error is None:
         return None
     return detail or str(exc) or error.removeprefix("ERROR_").replace("_", " ").lower()
+
+
+def client_item_error(exc: Exception) -> str:
+    """The message for an item that failed, for a client with no model to explain it."""
+
+    return user_error_message(exc) or item_error_message(exc)
 
 
 def item_error(exc: Exception) -> str:

@@ -1,14 +1,18 @@
 import json
 import os
 from functools import lru_cache
-from typing import Literal
+from typing import Annotated, Any, Literal
 
 from django.contrib.auth.models import AbstractUser
+from django.utils.translation import gettext as _
 
 from loguru import logger
+from pydantic import Field
 
 from baserow.contrib.builder.theme.registries import theme_config_block_registry
 from baserow.contrib.builder.theme.service import ThemeService
+from baserow.core.tools import ToolContext
+from baserow.core.tools.errors import ToolInputError
 
 # ---------------------------------------------------------------------------
 # Theme catalog
@@ -130,3 +134,39 @@ def builder_uses_theme(builder, theme_name: str) -> bool:
     return bool(current) and all(
         expected[name] == value for name, value in current.items()
     )
+
+
+def set_theme(
+    ctx: ToolContext,
+    builder_id: Annotated[
+        int, Field(description="The ID of the application builder, from list_builders.")
+    ],
+    theme: Annotated[ThemeName, Field(description="The theme to apply.")],
+) -> dict[str, Any]:
+    """
+    Apply a theme to an application builder: colors, typography, button styles and so
+    on. This replaces every theme setting the application has and can't be undone.
+
+    Themes:
+    {theme_list}
+    """
+
+    # applications.py applies themes to the builders it creates.
+    from .applications import get_builder_in_workspace
+
+    builder = get_builder_in_workspace(ctx, builder_id)
+    ctx.update_status(
+        _("Applying %(theme)s theme to %(app)s...")
+        % {"theme": theme, "app": builder.name}
+    )
+
+    if not apply_theme(builder, theme, user=ctx.user):
+        raise ToolInputError(f"Theme template '{theme}' could not be loaded.")
+    return {"updated_theme": theme}
+
+
+set_theme.__doc__ = set_theme.__doc__.format(
+    theme_list="\n    ".join(
+        f"- {name}: {description}" for name, description in THEME_CATALOG.items()
+    )
+)
