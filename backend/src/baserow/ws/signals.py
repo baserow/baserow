@@ -350,10 +350,34 @@ def applications_reordered(sender, workspace, order, user, **kwargs):
     )
 
 
+def _broadcast_workspace_agent(agent, event):
+    workspace_id = AgentHandler.get_workspace(agent).id
+    eligible = (
+        CoreHandler()
+        .get_workspace_collaborators(workspace_id)
+        .filter(id=agent.id)
+        .exists()
+    )
+    payload = {
+        "type": f"workspace_agent_{event}" if eligible else "workspace_agent_deleted",
+        "workspace_id": workspace_id,
+    }
+    if eligible and event != "deleted":
+        payload["agent"] = {
+            "id": agent.id,
+            "name": agent.first_name,
+            "identity_type": "agent",
+        }
+    else:
+        payload["agent_id"] = agent.id
+    transaction.on_commit(lambda: broadcast_to_group.delay(workspace_id, payload))
+
+
 @receiver(agent_signals.agent_created)
 def agent_created(sender, agent, user=None, **kwargs):
     """Notify permitted users when an agent is created or restored."""
 
+    _broadcast_workspace_agent(agent, "created")
     transaction.on_commit(
         lambda: broadcast_to_permitted_users.delay(
             AgentHandler().get_workspace(agent).id,
@@ -374,6 +398,7 @@ def agent_created(sender, agent, user=None, **kwargs):
 def agent_updated(sender, agent, user, **kwargs):
     """Notify users who can list agents about updated agent details."""
 
+    _broadcast_workspace_agent(agent, "updated")
     transaction.on_commit(
         lambda: broadcast_to_permitted_users.delay(
             AgentHandler().get_workspace(agent).id,
@@ -394,6 +419,7 @@ def agent_updated(sender, agent, user, **kwargs):
 def agent_deleted(sender, agent, user, **kwargs):
     """Notify users who can list agents that an agent was deleted."""
 
+    _broadcast_workspace_agent(agent, "deleted")
     transaction.on_commit(
         lambda: broadcast_to_permitted_users.delay(
             AgentHandler().get_workspace(agent).id,

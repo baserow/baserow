@@ -150,6 +150,9 @@ class WorkspaceUserWorkspaceSerializer(serializers.Serializer):
         read_only=True,
         help_text="List of all workspace users.",
     )
+    agents = serializers.SerializerMethodField(
+        help_text="Agent identities available as workspace collaborators."
+    )
     agents_count = serializers.SerializerMethodField(
         help_text="The number of agents in the workspace."
     )
@@ -170,6 +173,25 @@ class WorkspaceUserWorkspaceSerializer(serializers.Serializer):
         read_only=True, help_text="Generative AI models available in this workspace."
     )
     ai_features = serializers.SerializerMethodField(read_only=True)
+
+    def get_agents(self, workspace_user):
+        memberships = getattr(
+            workspace_user.workspace, "collaborator_agent_memberships", None
+        )
+        if memberships is None:
+            from baserow.core.handler import CoreHandler
+
+            agents = (
+                CoreHandler()
+                .get_workspace_collaborators(workspace_user.workspace)
+                .filter(profile__identity_type="agent")
+            )
+        else:
+            agents = [membership.user for membership in memberships]
+        return [
+            {"id": agent.id, "name": agent.first_name, "identity_type": "agent"}
+            for agent in agents
+        ]
 
     def get_agents_count(self, workspace_user):
         """Return the annotated agent count without issuing another query."""

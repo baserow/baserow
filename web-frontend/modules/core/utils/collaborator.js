@@ -19,7 +19,9 @@ export function getCollaboratorName(collaboratorValue, store) {
   }
 
   // Otherwise, get name from the store to reflect real-time updates
-  const user = store.getters['workspace/getUserById'](collaboratorValue.id)
+  const user = store.getters['workspace/getCollaboratorById'](
+    collaboratorValue.id
+  )
   if (user) {
     return user.name
   }

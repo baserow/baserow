@@ -11,9 +11,6 @@ import pytest
 from faker import Faker
 from pytest_unordered import unordered
 
-from baserow.contrib.database.fields.exceptions import (
-    AllProvidedCollaboratorIdsMustBeValidUsers,
-)
 from baserow.contrib.database.fields.field_types import MultipleCollaboratorsFieldType
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import MultipleCollaboratorsField
@@ -79,21 +76,6 @@ def test_multiple_collaborators_field_type_create_with_int(data_fixture):
     collaborator_field_list = getattr(row, field_id).all()
     assert len(collaborator_field_list) == 1
     assert collaborator_field_list[0].id == user.id
-
-
-@pytest.mark.django_db
-@pytest.mark.field_multiple_collaborators
-def test_multiple_collaborators_field_type_rejects_agents(data_fixture):
-    user = data_fixture.create_user()
-    database = data_fixture.create_database_application(user=user)
-    table = data_fixture.create_database_table(database=database)
-    field = data_fixture.create_multiple_collaborators_field(user=user, table=table)
-    agent = data_fixture.create_agent(workspace=database.workspace)
-
-    with pytest.raises(AllProvidedCollaboratorIdsMustBeValidUsers):
-        RowHandler().create_row(
-            user=user, table=table, values={field.db_column: [{"id": agent.id}]}
-        )
 
 
 @pytest.mark.django_db

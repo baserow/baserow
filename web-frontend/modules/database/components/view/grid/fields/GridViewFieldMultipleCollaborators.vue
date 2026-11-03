@@ -21,9 +21,11 @@
               <i class="iconoir-cancel"></i>
             </a>
           </div>
-          <div class="field-multiple-collaborators__initials">
-            {{ getCollaboratorNameInitials(item) }}
-          </div>
+          <CollaboratorAvatar
+            :field="field"
+            class="field-multiple-collaborators__initials"
+            :collaborator="item"
+          />
         </template>
       </div>
       <a
@@ -49,13 +51,14 @@
 </template>
 
 <script>
+import CollaboratorAvatar from '@baserow/modules/core/components/CollaboratorAvatar'
 import gridField from '@baserow/modules/database/mixins/gridField'
 import collaboratorField from '@baserow/modules/database/mixins/collaboratorField'
 import FieldCollaboratorDropdown from '@baserow/modules/database/components/field/FieldCollaboratorDropdown'
 import collaboratorName from '@baserow/modules/database/mixins/collaboratorName'
 
 export default {
-  components: { FieldCollaboratorDropdown },
+  components: { CollaboratorAvatar, FieldCollaboratorDropdown },
   mixins: [gridField, collaboratorField, collaboratorName],
   emits: ['editing-changed'],
   data() {

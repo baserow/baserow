@@ -76,6 +76,7 @@ from baserow.contrib.database.formula.types.formula_type import (
     UnTyped,
 )
 from baserow.core.db import collate_expression
+from baserow.core.handler import CoreHandler
 from baserow.core.storage import get_default_storage
 from baserow.core.utils import list_to_comma_separated_string
 
@@ -1898,13 +1899,18 @@ class BaserowFormulaMultipleCollaboratorsType(
             setattr(
                 field,
                 cache_key,
-                {usr.id: usr for usr in field.table.database.workspace.users.all()},
+                {
+                    usr.id: usr
+                    for usr in CoreHandler().get_workspace_collaborators(
+                        field.table.database.workspace
+                    )
+                },
             )
 
         # Replace the JSON object with the actual user object, so we have
         # access to the user's email.
         users = getattr(field, cache_key)
-        value = [users[item["id"]] for item in value]
+        value = [users[item["id"]] for item in value if item["id"] in users]
 
         return field_type.get_export_value(value, field_object, rich_value=rich_value)
 

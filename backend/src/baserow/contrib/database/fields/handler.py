@@ -57,7 +57,7 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import ViewDefaultValue
 from baserow.core.db import specific_iterator, sql
 from baserow.core.handler import CoreHandler
-from baserow.core.models import TrashEntry, User
+from baserow.core.models import TrashEntry
 from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.trash.exceptions import RelatedTableTrashedException
 from baserow.core.trash.handler import TrashHandler
@@ -216,11 +216,13 @@ class FieldHandler:
             "content_type", "table__database__workspace"
         ).prefetch_related(
             Prefetch(
-                "table__database__workspace__users",
-                queryset=User.objects.filter(profile__to_be_deleted=False).order_by(
-                    "first_name"
-                ),
-                to_attr="available_collaborators",
+                "table__database__workspace__workspaceuser_set",
+                queryset=CoreHandler()
+                .get_collaborator_memberships()
+                .filter(user__profile__to_be_deleted=False)
+                .select_related("user__profile")
+                .order_by("user__first_name"),
+                to_attr="collaborator_memberships",
             ),
             "select_options",
             "field_constraints",
