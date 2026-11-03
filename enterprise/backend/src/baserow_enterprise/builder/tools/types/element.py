@@ -559,24 +559,13 @@ def _header_footer_post_create(
         )
 
 
-def _table_post_create(el: "ElementItemCreate", user, orm_element, page) -> list:
-    """Create button-column workflow actions and enable filter/sort/search.
-
-    Returns a list of ``(orm_action, action_create)`` pairs for any
-    button-column actions that were created (empty list if none).
-    """
+def _table_post_create(el: "ElementItemCreate", user, orm_element, page) -> None:
+    """Enable filter/sort/search."""
 
     if not el.fields:
-        return []
+        return
 
     from baserow.contrib.builder.elements.models import CollectionElementPropertyOptions
-    from baserow_enterprise.builder.tools.helpers import (
-        create_table_button_actions,
-        get_local_baserow_integration,
-    )
-
-    integration = get_local_baserow_integration(user, page.builder)
-    action_pairs = create_table_button_actions(user, page, orm_element, el, integration)
 
     # Auto-enable filter/sort/search for text columns referencing real fields.
     table_fields = data_source_fields(el.data_source)
@@ -599,8 +588,6 @@ def _table_post_create(el: "ElementItemCreate", user, orm_element, page) -> list
         CollectionElementPropertyOptions.objects.bulk_create(
             property_options, ignore_conflicts=True
         )
-
-    return action_pairs
 
 
 _POST_CREATE: dict[str, Any] = {
@@ -1106,18 +1093,12 @@ class ElementItemCreate(BaseModel):
         user: "AbstractUser",
         orm_element: "Element",
         page: "Page",
-    ) -> list:
-        """Hook called after ORM element creation.
-
-        Returns a list of ``(orm_action, action_create)`` pairs for any
-        workflow actions created as part of the element setup (e.g. button
-        columns in table elements). Empty list if none.
-        """
+    ) -> None:
+        """Hook called after ORM element creation."""
 
         fn = _POST_CREATE.get(self.type)
         if fn:
-            return fn(self, user, orm_element, page) or []
-        return []
+            fn(self, user, orm_element, page)
 
     def get_formulas_to_create(
         self,

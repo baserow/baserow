@@ -686,49 +686,6 @@ def test_kuma_table_columns_are_repaired_by_their_path(listed, monkeypatch):
 
 
 @pytest.mark.django_db
-def test_kuma_repairs_a_table_button_action_with_its_own_wording(
-    data_fixture, listed, monkeypatch
-):
-    def with_action(self, user, orm_element, page):
-        action = data_fixture.create_notification_workflow_action(
-            page=page, element=orm_element, event="x_click"
-        )
-        return [
-            (
-                action,
-                ActionCreate(
-                    type="notification",
-                    element=self.ref,
-                    title="$formula: the title",
-                ),
-            )
-        ]
-
-    def fail(formulas, context):
-        raise ValueError("no luck")
-
-    monkeypatch.setattr(ElementItemCreate, "post_create", with_action)
-    use_generator(monkeypatch, fail)
-
-    result = create_collection_elements(
-        listed["ctx"],
-        page_id=listed["page"].id,
-        elements=[
-            CollectionElementCreate(
-                ref="t",
-                type="table",
-                data_source=listed["data_source"].id,
-                fields=[TableFieldConfig(name="Go", type="button", label="Go")],
-            )
-        ],
-        thought="test",
-    )
-
-    assert result["errors"] == ["Formula generation failed for action on 't': no luck"]
-    assert "created_actions" not in result
-
-
-@pytest.mark.django_db
 def test_kuma_update_stores_an_explicit_formula_and_repairs_a_description(
     data_fixture, site, monkeypatch
 ):

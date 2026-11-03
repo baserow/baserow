@@ -426,7 +426,7 @@ def test_header_keeps_pages_of_its_builder(data_fixture):
         builder=data_fixture.create_builder_application(workspace=workspace)
     )
 
-    header, _, _ = helpers.create_element(
+    header, _ = helpers.create_element(
         user,
         page,
         ElementItemCreate(

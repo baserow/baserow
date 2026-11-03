@@ -228,7 +228,6 @@ def setup_page_with_options(
                 ),
             )
             result["created_elements"] = phase["created_elements"]
-            result["created_actions"].extend(phase.get("created_actions", []))
             element_refs.update(phase["ref_to_id_map"])
             finish_phase("element", phase, "element ")
         if actions:

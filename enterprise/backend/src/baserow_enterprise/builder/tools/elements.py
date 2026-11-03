@@ -107,7 +107,6 @@ def create_elements_with_options(
     new_refs: dict[str, int] = {}
     created: list[dict] = []
     pairs: list[tuple[Any, ElementItemCreate]] = []
-    action_pairs: list[tuple[Any, Any]] = []
     errors: list[str] = []
     with transaction.atomic():
         for el_create in elements:
@@ -115,7 +114,7 @@ def create_elements_with_options(
             el_create._column_name_beats_formula = options.column_name_beats_formula
             try:
                 with transaction.atomic():
-                    element, el_id, new_action_pairs = helpers.create_element(
+                    element, el_id = helpers.create_element(
                         ctx.user,
                         page,
                         el_create,
@@ -132,20 +131,11 @@ def create_elements_with_options(
             refs[el_create.ref] = el_id
             new_refs[el_create.ref] = el_id
             pairs.append((element, el_create))
-            action_pairs.extend(new_action_pairs)
             created.append({"id": el_id, "ref": el_create.ref, "type": el_create.type})
 
-    formula_errors: list[BuilderFormulaError] = [
-        *apply_builder_formulas(ctx, page, pairs, "element"),
-        *apply_builder_formulas(ctx, page, action_pairs, "action"),
-    ]
+    formula_errors = apply_builder_formulas(ctx, page, pairs, "element")
 
     result: dict[str, Any] = {"created_elements": created, "ref_to_id_map": new_refs}
-    if action_pairs:
-        result["created_actions"] = [
-            {"id": action.id, "element_id": action.element_id, "event": action.event}
-            for action, _action_create in action_pairs
-        ]
 
     # Read from the saved graph after the whole batch, so a container whose content
     # came later in the batch isn't listed.

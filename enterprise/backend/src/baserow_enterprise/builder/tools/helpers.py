@@ -6,7 +6,7 @@ source/action creation orchestrators used by ``tools.py`` and ``agents.py``.
 """
 
 from collections import Counter
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import Any, NamedTuple
 
 from django.contrib.auth.models import AbstractUser
 from django.db import DatabaseError, transaction
@@ -114,10 +114,6 @@ from .types import (
     PageUpdate,
 )
 from .types.page import PagePathParam, with_path_parameters
-
-if TYPE_CHECKING:
-    pass
-
 
 # ---------------------------------------------------------------------------
 # Accessors
@@ -644,13 +640,11 @@ def create_element(
     data_source_ref_to_id_map: dict[str, int],
     shared_page_refs: set[str] | None = None,
     before_id: int | None = None,
-) -> tuple[Any, int, list]:
+) -> tuple[Any, int]:
     """
     Create an element on a page, resolving refs to IDs.
 
-    Returns ``(orm_element, element_id, action_pairs)`` where
-    *action_pairs* is a list of ``(orm_action, action_create)`` tuples
-    produced by post-create hooks (e.g. table button columns).
+    Returns ``(orm_element, element_id)``.
     """
 
     if shared_page_refs is None:
@@ -783,12 +777,12 @@ def create_element(
                 **kwargs,
             },
         )
-        action_pairs = element_create.post_create(user, element, target_page)
+        element_create.post_create(user, element, target_page)
     # Added once the element exists, so a failed one doesn't send the children of a
     # later element with the same ref to the shared page.
     if use_shared_page:
         shared_page_refs.add(element_create.ref)
-    return element, element.id, action_pairs
+    return element, element.id
 
 
 # ---------------------------------------------------------------------------
@@ -1120,9 +1114,7 @@ def _resolve_event(
     try:
         element = ElementHandler().get_element(
             element_id,
-            base_queryset=Element.objects.filter(
-                Q(page=page) | Q(page__builder=page.builder, page__shared=True)
-            ),
+            base_queryset=Element.objects.filter(on_page(page)),
         )
     except ElementDoesNotExist:
         raise ToolInputError(
@@ -1259,41 +1251,6 @@ def create_workflow_action(
         user, action_type, element.page, **kwargs
     )
     return action, action.id
-
-
-def create_table_button_actions(
-    user: AbstractUser,
-    page: Page,
-    orm_element: Any,
-    element_create: ElementItemCreate,
-    integration: Integration | None = None,
-) -> list[tuple[Any, Any]]:
-    """
-    Create workflow actions for button columns in a table element.
-
-    Maps button fields to their collection field UIDs and creates actions
-    with ``event="{uid}_click"``.
-    """
-
-    if not element_create.fields:
-        return []
-
-    collection_fields = list(orm_element.fields.order_by("order"))
-    created = []
-
-    for i, field_cfg in enumerate(element_create.fields or []):
-        if field_cfg.type != "button":
-            continue
-        if i >= len(collection_fields):
-            continue
-
-        # Button columns don't have inline workflow_actions in the flat model,
-        # so this hook is a placeholder for future extension.
-        # The ab-tools-no-loaders branch used discriminated union button configs
-        # with embedded workflow_actions — we don't replicate that here since
-        # workflow actions are created separately via create_actions tool.
-
-    return created
 
 
 # ---------------------------------------------------------------------------

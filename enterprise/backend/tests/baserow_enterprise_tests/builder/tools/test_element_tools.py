@@ -9,9 +9,6 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
 from baserow.contrib.builder.elements.models import Element, TableElement
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
-from baserow.contrib.builder.workflow_actions.models import (
-    NotificationWorkflowAction,
-)
 from baserow.core.exceptions import PermissionException
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.tools.errors import ToolInputError
@@ -25,7 +22,6 @@ from baserow_enterprise.builder.tools.formulas import (
     page_formula_context,
 )
 from baserow_enterprise.builder.tools.types import (
-    ActionCreate,
     CollectionElementCreate,
     DisplayElementCreate,
     ElementChanges,
@@ -529,53 +525,6 @@ def test_form_fields_store_formulas_and_report_descriptions(data_fixture, builde
     assert saved(ids["b"]).default_value["formula"] == "''"
     assert [(e["element_id"], e["field"]) for e in result["formula_errors"]] == [
         (ids["b"], "default_value")
-    ]
-
-
-@pytest.mark.django_db
-def test_a_table_buttons_actions_are_returned_and_named_in_formula_errors(
-    data_fixture, builder_ctx, monkeypatch
-):
-    data_source = builder_ctx["data_source"]
-
-    def with_action(self, user, orm_element, page):
-        action = data_fixture.create_notification_workflow_action(
-            page=page, element=orm_element, event="x_click"
-        )
-        return [
-            (
-                action,
-                ActionCreate(
-                    type="notification",
-                    element=orm_element.id,
-                    title="$formula: the title",
-                ),
-            )
-        ]
-
-    monkeypatch.setattr(ElementItemCreate, "post_create", with_action)
-
-    result = elements.create_elements(
-        builder_ctx["ctx"],
-        builder_ctx["page"].id,
-        [
-            ElementItemCreate(
-                ref="t",
-                type="table",
-                data_source=data_source.id,
-                fields=[TableFieldConfig(name="Go", type="button", label="Go")],
-            )
-        ],
-    )
-
-    action = NotificationWorkflowAction.objects.get(
-        element_id=result["ref_to_id_map"]["t"]
-    )
-    assert result["created_actions"] == [
-        {"id": action.id, "element_id": action.element_id, "event": "x_click"}
-    ]
-    assert [(e["action_id"], e["field"]) for e in result["formula_errors"]] == [
-        (action.id, "title")
     ]
 
 
