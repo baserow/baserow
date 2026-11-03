@@ -185,21 +185,6 @@ def test_a_numeric_page_parameter_resolves_as_a_number(
 
 
 @pytest.mark.django_db
-def test_a_text_page_parameter_is_not_a_number(data_fixture, builder_ctx):
-    page = data_fixture.create_builder_page(
-        builder=builder_ctx["builder"],
-        path="/item/:slug",
-        path_params=[{"name": "slug", "type": "text"}],
-    )
-
-    _, errors = _store_on_heading(
-        builder_ctx, data_fixture, page, "add(get('page_parameter.slug'), 1)"
-    )
-
-    assert len(errors) == 1
-
-
-@pytest.mark.django_db
 @pytest.mark.parametrize(
     "element_type,kwargs,template",
     [

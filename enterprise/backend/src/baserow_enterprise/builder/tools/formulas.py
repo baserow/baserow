@@ -1,7 +1,7 @@
 """
-Formula context of a builder page, used to check and generate the formulas of its
-elements, data sources and workflow actions, and the step that stores the formulas a
-tool call was given. No model is called here.
+Formula context of a builder page, used to generate the formulas of its elements,
+data sources and workflow actions, the check of a given formula, and the step that
+stores the formulas a tool call was given. No model is called here.
 """
 
 import json
@@ -9,8 +9,13 @@ from contextlib import contextmanager
 from typing import Any, Literal
 
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 
+from baserow.contrib.automation.tools.formulas import MAX_LISTED_PATHS
+from baserow.contrib.builder.data_providers.registries import (
+    builder_data_provider_type_registry,
+)
 from baserow.contrib.builder.data_sources.actions import UpdateDataSourceActionType
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.elements.actions import UpdateElementActionType
@@ -23,13 +28,15 @@ from baserow.contrib.builder.workflow_actions.actions import (
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
-from baserow.core.exceptions import PermissionException
-from baserow.core.formula import resolve_formula
-from baserow.core.formula.registries import formula_runtime_function_registry
-from baserow.core.formula.types import (
-    BASEROW_FORMULA_MODE_ADVANCED,
-    BaserowFormulaObject,
+from baserow.core.exceptions import InstanceTypeDoesNotExist, PermissionException
+from baserow.core.formula.exceptions import InvalidRuntimeFormula
+from baserow.core.formula.parser.exceptions import BaserowFormulaException
+from baserow.core.formula.parser.formula_validation_visitor import (
+    BaserowFormulaValidationVisitor,
 )
+from baserow.core.formula.parser.parser import get_parse_tree_for_formula
+from baserow.core.formula.registries import formula_runtime_function_registry
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
 from baserow.core.tools import ToolContext
@@ -42,31 +49,12 @@ from baserow.core.utils import to_path
 from baserow_enterprise.tools.formula_utils import (
     create_example_from_json_schema,
     formula_object,
-    is_valid_formula,
     minimize_json_schema,
 )
 
 from .types import DataSourceCreate, DataSourceUpdate, ElementUpdate
 
 BuilderFormulaKind = Literal["element", "data_source", "action"]
-
-# Example values, of the type a formula meets when the page runs.
-_EXAMPLE_TEXT = "example_value"
-_EXAMPLE_NUMBER = 1
-_EXAMPLE_DATETIME = "2026-01-15T10:30:00Z"
-_FORM_DATA_TYPES = {
-    "input_text": "string",
-    "choice": "string",
-    "checkbox": "boolean",
-    "datetime_picker": "string",
-    "record_selector": "number",
-    "rating_input": "number",
-}
-_FORM_DATA_EXAMPLES = {
-    "string": _EXAMPLE_TEXT,
-    "boolean": True,
-    "number": _EXAMPLE_NUMBER,
-}
 
 
 class BuilderFormulaContext:
@@ -81,6 +69,8 @@ class BuilderFormulaContext:
         self.page = page
         self.context: dict[str, Any] = {}
         self.context_metadata: dict[str, Any] = {}
+        # The page's data sources by ID, with their name and schema if they have one.
+        self.data_sources: dict[int, dict[str, Any]] = {}
         self._current_record_stack: list[int] = []
         self._row_scoped_data_source: int | None = None
 
@@ -102,6 +92,7 @@ class BuilderFormulaContext:
 
         data_sources = DataSourceHandler().get_data_sources(self.page, with_shared=True)
         for ds in data_sources:
+            self.data_sources[ds.id] = {"name": ds.name, "schema": None}
             if not ds.service:
                 continue
 
@@ -114,6 +105,7 @@ class BuilderFormulaContext:
                 continue
             if not schema:
                 continue
+            self.data_sources[ds.id]["schema"] = schema
 
             key = f"data_source.{ds.id}"
             try:
@@ -132,14 +124,14 @@ class BuilderFormulaContext:
     def _load_page_parameters(self) -> None:
         """Load page path and query parameters."""
 
-        params: dict[str, Any] = {}
+        params: dict[str, str] = {}
         params_meta: dict[str, dict] = {}
 
         for source in (self.page.path_params or [], self.page.query_params or []):
             for p in source:
                 name = p.get("name") if isinstance(p, dict) else p
                 ptype = p.get("type", "text") if isinstance(p, dict) else "text"
-                params[name] = _EXAMPLE_NUMBER if ptype == "numeric" else _EXAMPLE_TEXT
+                params[name] = "example_value"
                 params_meta[name] = {"type": ptype}
 
         if params:
@@ -171,8 +163,16 @@ class BuilderFormulaContext:
 
         from baserow.contrib.builder.elements.mixins import FormElementTypeMixin
 
-        form_data: dict[str, Any] = {}
+        form_data: dict[str, str] = {}
         form_meta: dict[str, dict] = {}
+
+        type_map = {
+            "input_text": "string",
+            "choice": "string",
+            "checkbox": "boolean",
+            "datetime_picker": "string",
+            "record_selector": "number",
+        }
 
         for element in elements:
             el_type = element.get_type()
@@ -185,17 +185,8 @@ class BuilderFormulaContext:
                 label = label["formula"]
             label = str(label) if label else el_type.type
 
-            data_type = _FORM_DATA_TYPES.get(el_type.type, "string")
-            if getattr(el, "validation_type", None) == "integer":
-                data_type = "number"
-            example = (
-                _EXAMPLE_DATETIME
-                if el_type.type == "datetime_picker"
-                else _FORM_DATA_EXAMPLES[data_type]
-            )
-            form_data[str(el.id)] = (
-                [example] if getattr(el, "multiple", False) else example
-            )
+            data_type = type_map.get(el_type.type, "string")
+            form_data[str(el.id)] = data_type
             form_meta[str(el.id)] = {
                 "type": el_type.type,
                 "data_type": data_type,
@@ -434,29 +425,161 @@ class BuilderFormulaError(dict):
         self.permission_denied = permission_denied
 
 
+class _GetPathsVisitor(BaserowFormulaValidationVisitor):
+    """Checks a formula's functions and collects the paths its ``get`` calls read."""
+
+    def __init__(self):
+        super().__init__(
+            formula_runtime_function_registry,
+            data_provider_type_registry=builder_data_provider_type_registry,
+        )
+        self.paths: list[str] = []
+
+    def visitFunctionCall(self, ctx, function_name=None):
+        result = super().visitFunctionCall(ctx, function_name)
+        if function_name is None and ctx.func_name().getText().lower() == "get":
+            path = ctx.expr()[0].accept(self)
+            # A path built by another function is only known when the page runs.
+            if isinstance(path, str):
+                self.paths.append(path)
+        return result
+
+
+def _matches_schema(
+    segments: list[str], schema: dict[str, Any], by_title: bool = False
+) -> bool:
+    """
+    Whether a path reads something a JSON schema describes.
+
+    :param by_title: Whether a segment may also name a row's field by its name, which
+        the row services read too.
+    """
+
+    if not segments:
+        return True
+    if schema.get("type") == "array":
+        if not (segments[0].isdigit() or segments[0] == "*"):
+            return False
+        items = schema.get("items")
+        return _matches_schema(segments[1:], items, by_title) if items else True
+    properties = schema.get("properties")
+    if not properties:
+        # An object of unknown shape can hold anything; a plain value holds nothing.
+        return schema.get("type") == "object"
+    prop = properties.get(segments[0])
+    if prop is None and by_title:
+        prop = next(
+            (p for p in properties.values() if p.get("title") == segments[0]), None
+        )
+    return prop is not None and _matches_schema(segments[1:], prop)
+
+
+def _listed(names: list[str]) -> str:
+    if len(names) > MAX_LISTED_PATHS:
+        names = [*names[:MAX_LISTED_PATHS], "..."]
+    return ", ".join(names) or "none"
+
+
+def _data_source_path_problem(
+    path: str, rest: list[str], context: BuilderFormulaContext
+) -> str | None:
+    data_source_id = rest[0] if rest else ""
+    data_source = (
+        context.data_sources.get(int(data_source_id))
+        if data_source_id.isdigit()
+        else None
+    )
+    if data_source is None:
+        names = [f"{key} ({ds['name']})" for key, ds in context.data_sources.items()]
+        return (
+            f"'{path}' reads data source '{data_source_id}', which isn't on this "
+            f"page. Its data sources: {_listed(names)}."
+        )
+    schema = data_source["schema"]
+    if schema is None or _matches_schema(rest[1:], schema, by_title=True):
+        return None
+    if schema.get("type") == "array" and not (rest[1].isdigit() or rest[1] == "*"):
+        return (
+            f"'{path}' needs a row index after the data source, because it returns "
+            f"a list, like data_source.{data_source_id}.0.id."
+        )
+    properties = schema.get("items", schema).get("properties", {})
+    names = [f"{key} ({prop.get('title')})" for key, prop in properties.items()]
+    return (
+        f"'{path}' is not something data source {data_source_id} "
+        f"('{data_source['name']}') has. Its fields: {_listed(names)}."
+    )
+
+
+def _get_path_problem(
+    path: str, context: BuilderFormulaContext, allow_previous_action: bool
+) -> str | None:
+    """Why a path of a ``get`` call can't be read in this context, if so."""
+
+    root, *rest = to_path(path)
+    if root == "data_source":
+        return _data_source_path_problem(path, rest, context)
+    if root in ("page_parameter", "form_data"):
+        known = context.context.get(root, {})
+        what = "page parameter" if root == "page_parameter" else "form element"
+        if not rest or rest[0] not in known:
+            return (
+                f"'{path}' doesn't name a {what} of this page. "
+                f"Its {what}s: {_listed(list(known))}."
+            )
+    if root == "current_record" and not context._current_record_stack:
+        return f"'{path}' can only be read inside a repeat or a table."
+    if root == "previous_action" and not allow_previous_action:
+        return f"'{path}' can only be read in a workflow action."
+    return None
+
+
 def formula_problem(
-    field: str, formula: str, context: BuilderFormulaContext
+    field: str,
+    formula: str,
+    context: BuilderFormulaContext,
+    allow_previous_action: bool = False,
 ) -> str | None:
     """
-    Why a value can't be stored as a formula: it is a description, or it doesn't
-    resolve on the page. This is the same check generated formulas pass.
+    Why a value can't be stored as a formula. The formula isn't evaluated, so the
+    type of the values its functions get isn't checked. It must parse, call functions
+    that exist and read paths this context has: for ``data_source``, ``page_parameter``
+    and ``form_data`` the thing named must exist, and for the other providers the
+    provider must be available.
 
+    :param allow_previous_action: Whether the value can read earlier workflow actions.
     :return: The problem, or None when the formula is valid.
     """
 
-    if not formula.strip() or not is_valid_formula(formula):
-        return (
-            f"'{field}' needs a formula, not a description. Write it in Baserow "
-            "formula syntax, like get('page_parameter.id')."
-        )
+    description = (
+        f"'{field}' needs a formula, not a description. Write it in Baserow "
+        "formula syntax, like get('page_parameter.id')."
+    )
+    if not formula.strip():
+        return description
     try:
-        resolve_formula(
-            BaserowFormulaObject.create(formula, mode=BASEROW_FORMULA_MODE_ADVANCED),
-            formula_runtime_function_registry,
-            context,
-        )
-    except Exception as exc:
-        return f"'{field}' can't be resolved on this page: {exc}"
+        tree = get_parse_tree_for_formula(formula)
+    except (BaserowFormulaException, RecursionError):
+        return description
+
+    visitor = _GetPathsVisitor()
+    try:
+        visitor.visit(tree)
+    except DjangoValidationError as exc:
+        return f"'{field}' is not a valid formula: {' '.join(exc.messages)}"
+    except (
+        BaserowFormulaException,
+        InvalidRuntimeFormula,
+        InstanceTypeDoesNotExist,
+        RecursionError,
+        ValueError,
+    ) as exc:
+        return f"'{field}' is not a valid formula: {exc}"
+
+    for path in visitor.paths:
+        problem = _get_path_problem(path, context, allow_previous_action)
+        if problem:
+            return f"'{field}' can't be read on this page: {problem}"
     return None
 
 

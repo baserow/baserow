@@ -553,6 +553,16 @@ def update_data_source(
     service_type = (
         service_type_registry.get_by_model(ds.service.specific) if ds.service else None
     )
+    if (
+        ds_update.row_id is not None
+        and not ds_update.row_id.strip()
+        and service_type is not None
+        and service_type.type == "local_baserow_get_row"
+    ):
+        raise ToolInputError(
+            f"'row_id' is required for data source {ds.id}, which reads one row. "
+            "No changes were applied."
+        )
     kwargs = ds_update.to_update_kwargs(user, workspace)
     if "view_id" in kwargs and not isinstance(
         service_type, LocalBaserowViewServiceType
