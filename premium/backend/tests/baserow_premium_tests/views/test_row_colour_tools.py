@@ -1,6 +1,7 @@
 """Tests for the row colour tools shared by MCP and Kuma."""
 
 import json
+from unittest.mock import patch
 
 from django.db import transaction
 
@@ -309,3 +310,17 @@ def test_row_colour_rejects_a_colour_a_row_cannot_show(color):
 @pytest.mark.parametrize("color", ["red", "light-blue", "dark-green", "darker-gray"])
 def test_row_colour_accepts_the_palette(color):
     assert ConditionalColour(color=color, filters=[]).color == color
+
+
+@pytest.mark.django_db
+def test_row_colour_leaves_nothing_behind_when_it_fails(premium_data_fixture):
+    # A client that sees an error retries, and this tool adds to the colours.
+    ctx, view, status, _ = _setup(premium_data_fixture, has_active_premium_license=True)
+
+    with patch.object(
+        CreateDecorationActionType, "register_action", side_effect=RuntimeError
+    ):
+        with pytest.raises(RuntimeError):
+            set_row_colours(ctx, view.id, _by_select(status.id))
+
+    assert not ViewDecoration.objects.filter(view=view).exists()

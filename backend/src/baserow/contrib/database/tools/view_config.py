@@ -368,9 +368,10 @@ def set_row_colours(
     ctx.update_status(_("Colouring %(view_name)s...") % {"view_name": view.name})
 
     try:
-        decoration = CreateDecorationActionType.do(
-            view, colour.style, colour.by, _colour_conf(ctx, view, colour), ctx.user
-        )
+        with transaction.atomic():
+            decoration = CreateDecorationActionType.do(
+                view, colour.style, colour.by, _colour_conf(ctx, view, colour), ctx.user
+            )
     except ViewDecorationNotSupported as exc:
         raise ToolInputError("This type of view can't colour its rows.") from exc
 
