@@ -281,6 +281,8 @@ x-backend-variables:
   BASEROW_OLLAMA_MODELS:
   # Supported AI Field runtime limit.
   BASEROW_AI_FIELD_MAX_CONCURRENT_GENERATIONS:
+  # Agent replies that can run at once in one workspace.
+  BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE:
   # Deprecated model selection; choose Kuma under Admin tools > AI providers > AI features.
   BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL:
   BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE:

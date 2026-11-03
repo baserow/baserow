@@ -41,7 +41,12 @@
               $t('agent.draft')
             }}</span>
             <span
-              class="agent-conversations__status agent-conversations__status--idle"
+              class="agent-conversations__status"
+              :class="
+                item.run_id
+                  ? 'agent-conversations__status--replying'
+                  : 'agent-conversations__status--idle'
+              "
               aria-hidden="true"
             />
           </button>

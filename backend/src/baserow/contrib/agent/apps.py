@@ -6,6 +6,7 @@ class AgentConfig(AppConfig):
 
     def ready(self):
         from baserow.core.action.registries import action_type_registry
+        from baserow.core.chat_runs.registries import chat_run_type_registry
         from baserow.core.registries import (
             application_type_registry,
             last_viewed_item_type_registry,
@@ -19,6 +20,7 @@ class AgentConfig(AppConfig):
             UpdateAgentConfigurationActionType,
         )
         from .application_types import AgentApplicationType
+        from .chat_run_type import AgentChatRunType
         from .last_viewed_types import AgentLastViewedItemType
         from .operations import (
             CreateAgentConversationOperationType,
@@ -44,6 +46,7 @@ class AgentConfig(AppConfig):
             UpdateAgentConfigurationActionType,
         ):
             action_type_registry.register(action())
+        chat_run_type_registry.register(AgentChatRunType())
 
         import baserow.contrib.agent.receivers  # noqa: F401
         import baserow.contrib.agent.ws.signals  # noqa: F401

@@ -1,49 +1,44 @@
 <template>
-  <div class="assistant__actions">
-    <div class="assistant__actions-header">
-      <template v-if="message.can_submit_feedback">
-        <button
-          v-if="!message.human_sentiment || message.human_sentiment === 'LIKE'"
-          ref="thumbUpButton"
-          class="assistant__feedback-button assistant__feedback-button--thumb-up"
-          :class="{
-            'assistant__feedback-button--active':
-              message.human_sentiment === 'LIKE',
-          }"
-          @click="handleThumbsUp"
-        >
-          <i class="iconoir-thumbs-up"></i>
-        </button>
+  <div v-if="message.can_submit_feedback" class="assistant__feedback">
+    <button
+      v-if="!message.human_sentiment || message.human_sentiment === 'LIKE'"
+      ref="thumbUpButton"
+      v-tooltip="$t('assistantMessageActions.helpful')"
+      type="button"
+      class="chat-message__action assistant__feedback-button assistant__feedback-button--thumb-up"
+      :aria-label="$t('assistantMessageActions.helpful')"
+      :aria-pressed="message.human_sentiment === 'LIKE'"
+      :class="{
+        'assistant__feedback-button--active':
+          message.human_sentiment === 'LIKE',
+      }"
+      @click="handleThumbsUp"
+    >
+      <i class="iconoir-thumbs-up"></i>
+    </button>
 
-        <button
-          v-if="
-            !message.human_sentiment || message.human_sentiment === 'DISLIKE'
-          "
-          ref="thumbDownButton"
-          class="assistant__feedback-button assistant__feedback-button--thumb-down"
-          :class="{
-            'assistant__feedback-button--active':
-              message.human_sentiment === 'DISLIKE',
-          }"
-          @click="handleThumbsDown"
-        >
-          <i class="iconoir-thumbs-down"></i>
-        </button>
-
-        <button
-          class="assistant__feedback-button assistant__feedback-button--copy"
-          @click="handleCopy"
-        >
-          <i class="iconoir-copy"></i>
-        </button>
-      </template>
-    </div>
+    <button
+      v-if="!message.human_sentiment || message.human_sentiment === 'DISLIKE'"
+      ref="thumbDownButton"
+      v-tooltip="$t('assistantMessageActions.notHelpful')"
+      type="button"
+      class="chat-message__action assistant__feedback-button assistant__feedback-button--thumb-down"
+      :aria-label="$t('assistantMessageActions.notHelpful')"
+      :aria-pressed="message.human_sentiment === 'DISLIKE'"
+      :class="{
+        'assistant__feedback-button--active':
+          message.human_sentiment === 'DISLIKE',
+      }"
+      @click="handleThumbsDown"
+    >
+      <i class="iconoir-thumbs-down"></i>
+    </button>
 
     <!-- Additional user feedback context for the thumb down button -->
     <Context
       ref="feedbackContext"
       class="assistant__feedback-context"
-      @shown="$nextTick($refs.feedbackTextarea.focus)"
+      @shown="focusFeedback"
     >
       <FormGroup
         class="assistant__feedback-context-content"
@@ -111,6 +106,12 @@ export default {
     ...mapActions({
       _submitFeedback: 'assistant/submitFeedback',
     }),
+    async focusFeedback() {
+      await this.$nextTick()
+      if (this.$refs.feedbackContext?.isOpen()) {
+        this.$refs.feedbackTextarea?.focus()
+      }
+    },
     async submitFeedback(payload) {
       try {
         return await this._submitFeedback(payload)
@@ -174,23 +175,6 @@ export default {
         feedback: this.feedbackText.trim(),
       })
       this.$refs.feedbackContext.hide()
-    },
-
-    handleCopy() {
-      const content = this.message.content || ''
-      navigator.clipboard
-        .writeText(content)
-        .then(() => {
-          this.$store.dispatch('toast/info', {
-            title: this.$t('assistantMessageActions.copiedToClipboard'),
-            message: this.$t('assistantMessageActions.copiedContentToast'),
-          })
-        })
-        .catch(() => {
-          this.$store.dispatch('toast/error', {
-            title: this.$t('assistantMessageActions.copyFailed'),
-          })
-        })
     },
   },
 }
