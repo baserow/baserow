@@ -500,11 +500,12 @@ class PageHandler:
         collect(values)
         if not page_ids:
             return
-        # The editor sends links to a trashed page back.
+        # The editor sends links to a trashed page back. The shared page isn't a
+        # page a link can open.
         found = set(
-            Page.objects_and_trash.filter(builder=builder, id__in=page_ids).values_list(
-                "id", flat=True
-            )
+            Page.objects_and_trash.filter(
+                builder=builder, id__in=page_ids, shared=False
+            ).values_list("id", flat=True)
         )
         missing = page_ids - found
         if missing:

@@ -775,3 +775,22 @@ def test_element_refuses_to_turn_on_a_link_to_another_builders_page(data_fixture
 
     with pytest.raises(ValidationError):
         ElementService().update_element(user, link, navigation_type="page")
+
+
+@pytest.mark.django_db
+def test_element_refuses_a_link_to_the_shared_page(data_fixture):
+    from rest_framework.exceptions import ValidationError
+
+    from baserow.contrib.builder.elements.service import ElementService
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+
+    with pytest.raises(ValidationError):
+        ElementService().create_element(
+            user,
+            element_type_registry.get("link"),
+            page,
+            navigation_type="page",
+            navigate_to_page_id=page.builder.shared_page.id,
+        )
