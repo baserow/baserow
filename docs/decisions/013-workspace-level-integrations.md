@@ -18,7 +18,7 @@ Published apps and workflows will receive independent copies; duplicates and sna
 
 ## Context
 
-Integrations hold the credentials and identity that services in Builder apps and Automations use, such as an SMTP connection or a Local Baserow identity. Every integration belongs to exactly one application today, so an editor who uses the same connection in several apps sets it up and maintains each copy independently.
+Integrations hold the credentials and identity that services in Builder apps, Automations and Dashboards use, such as an SMTP connection or a Local Baserow identity. Every integration belongs to exactly one application today, so an editor who uses the same connection in several apps sets it up and maintains each copy independently.
 
 Workspace admins need to configure such an integration once and make it available to every app in the workspace, either by creating it at workspace level or by promoting an integration that already exists in an app, which makes that integration available to the whole workspace while the original app keeps using it. App builders need to pick it when configuring a service, the same way they pick an app-level one. Credential changes should reach every editor app without being re-entered.
 
