@@ -216,6 +216,11 @@ def test_update_team_subjects(data_fixture, enterprise_data_fixture):
     )
     assert team.subject_count == 2
 
+    # Rename only, the members stay
+    team = TeamHandler().update_team(user, team, "Marketing")
+    assert team.name == "Marketing"
+    assert team.subject_count == 2
+
     # Remove everyone
     team = TeamHandler().update_team(user, team, "Sales", [])
     assert team.subject_count == 0
