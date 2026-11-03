@@ -12,6 +12,7 @@
       :expand-column-key="rowExpansion.columnKey"
       @row-context="onRowContext"
       @edit-role-context="onEditRoleContext"
+      @manage-members="showMembersModal"
     >
       <template #row-expansion-toggle="{ row }">
         {{ rowExpansion.getToggleLabel(row) }}
@@ -67,6 +68,7 @@
           :workspace="workspace"
           :team="focusedTeam"
           @edit="handleEditTeam"
+          @manage-members="showMembersModal"
           @deleted="slotProps.deleteRow"
         ></EditTeamContext>
       </template>
@@ -82,12 +84,21 @@
       :workspace="workspace"
       :team="focusedTeam"
       @updated="teamUpdated"
+      @manage-members="showMembersModal"
     ></UpdateTeamModal>
+    <InviteModal
+      v-if="membersTeam"
+      ref="membersModal"
+      :workspace="workspace"
+      :target="membersTarget"
+    ></InviteModal>
   </div>
 </template>
 
 <script>
 import { getManagementTableLayout } from '@baserow/modules/core/utils/managementTable'
+import InviteModal from '@baserow/modules/core/components/invitation/InviteModal'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 import CreateTeamModal from '@baserow_enterprise/components/teams/CreateTeamModal'
 import UpdateTeamModal from '@baserow_enterprise/components/teams/UpdateTeamModal'
 import TeamRoleField from '@baserow_enterprise/components/crudTable/fields/TeamRoleField'
@@ -108,6 +119,7 @@ export default {
     EditTeamContext,
     CreateTeamModal,
     UpdateTeamModal,
+    InviteModal,
   },
   props: {
     workspace: {
@@ -119,9 +131,20 @@ export default {
     return {
       focusedTeam: {},
       editRoleTeam: {},
+      membersTeam: null,
     }
   },
   computed: {
+    membersTarget() {
+      return { type: 'team', team: this.membersTeam }
+    },
+    canListTeamMembers() {
+      return this.$hasPermission(
+        'enterprise.teams.list_subjects',
+        this.workspace,
+        this.workspace.id
+      )
+    },
     tableLayout() {
       const layout = getManagementTableLayout(this.columns, 'default_role')
       layout.columnWidths.name = '40%'
@@ -152,6 +175,7 @@ export default {
     },
     canViewEditTeamContext() {
       return (
+        this.canListTeamMembers ||
         this.$hasPermission(
           'enterprise.teams.team.update',
           this.workspace,
@@ -200,11 +224,15 @@ export default {
           'subject_sample',
           this.$t('teamsTable.subjectsColumn'),
           SubjectSampleField,
-          true
+          true,
+          false,
+          false,
+          { canManageMembers: this.canListTeamMembers }
         ),
       ]
 
-      // If the user can update or delete teams, then they get an extra column for the context.
+      // If the user can manage members, update or delete teams, then they get an
+      // extra column for the context.
       const canUpdate = this.$hasPermission(
         'enterprise.teams.team.update',
         this.workspace,
@@ -215,7 +243,7 @@ export default {
         this.workspace,
         this.workspace.id
       )
-      if (canUpdate || canDelete) {
+      if (this.canListTeamMembers || canUpdate || canDelete) {
         columns.push(
           new CrudTableColumn(null, null, MoreField, false, false, true)
         )
@@ -224,14 +252,40 @@ export default {
       return columns
     },
   },
+  mounted() {
+    this.$bus.$on('team-members-updated', this.refreshTeam)
+  },
+  beforeUnmount() {
+    this.$bus.$off('team-members-updated', this.refreshTeam)
+  },
   methods: {
+    async showMembersModal(team) {
+      this.membersTeam = team
+      await this.$nextTick()
+      this.$refs.membersModal.show()
+    },
+    /**
+     * Fetches a team again after its members changed, so that its member count
+     * and sample stay correct.
+     */
+    async refreshTeam(teamId) {
+      if (!this.$refs.crudTable.rows.some(({ id }) => id === teamId)) {
+        return
+      }
+      try {
+        const { data } = await TeamService(this.$client).get(teamId)
+        this.$refs.crudTable.updateRow(data)
+      } catch (error) {
+        notifyIf(error, 'team')
+      }
+    },
     handleEditTeam(team) {
       this.focusedTeam = team
       this.$refs.updateModal.show()
     },
     onRowContext({ row, event, target }) {
       if (!this.canViewEditTeamContext) {
-        // The user needs to have update or delete team
+        // The user needs to have list members, update or delete team
         // permissions to launch the row context.
         return
       }
@@ -256,6 +310,7 @@ export default {
     },
     teamCreated(data) {
       this.$refs.crudTable.rows.push(data)
+      this.showMembersModal(data)
     },
     teamUpdated(data) {
       this.$refs.crudTable.updateRow(data)

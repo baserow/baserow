@@ -195,7 +195,11 @@ class TeamsView(APIView, SearchableViewMixin, SortableViewMixin):
             default_role = RoleAssignmentHandler().get_role_by_uid(default_role)
 
         team = action_type_registry.get_by_type(CreateTeamActionType).do(
-            request.user, data["name"], workspace, data["subjects"], default_role
+            request.user,
+            data["name"],
+            workspace,
+            data.get("subjects", []),
+            default_role,
         )
         return Response(TeamResponseSerializer(team).data)
 
@@ -224,7 +228,10 @@ class TeamView(APIView):
     def get(self, request, team_id: int):
         """Responds with a single team."""
 
-        team = TeamHandler().get_team(request.user, team_id)
+        handler = TeamHandler()
+        team = handler.get_team(
+            request.user, team_id, base_queryset=handler.get_teams_sample_queryset()
+        )
         CoreHandler().check_permissions(
             request.user,
             ReadTeamOperationType.type,
@@ -287,7 +294,7 @@ class TeamView(APIView):
             default_role = RoleAssignmentHandler().get_role_by_uid(default_role)
 
         team = action_type_registry.get_by_type(UpdateTeamActionType).do(
-            request.user, team, data["name"], data["subjects"], default_role
+            request.user, team, data["name"], data.get("subjects"), default_role
         )
 
         return Response(TeamResponseSerializer(team).data)

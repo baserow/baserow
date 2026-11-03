@@ -22,7 +22,9 @@ def test_read_team(api_client, data_fixture, enterprise_data_fixture):
         email="test@test.nl", password="password", first_name="Test1"
     )
     workspace = data_fixture.create_workspace(user=user)
-    sales = enterprise_data_fixture.create_team(name="Sales", workspace=workspace)
+    sales = enterprise_data_fixture.create_team(
+        name="Sales", workspace=workspace, members=[user]
+    )
 
     response = api_client.get(
         reverse(
@@ -35,6 +37,10 @@ def test_read_team(api_client, data_fixture, enterprise_data_fixture):
     response_json = response.json()
     assert response_json["id"] == sales.id
     assert response_json["name"] == sales.name
+    assert response_json["subject_count"] == 1
+    assert [subject["subject_id"] for subject in response_json["subject_sample"]] == [
+        user.id
+    ]
 
 
 @pytest.mark.django_db
@@ -116,6 +122,56 @@ def test_put_team(api_client, data_fixture, enterprise_data_fixture):
     response_json = response.json()
     assert response_json["id"] == sales.id
     assert response_json["name"] == "Engineering"
+
+
+@pytest.mark.django_db
+def test_put_team_without_subjects_keeps_members(
+    api_client, data_fixture, enterprise_data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    member = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user, members=[member])
+    sales = enterprise_data_fixture.create_team(
+        name="Sales", workspace=workspace, members=[user, member]
+    )
+
+    response = api_client.put(
+        reverse("api:enterprise:teams:item", kwargs={"team_id": sales.id}),
+        {"name": "Engineering", "default_role": "EDITOR"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["name"] == "Engineering"
+    assert response_json["default_role"] == "EDITOR"
+    assert response_json["subject_count"] == 2
+    assert set(sales.subjects.values_list("subject_id", flat=True)) == {
+        user.id,
+        member.id,
+    }
+
+
+@pytest.mark.django_db
+def test_put_team_with_empty_subjects_removes_members(
+    api_client, data_fixture, enterprise_data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    member = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user, members=[member])
+    sales = enterprise_data_fixture.create_team(
+        name="Sales", workspace=workspace, members=[user, member]
+    )
+
+    response = api_client.put(
+        reverse("api:enterprise:teams:item", kwargs={"team_id": sales.id}),
+        {"name": "Sales", "subjects": []},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["subject_count"] == 0
+    assert not sales.subjects.exists()
 
 
 @pytest.mark.django_db

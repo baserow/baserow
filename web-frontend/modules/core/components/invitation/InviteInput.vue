@@ -51,6 +51,7 @@
         </a>
       </div>
       <WorkspaceRoleSelector
+        v-if="roles.length > 0"
         v-model="roleUid"
         class="invite-input__role"
         :workspace="workspace"
@@ -228,6 +229,9 @@ export function extractEmails(text) {
  * marked as errors, but block the whole batch until corrected or removed.
  * The parent decides what is disabled and
  * why, so the input needs to know nothing about members, agents or invitations.
+ *
+ * Without `roles` there is no role to choose, for picks that don't come with
+ * one, like the members of a team, and `add` is emitted with a null role uid.
  *
  * `tabs` are `{ value, label }` matching the option types, and an "All" tab is
  * added in front. With tabs the list opens on focus and shows every option,

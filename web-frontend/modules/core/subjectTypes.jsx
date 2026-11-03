@@ -50,6 +50,14 @@ export class SubjectType extends Registerable {
     return true
   }
 
+  /**
+   * Whether a subject of this type can be a member of a team. It must match the
+   * `SUPPORTED_SUBJECT_TYPES` of the enterprise team handler in the backend.
+   */
+  get canJoinTeam() {
+    return false
+  }
+
   getTypeDisplayName() {
     return this.type
   }
@@ -158,6 +166,10 @@ export class UserSubjectType extends SubjectType {
     return 'iconoir-user'
   }
 
+  get canJoinTeam() {
+    return true
+  }
+
   getId(subject) {
     return subject.user_id ?? super.getId(subject)
   }
@@ -240,6 +252,10 @@ export class AgentSubjectType extends SubjectType {
 
   get iconClass() {
     return 'iconoir-lock'
+  }
+
+  get canJoinTeam() {
+    return true
   }
 
   getTypeDisplayName() {

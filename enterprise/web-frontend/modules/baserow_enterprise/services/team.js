@@ -8,6 +8,9 @@ export default (client) => {
       false
     ),
     {
+      get(id) {
+        return client.get(`/teams/${id}/`)
+      },
       fetchAll(workspaceId) {
         return client.get(`/teams/workspace/${workspaceId}/`)
       },
@@ -20,8 +23,7 @@ export default (client) => {
       delete(id) {
         return client.delete(`/teams/${id}/`)
       },
-      createSubject(teamId, baseUrl, values) {
-        values.base_url = baseUrl
+      createSubject(teamId, values) {
         return client.post(`/teams/${teamId}/subjects/`, values)
       },
       fetchAllSubjects(teamId) {

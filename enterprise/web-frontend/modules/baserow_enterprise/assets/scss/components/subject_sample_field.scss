@@ -7,3 +7,12 @@
     background-color: $color-neutral-200;
   }
 }
+
+.subject-sample-field--clickable {
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+    outline-offset: 2px;
+  }
+}
