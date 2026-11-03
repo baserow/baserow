@@ -1530,7 +1530,7 @@ def setup_user_source(
     WHEN to use: User wants login, authentication, role-based access, or user accounts in their app.
     WHAT it does: Creates a users table (or uses an existing one) and configures a Local Baserow user source with password authentication.
     RETURNS: User source ID, table ID, available roles.
-    DO NOT USE when: A user source already exists for this application.
+    REUSE: If the application already has a Local Baserow user source on that table, it is reused and nothing new is created.
     HOW: If user mentions a specific table, use table_id. Otherwise use database_id to create a new users table.
     """
 

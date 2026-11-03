@@ -440,3 +440,8 @@ def test_redo_of_a_message_that_created_an_automation_restores_it(data_fixture):
     assert [action.error for action in redone] == [None, None]
     assert Application.objects.filter(id__in=ids).count() == 2
     assert Automation.objects.filter(id=created["id"]).exists()
+
+
+@pytest.mark.parametrize("tool", [create_database, create_builder])
+def test_tools_that_can_start_an_app_tell_kuma_not_to_invent_its_records(tool):
+    assert "NOT FOR APP RECORDS" in tool.__doc__
