@@ -82,7 +82,6 @@ def _page(
                 },
                 "action_type": entry.action_type,
                 "description": str(entry.description),
-                "ip_address": entry.ip_address,
             }
             for entry in found[:size]
         ],

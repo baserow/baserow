@@ -92,7 +92,6 @@ def test_list_audit_log_returns_workspace_entries_newest_first(admin_ctx):
         },
         "action_type": "create_table",
         "description": newer.description,
-        "ip_address": "127.0.0.1",
     }
 
 
