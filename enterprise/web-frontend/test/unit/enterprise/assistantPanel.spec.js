@@ -47,6 +47,8 @@ describe('AssistantPanel', () => {
 
   afterEach(async () => {
     await testApp.afterEach()
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
   })
 
   async function mountWithRunningChat() {
@@ -129,5 +131,103 @@ describe('AssistantPanel', () => {
       'false'
     )
     expect(wrapper.find('.chat-message__actions').exists()).toBe(true)
+  })
+
+  test('ignores invisible thinking growth and follows answer text until the user scrolls up', async () => {
+    let xhr
+    class FakeXHR {
+      constructor() {
+        xhr = this
+        this.responseText = ''
+        this.status = 200
+      }
+      open() {}
+      setRequestHeader() {}
+      send() {}
+      receive(record) {
+        this.responseText += JSON.stringify(record) + '\n\n'
+        this.onprogress()
+      }
+    }
+    vi.stubGlobal('XMLHttpRequest', FakeXHR)
+    const actualService = await vi.importActual(
+      '@baserow_enterprise/services/assistant'
+    )
+    assistantService.mockImplementation(actualService.default)
+    testApp.mock
+      .onGet('/assistant/chat/?workspace_id=1')
+      .reply(200, { results: [] })
+    const wrapper = await testApp.mount(AssistantPanel, {
+      props: { workspace },
+    })
+    const sending = store.dispatch('assistant/sendMessage', {
+      message: 'A detailed answer, please',
+      workspace,
+    })
+    await flushPromises()
+
+    const container = wrapper.get('.assistant__content').element
+    let height = 1000
+    let top = 600
+    const writes = []
+    vi.spyOn(container, 'scrollHeight', 'get').mockImplementation(() => height)
+    vi.spyOn(container, 'clientHeight', 'get').mockReturnValue(400)
+    vi.spyOn(container, 'scrollTop', 'get').mockImplementation(() => top)
+    vi.spyOn(container, 'scrollTop', 'set').mockImplementation((value) => {
+      writes.push(value)
+      top = Math.min(value, height - 400)
+    })
+    const receive = async (record) => {
+      xhr.receive(record)
+      await flushPromises()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+    const content = Array.from(
+      { length: 40 },
+      (_, index) => `Paragraph ${index}: Detailed text.`
+    ).join('\n\n')
+    await receive({ type: 'ai/reasoning', content })
+    expect(wrapper.find('.assistant__reasoning--collapsed').exists()).toBe(true)
+    writes.length = 0
+
+    // The preview has reached its cap; more thinking does not change its height.
+    await receive({
+      type: 'ai/reasoning',
+      content: content + '\n\nMore thinking',
+    })
+    expect(writes).toEqual([])
+    height = 1400
+    await receive({ type: 'ai/message', content, sources: [] })
+    expect(store.getters['assistant/currentChat'].running).toBe(true)
+    expect(wrapper.find('.assistant__reasoning--collapsed').exists()).toBe(
+      false
+    )
+    expect(wrapper.find('.assistant__reasoning-toggle').exists()).toBe(false)
+    expect(wrapper.findAll('.chat-markdown p')).toHaveLength(40)
+    expect(writes).toEqual([1400])
+
+    container.scrollTop = 200
+    await wrapper.get('.assistant__content').trigger('scroll')
+    writes.length = 0
+    height = 1600
+    const final = content + '\n\nThe final paragraph.'
+    await receive({ type: 'ai/message', content: final, sources: [] })
+    await receive({
+      type: 'ai/message',
+      id: 7,
+      content: final,
+      sources: [],
+      can_submit_feedback: true,
+    })
+    xhr.onload()
+    await sending
+    await flushPromises()
+
+    expect(writes).toEqual([])
+    expect(top).toBe(200)
+    expect(wrapper.findAll('.chat-markdown p')).toHaveLength(41)
+    expect(wrapper.find('.assistant__reasoning-toggle').exists()).toBe(false)
+    expect(wrapper.find('button[aria-label="action.copy"]').exists()).toBe(true)
+    expect(store.getters['assistant/currentChat'].running).toBe(false)
   })
 })

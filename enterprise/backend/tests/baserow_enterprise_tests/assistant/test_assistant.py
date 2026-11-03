@@ -2,6 +2,7 @@ import asyncio
 import json
 from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -17,14 +18,23 @@ from pydantic_ai.messages import (
     ModelMessagesTypeAdapter,
     ModelRequest,
     ModelResponse,
+    PartDeltaEvent,
     PartStartEvent,
     RetryPromptPart,
     TextPart,
+    TextPartDelta,
+    ThinkingPart,
+    ThinkingPartDelta,
     ToolCallPart,
     ToolReturnPart,
     UserPromptPart,
 )
-from pydantic_ai.models.function import AgentInfo, DeltaToolCall, FunctionModel
+from pydantic_ai.models.function import (
+    AgentInfo,
+    DeltaThinkingPart,
+    DeltaToolCall,
+    FunctionModel,
+)
 from pydantic_ai.run import AgentRunResultEvent
 from pydantic_ai.toolsets import FunctionToolset
 
@@ -1643,8 +1653,130 @@ def test_stream_agent_run_drives_the_real_pydantic_ai_stream(enterprise_data_fix
     assert run_result.all_messages_json()
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("include_thinking", [False, True])
+async def test_answer_candidates_stream_separately_from_native_thinking(
+    include_thinking,
+):
+    assistant = Assistant.__new__(Assistant)
+    assistant._deps = SimpleNamespace(sources=[])
+    queue = asyncio.Queue()
+    result = MagicMock(output="Final answer")
+
+    async def events():
+        if include_thinking:
+            yield PartStartEvent(index=0, part=ThinkingPart(content="Plan "))
+            yield PartDeltaEvent(
+                index=0, delta=ThinkingPartDelta(content_delta="first")
+            )
+        text_index = int(include_thinking)
+        yield PartStartEvent(index=text_index, part=TextPart(content="Final "))
+        yield PartDeltaEvent(
+            index=text_index, delta=TextPartDelta(content_delta="answer")
+        )
+        # Candidates must reach the UI before the accepted result arrives.
+        assert queue.qsize() == (4 if include_thinking else 2)
+        yield AgentRunResultEvent(result=result)
+
+    assert await assistant._consume_agent_events(events(), queue) == (
+        "Final answer",
+        result,
+    )
+    messages = [queue.get_nowait().message for _ in range(queue.qsize())]
+    expected = [("ai/message", "Final "), ("ai/message", "Final answer")]
+    if include_thinking:
+        expected = [
+            ("ai/reasoning", "Plan "),
+            ("ai/reasoning", "Plan first"),
+            *expected,
+        ]
+    assert [(message.type, message.content) for message in messages] == expected
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "next_part",
+    [
+        pytest.param(ThinkingPart(content=""), id="empty-thinking"),
+        pytest.param(
+            ToolCallPart(tool_name="list_builders", args={}, tool_call_id="next"),
+            id="tool-call",
+        ),
+    ],
+)
+async def test_new_model_responses_clear_the_previous_answer_candidate(next_part):
+    assistant = Assistant.__new__(Assistant)
+    assistant._deps = SimpleNamespace(sources=[])
+    queue = asyncio.Queue()
+
+    async def events():
+        yield PartStartEvent(index=0, part=TextPart(content="Rejected candidate"))
+        # A validator retry can begin without any text to replace the old answer.
+        yield PartStartEvent(index=0, part=next_part)
+
+    assert await assistant._consume_agent_events(events(), queue) is None
+    messages = [queue.get_nowait().message for _ in range(queue.qsize())]
+    assert [(message.type, message.content) for message in messages] == [
+        ("ai/message", "Rejected candidate"),
+        ("ai/reasoning", ""),
+    ]
+
+
 @pytest.mark.django_db
-def test_rejected_answer_is_cleared_from_the_reasoning_bubble(enterprise_data_fixture):
+def test_tool_prefaces_become_reasoning_without_entering_the_final_answer(
+    enterprise_data_fixture,
+):
+    user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    chat = AssistantChat.objects.create(user=user, workspace=workspace, title="Chat")
+    assistant = Assistant(chat)
+    queue = asyncio.Queue()
+    preface = "I will inspect the builders."
+    answer = "Here are the builders."
+
+    async def stream(messages, info):
+        if not any(
+            isinstance(part, ToolReturnPart)
+            for message in messages
+            if isinstance(message, ModelRequest)
+            for part in message.parts
+        ):
+            yield preface
+            # Tool events in a batch all arrive before any of their results. The
+            # preface is reclassified once, including when the first thought is empty.
+            yield {
+                index: DeltaToolCall(
+                    name="list_builders",
+                    json_args=json.dumps({"builder_types": None, "thought": thought}),
+                    tool_call_id=f"call-{index}",
+                )
+                for index, thought in enumerate(["", "Check available builders"])
+            }
+        else:
+            yield "Here are "
+            yield "the builders."
+
+    with patch.object(assistant, "_model", FunctionModel(stream_function=stream)):
+        result = async_to_sync(assistant._stream_agent_run)(
+            "list builders", None, queue
+        )
+
+    assert result[0] == answer
+    messages = [queue.get_nowait().message for _ in range(queue.qsize())]
+    assert (messages[0].type, messages[0].content) == ("ai/message", preface)
+    reasoning = [m.content for m in messages if isinstance(m, AiReasoningChunk)]
+    assert preface in reasoning
+    assert any("Check available builders" in content for content in reasoning)
+    assert all(content.count(preface) <= 1 for content in reasoning)
+    assert not any(answer in content for content in reasoning)
+    assert isinstance(messages[-1], AiMessageChunk)
+    assert messages[-1].content == answer
+
+
+@pytest.mark.django_db
+def test_rejected_answer_candidate_is_cleared_before_retry_thinking(
+    enterprise_data_fixture,
+):
     user = enterprise_data_fixture.create_user()
     workspace = enterprise_data_fixture.create_workspace(user=user)
     chat = AssistantChat.objects.create(user=user, workspace=workspace, title="Chat")
@@ -1659,7 +1791,11 @@ def test_rejected_answer_is_cleared_from_the_reasoning_bubble(enterprise_data_fi
             if isinstance(message, ModelRequest)
             for part in message.parts
         )
-        yield "Which table should I add the rows to?" if retried else rejected
+        if retried:
+            yield {0: DeltaThinkingPart(content="Try again")}
+            yield "Which table should I add the rows to?"
+        else:
+            yield rejected
 
     async def run():
         return await assistant._stream_agent_run("add rows", None, queue)
@@ -1667,13 +1803,13 @@ def test_rejected_answer_is_cleared_from_the_reasoning_bubble(enterprise_data_fi
     with patch.object(assistant, "_model", FunctionModel(stream_function=stream)):
         async_to_sync(run)()
 
-    reasoning = []
-    while not queue.empty():
-        message = queue.get_nowait().message
-        if isinstance(message, AiReasoningChunk):
-            reasoning.append(message.content)
-    assert "" in reasoning
-    assert not any(rejected in chunk and "Which table" in chunk for chunk in reasoning)
+    messages = [queue.get_nowait().message for _ in range(queue.qsize())]
+    assert [(message.type, message.content) for message in messages] == [
+        ("ai/message", rejected),
+        ("ai/reasoning", ""),
+        ("ai/reasoning", "Try again"),
+        ("ai/message", "Which table should I add the rows to?"),
+    ]
 
 
 @pytest.mark.django_db(transaction=True)

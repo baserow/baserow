@@ -643,9 +643,16 @@ class Assistant:
     async def _consume_agent_events(
         self, events: Any, queue: asyncio.Queue[QueueEvent]
     ) -> tuple[str, Any] | None:
-        """Forward reasoning events and return the completed run."""
+        """Stream thinking separately from tentative answer text.
+
+        Text can precede a tool call or fail output validation. Reclassify it when
+        tools start and clear it before the next model response; only the accepted
+        ``AgentRunResultEvent`` is returned for persistence.
+        """
 
         reasoning = ""
+        text = ""
+        response_started = False
         async for event in events:
             if isinstance(event, AgentRunResultEvent):
                 answer = event.result.output
@@ -654,21 +661,48 @@ class Assistant:
                 return answer, event.result
 
             if isinstance(event, FunctionToolCallEvent):
-                if thought := _extract_tool_thought(event):
-                    reasoning = await self._append_reasoning(queue, reasoning, thought)
+                # The response's text was a preface, not its answer. Move it once,
+                # even when the tool has no thought or several calls arrive together.
+                tool_reasoning = "\n\n".join(
+                    part for part in (text, _extract_tool_thought(event)) if part
+                )
+                text = ""
+                if tool_reasoning:
+                    if reasoning:
+                        tool_reasoning = f"\n\n{tool_reasoning}"
+                    reasoning = await self._append_reasoning(
+                        queue, reasoning, tool_reasoning
+                    )
                 continue
 
             if isinstance(event, FunctionToolResultEvent):
                 reasoning = ""
                 continue
 
-            # A rejected text answer emits no event, so the next response resets it.
-            if isinstance(event, PartStartEvent) and event.index == 0 and reasoning:
+            # Rejected text emits no special event. The next response must clear
+            # it even when its first part is an empty thought or a tool call.
+            if isinstance(event, PartStartEvent) and event.index == 0:
                 reasoning = ""
-                await self._enqueue_reasoning(queue, "")
+                text = ""
+                if response_started:
+                    await self._enqueue_reasoning(queue, "")
+                response_started = True
 
-            if content := self._get_content_delta(event):
-                reasoning = await self._append_reasoning(queue, reasoning, content)
+            if delta := self._get_content_delta(event):
+                content, is_thinking = delta
+                if is_thinking:
+                    reasoning = await self._append_reasoning(queue, reasoning, content)
+                else:
+                    text += content
+                    if visible_text := _strip_think_tags(text):
+                        await queue.put(
+                            QueueEvent(
+                                kind=QueueEventKind.STREAM,
+                                message=AiMessageChunk(
+                                    content=visible_text, sources=self._deps.sources
+                                ),
+                            )
+                        )
 
         return None
 
@@ -686,17 +720,19 @@ class Assistant:
         return reasoning
 
     @staticmethod
-    def _get_content_delta(event: Any) -> str | None:
-        """Extract text or thinking content from a stream event delta."""
+    def _get_content_delta(event: Any) -> tuple[str, bool] | None:
+        """Extract content and whether it belongs to native thinking."""
 
         if isinstance(event, PartStartEvent) and isinstance(
             event.part, (TextPart, ThinkingPart)
         ):
-            return event.part.content or None
+            if content := event.part.content:
+                return content, isinstance(event.part, ThinkingPart)
         if isinstance(event, PartDeltaEvent) and isinstance(
             event.delta, (TextPartDelta, ThinkingPartDelta)
         ):
-            return event.delta.content_delta or None
+            if content := event.delta.content_delta:
+                return content, isinstance(event.delta, ThinkingPartDelta)
         return None
 
     @staticmethod
