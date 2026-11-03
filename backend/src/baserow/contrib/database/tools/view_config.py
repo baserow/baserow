@@ -234,7 +234,8 @@ def set_field_visibility(
             options[item.field_id] = {"hidden": item.hidden}
 
     if options:
-        UpdateViewFieldOptionsActionType.do(ctx.user, view.specific, options)
+        with transaction.atomic():
+            UpdateViewFieldOptionsActionType.do(ctx.user, view.specific, options)
 
     return {"updated_fields": list(options), "errors": errors}
 

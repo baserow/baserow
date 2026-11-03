@@ -287,3 +287,18 @@ def test_row_comments_over_mcp_tell_the_client_about_the_licence(premium_data_fi
         "The related user does not have access to these features."
     )
     assert RowComment.objects.count() == 0
+
+
+@pytest.mark.django_db(transaction=True)
+def test_row_comment_tools_work_outside_a_transaction(premium_data_fixture):
+    # The MCP server and Kuma call the tools outside a transaction, unlike a test's
+    # database fixture.
+    ctx, table, rows = _setup(premium_data_fixture, has_active_premium_license=True)
+
+    created = create_row_comments(
+        ctx, table.id, [RowCommentCreate(row_id=rows[0].id, text="Hi")]
+    )
+    listed = list_row_comments(ctx, table.id, rows[0].id)
+
+    assert created["errors"] == []
+    assert listed["comments"][0]["text"] == "Hi"
