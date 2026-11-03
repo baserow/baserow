@@ -1858,5 +1858,8 @@
     "workspaceRunning": "Looking at your workspace",
     "workspaceDone": "Looked at your workspace",
     "workspace": "Workspace activity"
+  },
+  "itemPickerModal": {
+    "noResults": "No results found"
   }
 }
