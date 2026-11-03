@@ -511,7 +511,7 @@ def test_data_source_refuses_a_view_of_another_table(two_tables):
     t = two_tables
     view_id = t["other_view"].id
 
-    with pytest.raises(ToolInputError, match=f"View with ID {view_id}"):
+    with pytest.raises(DRFValidationError, match=f"view with ID {view_id} "):
         helpers.create_data_source(
             t["user"],
             t["page"],
@@ -537,7 +537,7 @@ def test_data_source_refuses_a_view_of_another_table(two_tables):
         ),
         t["integration"],
     )
-    with pytest.raises(ToolInputError, match=f"View with ID {view_id}"):
+    with pytest.raises(DRFValidationError, match=f"view with ID {view_id} "):
         helpers.update_data_source(
             t["user"],
             t["page"],

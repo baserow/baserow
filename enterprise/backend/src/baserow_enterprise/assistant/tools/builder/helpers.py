@@ -459,26 +459,6 @@ def update_page(
 # ---------------------------------------------------------------------------
 
 
-def check_view_on_table(service_kwargs: dict, table: Any) -> None:
-    """
-    Check that the view in ``service_kwargs``, if any, is a view of ``table``, and
-    pass it on as ``view_id`` so the service type checks it again.
-
-    :raises ToolInputError: When the view belongs to another table.
-    """
-
-    view = service_kwargs.pop("view", None)
-    if view is None:
-        return
-    if table is None or view.table_id != table.id:
-        raise ToolInputError(
-            f"View with ID {view.id} is not a view of the data source's table. "
-            "Use list_views on that table to find valid view IDs. No changes were "
-            "applied."
-        )
-    service_kwargs["view_id"] = view.id
-
-
 def create_data_source(
     user: AbstractUser,
     page: Page,
@@ -494,7 +474,6 @@ def create_data_source(
     service_type = service_type_registry.get(ds_create.get_service_type())
     service_kwargs = ds_create.to_service_kwargs(user, page.builder.workspace)
     service_kwargs["integration"] = integration
-    check_view_on_table(service_kwargs, service_kwargs["table"])
     sortings = ds_create.get_sortings()
     with transaction.atomic():
         data_source = DataSourceService().create_data_source(
@@ -565,11 +544,6 @@ def update_data_source(
         service_type_registry.get_by_model(ds.service.specific) if ds.service else None
     )
     kwargs = ds_update.to_update_kwargs(user, workspace)
-    if "view" in kwargs:
-        service = ds.service.specific if ds.service else None
-        check_view_on_table(
-            kwargs, kwargs.get("table", getattr(service, "table", None))
-        )
     if kwargs:
         ds = (
             DataSourceService()

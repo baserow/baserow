@@ -196,7 +196,8 @@ class DataSourceCreate(BaseModel):
         if self.view_id is not None:
             from baserow_enterprise.assistant.tools.database.helpers import get_view
 
-            kwargs["view"] = get_view(user, workspace, self.view_id)
+            # The service type checks the view belongs to the table.
+            kwargs["view_id"] = get_view(user, workspace, self.view_id).id
 
         return kwargs
 
@@ -341,7 +342,8 @@ class DataSourceUpdate(BaseModel):
         if self.view_id is not None:
             from baserow_enterprise.assistant.tools.database.helpers import get_view
 
-            kwargs["view"] = get_view(user, workspace, self.view_id)
+            # The service type checks the view belongs to the table.
+            kwargs["view_id"] = get_view(user, workspace, self.view_id).id
 
         return kwargs
 
