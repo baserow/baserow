@@ -4,6 +4,8 @@
     :title="$t('addElementModal.title')"
     :search-placeholder="$t('addElementModal.searchPlaceholder')"
     :groups="elementGroups"
+    @show="isOpen = true"
+    @hidden="isOpen = false"
   >
     <template #items="{ items }">
       <AddElementCard
@@ -47,6 +49,7 @@ export default {
   emits: ['element-added'],
   data() {
     return {
+      isOpen: false,
       placeInContainer: null,
       beforeId: null,
       afterId: null,
@@ -57,6 +60,10 @@ export default {
   },
   computed: {
     elementGroups() {
+      if (!this.isOpen) {
+        return []
+      }
+
       const elementTypes = Object.values(this.$registry.getAll('element'))
       return ['baseElement', 'layoutElement', 'formElement'].map((id) => {
         const items = elementTypes.filter(

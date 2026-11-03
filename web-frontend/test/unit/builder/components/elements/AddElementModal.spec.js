@@ -36,7 +36,11 @@ afterEach(async () => {
   await testApp.afterEach()
 })
 
-async function openPicker({ placement = {}, type = elementType() } = {}) {
+async function openPicker({
+  placement = {},
+  type = elementType(),
+  open = true,
+} = {}) {
   const heading = { id: 100, page_id: 20, type: 'heading' }
   const container = { id: 200, page_id: 20, type: 'column' }
   const child = { id: 201, page_id: 20, type: 'heading' }
@@ -70,12 +74,45 @@ async function openPicker({ placement = {}, type = elementType() } = {}) {
       provide: { builder, workspace: { id: 1 }, currentPage: page },
     },
   })
-  await wrapper.get('.open-picker').trigger('click')
-  await flushPromises()
+  if (open) {
+    await wrapper.get('.open-picker').trigger('click')
+    await flushPromises()
+  }
   return { wrapper, dispatch, builder, page, sharedPage }
 }
 
 describe('AddElementModal', () => {
+  test('checks element availability only while the picker is open', async () => {
+    const isDisallowedReason = vi.fn(() => '')
+    const { wrapper } = await openPicker({
+      type: elementType({ isDisallowedReason }),
+      open: false,
+    })
+
+    expect(isDisallowedReason).not.toHaveBeenCalled()
+    expect(testApp.body.find('.item-picker-card').exists()).toBe(false)
+
+    await wrapper.get('.open-picker').trigger('click')
+    await flushPromises()
+    expect(isDisallowedReason).toHaveBeenCalled()
+    expect(testApp.body.get('.item-picker-card').text()).toContain('Heading')
+
+    await testApp.body.get('.modal__close').trigger('click')
+    await vi.waitFor(() => {
+      expect(testApp.body.find('.item-picker-modal').exists()).toBe(false)
+    })
+    isDisallowedReason.mockClear()
+    await wrapper.setProps({ placement: { pagePlace: PAGE_PLACES.HEADER } })
+    expect(isDisallowedReason).not.toHaveBeenCalled()
+
+    await wrapper.get('.open-picker').trigger('click')
+    await flushPromises()
+    expect(isDisallowedReason).toHaveBeenCalledWith(
+      expect.objectContaining({ pagePlace: PAGE_PLACES.HEADER })
+    )
+    expect(testApp.body.get('.item-picker-card').text()).toContain('Heading')
+  })
+
   test.each([
     [
       'at the page root',

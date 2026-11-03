@@ -1,5 +1,10 @@
 <template>
-  <Modal ref="modal" class="item-picker-modal" @show="focusSearch">
+  <Modal
+    ref="modal"
+    class="item-picker-modal"
+    @show="onShow"
+    @hidden="emit('hidden')"
+  >
     <h2 class="box__title">{{ title }}</h2>
     <FormInput
       ref="searchInput"
@@ -59,6 +64,8 @@ const props = defineProps({
   groups: { type: Array, required: true },
 })
 
+const emit = defineEmits(['show', 'hidden'])
+
 const modal = ref(null)
 const searchInput = ref(null)
 const search = ref('')
@@ -74,7 +81,8 @@ const filteredGroups = computed(() =>
     .filter((group) => group.items.length > 0)
 )
 
-async function focusSearch() {
+async function onShow() {
+  emit('show')
   await nextTick()
   searchInput.value?.focus()
 }
