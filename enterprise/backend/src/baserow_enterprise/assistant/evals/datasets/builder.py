@@ -31,6 +31,7 @@ from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.theme.models import ColorThemeConfigBlock
 from baserow.contrib.builder.workflow_actions.models import (
     BuilderWorkflowAction,
+    NotificationWorkflowAction,
     OpenPageWorkflowAction,
 )
 from baserow.contrib.database.fields.models import Field
@@ -38,7 +39,10 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View, ViewFilter
-from baserow.contrib.integrations.local_baserow.models import LocalBaserowListRows
+from baserow.contrib.integrations.local_baserow.models import (
+    LocalBaserowGetRow,
+    LocalBaserowListRows,
+)
 from baserow.core.cache import local_cache
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
@@ -2950,5 +2954,227 @@ register_case(
         checks=_check_menu_removes_dropdown,
         mode=AgentMode.APPLICATION,
         max_iters=25,
+    )
+)
+
+
+# ---------------------------------------------------------------------------
+# Detail pages read their row from the URL
+# ---------------------------------------------------------------------------
+
+PROMPT_PRODUCT_DETAIL_PAGE = (
+    "In builder '{builder_name}', create a 'Product' page at '/product/:id' that "
+    "shows the Name and Price of the product whose id is in the URL. Add an "
+    "'Add to cart' button that shows a notification titled with the product's name."
+)
+PROMPT_CHANGE_DETAIL_PATH = (
+    "In builder '{builder_name}', change the Product page's URL to '/item/:id/:slug'."
+)
+PROMPT_DETAIL_ROW_FROM_URL = (
+    "On the Product page of '{builder_name}', the Product data source always shows "
+    "the same product. Make it load the product whose id is in the page URL."
+)
+
+
+def _reads_page_parameter(value: Any, name: str) -> bool:
+    return f"page_parameter.{name}" in _formula_text(value)
+
+
+def _get_row_sources(page: Page | None, table: Table) -> dict[int, Any]:
+    """The page's get_row services reading ``table``, by data source id."""
+
+    if page is None:
+        return {}
+    return {
+        source.id: source.service.specific
+        for source in DataSource.objects.filter(page=page)
+        if source.service_id is not None
+        and isinstance(source.service.specific, LocalBaserowGetRow)
+        and source.service.specific.table_id == table.id
+    }
+
+
+@register_scenario("builder-product-shop")
+def _product_shop_scenario(fx: Fixtures) -> EvalScenario:
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    builder = fx.create_builder_application(user=user, workspace=workspace, name="Shop")
+    database = fx.create_database_application(
+        user=user, workspace=workspace, name="Store"
+    )
+    table = fx.create_database_table(user=user, database=database, name="Products")
+    name_field = fx.create_text_field(table=table, name="Name", primary=True)
+    price_field = fx.create_number_field(table=table, name="Price")
+    RowHandler().create_rows(
+        user,
+        table,
+        [
+            {f"field_{name_field.id}": "Chair", f"field_{price_field.id}": 49},
+            {f"field_{name_field.id}": "Desk", f"field_{price_field.id}": 199},
+        ],
+    )
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_builder_ui_context(user, workspace, builder),
+        refs={
+            "builder": builder,
+            "table": table,
+            "name_field": name_field,
+            "price_field": price_field,
+        },
+    )
+
+
+def _check_product_detail_page(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    builder = scenario.refs["builder"]
+    table = scenario.refs["table"]
+    name_field = scenario.refs["name_field"]
+    price_field = scenario.refs["price_field"]
+
+    page = Page.objects.filter(
+        builder=builder, shared=False, path="/product/:id"
+    ).first()
+    sources = _get_row_sources(page, table)
+    element_formulas = " ".join(
+        str(vars(element.specific))
+        for element in (Element.objects.filter(page=page) if page else [])
+    )
+    notifications = [
+        action.specific
+        for action in (BuilderWorkflowAction.objects.filter(page=page) if page else [])
+        if isinstance(action.specific, NotificationWorkflowAction)
+    ]
+
+    def shown(field: Field) -> bool:
+        return any(
+            f"data_source.{source_id}.field_{field.id}" in element_formulas
+            for source_id in sources
+        )
+
+    return [
+        CheckResult(
+            "page created at '/product/:id'",
+            page is not None,
+            hint=f"paths: {list(Page.objects.filter(builder=builder).values_list('path', flat=True))}",
+        ),
+        CheckResult(
+            "get_row data source reads the row id from the URL",
+            any(_reads_page_parameter(svc.row_id, "id") for svc in sources.values()),
+            hint=f"row ids: {[_formula_text(svc.row_id) for svc in sources.values()]}",
+        ),
+        CheckResult("an element shows the product's Name", shown(name_field)),
+        CheckResult("an element shows the product's Price", shown(price_field)),
+        CheckResult(
+            "notification title is the product's name",
+            any(
+                f"field_{name_field.id}" in _formula_text(action.title)
+                for action in notifications
+            ),
+            hint=f"titles: {[_formula_text(action.title) for action in notifications]}",
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="builder/creates-product-detail-page",
+        dataset="kuma-builder",
+        prompt=PROMPT_PRODUCT_DETAIL_PAGE.format(builder_name="Shop"),
+        scenario="builder-product-shop",
+        checks=_check_product_detail_page,
+        mode=AgentMode.APPLICATION,
+        max_iters=30,
+    )
+)
+
+
+@register_scenario("builder-product-detail-page")
+def _product_detail_page_scenario(fx: Fixtures) -> EvalScenario:
+    scenario = _product_shop_scenario(fx)
+    refs = scenario.refs
+    page = fx.create_builder_page(
+        builder=refs["builder"],
+        name="Product",
+        path="/product/:id",
+        path_params=[{"name": "id", "type": "numeric"}],
+    )
+    fx.create_builder_local_baserow_get_row_data_source(
+        page=page,
+        name="Product",
+        table=refs["table"],
+        row_id="'1'",
+        integration_args={"authorized_user": scenario.user},
+    )
+    return EvalScenario(
+        user=scenario.user,
+        workspace=scenario.workspace,
+        ui_context=scenario.ui_context,
+        refs={**refs, "page": page},
+    )
+
+
+def _check_changes_detail_path(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    page = scenario.refs["page"]
+    page.refresh_from_db()
+    params = {param["name"]: param.get("type") for param in page.path_params}
+    return [
+        CheckResult(
+            "path is '/item/:id/:slug'",
+            page.path == "/item/:id/:slug",
+            hint=f"path: {page.path}",
+        ),
+        CheckResult(
+            "id stays numeric", params.get("id") == "numeric", hint=f"params: {params}"
+        ),
+        CheckResult("slug is a path parameter", "slug" in params, hint=f"{params}"),
+        CheckResult(
+            "no other page was created",
+            Page.objects.filter(builder=scenario.refs["builder"], shared=False).count()
+            == 1,
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="builder/changes-detail-path-keeps-param-type",
+        dataset="kuma-builder",
+        prompt=PROMPT_CHANGE_DETAIL_PATH.format(builder_name="Shop"),
+        scenario="builder-product-detail-page",
+        checks=_check_changes_detail_path,
+        mode=AgentMode.APPLICATION,
+        max_iters=15,
+    )
+)
+
+
+def _check_detail_row_from_url(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    sources = _get_row_sources(scenario.refs["page"], scenario.refs["table"])
+    return [
+        CheckResult(
+            "Product data source reads the row id from the URL",
+            any(_reads_page_parameter(svc.row_id, "id") for svc in sources.values()),
+            hint=f"row ids: {[_formula_text(svc.row_id) for svc in sources.values()]}",
+        ),
+        CheckResult("still one data source on the page", len(sources) == 1),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="builder/sets-detail-row-from-url",
+        dataset="kuma-builder",
+        prompt=PROMPT_DETAIL_ROW_FROM_URL.format(builder_name="Shop"),
+        scenario="builder-product-detail-page",
+        checks=_check_detail_row_from_url,
+        mode=AgentMode.APPLICATION,
+        max_iters=15,
     )
 )

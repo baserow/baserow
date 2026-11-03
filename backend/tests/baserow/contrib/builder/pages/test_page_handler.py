@@ -110,6 +110,34 @@ def test_update_page_with_query_params(data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_page_refuses_a_query_param_named_like_a_path_param(data_fixture):
+    builder = data_fixture.create_builder_application()
+
+    with pytest.raises(DuplicatePageParams):
+        PageHandler().create_page(
+            builder,
+            name="test",
+            path="/test/:id",
+            path_params=[{"name": "id", "type": "text"}],
+            query_params=[{"name": "id", "type": "text"}],
+        )
+
+
+@pytest.mark.django_db
+def test_update_page_path_refuses_a_path_param_named_like_a_query_param(
+    data_fixture,
+):
+    page = data_fixture.create_builder_page(
+        path="/products", query_params=[{"name": "id", "type": "text"}]
+    )
+
+    with pytest.raises(DuplicatePageParams):
+        PageHandler().update_page(
+            page, path="/products/:id", path_params=[{"name": "id", "type": "text"}]
+        )
+
+
+@pytest.mark.django_db
 def test_create_page_duplicate_params_in_path(data_fixture):
     builder = data_fixture.create_builder_application()
 
@@ -1023,3 +1051,12 @@ def test_import_elements_folds_two_non_default_outputs_sharing_a_head(
         str(imported_first.id): {"next": {"": [imported_second.id]}},
         str(imported_second.id): {},
     }
+
+
+def test_get_path_param_names():
+    assert PageHandler().get_path_param_names("/item/:id/:slug/:id") == [
+        "id",
+        "slug",
+        "id",
+    ]
+    assert PageHandler().get_path_param_names("/about") == []

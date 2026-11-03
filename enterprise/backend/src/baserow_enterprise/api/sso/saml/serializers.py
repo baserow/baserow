@@ -22,7 +22,10 @@ class SAMLResponseSerializer(serializers.Serializer):
         # as additional data for the user login request
         relay_state = data["RelayState"]
         data["saml_request_data"] = {}
-        parsed_relay_state = urlparse(relay_state)
+        try:
+            parsed_relay_state = urlparse(relay_state)
+        except ValueError as exc:
+            raise InvalidSamlResponse("Invalid RelayState.") from exc
         query_params = dict(parse_qsl(parsed_relay_state.query))
         if query_params:
             request_data_serializer = SsoLoginRequestSerializer(data=query_params)

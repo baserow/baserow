@@ -12,6 +12,8 @@ from typing import (
 
 from django.db.models import OrderBy, Prefetch, QuerySet
 
+from rest_framework.exceptions import ValidationError as DRFValidationError
+
 from baserow.contrib.database.api.utils import extract_field_ids_from_list
 from baserow.contrib.database.fields.field_filters import AdvancedFilterBuilder
 from baserow.contrib.database.fields.models import Field
@@ -941,6 +943,24 @@ class LocalBaserowTableServiceSortableMixin:
         service: Union[LocalBaserowGetRow, LocalBaserowListRows],
         service_sorts: Optional[List[ServiceSortDictSubClass]] = None,
     ):
+        # A sort orders by a field of the service's table. The editor sends sorts on
+        # trashed fields back, so those are accepted.
+        field_ids = {
+            sort["field"].id if "field" in sort else sort["field_id"]
+            for sort in service_sorts
+        }
+        table_field_ids = set(
+            Field.objects_and_trash.filter(
+                table_id=service.table_id, id__in=field_ids
+            ).values_list("id", flat=True)
+        )
+        if field_ids - table_field_ids:
+            raise DRFValidationError(
+                f"The field with id {min(field_ids - table_field_ids)} is not a field "
+                "of the service's table.",
+                code="invalid_sort_field",
+            )
+
         with atomic_if_not_already():
             service.service_sorts.all().delete()
             LocalBaserowTableServiceSort.objects.bulk_create(

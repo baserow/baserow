@@ -515,10 +515,7 @@ def _choice_post_create(el: "ElementItemCreate", user, orm_element, page) -> Non
 def _header_footer_post_create(
     el: "ElementItemCreate", user, orm_element, page
 ) -> None:
-    """Set page associations and auto-create a child menu for header/footer elements."""
-
-    if el.page_ids:
-        orm_element.pages.set(el.page_ids)
+    """Auto-create a child menu for header/footer elements."""
 
     # If menu_items were provided on the header/footer itself, create a child
     # menu element — headers are containers, not menus.
@@ -720,23 +717,34 @@ def _update_table_formulas(
     orm_element: "Element",
     formulas: dict[str, str],
 ) -> None:
-    """Update collection field configs for table elements."""
-    if not formulas:
-        return
+    """Update the column configs of a table element with generated formulas."""
 
-    collection_fields = list(orm_element.fields.order_by("order"))
+    from baserow.contrib.builder.elements.actions import UpdateElementActionType
+
+    # The element replaces its whole list of columns.
+    columns = [
+        {
+            "uid": str(column.uid),
+            "name": column.name,
+            "type": column.type,
+            "config": dict(column.config),
+            "styles": column.styles,
+        }
+        for column in orm_element.fields.order_by("order")
+    ]
+    changed = False
     for key, formula in formulas.items():
         parts = key.split(".")
         if len(parts) != 3 or parts[0] != "fields":
             continue
         index = int(parts[1])
-        config_key = parts[2]
-        if 0 <= index < len(collection_fields):
-            cf = collection_fields[index]
-            cf.config[config_key] = formula_object(
+        if 0 <= index < len(columns):
+            columns[index]["config"][parts[2]] = formula_object(
                 formula, mode=BASEROW_FORMULA_MODE_ADVANCED
             )
-            cf.save(update_fields=["config"])
+            changed = True
+    if changed:
+        UpdateElementActionType.do(user, orm_element, {"fields": columns})
 
 
 _UPDATE_FORMULAS: dict[str, Any] = {
@@ -2090,30 +2098,18 @@ class ImageStyleOverride(BaseModel):
 # Style update model
 # ---------------------------------------------------------------------------
 
-_STYLE_DEFAULTS: dict[str, Any] = {
-    "style_border_top_color": "border",
-    "style_border_top_size": 0,
-    "style_border_bottom_color": "border",
-    "style_border_bottom_size": 0,
-    "style_border_left_color": "border",
-    "style_border_left_size": 0,
-    "style_border_right_color": "border",
-    "style_border_right_size": 0,
-    "style_padding_top": 10,
-    "style_padding_bottom": 10,
-    "style_padding_left": 20,
-    "style_padding_right": 20,
-    "style_margin_top": 0,
-    "style_margin_bottom": 0,
-    "style_margin_left": 0,
-    "style_margin_right": 0,
-    "style_border_radius": 0,
-    "style_background_radius": 0,
-    "style_background": "none",
-    "style_background_color": "#ffffffff",
-    "style_background_mode": "fill",
-    "style_width": "normal",
-}
+
+def _style_defaults() -> dict[str, Any]:
+    """The default of every style field of an element, read from the model."""
+
+    from baserow.contrib.builder.elements.models import Element
+
+    return {
+        field.name: field.get_default()
+        for field in Element._meta.concrete_fields
+        if field.name.startswith("style_")
+    }
+
 
 # Maps (element_type, tool_block_name) → styles JSON key.
 # The styles JSON key is the serializer's `property_name`, which varies per
@@ -2235,7 +2231,7 @@ class ElementStyleUpdate(BaseModel):
         kwargs: dict[str, Any] = {}
 
         if self.reset:
-            kwargs.update(_STYLE_DEFAULTS)
+            kwargs.update(_style_defaults())
             kwargs["styles"] = {}
 
         # Box model — uniform or per-side

@@ -778,7 +778,7 @@
         "notLoggedInVisitors": "Visitatori non loggati",
         "allVisitors": "Tutti i visitatori",
         "warningTitle": "Manteniamo alti gli standard di sicurezza",
-        "warningMessage": "Al momento la visibilità è applicata solo nell'interfaccia utente, i dati sottostanti sono comunque accessibili dall'API. Per favore, consulta la &lt;a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api'&gt;documentazione&lt;/a&gt; per maggiori informazioni sulla sicurezza dei dati.",
+        "warningMessage": "Consulta la {link} per saperne di più su come proteggiamo i dati.",
         "documentationLink": "documentazione",
         "excludedRolesLabel": "Tutti ad eccezione di",
         "switchAllowLabel": "Permetti",

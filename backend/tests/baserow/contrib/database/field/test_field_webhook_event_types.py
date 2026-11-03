@@ -41,6 +41,8 @@ def test_field_created_event_type(data_fixture):
             "workspace_id": table.database.workspace_id,
             "db_index": False,
             "field_constraints": [],
+            "semantic_search_enabled": False,
+            "semantic_search_status": None,
         },
     }
 
@@ -82,6 +84,8 @@ def test_field_created_event_type_test_payload(data_fixture):
             "workspace_id": None,
             "db_index": False,
             "field_constraints": [],
+            "semantic_search_enabled": False,
+            "semantic_search_status": None,
         },
     }
 
@@ -128,6 +132,8 @@ def test_field_updated_event_type(data_fixture):
             "workspace_id": table.database.workspace_id,
             "db_index": False,
             "field_constraints": [],
+            "semantic_search_enabled": False,
+            "semantic_search_status": None,
         },
     }
 
@@ -169,6 +175,8 @@ def test_field_updated_event_type_test_payload(data_fixture):
             "workspace_id": None,
             "db_index": False,
             "field_constraints": [],
+            "semantic_search_enabled": False,
+            "semantic_search_status": None,
         },
     }
 

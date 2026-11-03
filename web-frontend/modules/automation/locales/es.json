@@ -85,7 +85,8 @@
     "dataProviderType": {
         "currentIteration": "Iteración actual",
         "item": "Ítem",
-        "previousNode": "Nodo anterior"
+        "previousNode": "Nodo anterior",
+        "currentNode": "Este nodo"
     },
     "nodeSidePanel": {
         "labelTitle": "Etiqueta"
@@ -112,7 +113,14 @@
         "runCount": "{n} ejecuciones",
         "showResult": "Mostrar resultado",
         "cancellationAlreadyRequested": "Otra persona ya solicitó la cancelación de esta ejecución. Se detendrá una vez que el nodo actual termine.",
-        "cancelling": "Cancelando esta ejecución. Se detendrá una vez que el nodo actual termine."
+        "cancelling": "Cancelando esta ejecución. Se detendrá una vez que el nodo actual termine.",
+        "cancelRun": "Cancelar esta ejecución del flujo de trabajo",
+        "cancellationAlreadyRequestedTitle": "Cancelación ya solicitada",
+        "startedBy": "Iniciado por {name}",
+        "statusSkippedBadge": "Omitido",
+        "statusCancelled": "Cancelado",
+        "retryNumber": "Reintento {n}",
+        "statusRetriedBadge": "Reintentado"
     },
     "nodeType": {
         "triggerDeletionError": "Los disparadores no pueden eliminarse, solo reemplazarse.",
@@ -145,7 +153,14 @@
         "localBaserowCreateRowsLabel": "Crear filas en lote en {tableName}",
         "localBaserowUpdateRowsLabel": "Actualizar filas en lote en {tableName}",
         "csvFileReaderLabel": "Leer un archivo CSV",
-        "startWorkflowLabel": "Iniciar {workflowName}"
+        "startWorkflowLabel": "Iniciar {workflowName}",
+        "gotoNodeLabelWithDestination": "Ir al nodo → {destination}",
+        "gotoHistoryLabel": "{label} → {destination}",
+        "gotoNodeLabel": "Ir al nodo",
+        "routerHistoryLabel": "{label} ({edge})",
+        "responseLabel": "Respuesta",
+        "gotoAliases": "bucle mientras, repetir hasta, bucle, reintentar, saltar, atrás",
+        "iteratorAliases": "bucle, bucle para, para cada, repetir, iterar"
     },
     "simulateDispatch": {
         "testNodeDescription": "Prueba este nodo para confirmar que la configuración es correcta. Los datos de esta prueba pueden usarse en pasos posteriores.",
@@ -196,7 +211,8 @@
         "periodicTriggerTriggeredAt": "Disparado a las",
         "coreHTTPTrigger": "Disparador HTTP",
         "coreManualTriggerDescription": "Se inicia solo cuando otra acción de flujo de trabajo inicia este flujo de trabajo",
-        "coreManualTrigger": "Disparador manual"
+        "coreManualTrigger": "Disparador manual",
+        "responseLabel": "Respuesta"
     },
     "workflowNode": {
         "displayLabelDebug": "ID: {id} | ID Previo: {previousNodeId} | {outputUid}",
@@ -212,10 +228,12 @@
         "beforeLabelAction": "Luego",
         "moreEdit": "Editar",
         "moreReplace": "Reemplazar",
-        "moreDuplicate": "Duplicar"
+        "moreDuplicate": "Duplicar",
+        "gotoMarkerSource": "Salta al marcador {marker}",
+        "gotoMarkerDestination": "Destino del marcador {marker}"
     },
     "workflowNodeContext": {
-        "searchPlaceholderTrigger": "Buscar un disparador…",
+        "searchPlaceholderTrigger": "Buscar un evento...",
         "searchPlaceholderActions": "Buscar acciones…",
         "noResults": "No se encontraron resultados"
     },
@@ -237,5 +255,32 @@
     },
     "workflowDisabledNotification": {
         "body": "El flujo de trabajo {name} fue deshabilitado."
+    },
+    "lastViewedItemType": {
+        "automationWorkflow": "Flujo de trabajo"
+    },
+    "nodeErrorHandlingForm": {
+        "conditionHelp": "Verificado contra el resultado de este nodo después de cada intento. Cuando es verdadero, el intento cuenta como fallido y el nodo se reintenta, por ejemplo, cuando una solicitud HTTP devuelve cierto código de estado.",
+        "conditionPlaceholder": "get('current_node.status_code') = 429",
+        "title": "Manejo de errores",
+        "onFailureLabel": "En caso de fallo",
+        "stop": "Detener",
+        "retry": "Reintentar",
+        "conditionLabel": "Condición",
+        "retriesLabel": "Reintentos"
+    },
+    "nodeRecipe": {
+        "whileLoopDescription": "Añade un nodo de «Listar filas» y un nodo «Ir» a que salta hacia atrás mientras se encuentren filas. Añade nodos entre ellos que modifiquen esas filas, o el bucle nunca termina.",
+        "nodesLeftMessage": "La receta {recipe} no pudo completarse, y los nodos que ya había añadido no pudieron eliminarse. Deshacer los elimina, o bórralos del flujo de trabajo.",
+        "forLoopDescription": "Añade un Iterador que ejecuta sus nodos secundarios 5 veces. Cambia el rango para repetir el bucle más o menos veces.",
+        "whileLoopAliases": "bucle, repetir hasta, hasta, reintentar",
+        "forLoopAliases": "bucle, para cada, repetir, iterar",
+        "whileLoopGotoLabel": "Repetir mientras se encuentren filas",
+        "whileLoopListRowsLabel": "Buscar filas para procesar",
+        "nodesLeftTitle": "Receta añadida parcialmente",
+        "forLoopIteratorLabel": "Repetir 5 veces",
+        "forLoopName": "Bucle para",
+        "whileLoopName": "Bucle condicional",
+        "groupLabel": "Recetas"
     }
 }

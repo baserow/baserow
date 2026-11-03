@@ -24,6 +24,9 @@ class SamlAppAuthProviderType(SamlAuthProviderTypeMixin, AppAuthProviderType):
 
     compatible_user_source_types = [LocalBaserowUserSourceType.type]
 
+    callback_token_query_param_prefix = "user_source_saml_token__"
+    callback_error_query_param_prefix = "saml_error__"
+
     class SerializedDict(
         AppAuthProviderTypeDict, SamlAuthProviderTypeMixin.SamlSerializedDict
     ): ...

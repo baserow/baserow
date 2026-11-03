@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Adapts dashboard layouts to smaller screens in view mode",
+    "issue_origin": "github",
+    "issue_number": 6364,
+    "domain": "dashboard",
+    "bullet_points": [],
+    "created_at": "2026-10-27"
+}

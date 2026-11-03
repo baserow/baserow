@@ -74,7 +74,7 @@
         "editStack": "Editar pila",
         "deleteStack": "Eliminar pila",
         "delete": "Eliminar {name}",
-        "deleteDescription": "¿Está seguro de que desea eliminar la pila {nombre}? Eliminar la pila da como resultado la eliminación de la opción de selección del campo de selección único, lo que podría provocar la pérdida de datos porque los valores de fila se establecerán en vacío."
+        "deleteDescription": "¿Estás seguro de que quieres eliminar la pila {name}? Eliminar la pila resulta en la eliminación de la opción seleccionada del campo de selección única, lo cual podría resultar en pérdida de datos porque los valores de las filas se establecerán en vacíos."
     },
     "kanbanViewHeader": {
         "stackBy": "Apilado por",
@@ -86,7 +86,7 @@
     },
     "kanbanViewStakedBy": {
         "title": "Campo de grupo",
-        "chooseField": "¿Por qué campo de selección único deben apilarse las cartas?",
+        "chooseField": "¿Por qué campo de selección única deberían apilarse las tarjetas?",
         "addSelectField": "agregar un solo campo de selección"
     },
     "kanbanViewStack": {
@@ -103,7 +103,7 @@
         "exports": "Exportación JSON y XML",
         "admin": "Funcionalidad de administración",
         "rowColoring": "Coloración de fila",
-        "getLicense": "obtener una licencia",
+        "getLicense": "Obtener una licencia",
         "baserowInstanceId": "Su ID de instancia de Baserow es:",
         "registerLicense": "Registrar licencia",
         "licenceId": "ID de licencia",
@@ -143,8 +143,8 @@
         "disconnectDescription": "¿Estás seguro de que quieres desconectar esta licencia? Si desconectas esta licencia mientras está activa, los usuarios relacionados ya no tendrán acceso al plan. Esto eliminará efectivamente la licencia de esta instancia. Puedes cambiar el ID de instancia de tu suscripción a través de la página de suscripciones en {subscriptions} o contactando a nuestro equipo de soporte en {contact} si estás en el plan Corporativo.",
         "moreSeatsNeededTitle": "Se necesitan más asientos",
         "contactSalesMoreSeats": "Contacta el departamento de ventas para obtener más asientos",
-        "automaticSeatsProgressBarStatus": "{asientos_ocupados} / {asientos} asientos pagados y {recuento_de_usuarios_libres} asientos libres en uso",
-        "premiumFeatureName": "De primera calidad",
+        "automaticSeatsProgressBarStatus": "{seats_taken} / {seats} asientos pagados y {free_users_count} asientos gratuitos en uso",
+        "premiumFeatureName": "Premium",
         "enterpriseFeatureName": "Empresa",
         "supportFeatureName": "Soporte",
         "applicationUsers": "Usuarios de la aplicación",
@@ -156,7 +156,7 @@
         "colorAlwaysApply": "Puedes añadir condiciones haciendo clic en el botón \"Añadir condición\".",
         "addColor": "Añadir color",
         "title": "Colores",
-        "deleteColor": "Borrar color",
+        "deleteColor": "Eliminar color",
         "colorAlwaysApplyTitle": "Este color se aplica por defecto.",
         "addConditionGroup": "Añadir grupo de condiciones"
     },
@@ -170,12 +170,12 @@
     },
     "decoratorValueProviderType": {
         "singleSelectColor": "Selección individual",
-        "singleSelectColorDescription": "Colorear las filas igual que un solo valor de selección",
+        "singleSelectColorDescription": "Colorear las filas según el valor de una selección única",
         "conditionalColor": "Condiciones",
         "conditionalColorDescription": "Colorea las filas cuando coinciden con las condiciones"
     },
     "singleSelectColorValueProviderForm": {
-        "chooseAColor": "¿Por cual campo de selección individual debe colorearse la fila?"
+        "chooseAColor": "¿Según qué campo de selección única se debería colorear la fila?"
     },
     "redirectToBaserowModal": {
         "title": "Redirigido a https://baserow.io",
@@ -218,7 +218,8 @@
         "personalViewsContent": "Crea vistas que solo el autor pueda ver. Esto te da espacio para experimentar, filtrar y ordenar datos sin afectar el espacio de trabajo de los demás.",
         "chartWidget": "Widget de gráfico",
         "chartWidgetContent": "Visualiza tus datos con gráficos en paneles. Usa cualquier tabla como fuente de datos, añade varias series y agrupa o ordena por campos con opciones avanzadas de resumen.",
-        "groupedAggregateRowsDataSourceContent": "Agrupa filas de una tabla de Baserow y calcula resúmenes para usar en páginas del constructor de aplicaciones."
+        "groupedAggregateRowsDataSourceContent": "Agrupa filas de una tabla de Baserow y calcula resúmenes para usar en páginas del constructor de aplicaciones.",
+        "groupedAggregateRowsDataSource": "Agrupa y resume filas"
     },
     "formViewModeType": {
         "surveyDescription": "Un campo es visible al mismo tiempo.",
@@ -232,7 +233,7 @@
     },
     "shareLinkOptions": {
         "baserowLogo": {
-            "label": "Esconder el logo de Baserow en la vista compartida",
+            "label": "Ocultar el logo de Baserow en la vista compartida",
             "premiumModalName": "eliminación del logo público"
         },
         "allowPublicExportLabel": "Permitir exportación en vista compartida"
@@ -241,7 +242,7 @@
         "personal": "Personal"
     },
     "rowCommentMentionNotification": {
-        "title": "{enviador} te mencionó en la fila {fila} en {tabla}",
+        "title": "{sender} te mencionó en la fila {row} en {table}",
         "deletedUser": "Un usuario eliminado"
     },
     "calendarDateSelector": {
@@ -256,11 +257,11 @@
     },
     "calendarViewHeader": {
         "displayBy": "Mostrar por",
-        "displayedBy": "Mostrado por el campo \"{nombreDeCampo}\"",
+        "displayedBy": "Mostrado por el campo \"{fieldName}\"",
         "labels": "Etiquetas"
     },
     "calendarMonthDay": {
-        "hiddenRowsCount": "0 | 1 más... | {cuentaDeFilasEscondidas} más..."
+        "hiddenRowsCount": "0 | 1 más... | {hiddenRowsCount} más..."
     },
     "calendarMonthDayExpanded": {
         "tryAgain": "inténtalo de nuevo"
@@ -274,7 +275,7 @@
         "save": "Guardar"
     },
     "rowCommentNotification": {
-        "title": "{enviador} ha publicado un comentario en la fila {fila} de {tabla}",
+        "title": "{sender} ha publicado un comentario en la fila {row} de {table}",
         "deletedUser": "Un usuario eliminado"
     },
     "RowEditModalCommentNotificationMode": {
@@ -301,7 +302,8 @@
         "outputTypeChangedWarning": "Borra los valores de celda generados.",
         "autoUpdate": "Actualización automática",
         "autoUpdateHelp": "Cuando esté habilitado, el valor del campo IA se regenerará automáticamente cuando cualquiera de los campos referenciados en el prompt se actualice.",
-        "autoUpdateDescription": "Regenerar cuando cambien los campos referenciados"
+        "autoUpdateDescription": "Regenerar cuando cambien los campos referenciados",
+        "invalidPrompt": "La fórmula del prompt es inválida."
     },
     "rowEditFieldAI": {
         "generate": "Generar",
@@ -310,7 +312,8 @@
     },
     "premiumFieldType": {
         "ai": "Aviso de IA",
-        "aiDescription": "Un campo de sólo lectura que contiene el texto generado por AI basado en la pregunta del campo."
+        "aiDescription": "Un campo de sólo lectura que contiene el texto generado por AI basado en la pregunta del campo.",
+        "aiRichTextDescription": "Un campo de solo lectura que contiene texto generado por IA basado en la instrucción del campo, formateado con markdown."
     },
     "functionalGridViewFieldAI": {
         "generate": "Generar"
@@ -394,7 +397,8 @@
     "chart": {
         "true": "verdadero",
         "false": "falso",
-        "other": "Otro"
+        "other": "Otro",
+        "empty": "Vacío"
     },
     "generateAIValuesModal": {
         "title": "Generar todos los valores de IA",
@@ -430,11 +434,60 @@
         "personal": "Personal"
     },
     "aggregationGroupByForm": {
-        "rowIdDisabledTooltip": "Agrupar por ID de fila no está disponible actualmente porque el campo primario puede contener varios valores."
+        "rowIdDisabledTooltip": "Agrupar por ID de fila no está disponible actualmente porque el campo primario puede contener varios valores.",
+        "groupByFieldLabel": "Agrupar por",
+        "groupByRowId": "ID de fila",
+        "groupByNone": "Ninguno",
+        "bucketLimitHelp": "Incluye el contenedor «Otro». Déjalo vacío para usar el máximo del servidor ({max}).",
+        "groupedByField": "Agrupado por {field}",
+        "eachOption": "Cada opción seleccionada",
+        "modeLabel": "Agrupar selecciones múltiples",
+        "bucketLimit": "Contenedores máximos",
+        "completeSelection": "Selección completa"
     },
     "serviceType": {
         "localBaserowGroupedAggregateRowsDescription": "Agrupa filas de una tabla de Baserow y calcula resúmenes.",
         "errorTrashedAggregationField": "Al menos un campo configurado ha sido enviado a la papelera.",
-        "errorIncompleteAggregationSeries": "Una o más series de resumen están incompletas."
+        "errorIncompleteAggregationSeries": "Una o más series de resumen están incompletas.",
+        "errorNoAggregationSeriesDefined": "Ninguna serie de resumen definida.",
+        "localBaserowGroupedAggregateRows": "Agrupa y resume filas"
+    },
+    "groupedAggregateRowsDataSourceForm": {
+        "sourceFieldLabel": "Origen",
+        "data": "Datos",
+        "addSeries": "Añadir serie",
+        "notSelected": "No seleccionado",
+        "series": "Series",
+        "viewFieldLabel": "Vista"
+    },
+    "aiProviderModelFeature": {
+        "aiFieldsDescription": "Genera valores en los campos de IA.",
+        "aiFields": "Campos de IA"
+    },
+    "localBaserowGroupedAggregateRowsForm": {
+        "addSeries": "Añadir serie",
+        "series": "Series"
+    },
+    "aggregationSeriesForm": {
+        "deleteSeries": "Eliminar serie",
+        "chartType": "Tipo de gráfico",
+        "polarAreaChart": "Área polar",
+        "aggregationFieldLabel": "Campo",
+        "aggregationTypeLabel": "Resumen",
+        "barChart": "Barra",
+        "lineChart": "Línea",
+        "pieChart": "Circular",
+        "doughnutChart": "Dona",
+        "automaticColor": "Usar color automático",
+        "seriesColor": "Color"
+    },
+    "aggregationSortByForm": {
+        "sortByFieldLabel": "Ordenar por",
+        "none": "Ninguno",
+        "ascending": "Ascendente",
+        "descending": "Descendente"
+    },
+    "premiumDashboardShareOptions": {
+        "hideLogo": "Ocultar el logotipo de Baserow en el panel compartido"
     }
 }

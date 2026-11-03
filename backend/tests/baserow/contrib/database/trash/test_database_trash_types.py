@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from django.conf import settings
 from django.db import connection
+from django.test import override_settings
 from django.urls import reverse
 
 import pytest
@@ -50,6 +51,8 @@ def test_delete_row_by_id(data_fixture):
 
 @pytest.mark.django_db
 @patch("baserow.core.trash.signals.permanently_deleted.send")
+# Plugins can delete more search data of the rows if vector search is available.
+@override_settings(BASEROW_EMBEDDINGS_API_URL="")
 def test_perm_deleting_many_rows_at_once_only_looks_up_the_model_once(
     mock, data_fixture, django_assert_num_queries
 ):

@@ -18,6 +18,7 @@ from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.toolsets import FunctionToolset
 from pydantic_ai.usage import RunUsage
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.core.exceptions import PermissionDenied, UserNotInWorkspace
 from baserow_enterprise.assistant.action_memory import (
@@ -219,6 +220,10 @@ async def test_deferred_tool_switches_modes_then_executes_once(initial_args):
         (PermissionDenied(), "permission was denied"),
         (UserNotInWorkspace(), "outside the current workspace"),
         (ToolInputError("Invalid workflow"), "Invalid workflow"),
+        (
+            DRFValidationError("The page with id 7 doesn't exist."),
+            "The page with id 7 doesn't exist.",
+        ),
         (ModelRetry("Invalid workflow"), "Invalid workflow"),
     ],
 )

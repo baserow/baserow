@@ -6,6 +6,8 @@ from django.core.files.storage import Storage
 from django.db import IntegrityError, transaction
 from django.db.models import QuerySet
 
+from rest_framework.exceptions import ValidationError as DRFValidationError
+
 from baserow.contrib.builder.compat.graph_migrator import (
     ElementToMigrate,
     PageGraphMigrator,
@@ -147,6 +149,7 @@ class PageHandler:
 
         self.is_page_path_valid(path, path_params, raises=True)
         self.is_page_path_unique(builder, path, raises=True)
+        self.validate_query_params(path, path_params, query_params)
 
         try:
             page = Page.objects.create(
@@ -209,12 +212,12 @@ class PageHandler:
                 ),  # We don't want to conflict with the current page
                 raises=True,
             )
-        if "query_params" in kwargs:
-            query_params = kwargs.get("query_params")
+        # New path params can clash with the query params the page keeps.
+        if "query_params" in kwargs or "path_params" in kwargs:
             self.validate_query_params(
                 kwargs.get("path", page.path),
                 kwargs.get("path_params", page.path_params),
-                query_params,
+                kwargs.get("query_params", page.query_params),
             )
 
         for key, value in kwargs.items():
@@ -444,6 +447,86 @@ class PageHandler:
         return find_unused_name(
             [page_path], existing_paths, max_length=255, suffix="/{0}"
         )
+
+    def raise_if_page_links_outside_builder(
+        self, builder: Builder, values: Any, instance: Any = None
+    ):
+        """
+        Check that every `navigate_to_page_id` in the values of an element or
+        workflow action, nested ones such as menu items and table columns included,
+        names a page of the builder other than its shared page.
+
+        :param builder: The builder the element or workflow action is in.
+        :param values: The values it's created or updated with.
+        :param instance: The element or workflow action being updated. Its saved
+            link fills in whichever of `navigation_type` and `navigate_to_page_id`
+            the values leave out.
+        :raises ValidationError: When one names a page of another builder or the
+            shared page.
+        """
+
+        if instance is not None and (
+            "navigation_type" in values or "navigate_to_page_id" in values
+        ):
+            values = {
+                "navigation_type": getattr(instance, "navigation_type", None),
+                "navigate_to_page_id": getattr(instance, "navigate_to_page_id", None),
+                **values,
+            }
+
+        page_ids = set()
+
+        def add(page_id: Any) -> None:
+            try:
+                page_ids.add(int(page_id))
+            except (TypeError, ValueError):
+                raise DRFValidationError(
+                    f"{page_id!r} is not a page id.", code="invalid_page_id"
+                )
+
+        def collect(value: Any) -> None:
+            if isinstance(value, dict):
+                page_id = value.get("navigate_to_page_id")
+                # A link to a custom URL keeps a page id it doesn't use.
+                if page_id not in (None, "") and value.get("navigation_type") != (
+                    "custom"
+                ):
+                    add(page_id)
+                for item in value.values():
+                    collect(item)
+            elif isinstance(value, (list, tuple)):
+                for item in value:
+                    collect(item)
+
+        collect(values)
+        if not page_ids:
+            return
+        # The editor sends links to a trashed page back. The shared page isn't a
+        # page a link can open.
+        found = set(
+            Page.objects_and_trash.filter(
+                builder=builder, id__in=page_ids, shared=False
+            ).values_list("id", flat=True)
+        )
+        missing = page_ids - found
+        if missing:
+            raise DRFValidationError(
+                f"The page with id {min(missing)} doesn't exist.",
+                code="invalid_page_id",
+            )
+
+    def get_path_param_names(self, path: str) -> List[str]:
+        """
+        The names of the parameters in a path, in order and with repeats.
+
+        :param path: A page path, such as `/products/:id`.
+        :return: The parameter names, such as `["id"]`.
+        """
+
+        return [
+            token.removeprefix(PAGE_PATH_PARAM_PREFIX)
+            for token in PATH_PARAM_REGEX.findall(path)
+        ]
 
     def is_page_path_valid(
         self, path: str, path_params: PagePathParams, raises: bool = False

@@ -22,11 +22,17 @@ from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.mixins import CollectionElementTypeMixin
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.pages.models import Page
-from baserow.contrib.builder.workflow_actions.signals import workflow_action_updated
+from baserow.contrib.builder.workflow_actions.actions import (
+    UpdateBuilderWorkflowActionActionType,
+)
+from baserow.contrib.builder.workflow_actions.handler import (
+    BuilderWorkflowActionHandler,
+)
 from baserow.core.exceptions import PermissionException
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
+from baserow.core.services.models import Service
 from baserow.core.utils import to_path
 from baserow_enterprise.assistant.tools.shared import raise_if_permission_denied
 from baserow_enterprise.assistant.tools.shared.agents import get_formula_generator
@@ -410,6 +416,15 @@ def _generate_formulas(generate, formulas: dict, context: BuilderFormulaContext)
     return generated
 
 
+def _element_for_update(element: Any) -> Any:
+    """
+    Load ``element`` again, locked, so writing generated formulas onto it keeps the
+    changes made while the model ran.
+    """
+
+    return ElementHandler().get_element_for_update(element.id)
+
+
 def update_element_formulas(
     user: "AbstractUser",
     page: Page,
@@ -470,21 +485,21 @@ def update_element_formulas(
                 tool_helpers.update_status(
                     _("Generating formulas for element '%(ref)s'...") % {"ref": ref}
                 )
-                with transaction.atomic():
-                    try:
-                        generated = _generate_formulas(
-                            generate_formulas, formulas, context
-                        )
-                        if generated:
-                            el_create.update_with_formulas(user, orm_element, generated)
-                    except Exception as exc:
-                        raise_if_permission_denied(exc)
-                        logger.error(
-                            "Failed to generate formulas for element {}: {}",
-                            orm_element.id,
-                            exc,
-                        )
-                        errors.append(f"Formula generation failed for '{ref}': {exc}")
+                try:
+                    generated = _generate_formulas(generate_formulas, formulas, context)
+                    if generated:
+                        with transaction.atomic():
+                            el_create.update_with_formulas(
+                                user, _element_for_update(orm_element), generated
+                            )
+                except Exception as exc:
+                    raise_if_permission_denied(exc)
+                    logger.error(
+                        "Failed to generate formulas for element {}: {}",
+                        orm_element.id,
+                        exc,
+                    )
+                    errors.append(f"Formula generation failed for '{ref}': {exc}")
         except PermissionException:
             errors.append(
                 f"Permission denied while configuring element '{ref}'. "
@@ -532,22 +547,22 @@ def update_data_source_formulas(
                     _("Generating formulas for data source '%(name)s'...")
                     % {"name": ds_create.name}
                 )
-                with transaction.atomic():
-                    try:
-                        generated = generate_formulas(formulas, context)
-                        if generated:
+                try:
+                    generated = generate_formulas(formulas, context)
+                    if generated:
+                        with transaction.atomic():
                             ds_create.update_with_formulas(user, orm_ds, generated)
-                    except Exception as exc:
-                        raise_if_permission_denied(exc)
-                        logger.error(
-                            "Failed to generate formulas for data source {}: {}",
-                            orm_ds.id,
-                            exc,
-                        )
-                        errors.append(
-                            f"Formula generation failed for data source "
-                            f"'{ds_create.name}': {exc}"
-                        )
+                except Exception as exc:
+                    raise_if_permission_denied(exc)
+                    logger.error(
+                        "Failed to generate formulas for data source {}: {}",
+                        orm_ds.id,
+                        exc,
+                    )
+                    errors.append(
+                        f"Formula generation failed for data source "
+                        f"'{ds_create.name}': {exc}"
+                    )
         except PermissionException:
             errors.append(
                 f"Permission denied while configuring data source '{ds_create.name}'. "
@@ -569,18 +584,19 @@ def update_single_data_source_formulas(
     orm_ds: Any,
     ds_update: DataSourceUpdate,
     tool_helpers: "ToolHelpers",
-) -> None:
+) -> tuple[list[str], list[str]]:
     """Generate and apply formulas for one updated data source.
+
+    A field whose formula isn't generated or saved keeps its previous value.
 
     :param user: The user whose data-source permissions apply.
     :param page: The page containing the data source.
     :param orm_ds: The persisted data source to update.
     :param ds_update: The assistant update containing formula requests.
     :param tool_helpers: Helpers for status updates and the request model profile.
-    :return: None.
+    :return: Applied formula fields and formula errors.
     """
 
-    from baserow.contrib.builder.data_sources.handler import DataSourceHandler
     from baserow.contrib.builder.data_sources.service import DataSourceService
     from baserow.core.services.registries import service_type_registry
 
@@ -589,7 +605,7 @@ def update_single_data_source_formulas(
 
     formulas = ds_update.get_formulas_to_update(orm_ds, context)
     if not formulas:
-        return
+        return [], []
 
     tool_helpers.update_status(
         _("Generating formulas for data source %(id)d...")
@@ -598,40 +614,47 @@ def update_single_data_source_formulas(
     generate_formulas = get_formula_generator(
         BUILDER_FORMULA_PROMPT, tool_helpers.model_profile
     )
-    with transaction.atomic():
-        try:
-            generated = generate_formulas(formulas, context)
-            if generated:
-                service_kwargs: dict[str, Any] = {}
-                if "row_id" in generated:
-                    service_kwargs["row_id"] = formula_object(
-                        generated["row_id"], mode=BASEROW_FORMULA_MODE_ADVANCED
-                    )
-                if "search_query" in generated:
-                    service_kwargs["search_query"] = formula_object(
-                        generated["search_query"],
-                        mode=BASEROW_FORMULA_MODE_ADVANCED,
-                    )
-                if service_kwargs:
-                    ds_for_update = DataSourceHandler().get_data_source_for_update(
-                        orm_ds.id
-                    )
-                    service_type = service_type_registry.get_by_model(
-                        ds_for_update.service.specific
-                    )
-                    DataSourceService().update_data_source(
-                        user,
-                        ds_for_update,
-                        service_type=service_type,
-                        **service_kwargs,
-                    )
-        except Exception as exc:
-            raise_if_permission_denied(exc)
-            logger.exception(
-                "Failed to generate formulas for data source {}: {}",
-                orm_ds.id,
-                exc,
-            )
+    try:
+        generated = generate_formulas(formulas, context)
+        service_kwargs = {
+            field: formula_object(generated[field], mode=BASEROW_FORMULA_MODE_ADVANCED)
+            for field in ("row_id", "search_query")
+            if field in formulas and field in generated
+        }
+        if service_kwargs:
+            with transaction.atomic():
+                ds_for_update = DataSourceHandler().get_data_source_for_update(
+                    orm_ds.id
+                )
+                service_type = service_type_registry.get_by_model(
+                    ds_for_update.service.specific
+                )
+                DataSourceService().update_data_source(
+                    user,
+                    ds_for_update,
+                    service_type=service_type,
+                    **service_kwargs,
+                )
+    except Exception as exc:
+        raise_if_permission_denied(exc)
+        logger.exception(
+            "Failed to generate formulas for data source {}: {}",
+            orm_ds.id,
+            exc,
+        )
+        return [], [
+            f"Formula generation failed for {', '.join(sorted(formulas))}: {exc}. "
+            "The previous value was kept."
+        ]
+
+    applied = sorted(service_kwargs)
+    missing = sorted(set(formulas) - set(service_kwargs))
+    if missing:
+        return applied, [
+            f"No valid formula was generated for {', '.join(missing)}. "
+            "The previous value was kept."
+        ]
+    return applied, []
 
 
 def update_single_element_formulas(
@@ -693,37 +716,34 @@ def update_single_element_formulas(
                 BUILDER_FORMULA_PROMPT, tool_helpers.model_profile
             )
             try:
-                with transaction.atomic():
-                    generated = _generate_formulas(generate_formulas, formulas, context)
-                    if generated:
-                        kwargs = {}
-                        for field_name, formula in generated.items():
-                            if "." not in field_name and hasattr(
-                                orm_element, field_name
-                            ):
-                                kwargs[field_name] = formula_object(
-                                    formula,
-                                    mode=BASEROW_FORMULA_MODE_ADVANCED,
-                                )
-                        dependent_fields = element_update.get_formula_dependent_fields(
-                            element_type
+                generated = _generate_formulas(generate_formulas, formulas, context)
+                kwargs = {}
+                for field_name, formula in (generated or {}).items():
+                    if "." not in field_name and hasattr(orm_element, field_name):
+                        kwargs[field_name] = formula_object(
+                            formula,
+                            mode=BASEROW_FORMULA_MODE_ADVANCED,
                         )
-                        for dependent_field, formula_field in dependent_fields.items():
-                            if formula_field in kwargs:
-                                kwargs[dependent_field] = getattr(
-                                    element_update, dependent_field
-                                )
-                        if kwargs:
-                            UpdateElementActionType.do(user, orm_element, kwargs)
-                            applied.extend(
-                                field for field in kwargs if field in formulas
-                            )
-                    missing = set(formulas) - set(applied)
-                    if missing:
-                        errors.append(
-                            "No valid formula was generated for: "
-                            f"{', '.join(sorted(missing))}. Previous values were retained."
+                dependent_fields = element_update.get_formula_dependent_fields(
+                    element_type
+                )
+                for dependent_field, formula_field in dependent_fields.items():
+                    if formula_field in kwargs:
+                        kwargs[dependent_field] = getattr(
+                            element_update, dependent_field
                         )
+                if kwargs:
+                    with transaction.atomic():
+                        UpdateElementActionType.do(
+                            user, _element_for_update(orm_element), kwargs
+                        )
+                    applied.extend(field for field in kwargs if field in formulas)
+                missing = set(formulas) - set(applied)
+                if missing:
+                    errors.append(
+                        "No valid formula was generated for: "
+                        f"{', '.join(sorted(missing))}. Previous values were retained."
+                    )
             except Exception as exc:
                 applied.clear()
                 raise_if_permission_denied(exc)
@@ -789,27 +809,38 @@ def update_workflow_action_formulas(
                 tool_helpers.update_status(
                     _("Generating formulas for action on '%(ref)s'...") % {"ref": ref}
                 )
-                with transaction.atomic():
-                    try:
-                        generated = _generate_formulas(
-                            generate_formulas, formulas, context
+                try:
+                    generated = _generate_formulas(generate_formulas, formulas, context)
+                    with transaction.atomic():
+                        # A row action's mappings are replaced as a whole list, so
+                        # a concurrent add_action_field_mapping waits for this.
+                        service_id = getattr(orm_action, "service_id", None)
+                        if service_id is not None:
+                            Service.objects.select_for_update().filter(
+                                id=service_id
+                            ).first()
+                        # Loaded again so changes made while the model ran are
+                        # kept.
+                        fresh_action = (
+                            BuilderWorkflowActionHandler().get_workflow_action(
+                                orm_action.id
+                            )
                         )
-                        if generated:
-                            action_create.update_with_formulas(orm_action, generated)
-                        orm_action.refresh_from_db()
-                        workflow_action_updated.send(
-                            None, workflow_action=orm_action, user=user
-                        )
-                    except Exception as exc:
-                        raise_if_permission_denied(exc)
-                        logger.error(
-                            "Failed to generate formulas for action {}: {}",
-                            orm_action.id,
-                            exc,
-                        )
-                        errors.append(
-                            f"Formula generation failed for action on '{ref}': {exc}"
-                        )
+                        values = action_create.formula_values(fresh_action, generated)
+                        if values:
+                            UpdateBuilderWorkflowActionActionType.do(
+                                user, fresh_action, **values
+                            )
+                except Exception as exc:
+                    raise_if_permission_denied(exc)
+                    logger.error(
+                        "Failed to generate formulas for action {}: {}",
+                        orm_action.id,
+                        exc,
+                    )
+                    errors.append(
+                        f"Formula generation failed for action on '{ref}': {exc}"
+                    )
         except PermissionException:
             errors.append(
                 f"Permission denied while configuring action on '{action_create.element}'. "

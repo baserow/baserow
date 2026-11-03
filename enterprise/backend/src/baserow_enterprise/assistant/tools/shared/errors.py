@@ -1,6 +1,8 @@
 from collections.abc import Callable
 from functools import wraps
-from typing import ParamSpec, TypeVar
+from typing import Any, ParamSpec, TypeVar
+
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.core.exceptions import PermissionException
 
@@ -10,6 +12,22 @@ _Result = TypeVar("_Result")
 
 class ToolInputError(Exception):
     """Raised when tool input is invalid."""
+
+
+def _detail_messages(detail: Any) -> str:
+    if isinstance(detail, dict):
+        return " ".join(
+            f"{field}: {_detail_messages(value)}" for field, value in detail.items()
+        )
+    if isinstance(detail, (list, tuple)):
+        return " ".join(_detail_messages(value) for value in detail)
+    return str(detail)
+
+
+def validation_messages(exc: DRFValidationError) -> str:
+    """The messages of a DRF ``ValidationError``, with the field they're on."""
+
+    return _detail_messages(exc.detail)
 
 
 def raise_if_permission_denied(error: Exception) -> None:
