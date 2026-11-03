@@ -374,6 +374,7 @@ def test_get_user_template_shows_its_public_revision(api_client, data_fixture):
     owner, token = data_fixture.create_user_and_token()
     template = create_own_template(data_fixture, owner, name="First", keywords="crm")
     public = data_fixture.create_user_template_revision(template, name="Second")
+    public.categories.set([TemplateCategory.objects.create(name="Sales")])
     data_fixture.set_user_template_state(template, "public", public)
     latest = data_fixture.create_user_template_revision(
         template,
@@ -395,11 +396,13 @@ def test_get_user_template_shows_its_public_revision(api_client, data_fixture):
             result["revision_id"],
             result["name"],
             result["is_own"],
+            result["state"],
+            [category["name"] for category in result["categories"]],
             datetime.fromisoformat(result["updated_on"]),
         )
 
-    # Everyone sees the public revision, the owner too, dated by its creation. Its
-    # id is sent with an install.
+    # Everyone sees the public revision with its categories, the owner too, dated
+    # by its creation. Its id is sent with an install. Only the owner sees the state.
     for token_used, is_own in [(None, False), (other_token, False), (token, True)]:
         headers = {"HTTP_AUTHORIZATION": f"JWT {token_used}"} if token_used else {}
         assert get_shown(headers) == (
@@ -407,12 +410,17 @@ def test_get_user_template_shows_its_public_revision(api_client, data_fixture):
             public.id,
             "Second",
             is_own,
+            "public" if is_own else None,
+            ["Sales"],
             public.created_on,
         )
 
     # The owner sees the latest revision while the template isn't public, or is
     # blocked.
-    for changes in [{"public_revision": None}, {"blocked_at": django_timezone.now()}]:
+    for changes, state in [
+        ({"public_revision": None}, "private"),
+        ({"blocked_at": django_timezone.now()}, "blocked"),
+    ]:
         Template.objects.filter(id=template.id).update(
             public_revision=public, blocked_at=None
         )
@@ -435,6 +443,16 @@ def test_get_user_template_shows_its_public_revision(api_client, data_fixture):
             "author_name": owner.first_name,
             "is_own": True,
             "updated_on": latest.created_on.isoformat().replace("+00:00", "Z"),
+            "categories": [
+                {"id": category.id, "name": category.name}
+                for category in latest.categories.all()
+            ],
+            "state": state,
+            "reason": None,
+            "source_workspace_id": None,
+            "source_application_ids": [],
+            "install_count": 0,
+            "created_on": template.created_on.isoformat().replace("+00:00", "Z"),
         }
 
 

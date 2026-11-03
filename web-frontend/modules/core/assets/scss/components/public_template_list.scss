@@ -34,7 +34,10 @@
 .public-template-list__author {
   @include flex-align-items(6px);
 
+  // The name is kept whole up to this width, the date shrinks first.
+  flex: 0 0 auto;
   min-width: 0;
+  max-width: 60%;
 }
 
 .public-template-list__author-name {
@@ -42,6 +45,9 @@
 }
 
 .public-template-list__updated {
-  flex: 0 0 auto;
+  @extend %ellipsis;
+
+  flex: 0 1 auto;
+  min-width: 0;
   margin-left: auto;
 }

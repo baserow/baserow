@@ -194,10 +194,8 @@ async function selectPublicTemplate(template) {
   try {
     const { data: fetched } = await TemplateService($client).fetch(slug)
     if (selectingPublic === id && !selectedTemplate.value) {
-      // The template's own categories aren't part of the response.
-      const shown = { ...template, ...fetched }
-      publicTemplates.value[slug] = shown
-      selectTemplate(shown)
+      publicTemplates.value[slug] = fetched
+      selectTemplate(fetched)
     }
   } catch (e) {
     if (e.response?.status === 404) {
@@ -217,9 +215,9 @@ async function selectPublicTemplate(template) {
 }
 
 const selectedTemplateCategories = computed(() => {
-  // A user template lists its own categories, which the linked one lacks.
+  // A user template lists its own categories.
   if (selectedTemplate.value.type === 'user') {
-    return selectedTemplate.value.categories ?? []
+    return selectedTemplate.value.categories
   }
   return data.value.categories.filter((category) =>
     category.templates.some((t) => t.id === selectedTemplate.value.id)
@@ -239,11 +237,7 @@ async function templateOutdated() {
       // The data isn't deeply reactive.
       data.value = { ...data.value, template }
     } else {
-      // The template's own categories aren't part of the response.
-      publicTemplates.value[slug] = {
-        ...publicTemplates.value[slug],
-        ...template,
-      }
+      publicTemplates.value[slug] = template
     }
   } catch (e) {
     notifyIf(e, 'template')

@@ -94,6 +94,7 @@
             :page-size="PAGE_SIZE"
             :loading="loading"
             :render-end="false"
+            fill
             @load-next-page="fetchNextPage"
           >
             <div

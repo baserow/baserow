@@ -91,6 +91,7 @@ export default {
   watch: {
     contentKey(value) {
       if (value === null) {
+        this.lastRequest++
         this.loading = false
         this.applications = []
         this.page = null
@@ -100,6 +101,8 @@ export default {
     },
   },
   created() {
+    // Only the answer for the shown revision is used, see `fetchApplications`.
+    this.lastRequest = 0
     if (this.template !== null) {
       this.fetchApplications(this.template)
     }
@@ -114,17 +117,27 @@ export default {
     })
   },
   methods: {
+    /**
+     * Loads the applications of the template and selects its first page. A newer
+     * revision is loaded in the same preview, so the page of the previous one is
+     * never kept, and an older answer that arrives last is ignored.
+     */
     async fetchApplications(template) {
+      const request = ++this.lastRequest
       this.loading = true
 
       try {
         const { data } = await ApplicationService(this.$client).fetchAll(
           template.workspace_id
         )
+        if (request !== this.lastRequest) {
+          return
+        }
 
         this.applications = data.map((application) =>
           populateApplication(application, this.$registry)
         )
+        this.page = null
 
         // A template can optionally have a preferred application that must be opened
         // first in the preview. Try to select that one, and if that's not possible,
@@ -145,10 +158,16 @@ export default {
           }
         }
       } catch (error) {
+        if (request !== this.lastRequest) {
+          return
+        }
         this.applications = []
+        this.page = null
         notifyIf(error, 'templates')
       } finally {
-        this.loading = false
+        if (request === this.lastRequest) {
+          this.loading = false
+        }
       }
     },
     selectApplication(application) {

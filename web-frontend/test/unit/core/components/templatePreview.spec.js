@@ -3,6 +3,7 @@ import { flushPromises } from '@vue/test-utils'
 import { h } from 'vue'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
+import { heldBack } from '@baserow/test/helpers/heldBack'
 import {
   mockTemplateApplications,
   template,
@@ -92,5 +93,45 @@ describe('TemplatePreview', () => {
     await flushPromises()
 
     expect(mounts).toBe(1)
+  })
+
+  test("doesn't keep the table of the previous revision when the new one fails", async () => {
+    const other = { ...template, workspace_id: template.workspace_id + 1 }
+    testApp.mock
+      .onGet(`/applications/workspace/${other.workspace_id}/`)
+      .reply(500)
+    const wrapper = await testApp.mount(TemplatePreview, {
+      props: { template },
+      global: { stubs: { TableTemplate: true } },
+    })
+    await flushPromises()
+    expect(wrapper.find('table-template-stub').exists()).toBe(true)
+
+    await wrapper.setProps({ template: other })
+    await flushPromises()
+
+    expect(wrapper.find('table-template-stub').exists()).toBe(false)
+  })
+
+  test('shows the revision it shows now once an earlier one answers late', async () => {
+    const other = { ...template, workspace_id: template.workspace_id + 1 }
+    const late = heldBack()
+    testApp.mock
+      .onGet(`/applications/workspace/${other.workspace_id}/`)
+      .replyOnce(late.reply)
+    const wrapper = await testApp.mount(TemplatePreview, {
+      props: { template: other },
+      global: { stubs: { TableTemplate: true } },
+    })
+
+    await wrapper.setProps({ template })
+    await flushPromises()
+    late.send([200, []])
+    await flushPromises()
+
+    expect(wrapper.find('.loading-absolute-center').exists()).toBe(false)
+    expect(
+      wrapper.findAll('.tree__sub-link').map((link) => link.text())
+    ).toEqual(['Second table'])
   })
 })

@@ -40,7 +40,6 @@ from baserow.api.templates.serializers import (
     TemplateArchiveSerializer,
     TemplateCategoriesSerializer,
     TemplateCategorySerializer,
-    TemplateDetailSerializer,
     TemplateListItemSerializer,
     UpdateTemplateSerializer,
 )
@@ -293,7 +292,7 @@ class TemplateView(APIView):
             raise TemplateDoesNotExist(f"The template with slug {slug} does not exist.")
 
         return Response(
-            TemplateDetailSerializer(template, context={"request": request}).data
+            TemplateListItemSerializer(template, context={"request": request}).data
         )
 
     @extend_schema(

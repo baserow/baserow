@@ -1,12 +1,4 @@
-import {
-  afterAll,
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  test,
-  vi,
-} from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
@@ -61,27 +53,52 @@ describe('PublicTemplateList', () => {
     })
   }
 
-  // jsdom doesn't lay out, so the list is made to scroll unless a test says
-  // otherwise. A hidden list (`display: none`) measures 0.
+  // jsdom doesn't lay out and has no IntersectionObserver. The end of the list
+  // is in view while the list doesn't scroll, isn't hidden and shows the end. Like a
+  // real observer, it calls back when it starts and when that changes, which
+  // `layout` checks.
   let scrolls = true
   let hidden = false
-  const spyOnSize = (name, size) => {
-    let proto = HTMLElement.prototype
-    while (!Object.hasOwn(proto, name)) {
-      proto = Object.getPrototypeOf(proto)
+  let observers = []
+  const layout = () => observers.forEach((observer) => observer.check())
+  class FakeIntersectionObserver {
+    constructor(callback) {
+      this.callback = callback
+      this.targets = new Map()
+      observers.push(this)
     }
-    return vi.spyOn(proto, name, 'get').mockImplementation(size)
+
+    observe(target) {
+      this.targets.set(target, null)
+      Promise.resolve().then(() => this.check())
+    }
+
+    unobserve(target) {
+      this.targets.delete(target)
+    }
+
+    disconnect() {
+      this.targets.clear()
+    }
+
+    check() {
+      this.targets.forEach((seen, target) => {
+        const inView = !scrolls && !hidden && target.style.display !== 'none'
+        if (inView !== seen) {
+          this.targets.set(target, inView)
+          this.callback([{ target, isIntersecting: inView }])
+        }
+      })
+    }
   }
-  const scrollHeight = spyOnSize('scrollHeight', () =>
-    hidden ? 0 : scrolls ? 1000 : 400
-  )
-  const clientHeight = spyOnSize('clientHeight', () => (hidden ? 0 : 500))
 
   beforeEach(() => {
     testApp = new TestApp()
     requests = []
     scrolls = true
     hidden = false
+    observers = []
+    vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver)
     // Registered first, so that the pages don't answer it.
     testApp.mock
       .onGet('/templates/', { params: { view: 'public_categories' } })
@@ -90,12 +107,8 @@ describe('PublicTemplateList', () => {
 
   afterEach(async () => {
     vi.useRealTimers()
+    vi.unstubAllGlobals()
     await testApp.afterEach()
-  })
-
-  afterAll(() => {
-    scrollHeight.mockRestore()
-    clientHeight.mockRestore()
   })
 
   const mountComponent = async () => {
@@ -115,16 +128,19 @@ describe('PublicTemplateList', () => {
     const wrapper = await mountComponent()
 
     const cards = wrapper.findAll('.template-list__card')
+    // With the whole name on hover, it's cut when it's long.
+    const author = (card) => {
+      const name = card.find('.public-template-list__author-name')
+      return name.exists() ? [name.text(), name.attributes('title')] : null
+    }
     expect(
       cards.map((card) => [
         card.find('.template-list__card-name').text(),
-        card.find('.public-template-list__author-name').exists()
-          ? card.find('.public-template-list__author-name').text()
-          : null,
+        author(card),
       ])
     ).toStrictEqual([
-      ['Sprint Tracker', 'publicTemplateList.you'],
-      ['Launch Plan', 'Grace'],
+      ['Sprint Tracker', ['publicTemplateList.you', 'Grace']],
+      ['Launch Plan', ['Grace', 'Grace']],
       ['Orphan', null],
     ])
     expect(
@@ -216,15 +232,35 @@ describe('PublicTemplateList', () => {
     hidden = true
     scrolls = false
     await wrapper.setProps({ active: false })
+    layout()
     await wrapper.vm.refresh()
     await flushPromises()
     expect(requests.map(({ offset }) => offset)).toStrictEqual([0, 0])
 
     hidden = false
     await wrapper.setProps({ active: true })
+    layout()
     await flushPromises()
     expect(requests.map(({ offset }) => offset)).toStrictEqual([0, 0, 1])
     expect(names(wrapper)).toStrictEqual(['First', 'Second'])
+  })
+
+  test("doesn't load a failed next page again while the list isn't filled", async () => {
+    scrolls = false
+    const next = heldBack()
+    mockPages(page([listed(1, 'First')], true), next.reply)
+    const wrapper = await mountComponent()
+
+    // The list lays out again, its end stays in view.
+    layout()
+    next.send([500, { error: 'ERROR_UNKNOWN', detail: 'Failed.' }])
+    await flushPromises()
+
+    const sent = testApp.mock.history.get.filter(
+      ({ params }) => params.view === 'flat'
+    )
+    expect(sent.map(({ params }) => params.offset)).toStrictEqual([0, 1])
+    expect(names(wrapper)).toStrictEqual(['First'])
   })
 
   test("doesn't load the next page while the list scrolls", async () => {
@@ -250,9 +286,12 @@ describe('PublicTemplateList', () => {
     })
     await flushPromises()
 
-    expect(wrapper.find('.public-template-list__updated').text()).toMatch(
+    // Also on hover, the date is cut when the card is narrow.
+    const updated = wrapper.find('.public-template-list__updated')
+    expect(updated.text()).toMatch(
       /^publicTemplateList\.updated \{"ago":"datetime\.yearsAgo/
     )
+    expect(updated.attributes('title')).toBe(updated.text())
   })
 
   test('loads the first page again with the chosen category and search', async () => {

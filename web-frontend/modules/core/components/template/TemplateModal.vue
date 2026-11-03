@@ -332,9 +332,7 @@ export default {
       try {
         const { data } = await TemplateService(this.$client).fetch(slug)
         if (this.selectingPublic === id && this.selectedTemplate === null) {
-          // The template's own categories aren't part of the response.
-          const shown = { ...template, ...data }
-          this.selectTemplate(shown, isOwnTemplate(shown))
+          this.selectTemplate(data, isOwnTemplate(data))
         }
       } catch (error) {
         if (error.response?.status === 404) {
@@ -409,8 +407,7 @@ export default {
       try {
         const { data } = await TemplateService(this.$client).fetch(slug)
         if (!this.selectedIsOwn && this.selectedTemplate?.id === id) {
-          // The template's own categories aren't part of the response.
-          this.selectedTemplate = { ...this.selectedTemplate, ...data }
+          this.selectedTemplate = data
         }
       } catch (error) {
         notifyIf(error, 'templates')
@@ -491,6 +488,8 @@ export default {
      */
     hidden() {
       this.open = false
+      // A public template still being opened isn't shown once the modal is closed.
+      this.selectingPublic = null
       this.selectTemplate(null)
     },
     searchStarted({ event }) {

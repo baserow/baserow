@@ -179,9 +179,9 @@ class TemplateDetailSerializer(TemplateSerializer):
 
 class TemplateListItemSerializer(TemplateDetailSerializer):
     """
-    A revision of a template in the flat list. `state`, `reason`, the source and
-    `install_count` are only shown to the owner of a user template, and are null
-    otherwise.
+    A revision of a template in the flat list, or opened by its slug. `state`,
+    `reason`, the source and `install_count` are only shown to the owner of a user
+    template, and are null otherwise.
     """
 
     created_on = serializers.DateTimeField(source="get_root.created_on", read_only=True)

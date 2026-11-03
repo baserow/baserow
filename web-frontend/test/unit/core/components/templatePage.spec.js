@@ -134,10 +134,10 @@ describe('TemplatePage', () => {
     await wrapper.findAll('.segment-control__button')[1].trigger('click')
     expect(wrapper.find('.list').isVisible()).toBe(false)
 
-    // Shown as it is now, keeping its own categories.
+    // Shown as it is now, with its own categories.
     testApp.mock
       .onGet('/templates/crm-a1b2c3/')
-      .reply(200, { id: 5, type: 'user', slug: 'crm-a1b2c3', name: 'CRM 1' })
+      .reply(200, { ...crm, name: 'CRM 1' })
     await wrapper.find('.public-list__crm').trigger('click')
     const router = useRouter()
     await vi.waitFor(() =>
@@ -148,10 +148,10 @@ describe('TemplatePage', () => {
     expect(wrapper.find('.details').text()).toBe('CRM 1: Sales')
     expect(wrapper.find('.public-list').isVisible()).toBe(false)
 
-    // Reloaded when its install is outdated, keeping its own categories.
+    // Reloaded when its install is outdated.
     testApp.mock
       .onGet('/templates/crm-a1b2c3/')
-      .reply(200, { id: 5, type: 'user', slug: 'crm-a1b2c3', name: 'CRM 2' })
+      .reply(200, { ...crm, name: 'CRM 2' })
     await wrapper.find('.details__outdated').trigger('click')
     await flushPromises()
     expect(wrapper.find('.details').text()).toBe('CRM 2: Sales')
@@ -203,14 +203,12 @@ describe('TemplatePage', () => {
   test('loads a public template of the URL that it does not know', async () => {
     // Opened from the list before the page was reloaded on another one.
     const wrapper = await mountPage('project-tracker')
-    testApp.mock
-      .onGet('/templates/crm-a1b2c3/')
-      .reply(200, { id: 5, type: 'user', slug: 'crm-a1b2c3', name: 'CRM' })
+    testApp.mock.onGet('/templates/crm-a1b2c3/').reply(200, crm)
 
     await useRouter().push('/template/crm-a1b2c3')
     await flushPromises()
 
-    expect(wrapper.find('.details').text()).toBe('CRM:')
+    expect(wrapper.find('.details').text()).toBe('CRM: Sales')
   })
 
   test('reloads the preview when the install of the shown revision is refused', async () => {

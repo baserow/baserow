@@ -406,7 +406,7 @@ describe('TemplateModal navigation', () => {
       expect(ownList(wrapper).isVisible()).toBe(false)
     })
 
-    // The public template as it is now, which has no categories.
+    // The public template as it is now.
     const mockPublicTemplate = (changes) =>
       testApp.mock.onGet(`/templates/${sprintTracker.slug}/`).reply(200, {
         id: sprintTracker.id,
@@ -414,6 +414,7 @@ describe('TemplateModal navigation', () => {
         slug: sprintTracker.slug,
         name: sprintTracker.name,
         workspace_id: sprintTracker.workspace_id,
+        categories: sprintTracker.categories,
         is_own: false,
         ...changes,
       })
@@ -531,6 +532,22 @@ describe('TemplateModal navigation', () => {
       await flushPromises()
 
       expect(wrapper.find('.details').text()).toBe('Launch Plan:')
+    })
+
+    it("doesn't open a public template that answers once the modal is closed", async () => {
+      testApp.authenticate({ id: 1 })
+      const reply = heldBack()
+      testApp.mock.onGet(`/templates/${sprintTracker.slug}/`).reply(reply.reply)
+      const wrapper = await mountAndShow()
+      await tabs(wrapper)[1].trigger('click')
+
+      await wrapper.find('.public-list__sprint-tracker').trigger('click')
+      await flushPromises()
+      await wrapper.vm.hide()
+      reply.send([200, sprintTracker])
+      await flushPromises()
+
+      expect(wrapper.find('.details').exists()).toBe(false)
     })
 
     it("open the user's own public template as theirs, and list it no more once private", async () => {

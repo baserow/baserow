@@ -73,13 +73,13 @@
         ></TemplateEmptyState>
         <InfiniteScroll
           v-else
-          ref="scroll"
           class="public-template-list__scroll"
           :current-count="templates.length"
           :has-more-page="hasNextPage"
           :page-size="PAGE_SIZE"
           :loading="loading"
           :render-end="false"
+          fill
           @load-next-page="fetchPage(offset)"
         >
           <div class="template-list__grid">
@@ -115,21 +115,22 @@
                     size="small"
                     rounded
                   ></Avatar>
-                  <span class="public-template-list__author-name">{{
-                    isOwnTemplate(template)
-                      ? $t('publicTemplateList.you')
-                      : template.author_name
-                  }}</span>
+                  <span
+                    class="public-template-list__author-name"
+                    :title="template.author_name"
+                    >{{
+                      isOwnTemplate(template)
+                        ? $t('publicTemplateList.you')
+                        : template.author_name
+                    }}</span
+                  >
                 </div>
                 <div
                   v-if="template.updated_on"
                   class="public-template-list__updated"
+                  :title="updatedLabel($t, template.updated_on)"
                 >
-                  {{
-                    $t('publicTemplateList.updated', {
-                      ago: getHumanAgoLabel($t, template.updated_on),
-                    })
-                  }}
+                  {{ updatedLabel($t, template.updated_on) }}
                 </div>
               </div>
             </a>
@@ -141,7 +142,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useNuxtApp } from '#app'
 import debounce from 'lodash/debounce'
 
@@ -170,10 +171,13 @@ const { $client, $i18n, $priorityBus } = useNuxtApp()
 
 const allTemplates = computed(() => $i18n.t('templateCategories.allTemplates'))
 
+// Shown on hover too, because the date is cut when the card is narrow.
+const updatedLabel = (t, updatedOn) =>
+  t('publicTemplateList.updated', { ago: getHumanAgoLabel(t, updatedOn) })
+
 // The categories holding a public template.
 const categories = ref([])
 const searchInput = ref(null)
-const scroll = ref(null)
 const search = ref('')
 const categoryId = ref(null)
 const templates = ref([])
@@ -239,29 +243,6 @@ async function fetchPage(pageOffset = 0) {
       loaded.value = true
       loading.value = false
     }
-  }
-  if (request === lastRequest && !failed.value) {
-    await fillView()
-  }
-}
-
-/**
- * The next page is only loaded when the list is scrolled, so it's loaded right
- * away while the shown templates don't fill the list, for example on a high
- * screen. A hidden list measures 0, so it's filled once it's shown again.
- */
-async function fillView() {
-  await nextTick()
-  const element = scroll.value?.$refs.infiniteScroll
-  if (
-    props.active &&
-    element &&
-    element.clientHeight > 0 &&
-    hasNextPage.value &&
-    !loading.value &&
-    element.scrollHeight <= element.clientHeight
-  ) {
-    await fetchPage(offset.value)
   }
 }
 
@@ -330,12 +311,7 @@ onMounted(() => {
 })
 watch(
   () => props.active,
-  (active) => {
-    listenToSearch(active)
-    if (active) {
-      fillView()
-    }
-  }
+  (active) => listenToSearch(active)
 )
 
 onBeforeUnmount(() => {
