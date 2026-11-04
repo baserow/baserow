@@ -127,7 +127,7 @@
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
-    "@nuxt/eslint": "^1.15.2",
+    "@nuxt/eslint": "^1.17.0",
     "@nuxt/test-utils": "^4.3.2",
     "@nuxtjs/storybook": "9.1.0-29411911.f34c865",
     "@storybook/addon-designs": "^11.1.0",
