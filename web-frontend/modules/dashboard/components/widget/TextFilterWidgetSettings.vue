@@ -532,6 +532,8 @@ async function updateSetting(field, value) {
   const values = { ...settings, [field]: value }
   if (field === 'options') {
     values.default_value = props.widget.multiple ? [] : ''
+  } else if (field === 'mode' || field === 'multiple') {
+    values.default_value = getTextFilterDefaultValue(values)
   }
   try {
     await $store.dispatch(
