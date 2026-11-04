@@ -274,7 +274,9 @@ def test_create_user_source_is_undoable(data_fixture, site):
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
-def test_create_login_page_is_undoable(data_fixture, site):
+def test_undo_of_create_login_page_removes_the_form_and_keeps_the_page(
+    data_fixture, site
+):
     table = site["table"]
     field_map = {
         "name": table.field_set.first(),
@@ -292,9 +294,7 @@ def test_create_login_page_is_undoable(data_fixture, site):
 
     undo(site, page)
     assert not Element.objects.filter(page=page).exists()
-
-    undo(site, page)
-    assert not Page.objects.filter(id=page.id).exists()
+    assert Page.objects.filter(id=page.id).exists()
 
 
 @pytest.mark.django_db
@@ -317,7 +317,9 @@ def test_a_failed_batch_item_leaves_no_action_row(site):
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
-def test_setup_creates_a_new_login_page_after_the_old_one_is_undone(data_fixture, site):
+def test_setup_after_an_undone_setup_reuses_the_page_with_a_new_form(
+    data_fixture, site
+):
     from baserow_enterprise.assistant.tools.builder.tools import setup_user_source
     from baserow_enterprise.builder.tools.types.user_source import UserSourceSetup
 
@@ -332,14 +334,12 @@ def test_setup_creates_a_new_login_page_after_the_old_one_is_undone(data_fixture
     first_page = Page.objects.get(id=first["login_page_id"])
     undo(site, first_page)
     undo(site, first_page)
-    assert not Page.objects.filter(id=first_page.id).exists()
+    assert not AuthFormElement.objects.filter(page=first_page).exists()
 
     result = setup_user_source(
         site["ctx"], application_id=site["builder"].id, setup=setup, thought="t"
     )
 
-    site["builder"].refresh_from_db()
-    assert result["login_page_id"] != first_page.id
-    assert site["builder"].login_page_id == result["login_page_id"]
-    login_page = Page.objects.get(id=result["login_page_id"])
-    assert AuthFormElement.objects.filter(page=login_page).exists()
+    assert result["login_page_id"] == first_page.id
+    form = AuthFormElement.objects.get(page=first_page)
+    assert form.user_source_id == result["user_source_id"]
