@@ -35,7 +35,7 @@ import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandle
 import ManageTeamForm from '@baserow_enterprise/components/teams/ManageTeamForm'
 import TeamService from '@baserow_enterprise/services/team'
 import MemberAssignmentModal from '@baserow/modules/core/components/workspace/MemberAssignmentModal'
-import AgentService from '@baserow/modules/core/services/agent'
+import SubjectService from '@baserow/modules/core/services/subject'
 import { FF_AGENTS } from '@baserow/modules/core/plugins/featureFlags'
 import {
   getTeamSubjectKey,
@@ -105,18 +105,19 @@ export default {
       this.subjectsLoading = true
       this.subjectsLoaded = false
       try {
-        const [{ data: teamSubjects }, { data: agentsResponse }] =
-          await Promise.all([
-            TeamService(this.$client).fetchAllSubjects(this.team.id),
-            this.canListAgents
-              ? AgentService(this.$client).list(this.workspace.id)
-              : Promise.resolve({ data: [] }),
-          ])
+        const [{ data: teamSubjects }, agentsResponse] = await Promise.all([
+          TeamService(this.$client).fetchAllSubjects(this.team.id),
+          this.canListAgents
+            ? SubjectService(this.$client).listAll(this.workspace.id, {
+                identityType: 'agent',
+              })
+            : Promise.resolve([]),
+        ])
         const userSubjectType = this.$registry.get('subject', 'auth.User')
         const users = this.workspace.users.map((member) =>
           makeTeamSubject(member, userSubjectType)
         )
-        const agents = (agentsResponse.results || agentsResponse).map((agent) =>
+        const agents = agentsResponse.map((agent) =>
           makeTeamSubject(
             agent,
             userSubjectType,

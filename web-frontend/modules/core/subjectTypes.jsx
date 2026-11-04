@@ -1,7 +1,7 @@
 import Avatar from '@baserow/modules/core/components/Avatar'
 import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
 import { Registerable } from '@baserow/modules/core/registry'
-import AgentService from '@baserow/modules/core/services/agent'
+import SubjectService from '@baserow/modules/core/services/subject'
 import { FF_AGENTS } from '@baserow/modules/core/plugins/featureFlags'
 
 export class SubjectType extends Registerable {
@@ -223,8 +223,13 @@ export class UserSubjectType extends SubjectType {
     ) {
       return users
     }
-    const { data } = await AgentService(this.app.$client).list(workspace.id)
-    return [...users, ...data.results]
+    const agents = await SubjectService(this.app.$client).listAll(
+      workspace.id,
+      {
+        identityType: 'agent',
+      }
+    )
+    return [...users, ...agents]
   }
 
   isUser() {

@@ -32,13 +32,10 @@ class AuditLogEntry(CreatedAndUpdatedOnMixin, models.Model):
         UNDO = ActionCommandType.REDO.name, _("UNDONE")
         REDO = ActionCommandType.UNDO.name, _("REDONE")
 
-    # Reuse the former user columns so existing entries are immediately available
-    # through the actor fields and old application versions remain ZDM-compatible.
-    # This is safe only while actor_type is always used with actor_id (User and Agent
-    # primary keys can overlap), auth.User remains the database default for writes
-    # made by an old version, and actor names fit the existing user_email column.
+    # Reuse the former user columns without a history backfill.
     actor_id = models.PositiveIntegerField(db_column="user_id", null=True)
     actor_type = models.CharField(max_length=255, db_default=UserSubjectType.type)
+    actor_identity_type = models.CharField(max_length=16, null=True)
     actor_name = models.CharField(
         db_column="user_email", max_length=254, null=True, blank=True
     )

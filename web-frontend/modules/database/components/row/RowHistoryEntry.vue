@@ -1,7 +1,14 @@
 <template>
   <div class="row-history-entry">
     <div class="row-history-entry__header">
-      <span class="row-history-entry__initials">{{ initials }}</span>
+      <span class="row-history-entry__initials">
+        <i
+          v-if="entry.actor?.identity_type === 'agent'"
+          class="baserow-icon-agent"
+          aria-hidden="true"
+        ></i>
+        <template v-else>{{ initials }}</template>
+      </span>
       <span class="row-history-entry__name">{{ name }} {{ actionName }}</span>
       <span class="row-history-entry__timestamp" :title="timestampTooltip">{{
         formattedTimestamp

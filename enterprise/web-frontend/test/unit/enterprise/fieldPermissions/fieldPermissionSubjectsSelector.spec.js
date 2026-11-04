@@ -18,8 +18,9 @@ const ButtonIconStub = defineComponent({
 
 const AvatarStub = defineComponent({
   name: 'Avatar',
-  props: ['initials'],
-  template: '<div class="avatar-stub">{{ initials }}</div>',
+  props: ['initials', 'icon'],
+  template:
+    '<div class="avatar-stub"><i v-if="icon" :class="icon"></i>{{ initials }}</div>',
 })
 
 const simpleStub = (name) =>
@@ -155,7 +156,7 @@ describe('FieldPermissionSubjectsSelector', () => {
     expect(wrapper.find('.dropdown__items').classes()).toContain('hidden')
     expect(wrapper.emitted('selection-change').at(-1)).toEqual([2])
   })
-  test('selects and removes an agent user alongside a person', async () => {
+  test('selects and removes an Agent User alongside a person', async () => {
     fetchSubjectOptions.mockResolvedValue({
       data: {
         count: 1,
@@ -163,6 +164,7 @@ describe('FieldPermissionSubjectsSelector', () => {
           {
             subject_id: 4,
             subject_type: 'auth.User',
+            identity_type: 'agent',
             name: 'Import agent',
             email: null,
             subject_count: null,
@@ -173,11 +175,14 @@ describe('FieldPermissionSubjectsSelector', () => {
     const wrapper = await mountComponent()
     await wrapper.find('.dropdown__selected').trigger('click')
     await flushPromises()
+    const option = wrapper.find('.field-permission-subjects__dropdown-option')
+    expect(option.find('.baserow-icon-agent').exists()).toBe(true)
     await wrapper.find('.select__item-link').trigger('click')
     await flushPromises()
     const selected = wrapper.findAll('.field-permission-subjects__item')
     expect(selected).toHaveLength(2)
     expect(selected[1].text()).toContain('Import agent')
+    expect(selected[1].find('.baserow-icon-agent').exists()).toBe(true)
     await wrapper.find('.dropdown__selected').trigger('click')
     await flushPromises()
     expect(fetchSubjectOptions).toHaveBeenLastCalledWith(
@@ -196,13 +201,18 @@ describe('FieldPermissionSubjectsSelector', () => {
         {
           subject_id: 4,
           subject_type: 'auth.User',
-          subject: { id: 4, first_name: 'Saved agent' },
+          subject: { id: 4, name: 'Saved agent', identity_type: 'agent' },
         },
       ],
     })
     expect(wrapper.find('.field-permission-subjects__item').text()).toContain(
       'Saved agent'
     )
+    expect(
+      wrapper
+        .find('.field-permission-subjects__item .baserow-icon-agent')
+        .exists()
+    ).toBe(true)
     wrapper.unmount()
   })
 })

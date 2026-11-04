@@ -8,6 +8,7 @@ from baserow.core.models import Workspace
 from baserow.core.registries import subject_type_registry
 from baserow.core.subjects import UserSubjectType
 from baserow.core.types import Actor
+from baserow.core.user.identity import get_identity_type
 
 from .models import AuditLogEntry
 
@@ -62,6 +63,7 @@ class AuditLogHandler:
             actor_id=getattr(user, "id", None),
             actor_type=actor_type,
             actor_name=actor_name,
+            actor_identity_type=get_identity_type(user),
             workspace_id=workspace_id,
             workspace_name=workspace_name,
             action_uuid=action_uuid,

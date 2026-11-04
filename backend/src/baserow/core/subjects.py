@@ -8,7 +8,9 @@ from django.db.models import (
     Count,
     F,
     IntegerField,
+    OuterRef,
     Q,
+    Subquery,
     Value,
     When,
 )
@@ -140,6 +142,19 @@ class UserSubjectType(SubjectType):
                 output_field=CharField(),
             ),
             subject_identity_type=F("profile__identity_type"),
+            subject_role_uid=Case(
+                When(
+                    profile__identity_type=UserProfile.IdentityType.AGENT,
+                    then=Subquery(
+                        WorkspaceUser.objects_and_trash.filter(
+                            user_id=OuterRef("pk"),
+                            **({"workspace": workspace} if workspace else {}),
+                        ).values("permissions")[:1]
+                    ),
+                ),
+                default=Value(None),
+                output_field=CharField(),
+            ),
             subject_count=Cast(Value(None), output_field=IntegerField()),
         ).values(
             "subject_id",
@@ -149,6 +164,7 @@ class UserSubjectType(SubjectType):
             "subject_email",
             "subject_count",
             "subject_identity_type",
+            "subject_role_uid",
         )
 
     def get_historical_options_queryset(

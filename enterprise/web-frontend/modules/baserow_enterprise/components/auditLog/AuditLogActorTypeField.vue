@@ -24,7 +24,7 @@ export default {
         return ''
       }
       return this.$registry.exists('subject', type)
-        ? this.$registry.get('subject', type).getTypeDisplayName()
+        ? this.$registry.get('subject', type).getTypeDisplayName(this.row.actor)
         : type
     },
   },

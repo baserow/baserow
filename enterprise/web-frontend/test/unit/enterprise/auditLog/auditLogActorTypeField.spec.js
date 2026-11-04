@@ -40,6 +40,17 @@ describe('AuditLogActorTypeField', () => {
     expect(wrapper.attributes('title')).toBe(expected)
   })
 
+  test('renders the Agent label for an agent User', async () => {
+    const wrapper = await mountSuspended(AuditLogActorTypeField, {
+      props: {
+        row: { actor: { type: 'auth.User', identity_type: 'agent' } },
+        column: { key: 'actor_type' },
+      },
+    })
+
+    expect(wrapper.text()).toBe('subjectType.agent')
+  })
+
   test('renders an empty value for a legacy actor', async () => {
     const wrapper = await mountComponent(null)
 

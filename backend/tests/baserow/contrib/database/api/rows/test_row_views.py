@@ -3903,6 +3903,7 @@ def test_list_row_history_for_different_rows(data_fixture, api_client):
                     "id": user.id,
                     "type": "auth.User",
                     "name": user.first_name,
+                    "identity_type": "human",
                 },
                 "timestamp": "2021-01-01T12:01:00Z",
                 "before": {
@@ -3930,6 +3931,7 @@ def test_list_row_history_for_different_rows(data_fixture, api_client):
                     "id": user.id,
                     "type": "auth.User",
                     "name": user.first_name,
+                    "identity_type": "human",
                 },
                 "timestamp": "2021-01-01T12:00:00Z",
                 "before": {
@@ -3985,6 +3987,7 @@ def test_list_row_history_for_different_rows(data_fixture, api_client):
                     "id": user.id,
                     "type": "auth.User",
                     "name": user.first_name,
+                    "identity_type": "human",
                 },
                 "timestamp": "2021-01-01T12:00:00Z",
                 "before": {
@@ -4159,6 +4162,7 @@ def test_list_row_history_for_different_fields(data_fixture, api_client):
                     "id": user.id,
                     "type": "auth.User",
                     "name": user.first_name,
+                    "identity_type": "human",
                 },
                 "timestamp": "2021-01-01T12:00:00Z",
                 "before": {
@@ -4405,6 +4409,7 @@ def test_undo_redo_create_new_entries_in_row_history(data_fixture, api_client):
                     "id": user.id,
                     "type": "auth.User",
                     "name": user.first_name,
+                    "identity_type": "human",
                 },
                 "timestamp": "2021-01-01T12:01:00Z",
                 "before": {
@@ -4432,6 +4437,7 @@ def test_undo_redo_create_new_entries_in_row_history(data_fixture, api_client):
                     "id": user.id,
                     "type": "auth.User",
                     "name": user.first_name,
+                    "identity_type": "human",
                 },
                 "timestamp": "2021-01-01T12:00:00Z",
                 "before": {
@@ -4483,6 +4489,7 @@ def test_undo_redo_create_new_entries_in_row_history(data_fixture, api_client):
                     "id": user.id,
                     "type": "auth.User",
                     "name": user.first_name,
+                    "identity_type": "human",
                 },
                 "timestamp": "2021-01-01T12:02:00Z",
                 "before": {
@@ -4510,6 +4517,7 @@ def test_undo_redo_create_new_entries_in_row_history(data_fixture, api_client):
                     "id": user.id,
                     "type": "auth.User",
                     "name": user.first_name,
+                    "identity_type": "human",
                 },
                 "timestamp": "2021-01-01T12:01:00Z",
                 "before": {
@@ -4537,6 +4545,7 @@ def test_undo_redo_create_new_entries_in_row_history(data_fixture, api_client):
                     "id": user.id,
                     "type": "auth.User",
                     "name": user.first_name,
+                    "identity_type": "human",
                 },
                 "timestamp": "2021-01-01T12:00:00Z",
                 "before": {
@@ -4663,6 +4672,7 @@ def test_list_row_history_endpoint_is_paginated(data_fixture, api_client):
                     "id": user.id,
                     "type": "auth.User",
                     "name": user.first_name,
+                    "identity_type": "human",
                 },
                 "timestamp": "2023-01-01T12:04:00Z",
                 "before": {
@@ -4690,6 +4700,7 @@ def test_list_row_history_endpoint_is_paginated(data_fixture, api_client):
                     "id": user.id,
                     "type": "auth.User",
                     "name": user.first_name,
+                    "identity_type": "human",
                 },
                 "timestamp": "2023-01-01T12:03:00Z",
                 "before": {
@@ -4736,6 +4747,7 @@ def test_list_row_history_endpoint_is_paginated(data_fixture, api_client):
                     "id": user.id,
                     "type": "auth.User",
                     "name": user.first_name,
+                    "identity_type": "human",
                 },
                 "timestamp": "2023-01-01T12:01:00Z",
                 "before": {
@@ -4763,6 +4775,7 @@ def test_list_row_history_endpoint_is_paginated(data_fixture, api_client):
                     "id": user.id,
                     "type": "auth.User",
                     "name": user.first_name,
+                    "identity_type": "human",
                 },
                 "timestamp": "2023-01-01T12:00:00Z",
                 "before": {

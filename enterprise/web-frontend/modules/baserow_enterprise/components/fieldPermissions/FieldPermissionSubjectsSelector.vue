@@ -47,17 +47,13 @@
           class="field-permission-subjects__item"
         >
           <div class="field-permission-subjects__identity">
-            <Avatar
-              v-if="subject.subjectType === userSubjectType"
-              rounded
+            <component
+              :is="
+                $registry.get('subject', subject.subjectType).avatarComponent
+              "
+              :subject="subject"
               size="large"
-              :initials="nameAbbreviation(subject.label)"
-            ></Avatar>
-            <span v-else class="field-permission-subjects__team-icon">
-              <i
-                :class="$registry.get('subject', subject.subjectType).iconClass"
-              ></i>
-            </span>
+            />
             <span class="field-permission-subjects__details">
               <span class="field-permission-subjects__label">
                 {{ subject.label }}
@@ -86,7 +82,6 @@
 <script>
 import { markRaw } from 'vue'
 
-import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
 import FieldPermissionSubjectDropdownItem from '@baserow_enterprise/components/fieldPermissions/FieldPermissionSubjectDropdownItem'
 import FieldPermissionService from '@baserow_enterprise/services/fieldPermissions'
@@ -112,7 +107,6 @@ export default {
     return {
       pageSize: 20,
       selectedSubjects: [],
-      userSubjectType: USER_SUBJECT_TYPE,
       fieldPermissionSubjectDropdownItem: markRaw(
         FieldPermissionSubjectDropdownItem
       ),
@@ -157,16 +151,17 @@ export default {
     normalizeAssignment(assignment) {
       const subject = assignment.subject
       const isUser = assignment.subject_type === USER_SUBJECT_TYPE
-      const label = isUser
-        ? subject.first_name || subject.username || subject.email
-        : subject.name
+      const type = this.$registry.get('subject', assignment.subject_type)
+      const label = type.getDisplayName(subject)
       return {
         key: this.subjectKey(assignment.subject_type, assignment.subject_id),
         subjectId: assignment.subject_id,
         subjectType: assignment.subject_type,
+        identity_type: subject.identity_type,
         label,
+        name: label,
         description: isUser
-          ? null
+          ? type.getBadge(subject)
           : this.$registry
               .get('subject', assignment.subject_type)
               .getTypeDisplayName(),
@@ -178,10 +173,12 @@ export default {
         key: this.subjectKey(option.subject_type, option.subject_id),
         subjectId: option.subject_id,
         subjectType: option.subject_type,
+        identity_type: option.identity_type,
         label: option.name,
+        name: option.name,
         searchText: option.email || '',
         description: isUser
-          ? null
+          ? this.$registry.get('subject', option.subject_type).getBadge(option)
           : option.subject_type === TEAM_SUBJECT_TYPE
             ? this.$t('fieldPermissionSubjectsSelector.teamSearchDescription', {
                 count: option.subject_count,
@@ -241,7 +238,6 @@ export default {
         subject_type: subjectType,
       }))
     },
-    nameAbbreviation,
   },
 }
 </script>

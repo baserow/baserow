@@ -74,6 +74,22 @@ describe('WorkflowHistory', () => {
     )
   })
 
+  test('retains a deleted Agent identity in the run header', async () => {
+    const wrapper = await mountHistory({
+      ...baseItem,
+      triggered_by: {
+        id: 42,
+        type: 'auth.User',
+        identity_type: 'agent',
+        name: 'Writer',
+      },
+    })
+    expect(wrapper.find('.workflow-history__started-by').text()).toBe(
+      'historySidePanel.startedBy:Writer'
+    )
+    expect(wrapper.find('.baserow-icon-agent').exists()).toBe(true)
+  })
+
   test('shows nothing when nobody is recorded', async () => {
     const wrapper = await mountHistory(baseItem)
     expect(wrapper.find('.workflow-history__started-by').exists()).toBe(false)

@@ -15,6 +15,7 @@ const actors = [
     id: 'auth.User:2',
     actor_id: 2,
     actor_type: 'auth.User',
+    identity_type: 'agent',
     value: 'Row writer',
   },
 ]
@@ -32,6 +33,7 @@ async function mountComponent(fetchPage = null) {
         $t(key) {
           return {
             'auditLog.allActors': 'All Actors',
+            'subjectType.agents': 'Agents',
           }[key]
         },
       },
@@ -40,7 +42,7 @@ async function mountComponent(fetchPage = null) {
 }
 
 describe('AuditLogActorDropdown', () => {
-  test('renders agents among users and selects an agent', async () => {
+  test('renders users and agents in separate sections and selects an agent', async () => {
     const wrapper = await mountComponent()
     await wrapper.findComponent(PaginatedDropdown).vm.fetch()
     await flushPromises()

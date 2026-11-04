@@ -11,6 +11,7 @@ from baserow.contrib.database.rows.types import (
 )
 from baserow.core.registries import subject_type_registry
 from baserow.core.types import Subject
+from baserow.core.user.identity import get_identity_type
 
 tracer = trace.get_tracer(__name__)
 
@@ -31,6 +32,7 @@ def construct_entry_from_action_and_diff(
         actor_id=actor_id,
         actor_type=actor_type,
         actor_name=actor_name,
+        actor_identity_type=get_identity_type(actor),
         table_id=row_diff.table_id,
         row_id=row_diff.row_id,
         field_names=row_diff.changed_field_names,
@@ -222,6 +224,7 @@ def construct_related_rows_entries(
                 actor_id=actor_id,
                 actor_type=actor_type,
                 actor_name=actor_name,
+                actor_identity_type=get_identity_type(actor),
                 table_id=linked_table_id,
                 row_id=linked_row_id,
                 field_names=field_names,

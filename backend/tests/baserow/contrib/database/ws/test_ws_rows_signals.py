@@ -440,6 +440,7 @@ def test_rows_history_updated(
                                     ("id", user.id),
                                     ("type", "auth.User"),
                                     ("name", user.first_name),
+                                    ("identity_type", "human"),
                                 ]
                             ),
                             "timestamp": "2023-03-30T00:00:00Z",
@@ -469,6 +470,7 @@ def test_rows_history_updated(
                                     ("id", user.id),
                                     ("type", "auth.User"),
                                     ("name", user.first_name),
+                                    ("identity_type", "human"),
                                 ]
                             ),
                             "timestamp": "2023-03-30T00:00:00Z",

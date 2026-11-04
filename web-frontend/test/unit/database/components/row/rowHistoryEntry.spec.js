@@ -15,7 +15,7 @@ describe('RowHistoryEntry', () => {
     await testApp.afterEach()
   })
 
-  test('renders an Agent actor without resolving it as a colliding user', async () => {
+  test('renders a deleted Agent from its recorded identity metadata', async () => {
     const wrapper = await testApp.mount(RowHistoryEntry, {
       propsData: {
         workspaceId: 1,
@@ -25,7 +25,12 @@ describe('RowHistoryEntry', () => {
           action_command_type: 'DO',
           timestamp: '2026-08-05T12:00:00Z',
           user: { id: 1, name: 'Current user' },
-          actor: { id: 1, type: 'core.Agent', name: 'Row writer' },
+          actor: {
+            id: 42,
+            type: 'auth.User',
+            identity_type: 'agent',
+            name: 'Row writer',
+          },
           before: {},
           after: {},
           fields_metadata: {},
