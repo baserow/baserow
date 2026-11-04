@@ -324,3 +324,32 @@ def test_row_colour_leaves_nothing_behind_when_it_fails(premium_data_fixture):
             add_row_colours(ctx, view.id, _by_select(status.id))
 
     assert not ViewDecoration.objects.filter(view=view).exists()
+
+
+@pytest.mark.django_db
+def test_row_colour_date_condition_uses_the_timezone_it_is_given(premium_data_fixture):
+    ctx, view, _, _ = _setup(premium_data_fixture, has_active_premium_license=True)
+    due = premium_data_fixture.create_date_field(table=view.table, name="Due")
+    colour = RowColour(
+        style="background_color",
+        by="conditional_color",
+        colours=[
+            ConditionalColour(
+                color="red",
+                filters=[
+                    ViewFilterItemCreate(
+                        field_id=due.id,
+                        type="date",
+                        operator="equal",
+                        mode="today",
+                        timezone="Europe/Amsterdam",
+                    )
+                ],
+            )
+        ],
+    )
+
+    result = add_row_colours(ctx, view.id, colour)
+
+    conf = ViewDecoration.objects.get(id=result["decoration_id"]).value_provider_conf
+    assert conf["colors"][0]["filters"][0]["value"] == "Europe/Amsterdam??today"

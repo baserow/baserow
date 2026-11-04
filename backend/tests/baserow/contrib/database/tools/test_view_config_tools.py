@@ -24,7 +24,11 @@ from baserow.contrib.database.tools.view_config import (
     set_field_visibility,
     set_view_sorts,
 )
-from baserow.contrib.database.tools.views import list_views
+from baserow.contrib.database.tools.views import (
+    ViewFilterItemCreate,
+    create_view_filter,
+    list_views,
+)
 from baserow.contrib.database.views.actions import (
     CreateViewSortActionType,
     DeleteViewActionType,
@@ -599,3 +603,54 @@ def test_reordering_sorts_waits_for_set_view_sorts(grid):
     thread.join(timeout=15)
 
     assert reordered.is_set()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "item, expected",
+    [
+        ({"mode": "today"}, "Europe/Amsterdam??today"),
+        ({"mode": "nr_days_ago", "value": 3}, "Europe/Amsterdam?3?nr_days_ago"),
+    ],
+)
+def test_date_filter_uses_the_timezone_it_is_given(grid, item, expected):
+    ctx, view, _, _, due = grid
+    filter_item = ViewFilterItemCreate(
+        field_id=due.id,
+        type="date",
+        operator="equal",
+        timezone="Europe/Amsterdam",
+        **item,
+    )
+
+    view_filter = create_view_filter(ctx.user, view, {due.id: due}, filter_item)
+
+    assert view_filter.value == expected
+
+
+@pytest.mark.django_db
+def test_date_filter_timezone_goes_before_the_one_of_the_client(grid):
+    ctx, view, _, _, due = grid
+    ctx.timezone = "Asia/Tokyo"
+    item = ViewFilterItemCreate(
+        field_id=due.id,
+        type="date",
+        operator="equal",
+        mode="today",
+        timezone="Europe/Amsterdam",
+    )
+
+    view_filter = create_view_filter(ctx.user, view, {due.id: due}, item, ctx.timezone)
+
+    assert view_filter.value == "Europe/Amsterdam??today"
+
+
+def test_date_filter_refuses_an_unknown_timezone():
+    with pytest.raises(ValueError, match="Mars/Olympus"):
+        ViewFilterItemCreate(
+            field_id=1,
+            type="date",
+            operator="equal",
+            mode="today",
+            timezone="Mars/Olympus",
+        )
