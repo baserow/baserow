@@ -5,6 +5,7 @@ from functools import lru_cache
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
@@ -549,6 +550,8 @@ class WorkspaceInvitationLink(
     """
     A permanent link that anyone can use to join the workspace with the role of the
     link. It can be used any number of times and stops working once it's deleted.
+    A link can also target one object of the workspace, like a table, in which case
+    the role of the link is given on that object instead of on the workspace.
     """
 
     workspace = models.ForeignKey(
@@ -581,7 +584,22 @@ class WorkspaceInvitationLink(
         default=WORKSPACE_USER_PERMISSION_MEMBER,
         max_length=32,
         help_text="The permissions that people get within the workspace when they "
-        "join through the link.",
+        "join through the link, or on the scope of the link if it has one.",
+    )
+    scope = GenericForeignKey("scope_type", "scope_id")
+    scope_type = models.ForeignKey(
+        ContentType,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="+",
+        help_text="The type of the object the link gives a role on, if it targets "
+        "an object of the workspace instead of the workspace itself.",
+    )
+    scope_id = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="The id of the object the link gives a role on.",
     )
 
     def get_parent(self):

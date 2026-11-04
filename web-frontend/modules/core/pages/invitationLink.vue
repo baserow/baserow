@@ -17,21 +17,31 @@
           <strong>{{ invitationLink.invited_by }}</strong>
         </template>
         <template #workspace>
-          <strong>{{ invitationLink.workspace }}</strong>
+          <strong>{{ destination }}</strong>
         </template>
       </i18n-t>
       <i18n-t v-else scope="global" keypath="invitationLinkMessage" tag="p">
         <template #workspace>
-          <strong>{{ invitationLink.workspace }}</strong>
+          <strong>{{ destination }}</strong>
         </template>
       </i18n-t>
       <i18n-t
         v-if="roleUpgrade"
         scope="global"
-        keypath="invitationLinkJoin.upgradeRole"
+        :keypath="
+          invitationLink.scope_name
+            ? 'invitationLinkJoin.upgradeScopeRole'
+            : 'invitationLinkJoin.upgradeRole'
+        "
         tag="p"
         class="mb-24"
       >
+        <template #workspace>
+          <strong>{{ invitationLink.workspace }}</strong>
+        </template>
+        <template #name>
+          <strong>{{ invitationLink.scope_name }}</strong>
+        </template>
         <template #from>
           <strong>{{ roleUpgrade.from }}</strong>
         </template>
@@ -114,14 +124,34 @@ const { data: invitationLink, error: fetchError } = await useAsyncData(
   }
 )
 
-const pageTitle = computed(() => {
-  if (!invitationLink.value) {
+/**
+ * What the link joins: the workspace, or one of its objects such as "Sales in
+ * Acme" when the link gives a role on that object only.
+ */
+const destination = computed(() => {
+  const link = invitationLink.value
+  if (!link) {
     return ''
   }
-  const params = { workspace: invitationLink.value.workspace }
-  return roleUpgrade.value
-    ? t('invitationLinkJoin.upgradeTitle', params)
-    : t('invitationLinkJoin.title', params)
+  return link.scope_name
+    ? t('invitationLinkJoin.scopeIn', {
+        name: link.scope_name,
+        workspace: link.workspace,
+      })
+    : link.workspace
+})
+
+const pageTitle = computed(() => {
+  const link = invitationLink.value
+  if (!link) {
+    return ''
+  }
+  if (!roleUpgrade.value) {
+    return t('invitationLinkJoin.title', { workspace: destination.value })
+  }
+  return link.scope_name
+    ? t('invitationLinkJoin.upgradeScopeTitle', { name: link.scope_name })
+    : t('invitationLinkJoin.upgradeTitle', { workspace: link.workspace })
 })
 
 useHead({ title: () => pageTitle.value })
@@ -147,8 +177,9 @@ if (fetchError.value) {
     { replace: true }
   )
 } else if (invitationLink.value) {
-  // Members land in the workspace, unless the link raises their role. Then they
-  // confirm the change first, like newcomers confirm joining.
+  // Members land in the workspace, unless the link raises their role, on its
+  // object if it has one. Then they confirm the change first, like newcomers
+  // confirm joining.
   await store.dispatch('workspace/loadAll')
   const workspaceId = invitationLink.value.workspace_id
   const workspace = store.getters['workspace/get'](workspaceId)
