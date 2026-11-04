@@ -175,6 +175,22 @@ def set_view_sorts(
     result = []
     try:
         with transaction.atomic():
+            # One replacement at a time, or two could each add to the same old list.
+            View.objects.select_for_update(of=("self",)).get(id=view.id)
+            existing = list(
+                ViewSort.objects.filter(view=view).order_by("priority", "id")
+            )
+            # A new sort goes after the others. Those at the start that already match
+            # are kept, the others are recreated to end up in the order of the list.
+            keep = 0
+            while (
+                keep < min(len(existing), len(sorts))
+                and existing[keep].field_id == sorts[keep].field_id
+            ):
+                keep += 1
+
+            # A sort recreated to move it keeps its type, like sorting by option order.
+            sort_types = {sort.field_id: sort.type for sort in existing[keep:]}
             for sort in existing[keep:]:
                 DeleteViewSortActionType.do(ctx.user, sort)
             for sort, item in zip(existing[:keep], sorts):

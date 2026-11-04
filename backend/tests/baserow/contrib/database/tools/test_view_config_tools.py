@@ -1,7 +1,8 @@
 """Tests for the view config tools shared by MCP and Kuma."""
 
 import json
-from unittest.mock import ANY
+import threading
+from unittest.mock import ANY, patch
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import connection, transaction
@@ -451,3 +452,46 @@ def test_view_config_tools_open_their_own_transaction(data_fixture):
     assert visibility == {"updated_fields": [amount.id], "errors": []}
     assert filters["deleted_filters"] == [view_filter.id]
     assert views["deleted_views"] == [view.id]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_concurrent_set_view_sorts_end_up_as_one_of_the_lists(grid):
+    ctx, view, primary, amount, _ = grid
+    first_wrote = threading.Event()
+    second_done = threading.Event()
+    errors = []
+    create_sort = CreateViewSortActionType.do
+
+    def pause_the_first_call(*args, **kwargs):
+        sort = create_sort(*args, **kwargs)
+        if threading.current_thread().name == "first":
+            first_wrote.set()
+            second_done.wait(timeout=1)
+        return sort
+
+    def replace(field_id):
+        try:
+            set_view_sorts(ctx, view.id, [ViewSortItem(field_id=field_id)])
+        except Exception as exc:
+            errors.append(exc)
+        finally:
+            connection.close()
+
+    def replace_second():
+        first_wrote.wait(timeout=5)
+        replace(amount.id)
+        second_done.set()
+
+    threads = [
+        threading.Thread(target=replace, args=(primary.id,), name="first"),
+        threading.Thread(target=replace_second, name="second"),
+    ]
+    with patch.object(CreateViewSortActionType, "do", side_effect=pause_the_first_call):
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=15)
+
+    assert errors == []
+    sorts = ViewSort.objects.filter(view=view).order_by("priority", "id")
+    assert [sort.field_id for sort in sorts] == [amount.id]
