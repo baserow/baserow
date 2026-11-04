@@ -165,8 +165,8 @@ async def test_one_user_cannot_hold_every_stream_slot(monkeypatch, settings):
 
 
 @pytest.mark.asyncio
-async def test_user_streams_are_unlimited_by_default(monkeypatch, settings):
-    assert settings.ASGI_HTTP_MAX_CONCURRENT_STREAMS_PER_USER is None
+async def test_unlimited_user_can_use_all_process_stream_slots(monkeypatch, settings):
+    settings.ASGI_HTTP_MAX_CONCURRENT_STREAMS_PER_USER = None
     router = _router(monkeypatch, max_streams=2)
     handler = _SignedInStreams()
     monkeypatch.setattr(streaming, "_handler", handler)

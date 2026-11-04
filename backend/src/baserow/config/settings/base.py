@@ -171,7 +171,9 @@ if ASGI_HTTP_MAX_CONCURRENT_STREAMS <= 0:
     )
 # None leaves each user unlimited within the process-wide stream capacity.
 # Plugins can override this for each user through get_max_concurrent_streams_per_user.
-ASGI_HTTP_MAX_CONCURRENT_STREAMS_PER_USER = None
+ASGI_HTTP_MAX_CONCURRENT_STREAMS_PER_USER = (
+    int(os.getenv("BASEROW_ASGI_HTTP_MAX_CONCURRENT_STREAMS_PER_USER") or 0) or None
+)
 
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT = os.getenv("REDIS_PORT", "6379")
