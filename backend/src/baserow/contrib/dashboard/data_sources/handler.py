@@ -314,6 +314,8 @@ class DashboardDataSourceHandler:
             specific_service, dispatch_context
         )
 
+        if dispatch_context.filtered_services.get(specific_service.id):
+            return {**service_dispatch.data, "_is_filtered": True}
         return service_dispatch.data
 
     def export_data_source(

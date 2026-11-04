@@ -69,7 +69,8 @@
     "filters": "Filters"
   },
   "widget": {
-    "fixConfiguration": "Fix configuration"
+    "fixConfiguration": "Fix configuration",
+    "filteredResults": "This widget’s results are filtered."
   },
   "summaryWidget": {
     "name": "Summary"

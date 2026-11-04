@@ -44,6 +44,7 @@ class DashboardDispatchContext(DispatchContext):
         self.data_provider_registry = dashboard_data_provider_type_registry
         self.request = request
         self.widget = widget
+        self.filtered_services = {}
 
         super().__init__(workspace)
 
@@ -78,4 +79,13 @@ class DashboardDispatchContext(DispatchContext):
             if (group := widget_type.get_runtime_filter(widget, target, self))
             is not None
         ]
-        return build_runtime_filter(service, groups)
+        runtime_filter = build_runtime_filter(service, groups)
+        # Keep only a boolean alongside the result, including on public dashboards.
+        self.filtered_services[service.id] = bool(
+            runtime_filter["filters"]
+            or (
+                getattr(service, "view_id", None)
+                and service.view.viewfilter_set.exists()
+            )
+        )
+        return runtime_filter
