@@ -2515,6 +2515,16 @@ class ViewHandler:
             instance.refresh_from_db(fields=["priority"])
             return instance
 
+    def lock_view_sorts(self, view: View) -> None:
+        """
+        Makes the changes to the list of sorts of a view wait for each other, until
+        the transaction ends. Take it before locking or changing any sort: a new sort
+        checks its view when it commits, so a lock that blocks that check, or sorts
+        locked before the view, can deadlock.
+        """
+
+        View.objects.select_for_update(of=("self",), no_key=True).get(id=view.id)
+
     def create_sort(
         self,
         user: AbstractUser,
@@ -2574,20 +2584,23 @@ class ViewHandler:
                 f"The field {field.pk} does not belong to table {view.table.id}."
             )
 
-        # Check if the field already exists as sort
-        if view.viewsort_set.filter(field_id=field.pk).exists():
-            raise ViewSortFieldAlreadyExist(
-                f"A sort with the field {field.pk} already exists."
-            )
+        with transaction.atomic():
+            self.lock_view_sorts(view)
 
-        view_sort = self._append_to_priority_chain(
-            ViewSort,
-            view,
-            pk=primary_key,
-            field=field,
-            order=order,
-            type=sort_type,
-        )
+            # Check if the field already exists as sort
+            if view.viewsort_set.filter(field_id=field.pk).exists():
+                raise ViewSortFieldAlreadyExist(
+                    f"A sort with the field {field.pk} already exists."
+                )
+
+            view_sort = self._append_to_priority_chain(
+                ViewSort,
+                view,
+                pk=primary_key,
+                field=field,
+                order=order,
+                type=sort_type,
+            )
 
         view_sort_created.send(self, view_sort=view_sort, user=user)
 
@@ -2726,6 +2739,7 @@ class ViewHandler:
             context=view,
         )
 
+        self.lock_view_sorts(view)
         queryset = ViewSort.objects.select_for_update(of=("self",)).filter(view=view)
         sort_ids = set(queryset.values_list("id", flat=True))
 

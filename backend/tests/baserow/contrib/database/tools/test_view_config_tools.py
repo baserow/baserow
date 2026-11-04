@@ -2,6 +2,7 @@
 
 import json
 import threading
+import time
 from unittest.mock import ANY, patch
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -32,6 +33,7 @@ from baserow.contrib.database.views.actions import (
     UpdateViewFieldOptionsActionType,
 )
 from baserow.contrib.database.views.exceptions import ViewDoesNotExist
+from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import (
     GridViewFieldOptions,
     View,
@@ -495,3 +497,105 @@ def test_concurrent_set_view_sorts_end_up_as_one_of_the_lists(grid):
     assert errors == []
     sorts = ViewSort.objects.filter(view=view).order_by("priority", "id")
     assert [sort.field_id for sort in sorts] == [amount.id]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_set_view_sorts_does_not_deadlock_with_a_sort_being_created(grid):
+    ctx, view, primary, amount, third = grid
+    ViewHandler().create_sort(ctx.user, view, primary, "ASC")
+    created = threading.Event()
+    replaced = threading.Event()
+    errors = []
+
+    def add_sort():
+        try:
+            with transaction.atomic():
+                ViewHandler().create_sort(ctx.user, view, amount, "ASC")
+                created.set()
+                replaced.wait(timeout=1)
+        except Exception as exc:
+            errors.append(exc)
+        finally:
+            connection.close()
+
+    def replace_sorts():
+        created.wait(timeout=5)
+        try:
+            set_view_sorts(ctx, view.id, [ViewSortItem(field_id=third.id)])
+        except Exception as exc:
+            errors.append(exc)
+        finally:
+            replaced.set()
+            connection.close()
+
+    threads = [
+        threading.Thread(target=add_sort),
+        threading.Thread(target=replace_sorts),
+    ]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=15)
+
+    assert errors == []
+    sorts = ViewSort.objects.filter(view=view).order_by("priority", "id")
+    assert [sort.field_id for sort in sorts] == [third.id]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_sort_created_during_set_view_sorts_comes_after_the_list(grid):
+    ctx, view, primary, amount, third = grid
+    replaced = threading.Event()
+    errors = []
+    create_sort = CreateViewSortActionType.do
+
+    def pause_the_tool(*args, **kwargs):
+        sort = create_sort(*args, **kwargs)
+        replaced.set()
+        time.sleep(0.5)
+        return sort
+
+    def add_sort():
+        replaced.wait(timeout=5)
+        try:
+            with transaction.atomic():
+                ViewHandler().create_sort(ctx.user, view, amount, "ASC")
+        except Exception as exc:
+            errors.append(exc)
+        finally:
+            connection.close()
+
+    thread = threading.Thread(target=add_sort)
+    thread.start()
+    with patch.object(CreateViewSortActionType, "do", side_effect=pause_the_tool):
+        set_view_sorts(ctx, view.id, [ViewSortItem(field_id=third.id)])
+    thread.join(timeout=15)
+
+    assert errors == []
+    sorts = ViewSort.objects.filter(view=view).order_by("priority", "id")
+    assert [sort.field_id for sort in sorts] == [third.id, amount.id]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_reordering_sorts_waits_for_set_view_sorts(grid):
+    ctx, view, primary, amount, _ = grid
+    first = ViewHandler().create_sort(ctx.user, view, primary, "ASC")
+    second = ViewHandler().create_sort(ctx.user, view, amount, "ASC")
+    reordered = threading.Event()
+
+    def reorder():
+        try:
+            with transaction.atomic():
+                ViewHandler().prioritize_sortings(ctx.user, view, [second.id, first.id])
+            reordered.set()
+        finally:
+            connection.close()
+
+    thread = threading.Thread(target=reorder)
+    with transaction.atomic():
+        ViewHandler().lock_view_sorts(view)
+        thread.start()
+        assert not reordered.wait(timeout=0.5)
+    thread.join(timeout=15)
+
+    assert reordered.is_set()
