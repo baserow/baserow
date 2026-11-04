@@ -322,20 +322,26 @@ def _form_container_orm(el: "ElementItemCreate", user, page) -> dict:
     }
 
 
-def _input_text_orm(el: "ElementItemCreate", user, page) -> dict:
+def _label_and_default(el: "ElementItemCreate") -> dict:
     default_value = el.default_value or ""
     return {
         "label": formula_object(
             wrap_static_string(el.label or ""), mode=BASEROW_FORMULA_MODE_ADVANCED
         ),
-        "placeholder": formula_object(
-            wrap_static_string(el.placeholder or ""),
-            mode=BASEROW_FORMULA_MODE_ADVANCED,
-        ),
         "default_value": formula_object(
             literal_or_placeholder(default_value)
             if needs_formula(default_value)
             else (wrap_static_string(default_value) if default_value else "''"),
+            mode=BASEROW_FORMULA_MODE_ADVANCED,
+        ),
+    }
+
+
+def _input_text_orm(el: "ElementItemCreate", user, page) -> dict:
+    return {
+        **_label_and_default(el),
+        "placeholder": formula_object(
+            wrap_static_string(el.placeholder or ""),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
         "required": el.required or False,
@@ -346,19 +352,10 @@ def _input_text_orm(el: "ElementItemCreate", user, page) -> dict:
 
 
 def _choice_orm(el: "ElementItemCreate", user, page) -> dict:
-    default_value = el.default_value or ""
     return {
-        "label": formula_object(
-            wrap_static_string(el.label or ""), mode=BASEROW_FORMULA_MODE_ADVANCED
-        ),
+        **_label_and_default(el),
         "placeholder": formula_object(
             wrap_static_string(el.placeholder or ""),
-            mode=BASEROW_FORMULA_MODE_ADVANCED,
-        ),
-        "default_value": formula_object(
-            literal_or_placeholder(default_value)
-            if needs_formula(default_value)
-            else (wrap_static_string(default_value) if default_value else "''"),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
         "required": el.required or False,
@@ -386,17 +383,8 @@ def _checkbox_orm(el: "ElementItemCreate", user, page) -> dict:
 
 
 def _datetime_picker_orm(el: "ElementItemCreate", user, page) -> dict:
-    default_value = el.default_value or ""
     return {
-        "label": formula_object(
-            wrap_static_string(el.label or ""), mode=BASEROW_FORMULA_MODE_ADVANCED
-        ),
-        "default_value": formula_object(
-            literal_or_placeholder(default_value)
-            if needs_formula(default_value)
-            else (wrap_static_string(default_value) if default_value else "''"),
-            mode=BASEROW_FORMULA_MODE_ADVANCED,
-        ),
+        **_label_and_default(el),
         "required": el.required or False,
         "include_time": el.include_time or False,
         "date_format": el.date_format or "EU",
@@ -404,17 +392,8 @@ def _datetime_picker_orm(el: "ElementItemCreate", user, page) -> dict:
 
 
 def _record_selector_orm(el: "ElementItemCreate", user, page) -> dict:
-    default_value = el.default_value or ""
     return {
-        "label": formula_object(
-            wrap_static_string(el.label or ""), mode=BASEROW_FORMULA_MODE_ADVANCED
-        ),
-        "default_value": formula_object(
-            literal_or_placeholder(default_value)
-            if needs_formula(default_value)
-            else (wrap_static_string(default_value) if default_value else "''"),
-            mode=BASEROW_FORMULA_MODE_ADVANCED,
-        ),
+        **_label_and_default(el),
         "data_source_id": el.data_source,
         "required": el.required or False,
         "multiple": el.multiple or False,

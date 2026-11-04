@@ -210,16 +210,9 @@ def _open_page_orm_kwargs(action: "ActionCreate") -> dict:
     }
 
 
-def _refresh_ds_orm_kwargs(action: "ActionCreate") -> dict:
-    if isinstance(action.data_source, int):
-        return {"data_source_id": action.data_source}
-    return {}
-
-
 _TO_ORM_KWARGS: dict[str, Any] = {
     "notification": _notification_orm_kwargs,
     "open_page": _open_page_orm_kwargs,
-    "refresh_data_source": _refresh_ds_orm_kwargs,
     "logout": lambda _: {},
 }
 
