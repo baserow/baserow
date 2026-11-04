@@ -358,3 +358,95 @@ def test_a_new_link_without_the_parameters_of_its_page_is_refused_over_mcp(
 
     assert "missing: id" in result.content[0].text
     assert not LinkElement.objects.filter(page=builder_ctx["page"]).exists()
+
+
+BAD_CREATES = [
+    ("create_display_elements", {"type": "heading", "value": "x", "level": 0}),
+    ("create_display_elements", {"type": "heading", "value": "x", "level": 99}),
+    ("create_display_elements", {"type": "text", "value": "x", "format": "html"}),
+    ("create_layout_elements", {"type": "column", "column_amount": 500}),
+    ("create_layout_elements", {"type": "column", "column_amount": 0}),
+    ("setup_page", {"type": "column", "column_gap": -1}),
+    ("setup_page", {"type": "column", "column_gap": 2001}),
+    ("setup_page", {"type": "input_text", "rows": 0}),
+    ("setup_page", {"type": "input_text", "rows": 101}),
+    ("setup_page", {"type": "repeat", "items_per_page": -1}),
+]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("tool, element", BAD_CREATES)
+def test_a_value_the_rest_api_refuses_is_refused_on_create(
+    data_fixture, builder_ctx, tool, element
+):
+    endpoint = _endpoint(data_fixture, builder_ctx, [tool])
+    count = Element.objects.count()
+
+    async def callback(client):
+        return await client.call_tool(
+            tool,
+            {"page_id": builder_ctx["page"].id, "elements": [{"ref": "e", **element}]},
+        )
+
+    result = _session(endpoint, callback)
+
+    assert result.isError is True
+    assert "Invalid arguments" in result.content[0].text
+    assert Element.objects.count() == count
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"level": 7},
+        {"format": "html"},
+        {"column_amount": 7},
+        {"column_gap": -1},
+        {"rows": 101},
+        {"items_per_page": -1},
+    ],
+)
+def test_a_value_the_rest_api_refuses_is_refused_on_update(
+    data_fixture, builder_ctx, changes
+):
+    endpoint = _endpoint(data_fixture, builder_ctx, ["update_element"])
+
+    async def callback(client):
+        return await client.call_tool(
+            "update_element",
+            {"element_id": builder_ctx["button"].id, "element": changes},
+        )
+
+    result = _session(endpoint, callback)
+
+    assert result.isError is True
+    assert "Invalid arguments" in result.content[0].text
+
+
+@pytest.mark.django_db
+def test_the_highest_values_the_rest_api_takes_are_stored(data_fixture, builder_ctx):
+    endpoint = _endpoint(data_fixture, builder_ctx, ["setup_page"])
+
+    async def callback(client):
+        return await client.call_tool(
+            "setup_page",
+            {
+                "page_id": builder_ctx["page"].id,
+                "elements": [
+                    {"ref": "h", "type": "heading", "value": "x", "level": 6},
+                    {
+                        "ref": "c",
+                        "type": "column",
+                        "column_amount": 6,
+                        "column_gap": 2000,
+                    },
+                    {"ref": "i", "type": "input_text", "rows": 100},
+                ],
+            },
+        )
+
+    result = _load(_session(endpoint, callback))
+
+    assert not result.get("errors")
+    assert len(result["created_elements"]) == 3

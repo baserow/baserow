@@ -877,8 +877,10 @@ class ElementItemCreate(BaseModel):
         default=None,
         description="Display text (heading, text, button label, link text). Can be a formula: see the tool description.",
     )
-    level: int | None = Field(default=None, description="(heading) Level 1-5.")
-    format: str | None = Field(
+    level: int | None = Field(
+        default=None, ge=1, le=6, description="(heading) Level 1-6."
+    )
+    format: Literal["plain", "markdown"] | None = Field(
         default=None, description="(text) 'plain' or 'markdown'."
     )
 
@@ -921,10 +923,10 @@ class ElementItemCreate(BaseModel):
     # -- Column fields ------------------------------------------------------
 
     column_amount: int | None = Field(
-        default=None, description="(column) Number of columns (1-6)."
+        default=None, ge=1, le=6, description="(column) Number of columns (1-6)."
     )
     column_gap: int | None = Field(
-        default=None, description="(column) Gap between columns in px."
+        default=None, ge=0, le=2000, description="(column) Gap between columns in px."
     )
     column_alignment: Literal["top", "center", "bottom"] | None = Field(
         default=None, description="(column) Vertical alignment."
@@ -964,7 +966,7 @@ class ElementItemCreate(BaseModel):
         default=None, description="(input_text) Multiline mode."
     )
     rows: int | None = Field(
-        default=None, description="(input_text) Rows for multiline."
+        default=None, ge=1, le=100, description="(input_text) Rows for multiline."
     )
 
     # choice specific
@@ -989,7 +991,7 @@ class ElementItemCreate(BaseModel):
     # -- Collection fields (table, repeat) ----------------------------------
 
     items_per_page: int | None = Field(
-        default=None, description="(table, repeat) Items per page."
+        default=None, ge=0, description="(table, repeat) Items per page."
     )
     button_load_more_label: str | None = Field(
         default=None, description="(table) Load more button label."
@@ -1144,8 +1146,10 @@ class DisplayElementCreate(_ElementBase):
         default=None,
         description="Display text (heading, text, button label, link text). Can be a formula: see the tool description.",
     )
-    level: int | None = Field(default=None, description="(heading) Level 1-5.")
-    format: str | None = Field(
+    level: int | None = Field(
+        default=None, ge=1, le=6, description="(heading) Level 1-6."
+    )
+    format: Literal["plain", "markdown"] | None = Field(
         default=None, description="(text) 'plain' or 'markdown'."
     )
     navigation_type: Literal["page", "custom"] | None = Field(
@@ -1206,7 +1210,7 @@ class LayoutElementCreate(_ElementBase):
         ..., description="Element type."
     )
     column_amount: int | None = Field(
-        default=None, description="(column) Number of columns (1-6)."
+        default=None, ge=1, le=6, description="(column) Number of columns (1-6)."
     )
     menu_items: list[MenuItemCreate] | None = Field(
         default=None, description="(menu) Menu item configurations."
@@ -1690,8 +1694,10 @@ class ElementUpdate(BaseModel):
         default=None,
         description="Display text (heading, text, button, link). Can be a formula: see the tool description.",
     )
-    level: int | None = Field(default=None, description="(heading) Level 1-5.")
-    format: str | None = Field(
+    level: int | None = Field(
+        default=None, ge=1, le=6, description="(heading) Level 1-6."
+    )
+    format: Literal["plain", "markdown"] | None = Field(
         default=None, description="(text) 'plain' or 'markdown'."
     )
 
@@ -1728,10 +1734,10 @@ class ElementUpdate(BaseModel):
 
     # -- Column fields --------------------------------------------------------
     column_amount: int | None = Field(
-        default=None, description="(column) Number of columns (1-6)."
+        default=None, ge=1, le=6, description="(column) Number of columns (1-6)."
     )
     column_gap: int | None = Field(
-        default=None, description="(column) Gap between columns in px."
+        default=None, ge=0, le=2000, description="(column) Gap between columns in px."
     )
     column_alignment: Literal["top", "center", "bottom"] | None = Field(
         default=None, description="(column) Vertical alignment."
@@ -1761,7 +1767,7 @@ class ElementUpdate(BaseModel):
         default=None, description="(input_text) Multiline mode."
     )
     rows: int | None = Field(
-        default=None, description="(input_text) Rows for multiline."
+        default=None, ge=1, le=100, description="(input_text) Rows for multiline."
     )
     multiple: bool | None = Field(
         default=None, description="(choice, record_selector) Allow multiple."
@@ -1778,7 +1784,7 @@ class ElementUpdate(BaseModel):
 
     # -- Collection fields ----------------------------------------------------
     items_per_page: int | None = Field(
-        default=None, description="(table, repeat) Items per page."
+        default=None, ge=0, description="(table, repeat) Items per page."
     )
     button_load_more_label: str | None = Field(
         default=None, description="(table) Load more button label."
