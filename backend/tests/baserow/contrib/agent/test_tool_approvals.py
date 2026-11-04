@@ -268,6 +268,9 @@ def test_pending_approvals_are_counted_per_agent_and_per_conversation(
 
 
 @pytest.mark.django_db
+@pytest.mark.enable_signals(
+    "baserow.ws.tasks.broadcast_application_pending_counts.delay"
+)
 def test_each_decision_sends_the_owner_the_pending_count_left(
     api_user, held_reply, mocker, django_capture_on_commit_callbacks
 ):
@@ -285,7 +288,7 @@ def test_each_decision_sends_the_owner_the_pending_count_left(
                 [{"id": approval.id, "approved": True}],
             )
 
-    assert [sent.args for sent in broadcast.delay.call_args_list] == [
+    assert [sent.args for sent in broadcast.call_args_list] == [
         (
             [api_user.id],
             {

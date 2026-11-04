@@ -9,6 +9,7 @@ import pytest
 
 from baserow.contrib.agent.actions import DeleteAgentConversationActionType
 from baserow.contrib.agent.constants import AGENT_RUN_TYPE
+from baserow.contrib.agent.exceptions import AgentConversationDoesNotExist
 from baserow.contrib.agent.models import AgentConversation, AgentToolApproval
 from baserow.contrib.agent.service import AgentService
 from baserow.core.action.registries import action_type_registry
@@ -167,6 +168,63 @@ def test_deleting_a_conversation_while_its_run_ends_does_not_deadlock(data_fixtu
 
     run.refresh_from_db()
     assert run.cancel_requested_at is not None
+
+
+@pytest.mark.django_db(transaction=True)
+def test_always_allow_while_its_conversation_is_deleted_does_not_deadlock(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    approval = data_fixture.create_agent_tool_approval(
+        conversation=data_fixture.create_agent_conversation(user=user)
+    )
+    conversation = approval.reply.conversation
+    conversation_locked = Event()
+    release_delete = Event()
+    decide_connected = Event()
+    decide_pid = []
+
+    def delete_conversation():
+        try:
+            start_session()
+            with transaction.atomic():
+                AgentConversation.objects.select_for_update().get(id=conversation.id)
+                conversation_locked.set()
+                assert release_delete.wait(10), "The delete was never released"
+                DeleteAgentConversationActionType.do(
+                    user, conversation.agent_id, conversation.uuid
+                )
+        finally:
+            connections.close_all()
+
+    def always_allow():
+        try:
+            decide_pid.append(start_session())
+            decide_connected.set()
+            AgentService().decide_approvals(
+                get_user_model().objects.get(id=user.id),
+                conversation.agent_id,
+                conversation.uuid,
+                [{"id": approval.id, "approved": True}],
+                always_allow=True,
+            )
+        finally:
+            connections.close_all()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        deleting = executor.submit(delete_conversation)
+        try:
+            assert conversation_locked.wait(10)
+            deciding = executor.submit(always_allow)
+            assert decide_connected.wait(10)
+            assert wait_until_blocked(decide_pid[0], deciding), (
+                "Always allow did not wait for the delete"
+            )
+        finally:
+            release_delete.set()
+        deleting.result(timeout=10)
+        with pytest.raises(AgentConversationDoesNotExist):
+            deciding.result(timeout=10)
 
 
 @pytest.mark.django_db(transaction=True)

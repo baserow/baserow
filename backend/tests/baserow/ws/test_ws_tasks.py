@@ -11,6 +11,7 @@ from channels.testing import WebsocketCommunicator
 from pytest_unordered import unordered
 
 from baserow.config.asgi import application
+from baserow.config.db_routers import clear_db_state, get_db_alias, set_db_alias
 from baserow.contrib.dashboard.application_types import DashboardApplicationType
 from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.ai_provider.models import (
@@ -907,7 +908,7 @@ def test_broadcast_application_pending_counts_sends_each_user_their_count(
     ):
         broadcast_application_pending_counts(dashboard.id, [user.id, other_user.id])
 
-    assert [sent.args for sent in mock_broadcast.delay.call_args_list] == unordered(
+    assert [sent.args for sent in mock_broadcast.call_args_list] == unordered(
         [
             (
                 [counted_user.id],
@@ -931,7 +932,33 @@ def test_broadcast_application_pending_counts_skips_a_gone_application(
 
     broadcast_application_pending_counts(0, [user.id])
 
-    mock_broadcast.delay.assert_not_called()
+    mock_broadcast.assert_not_called()
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.tasks.broadcast_to_users")
+def test_broadcast_application_pending_counts_counts_on_the_primary(
+    mock_broadcast, data_fixture
+):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    counted_on = []
+
+    def record_alias(counted_user, applications):
+        counted_on.append(get_db_alias())
+        return {}
+
+    # Stands in for the replica the router would pick for the task's first read.
+    set_db_alias("lagging_replica")
+    try:
+        with patch.object(
+            DashboardApplicationType, "get_pending_counts", side_effect=record_alias
+        ):
+            broadcast_application_pending_counts(dashboard.id, [user.id])
+    finally:
+        clear_db_state()
+
+    assert counted_on == [DEFAULT_DB_ALIAS]
 
 
 @pytest.mark.django_db
