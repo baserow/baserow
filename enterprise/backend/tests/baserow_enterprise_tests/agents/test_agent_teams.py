@@ -53,7 +53,7 @@ def test_create_update_and_delete_agent_team_memberships(
         team=second,
     ).exists()
     assert not TeamHandler().list_subjects_in_team(second.id).exists()
-    assert User.objects_and_agents.get(id=agent.id).profile.trashed
+    assert User.identities_and_trash.get(id=agent.id).profile.trashed
 
 
 @pytest.mark.django_db
@@ -300,7 +300,7 @@ def test_enterprise_admin_can_restore_agent(data_fixture):
     restored_agent = TrashHandler.restore_item(user, "agent", agent.profile.id)
 
     assert restored_agent.user == agent
-    assert User.objects_and_agents.filter(id=agent.id).exists()
+    assert User.identities_and_trash.filter(id=agent.id).exists()
 
 
 @pytest.mark.django_db
@@ -454,7 +454,7 @@ def test_permanent_agent_deletion_cleans_access_records(
 
     TrashHandler.permanently_delete(agent.profile)
 
-    assert not User.objects_and_agents.filter(id=agent_id).exists()
+    assert not User.identities_and_trash.filter(id=agent_id).exists()
     assert not TeamSubject.objects_and_trash.filter(id=membership_id).exists()
     assert not RoleAssignment.objects.filter(id=assignment_id).exists()
 

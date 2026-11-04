@@ -1449,8 +1449,21 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
 
         return self.type
 
-    def get_queryset(self, workspace_id: Optional[int] = None) -> Optional[QuerySet]:
-        """Return subjects matching the workspace scope, if listable."""
+    def get_queryset(self, include_trash: bool = False) -> Optional[QuerySet]:
+        """
+        Return the stored subjects of this type.
+
+        :param include_trash: Whether trashed subjects are included.
+        :return: The subjects, or None when this type isn't stored in the database.
+        """
+
+        manager = getattr(self.model_class, "objects", None)
+        if include_trash:
+            manager = getattr(self.model_class, "objects_and_trash", manager)
+        return None if manager is None else manager.all()
+
+    def get_trashed_subject_ids(self) -> Optional[QuerySet]:
+        """Return the ids of trashed subjects, or None if they can't be trashed."""
 
         return None
 
@@ -1587,6 +1600,20 @@ class SubjectTypeRegistry(Registry[SubjectType], ModelRegistryMixin[Any, Subject
     name = "subject"
     does_not_exist_exception_class = SubjectTypeNotExist
 
+    def get_trashed_subjects_q(self) -> Q:
+        """Match `subject_type` and `subject_id` pairs pointing to a trashed subject."""
+
+        trashed_subjects_q = Q()
+        for subject_type in self.get_all():
+            trashed_ids = subject_type.get_trashed_subject_ids()
+            if trashed_ids is not None:
+                # IDs can overlap across subject types, so match both fields.
+                trashed_subjects_q |= Q(
+                    subject_type=subject_type.get_content_type(),
+                    subject_id__in=trashed_ids,
+                )
+        return trashed_subjects_q
+
     def get_serializer(self, model_instance, **kwargs) -> Serializer:
         """
         This function is used to get the correct serializer for a given subject model
@@ -1614,19 +1641,10 @@ class SubjectTypeRegistry(Registry[SubjectType], ModelRegistryMixin[Any, Subject
             stored in the database.
         """
 
-        model_class = self.get(type_name).model_class
-        manager = getattr(model_class, "objects_and_agents", None)
-        if manager is not None:
-            queryset = manager.select_related("profile")
-            if not include_trash:
-                queryset = queryset.filter(profile__trashed=False)
-            return queryset.filter(id=subject_id).first()
-        manager = getattr(model_class, "objects", None)
-        if include_trash:
-            manager = getattr(model_class, "objects_and_trash", manager)
-        if manager is None:
+        queryset = self.get(type_name).get_queryset(include_trash)
+        if queryset is None:
             return None
-        return manager.filter(id=subject_id).first()
+        return queryset.filter(id=subject_id).first()
 
 
 class OperationType(abc.ABC, Instance):

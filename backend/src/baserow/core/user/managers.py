@@ -22,7 +22,9 @@ class PeopleUserQuerySet(QuerySet):
             self.query.add_q(Q(Exists(people)))
 
 
-class UsersAndAgentsManager(UserManager):
+class ProfileUserManager(UserManager):
+    """Creates every User together with its profile."""
+
     use_in_migrations = False
 
     def _create_user(self, username, email, password, **extra_fields):
@@ -40,7 +42,27 @@ class UsersAndAgentsManager(UserManager):
         )
 
 
-class PeopleUserManager(UsersAndAgentsManager):
+class IdentityQuerySet(QuerySet):
+    def agents(self) -> "IdentityQuerySet":
+        return self.filter(profile__identity_type="agent")
+
+
+class IdentitiesAndTrashManager(ProfileUserManager.from_queryset(IdentityQuerySet)):
+    """People and agent identities, including trashed agents."""
+
+
+class IdentitiesManager(IdentitiesAndTrashManager):
+    """People and agent identities, without trashed agents."""
+
+    def get_queryset(self) -> IdentityQuerySet:
+        from baserow.core.models import UserProfile
+
+        # A subquery keeps User row locks independent of Profile joins.
+        trashed = UserProfile.trash.filter(user_id=OuterRef("pk"))
+        return super().get_queryset().filter(~Exists(trashed))
+
+
+class PeopleUserManager(ProfileUserManager):
     use_in_migrations = True
     _queryset_class = PeopleUserQuerySet
 
@@ -78,4 +100,5 @@ def install_user_managers() -> None:
     if isinstance(user_model.objects, PeopleUserManager):
         return
     user_model.add_to_class("objects", PeopleUserManager())
-    user_model.add_to_class("objects_and_agents", UsersAndAgentsManager())
+    user_model.add_to_class("identities", IdentitiesManager())
+    user_model.add_to_class("identities_and_trash", IdentitiesAndTrashManager())

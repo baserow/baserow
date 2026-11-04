@@ -18,7 +18,7 @@ def remember_workspace_agent_users(sender, instance, using, **kwargs):
 
 @receiver(post_delete, sender=Workspace, dispatch_uid="delete_workspace_agent_users")
 def delete_workspace_agent_users(sender, instance, using, **kwargs):
-    User.objects_and_agents.using(using).filter(
+    User.identities_and_trash.using(using).filter(
         id__in=instance._agent_user_ids_to_delete
     ).delete()
 
@@ -32,4 +32,4 @@ def delete_agent_identity(sender, instance, using, origin=None, **kwargs):
     ):
         return
     # Profile deletion owns the User, except while that User is already being deleted.
-    User.objects_and_agents.using(using).filter(id=instance.user_id).delete()
+    User.identities_and_trash.using(using).filter(id=instance.user_id).delete()

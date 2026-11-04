@@ -234,12 +234,7 @@ class FieldPermissionsHandler:
         subjects_by_identifier = {}
         for subject_type_name, subject_ids in identifiers_by_type.items():
             subject_type = subject_type_registry.get(subject_type_name)
-            manager = getattr(
-                subject_type.model_class,
-                "objects_and_agents",
-                subject_type.model_class.objects,
-            )
-            subjects = list(manager.filter(id__in=subject_ids))
+            subjects = list(subject_type.get_queryset().filter(id__in=subject_ids))
             if len(subjects) != len(subject_ids) or not all(
                 subject_type.are_in_workspace(subjects, workspace)
             ):

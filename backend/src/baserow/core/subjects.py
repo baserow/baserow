@@ -10,6 +10,7 @@ from django.db.models import (
     IntegerField,
     OuterRef,
     Q,
+    QuerySet,
     Subquery,
     Value,
     When,
@@ -24,6 +25,8 @@ from baserow.core.user.identity import is_agent_user, is_human_user
 
 
 class UserSubjectType(SubjectType):
+    """Subjects backed by `User`: people and agent identities alike."""
+
     type = "auth.User"
     model_class = User
 
@@ -41,6 +44,11 @@ class UserSubjectType(SubjectType):
     options_list_operation_type = ListWorkspaceUsersWorkspaceOperationType.type
 
     has_direct_workspace_roles = True
+
+    def get_trashed_subject_ids(self) -> QuerySet:
+        """Agents are trashed through their profile."""
+
+        return UserProfile.trash.values("user_id")
 
     def get_workspace_subjects(self, workspace: Workspace, include_trash=False):
         manager = (
@@ -83,11 +91,9 @@ class UserSubjectType(SubjectType):
     def get_display_name(self, subject: AbstractUser) -> str:
         return subject.first_name
 
-    def get_queryset(self, workspace_id=None):
-        queryset = User.objects_and_agents.all()
-        if workspace_id is not None:
-            queryset = queryset.filter(workspaceuser__workspace_id=workspace_id)
-        return queryset.order_by("email")
+    def get_queryset(self, include_trash: bool = False) -> QuerySet:
+        manager = User.identities_and_trash if include_trash else User.identities
+        return manager.select_related("profile")
 
     def get_label(self, subject: AbstractUser) -> str:
         return subject.first_name if is_agent_user(subject) else subject.email
@@ -102,13 +108,16 @@ class UserSubjectType(SubjectType):
     ):
         """Return searchable user options, optionally scoped to a workspace."""
 
-        queryset = User.objects_and_agents.exclude(id__in=exclude_ids or [])
+        manager = (
+            User.identities_and_trash
+            if include_inactive_and_scheduled_for_deletion
+            else User.identities
+        )
+        queryset = manager.exclude(id__in=exclude_ids or [])
         if identity_type is not None:
             queryset = queryset.filter(profile__identity_type=identity_type)
         if not include_inactive_and_scheduled_for_deletion:
-            queryset = queryset.filter(
-                is_active=True, profile__to_be_deleted=False, profile__trashed=False
-            )
+            queryset = queryset.filter(is_active=True, profile__to_be_deleted=False)
         if workspace is not None:
             queryset = queryset.filter(workspaceuser__workspace=workspace)
         if search:

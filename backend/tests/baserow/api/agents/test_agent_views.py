@@ -37,7 +37,7 @@ def test_admin_can_crud_search_and_soft_delete_agents(data_fixture, api_client):
     assert response.json()["name"] == "Writer 2"
 
     assert api_client.delete(item_url, **headers).status_code == 204
-    assert User.objects_and_agents.filter(id=agent_id, profile__trashed=True).exists()
+    assert User.identities_and_trash.filter(id=agent_id, profile__trashed=True).exists()
     assert not AgentHandler().get_queryset(workspace).filter(id=agent_id).exists()
 
 

@@ -3,7 +3,7 @@ from typing import List
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.contrib.contenttypes.models import ContentType
-from django.db.models import CharField, Count, F, Value
+from django.db.models import CharField, Count, F, QuerySet, Value
 
 from baserow.core.models import Workspace
 from baserow.core.registries import SubjectType
@@ -25,6 +25,9 @@ class TeamSubjectType(SubjectType):
 
     def get_display_name(self, subject: Team) -> str:
         return subject.name
+
+    def get_trashed_subject_ids(self) -> QuerySet:
+        return Team.trash.values("id")
 
     def get_options_queryset(
         self,

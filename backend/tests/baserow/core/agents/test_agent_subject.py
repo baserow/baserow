@@ -74,7 +74,7 @@ def test_agent_membership_never_authorizes_unavailable_identity(
         is not True
     )
     assert not manager.filter_queryset(
-        agent, check.operation_name, User.objects_and_agents.all(), workspace
+        agent, check.operation_name, User.identities_and_trash.all(), workspace
     )[0].exists()
 
 
@@ -89,7 +89,7 @@ def test_agent_has_no_global_or_public_template_permission(data_fixture):
         agent, ListWorkspacesOperationType.type, raise_permission_exceptions=False
     )
     assert not handler.filter_queryset(
-        agent, ListWorkspacesOperationType.type, User.objects_and_agents.all()
+        agent, ListWorkspacesOperationType.type, User.identities_and_trash.all()
     ).exists()
     assert not handler.check_permissions(
         agent,
