@@ -3,6 +3,13 @@
   padding: 0 20px;
 }
 
+.agent-application__header-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
 .agent-application__header-name {
   @extend %ellipsis;
 
@@ -10,6 +17,33 @@
   line-height: 20px;
   font-weight: 500;
   color: $palette-neutral-1200;
+}
+
+.agent-application__approvals {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  background: $palette-yellow-50;
+  color: $palette-yellow-800;
+  font-size: 12px;
+  line-height: 20px;
+  font-weight: 500;
+  cursor: pointer;
+
+  @include rounded($rounded-3xl);
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+    outline-offset: 2px;
+  }
+}
+
+.agent-application__approvals-icon {
+  font-size: 14px;
 }
 
 .agent-application__content {
@@ -106,6 +140,10 @@
   &--replying {
     background: $palette-neutral-500;
     animation: agent-conversations-replying 1.4s ease-in-out infinite;
+  }
+
+  &--waiting {
+    background: $palette-yellow-500;
   }
 }
 
@@ -213,6 +251,7 @@
   background: $palette-neutral-0;
 }
 
+.agent-conversations__status-label,
 .agent-chat__announcement,
 .agent-approval__announcement {
   position: absolute;

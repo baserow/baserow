@@ -323,6 +323,12 @@
   position: absolute;
   top: 8px;
   right: 8px;
+
+  .tree__action--has-options:hover > &,
+  .tree__action--has-options:focus-within > &,
+  .tree__item--loading > .tree__action > & {
+    display: none;
+  }
 }
 
 .tree__heading {

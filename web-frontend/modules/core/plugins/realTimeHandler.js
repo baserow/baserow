@@ -924,6 +924,21 @@ export class RealTimeHandler {
       }
     })
 
+    this.registerEvent(
+      'application_pending_count_updated',
+      ({ store }, data) => {
+        const application = store.getters['application/get'](
+          data.application_id
+        )
+        if (application !== undefined) {
+          store.dispatch('application/forceUpdate', {
+            application,
+            data: { pending_count: data.pending_count },
+          })
+        }
+      }
+    )
+
     this.registerEvent('application_deleted', ({ store }, data) => {
       const application = store.getters['application/get'](data.application_id)
       if (application !== undefined) {
