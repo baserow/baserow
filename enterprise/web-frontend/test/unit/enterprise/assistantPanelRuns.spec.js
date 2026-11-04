@@ -86,6 +86,14 @@ describe('Kuma panel with a store-owned HTTP follower', () => {
     expect(status()).toBe('assistant.statusStopping')
   })
 
+  test('a native stop from another tab disables Stop and shows it is stopping', async () => {
+    await receive({ kind: 'run.cancel_requested', data: {}, cursor: cursor(1) })
+    await flushPromises()
+    expect(api.cancel).not.toHaveBeenCalled()
+    expect(wrapper.find('.assistant__send-button').element.disabled).toBe(true)
+    expect(status()).toBe('assistant.statusStopping')
+  })
+
   test('live output loss shows a waiting state for the saved response', async () => {
     await receive(runRecord('chat-run-state', {}, { replay_unavailable: true }))
     expect(status()).toBe('assistant.statusWaitingForOutput')
