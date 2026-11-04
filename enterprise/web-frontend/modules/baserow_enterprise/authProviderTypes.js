@@ -1,12 +1,5 @@
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 import { AuthProviderType } from '@baserow/modules/core/authProviderTypes'
-
-import SamlLoginAction from '@baserow_enterprise/components/admin/login/SamlLoginAction'
-import AuthProviderItem from '@baserow_enterprise/components/admin/AuthProviderItem'
-import SamlSettingsForm from '@baserow_enterprise/components/admin/forms/SamlSettingsForm'
-import OAuth2SettingsForm from '@baserow_enterprise/components/admin/forms/OAuth2SettingsForm.vue'
-import GitLabSettingsForm from '@baserow_enterprise/components/admin/forms/GitLabSettingsForm.vue'
-import OpenIdConnectSettingsForm from '@baserow_enterprise/components/admin/forms/OpenIdConnectSettingsForm.vue'
-import LoginButton from '@baserow_enterprise/components/admin/login/LoginButton.vue'
 
 import PasswordAuthIcon from '@baserow/modules/core/assets/images/providers/Key.svg?url'
 import SAMLIcon from '@baserow_enterprise/assets/images/providers/LockKey.svg?url'
@@ -16,6 +9,43 @@ import GitHubIcon from '@baserow_enterprise/assets/images/providers/GitHub.svg?u
 import GitLabIcon from '@baserow_enterprise/assets/images/providers/GitLab.svg?url'
 import OpenIdIcon from '@baserow_enterprise/assets/images/providers/OpenID.svg?url'
 import VerifiedProviderIcon from '@baserow_enterprise/assets/images/providers/VerifiedProviderIcon.svg?url'
+
+// Editor controls load together, independently of the published runtime.
+const SamlLoginAction = lazyComponent(() =>
+  import('@baserow_enterprise/components/authoringBundle').then(
+    (bundle) => bundle.authProviderTypesSamlLoginAction
+  )
+)
+const AuthProviderItem = lazyComponent(() =>
+  import('@baserow_enterprise/components/authoringBundle').then(
+    (bundle) => bundle.authProviderTypesAuthProviderItem
+  )
+)
+const SamlSettingsForm = lazyComponent(() =>
+  import('@baserow_enterprise/components/authoringBundle').then(
+    (bundle) => bundle.authProviderTypesSamlSettingsForm
+  )
+)
+const OAuth2SettingsForm = lazyComponent(() =>
+  import('@baserow_enterprise/components/authoringBundle').then(
+    (bundle) => bundle.authProviderTypesOAuth2SettingsForm
+  )
+)
+const GitLabSettingsForm = lazyComponent(() =>
+  import('@baserow_enterprise/components/authoringBundle').then(
+    (bundle) => bundle.authProviderTypesGitLabSettingsForm
+  )
+)
+const OpenIdConnectSettingsForm = lazyComponent(() =>
+  import('@baserow_enterprise/components/authoringBundle').then(
+    (bundle) => bundle.authProviderTypesOpenIdConnectSettingsForm
+  )
+)
+const LoginButton = lazyComponent(() =>
+  import('@baserow_enterprise/components/authoringBundle').then(
+    (bundle) => bundle.authProviderTypesLoginButton
+  )
+)
 
 export class PasswordAuthProviderType extends AuthProviderType {
   static getType() {

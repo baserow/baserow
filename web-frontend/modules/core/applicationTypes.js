@@ -1,10 +1,17 @@
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 import { Registerable } from '@baserow/modules/core/registry'
-import ApplicationForm from '@baserow/modules/core/components/application/ApplicationForm'
 
 /**
  * The application type base class that can be extended when creating a plugin
  * for the frontend.
  */
+// Editor controls load together, independently of the published runtime.
+const ApplicationForm = lazyComponent(() =>
+  import('@baserow/modules/core/components/authoringBundle').then(
+    (bundle) => bundle.applicationTypesApplicationForm
+  )
+)
+
 export class ApplicationType extends Registerable {
   /**
    * The icon class name that is used as convenience for the user to

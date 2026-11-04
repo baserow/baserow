@@ -1,9 +1,16 @@
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 import {
   ServiceType,
   WorkflowActionServiceTypeMixin,
 } from '@baserow/modules/core/serviceTypes'
-import SlackWriteMessageServiceForm from '@baserow/modules/integrations/slack/components/services/SlackWriteMessageServiceForm'
 import { SlackBotIntegrationType } from '@baserow/modules/integrations/slack/integrationTypes'
+
+// Editor controls load together, independently of the published runtime.
+const SlackWriteMessageServiceForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesSlackWriteMessageServiceForm
+  )
+)
 
 export class SlackWriteMessageServiceType extends WorkflowActionServiceTypeMixin(
   ServiceType

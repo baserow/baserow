@@ -1,6 +1,13 @@
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 import { IntegrationType } from '@baserow/modules/core/integrationTypes'
 import slackIntegration from '@baserow/modules/integrations/slack/assets/images/slack.svg?url'
-import SlackBotForm from '@baserow/modules/integrations/slack/components/integrations/SlackBotForm'
+
+// Editor controls load together, independently of the published runtime.
+const SlackBotForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.integrationTypesSlackBotForm
+  )
+)
 
 export class SlackBotIntegrationType extends IntegrationType {
   static getType() {

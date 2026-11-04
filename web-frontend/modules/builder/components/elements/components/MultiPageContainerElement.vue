@@ -37,10 +37,13 @@
 </template>
 
 <script>
-import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone.vue'
+import {
+  ElementPreview,
+  AddElementZone,
+  AddElementModal,
+} from '@baserow/modules/builder/components/editorRendering'
+
 import containerElement from '@baserow/modules/builder/mixins/containerElement'
-import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal.vue'
-import ElementPreview from '@baserow/modules/builder/components/elements/ElementPreview.vue'
 import PageElement from '@baserow/modules/builder/components/page/PageElement.vue'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 

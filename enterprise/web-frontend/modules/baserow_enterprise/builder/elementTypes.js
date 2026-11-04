@@ -1,13 +1,10 @@
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 import {
   ElementType,
   FormElementType,
 } from '@baserow/modules/builder/elementTypes'
 import AuthFormElement from '@baserow_enterprise/builder/components/elements/AuthFormElement'
-import AuthFormElementForm from '@baserow_enterprise/builder/components/elements/AuthFormElementForm'
 import FileInputElement from '@baserow_enterprise/builder/components/elements/FileInputElement'
-import FileInputElementForm from '@baserow_enterprise/builder/components/elements/FileInputElementForm'
-import GraphElement from '@baserow_enterprise/builder/components/elements/GraphElement'
-import GraphElementForm from '@baserow_enterprise/builder/components/elements/GraphElementForm'
 import { uuid } from '@baserow/modules/core/utils/string'
 import {
   ensureArray,
@@ -26,6 +23,29 @@ import elementImageFileInput from '@baserow_enterprise/assets/images/builder/ele
 import ChartBarWidgetSvg from '@baserow_premium/assets/images/chart_bar.svg?url'
 
 import EnterpriseFeaturesObject from '@baserow_enterprise/features'
+
+// Charts are an optional public feature; simple sites should not load Chart.js.
+const GraphElement = lazyComponent(
+  () =>
+    import('@baserow_enterprise/builder/components/elements/GraphElement.vue')
+)
+
+// Stable wrappers share one editor-only import, including on direct dialog entry.
+const AuthFormElementForm = lazyComponent(() =>
+  import('@baserow_enterprise/builder/components/elementEditorBundle').then(
+    (bundle) => bundle.AuthFormElementForm
+  )
+)
+const FileInputElementForm = lazyComponent(() =>
+  import('@baserow_enterprise/builder/components/elementEditorBundle').then(
+    (bundle) => bundle.FileInputElementForm
+  )
+)
+const GraphElementForm = lazyComponent(() =>
+  import('@baserow_enterprise/builder/components/elementEditorBundle').then(
+    (bundle) => bundle.GraphElementForm
+  )
+)
 
 export class AuthFormElementType extends ElementType {
   static getType() {
