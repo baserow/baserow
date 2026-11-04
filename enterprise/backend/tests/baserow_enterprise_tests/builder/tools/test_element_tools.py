@@ -145,8 +145,8 @@ def test_a_header_lands_on_the_shared_page_and_shows_on_other_pages(
 
 
 @pytest.mark.django_db
-def test_a_header_form_can_read_its_own_inputs(data_fixture, builder_ctx):
-    ctx, builder = builder_ctx["ctx"], builder_ctx["builder"]
+def test_a_header_form_can_not_read_its_own_inputs(data_fixture, builder_ctx):
+    ctx = builder_ctx["ctx"]
     created = elements.create_elements(
         ctx,
         builder_ctx["page"].id,
@@ -170,10 +170,9 @@ def test_a_header_form_can_read_its_own_inputs(data_fixture, builder_ctx):
         ],
     )
 
-    assert "formula_errors" not in result
-    echo = saved(result["ref_to_id_map"]["echo"])
-    assert echo.page == builder.shared_page
-    assert echo.value["formula"] == f"get('form_data.{created['in']}')"
+    entry = result["formula_errors"][0]
+    assert entry["element_id"] == result["ref_to_id_map"]["echo"]
+    assert "shared page" in entry["error"]
 
 
 @pytest.mark.django_db

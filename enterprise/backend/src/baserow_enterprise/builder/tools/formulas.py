@@ -90,8 +90,11 @@ class BuilderFormulaContext:
         self._load_page_parameters()
         self._load_user_context()
 
-        elements = ElementHandler().get_elements(self.page, use_cache=False)
-        self._load_form_data(elements)
+        # A shared element runs in the page being shown, whose form data holds none
+        # of the shared page's inputs.
+        if not self.page.shared:
+            elements = ElementHandler().get_elements(self.page, use_cache=False)
+            self._load_form_data(elements)
 
     # -- Private loaders ----------------------------------------------------
 
@@ -556,6 +559,11 @@ def _get_path_problem(
         return _data_source_path_problem(path, rest, context)
     if root == "data_source_context":
         return _data_source_path_problem(path, rest, context, check_schema=False)
+    if root == "form_data" and context.page.shared:
+        return (
+            f"'{path}' can't be read: items on the shared page, like a form in a "
+            "header, can't read form inputs."
+        )
     if root in ("page_parameter", "form_data"):
         known = context.context.get(root, {})
         what = "page parameter" if root == "page_parameter" else "form element"
@@ -800,7 +808,7 @@ def page_read_from(page: Page, kind: BuilderFormulaKind, source: Any) -> Page:
     """
     The page whose values an item can read. Elements and actions on the shared page
     show on every page, so what one page has isn't theirs to read. They read what
-    the shared page has, like the inputs of a form in a header.
+    the shared page has, like its data sources.
     """
 
     if kind != "data_source" and source.page.shared:
