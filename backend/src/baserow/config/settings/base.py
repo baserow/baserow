@@ -269,11 +269,19 @@ CELERY_RESULT_EXPIRES = int(
     os.getenv("CELERY_RESULT_EXPIRES") or 3600
 )
 
+# channels-redis blocks for five seconds while waiting for messages. Leave headroom
+# above that wait so redis-py's socket deadline does not close idle WebSockets.
+CHANNELS_REDIS_SOCKET_TIMEOUT = 10
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [REDIS_URL],
+            "hosts": [
+                {
+                    "address": REDIS_URL,
+                    "socket_timeout": CHANNELS_REDIS_SOCKET_TIMEOUT,
+                }
+            ],
         },
     },
 }

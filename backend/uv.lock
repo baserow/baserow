@@ -2020,16 +2020,15 @@ wheels = [
 
 [[package]]
 name = "kombu"
-version = "5.7.0a1"
+version = "5.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "amqp" },
-    { name = "tzdata" },
     { name = "vine" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0f/93/fe5c031beb47caf6e8fa9019afdcf02ab3d5d692f34ce7567f44bdb58e0b/kombu-5.7.0a1.tar.gz", hash = "sha256:71246143c5fbd408e0902817a0047fcc36a205126cbf9ffa4b527a601f5de02c", size = 581457, upload-time = "2026-09-21T10:27:29.313Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/57/31/3e632ebce43c684dcc6eead4660b33307e6153be87e33c14e1ed9875deff/kombu-5.7.0.tar.gz", hash = "sha256:31e62fdfd2381caa3422f8e02b84a491d9a2180ddda74507b57f4cb1e1c2c2c9", size = 627051, upload-time = "2026-11-03T05:58:33.446Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b6/d9/1b98be4b45c3cb6737663ea5e7847fcc8f6c21de204a0411ae12874fbfc0/kombu-5.7.0a1-py3-none-any.whl", hash = "sha256:8299500a4e11768f7bcf459bcc69f6cad4f840cfe843f419836afbd8c1a2aa81", size = 255342, upload-time = "2026-09-21T10:27:26.866Z" },
+    { url = "https://files.pythonhosted.org/packages/84/20/f73d8e0bff9708b0f2337220be1b5d7ebd738bc3a89b63cf44d257157014/kombu-5.7.0-py3-none-any.whl", hash = "sha256:dede73bff4c89175be382c4203d2f167cf7017c384396ec75c36a1b5678f1587", size = 266635, upload-time = "2026-11-03T05:58:31.475Z" },
 ]
 
 [package.optional-dependencies]

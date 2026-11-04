@@ -25,6 +25,24 @@ Test settings (`baserow/config/settings/test.py`) are designed for consistency a
 
 This allows tests to run identically inside Docker and locally.
 
+### Real Redis WebSocket Regression
+
+Most backend tests use an in-memory channel layer. The idle WebSocket regression
+uses a real Redis server to check socket timeouts and delivery after an idle period.
+Backend CI supplies Redis and sets `TEST_REDIS_URL` automatically. Locally, run it
+against a disposable Redis instance:
+
+```bash
+docker run --rm -d --name baserow-test-redis -p 127.0.0.1:6380:6379 redis:6-alpine
+TEST_REDIS_URL=redis://localhost:6380/0 just b test tests/baserow/ws/test_ws_redis.py
+docker stop baserow-test-redis
+```
+
+Pass your usual test database configuration as well. `TEST_REDIS_URL` is only used
+by this test; it does not change application settings. Without it the test is
+skipped. When it is set, an unavailable Redis server fails the test. Each run uses
+its own channel key prefix and removes only those keys when it finishes.
+
 ### Docker vs Local Development
 
 All backend justfile commands (`just test`, `just lint`, etc.) work identically inside and outside Docker containers. The test settings are designed to be portable.
