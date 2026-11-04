@@ -1,12 +1,5 @@
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 import { Registerable } from '@baserow/modules/core/registry'
-import ColorThemeConfigBlock from '@baserow/modules/builder/components/theme/ColorThemeConfigBlock'
-import TypographyThemeConfigBlock from '@baserow/modules/builder/components/theme/TypographyThemeConfigBlock'
-import ButtonThemeConfigBlock from '@baserow/modules/builder/components/theme/ButtonThemeConfigBlock'
-import LinkThemeConfigBlock from '@baserow/modules/builder/components/theme/LinkThemeConfigBlock'
-import ImageThemeConfigBlock from '@baserow/modules/builder/components/theme/ImageThemeConfigBlock'
-import PageThemeConfigBlock from '@baserow/modules/builder/components/theme/PageThemeConfigBlock'
-import InputThemeConfigBlock from '@baserow/modules/builder/components/theme/InputThemeConfigBlock'
-import TableThemeConfigBlock from '@baserow/modules/builder/components/theme/TableThemeConfigBlock'
 import { FONT_WEIGHTS } from '@baserow/modules/builder/fontWeights'
 import {
   resolveColor,
@@ -23,6 +16,48 @@ import get from 'lodash/get'
 /**
  * Helper class to construct easily style objects.
  */
+// Editor controls load together, independently of the published runtime.
+const ColorThemeConfigBlock = lazyComponent(() =>
+  import('@baserow/modules/builder/components/authoringBundle').then(
+    (bundle) => bundle.themeConfigBlockTypesColorThemeConfigBlock
+  )
+)
+const TypographyThemeConfigBlock = lazyComponent(() =>
+  import('@baserow/modules/builder/components/authoringBundle').then(
+    (bundle) => bundle.themeConfigBlockTypesTypographyThemeConfigBlock
+  )
+)
+const ButtonThemeConfigBlock = lazyComponent(() =>
+  import('@baserow/modules/builder/components/authoringBundle').then(
+    (bundle) => bundle.themeConfigBlockTypesButtonThemeConfigBlock
+  )
+)
+const LinkThemeConfigBlock = lazyComponent(() =>
+  import('@baserow/modules/builder/components/authoringBundle').then(
+    (bundle) => bundle.themeConfigBlockTypesLinkThemeConfigBlock
+  )
+)
+const ImageThemeConfigBlock = lazyComponent(() =>
+  import('@baserow/modules/builder/components/authoringBundle').then(
+    (bundle) => bundle.themeConfigBlockTypesImageThemeConfigBlock
+  )
+)
+const PageThemeConfigBlock = lazyComponent(() =>
+  import('@baserow/modules/builder/components/authoringBundle').then(
+    (bundle) => bundle.themeConfigBlockTypesPageThemeConfigBlock
+  )
+)
+const InputThemeConfigBlock = lazyComponent(() =>
+  import('@baserow/modules/builder/components/authoringBundle').then(
+    (bundle) => bundle.themeConfigBlockTypesInputThemeConfigBlock
+  )
+)
+const TableThemeConfigBlock = lazyComponent(() =>
+  import('@baserow/modules/builder/components/authoringBundle').then(
+    (bundle) => bundle.themeConfigBlockTypesTableThemeConfigBlock
+  )
+)
+
 export class ThemeStyle {
   constructor({ colorVariables = {}, $registry }) {
     this.style = {}

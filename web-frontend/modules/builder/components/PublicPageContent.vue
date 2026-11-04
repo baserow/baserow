@@ -22,7 +22,6 @@ import PageContent from '@baserow/modules/builder/components/page/PageContent'
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import { DATA_SCOPES } from '@baserow/modules/builder/constants'
 import BuilderToasts from '@baserow/modules/builder/components/BuilderToasts'
-import ApplicationBuilderFormulaInput from '@baserow/modules/builder/components/ApplicationBuilderFormulaInput'
 import _ from 'lodash'
 import { prefixInternalResolvedUrl } from '@baserow/modules/builder/utils/urlResolution'
 import { userCanViewPage } from '@baserow/modules/builder/utils/visibility'
@@ -77,7 +76,6 @@ provide('workspace', props.workspace)
 provide('builder', props.builder)
 provide('currentPage', props.page)
 provide('mode', props.mode)
-provide('formulaComponent', ApplicationBuilderFormulaInput)
 provide(
   'applicationContext',
   computed(() => applicationContext.value)

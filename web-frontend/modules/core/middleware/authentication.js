@@ -7,6 +7,9 @@ import {
 
 export default defineNuxtRouteMiddleware(async (to) => {
   const nuxtApp = useNuxtApp()
+  // Public runtimes use their own user sources, independent of shell sessions.
+  if (nuxtApp.$isApplicationShell === false) return
+
   const store = nuxtApp.$store
   const event = import.meta.server ? useRequestEvent() : null
 

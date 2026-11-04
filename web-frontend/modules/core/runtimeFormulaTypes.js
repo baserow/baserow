@@ -36,9 +36,6 @@ import {
   formatValueWithDurationFormat,
   parseValueWithDurationFormat,
 } from '@baserow/modules/core/utils/duration'
-import { Node, VueNodeViewRenderer } from '@tiptap/vue-3'
-import GetFormulaComponent from '@baserow/modules/core/components/formula/GetFormulaComponent'
-import { mergeAttributes } from '@tiptap/core'
 import { FORMULA_CATEGORY, FORMULA_TYPE } from '@baserow/modules/core/enums'
 import _ from 'lodash'
 import moment from '@baserow/modules/core/moment'
@@ -321,40 +318,6 @@ export class RuntimeGet extends RuntimeFormulaFunction {
 
   get formulaComponentType() {
     return 'get-formula-component'
-  }
-
-  get formulaComponent() {
-    const formulaComponentType = this.formulaComponentType
-    return Node.create({
-      name: formulaComponentType,
-      group: 'inline',
-      inline: true,
-      selectable: false,
-      atom: true,
-      addNodeView() {
-        return VueNodeViewRenderer(GetFormulaComponent)
-      },
-      addAttributes() {
-        return {
-          path: {
-            default: '',
-          },
-          isSelected: {
-            default: false,
-          },
-        }
-      },
-      parseHTML() {
-        return [
-          {
-            tag: formulaComponentType,
-          },
-        ]
-      },
-      renderHTML({ HTMLAttributes }) {
-        return [formulaComponentType, mergeAttributes(HTMLAttributes)]
-      },
-    })
   }
 
   execute(context, args) {

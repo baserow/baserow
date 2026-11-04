@@ -1,18 +1,12 @@
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 import { Registerable } from '@baserow/modules/core/registry'
 import BooleanField from '@baserow/modules/builder/components/elements/components/collectionField/BooleanField'
 import TextField from '@baserow/modules/builder/components/elements/components/collectionField/TextField'
 import LinkField from '@baserow/modules/builder/components/elements/components/collectionField/LinkField'
 import ButtonField from '@baserow/modules/builder/components/elements/components/collectionField/ButtonField.vue'
-import ButtonFieldForm from '@baserow/modules/builder/components/elements/components/collectionField/form/ButtonFieldForm.vue'
-import BooleanFieldForm from '@baserow/modules/builder/components/elements/components/collectionField/form/BooleanFieldForm'
 import TagsField from '@baserow/modules/builder/components/elements/components/collectionField/TagsField.vue'
-import TextFieldForm from '@baserow/modules/builder/components/elements/components/collectionField/form/TextFieldForm'
-import TagsFieldForm from '@baserow/modules/builder/components/elements/components/collectionField/form/TagsFieldForm.vue'
-import LinkFieldForm from '@baserow/modules/builder/components/elements/components/collectionField/form/LinkFieldForm'
 import ImageField from '@baserow/modules/builder/components/elements/components/collectionField/ImageField.vue'
-import ImageFieldForm from '@baserow/modules/builder/components/elements/components/collectionField/form/ImageFieldForm.vue'
 import RatingField from '@baserow/modules/builder/components/elements/components/collectionField/RatingField'
-import RatingFieldForm from '@baserow/modules/builder/components/elements/components/collectionField/form/RatingFieldForm'
 import {
   ensureArray,
   ensureBoolean,
@@ -24,6 +18,43 @@ import { pathParametersInError } from '@baserow/modules/builder/utils/params'
 import { ClickEvent } from '@baserow/modules/builder/eventTypes'
 import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
 import { LINK_VARIANTS } from '@baserow/modules/builder/enums'
+
+// Editor controls load together, independently of the published runtime.
+const ButtonFieldForm = lazyComponent(() =>
+  import('@baserow/modules/builder/components/authoringBundle').then(
+    (bundle) => bundle.collectionFieldTypesButtonFieldForm
+  )
+)
+const BooleanFieldForm = lazyComponent(() =>
+  import('@baserow/modules/builder/components/authoringBundle').then(
+    (bundle) => bundle.collectionFieldTypesBooleanFieldForm
+  )
+)
+const TextFieldForm = lazyComponent(() =>
+  import('@baserow/modules/builder/components/authoringBundle').then(
+    (bundle) => bundle.collectionFieldTypesTextFieldForm
+  )
+)
+const TagsFieldForm = lazyComponent(() =>
+  import('@baserow/modules/builder/components/authoringBundle').then(
+    (bundle) => bundle.collectionFieldTypesTagsFieldForm
+  )
+)
+const LinkFieldForm = lazyComponent(() =>
+  import('@baserow/modules/builder/components/authoringBundle').then(
+    (bundle) => bundle.collectionFieldTypesLinkFieldForm
+  )
+)
+const ImageFieldForm = lazyComponent(() =>
+  import('@baserow/modules/builder/components/authoringBundle').then(
+    (bundle) => bundle.collectionFieldTypesImageFieldForm
+  )
+)
+const RatingFieldForm = lazyComponent(() =>
+  import('@baserow/modules/builder/components/authoringBundle').then(
+    (bundle) => bundle.collectionFieldTypesRatingFieldForm
+  )
+)
 
 export class CollectionFieldType extends Registerable {
   get name() {

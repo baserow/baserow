@@ -28,6 +28,11 @@ describe('ColumnElement', () => {
       props,
       slots,
       global: {
+        stubs: {
+          AddElementModal: {
+            template: '<div data-test="add-element-modal" />',
+          },
+        },
         provide,
         mocks: {
           $hasPermission: () => true,
@@ -69,6 +74,7 @@ describe('ColumnElement', () => {
     })
 
     expect(wrapper.vm.gridTemplateColumns).toBe('1fr auto 2fr')
+    expect(wrapper.html()).toMatchSnapshot()
   })
 
   test('gridTemplateColumns stacks columns depending on the current device', async () => {
@@ -199,5 +205,6 @@ describe('ColumnElement', () => {
     })
 
     expect(wrapper.classes()).not.toContain('column-element--public')
+    expect(wrapper.html()).toMatchSnapshot()
   })
 })
