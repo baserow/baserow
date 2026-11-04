@@ -702,6 +702,30 @@ def test_setup_user_source_with_a_database_creates_the_table(data_fixture, build
 
 
 @pytest.mark.django_db
+def test_setup_user_source_takes_a_role_that_does_not_fit_an_email(
+    data_fixture, builder_ctx
+):
+    database = data_fixture.create_database_application(
+        workspace=builder_ctx["workspace"]
+    )
+    roles = ["Project Manager", "R&D / Ops", "???"]
+
+    result = user_sources.setup_user_source(
+        builder_ctx["ctx"],
+        builder_ctx["builder"].id,
+        UserSourceSetup(name="People", database_id=database.id, roles=roles),
+    )
+
+    table = Table.objects.get(id=result["table_id"])
+    email = table.field_set.get(name="Email").db_column
+    assert [getattr(row, email) for row in table.get_model().objects.all()] == [
+        "project-manager@example.com",
+        "r-d-ops@example.com",
+        "user-3@example.com",
+    ]
+
+
+@pytest.mark.django_db
 def test_setup_user_source_on_a_table_without_an_email_says_so(
     data_fixture, builder_ctx
 ):

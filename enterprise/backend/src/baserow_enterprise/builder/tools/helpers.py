@@ -5,6 +5,7 @@ Contains permission-checked accessors, listing functions, and the element/data
 source/action creation orchestrators used by ``tools.py`` and ``agents.py``.
 """
 
+import re
 from collections import Counter
 from typing import Any, NamedTuple
 
@@ -1574,10 +1575,12 @@ def create_users_table(
     role_options = {opt.value: opt.id for opt in role_field.select_options.all()}
     example_rows = []
     for i, role_name in enumerate(roles, start=1):
+        local_part = re.sub(r"[^a-z0-9]+", "-", role_name.lower()).strip("-")
+        local_part = local_part or f"user-{i}"
         example_rows.append(
             {
                 name_field.db_column: role_name,
-                email_field.db_column: f"{role_name.lower()}@example.com",
+                email_field.db_column: f"{local_part}@example.com",
                 role_field.db_column: role_options.get(role_name),
             }
         )
