@@ -142,7 +142,7 @@ class AgentService:
     def _require_ready(self, agent: AgentApplication) -> None:
         """Reject new content without leaking privileged setting diagnostics."""
 
-        if self.handler.get_configuration(agent)["readiness"] != "ready":
+        if self.handler.get_configuration(agent).readiness != "ready":
             raise AgentNotReady
 
     def can_read_conversation(self, user: AbstractUser, conversation_id: int) -> bool:

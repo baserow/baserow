@@ -100,14 +100,15 @@ class AgentHandler:
             readiness = "unavailable"
         else:
             readiness = "ready"
-        return {
-            **{
-                field: getattr(agent, field)
-                for field in [*self.configuration_fields, *self.run_as_fields]
-            },
-            "readiness": readiness,
-            "errors": errors,
-        }
+        return AgentConfiguration(
+            readiness=readiness,
+            instructions=agent.instructions,
+            provider_type=agent.provider_type,
+            model_identifier=agent.model_identifier,
+            run_as_subject_type=agent.run_as_subject_type,
+            run_as_subject_id=agent.run_as_subject_id,
+            errors=errors,
+        )
 
     def get_run_as_subject(
         self,

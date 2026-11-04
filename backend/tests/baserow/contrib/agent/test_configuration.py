@@ -7,6 +7,7 @@ from baserow.api.applications.serializers import (
 )
 from baserow.contrib.agent.actions import UpdateAgentConfigurationActionType
 from baserow.contrib.agent.handler import AgentHandler
+from baserow.contrib.agent.types import AgentConfiguration
 from baserow.core.ai_provider.resolution import (
     clear_ai_provider_state_cache,
     load_ai_provider_state,
@@ -40,7 +41,8 @@ def test_configuration_reports_missing_and_unavailable_fields(
 ):
     configuration = AgentHandler().get_configuration(configured_agent(**values))
 
-    assert (configuration["readiness"], configuration["errors"]) == (
+    assert isinstance(configuration, AgentConfiguration)
+    assert (configuration.readiness, configuration.errors) == (
         readiness,
         errors,
     )

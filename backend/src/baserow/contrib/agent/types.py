@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Literal, TypedDict
+from typing import Literal
 from uuid import UUID
 
 from baserow.core.models import Workspace
@@ -9,7 +9,10 @@ from .models import AgentApplication, AgentConversation, AgentMessage
 AgentReadinessState = Literal["ready", "incomplete", "unavailable"]
 
 
-class AgentConfiguration(TypedDict):
+@dataclass(frozen=True)
+class AgentConfiguration:
+    """The saved Agent configuration and its readiness at the time it was read."""
+
     readiness: AgentReadinessState
     instructions: str
     provider_type: str | None

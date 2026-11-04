@@ -42,9 +42,10 @@ class AgentApplicationSerializer(serializers.ModelSerializer):
         provider_state = self.context.get("ai_provider_states", {}).get(
             instance.workspace_id
         )
-        return AgentHandler().get_configuration(
+        configuration = AgentHandler().get_configuration(
             instance, provider_state=provider_state
-        )["readiness"]
+        )
+        return configuration.readiness
 
 
 class AgentRunAsSerializer(serializers.Serializer):
@@ -78,9 +79,9 @@ class AgentConfigurationSerializer(serializers.Serializer):
         :return: The identity with its type, or None.
         """
 
-        subject_type = configuration["run_as_subject_type"]
+        subject_type = configuration.run_as_subject_type
         subject = AgentHandler().get_run_as_subject(
-            subject_type, configuration["run_as_subject_id"], include_trash=True
+            subject_type, configuration.run_as_subject_id, include_trash=True
         )
         if subject is None:
             return None
