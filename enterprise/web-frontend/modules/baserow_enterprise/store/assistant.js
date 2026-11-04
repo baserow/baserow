@@ -35,7 +35,6 @@ function inFlightMessage(follower) {
 }
 
 const CHAT_RUN_IN_PROGRESS = 'ERROR_CHAT_RUN_IN_PROGRESS'
-const CHAT_STREAM_USER_LIMIT = 'ERROR_CHAT_STREAM_USER_LIMIT'
 
 /**
  * How Kuma took a message: a run answers it, the chat still answers another
@@ -591,14 +590,13 @@ export const actions = {
    * Shows why Kuma refused a message, unless the user left its chat meanwhile.
    * A busy chat follows the message it is still answering instead, without
    * the draft, and is busy even when re-reading it failed, so the text can go
-   * back into the input. A message whose stream alone was refused already has
-   * its run, so the chat is re-read the same way and the message is accepted.
+   * back into the input.
    *
    * @returns {Promise<{outcome: string, runId: null}>}
    * @throws Anything but a failed request while re-reading a busy chat.
    */
   async handleRefusedMessage(
-    { state, commit, dispatch, getters },
+    { state, commit, dispatch },
     { chat, draftId, error }
   ) {
     const { $i18n } = this
@@ -606,7 +604,7 @@ export const actions = {
       return { outcome: SEND_OUTCOME.FAILED, runId: null }
     }
     const code = error.handler?.code
-    if (code === CHAT_RUN_IN_PROGRESS || code === CHAT_STREAM_USER_LIMIT) {
+    if (code === CHAT_RUN_IN_PROGRESS) {
       commit('REMOVE_MESSAGE', draftId)
       try {
         await dispatch('selectChat', chat)
@@ -615,12 +613,7 @@ export const actions = {
           throw readError
         }
       }
-      return code === CHAT_RUN_IN_PROGRESS
-        ? { outcome: SEND_OUTCOME.BUSY, runId: null }
-        : {
-            outcome: SEND_OUTCOME.ACCEPTED,
-            runId: getters.activeFollower?.runId ?? null,
-          }
+      return { outcome: SEND_OUTCOME.BUSY, runId: null }
     }
     commit('ADD_MESSAGE', {
       id: uuidv4(),

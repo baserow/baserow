@@ -342,27 +342,23 @@ describe('Kuma durable streamed send and resume', () => {
     expect(await sending).toBe(SEND_OUTCOME.ACCEPTED)
   })
 
-  test.each([
-    [409, 'ERROR_CHAT_RUN_IN_PROGRESS', SEND_OUTCOME.BUSY, null],
-    [429, 'ERROR_CHAT_STREAM_USER_LIMIT', SEND_OUTCOME.ACCEPTED, 'run-1'],
-  ])(
-    'a %i %s drops the draft and follows the run the chat already has',
-    async (status, code, outcome, runId) => {
-      await open()
-      service.sendMessage.mockRejectedValue(refused(status, code))
-      service.fetchChatMessages.mockResolvedValue({
-        chat_id: 7,
-        messages: [human],
-        active_run: { id: 'run-1', status: 'running' },
-      })
-      expect(
-        await store.dispatch('assistant/startRun', { message: 'Hi', workspace })
-      ).toEqual({ outcome, runId })
-      await flushPromises()
-      expect(store.state.assistant.messages.map((m) => m.id)).toEqual([501])
-      expect(api.stream).toHaveBeenCalledTimes(1)
-    }
-  )
+  test('a busy chat drops the draft and follows the run it already has', async () => {
+    await open()
+    service.sendMessage.mockRejectedValue(
+      refused(409, 'ERROR_CHAT_RUN_IN_PROGRESS')
+    )
+    service.fetchChatMessages.mockResolvedValue({
+      chat_id: 7,
+      messages: [human],
+      active_run: { id: 'run-1', status: 'running' },
+    })
+    expect(
+      await store.dispatch('assistant/startRun', { message: 'Hi', workspace })
+    ).toEqual({ outcome: SEND_OUTCOME.BUSY, runId: null })
+    await flushPromises()
+    expect(store.state.assistant.messages.map((m) => m.id)).toEqual([501])
+    expect(api.stream).toHaveBeenCalledTimes(1)
+  })
 
   test.each([
     [404, 'ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST', null],
