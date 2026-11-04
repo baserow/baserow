@@ -967,7 +967,7 @@ class ElementItemCreate(BaseModel):
     # -- Collection fields (table, repeat) ----------------------------------
 
     items_per_page: int | None = Field(
-        default=None, ge=0, description="(table, repeat) Items per page."
+        default=None, ge=1, description="(table, repeat) Items per page."
     )
     button_load_more_label: str | None = Field(
         default=None, description="(table) Load more button label."
@@ -1738,7 +1738,7 @@ class ElementUpdate(BaseModel):
 
     # -- Collection fields ----------------------------------------------------
     items_per_page: int | None = Field(
-        default=None, ge=0, description="(table, repeat) Items per page."
+        default=None, ge=1, description="(table, repeat) Items per page."
     )
     button_load_more_label: str | None = Field(
         default=None, description="(table) Load more button label."

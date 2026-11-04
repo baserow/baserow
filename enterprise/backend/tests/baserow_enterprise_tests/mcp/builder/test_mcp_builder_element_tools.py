@@ -371,6 +371,7 @@ BAD_CREATES = [
     ("setup_page", {"type": "input_text", "rows": 0}),
     ("setup_page", {"type": "input_text", "rows": 101}),
     ("setup_page", {"type": "repeat", "items_per_page": -1}),
+    ("setup_page", {"type": "repeat", "items_per_page": 0}),
 ]
 
 
@@ -405,6 +406,7 @@ def test_a_value_the_rest_api_refuses_is_refused_on_create(
         {"column_gap": -1},
         {"rows": 101},
         {"items_per_page": -1},
+        {"items_per_page": 0},
     ],
 )
 def test_a_value_the_rest_api_refuses_is_refused_on_update(

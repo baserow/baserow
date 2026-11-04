@@ -4,6 +4,7 @@ without a model. The conftest of this folder fails any model call.
 """
 
 import pytest
+from pydantic import ValidationError as PydanticValidationError
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
@@ -2575,22 +2576,32 @@ def test_update_header_can_go_back_to_the_pages_it_has(builder_ctx):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(
-    "type, name",
-    [
-        ("column", "column_gap"),
-        ("repeat", "items_per_page"),
-        ("table", "items_per_page"),
-    ],
-)
-def test_create_element_keeps_a_zero(builder_ctx, type, name):
+def test_create_element_keeps_a_zero_column_gap(builder_ctx):
     result = elements.create_elements(
         builder_ctx["ctx"],
         builder_ctx["page"].id,
-        [ElementItemCreate(ref="zero", type=type, **{name: 0})],
+        [ElementItemCreate(ref="zero", type="column", column_gap=0)],
     )
 
-    assert getattr(saved(result["ref_to_id_map"]["zero"]), name) == 0
+    assert saved(result["ref_to_id_map"]["zero"]).column_gap == 0
+
+
+@pytest.mark.parametrize("type", ["repeat", "table"])
+def test_an_empty_page_size_is_refused(type):
+    with pytest.raises(PydanticValidationError, match="greater than or equal to 1"):
+        ElementItemCreate(ref="zero", type=type, items_per_page=0)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("type", ["repeat", "table"])
+def test_create_element_keeps_a_page_size_of_one(builder_ctx, type):
+    result = elements.create_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [ElementItemCreate(ref="one", type=type, items_per_page=1)],
+    )
+
+    assert saved(result["ref_to_id_map"]["one"]).items_per_page == 1
 
 
 @pytest.mark.django_db
