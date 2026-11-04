@@ -10,41 +10,6 @@ import rowModalNavigationStore from '@baserow/modules/database/store/rowModalNav
 import rowHistoryStore from '@baserow/modules/database/store/rowHistory'
 import fieldRulesStore from '@baserow/modules/database/store/fieldRules'
 
-/*
-  store.registerModule('table', tableStore)
-  store.registerModule('view', viewStore)
-  store.registerModule('field', fieldStore)
-  store.registerModule('rowModal', rowModal)
-  store.registerModule('rowModalNavigation', rowModalNavigationStore)
-  store.registerModule('rowHistory', rowHistoryStore)
-  store.registerModule('fieldRules', fieldRulesStore)
-  store.registerModule('page/view/grid', gridStore)
-  store.registerModule('page/view/gallery', galleryStore)
-  store.registerModule('page/view/form', formStore)
-  store.registerModule('page/view/public', publicStore)
-  store.registerModule('template/view/grid', gridStore)
-  store.registerModule('template/view/gallery', galleryStore)
-store.registerModule('template/view/form', formStore)
-  */
-/*const store = createStore({
-  modules: {
-    table: tableStore,
-    view: viewStore,
-    field: fieldStore,
-    rowModal,
-    rowModalNavigation: rowModalNavigationStore,
-    rowHistory: rowHistoryStore,
-    fieldRules: fieldRulesStore,
-    'page/view/grid': gridStore,
-    'template/view/grid': gridStore,
-    'page/view/gallery': galleryStore,
-    'template/view/gallery': galleryStore,
-    'page/view/form': formStore,
-    'template/view/form': formStore,
-    'page/view/public': publicStore,
-  },
-})*/
-
 /** Register this entry before rendering or hydrating its routes. */
 export default async function register(nuxtApp) {
   const { $store } = nuxtApp
