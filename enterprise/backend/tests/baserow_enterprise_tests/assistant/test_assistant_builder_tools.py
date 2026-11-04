@@ -4347,7 +4347,7 @@ def test_update_element_refuses_a_new_target_that_does_not_fit_a_link(data_fixtu
         page_parameters=[{"name": "id", "value": "'1'"}],
     )
 
-    with pytest.raises(ToolInputError, match="Replace the link"):
+    with pytest.raises(ToolInputError, match="stays on the page"):
         update_element(
             make_test_ctx(user, workspace),
             page_id=page.id,

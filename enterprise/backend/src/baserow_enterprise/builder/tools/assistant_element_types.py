@@ -159,8 +159,9 @@ class LinkAssistantElementType(AssistantElementType):
             )
             if problem:
                 raise ToolInputError(
-                    f"{problem} {NO_CHANGES} Replace the link: create a new one with "
-                    "link_page_parameters."
+                    f"{problem} {NO_CHANGES} To link to that page, create a new link "
+                    "with link_page_parameters. This one stays on the page until "
+                    "someone deletes it in the editor."
                 )
         return super().prepare_update(user, element, update)
 

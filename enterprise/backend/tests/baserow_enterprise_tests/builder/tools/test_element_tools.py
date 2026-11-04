@@ -1987,7 +1987,8 @@ def test_a_new_target_that_does_not_fit_a_link_is_refused(
         )
 
     assert all(part in str(error.value) for part in named)
-    assert "Replace the link" in str(error.value)
+    assert "create a new link with link_page_parameters" in str(error.value)
+    assert "Replace" not in str(error.value)
     stored = saved(link.id)
     assert stored.navigate_to_page_id == link_pages[start].id
     assert stored.value == link.value
