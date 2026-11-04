@@ -5,8 +5,9 @@
         v-if="entry.items"
         :items="entry.items"
         :disabled="!canDecide"
+        :can-always-allow="canAlwaysAllow"
         :deciding="deciding"
-        @decide="$emit('decide', $event)"
+        @decide="(decisions, options) => $emit('decide', decisions, options)"
       />
       <ChatStepGroup
         v-else
@@ -76,6 +77,8 @@ const props = defineProps({
   message: { type: Object, required: true },
   /** Whether the viewer may approve or reject the reply's held steps. */
   canDecide: { type: Boolean, default: false },
+  /** Whether the viewer may also turn off Ask first for the held tools. */
+  canAlwaysAllow: { type: Boolean, default: false },
   /** A decision about this reply's held steps is being saved. */
   deciding: { type: Boolean, default: false },
 })

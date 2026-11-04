@@ -15,6 +15,16 @@
             : $t('agent.approvalReviewed')
         }}
       </span>
+      <Button
+        v-if="pending.length && canAlwaysAllow"
+        type="secondary"
+        size="small"
+        class="agent-approval__always-allow"
+        :disabled="locked"
+        @click="approve(pending, { alwaysAllow: true })"
+      >
+        {{ $t('agent.alwaysAllow') }}
+      </Button>
       <div v-if="pending.length" class="agent-approval__actions">
         <Button
           type="secondary"
@@ -161,6 +171,8 @@ const props = defineProps({
   items: { type: Array, required: true },
   /** The viewer may not decide. */
   disabled: { type: Boolean, default: false },
+  /** The viewer may also turn off Ask first for these steps' tools. */
+  canAlwaysAllow: { type: Boolean, default: false },
   /** A decision about these steps is being saved. */
   deciding: { type: Boolean, default: false },
 })
@@ -207,17 +219,20 @@ function setItemApprove(item, button) {
 }
 
 /** Send the decisions, remembered until their save ends. */
-function decide(decisions) {
+function decide(decisions, options) {
   submitted = {
     ids: decisions.map(({ id }) => id),
     approved: decisions[0].approved,
   }
-  emit('decide', decisions)
+  emit('decide', decisions, options)
 }
 
-function approve(items) {
+function approve(items, options) {
   if (locked.value) return
-  decide(items.map((item) => ({ id: item.id, approved: true })))
+  decide(
+    items.map((item) => ({ id: item.id, approved: true })),
+    options
+  )
 }
 
 function askToReject(items, event) {
