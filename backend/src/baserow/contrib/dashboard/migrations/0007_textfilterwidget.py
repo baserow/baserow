@@ -48,7 +48,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "default_value",
-                    models.TextField(blank=True, db_default="", default=""),
+                    models.JSONField(blank=True, db_default="", default=str),
                 ),
                 (
                     "target_filters",

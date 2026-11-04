@@ -151,13 +151,30 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
         multiple: bool
         options: dict
         placeholder: str
-        default_value: str
+        default_value: str | list[str]
         target_filters: list
+
+    def prepare_value_for_db(self, values, instance=None):
+        if "default_value" in values:
+            default = values["default_value"]
+            if not isinstance(default, str) and not (
+                isinstance(default, list)
+                and all(isinstance(value, str) for value in default)
+            ):
+                raise serializers.ValidationError(
+                    {"default_value": "Expected text or a list of text values."}
+                )
+        return super().prepare_value_for_db(values, instance)
 
     def get_filter_value(self, widget, values):
         default = widget.default_value
+        defaults = (
+            default if isinstance(default, list) else [default] if default else []
+        )
         if widget.mode == TextFilterWidget.Mode.DROPDOWN and widget.multiple:
-            default = [default] if default else []
+            default = defaults
+        else:
+            default = defaults[0] if defaults else ""
         return values.get(str(widget.id), default)
 
     def after_import(self, widget, id_mapping, **kwargs):
