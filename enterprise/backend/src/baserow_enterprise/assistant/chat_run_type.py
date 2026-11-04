@@ -12,9 +12,10 @@ from baserow.api.sessions import (
     set_client_undo_redo_action_group_id,
     set_untrusted_client_session_id,
 )
-from baserow.core.chat_runs.constants import ChatRunErrorCode, ChatRunEventKind
+from baserow.core.chat_runs.constants import ChatRunErrorCode
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
 from baserow.core.chat_runs.registries import ChatRunType
+from baserow.core.chat_runs.stream import fold_output
 from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
@@ -271,14 +272,7 @@ class AssistantChatRunType(ChatRunType):
         """
 
         chat, human_message = self._load_turn(run)
-        text = ""
-        segment = None
-        for event in events or []:
-            data = event.get("data") or {}
-            if event.get("kind") == ChatRunEventKind.TEXT_DELTA:
-                if data.get("segment") != segment:
-                    text, segment = "", data.get("segment")
-                text += data.get("text", "")
+        text = fold_output(events or [])["text"]
         history = append_turn(
             chat.message_history, human_message.content, unfinished_answer(text)
         )

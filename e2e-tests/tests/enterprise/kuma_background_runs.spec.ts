@@ -111,16 +111,13 @@ test("a reply whose resumed stream ends early shows the saved answer from its st
   await kuma.send(scriptedMessage(WORDS));
   await expect(kuma.lastAnswer()).toContainText("word3", { timeout: 30_000 });
   let resumes = 0;
-  await page.route("**/assistant/chat/*/messages/", async (route) => {
-    if (route.request().postDataJSON()?.run_id) {
-      resumes += 1;
-      return route.fulfill({
-        status: 200,
-        contentType: "text/event-stream",
-        body: "\n\n",
-      });
-    }
-    return route.continue();
+  await page.route("**/chat-runs/*/stream/**", async (route) => {
+    resumes += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "text/event-stream",
+      body: "\n\n",
+    });
   });
   await page.reload();
   await expect(kuma.answers()).toHaveText([answerOf(WORDS)], {
