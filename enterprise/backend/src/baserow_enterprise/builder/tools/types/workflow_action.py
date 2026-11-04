@@ -58,8 +58,7 @@ class FieldValueMapping(BaseModel):
     value: str = Field(
         ...,
         description=(
-            "Fixed text, or a formula: see the tool description. "
-            "Quote fixed text that parses as a formula: 'like this'."
+            "A formula: see the tool description. Quote fixed text: 'like this'."
         ),
     )
 
