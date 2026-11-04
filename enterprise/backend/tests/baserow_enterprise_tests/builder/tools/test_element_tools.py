@@ -1841,3 +1841,62 @@ def test_moving_into_a_column_without_a_place_uses_its_first_place(builder_ctx):
 
     assert not result.get("errors")
     assert children_of(ids["cols"], "0") == ["'First'", "'Second'"]
+
+
+@pytest.mark.django_db
+def test_moving_an_empty_container_into_itself_is_refused(builder_ctx):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    box = elements.create_elements(
+        ctx, page.id, [ElementItemCreate(ref="box", type="simple_container")]
+    )["ref_to_id_map"]["box"]
+
+    result = elements.move_elements(
+        ctx, [ElementMove(element_id=box, parent_element_id=box)]
+    )
+
+    assert result["moved_elements"] == []
+    assert "itself" in result["errors"][0]
+    assert saved(box).parent_element_id is None
+
+
+@pytest.mark.django_db
+def test_moving_a_container_into_itself_is_refused(builder_ctx):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    ids = elements.create_elements(
+        ctx,
+        page.id,
+        [
+            ElementItemCreate(ref="box", type="simple_container"),
+            text("a", "First", parent_element="box"),
+        ],
+    )["ref_to_id_map"]
+
+    result = elements.move_elements(
+        ctx, [ElementMove(element_id=ids["box"], parent_element_id=ids["box"])]
+    )
+
+    assert result["moved_elements"] == []
+    assert len(result["errors"]) == 1
+    assert children_of(ids["box"]) == ["'First'"]
+
+
+@pytest.mark.django_db
+def test_moving_the_last_child_to_the_end_of_its_container_stays_a_success(
+    builder_ctx,
+):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    ids = elements.create_elements(
+        ctx,
+        page.id,
+        [
+            ElementItemCreate(ref="box", type="simple_container"),
+            text("a", "First", parent_element="box"),
+        ],
+    )["ref_to_id_map"]
+
+    result = elements.move_elements(
+        ctx, [ElementMove(element_id=ids["a"], parent_element_id=ids["box"])]
+    )
+
+    assert not result.get("errors")
+    assert result["moved_elements"][0]["parent_element_id"] == ids["box"]

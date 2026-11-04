@@ -898,7 +898,8 @@ def move_element(
         reference_element_id, position, place = end_of_container(
             parent.page, parent.id, place
         )
-        if reference_element_id == element.id:
+        # A container's own id comes back when it is empty: the move refuses that.
+        if reference_element_id == element.id and position != GraphPointPosition.CHILD:
             return element  # Already the last one there.
     elif before is not None:
         if (
