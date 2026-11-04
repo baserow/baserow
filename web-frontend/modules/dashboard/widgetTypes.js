@@ -202,16 +202,26 @@ export class FilterWidgetType extends WidgetType {
     }
   }
 
+  getValueAfterUpdate(widget, previousWidget, value) {
+    return isEqual(
+      this.getDefaultValue(widget),
+      this.getDefaultValue(previousWidget)
+    )
+      ? value
+      : this.getDefaultValue(widget)
+  }
+
   /** Defaults reset viewer values; editing links refreshes both old and new targets. */
   afterUpdate(widget, context, previousWidget) {
-    if (
-      !isEqual(
-        this.getDefaultValue(widget),
-        this.getDefaultValue(previousWidget)
+    this.valueChanged(
+      widget,
+      context,
+      this.getValueAfterUpdate(
+        widget,
+        previousWidget,
+        context.state.widgetValues[widget.id]
       )
-    ) {
-      this.valueChanged(widget, context, this.getDefaultValue(widget))
-    }
+    )
     if (
       !isEqual(widget.target_filters, previousWidget.target_filters) ||
       !isEqual(widget.target_widget_ids, previousWidget.target_widget_ids)
@@ -250,24 +260,21 @@ export class TextFilterWidgetType extends FilterWidgetType {
     return widget.mode === 'dropdown' && widget.multiple === true
   }
 
-  afterUpdate(widget, context, previousWidget) {
-    const previousValue = context.state.widgetValues[widget.id]
-    super.afterUpdate(widget, context, previousWidget)
+  getValueAfterUpdate(widget, previousWidget, value) {
+    // Normalizing the default for a new mode must not replace the viewer's selection.
     if (
       this.isMultiple(widget) !== this.isMultiple(previousWidget) &&
-      isEqual(widget.default_value, previousWidget.default_value)
-    ) {
-      const values = Array.isArray(previousValue)
-        ? previousValue
-        : previousValue
-          ? [previousValue]
-          : []
-      this.valueChanged(
-        widget,
-        context,
-        this.isMultiple(widget) ? values : values[0] || ''
+      isEqual(
+        this.getDefaultValue(widget),
+        this.getDefaultValue({
+          ...widget,
+          default_value: previousWidget.default_value,
+        })
       )
+    ) {
+      return this.getDefaultValue({ ...widget, default_value: value })
     }
+    return super.getValueAfterUpdate(widget, previousWidget, value)
   }
 
   afterSave(widget, context, values) {
