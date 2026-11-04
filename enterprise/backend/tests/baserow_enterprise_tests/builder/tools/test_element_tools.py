@@ -35,7 +35,10 @@ from baserow_enterprise.builder.tools.types import (
     TableColumnUpdate,
     TableFieldConfig,
 )
-from baserow_enterprise.builder.tools.types.menu_items import MenuItemAdd
+from baserow_enterprise.builder.tools.types.menu_items import (
+    MenuItemAdd,
+    MenuItemUpdate,
+)
 
 
 def heading(ref="h", **kwargs):
@@ -2355,3 +2358,107 @@ def test_a_custom_link_back_to_its_stored_page_needs_parameters_that_fit(
         )
 
     assert saved(links["custom"]).navigation_type == "custom"
+
+
+@pytest.fixture
+def item_page(data_fixture, builder_ctx):
+    return data_fixture.create_builder_page(
+        builder=builder_ctx["builder"],
+        name="Item",
+        path="/item/:id",
+        path_params=[{"name": "id", "type": "numeric"}],
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("element_type", ["menu", "header"])
+def test_a_new_menu_can_not_link_to_a_page_with_path_parameters(
+    builder_ctx, item_page, element_type
+):
+    result = elements.create_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            ElementItemCreate(
+                ref="m",
+                type=element_type,
+                menu_items=[{"name": "Item", "page_id": item_page.id}],
+            )
+        ],
+    )
+
+    assert "created_elements" not in result or not result["created_elements"]
+    assert "path parameters" in result["errors"][0]
+
+
+@pytest.fixture
+def menu_id(builder_ctx):
+    return elements.create_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            ElementItemCreate(
+                ref="m",
+                type="menu",
+                menu_items=[{"name": "Home", "page_id": builder_ctx["page"].id}],
+            )
+        ],
+    )["ref_to_id_map"]["m"]
+
+
+@pytest.mark.django_db
+def test_add_menu_items_can_not_link_to_a_page_with_path_parameters(
+    builder_ctx, item_page, menu_id
+):
+    with pytest.raises(ToolInputError, match="path parameters"):
+        elements.update_element(
+            builder_ctx["ctx"],
+            menu_id,
+            ElementChanges(
+                add_menu_items=[MenuItemAdd(name="Item", page_id=item_page.id)]
+            ),
+        )
+
+    assert saved(menu_id).menu_items.count() == 1
+
+
+@pytest.mark.django_db
+def test_update_menu_items_can_not_link_to_a_page_with_path_parameters(
+    builder_ctx, item_page, menu_id
+):
+    uid = str(saved(menu_id).menu_items.get().uid)
+
+    with pytest.raises(ToolInputError, match="path parameters"):
+        elements.update_element(
+            builder_ctx["ctx"],
+            menu_id,
+            ElementChanges(
+                update_menu_items=[MenuItemUpdate(uid=uid, page_id=item_page.id)]
+            ),
+        )
+
+    assert saved(menu_id).menu_items.get().navigate_to_page_id == builder_ctx["page"].id
+
+
+@pytest.mark.django_db
+def test_a_menu_item_set_up_with_parameters_in_the_editor_can_be_renamed(
+    builder_ctx, item_page, menu_id
+):
+    item = saved(menu_id).menu_items.get()
+    item.navigate_to_page_id = item_page.id
+    item.page_parameters = [{"name": "id", "value": "1"}]
+    item.save()
+
+    elements.update_element(
+        builder_ctx["ctx"],
+        menu_id,
+        ElementChanges(
+            update_menu_items=[
+                MenuItemUpdate(uid=str(item.uid), name="New", page_id=item_page.id)
+            ]
+        ),
+    )
+
+    item = saved(menu_id).menu_items.get()
+    assert item.name == "New"
+    assert [param["name"] for param in item.page_parameters] == ["id"]

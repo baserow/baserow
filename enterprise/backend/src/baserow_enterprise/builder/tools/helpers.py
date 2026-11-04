@@ -756,6 +756,12 @@ def create_element(
             raise ToolInputError(
                 f"{problem} Give link_page_parameters with exactly those names."
             )
+    if element_create.menu_items:
+        problem = menu_links_problem(
+            page.builder_id, [item.page_id for item in element_create.menu_items]
+        )
+        if problem:
+            raise ToolInputError(problem)
     if element_create.page_ids:
         check_pages_in_builder(page.builder, element_create.page_ids)
         kwargs["pages"] = list(
@@ -1424,6 +1430,27 @@ def page_parameters_problem(
         f"The page parameters don't fit page {page.id}, which takes "
         f"{', '.join(expected) or 'none'} ({'; '.join(problems)})."
     )
+
+
+def menu_links_problem(builder_id: int, page_ids: list[int]) -> str | None:
+    """
+    Why menu items can't link to these pages, if so. A menu item has no way to give
+    path parameters, and the frontend hides a menu with an item that lacks them.
+
+    :param builder_id: The application the pages must be in.
+    :param page_ids: The pages the items link to.
+    :return: The problem, or None when they can.
+    """
+
+    for page in Page.objects.filter(builder_id=builder_id, id__in=page_ids):
+        if page.path_params:
+            names = ", ".join(param["name"] for param in page.path_params)
+            return (
+                f"Page {page.id} has path parameters ({names}) and a menu item can't "
+                "give them, so visitors wouldn't see the menu. Link to a page without "
+                "path parameters, or create a link element with link_page_parameters."
+            )
+    return None
 
 
 def parameters_in_page_order(

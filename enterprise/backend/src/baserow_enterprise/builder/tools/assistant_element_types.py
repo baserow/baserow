@@ -5,13 +5,19 @@ from typing import Any
 
 from django.contrib.auth.models import AbstractUser
 
-from baserow.contrib.builder.elements.models import Element, MenuElement, TableElement
+from baserow.contrib.builder.elements.models import (
+    Element,
+    MenuElement,
+    MenuItemElement,
+    TableElement,
+)
 from baserow.contrib.builder.workflow_actions.models import NotificationWorkflowAction
 from baserow.core.tools.errors import ToolInputError
 
 from .formulas import current_record_of, formula_problem, page_formula_context
 from .helpers import (
     child_menu,
+    menu_links_problem,
     page_parameters_problem,
     parameters_in_page_order,
     save_child_menu,
@@ -20,7 +26,7 @@ from .menu_item_changes import MenuItemsChange, linkable_page_ids, merge_menu_it
 from .registries import AssistantElementType, PreparedElementUpdate
 from .table_column_changes import merge_table_columns
 from .types import ElementUpdate
-from .types.changes import NO_CHANGES
+from .types.changes import NO_CHANGES, canonical_uid
 from .types.element import (
     BUTTON_NAVIGATION_GUIDANCE,
     MENU_ITEM_PROPERTIES,
@@ -44,7 +50,7 @@ def _merge_menu_item_changes(
     :raises ToolInputError: When a change can't be applied; nothing is saved.
     """
 
-    return merge_menu_items(
+    change = merge_menu_items(
         menu,
         page_ids=linkable_page_ids(element.page.builder_id),
         add=update.add_menu_items or [],
@@ -52,6 +58,31 @@ def _merge_menu_item_changes(
         reorder=update.reorder_menu_items,
         remove=update.remove_menu_items or [],
     )
+    problem = menu_links_problem(
+        element.page.builder_id, _new_menu_link_targets(menu, update)
+    )
+    if problem:
+        raise ToolInputError(f"{problem} {NO_CHANGES}")
+    return change
+
+
+def _new_menu_link_targets(menu: MenuElement | None, update: ElementUpdate) -> list[int]:
+    """The pages an update makes menu items link to, leaving out what they already do."""
+
+    linked = {
+        str(item.uid): item.navigate_to_page_id
+        for item in (menu.menu_items.all() if menu else [])
+        if item.navigation_type == MenuItemElement.NAVIGATION_TYPES.PAGE
+    }
+    return [
+        *(new.page_id for new in update.add_menu_items or []),
+        *(
+            change.page_id
+            for change in update.update_menu_items or []
+            if change.page_id is not None
+            and linked.get(canonical_uid(change.uid)) != change.page_id
+        ),
+    ]
 
 
 def _removed_result(change: MenuItemsChange) -> dict[str, Any]:

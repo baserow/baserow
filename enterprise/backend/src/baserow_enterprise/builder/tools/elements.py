@@ -236,6 +236,7 @@ def create_layout_elements(
     place_in_container says which one, from "0". ref_to_id_map gives the ID of each
     ref. A ref works as parent_element inside the call that creates it; afterwards
     use the element's ID. empty_containers lists the new containers with nothing in
+    them. A menu item can't give path parameters, so it can't link to a page that has
     them.
 
     A header or footer, and anything inside one, goes on the shared page and shows on
@@ -378,7 +379,8 @@ def update_element(
 
     Menu items: list_elements shows each item's uid. Change them with add_menu_items,
     update_menu_items, reorder_menu_items and remove_menu_items; items you don't list
-    stay as they are. On a header or footer they change the menu inside it. A removed
+    stay as they are. On a header or footer they change the menu inside it. An item
+    can't give path parameters, so it can't link to a page that has them. A removed
     button's click actions are gone for good.
     """
 
