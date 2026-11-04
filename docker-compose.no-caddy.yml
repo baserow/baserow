@@ -46,7 +46,6 @@ x-backend-variables:
   BASEROW_EMBEDDED_SHARE_URL:
   BASEROW_FRONTEND_COOKIE_PREFIX:
   BASEROW_ASGI_HTTP_MAX_CONCURRENT_STREAMS:
-  BASEROW_ASGI_HTTP_MAX_CONCURRENT_STREAMS_PER_USER:
 
   # Set these if you want to use an external postgres instead of the db service below.
   DATABASE_USER: ${DATABASE_USER:-baserow}
@@ -289,6 +288,7 @@ x-backend-variables:
   BASEROW_AI_FIELD_MAX_CONCURRENT_GENERATIONS:
   # Agent replies that can run at once in one workspace.
   BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE:
+  BASEROW_CHAT_MAX_CONCURRENT_STREAMS_PER_USER:
   # Deprecated model selection; choose Kuma under Admin tools > AI providers > AI features.
   BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL:
   BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE:

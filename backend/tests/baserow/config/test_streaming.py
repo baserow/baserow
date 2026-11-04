@@ -140,7 +140,7 @@ async def test_http_stream_admission_does_not_hold_rest_capacity_or_thread_conte
 
 @pytest.mark.asyncio
 async def test_one_user_cannot_hold_every_stream_slot(monkeypatch, settings):
-    settings.ASGI_HTTP_MAX_CONCURRENT_STREAMS_PER_USER = 1
+    settings.BASEROW_CHAT_MAX_CONCURRENT_STREAMS_PER_USER = 1
     router = _router(monkeypatch, max_streams=3)
     handler = _SignedInStreams()
     monkeypatch.setattr(streaming, "_handler", handler)
@@ -166,7 +166,7 @@ async def test_one_user_cannot_hold_every_stream_slot(monkeypatch, settings):
 
 @pytest.mark.asyncio
 async def test_unlimited_user_can_use_all_process_stream_slots(monkeypatch, settings):
-    settings.ASGI_HTTP_MAX_CONCURRENT_STREAMS_PER_USER = None
+    settings.BASEROW_CHAT_MAX_CONCURRENT_STREAMS_PER_USER = None
     router = _router(monkeypatch, max_streams=2)
     handler = _SignedInStreams()
     monkeypatch.setattr(streaming, "_handler", handler)
@@ -189,7 +189,7 @@ async def test_unlimited_user_can_use_all_process_stream_slots(monkeypatch, sett
 
 @pytest.mark.asyncio
 async def test_plugin_can_change_each_users_stream_limit(monkeypatch, settings):
-    settings.ASGI_HTTP_MAX_CONCURRENT_STREAMS_PER_USER = 1
+    settings.BASEROW_CHAT_MAX_CONCURRENT_STREAMS_PER_USER = 1
     limits = {1: None, 2: 2}
     event_loop_thread = threading.get_ident()
 
@@ -297,7 +297,7 @@ async def test_request_body_size_limit_applies_to_stream_paths(monkeypatch, sett
 
 @pytest.mark.asyncio
 async def test_nonstream_validation_response_is_preserved(monkeypatch, settings):
-    settings.ASGI_HTTP_MAX_CONCURRENT_STREAMS_PER_USER = 0
+    settings.BASEROW_CHAT_MAX_CONCURRENT_STREAMS_PER_USER = 0
     router = _router(monkeypatch)
     response = JsonResponse({"error": "ERROR_REQUEST_BODY_VALIDATION"}, status=400)
 

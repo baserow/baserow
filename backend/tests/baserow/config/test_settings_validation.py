@@ -40,35 +40,29 @@ def test_non_positive_realtime_replay_retention_is_rejected(retention_hours: str
 
 
 @pytest.mark.parametrize(
-    "env_name,setting_name",
+    "name",
     [
-        (
-            "BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE",
-            "BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE",
-        ),
-        (
-            "BASEROW_ASGI_HTTP_MAX_CONCURRENT_STREAMS_PER_USER",
-            "ASGI_HTTP_MAX_CONCURRENT_STREAMS_PER_USER",
-        ),
+        "BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE",
+        "BASEROW_CHAT_MAX_CONCURRENT_STREAMS_PER_USER",
     ],
 )
 @pytest.mark.parametrize(
     "configured,expected", [(None, "None"), ("", "None"), ("0", "None"), ("10", "10")]
 )
 def test_concurrency_limits_are_optional(
-    env_name: str, setting_name: str, configured: str | None, expected: str
+    name: str, configured: str | None, expected: str
 ):
     env = {**os.environ, "PYTHONPATH": os.pathsep.join(sys.path)}
     if configured is None:
-        env.pop(env_name, None)
+        env.pop(name, None)
     else:
-        env[env_name] = configured
+        env[name] = configured
 
     result = subprocess.run(  # noqa: S603 - only the current interpreter runs fixed code.
         [
             sys.executable,
             "-c",
-            f"from baserow.config.settings import base; print(base.{setting_name})",
+            f"from baserow.config.settings import base; print(base.{name})",
         ],
         check=False,
         capture_output=True,
