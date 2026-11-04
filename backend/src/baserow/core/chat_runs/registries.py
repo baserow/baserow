@@ -20,9 +20,10 @@ class ChatRunType(Instance):
     synchronous and may run in an HTTP request, the worker or a maintenance task.
     """
 
-    def get_max_active_runs_per_user(self) -> int | None:
+    def get_max_active_runs_per_user(self, user: AbstractUser) -> int | None:
         """Limit how many runs of this type one user may have queued or running.
 
+        :param user: The user starting the run, so plugins can select a plan limit.
         :return: The limit, or None for no per-user limit.
         """
 

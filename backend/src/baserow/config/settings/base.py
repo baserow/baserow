@@ -2075,10 +2075,8 @@ BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE = (
     int(os.getenv("BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE") or 0) or None
 )
 
-# None leaves each user unlimited within the process-wide stream capacity.
-# Plugins can override this for each user through get_max_concurrent_streams_per_user.
-BASEROW_CHAT_MAX_CONCURRENT_STREAMS_PER_USER = (
-    int(os.getenv("BASEROW_CHAT_MAX_CONCURRENT_STREAMS_PER_USER") or 0) or None
+BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_USER = (
+    int(os.getenv("BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_USER") or 0) or None
 )
 
 # Deprecated provider connection/model environment variables. Manage providers and
