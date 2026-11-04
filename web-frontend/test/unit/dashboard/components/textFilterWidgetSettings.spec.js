@@ -9,6 +9,46 @@ beforeEach(() => {
 afterEach(() => testApp.afterEach())
 
 describe('TextFilterWidgetSettings', () => {
+  test('keeps only the retained default when switching back to multiple values', async () => {
+    const widget = {
+      id: 2,
+      type: 'text_filter',
+      mode: 'dropdown',
+      multiple: true,
+      options: { formula: 'France, Belgium', mode: 'raw' },
+      default_value: ['France', 'Belgium'],
+    }
+    const dispatch = vi.spyOn(testApp.store, 'dispatch').mockResolvedValue()
+    const wrapper = await testApp.mount(TextFilterWidgetSettings, {
+      props: { dashboard: { id: 1 }, widget },
+    })
+    dispatch.mockClear()
+    const selection = wrapper.findAll('.segment-control')[1]
+    await selection.findAll('button')[0].trigger('click')
+    const singleSave = dispatch.mock.calls[0][1]
+    expect(singleSave.values).toMatchObject({
+      multiple: false,
+      default_value: 'France',
+    })
+    expect(singleSave.originalValues.default_value).toEqual([
+      'France',
+      'Belgium',
+    ])
+    await wrapper.setProps({ widget: { ...widget, ...singleSave.values } })
+    dispatch.mockClear()
+    await selection.findAll('button')[1].trigger('click')
+    expect(dispatch).toHaveBeenCalledWith(
+      'dashboardApplication/updateWidget',
+      expect.objectContaining({
+        values: expect.objectContaining({
+          multiple: true,
+          default_value: ['France'],
+        }),
+        originalValues: expect.objectContaining({ default_value: 'France' }),
+      })
+    )
+    dispatch.mockRestore()
+  })
   test.each([false, true])(
     'resets defaults together with changed options (multiple: %s)',
     async (multiple) => {
