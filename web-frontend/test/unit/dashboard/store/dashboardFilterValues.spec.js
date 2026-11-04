@@ -81,6 +81,79 @@ const settle = async () => {
 }
 
 describe('Dashboard filter dispatch', () => {
+  test.each(['pending', 'coalesced', 'collection refresh'])(
+    'preserves an explicitly reselected value after a failed save (%s)',
+    async (scenario) => {
+      const serverWidgets = JSON.parse(
+        JSON.stringify(store.state.dashboardApplication.widgets)
+      )
+      let fail
+      store.$client.patch = vi.fn(
+        () =>
+          new Promise((resolve, reject) => {
+            fail = reject
+          })
+      )
+      store.$client.get = vi.fn(async () => ({ data: serverWidgets }))
+      const first = store
+        .dispatch('dashboardApplication/updateWidget', {
+          widgetId: 13,
+          values: { default_value: 'Gamma' },
+          originalValues: { default_value: '' },
+        })
+        .catch(() => {})
+      if (scenario !== 'coalesced') await vi.advanceTimersByTimeAsync(1000)
+      await change(13, 'Beta')
+      await change(13, 'Gamma')
+      let second
+      if (scenario === 'coalesced') {
+        second = store
+          .dispatch('dashboardApplication/updateWidget', {
+            widgetId: 13,
+            values: { title: 'Country' },
+            originalValues: { title: 'Search' },
+          })
+          .catch(() => {})
+        await vi.advanceTimersByTimeAsync(1000)
+      }
+      if (scenario === 'collection refresh')
+        store.commit('dashboardApplication/INVALIDATE_WIDGET_FETCH')
+      fail(new Error('Save failed'))
+      await Promise.all([first, second])
+      expect(store.state.dashboardApplication.widgetValues[13]).toBe('Gamma')
+      expect(
+        store.state.dashboardApplication.widgets.find(({ id }) => id === 13)
+          .default_value
+      ).toBe('')
+    }
+  )
+
+  test('preserves an explicit clear when restoring the previous default', async () => {
+    let fail
+    store.$client.patch = vi.fn(
+      () =>
+        new Promise((resolve, reject) => {
+          fail = reject
+        })
+    )
+    const saving = store
+      .dispatch('dashboardApplication/updateWidget', {
+        widgetId: 12,
+        values: { default_value: 'Gamma' },
+        originalValues: { default_value: 'Alpha' },
+      })
+      .catch(() => {})
+    await vi.advanceTimersByTimeAsync(1000)
+    await change(12, '')
+    fail(new Error('Save failed'))
+    await saving
+    expect(store.state.dashboardApplication.widgetValues[12]).toBe('')
+    expect(
+      store.state.dashboardApplication.widgets.find(({ id }) => id === 12)
+        .default_value
+    ).toBe('Alpha')
+  })
+
   test('rolls back an automatic selection after another widget saves', async () => {
     const serverWidgets = JSON.parse(
       JSON.stringify(store.state.dashboardApplication.widgets)
