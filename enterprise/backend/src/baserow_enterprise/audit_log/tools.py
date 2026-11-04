@@ -119,7 +119,7 @@ def list_audit_log(
 ) -> dict[str, Any]:
     """
     List what happened in this workspace, newest first: who did what and when. Needs
-    an enterprise licence and a workspace admin.
+    an advanced or enterprise licence and a workspace admin.
     """
 
     entries = _workspace_entries(ctx)
@@ -164,7 +164,7 @@ def search_audit_log(
     Search what happened in this workspace within a date range of at most 90 days,
     newest first. It doesn't search the names of the things that changed, like a
     table's name. No result doesn't prove nothing happened: try another word or
-    list_audit_log. Needs an enterprise licence and a workspace admin.
+    list_audit_log. Needs an advanced or enterprise licence and a workspace admin.
     """
 
     entries = _workspace_entries(ctx)

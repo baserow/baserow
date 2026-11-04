@@ -175,8 +175,8 @@ def list_audit_log(
     List who did what in this workspace.
 
     WHEN to use: User asks who changed, created or deleted something, or what happened recently.
-    WHAT it does: Returns audit log entries of this workspace, newest first, optionally by user, action or date. Needs an enterprise licence and a workspace admin.
-    RETURNS: entries with id, timestamp, actor, action_type, description, ip_address, and has_more.
+    WHAT it does: Returns audit log entries of this workspace, newest first, optionally by user, action or date. Needs an advanced or enterprise licence and a workspace admin.
+    RETURNS: entries with id, timestamp, actor, action_type, description, and has_more.
     HOW: Prefer this over search_audit_log when you know the action or the dates; a description holds the names of what changed.
     """
 
