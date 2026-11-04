@@ -19,6 +19,7 @@
       :refresh-key="optionsVersion"
       fetch-on-open
       refresh-on-open
+      fixed-items
       @input="select"
     >
       <template #items="{ results }">
