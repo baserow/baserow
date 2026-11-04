@@ -27,6 +27,7 @@ export const registerRealtimeEvents = (realtime) => {
       kind: 'activity',
       runId: data.run_id,
       updatedOn: data.updated_on,
+      pendingApprovalCount: data.pending_approval_count,
     })
   )
   realtime.registerEvent('agent_conversation_updated', ({ store }, data) =>

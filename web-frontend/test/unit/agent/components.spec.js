@@ -86,6 +86,43 @@ describe('Agent components', () => {
     expect(wrapper.find('[role="status"]').exists()).toBe(false)
   })
 
+  test('shows the approvals waiting for the user as a sidebar counter', async () => {
+    await testApp.store.dispatch('workspace/forceCreate', {
+      id: 1,
+      name: 'Workspace',
+    })
+    const application = await testApp.store.dispatch(
+      'application/forceCreate',
+      {
+        id: 10,
+        name: 'Support agent',
+        type: 'agent',
+        workspace: { id: 1 },
+        pending_count: 2,
+      }
+    )
+    const wrapper = await testApp.mount(AgentApplicationSidebar, {
+      props: {
+        application,
+        workspace: testApp.store.getters['workspace/get'](1),
+      },
+    })
+
+    const counter = wrapper.get('.tree__counter')
+    expect(counter.text()).toBe('2')
+    expect(counter.classes()).toContain('badge-counter--yellow')
+    expect(wrapper.get('.tree__action').classes()).toContain(
+      'tree__action--has-counter'
+    )
+
+    await testApp.store.dispatch('application/forceUpdate', {
+      application,
+      data: { pending_count: 0 },
+    })
+    await flushPromises()
+    expect(wrapper.find('.tree__counter').exists()).toBe(false)
+  })
+
   test('renames the agent through the standard application context', async () => {
     await testApp.store.dispatch('workspace/forceCreate', {
       id: 1,

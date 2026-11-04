@@ -100,6 +100,7 @@ export function useAgentConversations(agent, configuration) {
   let conversationsRefreshPending = false
   // Deletes and updates since a list read started, whose older copy would undo them.
   let conversationChanges = 0
+  let loadingWaitingScope = null
 
   const conversationItems = computed(() => [
     ...localConversations.value.filter((item) =>
@@ -217,11 +218,9 @@ export function useAgentConversations(agent, configuration) {
     conversationsLoading.value = true
     conversationsError.value = false
     try {
-      const { data } = await service.getConversations(
-        agentId,
-        page,
-        realtimeRecovery
-      )
+      const { data } = await service.getConversations(agentId, page, {
+        realtimeRecovery,
+      })
       if (
         !scopeIsCurrent(currentScope) ||
         request !== conversationsRequest ||
@@ -510,6 +509,9 @@ export function useAgentConversations(agent, configuration) {
       const history = histories[conversationUuid]
       if (history) history.items = mergeMessages(history.items, [data])
       const conversation = findConversation(conversationUuid)
+      if (conversation) {
+        conversation.pending_approval_count = pendingApprovals(data).length
+      }
       if (data.run_id && conversation) {
         conversation.run_id = data.run_id
         followReplies(conversation, data)
@@ -537,6 +539,41 @@ export function useAgentConversations(agent, configuration) {
     } finally {
       decidingReplies.delete(reply.uuid)
     }
+  }
+
+  /** Select the next conversation waiting for approval, in list order. */
+  async function selectNextWaitingConversation() {
+    if (!canReadConversations.value || loadingWaitingScope === scope) return
+    const currentScope = scope
+    const loadedCount = conversations.value.reduce(
+      (sum, item) => sum + (item.pending_approval_count || 0),
+      0
+    )
+    // Pages are newest first, so old waiting conversations may not be loaded.
+    if (loadedCount < agent.value.pending_count) {
+      loadingWaitingScope = currentScope
+      const waiting = await service
+        .getConversations(agent.value.id, 1, { hasPendingApprovals: true })
+        .then(({ data }) => data.results)
+        .catch((error) => {
+          notifyIf(error)
+          return []
+        })
+        .finally(() => {
+          if (loadingWaitingScope === currentScope) loadingWaitingScope = null
+        })
+      if (!scopeIsCurrent(currentScope) || !canReadConversations.value) return
+      mergeConversations(waiting)
+    }
+    const items = conversationItems.value
+    const selectedIndex = items.findIndex(
+      (item) => item.uuid === selectedUuid.value
+    )
+    const next = [
+      ...items.slice(selectedIndex + 1),
+      ...items.slice(0, selectedIndex + 1),
+    ].find((item) => item.pending_approval_count > 0)
+    if (next) selectConversation(next)
   }
 
   async function updateConversation(conversation, values) {
@@ -662,10 +699,21 @@ export function useAgentConversations(agent, configuration) {
           uuid: update.uuid,
           run_id: update.runId,
           updated_on: update.updatedOn,
+          pending_approval_count: update.pendingApprovalCount,
         },
       ])
-      if (update.uuid === selectedUuid.value) followReplies(conversation)
-      else if (histories[update.uuid]) histories[update.uuid].stale = true
+      if (update.uuid === selectedUuid.value) {
+        followReplies(conversation)
+        // A followed run's finished record brings its approvals with the reply.
+        const followingRun = Boolean(update.runId || replyFollower.value)
+        // The shown card no longer matches the server's pending approvals.
+        if (
+          !followingRun &&
+          update.pendingApprovalCount !== pendingApprovalCount.value
+        ) {
+          refreshMessages(update.uuid)
+        }
+      } else if (histories[update.uuid]) histories[update.uuid].stale = true
     },
     // Each event applies to its conversation, even if several arrive in one tick.
     { flush: 'sync' }
@@ -768,6 +816,7 @@ export function useAgentConversations(agent, configuration) {
     updateMessage,
     sendMessage,
     decideApprovals,
+    selectNextWaitingConversation,
     stopReply,
     updateConversation,
     deleteConversation,

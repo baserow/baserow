@@ -125,6 +125,31 @@ describe('Agent conversation list', () => {
     expect(wrapper.find('.agent-conversations__footer').exists()).toBe(false)
   })
 
+  test('marks a conversation waiting for approval with a labelled dot', async () => {
+    const wrapper = await testApp.mount(AgentConversationList, {
+      props: {
+        items: [
+          { uuid: 'waiting', title: 'Waiting', pending_approval_count: 2 },
+          { uuid: 'replying', title: 'Replying', run_id: 'run-1' },
+        ],
+      },
+    })
+    const [waiting, replying] = wrapper.findAll('.agent-conversations__item')
+
+    expect(waiting.get('.agent-conversations__status').classes()).toContain(
+      'agent-conversations__status--waiting'
+    )
+    expect(waiting.get('.agent-conversations__status-label').text()).toBe(
+      'agent.waitingForApproval'
+    )
+    expect(replying.get('.agent-conversations__status').classes()).toContain(
+      'agent-conversations__status--replying'
+    )
+    expect(replying.find('.agent-conversations__status-label').exists()).toBe(
+      false
+    )
+  })
+
   const mountList = (items) =>
     testApp.mount(AgentConversationList, {
       props: { items, canUpdate: true, canDelete: true },

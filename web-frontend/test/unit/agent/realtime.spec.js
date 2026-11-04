@@ -74,6 +74,7 @@ describe('Agent conversation realtime updates', () => {
         conversation_uuid: uuid,
         run_id: runId,
         updated_on: updatedOn,
+        pending_approval_count: 0,
       }
     )
     await flushPromises()

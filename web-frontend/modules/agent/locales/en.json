@@ -195,6 +195,7 @@
     "rejectReason": "Reason for rejecting",
     "waitingForApproval": "Waiting for your approval",
     "waitingForApprovalSteps": "Waiting for your approval on {count} steps",
+    "approvalsWaiting": "{count} approval waiting | {count} approvals waiting",
     "approvalPlaceholder": "Approve or reject the steps above to continue.",
     "conversationWaitingForApproval": "Approve or reject the steps above before sending a new message."
   },
