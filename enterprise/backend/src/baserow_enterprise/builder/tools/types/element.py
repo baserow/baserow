@@ -482,7 +482,12 @@ _TO_ORM: dict[str, Any] = {
         k: v
         for k, v in {
             "user_source_id": el.user_source_id,
-            "login_button_label": el.login_button_label or "",
+            "login_button_label": formula_object(
+                wrap_static_string(el.login_button_label),
+                mode=BASEROW_FORMULA_MODE_ADVANCED,
+            )
+            if el.login_button_label
+            else "",
         }.items()
         if v is not None
     },
