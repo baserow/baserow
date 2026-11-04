@@ -1669,6 +1669,37 @@ def test_elements_are_listed_in_page_order_with_children_after_their_container(
 
 
 @pytest.mark.django_db
+def test_move_before_a_child_with_an_empty_place_uses_the_childs_place(
+    data_fixture, builder_ctx
+):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    ids = elements.create_elements(
+        ctx,
+        page.id,
+        [
+            ElementItemCreate(ref="cols", type="column"),
+            text("a", "A", parent_element="cols"),
+        ],
+    )["ref_to_id_map"]
+    moved = data_fixture.create_builder_heading_element(page=page, value="'M'")
+
+    result = elements.move_elements(
+        ctx,
+        [
+            ElementMove(
+                element_id=moved.id,
+                parent_element_id=ids["cols"],
+                before_id=ids["a"],
+                place_in_container="",
+            )
+        ],
+    )
+
+    assert not result.get("errors")
+    assert children_of(ids["cols"]) == ["'M'", "'A'"]
+
+
+@pytest.mark.django_db
 def test_move_before_a_child_in_another_place_is_refused(data_fixture, builder_ctx):
     ctx, page = builder_ctx["ctx"], builder_ctx["page"]
     ids = elements.create_elements(

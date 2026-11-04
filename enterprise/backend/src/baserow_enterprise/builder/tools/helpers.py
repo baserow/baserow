@@ -887,7 +887,7 @@ def move_element(
     elif before is not None:
         if (
             parent is not None
-            and element_move.place_in_container is not None
+            and element_move.place_in_container
             and element_move.place_in_container != before.place_in_container
         ):
             raise ToolInputError(
