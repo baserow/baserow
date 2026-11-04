@@ -753,7 +753,8 @@ class AutomationWorkflowHandler:
         Deletes the published automations older than the current published version of
         the workflow, except those with history entries. What is safe is decided here,
         when the deletion runs, as runs and publishes may have happened since it was
-        scheduled. A newer test clone is left alone.
+        scheduled. Test clones are left to `clear_old_history`, as a test run can have
+        just picked one up and not written its history entry yet.
 
         :param workflow_id: The id of the workflow that was published.
         """
@@ -775,6 +776,7 @@ class AutomationWorkflowHandler:
                 published_from_id=workflow_id,
                 id__lt=current_automation_id,
             )
+            .exclude(workflows__state=WorkflowState.TEST_CLONE)
             .exclude(
                 id__in=AutomationWorkflowHistory.objects.filter(
                     workflow__automation__published_from_id=workflow_id

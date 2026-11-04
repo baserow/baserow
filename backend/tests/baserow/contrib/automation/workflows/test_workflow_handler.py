@@ -607,6 +607,26 @@ def test_publish_only_disables_older_copies_in_its_transaction(
 
 
 @pytest.mark.django_db
+def test_delete_superseded_keeps_a_test_clone_a_run_just_picked_up(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    handler = AutomationWorkflowHandler()
+    test_clone = handler._ensure_published_for_run(workflow)
+    published = handler.publish(workflow)
+    assert published.automation_id > test_clone.automation_id
+
+    def delete_between_pick_up_and_history(_workflow):
+        handler.delete_superseded_published_automations(workflow.id)
+
+    with patch.object(
+        handler, "before_run", side_effect=delete_between_pick_up_and_history
+    ):
+        history = handler.async_start_workflow(workflow)
+
+    assert history.workflow_id == test_clone.id
+    assert AutomationWorkflow.objects.filter(id=test_clone.id).exists()
+
+
+@pytest.mark.django_db
 def test_delete_superseded_keeps_the_current_copy_when_a_test_clone_is_newer(
     data_fixture,
 ):
