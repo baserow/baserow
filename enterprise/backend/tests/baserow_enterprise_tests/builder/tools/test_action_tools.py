@@ -6,8 +6,9 @@ without a model. The conftest of this folder fails any model call.
 import uuid
 from unittest.mock import patch
 
-import pytest
 from django.urls import reverse
+
+import pytest
 from pydantic import ValidationError as PydanticValidationError
 from rest_framework.exceptions import ValidationError as DRFValidationError
 

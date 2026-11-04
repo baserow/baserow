@@ -322,17 +322,17 @@ class MultiPageContainerAssistantElementType(AssistantElementType):
         self, user: AbstractUser, element: Element, update: ElementUpdate
     ) -> PreparedElementUpdate:
         """
-        Check that share_type 'only' has pages to show on, since an update can't set
-        them.
+        Check that share_type 'only' has pages to show on, since this tool doesn't
+        take them.
 
         :raises ToolInputError: When it has none. Nothing is saved.
         """
 
         if update.share_type == "only" and not element.specific.pages.exists():
             raise ToolInputError(
-                "share_type 'only' needs page_ids, which an update can't set: with no "
-                f"pages it is hidden everywhere. {NO_CHANGES} Set the pages in the "
-                "editor, or create a new one with share_type and page_ids."
+                "share_type 'only' needs page_ids, which this tool doesn't take: with "
+                f"no pages it is hidden everywhere. {NO_CHANGES} Choose the pages in "
+                "the editor, or create a new one with share_type and page_ids."
             )
         return PreparedElementUpdate(kwargs={}, result={})
 
