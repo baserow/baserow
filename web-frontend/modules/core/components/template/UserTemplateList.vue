@@ -201,8 +201,8 @@
                 >
                   <i class="context__menu-item-icon iconoir-eye-empty"></i>
                   {{
-                    focusedTemplate.needs_review
-                      ? $t('userTemplateList.submitForReview')
+                    makePublicResubmits(focusedTemplate)
+                      ? $t('userTemplateList.submitForReviewAgain')
                       : $t('userTemplateList.makePublic')
                   }}
                 </a>
@@ -260,6 +260,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import {
   canMakePrivate,
   canMakePublic,
+  makePublicResubmits,
 } from '@baserow/modules/core/utils/userTemplate'
 import { useUserTemplateDownload } from '@baserow/modules/core/composables/useUserTemplateDownload'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'

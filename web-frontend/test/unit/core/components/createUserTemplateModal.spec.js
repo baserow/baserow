@@ -109,6 +109,19 @@ describe('CreateUserTemplateModal', () => {
       .findComponent({ name: 'ApplicationSelector' })
       .props('selectedApplicationIds')
 
+  const selectApplications = async (wrapper, applicationIds) => {
+    wrapper
+      .findComponent({ name: 'ApplicationSelector' })
+      .vm.$emit('update', applicationIds)
+    await flushPromises()
+  }
+
+  const create = async (wrapper) => {
+    await selectApplications(wrapper, [11])
+    await createButton(wrapper).trigger('click')
+    await flushPromises()
+  }
+
   const selectWorkspace = async (wrapper, workspaceId) => {
     wrapper
       .findComponent({ name: 'Dropdown' })
@@ -175,19 +188,16 @@ describe('CreateUserTemplateModal', () => {
     ).toContain('iconoir-agile')
   })
 
-  test('preselects all applications and needs at least one', async () => {
+  test('starts with nothing selected and needs at least one', async () => {
     const wrapper = await mountAndShow()
     await goToContent(wrapper)
 
-    expect(selectedApplicationIds(wrapper)).toStrictEqual([11, 12])
-    expect(createButton(wrapper).attributes('disabled')).toBeUndefined()
-
-    wrapper
-      .findComponent({ name: 'ApplicationSelector' })
-      .vm.$emit('update', [])
-    await flushPromises()
-
+    expect(selectedApplicationIds(wrapper)).toStrictEqual([])
     expect(createButton(wrapper).attributes('disabled')).toBeDefined()
+
+    await selectApplications(wrapper, [11])
+
+    expect(createButton(wrapper).attributes('disabled')).toBeUndefined()
   })
 
   test('starts the application selection again for another workspace', async () => {
@@ -199,7 +209,7 @@ describe('CreateUserTemplateModal', () => {
 
     await selectWorkspace(wrapper, 2)
 
-    expect(selectedApplicationIds(wrapper)).toStrictEqual([21])
+    expect(selectedApplicationIds(wrapper)).toStrictEqual([])
 
     await wrapper.find('.user-template-modal__back').trigger('click')
 
@@ -288,8 +298,7 @@ describe('CreateUserTemplateModal', () => {
       'createUserTemplateModal.contentTitle'
     )
 
-    await createButton(wrapper).trigger('click')
-    await flushPromises()
+    await create(wrapper)
     expect(request.category_ids).toStrictEqual([])
   })
 
@@ -301,7 +310,7 @@ describe('CreateUserTemplateModal', () => {
     expect(
       wrapper.findComponent({ name: 'Dropdown' }).props('modelValue')
     ).toBe(2)
-    expect(selectedApplicationIds(wrapper)).toStrictEqual([21])
+    expect(selectedApplicationIds(wrapper)).toStrictEqual([])
   })
 
   test("doesn't switch a workspace the author picked", async () => {
@@ -320,7 +329,7 @@ describe('CreateUserTemplateModal', () => {
     expect(
       wrapper.findComponent({ name: 'Dropdown' }).props('modelValue')
     ).toBe(2)
-    expect(selectedApplicationIds(wrapper)).toStrictEqual([21])
+    expect(selectedApplicationIds(wrapper)).toStrictEqual([])
   })
 
   test('keeps the picked workspace and its permissions between the steps', async () => {
@@ -348,7 +357,7 @@ describe('CreateUserTemplateModal', () => {
     expect(
       wrapper.findComponent({ name: 'Dropdown' }).props('modelValue')
     ).toBe(2)
-    expect(selectedApplicationIds(wrapper)).toStrictEqual([21])
+    expect(selectedApplicationIds(wrapper)).toStrictEqual([])
   })
 
   test('sends the request and shows the progress', async () => {
@@ -362,13 +371,7 @@ describe('CreateUserTemplateModal', () => {
       .reply(200, runningJob({ state: 'cancelled' }))
     const wrapper = await mountAndShow()
     await goToContent(wrapper)
-    wrapper
-      .findComponent({ name: 'ApplicationSelector' })
-      .vm.$emit('update', [11])
-    await flushPromises()
-
-    await createButton(wrapper).trigger('click')
-    await flushPromises()
+    await create(wrapper)
 
     expect(request).toStrictEqual({
       type: 'create_user_template',
@@ -442,8 +445,7 @@ describe('CreateUserTemplateModal', () => {
       await agreeToPublicListing(wrapper)
       await continueButton(wrapper).trigger('click')
       await flushPromises()
-      await createButton(wrapper).trigger('click')
-      await flushPromises()
+      await create(wrapper)
 
       expect(request).toMatchObject({
         make_public: true,
@@ -468,8 +470,7 @@ describe('CreateUserTemplateModal', () => {
 
     await continueButton(wrapper).trigger('click')
     await flushPromises()
-    await createButton(wrapper).trigger('click')
-    await flushPromises()
+    await create(wrapper)
 
     expect(request).toMatchObject({
       make_public: false,
@@ -482,8 +483,7 @@ describe('CreateUserTemplateModal', () => {
     const wrapper = await mountAndShow()
     await goToContent(wrapper)
 
-    await createButton(wrapper).trigger('click')
-    await flushPromises()
+    await create(wrapper)
     await updateJob(testApp.store, 7, {
       state: 'finished',
       progress_percentage: 100,
@@ -505,8 +505,7 @@ describe('CreateUserTemplateModal', () => {
     const wrapper = await mountAndShow()
     await goToContent(wrapper)
 
-    await createButton(wrapper).trigger('click')
-    await flushPromises()
+    await create(wrapper)
     await updateJob(testApp.store, 7, {
       state: 'failed',
       human_readable_error: 'Permission denied',
@@ -529,8 +528,7 @@ describe('CreateUserTemplateModal', () => {
       const wrapper = await mountAndShow()
       await goToContent(wrapper)
 
-      await createButton(wrapper).trigger('click')
-      await flushPromises()
+      await create(wrapper)
       await updateJob(testApp.store, 7, {
         state: 'failed',
         human_readable_error: 'Failed',
@@ -555,8 +553,7 @@ describe('CreateUserTemplateModal', () => {
     })
     const wrapper = await mountAndShow()
     await goToContent(wrapper)
-    await createButton(wrapper).trigger('click')
-    await flushPromises()
+    await create(wrapper)
 
     await wrapper.find('.modal-progress__cancel-button').trigger('click')
     await flushPromises()
@@ -571,8 +568,7 @@ describe('CreateUserTemplateModal', () => {
     testApp.mock.onPost('/jobs/').reply(200, runningJob())
     const wrapper = await mountAndShow()
     await goToContent(wrapper)
-    await createButton(wrapper).trigger('click')
-    await flushPromises()
+    await create(wrapper)
     wrapper.vm.hide()
 
     await updateJob(testApp.store, 7, {
@@ -586,7 +582,7 @@ describe('CreateUserTemplateModal', () => {
     expect(wrapper.find('.user-template-modal__title').text()).toBe(
       'createUserTemplateModal.contentTitle'
     )
-    expect(selectedApplicationIds(wrapper)).toStrictEqual([11, 12])
+    expect(selectedApplicationIds(wrapper)).toStrictEqual([11])
     expect(createButton(wrapper).attributes('disabled')).toBeUndefined()
 
     wrapper.vm.hide()
@@ -601,8 +597,7 @@ describe('CreateUserTemplateModal', () => {
     testApp.mock.onPost('/jobs/').reply(200, runningJob())
     const wrapper = await mountAndShow()
     await goToContent(wrapper)
-    await createButton(wrapper).trigger('click')
-    await flushPromises()
+    await create(wrapper)
     await updateJob(testApp.store, 7, {
       state: 'failed',
       human_readable_error: 'Permission denied',
@@ -636,8 +631,7 @@ describe('CreateUserTemplateModal', () => {
     testApp.mock.onPost('/jobs/').reply(jobRequest.reply)
     const wrapper = await mountAndShow()
     await goToContent(wrapper)
-    await createButton(wrapper).trigger('click')
-    await flushPromises()
+    await create(wrapper)
 
     expect(
       wrapper.find('.user-template-modal__back').attributes('disabled')

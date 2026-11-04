@@ -317,6 +317,8 @@ describe('UpdateUserTemplateModal', () => {
       expect(testApp.mock.history.post).toHaveLength(0)
       expect(wrapper.emitted('visibility-changed')).toStrictEqual([[listed]])
       expect(isModalOpen(wrapper)).toBe(false)
+      // Like making it public from the menu.
+      expect(testApp.store.state.toast.items).toHaveLength(0)
     })
 
     test('makes the template public with the new details by the job', async () => {
@@ -481,7 +483,7 @@ describe('UpdateUserTemplateModal', () => {
 
     test.each([
       [
-        { state: 'private', needs_review: true },
+        { state: 'private', make_public_needs_review: true },
         false,
         'publicReviewDescription',
       ],
@@ -537,6 +539,7 @@ describe('UpdateUserTemplateModal', () => {
       expect(selectedApplicationIds(wrapper)).toStrictEqual([12])
     })
 
+    // The template has none of the applications of another workspace.
     test('starts with the selected workspace without the source one', async () => {
       const wrapper = await mountAndShow(
         'content',
@@ -544,7 +547,7 @@ describe('UpdateUserTemplateModal', () => {
       )
 
       expect(selectedWorkspaceId(wrapper)).toBe(1)
-      expect(selectedApplicationIds(wrapper)).toStrictEqual([11, 12])
+      expect(selectedApplicationIds(wrapper)).toStrictEqual([])
     })
 
     test("doesn't preselect a workspace that can't be exported", async () => {
@@ -552,7 +555,24 @@ describe('UpdateUserTemplateModal', () => {
       const wrapper = await mountAndShow('content')
 
       expect(selectedWorkspaceId(wrapper)).toBe(2)
-      expect(selectedApplicationIds(wrapper)).toStrictEqual([21])
+      expect(selectedApplicationIds(wrapper)).toStrictEqual([])
+    })
+
+    test('selects only the applications the template has when switching workspaces', async () => {
+      const wrapper = await mountAndShow('content')
+      const chooseWorkspace = async (workspaceId) => {
+        wrapper
+          .findComponent({ name: 'Dropdown' })
+          .vm.$emit('update:modelValue', workspaceId)
+        await flushPromises()
+      }
+
+      await chooseWorkspace(2)
+      expect(selectedApplicationIds(wrapper)).toStrictEqual([])
+      expect(updateButton(wrapper).attributes('disabled')).toBeDefined()
+
+      await chooseWorkspace(1)
+      expect(selectedApplicationIds(wrapper)).toStrictEqual([11])
     })
 
     test('needs at least one application', async () => {

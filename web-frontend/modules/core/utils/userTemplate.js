@@ -8,10 +8,20 @@ export function isOwnTemplate(template) {
 /**
  * Whether the owner can make the template public. Making public a template that
  * an admin rejected submits it for review again, also when an earlier version is
- * still listed, see `needs_review`.
+ * still listed, see `make_public_needs_review`.
  */
 export function canMakePublic(template) {
-  return Boolean(template?.needs_review) || template?.state === 'private'
+  return (
+    Boolean(template?.make_public_needs_review) || template?.state === 'private'
+  )
+}
+
+/**
+ * Whether making the template public submits it for review again, rather than
+ * making it public: it's listed already, with its latest change rejected.
+ */
+export function makePublicResubmits(template) {
+  return canMakePublic(template) && Boolean(template?.listed)
 }
 
 /**

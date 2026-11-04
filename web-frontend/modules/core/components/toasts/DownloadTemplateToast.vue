@@ -1,6 +1,6 @@
 <template>
-  <!-- Keyed by the phase, so that the toast of a failed download closes itself
-  like the other error toasts, counted from when the failure shows. -->
+  <!-- Keyed by the phase, so that the result of a download closes itself like the
+  other toasts, counted from when it shows. -->
   <Toast
     :key="phase"
     class="download-template-toast"
@@ -134,11 +134,25 @@ watch(
   }
 )
 
-// A running download and the ready archive stay until dismissed.
+// A running download stays until it ends. Its result closes itself like the other
+// toasts, the ready archive once it's saved.
 function autoClose() {
-  if (phase.value === 'failed') {
-    remove()
+  if (phase.value === 'running') {
+    return
   }
+  if (!props.toast.data.downloading) {
+    remove()
+    return
+  }
+  const stop = watch(
+    () => props.toast.data.downloading,
+    (downloading) => {
+      if (!downloading) {
+        stop()
+        remove()
+      }
+    }
+  )
 }
 
 async function downloadArchive() {

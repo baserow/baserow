@@ -39,6 +39,7 @@ describe('InstallTemplateToast', () => {
   })
 
   afterEach(async () => {
+    vi.useRealTimers()
     vi.restoreAllMocks()
     restoreApp()
     restoreApp = () => {}
@@ -145,6 +146,22 @@ describe('InstallTemplateToast', () => {
     })
 
     await wrapper.find('.install-template-toast__dismiss').trigger('click')
+
+    expect(installToasts()).toHaveLength(0)
+  })
+
+  test('keeps the progress, then closes the result like the other toasts', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    await startInstall()
+
+    vi.advanceTimersByTime(5000)
+    expect(installToasts()).toHaveLength(1)
+
+    await updateJob(store, 10, {
+      state: 'finished',
+      installed_applications: [database],
+    })
+    vi.advanceTimersByTime(5000)
 
     expect(installToasts()).toHaveLength(0)
   })

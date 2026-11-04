@@ -480,6 +480,17 @@ export default {
         this.expandedRows.clear()
       }
 
+      // The columns can change, for example per tab, so a sort on a column that
+      // isn't shown or sortable anymore is dropped instead of being sent.
+      const sortableKeys = new Set(
+        this.columns.filter((column) => column.sortable).map(({ key }) => key)
+      )
+      if (this.columnSorts.some(({ key }) => !sortableKeys.has(key))) {
+        this.columnSorts = this.columnSorts.filter(({ key }) =>
+          sortableKeys.has(key)
+        )
+      }
+
       // A newer request can resolve before an older one, so the response of an
       // older request must never overwrite the state of a newer one.
       const fetchId = ++this.lastFetchId

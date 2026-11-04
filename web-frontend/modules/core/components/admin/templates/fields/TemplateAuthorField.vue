@@ -3,10 +3,10 @@
     <Avatar
       rounded
       size="small"
-      :initials="row.author.first_name.charAt(0).toUpperCase()"
+      :initials="authorName.charAt(0).toUpperCase()"
     ></Avatar>
     <div v-tooltip="row.author.email" class="templates-admin-author__name">
-      {{ row.author.first_name }}
+      {{ authorName }}
     </div>
   </div>
   <div v-else class="templates-admin-author templates-admin-author--deleted">
@@ -15,10 +15,18 @@
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
   row: {
     type: Object,
     required: true,
   },
 })
+
+// A user can have an empty first name, for example after `createsuperuser` or
+// a SAML login without one, so the email names them then.
+const authorName = computed(
+  () => props.row.author?.first_name || props.row.author?.email || ''
+)
 </script>

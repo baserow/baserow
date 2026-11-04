@@ -161,6 +161,28 @@ describe('TemplatePage', () => {
     expect(wrapper.find('.public-list').isVisible()).toBe(true)
   })
 
+  test('shows the fetched revision of the linked public template', async () => {
+    testApp.mock
+      .onGet('/templates/crm-a1b2c3/')
+      .replyOnce(200, crm)
+      .onGet('/templates/crm-a1b2c3/')
+      .replyOnce(200, { ...crm, id: 6, name: 'CRM 2' })
+    testApp.mock.onGet('/templates/').reply(200, categories)
+    const wrapper = await testApp.mount(TemplatePage, {
+      route: '/template/crm-a1b2c3',
+      global: { stubs },
+    })
+    expect(wrapper.find('.details').text()).toBe('CRM: Sales')
+
+    // The owner made a new revision public meanwhile.
+    await wrapper.find('.details__back').trigger('click')
+    await wrapper.findAll('.segment-control__button')[1].trigger('click')
+    await wrapper.find('.public-list__crm').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('.details').text()).toBe('CRM 2: Sales')
+  })
+
   test('tells that a public template is no longer shared, and lists them again', async () => {
     const wrapper = await mountPage('project-tracker')
     testApp.dontFailOnErrorResponses()

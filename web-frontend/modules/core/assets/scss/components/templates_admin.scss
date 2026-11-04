@@ -57,6 +57,11 @@
   justify-content: flex-end;
 }
 
+.templates-admin-review-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .templates-admin-reason {
   @extend %ellipsis;
 

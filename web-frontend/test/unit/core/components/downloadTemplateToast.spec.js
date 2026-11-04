@@ -46,6 +46,7 @@ describe('DownloadTemplateToast', () => {
   })
 
   afterEach(async () => {
+    vi.useRealTimers()
     vi.restoreAllMocks()
     vi.mocked(triggerDownload).mockReset()
     await testApp.afterEach()
@@ -116,6 +117,7 @@ describe('DownloadTemplateToast', () => {
   })
 
   test('does not hold the polling while the archive is saved, and disables its button meanwhile', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
     const wrapper = await startDownload()
     mockDownload().replyOnce(200, archive)
     let saved = null
@@ -129,10 +131,15 @@ describe('DownloadTemplateToast', () => {
     const button = wrapper.find('.download-template-toast__download')
     expect(button.attributes('disabled')).toBeDefined()
 
+    // The ready archive closes like the other toasts, once it's saved.
+    vi.advanceTimersByTime(5000)
+    expect(downloadToasts()).toHaveLength(1)
+
     saved()
     await flushPromises()
 
     expect(button.attributes('disabled')).toBeUndefined()
+    expect(downloadToasts()).toHaveLength(0)
   })
 
   test('follows the new job when the archive has to be built again', async () => {

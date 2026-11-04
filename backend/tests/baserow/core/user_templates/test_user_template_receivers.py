@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
@@ -13,6 +14,7 @@ from baserow.core.jobs.constants import JOB_PENDING, JOB_STARTED
 from baserow.core.models import Template, Workspace
 from baserow.core.storage import get_default_storage
 from baserow.core.user.handler import UserHandler
+from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.user_templates.models import (
     CreateUserTemplateJob,
     UserTemplateContentToDelete,
@@ -116,6 +118,36 @@ def test_scheduled_user_deletion_deletes_template_owner_and_other_user(
     assert template.marked_for_deletion_at is not None
 
 
+@pytest.mark.django_db
+def test_scheduled_user_deletion_locks_the_templates_of_all_users_first(
+    data_fixture,
+):
+    # Switching approval off locks the roots in the order of their ids: locking
+    # them user by user, in another order, could deadlock with it.
+    users = [data_fixture.create_user() for _ in range(2)]
+    roots = [data_fixture.create_user_template(user=user) for user in users[::-1]]
+    for user in users:
+        user.profile.to_be_deleted = True
+        user.profile.save(update_fields=("to_be_deleted",))
+    User.objects.filter(id__in=[user.id for user in users]).update(
+        last_login=timezone.now() - timedelta(days=30)
+    )
+
+    locked = []
+    lock = UserTemplateHandler.lock_templates_of_users
+    with patch.object(
+        UserTemplateHandler,
+        "lock_templates_of_users",
+        lambda self, user_ids: locked.append(lock(self, user_ids)),
+    ):
+        UserHandler().delete_expired_users_and_related_workspaces_if_last_admin(
+            grace_delay=timedelta(days=3)
+        )
+
+    assert locked[0] == sorted(root.id for root in roots)
+    assert all(not Template.objects.get(id=root.id).owner for root in roots)
+
+
 def create_template_with_content(data_fixture, user):
     workspace, archive = create_content(data_fixture, "Template")
     template = data_fixture.create_user_template(
@@ -210,3 +242,43 @@ def test_deleting_a_user_while_their_template_is_updated(data_fixture, state):
     purge_after_the_grace_period()
 
     assert_template_and_content_removed(template, workspace, archive)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("role", ["owner", "reviewed_by", "blocked_by"])
+def test_deleting_a_user_locks_the_templates_they_change_before_the_user(
+    data_fixture, role
+):
+    # Deleting one user, as an admin does, takes the same order as the scheduled
+    # deletion of several: the roots of every template the deletion changes, then
+    # the user.
+    user = data_fixture.create_user()
+    root = data_fixture.create_user_template(
+        user=user if role == "owner" else data_fixture.create_user()
+    )
+    if role == "reviewed_by":
+        revision = data_fixture.create_user_template_revision(root)
+        Template.objects.filter(id=revision.id).update(reviewed_by=user)
+    elif role == "blocked_by":
+        Template.objects.filter(id=root.id).update(
+            blocked_by=user, blocked_at=timezone.now()
+        )
+
+    calls = []
+    handler = UserTemplateHandler
+    lock_templates, lock_user = handler.lock_templates_of_users, handler._lock_user
+    with (
+        patch.object(
+            handler,
+            "lock_templates_of_users",
+            lambda self, ids: calls.append(("templates", lock_templates(self, ids))),
+        ),
+        patch.object(
+            handler,
+            "_lock_user",
+            lambda self, u: calls.append(("user", lock_user(self, u))) or True,
+        ),
+    ):
+        user.delete()
+
+    assert calls == [("templates", [root.id]), ("user", True)]

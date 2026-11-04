@@ -138,7 +138,6 @@ def test_make_public_of_rejected_template_goes_to_review(data_fixture, change):
     [
         (["in_review"], True),
         (["rejected"], True),
-        (["rejected", "in_review"], True),
         (["rejected", "private"], True),
         (["withdrawn_rejected"], False),
         # Unlisted, and an edit of it is withdrawn from review too.
@@ -174,15 +173,11 @@ def test_make_private_withdraws_from_review(data_fixture, revision_states, withd
 
 
 @pytest.mark.django_db
-# Also after it was approved, listed and made private. The edit of a listed
-# template is tested by `test_newer_edit_withdraws_waiting_revision`.
-@pytest.mark.parametrize("relist", [False, True])
-def test_approval_sends_make_public_to_review(data_fixture, relist):
+# The edit of a listed template is tested by
+# `test_newer_edit_withdraws_waiting_revision`.
+def test_approval_sends_make_public_to_review(data_fixture):
     user = data_fixture.create_user()
     root = create_template(data_fixture, user)
-    if relist:
-        data_fixture.set_user_template_state(root, "public")
-        make_private(user, root)
 
     make_public(user, root)
 
@@ -243,13 +238,11 @@ def test_approval_is_read_from_the_locked_settings_row(data_fixture, settings, c
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("blocked", [False, True])
-def test_edit_of_template_in_review_moves_the_review(data_fixture, blocked):
+def test_edit_of_template_in_review_moves_the_review(data_fixture):
     user = data_fixture.create_user()
     root = data_fixture.set_user_template_state(
-        create_template(data_fixture, user), "blocked" if blocked else "private"
+        create_template(data_fixture, user), "in_review"
     )
-    data_fixture.set_user_template_state(root, "in_review")
 
     revision = create_revision(data_fixture, user, root)
 

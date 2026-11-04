@@ -36,7 +36,7 @@
                   isOwner ? $t('templateDetails.you') : template.author_name
                 }}</span>
                 <i
-                  v-if="isOwner && template.state !== 'public'"
+                  v-if="isOwner && !template.listed"
                   v-tooltip="$t('templateDetails.private')"
                   class="template-details__private iconoir-eye-off"
                 ></i>
@@ -75,69 +75,76 @@
           </ul>
         </div>
         <div class="template-details__foot">
-          <TemplateInstall
-            :template="template"
-            :workspace="workspace"
-            :show-copy-link="!isOwn"
-            :latest="isOwn"
-            @installed="emit('installed')"
-            @outdated="emit('outdated')"
-          >
-            <template v-if="isOwn" #menu-items="{ hide }">
-              <li class="context__menu-item">
-                <a
-                  class="context__menu-item-link"
-                  @click.prevent="edit('details', hide)"
+          <!-- Replaced on the admin page by the review actions. -->
+          <slot name="foot">
+            <TemplateInstall
+              :template="template"
+              :workspace="workspace"
+              :show-copy-link="!isOwn"
+              :latest="isOwn || isOwner"
+              @installed="emit('installed')"
+              @outdated="emit('outdated')"
+            >
+              <template v-if="isOwn" #menu-items="{ hide }">
+                <li class="context__menu-item">
+                  <a
+                    class="context__menu-item-link"
+                    @click.prevent="edit('details', hide)"
+                  >
+                    <i class="context__menu-item-icon iconoir-edit-pencil"></i>
+                    {{ $t('templateDetails.editDetails') }}
+                  </a>
+                </li>
+                <li class="context__menu-item">
+                  <a
+                    class="context__menu-item-link"
+                    @click.prevent="edit('content', hide)"
+                  >
+                    <i
+                      class="context__menu-item-icon iconoir-refresh-double"
+                    ></i>
+                    {{ $t('templateDetails.updateContent') }}
+                  </a>
+                </li>
+                <li v-if="canMakePublic(template)" class="context__menu-item">
+                  <a
+                    class="context__menu-item-link"
+                    @click.prevent="changeVisibility('make-public', hide)"
+                  >
+                    <i class="context__menu-item-icon iconoir-eye-empty"></i>
+                    {{
+                      makePublicResubmits(template)
+                        ? $t('templateDetails.submitForReviewAgain')
+                        : $t('templateDetails.makePublic')
+                    }}
+                  </a>
+                </li>
+                <li v-if="canMakePrivate(template)" class="context__menu-item">
+                  <a
+                    class="context__menu-item-link"
+                    @click.prevent="changeVisibility('make-private', hide)"
+                  >
+                    <i class="context__menu-item-icon iconoir-eye-off"></i>
+                    {{ $t('templateDetails.makePrivate') }}
+                  </a>
+                </li>
+              </template>
+              <!-- Delete comes last, after the items of every template. -->
+              <template v-if="isOwn" #menu-items-end="{ hide }">
+                <li
+                  class="context__menu-item context__menu-item--with-separator"
                 >
-                  <i class="context__menu-item-icon iconoir-edit-pencil"></i>
-                  {{ $t('templateDetails.editDetails') }}
-                </a>
-              </li>
-              <li class="context__menu-item">
-                <a
-                  class="context__menu-item-link"
-                  @click.prevent="edit('content', hide)"
-                >
-                  <i class="context__menu-item-icon iconoir-refresh-double"></i>
-                  {{ $t('templateDetails.updateContent') }}
-                </a>
-              </li>
-              <li v-if="canMakePublic(template)" class="context__menu-item">
-                <a
-                  class="context__menu-item-link"
-                  @click.prevent="changeVisibility('make-public', hide)"
-                >
-                  <i class="context__menu-item-icon iconoir-eye-empty"></i>
-                  {{
-                    template.needs_review
-                      ? $t('templateDetails.submitForReview')
-                      : $t('templateDetails.makePublic')
-                  }}
-                </a>
-              </li>
-              <li v-if="canMakePrivate(template)" class="context__menu-item">
-                <a
-                  class="context__menu-item-link"
-                  @click.prevent="changeVisibility('make-private', hide)"
-                >
-                  <i class="context__menu-item-icon iconoir-eye-off"></i>
-                  {{ $t('templateDetails.makePrivate') }}
-                </a>
-              </li>
-            </template>
-            <!-- Delete comes last, after the items of every template. -->
-            <template v-if="isOwn" #menu-items-end="{ hide }">
-              <li class="context__menu-item context__menu-item--with-separator">
-                <a
-                  class="context__menu-item-link context__menu-item-link--delete"
-                  @click.prevent="askToDelete(hide)"
-                >
-                  <i class="context__menu-item-icon iconoir-bin"></i>
-                  {{ $t('templateDetails.delete') }}
-                </a>
-              </li>
-            </template>
-          </TemplateInstall>
+                  <a
+                    class="context__menu-item-link context__menu-item-link--delete"
+                    @click.prevent="askToDelete(hide)"
+                  >
+                    <i class="context__menu-item-icon iconoir-bin"></i>
+                    {{ $t('templateDetails.delete') }}
+                  </a>
+                </li>
+              </template>
+            </TemplateInstall>
+          </slot>
         </div>
       </div>
     </template>
@@ -152,6 +159,7 @@ import {
   canMakePrivate,
   canMakePublic,
   isOwnTemplate,
+  makePublicResubmits,
 } from '@baserow/modules/core/utils/userTemplate'
 import TemplatePreview from '@baserow/modules/core/components/template/TemplatePreview'
 import TemplateInstall from '@baserow/modules/core/components/template/TemplateInstall'
@@ -179,7 +187,8 @@ const props = defineProps({
     default: false,
   },
   // Whether the template is one of the user's, opened from "Your templates". The
-  // user can then update it, and installs its latest revision.
+  // user can then update it. Their own template always installs its latest
+  // revision, the one shown, also when opened by its link.
   isOwn: {
     type: Boolean,
     required: false,

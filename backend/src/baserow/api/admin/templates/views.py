@@ -1,3 +1,5 @@
+from django.db import transaction
+
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import IsAdminUser
@@ -97,7 +99,7 @@ class AdminUserTemplatesView(AdminListingView):
     filters_field_mapping = {"state": "admin_state"}
     sort_field_mapping = {
         "name": "name",
-        "author": "author_first_name",
+        "author": "author_name",
         "updated_on": "template_updated_on",
     }
 
@@ -106,6 +108,7 @@ class AdminUserTemplatesView(AdminListingView):
             UserTemplateHandler()
             .list_templates_for_admin()
             .filter(admin_state__in=USER_TEMPLATE_ADMIN_STATES)
+            .prefetch_related("categories")
         )
 
     def apply_sorts_or_default_sort(self, sorts, queryset):
@@ -188,6 +191,9 @@ class AdminApproveUserTemplateView(APIView):
     )
     @map_exceptions(REVIEW_EXCEPTIONS)
     @validate_body(AdminApproveUserTemplateSerializer)
+    # The row is built under the lock of the root, so that a deletion can't
+    # commit between the review and the response.
+    @transaction.atomic
     def post(self, request, data, template_id):
         revision = action_type_registry.get_by_type(
             ApproveUserTemplateAdminActionType
@@ -219,6 +225,9 @@ class AdminRejectUserTemplateView(APIView):
     )
     @map_exceptions(REVIEW_EXCEPTIONS)
     @validate_body(AdminRejectUserTemplateSerializer)
+    # The row is built under the lock of the root, so that a deletion can't
+    # commit between the review and the response.
+    @transaction.atomic
     def post(self, request, data, template_id):
         revision = action_type_registry.get_by_type(
             RejectUserTemplateAdminActionType

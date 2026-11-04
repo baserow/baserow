@@ -49,7 +49,9 @@
           v-if="showVisibility"
           :model-value="visibility"
           :disabled="jobIsRunning || updateLoading"
-          :needs-review="Boolean(template.needs_review) || requireApproval"
+          :needs-review="
+            Boolean(template.make_public_needs_review) || requireApproval
+          "
           :listed="Boolean(template.listed)"
           class="margin-top-2"
           @update:model-value="Object.assign(values, $event)"
@@ -235,13 +237,11 @@ export default {
       return [...this.categories, ...missing]
     },
     // The content is copied from the same workspace and applications as before,
-    // if known.
+    // if known. Also without them it's the content of an existing template, so
+    // no other workspace starts with all its applications selected.
     preselect() {
-      if (!this.template.source_workspace_id) {
-        return null
-      }
       return {
-        workspaceId: this.template.source_workspace_id,
+        workspaceId: this.template.source_workspace_id ?? null,
         applicationIds: this.template.source_application_ids || [],
       }
     },
@@ -263,8 +263,8 @@ export default {
     // An update of a listed template goes to review when approval is on, and
     // also with approval off after an admin rejected an earlier update. One of a
     // template in review replaces the version in review. One of a rejected
-    // template that isn't listed stays rejected until the author submits it
-    // again. A template made private isn't reviewed.
+    // template that isn't listed stays rejected until the author makes it
+    // public again. A template made private isn't reviewed.
     reviewNotice() {
       const { listed, state } = this.template
       if (state === 'in_review') {
@@ -421,11 +421,10 @@ export default {
         if (visibility !== null && !(await this.changeVisibility(visibility))) {
           return
         }
+        // Like making it public or private from the menu, a visibility change
+        // alone ends without a toast.
         if (!updatesDetails) {
           this.hide()
-          this.$store.dispatch('toast/success', {
-            title: this.$t('updateUserTemplateModal.updated'),
-          })
           return
         }
         const { data } = await JobService(this.$client).create(

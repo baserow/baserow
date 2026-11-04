@@ -201,7 +201,7 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
         # it's listed once. The ordering is cleared, because it would otherwise be
         # part of the distinct.
         workspace_template_ids = (
-            Template.objects.official_or_owned(actor)
+            Template.objects.official_owned_or_reviewed(actor)
             .openable(actor)
             .order_by()
             .values_list("workspace_id", flat=True)

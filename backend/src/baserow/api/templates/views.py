@@ -281,13 +281,19 @@ class TemplateView(APIView):
         the provided template slug.
         """
 
-        # A user template shows its public revision, the same for everyone, else
-        # the latest revision the user can open, which only its owner can. Install
-        # picks the same revision.
+        # A user template shows its public revision, the same for everyone, but its
+        # owner gets their latest revision, with the same state as in "Your
+        # templates", like a template that isn't public, which only its owner can
+        # open. Install picks the public revision for everyone else, and for the
+        # owner only with `latest=true`, which the frontend sends for their own
+        # template.
         revisions = Template.objects.openable(request.user).filter_by_root(slug=slug)
-        template = (
-            revisions.public_revisions().first() or revisions.latest_revisions().first()
-        )
+        template = revisions.public_revisions().first()
+        if template is None or (
+            request.user.is_authenticated
+            and template.get_root().owner_id == request.user.id
+        ):
+            template = revisions.latest_revisions().first()
         if template is None:
             raise TemplateDoesNotExist(f"The template with slug {slug} does not exist.")
 

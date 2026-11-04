@@ -132,7 +132,6 @@ describe('TemplateDetails', () => {
   test.each([
     ['private', 'templateDetails.makePublic', 'make-public'],
     ['public', 'templateDetails.makePrivate', 'make-private'],
-    ['rejected', 'templateDetails.makePrivate', 'make-private'],
     ['blocked', null, null],
   ])(
     'offers the visibility change of a %s own template',
@@ -171,39 +170,68 @@ describe('TemplateDetails', () => {
     expect(own.find('.template-details__author-name').text()).toBe(
       'templateDetails.you'
     )
-    expect(own.find('.template-details__private').exists()).toBe(true)
 
     const other = await mountComponent({ template: { ...shown, state: null } })
     expect(other.find('.template-details__author-name').text()).toBe('Ada')
   })
 
-  test('submits a rejected own template for review or withdraws it', async () => {
-    const userTemplate = {
-      ...template,
-      type: 'user',
-      state: 'rejected',
-      needs_review: true,
+  test.each([
+    ['in_review', false, true],
+    // Everyone sees the listed version while a later one is in review.
+    ['in_review', true, false],
+  ])(
+    'tells the owner of a %s template (listed: %s) that only they see it: %s',
+    async (state, listed, shown) => {
+      const wrapper = await mountComponent({
+        template: {
+          ...template,
+          type: 'user',
+          author_name: 'Ada',
+          is_own: true,
+          state,
+          listed,
+        },
+      })
+
+      expect(wrapper.find('.template-details__private').exists()).toBe(shown)
     }
-    const wrapper = await mountComponent({
-      template: userTemplate,
-      isOwn: true,
-    })
+  )
 
-    await wrapper
-      .find('.template-install__actions .button-icon')
-      .trigger('click')
-    const links = wrapper.findAll('.context__menu-item-link')
-    expect(links.map((link) => link.text()).slice(2, 4)).toStrictEqual([
-      'templateDetails.submitForReview',
-      'templateDetails.makePrivate',
-    ])
+  test.each([
+    [false, 'templateDetails.makePublic'],
+    // Its approved version is listed, so only its change goes to review again.
+    [true, 'templateDetails.submitForReviewAgain'],
+  ])(
+    'offers to make a rejected own template (listed: %s) public or private',
+    async (listed, makePublicLabel) => {
+      const userTemplate = {
+        ...template,
+        type: 'user',
+        state: 'rejected',
+        make_public_needs_review: true,
+        listed,
+      }
+      const wrapper = await mountComponent({
+        template: userTemplate,
+        isOwn: true,
+      })
 
-    await links[2].trigger('click')
-    await links[3].trigger('click')
+      await wrapper
+        .find('.template-install__actions .button-icon')
+        .trigger('click')
+      const links = wrapper.findAll('.context__menu-item-link')
+      expect(links.map((link) => link.text()).slice(2, 4)).toStrictEqual([
+        makePublicLabel,
+        'templateDetails.makePrivate',
+      ])
 
-    expect(wrapper.emitted('make-public')).toStrictEqual([[userTemplate]])
-    expect(wrapper.emitted('make-private')).toStrictEqual([[userTemplate]])
-  })
+      await links[2].trigger('click')
+      await links[3].trigger('click')
+
+      expect(wrapper.emitted('make-public')).toStrictEqual([[userTemplate]])
+      expect(wrapper.emitted('make-private')).toStrictEqual([[userTemplate]])
+    }
+  )
 
   test('installs the latest revision only of an own template', async () => {
     const userTemplate = { ...template, type: 'user' }
@@ -211,6 +239,15 @@ describe('TemplateDetails', () => {
     expect(other.findComponent(TemplateInstall).props('latest')).toBe(false)
 
     const own = await mountComponent({ template: userTemplate, isOwn: true })
+    expect(own.findComponent(TemplateInstall).props('latest')).toBe(true)
+  })
+
+  test('installs the latest revision of an own template opened by its link', async () => {
+    // The template page shows the detail payload, which is the latest revision
+    // for its owner, and doesn't pass `isOwn`.
+    const own = await mountComponent({
+      template: { ...template, type: 'user', is_own: true, listed: true },
+    })
     expect(own.findComponent(TemplateInstall).props('latest')).toBe(true)
   })
 

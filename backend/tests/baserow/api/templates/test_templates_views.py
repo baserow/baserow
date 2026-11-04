@@ -664,6 +664,43 @@ def test_async_install_user_template_revision_id(
 
 
 @pytest.mark.django_db
+def test_owner_opens_their_edit_in_review_of_a_listed_template(
+    api_client, data_fixture
+):
+    owner, token = data_fixture.create_user_and_token()
+    target = data_fixture.create_workspace(user=owner)
+    template = _create_installable_user_template(data_fixture, owner, "public")
+    edit = data_fixture.create_user_template_revision(template)
+    data_fixture.create_database_application(workspace=edit.workspace)
+    data_fixture.set_user_template_state(template, "in_review", edit)
+
+    response = api_client.get(
+        reverse("api:templates:item", kwargs={"slug": template.slug}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    # The owner opens their edit, as in "Your templates", while the approved
+    # version stays listed, and installs it from there.
+    assert response.status_code == HTTP_200_OK
+    shown = response.json()
+    assert (shown["revision_id"], shown["state"], shown["listed"]) == (
+        edit.id,
+        "in_review",
+        True,
+    )
+    response = api_client.post(
+        reverse(
+            "api:templates:install_async",
+            kwargs={"workspace_id": target.id, "template_id": template.id},
+        )
+        + f"?latest=true&revision_id={shown['revision_id']}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_202_ACCEPTED, response.json()
+    assert InstallTemplateJob.objects.get(workspace=target).template_id == edit.id
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("actor,latest", [("owner", True), ("other", False)])
 def test_async_install_user_template_query_count_is_constant(
     api_client, data_fixture, actor, latest

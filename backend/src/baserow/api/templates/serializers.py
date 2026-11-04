@@ -195,7 +195,7 @@ class TemplateListItemSerializer(TemplateDetailSerializer):
         help_text="Why the template was rejected or blocked, if given. Only shown "
         "to its owner."
     )
-    needs_review = serializers.SerializerMethodField(
+    make_public_needs_review = serializers.SerializerMethodField(
         help_text="Whether making the template public sends it to the review of "
         "an instance admin, because approval is required or one rejected it. Only "
         "shown to its owner."
@@ -221,7 +221,7 @@ class TemplateListItemSerializer(TemplateDetailSerializer):
             "categories",
             "state",
             "reason",
-            "needs_review",
+            "make_public_needs_review",
             "listed",
             "source_workspace_id",
             "source_application_ids",
@@ -260,10 +260,12 @@ class TemplateListItemSerializer(TemplateDetailSerializer):
         return reason
 
     @extend_schema_field(serializers.BooleanField(allow_null=True))
-    def get_needs_review(self, instance):
+    def get_make_public_needs_review(self, instance):
         if not self._is_owner(instance):
             return None
-        return UserTemplateHandler().needs_review(instance, self._require_approval())
+        return UserTemplateHandler().make_public_needs_review(
+            instance, self._require_approval()
+        )
 
     @extend_schema_field(serializers.BooleanField(allow_null=True))
     def get_listed(self, instance):

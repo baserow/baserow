@@ -559,3 +559,40 @@ class RejectUserTemplateAdminActionType(ActionType):
     @classmethod
     def scope(cls) -> ActionScopeStr:
         return RootActionScopeType.value()
+
+
+class ApproveWaitingUserTemplatesAdminActionType(ActionType):
+    type = "admin_approve_waiting_user_templates"
+    description = ActionTypeDescription(
+        _("Admin approved waiting templates"),
+        _(
+            "Approval switched off, so every template in review was approved and "
+            "listed (%(count)s)"
+        ),
+    )
+    analytics_params = ["count"]
+
+    @dataclasses.dataclass
+    class Params:
+        count: int
+
+    @classmethod
+    def do(cls, user: AbstractUser) -> int:
+        """
+        Approves every user template in review when an instance admin switches
+        approval off, see `UserTemplateHandler.approve_waiting_revisions`, and
+        records how many if any. This action is not undoable. Must run in the
+        transaction that switched approval off, see `CoreHandler.update_settings`.
+
+        :param user: The instance admin who switched approval off.
+        :return: The number of approved templates.
+        """
+
+        count = UserTemplateHandler().approve_waiting_revisions(user)
+        if count:
+            cls.register_action(user, cls.Params(count=count), cls.scope())
+        return count
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()

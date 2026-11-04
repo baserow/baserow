@@ -3,7 +3,10 @@ from django.contrib.auth import get_user_model
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from baserow.api.templates.serializers import TemplateSerializer
+from baserow.api.templates.serializers import (
+    TemplateCategorySerializer,
+    TemplateSerializer,
+)
 from baserow.core.user_templates.constants import (
     USER_TEMPLATE_ADMIN_STATES,
     UserTemplateState,
@@ -23,8 +26,11 @@ class AdminUserTemplateSerializer(TemplateSerializer):
     """
     The latest revision of a user template in the admin templates list, see
     `UserTemplateHandler.list_templates_for_admin`. The author, state and update
-    date are the template's.
+    date are the template's. The workspace and categories are those of the
+    revision, which the admin previews before approving or rejecting it.
     """
+
+    categories = TemplateCategorySerializer(read_only=True, many=True)
 
     author = AdminUserTemplateAuthorSerializer(
         source="get_root.author",
@@ -52,9 +58,13 @@ class AdminUserTemplateSerializer(TemplateSerializer):
         fields = (
             "id",
             "revision_id",
+            "type",
             "name",
             "description",
             "icon",
+            "workspace_id",
+            "open_application",
+            "categories",
             "author",
             "state",
             "reason",

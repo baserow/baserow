@@ -698,6 +698,10 @@ def _get_user_id(actor) -> int | None:
     return actor.id if isinstance(actor, User) else None
 
 
+def _is_instance_admin(actor) -> bool:
+    return isinstance(actor, User) and actor.is_active and actor.is_staff
+
+
 def _root_q(**lookups) -> Q:
     """
     Matches the rows whose root matches the lookups: the root itself, which also
@@ -710,15 +714,21 @@ def _root_q(**lookups) -> Q:
     )
 
 
-def review_state_expression() -> Case:
+def review_state_expression(latest_only: bool = False) -> Case:
     """
     The state of a user template, for rows annotated with
     `TemplateQuerySet.with_review_state`, so that it can be filtered and sorted
     on. The same rule as `UserTemplateHandler.get_template_state`: keep both in
     line.
+
+    :param latest_only: Null for every row but the latest of all the revisions of
+        its template. Postgres filters on the state before it drops the older
+        revisions of `TemplateQuerySet.latest_revisions`, and the state reads the
+        reviews of every revision of the template, so without it a filter on the
+        state reads every revision once for each revision.
     """
 
-    return Case(
+    state = Case(
         When(_root_q(blocked_at__isnull=False), then=Value(UserTemplateState.BLOCKED)),
         When(
             review_state=Template.ReviewState.PENDING,
@@ -733,6 +743,27 @@ def review_state_expression() -> Case:
             then=Value(UserTemplateState.PUBLIC),
         ),
         default=Value(UserTemplateState.PRIVATE),
+    )
+    if not latest_only:
+        return state
+
+    # The highest version is the first row of the unique `(root_id, version)` read
+    # backwards, one index lookup per row. The root is version 1.
+    highest_later_version = (
+        Template.objects.filter(root_id=OuterRef("review_family_id"))
+        .order_by("-version")
+        .values("version")[:1]
+    )
+    return Case(
+        When(
+            version=Coalesce(
+                Subquery(highest_later_version),
+                Value(1),
+                output_field=models.PositiveIntegerField(),
+            ),
+            then=state,
+        ),
+        default=None,
     )
 
 
@@ -751,13 +782,13 @@ class TemplateQuerySet(QuerySet):
         selected too, because it holds the fields of the template as a whole.
         """
 
-        family_id = Coalesce("root_id", "id")
+        # The root is version 1, so a newer revision is never the root: a range
+        # scan on the unique `(root_id, version)`.
         newer_revision = self.filter(
-            Q(id=OuterRef("family_id")) | Q(root_id=OuterRef("family_id")),
-            version__gt=OuterRef("version"),
+            root_id=OuterRef("family_id"), version__gt=OuterRef("version")
         )
         return (
-            self.alias(family_id=family_id)
+            self.alias(family_id=Coalesce("root_id", "id"))
             .filter(~Exists(newer_revision))
             .select_related("root")
         )
@@ -825,21 +856,65 @@ class TemplateQuerySet(QuerySet):
             ),
         )
 
-    def official_or_owned(self, actor):
+    def in_admin_review(self):
         """
-        The official templates and every revision of the user templates owned by
-        the actor.
+        The latest revision of every user template in review or rejected that isn't
+        marked for deletion: the one an instance admin approves or rejects, see
+        `UserTemplateHandler.list_templates_for_admin`.
+
+        Runs a query when it's called: the templates with a revision waiting or
+        rejected are listed first, because only those can be in review or rejected,
+        and the state of the others would otherwise be read on every row of the
+        table.
+        """
+
+        waiting_template_ids = list(
+            Template.objects.filter(
+                review_state__in=[
+                    Template.ReviewState.PENDING,
+                    Template.ReviewState.REJECTED,
+                ]
+            )
+            .values_list(Coalesce("root_id", "id"), flat=True)
+            .distinct()
+        )
+        return (
+            self.user()
+            .filter(
+                Q(id__in=waiting_template_ids) | Q(root_id__in=waiting_template_ids)
+            )
+            .filter_by_root(marked_for_deletion_at__isnull=True)
+            .latest_revisions()
+            .with_review_state()
+            .alias(admin_state=review_state_expression(latest_only=True))
+            .filter(
+                admin_state__in=[
+                    UserTemplateState.IN_REVIEW,
+                    UserTemplateState.REJECTED,
+                ]
+            )
+        )
+
+    def official_owned_or_reviewed(self, actor):
+        """
+        The official templates, every revision of the user templates owned by the
+        actor and, for an instance admin, the revisions they review, see
+        `in_admin_review`.
         """
 
         q = _official_template_q()
         if (user_id := _get_user_id(actor)) is not None:
             q |= Q(type=Template.Type.USER) & _root_q(owner_id=user_id)
+        if _is_instance_admin(actor):
+            q |= Q(id__in=Template.objects.in_admin_review().values("id"))
         return self.filter(q)
 
     def openable(self, actor):
         """
         The templates the actor can open: every revision of the own ones, only the
-        public revision of the others. Matches `Template.is_openable_by`.
+        public revision of the others, and for an instance admin also the revision
+        they review, see `in_admin_review`, but never a private template of someone
+        else. Matches `Template.is_openable_by`.
         """
 
         official = _official_template_q()
@@ -853,6 +928,8 @@ class TemplateQuerySet(QuerySet):
         )
         if (user_id := _get_user_id(actor)) is not None:
             visible |= _root_q(owner_id=user_id, marked_for_deletion_at__isnull=True)
+        if _is_instance_admin(actor):
+            visible |= Q(id__in=Template.objects.in_admin_review().values("id"))
         return self.filter(official | Q(type=Template.Type.USER) & visible)
 
 
@@ -1182,7 +1259,8 @@ class Template(models.Model):
         Whether the actor can open this template: an official one or, while user
         templates are enabled, a revision of a user template not marked for
         deletion that is owned by the actor, or is the public revision of a template
-        that isn't blocked. Matches `Template.objects.openable`.
+        that isn't blocked, or is the revision an instance admin reviews, see
+        `TemplateQuerySet.in_admin_review`. Matches `Template.objects.openable`.
         """
 
         if self.type in (None, Template.Type.OFFICIAL):
@@ -1195,7 +1273,13 @@ class Template(models.Model):
         if root.public_revision_id == self.id and root.blocked_at is None:
             return True
         user_id = _get_user_id(actor)
-        return user_id is not None and root.owner_id == user_id
+        if user_id is not None and root.owner_id == user_id:
+            return True
+        # A query, only for the instance admins.
+        return (
+            _is_instance_admin(actor)
+            and Template.objects.in_admin_review().filter(id=self.id).exists()
+        )
 
     def clean(self):
         """

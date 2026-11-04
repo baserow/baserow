@@ -110,8 +110,9 @@ if (error.value) {
 // of the template page.
 const showList = ref(false)
 const currentSlug = ref(slug)
-// The public templates opened from the list by slug. They aren't part of the
-// official categories.
+// The public templates opened from the list or loaded again, by slug. They aren't
+// part of the official categories, and win over the linked template, which can
+// be an older revision of the same one.
 const publicTemplates = ref({})
 const publicTemplateList = ref(null)
 // The id of the public template being opened, so that only the last opened one
@@ -139,16 +140,17 @@ const selectedTemplate = computed(() => {
   if (showList.value) {
     return null
   }
+  if (publicTemplates.value[currentSlug.value]) {
+    return publicTemplates.value[currentSlug.value]
+  }
   // The linked template is not in the list if the list couldn't be loaded.
   if (currentSlug.value === data.value.template.slug) {
     return data.value.template
   }
   return (
-    publicTemplates.value[currentSlug.value] ??
     data.value.categories
       .flatMap((category) => category.templates)
-      .find((t) => t.slug === currentSlug.value) ??
-    null
+      .find((t) => t.slug === currentSlug.value) ?? null
   )
 })
 
@@ -233,12 +235,7 @@ async function templateOutdated() {
   const { slug } = selectedTemplate.value
   try {
     const { data: template } = await TemplateService($client).fetch(slug)
-    if (slug === data.value.template.slug) {
-      // The data isn't deeply reactive.
-      data.value = { ...data.value, template }
-    } else {
-      publicTemplates.value[slug] = template
-    }
+    publicTemplates.value[slug] = template
   } catch (e) {
     notifyIf(e, 'template')
   }

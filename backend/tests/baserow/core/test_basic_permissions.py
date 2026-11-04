@@ -1472,8 +1472,8 @@ def test_all_scope_types_query_methods():
 def create_templates_of_each_state(data_fixture, owner):
     """
     Returns templates with who can open them while user templates are enabled:
-    anyone but the owner, and the owner. Only the official ones open while user
-    templates are disabled.
+    anyone but the owner, the owner, and an instance admin who isn't the owner.
+    Only the official ones open while user templates are disabled.
     """
 
     official = data_fixture.create_template()
@@ -1487,14 +1487,26 @@ def create_templates_of_each_state(data_fixture, owner):
     rejected = data_fixture.create_user_template(
         user=owner, review_state=Template.ReviewState.REJECTED
     )
+    rejected_edited = data_fixture.create_user_template(
+        user=owner, review_state=Template.ReviewState.REJECTED
+    )
+    rejected_edit = data_fixture.create_user_template_revision(rejected_edited)
+    withdrawn = data_fixture.create_user_template(
+        user=owner, review_state=Template.ReviewState.WITHDRAWN
+    )
     public = data_fixture.create_user_template(user=owner)
+    public_edited = data_fixture.create_user_template(user=owner)
     blocked = data_fixture.create_user_template(user=owner, blocked_at=timezone.now())
-    Template.objects.filter(id__in=[public.id, blocked.id]).update(
+    Template.objects.filter(id__in=[public.id, public_edited.id, blocked.id]).update(
         public_revision_id=F("id")
     )
     public.refresh_from_db()
+    public_edited.refresh_from_db()
     blocked.refresh_from_db()
     public_revision = data_fixture.create_user_template_revision(public)
+    public_edit = data_fixture.create_user_template_revision(
+        public_edited, review_state=Template.ReviewState.PENDING
+    )
     marked = data_fixture.create_user_template(
         user=owner, marked_for_deletion_at=timezone.now()
     )
@@ -1504,37 +1516,60 @@ def create_templates_of_each_state(data_fixture, owner):
     )
     Template.objects.filter(id=public_marked.id).update(public_revision_id=F("id"))
     public_marked.refresh_from_db()
+    pending_marked = data_fixture.create_user_template(
+        user=owner,
+        review_state=Template.ReviewState.PENDING,
+        marked_for_deletion_at=timezone.now(),
+    )
     return [
-        (official, True, True),
-        (legacy, True, True),
-        (private, False, True),
+        (official, True, True, True),
+        (legacy, True, True, True),
+        (private, False, True, False),
         # A revision is opened like its root.
-        (revision, False, True),
-        (latest_revision, False, True),
-        (pending, False, True),
-        (rejected, False, True),
-        (public, True, True),
+        (revision, False, True, False),
+        (latest_revision, False, True, False),
+        # An admin opens the latest revision of the templates they review.
+        (pending, False, True, True),
+        (rejected, False, True, True),
+        (rejected_edited, False, True, False),
+        (rejected_edit, False, True, True),
+        (withdrawn, False, True, False),
+        (public, True, True, True),
         # Others only open the public revision.
-        (public_revision, False, True),
-        (blocked, False, True),
-        (marked, False, False),
-        (marked_revision, False, False),
-        (public_marked, False, False),
+        (public_revision, False, True, False),
+        (public_edited, True, True, True),
+        (public_edit, False, True, True),
+        (blocked, False, True, False),
+        (marked, False, False, False),
+        (marked_revision, False, False, False),
+        (public_marked, False, False, False),
+        (pending_marked, False, False, False),
     ]
 
 
 def get_template_actors(data_fixture, owner):
     """
-    Returns the actors with whether they own the templates. A `None` actor is
-    anonymous too, see `PermissionCheck.actor`.
+    Returns the actors with who they are to the templates: "other", "owner" or
+    "admin". A `None` actor is anonymous too, see `PermissionCheck.actor`. A
+    deactivated admin is like anybody else.
     """
 
     return [
-        (AnonymousUser(), False),
-        (None, False),
-        (data_fixture.create_user(), False),
-        (owner, True),
+        (AnonymousUser(), "other"),
+        (None, "other"),
+        (data_fixture.create_user(), "other"),
+        (data_fixture.create_user(is_staff=True, is_active=False), "other"),
+        (owner, "owner"),
+        (data_fixture.create_user(is_staff=True), "admin"),
     ]
+
+
+def opens_for(role, opens_for_others, opens_for_owner, opens_for_admin):
+    return {
+        "other": opens_for_others,
+        "owner": opens_for_owner,
+        "admin": opens_for_admin,
+    }[role]
 
 
 @pytest.mark.django_db
@@ -1549,10 +1584,10 @@ def test_allow_if_template_permission_manager_allows_openable_templates(
     not_a_template = (data_fixture.create_workspace(), False, False)
     manager = AllowIfTemplatePermissionManagerType()
 
-    for actor, is_owner in get_template_actors(data_fixture, owner):
-        for template, opens_for_others, opens_for_owner in templates:
+    for actor, role in get_template_actors(data_fixture, owner):
+        for template, *opens in templates:
             workspace = template.workspace
-            allowed = (opens_for_owner if is_owner else opens_for_others) and (
+            allowed = opens_for(role, *opens) and (
                 user_templates_enabled or template.type != Template.Type.USER
             )
             for operation in manager.OPERATION_ALLOWED_ON_TEMPLATES:
@@ -1617,15 +1652,20 @@ def test_allow_if_template_permissions_object_lists_official_and_own_templates(
     Template.objects.filter(id=others_public.id).update(public_revision_id=F("id"))
     manager = AllowIfTemplatePermissionManagerType()
 
-    for actor, is_owner in get_template_actors(data_fixture, owner):
+    for actor, role in get_template_actors(data_fixture, owner):
         permissions = manager.get_permissions_object(actor)
 
+        # For an admin, the ones they review, not the public ones.
         assert set(permissions["workspace_template_ids"]) == {
             template.workspace_id
-            for template, _, opens_for_owner in templates
+            for template, for_others, for_owner, for_admin in templates
             if template.type != Template.Type.USER
-            or (is_owner and opens_for_owner and user_templates_enabled)
-        }
+            or user_templates_enabled
+            and (
+                (role == "owner" and for_owner)
+                or (role == "admin" and for_admin and not for_others)
+            )
+        }, role
 
 
 @pytest.mark.django_db
@@ -1654,7 +1694,7 @@ def test_openable_template_check_uses_prefetched_templates(
 ):
     owner = data_fixture.create_user()
     templates = create_templates_of_each_state(data_fixture, owner)
-    workspace_ids = [template.workspace_id for template, _, _ in templates]
+    workspace_ids = [template.workspace_id for template, *_ in templates]
     workspaces = list(
         CoreHandler().get_enhanced_workspace_queryset(
             Workspace.objects.filter(id__in=workspace_ids)
@@ -1666,7 +1706,7 @@ def test_openable_template_check_uses_prefetched_templates(
 
     assert openable == {
         template.workspace_id
-        for template, _, opens_for_owner in templates
+        for template, _, opens_for_owner, _ in templates
         if opens_for_owner
     }
 

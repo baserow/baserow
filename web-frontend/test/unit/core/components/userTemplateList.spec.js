@@ -606,23 +606,29 @@ describe('UserTemplateList', () => {
 
   test.each([
     ['private', false, ['userTemplateList.makePublic'], 'make-public'],
-    ['private', true, ['userTemplateList.submitForReview'], 'make-public'],
     ['in_review', false, ['userTemplateList.makePrivate'], 'make-private'],
     [
       'rejected',
       true,
-      ['userTemplateList.submitForReview', 'userTemplateList.makePrivate'],
+      ['userTemplateList.makePublic', 'userTemplateList.makePrivate'],
       'make-public',
     ],
+    // Its approved version is listed, so only its change goes to review again.
+    [
+      'rejected',
+      true,
+      ['userTemplateList.submitForReviewAgain', 'userTemplateList.makePrivate'],
+      'make-public',
+      true,
+    ],
     ['public', false, ['userTemplateList.makePrivate'], 'make-private'],
-    // Listed with a rejected change: only a new change is reviewed again.
-    ['rejected', false, ['userTemplateList.makePrivate'], 'make-private'],
     ['blocked', false, [], null],
   ])(
     'offers to change the visibility of a %s template (needs review: %s)',
-    async (state, needsReview, items, event) => {
+    async (state, makePublicNeedsReview, items, event, listed = false) => {
       const template = userTemplate(1, 'Sprint Tracker', state, {
-        needs_review: needsReview,
+        make_public_needs_review: makePublicNeedsReview,
+        listed,
       })
       mockPages(page([template]))
       const wrapper = await mountComponent()

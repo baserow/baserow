@@ -24,7 +24,7 @@ from baserow.core.jobs.constants import JOB_CANCELLED, JOB_PENDING, JOB_STARTED
 from baserow.core.jobs.exceptions import JobNotCancellable
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.models import JOB_STATES_ENDED
-from baserow.core.models import Template, Workspace
+from baserow.core.models import Template, Workspace, review_state_expression
 from baserow.core.subjects import UserSubjectType
 from baserow.core.user.exceptions import UserNotFound
 from baserow.core.user_files.handler import UserFileHandler
@@ -578,7 +578,7 @@ def test_get_user_template_root_by_slug(data_fixture, kind):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "revision_states,state,reason,needs_review",
+    "revision_states,state,reason,make_public_needs_review",
     [
         (["private"], UserTemplateState.PRIVATE, None, False),
         (["in_review"], UserTemplateState.IN_REVIEW, None, False),
@@ -597,7 +597,9 @@ def test_get_user_template_root_by_slug(data_fixture, kind):
         (["public_blocked"], UserTemplateState.BLOCKED, "Spam", False),
     ],
 )
-def test_get_template_state(data_fixture, revision_states, state, reason, needs_review):
+def test_get_template_state(
+    data_fixture, revision_states, state, reason, make_public_needs_review
+):
     handler = UserTemplateHandler()
     root = data_fixture.create_user_template(blocked_reason="Spam")
     revision = root
@@ -611,10 +613,13 @@ def test_get_template_state(data_fixture, revision_states, state, reason, needs_
     assert annotated.admin_state == state
     for latest in [handler.get_latest_revision(root), annotated]:
         assert handler.get_template_state(latest) == (state, reason)
-        assert handler.needs_review(latest, require_approval=False) is needs_review
+        assert (
+            handler.make_public_needs_review(latest, require_approval=False)
+            is make_public_needs_review
+        )
         # With approval on, a private template needs a review too.
-        assert handler.needs_review(latest, require_approval=True) is (
-            needs_review or state == UserTemplateState.PRIVATE
+        assert handler.make_public_needs_review(latest, require_approval=True) is (
+            make_public_needs_review or state == UserTemplateState.PRIVATE
         )
         # A blocked template isn't listed, even with a public revision.
         assert handler.is_listed(latest) is ("public" in revision_states)
@@ -831,3 +836,25 @@ def test_install_template_content_applies_the_content_rules(
     assert files[0][0]["visible_name"] == "notes.txt"
     # The file of the copy is stored and served like any other one.
     assert UserFileHandler().get_user_file_by_name(installed_name)
+
+
+@pytest.mark.django_db
+def test_latest_only_review_state_is_null_on_older_revisions(data_fixture):
+    # Postgres filters on the state before it drops the older revisions, so the
+    # admin list only computes it on the latest one, or it's quadratic.
+    root = data_fixture.create_user_template()
+    revision = data_fixture.create_user_template_revision(root)
+    alone = data_fixture.create_user_template()
+
+    states = dict(
+        Template.objects.filter(id__in=[root.id, revision.id, alone.id])
+        .with_review_state()
+        .annotate(state=review_state_expression(latest_only=True))
+        .values_list("id", "state")
+    )
+
+    assert states == {
+        root.id: None,
+        revision.id: UserTemplateState.PRIVATE,
+        alone.id: UserTemplateState.PRIVATE,
+    }

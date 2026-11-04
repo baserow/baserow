@@ -659,8 +659,8 @@
     "you": "You",
     "private": "Only you can see this template",
     "makePublic": "Make public",
-    "makePrivate": "Make private",
-    "submitForReview": "Submit for review"
+    "submitForReviewAgain": "Submit for review again",
+    "makePrivate": "Make private"
   },
   "templateModal": {
     "officialTemplates": "Official templates",
@@ -707,7 +707,7 @@
     "inReviewText": "Saving replaces the version in review, so an admin reviews your changes instead.",
     "inReviewListedText": "Saving replaces the version in review. The approved version stays listed in the template browser until an admin approves the changes.",
     "rejectedTitle": "Saving doesn’t send this template back to review",
-    "rejectedText": "It stays rejected. Submit it for review again once your changes are ready."
+    "rejectedText": "It stays rejected. Make it public once your changes are ready."
   },
   "deleteUserTemplateModal": {
     "title": "Are you sure you want to delete “{name}”?",
@@ -718,10 +718,10 @@
     "title": "Make “{name}” public?",
     "description": "“{name}” will be listed in the template browser for everyone on this instance, and your account name, {author}, is shared as author. You can make it private again later.",
     "makePublic": "Make public",
-    "resubmitTitle": "Submit “{name}” for review?",
     "resubmitDescription": "“{name}” will be listed in the template browser for everyone on this instance once an instance admin approves it, and your account name, {author}, is shared as author. You can make it private again later.",
     "resubmitListedDescription": "The approved version of “{name}” stays listed in the template browser until an instance admin approves this one, which then replaces it.",
-    "submitForReview": "Submit for review"
+    "resubmitTitle": "Submit “{name}” for review again?",
+    "submitForReviewAgain": "Submit for review again"
   },
   "userTemplateDetailsForm": {
     "name": "Name",
@@ -745,7 +745,7 @@
     "noticePersonalViews": "Personal views.",
     "noticeReferences": "Connections to databases that are not included. Data sources, filters and triggers using them need to be set up again.",
     "noticeRest": "Everything else is shared as it is.",
-    "selectedApplications": "0 applications selected | 1 application selected | {count} applications selected"
+    "selectedApplications": "Nothing selected yet | 1 application selected | {count} applications selected"
   },
   "templateIconSelectContext": {
     "search": "Search icons",
@@ -779,8 +779,8 @@
     "updateContent": "Update template content",
     "download": "Download",
     "makePublic": "Make public",
+    "submitForReviewAgain": "Submit for review again",
     "makePrivate": "Make private",
-    "submitForReview": "Submit for review",
     "delete": "Delete"
   },
   "publicTemplateList": {
@@ -1584,16 +1584,18 @@
     "reason": "Reason",
     "updatedOn": "Last updated",
     "deletedAuthor": "A deleted user",
+    "review": "Review",
     "approve": "Approve",
     "reject": "Reject",
-    "approved": "“{name}” approved",
-    "rejected": "“{name}” rejected",
+    "unlist": "Unlist",
     "changedTitle": "The template changed",
     "changedDescription": "The template changed since the page was loaded. The list shows it as it is now.",
     "alreadyApprovedTitle": "“{name}” already approved",
     "alreadyApprovedDescription": "It was approved since the page was loaded, most likely by another admin. The list shows it as it is now.",
     "alreadyRejectedTitle": "“{name}” already rejected",
-    "alreadyRejectedDescription": "It was rejected since the page was loaded, most likely by another admin. The list shows it as it is now."
+    "alreadyRejectedDescription": "It was rejected since the page was loaded, most likely by another admin. The list shows it as it is now.",
+    "alreadyUnlistedTitle": "“{name}” already unlisted",
+    "alreadyUnlistedDescription": "It was unlisted since the page was loaded, most likely by another admin. The list shows it as it is now."
   },
   "rejectTemplateModal": {
     "title": "Reject “{name}”?",
@@ -1601,7 +1603,10 @@
     "editDescription": "Only the latest change is rejected. The approved version stays listed in the template browser, and its author sees the reason.",
     "reasonLabel": "Reason",
     "reasonPlaceholder": "Why the template can't be listed",
-    "reject": "Reject template"
+    "reject": "Reject template",
+    "unlistTitle": "Unlist “{name}”?",
+    "unlistDescription": "The author sees this reason on their template. It comes out of the browser until you approve it again.",
+    "unlist": "Unlist template"
   },
   "editUserContext": {
     "changePassword": "Change password",

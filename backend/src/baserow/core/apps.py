@@ -391,6 +391,7 @@ class CoreConfig(AppConfig):
 
         from baserow.core.user_templates.actions import (
             ApproveUserTemplateAdminActionType,
+            ApproveWaitingUserTemplatesAdminActionType,
             CreateUserTemplateActionType,
             DeleteUserTemplateActionType,
             RejectUserTemplateAdminActionType,
@@ -404,6 +405,7 @@ class CoreConfig(AppConfig):
         action_type_registry.register(UpdateUserTemplateVisibilityActionType())
         action_type_registry.register(ApproveUserTemplateAdminActionType())
         action_type_registry.register(RejectUserTemplateAdminActionType())
+        action_type_registry.register(ApproveWaitingUserTemplatesAdminActionType())
 
         from baserow.core.trash.actions import (
             EmptyTrashActionType,

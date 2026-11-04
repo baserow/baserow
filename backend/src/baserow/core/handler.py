@@ -37,6 +37,7 @@ from loguru import logger
 from opentelemetry import trace
 from tqdm import tqdm
 
+from baserow.core.action.registries import action_type_registry
 from baserow.core.cache import get_cached_settings, set_cached_settings
 from baserow.core.db import specific_queryset
 from baserow.core.deferred_callbacks import deferred_callback_context
@@ -221,7 +222,11 @@ class CoreHandler:
         self, user: User, settings_instance: Optional[Settings] = None, **kwargs
     ) -> Settings:
         """
-        Updates one or more setting values if the user has staff permissions.
+        Updates one or more setting values if the user has staff permissions. Only
+        the received settings are saved, so that a stale cached instance doesn't
+        write back the others, and all of them are returned as stored. Switching
+        `user_templates_require_approval` from true to false approves the user
+        templates waiting for review, see `ApproveWaitingUserTemplatesAdminActionType`.
 
         :param user: The user on whose behalf the settings are updated.
         :param settings_instance: If already fetched, the settings instance can be
@@ -231,6 +236,12 @@ class CoreHandler:
             changed with the user templates feature disabled.
         :return: The update settings instance.
         """
+
+        # These import this module.
+        from baserow.core.user_templates.actions import (
+            ApproveWaitingUserTemplatesAdminActionType,
+        )
+        from baserow.core.user_templates.handler import UserTemplateHandler
 
         CoreHandler().check_permissions(
             user, UpdateSettingsOperationType.type, context=settings_instance
@@ -242,9 +253,9 @@ class CoreHandler:
         if not settings_instance:
             settings_instance = self.get_settings()
 
-        settings_instance = set_allowed_attrs(
-            kwargs,
-            [
+        fields = [
+            name
+            for name in [
                 "allow_new_signups",
                 "allow_signups_via_workspace_invitations",
                 "allow_reset_password",
@@ -257,11 +268,25 @@ class CoreHandler:
                 "verify_import_signature",
                 "allow_reporting_abuse",
                 "user_templates_require_approval",
-            ],
-            settings_instance,
-        )
-
-        settings_instance.save()
+            ]
+            if name in kwargs
+        ]
+        with transaction.atomic():
+            # Only switching approval off approves the templates in review:
+            # sending false again keeps one that waits with approval off, like a
+            # rejected one made public again. Read from the locked row, not from
+            # the instance, which can be stale.
+            switches_off = kwargs.get(
+                "user_templates_require_approval"
+            ) is False and UserTemplateHandler().read_require_approval(for_update=True)
+            settings_instance = set_allowed_attrs(kwargs, fields, settings_instance)
+            settings_instance.save(update_fields=fields)
+            # The others are returned as stored, not as the stale instance has them.
+            settings_instance.refresh_from_db()
+            if switches_off:
+                action_type_registry.get_by_type(
+                    ApproveWaitingUserTemplatesAdminActionType
+                ).do(user)
         return settings_instance
 
     @baserow_trace(tracer, allow_nested=True)

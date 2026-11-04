@@ -68,31 +68,32 @@ describe('MakeTemplatePublicModal', () => {
   })
 
   test.each([
-    [false, 'once an instance admin approves it'],
-    // An earlier version is listed until this one is approved.
-    [true, 'stays listed'],
+    [false, 'once an instance admin approves it', 'title', 'makePublic'],
+    // An earlier version is listed until this one is approved, so the template
+    // is public already and its change is submitted again.
+    [true, 'stays listed', 'resubmitTitle', 'submitForReviewAgain'],
   ])(
-    'asks to submit a template that an admin rejected for review (listed: %s)',
-    async (listed, description) => {
+    'asks to make public a template that needs review, with the review copy (listed: %s)',
+    async (listed, description, title, confirm) => {
       const row = { ...template, state: 'in_review' }
       testApp.mock.onPatch('/templates/sprint-tracker/').reply(200, row)
       const wrapper = await mountAndShow({
         template: {
           ...template,
           state: 'rejected',
-          needs_review: true,
+          make_public_needs_review: true,
           listed,
         },
       })
 
       expect(wrapper.find('.user-template-modal__title').text()).toBe(
-        'makeTemplatePublicModal.resubmitTitle {"name":"Sprint Tracker"}'
+        `makeTemplatePublicModal.${title} {"name":"Sprint Tracker"}`
       )
       expect(
         wrapper.find('.user-template-modal__description').text()
       ).toContain(description)
 
-      await button(wrapper, 'makeTemplatePublicModal.submitForReview').trigger(
+      await button(wrapper, `makeTemplatePublicModal.${confirm}`).trigger(
         'click'
       )
       await flushPromises()
