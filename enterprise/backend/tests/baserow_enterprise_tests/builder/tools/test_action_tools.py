@@ -1778,3 +1778,78 @@ def test_a_refused_parameter_formula_with_the_right_name_is_still_listed(
     assert "errors" not in result
     assert len(result["created_actions"]) == 1
     assert [entry["field"] for entry in result["formula_errors"]] == ["page_param_0"]
+
+
+# ---------------------------------------------------------------------------
+# A whole function call in the text of a new action
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_a_function_call_title_on_a_new_action_is_a_formula(builder_ctx):
+    result = create(builder_ctx, notification(builder_ctx["button"].id, "upper('abc')"))
+
+    assert "formula_errors" not in result
+    assert saved(result).title["formula"] == "upper('abc')"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("title", ["Hello (world)", "upper(foo)", "nosuch('x')", "1+1"])
+def test_plain_text_on_a_new_action_stays_text(builder_ctx, title):
+    result = create(builder_ctx, notification(builder_ctx["button"].id, title))
+
+    assert "formula_errors" not in result
+    assert saved(result).title["formula"] == wrap_static_string(title)
+
+
+@pytest.mark.django_db
+def test_a_function_call_that_cannot_run_on_a_new_action_is_listed(builder_ctx):
+    result = create(
+        builder_ctx, notification(builder_ctx["button"].id, "upper(get('nope.x'))")
+    )
+
+    assert saved(result).title["formula"] == "''"
+    assert result["formula_errors"][0]["field"] == "title"
+
+
+@pytest.mark.django_db
+def test_a_function_call_parameter_on_a_new_action_is_a_formula(
+    data_fixture, builder_ctx
+):
+    target = data_fixture.create_builder_page(
+        builder=builder_ctx["builder"],
+        name="Detail",
+        path="/d/:id",
+        path_params=[{"name": "id", "type": "text"}],
+    )
+
+    result = create(
+        builder_ctx,
+        ActionCreate(
+            type="open_page",
+            element=builder_ctx["button"].id,
+            event="click",
+            navigate_to_page_id=target.id,
+            page_parameters=[{"name": "id", "value": "upper('abc')"}],
+            query_parameters=[{"name": "q", "value": "upper('def')"}],
+        ),
+    )
+
+    assert not result.get("errors")
+    assert "formula_errors" not in result
+    action = saved(result)
+    assert action.page_parameters[0]["value"]["formula"] == "upper('abc')"
+    assert action.query_parameters[0]["value"]["formula"] == "upper('def')"
+
+
+@pytest.mark.django_db
+def test_a_new_action_and_its_update_read_a_title_the_same_way(builder_ctx):
+    for title in ("upper('abc')", "Hello (world)", "'quoted'"):
+        result = create(builder_ctx, notification(builder_ctx["button"].id, title))
+        action = saved(result)
+        created = action.title["formula"]
+
+        actions.update_action(builder_ctx["ctx"], action.id, ActionChanges(title=title))
+
+        action.refresh_from_db()
+        assert action.title["formula"] == created

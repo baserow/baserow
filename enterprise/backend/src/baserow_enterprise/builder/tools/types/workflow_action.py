@@ -116,6 +116,37 @@ def _strip_formula_prefix(value: str) -> str:
     return value
 
 
+def _is_function_call(value: str | None) -> bool:
+    """Whether the whole value is one call to a function the formulas have."""
+
+    if not value or not value.strip():
+        return False
+    try:
+        expr = get_parse_tree_for_formula(value.strip()).expr()
+    except (BaserowFormulaException, RecursionError):
+        return False
+    if not isinstance(expr, BaserowFormula.FunctionCallContext):
+        return False
+    name = expr.func_name().getText().lower()
+    return name in formula_runtime_function_registry.get_types()
+
+
+def _is_text_formula(value: str | None) -> bool:
+    """
+    Whether a title, description or parameter is a formula. It also counts when the
+    whole value is a function call, since a list_actions value like ``upper('abc')``
+    is sent back.
+    """
+
+    return needs_formula(value) or _is_function_call(value)
+
+
+def _text_or_placeholder(value: str | None) -> str:
+    """The quoted text, or an empty placeholder for a formula the formula step stores."""
+
+    return EMPTY_FORMULA if _is_text_formula(value) else literal_or_placeholder(value)
+
+
 # ---------------------------------------------------------------------------
 # ORM dispatch: action_type -> kwargs builder
 # ---------------------------------------------------------------------------
@@ -124,11 +155,11 @@ def _strip_formula_prefix(value: str) -> str:
 def _notification_orm_kwargs(action: "ActionCreate") -> dict:
     return {
         "title": formula_object(
-            literal_or_placeholder(action.title),
+            _text_or_placeholder(action.title),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
         "description": formula_object(
-            literal_or_placeholder(action.description),
+            _text_or_placeholder(action.description),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
     }
@@ -142,7 +173,7 @@ def _open_page_orm_kwargs(action: "ActionCreate") -> dict:
             {
                 "name": p.name,
                 "value": formula_object(
-                    literal_or_placeholder(p.value),
+                    _text_or_placeholder(p.value),
                     mode=BASEROW_FORMULA_MODE_ADVANCED,
                 ),
             }
@@ -152,7 +183,7 @@ def _open_page_orm_kwargs(action: "ActionCreate") -> dict:
             {
                 "name": p.name,
                 "value": formula_object(
-                    literal_or_placeholder(p.value),
+                    _text_or_placeholder(p.value),
                     mode=BASEROW_FORMULA_MODE_ADVANCED,
                 ),
             }
@@ -297,10 +328,10 @@ def _open_page_formulas(action: "ActionCreate", orm_action, context) -> dict[str
 
     formulas: dict[str, str] = {}
     for i, p in enumerate(action.page_parameters or []):
-        if needs_formula(p.value):
+        if _is_text_formula(p.value):
             formulas[f"page_param_{i}"] = formula_desc(p.value)
     for i, p in enumerate(action.query_parameters or []):
-        if needs_formula(p.value):
+        if _is_text_formula(p.value):
             formulas[f"query_param_{i}"] = formula_desc(p.value)
     return formulas
 
@@ -316,7 +347,7 @@ def _notification_formulas(
             ("title", action.title),
             ("description", action.description),
         ]
-        if value and needs_formula(value)
+        if value and _is_text_formula(value)
     }
 
 
@@ -608,30 +639,6 @@ class ActionCreate(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def _is_function_call(value: str | None) -> bool:
-    """Whether the whole value is one call to a function the formulas have."""
-
-    if not value or not value.strip():
-        return False
-    try:
-        expr = get_parse_tree_for_formula(value.strip()).expr()
-    except (BaserowFormulaException, RecursionError):
-        return False
-    if not isinstance(expr, BaserowFormula.FunctionCallContext):
-        return False
-    name = expr.func_name().getText().lower()
-    return name in formula_runtime_function_registry.get_types()
-
-
-def _is_update_formula(value: str | None) -> bool:
-    """
-    Whether a value an update gives is a formula. It also counts when the whole value
-    is a function call, since a list_actions value like ``upper('abc')`` is sent back.
-    """
-
-    return needs_formula(value) or _is_function_call(value)
-
-
 def _notification_update_values(
     action: "ActionUpdate", orm_action: "BuilderWorkflowAction"
 ) -> dict[str, Any]:
@@ -641,7 +648,7 @@ def _notification_update_values(
             ("title", action.title),
             ("description", action.description),
         ]
-        if value is not None and not _is_update_formula(value)
+        if value is not None and not _is_text_formula(value)
     }
 
 
@@ -656,7 +663,7 @@ def _parameters_update_values(
             "name": param.name,
             "value": (
                 stored_values.get(param.name, _advanced(EMPTY_FORMULA))
-                if _is_update_formula(param.value)
+                if _is_text_formula(param.value)
                 else _advanced(literal_or_placeholder(param.value))
             ),
         }
@@ -723,7 +730,6 @@ class ActionUpdate(ActionCreate):
 
         return {
             **super().get_formulas_to_create(orm_action, context),
-            **self._function_call_formulas(),
             **self.get_required_formulas(),
             **{
                 f"field_{field_value.field_id}": _strip_formula_prefix(
@@ -732,27 +738,6 @@ class ActionUpdate(ActionCreate):
                 for field_value in self.field_values or []
             },
         }
-
-    def _function_call_formulas(self) -> dict[str, str]:
-        """The text values that are a whole function call, which an update keeps."""
-
-        formulas: dict[str, str] = {}
-        if self.type == "notification":
-            for name in ("title", "description"):
-                value = getattr(self, name)
-                if _is_function_call(value) and not needs_formula(value):
-                    formulas[name] = value.strip()
-        elif self.type == "open_page":
-            for field, prefix in (
-                ("page_parameters", "page_param"),
-                ("query_parameters", "query_param"),
-            ):
-                for i, param in enumerate(getattr(self, field) or []):
-                    if _is_function_call(param.value) and not needs_formula(
-                        param.value
-                    ):
-                        formulas[f"{prefix}_{i}"] = param.value.strip()
-        return formulas
 
     def update_values(
         self, orm_action: "BuilderWorkflowAction", user, workspace
