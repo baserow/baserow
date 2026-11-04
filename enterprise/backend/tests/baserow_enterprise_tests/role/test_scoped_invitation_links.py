@@ -16,6 +16,7 @@ from baserow.contrib.database.table.operations import ReadDatabaseTableOperation
 from baserow.core.actions import JoinWorkspaceViaInvitationLinkActionType
 from baserow.core.exceptions import (
     FeatureDisabledException,
+    InvalidWorkspaceRole,
     PermissionDenied,
     WorkspaceInvitationLinkDoesNotExist,
     WorkspaceInvitationLinkSignupsDisabled,
@@ -505,6 +506,89 @@ def test_manage_links_to_object_through_the_api(api_client, data_fixture):
     response = api_client.delete(item_url, HTTP_AUTHORIZATION=f"JWT {token}")
     assert response.status_code == HTTP_204_NO_CONTENT
     assert not WorkspaceInvitationLink.objects.exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "role_kind", ["NO_ACCESS", "NO_ROLE_LOW_PRIORITY", "hidden", "other_workspace"]
+)
+def test_handler_rejects_invalid_scoped_link_roles(data_fixture, role_kind):
+    """Protect internal callers and preserve the link after rejected changes."""
+
+    admin, workspace, _, table_a, _ = setup_workspace(data_fixture)
+    handler = RoleAssignmentHandler()
+    if role_kind == "hidden":
+        invalid_role = role("READ_ONLY")
+    elif role_kind == "other_workspace":
+        invalid_role = Role.objects.create(
+            uid="OTHER_WORKSPACE_ROLE",
+            name="Other workspace role",
+            workspace=data_fixture.create_workspace(),
+        )
+    else:
+        invalid_role = role(role_kind)
+
+    table_link = create_link(admin, workspace, table_a, "VIEWER", "Partners")
+
+    with pytest.raises(InvalidWorkspaceRole):
+        handler.create_scoped_invitation_link(admin, workspace, table_a, invalid_role)
+    assert list(WorkspaceInvitationLink.objects.values_list("id", flat=True)) == [
+        table_link.id
+    ]
+
+    with pytest.raises(InvalidWorkspaceRole):
+        handler.update_scoped_invitation_link(
+            admin, table_link, role=invalid_role, name="Changed"
+        )
+    table_link.refresh_from_db()
+    assert table_link.permissions == "VIEWER"
+    assert table_link.name == "Partners"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("role_uid", ["NO_ACCESS", NO_ROLE_LOW_PRIORITY_ROLE_UID])
+def test_link_api_rejects_roles_that_grant_no_access(
+    api_client, data_fixture, role_uid
+):
+    """Reject unusable link roles without creating or changing a link."""
+
+    admin, workspace, _, table_a, _ = setup_workspace(data_fixture)
+    token = data_fixture.generate_token(admin)
+    table_link = create_link(admin, workspace, table_a, "VIEWER", "Partners")
+
+    response = api_client.post(
+        reverse(
+            "api:enterprise:role:scoped_invitation_links",
+            kwargs={"workspace_id": workspace.id},
+        ),
+        {
+            "permissions": role_uid,
+            "scope_type": "database_table",
+            "scope_id": table_a.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_INVALID_WORKSPACE_ROLE"
+    assert list(WorkspaceInvitationLink.objects.values_list("id", flat=True)) == [
+        table_link.id
+    ]
+
+    response = api_client.patch(
+        reverse(
+            "api:enterprise:role:scoped_invitation_link",
+            kwargs={"invitation_link_id": table_link.id},
+        ),
+        {"permissions": role_uid, "name": "Changed"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_INVALID_WORKSPACE_ROLE"
+    table_link.refresh_from_db()
+    assert table_link.permissions == "VIEWER"
+    assert table_link.name == "Partners"
 
 
 @pytest.mark.django_db

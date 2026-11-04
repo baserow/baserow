@@ -23,6 +23,7 @@ from baserow.api.errors import (
 from baserow.api.pagination import LimitOffsetPagination
 from baserow.api.schemas import get_error_schema
 from baserow.api.serializers import get_example_pagination_serializer_class
+from baserow.api.workspaces.errors import ERROR_INVALID_WORKSPACE_ROLE
 from baserow.api.workspaces.invitation_links.errors import (
     ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST,
     ERROR_WORKSPACE_INVITATION_LINK_SIGNUPS_DISABLED,
@@ -32,6 +33,7 @@ from baserow.core.action.registries import action_type_registry
 from baserow.core.captcha.exceptions import CaptchaVerificationFailed
 from baserow.core.captcha.handler import CaptchaHandler
 from baserow.core.exceptions import (
+    InvalidWorkspaceRole,
     LastAdminOfWorkspace,
     ObjectScopeTypeDoesNotExist,
     SubjectTypeNotExist,
@@ -972,6 +974,7 @@ class ScopedInvitationLinksView(APIView):
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_WORKSPACE_INVITATION_LINK_SIGNUPS_DISABLED",
+                    "ERROR_INVALID_WORKSPACE_ROLE",
                 ]
             ),
             403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
@@ -993,6 +996,7 @@ class ScopedInvitationLinksView(APIView):
             ObjectScopeTypeDoesNotExist: ERROR_OBJECT_SCOPE_TYPE_DOES_NOT_EXIST,
             ScopeNotExist: ERROR_SCOPE_DOES_NOT_EXIST,
             RoleNotExist: ERROR_ROLE_DOES_NOT_EXIST,
+            InvalidWorkspaceRole: ERROR_INVALID_WORKSPACE_ROLE,
             WorkspaceInvitationLinkSignupsDisabled: (
                 ERROR_WORKSPACE_INVITATION_LINK_SIGNUPS_DISABLED
             ),
@@ -1039,7 +1043,11 @@ class ScopedInvitationLinkView(APIView):
         responses={
             200: ScopedInvitationLinkSerializer,
             400: get_error_schema(
-                ["ERROR_USER_NOT_IN_GROUP", "ERROR_REQUEST_BODY_VALIDATION"]
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_INVALID_WORKSPACE_ROLE",
+                ]
             ),
             404: get_error_schema(
                 [
@@ -1059,6 +1067,7 @@ class ScopedInvitationLinkView(APIView):
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             ScopeNotExist: ERROR_SCOPE_DOES_NOT_EXIST,
             RoleNotExist: ERROR_ROLE_DOES_NOT_EXIST,
+            InvalidWorkspaceRole: ERROR_INVALID_WORKSPACE_ROLE,
         }
     )
     @validate_body(UpdateScopedInvitationLinkSerializer, return_validated=True)

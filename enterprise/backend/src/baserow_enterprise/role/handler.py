@@ -17,6 +17,7 @@ from django.db.models import (
 
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import (
+    InvalidWorkspaceRole,
     PermissionDenied,
     WorkspaceInvitationLinkSignupsDisabled,
 )
@@ -2007,6 +2008,15 @@ class RoleAssignmentHandler:
             ).select_related("scope_type"),
         )
 
+    def _validate_scoped_invitation_link_role(self, role: Role, workspace: Workspace):
+        """Validate workspace availability and require a role granting scoped access."""
+
+        CoreHandler().raise_if_invalid_workspace_role(role.uid, workspace)
+        if role.uid in (NO_ACCESS_ROLE_UID, NO_ROLE_LOW_PRIORITY_ROLE_UID):
+            raise InvalidWorkspaceRole(
+                f"The role {role.uid} cannot grant access through a scoped invitation link."
+            )
+
     def create_scoped_invitation_link(
         self,
         user: AbstractUser,
@@ -2028,6 +2038,7 @@ class RoleAssignmentHandler:
         :param name: A name that reminds the admins what the link is for.
         :raises FeatureDisabledException: If invitation links aren't enabled.
         :raises ScopeNotExist: If the scope can't get a role through a link.
+        :raises InvalidWorkspaceRole: If the role is unavailable or grants no access.
         :raises PermissionDenied: If the user can't manage the roles of the scope.
         :raises WorkspaceInvitationLinkSignupsDisabled: If the instance settings
             don't let anyone sign up through the link.
@@ -2037,6 +2048,8 @@ class RoleAssignmentHandler:
         feature_flag_is_enabled(FF_RBAC_IMPROVEMENTS, raise_if_disabled=True)
 
         self.check_scoped_invitation_permissions(user, workspace, scope)
+
+        self._validate_scoped_invitation_link_role(role, workspace)
 
         if not CoreHandler().invitation_link_signups_allowed():
             raise WorkspaceInvitationLinkSignupsDisabled(
@@ -2067,6 +2080,7 @@ class RoleAssignmentHandler:
         :param role: The new role of the link, if it changes.
         :param name: The new name of the link, if it changes.
         :raises ScopeNotExist: If the scope was deleted or trashed in the meantime.
+        :raises InvalidWorkspaceRole: If the role is unavailable or grants no access.
         :raises PermissionDenied: If the user can't manage the roles of the scope.
         :return: The updated invitation link.
         """
@@ -2076,6 +2090,7 @@ class RoleAssignmentHandler:
 
         update_fields = ["updated_on"]
         if role is not None:
+            self._validate_scoped_invitation_link_role(role, invitation_link.workspace)
             invitation_link.permissions = role.uid
             update_fields.append("permissions")
         if name is not None:
