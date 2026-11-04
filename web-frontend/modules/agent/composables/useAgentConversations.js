@@ -6,6 +6,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import { isTerminalStatus } from '@baserow/modules/core/chatRuns/constants'
 import { AGENT_RUN_TYPE } from '@baserow/modules/agent/chatRunTypes'
 import AgentApplicationService from '@baserow/modules/agent/services/agentApplication'
+import { API_ERROR_CODE } from '@baserow/modules/agent/constants'
 
 const byNewest = (a, b) => Date.parse(b.updated_on) - Date.parse(a.updated_on)
 
@@ -30,16 +31,16 @@ function mergeMessages(...pages) {
 }
 
 const REJECTED_MESSAGE_ERRORS = [
-  'ERROR_AGENT_NOT_READY',
-  'ERROR_REQUEST_BODY_VALIDATION',
-  'ERROR_CHAT_RUN_IN_PROGRESS',
-  'ERROR_AGENT_BUSY',
+  API_ERROR_CODE.AGENT_NOT_READY,
+  API_ERROR_CODE.REQUEST_BODY_VALIDATION,
+  API_ERROR_CODE.CHAT_RUN_IN_PROGRESS,
+  API_ERROR_CODE.AGENT_BUSY,
 ]
 
 const SEND_ERRORS = {
-  ERROR_AGENT_MESSAGE_CONFLICT: 'agent.messageConflict',
-  ERROR_CHAT_RUN_IN_PROGRESS: 'agent.replyInProgress',
-  ERROR_AGENT_BUSY: 'agent.agentsBusy',
+  [API_ERROR_CODE.AGENT_MESSAGE_CONFLICT]: 'agent.messageConflict',
+  [API_ERROR_CODE.CHAT_RUN_IN_PROGRESS]: 'agent.replyInProgress',
+  [API_ERROR_CODE.AGENT_BUSY]: 'agent.agentsBusy',
 }
 
 /** Page-local private conversations, gated by the Agent configuration. */
@@ -109,7 +110,8 @@ export function useAgentConversations(agent, configuration) {
   // A refusal expires with the running reply, including in an inactive chat.
   const sendError = computed(() => {
     const error = currentDraft.value?.error || null
-    return error === 'agent.replyInProgress' && !replyFollower.value
+    return error === SEND_ERRORS[API_ERROR_CODE.CHAT_RUN_IN_PROGRESS] &&
+      !replyFollower.value
       ? null
       : error
   })
@@ -441,10 +443,10 @@ export function useAgentConversations(agent, configuration) {
       draft.error = SEND_ERRORS[code] || 'agent.messageSaveError'
       // The server rejected the message outright, so it can be edited and resent.
       if (REJECTED_MESSAGE_ERRORS.includes(code)) draft.submission = null
-      if (code === 'ERROR_AGENT_NOT_READY') {
+      if (code === API_ERROR_CODE.AGENT_NOT_READY) {
         await configuration.refreshConfiguration()
       }
-      if (code === 'ERROR_CHAT_RUN_IN_PROGRESS' && !conversation.local) {
+      if (code === API_ERROR_CODE.CHAT_RUN_IN_PROGRESS && !conversation.local) {
         await refreshMessages(conversationUuid)
       }
     } finally {

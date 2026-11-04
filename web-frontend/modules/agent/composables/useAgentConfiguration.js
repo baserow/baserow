@@ -8,9 +8,20 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import ApplicationService from '@baserow/modules/core/services/application'
 import AgentApplicationService from '@baserow/modules/agent/services/agentApplication'
 import { selectAgentApplication } from '@baserow/modules/agent/middleware/selectAgentApplication'
+import {
+  AGENT_READINESS,
+  CONFIGURATION_ERROR,
+  CONFIGURATION_FIELD,
+  CONFIGURATION_SAVE_RESULT,
+  API_ERROR_CODE,
+} from '@baserow/modules/agent/constants'
 
-const REQUIRED_FIELDS = ['instructions', 'provider_type', 'model_identifier']
-const CONFIGURATION_FIELDS = [...REQUIRED_FIELDS, 'run_as']
+const REQUIRED_FIELDS = [
+  CONFIGURATION_FIELD.INSTRUCTIONS,
+  CONFIGURATION_FIELD.PROVIDER_TYPE,
+  CONFIGURATION_FIELD.MODEL_IDENTIFIER,
+]
+const CONFIGURATION_FIELDS = [...REQUIRED_FIELDS, CONFIGURATION_FIELD.RUN_AS]
 
 const emptyConfiguration = () => ({
   instructions: '',
@@ -21,7 +32,9 @@ const emptyConfiguration = () => ({
 
 /** Identities are equal by type and id, other values by identity. */
 const isSameValue = (field, a, b) =>
-  field === 'run_as' ? a?.type === b?.type && a?.id === b?.id : a === b
+  field === CONFIGURATION_FIELD.RUN_AS
+    ? a?.type === b?.type && a?.id === b?.id
+    : a === b
 
 /** Page-local Agent configuration, kept out of the shared application store. */
 export function useAgentConfiguration(agent) {
@@ -47,11 +60,11 @@ export function useAgentConfiguration(agent) {
   const readiness = computed(() => {
     if (canReadConfiguration.value && savedConfiguration.value) {
       const errors = Object.values(fieldErrors.value)
-      return errors.includes('required')
-        ? 'incomplete'
+      return errors.includes(CONFIGURATION_ERROR.REQUIRED)
+        ? AGENT_READINESS.INCOMPLETE
         : errors.length
-          ? 'unavailable'
-          : 'ready'
+          ? AGENT_READINESS.UNAVAILABLE
+          : AGENT_READINESS.READY
     }
     return agent.value?.readiness ?? null
   })
@@ -97,34 +110,35 @@ export function useAgentConfiguration(agent) {
     const errors = {}
     for (const field of REQUIRED_FIELDS) {
       if (!(configuration[field] || '').trim()) {
-        errors[field] = 'required'
+        errors[field] = CONFIGURATION_ERROR.REQUIRED
       } else if (
-        configurationErrors.value[field] === 'unavailable' &&
+        configurationErrors.value[field] === CONFIGURATION_ERROR.UNAVAILABLE &&
         configuration[field] === saved[field] &&
-        (field !== 'model_identifier' ||
+        (field !== CONFIGURATION_FIELD.MODEL_IDENTIFIER ||
           configuration.provider_type === saved.provider_type)
       ) {
         // The backend's error outranks an older cached model list.
-        errors[field] = 'unavailable'
+        errors[field] = CONFIGURATION_ERROR.UNAVAILABLE
       }
     }
     if (!availabilityLoading.value && !availabilityError.value) {
       const provider = configuration.provider_type
       const models = enabledModels.value[provider] || []
-      if (provider && !models.length) errors.provider_type = 'unavailable'
+      if (provider && !models.length)
+        errors.provider_type = CONFIGURATION_ERROR.UNAVAILABLE
       if (
         provider &&
         configuration.model_identifier &&
         !models.includes(configuration.model_identifier)
       ) {
-        errors.model_identifier = 'unavailable'
+        errors.model_identifier = CONFIGURATION_ERROR.UNAVAILABLE
       }
     }
     return errors
   })
   const readyToSend = computed(
     () =>
-      readiness.value === 'ready' &&
+      readiness.value === AGENT_READINESS.READY &&
       !readinessError.value &&
       !availabilityLoading.value &&
       !availabilityError.value &&
@@ -236,7 +250,10 @@ export function useAgentConfiguration(agent) {
       CONFIGURATION_FIELDS.map((field) => [field, data[field]])
     )
     savedConfiguration.value = saved
-    const modelFields = ['provider_type', 'model_identifier']
+    const modelFields = [
+      CONFIGURATION_FIELD.PROVIDER_TYPE,
+      CONFIGURATION_FIELD.MODEL_IDENTIFIER,
+    ]
     if (modelFields.some((field) => field in pendingConfiguration)) {
       // A model selection belongs to its provider. Preserve the whole selection
       // when a remote update changes either half while a local edit is pending.
@@ -296,7 +313,10 @@ export function useAgentConfiguration(agent) {
     for (const [field, value] of Object.entries(values)) {
       if (!CONFIGURATION_FIELDS.includes(field)) continue
       const normalized =
-        ['provider_type', 'model_identifier'].includes(field) && !value
+        [
+          CONFIGURATION_FIELD.PROVIDER_TYPE,
+          CONFIGURATION_FIELD.MODEL_IDENTIFIER,
+        ].includes(field) && !value
           ? null
           : value
       configuration[field] = normalized
@@ -345,12 +365,18 @@ export function useAgentConfiguration(agent) {
         if (scopeIsCurrent(currentScope) && canReadConfiguration.value) {
           if (
             error.response?.data?.error ===
-              'ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST' &&
-            Object.hasOwn(values, 'run_as')
+              API_ERROR_CODE.AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST &&
+            Object.hasOwn(values, CONFIGURATION_FIELD.RUN_AS)
           ) {
             // A domain rejection confirms that none of this PATCH was saved.
             // Roll back only that submitted choice; newer edits remain pending.
-            if (isSameValue('run_as', configuration.run_as, values.run_as)) {
+            if (
+              isSameValue(
+                CONFIGURATION_FIELD.RUN_AS,
+                configuration.run_as,
+                values.run_as
+              )
+            ) {
               configuration.run_as = savedConfiguration.value?.run_as ?? null
               delete pendingConfiguration.run_as
               store.dispatch('toast/error', {
@@ -361,7 +387,7 @@ export function useAgentConfiguration(agent) {
             rejectedIdentity = true
             refreshPending = true
             refreshPendingRecovery = true
-            return 'rejected_identity'
+            return CONFIGURATION_SAVE_RESULT.REJECTED_IDENTITY
           }
           configurationSaveError.value = true
         }
@@ -383,7 +409,10 @@ export function useAgentConfiguration(agent) {
         }
       }
     })().then((result) => {
-      if (result === 'rejected_identity' && scopeIsCurrent(currentScope)) {
+      if (
+        result === CONFIGURATION_SAVE_RESULT.REJECTED_IDENTITY &&
+        scopeIsCurrent(currentScope)
+      ) {
         // Other fields in the rejected PATCH still need saving. Do not make the
         // user retry them together with a selection the server has refused.
         return hasPendingConfiguration.value ? saveConfiguration() : false

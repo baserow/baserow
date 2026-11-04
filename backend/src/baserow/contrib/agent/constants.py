@@ -1,5 +1,22 @@
 from enum import StrEnum
 
+from baserow.core.agents.subjects import AgentSubjectType
+
+
+class AgentReadinessState(StrEnum):
+    """Whether an Agent's required configuration allows it to reply."""
+
+    READY = "ready"
+    INCOMPLETE = "incomplete"
+    UNAVAILABLE = "unavailable"
+
+
+class AgentConfigurationErrorCode(StrEnum):
+    """Why a configuration field prevents an Agent from being ready."""
+
+    REQUIRED = "required"
+    UNAVAILABLE = "unavailable"
+
 
 class AgentRunAsState(StrEnum):
     """Availability of an Agent's configured workspace identity."""
@@ -11,7 +28,7 @@ class AgentRunAsState(StrEnum):
 
 
 AGENT_RUN_TYPE = "agent"
-RUN_AS_SUBJECT_TYPES = ["core.Agent"]
+RUN_AS_SUBJECT_TYPES = [AgentSubjectType.type]
 HISTORY_MESSAGE_LIMIT = 20
 REPLY_REQUEST_LIMIT = 3
 AGENT_NOT_READY = "not_ready"

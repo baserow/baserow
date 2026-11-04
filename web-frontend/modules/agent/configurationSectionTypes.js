@@ -4,7 +4,10 @@ import AgentInstructionsSection from '@baserow/modules/agent/components/configur
 import AgentSettingsSection from '@baserow/modules/agent/components/configuration/AgentSettingsSection'
 import AgentWorkspaceAccessSection from '@baserow/modules/agent/components/configuration/AgentWorkspaceAccessSection'
 import { getRunAsStatus } from '@baserow/modules/agent/utils/runAs'
-import { RUN_AS_STATUS } from '@baserow/modules/agent/constants'
+import {
+  CONFIGURATION_ERROR,
+  RUN_AS_STATUS,
+} from '@baserow/modules/agent/constants'
 
 const InstructionsSection = markRaw(AgentInstructionsSection)
 const SettingsSection = markRaw(AgentSettingsSection)
@@ -45,7 +48,8 @@ export class AgentConfigurationSectionType extends Registerable {
   getFieldErrorMessage(field, error) {
     if (!error) return ''
     return this.$t(
-      error === 'unavailable' && this.fields[field]?.unavailableMessage
+      error === CONFIGURATION_ERROR.UNAVAILABLE &&
+        this.fields[field]?.unavailableMessage
         ? this.fields[field].unavailableMessage
         : 'error.requiredField'
     )

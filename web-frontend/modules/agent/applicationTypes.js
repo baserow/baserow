@@ -1,3 +1,4 @@
+import { AGENT_APPLICATION_TYPE } from '@baserow/modules/agent/constants'
 import { ApplicationType } from '@baserow/modules/core/applicationTypes'
 import AgentApplicationContext from '@baserow/modules/agent/components/AgentApplicationContext'
 import AgentApplicationForm from '@baserow/modules/agent/components/AgentApplicationForm'
@@ -6,7 +7,7 @@ import { FF_AGENT_BUILDER } from '@baserow/modules/core/plugins/featureFlags'
 
 export class AgentApplicationType extends ApplicationType {
   static getType() {
-    return 'agent'
+    return AGENT_APPLICATION_TYPE
   }
 
   getIconClass() {

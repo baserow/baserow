@@ -23,6 +23,8 @@ from .constants import (
     AGENT_RUN_TYPE,
     HISTORY_MESSAGE_LIMIT,
     RUN_AS_SUBJECT_TYPES,
+    AgentConfigurationErrorCode,
+    AgentReadinessState,
     AgentRunAsState,
 )
 from .exceptions import (
@@ -35,7 +37,6 @@ from .types import (
     AgentConfiguration,
     AgentConfigurationUpdated,
     AgentMessageCreated,
-    AgentReadinessState,
     AgentReplyRequest,
     AgentRunAsResolution,
 )
@@ -99,7 +100,7 @@ class AgentHandler:
         self,
         agent: AgentApplication,
         provider_state: ScopedAIProviderState | None = None,
-    ) -> tuple[AgentReadinessState, dict[str, str]]:
+    ) -> tuple[AgentReadinessState, dict[str, AgentConfigurationErrorCode]]:
         """
         Evaluate chat readiness without resolving the optional workspace identity.
 
@@ -111,7 +112,7 @@ class AgentHandler:
         errors = {}
         for field in self.configuration_fields:
             if not (getattr(agent, field) or "").strip():
-                errors[field] = "required"
+                errors[field] = AgentConfigurationErrorCode.REQUIRED
 
         models = generative_ai_model_type_registry.get_enabled_models_per_type(
             agent.workspace,
@@ -120,18 +121,18 @@ class AgentHandler:
         )
         if agent.provider_type:
             if agent.provider_type not in models:
-                errors["provider_type"] = "unavailable"
+                errors["provider_type"] = AgentConfigurationErrorCode.UNAVAILABLE
             if agent.model_identifier and agent.model_identifier not in models.get(
                 agent.provider_type, []
             ):
-                errors["model_identifier"] = "unavailable"
+                errors["model_identifier"] = AgentConfigurationErrorCode.UNAVAILABLE
 
-        if "required" in errors.values():
-            readiness = "incomplete"
+        if AgentConfigurationErrorCode.REQUIRED in errors.values():
+            readiness = AgentReadinessState.INCOMPLETE
         elif errors:
-            readiness = "unavailable"
+            readiness = AgentReadinessState.UNAVAILABLE
         else:
-            readiness = "ready"
+            readiness = AgentReadinessState.READY
         return readiness, errors
 
     def get_run_as_subject(

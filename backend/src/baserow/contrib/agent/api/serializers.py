@@ -1,4 +1,3 @@
-from typing import get_args
 from uuid import UUID
 
 from drf_spectacular.utils import extend_schema_field
@@ -6,17 +5,22 @@ from rest_framework import serializers
 
 from baserow.api.mixins import UnknownFieldRaisesExceptionSerializerMixin
 from baserow.api.pagination import PageNumberPagination
-from baserow.contrib.agent.constants import RUN_AS_SUBJECT_TYPES, AgentRunAsState
+from baserow.contrib.agent.constants import (
+    RUN_AS_SUBJECT_TYPES,
+    AgentConfigurationErrorCode,
+    AgentReadinessState,
+    AgentRunAsState,
+)
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import (
     AgentApplication,
     AgentConversation,
     AgentMessage,
 )
-from baserow.contrib.agent.types import AgentConfiguration, AgentReadinessState
+from baserow.contrib.agent.types import AgentConfiguration
 from baserow.contrib.agent.validators import AGENT_TEXT_MAX_LENGTH
 
-READINESS_CHOICES = get_args(AgentReadinessState)
+READINESS_CHOICES = [state.value for state in AgentReadinessState]
 
 
 class AgentApplicationSerializer(serializers.ModelSerializer):
@@ -77,7 +81,9 @@ class AgentConfigurationSerializer(serializers.Serializer):
         "Null means no workspace access was selected."
     )
     errors = serializers.DictField(
-        child=serializers.ChoiceField(choices=["required", "unavailable"])
+        child=serializers.ChoiceField(
+            choices=[error.value for error in AgentConfigurationErrorCode]
+        )
     )
 
     @extend_schema_field(AgentRunAsSerializer(allow_null=True))

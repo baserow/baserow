@@ -11,6 +11,7 @@ from baserow.contrib.agent.models import AgentApplication, AgentConversation
 from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
 from baserow.contrib.agent.signals import agent_conversation_updated
 from baserow.core.agents.signals import agent_created, agent_deleted, agent_updated
+from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.models import Agent
 from baserow.core.trash.signals import permanently_deleted
 from baserow.ws.tasks import broadcast_to_permitted_users, broadcast_to_users
@@ -41,7 +42,7 @@ def _invalidate_run_as_options(workspace_id: int, identity_id: int) -> None:
                 "type": "agent_run_as_updated",
                 "agent_id": application_id,
                 "selected_identity_changed": (
-                    subject_type == "core.Agent" and subject_id == identity_id
+                    subject_type == AgentSubjectType.type and subject_id == identity_id
                 ),
             },
         )

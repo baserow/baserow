@@ -1,14 +1,11 @@
 from dataclasses import dataclass
-from typing import Literal
 from uuid import UUID
 
 from baserow.core.models import Workspace
 from baserow.core.types import Subject
 
-from .constants import AgentRunAsState
+from .constants import AgentConfigurationErrorCode, AgentReadinessState, AgentRunAsState
 from .models import AgentApplication, AgentConversation, AgentMessage
-
-AgentReadinessState = Literal["ready", "incomplete", "unavailable"]
 
 
 @dataclass(frozen=True)
@@ -31,7 +28,7 @@ class AgentConfiguration:
     provider_type: str | None
     model_identifier: str | None
     run_as: AgentRunAsResolution
-    errors: dict[str, str]
+    errors: dict[str, AgentConfigurationErrorCode]
 
 
 @dataclass

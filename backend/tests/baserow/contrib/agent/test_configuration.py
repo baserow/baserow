@@ -8,7 +8,11 @@ from baserow.api.applications.serializers import (
 )
 from baserow.contrib.agent.actions import UpdateAgentConfigurationActionType
 from baserow.contrib.agent.api.serializers import AgentConfigurationSerializer
-from baserow.contrib.agent.constants import AgentRunAsState
+from baserow.contrib.agent.constants import (
+    AgentConfigurationErrorCode,
+    AgentReadinessState,
+    AgentRunAsState,
+)
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.types import AgentConfiguration
 from baserow.core.ai_provider.resolution import (
@@ -24,18 +28,29 @@ from .utils import agent_url
 @pytest.mark.parametrize(
     "values,readiness,errors",
     [
-        ({}, "ready", {}),
-        ({"instructions": " "}, "incomplete", {"instructions": "required"}),
-        ({"provider_type": None}, "incomplete", {"provider_type": "required"}),
+        ({}, AgentReadinessState.READY, {}),
+        (
+            {"instructions": " "},
+            AgentReadinessState.INCOMPLETE,
+            {"instructions": AgentConfigurationErrorCode.REQUIRED},
+        ),
+        (
+            {"provider_type": None},
+            AgentReadinessState.INCOMPLETE,
+            {"provider_type": AgentConfigurationErrorCode.REQUIRED},
+        ),
         (
             {"model_identifier": "other-model"},
-            "unavailable",
-            {"model_identifier": "unavailable"},
+            AgentReadinessState.UNAVAILABLE,
+            {"model_identifier": AgentConfigurationErrorCode.UNAVAILABLE},
         ),
         (
             {"provider_type": "anthropic"},
-            "unavailable",
-            {"provider_type": "unavailable", "model_identifier": "unavailable"},
+            AgentReadinessState.UNAVAILABLE,
+            {
+                "provider_type": AgentConfigurationErrorCode.UNAVAILABLE,
+                "model_identifier": AgentConfigurationErrorCode.UNAVAILABLE,
+            },
         ),
     ],
 )
@@ -46,9 +61,11 @@ def test_configuration_reports_missing_and_unavailable_fields(
 
     assert isinstance(configuration, AgentConfiguration)
     assert configuration.run_as.status is AgentRunAsState.UNSET
-    assert (configuration.readiness, configuration.errors) == (
-        readiness,
-        errors,
+    assert configuration.readiness is readiness
+    assert configuration.errors == errors
+    assert all(
+        isinstance(error, AgentConfigurationErrorCode)
+        for error in configuration.errors.values()
     )
 
 

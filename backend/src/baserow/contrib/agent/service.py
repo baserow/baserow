@@ -12,7 +12,7 @@ from baserow.core.signals import application_updated
 from baserow.core.subject_options import SubjectOptionsHandler
 from baserow.core.types import PermissionCheck
 
-from .constants import RUN_AS_SUBJECT_TYPES
+from .constants import RUN_AS_SUBJECT_TYPES, AgentReadinessState
 from .exceptions import AgentNotReady
 from .handler import AgentHandler
 from .models import AgentApplication, AgentConversation, AgentMessage
@@ -170,7 +170,7 @@ class AgentService:
         """Reject new content without leaking privileged setting diagnostics."""
 
         readiness, _ = self.handler.get_configuration_readiness(agent)
-        if readiness != "ready":
+        if readiness != AgentReadinessState.READY:
             raise AgentNotReady
 
     def can_read_conversation(self, user: AbstractUser, conversation_id: int) -> bool:

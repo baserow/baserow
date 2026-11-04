@@ -1,3 +1,4 @@
+import { AGENT_APPLICATION_TYPE } from '@baserow/modules/agent/constants'
 import { isSecureURL } from '@baserow/modules/core/utils/string'
 import { logoutAndRedirectToLogin } from '@baserow/modules/core/utils/auth'
 import {
@@ -875,7 +876,7 @@ export class RealTimeHandler {
 
     this.registerEvent('agent_run_as_updated', ({ store }, data) => {
       const application = store.getters['application/get'](data.agent_id)
-      if (application?.type !== 'agent') return
+      if (application?.type !== AGENT_APPLICATION_TYPE) return
       store.dispatch('application/forceUpdate', {
         application,
         data: {

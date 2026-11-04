@@ -110,14 +110,14 @@
             <p>{{ $t(warningMessage) }}</p>
             <template v-if="warningAction" #actions>
               <Button
-                v-if="warningAction === 'reload'"
+                v-if="warningAction === WARNING_ACTION.RELOAD"
                 type="secondary"
                 size="small"
                 @click="state.refreshConfiguration"
                 >{{ $t('action.retry') }}</Button
               >
               <Button
-                v-else-if="warningAction === 'save'"
+                v-else-if="warningAction === WARNING_ACTION.SAVE"
                 type="secondary"
                 size="small"
                 @click="state.saveConfiguration"
@@ -200,6 +200,16 @@ import AgentConfigurationSidebar from '@baserow/modules/agent/components/AgentCo
 import { useAgentConfiguration } from '@baserow/modules/agent/composables/useAgentConfiguration'
 import { useAgentConversations } from '@baserow/modules/agent/composables/useAgentConversations'
 import { replyOutcome } from '@baserow/modules/agent/utils/replies'
+import {
+  AGENT_READINESS,
+  CONFIGURATION_ERROR,
+} from '@baserow/modules/agent/constants'
+
+const WARNING_ACTION = Object.freeze({
+  RELOAD: 'reload',
+  SAVE: 'save',
+  FIELDS: 'fields',
+})
 
 const props = defineProps({ agent: { type: Object, required: true } })
 const agent = toRef(props, 'agent')
@@ -296,19 +306,21 @@ const showConfigurationWarning = computed(() =>
     (state.canReadConfiguration &&
       (state.configurationSaveError ||
         (!state.configurationLoading && warningFields.value.length))) ||
-    ['incomplete', 'unavailable'].includes(state.readiness)
+    [AGENT_READINESS.INCOMPLETE, AGENT_READINESS.UNAVAILABLE].includes(
+      state.readiness
+    )
   )
 )
 const warningAction = computed(() => {
-  if (hasLoadError.value) return 'reload'
+  if (hasLoadError.value) return WARNING_ACTION.RELOAD
   if (!state.canUpdateConfiguration) return null
-  if (warningFields.value.length) return 'fields'
-  return state.configurationSaveError ? 'save' : null
+  if (warningFields.value.length) return WARNING_ACTION.FIELDS
+  return state.configurationSaveError ? WARNING_ACTION.SAVE : null
 })
 // Transient requests only block sending, so saving never moves the chat.
 const canCompose = computed(
   () =>
-    state.readiness === 'ready' &&
+    state.readiness === AGENT_READINESS.READY &&
     !showConfigurationWarning.value &&
     state.canWriteSelected
 )
@@ -324,8 +336,8 @@ const warningMessage = computed(() =>
   hasLoadError.value
     ? 'agent.readinessRetry'
     : state.canUpdateConfiguration
-      ? state.readiness === 'unavailable' ||
-        state.fieldErrors.model_identifier === 'unavailable'
+      ? state.readiness === AGENT_READINESS.UNAVAILABLE ||
+        state.fieldErrors.model_identifier === CONFIGURATION_ERROR.UNAVAILABLE
         ? 'agent.modelUnavailable'
         : 'agent.completeConfiguration'
       : 'agent.configurationPermissionRequired'
