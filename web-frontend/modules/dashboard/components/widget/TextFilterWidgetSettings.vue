@@ -129,29 +129,59 @@
           :show-icon="false"
           role="button"
           class="dashboard-widget-filter-target"
+          :class="{
+            'dashboard-widget-filter-target--disabled': !targetEnabled(
+              candidate.id
+            ),
+          }"
           @click="openFilters(candidate)"
         >
           <template #meta>
             <span
               :class="{
                 'dashboard-widget-filter-target__pending':
-                  !conditionCount(candidate.id) || !canFilter(candidate),
+                  targetEnabled(candidate.id) &&
+                  (!conditionCount(candidate.id) || !canFilter(candidate)),
               }"
             >
               {{
-                !canFilter(candidate)
-                  ? unavailableTargetReason(candidate)
-                  : conditionCount(candidate.id)
-                    ? $t(
-                        'textFilterWidget.conditionCount',
-                        { count: conditionCount(candidate.id) },
-                        conditionCount(candidate.id)
-                      )
-                    : $t('textFilterWidget.setUpConditions')
+                !targetEnabled(candidate.id)
+                  ? $t('textFilterWidget.targetDisabled')
+                  : !canFilter(candidate)
+                    ? unavailableTargetReason(candidate)
+                    : conditionCount(candidate.id)
+                      ? $t(
+                          'textFilterWidget.conditionCount',
+                          { count: conditionCount(candidate.id) },
+                          conditionCount(candidate.id)
+                        )
+                      : $t('textFilterWidget.setUpConditions')
               }}
             </span>
           </template>
           <template #actions>
+            <SwitchInput
+              small
+              :model-value="targetEnabled(candidate.id)"
+              :disabled="targetsSaving"
+              role="switch"
+              tabindex="0"
+              :aria-checked="targetEnabled(candidate.id)"
+              :aria-disabled="targetsSaving"
+              :aria-label="
+                $t('textFilterWidget.applyToWidget', {
+                  widget: candidate.title,
+                })
+              "
+              @click.stop
+              @update:model-value="setTargetEnabled(candidate.id, $event)"
+              @keydown.space.stop.prevent="
+                setTargetEnabled(candidate.id, !targetEnabled(candidate.id))
+              "
+              @keydown.enter.stop.prevent="
+                setTargetEnabled(candidate.id, !targetEnabled(candidate.id))
+              "
+            />
             <i
               class="iconoir-nav-arrow-right dashboard-widget-filter-target__chevron"
             />
@@ -380,6 +410,23 @@ const linkedTargets = computed(() =>
 const availableTargets = computed(() =>
   targets.value.filter((widget) => !configured(widget.id))
 )
+const targetEnabled = (id) =>
+  props.widget.target_filters?.find((link) => link.target_widget_id === id)
+    ?.enabled !== false
+async function setTargetEnabled(id, enabled) {
+  if (targetsSaving.value) return
+  targetsSaving.value = true
+  try {
+    await updateSetting(
+      'target_filters',
+      (props.widget.target_filters || []).map((link) =>
+        link.target_widget_id === id ? { ...link, enabled } : link
+      )
+    )
+  } finally {
+    targetsSaving.value = false
+  }
+}
 const conditionCount = (id) => {
   const contribution = props.widget.target_filters?.find(
     (link) => link.target_widget_id === id

@@ -91,6 +91,52 @@ def filter_dashboard(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("public", [False, True])
+@pytest.mark.parametrize("value,enabled_result", [("Alpha", "10"), ("", "20")])
+def test_disable_target_preserves_conditions(
+    api_client, filter_dashboard, public, value, enabled_result
+):
+    from copy import deepcopy
+
+    _, token, dashboard, source, widget, _ = filter_dashboard
+    link = widget.target_filters[0]
+    link["empty_behavior"] = "apply_alternative"
+    link["alternative_group"] = deepcopy(link["group"])
+    link["alternative_group"]["filters"][0]["value"] = BaserowFormulaObject.create(
+        "Beta", mode="raw"
+    )
+    original = deepcopy(link)
+    dispatch_url = reverse(
+        "api:dashboard:public:data_source_dispatch"
+        if public
+        else "api:dashboard:data_sources:dispatch",
+        kwargs={"slug": dashboard.slug, "data_source_id": source.id}
+        if public
+        else {"data_source_id": source.id},
+    )
+    for enabled, expected in [(False, "70"), (True, enabled_result)]:
+        link["enabled"] = enabled
+        response = api_client.patch(
+            reverse("api:dashboard:widgets:item", kwargs={"widget_id": widget.id}),
+            {"type": "text_filter", "target_filters": [link]},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == 200, response.json()
+        widget.refresh_from_db()
+        assert widget.target_filters == [{**original, "enabled": enabled}]
+        response = api_client.post(
+            dispatch_url,
+            {"widget_data": {str(widget.id): value}},
+            format="json",
+            **({} if public else {"HTTP_AUTHORIZATION": f"JWT {token}"}),
+        )
+        assert response.status_code == 200, response.json()
+        assert response.json()["result"] == expected
+        assert response.json().get("_is_filtered", False) is enabled
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("mode", ["input", "dropdown"])
 @pytest.mark.parametrize(
     "public,password", [(False, False), (True, False), (True, True)]
@@ -449,14 +495,16 @@ def test_permanent_and_contributed_groups(
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "invalid",
-    ["foreign", "duplicate", "field", "cycle", "empty_behavior"],
+    ["foreign", "duplicate", "field", "cycle", "empty_behavior", "enabled"],
 )
 def test_invalid_target_configuration(data_fixture, filter_dashboard, invalid):
     from rest_framework.exceptions import ValidationError
 
     _, _, dashboard, source, widget, condition = filter_dashboard
     link = widget.target_filters[0]
-    if invalid == "empty_behavior":
+    if invalid == "enabled":
+        link["enabled"] = "false"
+    elif invalid == "empty_behavior":
         link["empty_behavior"] = "apply_group"
     elif invalid == "foreign":
         link["target_widget_id"] = data_fixture.create_summary_widget().id
@@ -476,8 +524,11 @@ def test_invalid_target_configuration(data_fixture, filter_dashboard, invalid):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("deferred", [False, True])
-def test_target_import(filter_dashboard, deferred, monkeypatch):
+@pytest.mark.parametrize("enabled", [True, False])
+def test_target_import(filter_dashboard, deferred, enabled, monkeypatch):
     _, _, dashboard, source, widget, _ = filter_dashboard
+    widget.target_filters[0]["enabled"] = enabled
+    widget.save()
     app_type = DashboardApplicationType()
     config = ImportExportConfig(include_permission_data=True)
     mapping = {}
@@ -534,6 +585,7 @@ def test_target_import(filter_dashboard, deferred, monkeypatch):
     assert finalized_sources == [copied_target.data_source.service_id]
     assert copied_target.data_source.service.sample_data == {"finalized": True}
     assert copied_widget.target_filters[0]["target_widget_id"] == copied_target.id
+    assert copied_widget.target_filters[0]["enabled"] is enabled
     assert (
         str(copied_widget.id)
         in copied_widget.target_filters[0]["group"]["filters"][0]["value"]["formula"]
@@ -541,8 +593,11 @@ def test_target_import(filter_dashboard, deferred, monkeypatch):
 
 
 @pytest.mark.django_db
-def test_public_configuration_privacy(api_client, filter_dashboard):
+@pytest.mark.parametrize("enabled", [True, False])
+def test_public_configuration_privacy(api_client, filter_dashboard, enabled):
     _, _, dashboard, source, widget, _ = filter_dashboard
+    widget.target_filters[0]["enabled"] = enabled
+    widget.save()
     response = api_client.get(
         reverse("api:dashboard:public:info", kwargs={"slug": dashboard.slug})
     )
@@ -551,9 +606,9 @@ def test_public_configuration_privacy(api_client, filter_dashboard):
     public_input = next(
         item for item in response.json()["widgets"] if item["id"] == widget.id
     )
-    assert public_input["target_widget_ids"] == [
-        widget.target_filters[0]["target_widget_id"]
-    ]
+    assert public_input["target_widget_ids"] == (
+        [widget.target_filters[0]["target_widget_id"]] if enabled else []
+    )
     assert "filters" not in response.json()["data_sources"][0]
     for item in response.json()["widgets"]:
         assert "target_filters" not in item
@@ -724,7 +779,8 @@ def test_import_remaps_contributed_fields_and_results(data_fixture, filter_dashb
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
-def test_contribution_update_undo_redo(filter_dashboard):
+@pytest.mark.parametrize("disable", [False, True])
+def test_contribution_update_undo_redo(filter_dashboard, disable):
     from baserow.api.sessions import set_untrusted_client_session_id
     from baserow.contrib.dashboard.widgets.actions import UpdateWidgetActionType
     from baserow.core.action.handler import ActionHandler
@@ -732,22 +788,28 @@ def test_contribution_update_undo_redo(filter_dashboard):
 
     user, _, dashboard, source, widget, condition = filter_dashboard
     set_untrusted_client_session_id(user, "contribution-update")
-    condition["value"] = BaserowFormulaObject.create("Beta", mode="raw")
+    if disable:
+        widget.target_filters[0]["enabled"] = False
+    else:
+        condition["value"] = BaserowFormulaObject.create("Beta", mode="raw")
     UpdateWidgetActionType.do(
         user, widget.id, "text_filter", {"target_filters": widget.target_filters}
     )
     scopes = [ApplicationActionScopeType.value(application_id=dashboard.id)]
     for operation, expected in [
-        (None, "20"),
+        (None, "70" if disable else "20"),
         (ActionHandler.undo, "10"),
-        (ActionHandler.redo, "20"),
+        (ActionHandler.redo, "70" if disable else "20"),
     ]:
         if operation:
             actions = operation(user, scopes, "contribution-update")
             assert actions and not actions[0].error
         assert DashboardDataSourceHandler().dispatch_data_source(
             source, DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
-        ) == {"result": expected, "_is_filtered": True}
+        ) == {
+            "result": expected,
+            **({"_is_filtered": True} if expected != "70" else {}),
+        }
 
 
 @pytest.mark.django_db

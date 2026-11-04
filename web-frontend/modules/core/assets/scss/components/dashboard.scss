@@ -337,6 +337,13 @@ $dashboard-resources-row-min-width: 1044px;
   }
 }
 
+.dashboard-widget-filter-target--disabled {
+  .item-card__name,
+  .item-card__meta {
+    color: $palette-neutral-700;
+  }
+}
+
 .dashboard-widget-filter-target__chevron {
   color: $palette-neutral-700;
 }
