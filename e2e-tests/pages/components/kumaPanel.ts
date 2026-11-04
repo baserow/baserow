@@ -63,7 +63,9 @@ export class KumaPanel {
   /** The note under the last AI message when its run stopped or failed. */
   lastRunOutcome(): Locator {
     return this.panel
-      .locator(".assistant__message--ai .assistant__message-run-outcome")
+      .locator(
+        ".chat-message:not(.chat-message--own) .assistant__message-run-outcome"
+      )
       .last();
   }
 

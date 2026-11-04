@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import MagicMock
 
 import pytest
@@ -112,3 +113,50 @@ def test_create_pages_keeps_the_pages_created_before_the_stop(data_fixture, ctx)
     assert result["stopped"] == STOPPED_AFTER_TWO
     names = Page.objects_without_shared.values_list("name", flat=True)
     assert set(names) == {"P0", "P1"}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("raises", [False, True])
+def test_formula_repair_stop_keeps_completed_field_updates(
+    data_fixture, monkeypatch, raises
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    name = data_fixture.create_text_field(table=table, name="Name")
+    formulas = [
+        data_fixture.create_formula_field(table=table, name=f"F{i}", formula="'old'")
+        for i in range(2)
+    ]
+    ctx = make_test_ctx(user, workspace)
+
+    def stop_repair(*args):
+        ctx.deps.tool_helpers.cancel()
+        if raises:
+            raise asyncio.CancelledError
+        return "'fixed'"
+
+    fixer = MagicMock(side_effect=stop_repair)
+    monkeypatch.setattr(
+        "baserow_enterprise.assistant.tools.database.tools.make_formula_fixer",
+        lambda *args: fixer,
+    )
+
+    result = update_fields(
+        ctx,
+        fields=[
+            FieldItemUpdate(field_id=name.id, name="Kept"),
+            *[FieldItemUpdate(field_id=f.id, formula="concat(") for f in formulas],
+        ],
+        thought="",
+    )
+
+    assert "Stopped while repairing formulas" in result["stopped"]
+    assert [f["name"] for f in result["updated_fields"]] == ["Kept"]
+    name.refresh_from_db()
+    assert name.name == "Kept"
+    for formula in formulas:
+        formula.refresh_from_db()
+        assert formula.formula == "'old'"
+    fixer.assert_called_once()
