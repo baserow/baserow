@@ -139,6 +139,7 @@ class RolePermissionManagerType(PermissionManagerType):
             )
 
         scope_includes_cache = {}
+        operations_by_role = {}
         for actor, context_and_checks in checks_by_actor_and_context.items():
             roles_per_scope = roles_per_scope_by_actor[actor]
             for context, checks in context_and_checks.items():
@@ -150,13 +151,11 @@ class RolePermissionManagerType(PermissionManagerType):
                 computed_roles = RoleAssignmentHandler().get_computed_roles(
                     roles_per_scope, context, scope_includes_cache
                 )
-                permitted_operations = set(
-                    [
-                        operation_name
-                        for r in computed_roles
-                        for operation_name in self.get_role_operations(r)
-                    ]
-                )
+                permitted_operations = set()
+                for role in computed_roles:
+                    if role.id not in operations_by_role:
+                        operations_by_role[role.id] = self.get_role_operations(role)
+                    permitted_operations.update(operations_by_role[role.id])
                 check_results = {
                     check: (
                         True

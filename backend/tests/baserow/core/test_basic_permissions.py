@@ -58,6 +58,12 @@ from baserow.core.user_sources.operations import (
 )
 
 
+@pytest.mark.parametrize("actor", [None, AnonymousUser(), Agent(id=1)])
+def test_permission_check_preserves_actor_and_anonymous_fallback(actor):
+    check = PermissionCheck(actor, ReadWorkspaceOperationType.type)
+    assert check.actor is (AnonymousUser if actor is None else actor)
+
+
 @pytest.mark.django_db
 @override_settings(
     PERMISSION_MANAGERS=[

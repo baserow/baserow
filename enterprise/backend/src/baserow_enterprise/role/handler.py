@@ -1092,7 +1092,8 @@ class RoleAssignmentHandler:
 
         most_precise_roles = [self.get_role_by_uid(NO_ACCESS_ROLE_UID)]
 
-        cache = cache or {}
+        if cache is None:
+            cache = {}
 
         def scope_includes_context(scope, context):
             key = (type(scope).__name__, scope.id, type(context).__name__, context.id)

@@ -11,7 +11,7 @@ from baserow.contrib.database.object_scopes import DatabaseObjectScopeType
 from baserow.core.cache import local_cache
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Agent, WorkspaceUser
-from baserow.core.registries import subject_type_registry
+from baserow.core.registries import object_scope_type_registry, subject_type_registry
 from baserow.core.snapshots.handler import SnapshotHandler
 from baserow.core.subjects import UserSubjectType
 from baserow.core.utils import Progress
@@ -21,7 +21,11 @@ from baserow_enterprise.exceptions import (
     SubjectNotExist,
     SubjectUnsupported,
 )
-from baserow_enterprise.role.constants import ALLOWED_SUBJECT_TYPE_BY_PRIORITY
+from baserow_enterprise.role.constants import (
+    ALLOWED_SUBJECT_TYPE_BY_PRIORITY,
+    BUILDER_ROLE_UID,
+    NO_ACCESS_ROLE_UID,
+)
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role, RoleAssignment
 from baserow_enterprise.role.types import NewRoleAssignment
@@ -30,6 +34,36 @@ from baserow_enterprise.role.types import NewRoleAssignment
 @pytest.fixture(autouse=True)
 def enable_enterprise_and_roles_for_all_tests_here(enable_enterprise, synced_roles):
     pass
+
+
+@pytest.mark.django_db
+def test_get_computed_roles_reuses_scope_checks_without_reusing_roles(
+    data_fixture, mocker
+):
+    workspace = data_fixture.create_workspace()
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    foreign_database = data_fixture.create_database_application()
+    handler = RoleAssignmentHandler()
+    builder_role = handler.get_role_by_uid(BUILDER_ROLE_UID)
+    no_access_role = handler.get_role_by_uid(NO_ACCESS_ROLE_UID)
+    denied_roles = [(workspace, [builder_role]), (database, [no_access_role])]
+    allowed_roles = [(workspace, [no_access_role]), (database, [builder_role])]
+    cache = {}
+    scope_checks = mocker.spy(object_scope_type_registry, "scope_includes_context")
+
+    assert handler.get_computed_roles(denied_roles, table, cache) == [no_access_role]
+    first_scope_check_count = scope_checks.call_count
+    assert first_scope_check_count > 0
+    # Containment is shared by actors; their assigned roles must stay independent.
+    assert handler.get_computed_roles(allowed_roles, table, cache) == [builder_role]
+    assert scope_checks.call_count == first_scope_check_count
+    assert handler.get_computed_roles(denied_roles, table, cache) == [no_access_role]
+    assert scope_checks.call_count == first_scope_check_count
+
+    assert handler.get_computed_roles(allowed_roles, foreign_database, cache) == [
+        no_access_role
+    ]
 
 
 @pytest.mark.django_db
