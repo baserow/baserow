@@ -34,6 +34,7 @@ from baserow.contrib.agent.signals import agent_conversation_updated
 from baserow.contrib.agent.types import AgentMessageCreated
 from baserow.core.chat_runs.journal import ChatRunJournal
 from baserow.core.chat_runs.models import ChatRun
+from baserow.core.chat_runs.registries import chat_run_type_registry
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.models import WorkspaceUser
@@ -402,7 +403,7 @@ def test_a_send_names_its_run_even_when_the_reply_ended_before_the_response(
 
 
 @pytest.mark.django_db
-def test_workspaces_have_no_reply_limit_by_default(
+def test_users_and_workspaces_have_no_reply_limit_by_default(
     api_client, api_user, configured_agent
 ):
     agent = configured_agent(user=api_user)
@@ -442,3 +443,93 @@ def test_busy_conversations_and_workspaces_are_refused_with_their_errors(
     )
     assert AgentConversation.objects.count() == ChatRun.objects.count() == 1
     assert AgentMessage.objects.count() == 2
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_USER=1)
+def test_a_users_reply_limit_applies_across_conversations_and_workspaces(
+    api_client, api_user, configured_agent, data_fixture
+):
+    agent = configured_agent(user=api_user)
+    other_agent = configured_agent(user=api_user)
+    assert agent.workspace_id != other_agent.workspace_id
+    assert (
+        api_client.post(
+            agent_url(agent, "conversations"), new_conversation()
+        ).status_code
+        == 200
+    )
+
+    for target in (agent, other_agent):
+        refused = api_client.post(
+            agent_url(target, "conversations"), new_conversation()
+        )
+        assert (refused.status_code, refused.json()["error"]) == (
+            429,
+            "ERROR_AGENT_BUSY",
+        )
+    assert AgentConversation.objects.count() == ChatRun.objects.count() == 1
+    assert AgentMessage.objects.count() == 2
+
+    other_user, token = data_fixture.create_user_and_token(workspace=agent.workspace)
+    api_client.credentials(HTTP_AUTHORIZATION=f"JWT {token}")
+    accepted = api_client.post(agent_url(agent, "conversations"), new_conversation())
+    assert accepted.status_code == 200
+    assert ChatRun.objects.filter(created_by=other_user, status="queued").count() == 1
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_USER=1)
+@pytest.mark.parametrize(
+    "status,expected_status",
+    [
+        ("queued", 429),
+        ("running", 429),
+        ("completed", 200),
+        ("cancelled", 200),
+        ("failed", 200),
+    ],
+)
+def test_only_active_replies_count_towards_the_user_limit(
+    api_client, api_user, configured_agent, status, expected_status
+):
+    agent = configured_agent(user=api_user)
+    url = agent_url(agent, "conversations")
+    assert api_client.post(url, new_conversation()).status_code == 200
+    ChatRun.objects.update(status=status)
+
+    response = api_client.post(url, new_conversation())
+
+    assert response.status_code == expected_status
+    if expected_status == 429:
+        assert response.json()["error"] == "ERROR_AGENT_BUSY"
+    assert ChatRun.objects.count() == (1 if expected_status == 429 else 2)
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_USER=1)
+def test_a_plugin_can_set_the_reply_limit_for_each_user(
+    api_client, api_user, configured_agent, data_fixture, monkeypatch
+):
+    agent = configured_agent(user=api_user)
+    seen_users = []
+
+    class PlanAgentChatRunType(AgentChatRunType):
+        def get_max_active_runs_per_user(self, user):
+            seen_users.append(user)
+            return 1 if user.id == api_user.id else None
+
+    monkeypatch.setitem(
+        chat_run_type_registry.registry, AgentChatRunType.type, PlanAgentChatRunType()
+    )
+    url = agent_url(agent, "conversations")
+    assert api_client.post(url, new_conversation()).status_code == 200
+    assert api_client.post(url, new_conversation()).status_code == 429
+
+    other_user, token = data_fixture.create_user_and_token(workspace=agent.workspace)
+    api_client.credentials(HTTP_AUTHORIZATION=f"JWT {token}")
+    for _ in range(2):
+        response = api_client.post(url, new_conversation())
+        assert response.status_code == 200
+    assert seen_users == [api_user, api_user, other_user, other_user]
+    assert ChatRun.objects.filter(created_by=other_user, status="queued").count() == 2

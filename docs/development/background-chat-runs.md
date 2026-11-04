@@ -138,9 +138,22 @@ a run but not stop it. `can_follow_chat` checks websocket subscriptions; HTTP
 output followers use `can_read`.
 
 Each run type limits only its own active runs. By default a user can have two
-at once; override `get_max_active_runs_per_user` (None for no limit) or
-`get_max_active_runs_per_workspace` to change that. At a limit, `create_run`
+at once; override `get_max_active_runs_per_user(user)` (None for no limit) or
+`get_max_active_runs_per_workspace(workspace)` to change that. At a limit, `create_run`
 raises `ChatRunLimitReached`, which the product turns into its own error.
+
+Agent replies default to unlimited at both levels. Configure
+`BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_USER` and
+`BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE` to bound queued or running replies;
+unset, empty or `0` means unlimited. The user cap counts across workspaces, and
+both caps are enforced in the database across backend processes. Opening another
+tab or disconnecting does not change the active-run count. At either limit, a new
+Agent send returns HTTP 429 `ERROR_AGENT_BUSY` without saving its messages.
+
+A SaaS plugin can replace the registered `AgentChatRunType` and override either
+limit method to select a cap from the user's or workspace's plan. Both methods run
+synchronously when a new run is created. Return `None` for unlimited or `0` to
+refuse new runs; changes to the plan do not stop existing runs.
 
 Core serves `GET /api/chat-runs/<run_id>/stream/?cursor=` for every run type. Its
 URL name is registered with the stream router through `register_async_stream_path`
@@ -197,27 +210,12 @@ flowchart TD
     D --> E{Stream slot available?}
     E -->|No| F[Return HTTP 503]
     E -->|Yes| G[Django checks permissions and runs the view]
-    G --> J{User within their stream limit?}
-    J -->|No| K[Return HTTP 429]
-    J -->|Yes| H[Deliver output asynchronously]
+    G --> H[Deliver output asynchronously]
     H --> I[Finished or disconnected: clean up]
 ```
 
 - The body is read using Django's normal upload handling before a slot is taken.
   A slow upload never holds a slot.
-- `BASEROW_CHAT_MAX_CONCURRENT_STREAMS_PER_USER` sets the default per-user
-  stream cap. Unset, empty or `0` maps to the Django setting
-  `BASEROW_CHAT_MAX_CONCURRENT_STREAMS_PER_USER=None`: users have no individual cap
-  within the process's available slots. Plugins can override
-  `get_max_concurrent_streams_per_user(user, default_limit)` to select a limit
-  from the user's plan. The hook runs synchronously on every authenticated stream
-  request, so it can query the database and plan changes affect new connections.
-  Return `None` for unlimited or `0` to refuse new streams. This counts HTTP
-  connections per user per process, independently of the run type's active-run
-  limits. Existing connections stay open when the limit changes.
-- Exceeding the user limit returns HTTP 429 `ERROR_CHAT_STREAM_USER_LIMIT` with
-  `Retry-After: 1`. The view has already run, so a refused streaming send has
-  still started its run; the shared run stream endpoint only follows a run.
 - `BASEROW_ASGI_HTTP_MAX_CONCURRENT_STREAMS` sets the slots per backend process.
   Each follower uses one Redis connection while it waits, so the Redis read pool
   has the same size. For example, 4 processes with 100 slots each can open 400

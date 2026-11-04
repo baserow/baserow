@@ -3,27 +3,23 @@
 import asyncio
 import io
 import re
-from collections import Counter
 from contextlib import suppress
 from typing import IO
 
-from django.conf import settings
 from django.core import signals
 from django.core.exceptions import ImproperlyConfigured, RequestAborted
 from django.core.handlers.asgi import ASGIHandler, ASGIRequest
 from django.core.handlers.base import BaseHandler
 from django.db import connections
-from django.http import HttpResponseBase, JsonResponse
+from django.http import JsonResponse
 from django.middleware.security import SecurityMiddleware
 from django.urls import URLPattern, URLResolver, get_resolver
 
 from asgiref.sync import sync_to_async
-from asgiref.typing import ASGIApplication
 from corsheaders.middleware import CorsMiddleware
 from loguru import logger
 
 from baserow.config.db_routers import clear_db_state
-from baserow.core.registries import plugin_registry
 from baserow.middleware import BaserowCredentialedCorsMiddleware
 
 _url_names: dict[str, tuple[str, ...]] = {}
@@ -79,13 +75,8 @@ def _url_regex(url_name: str) -> re.Pattern:
     return re.compile(regex)
 
 
-def _prepare(
-    scope: dict, body_file: IO[bytes]
-) -> tuple[HttpResponseBase, int | None, int | None]:
-    """Run Django middleware/view in the web process's thread pool, then close DBs.
-
-    :return: The response and, when it streams, the signed-in user's id and limit.
-    """
+def _prepare(scope: dict, body_file: IO[bytes]):
+    """Run Django middleware/view in the web process's thread pool, then close DBs."""
 
     global _handler
     try:
@@ -95,14 +86,7 @@ def _prepare(
             handler.load_middleware(is_async=False)
             _handler = handler
         request = ASGIRequest(scope, body_file)
-        response = _handler.get_response(request)
-        user = getattr(request, "user", None)
-        if response.streaming and user is not None and user.is_authenticated:
-            limit = settings.BASEROW_CHAT_MAX_CONCURRENT_STREAMS_PER_USER
-            for plugin in plugin_registry.get_all():
-                limit = plugin.get_max_concurrent_streams_per_user(user, limit)
-            return response, user.id, limit
-        return response, None, None
+        return _handler.get_response(request)
     finally:
         # Django's normal ASGI context owns a thread until the iterator ends.
         # Here all middleware/view work is finished before async following starts.
@@ -117,11 +101,12 @@ def _close_response(response):
         connections.close_all()
 
 
-def _refusal_response(scope: dict, status: int, error: str) -> HttpResponseBase:
+def _capacity_response(scope: dict):
     request = ASGIRequest(scope, io.BytesIO())
-    response = JsonResponse({"error": error}, status=status)
+    response = JsonResponse({"error": "ERROR_CHAT_STREAM_CAPACITY"}, status=503)
     response["Retry-After"] = "1"
-    # Refusals skip the middleware stack, so they need its security and CORS headers.
+    # Rejections happen before a view runs, but must still have the deployment's
+    # actual security/CORS policy, including the narrower credentialed origins.
     return BaserowCredentialedCorsMiddleware(
         CorsMiddleware(SecurityMiddleware(lambda request: response))
     )(request)
@@ -172,22 +157,9 @@ class AsyncStreamingHTTPRouter:
     the router only delivers its response. Waiting for output retains neither a DB
     connection nor a request-specific thread-sensitive context. Disconnecting
     closes the response iterator; it does not cancel a Celery task.
-
-    An optional per-user limit reserves capacity for other users. Plugins can
-    change that limit for each request, for example according to the user's plan.
     """
 
-    def __init__(
-        self,
-        fallback: ASGIApplication,
-        *,
-        max_streams: int,
-    ):
-        """
-        :param fallback: The application that handles every other request.
-        :param max_streams: How many streams this process delivers at once.
-        """
-
+    def __init__(self, fallback, *, max_streams: int):
         self.fallback = fallback
         self.max_streams = max_streams
         self.active = 0
@@ -195,7 +167,6 @@ class AsyncStreamingHTTPRouter:
         self.paths = [
             (_url_regex(url_name), methods) for url_name, methods in _url_names.items()
         ]
-        self.active_by_user: Counter[int] = Counter()
 
     async def __call__(self, scope, receive, send):
         if not any(
@@ -211,14 +182,13 @@ class AsyncStreamingHTTPRouter:
             return
         if self.active >= self.max_streams:
             body_file.close()
-            response = _refusal_response(scope, 503, "ERROR_CHAT_STREAM_CAPACITY")
+            response = _capacity_response(scope)
             await _send_response(response, send)
             return
         self.active += 1
         response = None
         disconnected = None
         streaming = None
-        counted_user_id = None
         try:
 
             async def wait_for_disconnect():
@@ -228,23 +198,11 @@ class AsyncStreamingHTTPRouter:
             disconnected = asyncio.create_task(wait_for_disconnect())
             # An already authorized send may commit after a disconnect. Finish its
             # short preparation, close the response, and leave the worker running.
-            response, user_id, user_limit = await sync_to_async(
-                _prepare, thread_sensitive=False
-            )(scope, body_file)
+            response = await sync_to_async(_prepare, thread_sensitive=False)(
+                scope, body_file
+            )
             if disconnected.done():
                 return
-            if user_id is not None:
-                if (
-                    user_limit is not None
-                    and self.active_by_user[user_id] >= user_limit
-                ):
-                    refusal = _refusal_response(
-                        scope, 429, "ERROR_CHAT_STREAM_USER_LIMIT"
-                    )
-                    await _send_response(refusal, send)
-                    return
-                self.active_by_user[user_id] += 1
-                counted_user_id = user_id
             streaming = asyncio.create_task(_send_response(response, send))
             await asyncio.wait(
                 (streaming, disconnected), return_when=asyncio.FIRST_COMPLETED
@@ -270,7 +228,3 @@ class AsyncStreamingHTTPRouter:
             finally:
                 body_file.close()
                 self.active -= 1
-                if counted_user_id is not None:
-                    self.active_by_user[counted_user_id] -= 1
-                    if not self.active_by_user[counted_user_id]:
-                        del self.active_by_user[counted_user_id]

@@ -43,7 +43,7 @@ def test_non_positive_realtime_replay_retention_is_rejected(retention_hours: str
     "name",
     [
         "BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE",
-        "BASEROW_CHAT_MAX_CONCURRENT_STREAMS_PER_USER",
+        "BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_USER",
     ],
 )
 @pytest.mark.parametrize(

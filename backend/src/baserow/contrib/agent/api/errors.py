@@ -16,5 +16,5 @@ ERROR_AGENT_NOT_READY = (
 ERROR_AGENT_BUSY = (
     "ERROR_AGENT_BUSY",
     429,
-    "Agents in this workspace are busy. Try again shortly.",
+    "Too many Agent replies are in progress. Try again shortly.",
 )
