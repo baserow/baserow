@@ -58,6 +58,13 @@ def call(
         "decide approvals": lambda: service.decide_approvals(
             user, agent.id, conversation.uuid, [{"id": approval.id, "approved": True}]
         ),
+        "always allow": lambda: service.decide_approvals(
+            user,
+            agent.id,
+            conversation.uuid,
+            [{"id": approval.id, "approved": True}],
+            always_allow=True,
+        ),
         "export": lambda: action_type_registry.get_by_type(
             ExportApplicationsActionType
         ).do(user, agent.workspace, [agent]),
@@ -84,6 +91,14 @@ def call(
         ("update conversation", [UpdateAgentConversationOperationType]),
         ("delete conversation", [DeleteAgentConversationOperationType]),
         ("decide approvals", [CreateAgentMessageOperationType]),
+        (
+            "always allow",
+            [
+                CreateAgentMessageOperationType,
+                UpdateApplicationOperationType,
+                ReadAgentConfigurationOperationType,
+            ],
+        ),
         ("export", [ReadAgentConfigurationOperationType]),
     ],
 )

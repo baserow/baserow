@@ -131,7 +131,7 @@ class DecideAgentToolApprovalsActionType(ActionType):
         _("Decide agent tool approvals"),
         _("Held steps of reply (%(reply_id)s) decided in agent (%(agent_id)s)."),
     )
-    analytics_params = ["agent_id", "approved", "rejected"]
+    analytics_params = ["agent_id", "approved", "rejected", "always_allowed_tools"]
 
     @dataclass
     class Params:
@@ -140,6 +140,7 @@ class DecideAgentToolApprovalsActionType(ActionType):
         reply_id: int
         approved: list[str]
         rejected: list[str]
+        always_allowed_tools: list[str]
 
     @classmethod
     @transaction.atomic
@@ -149,23 +150,28 @@ class DecideAgentToolApprovalsActionType(ActionType):
         agent_id: int,
         conversation_uuid: UUID,
         decisions: list[AgentToolDecision],
+        always_allow: bool = False,
     ) -> tuple[AgentMessage, UUID | None]:
         """
-        Approve or reject held calls, auditing the tools decided but never the
-        rejection reasons, which can quote the private conversation.
+        Approve or reject held calls, auditing the tools decided and those that
+        stopped asking first, but never the rejection reasons, which can quote the
+        private conversation.
 
         :param user: The user deciding.
         :param agent_id: The id of the agent.
         :param conversation_uuid: The uuid of the conversation.
         :param decisions: Whether each held call may run, by approval id, with the
             reason for a rejection.
+        :param always_allow: Whether the tools of the approved calls stop asking
+            first.
         :return: The reply with its approvals, and the run continuing it, or None
             while some held calls are still undecided.
         """
 
-        reply, run_id = AgentService().decide_approvals(
-            user, agent_id, conversation_uuid, decisions
+        result = AgentService().decide_approvals(
+            user, agent_id, conversation_uuid, decisions, always_allow
         )
+        reply = result.reply
         decided_ids = {decision["id"] for decision in decisions}
         decided = [
             approval for approval in reply.approvals.all() if approval.id in decided_ids
@@ -186,11 +192,12 @@ class DecideAgentToolApprovalsActionType(ActionType):
                     for approval in decided
                     if approval.status == AgentToolApproval.Status.REJECTED
                 ],
+                always_allowed_tools=result.always_allowed_tools,
             ),
             cls.scope(agent_id),
             reply.conversation.agent.workspace,
         )
-        return reply, run_id
+        return reply, result.run_id
 
     @classmethod
     def scope(cls, agent_id: int) -> ActionScopeStr:

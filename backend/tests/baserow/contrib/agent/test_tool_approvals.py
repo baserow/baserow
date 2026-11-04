@@ -1,3 +1,4 @@
+from unittest.mock import ANY
 from uuid import uuid4
 
 import pytest
@@ -5,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.test import APIClient
 
 from baserow.contrib.agent.actions import DecideAgentToolApprovalsActionType
+from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import (
     AgentMessage,
     AgentReplyStatus,
@@ -13,6 +15,8 @@ from baserow.contrib.agent.models import (
 from baserow.core.chat_runs.exceptions import ChatRunAlreadyActive, ChatRunLimitReached
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
+from baserow.core.models import Agent
+from baserow.core.signals import application_updated
 
 from .utils import agent_url
 
@@ -39,12 +43,14 @@ def held_reply(data_fixture, configured_agent, api_user) -> AgentMessage:
     return reply
 
 
-def decide(api_client: APIClient, reply: AgentMessage, *decisions: dict) -> Response:
+def decide(
+    api_client: APIClient, reply: AgentMessage, *decisions: dict, **options: bool
+) -> Response:
     conversation = reply.conversation
     url = agent_url(
         conversation.agent, "approvals", conversation_uuid=conversation.uuid
     )
-    return api_client.post(url, {"decisions": list(decisions)})
+    return api_client.post(url, {"decisions": list(decisions), **options})
 
 
 def statuses(reply: AgentMessage) -> tuple[str, list[str]]:
@@ -101,14 +107,15 @@ def test_the_last_decision_resumes_the_reply_and_each_is_audited_by_tool(
         (approval.decided_by_id, approval.decided_on is not None)
         for approval in held_reply.approvals.all()
     } == {(api_user.id, True)}
-    ids = {
+    params = {
         "agent_id": conversation.agent_id,
         "conversation_id": conversation.id,
         "reply_id": held_reply.id,
+        "always_allowed_tools": [],
     }
     assert [entry.args[1] for entry in audited.call_args_list] == [
-        {**ids, "approved": ["create_rows"], "rejected": []},
-        {**ids, "approved": [], "rejected": ["update_rows"]},
+        {**params, "approved": ["create_rows"], "rejected": []},
+        {**params, "approved": [], "rejected": ["update_rows"]},
     ]
 
 
@@ -289,3 +296,45 @@ def test_each_decision_sends_the_owner_the_pending_count_left(
         )
         for left in (1, 0)
     ]
+
+
+@pytest.mark.django_db
+def test_always_allow_stops_asking_first_only_for_approved_tools_that_ask_first(
+    api_client, api_user, data_fixture, held_reply, mocker
+):
+    agent = held_reply.conversation.agent
+    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
+    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    agent.save()
+    data_fixture.create_agent_tool_approval(reply=held_reply, tool_name="delete_rows")
+    created, updated, deleted = held_reply.approvals.all()
+    AgentHandler().set_allowed_tools(
+        agent, ["create_rows", "delete_rows"], ["create_rows", "delete_rows"]
+    )
+    audited = mocker.spy(DecideAgentToolApprovalsActionType, "send_action_done_signal")
+    configuration_updated = mocker.spy(application_updated, "send")
+
+    rejected = decide(
+        api_client, held_reply, {"id": deleted.id, "approved": False}, always_allow=True
+    )
+
+    assert rejected.status_code == 200
+    assert audited.call_args.args[1]["always_allowed_tools"] == []
+    configuration_updated.assert_not_called()
+    audited.reset_mock()
+
+    response = decide(
+        api_client,
+        held_reply,
+        {"id": created.id, "approved": True},
+        {"id": updated.id, "approved": True},
+        always_allow=True,
+    )
+
+    assert response.status_code == 200
+    assert AgentHandler().get_tool_configuration(agent) == {
+        "allowed_tools": ["create_rows", "delete_rows"],
+        "ask_first_tools": ["delete_rows"],
+    }
+    assert audited.call_args.args[1]["always_allowed_tools"] == ["create_rows"]
+    configuration_updated.assert_called_once_with(ANY, application=agent, user=api_user)

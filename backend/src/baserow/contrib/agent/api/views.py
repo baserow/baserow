@@ -512,7 +512,8 @@ class AgentToolApprovalsView(APIView):
         description=(
             "Approves or rejects tool calls that the waiting reply of one of the "
             "authenticated user's conversations holds for approval. Once none are "
-            "left to decide, a run continues the reply and the response names it."
+            "left to decide, a run continues the reply and the response names it. "
+            "With always_allow, the tools of the approved calls stop asking first."
         ),
         parameters=[AGENT_ID_PATH_PARAMETER],
         request=AgentToolDecisionsSerializer,
