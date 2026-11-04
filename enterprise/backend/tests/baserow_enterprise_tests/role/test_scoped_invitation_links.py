@@ -25,6 +25,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.models import WorkspaceInvitationLink, WorkspaceUser
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user.handler import UserHandler
+from baserow_enterprise.exceptions import ScopeNotExist
 from baserow_enterprise.role.actions import (
     CreateScopedInvitationLinkActionType,
     DeleteScopedInvitationLinkActionType,
@@ -316,7 +317,9 @@ def test_links_to_an_application_and_a_view(api_client, data_fixture):
     admin, workspace, database, table_a, table_b = setup_workspace(data_fixture)
     application = database.application_ptr
     # Roles are given on the base view, like on the base application.
-    view = data_fixture.create_grid_view(table=table_a).view_ptr
+    view = data_fixture.create_grid_view(
+        table=table_a, ownership_type="restricted"
+    ).view_ptr
     list_url = reverse(
         "api:enterprise:role:scoped_invitation_links",
         kwargs={"workspace_id": workspace.id},
@@ -695,3 +698,89 @@ def test_create_link_to_object_with_signups_disabled_through_the_api(
     assert (
         response.json()["error"] == "ERROR_WORKSPACE_INVITATION_LINK_SIGNUPS_DISABLED"
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("ownership_type", ["collaborative", "personal"])
+def test_invitation_links_reject_views_without_view_only_row_access(
+    api_client, data_fixture, ownership_type
+):
+    """Reject unsupported view targets and disable links saved before validation."""
+
+    admin, workspace, _, table_a, _ = setup_workspace(data_fixture)
+    view = data_fixture.create_grid_view(
+        user=admin, table=table_a, ownership_type=ownership_type
+    ).view_ptr
+    token = data_fixture.generate_token(admin)
+    response = api_client.post(
+        reverse(
+            "api:enterprise:role:scoped_invitation_links",
+            kwargs={"workspace_id": workspace.id},
+        ),
+        {"permissions": "VIEWER", "scope_type": "database_view", "scope_id": view.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_SCOPE_DOES_NOT_EXIST"
+    assert not WorkspaceInvitationLink.objects.filter(workspace=workspace).exists()
+
+    legacy_link = WorkspaceInvitationLink.objects.create(
+        workspace=workspace, created_by=admin, scope=view, permissions="VIEWER"
+    )
+    response = api_client.post(
+        reverse(
+            "api:workspaces:invitation_links:join", kwargs={"slug": legacy_link.slug}
+        ),
+        HTTP_AUTHORIZATION=f"JWT {data_fixture.generate_token(data_fixture.create_user())}",
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST"
+
+    handler = RoleAssignmentHandler()
+    with pytest.raises(ScopeNotExist):
+        handler.update_scoped_invitation_link(admin, legacy_link, role=role("EDITOR"))
+    handler.delete_scoped_invitation_link(admin, legacy_link)
+    assert not WorkspaceInvitationLink.objects.filter(workspace=workspace).exists()
+
+
+@pytest.mark.django_db
+def test_restricted_view_invitee_can_load_fields_and_filtered_rows(
+    api_client, data_fixture
+):
+    """A view-only invite must grant usable data access without exposing other rows."""
+
+    admin, workspace, _, table_a, table_b = setup_workspace(data_fixture)
+    field = data_fixture.create_text_field(table=table_a, primary=True)
+    visible, hidden = data_fixture.create_rows([field], [["Partner"], ["Internal"]])
+    view = data_fixture.create_grid_view(
+        user=admin, table=table_a, ownership_type="restricted"
+    )
+    data_fixture.create_view_filter(
+        view=view, field=field, type="equal", value="Partner"
+    )
+    link = create_link(admin, workspace, view.view_ptr, "VIEWER")
+    newcomer = data_fixture.create_user()
+    auth = {"HTTP_AUTHORIZATION": f"JWT {data_fixture.generate_token(newcomer)}"}
+
+    response = api_client.post(
+        reverse("api:workspaces:invitation_links:join", kwargs={"slug": link.slug}),
+        **auth,
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["permissions"] == NO_ROLE_LOW_PRIORITY_ROLE_UID
+
+    fields_url = reverse("api:database:fields:list", kwargs={"table_id": table_a.id})
+    response = api_client.get(fields_url, {"view": view.id}, **auth)
+    assert response.status_code == HTTP_200_OK
+    assert [item["id"] for item in response.json()] == [field.id]
+
+    response = api_client.get(
+        reverse("api:database:views:grid:list", kwargs={"view_id": view.id}),
+        **auth,
+    )
+    assert response.status_code == HTTP_200_OK
+    assert [row["id"] for row in response.json()["results"]] == [visible.id]
+    assert not can_read_table(newcomer, workspace, table_b)
+    response = api_client.get(fields_url, **auth)
+    assert response.status_code == HTTP_401_UNAUTHORIZED

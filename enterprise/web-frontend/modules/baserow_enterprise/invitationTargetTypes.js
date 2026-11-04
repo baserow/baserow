@@ -1,6 +1,7 @@
 import { InvitationTargetType } from '@baserow/modules/core/invitationTargetTypes'
 import RoleAssignmentsService from '@baserow_enterprise/services/roleAssignments'
 import { filterRoles } from '@baserow_enterprise/utils/roles'
+import { RestrictedViewOwnershipType } from '@baserow_enterprise/viewOwnershipTypes'
 
 /**
  * Invites people to one object of the workspace: an application, a table or a
@@ -106,8 +107,11 @@ export class ScopeInvitationTargetType extends InvitationTargetType {
    * Links give their role on the object only. Admins of the workspace and of the
    * object can manage them, which are the people who can open this dialog.
    */
-  supportsInvitationLinks() {
-    return true
+  supportsInvitationLinks(workspace, { scopeType, scope }) {
+    return (
+      scopeType !== 'database_view' ||
+      scope.ownership_type === RestrictedViewOwnershipType.getType()
+    )
   }
 
   async fetchInvitationLinks(workspace, { scope, scopeType }) {

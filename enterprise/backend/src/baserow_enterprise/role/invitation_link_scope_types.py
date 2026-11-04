@@ -25,8 +25,10 @@ class RoleInvitationLinkScopeType(InvitationLinkScopeType):
         if not LicenseHandler.workspace_has_feature(RBAC, invitation_link.workspace):
             return False
         scope = invitation_link.scope
-        return scope is not None and not TrashHandler.item_has_a_trashed_parent(
-            scope, check_item_also=True
+        return (
+            scope is not None
+            and RoleAssignmentHandler().is_supported_invitation_link_scope(scope)
+            and not TrashHandler.item_has_a_trashed_parent(scope, check_item_also=True)
         )
 
     def get_newcomer_permissions(self, invitation_link: WorkspaceInvitationLink) -> str:

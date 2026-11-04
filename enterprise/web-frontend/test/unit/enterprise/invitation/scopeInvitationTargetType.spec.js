@@ -191,6 +191,24 @@ describe('ScopeInvitationTargetType invitation links', () => {
     expect(client.delete).toHaveBeenCalledWith('/role/invitation-links/4/')
   })
 
+  test.each([
+    ['restricted', true],
+    ['collaborative', false],
+    ['personal', false],
+  ])(
+    'offers view links only for restricted views (%s)',
+    (ownershipType, expected) => {
+      const targetType = new ScopeInvitationTargetType({ app: createApp() })
+
+      expect(
+        targetType.supportsInvitationLinks(workspace, {
+          scopeType: 'database_view',
+          scope: { id: 9, ownership_type: ownershipType },
+        })
+      ).toBe(expected)
+    }
+  )
+
   test('warns about what a link to the object gives', () => {
     const targetType = new ScopeInvitationTargetType({ app: createApp() })
 

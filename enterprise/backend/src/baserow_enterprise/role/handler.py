@@ -2008,6 +2008,16 @@ class RoleAssignmentHandler:
             ).select_related("scope_type"),
         )
 
+    def is_supported_invitation_link_scope(self, scope: ScopeObject) -> bool:
+        """Only restricted views support loading rows with a view-level role."""
+
+        from baserow_enterprise.view_ownership_types import RestrictedViewOwnershipType
+
+        scope_type = object_scope_type_registry.get_by_model(scope)
+        return scope_type.type != "database_view" or (
+            scope.ownership_type == RestrictedViewOwnershipType.type
+        )
+
     def _validate_scoped_invitation_link_role(self, role: Role, workspace: Workspace):
         """Validate workspace availability and require a role granting scoped access."""
 
@@ -2049,6 +2059,8 @@ class RoleAssignmentHandler:
 
         self.check_scoped_invitation_permissions(user, workspace, scope)
 
+        if not self.is_supported_invitation_link_scope(scope):
+            raise ScopeNotExist()
         self._validate_scoped_invitation_link_role(role, workspace)
 
         if not CoreHandler().invitation_link_signups_allowed():
@@ -2090,6 +2102,8 @@ class RoleAssignmentHandler:
 
         update_fields = ["updated_on"]
         if role is not None:
+            if not self.is_supported_invitation_link_scope(scope):
+                raise ScopeNotExist()
             self._validate_scoped_invitation_link_role(role, invitation_link.workspace)
             invitation_link.permissions = role.uid
             update_fields.append("permissions")
