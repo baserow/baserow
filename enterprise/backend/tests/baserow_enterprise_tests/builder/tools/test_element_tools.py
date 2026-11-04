@@ -2462,3 +2462,34 @@ def test_a_menu_item_set_up_with_parameters_in_the_editor_can_be_renamed(
     item = saved(menu_id).menu_items.get()
     assert item.name == "New"
     assert [param["name"] for param in item.page_parameters] == ["id"]
+
+
+@pytest.mark.django_db
+def test_move_before_an_element_outside_the_parent_is_refused(
+    data_fixture, builder_ctx
+):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    ids = elements.create_elements(
+        ctx,
+        page.id,
+        [
+            ElementItemCreate(ref="box", type="simple_container"),
+            text("a", "First", parent_element="box"),
+        ],
+    )["ref_to_id_map"]
+    moved = data_fixture.create_builder_heading_element(page=page, value="'Moved'")
+
+    result = elements.move_elements(
+        ctx,
+        [
+            ElementMove(
+                element_id=moved.id,
+                parent_element_id=ids["box"],
+                before_id=builder_ctx["button"].id,
+            )
+        ],
+    )
+
+    assert str(builder_ctx["button"].id) in result["errors"][0]
+    assert "isn't in" in result["errors"][0]
+    assert children_of(ids["box"]) == ["'First'"]

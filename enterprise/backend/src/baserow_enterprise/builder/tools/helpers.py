@@ -944,7 +944,17 @@ def move_element(
     if parent is not None and not place and parent.get_type().type == "column":
         place = "0"
 
-    if parent is not None and (before is None or before.parent_element_id != parent.id):
+    if (
+        parent is not None
+        and before is not None
+        and before.parent_element_id != parent.id
+    ):
+        raise ToolInputError(
+            f"Element {before.id} isn't in element {parent.id}, so nothing can go "
+            "before it there. Leave before_id out to move to the end."
+        )
+
+    if parent is not None and before is None:
         reference_element_id, position, place = end_of_container(
             parent.page, parent.id, place
         )
