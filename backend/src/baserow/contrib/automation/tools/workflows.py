@@ -30,14 +30,15 @@ from baserow.contrib.automation.workflows.operations import (
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowTableService
 from baserow.core.exceptions import (
-    ApplicationDoesNotExist,
     PermissionException,
     UntrustedContentCannotBePublished,
 )
 from baserow.core.handler import CoreHandler
-from baserow.core.service import CoreService
 from baserow.core.tools import ToolContext
-from baserow.core.tools.applications import visible_applications
+from baserow.core.tools.applications import (
+    get_application_in_workspace,
+    visible_applications,
+)
 from baserow.core.tools.errors import ToolInputError, item_error_message
 
 NODE_TYPES_NEEDING_A_ROW_ID = {"local_baserow_update_row", "local_baserow_delete_row"}
@@ -51,15 +52,7 @@ def get_automation_in_workspace(ctx: ToolContext, automation_id: int) -> Automat
         another workspace or hidden from the user.
     """
 
-    try:
-        return CoreService().get_application(
-            ctx.user,
-            automation_id,
-            base_queryset=Automation.objects.filter(workspace=ctx.workspace),
-        )
-    except PermissionException:
-        # Not found, like a missing automation, so the result doesn't tell which.
-        raise ApplicationDoesNotExist(automation_id)
+    return get_application_in_workspace(ctx, automation_id, Automation)
 
 
 def get_workflow_in_workspace(ctx: ToolContext, workflow_id: int) -> AutomationWorkflow:

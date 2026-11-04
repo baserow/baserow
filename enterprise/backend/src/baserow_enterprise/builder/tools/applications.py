@@ -12,10 +12,8 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.builder.models import Builder
 from baserow.core.actions import UpdateApplicationActionType
-from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
-from baserow.core.service import CoreService
 from baserow.core.tools import ToolContext
 from baserow.core.tools import applications as shared_applications
 from baserow.core.tools.errors import ToolInputError, validation_messages
@@ -31,15 +29,7 @@ def get_builder_in_workspace(ctx: ToolContext, builder_id: int) -> Builder:
         a builder, in another workspace or hidden from the user.
     """
 
-    try:
-        return CoreService().get_application(
-            ctx.user,
-            builder_id,
-            base_queryset=Builder.objects.filter(workspace=ctx.workspace),
-        )
-    except PermissionException:
-        # Not found, like a missing builder, so the result doesn't tell which.
-        raise ApplicationDoesNotExist(builder_id)
+    return shared_applications.get_application_in_workspace(ctx, builder_id, Builder)
 
 
 def list_builders(

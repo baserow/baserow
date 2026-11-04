@@ -10,12 +10,11 @@ from django.utils.translation import gettext as _
 from pydantic import Field
 
 from baserow.contrib.dashboard.models import Dashboard
-from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
-from baserow.core.service import CoreService
 from baserow.core.tools import ToolContext
 from baserow.core.tools.applications import (
     ApplicationName,
     create_application,
+    get_application_in_workspace,
     rename_application,
     visible_applications,
 )
@@ -32,15 +31,7 @@ def get_dashboard_in_workspace(ctx: ToolContext, dashboard_id: int) -> Dashboard
         another workspace or hidden from the user.
     """
 
-    try:
-        return CoreService().get_application(
-            ctx.user,
-            dashboard_id,
-            base_queryset=Dashboard.objects.filter(workspace=ctx.workspace),
-        )
-    except PermissionException:
-        # Not found, like a missing dashboard, so the result doesn't tell which.
-        raise ApplicationDoesNotExist(dashboard_id)
+    return get_application_in_workspace(ctx, dashboard_id, Dashboard)
 
 
 def list_dashboards(ctx: ToolContext) -> dict[str, Any]:

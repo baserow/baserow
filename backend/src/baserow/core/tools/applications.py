@@ -16,6 +16,7 @@ from baserow.core.actions import (
     CreateApplicationActionType,
     UpdateApplicationActionType,
 )
+from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
 from baserow.core.models import Application
 from baserow.core.registries import application_type_registry
 from baserow.core.service import CoreService
@@ -27,6 +28,33 @@ ApplicationName = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=160)
 ]
 _APPLICATION_NAME = TypeAdapter(ApplicationName)
+
+
+def get_application_in_workspace(
+    ctx: ToolContext,
+    application_id: int,
+    model: type[Application],
+    specific: bool = True,
+) -> Application:
+    """
+    Get an application of one type in the context's workspace.
+
+    :param model: The application's model.
+    :param specific: Whether to return the specific instance.
+    :raises ApplicationDoesNotExist: When it is missing, trashed, of another type, in
+        another workspace or hidden from the user.
+    """
+
+    try:
+        return CoreService().get_application(
+            ctx.user,
+            application_id,
+            specific=specific,
+            base_queryset=model.objects.filter(workspace=ctx.workspace),
+        )
+    except PermissionException:
+        # Not found, like a missing application, so the result doesn't tell which.
+        raise ApplicationDoesNotExist(application_id)
 
 
 def visible_applications(
