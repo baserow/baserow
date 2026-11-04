@@ -1,6 +1,7 @@
 from typing import Any, Iterable
 
 from django.contrib.auth.models import AbstractUser
+from django.db import transaction
 from django.utils import translation
 from django.utils.translation import gettext as _
 
@@ -18,6 +19,7 @@ from baserow.contrib.dashboard.data_sources.operations import (
     UpdateDashboardDataSourceOperationType,
 )
 from baserow.contrib.dashboard.handler import DashboardHandler
+from baserow.contrib.dashboard.widgets.signals import widget_updated
 from baserow.core.handler import CoreHandler
 from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.services.registries import (
@@ -159,6 +161,7 @@ class DashboardDataSourceService:
 
         return new_data_source
 
+    @transaction.atomic
     def update_data_source(
         self,
         user: AbstractUser,
@@ -214,11 +217,37 @@ class DashboardDataSourceService:
             data_source, service_type=service_type, **prepared_values
         )
 
+        for widget in updated_data_source.updated_filter_widgets:
+            if not widget.trashed:
+                widget_updated.send(self, user=user, widget=widget)
+
         dashboard_data_source_updated.send(
             self, user=user, data_source=updated_data_source.data_source
         )
 
         return updated_data_source
+
+    @transaction.atomic
+    def restore_data_source(
+        self, user, data_source_id, service_type, values, filter_links=None
+    ):
+        """Replay a saved configuration, including conditions cleared by table changes."""
+        from .filter_links import restore_filter_links
+
+        updated = self.update_data_source(user, data_source_id, service_type, **values)
+        service = updated.data_source.service.specific
+        if "service_filters" in values or "service_filter_groups" in values:
+            service_type.update_service_filters(
+                service,
+                values.get("service_filters"),
+                values.get("service_filter_groups"),
+            )
+        for widget in restore_filter_links(
+            updated.data_source.dashboard, filter_links or {}
+        ):
+            if not widget.trashed:
+                widget_updated.send(self, user=user, widget=widget)
+        return updated
 
     def delete_data_source(self, user: AbstractUser, data_source_id: int):
         """

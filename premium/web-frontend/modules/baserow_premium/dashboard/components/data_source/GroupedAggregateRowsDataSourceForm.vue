@@ -12,28 +12,13 @@
         horizontal
         horizontal-narrow
       >
-        <Dropdown
+        <DashboardTableSelector
           v-model="computedTableId"
-          :show-search="true"
-          fixed-items
+          :databases="databases"
+          :data-source="{ ...dataSource, filters: values.filters }"
+          :store-prefix="storePrefix"
           :error="fieldHasErrors('table_id')"
-        >
-          <DropdownSection
-            v-for="database in databases"
-            :key="database.id"
-            :title="`${database.name} (${database.id})`"
-          >
-            <DropdownItem
-              v-for="table in database.tables"
-              :key="table.id"
-              :name="table.name"
-              :value="table.id"
-              :indented="true"
-            >
-              {{ table.name }}
-            </DropdownItem>
-          </DropdownSection>
-        </Dropdown>
+        />
       </FormGroup>
       <FormGroup
         v-if="values.table_id && !fieldHasErrors('table_id')"
@@ -142,6 +127,7 @@
 </template>
 
 <script>
+import DashboardTableSelector from '@baserow/modules/dashboard/components/data_source/DashboardTableSelector'
 import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
 import { required } from '@vuelidate/validators'
@@ -162,6 +148,7 @@ export default {
   name: 'GroupedAggregateRowsDataSourceForm',
   emits: ['values-changed', 'widget-values-changed'],
   components: {
+    DashboardTableSelector,
     AggregationSeriesForm,
     AggregationGroupByForm,
     AggregationSortByForm,
