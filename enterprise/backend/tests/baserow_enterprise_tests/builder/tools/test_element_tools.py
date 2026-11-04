@@ -1820,3 +1820,24 @@ def test_a_child_with_a_before_element_elsewhere_goes_last(builder_ctx):
     )
 
     assert children_of(ids["box"]) == ["'First'", "'Second'"]
+
+
+@pytest.mark.django_db
+def test_moving_into_a_column_without_a_place_uses_its_first_place(builder_ctx):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    ids = elements.create_elements(
+        ctx,
+        page.id,
+        [
+            ElementItemCreate(ref="cols", type="column", column_amount=2),
+            text("a", "First", parent_element="cols", place_in_container="0"),
+            text("b", "Second"),
+        ],
+    )["ref_to_id_map"]
+
+    result = elements.move_elements(
+        ctx, [ElementMove(element_id=ids["b"], parent_element_id=ids["cols"])]
+    )
+
+    assert not result.get("errors")
+    assert children_of(ids["cols"], "0") == ["'First'", "'Second'"]

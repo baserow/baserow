@@ -891,6 +891,8 @@ def move_element(
     # `next` output that nothing renders). The `ElementMove` schema already
     # refuses that combination; this keeps direct callers safe too.
     place = (element_move.place_in_container or "") if parent is not None else ""
+    if parent is not None and not place and parent.get_type().type == "column":
+        place = "0"
 
     if parent is not None and (before is None or before.parent_element_id != parent.id):
         reference_element_id, position, place = end_of_container(
