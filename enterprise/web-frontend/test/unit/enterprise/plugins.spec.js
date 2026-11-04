@@ -1,4 +1,6 @@
 import { EnterprisePlugin } from '@baserow_enterprise/plugins'
+import registerRuntime from '@baserow_enterprise/pluginRuntime'
+import { Registry } from '@baserow/modules/core/registry'
 import AssistantPanel from '@baserow_enterprise/components/assistant/AssistantPanel'
 
 describe('Test enterprise Baserow plugin', () => {
@@ -11,6 +13,47 @@ describe('Test enterprise Baserow plugin', () => {
     scripts: [],
     custom_code: { css: '', js: '' },
     ...overrides,
+  })
+
+  test('runtime registration supplies authenticated preview custom-code tags', async () => {
+    const registry = new Registry()
+    for (const namespace of [
+      'plugin',
+      'permissionManager',
+      'userSource',
+      'service',
+      'workflowAction',
+      'appAuthProvider',
+      'roles',
+      'element',
+    ]) {
+      registry.registerNamespace(namespace)
+    }
+    await registerRuntime({ ...app, $registry: registry })
+    const plugin = registry.get('plugin', 'enterprise')
+    expect(
+      plugin.getBuilderApplicationHeaderAddition({
+        builder: makeBuilder({ custom_code: { css: 'body {}', js: 'void 0' } }),
+        mode: 'preview',
+      })
+    ).toEqual({
+      link: [
+        {
+          rel: 'stylesheet',
+          href: 'http://localhost:8000/api/builder/preview/42/custom-code/css/',
+          crossorigin: 'use-credentials',
+          tagPosition: 'bodyClose',
+        },
+      ],
+      script: [
+        {
+          src: 'http://localhost:8000/api/builder/preview/42/custom-code/js/',
+          crossorigin: 'use-credentials',
+          defer: true,
+          tagPosition: 'bodyClose',
+        },
+      ],
+    })
   })
 
   test('only mounts the assistant panel where Kuma is effectively enabled', () => {
