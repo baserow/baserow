@@ -8,6 +8,7 @@ import { getToken, setToken } from '@baserow/modules/core/utils/auth'
 import { ConcurrentPriorityTaskQueue } from '@baserow/modules/core/utils/queue'
 import debounce from 'lodash/debounce'
 import isEqual from 'lodash/isEqual'
+import { WidgetValueUpdate } from '@baserow/modules/dashboard/utils/widgetValueUpdate'
 
 export const state = () => ({
   dashboardId: null,
@@ -21,6 +22,7 @@ export const state = () => ({
   selectedWidgetId: null,
   widgets: [],
   widgetValues: {},
+  widgetSaveGenerations: {},
   widgetOptions: {},
   dataSources: [],
   integrations: [],
@@ -346,6 +348,10 @@ export const mutations = {
   SET_WIDGET_OPTIONS(state, { widgetId, options }) {
     state.widgetOptions = { ...state.widgetOptions, [widgetId]: options }
   },
+  INVALIDATE_WIDGET_SAVE(state, widgetId) {
+    state.widgetSaveGenerations[widgetId] =
+      (state.widgetSaveGenerations[widgetId] || 0) + 1
+  },
   SET_WIDGET_VALUE(state, { widgetId, value }) {
     state.widgetValues = { ...state.widgetValues, [widgetId]: value }
   },
@@ -365,6 +371,7 @@ export const mutations = {
     state.selectedWidgetId = null
     cancelDataSourceRefresh(state)
     state.widgetValues = {}
+    state.widgetSaveGenerations = {}
     state.widgetOptions = {}
     state.widgets = []
     state.dataSources = []
@@ -626,6 +633,7 @@ export const actions = {
     return new Promise((resolve, reject) => {
       const { $client, $registry } = this
       commit('INVALIDATE_WIDGET_FETCH')
+      commit('INVALIDATE_WIDGET_SAVE', widgetId)
       const request = normalizeDashboardFetchRequest(
         state.dashboardId,
         state,
@@ -637,7 +645,9 @@ export const actions = {
         state.widgets.find((widget) => widget.id === widgetId),
         values
       )
+      const previousWidgetValue = state.widgetValues[widgetId]
       applyWidgetUpdate(context, $registry, { widgetId, values })
+      const updatedWidgetValue = state.widgetValues[widgetId]
 
       if (!widgetUpdates.has(state)) widgetUpdates.set(state, new Map())
       const updates = widgetUpdates.get(state)
@@ -649,6 +659,8 @@ export const actions = {
       ) {
         // Keep every caller waiting for the combined save, with the latest value
         // for each field and the earliest value for rolling that field back.
+        batch.valueUpdate.merge(previousWidgetValue, updatedWidgetValue)
+        batch.saveGeneration = state.widgetSaveGenerations[widgetId]
         Object.assign(batch.values, values)
         batch.originalValues = { ...originalValues, ...batch.originalValues }
         batch.request = request
@@ -661,6 +673,11 @@ export const actions = {
       batch = {
         values: { ...values },
         originalValues: { ...originalValues },
+        valueUpdate: new WidgetValueUpdate(
+          previousWidgetValue,
+          updatedWidgetValue
+        ),
+        saveGeneration: state.widgetSaveGenerations[widgetId],
         request,
         waiters: [{ resolve, reject }],
         started: false,
@@ -710,6 +727,14 @@ export const actions = {
           } catch {
             // Report the original save error even if refreshing server state fails.
           } finally {
+            // Collection fetches are dashboard-wide; viewer rollback belongs to
+            // this widget's save and must not undo a newer save of the same widget.
+            if (
+              isDashboardRequestCurrent(state, request) &&
+              state.widgetSaveGenerations[widgetId] === batch.saveGeneration
+            ) {
+              batch.valueUpdate.restore(context, $registry, widgetId)
+            }
             // A failed recovery must also release every waiting component.
             batch.waiters.forEach(({ reject }) => reject(error))
           }
