@@ -7,7 +7,7 @@ import pytest
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
-from baserow.contrib.builder.elements.models import Element, TableElement
+from baserow.contrib.builder.elements.models import Element, LinkElement, TableElement
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.core.exceptions import PermissionException
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
@@ -2246,3 +2246,112 @@ def test_a_link_given_a_new_page_keeps_its_parameters_in_that_page_order(
     )
 
     assert _link_parameters(link_id) == [("b", "2"), ("a", "1")]
+
+
+@pytest.fixture
+def links(data_fixture, builder_ctx):
+    target = data_fixture.create_builder_page(
+        builder=builder_ctx["builder"], name="Target", path="/target"
+    )
+    ids = elements.create_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            ElementItemCreate(
+                ref="custom",
+                type="link",
+                value="Out",
+                navigate_to_url="https://example.com",
+            ),
+            ElementItemCreate(
+                ref="page", type="link", value="In", navigate_to_page_id=target.id
+            ),
+        ],
+    )["ref_to_id_map"]
+    return {"target": target, **ids}
+
+
+@pytest.mark.django_db
+def test_giving_a_custom_link_a_page_makes_it_go_to_the_page(builder_ctx, links):
+    elements.update_element(
+        builder_ctx["ctx"],
+        links["custom"],
+        ElementChanges(navigate_to_page_id=links["target"].id),
+    )
+
+    link = saved(links["custom"])
+    assert link.navigation_type == "page"
+    assert link.navigate_to_page_id == links["target"].id
+
+
+@pytest.mark.django_db
+def test_giving_a_page_link_a_url_makes_it_go_to_the_url(builder_ctx, links):
+    elements.update_element(
+        builder_ctx["ctx"],
+        links["page"],
+        ElementChanges(navigate_to_url="https://example.org"),
+    )
+
+    link = saved(links["page"])
+    assert link.navigation_type == "custom"
+    assert link.navigate_to_url["formula"] == "'https://example.org'"
+
+
+@pytest.mark.django_db
+def test_a_page_link_given_a_formula_url_switches_with_the_formula(builder_ctx, links):
+    elements.update_element(
+        builder_ctx["ctx"],
+        links["page"],
+        ElementChanges(navigate_to_url="concat('https://', 'example.org')"),
+    )
+
+    link = saved(links["page"])
+    assert link.navigation_type == "custom"
+    assert link.navigate_to_url["formula"] == "concat('https://', 'example.org')"
+
+
+@pytest.mark.django_db
+def test_a_page_link_given_a_bad_formula_url_stays_on_its_page(builder_ctx, links):
+    result = elements.update_element(
+        builder_ctx["ctx"],
+        links["page"],
+        ElementChanges(navigate_to_url="$formula: the shop's address"),
+    )
+
+    assert result["formula_errors"][0]["field"] == "navigate_to_url"
+    assert saved(links["page"]).navigation_type == "page"
+
+
+@pytest.mark.django_db
+def test_an_explicit_navigation_type_is_kept(builder_ctx, links):
+    elements.update_element(
+        builder_ctx["ctx"],
+        links["custom"],
+        ElementChanges(
+            navigation_type="custom", navigate_to_page_id=links["target"].id
+        ),
+    )
+
+    assert saved(links["custom"]).navigation_type == "custom"
+
+
+@pytest.mark.django_db
+def test_a_custom_link_back_to_its_stored_page_needs_parameters_that_fit(
+    data_fixture, builder_ctx, links
+):
+    target = data_fixture.create_builder_page(
+        builder=builder_ctx["builder"],
+        name="Item",
+        path="/item/:id",
+        path_params=[{"name": "id", "type": "numeric"}],
+    )
+    LinkElement.objects.filter(id=links["custom"]).update(navigate_to_page_id=target.id)
+
+    with pytest.raises(ToolInputError, match="missing: id"):
+        elements.update_element(
+            builder_ctx["ctx"],
+            links["custom"],
+            ElementChanges(navigate_to_page_id=target.id),
+        )
+
+    assert saved(links["custom"]).navigation_type == "custom"

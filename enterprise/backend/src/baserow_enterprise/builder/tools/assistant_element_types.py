@@ -150,6 +150,7 @@ class LinkAssistantElementType(AssistantElementType):
         self, user: AbstractUser, element: Element, update: ElementUpdate
     ) -> PreparedElementUpdate:
         """
+        Make a new target the one the link goes to, unless the update says which.
         Check that a new target page fits the parameters the link has, which an update
         can't change, and put them in that page's order.
 
@@ -157,7 +158,18 @@ class LinkAssistantElementType(AssistantElementType):
         """
 
         page_id = update.navigate_to_page_id
-        if page_id is not None and page_id != element.navigate_to_page_id:
+        kwargs: dict[str, Any] = {}
+        if update.navigation_type is None:
+            # On the update too: a URL formula is saved later, with its navigation type.
+            if update.navigate_to_url:
+                update.navigation_type = "custom"
+            elif page_id is not None:
+                update.navigation_type = "page"
+            if update.navigation_type is not None:
+                kwargs["navigation_type"] = update.navigation_type
+        if page_id is not None and (
+            page_id != element.navigate_to_page_id or element.navigation_type != "page"
+        ):
             problem = page_parameters_problem(
                 element.page.builder_id,
                 page_id,
@@ -169,18 +181,13 @@ class LinkAssistantElementType(AssistantElementType):
                     "with link_page_parameters. This one stays on the page until "
                     "someone deletes it in the editor."
                 )
-            return PreparedElementUpdate(
-                {
-                    "page_parameters": parameters_in_page_order(
-                        element.page.builder_id,
-                        page_id,
-                        element.page_parameters,
-                        itemgetter("name"),
-                    )
-                },
-                {},
+            kwargs["page_parameters"] = parameters_in_page_order(
+                element.page.builder_id,
+                page_id,
+                element.page_parameters,
+                itemgetter("name"),
             )
-        return super().prepare_update(user, element, update)
+        return PreparedElementUpdate(kwargs, {})
 
 
 class ColumnAssistantElementType(AssistantElementType):
