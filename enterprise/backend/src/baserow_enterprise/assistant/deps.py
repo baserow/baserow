@@ -157,16 +157,24 @@ class AssistantDeps:
 
         self.sources.extend(s for s in new_sources if s not in self.sources)
 
-    def tool_context(self) -> "ToolContext":
-        """The context for calling a tool shared with the other clients."""
+    def tool_context(self, *, cooperative_cancellation: bool = False) -> "ToolContext":
+        """The context for calling a tool shared with the other clients.
+
+        :param cooperative_cancellation: The tool checks cancellation between items
+            and keeps finished work, instead of raising from its status callback.
+        """
 
         from baserow.core.tools import ToolContext
 
         tool_helpers = self.tool_helpers
 
-        # Shared tools report status between steps, so a cancelled chat stops there.
-        def update_status(message: str) -> None:
+        if cooperative_cancellation:
             tool_helpers.raise_if_cancelled()
+
+        # Other shared tools still stop by raising from their status callback.
+        def update_status(message: str) -> None:
+            if not cooperative_cancellation:
+                tool_helpers.raise_if_cancelled()
             tool_helpers.update_status(message)
 
         return ToolContext(
@@ -174,4 +182,5 @@ class AssistantDeps:
             workspace=self.workspace,
             update_status=update_status,
             timezone=self.user.profile.timezone,
+            is_cancelled=lambda: tool_helpers.is_cancelled,
         )

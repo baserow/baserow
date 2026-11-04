@@ -1072,8 +1072,12 @@ def create_views(
 
     created_views = []
     errors: list[dict[str, Any]] = []
+    stopped = None
     with transaction.atomic():
-        for view in views:
+        for index, view in enumerate(views):
+            if ctx.is_cancelled():
+                stopped = index
+                break
             if view.name in used_names:
                 errors.append(
                     item_error(
@@ -1148,12 +1152,15 @@ def create_views(
                 )
             created_views.append(created)
 
-    return finish_batch(
+    result = finish_batch(
         {"created_views": created_views},
         bool(created_views),
         errors,
         "No view was created.",
     )
+    if stopped is not None:
+        result["stopped_after"] = stopped
+    return result
 
 
 def create_view_filters(

@@ -48,6 +48,7 @@ from baserow_enterprise.assistant.tools.shared import (
     raise_if_permission_denied,
     require_payload,
     return_permission_error,
+    stopped_after,
 )
 from baserow_enterprise.assistant.tools.toolset import (
     AssistantFunctionToolset,
@@ -702,8 +703,10 @@ def create_fields(
     table = helpers.get_table(user, workspace, table_id)
     result = shared_fields.create_fields(ctx.deps.tool_context(), table.id, fields)
 
+    if (done := result.pop("stopped_after", None)) is not None:
+        result["stopped"] = stopped_after(done, len(fields))
     formula_errors, other_errors = _split_formula_errors(result)
-    if formula_errors:
+    if formula_errors and "stopped" not in result:
         formula_fixer = make_formula_fixer(user, workspace, ctx.deps.tool_helpers)
         repaired, formula_errors = helpers.create_repaired_formula_fields(
             user,
@@ -755,15 +758,17 @@ def update_fields(
     if not fields:
         return {"updated_fields": [], "changed": False}
 
-    tool_context = ctx.deps.tool_context()
+    tool_context = ctx.deps.tool_context(cooperative_cancellation=True)
     try:
         result = shared_fields.update_fields(tool_context, fields)
     except DjangoValidationError as exc:
         # Another operation holds a lock on one of the fields.
         raise ModelRetry(" ".join(exc.messages))
 
+    if (done := result.pop("stopped_after", None)) is not None:
+        result["stopped"] = stopped_after(done, len(fields))
     formula_errors, other_errors = _split_formula_errors(result)
-    if formula_errors:
+    if formula_errors and "stopped" not in result:
         formula_fixer = make_formula_fixer(
             ctx.deps.user, ctx.deps.workspace, ctx.deps.tool_helpers
         )
@@ -772,8 +777,12 @@ def update_fields(
             formula_fixer,
             fields,
             formula_errors,
-            ctx.deps.tool_helpers.raise_if_cancelled,
         )
+        if tool_context.is_cancelled():
+            result["stopped"] = (
+                "Stopped while repairing formulas because the run was cancelled. "
+                "The finished changes were kept."
+            )
         result["updated_fields"].extend(field.model_dump() for field in repaired)
         result["changed"] = result["changed"] or changed
     _hint_generate_formula(formula_errors)
@@ -816,7 +825,11 @@ def delete_fields(
     if not field_ids:
         return {"deleted_field_ids": [], "changed": False}
 
-    result = shared_fields.delete_fields(ctx.deps.tool_context(), field_ids)
+    result = shared_fields.delete_fields(
+        ctx.deps.tool_context(cooperative_cancellation=True), field_ids
+    )
+    if (done := result.pop("stopped_after", None)) is not None:
+        result["stopped"] = stopped_after(done, len(field_ids))
 
     _refresh_row_tools(ctx)
     return result
@@ -857,14 +870,18 @@ def create_views(
 
     table = helpers.get_table(ctx.deps.user, ctx.deps.workspace, table_id)
     try:
-        result = shared_views.create_views(ctx.deps.tool_context(), table.id, views)
+        result = shared_views.create_views(
+            ctx.deps.tool_context(cooperative_cancellation=True), table.id, views
+        )
     except DjangoValidationError as exc:
         raise ModelRetry(" ".join(exc.messages))
     except SharedToolInputError as exc:
         raise _retry_with_hint(exc)
 
+    if (done := result.pop("stopped_after", None)) is not None:
+        result["stopped"] = stopped_after(done, len(views))
     created_views = result["created_views"]
-    if created_views:
+    if created_views and not ctx.deps.tool_helpers.is_cancelled:
         ctx.deps.tool_helpers.navigate_to(
             ViewNavigationType(
                 type="database-view",

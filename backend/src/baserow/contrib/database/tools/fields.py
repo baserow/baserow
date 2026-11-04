@@ -1210,12 +1210,16 @@ def update_fields(
     updated = []
     errors: list[dict[str, Any]] = []
     changed = False
+    stopped = None
 
     with transaction.atomic():
         _lock_fields(ctx, [field_update.field_id for field_update in fields])
         # Applied in the caller's order, so a rename can come before a formula
         # that uses the new name.
         for index, field_update in enumerate(fields):
+            if ctx.is_cancelled():
+                stopped = index
+                break
             ctx.update_status(
                 _("Updating field %(field_id)s...")
                 % {"field_id": field_update.field_id}
@@ -1241,9 +1245,12 @@ def update_fields(
                 errors.append(
                     item_error(field_update.field_id, _field_item_error(error))
                 )
-    return finish_batch(
+    result = finish_batch(
         {"updated_fields": updated}, changed, errors, "No field was updated."
     )
+    if stopped is not None:
+        result["stopped_after"] = stopped
+    return result
 
 
 def delete_fields(
@@ -1259,9 +1266,13 @@ def delete_fields(
 
     deleted = []
     errors: list[dict[str, Any]] = []
+    stopped = None
 
     with transaction.atomic():
-        for field_id in field_ids:
+        for index, field_id in enumerate(field_ids):
+            if ctx.is_cancelled():
+                stopped = index
+                break
             ctx.update_status(
                 _("Deleting field %(field_id)s...") % {"field_id": field_id}
             )
@@ -1274,6 +1285,9 @@ def delete_fields(
             except Exception as error:
                 forget_cached_table_models()
                 errors.append(item_error(field_id, _field_item_error(error)))
-    return finish_batch(
+    result = finish_batch(
         {"deleted_field_ids": deleted}, bool(deleted), errors, "No field was deleted."
     )
+    if stopped is not None:
+        result["stopped_after"] = stopped
+    return result

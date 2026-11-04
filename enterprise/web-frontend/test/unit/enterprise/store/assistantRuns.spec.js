@@ -528,12 +528,13 @@ describe('Kuma durable streamed send and resume', () => {
     })
     await flushPromises()
     await store.dispatch('assistant/cancelMessage')
-    api.get.mockResolvedValue({
-      status: 'cancelled',
-      message: { ...answer, content: 'Stopped' },
-    })
     await emit('human', human, { cursor: cursor(1), status: 'queued' })
     await starting
+    await emit(
+      'ai/message',
+      { ...answer, content: 'Stopped' },
+      { cursor: cursor(2), status: 'cancelled' }
+    )
     expect(
       store.getters['assistant/messages'].map(({ id, content }) => [
         id,
