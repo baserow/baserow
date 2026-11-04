@@ -95,14 +95,16 @@ class MCPEndpointHandler:
 
     def get_default_tools(self) -> list[str]:
         """
-        The tools a new endpoint key starts with: every read-only tool, plus the
-        tools endpoint keys always had. The user can change them afterwards.
+        The tools a new endpoint key starts with: every read-only tool that isn't
+        off by default, plus the tools endpoint keys always had. The user can change
+        them afterwards.
         """
 
         return [
             tool.name
             for tool in mcp_tool_registry.get_enabled_tools()
-            if tool.read_only or tool.name in LEGACY_DEFAULT_TOOLS
+            if (tool.read_only and not tool.off_by_default)
+            or tool.name in LEGACY_DEFAULT_TOOLS
         ]
 
     def create_endpoint(

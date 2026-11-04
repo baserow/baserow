@@ -1252,9 +1252,15 @@ class DatabaseConfig(AppConfig):
             UpdateTableMcpTool,
         )
         from baserow.contrib.database.mcp.views.tools import (
+            AddRowColoursMcpTool,
             CreateViewFiltersMcpTool,
             CreateViewsMcpTool,
+            DeleteRowColoursMcpTool,
+            DeleteViewFiltersMcpTool,
+            DeleteViewsMcpTool,
             ListViewsMcpTool,
+            SetFieldVisibilityMcpTool,
+            SetViewSortsMcpTool,
         )
         from baserow.core.mcp.groups import (
             DatabaseDeleteMCPToolGroup,
@@ -1282,6 +1288,12 @@ class DatabaseConfig(AppConfig):
         mcp_tool_registry.register(DeleteFieldsMcpTool())
         mcp_tool_registry.register(CreateViewsMcpTool())
         mcp_tool_registry.register(CreateViewFiltersMcpTool())
+        mcp_tool_registry.register(SetViewSortsMcpTool())
+        mcp_tool_registry.register(SetFieldVisibilityMcpTool())
+        mcp_tool_registry.register(AddRowColoursMcpTool())
+        mcp_tool_registry.register(DeleteViewsMcpTool())
+        mcp_tool_registry.register(DeleteViewFiltersMcpTool())
+        mcp_tool_registry.register(DeleteRowColoursMcpTool())
         # Disabled (enabled=False) until users can control tool
         # availability through the UI.
         mcp_tool_registry.register(UpdateTableMcpTool())

@@ -111,6 +111,7 @@ The following tools are currently enabled:
 
 | Tool | Description |
 |---|---|
+| `search_workspace` | Search the workspace by name or content |
 | `list_applications` | List the workspace's databases |
 | `list_databases` | List all databases in the workspace |
 | `list_tables` | List tables, optionally filtered by database or table name |
@@ -120,12 +121,20 @@ The following tools are currently enabled:
 | `update_rows` | Update existing rows by ID |
 | `delete_rows` | Delete rows by ID |
 | `list_views` | List the views of a table |
+| `list_row_comments` | List a row's comments (premium) |
+| `create_row_comments` | Post comments on rows (premium) |
 | `create_tables` | Create tables with their fields |
 | `create_fields` | Add fields to a table |
 | `update_fields` | Rename fields or change their settings |
 | `delete_fields` | Delete (trash) fields |
 | `create_views` | Create views in a table |
 | `create_view_filters` | Add filters to views |
+| `set_view_sorts` | Replace the sorts of a view |
+| `set_field_visibility` | Hide or show fields in a view |
+| `add_row_colours` | Colour rows of a view (premium) |
+| `delete_views` | Delete (trash) views |
+| `delete_view_filters` | Delete filters from views |
+| `delete_row_colours` | Remove row colours from views |
 | `list_workflows` | List automations and their workflows |
 | `list_nodes` | List a workflow's nodes with their output paths |
 | `create_workflows` | Create workflows with a trigger and nodes |
@@ -139,9 +148,10 @@ The following tools are currently enabled:
 | `create_widgets` | Add summary, chart and pie chart widgets |
 | `update_widgets` | Change a widget's title, chart type, or what it shows |
 | `delete_widgets` | Delete (trash) widgets |
+| `list_audit_log` | List who did what in this workspace, with an optional text search (advanced or enterprise, admin) |
 
-The automation tools are off in the "Read only" preset. Turn them on at
-consent or under **Settings > Connected apps**. The "Read only" preset
+The automation and audit log tools are off in the "Read only" preset. Turn them
+on at consent or under **Settings > Connected apps**. The "Read only" preset
 includes reading dashboards, not changing them.
 
 ## 4. Test scenarios
@@ -186,6 +196,18 @@ Ask Claude: *"Find rows in [table name] that contain 'test'"*
 
 Expected: Claude calls `list_table_rows` with a `search` parameter.
 
+### Search the workspace
+
+Ask Claude: *"Which table has the invoices?"*, then *"Find the customer called Acme"*.
+
+Expected: Claude calls `search_workspace`, finds the table, and finds the row with its `table_id` and `row_id`. Row search needs the workspace's search data to be built, which happens in the background after rows are added.
+
+### Row comments
+
+Needs a premium licence. Ask Claude: *"Add a comment to row 1 of [table name] saying I called them"*, then *"What did people say about this row?"*.
+
+Expected: Claude calls `create_row_comments`, then `list_row_comments`. The comment shows in the row's comment panel. Without a licence Claude reports that the feature isn't available and no comment is stored.
+
 ### Create tables, fields and views
 
 Ask Claude: *"Create a table called Tasks in [database name] with a text field
@@ -205,6 +227,18 @@ where State is Open"*
 
 Expected: Claude calls `create_views`, then `create_view_filters`. The view
 shows the filter in Baserow.
+
+### View config
+
+Ask Claude: *"Sort the grid by due date, newest first"*, *"Hide the notes field in this view"*, *"Colour the rows by status"* (needs a premium licence), then *"Remove that colour and the filters on this view"*.
+
+Expected: the view changes after each request. Hiding the primary field of a grid view comes back as an error on that field. Without a licence, colouring reports that the feature isn't available.
+
+### Audit log
+
+Needs an advanced or enterprise licence and a workspace admin. Turn on **Read the audit log**, create and delete a table, then ask Claude: *"Who deleted a table this week?"*.
+
+Expected: Claude calls `list_audit_log` and names you. As a workspace member who isn't an admin, Claude reports it has no permission. Entries of other workspaces never show.
 
 ### Automations
 

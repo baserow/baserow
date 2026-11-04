@@ -1,13 +1,24 @@
 from unittest.mock import MagicMock
 
 import pytest
-from pydantic_ai import ModelRetry
+from pydantic_ai import ModelRetry, Tool
+from pydantic_ai.messages import (
+    ModelRequest,
+    ModelResponse,
+    ToolCallPart,
+    ToolReturnPart,
+)
 
+from baserow.contrib.database.tools.view_config import FieldVisibility, ViewSortItem
 from baserow.contrib.database.views.models import View, ViewFilter
+from baserow_enterprise.assistant.action_memory import get_mutation_evidence
 from baserow_enterprise.assistant.tools.database.tools import (
     create_view_filters,
     create_views,
+    delete_views,
     list_views,
+    set_field_visibility,
+    set_view_sorts,
 )
 from baserow_enterprise.assistant.tools.database.types import (
     FormFieldOption,
@@ -40,6 +51,13 @@ def test_list_views_tool(data_fixture):
                 "public": False,
                 "type": "grid",
                 "row_height": "small",
+                "sorts": [],
+                "filters": [],
+                "filter_type": "AND",
+                "filters_disabled": False,
+                "filter_groups": [],
+                "row_colours": [],
+                "hidden_field_ids": [],
             }
         ]
     }
@@ -1012,3 +1030,57 @@ def test_create_views_with_only_used_names_skips_them_without_navigating(
     assert response == {"created_views": [], "skipped_views": ["Grid"]}
     assert View.objects.filter(table=table).count() == 1
     tool_helpers.navigate_to.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_view_config_results_count_as_completed_changes(data_fixture):
+    # Kuma only lets the model claim a change when the result shows one.
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    amount = data_fixture.create_number_field(table=table, name="Amount")
+    view = data_fixture.create_grid_view(table=table)
+    ctx = make_test_ctx(user, workspace)
+
+    def evidence_of(name, result):
+        return get_mutation_evidence(
+            [
+                ModelResponse(
+                    parts=[ToolCallPart(name, {"thought": "x"}, tool_call_id="1")]
+                ),
+                ModelRequest(parts=[ToolReturnPart(name, result, tool_call_id="1")]),
+            ]
+        )[0]
+
+    results = {
+        "set_view_sorts": set_view_sorts(
+            ctx, view.id, [ViewSortItem(field_id=amount.id)], thought="x"
+        ),
+        "set_field_visibility": set_field_visibility(
+            ctx,
+            view.id,
+            [FieldVisibility(field_id=amount.id, hidden=True)],
+            thought="x",
+        ),
+        "delete_views": delete_views(ctx, [view.id], thought="x"),
+    }
+    for name, result in results.items():
+        evidence = evidence_of(name, result)
+        assert evidence.changed, name
+        assert evidence.completed, name
+
+    # Part of a batch failed: something changed, but not everything that was asked.
+    partly = delete_views(
+        ctx, [999999, data_fixture.create_grid_view(table=table).id], thought="x"
+    )
+    evidence = evidence_of("delete_views", partly)
+    assert evidence.changed
+    assert not evidence.completed
+
+
+def test_kuma_set_field_visibility_needs_a_field_in_its_schema():
+    schema = Tool(set_field_visibility, takes_ctx=True).function_schema.json_schema
+
+    assert schema["properties"]["fields"]["minItems"] == 1

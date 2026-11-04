@@ -102,6 +102,7 @@ Some tools are currently disabled (`enabled = False`) and hidden from MCP client
 
 | Tool | Status | Description |
 |---|---|---|
+| `search_workspace` | enabled | Search the workspace by name or content, optionally by type (shared with Kuma) |
 | `list_applications` | enabled | List the workspace's databases, a page at a time (shared with Kuma) |
 | `list_databases` | enabled | List all databases in the workspace (kept for existing connections, until 2.6) |
 | `list_tables` | enabled | List tables, optionally filtered by database or table name (shared with Kuma) |
@@ -111,18 +112,27 @@ Some tools are currently disabled (`enabled = False`) and hidden from MCP client
 | `update_rows` | enabled | Update rows by ID using field names |
 | `delete_rows` | enabled | Delete rows by ID |
 | `list_views` | enabled | List the views of a table (shared with Kuma) |
+| `list_row_comments` | enabled | List a row's comments as plain text. Needs premium (shared with Kuma) |
+| `create_row_comments` | enabled | Post plain text comments on rows. Needs premium (shared with Kuma) |
 | `create_tables` | enabled | Create tables with their fields (shared with Kuma) |
 | `create_fields` | enabled | Add fields to a table (shared with Kuma) |
 | `update_fields` | enabled | Rename fields or change their settings (shared with Kuma) |
 | `delete_fields` | enabled | Delete (trash) fields (shared with Kuma) |
 | `create_views` | enabled | Create views in a table (shared with Kuma) |
 | `create_view_filters` | enabled | Add filters to views (shared with Kuma) |
+| `set_view_sorts` | enabled | Replace the sorts of a view (shared with Kuma) |
+| `set_field_visibility` | enabled | Hide or show fields in a view (shared with Kuma) |
+| `add_row_colours` | enabled | Colour rows by a single select field or by conditions. Needs premium (shared with Kuma) |
+| `delete_views` | enabled | Delete (trash) views (shared with Kuma) |
+| `delete_view_filters` | enabled | Delete filters from views (shared with Kuma) |
+| `delete_row_colours` | enabled | Remove row colours from views (shared with Kuma) |
 | `list_workflows` | enabled | List the automations of the workspace and their workflows (shared with Kuma) |
 | `list_nodes` | enabled | List a workflow's nodes in order, with their branches and output paths (shared with Kuma) |
 | `create_workflows` | enabled | Create workflows with a trigger and nodes (shared with Kuma) |
 | `add_nodes` | enabled | Add nodes to a workflow (shared with Kuma) |
 | `update_nodes` | enabled | Change node labels, settings and router conditions (shared with Kuma) |
 | `delete_nodes` | enabled | Delete (trash) workflow nodes (shared with Kuma) |
+| `list_audit_log` | enabled | List who did what in this workspace, with an optional text search of at most 90 days. Needs advanced or enterprise and a workspace admin (shared with Kuma) |
 | `list_dashboards` | enabled | List the dashboards of the workspace with their widget count |
 | `list_widgets` | enabled | List a dashboard's widgets with the table, view, fields and aggregations they read |
 | `get_widget_data` | enabled | Read the figures widgets show |
@@ -147,6 +157,8 @@ list_databases
 The automation tools are in their own groups (`automation_read`, `automation_edit`, `automation_delete`) and are not part of the "Read only" preset, so a user turns them on at consent or later under Settings. A value that takes a formula is stored as written when it is a valid formula and quoted when it is a literal. A formula is invalid when it doesn't parse, or reads a `previous_node` path the node doesn't output (the paths `list_nodes` shows). An invalid formula comes back in `formula_errors` for the client to fix with `update_nodes`: on a new node the value is left empty, on an update it keeps what it had. A formula can name a node created earlier in the same call by its ref, as in `get('previous_node.trigger.0.id')`. Over MCP no model is called; Kuma repairs those values with its formula generator after the nodes are committed.
 
 The dashboard tools are in the `dashboard_read`, `dashboard_edit` and `dashboard_delete` groups. `dashboard_read` is part of the "Read only" preset, because it only returns figures the user can already see on the dashboard. A widget is a `summary` (one field aggregated over the rows), a `chart` or a `pie_chart` (one or more series, optionally grouped by a field). Charts need a premium licence; without one the widget fails with the licence message. Each widget is saved on its own, so one that fails is listed in `errors` and the others are kept. An aggregation that doesn't fit a field, like `sum` on a text field, comes back in `errors` with the aggregations that do. A widget filters its rows through a view (`view_id`); filters on the data source itself are not offered. New widgets go where the dashboard places them by default.
+
+The audit log tools are in their own group (`audit_log_read`), registered by the enterprise app. They are off in the "Read only" preset and on new endpoint keys (`off_by_default`), so a user has to turn them on. They only read the audit log of the endpoint's workspace, not the instance-wide log.
 
 ## Adding a new tool
 

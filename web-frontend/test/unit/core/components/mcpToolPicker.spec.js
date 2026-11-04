@@ -120,6 +120,58 @@ describe('McpToolPicker', () => {
     expect(group('database_edit').text()).not.toContain('Delete rows')
   })
 
+  test('labels the workspace search group and area', async () => {
+    const { wrapper } = await mount({
+      groups: [
+        {
+          type: 'workspace_read',
+          title: 'Search the workspace',
+          area: 'workspace',
+          read_only_preset: true,
+        },
+      ],
+      tools: [
+        {
+          name: 'search_workspace',
+          title: 'Search the workspace',
+          read_only: true,
+          destructive: false,
+          group: 'workspace_read',
+        },
+      ],
+    })
+    const area = wrapper.find('[data-test="mcp-tool-picker-area-workspace"]')
+
+    expect(area.text()).toContain('mcpToolPicker.areaWorkspace')
+    expect(area.text()).toContain('mcpToolPicker.workspaceRead')
+  })
+
+  test('labels the audit log group and area', async () => {
+    const { wrapper } = await mount({
+      groups: [
+        {
+          type: 'audit_log_read',
+          title: 'Read the audit log',
+          area: 'audit_log',
+          read_only_preset: false,
+        },
+      ],
+      tools: [
+        {
+          name: 'list_audit_log',
+          title: 'List the audit log',
+          read_only: true,
+          destructive: false,
+          group: 'audit_log_read',
+        },
+      ],
+    })
+    const area = wrapper.find('[data-test="mcp-tool-picker-area-audit_log"]')
+
+    expect(area.text()).toContain('mcpToolPicker.areaAuditLog')
+    expect(area.text()).toContain('mcpToolPicker.auditLogRead')
+  })
+
   test('labels the automation groups and area', async () => {
     const automationGroups = [
       {

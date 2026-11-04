@@ -118,6 +118,19 @@ class BaserowEnterpriseConfig(AppConfig):
         )
 
         job_type_registry.register(AuditLogExportJobType())
+
+        from baserow.core.mcp.groups import (
+            AuditLogReadMCPToolGroup,
+            mcp_tool_group_registry,
+        )
+        from baserow.core.mcp.registries import mcp_tool_registry
+        from baserow_enterprise.mcp.audit_log.tools import (
+            ListAuditLogMcpTool,
+        )
+
+        mcp_tool_group_registry.register(AuditLogReadMCPToolGroup())
+        mcp_tool_registry.register(ListAuditLogMcpTool())
+
         job_type_registry.register(DataScanResultExportJobType())
         agent_extension_type_registry.register(EnterpriseAgentExtensionType())
 

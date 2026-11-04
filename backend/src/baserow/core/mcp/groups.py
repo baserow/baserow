@@ -2,6 +2,7 @@ from typing import List
 
 from baserow.core.registry import Instance, Registry
 
+GROUP_WORKSPACE_READ = "workspace_read"
 GROUP_DATABASE_READ = "database_read"
 GROUP_DATABASE_EDIT = "database_edit"
 GROUP_DATABASE_DELETE = "database_delete"
@@ -11,10 +12,13 @@ GROUP_AUTOMATION_DELETE = "automation_delete"
 GROUP_DASHBOARD_READ = "dashboard_read"
 GROUP_DASHBOARD_EDIT = "dashboard_edit"
 GROUP_DASHBOARD_DELETE = "dashboard_delete"
+GROUP_AUDIT_LOG_READ = "audit_log_read"
 
+AREA_WORKSPACE = "workspace"
 AREA_DATABASE = "database"
 AREA_AUTOMATION = "automation"
 AREA_DASHBOARD = "dashboard"
+AREA_AUDIT_LOG = "audit_log"
 
 
 class MCPToolGroup(Instance):
@@ -42,6 +46,14 @@ class MCPToolGroupRegistry(Registry[MCPToolGroup]):
 
     def get_ordered(self) -> List[MCPToolGroup]:
         return sorted(self.registry.values(), key=lambda group: group.order)
+
+
+class WorkspaceReadMCPToolGroup(MCPToolGroup):
+    type = GROUP_WORKSPACE_READ
+    title = "Search the workspace"
+    area = AREA_WORKSPACE
+    read_only_preset = True
+    order = 5
 
 
 class DatabaseReadMCPToolGroup(MCPToolGroup):
@@ -108,6 +120,13 @@ class DashboardDeleteMCPToolGroup(MCPToolGroup):
     title = "Delete in dashboards"
     area = AREA_DASHBOARD
     order = 90
+
+
+class AuditLogReadMCPToolGroup(MCPToolGroup):
+    type = GROUP_AUDIT_LOG_READ
+    title = "Read the audit log"
+    area = AREA_AUDIT_LOG
+    order = 100
 
 
 mcp_tool_group_registry = MCPToolGroupRegistry()
