@@ -9,6 +9,45 @@ beforeEach(() => {
 afterEach(() => testApp.afterEach())
 
 describe('TextFilterWidgetSettings', () => {
+  test.each([false, true])(
+    'resets defaults together with changed options (multiple: %s)',
+    async (multiple) => {
+      const widget = {
+        id: 2,
+        type: 'text_filter',
+        mode: 'dropdown',
+        multiple,
+        options: { formula: 'France, Belgium', mode: 'raw' },
+        default_value: multiple ? ['France', 'Belgium'] : 'France',
+      }
+      const dispatch = vi.spyOn(testApp.store, 'dispatch').mockResolvedValue()
+      const wrapper = await testApp.mount(TextFilterWidgetSettings, {
+        props: { dashboard: { id: 1 }, widget },
+      })
+      const input = wrapper.get('.formula-input-field__raw-input input')
+      dispatch.mockClear()
+      await input.setValue('France, Belgium')
+      await flushPromises()
+      expect(dispatch).not.toHaveBeenCalled()
+      await input.setValue('Germany, Spain')
+      await flushPromises()
+      expect(dispatch).toHaveBeenCalledOnce()
+      expect(dispatch).toHaveBeenCalledWith(
+        'dashboardApplication/updateWidget',
+        expect.objectContaining({
+          values: expect.objectContaining({
+            options: { formula: 'Germany, Spain', mode: 'raw' },
+            default_value: multiple ? [] : '',
+          }),
+          originalValues: expect.objectContaining({
+            options: widget.options,
+            default_value: widget.default_value,
+          }),
+        })
+      )
+      dispatch.mockRestore()
+    }
+  )
   test('selects and clears a default from cached options', async () => {
     const widget = {
       id: 2,

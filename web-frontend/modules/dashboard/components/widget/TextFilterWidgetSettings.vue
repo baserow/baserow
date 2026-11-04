@@ -278,6 +278,7 @@
 </template>
 
 <script setup>
+import isEqual from 'lodash/isEqual'
 import { useWidgetOptions } from '@baserow/modules/dashboard/composables/useWidgetOptions'
 import ItemCard from '@baserow/modules/core/components/ItemCard'
 import DashboardFormulaInput from '@baserow/modules/dashboard/components/DashboardFormulaInput'
@@ -519,7 +520,7 @@ async function removeTarget() {
 }
 /** Save configuration through the shared undoable widget update flow. */
 async function updateSetting(field, value) {
-  if (value === props.widget[field]) return
+  if (isEqual(value, props.widget[field])) return
   const settings = {
     mode: props.widget.mode || 'input',
     multiple: props.widget.multiple || false,
@@ -528,12 +529,16 @@ async function updateSetting(field, value) {
     default_value: props.widget.default_value,
     target_filters: props.widget.target_filters || [],
   }
+  const values = { ...settings, [field]: value }
+  if (field === 'options') {
+    values.default_value = props.widget.multiple ? [] : ''
+  }
   try {
     await $store.dispatch(
       `${props.storePrefix}dashboardApplication/updateWidget`,
       {
         widgetId: props.widget.id,
-        values: { ...settings, [field]: value },
+        values,
         originalValues: settings,
       }
     )
