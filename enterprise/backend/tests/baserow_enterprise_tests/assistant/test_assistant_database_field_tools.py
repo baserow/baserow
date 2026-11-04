@@ -1095,15 +1095,15 @@ def test_update_fields_stops_repairing_formulas_when_cancelled(
     b = data_fixture.create_formula_field(table=table, name="B", formula="'b'")
     calls = _fake_fixer(monkeypatch, "'fixed'", cancel=True)
 
-    with pytest.raises(asyncio.CancelledError):
-        update_fields(
-            make_test_ctx(user, workspace),
-            fields=[
-                FieldItemUpdate(field_id=a.id, formula="concat("),
-                FieldItemUpdate(field_id=b.id, formula="concat("),
-            ],
-            thought="test",
-        )
+    result = update_fields(
+        make_test_ctx(user, workspace),
+        fields=[
+            FieldItemUpdate(field_id=a.id, formula="concat("),
+            FieldItemUpdate(field_id=b.id, formula="concat("),
+        ],
+        thought="test",
+    )
+    assert "Stopped while repairing formulas" in result["stopped"]
 
     assert len(calls) == 1
     a.refresh_from_db()
