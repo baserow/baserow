@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Group date-only created and modified dates by day",
+    "issue_origin": "github",
+    "issue_number": 6616,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-11-04"
+}

@@ -2208,6 +2208,29 @@ class CreatedOnLastModifiedBaseFieldType(ReadOnlyFieldType, DateFieldType):
         kwargs.update(self.model_field_kwargs)
         return self.model_field_class(**kwargs)
 
+    def get_group_by_expression(
+        self, field: Field, field_name: str, base_queryset: QuerySet
+    ) -> Expression:
+        """
+        Date-only values are still stored as timestamps, so they group by the UTC
+        day the API and the frontend show.
+        """
+
+        if field.date_include_time:
+            return super().get_group_by_expression(field, field_name, base_queryset)
+        return DateTrunc(
+            "day", field_name, output_field=models.DateTimeField(null=True)
+        )
+
+    def get_group_by_field_unique_value(
+        self, field: Field, field_name: str, value: Any
+    ) -> Any:
+        if field.date_include_time or not isinstance(value, datetime):
+            return super().get_group_by_field_unique_value(field, field_name, value)
+        return value.astimezone(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+
     def after_create(self, field, model, user, connection, before, field_kwargs):
         """
         Immediately after the field has been created, we need to populate the values
