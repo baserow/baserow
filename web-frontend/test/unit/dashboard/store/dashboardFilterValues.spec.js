@@ -81,6 +81,82 @@ const settle = async () => {
 }
 
 describe('Dashboard filter dispatch', () => {
+  test('rolls back an automatic selection after another widget saves', async () => {
+    const serverWidgets = JSON.parse(
+      JSON.stringify(store.state.dashboardApplication.widgets)
+    )
+    const finish = {}
+    store.$client.patch = vi.fn(
+      (url) =>
+        new Promise((resolve, reject) => {
+          finish[url] = { resolve, reject }
+        })
+    )
+    store.$client.get = vi.fn(async () => ({ data: serverWidgets }))
+    const savingDefault = store
+      .dispatch('dashboardApplication/updateWidget', {
+        widgetId: 13,
+        values: { default_value: 'Gamma' },
+        originalValues: { default_value: '' },
+      })
+      .catch(() => {})
+    const savingTitle = store.dispatch('dashboardApplication/updateWidget', {
+      widgetId: 23,
+      values: { title: 'Renamed' },
+      originalValues: { title: '' },
+    })
+    await vi.advanceTimersByTimeAsync(1000)
+    finish['/dashboard/widgets/23/'].resolve({ data: {} })
+    await savingTitle
+    finish['/dashboard/widgets/13/'].reject(new Error('Save failed'))
+    await savingDefault
+    expect(
+      store.state.dashboardApplication.widgets.find(({ id }) => id === 13)
+        .default_value
+    ).toBe('')
+    expect(store.state.dashboardApplication.widgetValues[13]).toBe('')
+    await vi.advanceTimersByTimeAsync(300)
+    expect(
+      requests.filter(({ payload }) => payload.widget_data[13] === 'Gamma')
+    ).toEqual([])
+    await settle()
+  })
+
+  test('does not roll back the selection of a newer completed save of the same widget', async () => {
+    const finish = []
+    const serverWidgets = JSON.parse(
+      JSON.stringify(store.state.dashboardApplication.widgets)
+    )
+    store.$client.patch = vi.fn(
+      () => new Promise((resolve, reject) => finish.push({ resolve, reject }))
+    )
+    store.$client.get = vi.fn(async () => ({ data: serverWidgets }))
+    const first = store
+      .dispatch('dashboardApplication/updateWidget', {
+        widgetId: 13,
+        values: { default_value: 'Gamma' },
+        originalValues: { default_value: '' },
+      })
+      .catch(() => {})
+    await vi.advanceTimersByTimeAsync(1000)
+    const second = store.dispatch('dashboardApplication/updateWidget', {
+      widgetId: 13,
+      values: { default_value: 'Delta' },
+      originalValues: { default_value: 'Gamma' },
+    })
+    await vi.advanceTimersByTimeAsync(1000)
+    serverWidgets.find(({ id }) => id === 13).default_value = 'Delta'
+    finish[1].resolve({ data: {} })
+    await second
+    finish[0].reject(new Error('Save failed'))
+    await first
+    expect(store.state.dashboardApplication.widgetValues[13]).toBe('Gamma')
+    expect(
+      store.state.dashboardApplication.widgets.find(({ id }) => id === 13)
+        .default_value
+    ).toBe('Delta')
+  })
+
   test.each([12, 13])(
     'releases a shared source only after both filter saves finish (first: %s)',
     async (firstId) => {
@@ -94,6 +170,10 @@ describe('Dashboard filter dispatch', () => {
       store.$client.get = vi.fn(async () => ({
         data: [...store.state.dashboardApplication.widgets],
       }))
+      await change(12, '')
+      await vi.advanceTimersByTimeAsync(300)
+      await settle()
+      post.mockClear()
       const saving = {}
       for (const id of [12, 13]) {
         saving[id] = store.dispatch('dashboardApplication/updateWidget', {
@@ -339,14 +419,111 @@ describe('Dashboard filter dispatch', () => {
     }
   )
 
-  test('applies an explicitly changed default together with a mode change', async () => {
+  test('preserves a selection when the default and mode change together', async () => {
     await change(12, 'Beta')
     await store.dispatch('dashboardApplication/forceUpdateWidget', {
       widgetId: 12,
       values: { mode: 'dropdown', multiple: true, default_value: ['Gamma'] },
     })
-    expect(store.state.dashboardApplication.widgetValues[12]).toEqual(['Gamma'])
+    expect(store.state.dashboardApplication.widgetValues[12]).toEqual(['Beta'])
   })
+
+  test.each([
+    [false, 'Beta', 'Gamma', 'Beta'],
+    [false, 'Alpha', 'Gamma', 'Alpha'],
+    [false, 'Beta', '', 'Beta'],
+    [false, '', 'Gamma', 'Gamma'],
+    [true, ['Beta', 'Other'], ['Gamma'], ['Beta', 'Other']],
+    [true, ['Alpha'], ['Gamma'], ['Alpha']],
+    [true, ['Beta'], [], ['Beta']],
+    [true, [], ['Gamma'], ['Gamma']],
+  ])(
+    'only applies a changed default to an empty filter (multiple: %s, selection: %j, default: %j)',
+    async (multiple, selection, defaultValue, expected) => {
+      await store.dispatch('dashboardApplication/forceUpdateWidget', {
+        widgetId: 12,
+        values: { mode: 'dropdown', multiple },
+      })
+      await change(12, selection)
+      await vi.advanceTimersByTimeAsync(300)
+      await settle()
+      post.mockClear()
+      await store.dispatch('dashboardApplication/forceUpdateWidget', {
+        widgetId: 12,
+        values: { default_value: defaultValue },
+      })
+      expect(store.state.dashboardApplication.widgetValues[12]).toEqual(
+        expected
+      )
+      await vi.advanceTimersByTimeAsync(300)
+      if (selection.length) {
+        expect(post).not.toHaveBeenCalled()
+      } else {
+        expect(requests).toHaveLength(2)
+        expect(requests[0].payload.widget_data[12]).toEqual(expected)
+      }
+      await settle()
+    }
+  )
+
+  test.each([
+    [false, false],
+    [true, false],
+    [false, true],
+    [true, true],
+  ])(
+    'rolls back an automatically applied default without overwriting later selections (changed: %s, coalesced: %s)',
+    async (changed, coalesced) => {
+      await store.dispatch('dashboardApplication/forceUpdateWidget', {
+        widgetId: 13,
+        values: { mode: 'dropdown', multiple: true, default_value: [] },
+      })
+      let failSave
+      store.$client.patch = vi.fn(
+        () =>
+          new Promise((resolve, reject) => {
+            failSave = () => reject(new Error('Save failed'))
+          })
+      )
+      const saving = [
+        store
+          .dispatch('dashboardApplication/updateWidget', {
+            widgetId: 13,
+            values: { default_value: ['Gamma'] },
+            originalValues: { default_value: [] },
+          })
+          .catch(() => {}),
+      ]
+      expect(store.state.dashboardApplication.widgetValues[13]).toEqual([
+        'Gamma',
+      ])
+      if (coalesced) {
+        if (changed) await change(13, ['Beta'])
+        saving.push(
+          store
+            .dispatch('dashboardApplication/updateWidget', {
+              widgetId: 13,
+              values: { default_value: ['Delta'] },
+              originalValues: { default_value: ['Gamma'] },
+            })
+            .catch(() => {})
+        )
+      }
+      await vi.advanceTimersByTimeAsync(1000)
+      if (changed && !coalesced) await change(13, ['Beta'])
+      failSave()
+      await Promise.all(saving)
+      expect(store.state.dashboardApplication.widgetValues[13]).toEqual(
+        changed ? ['Beta'] : []
+      )
+      expect(
+        store.state.dashboardApplication.widgets.find(({ id }) => id === 13)
+          .default_value
+      ).toEqual([])
+      await vi.advanceTimersByTimeAsync(300)
+      await settle()
+    }
+  )
 
   test('sends defaults on initial dispatch and selectively coalesces multiple inputs', async () => {
     const initial = store.dispatch('dashboardApplication/dispatchDataSource', 1)
@@ -391,7 +568,7 @@ describe('Dashboard filter dispatch', () => {
     expect(store.state.dashboardApplication.data[1]).toEqual({ result: 'new' })
   })
 
-  test('preserves values on unrelated realtime updates and resets changed defaults', async () => {
+  test('preserves values on unrelated realtime updates and changed defaults', async () => {
     await change(12, 'Typed')
     await vi.advanceTimersByTimeAsync(300)
     await settle()
@@ -407,9 +584,9 @@ describe('Dashboard filter dispatch', () => {
       ...widget,
       default_value: 'Beta',
     })
-    expect(store.state.dashboardApplication.widgetValues[12]).toBe('Beta')
+    expect(store.state.dashboardApplication.widgetValues[12]).toBe('Typed')
     await vi.advanceTimersByTimeAsync(300)
-    expect(requests).toHaveLength(2)
+    expect(post).not.toHaveBeenCalled()
     await settle()
   })
 

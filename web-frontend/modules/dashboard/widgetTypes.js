@@ -212,7 +212,7 @@ export class FilterWidgetType extends WidgetType {
       : this.getDefaultValue(widget)
   }
 
-  /** Defaults reset viewer values; editing links refreshes both old and new targets. */
+  /** Reconcile viewer values; editing links refreshes both old and new targets. */
   afterUpdate(widget, context, previousWidget) {
     this.valueChanged(
       widget,
@@ -262,6 +262,10 @@ export class TextFilterWidgetType extends FilterWidgetType {
   }
 
   getValueAfterUpdate(widget, previousWidget, value) {
+    // A configured default only fills an empty filter, never an active selection.
+    if (value?.length) {
+      return this.getDefaultValue({ ...widget, default_value: value })
+    }
     // Normalizing the default for a new mode must not replace the viewer's selection.
     if (
       this.isMultiple(widget) !== this.isMultiple(previousWidget) &&
