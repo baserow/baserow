@@ -306,7 +306,7 @@ def _image_orm(el: "ElementItemCreate", user, page) -> dict:
 def _column_orm(el: "ElementItemCreate", user, page) -> dict:
     return {
         "column_amount": el.column_amount or 2,
-        "column_gap": el.column_gap or 20,
+        "column_gap": 20 if el.column_gap is None else el.column_gap,
         "alignment": el.column_alignment or "top",
     }
 
@@ -407,7 +407,7 @@ def _record_selector_orm(el: "ElementItemCreate", user, page) -> dict:
 def _table_orm(el: "ElementItemCreate", user, page) -> dict:
     kwargs: dict[str, Any] = {
         "data_source_id": el.data_source,
-        "items_per_page": el.items_per_page or 20,
+        "items_per_page": 20 if el.items_per_page is None else el.items_per_page,
         "button_load_more_label": formula_object(
             wrap_static_string(el.button_load_more_label or "Load more"),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
@@ -434,7 +434,7 @@ def _repeat_orm(el: "ElementItemCreate", user, page) -> dict:
     return {
         "data_source_id": el.data_source,
         "orientation": el.orientation or "vertical",
-        "items_per_page": el.items_per_page or 20,
+        "items_per_page": 20 if el.items_per_page is None else el.items_per_page,
         "items_per_row": items_per_row,
     }
 

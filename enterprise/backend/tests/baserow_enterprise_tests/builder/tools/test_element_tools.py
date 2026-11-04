@@ -2572,3 +2572,22 @@ def test_update_header_can_go_back_to_the_pages_it_has(builder_ctx):
     )
 
     assert saved(header_id).share_type == "only"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "type, name",
+    [
+        ("column", "column_gap"),
+        ("repeat", "items_per_page"),
+        ("table", "items_per_page"),
+    ],
+)
+def test_create_element_keeps_a_zero(builder_ctx, type, name):
+    result = elements.create_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [ElementItemCreate(ref="zero", type=type, **{name: 0})],
+    )
+
+    assert getattr(saved(result["ref_to_id_map"]["zero"]), name) == 0
