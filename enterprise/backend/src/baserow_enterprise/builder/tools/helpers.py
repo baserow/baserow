@@ -1914,8 +1914,9 @@ def create_login_page(
     """
     Set up the builder's login page with an auth_form element for the user
     source. A page the model already created at /login is used when anonymous
-    visitors can see it, so links to it keep working. Otherwise a Login page is
-    created at the first free /login path.
+    visitors can see it, so links to it keep working, and a form on it with a user
+    source stays the only one. Otherwise a Login page is created at the first free
+    /login path.
     """
 
     page = find_public_login_page(builder)
@@ -1927,9 +1928,18 @@ def create_login_page(
             path = f"/login-{suffix}"
         page = CreatePageActionType.do(user, builder, "Login", path)
 
-    add_auth_form(user, page, user_source_id)
+    if not has_login_form(page):
+        add_auth_form(user, page, user_source_id)
     UpdateApplicationActionType.do(user, builder, login_page_id=page.id)
     return page
+
+
+def has_login_form(page: Page) -> bool:
+    """Whether a form on the page already logs people in through a user source."""
+
+    from baserow_enterprise.builder.elements.models import AuthFormElement
+
+    return AuthFormElement.objects.filter(page=page, user_source__isnull=False).exists()
 
 
 def add_auth_form(user: AbstractUser, page: Page, user_source_id: int) -> None:

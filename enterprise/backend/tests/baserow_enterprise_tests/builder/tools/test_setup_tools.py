@@ -988,10 +988,41 @@ def test_setup_user_source_keeps_the_form_of_another_user_source_on_the_login_pa
     element_type = element_type_registry.get("auth_form")
     ElementHandler().create_element(element_type, page=page, user_source_id=other.id)
 
-    setup_on(builder_ctx, users_table)
+    result = setup_on(builder_ctx, users_table)
 
     form = AuthFormElement.objects.get(page=page)
     assert form.user_source_id == other.id
+    assert other.name in result["note"]
+
+
+@pytest.mark.django_db
+def test_setup_user_source_adds_no_second_form_to_a_page_at_login(
+    data_fixture, builder_ctx, users_table
+):
+    page = data_fixture.create_builder_page(
+        builder=builder_ctx["builder"], name="Login", path="/login"
+    )
+    other = data_fixture.create_user_source_with_first_type(
+        application=builder_ctx["builder"]
+    )
+    element_type = element_type_registry.get("auth_form")
+    ElementHandler().create_element(element_type, page=page, user_source_id=other.id)
+
+    result = setup_on(builder_ctx, users_table)
+
+    assert result["login_page_id"] == page.id
+    form = AuthFormElement.objects.get(page=page)
+    assert form.user_source_id == other.id
+    assert other.name in result["note"]
+
+
+@pytest.mark.django_db
+def test_setup_user_source_has_no_note_when_the_form_uses_its_user_source(
+    builder_ctx, users_table
+):
+    setup_on(builder_ctx, users_table)
+
+    assert "note" not in setup_on(builder_ctx, users_table)
 
 
 @pytest.mark.django_db

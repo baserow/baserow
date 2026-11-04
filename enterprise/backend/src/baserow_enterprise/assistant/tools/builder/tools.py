@@ -1566,6 +1566,8 @@ def setup_user_source(
     }
     if "hint" in shared:
         result["hint"] = shared["hint"]
+    if "note" in shared:
+        result["note"] = shared["note"]
     return result
 
 

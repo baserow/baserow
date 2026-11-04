@@ -41,10 +41,21 @@ def _local_baserow_user_source_on(
     return None
 
 
-def _has_login_form(page: Page) -> bool:
-    """Whether a form on the page already logs people in through a user source."""
+def _other_login_form_note(page_id: int, user_source: UserSource) -> str | None:
+    """What to tell the caller when the login page's form uses other user sources."""
 
-    return AuthFormElement.objects.filter(page=page, user_source__isnull=False).exists()
+    forms = AuthFormElement.objects.filter(
+        page_id=page_id, user_source__isnull=False
+    ).select_related("user_source")
+    names = [form.user_source.name for form in forms]
+    if not names or any(form.user_source_id == user_source.id for form in forms):
+        return None
+    return (
+        f"The form on login page {page_id} logs people in through "
+        f"{', '.join(repr(name) for name in names)} and was kept, so the people in "
+        f"this table can't log in from it. Change the form's user source in the "
+        "editor, or set another login page with update_builder."
+    )
 
 
 def _user_source_item(user_source: UserSource, table_id: int) -> dict[str, Any]:
@@ -76,7 +87,8 @@ def setup_user_source(
     a new one, which created_pages lists. One already set must be visible to everyone,
     or this is refused; it gets an auth_form if it has none with a user source. A
     login page whose form has a user source keeps it, so people can't log in through a
-    second user source from it. Set a password for each user before they can log in.
+    second user source from it, and the result has a note saying so. The same goes for
+    a page at /login. Set a password for each user before they can log in.
     If a step fails, no table, field, user source or page is saved.
     """
 
@@ -124,7 +136,7 @@ def setup_user_source(
             ctx.update_status(_("Creating login page..."))
             login_page = helpers.create_login_page(ctx.user, builder, user_source.id)
             login_page_id = login_page.id
-        elif not _has_login_form(set_login_page):
+        elif not helpers.has_login_form(set_login_page):
             helpers.add_auth_form(ctx.user, set_login_page, user_source.id)
 
     key = "created_user_source" if existing is None else "reused_user_source"
@@ -138,4 +150,7 @@ def setup_user_source(
         result["created_pages"] = [PageItem.from_orm(login_page).model_dump()]
     if "hint" in field_map:
         result["hint"] = field_map["hint"]
+    note = _other_login_form_note(login_page_id, user_source)
+    if note:
+        result["note"] = note
     return result
