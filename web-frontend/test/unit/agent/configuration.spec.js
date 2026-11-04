@@ -40,17 +40,11 @@ describe('Agent configuration', () => {
 
   afterEach(() => destroyAgentPage(testApp))
 
-  const invalidateRunAs = (selected = true) =>
-    testApp.store.dispatch('application/forceUpdate', {
-      application: agent,
-      data: {
-        _: {
-          ...agent._,
-          runAsOptionsVersion: (agent._.runAsOptionsVersion || 0) + 1,
-          runAsIdentityVersion:
-            (agent._.runAsIdentityVersion || 0) + Number(selected),
-        },
-      },
+  const invalidateRunAs = (selected = true, agentIds = [agent.id]) =>
+    testApp.nuxtApp.$realtime._dispatchEvent({
+      type: 'agent_run_as_updated',
+      agent_ids: agentIds,
+      selected_agent_ids: selected ? [agent.id] : [],
     })
 
   const pickRunAs = async (wrapper, name) => {
@@ -816,6 +810,44 @@ describe('Agent configuration', () => {
     expect(requests()).toHaveLength(1)
     expect(requests()[0].headers['X-Baserow-Realtime-Recovery']).toBe('true')
   })
+
+  test.each([
+    [1, false],
+    [1, true],
+    [50, false],
+    [50, true],
+  ])(
+    'bounds refresh requests for a batch of %s applications with selected identity changed=%s',
+    async (applicationCount, selected) => {
+      useFakeTimers()
+      const agentIds = [agent.id]
+      for (let offset = 1; offset < applicationCount; offset++) {
+        const id = agent.id + offset
+        await testApp.store.dispatch('application/forceCreate', {
+          ...agentData,
+          id,
+        })
+        agentIds.push(id)
+      }
+      mockConfiguration(testApp, completeConfiguration({ run_as: investor }))
+      testApp.mock.onGet('/agent/10/run-as-subjects/').reply(200, page([]))
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.workspaceAccess')
+      await wrapper.get('.dropdown__selected').trigger('click')
+      await flushPromises()
+      testApp.mock.resetHistory()
+
+      await invalidateRunAs(selected, agentIds)
+      await vi.advanceTimersByTimeAsync(500)
+      await flushPromises()
+
+      expect(testApp.mock.history.get.map(({ url }) => url).sort()).toEqual(
+        selected
+          ? ['/agent/10/configuration/', '/agent/10/run-as-subjects/']
+          : ['/agent/10/run-as-subjects/']
+      )
+    }
+  )
 
   test('refreshes choices on opening and coalesces candidate events without fetching configuration or losing search and focus', async () => {
     useFakeTimers()

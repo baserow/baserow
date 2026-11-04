@@ -62,6 +62,7 @@ DEFAULT_DEFERRED_CALLABLES: List[str] = [
     "baserow.ws.tasks.broadcast_to_group.delay",
     "baserow.ws.tasks.broadcast_to_groups.delay",
     "baserow.ws.tasks.broadcast_application_created.delay",
+    "baserow.contrib.agent.ws.tasks.broadcast_run_as_updates.delay",
     "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
     "baserow.contrib.database.search.tasks.update_search_data.delay",
     "baserow.contrib.database.table.tasks.update_table_usage.delay",

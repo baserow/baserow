@@ -96,13 +96,25 @@ class AgentService:
             )
         ):
             raise AgentRoleDoesNotExist()
+        original_values = {
+            key: getattr(agent, key) for key in AgentHandler.allowed_fields
+        }
         AgentHandler().update_agent(agent, **values)
         for extension in agent_extension_type_registry.get_all():
             extension.update(agent, values, user)
         agent = AgentHandler().get_agent(
             agent.id, AgentHandler().get_queryset(agent.workspace)
         )
-        agent_updated.send(self, user=user, agent=agent)
+        agent_updated.send(
+            self,
+            user=user,
+            agent=agent,
+            updated_fields=[
+                key
+                for key, original_value in original_values.items()
+                if getattr(agent, key) != original_value
+            ],
+        )
         return agent
 
     def delete_agent(self, user: AbstractUser, agent: Agent) -> None:

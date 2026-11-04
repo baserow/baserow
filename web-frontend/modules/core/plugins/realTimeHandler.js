@@ -875,20 +875,24 @@ export class RealTimeHandler {
     })
 
     this.registerEvent('agent_run_as_updated', ({ store }, data) => {
-      const application = store.getters['application/get'](data.agent_id)
-      if (application?.type !== AGENT_APPLICATION_TYPE) return
-      store.dispatch('application/forceUpdate', {
-        application,
-        data: {
-          _: {
-            ...application._,
-            runAsOptionsVersion: (application._?.runAsOptionsVersion || 0) + 1,
-            runAsIdentityVersion:
-              (application._?.runAsIdentityVersion || 0) +
-              Number(Boolean(data.selected_identity_changed)),
+      const selectedAgentIds = new Set(data.selected_agent_ids)
+      for (const agentId of data.agent_ids) {
+        const application = store.getters['application/get'](agentId)
+        if (application?.type !== AGENT_APPLICATION_TYPE) continue
+        store.dispatch('application/forceUpdate', {
+          application,
+          data: {
+            _: {
+              ...application._,
+              runAsOptionsVersion:
+                (application._?.runAsOptionsVersion || 0) + 1,
+              runAsIdentityVersion:
+                (application._?.runAsIdentityVersion || 0) +
+                Number(selectedAgentIds.has(agentId)),
+            },
           },
-        },
-      })
+        })
+      }
     })
 
     this.registerEvent('application_created', ({ store }, data) => {

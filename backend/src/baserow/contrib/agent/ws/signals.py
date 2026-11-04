@@ -7,57 +7,32 @@ from django.dispatch import receiver
 
 from rest_framework.fields import DateTimeField
 
-from baserow.contrib.agent.models import AgentApplication, AgentConversation
-from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
+from baserow.contrib.agent.models import AgentConversation
 from baserow.contrib.agent.signals import agent_conversation_updated
+from baserow.contrib.agent.ws.tasks import broadcast_run_as_updates
 from baserow.core.agents.signals import agent_created, agent_deleted, agent_updated
-from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.models import Agent
 from baserow.core.trash.signals import permanently_deleted
-from baserow.ws.tasks import broadcast_to_permitted_users, broadcast_to_users
-
-
-def _invalidate_run_as_options(workspace_id: int, identity_id: int) -> None:
-    """Invalidate identity choices and affected selections after a committed change.
-
-    :param workspace_id: The workspace whose available identities changed.
-    :param identity_id: The changed identity, including a permanently deleted one.
-    """
-
-    applications = (
-        AgentApplication.objects.using(DEFAULT_DB_ALIAS)
-        .filter(workspace_id=workspace_id, workspace__trashed=False)
-        .values_list("id", "run_as_subject_type", "run_as_subject_id")
-    )
-    for application_id, subject_type, subject_id in applications.iterator():
-        # Application builders need these invalidations even when they cannot list
-        # workspace identities. Never widen the audience of identity-management
-        # payloads, which include roles and other unrelated details.
-        broadcast_to_permitted_users.delay(
-            workspace_id,
-            ReadAgentConfigurationOperationType.type,
-            "application",
-            application_id,
-            {
-                "type": "agent_run_as_updated",
-                "agent_id": application_id,
-                "selected_identity_changed": (
-                    subject_type == AgentSubjectType.type and subject_id == identity_id
-                ),
-            },
-        )
+from baserow.ws.tasks import broadcast_to_users
 
 
 @receiver(agent_created)
-@receiver(agent_updated)
 @receiver(agent_deleted)
 def run_as_identity_changed(sender, agent: Agent, **kwargs) -> None:
-    """Refresh application-scoped identity state after creation, editing or trash."""
+    """Refresh application-scoped identity state after creation, restore or trash."""
 
     transaction.on_commit(
-        partial(_invalidate_run_as_options, agent.workspace_id, agent.id),
+        partial(broadcast_run_as_updates.delay, agent.workspace_id, agent.id),
         using=DEFAULT_DB_ALIAS,
     )
+
+
+@receiver(agent_updated)
+def run_as_identity_updated(sender, agent: Agent, updated_fields=(), **kwargs) -> None:
+    """Role and team changes do not alter identity names or availability."""
+
+    if "name" in updated_fields:
+        run_as_identity_changed(sender, agent)
 
 
 @receiver(permanently_deleted)
@@ -68,7 +43,9 @@ def run_as_identity_permanently_deleted(
 
     if isinstance(trash_item, Agent):
         transaction.on_commit(
-            partial(_invalidate_run_as_options, trash_item.workspace_id, trash_item_id),
+            partial(
+                broadcast_run_as_updates.delay, trash_item.workspace_id, trash_item_id
+            ),
             using=DEFAULT_DB_ALIAS,
         )
 
