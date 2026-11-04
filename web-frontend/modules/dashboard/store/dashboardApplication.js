@@ -22,6 +22,7 @@ export const state = () => ({
   selectedWidgetId: null,
   widgets: [],
   widgetValues: {},
+  widgetSelections: {},
   widgetSaveGenerations: {},
   widgetOptions: {},
   dataSources: [],
@@ -352,11 +353,16 @@ export const mutations = {
     state.widgetSaveGenerations[widgetId] =
       (state.widgetSaveGenerations[widgetId] || 0) + 1
   },
+  RECORD_WIDGET_SELECTION(state, { widgetId, value }) {
+    // Object identity records a new user choice even when its value repeats.
+    state.widgetSelections[widgetId] = { value }
+  },
   SET_WIDGET_VALUE(state, { widgetId, value }) {
     state.widgetValues = { ...state.widgetValues, [widgetId]: value }
   },
   DELETE_WIDGET_VALUE(state, widgetId) {
     delete state.widgetValues[widgetId]
+    delete state.widgetSelections[widgetId]
     delete state.widgetOptions[widgetId]
   },
   RESET(state) {
@@ -371,6 +377,7 @@ export const mutations = {
     state.selectedWidgetId = null
     cancelDataSourceRefresh(state)
     state.widgetValues = {}
+    state.widgetSelections = {}
     state.widgetSaveGenerations = {}
     state.widgetOptions = {}
     state.widgets = []
@@ -612,6 +619,7 @@ export const actions = {
     const widget = context.state.widgets.find(
       (widget) => widget.id === widgetId
     )
+    if (widget) context.commit('RECORD_WIDGET_SELECTION', { widgetId, value })
     notifyWidgetHook(context, this.$registry, 'valueChanged', widget, value)
   },
   reset({ commit }) {
@@ -659,7 +667,11 @@ export const actions = {
       ) {
         // Keep every caller waiting for the combined save, with the latest value
         // for each field and the earliest value for rolling that field back.
-        batch.valueUpdate.merge(previousWidgetValue, updatedWidgetValue)
+        batch.valueUpdate.merge(
+          previousWidgetValue,
+          updatedWidgetValue,
+          state.widgetSelections[widgetId]
+        )
         batch.saveGeneration = state.widgetSaveGenerations[widgetId]
         Object.assign(batch.values, values)
         batch.originalValues = { ...originalValues, ...batch.originalValues }
@@ -675,7 +687,8 @@ export const actions = {
         originalValues: { ...originalValues },
         valueUpdate: new WidgetValueUpdate(
           previousWidgetValue,
-          updatedWidgetValue
+          updatedWidgetValue,
+          state.widgetSelections[widgetId]
         ),
         saveGeneration: state.widgetSaveGenerations[widgetId],
         request,
