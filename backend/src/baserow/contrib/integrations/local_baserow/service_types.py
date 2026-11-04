@@ -2511,6 +2511,7 @@ class LocalBaserowUpsertRowServiceType(
                 "You don't have permission to write to the fields this action changes."
             )
 
+        validated_values = {}
         for field_mapping in writable_field_mappings:
             if field_mapping.id not in resolved_values:
                 continue
@@ -2548,6 +2549,19 @@ class LocalBaserowUpsertRowServiceType(
                     f": {self._get_validation_details(exc)}"
                 ) from exc
 
+            validated_values[field] = (field_type, resolved_value)
+
+        model = table.get_model()
+
+        # Before the values are prepared, because preparing resolves link names against
+        # the linked table and its error would reveal which names exist.
+        RowHandler().check_can_read_linked_tables(
+            acting_user,
+            model,
+            [{f.db_column: value for f, (_, value) in validated_values.items()}],
+        )
+
+        for field, (field_type, resolved_value) in validated_values.items():
             # Then transform and validate the resolved value for prepare value for db.
             try:
                 field_type.prepare_value_for_db(field.specific, resolved_value)
@@ -2556,8 +2570,6 @@ class LocalBaserowUpsertRowServiceType(
                 raise InvalidContextContentDispatchException(
                     f'Value error for field "{field.name}": {exc.message}'
                 ) from exc
-
-        model = table.get_model()
 
         if row_id is not None:
             try:

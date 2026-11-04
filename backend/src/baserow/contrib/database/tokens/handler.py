@@ -490,6 +490,46 @@ class TokenHandler:
         if should_check_permissions and not has_table_permissions:
             self.raise_table_permission_error(table, type_name)
 
+    def check_tables_permissions(
+        self, token: Token, type_name: str, tables: List[Table]
+    ):
+        """
+        Checks one operation of the token on several tables at once, so the number of
+        queries doesn't depend on the number of tables.
+
+        :param token: The token instance.
+        :param type_name: The CRUD operation to check the permissions for.
+        :param tables: The tables to check, with their database selected.
+        :raises NoPermissionToTable: when the token does not have permissions to one
+            of the tables.
+        """
+
+        if not tables:
+            return
+
+        for table in tables:
+            if table.database.workspace_id != token.workspace_id:
+                self.raise_table_permission_error(table, type_name)
+
+        if not CoreHandler().check_permissions(
+            token.user,
+            UseTokenOperationType.type,
+            workspace=token.workspace,
+            context=token,
+        ):
+            self.raise_table_permission_error(tables[0], type_name)
+
+        checks = {
+            table: PermissionCheck(token, TOKEN_TO_OPERATION_MAP[type_name], table)
+            for table in tables
+        }
+        results = CoreHandler().check_multiple_permissions(
+            list(checks.values()), token.workspace
+        )
+        for table, check in checks.items():
+            if results[check] is not True:
+                self.raise_table_permission_error(table, type_name)
+
     def delete_token(self, user, token):
         """
         Deletes an existing token
