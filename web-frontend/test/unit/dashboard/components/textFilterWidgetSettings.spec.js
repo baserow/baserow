@@ -88,6 +88,101 @@ describe('TextFilterWidgetSettings', () => {
       dispatch.mockRestore()
     }
   )
+  test.each([
+    [true, ['France', 'Belgium'], ['France'], ['France']],
+    [true, ['France', 'Belgium'], [], []],
+    [false, 'Belgium', ['France'], ''],
+    [true, ['France'], ['France', 'Belgium'], ['France']],
+  ])(
+    'reconciles defaults after options load (multiple: %s, default: %j, options: %j)',
+    async (multiple, initialDefault, available, expected) => {
+      const widget = {
+        id: 2,
+        type: 'text_filter',
+        mode: 'dropdown',
+        multiple,
+        default_value: initialDefault,
+        options: { formula: "get('table.1.Country')", mode: 'formula' },
+      }
+      const dispatch = vi.spyOn(testApp.store, 'dispatch').mockResolvedValue()
+      const wrapper = await testApp.mount(TextFilterWidgetSettings, {
+        props: { dashboard: { id: 1 }, widget },
+      })
+      dispatch.mockClear()
+      testApp.store.commit('dashboardApplication/SET_WIDGET_OPTIONS', {
+        widgetId: 2,
+        options: {
+          signature: JSON.stringify(widget.options),
+          loading: false,
+          error: false,
+          values: available,
+        },
+      })
+      await flushPromises()
+      if (JSON.stringify(initialDefault) === JSON.stringify(expected)) {
+        expect(dispatch).not.toHaveBeenCalled()
+      } else {
+        expect(dispatch).toHaveBeenCalledOnce()
+        expect(dispatch).toHaveBeenCalledWith(
+          'dashboardApplication/updateWidget',
+          expect.objectContaining({
+            widgetId: 2,
+            values: expect.objectContaining({ default_value: expected }),
+            originalValues: expect.objectContaining({
+              default_value: initialDefault,
+            }),
+          })
+        )
+        await wrapper.setProps({
+          widget: { ...widget, default_value: expected },
+        })
+        const dropdown = wrapper
+          .findAll('.control')
+          .find((control) =>
+            control.text().includes('textFilterWidget.defaultValue')
+          )
+        expect(dropdown.get('.dropdown__selected').text()).not.toContain(
+          'Belgium'
+        )
+      }
+      dispatch.mockRestore()
+    }
+  )
+
+  test.each(['loading', 'error', 'stale', 'input'])(
+    'does not clear defaults from %s options',
+    async (state) => {
+      const widget = {
+        id: 2,
+        type: 'text_filter',
+        mode: state === 'input' ? 'input' : 'dropdown',
+        multiple: true,
+        default_value: ['France', 'Belgium'],
+        options: { formula: "get('table.1.Country')", mode: 'formula' },
+      }
+      const dispatch = vi.spyOn(testApp.store, 'dispatch').mockResolvedValue()
+      testApp.store.commit('dashboardApplication/SET_WIDGET_OPTIONS', {
+        widgetId: 2,
+        options: {
+          signature: state === 'stale' ? '{}' : JSON.stringify(widget.options),
+          loading: state === 'loading',
+          error: state === 'error',
+          values: [],
+        },
+      })
+      await testApp.mount(TextFilterWidgetSettings, {
+        props: { dashboard: { id: 1 }, widget },
+      })
+      await flushPromises()
+      expect(
+        dispatch.mock.calls.filter(
+          ([action]) => action === 'dashboardApplication/updateWidget'
+        )
+      ).toEqual([])
+      dispatch.mockRestore()
+    }
+  )
+
   test('selects and clears a default from cached options', async () => {
     const widget = {
       id: 2,
