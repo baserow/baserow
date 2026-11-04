@@ -522,6 +522,9 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_RENDERER_CLASSES": ("baserow.api.renderers.BaserowJSONRenderer",),
     "DEFAULT_SCHEMA_CLASS": "baserow.api.openapi.AutoSchema",
+    # Preserve positional list-validation errors in the public API. DRF 3.18
+    # defaults to dictionaries; migrate this contract before upgrading to 3.20.
+    "LIST_SERIALIZER_ERRORS_AS_DICT": False,
 }
 
 # Throttling / rate-limiting — see docs/installation/configuration.md
