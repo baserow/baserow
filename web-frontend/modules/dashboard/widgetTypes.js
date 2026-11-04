@@ -1,7 +1,14 @@
 import { Registerable } from '@baserow/modules/core/registry'
 import SummaryWidgetSvg from '@baserow/modules/dashboard/assets/images/widgets/summary_widget.svg?url'
-import SummaryWidget from '@baserow/modules/dashboard/components/widget/SummaryWidget'
-import SummaryWidgetSettings from '@baserow/modules/dashboard/components/widget/SummaryWidgetSettings'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const SummaryWidget = lazyComponent(
+  () => import('@baserow/modules/dashboard/components/widget/SummaryWidget')
+)
+const SummaryWidgetSettings = lazyComponent(
+  () =>
+    import('@baserow/modules/dashboard/components/widget/SummaryWidgetSettings')
+)
 
 export class WidgetType extends Registerable {
   constructor(...args) {

@@ -1,17 +1,6 @@
 import moment from '@baserow/modules/core/moment'
 import _ from 'lodash'
 import { Registerable } from '@baserow/modules/core/registry'
-import ViewFilterTypeText from '@baserow/modules/database/components/view/ViewFilterTypeText'
-import ViewFilterTypeNumber from '@baserow/modules/database/components/view/ViewFilterTypeNumber'
-import ViewFilterTypeDuration from '@baserow/modules/database/components/view/ViewFilterTypeDuration'
-import ViewFilterTypeRating from '@baserow/modules/database/components/view/ViewFilterTypeRating'
-import ViewFilterTypeSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeSelectOptions'
-import ViewFilterTypeBoolean from '@baserow/modules/database/components/view/ViewFilterTypeBoolean'
-import ViewFilterTypeDateUpgradeToMultiStep from '@baserow/modules/database/components/view/ViewFilterTypeDateUpgradeToMultiStep'
-import ViewFilterTypeNumberWithTimeZone from '@baserow/modules/database/components/view/ViewFilterTypeNumberWithTimeZone'
-import ViewFilterTypeMultiStepDate from '@baserow/modules/database/components/view/ViewFilterTypeMultiStepDate'
-import ViewFilterTypeLinkRow from '@baserow/modules/database/components/view/ViewFilterTypeLinkRow'
-import ViewFilterTypeMultipleSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeMultipleSelectOptions'
 import { trueValues } from '@baserow/modules/core/utils/constants'
 import {
   splitTimezoneAndFilterValue,
@@ -23,12 +12,61 @@ import {
   DateFilterOperators,
 } from '@baserow/modules/database/utils/date'
 import { isInteger } from '@baserow/modules/core/utils/string'
-import ViewFilterTypeFileTypeDropdown from '@baserow/modules/database/components/view/ViewFilterTypeFileTypeDropdown'
-import ViewFilterTypeCollaborators from '@baserow/modules/database/components/view/ViewFilterTypeCollaborators'
 import {
   FormulaFieldType,
   NumberFieldType,
 } from '@baserow/modules/database/fieldTypes'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const ViewFilterTypeText = lazyComponent(
+  () => import('@baserow/modules/database/components/view/ViewFilterTypeText')
+)
+const ViewFilterTypeNumber = lazyComponent(
+  () => import('@baserow/modules/database/components/view/ViewFilterTypeNumber')
+)
+const ViewFilterTypeDuration = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/view/ViewFilterTypeDuration')
+)
+const ViewFilterTypeRating = lazyComponent(
+  () => import('@baserow/modules/database/components/view/ViewFilterTypeRating')
+)
+const ViewFilterTypeSelectOptions = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/view/ViewFilterTypeSelectOptions')
+)
+const ViewFilterTypeBoolean = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/view/ViewFilterTypeBoolean')
+)
+const ViewFilterTypeDateUpgradeToMultiStep = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/view/ViewFilterTypeDateUpgradeToMultiStep')
+)
+const ViewFilterTypeNumberWithTimeZone = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/view/ViewFilterTypeNumberWithTimeZone')
+)
+const ViewFilterTypeMultiStepDate = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/view/ViewFilterTypeMultiStepDate')
+)
+const ViewFilterTypeLinkRow = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/view/ViewFilterTypeLinkRow')
+)
+const ViewFilterTypeMultipleSelectOptions = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/view/ViewFilterTypeMultipleSelectOptions')
+)
+const ViewFilterTypeFileTypeDropdown = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/view/ViewFilterTypeFileTypeDropdown')
+)
+const ViewFilterTypeCollaborators = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/view/ViewFilterTypeCollaborators')
+)
 
 export class ViewFilterType extends Registerable {
   /**

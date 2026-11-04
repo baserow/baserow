@@ -19,7 +19,6 @@ import {
   LocalBaserowListRowsServiceType,
   LocalBaserowAggregateRowsServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
-import LocalBaserowNodeServiceForm from '@baserow/modules/automation/components/workflow/LocalBaserowNodeServiceForm'
 import {
   CoreCSVFileReaderServiceType,
   CoreInboundEmailTriggerServiceType,
@@ -41,6 +40,12 @@ import {
 import { uuid } from '@baserow/modules/core/utils/string'
 import { parseAliases } from '@baserow/modules/automation/utils/aliases'
 import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const LocalBaserowNodeServiceForm = lazyComponent(
+  () =>
+    import('@baserow/modules/automation/components/workflow/LocalBaserowNodeServiceForm')
+)
 
 export class NodeType extends Registerable {
   /**

@@ -2,13 +2,13 @@ import { isSecureURL } from '@baserow/modules/core/utils/string'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { getCookieName } from '@baserow/modules/core/utils/cookie'
 import { jwtDecode } from 'jwt-decode'
-import tldjs from 'tldjs'
 import { useCookie, useRuntimeConfig, nextTick } from '#imports'
 import {
   USER_SOURCE_COOKIE_TOKEN_NAME,
   REFRESH_TOKEN_MAX_AGE,
   getRefreshTokenCookieOptions,
 } from '@baserow/modules/core/utils/userSourceAuth'
+import { withLoadingIndicator } from '@baserow/modules/core/utils/lazyComponent'
 
 const cookieTokenName = 'jwt_token'
 export const userSourceCookieTokenName = USER_SOURCE_COOKIE_TOKEN_NAME
@@ -53,12 +53,15 @@ export const setToken = (
  * @param {*} configuration: the configuration object with the sameSite key
  * @returns
  */
-export const setUserSessionCookie = (
+export const setUserSessionCookie = async (
   appOrContext,
   signedUserSession,
   key = userSessionCookieName,
   configuration = { sameSite: null }
 ) => {
+  // tldjs bundles the whole public suffix list, so it's only downloaded when a
+  // session cookie is set.
+  const { default: tldjs } = await withLoadingIndicator(() => import('tldjs'))
   const { runWithContext } = appOrContext
   return runWithContext(() => {
     const config = useRuntimeConfig()

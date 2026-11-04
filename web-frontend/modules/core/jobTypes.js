@@ -1,10 +1,15 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { Registerable } from '@baserow/modules/core/registry'
-import SidebarApplicationPendingJob from '@baserow/modules/core/components/sidebar/SidebarApplicationPendingJob'
 import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
 import { triggerDownload } from '@baserow/modules/core/utils/download'
 import { signedInUserCheck } from '@baserow/modules/core/utils/auth'
 import TemplateService from '@baserow/modules/core/services/template'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const SidebarApplicationPendingJob = lazyComponent(
+  () =>
+    import('@baserow/modules/core/components/sidebar/SidebarApplicationPendingJob')
+)
 
 /**
  * The job type base class that can be extended when creating a plugin

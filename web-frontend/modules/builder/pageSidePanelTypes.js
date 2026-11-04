@@ -1,8 +1,22 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import GeneralSidePanel from '@baserow/modules/builder/components/page/sidePanels/GeneralSidePanel'
-import StyleSidePanel from '@baserow/modules/builder/components/page/sidePanels/StyleSidePanel'
-import VisibilitySidePanel from '@baserow/modules/builder/components/page/sidePanels/VisibilitySidePanel'
-import EventsSidePanel from '@baserow/modules/builder/components/page/sidePanels/EventsSidePanel'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const GeneralSidePanel = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/page/sidePanels/GeneralSidePanel')
+)
+const StyleSidePanel = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/page/sidePanels/StyleSidePanel')
+)
+const VisibilitySidePanel = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/page/sidePanels/VisibilitySidePanel')
+)
+const EventsSidePanel = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/page/sidePanels/EventsSidePanel')
+)
 
 export class pageSidePanelType extends Registerable {
   get label() {

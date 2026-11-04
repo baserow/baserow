@@ -1,6 +1,7 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { MultipleSelectFieldType } from '@baserow/modules/database/fieldTypes'
 import GridViewGroupValueMultipleSelect from '@baserow/modules/database/components/view/grid/GridViewGroupValueMultipleSelect'
+import { unwrapLazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 
 describe('GridViewGroupValueMultipleSelect component', () => {
   let testApp = null
@@ -28,8 +29,8 @@ describe('GridViewGroupValueMultipleSelect component', () => {
   })
 
   test('is used by multiple select group-by values', () => {
-    expect(new MultipleSelectFieldType().getGroupByComponent()).toBe(
-      GridViewGroupValueMultipleSelect
-    )
+    expect(
+      unwrapLazyComponent(new MultipleSelectFieldType().getGroupByComponent())
+    ).toBe(GridViewGroupValueMultipleSelect)
   })
 })

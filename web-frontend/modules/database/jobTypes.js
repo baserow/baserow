@@ -1,7 +1,12 @@
 import { JobType } from '@baserow/modules/core/jobTypes'
 import { FINISHED_STATES } from '@baserow/modules/core/store/job'
 
-import SidebarItemPendingJob from '@baserow/modules/core/components/sidebar/SidebarItemPendingJob.vue'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const SidebarItemPendingJob = lazyComponent(
+  () =>
+    import('@baserow/modules/core/components/sidebar/SidebarItemPendingJob.vue')
+)
 
 export class DuplicateTableJobType extends JobType {
   static getType() {

@@ -1,12 +1,22 @@
 import { nextTick } from 'vue'
 import { OnboardingType } from '@baserow/modules/core/onboardingTypes'
 import { DatabaseOnboardingType } from '@baserow/modules/database/onboardingTypes'
-import DatabaseAppLayoutPreview from '@baserow/modules/database/components/onboarding/DatabaseAppLayoutPreview'
 import { pageFinished } from '@baserow/modules/core/utils/routing.js'
 import { waitFor } from '@baserow/modules/core/utils/queue.js'
-import AIPromptStep from '@baserow_enterprise/components/onboarding/AIPromptStep'
-import AssistantOnboardingMessage from '@baserow_enterprise/components/assistant/AssistantOnboardingMessage.vue'
 import { AIDatabaseOnboardingStepType } from '@baserow_enterprise/databaseOnboardingStepTypes'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const DatabaseAppLayoutPreview = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/onboarding/DatabaseAppLayoutPreview')
+)
+const AIPromptStep = lazyComponent(
+  () => import('@baserow_enterprise/components/onboarding/AIPromptStep')
+)
+const AssistantOnboardingMessage = lazyComponent(
+  () =>
+    import('@baserow_enterprise/components/assistant/AssistantOnboardingMessage.vue')
+)
 
 export class AIPromptOnboardingType extends OnboardingType {
   static getType() {

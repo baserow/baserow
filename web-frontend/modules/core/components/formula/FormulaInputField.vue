@@ -125,6 +125,7 @@ import {
 } from '@baserow/modules/core/components/formula/extensions/ParenMatchHighlightExtension'
 import {
   FormulaInsertionExtension,
+  GetFormulaComponentNode,
   FunctionFormulaComponentNode,
   FunctionArgumentCommaNode,
   FunctionClosingParenNode,
@@ -437,11 +438,6 @@ export default {
         'formula-input-field--formula-empty': this.isFormulaEmpty,
       }
     },
-    formulaComponents() {
-      return Object.values(this.$registry.getAll('runtimeFormulaFunction'))
-        .map((type) => type.formulaComponent)
-        .filter((component) => component !== null)
-    },
     wrapperNode() {
       return Node.create({
         name: 'wrapper',
@@ -538,7 +534,7 @@ export default {
                 },
               }),
             ]),
-        ...this.formulaComponents,
+        GetFormulaComponentNode,
       ]
 
       if (this.activeMode === 'advanced') {

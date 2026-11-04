@@ -77,8 +77,31 @@ vi.mock('@baserow/modules/core/utils/string', async () => {
   }
 })
 
-beforeEach(() => {
+// Registry types return lazy components. They're all loaded before each test, so
+// that they render synchronously like regular components instead of rendering
+// nothing until their chunk has been imported.
+const lazyComponents = vi.hoisted(() => new Set<any>())
+
+vi.mock('@baserow/modules/core/utils/lazyComponent', async () => {
+  const actual = await vi.importActual<any>(
+    '@baserow/modules/core/utils/lazyComponent'
+  )
+
+  return {
+    ...actual,
+    lazyComponent: (loader: () => Promise<any>, staticOptions?: object) => {
+      const component = actual.lazyComponent(loader, staticOptions)
+      lazyComponents.add(component)
+      return component
+    },
+  }
+})
+
+beforeEach(async () => {
   uuidMockState.reset()
+  await Promise.all(
+    [...lazyComponents].map((component) => component.__asyncLoader())
+  )
 })
 
 // Mock Nuxt components

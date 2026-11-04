@@ -1,6 +1,7 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { BooleanFieldType } from '@baserow/modules/database/fieldTypes'
 import GridViewGroupValueBoolean from '@baserow/modules/database/components/view/grid/GridViewGroupValueBoolean'
+import { unwrapLazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 
 describe('GridViewGroupValueBoolean component', () => {
   let testApp = null
@@ -36,8 +37,8 @@ describe('GridViewGroupValueBoolean component', () => {
   })
 
   test('is used by boolean group-by values', () => {
-    expect(new BooleanFieldType().getGroupByComponent()).toBe(
-      GridViewGroupValueBoolean
-    )
+    expect(
+      unwrapLazyComponent(new BooleanFieldType().getGroupByComponent())
+    ).toBe(GridViewGroupValueBoolean)
   })
 })

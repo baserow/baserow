@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Lazy load components to improve initial page load",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-10-20"
+}

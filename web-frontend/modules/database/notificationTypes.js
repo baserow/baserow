@@ -1,11 +1,31 @@
 import { NotificationType } from '@baserow/modules/core/notificationTypes'
-import NotificationSenderInitialsIcon from '@baserow/modules/core/components/notifications/NotificationSenderInitialsIcon'
-import CollaboratorAddedToRowNotification from '@baserow/modules/database/components/notifications/CollaboratorAddedToRowNotification'
-import UserMentionInRichTextFieldNotification from '@baserow/modules/database/components/notifications/UserMentionInRichTextFieldNotification'
-import FormSubmittedNotification from '@baserow/modules/database/components/notifications/FormSubmittedNotification'
-import WebhookDeactivatedNotification from '@baserow/modules/database/components/notifications/WebhookDeactivatedNotification'
-import WebhookPayloadTooLargeNotification from '@baserow/modules/database/components/notifications/WebhookPayloadTooLargeNotification'
 import { tableRouteResetViewIfNeeded } from '@baserow/modules/database/utils/routing'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const NotificationSenderInitialsIcon = lazyComponent(
+  () =>
+    import('@baserow/modules/core/components/notifications/NotificationSenderInitialsIcon')
+)
+const CollaboratorAddedToRowNotification = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/notifications/CollaboratorAddedToRowNotification')
+)
+const UserMentionInRichTextFieldNotification = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/notifications/UserMentionInRichTextFieldNotification')
+)
+const FormSubmittedNotification = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/notifications/FormSubmittedNotification')
+)
+const WebhookDeactivatedNotification = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/notifications/WebhookDeactivatedNotification')
+)
+const WebhookPayloadTooLargeNotification = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/notifications/WebhookPayloadTooLargeNotification')
+)
 
 export class CollaboratorAddedToRowNotificationType extends NotificationType {
   static getType() {

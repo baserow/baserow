@@ -1,7 +1,14 @@
 import { markRaw } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
-import PageSettingsComponent from '@baserow/modules/builder/components/page/settings/PageSettings'
-import PageVisibilitySettingsComponent from '@baserow/modules/builder/components/page/settings/PageVisibilitySettings'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const PageSettingsComponent = lazyComponent(
+  () => import('@baserow/modules/builder/components/page/settings/PageSettings')
+)
+const PageVisibilitySettingsComponent = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/page/settings/PageVisibilitySettings')
+)
 
 const PageSettings = markRaw(PageSettingsComponent)
 const PageVisibilitySettings = markRaw(PageVisibilitySettingsComponent)

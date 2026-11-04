@@ -1,7 +1,5 @@
 import { DecoratorValueProviderType } from '@baserow/modules/database/decoratorValueProviders'
 
-import SingleSelectColorValueProviderForm from '@baserow_premium/components/views/SingleSelectColorValueProviderForm'
-import ConditionalColorValueProviderForm from '@baserow_premium/components/views/ConditionalColorValueProviderForm'
 import {
   BackgroundColorViewDecoratorType,
   LeftBorderColorViewDecoratorType,
@@ -9,6 +7,16 @@ import {
 import { uuid } from '@baserow/modules/core/utils/string'
 import { randomColor } from '@baserow/modules/core/utils/colors'
 import { matchSearchFilters } from '@baserow/modules/database/utils/view'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const SingleSelectColorValueProviderForm = lazyComponent(
+  () =>
+    import('@baserow_premium/components/views/SingleSelectColorValueProviderForm')
+)
+const ConditionalColorValueProviderForm = lazyComponent(
+  () =>
+    import('@baserow_premium/components/views/ConditionalColorValueProviderForm')
+)
 
 export class SingleSelectColorValueProviderType extends DecoratorValueProviderType {
   static getType() {

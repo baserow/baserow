@@ -1,6 +1,11 @@
 import { InvitationRouteType } from '@baserow/modules/core/invitationRouteTypes'
 import EnterpriseFeatures from '@baserow_enterprise/features'
-import MemberInvitationRoute from '@baserow_enterprise/components/invitation/MemberInvitationRoute'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const MemberInvitationRoute = lazyComponent(
+  () =>
+    import('@baserow_enterprise/components/invitation/MemberInvitationRoute')
+)
 
 /**
  * The share dialog of one object: gives existing workspace members, teams and
