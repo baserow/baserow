@@ -284,18 +284,16 @@ def _field_mappings(action: "ActionCreate") -> list[dict] | None:
     if action.type not in ("create_row", "update_row") or not action.field_values:
         return None
 
-    # A formula is checked by the formula step. Anything else is fixed text.
+    # A formula is added by the formula step once it passes, so a refused one writes
+    # nothing to its field. Anything else is fixed text.
     return [
         {
             "field_id": int(fv.field_id.strip()),
-            "value": _advanced(
-                EMPTY_FORMULA
-                if mapping_value_is_formula(fv.value)
-                else literal_or_placeholder(fv.value)
-            ),
+            "value": _advanced(literal_or_placeholder(fv.value)),
             "enabled": True,
         }
         for fv in action.field_values
+        if not mapping_value_is_formula(fv.value)
     ]
 
 

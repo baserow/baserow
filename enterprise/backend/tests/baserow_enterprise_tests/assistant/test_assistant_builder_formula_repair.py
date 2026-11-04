@@ -791,6 +791,41 @@ def test_plain_field_value_is_stored_as_fixed_text_with_no_model_call(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("generated", [{}, {"field": "'Fixed'"}])
+def test_a_field_value_is_written_only_once_the_model_gives_it(
+    site, button, monkeypatch, generated
+):
+    field = site["table"].field_set.first()
+    key = f"field_{field.id}"
+    use_generator(
+        monkeypatch,
+        lambda formulas, context: {key: f for f in generated.values()},
+    )
+
+    result = create_actions(
+        site["ctx"],
+        page_id=site["page"].id,
+        actions=[
+            ActionCreate(
+                type="create_row",
+                element=button.id,
+                table_id=site["table"].id,
+                field_values=[{"field_id": str(field.id), "value": "$formula: a name"}],
+            )
+        ],
+        thought="test",
+    )
+
+    action = BuilderWorkflowAction.objects.get(
+        id=result["created_actions"][0]["id"]
+    ).specific
+    mappings = action.service.specific.field_mappings.all()
+    assert [(m.value["formula"], m.enabled) for m in mappings] == [
+        (formula, True) for formula in generated.values()
+    ]
+
+
+@pytest.mark.django_db
 def test_create_actions_reports_a_generation_failure_as_before(
     site, button, monkeypatch
 ):

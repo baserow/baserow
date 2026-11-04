@@ -139,7 +139,8 @@ def create_actions(
     text. A whole value that is a function call, like upper('abc'), is a formula, and
     so is a number or true or false as a field value. Sums like 3/4 are fixed text.
     Descriptions are not turned into formulas: a value that isn't a valid formula is
-    left empty and listed in formula_errors. A field value can then be set with
+    left empty and listed in formula_errors. For a field value that means the action
+    doesn't write to that field until it is set with update_action or
     add_action_field_mapping. A row action can't run without its row_id, so one that
     isn't a valid formula or number is listed in errors and that action isn't created.
 

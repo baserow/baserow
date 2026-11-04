@@ -4,8 +4,10 @@ without a model. The conftest of this folder fails any model call.
 """
 
 import uuid
+from unittest.mock import patch
 
 import pytest
+from django.urls import reverse
 from pydantic import ValidationError as PydanticValidationError
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
@@ -22,6 +24,7 @@ from baserow.contrib.builder.workflow_actions.models import (
 from baserow.core.action.handler import ActionHandler
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.services.models import Service
+from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import ToolInputError
 from baserow_enterprise.builder.tools import BuilderWriteOptions, actions
 from baserow_enterprise.builder.tools.types import ActionChanges, ActionCreate
@@ -138,8 +141,80 @@ def test_a_field_value_description_names_the_field(builder_ctx):
     )
 
     assert result["formula_errors"][0]["field"] == f"field_{field.id}"
-    mapping = saved(result).service.specific.field_mappings.get()
-    assert mapping.value["formula"] == "''"
+    assert not saved(result).service.specific.field_mappings.exists()
+
+
+def dispatch(api_client, token, action, field):
+    service = action.service
+    properties = ["id", field.db_column]
+    with patch(
+        "baserow.contrib.builder.handler.get_builder_used_property_names",
+        return_value={
+            "all": {service.id: properties},
+            "external": {service.id: properties},
+        },
+    ):
+        response = api_client.post(
+            reverse(
+                "api:builder:workflow_action:dispatch",
+                kwargs={"workflow_action_id": action.id},
+            ),
+            {},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+    assert response.status_code == 200, response.json()
+
+
+@pytest.mark.django_db
+def test_a_refused_field_value_writes_nothing_until_it_is_fixed(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table, (name, other), (row,) = data_fixture.build_table(
+        user=user, columns=[("Name", "text"), ("Other", "text")], rows=[["Keep", "a"]]
+    )
+    workspace = table.database.workspace
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    data_fixture.create_local_baserow_integration(application=builder, user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    button = data_fixture.create_builder_button_element(page=page)
+    ctx = {"ctx": ToolContext(user=user, workspace=workspace), "page": page}
+
+    result = create(
+        ctx,
+        ActionCreate(
+            type="update_row",
+            element=button.id,
+            table_id=table.id,
+            row_id=f"'{row.id}'",
+            field_values=[
+                {"field_id": str(name.id), "value": "get('form_data.999')"},
+                {"field_id": str(other.id), "value": "'b'"},
+            ],
+        ),
+    )
+
+    assert [entry["field"] for entry in result["formula_errors"]] == [
+        f"field_{name.id}"
+    ]
+    action = saved(result)
+    dispatch(api_client, token, action, name)
+    row.refresh_from_db()
+    assert getattr(row, name.db_column) == "Keep"
+    assert getattr(row, other.db_column) == "b"
+
+    updated = actions.update_action(
+        ctx["ctx"],
+        action.id,
+        ActionChanges(field_values=[{"field_id": str(name.id), "value": "'Fixed'"}]),
+    )
+
+    assert "formula_errors" not in updated
+    dispatch(api_client, token, action, name)
+    row.refresh_from_db()
+    assert getattr(row, name.db_column) == "Fixed"
+    assert getattr(row, other.db_column) == "b"
 
 
 @pytest.mark.django_db
@@ -1637,13 +1712,24 @@ def _create_row_with(builder_ctx, value):
     ["$formula: the name", "get('current_record.id')"],
     ids=["description", "not-in-a-collection"],
 )
-def test_a_new_row_actions_invalid_field_value_is_left_empty_and_listed(
+def test_a_new_row_actions_invalid_field_value_is_left_out_and_listed(
     builder_ctx, value
 ):
-    result, field, stored = _create_row_with(builder_ctx, value)
+    table = builder_ctx["data_source"].service.specific.table
+    field = table.field_set.first()
+
+    result = create(
+        builder_ctx,
+        ActionCreate(
+            type="create_row",
+            element=builder_ctx["button"].id,
+            table_id=table.id,
+            field_values=[{"field_id": str(field.id), "value": value}],
+        ),
+    )
 
     assert [e["field"] for e in result["formula_errors"]] == [f"field_{field.id}"]
-    assert stored == "''"
+    assert not saved(result).service.specific.field_mappings.exists()
 
 
 @pytest.mark.django_db
