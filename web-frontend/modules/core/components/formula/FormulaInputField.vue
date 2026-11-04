@@ -286,7 +286,8 @@ export default {
       type: String,
       required: false,
       default: 'none',
-      validator: (value) => ['none', 'all', 'array', 'object'].includes(value),
+      validator: (value) =>
+        ['none', 'all', 'array', 'object', 'value'].includes(value),
     },
     mode: {
       type: String,

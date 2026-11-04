@@ -134,7 +134,8 @@ export default {
       type: String,
       required: false,
       default: 'none',
-      validator: (value) => ['none', 'all', 'array', 'object'].includes(value),
+      validator: (value) =>
+        ['none', 'all', 'array', 'object', 'value'].includes(value),
     },
   },
   emits: ['click', 'toggle', 'example-click'],
@@ -209,6 +210,10 @@ export default {
     showNodeSelector(node) {
       if (this.depth === 0) {
         return false
+      }
+      // Value pickers expose the existing Select action on scalar fields only.
+      if (this.allowNodeSelection === 'value') {
+        return ['string', 'number', 'integer', 'boolean'].includes(node.type)
       }
       if (node.type !== 'array' && node.type !== 'object') {
         return false

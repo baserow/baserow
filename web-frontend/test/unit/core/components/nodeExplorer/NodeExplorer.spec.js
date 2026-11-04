@@ -106,6 +106,61 @@ describe('NodeExplorer reveal', () => {
     return scrollIntoView.mock.contexts.at(-1)?.dataset.nodePath
   }
 
+  test.each(['simple', 'advanced'])(
+    'selects a field across all rows with the value picker in %s mode',
+    async (mode) => {
+      const wrapper = await mountExplorer({
+        mode,
+        allowNodeSelection: 'value',
+        nodesHierarchy: [
+          {
+            name: 'Data',
+            type: 'data',
+            nodes: [
+              {
+                name: 'Data records',
+                identifier: 'table',
+                type: 'object',
+                nodes: [
+                  {
+                    name: 'Orders',
+                    identifier: '5',
+                    type: 'array',
+                    node_type: 'object',
+                    nodes: [
+                      {
+                        name: 'Country',
+                        identifier: 'field_10',
+                        type: 'string',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      })
+      await wrapper.get('[data-node-path="table.5"]').trigger('click')
+      await wrapper.get('[data-node-path="table.5.*"]').trigger('click')
+      const row = wrapper.get('[data-node-path="table.5.*.field_10"]')
+      const select = row.get('.data-explorer-node__select-node')
+      expect(select.text()).toBe('dataExplorerNode.selectNode')
+      expect(
+        wrapper
+          .get('[data-node-path="table.5"]')
+          .find('.data-explorer-node__select-node')
+          .exists()
+      ).toBe(false)
+      await select.trigger('click')
+      expect(wrapper.emitted('node-selected').at(-1)).toEqual([
+        expect.objectContaining({ path: 'table.5.*.field_10' }),
+      ])
+      await wrapper.setProps({ allowNodeSelection: 'none' })
+      expect(row.find('.data-explorer-node__select-node').exists()).toBe(false)
+    }
+  )
+
   test('opens the functions tab and scrolls to a revealed function', async () => {
     const wrapper = await mountExplorer()
     expect(activeTabTitle(wrapper)).toBe('Data')
