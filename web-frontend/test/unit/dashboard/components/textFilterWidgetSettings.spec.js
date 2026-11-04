@@ -9,6 +9,101 @@ beforeEach(() => {
 afterEach(() => testApp.afterEach())
 
 describe('TextFilterWidgetSettings', () => {
+  test('selects and clears a default from cached options', async () => {
+    const widget = {
+      id: 2,
+      type: 'text_filter',
+      mode: 'dropdown',
+      multiple: false,
+      default_value: '',
+      options: { formula: "get('table.1.Country')", mode: 'formula' },
+    }
+    const store = testApp.store
+    store.commit('dashboardApplication/SET_WIDGETS', [widget])
+    store.commit('dashboardApplication/SET_WIDGET_OPTIONS', {
+      widgetId: 2,
+      options: {
+        signature: JSON.stringify(widget.options),
+        values: ['France', 'Belgium'],
+        loading: false,
+        error: false,
+      },
+    })
+    const get = vi.spyOn(store.$client, 'get')
+    const dispatch = vi.spyOn(store, 'dispatch')
+    const wrapper = await testApp.mount(TextFilterWidgetSettings, {
+      props: { dashboard: { id: 1 }, widget },
+    })
+    await flushPromises()
+    expect(get).not.toHaveBeenCalled()
+    dispatch.mockResolvedValue()
+    const dropdown = wrapper
+      .findAll('.control')
+      .find((control) =>
+        control.text().includes('textFilterWidget.defaultValue')
+      )
+    await dropdown.get('.dropdown__selected').trigger('click')
+    expect(
+      dropdown.findAll('.select__item-name-text').map((item) => item.text())
+    ).toEqual(['France', 'Belgium'])
+    await dropdown.findAll('.select__item-link')[1].trigger('click')
+    expect(dispatch).toHaveBeenCalledWith(
+      'dashboardApplication/updateWidget',
+      expect.objectContaining({
+        values: expect.objectContaining({ default_value: 'Belgium' }),
+      })
+    )
+    await wrapper.setProps({ widget: { ...widget, default_value: 'Belgium' } })
+    expect(dropdown.get('.dropdown__selected-text').text()).toBe('Belgium')
+    await dropdown.get('.select__footer button').trigger('click')
+    expect(dispatch).toHaveBeenCalledWith(
+      'dashboardApplication/updateWidget',
+      expect.objectContaining({
+        values: expect.objectContaining({ default_value: '' }),
+      })
+    )
+    await wrapper.setProps({
+      widget: { ...widget, default_value: 'Archived country' },
+    })
+    expect(dropdown.get('.dropdown__selected-text').text()).toBe(
+      'Archived country'
+    )
+    await wrapper.setProps({
+      widget: { ...widget, multiple: true, default_value: ['France'] },
+    })
+    await dropdown.get('.dropdown__selected').trigger('click')
+    await dropdown.findAll('.select__item-link')[1].trigger('click')
+    expect(dispatch).toHaveBeenCalledWith(
+      'dashboardApplication/updateWidget',
+      expect.objectContaining({
+        values: expect.objectContaining({
+          default_value: ['France', 'Belgium'],
+        }),
+      })
+    )
+    await wrapper.setProps({
+      widget: {
+        ...widget,
+        multiple: true,
+        default_value: ['France', 'Belgium'],
+      },
+    })
+    expect(dropdown.get('.dropdown__selected-text').text()).toBe(
+      'France, Belgium'
+    )
+    await dropdown.get('.select__footer button').trigger('click')
+    expect(dispatch).toHaveBeenCalledWith(
+      'dashboardApplication/updateWidget',
+      expect.objectContaining({
+        values: expect.objectContaining({ default_value: [] }),
+      })
+    )
+    await wrapper.setProps({ widget: { ...widget, mode: 'input' } })
+    expect(dropdown.find('.dropdown').exists()).toBe(false)
+    expect(dropdown.find('input').exists()).toBe(true)
+    dispatch.mockRestore()
+    get.mockRestore()
+  })
   test('offers single or multiple selection only for dropdowns', async () => {
     const widget = {
       id: 2,

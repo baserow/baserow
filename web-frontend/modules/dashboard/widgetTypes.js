@@ -1,5 +1,8 @@
 import isEqual from 'lodash/isEqual'
-import { refreshWidgetSources } from '@baserow/modules/dashboard/utils/widgetFilters'
+import {
+  refreshWidgetSources,
+  getTextFilterDefaultValue,
+} from '@baserow/modules/dashboard/utils/widgetFilters'
 import TextFilterWidgetSvg from '@baserow/modules/dashboard/assets/images/widgets/text_filter_widget.svg?url'
 import TextFilterWidget from '@baserow/modules/dashboard/components/widget/TextFilterWidget'
 import TextFilterWidgetSettings from '@baserow/modules/dashboard/components/widget/TextFilterWidgetSettings'
@@ -252,7 +255,7 @@ export class TextFilterWidgetType extends FilterWidgetType {
     super.afterUpdate(widget, context, previousWidget)
     if (
       this.isMultiple(widget) !== this.isMultiple(previousWidget) &&
-      widget.default_value === previousWidget.default_value
+      isEqual(widget.default_value, previousWidget.default_value)
     ) {
       const values = Array.isArray(previousValue)
         ? previousValue
@@ -272,8 +275,7 @@ export class TextFilterWidgetType extends FilterWidgetType {
     context.dispatch('fetchWidgetOptions', { widgetId: widget.id })
   }
   getDefaultValue(widget) {
-    const value = widget.default_value ?? ''
-    return this.isMultiple(widget) ? (value ? [value] : []) : value
+    return getTextFilterDefaultValue(widget)
   }
 
   getValueSchema(widget) {

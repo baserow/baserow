@@ -67,3 +67,12 @@ export const countFilterGroupConditions = (groups) =>
       (alternativeGroup?.filters?.length || 0),
     0
   )
+
+/** Preserve literal defaults while supporting multiple dropdown selections. */
+export const getTextFilterDefaultValue = (widget) => {
+  const value = widget.default_value ?? ''
+  const values = Array.isArray(value) ? value : value ? [value] : []
+  return widget.mode === 'dropdown' && widget.multiple === true
+    ? values
+    : values[0] || ''
+}

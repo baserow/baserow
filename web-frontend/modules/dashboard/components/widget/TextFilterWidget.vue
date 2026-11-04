@@ -89,7 +89,9 @@
 </template>
 
 <script setup>
-import { computed, onMounted, watch } from 'vue'
+import { computed } from 'vue'
+import { getTextFilterDefaultValue } from '@baserow/modules/dashboard/utils/widgetFilters'
+import { useWidgetOptions } from '@baserow/modules/dashboard/composables/useWidgetOptions'
 import { useStore } from 'vuex'
 import FormGroup from '@baserow/modules/core/components/FormGroup'
 import FormInput from '@baserow/modules/core/components/FormInput'
@@ -104,40 +106,12 @@ const store = useStore()
 const multiple = computed(
   () => props.widget.mode === 'dropdown' && props.widget.multiple === true
 )
-const optionState = computed(() => {
-  const cached =
-    store.getters[`${props.storePrefix}dashboardApplication/getWidgetOptions`][
-      props.widget.id
-    ]
-  return cached && cached.signature === JSON.stringify(props.widget.options)
-    ? cached
-    : { values: [], loading: true, error: false }
-})
-const options = computed(() => optionState.value.values)
-const loadOptions = (force = false) =>
-  store.dispatch(
-    `${props.storePrefix}dashboardApplication/fetchWidgetOptions`,
-    { widgetId: props.widget.id, force }
-  )
-onMounted(() => loadOptions())
-watch(
-  () => [
-    props.widget.id,
-    props.widget.mode,
-    JSON.stringify(props.widget.options),
-  ],
-  () => loadOptions()
-)
+const { optionState, options, loadOptions } = useWidgetOptions(props)
 const value = computed({
   get: () =>
     store.getters[`${props.storePrefix}dashboardApplication/getWidgetValues`][
       props.widget.id
-    ] ??
-    (multiple.value
-      ? props.widget.default_value
-        ? [props.widget.default_value]
-        : []
-      : (props.widget.default_value ?? '')),
+    ] ?? getTextFilterDefaultValue(props.widget),
   set: (value) =>
     store.dispatch(`${props.storePrefix}dashboardApplication/setWidgetValue`, {
       widgetId: props.widget.id,

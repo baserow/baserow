@@ -20,6 +20,37 @@ afterEach(() => {
 })
 
 describe('TextFilterWidget', () => {
+  test('initializes multiple defaults after loading and keeps an explicit clear empty', async () => {
+    const dropdown = {
+      ...widget,
+      mode: 'dropdown',
+      multiple: true,
+      default_value: ['France', 'Belgium'],
+    }
+    const store = testApp.store
+    vi.spyOn(store.$client, 'get').mockResolvedValue({
+      data: { results: ['France', 'Belgium'] },
+    })
+    await store.dispatch('dashboardApplication/forceSetWidgets', [dropdown])
+    wrapper = await testApp.mount(TextFilterWidget, {
+      props: { widget: dropdown },
+    })
+    await flushPromises()
+    expect(store.getters['dashboardApplication/getWidgetValues'][1]).toEqual([
+      'France',
+      'Belgium',
+    ])
+    expect(wrapper.get('.dropdown__selected-text').text()).toBe(
+      'France, Belgium'
+    )
+    await wrapper.get('.select__footer button').trigger('click')
+    expect(store.getters['dashboardApplication/getWidgetValues'][1]).toEqual([])
+    await store.dispatch('dashboardApplication/forceSetWidgets', [
+      { ...dropdown, default_value: [...dropdown.default_value] },
+    ])
+    expect(store.getters['dashboardApplication/getWidgetValues'][1]).toEqual([])
+    store.commit('dashboardApplication/RESET')
+  })
   test('selects several values in place and clears to an empty list', async () => {
     const dropdown = {
       ...widget,
