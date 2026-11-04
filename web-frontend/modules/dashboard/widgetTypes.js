@@ -1,4 +1,5 @@
 import isEqual from 'lodash/isEqual'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 import {
   refreshWidgetSources,
   getTextFilterDefaultValue,
@@ -281,6 +282,50 @@ export class TextFilterWidgetType extends FilterWidgetType {
     super.afterSave(widget, context, values)
     context.dispatch('fetchWidgetOptions', { widgetId: widget.id })
   }
+  async afterOptionsLoad(widget, context, options) {
+    if (widget.mode !== 'dropdown') return
+    const available = new Set(options)
+    const retainAvailable = (value) =>
+      Array.isArray(value)
+        ? value.filter((item) => available.has(item))
+        : available.has(value)
+          ? value
+          : ''
+    const previousDefault = this.getDefaultValue(widget)
+    const defaultValue = retainAvailable(previousDefault)
+    const selectedValue = retainAvailable(context.state.widgetValues[widget.id])
+    const dashboard = context.rootGetters['application/get']?.(
+      context.state.dashboardId
+    )
+    const canSave =
+      !context.state.publicSlug &&
+      context.state === this.app.$store.state.dashboardApplication &&
+      dashboard &&
+      this.app.$hasPermission(
+        'dashboard.widget.update',
+        widget,
+        dashboard.workspace.id
+      )
+
+    let saving
+    if (!isEqual(previousDefault, defaultValue)) {
+      const update = {
+        widgetId: widget.id,
+        values: { default_value: defaultValue },
+        originalValues: { default_value: widget.default_value },
+      }
+      // Viewers use the valid defaults locally without writing dashboard settings.
+      if (canSave) saving = context.dispatch('updateWidget', update)
+      else context.commit('UPDATE_WIDGET', update)
+    }
+    this.valueChanged(widget, context, selectedValue)
+    try {
+      await saving
+    } catch (error) {
+      notifyIf(error, 'dashboard')
+    }
+  }
+
   getDefaultValue(widget) {
     return getTextFilterDefaultValue(widget)
   }

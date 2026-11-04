@@ -304,30 +304,6 @@ const defaultValueLabel = computed(() =>
     ? defaultValue.value.join(', ')
     : defaultValue.value
 )
-// Reconcile only resolved option lists, never loading, stale, or failed requests.
-watch(
-  [optionState, () => props.widget.id, () => props.widget.mode],
-  () => {
-    if (
-      props.widget.mode !== 'dropdown' ||
-      optionState.value.loading ||
-      optionState.value.error
-    ) {
-      return
-    }
-    const available = new Set(options.value)
-    const value = defaultValue.value
-    const validDefault = Array.isArray(value)
-      ? value.filter((item) => available.has(item))
-      : available.has(value)
-        ? value
-        : ''
-    if (!isEqual(value, validDefault)) {
-      updateSetting('default_value', validDefault)
-    }
-  },
-  { immediate: true }
-)
 const targetId = ref(null)
 const groupModal = ref(null)
 const fields = ref([])

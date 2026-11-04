@@ -517,7 +517,8 @@ export const mutations = {
 }
 
 export const actions = {
-  async fetchWidgetOptions({ state, commit }, { widgetId, force = false }) {
+  async fetchWidgetOptions(context, { widgetId, force = false }) {
+    const { state, commit } = context
     // Optimistic settings are not available on the server until afterSave runs.
     if (widgetUpdates.get(state)?.has(widgetId)) return
     const widget = state.widgets.find(({ id }) => id === widgetId)
@@ -545,7 +546,7 @@ export const actions = {
             state.publicAuthToken
           )
         : await WidgetService(this.$client).getOptions(widgetId)
-      if (isCurrent())
+      if (isCurrent()) {
         commit('SET_WIDGET_OPTIONS', {
           widgetId,
           options: {
@@ -555,6 +556,15 @@ export const actions = {
             error: false,
           },
         })
+        const currentWidget = state.widgets.find(({ id }) => id === widgetId)
+        await notifyWidgetHook(
+          context,
+          this.$registry,
+          'afterOptionsLoad',
+          currentWidget,
+          data.results
+        )
+      }
     } catch (error) {
       if (isCurrent())
         commit('SET_WIDGET_OPTIONS', {
