@@ -18,6 +18,7 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.contrib.database.application_types import DatabaseApplicationType
 from baserow.contrib.database.models import Database
 from baserow.core.job_types import DuplicateApplicationJobType
 from baserow.core.jobs.handler import JobHandler
@@ -821,3 +822,34 @@ def test_applications_expose_last_viewed_of_requesting_user(api_client, data_fix
     )
     assert response.status_code == HTTP_200_OK
     assert response.json()["last_viewed"] == "2026-01-02T12:00:00Z"
+
+
+@pytest.mark.django_db
+def test_applications_expose_pending_count_of_requesting_user(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    other_user, other_token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(users=[user, other_user])
+    database = data_fixture.create_database_application(workspace=workspace)
+    dashboard = data_fixture.create_dashboard_application(workspace=workspace)
+
+    def pending_count_by_id(url: str, token: str) -> dict[int, int]:
+        response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+        assert response.status_code == HTTP_200_OK
+        return {app["id"]: app["pending_count"] for app in response.json()}
+
+    with patch.object(
+        DatabaseApplicationType,
+        "get_pending_counts",
+        side_effect=lambda counted_user, applications: (
+            {database.id: 2} if counted_user.id == user.id else {}
+        ),
+    ):
+        for url in (
+            reverse("api:applications:list"),
+            reverse("api:applications:list", kwargs={"workspace_id": workspace.id}),
+        ):
+            assert pending_count_by_id(url, token) == {database.id: 2, dashboard.id: 0}
+            assert pending_count_by_id(url, other_token) == {
+                database.id: 0,
+                dashboard.id: 0,
+            }

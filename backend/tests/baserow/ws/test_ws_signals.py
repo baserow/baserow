@@ -7,6 +7,8 @@ import pytest
 from freezegun import freeze_time
 from pytest_unordered import unordered
 
+from baserow.contrib.dashboard.application_types import DashboardApplicationType
+from baserow.core import signals
 from baserow.core.agents.service import AgentService
 from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.ai_provider.service import AIProviderService
@@ -255,6 +257,7 @@ def test_workspace_restored(mock_broadcast_to_users, data_fixture):
         },
         "tables": [],
         "last_viewed": None,
+        "pending_count": 0,
     }
     assert len(args) == 2
     call_1 = args[1][0]
@@ -278,7 +281,7 @@ def test_workspace_restored(mock_broadcast_to_users, data_fixture):
 @pytest.mark.django_db(transaction=True)
 @patch("baserow.ws.signals.broadcast_to_users")
 @pytest.mark.websockets
-def test_workspace_restored_carries_the_users_last_viewed(
+def test_workspace_restored_carries_the_users_last_viewed_and_pending_count(
     mock_broadcast_to_users, data_fixture
 ):
     user = data_fixture.create_user()
@@ -290,12 +293,17 @@ def test_workspace_restored_carries_the_users_last_viewed(
         )
     TrashHandler.trash(user, workspace, None, workspace)
 
-    TrashHandler.restore_item(user, "workspace", workspace.id)
+    with patch.object(
+        DashboardApplicationType,
+        "get_pending_counts",
+        return_value={dashboard.id: 2},
+    ):
+        TrashHandler.restore_item(user, "workspace", workspace.id)
 
     (payload,) = [call[0][1] for call in mock_broadcast_to_users.delay.call_args_list]
-    assert [a["last_viewed"] for a in payload["applications"]] == [
-        "2026-01-01T12:00:00Z"
-    ]
+    (application,) = payload["applications"]
+    assert application["last_viewed"] == "2026-01-01T12:00:00Z"
+    assert application["pending_count"] == 2
 
 
 @pytest.mark.django_db(transaction=True)
@@ -662,8 +670,27 @@ def test_application_updated(mock_broadcast_to_permitted_users, data_fixture):
     assert args[0][4]["type"] == "application_updated"
     assert args[0][4]["application_id"] == database.id
     assert args[0][4]["application"]["id"] == database.id
-    # Personal, so it is only delivered by `last_viewed_updated`.
+    # Personal values, each delivered by its own per-user event.
     assert "last_viewed" not in args[0][4]["application"]
+    assert "pending_count" not in args[0][4]["application"]
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.signals.broadcast_application_pending_counts")
+@pytest.mark.websockets
+def test_application_pending_count_changed_queues_the_counts_on_commit(
+    mock_task, data_fixture
+):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+
+    with transaction.atomic():
+        signals.application_pending_count_changed.send(
+            None, application=dashboard, user_ids=[user.id]
+        )
+        mock_task.delay.assert_not_called()
+
+    mock_task.delay.assert_called_once_with(dashboard.id, [user.id])
 
 
 @pytest.mark.django_db(transaction=True)

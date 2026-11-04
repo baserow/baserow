@@ -303,7 +303,8 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
         operation_id="list_agent_conversations",
         description=(
             "Lists the authenticated user's own conversations with the agent, most "
-            "recently active first."
+            "recently active first, each with its number of tool calls waiting for "
+            "the user's approval."
         ),
         parameters=[
             AGENT_ID_PATH_PARAMETER,
@@ -319,6 +320,13 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
                 description="The `next_cursor` of the previous page, omitted for "
                 "the first page. The next page continues after the last conversation "
                 "of the previous one, even when conversations changed in between.",
+            ),
+            OpenApiParameter(
+                "has_pending_approvals",
+                OpenApiTypes.BOOL,
+                default=False,
+                description="Only conversations with tool calls waiting for the "
+                "user's approval.",
             ),
         ],
         responses={
@@ -336,7 +344,10 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
         # One more than requested tells whether a next page exists without a count.
         conversations = list(
             AgentService().list_conversations(
-                request.user, agent_id, query_params.get("cursor")
+                request.user,
+                agent_id,
+                query_params.get("cursor"),
+                query_params["has_pending_approvals"],
             )[: limit + 1]
         )
         page = conversations[:limit]

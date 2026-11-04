@@ -297,14 +297,40 @@ class AgentConversationSerializer(serializers.ModelSerializer):
     run_id = serializers.SerializerMethodField(
         help_text="The run writing a reply in this conversation, or null."
     )
+    pending_approval_count = serializers.SerializerMethodField(
+        help_text="The number of held tool calls in this conversation waiting for "
+        "the owner's decision."
+    )
 
     class Meta:
         model = AgentConversation
-        fields = ("id", "uuid", "title", "created_on", "updated_on", "run_id")
+        fields = (
+            "id",
+            "uuid",
+            "title",
+            "created_on",
+            "updated_on",
+            "run_id",
+            "pending_approval_count",
+        )
 
     @extend_schema_field(serializers.UUIDField(allow_null=True))
     def get_run_id(self, conversation: AgentConversation) -> UUID | None:
         return self.context.get("conversation_runs", {}).get(conversation.id)
+
+    @extend_schema_field(serializers.IntegerField())
+    def get_pending_approval_count(self, conversation: AgentConversation) -> int:
+        """
+        Read the count that lists annotate, or count it for a single conversation.
+
+        :param conversation: The conversation being serialized.
+        :return: The number of its pending approvals.
+        """
+
+        count = getattr(conversation, "pending_approval_count", None)
+        if count is None:
+            return AgentHandler().count_pending_approvals(conversation)
+        return count
 
 
 class AgentConversationUpdateSerializer(
@@ -475,6 +501,10 @@ class AgentConversationsQuerySerializer(serializers.Serializer):
     cursor = KeysetCursorField(
         required=False,
         help_text="The `next_cursor` of the previous page, omitted for the first page.",
+    )
+    has_pending_approvals = serializers.BooleanField(
+        default=False,
+        help_text="Only conversations with tool calls waiting for the user's approval.",
     )
 
 

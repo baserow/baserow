@@ -3,6 +3,7 @@ import json
 import os
 import re
 from collections import defaultdict
+from collections.abc import Iterable
 from contextlib import nullcontext
 from dataclasses import dataclass
 from io import BufferedReader, BytesIO
@@ -2101,6 +2102,39 @@ class CoreHandler:
                 application_type_registry.get_by_model(model).enhance_queryset(qs)
             )
         return specific_queryset(queryset, per_content_type_queryset_hook)
+
+    def get_pending_count_per_application(
+        self,
+        user: AbstractUser | AnonymousUser,
+        applications: Iterable[Application],
+    ) -> dict[int, int]:
+        """
+        Asks each application type how many things wait for the user in its
+        applications, with one call per type whatever the number of applications.
+
+        :param user: The user to count for. Nothing waits for an anonymous visitor
+            of a template, so the types are not asked.
+        :param applications: The applications to count in, of any type.
+        :return: The count per application id. Applications with nothing waiting
+            may be left out.
+        """
+
+        if not user.is_authenticated:
+            return {}
+
+        applications_per_model: dict[type[Application], list[Application]] = (
+            defaultdict(list)
+        )
+        for application in applications:
+            applications_per_model[application.specific_class].append(application)
+
+        pending_counts: dict[int, int] = {}
+        for model, model_applications in applications_per_model.items():
+            application_type = application_type_registry.get_by_model(model)
+            pending_counts.update(
+                application_type.get_pending_counts(user, model_applications)
+            )
+        return pending_counts
 
     def create_application(
         self,
