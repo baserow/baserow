@@ -782,6 +782,9 @@ export const actions = {
     { dataSourceId, values, widget }
   ) {
     const { $client, $registry } = this
+    const previousTableId = state.dataSources.find(
+      ({ id }) => id === dataSourceId
+    )?.table_id
     const previousData = state.data[dataSourceId]
     commit('INVALIDATE_DATA_SOURCE_COLLECTION_FETCH')
     commit('INVALIDATE_DATA_SOURCE_DISPATCH', dataSourceId)
@@ -818,6 +821,11 @@ export const actions = {
       values: data,
     })
     try {
+      if (data.table_id !== previousTableId) {
+        // The backend resets linked filter conditions in the same transaction.
+        await dispatch('fetchWidgets', request.dashboardId)
+        if (!isDataSourceMutationCurrent(state, request)) return
+      }
       if (widget) {
         const widgetType = $registry.get('dashboardWidget', widget.type)
         await widgetType.dataSourceUpdated(widget, data)

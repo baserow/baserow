@@ -79,6 +79,8 @@ exports[`summary sources expose the shared filter control and save permanent con
                   <!--v-if-->
                 </div>
               </div>
+              <!--teleport start-->
+              <!--teleport end-->
             </div>
             <!--v-if-->
           </div>

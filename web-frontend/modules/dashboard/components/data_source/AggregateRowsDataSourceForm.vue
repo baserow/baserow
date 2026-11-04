@@ -12,28 +12,13 @@
         horizontal
         horizontal-narrow
       >
-        <Dropdown
+        <DashboardTableSelector
           v-model="computedTableId"
-          :show-search="true"
-          fixed-items
+          :databases="databases"
+          :data-source="{ ...dataSource, filters: values.filters }"
+          :store-prefix="storePrefix"
           :error="fieldHasErrors('table_id')"
-        >
-          <DropdownSection
-            v-for="database in databases"
-            :key="database.id"
-            :title="`${database.name} (${database.id})`"
-          >
-            <DropdownItem
-              v-for="table in database.tables"
-              :key="table.id"
-              :name="table.name"
-              :value="table.id"
-              :indented="true"
-            >
-              {{ table.name }}
-            </DropdownItem>
-          </DropdownSection>
-        </Dropdown>
+        />
       </FormGroup>
       <FormGroup
         v-if="values.table_id && !fieldHasErrors('table_id')"
@@ -130,6 +115,7 @@
 </template>
 
 <script>
+import DashboardTableSelector from '@baserow/modules/dashboard/components/data_source/DashboardTableSelector'
 import DashboardServiceRefinementForms from '@baserow/modules/dashboard/components/data_source/DashboardServiceRefinementForms'
 import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
@@ -149,7 +135,7 @@ const includesIfSet = (array) => (value) => {
 
 export default {
   name: 'AggregateRowsDataSourceForm',
-  components: { DashboardServiceRefinementForms },
+  components: { DashboardTableSelector, DashboardServiceRefinementForms },
   mixins: [form, tableFields],
   props: {
     dashboard: {
@@ -209,6 +195,8 @@ export default {
           this.tableIdHasChanged = true
           this.v$.values.view_id.$model = null
           this.v$.values.field_id.$model = null
+          this.values.filters = []
+          this.values.filter_groups = []
         }
       },
     },

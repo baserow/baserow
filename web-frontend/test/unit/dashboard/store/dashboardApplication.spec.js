@@ -914,6 +914,36 @@ describe('Dashboard application store', () => {
     expect(dashboardState.data[dataSourceId]).toEqual({ result: 'remote' })
   })
 
+  test.each([10, 20])(
+    'reloads reset filter links only when the source table changes to %i',
+    async (tableId) => {
+      const dashboardState = createDashboardState()
+      dashboardState.dataSources = [{ id: 7, table_id: 10 }]
+      DataSourceService.mockReturnValue({
+        update: vi
+          .fn()
+          .mockResolvedValue({ data: { id: 7, table_id: tableId } }),
+      })
+      const dispatch = vi.fn()
+
+      await actions.updateDataSource.call(
+        { $client: {}, $registry: providerRegistry },
+        {
+          state: dashboardState,
+          commit: applyCommit(dashboardState),
+          dispatch,
+        },
+        { dataSourceId: 7, values: { table_id: tableId } }
+      )
+
+      if (tableId === 10) {
+        expect(dispatch).not.toHaveBeenCalledWith('fetchWidgets', 42)
+      } else {
+        expect(dispatch).toHaveBeenNthCalledWith(1, 'fetchWidgets', 42)
+      }
+    }
+  )
+
   test('restores cached data when updating a data source fails', async () => {
     const dashboardState = createDashboardState()
     const dataSourceId = 7
