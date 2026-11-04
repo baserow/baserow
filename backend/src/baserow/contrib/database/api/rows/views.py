@@ -202,6 +202,30 @@ def build_response_with_metadata(
     return Response(response_serializer.data)
 
 
+def check_token_can_read_linked_tables(
+    request: Request, model, rows_values: list[dict]
+):
+    """
+    Raises if the request uses a database token that can't read a table the rows values
+    link rows from. Linking a row returns its primary field value, so the token needs
+    read access to the linked table on top of write access to this one.
+
+    :param request: The request that might be authenticated with a token.
+    :param model: The model of the table that the values are written to.
+    :param rows_values: The validated rows values, keyed by internal field name.
+    :raises NoPermissionToTable: If the token can't read a linked table.
+    """
+
+    token = TokenHandler().get_token_from_request(request)
+    if token is None:
+        return
+
+    for linked_table in RowHandler().get_linked_tables_written_by_rows_values(
+        model, rows_values
+    ):
+        TokenHandler().check_table_permissions(token, "read", linked_table)
+
+
 class RowsView(APIView):
     authentication_classes = APIView.authentication_classes + [TokenAuthentication]
     permission_classes = (IsAuthenticated,)
@@ -301,6 +325,7 @@ class RowsView(APIView):
                     "field names for which we want to lookup additional values. "
                     "You can provide one or multiple target fields. It is not possible "
                     "to lookup a value of a link row field in the target table. "
+                    "Read access to the target table is required. "
                     "If `user_field_names` parameter is set, the names of the fields "
                     "should be user field names. In this case the resulting field "
                     "names in the output will also be user field names. "
@@ -612,6 +637,8 @@ class RowsView(APIView):
         data = validate_data(
             validation_serializer, request_data, partial=True, return_validated=True
         )
+
+        check_token_can_read_linked_tables(request, model, [data])
 
         view_id = query_params.get("view")
         view = ViewHandler().get_view(view_id) if view_id else None
@@ -1041,6 +1068,8 @@ class RowView(APIView):
             user_field_names=user_field_names,
         )
         data = validate_data(validation_serializer, request_data, return_validated=True)
+        check_token_can_read_linked_tables(request, model, [data])
+
         try:
             data["id"] = int(row_id)
             row = (
@@ -1445,6 +1474,8 @@ class BatchRowsView(APIView):
             validation_serializer, request_data, partial=True, return_validated=True
         )
 
+        check_token_can_read_linked_tables(request, model, data["items"])
+
         try:
             rows = action_type_registry.get_by_type(CreateRowsActionType).do(
                 request.user,
@@ -1612,6 +1643,8 @@ class BatchRowsView(APIView):
         data = validate_data(
             validation_serializer, request_data, partial=True, return_validated=True
         )
+
+        check_token_can_read_linked_tables(request, model, data["items"])
 
         try:
             updated_data = action_type_registry.get_by_type(UpdateRowsActionType).do(

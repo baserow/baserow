@@ -1,0 +1,9 @@
+{
+    "type": "breaking_change",
+    "message": "Database tokens and restricted roles now need read access to the linked table to use `__join` or to set link row values. Requests without it return 401, and clearing a link row field stays allowed",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-11-04"
+}

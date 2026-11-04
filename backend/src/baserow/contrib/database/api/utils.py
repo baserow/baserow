@@ -20,7 +20,13 @@ from baserow.contrib.database.fields.models import (
     Field,
 )
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
+from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.table.operations import (
+    ListRowsDatabaseTableOperationType,
+)
+from baserow.contrib.database.tokens.handler import TokenHandler
 from baserow.core.db import specific_iterator
+from baserow.core.handler import CoreHandler
 from baserow.core.utils import split_comma_separated_string
 
 
@@ -223,6 +229,26 @@ class LinkRowJoin:
     target_fields: list[LinkedTargetField] = dataclass_field(default_factory=list)
 
 
+def check_can_list_rows_of_table(request, table: Table):
+    """
+    Checks that the requesting user, and the database token if one is used, can read
+    the rows of the provided table.
+
+    :param request: The request to take the user and token from.
+    :param table: The table to check the permissions for.
+    :raises NoPermissionToTable: If the token can't read the table.
+    :raises PermissionDenied: If the user can't list the rows of the table.
+    """
+
+    CoreHandler().check_permissions(
+        request.user,
+        ListRowsDatabaseTableOperationType.type,
+        workspace=table.database.workspace,
+        context=table,
+    )
+    TokenHandler().check_table_permissions(request, "read", table, False)
+
+
 def extract_link_row_joins_from_request(
     request, link_row_fields: QuerySet["Field"], user_field_names: bool = False
 ) -> list[LinkRowJoin]:
@@ -237,6 +263,8 @@ def extract_link_row_joins_from_request(
         the URL parameter and the output.
     :return: A list of valid link row joins with link row fields and their
         lookups.
+    :raises NoPermissionToTable: If the token can't read a linked table.
+    :raises PermissionDenied: If the user can't list the rows of a linked table.
     """
 
     requested_link_row_field_refs = [
@@ -262,6 +290,8 @@ def extract_link_row_joins_from_request(
         field = existing_link_row_fields_by_ref.get(link_row_field_ref)
         link_row_field = field.specific
         linked_table = link_row_field.link_row_table
+        if linked_table.id != field.table_id:
+            check_can_list_rows_of_table(request, linked_table)
         linked_table_model = linked_table.get_model()
         param_name = f"{link_row_field_ref}__join"
         if len(request.GET.getlist(param_name)) != 1:

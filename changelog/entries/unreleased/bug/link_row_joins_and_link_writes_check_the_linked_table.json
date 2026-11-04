@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Joining fields from a linked table and writing link row values now require read access to the linked table",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-11-04"
+}

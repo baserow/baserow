@@ -61,6 +61,7 @@ from baserow.contrib.database.table.models import (
 from baserow.contrib.database.table.operations import (
     CreateRowDatabaseTableOperationType,
     ImportRowsDatabaseTableOperationType,
+    ListRowsDatabaseTableOperationType,
 )
 from baserow.contrib.database.table.signals import table_updated
 from baserow.contrib.database.trash.models import TrashedRows
@@ -849,6 +850,7 @@ class RowHandler:
 
         self._raise_if_values_contain_hidden_fields(user, view, [values])
         self._check_write_fields_values_permissions(user, model, [values])
+        self._check_can_read_linked_tables(user, model, [values])
 
         # Apply view default values for fields not explicitly provided by the
         # user. View defaults take priority over field-level defaults.
@@ -1061,6 +1063,7 @@ class RowHandler:
 
         self._raise_if_values_contain_hidden_fields(user, view, [values])
         self._check_write_fields_values_permissions(user, model, [values])
+        self._check_can_read_linked_tables(user, model, [values])
 
         if not values_already_prepared:
             values = self.prepare_values(model._field_objects, values)
@@ -1529,6 +1532,7 @@ class RowHandler:
 
         self._raise_if_values_contain_hidden_fields(user, view, rows_values)
         self._check_write_fields_values_permissions(user, model, rows_values)
+        self._check_can_read_linked_tables(user, model, rows_values)
 
         # Apply view default values for fields not explicitly provided by the user.
         # View defaults take priority over field-level defaults.
@@ -1980,6 +1984,10 @@ class RowHandler:
                     },
                 )
 
+        self._check_can_read_linked_tables(
+            user, model, error_report.get_valid_rows_and_mapping()[0]
+        )
+
         # STEP 1: pre-validate data with serializer
         if validate:
             (
@@ -2241,6 +2249,68 @@ class RowHandler:
         if unwritable_fields and raise_if_not_permitted:
             raise FieldsNotWritable(unwritable_fields)
         return unwritable_fields
+
+    def get_linked_tables_written_by_rows_values(
+        self, model: GeneratedTableModel, rows_values: List[Dict[str, Any]]
+    ) -> List[Table]:
+        """
+        Returns the tables that the provided rows values would link rows from. A link
+        row field with an empty value is ignored because clearing a relationship
+        doesn't reveal anything about the linked table.
+
+        :param model: The model of the table that the values are written to.
+        :param rows_values: The rows values, keyed by field name or field id.
+        :return: The distinct linked tables, with their workspace selected.
+        """
+
+        link_row_table_ids_by_field_id = {
+            field_id: field_object["field"].link_row_table_id
+            for field_id, field_object in model._field_objects.items()
+            if hasattr(field_object["field"], "link_row_table_id")
+        }
+        if not link_row_table_ids_by_field_id:
+            return []
+
+        table_ids = set()
+        for row_values in rows_values:
+            non_empty_values = {key: val for key, val in row_values.items() if val}
+            for field_id in self.extract_field_ids_from_dict(non_empty_values):
+                if field_id in link_row_table_ids_by_field_id:
+                    table_ids.add(link_row_table_ids_by_field_id[field_id])
+
+        if not table_ids:
+            return []
+
+        return list(
+            Table.objects.filter(id__in=table_ids).select_related("database__workspace")
+        )
+
+    def _check_can_read_linked_tables(
+        self,
+        user: AbstractUser,
+        model: GeneratedTableModel,
+        rows_values: List[Dict[str, Any]],
+    ):
+        """
+        Verifies that the user can read every table the rows values link rows from.
+        Linking a row returns its primary field value, and matching by name reveals
+        whether it exists, so writing a link is a read of the linked table.
+
+        :param user: The user to check permissions for.
+        :param model: The model of the table that the values are written to.
+        :param rows_values: The rows values to check.
+        :raises PermissionDenied: If the user can't list the rows of a linked table.
+        """
+
+        for linked_table in self.get_linked_tables_written_by_rows_values(
+            model, rows_values
+        ):
+            CoreHandler().check_permissions(
+                user,
+                ListRowsDatabaseTableOperationType.type,
+                workspace=linked_table.database.workspace,
+                context=linked_table,
+            )
 
     def _get_unwritable_fields(
         self,
@@ -2779,6 +2849,7 @@ class RowHandler:
 
         self._raise_if_values_contain_hidden_fields(user, view, rows_values)
         self._check_write_fields_values_permissions(user, model, rows_values)
+        self._check_can_read_linked_tables(user, model, rows_values)
 
         return self.force_update_rows(
             user,
