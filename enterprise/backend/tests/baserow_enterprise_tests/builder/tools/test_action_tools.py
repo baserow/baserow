@@ -143,8 +143,12 @@ def test_a_field_value_description_names_the_field(builder_ctx):
 
 
 @pytest.mark.django_db
-def test_page_parameters_keep_their_position_in_the_report(builder_ctx):
-    detail = builder_ctx["page"].builder.page_set.exclude(shared=True).last()
+def test_page_parameters_keep_their_position_in_the_report(data_fixture, builder_ctx):
+    detail = data_fixture.create_builder_page(
+        builder=builder_ctx["builder"],
+        path="/detail/:a/:b",
+        path_params=[{"name": "a", "type": "text"}, {"name": "b", "type": "text"}],
+    )
 
     result = create(
         builder_ctx,
@@ -1650,3 +1654,127 @@ def test_a_new_row_actions_valid_field_value_is_stored(builder_ctx, value):
 
     assert "formula_errors" not in result
     assert stored == value.removeprefix("$formula: ")
+
+
+# ---------------------------------------------------------------------------
+# Page parameters of a new open_page action
+# ---------------------------------------------------------------------------
+
+
+def _opens(builder_ctx, page, parameters=None):
+    return ActionCreate(
+        type="open_page",
+        element=builder_ctx["button"].id,
+        navigate_to_page_id=page.id,
+        page_parameters=parameters,
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "parameters,problem",
+    [
+        (None, "missing: id, slug"),
+        ([], "missing: id, slug"),
+        ([{"name": "id", "value": "A"}], "missing: slug"),
+        (
+            [
+                {"name": "id", "value": "A"},
+                {"name": "slug", "value": "B"},
+                {"name": "other", "value": "C"},
+            ],
+            "unknown: other",
+        ),
+    ],
+)
+def test_create_actions_refuses_parameters_that_do_not_fit_the_page(
+    builder_ctx, two_parameter_page, parameters, problem
+):
+    before = BuilderWorkflowAction.objects.count()
+
+    result = create(builder_ctx, _opens(builder_ctx, two_parameter_page, parameters))
+
+    assert result["created_actions"] == []
+    assert problem in result["errors"][0]
+    assert "Give page_parameters" in result["errors"][0]
+    assert BuilderWorkflowAction.objects.count() == before
+
+
+@pytest.mark.django_db
+def test_create_actions_refuses_a_parameter_on_a_page_that_takes_none(
+    data_fixture, builder_ctx
+):
+    target = data_fixture.create_builder_page(
+        builder=builder_ctx["builder"], path="/plain"
+    )
+
+    result = create(
+        builder_ctx, _opens(builder_ctx, target, [{"name": "id", "value": "A"}])
+    )
+
+    assert result["created_actions"] == []
+    assert "takes none (unknown: id)" in result["errors"][0]
+
+
+@pytest.mark.django_db
+def test_create_actions_opens_a_page_without_parameters_with_none(
+    data_fixture, builder_ctx
+):
+    target = data_fixture.create_builder_page(
+        builder=builder_ctx["builder"], path="/plain"
+    )
+
+    result = create(builder_ctx, _opens(builder_ctx, target))
+
+    assert "errors" not in result
+    assert saved(result).navigate_to_page_id == target.id
+
+
+@pytest.mark.django_db
+def test_a_refused_open_page_leaves_the_other_actions_of_the_call(
+    builder_ctx, two_parameter_page
+):
+    result = create(
+        builder_ctx,
+        _opens(builder_ctx, two_parameter_page),
+        notification(builder_ctx["button"].id),
+    )
+
+    assert [item["type"] for item in result["created_actions"]] == ["notification"]
+    assert len(result["errors"]) == 1
+
+
+@pytest.mark.django_db
+def test_create_actions_stores_parameters_that_fit_the_page(
+    builder_ctx, two_parameter_page
+):
+    result = create(
+        builder_ctx,
+        _opens(
+            builder_ctx,
+            two_parameter_page,
+            [{"name": "slug", "value": "B"}, {"name": "id", "value": "A"}],
+        ),
+    )
+
+    assert "errors" not in result
+    assert sorted(p["name"] for p in saved(result).page_parameters) == ["id", "slug"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("value", ["$formula: the row id", "get('nope.id')"])
+def test_a_refused_parameter_formula_with_the_right_name_is_still_listed(
+    builder_ctx, two_parameter_page, value
+):
+    result = create(
+        builder_ctx,
+        _opens(
+            builder_ctx,
+            two_parameter_page,
+            [{"name": "id", "value": value}, {"name": "slug", "value": "B"}],
+        ),
+    )
+
+    assert "errors" not in result
+    assert len(result["created_actions"]) == 1
+    assert [entry["field"] for entry in result["formula_errors"]] == ["page_param_0"]

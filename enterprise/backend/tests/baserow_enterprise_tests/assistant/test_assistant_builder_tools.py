@@ -1349,7 +1349,11 @@ def test_table_button_actions_attach_to_distinct_columns(
     )
     ctx, page, element = _table_button_action_context(data_fixture, ["View", "Delete"])
     view_field, delete_field = list(element.fields.order_by("order"))
-    detail_page = data_fixture.create_builder_page(builder=page.builder)
+    detail_page = data_fixture.create_builder_page(
+        builder=page.builder,
+        path="/detail/:id",
+        path_params=[{"name": "id", "type": "numeric"}],
+    )
     table = element.data_source.service.specific.table
 
     result = create_actions(
@@ -1659,6 +1663,99 @@ def test_create_open_page_action(data_fixture):
 
     assert len(result["created_actions"]) == 1
     assert result["created_actions"][0]["type"] == "open_page"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_create_open_page_action_without_its_parameters_returns_to_the_model(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+    target_page = data_fixture.create_builder_page(
+        builder=builder,
+        name="Detail",
+        path="/detail/:id",
+        path_params=[{"name": "id", "type": "numeric"}],
+    )
+
+    tool_helpers = create_fake_tool_helpers()
+    ctx = make_test_ctx(user, workspace, tool_helpers)
+    create_display_elements(
+        ctx,
+        page_id=page.id,
+        elements=[DisplayElementCreate(ref="link", type="button", value="Go")],
+        thought="test",
+    )
+
+    refused = create_actions(
+        ctx,
+        page_id=page.id,
+        actions=[
+            ActionCreate(
+                type="open_page", element="link", navigate_to_page_id=target_page.id
+            ),
+            ActionCreate(type="notification", element="link", title="Hi"),
+        ],
+        thought="test",
+    )
+
+    assert [item["type"] for item in refused["created_actions"]] == ["notification"]
+    assert "missing: id" in refused["errors"][0]
+    assert "Give page_parameters" in refused["errors"][0]
+    assert not BuilderWorkflowAction.objects.filter(
+        openpageworkflowaction__isnull=False
+    ).exists()
+
+    retried = create_actions(
+        ctx,
+        page_id=page.id,
+        actions=[
+            ActionCreate(
+                type="open_page",
+                element="link",
+                navigate_to_page_id=target_page.id,
+                page_parameters=[{"name": "id", "value": "'1'"}],
+            ),
+        ],
+        thought="test",
+    )
+
+    assert "errors" not in retried
+    assert retried["created_actions"][0]["type"] == "open_page"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_setup_page_open_page_without_its_parameters_returns_to_the_model(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+    target_page = data_fixture.create_builder_page(
+        builder=builder,
+        name="Detail",
+        path="/detail/:id",
+        path_params=[{"name": "id", "type": "numeric"}],
+    )
+
+    result = setup_page(
+        make_test_ctx(user, workspace, create_fake_tool_helpers()),
+        page_id=page.id,
+        elements=[ElementItemCreate(ref="go", type="button", value="Go")],
+        actions=[
+            ActionCreate(
+                type="open_page", element="go", navigate_to_page_id=target_page.id
+            ),
+        ],
+        thought="test",
+    )
+
+    assert len(result["created_elements"]) == 1
+    assert "created_actions" not in result
+    assert "missing: id" in result["errors"][0]
 
 
 def test_open_page_action_extracts_page_param_formulas():

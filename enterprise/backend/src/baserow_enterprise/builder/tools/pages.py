@@ -289,7 +289,8 @@ def setup_page(
     'this'. Descriptions are not turned into formulas: a value that
     isn't a valid formula is left empty and listed in formula_errors. A get_row or row
     action can't run without its row_id, so one that isn't a valid formula is listed
-    in errors and isn't created.
+    in errors and isn't created. So is an open_page action whose page_parameters don't
+    have exactly the names of the path parameters of the page it opens.
 
     If you may not do something, what was saved before it is returned with the refusal
     in errors, and the rest isn't attempted.

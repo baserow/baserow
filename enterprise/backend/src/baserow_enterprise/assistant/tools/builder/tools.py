@@ -1212,7 +1212,7 @@ def create_actions(
 
     ## Action Types
     - notification: Show a message (title/description are formulas)
-    - open_page: Navigate to another page (set navigate_to_page_id). Use page_parameters to pass context like the current row's ID to the target page's path parameters.
+    - open_page: Navigate to another page (set navigate_to_page_id). Give page_parameters with exactly the names of the target page's path parameters, like the current row's ID: without them the action isn't created.
     - create_row: Insert a row (needs table_id and field_values)
     - update_row: Update a row (needs table_id, row_id, field_values)
     - delete_row: Delete a row (needs table_id and row_id)

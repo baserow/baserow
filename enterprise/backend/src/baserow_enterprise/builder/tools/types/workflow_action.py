@@ -483,7 +483,11 @@ class ActionCreate(BaseModel):
         default=None, description="(open_page) Target page ID."
     )
     page_parameters: list[ParameterMapping] | None = Field(
-        default=None, description="(open_page) Page parameter mappings."
+        default=None,
+        description=(
+            "(open_page) Page parameter mappings: exactly the path parameters of "
+            "the target page."
+        ),
     )
     query_parameters: list[ParameterMapping] | None = Field(
         default=None, description="(open_page) Query parameter mappings."

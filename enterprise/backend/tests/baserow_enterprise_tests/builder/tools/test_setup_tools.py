@@ -32,6 +32,7 @@ from baserow_enterprise.builder.tools.types import (
     ActionCreate,
     DataSourceCreate,
     ElementItemCreate,
+    PageCreate,
     TableFieldConfig,
 )
 from baserow_enterprise.builder.tools.types.user_source import UserSourceSetup
@@ -157,6 +158,59 @@ def test_setup_page_names_the_phase_of_each_error(builder_ctx):
     assert result["created_actions"] == []
     assert result["errors"][0].startswith("data_source bad: ")
     assert result["errors"][1].startswith("action notification on nope: ")
+
+
+@pytest.mark.django_db
+def test_setup_page_refuses_an_open_page_without_its_parameters(
+    data_fixture, builder_ctx
+):
+    target = data_fixture.create_builder_page(
+        builder=builder_ctx["builder"],
+        path="/d/:id",
+        path_params=[{"name": "id", "type": "numeric"}],
+    )
+
+    result = setup(
+        builder_ctx,
+        elements=[ElementItemCreate(ref="go", type="button", value="Go")],
+        actions=[
+            ActionCreate(type="open_page", element="go", navigate_to_page_id=target.id),
+            ActionCreate(type="notification", element="go", title="Hi"),
+        ],
+    )
+
+    assert len(result["created_elements"]) == 1
+    assert [item["type"] for item in result["created_actions"]] == ["notification"]
+    assert result["errors"][0].startswith("action open_page on go: ")
+    assert "missing: id" in result["errors"][0]
+
+
+@pytest.mark.django_db
+def test_setup_page_checks_parameters_against_a_page_just_created(builder_ctx):
+    created = pages.create_pages(
+        builder_ctx["ctx"],
+        builder_ctx["builder"].id,
+        [PageCreate(name="Detail", path="/d/:id")],
+    )
+    target_id = created["created_pages"][0]["id"]
+
+    result = setup(
+        builder_ctx,
+        elements=[ElementItemCreate(ref="go", type="button", value="Go")],
+        actions=[
+            ActionCreate(
+                type="open_page",
+                element="go",
+                navigate_to_page_id=target_id,
+                page_parameters=[{"name": "id", "value": "'1'"}],
+            ),
+            ActionCreate(type="open_page", element="go", navigate_to_page_id=target_id),
+        ],
+    )
+
+    assert len(result["created_actions"]) == 1
+    assert len(result["errors"]) == 1
+    assert "missing: id" in result["errors"][0]
 
 
 @pytest.mark.django_db

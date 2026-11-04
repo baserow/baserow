@@ -279,6 +279,41 @@ def test_a_refused_title_is_fixed_with_update_action_over_mcp(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("tool", ["create_actions", "setup_page"])
+def test_an_open_page_without_its_parameters_is_refused_over_mcp(
+    data_fixture, builder_ctx, tool
+):
+    target = data_fixture.create_builder_page(
+        builder=builder_ctx["builder"],
+        path="/d/:id",
+        path_params=[{"name": "id", "type": "numeric"}],
+    )
+    before = BuilderWorkflowAction.objects.count()
+
+    result = _load(
+        _call(
+            data_fixture,
+            builder_ctx,
+            tool,
+            {
+                "page_id": builder_ctx["page"].id,
+                "actions": [
+                    {
+                        "type": "open_page",
+                        "element": builder_ctx["button"].id,
+                        "navigate_to_page_id": target.id,
+                    }
+                ],
+            },
+        )
+    )
+
+    assert result["created_actions"] == []
+    assert "missing: id" in result["errors"][0]
+    assert BuilderWorkflowAction.objects.count() == before
+
+
+@pytest.mark.django_db
 def test_an_open_page_parameter_is_fixed_with_update_action_over_mcp(
     data_fixture, builder_ctx
 ):

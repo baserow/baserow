@@ -1333,13 +1333,13 @@ def get_writable_action(
 
 
 def check_open_page_parameters(
-    action: BuilderWorkflowAction, item: ActionUpdate
+    action: BuilderWorkflowAction, item: ActionCreate | ActionUpdate
 ) -> None:
     """
-    Check that the page parameters an open_page update leaves on the action are the
-    ones the page it opens has. Only a call that gives the page or the parameters is
-    checked. A page that isn't in the action's application is left to the writer, and
-    so is an action that goes to a custom URL.
+    Check that the page parameters an open_page create or update leaves on the action
+    are the ones the page it opens has. Only a call that gives the page or the
+    parameters is checked. A page that isn't in the action's application is left to
+    the writer, and so is an action that goes to a custom URL.
 
     :raises ToolInputError: When parameters are missing or unknown.
     """

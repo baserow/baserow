@@ -85,6 +85,7 @@ def create_actions_with_options(
                         data_source_refs,
                         integration,
                     )
+                    helpers.check_open_page_parameters(action, action_create)
                     if not options.defer_required_formulas:
                         check_required_action_formulas(
                             contexts, page, action, action_create
@@ -140,6 +141,10 @@ def create_actions(
     left empty and listed in formula_errors. A field value can then be set with
     add_action_field_mapping. A row action can't run without its row_id, so one that
     isn't a valid formula or number is listed in errors and that action isn't created.
+
+    An open_page action must give page_parameters with exactly the names of the path
+    parameters of the page it opens, from list_pages. If not, it is listed in errors
+    and isn't created.
 
     Fix a value listed in formula_errors with update_action. Don't call this tool
     again for it: that adds a second action, and both run.
