@@ -8,7 +8,7 @@ Defines ``ActionCreate`` (flat) for creating workflow actions and
 import re
 from typing import TYPE_CHECKING, Any, Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from baserow.core.formula.parser.exceptions import BaserowFormulaException
 from baserow.core.formula.parser.generated.BaserowFormula import BaserowFormula
@@ -62,6 +62,11 @@ class FieldValueMapping(BaseModel):
             "A formula: see the tool description. Quote fixed text: 'like this'."
         ),
     )
+
+    @field_validator("field_id")
+    @classmethod
+    def _strip_field_id(cls, value: str) -> str:
+        return value.strip()
 
 
 # ---------------------------------------------------------------------------
@@ -246,7 +251,7 @@ def _row_action_table(action: "ActionCreate", user, workspace) -> Any:
     if table is None:
         raise ToolInputError(f"Table with id {action.table_id} not found.")
 
-    field_ids = {fv.field_id.strip() for fv in action.field_values or []}
+    field_ids = {fv.field_id for fv in action.field_values or []}
     in_table = {str(id) for id in table.field_set.values_list("id", flat=True)}
     if field_ids - in_table:
         raise ToolInputError(
@@ -289,7 +294,7 @@ def _field_mappings(action: "ActionCreate") -> list[dict] | None:
     # nothing to its field. Anything else is fixed text.
     return [
         {
-            "field_id": int(fv.field_id.strip()),
+            "field_id": int(fv.field_id),
             "value": _advanced(literal_or_placeholder(fv.value)),
             "enabled": True,
         }
@@ -316,7 +321,7 @@ def _row_formulas(action: "ActionCreate", orm_action, context) -> dict[str, str]
     # Field values for create/update
     if action.field_values:
         for fv in action.field_values:
-            key = f"field_{fv.field_id.strip()}"
+            key = f"field_{fv.field_id}"
             if mapping_value_is_formula(fv.value):
                 formulas[key] = formula_desc(fv.value)
 
@@ -854,11 +859,6 @@ class ActionChanges(BaseModel):
             )
         # Every value is set, so ``target`` doesn't take its default for a new action.
         values = {name: getattr(self, name) for name in type(self).model_fields}
-        if self.field_values is not None:
-            values["field_values"] = [
-                FieldValueMapping(field_id=item.field_id.strip(), value=item.value)
-                for item in self.field_values
-            ]
         return ActionUpdate.model_construct(
             type=action_type,
             element=orm_action.element_id,

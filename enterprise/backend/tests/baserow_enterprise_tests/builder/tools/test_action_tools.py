@@ -145,6 +145,27 @@ def test_a_field_value_description_names_the_field(builder_ctx):
     assert not saved(result).service.specific.field_mappings.exists()
 
 
+@pytest.mark.django_db
+def test_a_field_id_with_spaces_keeps_its_formula(builder_ctx):
+    table = builder_ctx["data_source"].service.specific.table
+    field = table.field_set.first()
+
+    result = create(
+        builder_ctx,
+        ActionCreate(
+            type="create_row",
+            element=builder_ctx["button"].id,
+            table_id=table.id,
+            field_values=[{"field_id": f" {field.id}", "value": "upper('abc')"}],
+        ),
+    )
+
+    assert "formula_errors" not in result
+    mapping = saved(result).service.specific.field_mappings.get()
+    assert mapping.field_id == field.id
+    assert mapping.value["formula"] == "upper('abc')"
+
+
 def dispatch(api_client, token, action, field):
     service = action.service
     properties = ["id", field.db_column]
