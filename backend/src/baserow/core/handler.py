@@ -15,7 +15,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser, AnonymousUser
 from django.core.files.storage import Storage
 from django.db import OperationalError, transaction
-from django.db.models import Count, Model, Prefetch, Q, QuerySet
+from django.db.models import Count, Exists, Model, OuterRef, Prefetch, Q, QuerySet
 from django.db.models.functions import Coalesce
 from django.utils import translation
 from django.utils.translation import gettext as _
@@ -815,7 +815,14 @@ class CoreHandler:
             Prefetch(
                 "workspace__workspaceuser_set",
                 queryset=workspaceusers_with_user_and_profile,
-            )
+            ),
+            Prefetch(
+                "workspace__workspaceuser_set",
+                queryset=self.get_collaborator_memberships()
+                .agents()
+                .select_related("user", "user__profile"),
+                to_attr="collaborator_agent_memberships",
+            ),
         )
         return workspaceuser_workspaces
 
@@ -1623,6 +1630,39 @@ class CoreHandler:
         invitation.delete()
 
         return workspace_user
+
+    def get_collaborator_memberships(self, workspace=None):
+        memberships = WorkspaceUser.objects.all()
+        if workspace is not None:
+            memberships = memberships.filter(workspace=workspace)
+        foreign_memberships = WorkspaceUser.objects_and_trash.filter(
+            user_id=OuterRef("user_id")
+        ).exclude(workspace_id=OuterRef("workspace_id"))
+        return memberships.filter(
+            Q(user__profile__identity_type="human")
+            | (
+                Q(
+                    user__profile__identity_type="agent",
+                    user__is_active=True,
+                    user__profile__trashed=False,
+                    user__profile__to_be_deleted=False,
+                )
+                & ~Q(Exists(foreign_memberships))
+            )
+        )
+
+    def get_workspace_collaborators(self, workspace: Workspace | int) -> QuerySet[User]:
+        """
+        Returns people and eligible agent identities in a workspace.
+
+        :param workspace: The workspace or its id.
+        :return: Users available for assignment and mentions.
+        """
+
+        memberships = self.get_collaborator_memberships(workspace)
+        return User.objects_and_agents.filter(
+            id__in=memberships.values("user_id")
+        ).select_related("profile")
 
     @classmethod
     def get_user_email_mapping(

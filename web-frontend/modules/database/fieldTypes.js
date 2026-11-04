@@ -3073,14 +3073,14 @@ export class LastModifiedByFieldType extends FieldType {
       if (workspaceAvailable) {
         if (a[name] !== null) {
           const workspaceUserA = this.app.$store.getters[
-            'workspace/getUserById'
+            'workspace/getCollaboratorById'
           ](a[name].id)
           userNameA = workspaceUserA ? workspaceUserA.name : userNameA
         }
 
         if (b[name] !== null) {
           const workspaceUserB = this.app.$store.getters[
-            'workspace/getUserById'
+            'workspace/getCollaboratorById'
           ](b[name].id)
           userNameB = workspaceUserB ? workspaceUserB.name : userNameB
         }
@@ -3118,9 +3118,9 @@ export class LastModifiedByFieldType extends FieldType {
 
     const workspaces = this.app.$store.getters['workspace/getAll']
     if (workspaces.length > 0) {
-      const workspaceUser = this.app.$store.getters['workspace/getUserById'](
-        value.id
-      )
+      const workspaceUser = this.app.$store.getters[
+        'workspace/getCollaboratorById'
+      ](value.id)
       return workspaceUser ? workspaceUser.name : name
     }
 
@@ -3215,14 +3215,14 @@ export class CreatedByFieldType extends FieldType {
       if (workspaceAvailable) {
         if (a[name] !== null) {
           const workspaceUserA = this.app.$store.getters[
-            'workspace/getUserById'
+            'workspace/getCollaboratorById'
           ](a[name].id)
           userNameA = workspaceUserA ? workspaceUserA.name : userNameA
         }
 
         if (b[name] !== null) {
           const workspaceUserB = this.app.$store.getters[
-            'workspace/getUserById'
+            'workspace/getCollaboratorById'
           ](b[name].id)
           userNameB = workspaceUserB ? workspaceUserB.name : userNameB
         }
@@ -3260,9 +3260,9 @@ export class CreatedByFieldType extends FieldType {
 
     const workspaces = this.app.$store.getters['workspace/getAll']
     if (workspaces.length > 0) {
-      const workspaceUser = this.app.$store.getters['workspace/getUserById'](
-        value.id
-      )
+      const workspaceUser = this.app.$store.getters[
+        'workspace/getCollaboratorById'
+      ](value.id)
       return workspaceUser ? workspaceUser.name : name
     }
 
@@ -4978,7 +4978,12 @@ export class MultipleCollaboratorsFieldType extends FieldType {
   }
 
   parseFromLinkedRowItemValue(field, value) {
-    return this.app.$store.getters['workspace/getUserByEmail'](value) || null
+    const collaborator = this.app.$store.getters[
+      'workspace/getCollaborators'
+    ]().find((item) => item.email === value || item.name === value)
+    return collaborator
+      ? { id: collaborator.user_id, name: collaborator.name }
+      : null
   }
 
   getName() {
@@ -5064,7 +5069,10 @@ export class MultipleCollaboratorsFieldType extends FieldType {
         stringA = valuesA
           .map(
             (obj) =>
-              this.app.$store.getters['workspace/getUserById'](obj.id).name
+              this.app.$store.getters['workspace/getCollaboratorById'](obj.id)
+                ?.name ??
+              obj.name ??
+              ''
           )
           .join('')
       } else if (valuesA.length > 0) {
@@ -5075,7 +5083,10 @@ export class MultipleCollaboratorsFieldType extends FieldType {
         stringB = valuesB
           .map(
             (obj) =>
-              this.app.$store.getters['workspace/getUserById'](obj.id).name
+              this.app.$store.getters['workspace/getCollaboratorById'](obj.id)
+                ?.name ??
+              obj.name ??
+              ''
           )
           .join('')
       } else if (valuesB.length > 0) {
@@ -5090,7 +5101,9 @@ export class MultipleCollaboratorsFieldType extends FieldType {
     const resolveName = (obj) => {
       const workspaces = this.app.$store.getters['workspace/getAll']
       if (workspaces.length > 0) {
-        const user = this.app.$store.getters['workspace/getUserById'](obj.id)
+        const user = this.app.$store.getters['workspace/getCollaboratorById'](
+          obj.id
+        )
         return user?.name ?? obj.name ?? ''
       }
       return obj.name ?? ''
@@ -5137,10 +5150,10 @@ export class MultipleCollaboratorsFieldType extends FieldType {
 
     if (workspaces.length > 0) {
       return value.map((value) => {
-        const workspaceUser = this.app.$store.getters['workspace/getUserById'](
-          value.id
-        )
-        return workspaceUser.name
+        const workspaceUser = this.app.$store.getters[
+          'workspace/getCollaboratorById'
+        ](value.id)
+        return workspaceUser?.name ?? value.name ?? ''
       })
     } else {
       // public views
@@ -5176,25 +5189,34 @@ export class MultipleCollaboratorsFieldType extends FieldType {
       try {
         const data = this.app.$papa.stringToArray(clipboardData)
         const uniqueValuesOnly = Array.from(new Set(data))
+        const collaborators = field.available_collaborators
+          ? field.available_collaborators.map((collaborator) => ({
+              ...collaborator,
+              ...this.app.$store.getters['workspace/getCollaboratorById'](
+                collaborator.id
+              ),
+              user_id: collaborator.id,
+            }))
+          : this.app.$store.getters['workspace/getCollaborators']().filter(
+              (collaborator) => !collaborator.to_be_deleted
+            )
 
         return uniqueValuesOnly
           .map((emailOrName) => {
+            emailOrName = emailOrName.trim()
             // verify if it respects the format `$name ($email)`
             const matches = emailOrName.match(/(.*)\s*<(.*)>/)
             let email = emailOrName
             if (matches) {
               email = matches[2]
             }
-            const workspaceUser =
-              this.app.$store.getters['workspace/getUserByEmail'](email)
-            if (workspaceUser !== undefined) {
-              return workspaceUser
-            }
-            return this.app.$store.getters['workspace/getUserByName'](
-              emailOrName
+            return collaborators.find(
+              (collaborator) =>
+                collaborator.email === email ||
+                collaborator.name === emailOrName
             )
           })
-          .filter((obj) => obj !== null)
+          .filter((obj) => obj != null)
           .map((obj) => {
             return {
               id: obj.user_id,

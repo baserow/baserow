@@ -1313,3 +1313,24 @@ def test_email_notifications_show_unknown_user_for_anonymous_form_submissions(
 
     for k, v in expected_context.items():
         assert user_2_summary_email_context[k] == v
+
+
+@pytest.mark.django_db
+def test_rich_text_stores_agent_mentions_without_notifying_agents(data_fixture):
+    human = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=human)
+    agent = data_fixture.create_agent(workspace=table.database.workspace)
+    field = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=True
+    )
+
+    row = RowHandler().create_row(
+        human, table, {field.id: f"Hi @{agent.id} @{human.id}"}
+    )
+
+    assert set(
+        RichTextFieldMention.objects.filter(row_id=row.id, field=field).values_list(
+            "user_id", flat=True
+        )
+    ) == {human.id, agent.id}
+    assert not NotificationRecipient.objects.filter(recipient=agent).exists()

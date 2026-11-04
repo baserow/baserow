@@ -66,7 +66,24 @@ def test_agent_events_only_reach_users_allowed_to_list_agents(
     assert broadcast.call_args.kwargs["ignore_web_socket_id"] == (
         None if event == "restore" else "origin"
     )
-    workspace_broadcast.delay.assert_not_called()
+    workspace_broadcast.delay.assert_called_once()
+    workspace_id, collaborator = workspace_broadcast.delay.call_args.args
+    assert workspace_id == workspace.id
+    assert collaborator["type"] == expected_type.replace(
+        "agent_", "workspace_agent_", 1
+    )
+    assert collaborator["workspace_id"] == workspace.id
+    if event == "delete":
+        assert collaborator["agent_id"] == agent.id
+    else:
+        assert collaborator["agent"] == {
+            "id": agent.id,
+            "name": "Updated private agent" if event == "update" else agent.first_name,
+            "identity_type": "agent",
+        }
+    assert (
+        workspace_broadcast.delay.call_args.kwargs.get("ignore_web_socket_id") is None
+    )
 
 
 @pytest.mark.django_db(transaction=True)

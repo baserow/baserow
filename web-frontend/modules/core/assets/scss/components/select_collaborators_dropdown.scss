@@ -31,3 +31,14 @@
 
   @include center-text(24px, 12px);
 }
+
+.collaborator-avatar.collaborator-avatar--agent {
+  color: $palette-blue-600;
+  background-color: $palette-blue-100;
+}
+
+.select-collaborators__group {
+  padding: 8px 10px;
+  color: $palette-neutral-900;
+  font-weight: 600;
+}

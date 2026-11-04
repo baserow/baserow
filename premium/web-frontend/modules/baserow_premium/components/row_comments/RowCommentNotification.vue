@@ -24,7 +24,9 @@
     </div>
     <RichTextEditor
       :editable="false"
-      :mentionable-users="workspace.users"
+      :mentionable-users="
+        $store.getters['workspace/getCollaborators'](workspace.id)
+      "
       :model-value="notification.data.message"
     />
   </nuxt-link>

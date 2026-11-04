@@ -5,6 +5,7 @@ from django.db.models import QuerySet
 
 from prosemirror.model import Node
 
+from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
 
 from .schema import schema
@@ -60,9 +61,12 @@ def extract_mentioned_users_in_workspace(
     """
 
     mentioned_user_ids = extract_mentioned_user_ids(json_doc)
-    return workspace.users.filter(
-        id__in=mentioned_user_ids, profile__to_be_deleted=False
-    ).select_related("profile")
+    return (
+        CoreHandler()
+        .get_workspace_collaborators(workspace)
+        .filter(id__in=mentioned_user_ids, profile__to_be_deleted=False)
+        .select_related("profile")
+    )
 
 
 def prosemirror_doc_from_plain_text(plain_text_message) -> Dict[str, Any]:

@@ -30,6 +30,7 @@ from baserow.contrib.database.fields.utils.duration import (
     postgres_interval_to_seconds,
     prepare_duration_value_for_db,
 )
+from baserow.core.handler import CoreHandler
 from baserow.core.utils import split_comma_separated_string
 
 
@@ -607,9 +608,15 @@ class CollaboratorRequestSerializer(serializers.ListSerializer):
     child = CollaboratorField()
 
 
+class AvailableCollaboratorSerializer(CollaboratorSerializer):
+    identity_type = serializers.CharField(
+        source="profile.identity_type", read_only=True
+    )
+
+
 class AvailableCollaboratorsSerializer(serializers.ListField):
     def __init__(self, **kwargs):
-        kwargs["child"] = CollaboratorSerializer()
+        kwargs["child"] = AvailableCollaboratorSerializer()
         kwargs["read_only"] = True
         kwargs["source"] = "*"
         kwargs["help_text"] = "A list of all the available collaborators."
@@ -626,10 +633,17 @@ class AvailableCollaboratorsSerializer(serializers.ListField):
 
         workspace = instance.table.database.workspace
         if not hasattr(workspace, "available_collaborators"):
-            workspace.available_collaborators = workspace.users.order_by("first_name")
+            memberships = getattr(workspace, "collaborator_memberships", None)
+            workspace.available_collaborators = (
+                [membership.user for membership in memberships]
+                if memberships is not None
+                else CoreHandler()
+                .get_workspace_collaborators(workspace)
+                .order_by("first_name")
+            )
 
         return [
-            CollaboratorSerializer(user).data
+            AvailableCollaboratorSerializer(user).data
             for user in workspace.available_collaborators
         ]
 

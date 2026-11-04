@@ -75,7 +75,7 @@ def test_created_by_field_type_create_via_api(api_client, data_fixture):
     assert response_json["name"] == "Created by 1"
     assert response_json["type"] == "created_by"
     assert response_json["available_collaborators"] == [
-        {"id": user.id, "name": user.first_name}
+        {"id": user.id, "name": user.first_name, "identity_type": "human"}
     ]
 
 

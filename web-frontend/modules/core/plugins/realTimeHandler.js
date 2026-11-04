@@ -860,6 +860,24 @@ export class RealTimeHandler {
       })
     })
 
+    for (const event of [
+      'workspace_agent_created',
+      'workspace_agent_updated',
+    ]) {
+      this.registerEvent(event, ({ store }, data) => {
+        store.commit('workspace/UPSERT_WORKSPACE_AGENT', {
+          workspaceId: data.workspace_id,
+          agent: data.agent,
+        })
+      })
+    }
+    this.registerEvent('workspace_agent_deleted', ({ store }, data) => {
+      store.commit('workspace/DELETE_WORKSPACE_AGENT', {
+        workspaceId: data.workspace_id,
+        agentId: data.agent_id,
+      })
+    })
+
     this.registerEvent('agent_created', ({ store }, data) => {
       store.dispatch('agent/forceCreate', data.agent)
     })
