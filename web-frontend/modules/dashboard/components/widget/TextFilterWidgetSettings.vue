@@ -13,17 +13,6 @@
     </FormGroup>
     <FormGroup
       small-label
-      :label="$t('textFilterWidget.defaultValue')"
-      class="margin-bottom-2"
-      required
-    >
-      <FormInput
-        :model-value="widget.default_value"
-        @blur="updateSetting('default_value', $event.target.value)"
-      />
-    </FormGroup>
-    <FormGroup
-      small-label
       :label="$t('textFilterWidget.filterType')"
       class="margin-bottom-2"
       required
@@ -69,6 +58,58 @@
         :model-value="widget.options || {}"
         :data-providers-allowed="['table']"
         @input="updateSetting('options', $event)"
+      />
+    </FormGroup>
+    <FormGroup
+      small-label
+      :label="$t('textFilterWidget.defaultValue')"
+      class="margin-bottom-2"
+      required
+    >
+      <Dropdown
+        v-if="widget.mode === 'dropdown'"
+        :model-value="defaultValue"
+        :multiple="widget.multiple"
+        :loading="optionState.loading"
+        :show-footer="hasDefaultValue || optionState.error"
+        @update:model-value="updateSetting('default_value', $event)"
+      >
+        <template v-if="hasDefaultValue" #defaultValue>
+          <span class="dropdown__selected-text">{{ defaultValueLabel }}</span>
+        </template>
+        <DropdownItem
+          v-for="option in options"
+          :key="option"
+          :name="option"
+          :value="option"
+        />
+        <template #emptyState>
+          {{
+            optionState.error
+              ? $t('textFilterWidget.optionsError')
+              : $t('dropdown.empty')
+          }}
+        </template>
+        <template #footer>
+          <div class="dashboard-text-filter-widget__footer">
+            <ButtonText v-if="optionState.error" @click="loadOptions(true)">{{
+              $t('action.retry')
+            }}</ButtonText>
+            <Button
+              v-if="hasDefaultValue"
+              type="secondary"
+              size="small"
+              button-type="button"
+              @click="updateSetting('default_value', widget.multiple ? [] : '')"
+              >{{ $t('textFilterWidget.clear') }}</Button
+            >
+          </div>
+        </template>
+      </Dropdown>
+      <FormInput
+        v-else
+        :model-value="defaultValue"
+        @blur="updateSetting('default_value', $event.target.value)"
       />
     </FormGroup>
     <FormGroup small-label required>
@@ -237,12 +278,16 @@
 </template>
 
 <script setup>
+import { useWidgetOptions } from '@baserow/modules/dashboard/composables/useWidgetOptions'
 import ItemCard from '@baserow/modules/core/components/ItemCard'
 import DashboardFormulaInput from '@baserow/modules/dashboard/components/DashboardFormulaInput'
 import WidgetFilterConfigurationModal from '@baserow/modules/dashboard/components/widget/WidgetFilterConfigurationModal'
 import FieldService from '@baserow/modules/database/services/field'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import { getWidgetFilterGroups } from '@baserow/modules/dashboard/utils/widgetFilters'
+import {
+  getWidgetFilterGroups,
+  getTextFilterDefaultValue,
+} from '@baserow/modules/dashboard/utils/widgetFilters'
 
 const props = defineProps({
   widget: { type: Object, required: true },
@@ -250,6 +295,14 @@ const props = defineProps({
   storePrefix: { type: String, default: '' },
 })
 const { $store, $client, $registry, $i18n } = useNuxtApp()
+const { optionState, options, loadOptions } = useWidgetOptions(props)
+const defaultValue = computed(() => getTextFilterDefaultValue(props.widget))
+const hasDefaultValue = computed(() => defaultValue.value.length > 0)
+const defaultValueLabel = computed(() =>
+  Array.isArray(defaultValue.value)
+    ? defaultValue.value.join(', ')
+    : defaultValue.value
+)
 const targetId = ref(null)
 const groupModal = ref(null)
 const fields = ref([])

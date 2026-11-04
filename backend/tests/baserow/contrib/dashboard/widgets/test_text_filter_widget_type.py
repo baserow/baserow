@@ -19,7 +19,10 @@ from baserow.test_utils.helpers import assert_undo_redo_actions_are_valid
 @pytest.mark.django_db
 @pytest.mark.parametrize("mode", ["input", "dropdown"])
 @pytest.mark.parametrize("multiple", [False, True])
-def test_text_widget_export_import_and_duplicate(data_fixture, mode, multiple):
+@pytest.mark.parametrize("default_value", ["get('literal')", ["France", "Belgium"]])
+def test_text_widget_export_import_and_duplicate(
+    data_fixture, mode, multiple, default_value
+):
     """Literal settings survive application round trips without a data source."""
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
@@ -30,7 +33,7 @@ def test_text_widget_export_import_and_duplicate(data_fixture, mode, multiple):
         title="Search",
         description="Enter text",
         placeholder="Type here",
-        default_value="get('literal')",
+        default_value=default_value,
         mode=mode,
         multiple=multiple,
         options=BaserowFormulaObject.create("France, Belgium", mode="raw"),
@@ -56,14 +59,15 @@ def test_text_widget_export_import_and_duplicate(data_fixture, mode, multiple):
             "Search",
             "Enter text",
             "Type here",
-            "get('literal')",
+            default_value,
         )
         assert not DashboardDataSource.objects.filter(dashboard=application).exists()
 
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
-def test_text_widget_configuration_undo_redo(data_fixture):
+@pytest.mark.parametrize("default_value", ["Initial", ["France", "Belgium"]])
+def test_text_widget_configuration_undo_redo(data_fixture, default_value):
     """Undo restores both settings, including clearing a configured default."""
     user = data_fixture.create_user(session_id="text-widget")
     dashboard = data_fixture.create_dashboard_application(user=user)
@@ -75,10 +79,10 @@ def test_text_widget_configuration_undo_redo(data_fixture):
         user,
         widget.id,
         "text_filter",
-        {"placeholder": "Search here", "default_value": "Initial"},
+        {"placeholder": "Search here", "default_value": default_value},
     )
     widget.refresh_from_db()
-    assert (widget.placeholder, widget.default_value) == ("Search here", "Initial")
+    assert (widget.placeholder, widget.default_value) == ("Search here", default_value)
     scopes = [ApplicationActionScopeType.value(application_id=dashboard.id)]
     undone = ActionHandler.undo(user, scopes, "text-widget")
     assert_undo_redo_actions_are_valid(undone, [UpdateWidgetActionType])
@@ -87,7 +91,7 @@ def test_text_widget_configuration_undo_redo(data_fixture):
     redone = ActionHandler.redo(user, scopes, "text-widget")
     assert_undo_redo_actions_are_valid(redone, [UpdateWidgetActionType])
     widget.refresh_from_db()
-    assert (widget.placeholder, widget.default_value) == ("Search here", "Initial")
+    assert (widget.placeholder, widget.default_value) == ("Search here", default_value)
     WidgetService().update_widget(user, widget.id, placeholder="", default_value="")
     widget.refresh_from_db()
     assert (widget.placeholder, widget.default_value) == ("", "")
@@ -183,3 +187,56 @@ def test_text_widget_creation_undo_redo(data_fixture):
         "Enter text",
         "Initial",
     )
+
+
+@pytest.mark.django_db
+def test_multiple_default_values_api_and_dispatch(api_client, data_fixture):
+    from django.urls import reverse
+
+    from baserow.contrib.dashboard.api.public.serializers import (
+        PublicDashboardInfoSerializer,
+    )
+
+    user, token = data_fixture.create_user_and_token()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    response = api_client.post(
+        reverse("api:dashboard:widgets:list", kwargs={"dashboard_id": dashboard.id}),
+        {
+            "type": "text_filter",
+            "title": "Country",
+            "mode": "dropdown",
+            "multiple": True,
+            "default_value": ["France", "Belgium", "A country, with a comma"],
+        },
+        format="json",
+        **headers,
+    )
+    assert response.status_code == 200
+    defaults = ["France", "Belgium", "A country, with a comma"]
+    widget = TextFilterWidget.objects.get(id=response.json()["id"])
+    assert widget.default_value == defaults
+    assert response.json()["default_value"] == defaults
+    assert widget.get_type().get_filter_value(widget, {}) == defaults
+    assert widget.get_type().get_filter_value(widget, {str(widget.id): []}) == []
+    public = PublicDashboardInfoSerializer(
+        dashboard, context={"widgets": [widget], "data_sources": []}
+    ).data
+    assert public["widgets"][0]["default_value"] == defaults
+    url = reverse("api:dashboard:widgets:item", kwargs={"widget_id": widget.id})
+    for invalid in [{"country": "France"}, ["France", 1], None, 42]:
+        response = api_client.patch(
+            url, {"default_value": invalid}, format="json", **headers
+        )
+        assert response.status_code == 400
+    response = api_client.patch(url, {"multiple": False}, format="json", **headers)
+    assert response.status_code == 200
+    widget.refresh_from_db()
+    assert widget.get_type().get_filter_value(widget, {}) == "France"
+    response = api_client.patch(
+        url, {"multiple": True, "default_value": []}, format="json", **headers
+    )
+    assert response.status_code == 200
+    widget.refresh_from_db()
+    assert widget.default_value == []
+    assert widget.get_type().get_filter_value(widget, {}) == []

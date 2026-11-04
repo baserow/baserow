@@ -130,4 +130,4 @@ class TextFilterWidget(Widget):
         blank=True,
     )
     placeholder = models.TextField(blank=True, default="", db_default="")
-    default_value = models.TextField(blank=True, default="", db_default="")
+    default_value = models.JSONField(blank=True, default=str, db_default="")
