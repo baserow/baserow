@@ -1725,3 +1725,98 @@ def test_move_before_a_child_in_another_place_is_refused(data_fixture, builder_c
     )
 
     assert "not '1'" in str(result["errors"])
+
+
+@pytest.mark.django_db
+def test_a_child_goes_before_the_element_given_in_its_container(builder_ctx):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    ids = elements.create_elements(
+        ctx,
+        page.id,
+        [
+            ElementItemCreate(ref="box", type="simple_container"),
+            text("a", "First", parent_element="box"),
+            text("b", "Third", parent_element="box"),
+        ],
+    )["ref_to_id_map"]
+
+    result = elements.create_elements(
+        ctx,
+        page.id,
+        [text("x", "Second", parent_element=ids["box"])],
+        before_element_id=ids["b"],
+    )
+
+    assert not result.get("errors")
+    assert children_of(ids["box"]) == ["'First'", "'Second'", "'Third'"]
+    assert saved(result["ref_to_id_map"]["x"]).parent_element_id == ids["box"]
+
+
+@pytest.mark.django_db
+def test_a_child_goes_before_the_element_given_in_its_column(builder_ctx):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    ids = elements.create_elements(
+        ctx,
+        page.id,
+        [
+            ElementItemCreate(ref="cols", type="column", column_amount=2),
+            text("a", "Second", parent_element="cols", place_in_container="1"),
+        ],
+    )["ref_to_id_map"]
+
+    result = elements.create_elements(
+        ctx,
+        page.id,
+        [text("x", "First", parent_element=ids["cols"])],
+        before_element_id=ids["a"],
+    )
+
+    assert not result.get("errors")
+    assert children_of(ids["cols"], "1") == ["'First'", "'Second'"]
+    assert saved(result["ref_to_id_map"]["x"]).place_in_container == "1"
+
+
+@pytest.mark.django_db
+def test_a_child_for_another_place_than_the_element_given_is_refused(builder_ctx):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    ids = elements.create_elements(
+        ctx,
+        page.id,
+        [
+            ElementItemCreate(ref="cols", type="column", column_amount=2),
+            text("a", "Second", parent_element="cols", place_in_container="1"),
+        ],
+    )["ref_to_id_map"]
+
+    result = elements.create_elements(
+        ctx,
+        page.id,
+        [text("x", "First", parent_element=ids["cols"], place_in_container="0")],
+        before_element_id=ids["a"],
+    )
+
+    assert result["created_elements"] == []
+    assert "not '0'" in result["errors"][0]
+
+
+@pytest.mark.django_db
+def test_a_child_with_a_before_element_elsewhere_goes_last(builder_ctx):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    ids = elements.create_elements(
+        ctx,
+        page.id,
+        [
+            ElementItemCreate(ref="box", type="simple_container"),
+            text("a", "First", parent_element="box"),
+            text("other", "Elsewhere"),
+        ],
+    )["ref_to_id_map"]
+
+    elements.create_elements(
+        ctx,
+        page.id,
+        [text("x", "Second", parent_element=ids["box"])],
+        before_element_id=ids["other"],
+    )
+
+    assert children_of(ids["box"]) == ["'First'", "'Second'"]

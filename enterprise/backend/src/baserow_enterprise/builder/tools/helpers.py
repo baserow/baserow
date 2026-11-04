@@ -781,13 +781,27 @@ def create_element(
         )
 
     parent_element_id = kwargs.pop("parent_element_id", None)
-    if parent_element_id is not None:
+    if parent_element_id is not None and (
+        before is None or before.parent_element_id != parent_element_id
+    ):
         reference_element_id, position, place = end_of_container(
             target_page, parent_element_id, kwargs.pop("place_in_container", "") or ""
         )
         if place:
             kwargs["place_in_container"] = place
     elif before is not None:
+        if (
+            element_create.place_in_container
+            and parent_element_id is not None
+            and element_create.place_in_container != before.place_in_container
+        ):
+            raise ToolInputError(
+                f"Element {before.id} is in place '{before.place_in_container}' of "
+                f"element {parent_element_id}, not "
+                f"'{element_create.place_in_container}'. Leave place_in_container "
+                "out to create it before that element."
+            )
+        kwargs.pop("place_in_container", None)
         reference_element_id = before.id
         position = "north"
     else:
