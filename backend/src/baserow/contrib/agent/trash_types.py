@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 
 from baserow.core.models import TrashEntry
+from baserow.core.signals import application_pending_count_changed
 from baserow.core.trash.registries import TrashableItemType
 
 from .models import AgentApplication, AgentConversation
@@ -33,6 +34,11 @@ class AgentConversationTrashableItemType(TrashableItemType):
     def restore(self, trashed_item: AgentConversation, trash_entry: TrashEntry) -> None:
         super().restore(trashed_item, trash_entry)
         agent_conversation_activity.send(self, conversation=trashed_item, user=None)
+        application_pending_count_changed.send(
+            self,
+            application=trashed_item.agent,
+            user_ids=[trashed_item.owner_user_id],
+        )
 
     def get_restore_operation_type(self) -> str:
         return RestoreAgentConversationOperationType.type

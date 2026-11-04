@@ -846,6 +846,9 @@ def broadcast_application_created(
             context={
                 "user": user,
                 "last_viewed_per_application": last_viewed_per_user.get(user_id, {}),
+                "pending_count_per_application": (
+                    CoreHandler().get_pending_count_per_application(user, [application])
+                ),
             },
         ).data
 
@@ -855,6 +858,44 @@ def broadcast_application_created(
         }
 
     broadcast_to_users_individual_payloads(payload_map, ignore_web_socket_id)
+
+
+@app.task(bind=True)
+def broadcast_application_pending_counts(
+    self, application_id: int, user_ids: list[int]
+) -> None:
+    """
+    Sends each user their own pending count of an application. This runs in a task so
+    that counting does not happen in the request that changed the count.
+
+    :param application_id: The id of the application whose counts changed.
+    :param user_ids: The ids of the users to send their count to.
+    """
+
+    from django.contrib.auth import get_user_model
+
+    from baserow.core.handler import CoreHandler
+    from baserow.core.models import Application
+
+    try:
+        application = Application.objects.get(id=application_id).specific
+    except Application.DoesNotExist:
+        return  # trashed in the meantime
+
+    for user in get_user_model().objects.filter(id__in=user_ids):
+        pending_count = (
+            CoreHandler()
+            .get_pending_count_per_application(user, [application])
+            .get(application.id, 0)
+        )
+        broadcast_to_users.delay(
+            [user.id],
+            {
+                "type": "application_pending_count_updated",
+                "application_id": application.id,
+                "pending_count": pending_count,
+            },
+        )
 
 
 @app.task(bind=True)

@@ -15,11 +15,13 @@ from baserow.core.chat_runs.stream import fold_output
 from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.exceptions import PermissionException
 from baserow.core.models import Workspace
+from baserow.core.signals import application_pending_count_changed
 
 from .api.serializers import AgentMessageSerializer
 from .constants import AGENT_NOT_ALLOWED, AGENT_NOT_READY, AGENT_RUN_TYPE
 from .exceptions import AgentConversationDoesNotExist, AgentNotReady
 from .handler import AgentHandler
+from .models import AgentReplyStatus
 from .replies import AgentResponder, create_reply_model
 from .service import AgentService
 from .signals import agent_conversation_activity
@@ -119,7 +121,8 @@ class AgentChatRunType(ChatRunType):
         result: AgentReplyResult | None,
     ) -> dict | None:
         """
-        Save how the reply ended and tell all the owner's sessions.
+        Save how the reply ended and tell all the owner's sessions, with their
+        pending count when the reply now waits for approvals.
 
         :param run: The run that wrote the reply.
         :param status: The final status.
@@ -134,7 +137,12 @@ class AgentChatRunType(ChatRunType):
         )
         if reply is None:
             return None
-        agent_conversation_activity.send(
-            self, conversation=reply.conversation, user=None
-        )
+        conversation = reply.conversation
+        agent_conversation_activity.send(self, conversation=conversation, user=None)
+        if reply.status == AgentReplyStatus.WAITING:
+            application_pending_count_changed.send(
+                self,
+                application=conversation.agent,
+                user_ids=[conversation.owner_user_id],
+            )
         return dict(AgentMessageSerializer(reply).data)

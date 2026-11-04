@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.utils.functional import lazy
 
 from drf_spectacular.openapi import OpenApiTypes
@@ -26,6 +28,28 @@ class LastViewedField(serializers.DateTimeField):
         return super().to_representation(last_viewed) if last_viewed else None
 
 
+class PendingCountField(serializers.IntegerField):
+    """
+    Read from the per user context instead of the instance, for the same reason as
+    `LastViewedField`.
+    """
+
+    def __init__(self, **kwargs: Any) -> None:
+        """
+        :param kwargs: The remaining field arguments, such as the help text.
+        """
+
+        super().__init__(required=False, source="*", **kwargs)
+
+    def to_representation(self, value: Application) -> int:
+        """
+        :param value: The application being serialized.
+        :return: How many things wait for the requesting user in it, 0 if unknown.
+        """
+
+        return self.context.get("pending_count_per_application", {}).get(value.id, 0)
+
+
 class ApplicationSerializer(serializers.ModelSerializer):
     type = serializers.SerializerMethodField()
     workspace = WorkspaceSerializer(
@@ -34,6 +58,11 @@ class ApplicationSerializer(serializers.ModelSerializer):
     last_viewed = LastViewedField(
         help_text="When the requesting user last opened something in this "
         "application, or null if never. Only present in responses to a user."
+    )
+    pending_count = PendingCountField(
+        help_text="How many things in this application wait for the requesting "
+        "user to act, such as tool calls to approve. Only present in responses to "
+        "a user."
     )
 
     class Meta:
@@ -46,6 +75,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
             "workspace",
             "created_on",
             "last_viewed",
+            "pending_count",
         )
         extra_kwargs = {"id": {"read_only": True}}
 
@@ -60,6 +90,8 @@ class ApplicationSerializer(serializers.ModelSerializer):
         # `null` that would overwrite what the client already knows.
         if "last_viewed_per_application" not in self.context:
             data.pop("last_viewed", None)
+        if "pending_count_per_application" not in self.context:
+            data.pop("pending_count", None)
         return data
 
 

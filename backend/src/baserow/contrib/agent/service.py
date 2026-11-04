@@ -8,7 +8,7 @@ from baserow.core.exceptions import PermissionDenied
 from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.operations import UpdateApplicationOperationType
-from baserow.core.signals import application_updated
+from baserow.core.signals import application_pending_count_changed, application_updated
 from baserow.core.subject_options import SubjectOptionsHandler
 from baserow.core.types import PermissionCheck
 
@@ -135,22 +135,25 @@ class AgentService:
         return updated
 
     def list_conversations(
-        self, user: AbstractUser, agent_id: int
+        self, user: AbstractUser, agent_id: int, has_pending_approvals: bool = False
     ) -> QuerySet[AgentConversation]:
         """
         Return only the user's own conversations, never another owner's.
 
         :param user: The user listing their conversations.
         :param agent_id: The id of the agent.
+        :param has_pending_approvals: Whether to return only the conversations with
+            held calls waiting for the user's decision.
         :raises PermissionException: When the user may not read conversations of the
             agent.
-        :return: The user's conversations, most recently updated first.
+        :return: The user's conversations, most recently updated first, with
+            ``pending_approval_count``.
         """
 
         agent = self._get_authorized_agent(
             user, agent_id, ReadAgentConversationsOperationType.type
         )
-        return self.handler.list_conversations(agent, user)
+        return self.handler.list_conversations(agent, user, has_pending_approvals)
 
     def list_messages(
         self, user: AbstractUser, agent_id: int, conversation_uuid: UUID
@@ -235,6 +238,9 @@ class AgentService:
         )
         self.handler.delete_conversation(user, conversation)
         agent_conversation_deleted.send(self, conversation=conversation, user=user)
+        application_pending_count_changed.send(
+            self, application=agent, user_ids=[conversation.owner_user_id]
+        )
         return conversation
 
     def _require_ready(self, agent: AgentApplication) -> None:
@@ -424,8 +430,9 @@ class AgentService:
     ) -> tuple[AgentMessage, UUID | None]:
         """
         Approve or reject held calls of the reply waiting in one of the user's
-        conversations, and continue the reply once none are left to decide.
-        Continuing costs model usage like a message, so it needs the same access.
+        conversations, tell the owner's other sessions what is left to decide, and
+        continue the reply once nothing is. Continuing costs model usage like a
+        message, so it needs the same access.
 
         :param user: The user deciding.
         :param agent_id: The id of the agent.
@@ -458,7 +465,13 @@ class AgentService:
         reply, all_decided = self.handler.decide_approvals(
             conversation, user, decisions
         )
+        application_pending_count_changed.send(
+            self, application=agent, user_ids=[conversation.owner_user_id]
+        )
         if not all_decided:
+            agent_conversation_activity.send(
+                self, conversation=conversation, user=user
+            )
             return reply, None
         self._require_ready(self.handler.get_agent(agent_id))
         run = self.handler.resume_reply(reply)

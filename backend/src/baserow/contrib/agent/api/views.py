@@ -66,6 +66,7 @@ from .serializers import (
     AgentConversationCreateSerializer,
     AgentConversationPagination,
     AgentConversationSerializer,
+    AgentConversationsQueryParamsSerializer,
     AgentConversationUpdateSerializer,
     AgentMessageCreatedSerializer,
     AgentMessageCreateSerializer,
@@ -303,7 +304,8 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
         operation_id="list_agent_conversations",
         description=(
             "Lists the authenticated user's own conversations with the agent, most "
-            "recently active first."
+            "recently active first, each with its number of tool calls waiting for "
+            "the user's approval."
         ),
         parameters=[
             AGENT_ID_PATH_PARAMETER,
@@ -314,17 +316,32 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
                 default=20,
                 description="Number of conversations per page, up to 100.",
             ),
+            OpenApiParameter(
+                "has_pending_approvals",
+                OpenApiTypes.BOOL,
+                default=False,
+                description="Only conversations with tool calls waiting for the "
+                "user's approval.",
+            ),
         ],
         responses={
             200: get_example_pagination_serializer_class(AgentConversationSerializer),
+            400: get_error_schema(["ERROR_QUERY_PARAMETER_VALIDATION"]),
             **READ_ERRORS,
         },
     )
     @map_exceptions(AGENT_EXCEPTIONS)
-    def get(self, request: Request, agent_id: int) -> Response:
+    @validate_query_parameters(
+        AgentConversationsQueryParamsSerializer, return_validated=True
+    )
+    def get(self, request: Request, agent_id: int, query_params: dict) -> Response:
         """Paginate only the authenticated owner's conversations."""
 
-        conversations = AgentService().list_conversations(request.user, agent_id)
+        conversations = AgentService().list_conversations(
+            request.user,
+            agent_id,
+            has_pending_approvals=query_params["has_pending_approvals"],
+        )
         paginator = AgentConversationPagination(limit_page_size=100)
         page = paginator.paginate_queryset(conversations, request, self)
         runs = AgentHandler().get_conversation_runs([item.id for item in page])

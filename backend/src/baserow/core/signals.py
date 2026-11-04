@@ -49,6 +49,7 @@ application_updated = Signal()
 application_deleted = Signal()
 application_imported = Signal()
 applications_reordered = Signal()
+application_pending_count_changed = Signal()
 
 permissions_updated = Signal()
 

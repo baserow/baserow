@@ -217,3 +217,75 @@ def test_a_refused_resume_keeps_every_held_call_pending(
 
     assert (response.status_code, response.json()["error"]) == (status_code, error)
     assert statuses(held_reply) == ("waiting", ["pending", "pending"])
+
+
+@pytest.mark.django_db
+def test_pending_approvals_are_counted_per_agent_and_per_conversation(
+    data_fixture, api_client, api_user, held_reply
+):
+    waiting = held_reply.conversation
+    agent = waiting.agent
+    other_agent = data_fixture.create_agent_application(workspace=agent.workspace)
+    idle_agent = data_fixture.create_agent_application(workspace=agent.workspace)
+    data_fixture.create_agent_tool_approval(
+        reply=held_reply, status=AgentToolApproval.Status.APPROVED
+    )
+    for conversation in [
+        data_fixture.create_agent_conversation(
+            user=api_user, agent=agent, trashed=True
+        ),
+        data_fixture.create_agent_conversation(agent=agent),
+        data_fixture.create_agent_conversation(user=api_user, agent=other_agent),
+    ]:
+        data_fixture.create_agent_tool_approval(conversation=conversation)
+    idle = data_fixture.create_agent_conversation(user=api_user, agent=agent)
+    url = agent_url(agent, "conversations")
+
+    counts = agent.get_type().get_pending_counts(
+        api_user, [agent, other_agent, idle_agent]
+    )
+    listed = api_client.get(url).json()["results"]
+    filtered = api_client.get(url, {"has_pending_approvals": "true"}).json()
+    renamed = api_client.patch(
+        agent_url(agent, "conversation", conversation_uuid=waiting.uuid),
+        {"title": "Renamed"},
+    )
+
+    assert counts == {agent.id: 2, other_agent.id: 1}
+    assert {item["uuid"]: item["pending_approval_count"] for item in listed} == {
+        str(waiting.uuid): 2,
+        str(idle.uuid): 0,
+    }
+    assert [item["uuid"] for item in filtered["results"]] == [str(waiting.uuid)]
+    assert renamed.json()["pending_approval_count"] == 2
+
+
+@pytest.mark.django_db
+def test_each_decision_sends_the_owner_the_pending_count_left(
+    api_user, held_reply, mocker, django_capture_on_commit_callbacks
+):
+    agent = held_reply.conversation.agent
+    broadcast = mocker.patch("baserow.ws.tasks.broadcast_to_users")
+    # Eager Celery would otherwise run the resumed reply.
+    mocker.patch.object(ChatRunHandler, "_enqueue")
+
+    for approval in held_reply.approvals.all():
+        with django_capture_on_commit_callbacks(execute=True):
+            DecideAgentToolApprovalsActionType.do(
+                api_user,
+                agent.id,
+                held_reply.conversation.uuid,
+                [{"id": approval.id, "approved": True}],
+            )
+
+    assert [sent.args for sent in broadcast.delay.call_args_list] == [
+        (
+            [api_user.id],
+            {
+                "type": "application_pending_count_updated",
+                "application_id": agent.id,
+                "pending_count": left,
+            },
+        )
+        for left in (1, 0)
+    ]

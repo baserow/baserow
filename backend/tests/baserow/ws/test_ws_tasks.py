@@ -8,8 +8,10 @@ import pytest
 from asgiref.sync import sync_to_async
 from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
+from pytest_unordered import unordered
 
 from baserow.config.asgi import application
+from baserow.contrib.dashboard.application_types import DashboardApplicationType
 from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.ai_provider.models import (
     AIProviderConfig,
@@ -27,6 +29,8 @@ from baserow.ws.tasks import (
     _ai_provider_renderer_lock,
     _ai_provider_renderer_lock_key,
     broadcast_ai_provider_update,
+    broadcast_application_created,
+    broadcast_application_pending_counts,
     broadcast_to_channel_group,
     broadcast_to_group,
     broadcast_to_groups,
@@ -849,8 +853,6 @@ async def test_broadcast_to_users_individual_payloads(data_fixture):
 def test_broadcast_application_created_does_not_fail_for_trashed_applications(
     data_fixture,
 ):
-    from baserow.ws.tasks import broadcast_application_created
-
     application = data_fixture.create_database_application()
     application.trashed = True
     application.save()
@@ -859,6 +861,77 @@ def test_broadcast_application_created_does_not_fail_for_trashed_applications(
         broadcast_application_created(application.id)
     except Exception as e:
         pytest.fail(f"broadcast_application_created raised an exception: {e}")
+
+
+@pytest.mark.django_db
+@patch("baserow.ws.tasks.broadcast_to_users_individual_payloads")
+def test_broadcast_application_created_carries_each_users_pending_count(
+    mock_broadcast, data_fixture
+):
+    user = data_fixture.create_user()
+    other_user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(users=[user, other_user])
+    dashboard = data_fixture.create_dashboard_application(workspace=workspace)
+
+    with patch.object(
+        DashboardApplicationType,
+        "get_pending_counts",
+        side_effect=lambda counted_user, applications: (
+            {dashboard.id: 2} if counted_user.id == user.id else {}
+        ),
+    ):
+        broadcast_application_created(dashboard.id)
+
+    payload_map = mock_broadcast.call_args[0][0]
+    assert {
+        user_id: payload["application"]["pending_count"]
+        for user_id, payload in payload_map.items()
+    } == {str(user.id): 2, str(other_user.id): 0}
+
+
+@pytest.mark.django_db
+@patch("baserow.ws.tasks.broadcast_to_users")
+def test_broadcast_application_pending_counts_sends_each_user_their_count(
+    mock_broadcast, data_fixture
+):
+    user = data_fixture.create_user()
+    other_user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+
+    with patch.object(
+        DashboardApplicationType,
+        "get_pending_counts",
+        side_effect=lambda counted_user, applications: (
+            {dashboard.id: 2} if counted_user.id == user.id else {}
+        ),
+    ):
+        broadcast_application_pending_counts(dashboard.id, [user.id, other_user.id])
+
+    assert [sent.args for sent in mock_broadcast.delay.call_args_list] == unordered(
+        [
+            (
+                [counted_user.id],
+                {
+                    "type": "application_pending_count_updated",
+                    "application_id": dashboard.id,
+                    "pending_count": count,
+                },
+            )
+            for counted_user, count in ((user, 2), (other_user, 0))
+        ]
+    )
+
+
+@pytest.mark.django_db
+@patch("baserow.ws.tasks.broadcast_to_users")
+def test_broadcast_application_pending_counts_skips_a_gone_application(
+    mock_broadcast, data_fixture
+):
+    user = data_fixture.create_user()
+
+    broadcast_application_pending_counts(0, [user.id])
+
+    mock_broadcast.delay.assert_not_called()
 
 
 @pytest.mark.django_db

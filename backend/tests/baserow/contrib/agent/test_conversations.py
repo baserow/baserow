@@ -69,6 +69,7 @@ def test_first_message_creates_a_private_conversation(
             "created_on": ANY,
             "updated_on": ANY,
             "run_id": run_id,
+            "pending_approval_count": 0,
         },
         "message": {
             "id": message.id,
