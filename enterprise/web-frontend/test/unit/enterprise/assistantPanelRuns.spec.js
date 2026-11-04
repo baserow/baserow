@@ -24,6 +24,10 @@ describe('Kuma panel with a store-owned HTTP follower', () => {
     testApp = createRunsTestApp()
     store = testApp.store
     api = {
+      stream: vi.fn((run, after, onRecord) => {
+        receive = onRecord
+        return new Promise(() => {})
+      }),
       get: vi.fn().mockResolvedValue({ status: 'running' }),
       cancel: vi.fn().mockResolvedValue({ status: 'running' }),
     }
@@ -34,10 +38,6 @@ describe('Kuma panel with a store-owned HTTP follower', () => {
         chat_id: 7,
         messages: [human],
         active_run: { id: 'run-1', status: 'running' },
-      }),
-      resumeMessage: vi.fn((chat, run, after, onRecord) => {
-        receive = onRecord
-        return new Promise(() => {})
       }),
     })
     await store.dispatch('workspace/forceCreate', workspace)
@@ -106,11 +106,13 @@ describe('Kuma panel with a store-owned HTTP follower', () => {
         },
       })
       await flushPromises()
-      const answer = wrapper.findAll('.assistant__message').at(-1)
+      const answer = wrapper.findAll('.chat-message').at(-1)
       expect(answer.text()).toContain(content)
       expect(answer.text()).toContain('assistant.runErrorInterrupted')
-      expect(answer.find('.assistant__actions').exists()).toBe(Boolean(content))
-      expect(answer.find('.assistant__disclaimer').exists()).toBe(
+      expect(answer.find('.chat-message__actions').exists()).toBe(
+        Boolean(content)
+      )
+      expect(wrapper.find('.assistant__disclaimer').exists()).toBe(
         Boolean(content)
       )
       expect(wrapper.find('.iconoir-square').exists()).toBe(false)

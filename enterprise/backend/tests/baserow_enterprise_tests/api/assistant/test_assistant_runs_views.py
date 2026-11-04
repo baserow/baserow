@@ -215,6 +215,30 @@ def test_resume_only_attaches_without_message_or_task(api_client, member, mocker
     model.assert_not_called()
 
 
+@pytest.mark.django_db
+def test_core_stream_follows_kuma_with_its_permissions(
+    api_client, member, enterprise_data_fixture
+):
+    _, token, workspace = member
+    run_id = _run_id(_send(api_client, token, workspace, uuid4()))
+    ChatRunHandler().request_cancel(UUID(run_id))
+    url = reverse("api:chat_runs:stream", kwargs={"run_id": run_id})
+
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == 200
+    record = async_to_sync(_initial_record)(response)
+    assert record["kind"] == "run.finished"
+    assert record["data"]["id"] == run_id
+    assert record["data"]["status"] == ChatRunStatus.CANCELLED
+    assert record["data"]["message"]["type"] == "ai/message"
+    assert ChatRun.objects.count() == 1
+    assert AssistantChatMessage.objects.filter(role="human").count() == 1
+
+    _, other_token = enterprise_data_fixture.create_user_and_token()
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {other_token}")
+    assert response.status_code == 404
+
+
 UI_CONTEXT = {"workspace": {"id": 1, "name": "W"}}
 RUN_ID = str(uuid4())
 VALID_CURSOR = f"{uuid4().hex}:1-0"
@@ -329,9 +353,10 @@ def test_a_reloaded_chat_shows_how_each_answer_ended(api_client, member):
 
 
 def test_message_posts_are_served_by_the_async_stream_router():
+    router = streaming.AsyncStreamingHTTPRouter(MagicMock(), max_streams=100)
     assert any(
         "POST" in methods and pattern.fullmatch(_url(uuid4()))
-        for pattern, methods in streaming._paths
+        for pattern, methods in router.paths
     )
 
 

@@ -1,13 +1,14 @@
 import { ChatRunType } from '@baserow/modules/core/chatRuns/chatRunType'
 import {
+  RUN_BASELINE,
   RUN_CREATED,
   RUN_FINISHED,
   RUN_STARTED,
   RUN_STATUS,
   PROGRESS,
+  TEXT_DELTA,
   isTerminalStatus,
 } from '@baserow/modules/core/chatRuns/constants'
-import assistantService from '@baserow_enterprise/services/assistant'
 import {
   getStoredOnboardingRunId,
   getTabId,
@@ -33,21 +34,6 @@ export class AssistantChatRunType extends ChatRunType {
     return follower.runId === getStoredOnboardingRunId()
   }
 
-  openStream(follower, onRecord, signal) {
-    const chat = this.app.$store.state.assistant.chats.find(
-      (chat) => chat.chatId === follower.chatId
-    )
-    const uuid = follower.context.chatUuid || chat?.id
-    if (!uuid) throw new Error('The conversation is unavailable.')
-    return assistantService(this.app.$client).resumeMessage(
-      uuid,
-      follower.runId,
-      follower.cursor,
-      onRecord,
-      { tabId: getTabId(), signal }
-    )
-  }
-
   refreshChat(chatId) {
     const store = this.app.$store
     const chat = store.getters['assistant/currentChat']
@@ -57,10 +43,11 @@ export class AssistantChatRunType extends ChatRunType {
   }
 
   getRecordMetadata(record) {
-    return record._run
+    return record._run || super.getRecordMetadata(record)
   }
 
   getRecordEvent(record) {
+    if (record.kind) return super.getRecordEvent(record)
     const metadata = record._run || {}
     // Only a saved answer is an outcome; the follower re-checks bare statuses.
     if (
@@ -98,7 +85,11 @@ export class AssistantChatRunType extends ChatRunType {
       case 'chat/title':
         return { kind: CHAT_TITLE, data: { title: record.content } }
       case 'ai/navigation':
-        return { kind: NAVIGATION, data: { location: record.location } }
+        return {
+          kind: NAVIGATION,
+          // The send response already filters navigation to its originating tab.
+          data: { location: record.location, origin_tab_id: getTabId() },
+        }
       default:
         return null
     }
@@ -106,6 +97,13 @@ export class AssistantChatRunType extends ChatRunType {
 
   foldEvent(view, event) {
     switch (event.kind) {
+      case TEXT_DELTA:
+      case RUN_BASELINE:
+        return {
+          ...view,
+          reasoning: event.data.variant === 'ai/reasoning',
+          answering: event.data.variant !== 'ai/reasoning',
+        }
       case 'text.replace':
         return {
           ...view,
@@ -140,7 +138,11 @@ export class AssistantChatRunType extends ChatRunType {
         })
         break
       case NAVIGATION:
-        if (live && store.getters['assistant/isPanelOpen']) {
+        if (
+          live &&
+          event.data.origin_tab_id === getTabId() &&
+          store.getters['assistant/isPanelOpen']
+        ) {
           store.dispatch('assistant/forceNavigate', event.data.location)
         }
         break

@@ -37,7 +37,7 @@ export class KumaPanel {
   /** The chat's AI messages, the answer still being written included. */
   answers(): Locator {
     return this.panel.locator(
-      ".assistant__message--ai .assistant__message-text"
+      ".chat-message:not(.chat-message--own) .chat-markdown"
     );
   }
 

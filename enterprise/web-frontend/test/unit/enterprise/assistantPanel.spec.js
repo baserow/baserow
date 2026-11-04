@@ -28,8 +28,10 @@ describe('AssistantPanel', () => {
 
     testApp = new TestApp()
     store = testApp.store
-    // The welcome message greets the user by name; nothing here needs a session.
-    store.state.auth.user = { id: 1, first_name: 'Test' }
+    testApp.authenticate({ id: 1, first_name: 'Test' })
+    for (const method of ['subscribe', 'unsubscribe', 'subscribeToPage']) {
+      vi.spyOn(testApp.getApp().$realtime, method).mockImplementation(() => {})
+    }
     await store.dispatch('workspace/forceCreate', workspace)
     await store.dispatch('undoRedo/updateCurrentScopeSet', {
       workspace: workspace.id,
@@ -37,6 +39,7 @@ describe('AssistantPanel', () => {
   })
 
   afterEach(async () => {
+    await store.dispatch('chatRuns/disconnect')
     vi.useRealTimers()
     vi.restoreAllMocks()
     await testApp.afterEach()
@@ -182,8 +185,19 @@ describe('AssistantPanel', () => {
       open() {}
       setRequestHeader() {}
       send() {}
+      abort() {
+        this.onabort?.()
+      }
       receive(record) {
-        this.responseText += JSON.stringify(record) + '\n\n'
+        this.responseText +=
+          JSON.stringify({
+            ...record,
+            _run: {
+              id: 'run-1',
+              chat_id: 7,
+              status: record.id === 7 ? 'completed' : 'running',
+            },
+          }) + '\n\n'
         this.onprogress()
       }
     }
@@ -202,6 +216,9 @@ describe('AssistantPanel', () => {
       message: 'A detailed answer, please',
       workspace,
     })
+    await flushPromises()
+
+    xhr.receive({ type: 'human', id: 6, content: 'A detailed answer, please' })
     await flushPromises()
 
     const container = wrapper.get('.assistant__content').element
@@ -237,7 +254,7 @@ describe('AssistantPanel', () => {
     expect(writes).toEqual([])
     height = 1400
     await receive({ type: 'ai/message', content, sources: [] })
-    expect(store.getters['assistant/currentChat'].running).toBe(true)
+    expect(store.getters['assistant/activeFollower'].finished).toBe(false)
     expect(wrapper.find('.assistant__reasoning--collapsed').exists()).toBe(
       false
     )

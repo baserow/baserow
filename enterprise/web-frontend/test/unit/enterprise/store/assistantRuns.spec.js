@@ -79,10 +79,10 @@ describe('Kuma durable streamed send and resume', () => {
           fail = reject
         })
       }),
-      resumeMessage: vi.fn(() => new Promise(() => {})),
     }
     assistantService.mockReturnValue(service)
     api = {
+      stream: vi.fn(() => new Promise(() => {})),
       get: vi.fn().mockResolvedValue({ status: 'running' }),
     }
     coreService.mockReturnValue(api)
@@ -102,7 +102,7 @@ describe('Kuma durable streamed send and resume', () => {
       expect.any(Function),
       expect.objectContaining({ tabId: getTabId() })
     )
-    expect(service.resumeMessage).not.toHaveBeenCalled()
+    expect(api.stream).not.toHaveBeenCalled()
     expect(follower()).toMatchObject({
       chatId: 7,
       streaming: true,
@@ -116,15 +116,14 @@ describe('Kuma durable streamed send and resume', () => {
     expect(await sending).toBe(SEND_OUTCOME.ACCEPTED)
   })
 
-  test('refresh attaches read-only to the same endpoint by run/cursor without sending content', async () => {
+  test('refresh follows the core run stream without sending content', async () => {
     await open({ id: 'run-1', status: 'running' })
     expect(service.sendMessage).not.toHaveBeenCalled()
-    expect(service.resumeMessage).toHaveBeenCalledWith(
-      uuid,
+    expect(api.stream).toHaveBeenCalledWith(
       'run-1',
       null,
       expect.any(Function),
-      expect.objectContaining({ tabId: getTabId() })
+      expect.any(AbortSignal)
     )
     expect(store.getters['assistant/messages'].map((m) => m.id)).toEqual([
       501,
@@ -161,7 +160,7 @@ describe('Kuma durable streamed send and resume', () => {
       expect(store.getters['assistant/messages'].at(-1).human_sentiment).toBe(
         'Good'
       )
-      expect(service.resumeMessage).not.toHaveBeenCalled()
+      expect(api.stream).not.toHaveBeenCalled()
     }
   )
 
@@ -293,15 +292,16 @@ describe('Kuma durable streamed send and resume', () => {
     fail(new Error('offline'))
     await flushPromises()
     expect(service.sendMessage).toHaveBeenCalledTimes(1)
-    expect(service.resumeMessage).toHaveBeenCalledWith(
-      expect.any(String),
+    expect(api.stream).toHaveBeenCalledWith(
       'run-1',
       cursor(2),
       expect.any(Function),
       expect.any(Object)
     )
-    api.get.mockResolvedValue({ status: 'completed', message: answer })
-    await vi.advanceTimersByTimeAsync(5000)
+    await api.stream.mock.calls[0][2]({
+      kind: 'run.finished',
+      data: { status: 'completed', message: answer },
+    })
     expect(await sending).toBe(SEND_OUTCOME.ACCEPTED)
     expect(store.getters['assistant/messages'].at(-1).content).toBe('Hello')
   })
@@ -320,7 +320,7 @@ describe('Kuma durable streamed send and resume', () => {
 
     expect(await sending).toBe(SEND_OUTCOME.FAILED)
     expect(service.fetchChatMessages).not.toHaveBeenCalled()
-    expect(service.resumeMessage).not.toHaveBeenCalled()
+    expect(api.stream).not.toHaveBeenCalled()
   })
 
   test('early loss recovers committed identity from JSON history without a second send', async () => {
@@ -334,9 +334,11 @@ describe('Kuma durable streamed send and resume', () => {
     fail(new Error('offline before metadata'))
     await flushPromises()
     expect(service.sendMessage).toHaveBeenCalledTimes(1)
-    expect(service.resumeMessage).toHaveBeenCalledTimes(1)
-    api.get.mockResolvedValue({ status: 'completed', message: answer })
-    await vi.advanceTimersByTimeAsync(5000)
+    expect(api.stream).toHaveBeenCalledTimes(1)
+    await api.stream.mock.calls[0][2]({
+      kind: 'run.finished',
+      data: { status: 'completed', message: answer },
+    })
     expect(await sending).toBe(SEND_OUTCOME.ACCEPTED)
   })
 
@@ -358,7 +360,7 @@ describe('Kuma durable streamed send and resume', () => {
       ).toEqual({ outcome, runId })
       await flushPromises()
       expect(store.state.assistant.messages.map((m) => m.id)).toEqual([501])
-      expect(service.resumeMessage).toHaveBeenCalledTimes(1)
+      expect(api.stream).toHaveBeenCalledTimes(1)
     }
   )
 
@@ -436,7 +438,7 @@ describe('Kuma durable streamed send and resume', () => {
     fail(new Error('lost identity'))
     expect(await sending).toBe(SEND_OUTCOME.FAILED)
     expect(service.sendMessage).toHaveBeenCalledTimes(1)
-    expect(service.resumeMessage).not.toHaveBeenCalled()
+    expect(api.stream).not.toHaveBeenCalled()
     expect(store.getters['chatRuns/getFollower']('other-run')).toBeNull()
   })
 })

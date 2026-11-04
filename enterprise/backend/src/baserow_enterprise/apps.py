@@ -579,7 +579,7 @@ class BaserowEnterpriseConfig(AppConfig):
 
         from baserow.config.streaming import register_async_stream_path
 
-        register_async_stream_path(r"^/assistant/chat/[0-9a-fA-F-]+/messages/$")
+        register_async_stream_path("assistant:chat_messages")
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.

@@ -25,10 +25,11 @@ function inFlightMessage(follower) {
   const { text, reasoning } = follower.view
   return {
     id: `run-${follower.runId}`,
+    timestamp: new Date(follower.followedAt).toISOString(),
     role: 'ai',
     content: text,
     loading: !text,
-    reasoning: Boolean(text) && reasoning,
+    reasoning,
     can_submit_feedback: false,
   }
 }
@@ -440,6 +441,7 @@ export const actions = {
     const previousIds = new Set(state.messages.map((m) => m.id))
     commit('ADD_MESSAGE', {
       id: draftId,
+      timestamp: new Date().toISOString(),
       role: 'human',
       content: message,
       loading: false,
