@@ -14,7 +14,6 @@ from baserow_enterprise.tools.formula_utils import (
     formula_desc,
     formula_object,
     is_valid_formula,
-    needs_formula,
     wrap_static_string,
 )
 
@@ -29,6 +28,7 @@ from .types.table_columns import (
     stored_formula_text,
     table_fields,
 )
+from .types.workflow_action import is_text_formula
 
 MAX_LISTED_COLUMNS = 25
 
@@ -66,7 +66,7 @@ def column_formula(text: str, column_name: str, key: str) -> str:
 
     if text == "":
         return "''"
-    if not needs_formula(text):
+    if not is_text_formula(text):
         return wrap_static_string(text)
     formula = formula_desc(text)
     if not is_valid_formula(formula):

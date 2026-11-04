@@ -198,7 +198,7 @@ def create_display_elements(
     Create display elements on a page: heading, text, button, link and image.
     ref_to_id_map gives the ID of each ref. A ref works as parent_element inside the
     call that creates it; afterwards use the element's ID. Plain text is stored as
-    fixed text.
+    fixed text. A whole value that is a function call, like upper('abc'), is a formula.
 
     Give dynamic values as formulas in Baserow formula syntax, like
     get('page_parameter.id'). Inside a repeat or a table,

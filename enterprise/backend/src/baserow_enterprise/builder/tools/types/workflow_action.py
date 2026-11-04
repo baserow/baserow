@@ -136,7 +136,7 @@ def _is_function_call(value: str | None) -> bool:
     return name in formula_runtime_function_registry.get_types()
 
 
-def _is_text_formula(value: str | None) -> bool:
+def is_text_formula(value: str | None) -> bool:
     """
     Whether a title, description or parameter is a formula. It also counts when the
     whole value is a function call, since a list_actions value like ``upper('abc')``
@@ -153,15 +153,15 @@ def mapping_value_is_formula(value: str) -> bool:
     differently, like ``007``. Sums like ``3/4`` are fixed text.
     """
 
-    return _is_text_formula(value) or bool(
+    return is_text_formula(value) or bool(
         _NUMBER_OR_BOOLEAN_RE.fullmatch(value.strip())
     )
 
 
-def _text_or_placeholder(value: str | None) -> str:
+def text_or_placeholder(value: str | None) -> str:
     """The quoted text, or an empty placeholder for a formula the formula step stores."""
 
-    return EMPTY_FORMULA if _is_text_formula(value) else literal_or_placeholder(value)
+    return EMPTY_FORMULA if is_text_formula(value) else literal_or_placeholder(value)
 
 
 # ---------------------------------------------------------------------------
@@ -172,11 +172,11 @@ def _text_or_placeholder(value: str | None) -> str:
 def _notification_orm_kwargs(action: "ActionCreate") -> dict:
     return {
         "title": formula_object(
-            _text_or_placeholder(action.title),
+            text_or_placeholder(action.title),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
         "description": formula_object(
-            _text_or_placeholder(action.description),
+            text_or_placeholder(action.description),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
     }
@@ -190,7 +190,7 @@ def _open_page_orm_kwargs(action: "ActionCreate") -> dict:
             {
                 "name": p.name,
                 "value": formula_object(
-                    _text_or_placeholder(p.value),
+                    text_or_placeholder(p.value),
                     mode=BASEROW_FORMULA_MODE_ADVANCED,
                 ),
             }
@@ -200,7 +200,7 @@ def _open_page_orm_kwargs(action: "ActionCreate") -> dict:
             {
                 "name": p.name,
                 "value": formula_object(
-                    _text_or_placeholder(p.value),
+                    text_or_placeholder(p.value),
                     mode=BASEROW_FORMULA_MODE_ADVANCED,
                 ),
             }
@@ -327,10 +327,10 @@ def _open_page_formulas(action: "ActionCreate", orm_action, context) -> dict[str
 
     formulas: dict[str, str] = {}
     for i, p in enumerate(action.page_parameters or []):
-        if _is_text_formula(p.value):
+        if is_text_formula(p.value):
             formulas[f"page_param_{i}"] = formula_desc(p.value)
     for i, p in enumerate(action.query_parameters or []):
-        if _is_text_formula(p.value):
+        if is_text_formula(p.value):
             formulas[f"query_param_{i}"] = formula_desc(p.value)
     return formulas
 
@@ -346,7 +346,7 @@ def _notification_formulas(
             ("title", action.title),
             ("description", action.description),
         ]
-        if value and _is_text_formula(value)
+        if value and is_text_formula(value)
     }
 
 
@@ -647,7 +647,7 @@ def _notification_update_values(
             ("title", action.title),
             ("description", action.description),
         ]
-        if value is not None and not _is_text_formula(value)
+        if value is not None and not is_text_formula(value)
     }
 
 
@@ -662,7 +662,7 @@ def _parameters_update_values(
             "name": param.name,
             "value": (
                 stored_values.get(param.name, _advanced(EMPTY_FORMULA))
-                if _is_text_formula(param.value)
+                if is_text_formula(param.value)
                 else _advanced(literal_or_placeholder(param.value))
             ),
         }

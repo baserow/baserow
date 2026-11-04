@@ -2591,3 +2591,68 @@ def test_create_element_keeps_a_zero(builder_ctx, type, name):
     )
 
     assert getattr(saved(result["ref_to_id_map"]["zero"]), name) == 0
+
+
+@pytest.mark.django_db
+def test_a_formula_from_list_elements_can_be_sent_back(data_fixture, builder_ctx):
+    heading_element = data_fixture.create_builder_heading_element(
+        page=builder_ctx["page"], value="upper('abc')"
+    )
+    listed = elements.list_elements(builder_ctx["ctx"], builder_ctx["page"].id)
+    label = next(
+        item["label"] for item in listed["elements"] if item["id"] == heading_element.id
+    )
+
+    result = elements.update_element(
+        builder_ctx["ctx"], heading_element.id, ElementChanges(value=label)
+    )
+
+    assert "formula_errors" not in result
+    assert saved(heading_element.id).value["formula"] == "upper('abc')"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        ("upper('abc')", "upper('abc')"),
+        ("Hello (world)", "'Hello (world)'"),
+        ("nosuch('x')", "'nosuch(\\'x\\')'"),
+        ("1+1", "'1+1'"),
+    ],
+)
+def test_only_a_whole_function_call_on_an_element_is_a_formula(
+    builder_ctx, value, expected
+):
+    result = elements.create_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [ElementItemCreate(ref="h", type="heading", value=value)],
+    )
+
+    assert "formula_errors" not in result
+    assert saved(result["ref_to_id_map"]["h"]).value["formula"] == expected
+
+
+@pytest.mark.django_db
+def test_a_whole_function_call_on_a_table_column_is_a_formula(
+    data_fixture, builder_ctx
+):
+    table = data_fixture.create_builder_table_element(
+        page=builder_ctx["page"],
+        data_source=builder_ctx["data_source"],
+        fields=[{"name": "Shout", "type": "text", "config": {"value": "'a'"}}],
+    )
+    column = table.fields.get()
+
+    elements.update_element(
+        builder_ctx["ctx"],
+        table.id,
+        ElementChanges(
+            update_table_columns=[
+                TableColumnUpdate(uid=str(column.uid), value="upper('a')")
+            ]
+        ),
+    )
+
+    assert table.fields.get().config["value"]["formula"] == "upper('a')"

@@ -33,8 +33,6 @@ from baserow_enterprise.tools.formula_utils import (
     EMPTY_FORMULA,
     formula_desc,
     formula_object,
-    literal_or_placeholder,
-    needs_formula,
     wrap_static_string,
 )
 from baserow_enterprise.tools.types import BaseModel, without_field
@@ -53,7 +51,11 @@ from .table_columns import (
     data_source_fields,
     field_formula,
 )
-from .workflow_action import mapping_value_is_formula
+from .workflow_action import (
+    is_text_formula,
+    mapping_value_is_formula,
+    text_or_placeholder,
+)
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
@@ -203,9 +205,7 @@ class TableFieldConfig(BaseModel):
 def _heading_orm(el: "ElementItemCreate", user, page) -> dict:
     return {
         "value": formula_object(
-            literal_or_placeholder(el.value)
-            if needs_formula(el.value)
-            else wrap_static_string(el.value or ""),
+            text_or_placeholder(el.value),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
         "level": el.level or 1,
@@ -215,9 +215,7 @@ def _heading_orm(el: "ElementItemCreate", user, page) -> dict:
 def _text_orm(el: "ElementItemCreate", user, page) -> dict:
     return {
         "value": formula_object(
-            literal_or_placeholder(el.value)
-            if needs_formula(el.value)
-            else wrap_static_string(el.value or ""),
+            text_or_placeholder(el.value),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
         "format": el.format or "plain",
@@ -228,9 +226,7 @@ def _button_orm(el: "ElementItemCreate", user, page) -> dict:
     text = el.value if el.value is not None else (el.label or "")
     return {
         "value": formula_object(
-            literal_or_placeholder(text)
-            if needs_formula(text)
-            else wrap_static_string(text),
+            text_or_placeholder(text),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
     }
@@ -244,9 +240,7 @@ def _link_orm(el: "ElementItemCreate", user, page) -> dict:
     nav = _link_navigation(el)
     kwargs: dict[str, Any] = {
         "value": formula_object(
-            literal_or_placeholder(el.value)
-            if needs_formula(el.value)
-            else wrap_static_string(el.value or ""),
+            text_or_placeholder(el.value),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
         "variant": el.link_variant or "link",
@@ -270,9 +264,7 @@ def _link_orm(el: "ElementItemCreate", user, page) -> dict:
         ]
     elif nav == "custom" and el.navigate_to_url:
         kwargs["navigate_to_url"] = formula_object(
-            literal_or_placeholder(el.navigate_to_url)
-            if needs_formula(el.navigate_to_url)
-            else wrap_static_string(el.navigate_to_url),
+            text_or_placeholder(el.navigate_to_url),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         )
 
@@ -285,19 +277,11 @@ def _image_orm(el: "ElementItemCreate", user, page) -> dict:
     return {
         "image_source_type": el.image_source_type or "url",
         "image_url": formula_object(
-            literal_or_placeholder(image_url)
-            if needs_formula(image_url)
-            else wrap_static_string(image_url)
-            if image_url
-            else "''",
+            text_or_placeholder(image_url),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
         "alt_text": formula_object(
-            literal_or_placeholder(alt_text)
-            if needs_formula(alt_text)
-            else wrap_static_string(alt_text)
-            if alt_text
-            else "''",
+            text_or_placeholder(alt_text),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
     }
@@ -329,9 +313,7 @@ def _label_and_default(el: "ElementItemCreate") -> dict:
             wrap_static_string(el.label or ""), mode=BASEROW_FORMULA_MODE_ADVANCED
         ),
         "default_value": formula_object(
-            literal_or_placeholder(default_value)
-            if needs_formula(default_value)
-            else (wrap_static_string(default_value) if default_value else "''"),
+            text_or_placeholder(default_value),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
     }
@@ -373,9 +355,7 @@ def _checkbox_orm(el: "ElementItemCreate", user, page) -> dict:
             wrap_static_string(el.label or ""), mode=BASEROW_FORMULA_MODE_ADVANCED
         ),
         "default_value": formula_object(
-            literal_or_placeholder(default_value)
-            if needs_formula(default_value)
-            else default_value,
+            EMPTY_FORMULA if is_text_formula(default_value) else default_value,
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
         "required": el.required or False,
@@ -588,7 +568,7 @@ def _value_formula(el: "ElementItemCreate", orm_element, context) -> dict[str, s
     value = el.value
     if value is None and el.type == "button":
         value = el.label
-    if value and needs_formula(value):
+    if value and is_text_formula(value):
         return {"value": formula_desc(value)}
     return {}
 
@@ -596,9 +576,9 @@ def _value_formula(el: "ElementItemCreate", orm_element, context) -> dict[str, s
 def _link_formulas(el: "ElementItemCreate", orm_element, context) -> dict[str, str]:
     """Get formulas for link elements."""
     formulas: dict[str, str] = {}
-    if el.value and needs_formula(el.value):
+    if el.value and is_text_formula(el.value):
         formulas["value"] = formula_desc(el.value)
-    if el.navigate_to_url and needs_formula(el.navigate_to_url):
+    if el.navigate_to_url and is_text_formula(el.navigate_to_url):
         formulas["navigate_to_url"] = formula_desc(el.navigate_to_url)
     if el.navigate_to_page_id and _link_navigation(el) == "page":
         for i, param in enumerate(el.link_page_parameters or []):
@@ -610,9 +590,9 @@ def _link_formulas(el: "ElementItemCreate", orm_element, context) -> dict[str, s
 def _image_formulas(el: "ElementItemCreate", orm_element, context) -> dict[str, str]:
     """Get formulas for image elements."""
     formulas: dict[str, str] = {}
-    if el.image_url and needs_formula(el.image_url):
+    if el.image_url and is_text_formula(el.image_url):
         formulas["image_url"] = formula_desc(el.image_url)
-    if el.alt_text and needs_formula(el.alt_text):
+    if el.alt_text and is_text_formula(el.alt_text):
         formulas["alt_text"] = formula_desc(el.alt_text)
     return formulas
 
@@ -621,7 +601,7 @@ def _default_value_formula(
     el: "ElementItemCreate", orm_element, context
 ) -> dict[str, str]:
     """Get formulas for form elements with a ``default_value`` field."""
-    if el.default_value and needs_formula(el.default_value):
+    if el.default_value and is_text_formula(el.default_value):
         return {"default_value": formula_desc(el.default_value)}
     return {}
 
@@ -645,7 +625,7 @@ def _table_formulas(el: "ElementItemCreate", orm_element, context) -> dict[str, 
             if existing_config:
                 existing = existing_config.get("value", {}).get("formula", "")
 
-            if value and needs_formula(value):
+            if value and is_text_formula(value):
                 if not existing or existing == "''":
                     formulas[f"fields.{i}.value"] = formula_desc(value)
             elif not value and el.data_source:
@@ -655,7 +635,7 @@ def _table_formulas(el: "ElementItemCreate", orm_element, context) -> dict[str, 
                     )
 
         elif field_cfg.type == "button" and field_cfg.label:
-            if needs_formula(field_cfg.label):
+            if is_text_formula(field_cfg.label):
                 formulas[f"fields.{i}.label"] = formula_desc(field_cfg.label)
 
     return formulas
@@ -789,7 +769,7 @@ def _convert_table_fields(el: "ElementItemCreate") -> list[dict]:
     for field_cfg in el.fields or []:
         if field_cfg.type == "text":
             value = field_cfg.value or ""
-            if value and not needs_formula(value):
+            if value and not is_text_formula(value):
                 value_formula = wrap_static_string(value)
             elif value and not el._column_name_beats_formula:
                 value_formula = "''"
@@ -809,7 +789,9 @@ def _convert_table_fields(el: "ElementItemCreate") -> list[dict]:
             )
         elif field_cfg.type == "button":
             label = field_cfg.label or field_cfg.name
-            label_formula = "''" if needs_formula(label) else wrap_static_string(label)
+            label_formula = (
+                "''" if is_text_formula(label) else wrap_static_string(label)
+            )
             result.append(
                 {
                     "name": field_cfg.name,
@@ -1351,9 +1333,7 @@ def _heading_update(el: "ElementUpdate") -> dict:
     kwargs: dict[str, Any] = {}
     if el.value is not None:
         kwargs["value"] = formula_object(
-            literal_or_placeholder(el.value)
-            if needs_formula(el.value)
-            else wrap_static_string(el.value),
+            text_or_placeholder(el.value),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         )
     if el.level is not None:
@@ -1365,9 +1345,7 @@ def _text_update(el: "ElementUpdate") -> dict:
     kwargs: dict[str, Any] = {}
     if el.value is not None:
         kwargs["value"] = formula_object(
-            literal_or_placeholder(el.value)
-            if needs_formula(el.value)
-            else wrap_static_string(el.value),
+            text_or_placeholder(el.value),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         )
     if el.format is not None:
@@ -1380,9 +1358,7 @@ def _button_update(el: "ElementUpdate") -> dict:
     text = el.value if el.value is not None else el.label
     if text is not None:
         kwargs["value"] = formula_object(
-            literal_or_placeholder(text)
-            if needs_formula(text)
-            else wrap_static_string(text),
+            text_or_placeholder(text),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         )
     return kwargs
@@ -1392,9 +1368,7 @@ def _link_update(el: "ElementUpdate") -> dict:
     kwargs: dict[str, Any] = {}
     if el.value is not None:
         kwargs["value"] = formula_object(
-            literal_or_placeholder(el.value)
-            if needs_formula(el.value)
-            else wrap_static_string(el.value),
+            text_or_placeholder(el.value),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         )
     if el.link_variant is not None:
@@ -1407,9 +1381,7 @@ def _link_update(el: "ElementUpdate") -> dict:
         kwargs["navigate_to_page_id"] = el.navigate_to_page_id
     if el.navigate_to_url is not None:
         kwargs["navigate_to_url"] = formula_object(
-            literal_or_placeholder(el.navigate_to_url)
-            if needs_formula(el.navigate_to_url)
-            else wrap_static_string(el.navigate_to_url),
+            text_or_placeholder(el.navigate_to_url),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         )
     return kwargs
@@ -1421,16 +1393,12 @@ def _image_update(el: "ElementUpdate") -> dict:
         kwargs["image_source_type"] = el.image_source_type
     if el.image_url is not None:
         kwargs["image_url"] = formula_object(
-            literal_or_placeholder(el.image_url)
-            if needs_formula(el.image_url)
-            else wrap_static_string(el.image_url),
+            text_or_placeholder(el.image_url),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         )
     if el.alt_text is not None:
         kwargs["alt_text"] = formula_object(
-            literal_or_placeholder(el.alt_text)
-            if needs_formula(el.alt_text)
-            else wrap_static_string(el.alt_text),
+            text_or_placeholder(el.alt_text),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         )
     return kwargs
@@ -1469,9 +1437,7 @@ def _input_text_update(el: "ElementUpdate") -> dict:
         )
     if el.default_value is not None:
         kwargs["default_value"] = formula_object(
-            literal_or_placeholder(el.default_value)
-            if needs_formula(el.default_value)
-            else (wrap_static_string(el.default_value) if el.default_value else "''"),
+            text_or_placeholder(el.default_value),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         )
     if el.required is not None:
@@ -1504,9 +1470,7 @@ def _choice_update(el: "ElementUpdate") -> dict:
         )
     if el.default_value is not None:
         kwargs["default_value"] = formula_object(
-            literal_or_placeholder(el.default_value)
-            if needs_formula(el.default_value)
-            else (wrap_static_string(el.default_value) if el.default_value else "''"),
+            text_or_placeholder(el.default_value),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         )
     if el.required is not None:
@@ -1526,9 +1490,7 @@ def _checkbox_update(el: "ElementUpdate") -> dict:
         )
     if el.default_value is not None:
         kwargs["default_value"] = formula_object(
-            literal_or_placeholder(el.default_value)
-            if needs_formula(el.default_value)
-            else el.default_value,
+            EMPTY_FORMULA if is_text_formula(el.default_value) else el.default_value,
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         )
     if el.required is not None:
@@ -1544,9 +1506,7 @@ def _datetime_picker_update(el: "ElementUpdate") -> dict:
         )
     if el.default_value is not None:
         kwargs["default_value"] = formula_object(
-            literal_or_placeholder(el.default_value)
-            if needs_formula(el.default_value)
-            else (wrap_static_string(el.default_value) if el.default_value else "''"),
+            text_or_placeholder(el.default_value),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         )
     if el.required is not None:
@@ -1618,30 +1578,30 @@ _TO_ORM_UPDATE: dict[str, Any] = {
 
 
 def _update_value_formula(el: "ElementUpdate", orm_element, context) -> dict[str, str]:
-    if el.value and needs_formula(el.value):
+    if el.value and is_text_formula(el.value):
         return {"value": formula_desc(el.value)}
     return {}
 
 
 def _update_button_formula(el: "ElementUpdate", orm_element, context) -> dict[str, str]:
     value = el.value if el.value is not None else el.label
-    return {"value": formula_desc(value)} if needs_formula(value) else {}
+    return {"value": formula_desc(value)} if is_text_formula(value) else {}
 
 
 def _update_link_formulas(el: "ElementUpdate", orm_element, context) -> dict[str, str]:
     formulas: dict[str, str] = {}
-    if el.value and needs_formula(el.value):
+    if el.value and is_text_formula(el.value):
         formulas["value"] = formula_desc(el.value)
-    if el.navigate_to_url and needs_formula(el.navigate_to_url):
+    if el.navigate_to_url and is_text_formula(el.navigate_to_url):
         formulas["navigate_to_url"] = formula_desc(el.navigate_to_url)
     return formulas
 
 
 def _update_image_formulas(el: "ElementUpdate", orm_element, context) -> dict[str, str]:
     formulas: dict[str, str] = {}
-    if el.image_url and needs_formula(el.image_url):
+    if el.image_url and is_text_formula(el.image_url):
         formulas["image_url"] = formula_desc(el.image_url)
-    if el.alt_text and needs_formula(el.alt_text):
+    if el.alt_text and is_text_formula(el.alt_text):
         formulas["alt_text"] = formula_desc(el.alt_text)
     return formulas
 
@@ -1649,7 +1609,7 @@ def _update_image_formulas(el: "ElementUpdate", orm_element, context) -> dict[st
 def _update_default_value_formula(
     el: "ElementUpdate", orm_element, context
 ) -> dict[str, str]:
-    if el.default_value and needs_formula(el.default_value):
+    if el.default_value and is_text_formula(el.default_value):
         return {"default_value": formula_desc(el.default_value)}
     return {}
 
@@ -1890,13 +1850,13 @@ class ElementUpdate(BaseModel):
         if (
             element_type == "link"
             and self.navigation_type == "custom"
-            and needs_formula(self.navigate_to_url)
+            and is_text_formula(self.navigate_to_url)
         ):
             return {"navigation_type": "navigate_to_url"}
         if (
             element_type == "image"
             and self.image_source_type == "url"
-            and needs_formula(self.image_url)
+            and is_text_formula(self.image_url)
         ):
             return {"image_source_type": "image_url"}
         return {}
