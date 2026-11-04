@@ -205,8 +205,10 @@ flowchart TD
 
 - The body is read using Django's normal upload handling before a slot is taken.
   A slow upload never holds a slot.
-- `ASGI_HTTP_MAX_CONCURRENT_STREAMS_PER_USER` defaults to `None`: users have no
-  individual cap within the process's available slots. Plugins can override
+- `BASEROW_ASGI_HTTP_MAX_CONCURRENT_STREAMS_PER_USER` sets the default per-user
+  stream cap. Unset, empty or `0` maps to the Django setting
+  `ASGI_HTTP_MAX_CONCURRENT_STREAMS_PER_USER=None`: users have no individual cap
+  within the process's available slots. Plugins can override
   `get_max_concurrent_streams_per_user(user, default_limit)` to select a limit
   from the user's plan. The hook runs synchronously on every authenticated stream
   request, so it can query the database and plan changes affect new connections.
