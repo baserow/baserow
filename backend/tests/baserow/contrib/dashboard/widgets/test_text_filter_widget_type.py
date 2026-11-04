@@ -19,9 +19,15 @@ from baserow.test_utils.helpers import assert_undo_redo_actions_are_valid
 @pytest.mark.django_db
 @pytest.mark.parametrize("mode", ["input", "dropdown"])
 @pytest.mark.parametrize("multiple", [False, True])
-@pytest.mark.parametrize("default_value", ["get('literal')", ["France", "Belgium"]])
+@pytest.mark.parametrize(
+    "default_value,single_default,multiple_defaults",
+    [
+        ("get('literal')", "get('literal')", ["get('literal')"]),
+        (["France", "Belgium"], "France", ["France", "Belgium"]),
+    ],
+)
 def test_text_widget_export_import_and_duplicate(
-    data_fixture, mode, multiple, default_value
+    data_fixture, mode, multiple, default_value, single_default, multiple_defaults
 ):
     """Literal settings survive application round trips without a data source."""
     user = data_fixture.create_user()
@@ -39,11 +45,16 @@ def test_text_widget_export_import_and_duplicate(
         options=BaserowFormulaObject.create("France, Belgium", mode="raw"),
     )
     assert isinstance(widget, TextFilterWidget)
+    expected_default = (
+        multiple_defaults if mode == "dropdown" and multiple else single_default
+    )
+    assert widget.default_value == expected_default
     assert not DashboardDataSource.objects.filter(dashboard=dashboard).exists()
     config = ImportExportConfig(include_permission_data=True)
     serialized = json.loads(
         json.dumps(DashboardApplicationType().export_serialized(dashboard, config))
     )
+    serialized["widgets"][0]["default_value"] = default_value
     imported = DashboardApplicationType().import_serialized(
         dashboard.workspace, serialized, config, id_mapping={}
     )
@@ -59,7 +70,7 @@ def test_text_widget_export_import_and_duplicate(
             "Search",
             "Enter text",
             "Type here",
-            default_value,
+            expected_default,
         )
         assert not DashboardDataSource.objects.filter(dashboard=application).exists()
 
@@ -71,10 +82,17 @@ def test_text_widget_configuration_undo_redo(data_fixture, default_value):
     """Undo restores both settings, including clearing a configured default."""
     user = data_fixture.create_user(session_id="text-widget")
     dashboard = data_fixture.create_dashboard_application(user=user)
+    multiple = isinstance(default_value, list)
+    empty_default = [] if multiple else ""
     widget = WidgetService().create_widget(
-        user, "text_filter", dashboard.id, title="Text"
+        user,
+        "text_filter",
+        dashboard.id,
+        title="Text",
+        mode="dropdown",
+        multiple=multiple,
     )
-    assert (widget.placeholder, widget.default_value) == ("", "")
+    assert (widget.placeholder, widget.default_value) == ("", empty_default)
     action_type_registry.get_by_type(UpdateWidgetActionType).do(
         user,
         widget.id,
@@ -87,14 +105,14 @@ def test_text_widget_configuration_undo_redo(data_fixture, default_value):
     undone = ActionHandler.undo(user, scopes, "text-widget")
     assert_undo_redo_actions_are_valid(undone, [UpdateWidgetActionType])
     widget.refresh_from_db()
-    assert (widget.placeholder, widget.default_value) == ("", "")
+    assert (widget.placeholder, widget.default_value) == ("", empty_default)
     redone = ActionHandler.redo(user, scopes, "text-widget")
     assert_undo_redo_actions_are_valid(redone, [UpdateWidgetActionType])
     widget.refresh_from_db()
     assert (widget.placeholder, widget.default_value) == ("Search here", default_value)
     WidgetService().update_widget(user, widget.id, placeholder="", default_value="")
     widget.refresh_from_db()
-    assert (widget.placeholder, widget.default_value) == ("", "")
+    assert (widget.placeholder, widget.default_value) == ("", empty_default)
 
 
 @pytest.mark.django_db
@@ -195,7 +213,7 @@ def test_text_widget_crud_serializers(api_client, data_fixture):
     )
     assert response.status_code == 200
     widget.refresh_from_db()
-    assert (widget.placeholder, widget.default_value) == ("", "")
+    assert (widget.placeholder, widget.default_value) == ("", [])
     assert widget.mode == "dropdown"
     assert widget.multiple is True
     response = api_client.patch(
@@ -284,3 +302,72 @@ def test_multiple_default_values_api_and_dispatch(api_client, data_fixture):
     widget.refresh_from_db()
     assert widget.default_value == []
     assert widget.get_type().get_filter_value(widget, {}) == []
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("narrowing", [{"multiple": False}, {"mode": "input"}])
+@pytest.mark.parametrize(
+    "defaults, single", [(["France", "Belgium"], "France"), ([], "")]
+)
+def test_mode_only_api_updates_persist_default_cardinality(
+    api_client, data_fixture, narrowing, defaults, single
+):
+    from django.urls import reverse
+
+    user, token = data_fixture.create_user_and_token()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    widget = WidgetService().create_widget(
+        user,
+        "text_filter",
+        dashboard.id,
+        title="Country",
+        mode="dropdown",
+        multiple=True,
+        default_value=defaults,
+    )
+    url = reverse("api:dashboard:widgets:item", kwargs={"widget_id": widget.id})
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    response = api_client.patch(url, narrowing, format="json", **headers)
+    assert response.status_code == 200
+    widget.refresh_from_db()
+    assert response.json()["default_value"] == single
+    assert widget.default_value == single
+    response = api_client.patch(
+        url, {"mode": "dropdown", "multiple": True}, format="json", **headers
+    )
+    assert response.status_code == 200
+    widget.refresh_from_db()
+    retained = [single] if single else []
+    assert response.json()["default_value"] == retained
+    assert widget.default_value == retained
+    assert widget.get_type().get_filter_value(widget, {}) == retained
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_mode_only_update_restores_defaults_on_undo(data_fixture):
+    user = data_fixture.create_user(session_id="default-cardinality")
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    widget = WidgetService().create_widget(
+        user,
+        "text_filter",
+        dashboard.id,
+        title="Country",
+        mode="dropdown",
+        multiple=True,
+        default_value=["France", "Belgium"],
+    )
+    action_type_registry.get_by_type(UpdateWidgetActionType).do(
+        user, widget.id, "text_filter", {"multiple": False}
+    )
+    widget.refresh_from_db()
+    assert (widget.multiple, widget.default_value) == (False, "France")
+    scopes = [ApplicationActionScopeType.value(application_id=dashboard.id)]
+    undone = ActionHandler.undo(user, scopes, "default-cardinality")
+    assert_undo_redo_actions_are_valid(undone, [UpdateWidgetActionType])
+    widget.refresh_from_db()
+    assert (widget.multiple, widget.default_value) == (True, ["France", "Belgium"])
+    redone = ActionHandler.redo(user, scopes, "default-cardinality")
+    assert_undo_redo_actions_are_valid(redone, [UpdateWidgetActionType])
+    widget.refresh_from_db()
+    assert (widget.multiple, widget.default_value) == (False, "France")

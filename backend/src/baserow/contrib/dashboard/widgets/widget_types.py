@@ -155,32 +155,46 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
         target_filters: list
 
     def prepare_value_for_db(self, values, instance=None):
-        if "default_value" in values:
-            default = values["default_value"]
-            if not isinstance(default, str) and not (
-                isinstance(default, list)
-                and all(isinstance(value, str) for value in default)
-            ):
-                raise serializers.ValidationError(
-                    {"default_value": "Expected text or a list of text values."}
-                )
+        if instance is None or {"default_value", "mode", "multiple"}.intersection(
+            values
+        ):
+            values["default_value"] = self.normalize_default_value(
+                values.get("default_value", getattr(instance, "default_value", "")),
+                values.get(
+                    "mode", getattr(instance, "mode", TextFilterWidget.Mode.INPUT)
+                ),
+                values.get("multiple", getattr(instance, "multiple", False)),
+            )
         return super().prepare_value_for_db(values, instance)
 
+    def normalize_default_value(self, value, mode, multiple):
+        """Store a list for multiple dropdowns and one string for other modes."""
+        if not isinstance(value, str) and not (
+            isinstance(value, list) and all(isinstance(item, str) for item in value)
+        ):
+            raise serializers.ValidationError(
+                {"default_value": "Expected text or a list of text values."}
+            )
+        defaults = value if isinstance(value, list) else [value] if value else []
+        if mode == TextFilterWidget.Mode.DROPDOWN and multiple:
+            return defaults
+        return defaults[0] if defaults else ""
+
     def get_filter_value(self, widget, values):
-        default = widget.default_value
-        defaults = (
-            default if isinstance(default, list) else [default] if default else []
+        return values.get(
+            str(widget.id),
+            self.normalize_default_value(
+                widget.default_value, widget.mode, widget.multiple
+            ),
         )
-        if widget.mode == TextFilterWidget.Mode.DROPDOWN and widget.multiple:
-            default = defaults
-        else:
-            default = defaults[0] if defaults else ""
-        return values.get(str(widget.id), default)
 
     def after_import(self, widget, id_mapping, **kwargs):
         from baserow.contrib.dashboard.formula_importer import import_formula
 
         updated_models = super().after_import(widget, id_mapping, **kwargs)
+        widget.default_value = self.normalize_default_value(
+            widget.default_value, widget.mode, widget.multiple
+        )
         widget.options = import_formula(
             widget.options,
             id_mapping,
