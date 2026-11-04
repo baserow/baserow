@@ -2493,3 +2493,82 @@ def test_move_before_an_element_outside_the_parent_is_refused(
     assert str(builder_ctx["button"].id) in result["errors"][0]
     assert "isn't in" in result["errors"][0]
     assert children_of(ids["box"]) == ["'First'"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"share_type": "only"},
+        {"share_type": "only", "page_ids": []},
+        {"page_ids": "page"},
+        {"share_type": "all", "page_ids": "page"},
+    ],
+)
+def test_create_header_refuses_pages_that_can_not_work(builder_ctx, values):
+    page = builder_ctx["page"]
+    if values.get("page_ids") == "page":
+        values = {**values, "page_ids": [page.id]}
+
+    result = elements.create_elements(
+        builder_ctx["ctx"],
+        page.id,
+        [ElementItemCreate(ref="top", type="header", **values)],
+    )
+
+    assert result["created_elements"] == []
+    assert result["errors"][0].startswith("top:")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("share_type", ["only", "except"])
+def test_create_header_shown_on_some_pages(builder_ctx, share_type):
+    page = builder_ctx["page"]
+
+    result = elements.create_elements(
+        builder_ctx["ctx"],
+        page.id,
+        [
+            ElementItemCreate(
+                ref="top", type="header", share_type=share_type, page_ids=[page.id]
+            )
+        ],
+    )
+
+    header = saved(result["ref_to_id_map"]["top"])
+    assert header.share_type == share_type
+    assert list(header.pages.all()) == [page]
+
+
+def _create_header(builder_ctx, **values):
+    result = elements.create_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [ElementItemCreate(ref="top", type="header", **values)],
+    )
+    return result["ref_to_id_map"]["top"]
+
+
+@pytest.mark.django_db
+def test_update_header_can_not_show_on_only_no_pages(builder_ctx):
+    header_id = _create_header(builder_ctx)
+
+    with pytest.raises(ToolInputError, match="page_ids"):
+        elements.update_element(
+            builder_ctx["ctx"], header_id, ElementChanges(share_type="only")
+        )
+
+    assert saved(header_id).share_type == "all"
+
+
+@pytest.mark.django_db
+def test_update_header_can_go_back_to_the_pages_it_has(builder_ctx):
+    header_id = _create_header(
+        builder_ctx, share_type="except", page_ids=[builder_ctx["page"].id]
+    )
+
+    elements.update_element(
+        builder_ctx["ctx"], header_id, ElementChanges(share_type="only")
+    )
+
+    assert saved(header_id).share_type == "only"

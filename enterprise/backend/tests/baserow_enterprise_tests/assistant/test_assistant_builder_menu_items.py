@@ -455,7 +455,7 @@ def test_a_refused_header_menu_change_leaves_the_header_unsaved(
         _update(
             site,
             site.container,
-            share_type="only",
+            share_type="except",
             remove_menu_items=[str(uuid.uuid4())],
         )
 
@@ -470,7 +470,7 @@ def test_the_update_helper_saves_nothing_itself_when_a_menu_change_is_refused(
     update = ElementUpdate.model_validate(
         {
             "element_id": site.container.id,
-            "share_type": "only",
+            "share_type": "except",
             "remove_menu_items": [str(uuid.uuid4())],
         }
     )

@@ -771,6 +771,14 @@ def create_element(
         )
         if problem:
             raise ToolInputError(problem)
+    if element_create.share_type == "only" and not element_create.page_ids:
+        raise ToolInputError(
+            "share_type 'only' needs page_ids: with no pages it is hidden everywhere."
+        )
+    if element_create.page_ids and element_create.share_type in (None, "all"):
+        raise ToolInputError(
+            "page_ids need share_type 'only' or 'except': otherwise they do nothing."
+        )
     if element_create.page_ids:
         check_pages_in_builder(page.builder, element_create.page_ids)
         kwargs["pages"] = list(
