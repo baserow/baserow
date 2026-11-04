@@ -281,8 +281,8 @@ describe('Dashboard filter dispatch', () => {
       const saving = store
         .dispatch('dashboardApplication/updateWidget', {
           widgetId: 12,
-          values: { multiple: true },
-          originalValues: { multiple: false },
+          values: { multiple: true, default_value: ['Alpha'] },
+          originalValues: { multiple: false, default_value: 'Alpha' },
         })
         .catch(() => {})
       await vi.advanceTimersByTimeAsync(1000)
@@ -297,6 +297,56 @@ describe('Dashboard filter dispatch', () => {
       await settle()
     }
   )
+
+  test.each([
+    ['dropdown', false, 'Beta', 'dropdown', true, ['Beta']],
+    ['dropdown', false, '', 'dropdown', true, []],
+    ['dropdown', true, ['Beta', 'Gamma'], 'dropdown', false, 'Beta'],
+    ['dropdown', true, [], 'dropdown', false, ''],
+    ['dropdown', true, ['Beta', 'Gamma'], 'input', true, 'Beta'],
+    ['input', true, 'Beta', 'dropdown', true, ['Beta']],
+  ])(
+    'preserves selection %j/%j/%j when switching to %j/%j',
+    async (mode, multiple, selection, nextMode, nextMultiple, expected) => {
+      await store.dispatch('dashboardApplication/forceUpdateWidget', {
+        widgetId: 12,
+        values: {
+          mode,
+          multiple,
+          default_value:
+            mode === 'dropdown' && multiple ? ['Alpha', 'Other'] : 'Alpha',
+        },
+      })
+      await change(12, selection)
+      await vi.advanceTimersByTimeAsync(300)
+      await settle()
+      await store.dispatch('dashboardApplication/forceUpdateWidget', {
+        widgetId: 12,
+        values: {
+          mode: nextMode,
+          multiple: nextMultiple,
+          default_value:
+            nextMode === 'dropdown' && nextMultiple ? ['Alpha'] : 'Alpha',
+        },
+      })
+      expect(store.state.dashboardApplication.widgetValues[12]).toEqual(
+        expected
+      )
+      await vi.advanceTimersByTimeAsync(300)
+      expect(requests).toHaveLength(2)
+      expect(requests[0].payload.widget_data[12]).toEqual(expected)
+      await settle()
+    }
+  )
+
+  test('applies an explicitly changed default together with a mode change', async () => {
+    await change(12, 'Beta')
+    await store.dispatch('dashboardApplication/forceUpdateWidget', {
+      widgetId: 12,
+      values: { mode: 'dropdown', multiple: true, default_value: ['Gamma'] },
+    })
+    expect(store.state.dashboardApplication.widgetValues[12]).toEqual(['Gamma'])
+  })
 
   test('sends defaults on initial dispatch and selectively coalesces multiple inputs', async () => {
     const initial = store.dispatch('dashboardApplication/dispatchDataSource', 1)
