@@ -1792,8 +1792,6 @@ def create_login_page(
     created at the first free /login path.
     """
 
-    from baserow_enterprise.builder.elements.models import AuthFormElement
-
     page = find_public_login_page(builder)
     if page is None:
         path = "/login"
@@ -1802,6 +1800,16 @@ def create_login_page(
             suffix += 1
             path = f"/login-{suffix}"
         page = CreatePageActionType.do(user, builder, "Login", path)
+
+    add_auth_form(user, page, user_source_id)
+    UpdateApplicationActionType.do(user, builder, login_page_id=page.id)
+    return page
+
+
+def add_auth_form(user: AbstractUser, page: Page, user_source_id: int) -> None:
+    """Make sure a form on the page logs people in through the user source."""
+
+    from baserow_enterprise.builder.elements.models import AuthFormElement
 
     auth_forms = AuthFormElement.objects.filter(page=page)
     # A form without a user source can't log anyone in, so it gets this one.
@@ -1812,6 +1820,3 @@ def create_login_page(
         CreateElementActionType.do(
             user, auth_form_type, page, {"user_source_id": user_source_id}
         )
-
-    UpdateApplicationActionType.do(user, builder, login_page_id=page.id)
-    return page

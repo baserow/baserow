@@ -11,10 +11,13 @@ from django.utils.translation import gettext as _
 from pydantic import Field
 
 from baserow.contrib.builder.models import Builder
+from baserow.contrib.builder.pages.models import Page
 from baserow.core.tools import ToolContext
+from baserow.core.tools.errors import ToolInputError
 from baserow.core.user_sources.handler import UserSourceHandler
 from baserow.core.user_sources.models import UserSource
 from baserow.core.user_sources.service import UserSourceService
+from baserow_enterprise.builder.elements.models import AuthFormElement
 
 from . import helpers
 from .applications import get_builder_in_workspace
@@ -36,6 +39,12 @@ def _local_baserow_user_source_on(
         ):
             return user_source.specific
     return None
+
+
+def _has_login_form(page: Page) -> bool:
+    """Whether a form on the page already logs people in through a user source."""
+
+    return AuthFormElement.objects.filter(page=page, user_source__isnull=False).exists()
 
 
 def _user_source_item(user_source: UserSource, table_id: int) -> dict[str, Any]:
@@ -64,10 +73,11 @@ def setup_user_source(
     this again with database_id creates a second table and user source.
 
     The login page is the one already set, or a page at /login that anyone can see, or
-    a new one, which created_pages lists. A login page that exists keeps its form, so
-    people can't log in through a second user source from it. Set a password for each
-    user before they can log in. If a step fails, no table, field, user source or page
-    is saved.
+    a new one, which created_pages lists. One already set must be visible to everyone,
+    or this is refused; it gets an auth_form if it has none with a user source. A
+    login page whose form has a user source keeps it, so people can't log in through a
+    second user source from it. Set a password for each user before they can log in.
+    If a step fails, no table, field, user source or page is saved.
     """
 
     builder = get_builder_in_workspace(ctx, builder_id)
@@ -75,12 +85,16 @@ def setup_user_source(
 
     existing = _local_baserow_user_source_on(ctx.user, builder, setup.table_id)
     # A login page that was undone is in the trash, so it counts as none.
-    login_page_id = builder.login_page_id
-    if (
-        login_page_id
-        and not helpers.workspace_pages(ctx.workspace).filter(id=login_page_id).exists()
-    ):
-        login_page_id = None
+    set_login_page = (
+        helpers.workspace_pages(ctx.workspace).filter(id=builder.login_page_id).first()
+    )
+    if set_login_page and set_login_page.visibility != Page.VISIBILITY_TYPES.ALL:
+        raise ToolInputError(
+            f"Login page {set_login_page.id} is only for logged-in visitors, so nobody "
+            "could reach it to log in. Make it visible to everyone with update_page, "
+            "or set another login page with update_builder. No changes were applied."
+        )
+    login_page_id = set_login_page.id if set_login_page else None
     creates_page = not login_page_id and not helpers.find_public_login_page(builder)
 
     field_map: dict[str, Any] = {}
@@ -110,6 +124,8 @@ def setup_user_source(
             ctx.update_status(_("Creating login page..."))
             login_page = helpers.create_login_page(ctx.user, builder, user_source.id)
             login_page_id = login_page.id
+        elif not _has_login_form(set_login_page):
+            helpers.add_auth_form(ctx.user, set_login_page, user_source.id)
 
     key = "created_user_source" if existing is None else "reused_user_source"
     result: dict[str, Any] = {

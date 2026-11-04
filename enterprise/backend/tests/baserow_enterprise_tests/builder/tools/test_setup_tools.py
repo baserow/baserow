@@ -8,7 +8,9 @@ from django.urls import reverse
 import pytest
 
 from baserow.contrib.builder.data_sources.models import DataSource
+from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import Element, LinkElement
+from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.models import Page
@@ -914,3 +916,88 @@ def test_setup_page_keeps_the_order_of_children(builder_ctx):
         by_ref["a"],
         by_ref["b"],
     ]
+
+
+# ---------------------------------------------------------------------------
+# A login page that is already set
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def set_login_page(data_fixture, builder_ctx):
+    def set_page(**kwargs):
+        page = data_fixture.create_builder_page(
+            builder=builder_ctx["builder"], name="Sign in", path="/sign-in", **kwargs
+        )
+        Builder.objects.filter(id=builder_ctx["builder"].id).update(
+            login_page_id=page.id
+        )
+        return page
+
+    return set_page
+
+
+def setup_on(builder_ctx, users_table):
+    return user_sources.setup_user_source(
+        builder_ctx["ctx"],
+        builder_ctx["builder"].id,
+        UserSourceSetup(name="People", table_id=users_table.id),
+    )
+
+
+@pytest.mark.django_db
+def test_setup_user_source_adds_a_form_to_a_login_page_without_one(
+    builder_ctx, users_table, set_login_page
+):
+    page = set_login_page()
+
+    result = setup_on(builder_ctx, users_table)
+
+    assert result["login_page_id"] == page.id
+    assert "created_pages" not in result
+    form = AuthFormElement.objects.get(page=page)
+    assert form.user_source_id == result["created_user_source"]["id"]
+
+
+@pytest.mark.django_db
+def test_setup_user_source_wires_a_form_without_a_user_source_on_the_login_page(
+    data_fixture, builder_ctx, users_table, set_login_page
+):
+    page = set_login_page()
+    element_type = element_type_registry.get("auth_form")
+    form = ElementHandler().create_element(element_type, page=page)
+
+    result = setup_on(builder_ctx, users_table)
+
+    form = AuthFormElement.objects.get(page=page)
+    assert form.user_source_id == result["created_user_source"]["id"]
+
+
+@pytest.mark.django_db
+def test_setup_user_source_keeps_the_form_of_another_user_source_on_the_login_page(
+    data_fixture, builder_ctx, users_table, set_login_page
+):
+    page = set_login_page()
+    other = data_fixture.create_user_source_with_first_type(
+        application=builder_ctx["builder"]
+    )
+    element_type = element_type_registry.get("auth_form")
+    ElementHandler().create_element(element_type, page=page, user_source_id=other.id)
+
+    setup_on(builder_ctx, users_table)
+
+    form = AuthFormElement.objects.get(page=page)
+    assert form.user_source_id == other.id
+
+
+@pytest.mark.django_db
+def test_setup_user_source_refuses_a_login_page_only_logged_in_visitors_can_see(
+    builder_ctx, users_table, set_login_page
+):
+    set_login_page(visibility="logged-in")
+    before = UserSource.objects.count()
+
+    with pytest.raises(ToolInputError, match="only for logged-in visitors"):
+        setup_on(builder_ctx, users_table)
+
+    assert UserSource.objects.count() == before
