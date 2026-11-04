@@ -243,7 +243,8 @@ def test_row_colour_over_mcp_tells_the_client_about_the_licence(premium_data_fix
 
     assert result.isError
     assert result.content[0].text == (
-        "The related user does not have access to these features."
+        "This needs a licence that this user doesn't have: a premium, advanced or "
+        "enterprise plan, depending on the feature."
     )
     assert ViewDecoration.objects.count() == 0
 

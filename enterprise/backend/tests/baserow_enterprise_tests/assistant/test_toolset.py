@@ -226,7 +226,7 @@ async def test_deferred_tool_switches_modes_then_executes_once(initial_args):
         (ToolInputError("Invalid workflow"), "Invalid workflow"),
         (SharedToolInputError("Invalid workflow"), "Invalid workflow"),
         (DjangoValidationError("Invalid range"), "Invalid value. Invalid range"),
-        (FeaturesNotAvailableError(), "does not have access to these features"),
+        (FeaturesNotAvailableError(), "This needs a licence"),
         (
             DRFValidationError("The page with id 7 doesn't exist."),
             "The page with id 7 doesn't exist.",
