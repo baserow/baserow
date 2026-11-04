@@ -233,6 +233,72 @@ def test_a_negative_size_is_an_input_error_over_mcp(data_fixture, builder_ctx):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "style",
+    [
+        {"border_radius": 32768},
+        {"border_radius": -5},
+        {"background_radius": 32768},
+        {"background_radius": -5},
+        {"background_color": "x" * 256},
+        {"border_color": "x" * 256},
+        {"border_color": {"left": "x" * 256}},
+        {"padding": 2147483648},
+        {"margin": {"top": 2147483648}},
+        {"border_size": 2147483648},
+    ],
+)
+def test_a_style_the_rest_api_refuses_is_an_input_error(
+    data_fixture, builder_ctx, style
+):
+    endpoint = _endpoint(data_fixture, builder_ctx, ["update_element_style"])
+    button = builder_ctx["button"]
+
+    async def callback(client):
+        return await client.call_tool(
+            "update_element_style", {"element_id": button.id, "style": style}
+        )
+
+    result = _session(endpoint, callback)
+
+    assert result.isError is True
+    assert "Invalid arguments" in result.content[0].text
+    saved = Element.objects.get(id=button.id)
+    assert saved.style_border_radius == button.style_border_radius
+    assert saved.style_background_radius == button.style_background_radius
+
+
+@pytest.mark.django_db
+def test_the_highest_style_values_are_stored(data_fixture, builder_ctx):
+    endpoint = _endpoint(data_fixture, builder_ctx, ["update_element_style"])
+    button = builder_ctx["button"]
+
+    async def callback(client):
+        return await client.call_tool(
+            "update_element_style",
+            {
+                "element_id": button.id,
+                "style": {
+                    "border_radius": 32767,
+                    "background_radius": 0,
+                    "background_color": "x" * 255,
+                    "border_color": "y" * 255,
+                    "padding": 2147483647,
+                },
+            },
+        )
+
+    _load(_session(endpoint, callback))
+
+    saved = Element.objects.get(id=button.id)
+    assert saved.style_border_radius == 32767
+    assert saved.style_background_radius == 0
+    assert saved.style_background_color == "x" * 255
+    assert saved.style_border_left_color == "y" * 255
+    assert saved.style_padding_top == 2147483647
+
+
+@pytest.mark.django_db
 def test_children_keep_their_order_over_mcp(data_fixture, builder_ctx):
     endpoint = _endpoint(data_fixture, builder_ctx, [*READ_TOOLS, *WRITE_TOOLS])
     page_id = builder_ctx["page"].id

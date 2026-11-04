@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import Field, PrivateAttr, field_validator, model_validator
 
+from baserow.contrib.builder.constants import COLOR_FIELD_MAX_LENGTH
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.graph.types import GraphPointPosition
 from baserow.core.tools.errors import ToolInputError
@@ -2121,6 +2122,11 @@ _BLOCK_TO_STYLES_KEY: dict[str, dict[str, str]] = {
 }
 
 
+# The limits of the element model's style columns. The editor stops a radius at 100.
+MAX_STYLE_RADIUS = 32767
+MAX_STYLE_SIZE = 2147483647
+
+
 class ElementStyleUpdate(BaseModel):
     """
     Compact model for updating element visual styles.
@@ -2169,16 +2175,30 @@ class ElementStyleUpdate(BaseModel):
                     raise ValueError(
                         f"{field_name}: {size} is not allowed, a size can't be negative"
                     )
+                if size is not None and size > MAX_STYLE_SIZE:
+                    raise ValueError(
+                        f"{field_name}: {size} is not allowed, the most is "
+                        f"{MAX_STYLE_SIZE}"
+                    )
+        color = self.border_color
+        colors = color.values() if isinstance(color, dict) else [color]
+        if any(c is not None and len(c) > COLOR_FIELD_MAX_LENGTH for c in colors):
+            raise ValueError(
+                f"border_color: a color can have at most {COLOR_FIELD_MAX_LENGTH} "
+                "characters"
+            )
         return self
 
     # -- Radii --
-    border_radius: int | None = Field(default=None)
-    background_radius: int | None = Field(default=None)
+    border_radius: int | None = Field(default=None, ge=0, le=MAX_STYLE_RADIUS)
+    background_radius: int | None = Field(default=None, ge=0, le=MAX_STYLE_RADIUS)
 
     # -- Background --
     background: Literal["none", "color"] | None = Field(default=None)
     background_color: str | None = Field(
-        default=None, description="Background color (hex)."
+        default=None,
+        max_length=COLOR_FIELD_MAX_LENGTH,
+        description="Background color (hex).",
     )
 
     # -- Width --
