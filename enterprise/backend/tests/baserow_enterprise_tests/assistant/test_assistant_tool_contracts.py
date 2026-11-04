@@ -726,7 +726,7 @@ EXEMPT_TOOLS: dict[str, str] = {
     "create_row_comments": _WRITE,
     "set_view_sorts": _WRITE,
     "set_field_visibility": _WRITE,
-    "set_row_colours": _WRITE,
+    "add_row_colours": _WRITE,
     "delete_views": _WRITE,
     "delete_view_filters": _WRITE,
     "delete_row_colours": _WRITE,

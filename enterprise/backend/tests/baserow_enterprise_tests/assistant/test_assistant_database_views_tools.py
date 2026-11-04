@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock
 
 import pytest
-from pydantic_ai import ModelRetry
+from pydantic_ai import ModelRetry, Tool
 from pydantic_ai.messages import (
     ModelRequest,
     ModelResponse,
@@ -53,6 +53,9 @@ def test_list_views_tool(data_fixture):
                 "row_height": "small",
                 "sorts": [],
                 "filters": [],
+                "filter_type": "AND",
+                "filters_disabled": False,
+                "filter_groups": [],
                 "row_colours": [],
                 "hidden_field_ids": [],
             }
@@ -1075,3 +1078,9 @@ def test_view_config_results_count_as_completed_changes(data_fixture):
     evidence = evidence_of("delete_views", partly)
     assert evidence.changed
     assert not evidence.completed
+
+
+def test_kuma_set_field_visibility_needs_a_field_in_its_schema():
+    schema = Tool(set_field_visibility, takes_ctx=True).function_schema.json_schema
+
+    assert schema["properties"]["fields"]["minItems"] == 1

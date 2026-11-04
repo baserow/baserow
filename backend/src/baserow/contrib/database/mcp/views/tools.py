@@ -38,7 +38,7 @@ class SetViewSortsMcpTool(FunctionMCPTool):
     group = GROUP_DATABASE_EDIT
     title = "Set view sorts"
     read_only = False
-    destructive = False
+    destructive = True
     function = view_config.set_view_sorts
 
 
@@ -51,13 +51,13 @@ class SetFieldVisibilityMcpTool(FunctionMCPTool):
     function = view_config.set_field_visibility
 
 
-class SetRowColoursMcpTool(FunctionMCPTool):
-    type = "set_row_colours"
+class AddRowColoursMcpTool(FunctionMCPTool):
+    type = "add_row_colours"
     group = GROUP_DATABASE_EDIT
     title = "Set row colours"
     read_only = False
     destructive = False
-    function = view_config.set_row_colours
+    function = view_config.add_row_colours
 
 
 class DeleteViewsMcpTool(FunctionMCPTool):

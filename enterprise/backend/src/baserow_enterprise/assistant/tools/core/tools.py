@@ -92,10 +92,7 @@ def list_builders(
 
 def search_workspace(
     ctx: RunContext[AssistantDeps],
-    query: Annotated[
-        str,
-        Field(min_length=1, max_length=200, description="The text to search for."),
-    ],
+    query: shared_search.SearchQuery,
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
     ],
@@ -168,8 +165,8 @@ def list_audit_log(
     List who did what in this workspace.
 
     WHEN to use: User asks who changed, created or deleted something, or what happened recently.
-    WHAT it does: Returns audit log entries of this workspace, newest first, optionally by user, action or date. Needs an enterprise licence and a workspace admin.
-    RETURNS: entries with id, timestamp, actor, action_type, description, ip_address, and has_more.
+    WHAT it does: Returns audit log entries of this workspace, newest first, optionally by user, action or date. Needs an advanced or enterprise licence and a workspace admin.
+    RETURNS: entries with id, timestamp, actor, action_type, description, and has_more.
     HOW: Prefer this over search_audit_log when you know the action or the dates; a description holds the names of what changed.
     """
 
@@ -188,14 +185,7 @@ def list_audit_log(
 
 def search_audit_log(
     ctx: RunContext[AssistantDeps],
-    query: Annotated[
-        str,
-        Field(
-            min_length=2,
-            max_length=200,
-            description="Text to find in who did it, the action type and its short description. It matches literally, so use one short word like delete, not deleted or a phrase.",
-        ),
-    ],
+    query: shared_audit_log.SearchQuery,
     from_timestamp: Annotated[
         datetime, Field(description="The start of the range, in ISO format.")
     ],

@@ -181,3 +181,15 @@ def test_search_workspace_over_mcp_explains_unknown_type(data_fixture):
 
     assert result.isError
     assert result.content[0].text == "'nope' is not a valid type."
+
+
+@pytest.mark.django_db
+def test_search_workspace_over_mcp_refuses_a_blank_query(data_fixture):
+    # The API trims the query too, and a space would match most names.
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    endpoint = data_fixture.create_mcp_endpoint(
+        user=user, workspace=workspace, allowed_tools=["search_workspace"]
+    )
+
+    assert _call(endpoint, "search_workspace", {"query": "   "}).isError

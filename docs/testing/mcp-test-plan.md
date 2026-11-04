@@ -133,7 +133,7 @@ The following tools are currently enabled:
 | `create_view_filters` | Add filters to views |
 | `set_view_sorts` | Replace the sorts of a view |
 | `set_field_visibility` | Hide or show fields in a view |
-| `set_row_colours` | Colour rows of a view (premium) |
+| `add_row_colours` | Colour rows of a view (premium) |
 | `delete_views` | Delete (trash) views |
 | `delete_view_filters` | Delete filters from views |
 | `delete_row_colours` | Remove row colours from views |
@@ -179,8 +179,8 @@ The following tools are currently enabled:
 | `setup_page` | Add data sources, elements and actions to a page in one call |
 | `setup_user_source` | Set up password login and a login page |
 | `set_theme` | Replace the theme of an application builder |
-| `list_audit_log` | List who did what in this workspace (enterprise, admin) |
-| `search_audit_log` | Search the workspace's audit log within 90 days (enterprise, admin) |
+| `list_audit_log` | List who did what in this workspace (advanced or enterprise, admin) |
+| `search_audit_log` | Search the workspace's audit log within 90 days (advanced or enterprise, admin) |
 
 The automation and audit log tools are off in the "Read only" preset. Turn them
 on at consent or under **Settings > Connected apps**. The "Read only" preset
@@ -273,7 +273,7 @@ Expected: the view changes after each request. Hiding the primary field of a gri
 
 ### Audit log
 
-Needs an enterprise licence and a workspace admin. Turn on **Read the audit log**, create and delete a table, then ask Claude: *"Who deleted a table this week?"*.
+Needs an advanced or enterprise licence and a workspace admin. Turn on **Read the audit log**, create and delete a table, then ask Claude: *"Who deleted a table this week?"*.
 
 Expected: Claude calls `list_audit_log` or `search_audit_log` and names you. As a workspace member who isn't an admin, Claude reports it has no permission. Entries of other workspaces never show.
 

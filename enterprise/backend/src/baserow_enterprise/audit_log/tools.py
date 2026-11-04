@@ -5,13 +5,13 @@ log of the context's workspace.
 
 from datetime import datetime, timedelta
 from typing import Annotated, Any
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q, QuerySet
 from django.utils import timezone as django_timezone
 
-from pydantic import Field
+from pydantic import Field, StringConstraints
 
 from baserow.core.subjects import UserSubjectType
 from baserow.core.tools import ToolContext
@@ -23,9 +23,25 @@ from baserow_enterprise.audit_log.utils import (
 MAX_PAGE_SIZE = 100
 MAX_SEARCH_DAYS = 90
 
+SearchQuery = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=2, max_length=200),
+    Field(
+        description=(
+            "Text to find, ignoring case, in who did it, the action type and the "
+            "action's short description. It matches literally, so use one short "
+            "word like delete, not deleted or a phrase."
+        )
+    ),
+]
+
 
 def _timezone(ctx: ToolContext) -> ZoneInfo:
-    return ZoneInfo(ctx.timezone or "UTC")
+    # Kuma takes the timezone from what the browser reports, without checking it.
+    try:
+        return ZoneInfo(ctx.timezone or "UTC")
+    except (ZoneInfoNotFoundError, ValueError, OSError):
+        return ZoneInfo("UTC")
 
 
 def _aware(ctx: ToolContext, value: datetime) -> datetime:
@@ -34,6 +50,11 @@ def _aware(ctx: ToolContext, value: datetime) -> datetime:
     if django_timezone.is_naive(value):
         return django_timezone.make_aware(value, _timezone(ctx))
     return value
+
+
+def _check_order(start: datetime, end: datetime) -> None:
+    if end < start:
+        raise DjangoValidationError("to_timestamp must be after from_timestamp.")
 
 
 def _workspace_entries(ctx: ToolContext) -> QuerySet[AuditLogEntry]:
@@ -61,7 +82,6 @@ def _page(
                 },
                 "action_type": entry.action_type,
                 "description": str(entry.description),
-                "ip_address": entry.ip_address,
             }
             for entry in found[:size]
         ],
@@ -99,7 +119,7 @@ def list_audit_log(
 ) -> dict[str, Any]:
     """
     List what happened in this workspace, newest first: who did what and when. Needs
-    an enterprise licence and a workspace admin.
+    an advanced or enterprise licence and a workspace admin.
     """
 
     entries = _workspace_entries(ctx)
@@ -108,6 +128,8 @@ def list_audit_log(
         entries = entries.filter(actor_id=user_id, actor_type=UserSubjectType.type)
     if action_types:
         entries = entries.filter(action_type__in=action_types)
+    if from_timestamp is not None and to_timestamp is not None:
+        _check_order(_aware(ctx, from_timestamp), _aware(ctx, to_timestamp))
     if from_timestamp is not None:
         entries = entries.filter(action_timestamp__gte=_aware(ctx, from_timestamp))
     if to_timestamp is not None:
@@ -118,18 +140,7 @@ def list_audit_log(
 
 def search_audit_log(
     ctx: ToolContext,
-    query: Annotated[
-        str,
-        Field(
-            min_length=2,
-            max_length=200,
-            description=(
-                "Text to find, ignoring case, in who did it, the action type and the "
-                "action's short description. It matches literally, so use one short "
-                "word like delete, not deleted or a phrase."
-            ),
-        ),
-    ],
+    query: SearchQuery,
     from_timestamp: Annotated[
         datetime,
         Field(
@@ -153,14 +164,13 @@ def search_audit_log(
     Search what happened in this workspace within a date range of at most 90 days,
     newest first. It doesn't search the names of the things that changed, like a
     table's name. No result doesn't prove nothing happened: try another word or
-    list_audit_log. Needs an enterprise licence and a workspace admin.
+    list_audit_log. Needs an advanced or enterprise licence and a workspace admin.
     """
 
     entries = _workspace_entries(ctx)
     start = _aware(ctx, from_timestamp)
     end = _aware(ctx, to_timestamp)
-    if end < start:
-        raise DjangoValidationError("to_timestamp must be after from_timestamp.")
+    _check_order(start, end)
     if end - start > timedelta(days=MAX_SEARCH_DAYS):
         raise DjangoValidationError(
             f"The date range can be at most {MAX_SEARCH_DAYS} days."

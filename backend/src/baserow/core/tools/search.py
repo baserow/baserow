@@ -4,7 +4,7 @@ Workspace search tool shared by the clients that act for a user.
 
 from typing import Annotated, Any
 
-from pydantic import Field
+from pydantic import Field, StringConstraints
 
 from baserow.core.handler import CoreHandler
 from baserow.core.operations import ReadWorkspaceOperationType
@@ -13,6 +13,12 @@ from baserow.core.search.registries import workspace_search_registry
 from baserow.core.tools import ToolContext
 
 MAX_PAGE_SIZE = 50
+
+SearchQuery = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=200),
+    Field(description="The text to search for."),
+]
 
 
 def _result_id(result_id: str) -> int | str:
@@ -23,10 +29,7 @@ def _result_id(result_id: str) -> int | str:
 
 def search_workspace(
     ctx: ToolContext,
-    query: Annotated[
-        str,
-        Field(min_length=1, max_length=200, description="The text to search for."),
-    ],
+    query: SearchQuery,
     types: Annotated[
         list[str] | None,
         Field(

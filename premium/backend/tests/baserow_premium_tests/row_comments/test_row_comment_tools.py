@@ -21,6 +21,7 @@ from baserow_premium.row_comments.actions import CreateRowCommentActionType
 from baserow_premium.row_comments.handler import RowCommentHandler
 from baserow_premium.row_comments.models import RowComment
 from baserow_premium.row_comments.tools import (
+    MAX_COMMENTS_PER_CALL,
     RowCommentCreate,
     create_row_comments,
     list_row_comments,
@@ -175,6 +176,60 @@ def test_list_row_comments_returns_every_paragraph_and_mention(premium_data_fixt
 
 
 @pytest.mark.django_db
+def test_list_row_comments_reads_a_mention_without_a_label(premium_data_fixture):
+    # The API accepts it, and one such comment must not make the row unreadable.
+    ctx, table, rows = _setup(premium_data_fixture, has_active_premium_license=True)
+    message = {
+        "type": "doc",
+        "content": [
+            {
+                "type": "paragraph",
+                "content": [
+                    {"type": "text", "text": "Ask "},
+                    {"type": "mention", "attrs": {"id": ctx.user.id}},
+                ],
+            }
+        ],
+    }
+    RowCommentHandler.create_comment(ctx.user, table.id, rows[0].id, message)
+
+    text = list_row_comments(ctx, table.id, rows[0].id)["comments"][0]["text"]
+
+    assert text == "Ask @"
+
+
+@pytest.mark.django_db
+def test_list_row_comments_reads_a_label_that_is_no_string(premium_data_fixture):
+    # The API accepts it, and one such comment must not make the row unreadable.
+    ctx, table, rows = _setup(premium_data_fixture, has_active_premium_license=True)
+    message = {
+        "type": "doc",
+        "content": [
+            {
+                "type": "paragraph",
+                "content": [
+                    {"type": "mention", "attrs": {"id": ctx.user.id, "label": 123}}
+                ],
+            }
+        ],
+    }
+    RowCommentHandler.create_comment(ctx.user, table.id, rows[0].id, message)
+
+    text = list_row_comments(ctx, table.id, rows[0].id)["comments"][0]["text"]
+
+    assert text == "@123"
+
+
+@pytest.mark.django_db
+def test_list_row_comments_reads_a_document_without_content(premium_data_fixture):
+    # The API accepts it, and one such comment must not make the row unreadable.
+    ctx, table, rows = _setup(premium_data_fixture, has_active_premium_license=True)
+    RowCommentHandler.create_comment(ctx.user, table.id, rows[0].id, {"type": "doc"})
+
+    assert list_row_comments(ctx, table.id, rows[0].id)["comments"][0]["text"] == ""
+
+
+@pytest.mark.django_db
 def test_create_row_comment_keeps_lines(premium_data_fixture):
     ctx, table, rows = _setup(premium_data_fixture, has_active_premium_license=True)
 
@@ -263,6 +318,24 @@ def test_create_row_comments_over_mcp_rejects_empty_list(premium_data_fixture):
 
     result = _call(
         endpoint, "create_row_comments", {"table_id": table.id, "comments": []}
+    )
+
+    assert result.isError
+    assert RowComment.objects.count() == 0
+
+
+@pytest.mark.django_db(transaction=True)
+def test_create_row_comments_over_mcp_rejects_too_many(premium_data_fixture):
+    ctx, table, rows = _setup(premium_data_fixture, has_active_premium_license=True)
+    endpoint = premium_data_fixture.create_mcp_endpoint(
+        user=ctx.user, workspace=ctx.workspace, allowed_tools=["create_row_comments"]
+    )
+    comment = {"row_id": rows[0].id, "text": "Hi"}
+
+    result = _call(
+        endpoint,
+        "create_row_comments",
+        {"table_id": table.id, "comments": [comment] * (MAX_COMMENTS_PER_CALL + 1)},
     )
 
     assert result.isError

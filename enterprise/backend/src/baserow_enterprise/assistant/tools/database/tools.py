@@ -373,10 +373,9 @@ def list_views(
     """\
     List views in a table.
 
-    WHEN to use: Before creating views (to avoid duplicate names), or to find existing view IDs.
-    WHAT it does: Lists all views in a table with their id, name, and type.
-    RETURNS: Views array with id, name, type configuration.
-    DO NOT USE when: You already have the view IDs you need.
+    WHEN to use: Before creating views (to avoid duplicate names), to find existing view IDs, or to see how a view is set up before changing it.
+    WHAT it does: Lists all views in a table with their id, name, type, sorts, filters, row colours and hidden fields.
+    RETURNS: Views array with their configuration.
     """
 
     try:
@@ -1345,7 +1344,10 @@ def create_row_comments(
     table_id: Annotated[int, Field(description="The ID of the rows' table.")],
     comments: Annotated[
         list[shared_row_comments.RowCommentCreate],
-        Field(description="The comments to post, each on one row."),
+        Field(
+            max_length=shared_row_comments.MAX_COMMENTS_PER_CALL,
+            description="The comments to post, each on one row.",
+        ),
     ],
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
@@ -1401,7 +1403,7 @@ def set_field_visibility(
     view_id: Annotated[int, Field(description="The ID of the view.")],
     fields: Annotated[
         list[shared_view_config.FieldVisibility],
-        Field(description="The fields to hide or show."),
+        Field(min_length=1, description="The fields to hide or show."),
     ],
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
@@ -1415,13 +1417,12 @@ def set_field_visibility(
     DO NOT USE when: The view is a form; a form has no hidden fields.
     """
 
-    require_payload("set_field_visibility", "fields", fields)
     return shared_view_config.set_field_visibility(
         ctx.deps.tool_context(), view_id, fields
     )
 
 
-def set_row_colours(
+def add_row_colours(
     ctx: RunContext[AssistantDeps],
     view_id: Annotated[int, Field(description="The ID of the view.")],
     colour: Annotated[
@@ -1432,7 +1433,7 @@ def set_row_colours(
     ],
 ) -> dict[str, Any]:
     """\
-    Colour the rows of a grid or gallery view.
+    Colour the rows of a view. A form view has no rows to colour.
 
     WHEN to use: User wants rows coloured by a single select field, or by conditions like "red when the amount is over 100".
     WHAT it does: Adds a colouring to the view. list_views shows the ones it already has under row_colours; remove one that gets replaced with delete_row_colours.
@@ -1440,7 +1441,7 @@ def set_row_colours(
     HOW: For conditions, use the same filter format as create_view_filters. Colours are names like red, light-blue, dark-green.
     """
 
-    return shared_view_config.set_row_colours(ctx.deps.tool_context(), view_id, colour)
+    return shared_view_config.add_row_colours(ctx.deps.tool_context(), view_id, colour)
 
 
 def delete_views(
@@ -1524,7 +1525,7 @@ TOOL_FUNCTIONS = [
     create_view_filters,
     set_view_sorts,
     set_field_visibility,
-    set_row_colours,
+    add_row_colours,
     delete_views,
     delete_view_filters,
     delete_row_colours,

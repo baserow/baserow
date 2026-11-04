@@ -1633,7 +1633,7 @@ def _check_colours_rows(
     decorations = list(ViewDecoration.objects.filter(view=scenario.refs["view"]))
     return [
         CheckResult(
-            "called set_row_colours", tool_called(output, "set_row_colours") >= 1
+            "called add_row_colours", tool_called(output, "add_row_colours") >= 1
         ),
         CheckResult(
             "rows coloured by the status field",

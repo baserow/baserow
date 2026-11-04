@@ -59,6 +59,9 @@ def test_list_views_over_mcp(data_fixture):
                 "row_height": "small",
                 "sorts": [],
                 "filters": [],
+                "filter_type": "AND",
+                "filters_disabled": False,
+                "filter_groups": [],
                 "row_colours": [],
                 "hidden_field_ids": [],
             }
@@ -148,6 +151,9 @@ def test_shared_list_views_loads_form_options_in_one_query(data_fixture):
         **ViewItem.from_django_orm(form).model_dump(),
         "sorts": [],
         "filters": [],
+        "filter_type": "AND",
+        "filters_disabled": False,
+        "filter_groups": [],
         "row_colours": [],
     }
     assert [o["field_id"] for o in first["field_options"]] == [field.id]

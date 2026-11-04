@@ -43,7 +43,11 @@ from baserow.contrib.database.views.models import (
     ViewFilter,
     ViewSort,
 )
+from baserow.contrib.database.views.operations import (
+    CreateViewDecorationOperationType,
+)
 from baserow.contrib.database.views.registries import view_type_registry
+from baserow.core.handler import CoreHandler
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import ToolInputError, item_error_message
 
@@ -69,7 +73,13 @@ class ConditionalColour(BaseModel):
 
     color: str = Field(
         ...,
-        description="A colour name like red, light-blue or dark-green, or a hex value.",
+        # A row takes its colour from a CSS class per palette name.
+        pattern=r"^((light|dark|darker)-)?"
+        r"(blue|green|cyan|orange|yellow|red|brown|purple|pink|gray)$",
+        description=(
+            "One of blue, green, cyan, orange, yellow, red, brown, purple, pink or "
+            "gray, optionally prefixed by light-, dark- or darker-."
+        ),
     )
     filters: list[ViewFilterItemCreate] = Field(
         ...,
@@ -150,21 +160,25 @@ def set_view_sorts(
     for field_id in field_ids:
         _get_field(fields, field_id)
 
-    existing = list(ViewSort.objects.filter(view=view).order_by("priority", "id"))
-    # Sorts apply in the order they were created. Those at the start that already
-    # match are kept, the others are recreated to end up in the order of the list.
-    keep = 0
-    while (
-        keep < min(len(existing), len(sorts))
-        and existing[keep].field_id == sorts[keep].field_id
-    ):
-        keep += 1
-
-    # A sort recreated to move it keeps its type, like sorting by option order.
-    sort_types = {sort.field_id: sort.type for sort in existing[keep:]}
     result = []
     try:
         with transaction.atomic():
+            # One replacement at a time, or two could each add to the same old list.
+            View.objects.select_for_update(of=("self",)).get(id=view.id)
+            existing = list(
+                ViewSort.objects.filter(view=view).order_by("priority", "id")
+            )
+            # A new sort goes after the others. Those at the start that already match
+            # are kept, the others are recreated to end up in the order of the list.
+            keep = 0
+            while (
+                keep < min(len(existing), len(sorts))
+                and existing[keep].field_id == sorts[keep].field_id
+            ):
+                keep += 1
+
+            # A sort recreated to move it keeps its type, like sorting by option order.
+            sort_types = {sort.field_id: sort.type for sort in existing[keep:]}
             for sort in existing[keep:]:
                 DeleteViewSortActionType.do(ctx.user, sort)
             for sort, item in zip(existing[:keep], sorts):
@@ -201,9 +215,6 @@ def set_field_visibility(
     field of a grid view, which can't be hidden, is reported in errors and the others
     are still changed. A form view has no hidden fields.
     """
-
-    if not fields:
-        raise DjangoValidationError("fields must hold at least one field.")
 
     view = get_view(ctx, view_id)
     ctx.update_status(_("Updating %(view_name)s...") % {"view_name": view.name})
@@ -347,24 +358,32 @@ def _colour_conf(ctx: ToolContext, view: View, colour: RowColour) -> dict[str, A
         raise ToolInputError(str(exc)) from exc
 
 
-def set_row_colours(
+def add_row_colours(
     ctx: ToolContext,
     view_id: Annotated[int, Field(description="The ID of the view.")],
     colour: Annotated[RowColour, Field(description="How to colour the rows.")],
 ) -> dict[str, Any]:
     """
-    Colour the rows of a grid or gallery view, by a single select field or by
-    conditions. Adds to the colours the view already has, which list_views shows.
-    Needs a premium licence.
+    Colour the rows of a view, by a single select field or by conditions. A form view
+    has no rows to colour. Adds to the colours the view already has, which list_views
+    shows. Needs a premium licence.
     """
 
     view = get_view(ctx, view_id)
     ctx.update_status(_("Colouring %(view_name)s...") % {"view_name": view.name})
+    # Before reading the fields, as an error about a field names it.
+    CoreHandler().check_permissions(
+        ctx.user,
+        CreateViewDecorationOperationType.type,
+        workspace=ctx.workspace,
+        context=view,
+    )
 
     try:
-        decoration = CreateDecorationActionType.do(
-            view, colour.style, colour.by, _colour_conf(ctx, view, colour), ctx.user
-        )
+        with transaction.atomic():
+            decoration = CreateDecorationActionType.do(
+                view, colour.style, colour.by, _colour_conf(ctx, view, colour), ctx.user
+            )
     except ViewDecorationNotSupported as exc:
         raise ToolInputError("This type of view can't colour its rows.") from exc
 

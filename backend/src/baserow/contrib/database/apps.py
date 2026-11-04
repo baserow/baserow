@@ -1254,6 +1254,7 @@ class DatabaseConfig(AppConfig):
             UpdateTableMcpTool,
         )
         from baserow.contrib.database.mcp.views.tools import (
+            AddRowColoursMcpTool,
             CreateViewFiltersMcpTool,
             CreateViewsMcpTool,
             DeleteRowColoursMcpTool,
@@ -1261,7 +1262,6 @@ class DatabaseConfig(AppConfig):
             DeleteViewsMcpTool,
             ListViewsMcpTool,
             SetFieldVisibilityMcpTool,
-            SetRowColoursMcpTool,
             SetViewSortsMcpTool,
         )
         from baserow.core.mcp.groups import (
@@ -1294,7 +1294,7 @@ class DatabaseConfig(AppConfig):
         mcp_tool_registry.register(CreateViewFiltersMcpTool())
         mcp_tool_registry.register(SetViewSortsMcpTool())
         mcp_tool_registry.register(SetFieldVisibilityMcpTool())
-        mcp_tool_registry.register(SetRowColoursMcpTool())
+        mcp_tool_registry.register(AddRowColoursMcpTool())
         mcp_tool_registry.register(DeleteViewsMcpTool())
         mcp_tool_registry.register(DeleteViewFiltersMcpTool())
         mcp_tool_registry.register(DeleteRowColoursMcpTool())

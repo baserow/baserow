@@ -119,9 +119,9 @@ OpenAI verifies the domain of a submitted ChatGPT app by fetching `/.well-known/
 | `update_fields` | `database_edit` | off | yes | Rename fields or change their settings (shared with Kuma) |
 | `create_views` | `database_edit` | off | no | Create views in a table (shared with Kuma) |
 | `create_view_filters` | `database_edit` | off | no | Add filters to views (shared with Kuma) |
-| `set_view_sorts` | `database_edit` | off | no | Replace the sorts of a view (shared with Kuma) |
+| `set_view_sorts` | `database_edit` | off | yes | Replace the sorts of a view (shared with Kuma) |
 | `set_field_visibility` | `database_edit` | off | no | Hide or show fields in a view (shared with Kuma) |
-| `set_row_colours` | `database_edit` | off | no | Colour rows by a single select field or by conditions. Needs premium (shared with Kuma) |
+| `add_row_colours` | `database_edit` | off | no | Colour rows by a single select field or by conditions. Needs premium (shared with Kuma) |
 | `update_table` | `database_edit` | disabled | yes | Rename a table |
 | `create_row_comments` | `database_edit` | off | no | Post plain text comments on rows. Needs premium (shared with Kuma) |
 | `delete_rows` | `database_delete` | on | yes | Delete rows by ID |
@@ -148,8 +148,8 @@ OpenAI verifies the domain of a submitted ChatGPT app by fetching `/.well-known/
 | `create_widgets` | `dashboard_edit` | off | no | Add summary, chart and pie chart widgets to a dashboard |
 | `update_widgets` | `dashboard_edit` | off | yes | Change a widget's title, chart type, or what it shows |
 | `delete_widgets` | `dashboard_delete` | off | yes | Delete (trash) widgets |
-| `list_audit_log` | `audit_log_read` | off | no | List who did what in this workspace. Needs enterprise and a workspace admin (shared with Kuma) |
-| `search_audit_log` | `audit_log_read` | off | no | Search the workspace's audit log by text within 90 days. Needs enterprise and a workspace admin (shared with Kuma) |
+| `list_audit_log` | `audit_log_read` | off | no | List who did what in this workspace. Needs advanced or enterprise and a workspace admin (shared with Kuma) |
+| `search_audit_log` | `audit_log_read` | off | no | Search the workspace's audit log by text within 90 days. Needs advanced or enterprise and a workspace admin (shared with Kuma) |
 | `list_builders` | `builder_read` | on | no | List the application builders of the workspace, a page at a time (shared with Kuma) |
 | `list_pages` | `builder_read` | on | no | List the pages of an application builder (shared with Kuma) |
 | `list_data_sources` | `builder_read` | on | no | List the data sources of a page (shared with Kuma) |

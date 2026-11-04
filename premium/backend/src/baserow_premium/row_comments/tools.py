@@ -23,6 +23,8 @@ from baserow_premium.row_comments.actions import CreateRowCommentActionType
 from baserow_premium.row_comments.handler import RowCommentHandler
 
 MAX_PAGE_SIZE = 100
+# A comment costs about nine queries and its own transaction, and can notify people.
+MAX_COMMENTS_PER_CALL = 100
 
 
 class RowCommentCreate(BaseModel):
@@ -48,7 +50,7 @@ def _to_plain_text(message: dict[str, Any]) -> str:
     # prosemirror_doc_to_plain_text only reads a document's first block.
     return "\n".join(
         prosemirror_doc_to_plain_text({"type": "doc", "content": [block]})
-        for block in message["content"]
+        for block in message.get("content", [])
     )
 
 
@@ -102,7 +104,10 @@ def create_row_comments(
     table_id: Annotated[int, Field(description="The ID of the rows' table.")],
     comments: Annotated[
         list[RowCommentCreate],
-        Field(description="The comments to post, each on one row."),
+        Field(
+            max_length=MAX_COMMENTS_PER_CALL,
+            description="The comments to post, each on one row.",
+        ),
     ],
 ) -> dict[str, Any]:
     """
