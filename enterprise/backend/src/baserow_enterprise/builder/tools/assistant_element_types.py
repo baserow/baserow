@@ -309,18 +309,18 @@ def _check_changed_column_formulas(
     """
 
     stored = {str(column.uid): column.config for column in table.fields.all()}
-    changed = {
-        f"{key} of column {column['name']}": text
+    changed = [
+        (f"{key} of column {column['name']}", text)
         for column in columns
         for key in ("value", "label")
         if (text := stored_formula_text(column["config"], key))
         and text != stored_formula_text(stored.get(column.get("uid")), key)
-    }
+    ]
     if not changed:
         return
     context = page_formula_context(table.page)
     with current_record_of(context, "element", table):
-        for field, formula in changed.items():
+        for field, formula in changed:
             problem = formula_problem(field, formula, context)
             if problem:
                 raise ToolInputError(f"{problem} {NO_CHANGES}")

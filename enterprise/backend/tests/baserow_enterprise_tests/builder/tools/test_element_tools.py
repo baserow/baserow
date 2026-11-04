@@ -2080,3 +2080,28 @@ def test_a_new_link_to_a_page_it_fits_is_created(builder_ctx, link_pages):
     )
 
     assert not result.get("errors")
+
+
+@pytest.mark.django_db
+def test_two_changed_columns_of_one_name_are_both_checked(data_fixture, builder_ctx):
+    table = data_fixture.create_builder_table_element(
+        page=builder_ctx["page"],
+        data_source=builder_ctx["data_source"],
+        fields=[
+            {"name": "Edit", "type": "text", "config": {"value": "''"}},
+            {"name": "Edit", "type": "text", "config": {"value": "''"}},
+        ],
+    )
+    first, second = [str(column.uid) for column in table.fields.all()]
+
+    with pytest.raises(ToolInputError, match="No changes were applied"):
+        elements.update_element(
+            builder_ctx["ctx"],
+            table.id,
+            ElementChanges(
+                update_table_columns=[
+                    TableColumnUpdate(uid=first, value="get('page_parameter.nope')"),
+                    TableColumnUpdate(uid=second, value="get('current_record.id')"),
+                ]
+            ),
+        )
