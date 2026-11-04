@@ -873,9 +873,14 @@ def broadcast_application_pending_counts(
     """
 
     from django.contrib.auth import get_user_model
+    from django.db import DEFAULT_DB_ALIAS
 
+    from baserow.config.db_routers import set_db_alias
     from baserow.core.handler import CoreHandler
     from baserow.core.models import Application
+
+    # This task is queued after commit and a lagging replica could miss that commit.
+    set_db_alias(DEFAULT_DB_ALIAS)
 
     try:
         application = Application.objects.get(id=application_id).specific
@@ -888,7 +893,7 @@ def broadcast_application_pending_counts(
             .get_pending_count_per_application(user, [application])
             .get(application.id, 0)
         )
-        broadcast_to_users.delay(
+        broadcast_to_users(
             [user.id],
             {
                 "type": "application_pending_count_updated",

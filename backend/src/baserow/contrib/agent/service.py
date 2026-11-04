@@ -472,9 +472,7 @@ class AgentService:
                 UpdateApplicationOperationType.type,
                 ReadAgentConfigurationOperationType.type,
             ]
-        agent = self._get_authorized_agent(
-            user, agent_id, *operations, for_update=always_allow
-        )
+        agent = self._get_authorized_agent(user, agent_id, *operations)
         # The lock serializes decisions with each other and with sends and trashing.
         conversation = self.handler.get_conversation(
             agent, user, conversation_uuid, for_update=True
@@ -483,7 +481,7 @@ class AgentService:
             conversation, user, decisions
         )
         always_allowed_tools = (
-            self._always_allow_approved_tools(user, agent, reply, decisions)
+            self._always_allow_approved_tools(user, agent_id, reply, decisions)
             if always_allow
             else []
         )
@@ -503,7 +501,7 @@ class AgentService:
     def _always_allow_approved_tools(
         self,
         user: AbstractUser,
-        agent: AgentApplication,
+        agent_id: int,
         reply: AgentMessage,
         decisions: list[AgentToolDecision],
     ) -> list[str]:
@@ -511,13 +509,15 @@ class AgentService:
         Stop asking first for the tools of the approved calls, telling the Agent's
         open pages when its configuration changed.
 
-        :param user: The user deciding.
-        :param agent: The Agent, locked like for a configuration update.
+        :param user: The user deciding, already allowed to update the configuration.
+        :param agent_id: The id of the Agent.
         :param reply: The reply, with its decided approvals.
         :param decisions: The decisions just saved.
         :return: The tools that stopped asking first.
         """
 
+        # Locked after the conversation, as trashing it needs the Agent row too.
+        agent = self.handler.get_agent(agent_id, for_update=True)
         approved_ids = {
             decision["id"] for decision in decisions if decision["approved"]
         }
