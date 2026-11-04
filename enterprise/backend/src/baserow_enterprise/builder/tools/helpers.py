@@ -313,6 +313,16 @@ def list_data_sources(user: AbstractUser, page: Page) -> list[DataSourceItem]:
     ]
 
 
+def list_data_sources_on_page(user: AbstractUser, page: Page) -> list[DataSourceItem]:
+    """List the data sources of a page and of its builder's shared page."""
+
+    return [
+        item
+        for listed_page in dict.fromkeys((page.builder.shared_page, page))
+        for item in list_data_sources(user, listed_page)
+    ]
+
+
 def _in_page_order(page: Page, elements: list) -> list:
     """
     Sort a page's elements by their place in its graph, with a container's children

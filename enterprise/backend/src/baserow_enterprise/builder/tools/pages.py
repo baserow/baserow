@@ -66,7 +66,8 @@ def list_pages(
     parameters and visibility. Also returns the login page ID, the user sources
     people log in with, and the roles they can have. The shared page that holds
     headers and footers is not a page of its own and is not listed. Use
-    list_elements to see them.
+    list_elements to see them. shared_page_id is its ID, to give a header or footer a
+    data source with create_data_sources.
     """
 
     builder = get_builder_in_workspace(ctx, builder_id)
@@ -97,6 +98,7 @@ def list_pages(
         "application_id": builder.id,
         "pages": [p.model_dump() for p in pages],
         "login_page_id": builder.login_page_id,
+        "shared_page_id": builder.shared_page.id,
         "user_sources": user_source_data,
         "available_roles": sorted(roles),
     }

@@ -21,6 +21,7 @@ from baserow_enterprise.builder.tools import (
     elements,
     pages,
 )
+from baserow_enterprise.builder.tools.types import DataSourceCreate, ElementItemCreate
 from baserow_enterprise_tests.assistant.utils import make_test_ctx
 
 READ_TOOLS = [
@@ -241,3 +242,64 @@ def test_new_connection_starts_with_the_read_tools(data_fixture):
     endpoint = MCPEndpointHandler().create_endpoint(user, workspace, "Key")
 
     assert set(READ_TOOLS) <= set(endpoint.allowed_tools)
+
+
+@pytest.mark.django_db
+def test_list_data_sources_includes_the_shared_page(data_fixture, builder_ctx):
+    page = builder_ctx["page"]
+    shared_page = builder_ctx["builder"].shared_page
+    shared = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=shared_page,
+        table=builder_ctx["data_source"].service.specific.table,
+        name="Shared",
+    )
+
+    listed = data_sources.list_data_sources(builder_ctx["ctx"], page.id)["data_sources"]
+
+    assert [(ds["id"], ds.get("page_name")) for ds in listed] == [
+        (shared.id, "[shared]"),
+        (builder_ctx["data_source"].id, "Home"),
+    ]
+    only_shared = data_sources.list_data_sources(builder_ctx["ctx"], shared_page.id)
+    assert [ds["id"] for ds in only_shared["data_sources"]] == [shared.id]
+
+
+@pytest.mark.django_db
+def test_list_pages_gives_the_shared_page_to_create_a_data_source_on(builder_ctx):
+    builder = builder_ctx["builder"]
+
+    listed = pages.list_pages(builder_ctx["ctx"], builder.id)
+
+    assert listed["shared_page_id"] == builder.shared_page.id
+    assert builder.shared_page.id not in [page["id"] for page in listed["pages"]]
+
+
+@pytest.mark.django_db
+def test_a_header_can_use_a_data_source_made_on_the_page_list_pages_gives(builder_ctx):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    shared_page_id = pages.list_pages(ctx, builder_ctx["builder"].id)["shared_page_id"]
+    data_source = data_sources.create_data_sources(
+        ctx,
+        shared_page_id,
+        [
+            DataSourceCreate(
+                ref="d",
+                name="Shared",
+                type="list_rows",
+                table_id=builder_ctx["data_source"].service.specific.table_id,
+            )
+        ],
+    )["ref_to_id_map"]["d"]
+
+    result = elements.create_elements(
+        ctx,
+        page.id,
+        [
+            ElementItemCreate(ref="top", type="header"),
+            ElementItemCreate(
+                ref="list", type="repeat", parent_element="top", data_source=data_source
+            ),
+        ],
+    )
+
+    assert not result.get("errors")

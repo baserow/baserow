@@ -35,14 +35,17 @@ def list_data_sources(
     page_id: Annotated[int, Field(description="The ID of the page, from list_pages.")],
 ) -> dict[str, Any]:
     """
-    List the data sources of a page of an application builder: id, name, type and
-    table. Data sources connect the elements of the page to the rows of a table.
+    List the data sources of a page of an application builder: id, name, type, table
+    and page name. Data sources connect the elements of the page to the rows of a
+    table. Those with page_name "[shared]" are on the shared page: a page can read them
+    too, and they are the only ones a header or footer can read. Create one with
+    create_data_sources and the shared_page_id from list_pages.
     """
 
     page = get_page_in_workspace(ctx, page_id)
     ctx.update_status(_("Listing data sources on %(name)s...") % {"name": page.name})
 
-    data_sources = helpers.list_data_sources(ctx.user, page)
+    data_sources = helpers.list_data_sources_on_page(ctx.user, page)
     return {"data_sources": [ds.model_dump() for ds in data_sources]}
 
 

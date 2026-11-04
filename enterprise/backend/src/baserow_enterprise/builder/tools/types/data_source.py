@@ -411,6 +411,10 @@ class DataSourceItem(BaseModel):
     name: str
     type: str
     table_id: int | None = None
+    page_name: str | None = Field(
+        default=None,
+        description="Page name. '[shared]' for data sources on the shared page.",
+    )
 
     _table_name: str | None = PrivateAttr(default=None)
 
@@ -438,6 +442,7 @@ class DataSourceItem(BaseModel):
             id=data_source.id,
             name=data_source.name,
             type=data_source.service.get_type().type if data_source.service else "",
+            page_name="[shared]" if data_source.page.shared else data_source.page.name,
             table_id=table_id,
         )
         item._table_name = table_name
