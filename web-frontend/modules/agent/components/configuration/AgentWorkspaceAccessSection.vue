@@ -1,12 +1,9 @@
 <template>
   <FormGroup
     :label="$t('agent.runAs')"
-    :error="trashed"
-    :error-message="
-      trashed
-        ? $t('agent.runAsTrashed', { name: configuration.run_as.name })
-        : ''
-    "
+    :error="unavailable"
+    :error-message="errorMessage"
+    :helper-text="helperText"
     small-label
     required
   >
@@ -18,6 +15,10 @@
       :initial-display-name="initialName"
       :include-display-name-in-selected-event="true"
       :disabled="!editable"
+      :error="unavailable"
+      :refresh-key="optionsVersion"
+      fetch-on-open
+      refresh-on-open
       @input="select"
     >
       <template #items="{ results }">
@@ -35,21 +36,17 @@
         />
       </template>
     </PaginatedDropdown>
-    <template #helper>
-      {{
-        configuration.run_as
-          ? $t('agent.runAsHelper', { name: configuration.run_as.name })
-          : $t('agent.noWorkspaceAccessHelper')
-      }}
-    </template>
   </FormGroup>
 </template>
 
 <script setup>
-import { computed, inject, ref, watch } from 'vue'
+import { computed, inject, onBeforeUnmount, ref, watch } from 'vue'
+import debounce from 'lodash/debounce'
 import { useI18n } from 'vue-i18n'
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
-import SubjectService from '@baserow/modules/core/services/subject'
+import AgentApplicationService from '@baserow/modules/agent/services/agentApplication'
+import { getRunAsStatus } from '@baserow/modules/agent/utils/runAs'
+import { RUN_AS_STATUS } from '@baserow/modules/agent/constants'
 
 const NO_WORKSPACE_ACCESS = 'none'
 
@@ -64,24 +61,51 @@ const { t } = useI18n()
 const agent = inject('agentApplication')
 const runAsDropdown = ref(null)
 
-const trashed = computed(() => Boolean(props.configuration.run_as?.trashed))
+const status = computed(() => getRunAsStatus(props.configuration.run_as))
+const unavailable = computed(() =>
+  [RUN_AS_STATUS.TRASHED, RUN_AS_STATUS.MISSING].includes(status.value)
+)
+const errorMessage = computed(() => {
+  if (status.value === RUN_AS_STATUS.TRASHED)
+    return t('agent.runAsTrashed', { name: props.configuration.run_as.name })
+  return status.value === RUN_AS_STATUS.MISSING ? t('agent.runAsMissing') : ''
+})
+const helperText = computed(() => {
+  if (unavailable.value) return ''
+  return props.configuration.run_as
+    ? t('agent.runAsHelper', { name: props.configuration.run_as.name })
+    : t('agent.noWorkspaceAccessHelper')
+})
 const selected = computed(() => {
   const runAs = props.configuration.run_as
   return runAs ? `${runAs.type}:${runAs.id}` : NO_WORKSPACE_ACCESS
 })
 const initialName = computed(
-  () => props.configuration.run_as?.name ?? t('agent.noWorkspaceAccess')
+  () =>
+    props.configuration.run_as?.name ??
+    t(
+      status.value === RUN_AS_STATUS.MISSING
+        ? 'agent.runAsMissingLabel'
+        : 'agent.noWorkspaceAccess'
+    )
 )
+
+const optionsVersion = ref(0)
+const refreshOptions = debounce(() => ++optionsVersion.value, 100, {
+  maxWait: 500,
+})
+watch(() => agent.value?._?.runAsOptionsVersion, refreshOptions)
+onBeforeUnmount(() => refreshOptions.cancel())
 
 // Refresh the cached label after the dropdown receives its updated prop.
 watch(initialName, () => runAsDropdown.value?.clear(), { flush: 'post' })
 
 function fetchIdentities(page, search) {
-  return SubjectService($client).list(agent.value.workspace.id, {
+  return AgentApplicationService($client).getRunAsSubjects(
+    agent.value.id,
     page,
-    search,
-    subjectTypes: 'core.Agent',
-  })
+    search
+  )
 }
 
 function select({ value, item }) {
@@ -95,6 +119,7 @@ function select({ value, item }) {
             id: item.subject_id,
             name: item.name,
             trashed: false,
+            status: RUN_AS_STATUS.ACTIVE,
           },
   })
   emit('flush')

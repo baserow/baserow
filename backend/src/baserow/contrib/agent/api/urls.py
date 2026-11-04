@@ -5,6 +5,7 @@ from .views import (
     AgentConfigurationView,
     AgentConversationsView,
     AgentMessagesView,
+    AgentRunAsSubjectsView,
 )
 
 app_name = "baserow.contrib.agent"
@@ -15,6 +16,11 @@ urlpatterns = [
         "<int:agent_id>/configuration/",
         AgentConfigurationView.as_view(),
         name="configuration",
+    ),
+    path(
+        "<int:agent_id>/run-as-subjects/",
+        AgentRunAsSubjectsView.as_view(),
+        name="run_as_subjects",
     ),
     path(
         "<int:agent_id>/conversations/",

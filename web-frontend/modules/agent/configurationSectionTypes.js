@@ -3,6 +3,8 @@ import { Registerable } from '@baserow/modules/core/registry'
 import AgentInstructionsSection from '@baserow/modules/agent/components/configuration/AgentInstructionsSection'
 import AgentSettingsSection from '@baserow/modules/agent/components/configuration/AgentSettingsSection'
 import AgentWorkspaceAccessSection from '@baserow/modules/agent/components/configuration/AgentWorkspaceAccessSection'
+import { getRunAsStatus } from '@baserow/modules/agent/utils/runAs'
+import { RUN_AS_STATUS } from '@baserow/modules/agent/constants'
 
 const InstructionsSection = markRaw(AgentInstructionsSection)
 const SettingsSection = markRaw(AgentSettingsSection)
@@ -115,9 +117,10 @@ export class WorkspaceAccessAgentConfigurationSectionType extends AgentConfigura
 
   getErrorMessage(errors, configuration) {
     const runAs = configuration?.run_as
-    return runAs?.trashed
-      ? this.$t('agent.runAsTrashed', { name: runAs.name })
-      : super.getErrorMessage(errors)
+    const status = getRunAsStatus(runAs)
+    if (status === RUN_AS_STATUS.TRASHED)
+      return this.$t('agent.runAsTrashed', { name: runAs.name })
+    return status === RUN_AS_STATUS.MISSING ? this.$t('agent.runAsMissing') : ''
   }
 
   getOrder() {

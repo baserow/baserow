@@ -4,6 +4,7 @@ import pytest
 from freezegun import freeze_time
 
 from baserow.contrib.agent.application_types import AgentApplicationType
+from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import (
     AgentApplication,
     AgentConversation,
@@ -15,6 +16,8 @@ from baserow.core.job_types import DuplicateApplicationJobType
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.models import Agent
 from baserow.core.registries import ImportExportConfig
+from baserow.core.snapshots.handler import SnapshotHandler
+from baserow.core.utils import Progress
 
 INTERNAL_COPY = {"is_duplicate": True, "exclude_sensitive_data": False}
 INTERNAL_CONFIG = ImportExportConfig(include_permission_data=False, **INTERNAL_COPY)
@@ -83,12 +86,15 @@ def test_duplicate_copies_conversations_with_new_identifiers(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("trashed", [False, True])
 def test_run_as_is_kept_only_by_copies_in_the_same_workspace(
-    data_fixture, configured_agent
+    data_fixture, configured_agent, trashed
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
-    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
+    identity = Agent.objects.create(
+        workspace=agent.workspace, name="Investor", trashed=trashed
+    )
     agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
     agent.save()
 
@@ -102,6 +108,163 @@ def test_run_as_is_kept_only_by_copies_in_the_same_workspace(
 
     assert duplicate.run_as_subject_id == identity.id
     assert (imported.run_as_subject_type, imported.run_as_subject_id) == (None, None)
+    assert (
+        AgentHandler().is_run_as_subject_usable(
+            duplicate.run_as_subject_type,
+            duplicate.run_as_subject_id,
+            duplicate.workspace,
+        )
+        is not trashed
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("state", ["missing", "foreign", "unsupported", "unknown"])
+def test_run_as_copy_clears_invalid_references(data_fixture, configured_agent, state):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
+    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    if state == "missing":
+        identity.delete()
+    elif state == "foreign":
+        identity.workspace = data_fixture.create_workspace()
+        identity.save()
+    elif state == "unsupported":
+        agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", user.id
+    else:
+        agent.run_as_subject_type = "unknown.subject"
+    agent.save()
+
+    copied = CoreHandler().duplicate_application(user, agent).specific
+
+    assert (copied.run_as_subject_type, copied.run_as_subject_id) == (None, None)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("trashed_at_creation", [False, True])
+def test_snapshot_preserves_run_as_through_identity_trash_and_restore(
+    data_fixture, configured_agent, use_tmp_media_root, trashed_at_creation
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    identity = Agent.objects.create(
+        workspace=agent.workspace, name="Investor", trashed=trashed_at_creation
+    )
+    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    agent.save()
+    snapshot = data_fixture.create_snapshot(
+        snapshot_from_application=agent, name=agent.name, created_by=user
+    )
+    snapshots = SnapshotHandler()
+
+    snapshots.perform_create(snapshot, Progress(total=100))
+    snapshot.refresh_from_db()
+    archived = snapshot.snapshot_to_application.specific
+    assert archived.workspace_id is None
+    assert (archived.run_as_subject_type, archived.run_as_subject_id) == (
+        "core.Agent",
+        identity.id,
+    )
+
+    identity.trashed = True
+    identity.save()
+    restored = snapshots.perform_restore(snapshot, Progress(total=100)).specific
+    assert (restored.run_as_subject_type, restored.run_as_subject_id) == (
+        "core.Agent",
+        identity.id,
+    )
+    handler = AgentHandler()
+    assert not handler.is_run_as_subject_usable(
+        restored.run_as_subject_type, restored.run_as_subject_id, restored.workspace
+    )
+
+    identity.trashed = False
+    identity.save()
+    assert handler.is_run_as_subject_usable(
+        restored.run_as_subject_type, restored.run_as_subject_id, restored.workspace
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "config_values,keeps_identity",
+    [
+        ({}, False),
+        ({"exclude_sensitive_data": False}, False),
+        ({"is_duplicate": True}, False),
+        ({**INTERNAL_COPY, "is_template": True}, False),
+        ({"is_user_template": True}, False),
+        (INTERNAL_COPY, True),
+        ({**INTERNAL_COPY, "only_structure": True}, True),
+    ],
+    ids=[
+        "portable",
+        "portable-with-sensitive-data",
+        "sensitive-excluded",
+        "template",
+        "user-template",
+        "internal",
+        "internal-structure-only",
+    ],
+)
+def test_run_as_is_exported_only_for_internal_copies(
+    data_fixture, configured_agent, config_values, keeps_identity
+):
+    agent = configured_agent()
+    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
+    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    config = ImportExportConfig(include_permission_data=False, **config_values)
+
+    serialized = AgentApplicationType().export_serialized(agent, config)
+
+    if keeps_identity:
+        assert serialized["run_as_subject_type"] == "core.Agent"
+        assert serialized["run_as_subject_id"] == identity.id
+    else:
+        assert "run_as_subject_type" not in serialized
+        assert "run_as_subject_id" not in serialized
+
+
+@pytest.mark.django_db
+def test_portable_import_clears_run_as_even_when_identity_exists(
+    data_fixture, configured_agent
+):
+    agent = configured_agent()
+    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
+    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+
+    imported = AgentApplicationType().import_serialized(
+        agent.workspace,
+        export_internal(agent),
+        ImportExportConfig(include_permission_data=False),
+        {},
+    )
+
+    assert (imported.run_as_subject_type, imported.run_as_subject_id) == (None, None)
+
+
+@pytest.mark.django_db
+def test_template_install_clears_run_as_with_a_destination_identity_collision(
+    data_fixture, configured_agent, tmp_path, settings
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
+    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    template = data_fixture.create_template(slug="agent-identity-collision")
+    settings.APPLICATION_TEMPLATES_DIR = str(tmp_path)
+    # Old or crafted templates can contain an id that is valid in the destination.
+    # Installing into that workspace proves the template guard, not the workspace
+    # check, prevents binding the identity.
+    (tmp_path / "agent-identity-collision.json").write_text(
+        json.dumps({"export": [export_internal(agent)]})
+    )
+
+    applications, _ = CoreHandler().install_template(user, agent.workspace, template)
+
+    installed = applications[0].specific
+    assert (installed.run_as_subject_type, installed.run_as_subject_id) == (None, None)
 
 
 @pytest.mark.django_db

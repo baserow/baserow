@@ -11,7 +11,15 @@ from baserow.contrib.agent.actions import (
     CreateAgentConversationActionType,
     CreateAgentMessageActionType,
 )
-from baserow.contrib.agent.models import AgentConversation, AgentMessage
+from baserow.contrib.agent.models import (
+    AgentApplication,
+    AgentConversation,
+    AgentMessage,
+)
+from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
+from baserow.core.agents.service import AgentService as IdentityService
+from baserow.core.models import Agent
+from baserow.core.trash.handler import TrashHandler
 
 
 def conversation_write(data_fixture, user, agent, kind):
@@ -101,4 +109,89 @@ def test_rolled_back_content_does_not_notify_other_sessions(
                 raise RuntimeError("Abort the outer transaction")
 
     assert not AgentMessage.objects.exists()
+    broadcast.assert_not_called()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("change", ["create", "rename", "trash", "restore", "delete"])
+def test_identity_changes_invalidate_only_live_workspace_applications_after_commit(
+    data_fixture, mocker, django_capture_on_commit_callbacks, change
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    identity = Agent.objects.create(workspace=workspace, name="PRIVATE IDENTITY")
+    selected = data_fixture.create_agent_application(
+        workspace=workspace,
+        run_as_subject_type="core.Agent",
+        run_as_subject_id=identity.id,
+    )
+    unselected = data_fixture.create_agent_application(workspace=workspace)
+    data_fixture.create_agent_application(workspace=workspace, trashed=True)
+    data_fixture.create_agent_application()
+    AgentApplication.objects.create(name="Snapshot", workspace=None, order=1)
+    identities = IdentityService()
+    if change in {"restore", "delete"}:
+        identities.delete_agent(user, identity)
+    broadcast = mocker.patch(
+        "baserow.contrib.agent.ws.signals.broadcast_to_permitted_users.delay"
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        with transaction.atomic():
+            if change == "create":
+                identities.create_agent(user, workspace, name="PRIVATE NEW IDENTITY")
+            elif change == "rename":
+                identities.update_agent(user, identity, name="PRIVATE NEW NAME")
+            elif change == "trash":
+                identities.delete_agent(user, identity)
+            elif change == "restore":
+                TrashHandler.restore_item(user, "agent", identity.id)
+            else:
+                TrashHandler.permanently_delete(identity)
+            broadcast.assert_not_called()
+
+    expected = [
+        call(
+            workspace.id,
+            ReadAgentConfigurationOperationType.type,
+            "application",
+            application.id,
+            {
+                "type": "agent_run_as_updated",
+                "agent_id": application.id,
+                "selected_identity_changed": (
+                    application == selected and change != "create"
+                ),
+            },
+        )
+        for application in [selected, unselected]
+    ]
+    invalidations = [
+        entry
+        for entry in broadcast.call_args_list
+        if entry.args[4]["type"] == "agent_run_as_updated"
+    ]
+    assert len(invalidations) == len(expected)
+    assert all(entry in invalidations for entry in expected)
+
+
+@pytest.mark.django_db
+def test_rolled_back_identity_change_does_not_invalidate_configuration(
+    data_fixture, mocker, django_capture_on_commit_callbacks
+):
+    user = data_fixture.create_user()
+    application = data_fixture.create_agent_application(user=user)
+    identity = Agent.objects.create(workspace=application.workspace, name="Original")
+    broadcast = mocker.patch(
+        "baserow.contrib.agent.ws.signals.broadcast_to_permitted_users.delay"
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        with pytest.raises(RuntimeError):
+            with transaction.atomic():
+                IdentityService().update_agent(user, identity, name="Rolled back")
+                raise RuntimeError("Abort identity change")
+
+    identity.refresh_from_db()
+    assert identity.name == "Original"
     broadcast.assert_not_called()

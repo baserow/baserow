@@ -184,6 +184,9 @@ def test_the_model_gets_the_instructions_and_recent_history(
         ("missing", True),
         ("other_workspace", True),
         ("unknown_type", True),
+        ("user", True),
+        ("type_only", True),
+        ("id_only", True),
     ],
 )
 def test_the_model_knows_when_its_configured_workspace_identity_is_unavailable(
@@ -206,6 +209,13 @@ def test_the_model_knows_when_its_configured_workspace_identity_is_unavailable(
             identity.save()
         elif identity_state == "unknown_type":
             agent.run_as_subject_type = "unknown.subject"
+        elif identity_state == "user":
+            agent.run_as_subject_type = "auth.User"
+            agent.run_as_subject_id = user.id
+        elif identity_state == "type_only":
+            agent.run_as_subject_id = None
+        elif identity_state == "id_only":
+            agent.run_as_subject_type = None
         agent.save()
     seen = []
 

@@ -3,10 +3,23 @@ from typing import Literal
 from uuid import UUID
 
 from baserow.core.models import Workspace
+from baserow.core.types import Subject
 
+from .constants import AgentRunAsState
 from .models import AgentApplication, AgentConversation, AgentMessage
 
 AgentReadinessState = Literal["ready", "incomplete", "unavailable"]
+
+
+@dataclass(frozen=True)
+class AgentRunAsResolution:
+    """A configured identity and its availability in the Agent's workspace."""
+
+    status: AgentRunAsState
+    subject_type: str | None
+    subject_id: int | None
+    subject: Subject | None = None
+    name: str | None = None
 
 
 @dataclass(frozen=True)
@@ -17,8 +30,7 @@ class AgentConfiguration:
     instructions: str
     provider_type: str | None
     model_identifier: str | None
-    run_as_subject_type: str | None
-    run_as_subject_id: int | None
+    run_as: AgentRunAsResolution
     errors: dict[str, str]
 
 

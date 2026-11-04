@@ -2,6 +2,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useStore } from 'vuex'
 import { onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
 import { useNuxtApp } from '#app'
+import debounce from 'lodash/debounce'
 import { getEnabledModelsForAIProviderFeature } from '@baserow/modules/core/aiProviderModelFeatureTypes'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import ApplicationService from '@baserow/modules/core/services/application'
@@ -25,7 +26,7 @@ const isSameValue = (field, a, b) =>
 /** Page-local Agent configuration, kept out of the shared application store. */
 export function useAgentConfiguration(agent) {
   const store = useStore()
-  const { $client, $hasPermission } = useNuxtApp()
+  const { $client, $hasPermission, $i18n } = useNuxtApp()
   const service = AgentApplicationService($client)
   const applicationService = ApplicationService($client)
   const permission = (operation) =>
@@ -73,6 +74,7 @@ export function useAgentConfiguration(agent) {
   let availabilityRequest = 0
   let configurationRequest = 0
   let refreshPending = false
+  let refreshPendingRecovery = false
   let inFlightConfiguration = {}
   let configurationSavePromise = null
   let nameSavePromise = null
@@ -257,10 +259,11 @@ export function useAgentConfiguration(agent) {
     updateApplication({ readiness: data.readiness })
   }
 
-  async function fetchConfiguration() {
+  async function fetchConfiguration(realtimeRecovery = false) {
     if (!canReadConfiguration.value) return
     if (savingConfiguration.value) {
       refreshPending = true
+      refreshPendingRecovery ||= realtimeRecovery
       return
     }
     const currentScope = scope
@@ -269,7 +272,7 @@ export function useAgentConfiguration(agent) {
     configurationLoading.value = !savedConfiguration.value
     configurationLoadError.value = false
     try {
-      const { data } = await service.getConfiguration(agentId)
+      const { data } = await service.getConfiguration(agentId, realtimeRecovery)
       if (
         scopeIsCurrent(currentScope) &&
         request === configurationRequest &&
@@ -325,6 +328,7 @@ export function useAgentConfiguration(agent) {
     configurationSaveError.value = false
     ++configurationRequest
     configurationSavePromise = (async () => {
+      let rejectedIdentity = false
       try {
         const { data } = await service.updateConfiguration(agentId, values)
         if (!scopeIsCurrent(currentScope) || !canReadConfiguration.value) {
@@ -337,8 +341,28 @@ export function useAgentConfiguration(agent) {
         }
         applyConfiguration(data)
         return true
-      } catch {
+      } catch (error) {
         if (scopeIsCurrent(currentScope) && canReadConfiguration.value) {
+          if (
+            error.response?.data?.error ===
+              'ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST' &&
+            Object.hasOwn(values, 'run_as')
+          ) {
+            // A domain rejection confirms that none of this PATCH was saved.
+            // Roll back only that submitted choice; newer edits remain pending.
+            if (isSameValue('run_as', configuration.run_as, values.run_as)) {
+              configuration.run_as = savedConfiguration.value?.run_as ?? null
+              delete pendingConfiguration.run_as
+              store.dispatch('toast/error', {
+                title: $i18n.t('agent.runAsRejectedTitle'),
+                message: $i18n.t('agent.runAsRejected'),
+              })
+            }
+            rejectedIdentity = true
+            refreshPending = true
+            refreshPendingRecovery = true
+            return 'rejected_identity'
+          }
           configurationSaveError.value = true
         }
         return false
@@ -347,13 +371,25 @@ export function useAgentConfiguration(agent) {
           if (!canReadConfiguration.value) fetchAgentReadiness()
           savingConfiguration.value = false
           inFlightConfiguration = {}
-          if (refreshPending) {
+          if (
+            refreshPending &&
+            !(rejectedIdentity && hasPendingConfiguration.value)
+          ) {
+            const realtimeRecovery = refreshPendingRecovery
             refreshPending = false
-            fetchConfiguration()
+            refreshPendingRecovery = false
+            fetchConfiguration(realtimeRecovery)
           }
         }
       }
-    })()
+    })().then((result) => {
+      if (result === 'rejected_identity' && scopeIsCurrent(currentScope)) {
+        // Other fields in the rejected PATCH still need saving. Do not make the
+        // user retry them together with a selection the server has refused.
+        return hasPendingConfiguration.value ? saveConfiguration() : false
+      }
+      return result
+    })
     return configurationSavePromise
   }
 
@@ -396,6 +432,7 @@ export function useAgentConfiguration(agent) {
   }
 
   function reset() {
+    refreshRunAs.cancel()
     ++scope
     name.value = agent.value?.name ?? ''
     clearConfiguration()
@@ -409,6 +446,7 @@ export function useAgentConfiguration(agent) {
     nameSavePromise = null
     savingName.value = false
     refreshPending = false
+    refreshPendingRecovery = false
   }
 
   onMounted(() => refreshConfiguration({ refreshAgent: false }))
@@ -424,23 +462,24 @@ export function useAgentConfiguration(agent) {
     }
   )
   watch(
-    [
-      () => agent.value?._?.realtimeVersion,
-      () => store.getters['agent/getRevision'](agent.value?.workspace.id),
-    ],
-    () => fetchConfiguration()
+    () => agent.value?._?.realtimeVersion,
+    () => fetchConfiguration(true)
   )
+  const refreshRunAs = debounce(() => fetchConfiguration(true), 100, {
+    maxWait: 500,
+  })
+  watch(() => agent.value?._?.runAsIdentityVersion || 0, refreshRunAs)
   watch(
     () => JSON.stringify(enabledModels.value),
     () => {
       fetchAgentReadiness()
-      fetchConfiguration()
+      fetchConfiguration(true)
     }
   )
   watch(canReadConfiguration, (allowed) => {
     if (allowed) {
       fetchAvailability()
-      fetchConfiguration()
+      fetchConfiguration(true)
     } else {
       ++availabilityRequest
       availabilityLoading.value = false

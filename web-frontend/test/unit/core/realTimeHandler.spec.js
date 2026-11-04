@@ -72,6 +72,34 @@ function fire(handler, type, data) {
 }
 
 describe('RealTimeHandler application updates', () => {
+  test.each([false, true])(
+    'invalidates agent choices, with selected identity changed=%s',
+    async (changed) => {
+      const { handler, store } = makeHandler()
+      const application = { id: 3, type: 'agent', _: { realtimeVersion: 7 } }
+      store.getters['application/get'] = () => application
+      await fire(handler, 'agent_run_as_updated', {
+        agent_id: 3,
+        selected_identity_changed: changed,
+      })
+      expect(store._dispatched).toEqual([
+        [
+          'application/forceUpdate',
+          {
+            application,
+            data: {
+              _: {
+                realtimeVersion: 7,
+                runAsOptionsVersion: 1,
+                runAsIdentityVersion: Number(changed),
+              },
+            },
+          },
+        ],
+      ])
+    }
+  )
+
   test('marks application updates as external, including unchanged public metadata', async () => {
     const { handler, store } = makeHandler()
     const application = { id: 3, type: 'agent', readiness: 'ready' }

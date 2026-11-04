@@ -40,6 +40,31 @@ describe('Agent configuration', () => {
 
   afterEach(() => destroyAgentPage(testApp))
 
+  const invalidateRunAs = (selected = true) =>
+    testApp.store.dispatch('application/forceUpdate', {
+      application: agent,
+      data: {
+        _: {
+          ...agent._,
+          runAsOptionsVersion: (agent._.runAsOptionsVersion || 0) + 1,
+          runAsIdentityVersion:
+            (agent._.runAsIdentityVersion || 0) + Number(selected),
+        },
+      },
+    })
+
+  const pickRunAs = async (wrapper, name) => {
+    await wrapper
+      .get('.agent-configuration .dropdown__selected')
+      .trigger('click')
+    await flushPromises()
+    await wrapper
+      .findAll('.agent-configuration .select__item-link')
+      .find((item) => item.text().includes(name))
+      .trigger('click')
+    await flushPromises()
+  }
+
   test('toggles the configuration from the header', async () => {
     const wrapper = await mount()
     const toggle = wrapper.get('button[aria-label="agent.configuration"]')
@@ -579,7 +604,7 @@ describe('Agent configuration', () => {
   })
 
   test('runs as a chosen identity or with no workspace access', async () => {
-    testApp.mock.onGet('/subjects/').reply(
+    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
       200,
       page([
         {
@@ -654,6 +679,7 @@ describe('Agent configuration', () => {
   )
 
   test('updates the collapsed workspace access error when the identity is deleted and restored', async () => {
+    useFakeTimers()
     mockConfiguration(testApp, completeConfiguration({ run_as: investor }))
     const wrapper = await mount()
     const error = () => workspaceAccessRow(wrapper).find('.icon--error')
@@ -670,10 +696,8 @@ describe('Agent configuration', () => {
       testApp,
       completeConfiguration({ run_as: { ...investor, trashed: true } })
     )
-    await testApp.store.dispatch('agent/forceDelete', {
-      workspaceId: 1,
-      agentId: investor.id,
-    })
+    await invalidateRunAs()
+    await vi.advanceTimersByTimeAsync(100)
     await flushPromises()
 
     expect(error().attributes('aria-label')).toBe('agent.runAsTrashed')
@@ -681,11 +705,8 @@ describe('Agent configuration', () => {
     expect(warning(wrapper).exists()).toBe(false)
 
     mockConfiguration(testApp, completeConfiguration({ run_as: investor }))
-    await testApp.store.dispatch('agent/forceCreate', {
-      id: investor.id,
-      workspace_id: 1,
-      name: investor.name,
-    })
+    await invalidateRunAs()
+    await vi.advanceTimersByTimeAsync(100)
     await flushPromises()
 
     expect(error().exists()).toBe(false)
@@ -706,7 +727,7 @@ describe('Agent configuration', () => {
         testApp,
         completeConfiguration({ run_as: { ...investor, trashed: true } })
       )
-      testApp.mock.onGet('/subjects/').reply(
+      testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
         200,
         page([
           {
@@ -750,14 +771,322 @@ describe('Agent configuration', () => {
     }
   )
 
+  test('shows a missing identity distinctly and can clear it directly', async () => {
+    const missing = { ...investor, name: null, status: 'missing' }
+    mockConfiguration(testApp, completeConfiguration({ run_as: missing }))
+    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(200, page([]))
+    mockSaves(testApp, completeConfiguration({ run_as: null }))
+    const wrapper = await mount()
+    expect(
+      workspaceAccessRow(wrapper).get('.icon--error').attributes('aria-label')
+    ).toBe('agent.runAsMissing')
+    await openSection(wrapper, 'agent.workspaceAccess')
+    expect(wrapper.get('.dropdown__selected-text').text()).toBe(
+      'agent.runAsMissingLabel'
+    )
+    expect(wrapper.get('.agent-configuration .dropdown').classes()).toContain(
+      'dropdown--error'
+    )
+    expect(wrapper.find('.control__helper-text').exists()).toBe(false)
+    await pickRunAs(wrapper, 'agent.noWorkspaceAccess')
+    expect(savedValues(testApp)).toEqual([
+      { run_as_subject_type: null, run_as_subject_id: null },
+    ])
+    expect(wrapper.get('.control__helper-text').text()).toBe(
+      'agent.noWorkspaceAccessHelper'
+    )
+  })
+
+  test('does not fetch identities for a readonly field and revalidates after edit permission is granted', async () => {
+    allowed.value = (operation) => operation !== 'application.update'
+    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(200, page([]))
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    await wrapper.get('.dropdown__selected').trigger('click')
+    await flushPromises()
+    const requests = () =>
+      testApp.mock.history.get.filter(({ url }) =>
+        url.includes('/run-as-subjects/')
+      )
+    expect(requests()).toHaveLength(0)
+    allowed.value = () => true
+    await flushPromises()
+    await wrapper.get('.dropdown__selected').trigger('click')
+    await flushPromises()
+    expect(requests()).toHaveLength(1)
+    expect(requests()[0].headers['X-Baserow-Realtime-Recovery']).toBe('true')
+  })
+
+  test('refreshes choices on opening and coalesces candidate events without fetching configuration or losing search and focus', async () => {
+    useFakeTimers()
+    const subjects = () =>
+      testApp.mock.history.get.filter(({ url }) =>
+        url.includes('/run-as-subjects/')
+      )
+    const configurations = () =>
+      testApp.mock.history.get.filter(({ url }) =>
+        url.includes('/configuration/')
+      )
+    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
+      200,
+      page([
+        {
+          id: 'core.Agent:7',
+          subject_type: 'core.Agent',
+          subject_id: 7,
+          name: 'Investor',
+        },
+      ])
+    )
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    await wrapper.get('.dropdown__selected').trigger('click')
+    await flushPromises()
+    const search = wrapper.get('.select__search-input')
+    await search.setValue('Inv')
+    await vi.advanceTimersByTimeAsync(400)
+    search.element.focus()
+    const configCount = configurations().length
+    const subjectCount = subjects().length
+    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
+      200,
+      page([
+        {
+          id: 'core.Agent:8',
+          subject_type: 'core.Agent',
+          subject_id: 8,
+          name: 'Investor replacement',
+        },
+      ])
+    )
+    for (let event = 0; event < 5; event++) {
+      await invalidateRunAs(false)
+      await vi.advanceTimersByTimeAsync(10)
+    }
+    await vi.advanceTimersByTimeAsync(100)
+    await flushPromises()
+    expect(configurations()).toHaveLength(configCount)
+    expect(subjects()).toHaveLength(subjectCount + 1)
+    expect(subjects().at(-1).params.search).toBe('Inv')
+    expect(wrapper.get('.select__items').text()).toContain(
+      'Investor replacement'
+    )
+    expect(search.element.value).toBe('Inv')
+    expect(document.activeElement).toBe(search.element)
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await wrapper.get('.dropdown__selected').trigger('click')
+    await flushPromises()
+    expect(subjects()).toHaveLength(subjectCount + 2)
+  })
+
+  test('coalesces selected identity events and preserves primary-read recovery across an in-flight save', async () => {
+    useFakeTimers()
+    const patch = deferredReply()
+    mockSaves(testApp, patch.reply)
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.instructions')
+    await editInstructions(wrapper, 'Changed')
+    const requests = () =>
+      testApp.mock.history.get.filter(({ url }) =>
+        url.includes('/configuration/')
+      )
+    const before = requests().length
+    for (let event = 0; event < 5; event++) {
+      await invalidateRunAs()
+      await vi.advanceTimersByTimeAsync(10)
+    }
+    await vi.advanceTimersByTimeAsync(100)
+    expect(requests()).toHaveLength(before)
+    patch.resolve(200, completeConfiguration({ instructions: 'Changed' }))
+    await flushPromises()
+    expect(requests()).toHaveLength(before + 1)
+    expect(requests().at(-1).headers['X-Baserow-Realtime-Recovery']).toBe(
+      'true'
+    )
+  })
+
+  test('rejects only the unavailable choice and saves other pending edits', async () => {
+    testApp.dontFailOnErrorResponses()
+    const patch = deferredReply()
+    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
+      200,
+      page([
+        {
+          id: 'core.Agent:7',
+          subject_type: 'core.Agent',
+          subject_id: 7,
+          name: 'Investor',
+        },
+      ])
+    )
+    mockSaves(
+      testApp,
+      patch.reply,
+      completeConfiguration({ instructions: 'Keep my draft', run_as: null })
+    )
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.instructions')
+    await instructions(wrapper).setValue('Keep my draft')
+    await wrapper.get('button[aria-label="action.back"]').trigger('click')
+    await openSection(wrapper, 'agent.workspaceAccess')
+    await pickRunAs(wrapper, 'Investor')
+    mockConfiguration(
+      testApp,
+      completeConfiguration({ instructions: 'Keep my draft', run_as: null })
+    )
+    patch.resolve(400, { error: 'ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST' })
+    await flushPromises()
+    expect(savedValues(testApp)).toEqual([
+      {
+        instructions: 'Keep my draft',
+        run_as_subject_type: 'core.Agent',
+        run_as_subject_id: 7,
+      },
+      { instructions: 'Keep my draft' },
+    ])
+    await wrapper.get('button[aria-label="action.back"]').trigger('click')
+    await openSection(wrapper, 'agent.instructions')
+    expect(instructions(wrapper).element.value).toBe('Keep my draft')
+    expect(testApp.store.state.toast.items[0].message).toBe(
+      'agent.runAsRejected'
+    )
+    expect(await leave()).toBe(true)
+  })
+
+  test('a late identity rejection preserves and saves a newer choice', async () => {
+    testApp.dontFailOnErrorResponses()
+    const patch = deferredReply()
+    const support = { ...investor, id: 8, name: 'Support', status: 'active' }
+    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
+      200,
+      page([
+        {
+          id: 'core.Agent:7',
+          subject_type: 'core.Agent',
+          subject_id: 7,
+          name: 'Investor',
+        },
+        {
+          id: 'core.Agent:8',
+          subject_type: 'core.Agent',
+          subject_id: 8,
+          name: 'Support',
+        },
+      ])
+    )
+    mockSaves(testApp, patch.reply, completeConfiguration({ run_as: support }))
+    mockConfiguration(
+      testApp,
+      completeConfiguration({ run_as: null }),
+      completeConfiguration({ run_as: support })
+    )
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    await pickRunAs(wrapper, 'Investor')
+    await pickRunAs(wrapper, 'Support')
+    patch.resolve(400, { error: 'ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST' })
+    await flushPromises()
+    expect(savedValues(testApp)).toEqual([
+      { run_as_subject_type: 'core.Agent', run_as_subject_id: 7 },
+      { run_as_subject_type: 'core.Agent', run_as_subject_id: 8 },
+    ])
+    expect(wrapper.get('.dropdown__selected-text').text()).toBe('Support')
+    expect(testApp.store.state.toast.items).toHaveLength(0)
+  })
+
+  test('keeps an identity draft on a network failure so it can be retried', async () => {
+    testApp.dontFailOnErrorResponses()
+    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
+      200,
+      page([
+        {
+          id: 'core.Agent:7',
+          subject_type: 'core.Agent',
+          subject_id: 7,
+          name: 'Investor',
+        },
+      ])
+    )
+    mockSaves(testApp, [500, {}], completeConfiguration({ run_as: investor }))
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    await pickRunAs(wrapper, 'Investor')
+    expect(wrapper.get('.dropdown__selected-text').text()).toBe('Investor')
+    expect(wrapper.get('.agent-configuration__save-status').text()).toContain(
+      'action.retry'
+    )
+    expect(testApp.store.state.toast.items).toHaveLength(0)
+    await wrapper
+      .get('.agent-configuration__save-status button')
+      .trigger('click')
+    await flushPromises()
+    expect(savedValues(testApp)).toEqual(
+      Array(2).fill({ run_as_subject_type: 'core.Agent', run_as_subject_id: 7 })
+    )
+    expect(wrapper.find('.agent-configuration__save-status').exists()).toBe(
+      false
+    )
+  })
+
+  test('refreshes during a sustained identity event burst instead of postponing indefinitely', async () => {
+    useFakeTimers()
+    await mount()
+    const requests = () =>
+      testApp.mock.history.get.filter(({ url }) =>
+        url.includes('/configuration/')
+      )
+    const before = requests().length
+    for (let event = 0; event < 8; event++) {
+      await invalidateRunAs()
+      await vi.advanceTimersByTimeAsync(80)
+    }
+    expect(requests()).toHaveLength(before + 1)
+    await vi.advanceTimersByTimeAsync(100)
+    expect(requests()).toHaveLength(before + 2)
+  })
+
+  test('keeps rejected-choice recovery failures separate from dirty edits', async () => {
+    testApp.dontFailOnErrorResponses()
+    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
+      200,
+      page([
+        {
+          id: 'core.Agent:7',
+          subject_type: 'core.Agent',
+          subject_id: 7,
+          name: 'Investor',
+        },
+      ])
+    )
+    mockSaves(testApp, [
+      400,
+      { error: 'ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST' },
+    ])
+    mockConfiguration(testApp, completeConfiguration({ run_as: null }), [
+      500,
+      {},
+    ])
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    await pickRunAs(wrapper, 'Investor')
+    expect(wrapper.get('.dropdown__selected-text').text()).toBe(
+      'agent.noWorkspaceAccess'
+    )
+    expect(wrapper.find('.agent-configuration__save-status').exists()).toBe(
+      false
+    )
+    expect(warning(wrapper).exists()).toBe(true)
+    expect(await leave()).toBe(true)
+    expect(savedValues(testApp)).toHaveLength(1)
+  })
+
   test('does not fetch private configuration for identity events without access', async () => {
+    useFakeTimers()
     allowed.value = withoutConfiguration
     const wrapper = await mount()
 
-    await testApp.store.dispatch('agent/forceDelete', {
-      workspaceId: 1,
-      agentId: investor.id,
-    })
+    await invalidateRunAs()
+    await vi.advanceTimersByTimeAsync(100)
     await flushPromises()
 
     expect(
@@ -787,7 +1116,7 @@ describe('Agent configuration', () => {
     'refreshes the run-as label when another editor %s',
     async (_, previous, next, expectedLabel) => {
       useFakeTimers()
-      testApp.mock.onGet('/subjects/').reply(200, page([]))
+      testApp.mock.onGet('/agent/10/run-as-subjects/').reply(200, page([]))
       mockConfiguration(testApp, completeConfiguration({ run_as: previous }))
       const wrapper = await mount()
       await openSection(wrapper, 'agent.workspaceAccess')

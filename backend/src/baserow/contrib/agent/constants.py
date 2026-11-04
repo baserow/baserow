@@ -1,3 +1,15 @@
+from enum import StrEnum
+
+
+class AgentRunAsState(StrEnum):
+    """Availability of an Agent's configured workspace identity."""
+
+    UNSET = "unset"
+    ACTIVE = "active"
+    TRASHED = "trashed"
+    MISSING = "missing"
+
+
 AGENT_RUN_TYPE = "agent"
 RUN_AS_SUBJECT_TYPES = ["core.Agent"]
 HISTORY_MESSAGE_LIMIT = 20

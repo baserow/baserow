@@ -7,6 +7,7 @@ from django.db.transaction import Atomic
 from django.urls import URLResolver, include, path
 
 from baserow.contrib.agent.api.serializers import AgentApplicationSerializer
+from baserow.contrib.agent.constants import AgentRunAsState
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication
 from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
@@ -47,7 +48,10 @@ class AgentApplicationType(ApplicationType):
         import_export_config: ImportExportConfig,
     ) -> tuple[str | None, int | None]:
         """
-        Keep the identity only in internal copies that stay in its workspace.
+        Keep existing identity references in internal copies of their workspace.
+
+        A trashed identity remains configured so restoring it also restores access
+        for the copy. Execution still requires an active identity.
 
         :param workspace: The workspace the Agent is imported into, or None for a
             snapshot, which keeps the identity for its restore.
@@ -63,9 +67,10 @@ class AgentApplicationType(ApplicationType):
         # Ids from another instance or template could match unrelated identities.
         if not import_export_config.is_duplicate or import_export_config.is_template:
             return None, None
-        if workspace is None or AgentHandler().is_run_as_subject_usable(
-            *run_as, workspace
-        ):
+        if workspace is None:
+            return run_as
+        resolution = AgentHandler().resolve_run_as_subject(*run_as, workspace)
+        if resolution.status in {AgentRunAsState.ACTIVE, AgentRunAsState.TRASHED}:
             return run_as
         return None, None
 
@@ -121,9 +126,17 @@ class AgentApplicationType(ApplicationType):
             instructions=application.instructions,
             provider_type=application.provider_type,
             model_identifier=application.model_identifier,
-            run_as_subject_type=application.run_as_subject_type,
-            run_as_subject_id=application.run_as_subject_id,
         )
+        # Identity ids are local references, not portable configuration.
+        if (
+            import_export_config.is_duplicate
+            and not import_export_config.is_template
+            and not import_export_config.exclude_sensitive_data
+        ):
+            serialized.update(
+                run_as_subject_type=application.run_as_subject_type,
+                run_as_subject_id=application.run_as_subject_id,
+            )
         if self._includes_conversations(import_export_config):
             serialized["conversations"] = AgentHandler().export_conversations(
                 application

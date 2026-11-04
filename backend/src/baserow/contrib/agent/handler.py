@@ -19,7 +19,12 @@ from baserow.core.registries import subject_type_registry
 from baserow.core.types import Subject
 from baserow.core.utils import extract_allowed, remove_null_characters
 
-from .constants import AGENT_RUN_TYPE, HISTORY_MESSAGE_LIMIT, RUN_AS_SUBJECT_TYPES
+from .constants import (
+    AGENT_RUN_TYPE,
+    HISTORY_MESSAGE_LIMIT,
+    RUN_AS_SUBJECT_TYPES,
+    AgentRunAsState,
+)
 from .exceptions import (
     AgentConversationDoesNotExist,
     AgentMessageConflict,
@@ -30,7 +35,9 @@ from .types import (
     AgentConfiguration,
     AgentConfigurationUpdated,
     AgentMessageCreated,
+    AgentReadinessState,
     AgentReplyRequest,
+    AgentRunAsResolution,
 )
 
 
@@ -76,6 +83,31 @@ class AgentHandler:
             each field that keeps the Agent from being ready.
         """
 
+        readiness, errors = self.get_configuration_readiness(agent, provider_state)
+        return AgentConfiguration(
+            readiness=readiness,
+            instructions=agent.instructions,
+            provider_type=agent.provider_type,
+            model_identifier=agent.model_identifier,
+            run_as=self.resolve_run_as_subject(
+                agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
+            ),
+            errors=errors,
+        )
+
+    def get_configuration_readiness(
+        self,
+        agent: AgentApplication,
+        provider_state: ScopedAIProviderState | None = None,
+    ) -> tuple[AgentReadinessState, dict[str, str]]:
+        """
+        Evaluate chat readiness without resolving the optional workspace identity.
+
+        :param agent: The Agent whose required configuration is evaluated.
+        :param provider_state: The already-loaded provider state, if available.
+        :return: The readiness and errors for the required configuration fields.
+        """
+
         errors = {}
         for field in self.configuration_fields:
             if not (getattr(agent, field) or "").strip():
@@ -100,15 +132,7 @@ class AgentHandler:
             readiness = "unavailable"
         else:
             readiness = "ready"
-        return AgentConfiguration(
-            readiness=readiness,
-            instructions=agent.instructions,
-            provider_type=agent.provider_type,
-            model_identifier=agent.model_identifier,
-            run_as_subject_type=agent.run_as_subject_type,
-            run_as_subject_id=agent.run_as_subject_id,
-            errors=errors,
-        )
+        return readiness, errors
 
     def get_run_as_subject(
         self,
@@ -135,6 +159,50 @@ class AgentHandler:
         except SubjectTypeNotExist:
             return None
 
+    def resolve_run_as_subject(
+        self,
+        subject_type: str | None,
+        subject_id: int | None,
+        workspace: Workspace | None,
+    ) -> AgentRunAsResolution:
+        """
+        Resolve a saved identity without confusing unavailable access with no access.
+
+        :param subject_type: The saved subject type, or None.
+        :param subject_id: The saved subject id, or None.
+        :param workspace: The Agent's workspace.
+        :return: The explicit availability state. Only allowed subjects from this
+            workspace carry their object and name, including recoverable trash.
+        """
+
+        if subject_type is None and subject_id is None:
+            return AgentRunAsResolution(AgentRunAsState.UNSET, subject_type, subject_id)
+        missing = AgentRunAsResolution(
+            AgentRunAsState.MISSING, subject_type, subject_id
+        )
+        if (
+            subject_type not in RUN_AS_SUBJECT_TYPES
+            or subject_id is None
+            or workspace is None
+            or workspace.trashed
+        ):
+            return missing
+        subject = self.get_run_as_subject(subject_type, subject_id, include_trash=True)
+        if subject is None:
+            return missing
+        registered_type = subject_type_registry.get(subject_type)
+        if not registered_type.is_in_workspace(subject, workspace, include_trash=True):
+            return missing
+        return AgentRunAsResolution(
+            AgentRunAsState.TRASHED
+            if getattr(subject, "trashed", False)
+            else AgentRunAsState.ACTIVE,
+            subject_type,
+            subject_id,
+            subject,
+            registered_type.get_display_name(subject),
+        )
+
     def is_run_as_subject_usable(
         self, subject_type: str | None, subject_id: int | None, workspace: Workspace
     ) -> bool:
@@ -148,13 +216,9 @@ class AgentHandler:
             and belongs to the workspace.
         """
 
-        subject = self.get_run_as_subject(subject_type, subject_id)
         return (
-            subject_type in RUN_AS_SUBJECT_TYPES
-            and subject is not None
-            and subject_type_registry.get(subject_type).is_in_workspace(
-                subject, workspace
-            )
+            self.resolve_run_as_subject(subject_type, subject_id, workspace).status
+            == AgentRunAsState.ACTIVE
         )
 
     def update_configuration(
@@ -513,6 +577,9 @@ class AgentHandler:
         prompt, *history = conversation.messages.filter(id__lt=reply.id).order_by(
             "-id"
         )[: HISTORY_MESSAGE_LIMIT + 1]
+        run_as = self.resolve_run_as_subject(
+            agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
+        )
         return AgentReplyRequest(
             reply_id=reply.id,
             workspace=agent.workspace,
@@ -521,13 +588,8 @@ class AgentHandler:
             model_identifier=agent.model_identifier,
             prompt=prompt.content,
             history=list(reversed(history)),
-            run_as_unavailable=(
-                agent.run_as_subject_type is not None
-                or agent.run_as_subject_id is not None
-            )
-            and not self.is_run_as_subject_usable(
-                agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
-            ),
+            run_as_unavailable=run_as.status
+            in {AgentRunAsState.TRASHED, AgentRunAsState.MISSING},
         )
 
     def finish_reply(

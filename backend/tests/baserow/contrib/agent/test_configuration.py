@@ -1,3 +1,4 @@
+from django.db import DEFAULT_DB_ALIAS
 from django.urls import reverse
 
 import pytest
@@ -6,6 +7,8 @@ from baserow.api.applications.serializers import (
     PolymorphicApplicationResponseSerializer,
 )
 from baserow.contrib.agent.actions import UpdateAgentConfigurationActionType
+from baserow.contrib.agent.api.serializers import AgentConfigurationSerializer
+from baserow.contrib.agent.constants import AgentRunAsState
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.types import AgentConfiguration
 from baserow.core.ai_provider.resolution import (
@@ -42,6 +45,7 @@ def test_configuration_reports_missing_and_unavailable_fields(
     configuration = AgentHandler().get_configuration(configured_agent(**values))
 
     assert isinstance(configuration, AgentConfiguration)
+    assert configuration.run_as.status is AgentRunAsState.UNSET
     assert (configuration.readiness, configuration.errors) == (
         readiness,
         errors,
@@ -56,6 +60,10 @@ def test_application_readiness_uses_bulk_provider_state(
     agents = []
     for _ in range(workspace_count):
         ready = configured_agent()
+        identity = Agent.objects.create(workspace=ready.workspace, name="Investor")
+        ready.run_as_subject_type = "core.Agent"
+        ready.run_as_subject_id = identity.id
+        ready.save()
         agents.extend(
             [
                 ready,
@@ -186,20 +194,169 @@ def test_run_as_identity_is_set_reported_and_cleared(
     response = api_client.patch(
         url, {"run_as_subject_type": "core.Agent", "run_as_subject_id": identity.id}
     )
-    assert response.json()["run_as"] == {**run_as, "trashed": False}
+    assert response.json()["run_as"] == {
+        **run_as,
+        "trashed": False,
+        "status": "active",
+    }
 
     identity.trashed = True
     identity.save()
-    assert api_client.get(url).json()["run_as"] == {**run_as, "trashed": True}
+    assert api_client.get(url).json()["run_as"] == {
+        **run_as,
+        "trashed": True,
+        "status": "trashed",
+    }
 
     identity.delete()
-    assert api_client.get(url).json()["run_as"] is None
+    assert api_client.get(url).json()["run_as"] == {
+        **run_as,
+        "name": None,
+        "trashed": False,
+        "status": "missing",
+    }
 
     response = api_client.patch(
         url, {"run_as_subject_type": None, "run_as_subject_id": None}
     )
     agent.refresh_from_db()
     assert (response.status_code, agent.run_as_subject_id) == (200, None)
+    assert response.json()["run_as"] is None
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "case", ["missing", "foreign", "unknown_type", "user", "type_only", "id_only"]
+)
+def test_configuration_preserves_unavailable_run_as_without_disclosing_subject(
+    configured_agent, data_fixture, api_client, api_user, case
+):
+    agent = configured_agent(user=api_user)
+    identity = Agent.objects.create(
+        workspace=agent.workspace, name="PRIVATE_IDENTITY_NAME"
+    )
+    agent.run_as_subject_type = "core.Agent"
+    agent.run_as_subject_id = identity.id
+    if case == "missing":
+        identity.delete()
+    elif case == "foreign":
+        identity.workspace = data_fixture.create_workspace()
+        identity.save()
+    elif case == "unknown_type":
+        agent.run_as_subject_type = "unknown.subject"
+    elif case == "user":
+        agent.run_as_subject_type = "auth.User"
+        agent.run_as_subject_id = api_user.id
+    elif case == "type_only":
+        agent.run_as_subject_id = None
+    elif case == "id_only":
+        agent.run_as_subject_type = None
+    agent.save()
+
+    response = api_client.get(agent_url(agent, "configuration"))
+
+    assert response.status_code == 200
+    assert response.json()["run_as"] == {
+        "type": agent.run_as_subject_type,
+        "id": agent.run_as_subject_id,
+        "name": None,
+        "trashed": False,
+        "status": "missing",
+    }
+    assert "PRIVATE_IDENTITY_NAME" not in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_configuration_serializes_the_resolved_identity_snapshot(
+    configured_agent, django_assert_num_queries
+):
+    agent = configured_agent()
+    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
+    agent.run_as_subject_type = "core.Agent"
+    agent.run_as_subject_id = identity.id
+    configuration = AgentHandler().get_configuration(agent)
+    assert configuration.run_as.status is AgentRunAsState.ACTIVE
+    identity.name = "Renamed"
+    identity.save()
+
+    with django_assert_num_queries(0):
+        payload = AgentConfigurationSerializer(configuration).data
+
+    assert payload["run_as"]["name"] == "Investor"
+    assert payload["run_as"]["status"] == "active"
+
+
+@pytest.mark.django_db
+def test_run_as_subject_options_use_agent_scope_and_support_search_and_pagination(
+    configured_agent, data_fixture, api_client, api_user
+):
+    agent = configured_agent(user=api_user)
+    first = Agent.objects.create(workspace=agent.workspace, name="Review Alpha")
+    second = Agent.objects.create(workspace=agent.workspace, name="Review Beta")
+    Agent.objects.create(workspace=agent.workspace, name="Other identity")
+    Agent.objects.create(workspace=agent.workspace, name="Review trash", trashed=True)
+    other_workspace = data_fixture.create_workspace()
+    Agent.objects.create(workspace=other_workspace, name="Review foreign")
+    params = {
+        "search": "review",
+        "size": 1,
+        # Caller-supplied scopes cannot alter the application-owned choices.
+        "workspace_id": other_workspace.id,
+        "subject_types": "auth.User",
+    }
+    url = agent_url(agent, "run_as_subjects")
+
+    first_page = api_client.get(url, {**params, "page": 1})
+    second_page = api_client.get(url, {**params, "page": 2})
+
+    assert first_page.status_code == second_page.status_code == 200
+    assert first_page.json()["count"] == second_page.json()["count"] == 2
+    results = first_page.json()["results"] + second_page.json()["results"]
+    assert [(item["subject_type"], item["subject_id"]) for item in results] == [
+        ("core.Agent", first.id),
+        ("core.Agent", second.id),
+    ]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("case", ["other_workspace", "trashed", "snapshot"])
+def test_run_as_subject_options_reject_inaccessible_applications(
+    configured_agent, api_client, api_user, case
+):
+    agent = configured_agent(user=None if case == "other_workspace" else api_user)
+    if case == "trashed":
+        agent.trashed = True
+        agent.save()
+    elif case == "snapshot":
+        agent.workspace = None
+        agent.save()
+
+    response = api_client.get(agent_url(agent, "run_as_subjects"))
+
+    assert response.status_code == (401 if case == "other_workspace" else 404)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("endpoint", ["configuration", "run_as_subjects"])
+@pytest.mark.parametrize("authenticated", [True, False])
+def test_run_as_recovery_only_pins_authenticated_reads(
+    configured_agent, api_client, api_user, mocker, endpoint, authenticated
+):
+    agent = configured_agent(user=api_user)
+    if not authenticated:
+        api_client.credentials()
+    pin = mocker.patch("baserow.api.mixins.set_db_alias")
+
+    response = api_client.get(
+        agent_url(agent, endpoint), HTTP_X_BASEROW_REALTIME_RECOVERY="true"
+    )
+
+    if authenticated:
+        assert response.status_code == 200
+        pin.assert_called_once_with(DEFAULT_DB_ALIAS)
+    else:
+        assert response.status_code == 401
+        pin.assert_not_called()
 
 
 @pytest.mark.django_db
