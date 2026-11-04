@@ -37,7 +37,7 @@ class AgentChatRunType(ChatRunType):
     type = AGENT_RUN_TYPE
 
     def get_max_active_runs_per_user(self, user: AbstractUser) -> int | None:
-        """A plugin can replace this run type to set the limit per user's plan."""
+        """A plugin can replace this run type to set the limit per user."""
 
         return settings.BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_USER
 
