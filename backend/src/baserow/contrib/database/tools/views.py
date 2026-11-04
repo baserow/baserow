@@ -41,8 +41,13 @@ from baserow.contrib.database.views.actions import (
 from baserow.contrib.database.views.exceptions import ViewFilterNotSupported
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import FormView, View, ViewFilter
-from baserow.contrib.database.views.registries import view_type_registry
+from baserow.contrib.database.views.operations import CreateViewFilterOperationType
+from baserow.contrib.database.views.registries import (
+    view_ownership_type_registry,
+    view_type_registry,
+)
 from baserow.core.exceptions import PermissionException
+from baserow.core.handler import CoreHandler
 from baserow.core.tools import ToolContext
 
 
@@ -278,9 +283,16 @@ def list_views(
         limit=100,
         prefetch_field_options=False,
     )
-    views = list(views)
+    # The same redaction as the views API: what a view's ownership type hides from
+    # this user, like the filters and hidden fields of a restricted view.
+    views = view_ownership_type_registry.prepare_views_of_different_types_for_user(
+        ctx.user, list(views), includes={"filters", "sortings", "decorations"}
+    )
     form_options = _form_field_options_by_view(views)
-    hidden_field_ids = _hidden_field_ids_by_view(views, table)
+    hidden_field_ids = _hidden_field_ids_by_view(
+        [view for view in views if getattr(view, "_hidden_field_ids", None) is None],
+        table,
+    )
     return {
         "views": [
             {
@@ -1118,6 +1130,14 @@ def create_view_filters(
     # Every view is checked before anything is written, so a missing view fails
     # the call without leaving the filters of the other views behind.
     orm_views = [get_view(ctx, view_filter.view_id) for view_filter in view_filters]
+    # Before reading the fields, as a skipped filter's error names them.
+    for orm_view in orm_views:
+        CoreHandler().check_permissions(
+            ctx.user,
+            CreateViewFilterOperationType.type,
+            workspace=ctx.workspace,
+            context=orm_view,
+        )
 
     created_view_filters = []
     # One transaction for every view, so an error on a later view doesn't leave

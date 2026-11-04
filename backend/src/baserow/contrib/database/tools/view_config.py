@@ -43,7 +43,11 @@ from baserow.contrib.database.views.models import (
     ViewFilter,
     ViewSort,
 )
+from baserow.contrib.database.views.operations import (
+    CreateViewDecorationOperationType,
+)
 from baserow.contrib.database.views.registries import view_type_registry
+from baserow.core.handler import CoreHandler
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import ToolInputError, item_error_message
 
@@ -366,6 +370,13 @@ def set_row_colours(
 
     view = get_view(ctx, view_id)
     ctx.update_status(_("Colouring %(view_name)s...") % {"view_name": view.name})
+    # Before reading the fields, as an error about a field names it.
+    CoreHandler().check_permissions(
+        ctx.user,
+        CreateViewDecorationOperationType.type,
+        workspace=ctx.workspace,
+        context=view,
+    )
 
     try:
         with transaction.atomic():
