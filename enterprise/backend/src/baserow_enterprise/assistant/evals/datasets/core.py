@@ -205,9 +205,8 @@ def _audit_log_scenario(fx: Fixtures) -> EvalScenario:
 
 def _called_the_audit_log(output: EvalRunOutput) -> CheckResult:
     return CheckResult(
-        "called list_audit_log or search_audit_log",
-        tool_called(output, "list_audit_log") + tool_called(output, "search_audit_log")
-        >= 1,
+        "called list_audit_log",
+        tool_called(output, "list_audit_log") >= 1,
     )
 
 

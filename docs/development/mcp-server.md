@@ -148,8 +148,7 @@ OpenAI verifies the domain of a submitted ChatGPT app by fetching `/.well-known/
 | `create_widgets` | `dashboard_edit` | off | no | Add summary, chart and pie chart widgets to a dashboard |
 | `update_widgets` | `dashboard_edit` | off | yes | Change a widget's title, chart type, or what it shows |
 | `delete_widgets` | `dashboard_delete` | off | yes | Delete (trash) widgets |
-| `list_audit_log` | `audit_log_read` | off | no | List who did what in this workspace. Needs advanced or enterprise and a workspace admin (shared with Kuma) |
-| `search_audit_log` | `audit_log_read` | off | no | Search the workspace's audit log by text within 90 days. Needs advanced or enterprise and a workspace admin (shared with Kuma) |
+| `list_audit_log` | `audit_log_read` | off | no | List who did what in this workspace, with an optional text search of at most 90 days. Needs advanced or enterprise and a workspace admin (shared with Kuma) |
 | `list_builders` | `builder_read` | on | no | List the application builders of the workspace, a page at a time (shared with Kuma) |
 | `list_pages` | `builder_read` | on | no | List the pages of an application builder (shared with Kuma) |
 | `list_data_sources` | `builder_read` | on | no | List the data sources of a page (shared with Kuma) |

@@ -163,8 +163,8 @@ def set_view_sorts(
     result = []
     try:
         with transaction.atomic():
-            # One replacement at a time, or two could each add to the same old list.
-            View.objects.select_for_update(of=("self",)).get(id=view.id)
+            # Or another change could be lost, as the list below would be out of date.
+            ViewHandler().lock_view_sorts(view)
             existing = list(
                 ViewSort.objects.filter(view=view).order_by("priority", "id")
             )

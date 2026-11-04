@@ -10,7 +10,7 @@ raised ``AttributeError``.
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any, Callable
 from unittest.mock import patch
 
@@ -44,7 +44,6 @@ from baserow_enterprise.assistant.tools.builder.tools import (
 from baserow_enterprise.assistant.tools.core.tools import (
     list_audit_log,
     list_builders,
-    search_audit_log,
     search_workspace,
 )
 from baserow_enterprise.assistant.tools.dashboard.tools import (
@@ -410,19 +409,6 @@ def _list_audit_log_of_a_new_entry(ctx: Any, seed: SeededWorkspace) -> Any:
         return list_audit_log(ctx, thought="contract")
 
 
-def _search_audit_log_of_a_new_entry(ctx: Any, seed: SeededWorkspace) -> Any:
-    _audit_log_entry(seed)
-    now = datetime.now(timezone.utc)
-    with patch(_AUDIT_LOG_CHECK):
-        return search_audit_log(
-            ctx,
-            query="create",
-            from_timestamp=now - timedelta(days=1),
-            to_timestamp=now + timedelta(days=1),
-            thought="contract",
-        )
-
-
 def _check_audit_log(result: Any, seed: SeededWorkspace) -> None:
     assert result["has_more"] is False
     assert_items(
@@ -605,9 +591,6 @@ READ_TOOL_CASES: list[ReadToolCase] = [
         _check_list_row_comments,
     ),
     ReadToolCase("list_audit_log", _list_audit_log_of_a_new_entry, _check_audit_log),
-    ReadToolCase(
-        "search_audit_log", _search_audit_log_of_a_new_entry, _check_audit_log
-    ),
     ReadToolCase(
         "list_tables",
         lambda ctx, s: list_tables(

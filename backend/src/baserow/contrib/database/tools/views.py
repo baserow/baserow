@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Annotated, Any, Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import FieldDoesNotExist
@@ -744,7 +745,7 @@ def _date_orm_value(f, field, **kwargs):
     """
 
     # A profile can have no timezone.
-    timezone = kwargs.get("timezone") or "UTC"
+    timezone = f.timezone or kwargs.get("timezone") or "UTC"
     if not _date_mode_takes_value(f.mode):
         return f"{timezone}??{f.mode}"
     if f.mode == "exact_date":
@@ -850,6 +851,23 @@ class ViewFilterItemCreate(BaseModel):
     )
     mode: DateFilterMode | None = Field(None, description="(date) Date filter mode.")
     or_equal: bool = Field(False, description="(number, date) Include equal values.")
+    timezone: str | None = Field(
+        None,
+        description=(
+            "(date) The user's IANA timezone, like Europe/Amsterdam, so a mode like "
+            "today follows their day. UTC when unknown."
+        ),
+    )
+
+    @field_validator("timezone")
+    @classmethod
+    def _check_timezone(cls, value: str | None) -> str | None:
+        if value is not None:
+            try:
+                ZoneInfo(value)
+            except (ZoneInfoNotFoundError, ValueError, OSError) as exc:
+                raise ValueError(f"Unknown timezone '{value}'.") from exc
+        return value
 
     @model_validator(mode="before")
     @classmethod

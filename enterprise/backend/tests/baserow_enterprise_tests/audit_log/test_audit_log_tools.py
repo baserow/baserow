@@ -9,6 +9,7 @@ from django.db import transaction
 import pytest
 from asgiref.sync import async_to_sync
 from baserow_enterprise_tests.assistant.utils import make_test_ctx
+from freezegun import freeze_time
 from mcp.shared.memory import (
     create_connected_server_and_client_session as client_session,
 )
@@ -31,11 +32,11 @@ from baserow_enterprise.assistant.tools.core.tools import (
 )
 from baserow_enterprise.assistant.tools.routing import is_tool_active
 from baserow_enterprise.audit_log.models import AuditLogEntry
-from baserow_enterprise.audit_log.tools import list_audit_log, search_audit_log
+from baserow_enterprise.audit_log.tools import list_audit_log
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
 
 NOW = datetime(2026, 11, 2, 12, 0, tzinfo=timezone.utc)
-AUDIT_LOG_TOOLS = ["list_audit_log", "search_audit_log"]
+AUDIT_LOG_TOOLS = ["list_audit_log"]
 
 
 def _call(endpoint, name, arguments):
@@ -147,21 +148,6 @@ def test_list_audit_log_filters(admin_ctx, enterprise_data_fixture):
 
 
 @pytest.mark.django_db
-def test_list_audit_log_reads_a_timestamp_without_offset_in_the_user_timezone(
-    admin_ctx,
-):
-    entry = _entry(admin_ctx.workspace, admin_ctx.user)
-    admin_ctx.timezone = "Europe/Amsterdam"
-
-    # 12:30 in Amsterdam is before the entry, at 13:00 there.
-    before = list_audit_log(admin_ctx, to_timestamp=datetime(2026, 11, 2, 12, 30))
-    after = list_audit_log(admin_ctx, from_timestamp=datetime(2026, 11, 2, 12, 30))
-
-    assert before["entries"] == []
-    assert [e["id"] for e in after["entries"]] == [entry.id]
-
-
-@pytest.mark.django_db
 def test_list_audit_log_pages(admin_ctx):
     for days_ago in range(3):
         _entry(admin_ctx.workspace, admin_ctx.user, days_ago=days_ago)
@@ -182,7 +168,7 @@ def test_audit_log_needs_enterprise_licence(enterprise_data_fixture):
     with pytest.raises(FeaturesNotAvailableError):
         list_audit_log(ctx)
     with pytest.raises(FeaturesNotAvailableError):
-        search_audit_log(ctx, "table", NOW - timedelta(days=1), NOW)
+        list_audit_log(ctx, query="table")
 
 
 @pytest.mark.django_db
@@ -200,7 +186,7 @@ def test_audit_log_refuses_non_admin(
     with pytest.raises(PermissionException):
         list_audit_log(ctx)
     with pytest.raises(PermissionException):
-        search_audit_log(ctx, "table", NOW - timedelta(days=1), NOW)
+        list_audit_log(ctx, query="table")
 
 
 @pytest.mark.django_db
@@ -208,40 +194,95 @@ def test_audit_log_refuses_non_admin(
     "query",
     ["anna@example", "ANNA", "create_table", "create table"],
 )
-def test_search_audit_log_matches_actor_type_and_description(admin_ctx, query):
+@freeze_time(NOW)
+def test_list_audit_log_query_matches_actor_type_and_description(admin_ctx, query):
     entry = _entry(admin_ctx.workspace, admin_ctx.user)
+    _entry(
+        admin_ctx.workspace,
+        admin_ctx.user,
+        action_type="x",
+        actor_name="x",
+        original_action_short_descr="x",
+    )
 
-    result = search_audit_log(admin_ctx, query, NOW - timedelta(days=1), NOW)
+    result = list_audit_log(admin_ctx, query=query)
 
     assert [found["id"] for found in result["entries"]] == [entry.id]
 
 
 @pytest.mark.django_db
-def test_search_audit_log_stays_in_workspace_and_range(
+@freeze_time(NOW)
+def test_list_audit_log_query_stays_in_workspace_and_last_90_days(
     admin_ctx, enterprise_data_fixture
 ):
     other = enterprise_data_fixture.create_workspace(user=admin_ctx.user)
     _entry(other, admin_ctx.user)
-    _entry(admin_ctx.workspace, admin_ctx.user, days_ago=10)
-    _entry(admin_ctx.workspace, admin_ctx.user, action_type="other", days_ago=0)
+    recent = _entry(admin_ctx.workspace, admin_ctx.user, days_ago=89)
+    _entry(admin_ctx.workspace, admin_ctx.user, days_ago=91)
 
-    result = search_audit_log(
-        admin_ctx, "create_table", NOW - timedelta(days=1), NOW + timedelta(days=1)
+    result = list_audit_log(admin_ctx, query="create_table")
+
+    assert [found["id"] for found in result["entries"]] == [recent.id]
+
+
+@pytest.mark.django_db
+@freeze_time(NOW)
+def test_list_audit_log_without_query_is_not_limited_to_90_days(admin_ctx):
+    old = _entry(admin_ctx.workspace, admin_ctx.user, days_ago=200)
+
+    assert [e["id"] for e in list_audit_log(admin_ctx)["entries"]] == [old.id]
+
+
+@pytest.mark.django_db
+def test_list_audit_log_query_covers_90_days_from_a_start(admin_ctx):
+    inside = _entry(admin_ctx.workspace, admin_ctx.user, days_ago=100)
+    _entry(admin_ctx.workspace, admin_ctx.user, days_ago=5)
+
+    result = list_audit_log(
+        admin_ctx, query="create_table", from_timestamp=NOW - timedelta(days=101)
     )
 
-    assert result["entries"] == []
+    assert [found["id"] for found in result["entries"]] == [inside.id]
 
 
 @pytest.mark.django_db
-def test_search_audit_log_rejects_range_over_90_days(admin_ctx):
+def test_list_audit_log_query_rejects_range_over_90_days(admin_ctx):
     with pytest.raises(DjangoValidationError):
-        search_audit_log(admin_ctx, "table", NOW - timedelta(days=91), NOW)
+        list_audit_log(
+            admin_ctx,
+            query="table",
+            from_timestamp=NOW - timedelta(days=91),
+            to_timestamp=NOW,
+        )
 
 
 @pytest.mark.django_db
-def test_search_audit_log_rejects_reversed_range(admin_ctx):
+def test_list_audit_log_query_rejects_reversed_range(admin_ctx):
     with pytest.raises(DjangoValidationError):
-        search_audit_log(admin_ctx, "table", NOW, NOW - timedelta(days=1))
+        list_audit_log(
+            admin_ctx,
+            query="table",
+            from_timestamp=NOW,
+            to_timestamp=NOW - timedelta(days=1),
+        )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_list_audit_log_over_mcp_refuses_a_timestamp_without_offset(
+    admin_ctx, enterprise_data_fixture
+):
+    # Nothing tells MCP the user's timezone, so it would silently be read as UTC.
+    endpoint = enterprise_data_fixture.create_mcp_endpoint(
+        user=admin_ctx.user,
+        workspace=admin_ctx.workspace,
+        allowed_tools=AUDIT_LOG_TOOLS,
+    )
+
+    result = _call(
+        endpoint, "list_audit_log", {"from_timestamp": "2026-11-02T12:00:00"}
+    )
+
+    assert result.isError
 
 
 def test_audit_log_group_is_not_in_the_read_only_preset():
@@ -278,7 +319,7 @@ def test_list_audit_log_over_mcp(admin_ctx, enterprise_data_fixture):
     listed = _call(endpoint, "list_audit_log", {})
     searched = _call(
         endpoint,
-        "search_audit_log",
+        "list_audit_log",
         {
             "query": "anna",
             "from_timestamp": (NOW - timedelta(days=1)).isoformat(),
@@ -364,8 +405,8 @@ def test_audit_log_reads_entries_with_an_unknown_timezone(admin_ctx):
     assert len(list_audit_log(admin_ctx)["entries"]) == 1
 
 
-@pytest.mark.django_db
-def test_search_audit_log_over_mcp_refuses_a_blank_query(
+@pytest.mark.django_db(transaction=True)
+def test_list_audit_log_over_mcp_refuses_a_blank_query(
     admin_ctx, enterprise_data_fixture
 ):
     # Two spaces would run as a search and a blank result proves nothing.
@@ -377,12 +418,8 @@ def test_search_audit_log_over_mcp_refuses_a_blank_query(
 
     result = _call(
         endpoint,
-        "search_audit_log",
-        {
-            "query": "  ",
-            "from_timestamp": (NOW - timedelta(days=1)).isoformat(),
-            "to_timestamp": NOW.isoformat(),
-        },
+        "list_audit_log",
+        {"query": "  "},
     )
 
     assert result.isError

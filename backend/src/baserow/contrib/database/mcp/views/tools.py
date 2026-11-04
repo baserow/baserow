@@ -54,7 +54,7 @@ class SetFieldVisibilityMcpTool(FunctionMCPTool):
 class AddRowColoursMcpTool(FunctionMCPTool):
     type = "add_row_colours"
     group = GROUP_DATABASE_EDIT
-    title = "Set row colours"
+    title = "Add row colours"
     read_only = False
     destructive = False
     function = view_config.add_row_colours

@@ -128,7 +128,6 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow.core.mcp.registries import mcp_tool_registry
         from baserow_enterprise.mcp.audit_log.tools import (
             ListAuditLogMcpTool,
-            SearchAuditLogMcpTool,
         )
         from baserow_enterprise.mcp.builder.actions.tools import (
             AddActionFieldMappingMcpTool,
@@ -171,7 +170,6 @@ class BaserowEnterpriseConfig(AppConfig):
         mcp_tool_group_registry.register(BuilderReadMCPToolGroup())
         mcp_tool_group_registry.register(BuilderEditMCPToolGroup())
         mcp_tool_registry.register(ListAuditLogMcpTool())
-        mcp_tool_registry.register(SearchAuditLogMcpTool())
         mcp_tool_registry.register(ListBuildersMcpTool())
         mcp_tool_registry.register(ListPagesMcpTool())
         mcp_tool_registry.register(ListDataSourcesMcpTool())

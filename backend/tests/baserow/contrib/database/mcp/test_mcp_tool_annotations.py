@@ -38,7 +38,6 @@ EXPECTED = {
     "delete_view_filters": (False, True),
     "delete_row_colours": (False, True),
     "list_audit_log": (True, False),
-    "search_audit_log": (True, False),
     "list_dashboards": (True, False),
     "list_widgets": (True, False),
     "get_widget_data": (True, False),
