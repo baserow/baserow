@@ -1,9 +1,13 @@
-import { registerRealtimeEvents } from '@baserow/modules/agent/realtime'
+import { defineNuxtPlugin } from '#app'
 
 export default defineNuxtPlugin({
   name: 'agent-realtime',
-  dependsOn: ['realtime'],
-  setup(nuxtApp) {
-    registerRealtimeEvents(nuxtApp.$realtime)
+  dependsOn: ['realtime', 'application-shell'],
+  async setup(nuxtApp) {
+    if (nuxtApp.$isApplicationShell !== false) {
+      const { default: registerApplication } =
+        await import('@baserow/modules/agent/plugins/realtimeApplication')
+      await registerApplication(nuxtApp)
+    }
   },
 })

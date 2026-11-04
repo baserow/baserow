@@ -1,0 +1,43 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ColumnElement > adds public stacking fallback classes based on the element configuration 1`] = `
+"<div class="column-element column-element--stack-smartphone column-element--stack-tablet" style="--space-between-columns: 30px; --alignment: flex-start; --grid-template-columns: repeat(3, minmax(0, 1fr));">
+  <div class="column-element__column">
+    <div class="add-element-zone">
+      <div class="add-element-zone__button"><i class="iconoir-plus add-element-zone__icon"></i>
+        <!--v-if-->
+      </div>
+    </div>
+  </div>
+  <div class="column-element__column">
+    <div class="add-element-zone">
+      <div class="add-element-zone__button"><i class="iconoir-plus add-element-zone__icon"></i>
+        <!--v-if-->
+      </div>
+    </div>
+  </div>
+  <div class="column-element__column">
+    <div class="add-element-zone">
+      <div class="add-element-zone__button"><i class="iconoir-plus add-element-zone__icon"></i>
+        <!--v-if-->
+      </div>
+    </div>
+  </div>
+  <div data-test="add-element-modal" page="[object Object]"></div>
+</div>"
+`;
+
+exports[`ColumnElement > gridTemplateColumns computes correct template for custom layout 1`] = `
+"<div class="column-element column-element--public" style="--space-between-columns: 30px; --alignment: flex-start; --grid-template-columns: 1fr auto 2fr;">
+  <div class="column-element__column">
+    <!--v-if-->
+  </div>
+  <div class="column-element__column">
+    <!--v-if-->
+  </div>
+  <div class="column-element__column">
+    <!--v-if-->
+  </div>
+  <!--v-if-->
+</div>"
+`;
