@@ -160,18 +160,6 @@ def set_view_sorts(
     for field_id in field_ids:
         _get_field(fields, field_id)
 
-    existing = list(ViewSort.objects.filter(view=view).order_by("priority", "id"))
-    # A new sort goes after the others. Those at the start that already match are
-    # kept, the others are recreated to end up in the order of the list.
-    keep = 0
-    while (
-        keep < min(len(existing), len(sorts))
-        and existing[keep].field_id == sorts[keep].field_id
-    ):
-        keep += 1
-
-    # A sort recreated to move it keeps its type, like sorting by option order.
-    sort_types = {sort.field_id: sort.type for sort in existing[keep:]}
     result = []
     try:
         with transaction.atomic():
@@ -227,9 +215,6 @@ def set_field_visibility(
     field of a grid view, which can't be hidden, is reported in errors and the others
     are still changed. A form view has no hidden fields.
     """
-
-    if not fields:
-        raise DjangoValidationError("fields must hold at least one field.")
 
     view = get_view(ctx, view_id)
     ctx.update_status(_("Updating %(view_name)s...") % {"view_name": view.name})

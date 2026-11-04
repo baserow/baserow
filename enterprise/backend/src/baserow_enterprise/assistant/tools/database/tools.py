@@ -1402,7 +1402,7 @@ def set_field_visibility(
     view_id: Annotated[int, Field(description="The ID of the view.")],
     fields: Annotated[
         list[shared_view_config.FieldVisibility],
-        Field(description="The fields to hide or show."),
+        Field(min_length=1, description="The fields to hide or show."),
     ],
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
@@ -1416,7 +1416,6 @@ def set_field_visibility(
     DO NOT USE when: The view is a form; a form has no hidden fields.
     """
 
-    require_payload("set_field_visibility", "fields", fields)
     return shared_view_config.set_field_visibility(
         ctx.deps.tool_context(), view_id, fields
     )
