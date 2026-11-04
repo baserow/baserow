@@ -17,6 +17,14 @@ import { createPublicRuntimeBundle } from './publicRuntimeBundle.js'
 export default {
   ...baseConfig,
   hooks: {
+    /**
+     * Group the app entry and published Builder page's static dependencies into
+     * a shared runtime chunk. Splitting application features into lazy bundles
+     * otherwise creates many requests for small shared modules on public pages.
+     * The helper follows static imports only, so dynamically imported editor UI
+     * and optional features remain outside this group and load when requested.
+     * This changes the production client build; server bundling is unchanged.
+     */
     'vite:extendConfig'(config, { isClient }) {
       if (!isClient) return
       const { plugin, group } = createPublicRuntimeBundle()
@@ -24,10 +32,14 @@ export default {
       config.build.rollupOptions.output.codeSplitting = { groups: [group] }
     },
     /**
-     * Global registries reference feature entries without rendering them, and
-     * session cookies only need the domain parser when they are set.
-     * Nuxt otherwise prefetches their static dependencies even on login/public
-     * pages. Keep SSR preloads intact for components actually rendered there.
+     * Keep deferred features from downloading before they are needed. A dynamic
+     * import creates a separate chunk, but Nuxt can still prefetch that chunk
+     * and its static dependencies even when the page never renders the feature.
+     * Disable speculative prefetch for application/editor bundles, optional
+     * graphs and collection controls, and the session-cookie domain parser.
+     * Walk their static imports too, since those chunks can also be prefetched
+     * independently. Only the prefetch flag changes: SSR preloads remain enabled
+     * for components actually rendered, and explicit imports still load normally.
      */
     'build:manifest'(manifest) {
       const visited = new Set()
