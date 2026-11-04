@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
@@ -31,6 +31,7 @@ class UpdateDashboardDataSourceActionType(UndoableActionType):
         service_type: str
         data_source_original_params: dict[str, any]
         data_source_new_params: dict[str, any]
+        original_filter_links: dict[str, list] = field(default_factory=dict)
 
     @classmethod
     def do(
@@ -59,6 +60,7 @@ class UpdateDashboardDataSourceActionType(UndoableActionType):
                 service_type.type,
                 updated_data_source.original_values,
                 updated_data_source.new_values,
+                updated_data_source.original_filter_links,
             ),
             scope=cls.scope(updated_data_source.data_source.dashboard.id),
             workspace=updated_data_source.data_source.dashboard.workspace,
@@ -77,11 +79,12 @@ class UpdateDashboardDataSourceActionType(UndoableActionType):
         action_to_undo: Action,
     ):
         service_type = service_type_registry.get(params.service_type)
-        DashboardDataSourceService().update_data_source(
+        DashboardDataSourceService().restore_data_source(
             user,
             params.data_source_id,
-            service_type=service_type,
-            **params.data_source_original_params,
+            service_type,
+            params.data_source_original_params,
+            params.original_filter_links,
         )
 
     @classmethod
@@ -92,9 +95,9 @@ class UpdateDashboardDataSourceActionType(UndoableActionType):
         action_to_redo: Action,
     ):
         service_type = service_type_registry.get(params.service_type)
-        DashboardDataSourceService().update_data_source(
+        DashboardDataSourceService().restore_data_source(
             user,
             params.data_source_id,
-            service_type=service_type,
-            **params.data_source_new_params,
+            service_type,
+            params.data_source_new_params,
         )

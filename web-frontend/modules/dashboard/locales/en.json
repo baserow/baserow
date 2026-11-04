@@ -1,4 +1,9 @@
 {
+  "dashboardTableSelector": {
+    "confirmTitle": "Change table and reset filters?",
+    "confirmMessage": "Changing the table will clear all filter conditions for widgets using this source, including conditions from dashboard filters.",
+    "confirmAction": "Change and reset"
+  },
   "dashboard": {
     "descriptionPlaceholder": "Description",
     "addWidget": "Add widget",
