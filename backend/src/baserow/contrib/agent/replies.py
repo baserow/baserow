@@ -47,6 +47,7 @@ from baserow.core.tools import ToolContext
 from baserow.core.utils import remove_null_characters
 
 from .constants import (
+    ASK_FIRST_INSTRUCTIONS,
     INTERRUPTED_CHANGES_NOTE,
     INTERRUPTED_REPLY_NOTE,
     REPLY_REQUEST_LIMIT,
@@ -283,14 +284,17 @@ class AgentResponder:
         :return: The instructions.
         """
 
-        instructions = self._request.instructions
-        if self._request.run_as_unavailable:
+        request = self._request
+        instructions = request.instructions
+        if request.run_as_unavailable:
             instructions += f"\n\n{UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS}"
+        if request.allowed_tool_names and request.ask_first_tool_names:
+            instructions += f"\n\n{ASK_FIRST_INSTRUCTIONS}"
         if web_search_tool is not None:
             instructions += f"\n\n{WEB_SEARCH_INSTRUCTIONS}"
-        elif self._request.web_search_tool is not None:
+        elif request.web_search_tool is not None:
             instructions += f"\n\n{WEB_SEARCH_FAILED_INSTRUCTIONS}"
-        elif self._request.web_search_enabled:
+        elif request.web_search_enabled:
             instructions += f"\n\n{WEB_SEARCH_UNAVAILABLE_INSTRUCTIONS}"
         return instructions
 

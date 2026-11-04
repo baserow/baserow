@@ -40,8 +40,14 @@ INTERRUPTED_CHANGES_NOTE = (
     "have completed; check before repeating it.]"
 )
 REJECTED_TOOL_CALL_NOTE = (
-    "The user rejected this call, so it did not run. Don't repeat it: tell the "
-    "user, or follow their reason if they gave one."
+    "The user reviewed this call and rejected it, so it did not run."
+)
+ASK_FIRST_INSTRUCTIONS = (
+    "Some of your tools ask the user before they run: the user sees the call with "
+    "its inputs and approves or rejects it. Make these calls directly instead of "
+    "asking for confirmation in your reply. When a call is rejected, it did not "
+    "run: say so plainly, follow the user's reason if they gave one, and don't "
+    "repeat the call unless they ask for it again."
 )
 DISALLOWED_TOOL_CALL_NOTE = "This tool is no longer allowed."
 UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS = (

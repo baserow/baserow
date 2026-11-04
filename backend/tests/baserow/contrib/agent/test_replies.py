@@ -36,6 +36,7 @@ from baserow.contrib.agent.actions import (
 )
 from baserow.contrib.agent.chat_run_type import AgentChatRunType
 from baserow.contrib.agent.constants import (
+    ASK_FIRST_INSTRUCTIONS,
     INTERRUPTED_CHANGES_NOTE,
     INTERRUPTED_REPLY_NOTE,
     REJECTED_TOOL_CALL_NOTE,
@@ -1623,6 +1624,7 @@ def test_a_rejected_call_never_runs_and_the_model_learns_why(
         (part.tool_call_id, part.outcome, part.content)
         for part in received[-1][-1].parts
     ] == [("call_write", "denied", denial)]
+    assert ASK_FIRST_INSTRUCTIONS in received[-1][-1].instructions
 
 
 @pytest.mark.django_db
