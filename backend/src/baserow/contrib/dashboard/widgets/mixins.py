@@ -147,6 +147,8 @@ class FilterWidgetTypeMixin:
                 link.get("target_widget_id"), int
             ):
                 raise ValidationError("Invalid target widget.")
+            if not isinstance(link.get("enabled", True), bool):
+                raise ValidationError("Target filter enabled must be a boolean.")
             target_id = link["target_widget_id"]
             if target_id in known:
                 raise ValidationError("Duplicate target widget.")
@@ -208,10 +210,10 @@ class FilterWidgetTypeMixin:
 
     def get_runtime_filter(self, widget, target, dispatch_context):
         """Select a group using the owning filter's value and empty-input policy."""
-        value = dispatch_context[f"widget_data.{widget.id}"]
         for link in self.get_target_filters(widget):
-            if link["target_widget_id"] != target.id:
+            if link["target_widget_id"] != target.id or not link.get("enabled", True):
                 continue
+            value = dispatch_context[f"widget_data.{widget.id}"]
             if value != "" and value != []:
                 return link["group"]
             if link.get("empty_behavior") == "apply_alternative":

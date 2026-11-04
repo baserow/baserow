@@ -39,7 +39,7 @@ export const getWidgetFilterGroups = (
     const contribution = (owner.target_filters || []).find(
       (link) => link.target_widget_id === targetWidgetId
     )
-    if (!contribution) continue
+    if (!contribution || contribution.enabled === false) continue
 
     const alternativeGroup =
       contribution.empty_behavior === 'apply_alternative' &&

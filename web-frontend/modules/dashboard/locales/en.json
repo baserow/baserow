@@ -130,6 +130,8 @@
     "noAvailableTargets": "No matching widgets available.",
     "setUpConditions": "Set up conditions",
     "conditionCount": "1 condition | {count} conditions",
+    "targetDisabled": "Disabled",
+    "applyToWidget": "Apply filter to {widget}",
     "targetOptions": "Options for {widget}",
     "filterTarget": "Filter {widget}",
     "withValue": "With a value",

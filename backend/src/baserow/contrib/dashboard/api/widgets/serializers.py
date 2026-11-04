@@ -135,4 +135,5 @@ class FilterWidgetPublicSerializerMixin(serializers.Serializer):
         return [
             link["target_widget_id"]
             for link in instance.get_type().get_target_filters(instance)
+            if link.get("enabled", True)
         ]

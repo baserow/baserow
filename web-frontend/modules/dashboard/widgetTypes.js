@@ -251,7 +251,9 @@ export class FilterWidgetType extends WidgetType {
 
   getTargetWidgetIds(widget) {
     return widget.target_filters
-      ? widget.target_filters.map((link) => link.target_widget_id)
+      ? widget.target_filters
+          .filter((link) => link.enabled !== false)
+          .map((link) => link.target_widget_id)
       : widget.target_widget_ids || []
   }
 }

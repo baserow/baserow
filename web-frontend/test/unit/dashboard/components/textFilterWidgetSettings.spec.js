@@ -6,7 +6,10 @@ let testApp
 beforeEach(() => {
   testApp = new TestApp()
 })
-afterEach(() => testApp.afterEach())
+afterEach(async () => {
+  await testApp.afterEach()
+  vi.restoreAllMocks()
+})
 
 describe('TextFilterWidgetSettings', () => {
   test('keeps only the retained default when switching back to multiple values', async () => {
@@ -354,6 +357,46 @@ const option = (wrapper, text) =>
     .findAll('.select__item-link')
     .find((item) => item.text().includes(text))
 
+test('toggles a target without opening its conditions or losing either group', async () => {
+  const { wrapper, widget, dispatch, fetch } = await mountTargets({
+    linked: true,
+  })
+  widget.target_filters[0].group = conditionGroup('Country')
+  widget.target_filters[0].empty_behavior = 'apply_alternative'
+  widget.target_filters[0].alternative_group = conditionGroup('Fallback')
+  widget.target_filters.push({
+    target_widget_id: 5,
+    group: conditionGroup('Orders'),
+    empty_behavior: 'apply_nothing',
+  })
+  await flushPromises()
+  const original = JSON.parse(JSON.stringify(widget.target_filters))
+  const toggle = wrapper.find('[role="switch"]')
+  expect(toggle.attributes('aria-checked')).toBe('true')
+  await toggle.trigger('click')
+  await flushPromises()
+  expect(widget.target_filters).toEqual([
+    { ...original[0], enabled: false },
+    original[1],
+  ])
+  expect(toggle.attributes('aria-checked')).toBe('false')
+  expect(wrapper.find('.dashboard-widget-filter-target').text()).toContain(
+    'textFilterWidget.targetDisabled'
+  )
+  expect(
+    wrapper.findComponent({ name: 'WidgetFilterConfigurationModal' }).exists()
+  ).toBe(false)
+  expect(fetch).not.toHaveBeenCalled()
+  expect(dispatch).toHaveBeenCalledOnce()
+  await toggle.trigger('click')
+  await flushPromises()
+  expect(widget.target_filters).toEqual([
+    { ...original[0], enabled: true },
+    original[1],
+  ])
+  expect(toggle.attributes('aria-checked')).toBe('true')
+})
+
 test('adds eligible widgets together, keeps existing conditions and isolates template saves', async () => {
   const { wrapper, widget, dispatch, fetch, namespace } = await mountTargets({
     prefix: 'template/',
@@ -394,6 +437,25 @@ test('adds eligible widgets together, keeps existing conditions and isolates tem
     expect.objectContaining({ widgetId: 2 })
   )
   expect(testApp.store.getters[`${namespace}/getSelectedWidgetId`]).toBe(2)
+})
+
+test('does not present disabled filter links as other applied conditions', async () => {
+  const { wrapper } = await mountTargets({ linked: true })
+  const other = testApp.store.getters['dashboardApplication/getWidgets'].find(
+    (widget) => widget.id === 9
+  )
+  other.target_filters[0].enabled = false
+  await wrapper.find('.dashboard-widget-filter-target').trigger('click')
+  await flushPromises()
+  const modal = wrapper.findComponent({
+    name: 'WidgetFilterConfigurationModal',
+  })
+  expect(modal.find('.dashboard-widget-filters__other').text()).not.toContain(
+    'Other filter'
+  )
+  expect(
+    modal.find('.dashboard-widget-filters__other-header .badge').text()
+  ).toBe('1')
 })
 
 test('separates editable conditions from other owners without changing their rules', async () => {
