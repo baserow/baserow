@@ -1395,15 +1395,17 @@ def get_writable_action(
     """
     Get a workflow action of the workspace the user can read and update.
 
-    :raises ToolInputError: When it is missing, or its application is trashed or in
-        another workspace.
+    :raises ToolInputError: When it is missing, or its page or application is trashed
+        or in another workspace.
     :raises PermissionException: When the user can't read or update it.
     """
 
     try:
         action = (
             BuilderWorkflowAction.objects.filter(
-                page__builder__workspace=workspace, page__builder__trashed=False
+                page__trashed=False,
+                page__builder__workspace=workspace,
+                page__builder__trashed=False,
             )
             .get(id=action_id)
             .specific

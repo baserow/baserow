@@ -2054,3 +2054,18 @@ def test_add_action_field_mapping_refuses_a_new_mapping_on_a_trashed_field(
 
     mapped = action.service.specific.field_mappings.values_list("field_id", flat=True)
     assert list(mapped) == [field.id]
+
+
+@pytest.mark.django_db
+def test_an_action_on_a_trashed_page_can_not_be_changed(builder_ctx):
+    action, page = builder_ctx["action"], builder_ctx["page"]
+    title = action.title
+    page.trashed = True
+    page.save()
+
+    with pytest.raises(ToolInputError, match="not found"):
+        actions.update_action(
+            builder_ctx["ctx"], action.id, ActionChanges(title="'Changed'")
+        )
+
+    assert stored(action.id).title == title
