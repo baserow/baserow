@@ -132,8 +132,7 @@ Some tools are currently disabled (`enabled = False`) and hidden from MCP client
 | `add_nodes` | enabled | Add nodes to a workflow (shared with Kuma) |
 | `update_nodes` | enabled | Change node labels, settings and router conditions (shared with Kuma) |
 | `delete_nodes` | enabled | Delete (trash) workflow nodes (shared with Kuma) |
-| `list_audit_log` | enabled | List who did what in this workspace. Needs advanced or enterprise and a workspace admin (shared with Kuma) |
-| `search_audit_log` | enabled | Search the workspace's audit log by text within 90 days. Needs advanced or enterprise and a workspace admin (shared with Kuma) |
+| `list_audit_log` | enabled | List who did what in this workspace, with an optional text search of at most 90 days. Needs advanced or enterprise and a workspace admin (shared with Kuma) |
 | `list_dashboards` | enabled | List the dashboards of the workspace with their widget count |
 | `list_widgets` | enabled | List a dashboard's widgets with the table, view, fields and aggregations they read |
 | `get_widget_data` | enabled | Read the figures widgets show |

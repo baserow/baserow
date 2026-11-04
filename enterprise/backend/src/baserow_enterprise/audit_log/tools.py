@@ -3,7 +3,7 @@ Audit log tools shared by the clients that act for a user. They only read the au
 log of the context's workspace.
 """
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Annotated, Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -11,7 +11,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q, QuerySet
 from django.utils import timezone as django_timezone
 
-from pydantic import Field, StringConstraints
+from pydantic import AwareDatetime, Field, StringConstraints
 
 from baserow.core.subjects import UserSubjectType
 from baserow.core.tools import ToolContext
@@ -30,7 +30,10 @@ SearchQuery = Annotated[
         description=(
             "Text to find, ignoring case, in who did it, the action type and the "
             "action's short description. It matches literally, so use one short "
-            "word like delete, not deleted or a phrase."
+            "word like delete, not deleted or a phrase. A search covers at most 90 "
+            "days, the last 90 unless from_timestamp or to_timestamp says otherwise. "
+            "It doesn't search the names of the things that changed, like a table's "
+            "name, and no result doesn't prove nothing happened."
         )
     ),
 ]
@@ -42,19 +45,6 @@ def _timezone(ctx: ToolContext) -> ZoneInfo:
         return ZoneInfo(ctx.timezone or "UTC")
     except (ZoneInfoNotFoundError, ValueError, OSError):
         return ZoneInfo("UTC")
-
-
-def _aware(ctx: ToolContext, value: datetime) -> datetime:
-    """A timestamp without an offset is in the timezone of the context."""
-
-    if django_timezone.is_naive(value):
-        return django_timezone.make_aware(value, _timezone(ctx))
-    return value
-
-
-def _check_order(start: datetime, end: datetime) -> None:
-    if end < start:
-        raise DjangoValidationError("to_timestamp must be after from_timestamp.")
 
 
 def _workspace_entries(ctx: ToolContext) -> QuerySet[AuditLogEntry]:
@@ -91,6 +81,7 @@ def _page(
 
 def list_audit_log(
     ctx: ToolContext,
+    query: SearchQuery | None = None,
     user_id: Annotated[
         int | None, Field(description="Only what this user did, by user ID.")
     ] = None,
@@ -99,16 +90,16 @@ def list_audit_log(
         Field(description="Only these actions, like create_table or delete_rows."),
     ] = None,
     from_timestamp: Annotated[
-        datetime | None,
+        AwareDatetime | None,
         Field(
             description=(
-                "Only from this moment, in ISO format. Without an offset it is in the "
-                "user's timezone."
+                "Only from this moment, in ISO format with the offset of the user's "
+                "timezone, like 2026-11-02T09:00:00+01:00."
             )
         ),
     ] = None,
     to_timestamp: Annotated[
-        datetime | None,
+        AwareDatetime | None,
         Field(description="Only up to this moment, in the same format."),
     ] = None,
     page: Annotated[int, Field(ge=1, description="The page to return.")] = 1,
@@ -118,8 +109,9 @@ def list_audit_log(
     ] = 50,
 ) -> dict[str, Any]:
     """
-    List what happened in this workspace, newest first: who did what and when. Needs
-    an advanced or enterprise licence and a workspace admin.
+    List what happened in this workspace, newest first: who did what and when, with
+    an optional text search. Needs an advanced or enterprise licence and a workspace
+    admin.
     """
 
     entries = _workspace_entries(ctx)
@@ -128,58 +120,28 @@ def list_audit_log(
         entries = entries.filter(actor_id=user_id, actor_type=UserSubjectType.type)
     if action_types:
         entries = entries.filter(action_type__in=action_types)
-    if from_timestamp is not None and to_timestamp is not None:
-        _check_order(_aware(ctx, from_timestamp), _aware(ctx, to_timestamp))
-    if from_timestamp is not None:
-        entries = entries.filter(action_timestamp__gte=_aware(ctx, from_timestamp))
-    if to_timestamp is not None:
-        entries = entries.filter(action_timestamp__lte=_aware(ctx, to_timestamp))
 
-    return _page(ctx, entries, page, size)
-
-
-def search_audit_log(
-    ctx: ToolContext,
-    query: SearchQuery,
-    from_timestamp: Annotated[
-        datetime,
-        Field(
-            description=(
-                "The start of the range, in ISO format. Without an offset it is in "
-                "the user's timezone."
+    if query:
+        search_days = timedelta(days=MAX_SEARCH_DAYS)
+        to_timestamp = to_timestamp or (
+            from_timestamp + search_days if from_timestamp else django_timezone.now()
+        )
+        from_timestamp = from_timestamp or to_timestamp - search_days
+        if to_timestamp - from_timestamp > search_days:
+            raise DjangoValidationError(
+                f"A search can cover at most {MAX_SEARCH_DAYS} days."
             )
-        ),
-    ],
-    to_timestamp: Annotated[
-        datetime,
-        Field(description="The end of the range, at most 90 days after the start."),
-    ],
-    page: Annotated[int, Field(ge=1, description="The page to return.")] = 1,
-    size: Annotated[
-        int,
-        Field(ge=1, le=MAX_PAGE_SIZE, description="The number of entries a page."),
-    ] = 50,
-) -> dict[str, Any]:
-    """
-    Search what happened in this workspace within a date range of at most 90 days,
-    newest first. It doesn't search the names of the things that changed, like a
-    table's name. No result doesn't prove nothing happened: try another word or
-    list_audit_log. Needs an advanced or enterprise licence and a workspace admin.
-    """
-
-    entries = _workspace_entries(ctx)
-    start = _aware(ctx, from_timestamp)
-    end = _aware(ctx, to_timestamp)
-    _check_order(start, end)
-    if end - start > timedelta(days=MAX_SEARCH_DAYS):
-        raise DjangoValidationError(
-            f"The date range can be at most {MAX_SEARCH_DAYS} days."
+        entries = entries.filter(
+            Q(actor_name__icontains=query)
+            | Q(action_type__icontains=query)
+            | Q(original_action_short_descr__icontains=query)
         )
 
-    entries = entries.filter(
-        Q(actor_name__icontains=query)
-        | Q(action_type__icontains=query)
-        | Q(original_action_short_descr__icontains=query),
-        action_timestamp__range=(start, end),
-    )
+    if from_timestamp and to_timestamp and to_timestamp < from_timestamp:
+        raise DjangoValidationError("to_timestamp must be after from_timestamp.")
+    if from_timestamp:
+        entries = entries.filter(action_timestamp__gte=from_timestamp)
+    if to_timestamp:
+        entries = entries.filter(action_timestamp__lte=to_timestamp)
+
     return _page(ctx, entries, page, size)

@@ -10,12 +10,3 @@ class ListAuditLogMcpTool(FunctionMCPTool):
     read_only = True
     off_by_default = True
     function = tools.list_audit_log
-
-
-class SearchAuditLogMcpTool(FunctionMCPTool):
-    type = "search_audit_log"
-    group = GROUP_AUDIT_LOG_READ
-    title = "Search the audit log"
-    read_only = True
-    off_by_default = True
-    function = tools.search_audit_log

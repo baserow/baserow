@@ -419,7 +419,6 @@ TOOL_VISIBILITY: dict[str, frozenset[AgentMode]] = {
     "list_actions": frozenset({APPLICATION, EXPLAIN}),
     "list_audit_log": EVERYWHERE,
     "list_builders": EVERYWHERE,
-    "search_audit_log": EVERYWHERE,
     "search_workspace": EVERYWHERE,
     "list_data_sources": frozenset({APPLICATION, EXPLAIN}),
     "list_elements": frozenset({APPLICATION, EXPLAIN}),
