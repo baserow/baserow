@@ -100,7 +100,9 @@ describe('DeleteUserTemplateModal', () => {
 
     await deleteButton(wrapper).trigger('click')
     // Even when the click reaches the handler.
-    wrapper.vm.$.setupState.confirm()
+    wrapper
+      .findComponent({ name: 'UserTemplateConfirmModal' })
+      .vm.$.setupState.confirm()
     await flushPromises()
 
     expect(testApp.mock.history.delete).toHaveLength(1)

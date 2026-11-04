@@ -31,6 +31,44 @@ def test_create_user_action_type():
     assert user.profile.language == "en"
 
 
+@pytest.mark.django_db(transaction=True)
+def test_create_user_action_type_describes_invitation_link_signup(data_fixture):
+    data_fixture.create_password_provider()
+    invitation_link = data_fixture.create_workspace_invitation_link()
+
+    with transaction.atomic():
+        user = action_type_registry.get(CreateUserActionType.type).do(
+            name="Test",
+            email="user@test.com",
+            password="test1234",
+            language="en",
+            workspace_invitation_link_slug=invitation_link.slug,
+        )
+
+    entry = AuditLogEntry.objects.get(action_type=CreateUserActionType.type)
+    assert entry.description.endswith(
+        "auth provider (invitation: False, invitation link: True)"
+    )
+    assert user.workspaceuser_set.get().workspace_id == invitation_link.workspace_id
+
+
+@pytest.mark.django_db
+def test_create_user_action_type_description_of_entries_without_link_param():
+    description = CreateUserActionType.get_long_description(
+        {
+            "user_id": 1,
+            "user_email": "user@test.com",
+            "auth_provider_id": 1,
+            "auth_provider_type": "password",
+            "with_invitation_token": True,
+        }
+    )
+
+    assert description.endswith(
+        "auth provider (invitation: True, invitation link: False)"
+    )
+
+
 @pytest.mark.django_db
 def test_update_user_action_type(data_fixture):
     user = data_fixture.create_user(first_name="User")

@@ -10,10 +10,12 @@ from baserow.contrib.builder.models import Builder
 from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.database.models import Database
 from baserow.core.action.handler import ActionHandler
+from baserow.core.action.models import Action
 from baserow.core.action.scopes import WorkspaceActionScopeType
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.integrations.models import Integration
 from baserow.core.models import Application
+from baserow.core.subjects import UserSubjectType
 from baserow.test_utils.helpers import AnyInt
 from baserow_enterprise.assistant.tools.core.tools import (
     create_automation,
@@ -27,6 +29,7 @@ from baserow_enterprise.assistant.tools.core.tools import (
     update_database,
 )
 from baserow_enterprise.assistant.tools.shared import ToolInputError
+from baserow_enterprise.audit_log.models import AuditLogEntry
 from baserow_enterprise.builder.tools.themes import (
     apply_theme,
     builder_uses_theme,
@@ -373,6 +376,41 @@ def test_update_tool_refuses_another_type(data_fixture, tool, id_argument, make)
 
 
 @pytest.mark.django_db
+def test_update_database_records_an_action_and_an_audit_log_entry(data_fixture):
+    message_group = uuid4()
+    session_id = "assistant-session"
+    user = data_fixture.create_user(session_id=session_id, action_group=message_group)
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(
+        workspace=workspace, name="Old Name"
+    )
+
+    update_database(
+        make_test_ctx(user, workspace),
+        database_id=database.id,
+        name="New Name",
+        thought="rename",
+    )
+
+    action = Action.objects.get(type="update_application")
+    assert action.user_id == user.id
+    assert action.workspace_id == workspace.id
+    assert action.session == session_id
+    assert action.action_group == message_group
+    assert action.scope == WorkspaceActionScopeType.value(workspace.id)
+    assert action.params["application_id"] == database.id
+    assert action.params["original_application_name"] == "Old Name"
+    assert action.params["application_name"] == "New Name"
+
+    entry = AuditLogEntry.objects.get(action_type="update_application")
+    assert entry.actor_id == user.id
+    assert entry.actor_type == UserSubjectType.type
+    assert entry.workspace_id == workspace.id
+    assert entry.action_command_type == "DO"
+    assert entry.action_params == action.params
+
+
+@pytest.mark.django_db
 def test_update_builder_sets_the_login_page(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -412,6 +450,8 @@ def test_update_builder_with_nothing_to_change_is_a_no_op(data_fixture):
     assert result["changed"] is False
     builder.refresh_from_db()
     assert builder.name == "Unchanged"
+    assert not Action.objects.filter(type="update_application").exists()
+    assert not AuditLogEntry.objects.filter(action_type="update_application").exists()
 
 
 @pytest.mark.django_db(transaction=True)

@@ -58,6 +58,49 @@ export class InvitationTargetType extends Registerable {
       'The send invitation of an invitation target type must be set.'
     )
   }
+
+  /**
+   * Whether people can be invited to the target with a permanent link. When
+   * true, the target must implement the invitation link methods below.
+   */
+  supportsInvitationLinks(workspace, target) {
+    return false
+  }
+
+  /**
+   * Resolves with the invitation links of the target.
+   */
+  async fetchInvitationLinks(workspace, target) {
+    throw new Error(
+      'The invitation links of this target type are not supported.'
+    )
+  }
+
+  /**
+   * Creates an invitation link that grants the `permissions` role uid and
+   * resolves with it.
+   */
+  async createInvitationLink(workspace, target, permissions) {
+    throw new Error(
+      'The invitation links of this target type are not supported.'
+    )
+  }
+
+  /**
+   * Changes the `name` of the link or the role uid it grants as `permissions`,
+   * whichever `values` holds, and resolves with the updated link.
+   */
+  async updateInvitationLink(workspace, target, invitationLink, values) {
+    throw new Error(
+      'The invitation links of this target type are not supported.'
+    )
+  }
+
+  async deleteInvitationLink(workspace, target, invitationLink) {
+    throw new Error(
+      'The invitation links of this target type are not supported.'
+    )
+  }
 }
 
 export class WorkspaceInvitationTargetType extends InvitationTargetType {
@@ -77,5 +120,36 @@ export class WorkspaceInvitationTargetType extends InvitationTargetType {
     // Lets the pending invitations table pick up the new row.
     this.app.$bus.$emit('invite-submitted', data)
     return data
+  }
+
+  supportsInvitationLinks() {
+    return true
+  }
+
+  async fetchInvitationLinks(workspace) {
+    const { data } = await WorkspaceService(
+      this.app.$client
+    ).fetchAllInvitationLinks(workspace.id)
+    return data
+  }
+
+  async createInvitationLink(workspace, target, permissions) {
+    const { data } = await WorkspaceService(
+      this.app.$client
+    ).createInvitationLink(workspace.id, { permissions })
+    return data
+  }
+
+  async updateInvitationLink(workspace, target, invitationLink, values) {
+    const { data } = await WorkspaceService(
+      this.app.$client
+    ).updateInvitationLink(invitationLink.id, values)
+    return data
+  }
+
+  async deleteInvitationLink(workspace, target, invitationLink) {
+    await WorkspaceService(this.app.$client).deleteInvitationLink(
+      invitationLink.id
+    )
   }
 }

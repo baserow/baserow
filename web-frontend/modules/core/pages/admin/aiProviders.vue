@@ -83,7 +83,7 @@
         @hidden="modelFormOpen = false"
         @saved="modelFormOpen = false"
       />
-      <AIProviderConfirmModal
+      <ConfirmModal
         v-if="pendingAction"
         ref="confirmModal"
         :title="pendingAction.title"
@@ -103,7 +103,7 @@ import { useHead } from '#imports'
 import { useNuxtApp } from '#app'
 
 import AIProviderAdminSkeleton from '@baserow/modules/core/components/ai/AIProviderAdminSkeleton'
-import AIProviderConfirmModal from '@baserow/modules/core/components/ai/AIProviderConfirmModal'
+import ConfirmModal from '@baserow/modules/core/components/modals/ConfirmModal'
 import AIProviderFeatureSettings from '@baserow/modules/core/components/ai/AIProviderFeatureSettings'
 import AIProviderFormModal from '@baserow/modules/core/components/ai/AIProviderFormModal'
 import AIProviderItem from '@baserow/modules/core/components/ai/AIProviderItem'
@@ -120,7 +120,7 @@ export default {
   name: 'AdminAIProviders',
   components: {
     AIProviderAdminSkeleton,
-    AIProviderConfirmModal,
+    ConfirmModal,
     AIProviderFeatureSettings,
     AIProviderFormModal,
     AIProviderItem,

@@ -48,3 +48,22 @@
   padding-left: 16px;
   list-style: disc;
 }
+
+.user-template-form__consent {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid $palette-neutral-200;
+  background-color: $palette-neutral-25;
+
+  @include rounded($rounded-md);
+}
+
+// The agreement is a sentence, so it wraps next to the checkbox.
+.user-template-form__consent .checkbox {
+  align-items: flex-start;
+}
+
+.user-template-form__consent .checkbox__label {
+  white-space: normal;
+  line-height: 20px;
+}

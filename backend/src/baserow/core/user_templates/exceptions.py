@@ -47,3 +47,10 @@ class TemplateBlocked(Exception):
     Raised when the owner of a user template that an admin blocked tries to install
     it.
     """
+
+
+class UserTemplatePublicListingConsentRequired(Exception):
+    """
+    Raised when a user template is made public without its author agreeing that
+    it's listed, with their name, for everybody on the instance.
+    """

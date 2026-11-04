@@ -90,9 +90,9 @@ class TemplateFixtures:
             "marked": {"marked_for_deletion_at": now},
         }[state]
         if "public_revision" in changes:
-            # Only an approved revision can be public.
+            # Only an approved revision can be public, listed when it's reviewed.
             Template.objects.filter(id=revision.id).update(
-                review_state=Template.ReviewState.APPROVED
+                review_state=Template.ReviewState.APPROVED, reviewed_on=now
             )
         Template.objects.filter(id=template.id).update(**changes)
         template.refresh_from_db()

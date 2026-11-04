@@ -155,6 +155,13 @@ export const routes = [
     file: path.resolve(__dirname, 'pages/workspaceInvitation.vue'),
     meta: { preventPageViewTracking: true },
   },
+  {
+    name: 'invitation-link',
+    // Only the characters a link code can have, the same as the backend URL.
+    path: '/invite/:slug([-\\w]+)',
+    file: path.resolve(__dirname, 'pages/invitationLink.vue'),
+    meta: { preventPageViewTracking: true },
+  },
 
   {
     name: 'template',

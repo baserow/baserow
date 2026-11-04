@@ -42,6 +42,7 @@
       <AssistantMessageList
         v-if="currentChatId"
         :messages="messages"
+        :running="isAssistantRunning"
       ></AssistantMessageList>
       <AssistantWelcomeMessage
         v-else
@@ -71,6 +72,7 @@ import AssistantMessageList from '@baserow_enterprise/components/assistant/Assis
 import AssistantChatHistoryContext from './AssistantChatHistoryContext'
 import { mapGetters, mapActions } from 'vuex'
 import { waitFor } from '@baserow/modules/core/utils/queue'
+import { provideNow } from '@baserow/modules/core/composables/useNow'
 
 export default {
   name: 'AssistantPanel',
@@ -86,6 +88,9 @@ export default {
       type: Object,
       required: true,
     },
+  },
+  setup() {
+    provideNow()
   },
   data() {
     return {
@@ -267,10 +272,14 @@ export default {
       isUserScrolling = !atBottom
     })
 
-    // Watch for DOM changes
+    // Hidden thinking text can change without growing its capped preview.
+    let previousHeight = container.scrollHeight
     const observer = new MutationObserver(() => {
+      const height = container.scrollHeight
+      if (height === previousHeight) return
+      previousHeight = height
       if (!isUserScrolling) {
-        container.scrollTop = container.scrollHeight
+        container.scrollTop = height
       }
     })
 

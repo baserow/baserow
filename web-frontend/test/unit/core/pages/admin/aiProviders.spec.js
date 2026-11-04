@@ -1,7 +1,7 @@
 import { flushPromises } from '@vue/test-utils'
 
 import AIProviderActionsMenu from '@baserow/modules/core/components/ai/AIProviderActionsMenu'
-import AIProviderConfirmModal from '@baserow/modules/core/components/ai/AIProviderConfirmModal'
+import ConfirmModal from '@baserow/modules/core/components/modals/ConfirmModal'
 import AdminAIProviders from '@baserow/modules/core/pages/admin/aiProviders'
 import { TestApp } from '@baserow/test/helpers/testApp'
 
@@ -175,7 +175,7 @@ describe('AdminAIProviders', () => {
     expect(dispatch).toHaveBeenCalledWith('aiProvider/fetchModelUsage', {
       modelId: 2,
     })
-    const confirmModal = wrapper.findComponent(AIProviderConfirmModal)
+    const confirmModal = wrapper.findComponent(ConfirmModal)
     expect(confirmModal.props('title')).toBe(
       'aiProviderAdmin.disableModelTitle'
     )
@@ -207,7 +207,7 @@ describe('AdminAIProviders', () => {
 
     await selectModelAction(wrapper, 'toggle')
 
-    expect(wrapper.findComponent(AIProviderConfirmModal).exists()).toBe(false)
+    expect(wrapper.findComponent(ConfirmModal).exists()).toBe(false)
     expect(dispatch).toHaveBeenCalledWith('aiProvider/updateModel', {
       modelId: 2,
       values: { is_enabled: false },

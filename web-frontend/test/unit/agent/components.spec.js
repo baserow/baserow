@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
+import { ref } from 'vue'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import AgentApplicationSidebar from '@baserow/modules/agent/components/AgentApplicationSidebar'
 import AgentConversationList from '@baserow/modules/agent/components/AgentConversationList'
+import AgentMessage from '@baserow/modules/agent/components/AgentMessage'
+import { nowKey } from '@baserow/modules/core/composables/useNow'
 
 describe('Agent components', () => {
   let testApp
@@ -29,6 +32,29 @@ describe('Agent components', () => {
     expect(saved.text()).toBe('Saved conversation')
     expect(draft.text()).toContain('agent.newConversation')
     expect(draft.text()).toContain('agent.draft')
+  })
+
+  test('uses the shared footer with its saved message time and no feedback controls', async () => {
+    const createdOn = '2026-11-03T10:00:00Z'
+    const wrapper = await testApp.mount(AgentMessage, {
+      props: {
+        message: {
+          role: 'assistant',
+          content: '**Answer**',
+          status: 'completed',
+          created_on: createdOn,
+        },
+      },
+      global: {
+        provide: { [nowKey]: ref(Date.parse('2026-11-03T10:03:00Z')) },
+      },
+    })
+
+    const footer = wrapper.get('.chat-message__footer')
+    expect(footer.get('time').attributes('datetime')).toBe(createdOn)
+    expect(footer.get('time').text()).toBe('datetime.minutesAgo - 3')
+    expect(footer.findAll('button')).toHaveLength(1)
+    expect(footer.get('button').attributes('aria-label')).toBe('action.copy')
   })
 
   test('shows loading, empty and error states without hiding loaded rows', async () => {

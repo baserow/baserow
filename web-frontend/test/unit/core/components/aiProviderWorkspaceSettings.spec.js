@@ -2,7 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import AIProviderActionsMenu from '@baserow/modules/core/components/ai/AIProviderActionsMenu'
-import AIProviderConfirmModal from '@baserow/modules/core/components/ai/AIProviderConfirmModal'
+import ConfirmModal from '@baserow/modules/core/components/modals/ConfirmModal'
 import AIProviderFeatureSettings from '@baserow/modules/core/components/ai/AIProviderFeatureSettings'
 import AIProviderWorkspaceSettings from '@baserow/modules/core/components/workspace/AIProviderWorkspaceSettings'
 import { TestApp } from '@baserow/test/helpers/testApp'
@@ -84,7 +84,7 @@ describe('AIProviderWorkspaceSettings', () => {
       'aiProvider/updateModel',
       expect.anything()
     )
-    const confirmModal = wrapper.findComponent(AIProviderConfirmModal)
+    const confirmModal = wrapper.findComponent(ConfirmModal)
     expect(confirmModal.props('title')).toBe(
       'aiProviderAdmin.disableModelTitle'
     )
@@ -114,7 +114,7 @@ describe('AIProviderWorkspaceSettings', () => {
 
     await selectModelAction(wrapper, 'toggle')
 
-    expect(wrapper.findComponent(AIProviderConfirmModal).exists()).toBe(false)
+    expect(wrapper.findComponent(ConfirmModal).exists()).toBe(false)
     expect(dispatch).toHaveBeenCalledWith('aiProvider/updateModel', {
       modelId: 21,
       workspaceId: 42,
@@ -130,7 +130,7 @@ describe('AIProviderWorkspaceSettings', () => {
 
     await selectModelAction(wrapper, 'toggle')
 
-    expect(wrapper.findComponent(AIProviderConfirmModal).props('message')).toBe(
+    expect(wrapper.findComponent(ConfirmModal).props('message')).toBe(
       'aiProviderAdmin.modelUsageUnknown aiProviderAdmin.disableModelDescription'
     )
     expect(dispatch).not.toHaveBeenCalledWith(
@@ -173,7 +173,7 @@ describe('AIProviderWorkspaceSettings', () => {
       'aiProvider/deleteModel',
       expect.anything()
     )
-    const confirmModal = wrapper.findComponent(AIProviderConfirmModal)
+    const confirmModal = wrapper.findComponent(ConfirmModal)
     expect(confirmModal.props('title')).toBe('aiProviderAdmin.deleteModelTitle')
     expect(confirmModal.props('message')).toMatch(
       /^aiProviderAdmin\.modelInUse.* aiProviderAdmin\.deleteModelDescription$/
@@ -196,7 +196,7 @@ describe('AIProviderWorkspaceSettings', () => {
 
     await selectModelAction(wrapper, 'delete')
 
-    expect(wrapper.findComponent(AIProviderConfirmModal).props('message')).toBe(
+    expect(wrapper.findComponent(ConfirmModal).props('message')).toBe(
       'aiProviderAdmin.deleteModelDescription'
     )
   })

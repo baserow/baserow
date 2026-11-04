@@ -1,0 +1,13 @@
+{
+    "type": "breaking_change",
+    "message": "Secure file serve downloads files opened directly unless they are images, PDFs or plain text",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [
+        "HTML, SVG, BMP, CSV, JSON, Markdown, audio, video and files with no extension now download when opened directly",
+        "Images, audio and video shown inside Baserow are not affected",
+        "Every file is served with a sandbox Content-Security-Policy"
+    ],
+    "created_at": "2026-11-01"
+}

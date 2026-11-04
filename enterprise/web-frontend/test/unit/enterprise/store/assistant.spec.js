@@ -1,3 +1,4 @@
+import { flushPromises } from '@vue/test-utils'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
 import assistantService from '@baserow_enterprise/services/assistant'
@@ -44,6 +45,7 @@ describe('Assistant store', () => {
 
   afterEach(async () => {
     await testApp.afterEach()
+    vi.useRealTimers()
   })
 
   test('sending a message recovers when the current chat is gone', async () => {
@@ -88,6 +90,100 @@ describe('Assistant store', () => {
     })
 
     expect(store.getters['assistant/currentChat'].running).toBe(false)
+  })
+
+  test('keeps creation timestamps through chunks and accepts saved server timestamps', async () => {
+    const createdAt = '2026-11-03T12:00:00.000Z'
+    const serverTimestamp = '2026-11-03T12:00:05.000Z'
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(createdAt))
+    await store.dispatch('assistant/createChat', workspace.id)
+    let updateMessage
+    let finishRequest
+    service.sendMessage.mockImplementation(
+      (chatUuid, message, uiContext, onUpdate) => {
+        updateMessage = onUpdate
+        return new Promise((resolve) => {
+          finishRequest = resolve
+        })
+      }
+    )
+    const sending = store.dispatch('assistant/sendMessage', {
+      message: 'hello',
+      workspace,
+    })
+    await flushPromises()
+
+    try {
+      expect(
+        store.getters['assistant/messages'].map((message) => message.timestamp)
+      ).toStrictEqual([createdAt, createdAt])
+      vi.setSystemTime(new Date('2026-11-03T12:01:00.000Z'))
+      for (const update of [
+        { type: 'ai/reasoning', content: 'A thought' },
+        { type: 'ai/message', content: 'Partial answer' },
+        { type: 'ai/message', content: 'Legacy final answer', timestamp: null },
+      ]) {
+        await updateMessage(update)
+        expect(store.getters['assistant/messages'][1].timestamp).toBe(createdAt)
+      }
+      await updateMessage({
+        type: 'ai/message',
+        id: 42,
+        content: 'Saved answer',
+        timestamp: serverTimestamp,
+      })
+      await updateMessage({ type: 'ai/message', content: 'Saved answer' })
+      expect(
+        store.getters['assistant/messages'].map((message) => message.timestamp)
+      ).toStrictEqual([createdAt, serverTimestamp])
+    } finally {
+      finishRequest()
+      await sending
+    }
+
+    service.fetchChatMessages.mockResolvedValue({
+      messages: [
+        { id: 1, type: 'human', content: 'hello', timestamp: createdAt },
+        {
+          id: 42,
+          type: 'ai/message',
+          content: 'Saved answer',
+          timestamp: serverTimestamp,
+        },
+      ],
+    })
+    await store.dispatch(
+      'assistant/selectChat',
+      store.getters['assistant/currentChat']
+    )
+    expect(
+      store.getters['assistant/messages'].map((message) => message.timestamp)
+    ).toStrictEqual([createdAt, serverTimestamp])
+  })
+
+  test('loading legacy history does not invent creation timestamps', async () => {
+    await store.dispatch('assistant/createChat', workspace.id)
+    service.fetchChatMessages.mockResolvedValue({
+      messages: [
+        { id: 1, type: 'human', content: 'Earlier question' },
+        {
+          id: 2,
+          type: 'ai/message',
+          content: 'Earlier answer',
+          timestamp: null,
+        },
+      ],
+    })
+
+    await store.dispatch(
+      'assistant/selectChat',
+      store.getters['assistant/currentChat']
+    )
+
+    const messages = store.getters['assistant/messages']
+    expect(messages[0]).not.toHaveProperty('timestamp')
+    expect(messages[1].timestamp).toBe(null)
   })
 
   test('a late title goes to the chat it was generated for', async () => {

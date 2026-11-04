@@ -13,6 +13,8 @@ export const registerRealtimeEvents = (realtime) => {
           conversationUpdate: {
             version: (agent._.conversationUpdate?.version || 0) + 1,
             uuid: data.conversation_uuid,
+            runId: data.run_id,
+            updatedOn: data.updated_on,
           },
         },
       },
