@@ -732,6 +732,16 @@ def create_element(
         check_data_source_on_page(page, int(element_create.data_source))
 
     kwargs = element_create.to_orm_kwargs(user, target_page)
+    if "navigate_to_page_id" in kwargs:
+        problem = page_parameters_problem(
+            page.builder_id,
+            kwargs["navigate_to_page_id"],
+            [param["name"] for param in kwargs["page_parameters"]],
+        )
+        if problem:
+            raise ToolInputError(
+                f"{problem} Give link_page_parameters with exactly those names."
+            )
     if element_create.page_ids:
         check_pages_in_builder(page.builder, element_create.page_ids)
         kwargs["pages"] = list(

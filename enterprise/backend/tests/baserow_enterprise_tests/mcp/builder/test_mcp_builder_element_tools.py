@@ -5,7 +5,7 @@ import json
 import pytest
 
 from baserow.contrib.builder.elements.handler import ElementHandler
-from baserow.contrib.builder.elements.models import Element
+from baserow.contrib.builder.elements.models import Element, LinkElement
 
 from .test_mcp_builder_read_tools import READ_TOOLS, _endpoint, _session
 
@@ -322,3 +322,37 @@ def test_a_new_target_that_does_not_fit_a_link_is_refused_over_mcp(
     assert result.isError
     assert "stays on the page" in result.content[0].text
     assert Element.objects.get(id=link.id).specific.navigate_to_page_id == start.id
+
+
+@pytest.mark.django_db
+def test_a_new_link_without_the_parameters_of_its_page_is_refused_over_mcp(
+    data_fixture, builder_ctx
+):
+    endpoint = _endpoint(data_fixture, builder_ctx, WRITE_TOOLS)
+    target = data_fixture.create_builder_page(
+        builder=builder_ctx["builder"],
+        name="Product",
+        path="/products/:id",
+        path_params=[{"name": "id", "type": "text"}],
+    )
+
+    async def call(client):
+        return await client.call_tool(
+            "create_display_elements",
+            {
+                "page_id": builder_ctx["page"].id,
+                "elements": [
+                    {
+                        "ref": "go",
+                        "type": "link",
+                        "value": "Go",
+                        "navigate_to_page_id": target.id,
+                    }
+                ],
+            },
+        )
+
+    result = _session(endpoint, call)
+
+    assert "missing: id" in result.content[0].text
+    assert not LinkElement.objects.filter(page=builder_ctx["page"]).exists()

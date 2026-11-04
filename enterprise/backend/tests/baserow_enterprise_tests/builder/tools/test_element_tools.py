@@ -2028,3 +2028,55 @@ def test_a_link_that_keeps_its_target_is_not_checked(
     )
 
     assert saved(link.id).value["formula"] == "'New'"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "target, params, named",
+    [
+        ("by_id", None, "missing: id"),
+        ("by_id", [{"name": "slug", "value": "7"}], "unknown: slug"),
+        ("plain", [{"name": "id", "value": "7"}], "unknown: id"),
+    ],
+)
+def test_a_new_link_that_does_not_fit_its_page_is_refused(
+    builder_ctx, link_pages, target, params, named
+):
+    before = Element.objects.count()
+
+    result = elements.create_display_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            DisplayElementCreate(
+                ref="link",
+                type="link",
+                value="Open",
+                navigate_to_page_id=link_pages[target].id,
+                link_page_parameters=params,
+            )
+        ],
+    )
+
+    assert result["created_elements"] == []
+    assert named in result["errors"][0]
+    assert "link_page_parameters" in result["errors"][0]
+    assert Element.objects.count() == before
+
+
+@pytest.mark.django_db
+def test_a_new_link_to_a_page_it_fits_is_created(builder_ctx, link_pages):
+    result = elements.create_display_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            DisplayElementCreate(
+                ref="plain",
+                type="link",
+                value="Open",
+                navigate_to_page_id=link_pages["plain"].id,
+            )
+        ],
+    )
+
+    assert not result.get("errors")

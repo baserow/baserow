@@ -207,7 +207,8 @@ def create_display_elements(
     formula_errors, so it can be set with update_element.
 
     A button does nothing until it has a click action. A link has its target on the
-    element.
+    element, with link_page_parameters for the path parameters of a page that has them.
+    A link whose parameters don't fit its page is refused.
     """
 
     return create_elements(

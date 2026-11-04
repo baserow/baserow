@@ -1001,3 +1001,26 @@ def test_setup_user_source_refuses_a_login_page_only_logged_in_visitors_can_see(
         setup_on(builder_ctx, users_table)
 
     assert UserSource.objects.count() == before
+
+
+@pytest.mark.django_db
+def test_setup_page_refuses_a_link_without_the_parameters_of_its_page(builder_ctx):
+    target = Page.objects.create(
+        builder=builder_ctx["builder"],
+        name="Product",
+        order=100,
+        path="/products/:id",
+        path_params=[{"name": "id", "type": "text"}],
+    )
+
+    result = setup(
+        builder_ctx,
+        elements=[
+            ElementItemCreate(
+                ref="go", type="link", value="Go", navigate_to_page_id=target.id
+            )
+        ],
+    )
+
+    assert result["created_elements"] == []
+    assert "missing: id" in result["errors"][0]

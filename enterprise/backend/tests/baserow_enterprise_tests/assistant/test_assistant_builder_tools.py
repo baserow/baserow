@@ -18,6 +18,7 @@ from pydantic_ai import ModelRetry
 from baserow.contrib.builder.elements.models import (
     ButtonElement,
     HeadingElement,
+    LinkElement,
     MenuElement,
     TableElement,
 )
@@ -4357,3 +4358,33 @@ def test_update_element_refuses_a_new_target_that_does_not_fit_a_link(data_fixtu
 
     link.refresh_from_db()
     assert link.navigate_to_page_id == start.id
+
+
+@pytest.mark.django_db
+def test_create_display_elements_refuses_a_link_without_the_parameters_of_its_page(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+    target = data_fixture.create_builder_page(
+        builder=builder,
+        name="Product",
+        path="/products/:id",
+        path_params=[{"name": "id", "type": "text"}],
+    )
+
+    result = create_display_elements(
+        make_test_ctx(user, workspace),
+        page_id=page.id,
+        elements=[
+            DisplayElementCreate(
+                ref="go", type="link", value="Go", navigate_to_page_id=target.id
+            )
+        ],
+        thought="test",
+    )
+
+    assert "missing: id" in result["errors"][0]
+    assert not LinkElement.objects.filter(page=page).exists()
