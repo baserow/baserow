@@ -79,6 +79,16 @@ EXPECTED = {
     "delete_table": (False, True),
 }
 
+# Tools that can reach outside the workspace: a public view link, or workflow nodes
+# that send email and Slack messages, call an AI model or expose a webhook.
+OPEN_WORLD = {
+    "create_views",
+    "create_workflows",
+    "add_nodes",
+    "update_nodes",
+    "publish_workflow",
+}
+
 
 @pytest.mark.django_db
 def test_enabled_tools_have_annotations(data_fixture):
@@ -93,7 +103,7 @@ def test_enabled_tools_have_annotations(data_fixture):
         assert annotations.title
         assert annotations.readOnlyHint is read_only
         assert annotations.destructiveHint is destructive
-        assert annotations.openWorldHint is False
+        assert annotations.openWorldHint is (name in OPEN_WORLD)
 
 
 @pytest.mark.django_db
@@ -106,4 +116,4 @@ def test_all_registered_tools_are_annotated(data_fixture):
         assert mcp_tool_registry.get(name).title == tool.annotations.title
         assert tool.annotations.readOnlyHint is read_only
         assert tool.annotations.destructiveHint is destructive
-        assert tool.annotations.openWorldHint is False
+        assert tool.annotations.openWorldHint is (name in OPEN_WORLD)
