@@ -11,7 +11,7 @@ from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.core.exceptions import PermissionException
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
-from baserow.core.tools.errors import tool_error_message
+from baserow.core.tools.errors import ToolInputError, tool_error_message
 from baserow_enterprise.builder.tools import (
     BuilderWriteOptions,
     data_sources,
@@ -425,3 +425,32 @@ def test_a_bad_sort_field_names_no_tool(site, data_fixture):
 
     assert result["errors"][0].startswith("ds: ")
     assert "get_table" not in result["errors"][0]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("row_id", ["5", "get('page_parameter.id')"])
+def test_update_refuses_a_row_id_on_a_data_source_that_reads_many_rows(
+    builder_ctx, row_id
+):
+    with pytest.raises(ToolInputError, match="row_id"):
+        data_sources.update_data_source(
+            builder_ctx["ctx"],
+            builder_ctx["data_source"].id,
+            DataSourceChanges(name="Renamed", row_id=row_id),
+        )
+
+    assert DataSource.objects.get(id=builder_ctx["data_source"].id).name == "Products"
+
+
+@pytest.mark.django_db
+def test_update_stores_a_search_query_on_a_get_row(data_fixture, builder_ctx):
+    get_row = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=builder_ctx["page"],
+        table=builder_ctx["data_source"].service.specific.table,
+    )
+
+    data_sources.update_data_source(
+        builder_ctx["ctx"], get_row.id, DataSourceChanges(search_query="abc")
+    )
+
+    assert service_of(get_row.id).search_query["formula"] == "'abc'"

@@ -648,6 +648,15 @@ def update_data_source(
             f"'row_id' is required for data source {ds.id}, which reads one row. "
             "No changes were applied."
         )
+    # Other services leave these out without saying so.
+    for field in ("row_id", "search_query"):
+        if getattr(ds_update, field) is not None and (
+            service_type is None or field not in service_type.allowed_fields
+        ):
+            raise ToolInputError(
+                f"Data source {ds.id} can't use '{field}': it isn't a kind of data "
+                "source that has one. No changes were applied."
+            )
     kwargs = ds_update.to_update_kwargs(user, workspace)
     if "view_id" in kwargs and not isinstance(
         service_type, LocalBaserowViewServiceType
