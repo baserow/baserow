@@ -69,6 +69,14 @@ def literal_or_placeholder(value: str | None) -> str:
     return wrap_static_string(value)
 
 
+def formula_text(raw: Any) -> str:
+    """The text of a stored formula. Old rows can hold a plain string."""
+
+    if isinstance(raw, dict):
+        raw = raw.get("formula")
+    return raw if isinstance(raw, str) else ""
+
+
 def ensure_valid_formula(formula: str) -> str:
     """
     Guarantee that a formula written by the assistant can be parsed.

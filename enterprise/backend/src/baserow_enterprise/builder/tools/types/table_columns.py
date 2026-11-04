@@ -11,6 +11,7 @@ from baserow.contrib.database.fields.utils import (
 )
 from baserow.core.db import specific_iterator
 from baserow.core.tools.errors import ToolInputError
+from baserow_enterprise.tools.formula_utils import formula_text
 from baserow_enterprise.tools.types import BaseModel
 
 from .changes import NO_CHANGES, name_key
@@ -114,10 +115,7 @@ def stored_formula_text(config: Any, key: str) -> str:
     :return: The formula text, or "" when there is none.
     """
 
-    raw = config.get(key) if isinstance(config, dict) else None
-    if isinstance(raw, dict):
-        raw = raw.get("formula")
-    return raw if isinstance(raw, str) else ""
+    return formula_text(config.get(key) if isinstance(config, dict) else None)
 
 
 def table_column_item(column: "CollectionField") -> TableColumnItem:

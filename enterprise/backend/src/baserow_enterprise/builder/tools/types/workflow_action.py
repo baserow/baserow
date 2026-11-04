@@ -20,6 +20,7 @@ from baserow_enterprise.tools.formula_utils import (
     EMPTY_FORMULA,
     formula_desc,
     formula_object,
+    formula_text,
     literal_or_placeholder,
     needs_formula,
 )
@@ -45,7 +46,7 @@ ActionType = Literal[
 
 
 class ParameterMapping(BaseModel):
-    """Key-value parameter mapping for page/query parameters."""
+    """Key-value parameter mapping for page/query parameters of an action or link."""
 
     name: str = Field(..., description="Parameter name.")
     value: str = Field(..., description="Parameter value formula.")
@@ -871,17 +872,9 @@ class ActionChanges(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def _formula_text(value: Any) -> str:
-    """A stored formula as the string the tools take back."""
-
-    if isinstance(value, dict):
-        return value.get("formula") or ""
-    return str(value) if value else ""
-
-
 def _parameter_items(parameters: list[dict] | None) -> list["ParameterMapping"]:
     return [
-        ParameterMapping(name=p["name"], value=_formula_text(p.get("value")))
+        ParameterMapping(name=p["name"], value=formula_text(p.get("value")))
         for p in parameters or []
     ]
 
@@ -932,8 +925,8 @@ class ActionItem(BaseModel):
         specific = action.specific
 
         if action_type == "notification":
-            kwargs["title"] = _formula_text(specific.title)
-            kwargs["description"] = _formula_text(specific.description)
+            kwargs["title"] = formula_text(specific.title)
+            kwargs["description"] = formula_text(specific.description)
         elif action_type == "open_page":
             kwargs["navigation_type"] = specific.navigation_type
             kwargs["navigate_to_page_id"] = specific.navigate_to_page_id
@@ -949,14 +942,14 @@ class ActionItem(BaseModel):
                 if hasattr(service, "table") and service.table:
                     kwargs["table_id"] = service.table_id
                 if hasattr(service, "row_id") and service.row_id:
-                    kwargs["row_id_formula"] = _formula_text(service.row_id)
+                    kwargs["row_id_formula"] = formula_text(service.row_id)
                 if action_type in ("create_row", "update_row"):
                     if hasattr(service, "field_mappings"):
                         mappings = [
                             FieldMappingItem(
                                 field_id=m.field_id,
                                 field_name=m.field.name,
-                                value=_formula_text(m.value),
+                                value=formula_text(m.value),
                             )
                             for m in service.field_mappings.all()
                         ]

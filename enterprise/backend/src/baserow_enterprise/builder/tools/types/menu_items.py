@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 from pydantic import Field, field_validator, model_validator
 
 from baserow.contrib.builder.elements.models import MenuItemElement
+from baserow_enterprise.tools.formula_utils import formula_text
 from baserow_enterprise.tools.types import BaseModel
 
 if TYPE_CHECKING:
@@ -141,14 +142,6 @@ def group_menu_items(
     return top_level, sub_links
 
 
-def _formula_text(raw: Any) -> str:
-    """Read a formula column's text. Old rows can hold a plain string."""
-
-    if isinstance(raw, dict):
-        raw = raw.get("formula")
-    return raw if isinstance(raw, str) else ""
-
-
 def _listed(item: "MenuItemElement") -> ListedMenuItem:
     listed = ListedMenuItem(
         uid=str(item.uid),
@@ -157,7 +150,7 @@ def _listed(item: "MenuItemElement") -> ListedMenuItem:
         page_id=item.navigate_to_page_id,
     )
     if item.navigation_type == MenuItemElement.NAVIGATION_TYPES.CUSTOM:
-        listed["url"] = _formula_text(item.navigate_to_url)
+        listed["url"] = formula_text(item.navigate_to_url)
     return listed
 
 

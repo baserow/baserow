@@ -52,6 +52,7 @@ from .table_columns import (
     field_formula,
 )
 from .workflow_action import (
+    ParameterMapping,
     is_text_formula,
     mapping_value_is_formula,
     text_or_placeholder,
@@ -136,13 +137,6 @@ BUTTON_NAVIGATION_GUIDANCE = (
 # ---------------------------------------------------------------------------
 # Sub-models
 # ---------------------------------------------------------------------------
-
-
-class ParameterMapping(BaseModel):
-    """Key-value parameter mapping for page/query parameters on links."""
-
-    name: str = Field(..., description="Parameter name.")
-    value: str = Field(..., description="Parameter value formula.")
 
 
 class ChoiceOption(BaseModel):
