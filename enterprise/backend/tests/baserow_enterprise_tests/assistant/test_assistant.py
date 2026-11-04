@@ -4,7 +4,7 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 from django.test.utils import override_settings
@@ -45,6 +45,8 @@ from baserow.core.ai_provider.constants import (
 )
 from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
+from baserow.core.chat_runs.handler import ChatRunHandler
+from baserow.core.chat_runs.models import ChatRunStatus
 from baserow_enterprise.assistant.action_memory import (
     MAX_VERIFIED_TOOL_OUTCOMES_CHARS,
     get_mutation_evidence,
@@ -57,8 +59,10 @@ from baserow_enterprise.assistant.agents import (
 )
 from baserow_enterprise.assistant.assistant import (
     Assistant,
+    BackgroundAssistant,
     _get_workspace_license_type,
 )
+from baserow_enterprise.assistant.chat_run_type import AssistantChatRunType
 from baserow_enterprise.assistant.deps import AssistantDeps, QueueEventKind
 from baserow_enterprise.assistant.exceptions import (
     AssistantConfiguredModelNotAvailableError,
@@ -80,13 +84,12 @@ from baserow_enterprise.assistant.output_validation import validate_final_answer
 from baserow_enterprise.assistant.prompts import (
     AGENT_SYSTEM_PROMPT,
 )
+from baserow_enterprise.assistant.runs import ASSISTANT_RUN_TYPE
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 from baserow_enterprise.assistant.types import (
-    AiMessage,
     AiMessageChunk,
     AiReasoningChunk,
     ApplicationUIContext,
-    HumanMessage,
     TableUIContext,
     UIContext,
     UserUIContext,
@@ -2785,17 +2788,28 @@ class TestFinalAnswerValidation:
 
 
 def _run_chat(chat, workspace, user, content="Question"):
-    assistant = Assistant(chat)
+    human_message = AssistantChatMessage.objects.create(
+        chat=chat, role=AssistantChatMessage.Role.HUMAN, content=content
+    )
+    run = ChatRunHandler().create_run(
+        ASSISTANT_RUN_TYPE,
+        chat.id,
+        workspace,
+        user,
+        {"human_message_id": human_message.id, "action_group_id": str(uuid4())},
+    )
+    journal = MagicMock(run=run, stop_reason=None)
+    journal.wait_for_stop = AsyncMock(side_effect=asyncio.Event().wait)
+    assistant = BackgroundAssistant(
+        chat, resolve_assistant_model(workspace=workspace), journal, "test-tab"
+    )
     ui_context = UIContext(
         workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
         user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
     )
-
-    async def consume_stream():
-        human_message = HumanMessage(content=content, ui_context=ui_context)
-        return [msg async for msg in assistant.astream_messages(human_message)]
-
-    return async_to_sync(consume_stream)()
+    outcome = async_to_sync(assistant.answer)(content, ui_context, not chat.title)
+    AssistantChatRunType().persist_outcome(run, outcome)
+    return outcome
 
 
 def _captured_trace(mock_get_client):
@@ -2827,8 +2841,8 @@ class TestAssistantRunFailures:
         error = RuntimeError("connection already closed")
         mock_run_stream_events.side_effect = error
 
-        with pytest.raises(RuntimeError, match="connection already closed"):
-            _run_chat(chat, workspace, user)
+        outcome = _run_chat(chat, workspace, user)
+        assert outcome.status == ChatRunStatus.FAILED
 
         mock_exception_capturer.assert_called_once_with(error)
         trace = _captured_trace(mock_get_client)
@@ -2867,8 +2881,8 @@ class TestAssistantRunFailures:
         )
         mock_run_stream_events.side_effect = error
 
-        with pytest.raises(type(error)):
-            _run_chat(chat, workspace, user)
+        outcome = _run_chat(chat, workspace, user)
+        assert outcome.status == ChatRunStatus.FAILED
 
         assert mock_exception_capturer.called is reported
         assert (
@@ -2895,8 +2909,8 @@ class TestAssistantRunFailures:
             body={"error": {"failed_generation": "private user data"}},
         )
 
-        with pytest.raises(ModelHTTPError):
-            _run_chat(chat, workspace, user)
+        outcome = _run_chat(chat, workspace, user)
+        assert outcome.status == ChatRunStatus.FAILED
 
         trace = _captured_trace(mock_get_client)
         assert trace["$ai_error"] == "status_code: 400, model_name: m"
@@ -2925,9 +2939,10 @@ class TestAssistantRunFailures:
             body='{"content": "private user data"}',
         )
 
-        messages = _run_chat(chat, workspace, user)
+        outcome = _run_chat(chat, workspace, user)
 
-        assert any(isinstance(msg, AiMessage) for msg in messages)
+        assert outcome.status == ChatRunStatus.COMPLETED
+        assert chat.messages.filter(role=AssistantChatMessage.Role.AI).exists()
         mock_exception_capturer.assert_not_called()
         trace = _captured_trace(mock_get_client)
         assert trace["assistant_outcome"] == "error"

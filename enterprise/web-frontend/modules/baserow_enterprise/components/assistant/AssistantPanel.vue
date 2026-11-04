@@ -428,10 +428,12 @@ export default {
      * answer keeps going in its own chat.
      */
     async sendPendingPrompt(prompt) {
+      const workspace = this.workspace
       await this.setPendingPrompt(null)
+      if (this.workspace.id !== workspace.id) return
       await this.clearChat()
       this.$refs.message.focus()
-      await this.sendMessage({ message: prompt, workspace: this.workspace })
+      await this.sendMessage({ message: prompt, workspace })
     },
 
     async handleSendMessage(text) {

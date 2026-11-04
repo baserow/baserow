@@ -13,6 +13,7 @@ import {
   storeChatUuid,
   getStoredChatUuid,
   getStoredOnboardingRunId,
+  getTabId,
 } from '@baserow_enterprise/utils/assistantTabStorage'
 
 const uuid = '11111111-1111-4111-8111-111111111111'
@@ -63,6 +64,71 @@ describe('Kuma HTTP record adapter', () => {
       content: 'Hello',
       reasoning: true,
     })
+  })
+
+  test('resumes a cumulative send with a core baseline and native deltas', async () => {
+    await acceptRecord(
+      store,
+      runRecord(
+        'ai/reasoning',
+        { content: 'Old thought' },
+        { cursor: cursor(1) }
+      )
+    )
+    await acceptRecord(store, {
+      kind: 'run.baseline',
+      cursor: cursor(1),
+      replayed: true,
+      data: {
+        text: 'New thought',
+        segment: 0,
+        variant: 'ai/reasoning',
+        progress: { text: 'Working' },
+      },
+    })
+    expect(store.getters['assistant/messages'].at(-1)).toMatchObject({
+      content: 'New thought',
+      reasoning: true,
+    })
+    expect(store.getters['chatRuns/getFollower']('run-1').view.progress).toBe(
+      'Working'
+    )
+    for (const [id, text] of [
+      [2, 'An'],
+      [3, ' answer'],
+    ]) {
+      await acceptRecord(store, {
+        kind: 'text.delta',
+        cursor: cursor(id),
+        data: { segment: 1, text, variant: 'ai/message' },
+      })
+    }
+    expect(store.getters['assistant/messages'].at(-1)).toMatchObject({
+      content: 'An answer',
+      reasoning: false,
+    })
+    await acceptRecord(store, {
+      kind: 'run.finished',
+      cursor: cursor(3),
+      data: { status: 'completed', message: created },
+    })
+    expect(store.getters['assistant/messages'].at(-1)).toMatchObject(created)
+  })
+
+  test('native navigation runs only live in the originating tab with its panel open', async () => {
+    const nativeNavigation = (id, origin = getTabId(), replayed = false) => ({
+      kind: 'navigation',
+      cursor: cursor(id),
+      replayed,
+      data: { location: table, origin_tab_id: origin },
+    })
+    await acceptRecord(store, nativeNavigation(1, 'another-tab'))
+    await acceptRecord(store, nativeNavigation(2, getTabId(), true))
+    store.commit('assistant/SET_PANEL_OPEN', false)
+    await acceptRecord(store, nativeNavigation(3))
+    store.commit('assistant/SET_PANEL_OPEN', true)
+    await acceptRecord(store, nativeNavigation(4))
+    expect(navigated).toEqual([table])
   })
 
   test.each([
