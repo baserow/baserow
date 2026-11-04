@@ -22,7 +22,7 @@
       </i18n-t>
       <i18n-t v-else scope="global" keypath="invitationLinkMessage" tag="p">
         <template #workspace>
-          <strong>{{ invitationLink.workspace }}</strong>
+          <strong>{{ destination }}</strong>
         </template>
       </i18n-t>
       <i18n-t
