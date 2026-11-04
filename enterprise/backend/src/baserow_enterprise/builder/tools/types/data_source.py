@@ -15,9 +15,10 @@ from baserow_enterprise.tools.formula_utils import (
     formula_desc,
     formula_object,
     literal_or_placeholder,
-    needs_formula,
 )
 from baserow_enterprise.tools.types import BaseModel, without_field
+
+from .workflow_action import is_text_formula, text_or_placeholder
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
@@ -200,7 +201,7 @@ class DataSourceCreate(BaseModel):
 
         if self.type == "list_rows" and self.search_query:
             kwargs["search_query"] = formula_object(
-                literal_or_placeholder(self.search_query),
+                text_or_placeholder(self.search_query),
                 mode=BASEROW_FORMULA_MODE_ADVANCED,
             )
 
@@ -239,7 +240,7 @@ class DataSourceCreate(BaseModel):
         if (
             self.type == "list_rows"
             and self.search_query
-            and needs_formula(self.search_query)
+            and is_text_formula(self.search_query)
         ):
             formulas["search_query"] = formula_desc(self.search_query)
 
@@ -353,7 +354,7 @@ class DataSourceUpdate(BaseModel):
                 literal_or_placeholder(self.row_id),
                 mode=BASEROW_FORMULA_MODE_ADVANCED,
             )
-        if self.search_query is not None and not needs_formula(self.search_query):
+        if self.search_query is not None and not is_text_formula(self.search_query):
             kwargs["search_query"] = formula_object(
                 literal_or_placeholder(self.search_query),
                 mode=BASEROW_FORMULA_MODE_ADVANCED,
@@ -379,7 +380,7 @@ class DataSourceUpdate(BaseModel):
         formulas: dict[str, str] = {}
         if _row_id_is_formula(self.row_id):
             formulas["row_id"] = formula_desc(self.row_id)
-        if self.search_query and needs_formula(self.search_query):
+        if self.search_query and is_text_formula(self.search_query):
             formulas["search_query"] = formula_desc(self.search_query)
         return formulas
 

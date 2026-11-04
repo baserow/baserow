@@ -6,6 +6,7 @@ without a model. The conftest of this folder fails any model call.
 import pytest
 from pydantic import ValidationError
 
+from baserow.contrib.automation.tools.formulas import wrap_static_string
 from baserow.contrib.builder.data_sources.exceptions import DataSourceDoesNotExist
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
@@ -99,6 +100,58 @@ def test_create_reports_a_formula_that_does_not_resolve_on_the_page(site):
     assert service_of(data_source_id).search_query["formula"] == "''"
     assert result["formula_errors"][0]["data_source_id"] == data_source_id
     assert "missing" in result["formula_errors"][0]["error"]
+
+
+SEARCH_QUERIES = [
+    ("upper('abc')", "upper('abc')"),
+    ("red shoes", "'red shoes'"),
+    ("nosuch('x')", wrap_static_string("nosuch('x')")),
+    ("Hello (world)", "'Hello (world)'"),
+]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("given, stored", SEARCH_QUERIES)
+def test_create_treats_a_search_query_like_element_text(site, given, stored):
+    result = data_sources.create_data_sources(
+        site["ctx"],
+        site["page"].id,
+        [
+            DataSourceCreate(
+                ref="ds",
+                name="Search",
+                type="list_rows",
+                table_id=site["table"].id,
+                search_query=given,
+            )
+        ],
+    )
+
+    assert "formula_errors" not in result
+    data_source_id = result["ref_to_id_map"]["ds"]
+    assert service_of(data_source_id).search_query["formula"] == stored
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("given, stored", SEARCH_QUERIES)
+def test_update_treats_a_search_query_like_element_text(site, given, stored):
+    created = data_sources.create_data_sources(
+        site["ctx"],
+        site["page"].id,
+        [
+            DataSourceCreate(
+                ref="ds", name="Search", type="list_rows", table_id=site["table"].id
+            )
+        ],
+    )
+    data_source_id = created["ref_to_id_map"]["ds"]
+
+    result = data_sources.update_data_source(
+        site["ctx"], data_source_id, DataSourceChanges(search_query=given)
+    )
+
+    assert "formula_errors" not in result
+    assert service_of(data_source_id).search_query["formula"] == stored
 
 
 @pytest.mark.django_db
