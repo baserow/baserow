@@ -124,7 +124,12 @@ def test_create_makes_a_list_rows_on_a_table_that_already_has_one(site):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "row_id", ["$formula: the id page parameter", "get('page_parameter.missing')"]
+    "row_id",
+    [
+        "$formula: the id page parameter",
+        "get('page_parameter.missing')",
+        "the current product",
+    ],
 )
 def test_get_row_with_a_row_id_that_is_not_a_formula_is_not_created(site, row_id):
     result = data_sources.create_data_sources(
@@ -262,6 +267,56 @@ def test_update_stores_an_explicit_formula(data_fixture, site):
     row_id = service_of(data_source.id).row_id
     assert row_id["formula"] == "get('page_parameter.id')"
     assert row_id["mode"] == BASEROW_FORMULA_MODE_ADVANCED
+
+
+@pytest.mark.django_db
+def test_get_row_takes_a_number_as_its_row_id(site):
+    result = data_sources.create_data_sources(
+        site["ctx"],
+        site["page"].id,
+        [
+            DataSourceCreate(
+                ref="row",
+                name="Row",
+                type="get_row",
+                table_id=site["table"].id,
+                row_id="7",
+            )
+        ],
+    )
+
+    assert not result.get("errors")
+    assert service_of(result["ref_to_id_map"]["row"]).row_id["formula"] == "'7'"
+
+
+@pytest.mark.django_db
+def test_update_with_plain_text_keeps_the_row_id_and_reports_it(data_fixture, site):
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=site["page"], table=site["table"], row_id="'1'"
+    )
+
+    result = data_sources.update_data_source(
+        site["ctx"],
+        data_source.id,
+        DataSourceChanges(row_id="the current product"),
+    )
+
+    assert service_of(data_source.id).row_id["formula"] == "'1'"
+    assert result["formula_errors"][0]["field"] == "row_id"
+
+
+@pytest.mark.django_db
+def test_update_takes_a_number_as_the_row_id(data_fixture, site):
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=site["page"], table=site["table"], row_id="'1'"
+    )
+
+    result = data_sources.update_data_source(
+        site["ctx"], data_source.id, DataSourceChanges(row_id="7")
+    )
+
+    assert "formula_errors" not in result
+    assert service_of(data_source.id).row_id["formula"] == "'7'"
 
 
 @pytest.mark.django_db

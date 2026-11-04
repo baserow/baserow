@@ -121,8 +121,8 @@ def create_data_sources(
     get('page_parameter.id'). Descriptions are not turned into formulas: a
     search_query that isn't a valid formula is left empty and listed in
     formula_errors, so it can be set with update_data_source. A get_row can't run
-    without its row_id, so one that isn't a valid formula is listed in errors and
-    that data source isn't created.
+    without its row_id, so one that isn't a number or a valid formula is listed in
+    errors and that data source isn't created.
     """
 
     return create_data_sources_with_options(
@@ -160,8 +160,8 @@ def update_data_source(
     """
     Update a data source: its name, table, view, row_id or search_query. Give dynamic
     values as formulas in Baserow formula syntax, like get('page_parameter.id'). A
-    value that isn't a valid formula keeps its previous value and is listed in
-    formula_errors.
+    row_id can also be a number. A value that isn't valid keeps its previous value and
+    is listed in formula_errors.
     """
 
     orm_ds = DataSourceHandler().get_data_source(

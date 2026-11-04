@@ -11,6 +11,7 @@ from pydantic import Field, PrivateAttr, model_serializer, model_validator
 
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow_enterprise.tools.formula_utils import (
+    EMPTY_FORMULA,
     formula_desc,
     formula_object,
     literal_or_placeholder,
@@ -56,6 +57,13 @@ _REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
     "list_rows": ("table_id",),
     "get_row": ("table_id", "row_id"),
 }
+
+
+def _row_id_is_formula(value: str | None) -> bool:
+    """A row id is a number or a formula: other text can't select a row."""
+
+    return bool(value) and not value.strip().isdigit()
+
 
 # ---------------------------------------------------------------------------
 # Service type mapping
@@ -184,7 +192,9 @@ class DataSourceCreate(BaseModel):
 
         if self.type == "get_row" and self.row_id is not None:
             kwargs["row_id"] = formula_object(
-                literal_or_placeholder(self.row_id),
+                EMPTY_FORMULA
+                if _row_id_is_formula(self.row_id)
+                else literal_or_placeholder(self.row_id),
                 mode=BASEROW_FORMULA_MODE_ADVANCED,
             )
 
@@ -223,7 +233,7 @@ class DataSourceCreate(BaseModel):
 
         formulas: dict[str, str] = {}
 
-        if self.type == "get_row" and self.row_id and needs_formula(self.row_id):
+        if self.type == "get_row" and _row_id_is_formula(self.row_id):
             formulas["row_id"] = formula_desc(self.row_id)
 
         if (
@@ -338,13 +348,16 @@ class DataSourceUpdate(BaseModel):
 
         # A value that needs a formula is written once it's generated, so the
         # previous one stays if generation fails.
-        for name in ("row_id", "search_query"):
-            value = getattr(self, name)
-            if value is not None and not needs_formula(value):
-                kwargs[name] = formula_object(
-                    literal_or_placeholder(value),
-                    mode=BASEROW_FORMULA_MODE_ADVANCED,
-                )
+        if self.row_id is not None and not _row_id_is_formula(self.row_id):
+            kwargs["row_id"] = formula_object(
+                literal_or_placeholder(self.row_id),
+                mode=BASEROW_FORMULA_MODE_ADVANCED,
+            )
+        if self.search_query is not None and not needs_formula(self.search_query):
+            kwargs["search_query"] = formula_object(
+                literal_or_placeholder(self.search_query),
+                mode=BASEROW_FORMULA_MODE_ADVANCED,
+            )
 
         if self.view_id is not None:
             from baserow.contrib.database.tools.views import get_view
@@ -364,7 +377,7 @@ class DataSourceUpdate(BaseModel):
         """Return ``{field_path: description}`` for LLM formula generation."""
 
         formulas: dict[str, str] = {}
-        if self.row_id and needs_formula(self.row_id):
+        if _row_id_is_formula(self.row_id):
             formulas["row_id"] = formula_desc(self.row_id)
         if self.search_query and needs_formula(self.search_query):
             formulas["search_query"] = formula_desc(self.search_query)
