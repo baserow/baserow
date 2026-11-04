@@ -1900,3 +1900,33 @@ def test_moving_the_last_child_to_the_end_of_its_container_stays_a_success(
 
     assert not result.get("errors")
     assert result["moved_elements"][0]["parent_element_id"] == ids["box"]
+
+
+@pytest.mark.django_db
+def test_a_display_link_can_give_the_parameters_of_its_page(data_fixture, builder_ctx):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    target = data_fixture.create_builder_page(
+        builder=builder_ctx["builder"],
+        name="Product",
+        path="/products/:id",
+        path_params=[{"name": "id", "type": "numeric"}],
+    )
+
+    result = elements.create_display_elements(
+        ctx,
+        page.id,
+        [
+            DisplayElementCreate(
+                ref="link",
+                type="link",
+                value="Open",
+                navigate_to_page_id=target.id,
+                link_page_parameters=[{"name": "id", "value": "7"}],
+            )
+        ],
+    )
+
+    assert not result.get("errors")
+    link = saved(result["ref_to_id_map"]["link"])
+    assert [param["name"] for param in link.page_parameters] == ["id"]
+    assert link.page_parameters[0]["value"]["formula"] == "7"

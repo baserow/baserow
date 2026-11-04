@@ -1178,6 +1178,12 @@ class DisplayElementCreate(_ElementBase):
         default=None,
         description="(link) Custom URL. Can be a formula: see the tool description.",
     )
+    link_page_parameters: list[ParameterMapping] | None = Field(
+        default=None,
+        description=(
+            "(link) Page parameter mappings: the path parameters of the target page."
+        ),
+    )
     link_variant: Literal["link", "button"] | None = Field(
         default=None, description="(link) Display variant."
     )
@@ -1202,6 +1208,7 @@ class DisplayElementCreate(_ElementBase):
             navigation_type=self.navigation_type,
             navigate_to_page_id=self.navigate_to_page_id,
             navigate_to_url=self.navigate_to_url,
+            link_page_parameters=self.link_page_parameters,
             link_variant=self.link_variant,
             image_url=self.image_url,
             alt_text=self.alt_text,
