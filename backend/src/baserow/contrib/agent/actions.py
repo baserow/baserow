@@ -147,7 +147,6 @@ class UpdateAgentConfigurationActionType(ActionType):
         }
 
     @classmethod
-    @transaction.atomic
     def do(
         cls, user: AbstractUser, agent_id: int, **values: str | int | None
     ) -> AgentConfiguration:

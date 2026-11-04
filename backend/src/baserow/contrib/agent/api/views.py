@@ -1,5 +1,7 @@
 from uuid import UUID
 
+from django.db import transaction
+
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -230,6 +232,7 @@ class AgentConfigurationView(RealtimeRecoveryPrimaryReadMixin, APIView):
             ),
         },
     )
+    @transaction.atomic
     @map_exceptions(AGENT_EXCEPTIONS)
     @validate_body(
         AgentConfigurationUpdateSerializer, partial=True, return_validated=True
