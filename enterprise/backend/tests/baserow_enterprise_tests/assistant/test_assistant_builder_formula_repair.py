@@ -293,8 +293,8 @@ def test_update_reports_a_generation_failure_as_before(data_fixture, site, monke
 
 @pytest.mark.django_db
 def test_update_reports_a_missing_formula_as_before(data_fixture, site, monkeypatch):
-    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
-        page=site["page"], table=site["table"]
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=site["page"], table=site["table"], row_id="'1'"
     )
     use_generator(
         monkeypatch,
