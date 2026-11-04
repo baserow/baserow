@@ -1,4 +1,5 @@
 import pytest
+from pydantic_ai import Tool
 from pydantic_ai.messages import (
     ModelRequest,
     ModelResponse,
@@ -12,7 +13,10 @@ from baserow_enterprise.assistant.tools.database.tools import (
     list_row_comments,
 )
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
-from baserow_premium.row_comments.tools import RowCommentCreate
+from baserow_premium.row_comments.tools import (
+    MAX_COMMENTS_PER_CALL,
+    RowCommentCreate,
+)
 
 from .utils import make_test_ctx
 
@@ -99,3 +103,9 @@ def test_kuma_counts_a_posted_comment_as_a_completed_change(
     assert _evidence_of(posted).completed
     assert _evidence_of(partly).changed and not _evidence_of(partly).completed
     assert not _evidence_of(failed).changed
+
+
+def test_kuma_create_row_comments_limits_a_batch():
+    schema = Tool(create_row_comments, takes_ctx=True).function_schema.json_schema
+
+    assert schema["properties"]["comments"]["maxItems"] == MAX_COMMENTS_PER_CALL

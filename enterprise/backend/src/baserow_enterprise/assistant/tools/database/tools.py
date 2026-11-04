@@ -1343,7 +1343,10 @@ def create_row_comments(
     table_id: Annotated[int, Field(description="The ID of the rows' table.")],
     comments: Annotated[
         list[shared_row_comments.RowCommentCreate],
-        Field(description="The comments to post, each on one row."),
+        Field(
+            max_length=shared_row_comments.MAX_COMMENTS_PER_CALL,
+            description="The comments to post, each on one row.",
+        ),
     ],
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
