@@ -1480,13 +1480,13 @@ def decide(user: AbstractUser, reply: AgentMessage, **decision: object) -> ChatR
 
     conversation = reply.conversation
     approval = reply.approvals.get(status="pending")
-    _, run_id = AgentService().decide_approvals(
+    result = AgentService().decide_approvals(
         user,
         conversation.agent_id,
         conversation.uuid,
         [{"id": approval.id, **decision}],
     )
-    return ChatRun.objects.get(id=run_id)
+    return ChatRun.objects.get(id=result.run_id)
 
 
 @pytest.mark.django_db

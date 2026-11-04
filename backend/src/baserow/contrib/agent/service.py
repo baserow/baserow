@@ -37,6 +37,7 @@ from .types import (
     AgentMessageCreated,
     AgentReplyRequest,
     AgentToolDecision,
+    AgentToolDecisionsResult,
 )
 from .validators import validate_message_content
 
@@ -434,7 +435,8 @@ class AgentService:
         agent_id: int,
         conversation_uuid: UUID,
         decisions: list[AgentToolDecision],
-    ) -> tuple[AgentMessage, UUID | None]:
+        always_allow: bool = False,
+    ) -> AgentToolDecisionsResult:
         """
         Approve or reject held calls of the reply waiting in one of the user's
         conversations, tell the owner's other sessions what is left to decide, and
@@ -446,9 +448,11 @@ class AgentService:
         :param conversation_uuid: The uuid of the conversation.
         :param decisions: Whether each held call may run, by approval id, with the
             reason for a rejection.
+        :param always_allow: Whether the tools of the approved calls stop asking
+            first, which needs the access of a configuration update.
         :raises FeatureDisabledException: When Agents are disabled.
         :raises PermissionException: When the user may not send messages to the
-            agent.
+            agent, or may not update its configuration while always allowing.
         :raises AgentConversationDoesNotExist: When the user has no conversation with
             this uuid in the agent.
         :raises AgentToolApprovalNotPending: When an approval is decided already or
@@ -456,13 +460,20 @@ class AgentService:
         :raises AgentNotReady: When the agent isn't ready to continue the reply.
         :raises ChatRunLimitReached: When the workspace has its maximum of replies
             running.
-        :return: The reply with its approvals, and the run continuing it, or None
-            while some held calls are still undecided.
+        :return: The reply with its approvals, the run continuing it or None while
+            some held calls are still undecided, and the tools that stopped asking
+            first.
         """
 
         feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
+        operations = [CreateAgentMessageOperationType.type]
+        if always_allow:
+            operations += [
+                UpdateApplicationOperationType.type,
+                ReadAgentConfigurationOperationType.type,
+            ]
         agent = self._get_authorized_agent(
-            user, agent_id, CreateAgentMessageOperationType.type
+            user, agent_id, *operations, for_update=always_allow
         )
         # The lock serializes decisions with each other and with sends and trashing.
         conversation = self.handler.get_conversation(
@@ -471,15 +482,53 @@ class AgentService:
         reply, all_decided = self.handler.decide_approvals(
             conversation, user, decisions
         )
+        always_allowed_tools = (
+            self._always_allow_approved_tools(user, agent, reply, decisions)
+            if always_allow
+            else []
+        )
         application_pending_count_changed.send(
             self, application=agent, user_ids=[conversation.owner_user_id]
         )
         if not all_decided:
             agent_conversation_activity.send(self, conversation=conversation, user=user)
-            return reply, None
+            return AgentToolDecisionsResult(reply, None, always_allowed_tools)
         self._require_ready(self.handler.get_agent(agent_id))
         run = self.handler.resume_reply(reply)
         agent_conversation_activity.send(
             self, conversation=conversation, user=user, run_id=run.id
         )
-        return reply, run.id
+        return AgentToolDecisionsResult(reply, run.id, always_allowed_tools)
+
+    def _always_allow_approved_tools(
+        self,
+        user: AbstractUser,
+        agent: AgentApplication,
+        reply: AgentMessage,
+        decisions: list[AgentToolDecision],
+    ) -> list[str]:
+        """
+        Stop asking first for the tools of the approved calls, telling the Agent's
+        open pages when its configuration changed.
+
+        :param user: The user deciding.
+        :param agent: The Agent, locked like for a configuration update.
+        :param reply: The reply, with its decided approvals.
+        :param decisions: The decisions just saved.
+        :return: The tools that stopped asking first.
+        """
+
+        approved_ids = {
+            decision["id"] for decision in decisions if decision["approved"]
+        }
+        stopped = self.handler.stop_asking_first(
+            agent,
+            {
+                approval.tool_name
+                for approval in reply.approvals.all()
+                if approval.id in approved_ids
+            },
+        )
+        if stopped:
+            application_updated.send(self, application=agent, user=user)
+        return stopped

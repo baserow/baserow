@@ -84,6 +84,17 @@ class AgentConversationUpdated:
 
 
 @dataclass(frozen=True)
+class AgentToolDecisionsResult:
+    """Saved decisions on a reply's held calls, and what they changed."""
+
+    reply: AgentMessage
+    run_id: UUID | None
+    """The run continuing the reply, or None while some calls are undecided."""
+    always_allowed_tools: list[str]
+    """The tools that stopped asking first, in registry order."""
+
+
+@dataclass(frozen=True)
 class AgentReplyResume:
     """A paused run of a reply, continued once its held calls are decided."""
 

@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -320,6 +321,28 @@ class AgentHandler:
                     default=Value(False),
                 )
             )
+
+    def stop_asking_first(
+        self, agent: AgentApplication, tool_names: Iterable[str]
+    ) -> list[str]:
+        """
+        Let allowed tools run without waiting for the owner's approval.
+
+        :param agent: The Agent, locked like for a configuration update.
+        :param tool_names: The tools to stop asking first. Those that aren't allowed
+            or don't ask first are skipped.
+        :return: The names of the tools that stopped asking first, in registry
+            order.
+        """
+
+        requested = set(tool_names)
+        stopped = [
+            name
+            for name in self.get_tool_configuration(agent)["ask_first_tools"]
+            if name in requested
+        ]
+        agent.allowed_tools.filter(name__in=stopped).update(ask_first=False)
+        return stopped
 
     def get_run_as_subject(
         self,

@@ -187,13 +187,13 @@ def test_the_last_two_decisions_arriving_together_resume_the_reply_once(
         try:
             decider_pids.append(start_session())
             actor = get_user_model().objects.get(id=user.id)
-            _, run_id = AgentService().decide_approvals(
+            result = AgentService().decide_approvals(
                 actor,
                 agent.id,
                 reply.conversation.uuid,
                 [{"id": approval.id, "approved": True}],
             )
-            return run_id is not None
+            return result.run_id is not None
         finally:
             connections.close_all()
 
