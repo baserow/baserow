@@ -33,7 +33,6 @@ from baserow_enterprise.tools.formula_utils import (
     EMPTY_FORMULA,
     formula_desc,
     formula_object,
-    is_valid_formula,
     literal_or_placeholder,
     needs_formula,
     wrap_static_string,
@@ -54,6 +53,7 @@ from .table_columns import (
     data_source_fields,
     field_formula,
 )
+from .workflow_action import mapping_value_is_formula
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
@@ -236,12 +236,6 @@ def _button_orm(el: "ElementItemCreate", user, page) -> dict:
     }
 
 
-def _link_parameter_is_formula(value: str) -> bool:
-    """Whether a link page parameter goes through the formula step, or is fixed text."""
-
-    return needs_formula(value) or is_valid_formula(value)
-
-
 def _link_navigation(el: "ElementItemCreate") -> str:
     return el.navigation_type or ("custom" if el.navigate_to_url else "page")
 
@@ -266,7 +260,9 @@ def _link_orm(el: "ElementItemCreate", user, page) -> dict:
             {
                 "name": p.name,
                 "value": formula_object(
-                    EMPTY_FORMULA if _link_parameter_is_formula(p.value) else p.value,
+                    EMPTY_FORMULA
+                    if mapping_value_is_formula(p.value)
+                    else wrap_static_string(p.value),
                     mode=BASEROW_FORMULA_MODE_ADVANCED,
                 ),
             }
@@ -622,7 +618,7 @@ def _link_formulas(el: "ElementItemCreate", orm_element, context) -> dict[str, s
         formulas["navigate_to_url"] = formula_desc(el.navigate_to_url)
     if el.navigate_to_page_id and _link_navigation(el) == "page":
         for i, param in enumerate(el.link_page_parameters or []):
-            if _link_parameter_is_formula(param.value):
+            if mapping_value_is_formula(param.value):
                 formulas[f"page_param_{i}"] = formula_desc(param.value)
     return formulas
 

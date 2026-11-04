@@ -288,8 +288,8 @@ def setup_page(
     or data source made in this call, add the action or element in a second call with
     the IDs from this one. Plain text in a title, description, parameter or action
     field value is stored as fixed text. A whole value that is a function call, like
-    upper('abc'), is a formula, and so is a field value that parses as one: quote
-    fixed text like that, 'like this'. Descriptions are not turned into formulas: a
+    upper('abc'), is a formula, and so is a number or true or false as a field value.
+    Sums like 3/4 are fixed text. Descriptions are not turned into formulas: a
     value that isn't a valid formula is left empty and listed in formula_errors. A
     get_row or row action can't run without its row_id, so one that isn't a valid
     formula is listed in errors and isn't created. So is an open_page action whose

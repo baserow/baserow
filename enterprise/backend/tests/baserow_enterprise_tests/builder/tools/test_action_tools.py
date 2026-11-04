@@ -1589,8 +1589,8 @@ def _create_row_with(builder_ctx, value):
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "value",
-    ["nosuchfn('x')", "get('current_record.id')"],
-    ids=["unknown-function", "not-in-a-collection"],
+    ["$formula: the name", "get('current_record.id')"],
+    ids=["description", "not-in-a-collection"],
 )
 def test_a_new_row_actions_invalid_field_value_is_left_empty_and_listed(
     builder_ctx, value
@@ -1609,6 +1609,14 @@ def test_a_new_row_actions_invalid_field_value_is_left_empty_and_listed(
         ("Hello (world)", "'Hello (world)'"),
         ("O'Brien", "'O\\'Brien'"),
         ("not a formula", "'not a formula'"),
+        ("3/4", "'3/4'"),
+        ("10 / 2", "'10 / 2'"),
+        ("1+1", "'1+1'"),
+        ("(3)", "'(3)'"),
+        ("007", "'007'"),
+        ("1.50", "'1.50'"),
+        ("1e5", "'1e5'"),
+        ("nosuchfn('x')", "'nosuchfn(\\'x\\')'"),
     ],
 )
 def test_a_new_row_actions_plain_field_value_is_stored_as_fixed_text(
@@ -1618,6 +1626,18 @@ def test_a_new_row_actions_plain_field_value_is_stored_as_fixed_text(
 
     assert "formula_errors" not in result
     assert stored == expected
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "value",
+    ["7", "-3", "0", "3.14", "true", "false", "'quoted'", "upper('abc')"],
+)
+def test_a_new_row_actions_literal_or_call_is_stored_as_written(builder_ctx, value):
+    result, _field, stored = _create_row_with(builder_ctx, value)
+
+    assert "formula_errors" not in result
+    assert stored == value
 
 
 @pytest.mark.django_db

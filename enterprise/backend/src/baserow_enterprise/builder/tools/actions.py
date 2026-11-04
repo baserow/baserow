@@ -137,7 +137,7 @@ def create_actions(
     get('previous_action.<action id>.<field>') reads what an earlier action returned.
     Plain text in a title, description, parameter or field value is stored as fixed
     text. A whole value that is a function call, like upper('abc'), is a formula, and
-    so is a field value that parses as one: quote fixed text like that, 'like this'.
+    so is a number or true or false as a field value. Sums like 3/4 are fixed text.
     Descriptions are not turned into formulas: a value that isn't a valid formula is
     left empty and listed in formula_errors. A field value can then be set with
     add_action_field_mapping. A row action can't run without its row_id, so one that

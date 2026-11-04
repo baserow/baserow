@@ -395,7 +395,6 @@ def link(builder_ctx, value):
     [
         ("$formula: the id", "needs a formula"),
         ("get('page_parameter.nope')", "page parameter"),
-        ("no_such_function('x')", "not a valid formula"),
     ],
 )
 def test_a_link_page_parameter_that_is_not_valid_is_left_empty_and_listed(
@@ -420,6 +419,11 @@ def test_a_link_page_parameter_that_is_not_valid_is_left_empty_and_listed(
         (lambda ds: f"get('data_source.{ds}.0.id')", None),
         (lambda ds: "5", "5"),
         (lambda ds: "fixed", "'fixed'"),
+        (lambda ds: "10/2", "'10/2'"),
+        (lambda ds: "1+1", "'1+1'"),
+        (lambda ds: "007", "'007'"),
+        (lambda ds: "3.14", "3.14"),
+        (lambda ds: "upper('abc')", None),
     ],
 )
 def test_a_link_page_parameter_that_is_valid_is_stored(builder_ctx, value, stored):

@@ -5,6 +5,7 @@ Defines ``ActionCreate`` (flat) for creating workflow actions and
 ``ActionItem`` for reading them back.
 """
 
+import re
 from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import Field, model_validator
@@ -19,7 +20,6 @@ from baserow_enterprise.tools.formula_utils import (
     EMPTY_FORMULA,
     formula_desc,
     formula_object,
-    is_valid_formula,
     literal_or_placeholder,
     needs_formula,
 )
@@ -101,6 +101,11 @@ _ID_FIELDS: tuple[str, ...] = (
 )
 
 
+_NUMBER_OR_BOOLEAN_RE = re.compile(
+    r"-?(?:0|[1-9]\d*)(?:\.\d*[1-9])?|true|false", re.IGNORECASE
+)
+
+
 def _strip_formula_prefix(value: str) -> str:
     """
     Strip the ``$formula:`` prefix if present, returning the inner formula.
@@ -139,6 +144,18 @@ def _is_text_formula(value: str | None) -> bool:
     """
 
     return needs_formula(value) or _is_function_call(value)
+
+
+def mapping_value_is_formula(value: str) -> bool:
+    """
+    Whether a field value or link parameter goes through the formula step. A number
+    or boolean counts, as a field can need the type, unless a formula would show it
+    differently, like ``007``. Sums like ``3/4`` are fixed text.
+    """
+
+    return _is_text_formula(value) or bool(
+        _NUMBER_OR_BOOLEAN_RE.fullmatch(value.strip())
+    )
 
 
 def _text_or_placeholder(value: str | None) -> str:
@@ -274,26 +291,19 @@ def _field_mappings(action: "ActionCreate") -> list[dict] | None:
     if action.type not in ("create_row", "update_row") or not action.field_values:
         return None
 
-    # A value that is or parses as a formula is checked by the formula step.
-    # Anything else is fixed text.
+    # A formula is checked by the formula step. Anything else is fixed text.
     return [
         {
             "field_id": int(fv.field_id.strip()),
             "value": _advanced(
                 EMPTY_FORMULA
-                if _is_field_formula(fv.value)
+                if mapping_value_is_formula(fv.value)
                 else literal_or_placeholder(fv.value)
             ),
             "enabled": True,
         }
         for fv in action.field_values
     ]
-
-
-def _is_field_formula(value: str) -> bool:
-    """Whether a field value goes through the formula step, or is fixed text."""
-
-    return needs_formula(value) or is_valid_formula(value)
 
 
 # ---------------------------------------------------------------------------
@@ -315,10 +325,8 @@ def _row_formulas(action: "ActionCreate", orm_action, context) -> dict[str, str]
     if action.field_values:
         for fv in action.field_values:
             key = f"field_{fv.field_id.strip()}"
-            if needs_formula(fv.value):
+            if mapping_value_is_formula(fv.value):
                 formulas[key] = formula_desc(fv.value)
-            elif is_valid_formula(fv.value):
-                formulas[key] = fv.value
 
     return formulas
 
