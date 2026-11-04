@@ -4267,17 +4267,17 @@ def test_update_page_returns_an_invalid_path_to_the_model(data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize(
-    "trashed, visibility, existing_form, expected_path, reuses_page, note",
+    "trashed, visibility, existing_form, expected_path, reuses_page, forms",
     [
-        (False, "all", None, "/login", True, False),
-        (False, "all", "unbound", "/login", True, False),
-        (False, "all", "other", "/login", True, True),
-        (False, "logged-in", None, "/login-1", False, False),
-        (True, "all", None, "/login-1", False, False),
+        (False, "all", None, "/login", True, 1),
+        (False, "all", "unbound", "/login", True, 1),
+        (False, "all", "other", "/login", True, 2),
+        (False, "logged-in", None, "/login-1", False, 1),
+        (True, "all", None, "/login-1", False, 1),
     ],
 )
 def test_setup_user_source_puts_the_login_form_on_the_login_path(
-    data_fixture, trashed, visibility, existing_form, expected_path, reuses_page, note
+    data_fixture, trashed, visibility, existing_form, expected_path, reuses_page, forms
 ):
     from baserow_enterprise.assistant.tools.builder.tools import setup_user_source
     from baserow_enterprise.builder.elements.element_types import (
@@ -4320,10 +4320,8 @@ def test_setup_user_source_puts_the_login_form_on_the_login_path(
     assert login_page.path == expected_path
     assert (login_page.id == existing.id) is reuses_page
     login_forms = AuthFormElement.objects.filter(page=login_page)
-    assert login_forms.count() == 1
-    assert ("note" in result) is note
-    if not note:
-        assert login_forms.filter(user_source_id=result["user_source_id"]).count() == 1
+    assert login_forms.count() == forms
+    assert login_forms.filter(user_source_id=result["user_source_id"]).count() == 1
     builder.refresh_from_db()
     assert builder.login_page_id == login_page.id
 
