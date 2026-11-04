@@ -98,6 +98,50 @@ def test_text_widget_configuration_undo_redo(data_fixture, default_value):
 
 
 @pytest.mark.django_db
+@pytest.mark.undo_redo
+@pytest.mark.parametrize("multiple", [False, True])
+def test_changing_options_and_clearing_defaults_is_one_undo_action(
+    data_fixture, multiple
+):
+    user = data_fixture.create_user(session_id="change-options")
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    original_options = BaserowFormulaObject.create("France, Belgium", mode="raw")
+    original_default = ["France", "Belgium"] if multiple else "France"
+    new_options = BaserowFormulaObject.create("Germany, Spain", mode="raw")
+    cleared = [] if multiple else ""
+    widget = WidgetService().create_widget(
+        user,
+        "text_filter",
+        dashboard.id,
+        title="Country",
+        mode="dropdown",
+        multiple=multiple,
+        options=original_options,
+        default_value=original_default,
+    )
+    action_type_registry.get_by_type(UpdateWidgetActionType).do(
+        user,
+        widget.id,
+        "text_filter",
+        {"options": new_options, "default_value": cleared},
+    )
+    widget.refresh_from_db()
+    assert (widget.options, widget.default_value) == (new_options, cleared)
+    scopes = [ApplicationActionScopeType.value(application_id=dashboard.id)]
+    undone = ActionHandler.undo(user, scopes, "change-options")
+    assert_undo_redo_actions_are_valid(undone, [UpdateWidgetActionType])
+    widget.refresh_from_db()
+    assert (widget.options, widget.default_value) == (
+        original_options,
+        original_default,
+    )
+    redone = ActionHandler.redo(user, scopes, "change-options")
+    assert_undo_redo_actions_are_valid(redone, [UpdateWidgetActionType])
+    widget.refresh_from_db()
+    assert (widget.options, widget.default_value) == (new_options, cleared)
+
+
+@pytest.mark.django_db
 def test_text_widget_crud_serializers(api_client, data_fixture):
     """Both dashboard APIs expose literal configuration, never viewer input."""
     from django.urls import reverse
