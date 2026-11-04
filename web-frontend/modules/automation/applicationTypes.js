@@ -51,6 +51,11 @@ export class AutomationApplicationType extends ApplicationType {
     return false
   }
 
+  getTrashItemTypeName() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('trashType.automation')
+  }
+
   getApplicationContextComponent() {
     return ApplicationContext
   }
