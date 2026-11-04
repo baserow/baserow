@@ -1,3 +1,4 @@
+import { EnterpriseRuntimePlugin } from '@baserow_enterprise/pluginsRuntime'
 import {
   RolePermissionManagerType,
   WriteFieldValuesPermissionManagerType,
@@ -36,6 +37,7 @@ import {
 export default async function register(nuxtApp) {
   const { $config, $registry, $store, $featureFlagIsEnabled } = nuxtApp
   const context = { app: nuxtApp }
+  $registry.register('plugin', new EnterpriseRuntimePlugin(context))
   $registry.register(
     'permissionManager',
     new RolePermissionManagerType(context)
