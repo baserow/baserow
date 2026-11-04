@@ -9,7 +9,7 @@ from baserow.contrib.builder.workflow_actions.models import NotificationWorkflow
 from baserow.core.tools.errors import ToolInputError
 
 from .formulas import current_record_of, formula_problem, page_formula_context
-from .helpers import child_menu, save_child_menu
+from .helpers import child_menu, page_parameters_problem, save_child_menu
 from .menu_item_changes import MenuItemsChange, linkable_page_ids, merge_menu_items
 from .registries import AssistantElementType, PreparedElementUpdate
 from .table_column_changes import merge_table_columns
@@ -139,6 +139,30 @@ class LinkAssistantElementType(AssistantElementType):
         """
 
         return {"link_variant": "variant", "link_target": "target"}
+
+    def prepare_update(
+        self, user: AbstractUser, element: Element, update: ElementUpdate
+    ) -> PreparedElementUpdate:
+        """
+        Check that a new target page fits the parameters the link has, which an update
+        can't change.
+
+        :raises ToolInputError: When they don't fit. Nothing is saved.
+        """
+
+        page_id = update.navigate_to_page_id
+        if page_id is not None and page_id != element.navigate_to_page_id:
+            problem = page_parameters_problem(
+                element.page.builder_id,
+                page_id,
+                [param["name"] for param in element.page_parameters or []],
+            )
+            if problem:
+                raise ToolInputError(
+                    f"{problem} {NO_CHANGES} Replace the link: create a new one with "
+                    "link_page_parameters."
+                )
+        return super().prepare_update(user, element, update)
 
 
 class ColumnAssistantElementType(AssistantElementType):

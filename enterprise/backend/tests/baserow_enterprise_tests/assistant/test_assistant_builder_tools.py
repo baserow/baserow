@@ -4323,3 +4323,37 @@ def test_setup_user_source_puts_the_login_form_on_the_login_path(
     assert login_forms.filter(user_source_id=result["user_source_id"]).count() == 1
     builder.refresh_from_db()
     assert builder.login_page_id == login_page.id
+
+
+@pytest.mark.django_db
+def test_update_element_refuses_a_new_target_that_does_not_fit_a_link(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+    start = data_fixture.create_builder_page(
+        builder=builder,
+        name="Product",
+        path="/products/:id",
+        path_params=[{"name": "id", "type": "text"}],
+    )
+    target = data_fixture.create_builder_page(
+        builder=builder, name="Plain", path="/plain"
+    )
+    link = data_fixture.create_builder_link_element(
+        page=page,
+        navigation_type="page",
+        navigate_to_page_id=start.id,
+        page_parameters=[{"name": "id", "value": "'1'"}],
+    )
+
+    with pytest.raises(ToolInputError, match="Replace the link"):
+        update_element(
+            make_test_ctx(user, workspace),
+            page_id=page.id,
+            element=ElementUpdate(element_id=link.id, navigate_to_page_id=target.id),
+            thought="test",
+        )
+
+    link.refresh_from_db()
+    assert link.navigate_to_page_id == start.id

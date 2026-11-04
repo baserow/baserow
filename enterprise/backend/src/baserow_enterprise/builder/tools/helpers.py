@@ -1360,6 +1360,38 @@ def get_writable_action(
     return action
 
 
+def page_parameters_problem(
+    builder_id: int, page_id: int | None, names: list[str]
+) -> str | None:
+    """
+    Why page parameters with these names don't fit the page they open, if so.
+
+    :param builder_id: The application the page must be in.
+    :param page_id: The page they open.
+    :param names: The names of the parameters.
+    :return: The problem, or None when they fit or the page isn't in the application,
+        which is left to the writer.
+    """
+
+    page = Page.objects.filter(id=page_id, builder_id=builder_id).first()
+    if page is None:
+        return None
+    expected = [param["name"] for param in page.path_params or []]
+    missing = [name for name in expected if name not in names]
+    unknown = [name for name in dict.fromkeys(names) if name not in expected]
+    if not missing and not unknown:
+        return None
+    problems = []
+    if missing:
+        problems.append(f"missing: {', '.join(missing)}")
+    if unknown:
+        problems.append(f"unknown: {', '.join(unknown)}")
+    return (
+        f"The page parameters don't fit page {page.id}, which takes "
+        f"{', '.join(expected) or 'none'} ({'; '.join(problems)})."
+    )
+
+
 def check_open_page_parameters(
     action: BuilderWorkflowAction, item: ActionCreate | ActionUpdate
 ) -> None:
@@ -1383,29 +1415,17 @@ def check_open_page_parameters(
         return
 
     page_id = item.navigate_to_page_id or getattr(action, "navigate_to_page_id", None)
-    page = Page.objects.filter(id=page_id, builder_id=action.page.builder_id).first()
-    if page is None:
-        return
     if item.page_parameters is not None:
         names = [param.name for param in item.page_parameters]
     else:
         names = [param["name"] for param in action.page_parameters or []]
 
-    expected = [param["name"] for param in page.path_params or []]
-    missing = [name for name in expected if name not in names]
-    unknown = [name for name in dict.fromkeys(names) if name not in expected]
-    if not missing and not unknown:
-        return
-    problems = []
-    if missing:
-        problems.append(f"missing: {', '.join(missing)}")
-    if unknown:
-        problems.append(f"unknown: {', '.join(unknown)}")
-    raise ToolInputError(
-        f"The page parameters don't fit page {page.id}, which takes "
-        f"{', '.join(expected) or 'none'} ({'; '.join(problems)}). Give page_parameters "
-        "with exactly those names, or an empty list if it takes none."
-    )
+    problem = page_parameters_problem(action.page.builder_id, page_id, names)
+    if problem:
+        raise ToolInputError(
+            f"{problem} Give page_parameters with exactly those names, or an empty "
+            "list if it takes none."
+        )
 
 
 def update_workflow_action(

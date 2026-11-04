@@ -284,3 +284,41 @@ def test_children_keep_their_order_over_mcp(data_fixture, builder_ctx):
 
     assert children(layout["box"]) == ["'First'", "'Second'"]
     assert children(layout["top"]) == ["'One'", "'Two'"]
+
+
+@pytest.mark.django_db
+def test_a_new_target_that_does_not_fit_a_link_is_refused_over_mcp(
+    data_fixture, builder_ctx
+):
+    endpoint = _endpoint(data_fixture, builder_ctx, WRITE_TOOLS)
+    builder = builder_ctx["builder"]
+    start = data_fixture.create_builder_page(
+        builder=builder,
+        name="Product",
+        path="/products/:id",
+        path_params=[{"name": "id", "type": "text"}],
+    )
+    target = data_fixture.create_builder_page(
+        builder=builder,
+        name="Post",
+        path="/posts/:slug",
+        path_params=[{"name": "slug", "type": "text"}],
+    )
+    link = data_fixture.create_builder_link_element(
+        page=builder_ctx["page"],
+        navigation_type="page",
+        navigate_to_page_id=start.id,
+        page_parameters=[{"name": "id", "value": "'1'"}],
+    )
+
+    async def call(client):
+        return await client.call_tool(
+            "update_element",
+            {"element_id": link.id, "element": {"navigate_to_page_id": target.id}},
+        )
+
+    result = _session(endpoint, call)
+
+    assert result.isError
+    assert "Replace the link" in result.content[0].text
+    assert Element.objects.get(id=link.id).specific.navigate_to_page_id == start.id

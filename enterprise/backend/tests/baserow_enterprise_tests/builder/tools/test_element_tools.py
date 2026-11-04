@@ -1930,3 +1930,100 @@ def test_a_display_link_can_give_the_parameters_of_its_page(data_fixture, builde
     link = saved(result["ref_to_id_map"]["link"])
     assert [param["name"] for param in link.page_parameters] == ["id"]
     assert link.page_parameters[0]["value"]["formula"] == "7"
+
+
+# ---------------------------------------------------------------------------
+# A link's new target
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def link_pages(data_fixture, builder_ctx):
+    def page_at(name, path, *params):
+        return data_fixture.create_builder_page(
+            builder=builder_ctx["builder"],
+            name=name,
+            path=path,
+            path_params=[{"name": param, "type": "text"} for param in params],
+        )
+
+    return {
+        "by_id": page_at("Product", "/products/:id", "id"),
+        "also_by_id": page_at("Order", "/orders/:id", "id"),
+        "by_slug": page_at("Post", "/posts/:slug", "slug"),
+        "plain": page_at("Plain", "/plain"),
+        "other_plain": page_at("Other", "/other"),
+    }
+
+
+def link_to(data_fixture, builder_ctx, target, *params):
+    return data_fixture.create_builder_link_element(
+        page=builder_ctx["page"],
+        navigation_type="page",
+        navigate_to_page_id=target.id,
+        page_parameters=[{"name": name, "value": "'1'"} for name in params],
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "start,params,target,named",
+    [
+        ("by_id", ["id"], "by_slug", ["slug", "missing: slug", "unknown: id"]),
+        ("by_id", ["id"], "plain", ["none", "unknown: id"]),
+        ("plain", [], "by_id", ["id", "missing: id"]),
+    ],
+)
+def test_a_new_target_that_does_not_fit_a_link_is_refused(
+    data_fixture, builder_ctx, link_pages, start, params, target, named
+):
+    link = link_to(data_fixture, builder_ctx, link_pages[start], *params)
+
+    with pytest.raises(ToolInputError) as error:
+        elements.update_element(
+            builder_ctx["ctx"],
+            link.id,
+            ElementChanges(navigate_to_page_id=link_pages[target].id, value="New"),
+        )
+
+    assert all(part in str(error.value) for part in named)
+    assert "Replace the link" in str(error.value)
+    stored = saved(link.id)
+    assert stored.navigate_to_page_id == link_pages[start].id
+    assert stored.value == link.value
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "start,params,target",
+    [("plain", [], "other_plain"), ("by_id", ["id"], "also_by_id")],
+)
+def test_a_new_target_that_fits_a_link_is_stored(
+    data_fixture, builder_ctx, link_pages, start, params, target
+):
+    link = link_to(data_fixture, builder_ctx, link_pages[start], *params)
+
+    elements.update_element(
+        builder_ctx["ctx"],
+        link.id,
+        ElementChanges(navigate_to_page_id=link_pages[target].id),
+    )
+
+    stored = saved(link.id)
+    assert stored.navigate_to_page_id == link_pages[target].id
+    assert [param["name"] for param in stored.page_parameters] == params
+
+
+@pytest.mark.django_db
+def test_a_link_that_keeps_its_target_is_not_checked(
+    data_fixture, builder_ctx, link_pages
+):
+    link = link_to(data_fixture, builder_ctx, link_pages["by_id"])
+
+    elements.update_element(
+        builder_ctx["ctx"],
+        link.id,
+        ElementChanges(navigate_to_page_id=link_pages["by_id"].id, value="New"),
+    )
+
+    assert saved(link.id).value["formula"] == "'New'"

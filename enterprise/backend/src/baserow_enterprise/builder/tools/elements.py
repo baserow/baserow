@@ -359,8 +359,9 @@ def update_element(
     what it shows or does when clicked, like the message of a notification, is a click
     action: find it with list_actions and change it with update_action. If a changed
     button also shows a notification when clicked, the result has a note naming that
-    action, which stays as it was. To move an element or change its style use
-    move_elements or update_element_style.
+    action, which stays as it was. A link's new page must fit the parameters it has,
+    or the update is refused. To move an element or change its style use move_elements
+    or update_element_style.
 
     Give dynamic values as formulas in Baserow formula syntax, like
     get('page_parameter.id'). A value that isn't a valid formula keeps its previous
