@@ -743,6 +743,36 @@
   }
 }
 
+.agent-workspace-tools__ask {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: $palette-neutral-50;
+
+  @include rounded($rounded-md);
+}
+
+.agent-workspace-tools__ask-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-workspace-tools__ask-title {
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+}
+
+.agent-workspace-tools__ask-description {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 16px;
+  color: $palette-neutral-900;
+}
+
 .agent-workspace-tools__group {
   display: flex;
   align-items: center;
@@ -786,6 +816,11 @@
 .agent-workspace-tools__group-count {
   font-size: 12px;
   color: $palette-neutral-900;
+}
+
+.agent-workspace-tools__group-separator {
+  font-weight: 700;
+  color: $palette-neutral-500;
 }
 
 .agent-tool-permissions__description {

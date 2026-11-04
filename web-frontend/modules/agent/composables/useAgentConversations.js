@@ -493,7 +493,7 @@ export function useAgentConversations(agent, configuration) {
   }
 
   /** Decide held steps of a reply, then follow the run that resumes it. */
-  async function decideApprovals(reply, decisions) {
+  async function decideApprovals(reply, decisions, { alwaysAllow } = {}) {
     if (!canDecide.value || decidingReplies.has(reply.uuid)) return
     const currentScope = scope
     const agentId = agent.value.id
@@ -503,9 +503,12 @@ export function useAgentConversations(agent, configuration) {
       const { data } = await service.decideApprovals(
         agentId,
         conversationUuid,
-        decisions
+        decisions,
+        { alwaysAllow }
       )
       if (!scopeIsCurrent(currentScope) || !canReadConversations.value) return
+      // The application_updated event skips the socket that sent the request.
+      if (alwaysAllow) configuration.fetchConfiguration()
       const history = histories[conversationUuid]
       if (history) history.items = mergeMessages(history.items, [data])
       const conversation = findConversation(conversationUuid)

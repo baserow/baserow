@@ -94,6 +94,8 @@ const decisions = (wrapper) =>
   texts(card(wrapper).findAll('.agent-approval__decision'))
 const announcement = (wrapper) =>
   card(wrapper).get('.agent-approval__announcement[role="status"]').text()
+const alwaysAllow = (wrapper) =>
+  card(wrapper).find('.agent-approval__always-allow')
 const activity = (wrapper) => wrapper.get('.chat-composer__activity')
 const waitingDot = (wrapper) =>
   wrapper.find('.agent-conversations__status--waiting').exists()
@@ -132,6 +134,10 @@ describe('Agent tool approvals', () => {
     receive(runId, 'run.finished', { status: 'completed', message: saved })
   const messageReads = () =>
     testApp.mock.history.get.filter(({ url }) => url.includes('/messages/'))
+  const configurationReads = () =>
+    testApp.mock.history.get.filter(
+      ({ url }) => url === '/agent/10/configuration/'
+    ).length
 
   async function openReply(saved, ...later) {
     mockConversations(
@@ -269,6 +275,7 @@ describe('Agent tool approvals', () => {
     mockApprovals(testApp, chat.uuid, decision.reply)
     const wrapper = await openWaitingReply([approval(1), approval(2)])
     expect(waitingDot(wrapper)).toBe(true)
+    const reads = configurationReads()
 
     await headerButtons(wrapper)[1].trigger('click')
     await flushPromises()
@@ -276,7 +283,7 @@ describe('Agent tool approvals', () => {
       card(wrapper)
         .findAll('button:not(.agent-approval__details-toggle)')
         .map((button) => button.element.disabled)
-    ).toEqual(Array(6).fill(true))
+    ).toEqual(Array(7).fill(true))
     const approved = [approval(1, 'approved'), approval(2, 'approved')]
     decision.resolve(200, reply('running', approved, { runId: 'run-2' }))
     await flushPromises()
@@ -292,6 +299,8 @@ describe('Agent tool approvals', () => {
         ],
       },
     ])
+    expect(sentBodies(testApp)[0]).not.toHaveProperty('always_allow')
+    expect(configurationReads()).toBe(reads)
     expect(api.stream.mock.calls.map(([runId]) => runId)).toEqual(['run-2'])
     expect(stop(wrapper).exists()).toBe(true)
     expect(activity(wrapper).text()).toBe('agent.thinking')
@@ -309,6 +318,42 @@ describe('Agent tool approvals', () => {
     )
     expect(decisions(wrapper)).toEqual(['agent.approved', 'agent.approved'])
     expect(headerButtons(wrapper)).toHaveLength(0)
+  })
+
+  test('always allow approves every pending step and re-reads the configuration', async () => {
+    mockApprovals(
+      testApp,
+      chat.uuid,
+      reply('running', [approval(1, 'approved'), approval(2, 'approved')], {
+        runId: 'run-2',
+      })
+    )
+    const wrapper = await openWaitingReply([approval(1), approval(2)])
+    const reads = configurationReads()
+    expect(alwaysAllow(wrapper).text()).toBe('agent.alwaysAllow')
+
+    await alwaysAllow(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(sentBodies(testApp)).toEqual([
+      {
+        decisions: [
+          { id: 1, approved: true },
+          { id: 2, approved: true },
+        ],
+        always_allow: true,
+      },
+    ])
+    expect(configurationReads()).toBe(reads + 1)
+    expect(alwaysAllow(wrapper).exists()).toBe(false)
+  })
+
+  test('always allow is offered only to members who can edit the configuration', async () => {
+    allowed.value = (operation) => operation !== 'application.update'
+    const wrapper = await openWaitingReply([approval(1)])
+
+    expect(alwaysAllow(wrapper).exists()).toBe(false)
+    expect(headerButtons(wrapper)).toHaveLength(2)
   })
 
   test('rejecting one step sends the reason given in the modal', async () => {

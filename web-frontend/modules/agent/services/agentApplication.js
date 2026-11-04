@@ -75,10 +75,10 @@ export default (client) => ({
       values
     )
   },
-  decideApprovals(agentId, conversationUuid, decisions) {
+  decideApprovals(agentId, conversationUuid, decisions, { alwaysAllow } = {}) {
     return client.post(
       `/agent/${agentId}/conversations/${conversationUuid}/approvals/`,
-      { decisions }
+      { decisions, ...(alwaysAllow ? { always_allow: true } : {}) }
     )
   },
 })

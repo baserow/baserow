@@ -1213,6 +1213,10 @@ describe('Agent configuration', () => {
       '.agent-tool-permissions__actions button',
       'agent.toolsDone'
     ).click()
+  const askSwitch = (wrapper) =>
+    wrapper.get('.agent-workspace-tools__ask [role="checkbox"]')
+  const groupCount = (wrapper) =>
+    wrapper.get('.agent-workspace-tools__group-count').text()
 
   test.each(['Enter', ' '])(
     'enables workspace tools with %s and opens named tool permissions',
@@ -1327,7 +1331,7 @@ describe('Agent configuration', () => {
 
   test('keeps workspace tool controls inactive for a read-only member', async () => {
     allowed.value = (operation) => operation !== 'application.update'
-    mockConfiguration(testApp, withTools(['list_tables']))
+    mockConfiguration(testApp, withTools(['list_tables', 'create_rows']))
     const wrapper = await mount()
     await openSection(wrapper, 'agent.workspaceAccess')
     const tools = wrapper.get('.agent-workspace-tools')
@@ -1337,9 +1341,11 @@ describe('Agent configuration', () => {
     expect(
       tools.get('button.agent-workspace-tools__group').element.disabled
     ).toBe(true)
+    expect(askSwitch(wrapper).attributes('aria-disabled')).toBe('true')
 
     await toggle.trigger('keydown', { key: 'Enter' })
     await toggle.trigger('keydown', { key: ' ' })
+    await askSwitch(wrapper).trigger('keydown', { key: 'Enter' })
     await tools.get('.segment-control__button').trigger('click')
     await flushPromises()
 
@@ -1650,6 +1656,58 @@ describe('Agent configuration', () => {
       { allowed_tools: [], ask_first_tools: [] },
     ])
     expect(wrapper.find('.agent-workspace-tools__group').exists()).toBe(false)
+  })
+
+  test('asks before every allowed change or none, keeping read tools as they are', async () => {
+    const everything = ['list_tables', 'create_rows', 'delete_rows']
+    mockConfiguration(
+      testApp,
+      withTools(everything, { askFirstTools: ['list_tables', 'create_rows'] })
+    )
+    mockSaves(
+      testApp,
+      withTools(everything, { askFirstTools: everything }),
+      withTools(everything, { askFirstTools: ['list_tables'] })
+    )
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    expect(askSwitch(wrapper).attributes('aria-checked')).toBe('mixed')
+    expect(askSwitch(wrapper).classes()).toContain('switch--indeterminate')
+    expect(groupCount(wrapper)).toBe(
+      'agent.toolsSummary • agent.toolsAskCount - 2'
+    )
+
+    await askSwitch(wrapper).trigger('click')
+    await flushPromises()
+    expect(askSwitch(wrapper).attributes('aria-checked')).toBe('true')
+    await askSwitch(wrapper).trigger('keydown', { key: ' ' })
+    await flushPromises()
+
+    expect(askSwitch(wrapper).attributes('aria-checked')).toBe('false')
+    expect(groupCount(wrapper)).toBe(
+      'agent.toolsSummary • agent.toolsAskCount - 1'
+    )
+    expect(savedValues(testApp)).toEqual([
+      { allowed_tools: everything, ask_first_tools: everything },
+      { allowed_tools: everything, ask_first_tools: ['list_tables'] },
+    ])
+  })
+
+  test('locks the ask switch while no change tool is allowed', async () => {
+    mockConfiguration(testApp, withTools(['list_tables']))
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    const ask = askSwitch(wrapper)
+    expect(ask.attributes('aria-checked')).toBe('false')
+    expect(ask.attributes('aria-disabled')).toBe('true')
+    expect(ask.element.tabIndex).toBe(-1)
+
+    await ask.trigger('click')
+    await ask.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    expect(groupCount(wrapper)).toBe('agent.toolsSummary')
+    expect(savedValues(testApp)).toEqual([])
   })
 
   test('renames the Agent through the application with the trimmed name', async () => {

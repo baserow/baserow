@@ -104,8 +104,12 @@
                 :key="message.uuid"
                 :message="message"
                 :can-decide="state.canDecide"
+                :can-always-allow="state.canUpdateConfiguration"
                 :deciding="state.decidingReplies.has(message.uuid)"
-                @decide="state.decideApprovals(message, $event)"
+                @decide="
+                  (decisions, options) =>
+                    state.decideApprovals(message, decisions, options)
+                "
               />
             </template>
             <div v-else-if="showChatIntro" class="agent-chat__intro">
