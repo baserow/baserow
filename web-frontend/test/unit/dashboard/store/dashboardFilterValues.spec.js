@@ -81,6 +81,49 @@ const settle = async () => {
 }
 
 describe('Dashboard filter dispatch', () => {
+  test('disabling a link refreshes its target once and stops refreshing it on selection changes', async () => {
+    await vi.advanceTimersByTimeAsync(300)
+    await settle()
+    const filter = store.state.dashboardApplication.widgets.find(
+      ({ id }) => id === 12
+    )
+    const links = filter.target_filters.map((link) => ({
+      ...link,
+      enabled: link.target_widget_id !== 20,
+    }))
+    await store.dispatch('dashboardApplication/forceUpdateWidget', {
+      widgetId: 12,
+      values: { target_filters: links },
+    })
+    await vi.advanceTimersByTimeAsync(300)
+    expect(requests.map(({ url }) => url).sort()).toEqual([
+      '/dashboard/data-sources/1/dispatch/',
+      '/dashboard/data-sources/3/dispatch/',
+    ])
+    await settle()
+    await change(12, 'Beta')
+    await vi.advanceTimersByTimeAsync(300)
+    expect(requests.map(({ url }) => url)).toEqual([
+      '/dashboard/data-sources/3/dispatch/',
+    ])
+    await settle()
+    await store.dispatch('dashboardApplication/forceUpdateWidget', {
+      widgetId: 12,
+      values: {
+        target_filters: links.map((link) => ({ ...link, enabled: true })),
+      },
+    })
+    await vi.advanceTimersByTimeAsync(300)
+    await settle()
+    await change(12, 'Gamma')
+    await vi.advanceTimersByTimeAsync(300)
+    expect(requests.map(({ url }) => url).sort()).toEqual([
+      '/dashboard/data-sources/1/dispatch/',
+      '/dashboard/data-sources/3/dispatch/',
+    ])
+    await settle()
+  })
+
   test.each(['pending', 'coalesced', 'collection refresh'])(
     'preserves an explicitly reselected value after a failed save (%s)',
     async (scenario) => {
