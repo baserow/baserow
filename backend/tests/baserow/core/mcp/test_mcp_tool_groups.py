@@ -5,6 +5,7 @@ import pytest
 from baserow.core.mcp.groups import (
     AREA_AUTOMATION,
     AREA_DASHBOARD,
+    AREA_WORKSPACE,
     GROUP_AUTOMATION_DELETE,
     GROUP_AUTOMATION_EDIT,
     GROUP_AUTOMATION_READ,
@@ -14,6 +15,7 @@ from baserow.core.mcp.groups import (
     GROUP_DATABASE_DELETE,
     GROUP_DATABASE_EDIT,
     GROUP_DATABASE_READ,
+    GROUP_WORKSPACE_READ,
     DashboardDeleteMCPToolGroup,
     DashboardEditMCPToolGroup,
     DashboardReadMCPToolGroup,
@@ -38,6 +40,16 @@ def test_every_tool_has_a_registered_group():
     assert ungrouped == []
 
 
+def test_workspace_search_is_first_and_in_the_read_only_preset():
+    group = mcp_tool_group_registry.get(GROUP_WORKSPACE_READ)
+    assert group.area == AREA_WORKSPACE
+    assert group.read_only_preset is True
+    assert mcp_tool_group_registry.get_ordered()[0] is group
+    tool = mcp_tool_registry.get("search_workspace")
+    assert tool.group == GROUP_WORKSPACE_READ
+    assert tool.read_only is True
+
+
 def test_core_database_tool_groups():
     groups = {tool.name: tool.group for tool in mcp_tool_registry.get_all()}
     assert groups["list_databases"] == GROUP_DATABASE_READ
@@ -56,6 +68,12 @@ def test_core_database_tool_groups():
     assert groups["delete_rows"] == GROUP_DATABASE_DELETE
     assert groups["delete_table"] == GROUP_DATABASE_DELETE
     assert groups["delete_fields"] == GROUP_DATABASE_DELETE
+    assert groups["set_view_sorts"] == GROUP_DATABASE_EDIT
+    assert groups["set_field_visibility"] == GROUP_DATABASE_EDIT
+    assert groups["add_row_colours"] == GROUP_DATABASE_EDIT
+    assert groups["delete_views"] == GROUP_DATABASE_DELETE
+    assert groups["delete_view_filters"] == GROUP_DATABASE_DELETE
+    assert groups["delete_row_colours"] == GROUP_DATABASE_DELETE
     assert "create_database" not in groups
     assert "create_table" not in groups
 

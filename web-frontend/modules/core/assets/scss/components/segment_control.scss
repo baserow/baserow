@@ -61,6 +61,11 @@
     color: $palette-neutral-1200;
   }
 
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
   .segment-control--pills & {
     flex: none;
     padding: 0 12px;

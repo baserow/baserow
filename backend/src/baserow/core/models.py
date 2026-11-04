@@ -20,6 +20,7 @@ from django.db.models import (
 )
 from django.db.models.functions import Coalesce
 from django.db.models.manager import BaseManager
+from django.utils.crypto import get_random_string
 
 from baserow.core.feature_flags import FF_USER_TEMPLATES, feature_flag_is_enabled
 from baserow.core.jobs.mixins import (
@@ -59,6 +60,7 @@ __all__ = [
     "Workspace",
     "WorkspaceUser",
     "WorkspaceInvitation",
+    "WorkspaceInvitationLink",
     "Agent",
     "Application",
     "TemplateCategory",
@@ -101,6 +103,10 @@ WORKSPACE_USER_PERMISSION_MEMBER = "MEMBER"
 
 def get_default_application_content_type():
     return ContentType.objects.get_for_model(Application)
+
+
+def get_default_invitation_link_slug():
+    return get_random_string(settings.BASEROW_WORKSPACE_INVITATION_LINK_LENGTH)
 
 
 class Operation(models.Model):
@@ -535,6 +541,56 @@ class WorkspaceInvitation(
         unique_together = [["workspace", "email"]]
 
 
+class WorkspaceInvitationLink(
+    HierarchicalModelMixin,
+    CreatedAndUpdatedOnMixin,
+    models.Model,
+):
+    """
+    A permanent link that anyone can use to join the workspace with the role of the
+    link. It can be used any number of times and stops working once it's deleted.
+    """
+
+    workspace = models.ForeignKey(
+        Workspace,
+        on_delete=models.CASCADE,
+        related_name="invitation_links",
+        help_text="The workspace that people join through the link.",
+    )
+    created_by = models.ForeignKey(
+        User,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        help_text="The user that created the link.",
+    )
+    name = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="A name that reminds the admins what the link is for.",
+    )
+    slug = models.SlugField(
+        # BASEROW_WORKSPACE_INVITATION_LINK_LENGTH is capped at this length.
+        max_length=50,
+        default=get_default_invitation_link_slug,
+        unique=True,
+        help_text="The unique slug of the public link URL.",
+    )
+    permissions = models.CharField(
+        default=WORKSPACE_USER_PERMISSION_MEMBER,
+        max_length=32,
+        help_text="The permissions that people get within the workspace when they "
+        "join through the link.",
+    )
+
+    def get_parent(self):
+        return self.workspace
+
+    class Meta:
+        ordering = ("id",)
+
+
 class Application(
     HierarchicalModelMixin,
     TrashableModelMixin,
@@ -666,6 +722,17 @@ class TemplateQuerySet(QuerySet):
         return self.filter(
             _root_q(public_revision=F("id"), blocked_at__isnull=True)
         ).select_related("root")
+
+    def listed(self):
+        """
+        The listed rows: every official template, and the public revision of every
+        user template that isn't blocked, see `official` and `public_revisions`.
+        Only what everybody can open after `openable`, which leaves out the
+        templates marked for deletion, and the user templates while their feature
+        flag is off. The root is selected too, like in `latest_revisions`.
+        """
+
+        return (self.official() | self.public_revisions()).select_related("root")
 
     def filter_by_root(self, **lookups):
         """

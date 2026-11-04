@@ -487,8 +487,8 @@ def test_purge_removes_the_archives_of_every_revision(data_fixture):
     assert_family_removed(family)
     assert_template_archives_removed(family)
     assert not UserTemplateContentToDelete.objects.exists()
-    assert sum(
-        (template_archive_names(revision) for revision in other["family"]), []
+    assert sorted(
+        sum((template_archive_names(revision) for revision in other["family"]), [])
     ) == sorted(other_names)
 
 

@@ -2,6 +2,7 @@ from typing import List
 
 from baserow.core.registry import Instance, Registry
 
+GROUP_WORKSPACE_READ = "workspace_read"
 GROUP_DATABASE_READ = "database_read"
 GROUP_DATABASE_EDIT = "database_edit"
 GROUP_DATABASE_DELETE = "database_delete"
@@ -13,11 +14,14 @@ GROUP_DASHBOARD_EDIT = "dashboard_edit"
 GROUP_DASHBOARD_DELETE = "dashboard_delete"
 GROUP_DATA_SOURCES_READ = "data_sources_read"
 GROUP_DATA_SOURCES_EDIT = "data_sources_edit"
+GROUP_AUDIT_LOG_READ = "audit_log_read"
 
+AREA_WORKSPACE = "workspace"
 AREA_DATABASE = "database"
 AREA_AUTOMATION = "automation"
 AREA_DASHBOARD = "dashboard"
 AREA_DATA_SOURCES = "data_sources"
+AREA_AUDIT_LOG = "audit_log"
 
 
 class MCPToolGroup(Instance):
@@ -45,6 +49,14 @@ class MCPToolGroupRegistry(Registry[MCPToolGroup]):
 
     def get_ordered(self) -> List[MCPToolGroup]:
         return sorted(self.registry.values(), key=lambda group: group.order)
+
+
+class WorkspaceReadMCPToolGroup(MCPToolGroup):
+    type = GROUP_WORKSPACE_READ
+    title = "Search the workspace"
+    area = AREA_WORKSPACE
+    read_only_preset = True
+    order = 5
 
 
 class DatabaseReadMCPToolGroup(MCPToolGroup):
@@ -113,18 +125,25 @@ class DashboardDeleteMCPToolGroup(MCPToolGroup):
     order = 90
 
 
+class AuditLogReadMCPToolGroup(MCPToolGroup):
+    type = GROUP_AUDIT_LOG_READ
+    title = "Read the audit log"
+    area = AREA_AUDIT_LOG
+    order = 100
+
+
 class DataSourcesReadMCPToolGroup(MCPToolGroup):
     type = GROUP_DATA_SOURCES_READ
     title = "Read data source filters"
     area = AREA_DATA_SOURCES
-    order = 100
+    order = 110
 
 
 class DataSourcesEditMCPToolGroup(MCPToolGroup):
     type = GROUP_DATA_SOURCES_EDIT
     title = "Edit data source filters"
     area = AREA_DATA_SOURCES
-    order = 110
+    order = 120
 
 
 mcp_tool_group_registry = MCPToolGroupRegistry()

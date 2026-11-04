@@ -225,6 +225,7 @@ export const actions = {
             id: update.id || id,
             content: update.content,
             sources: update.sources,
+            ...(update.timestamp ? { timestamp: update.timestamp } : {}),
             can_submit_feedback: update.can_submit_feedback,
             loading: false,
             reasoning: false,
@@ -286,10 +287,12 @@ export const actions = {
       chat = state.chats.find((c) => c.id === state.currentChatId)
     }
 
+    const timestamp = new Date().toISOString()
     const userMessage = {
       id: uuidv4(),
       role: 'human',
       content: message,
+      timestamp,
       loading: false,
     }
     commit('ADD_MESSAGE', userMessage)
@@ -299,6 +302,7 @@ export const actions = {
       id: aiMessageId, // Temporary ID, will be updated when the final message arrives
       role: 'ai',
       content: '',
+      timestamp,
       loading: true,
       reasoning: false,
     }

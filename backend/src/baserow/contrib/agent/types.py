@@ -1,5 +1,8 @@
 from dataclasses import dataclass
 from typing import Literal, TypedDict
+from uuid import UUID
+
+from baserow.core.models import Workspace
 
 from .models import AgentApplication, AgentConversation, AgentMessage
 
@@ -16,8 +19,13 @@ class AgentConfiguration(TypedDict):
 
 @dataclass
 class AgentMessageCreated:
+    """An accepted message, its reply's run, and the conversation's current run."""
+
     conversation: AgentConversation
     message: AgentMessage
+    reply: AgentMessage | None
+    run_id: UUID | None
+    conversation_run_id: UUID | None
     created: bool
 
 
@@ -26,3 +34,14 @@ class AgentConfigurationUpdated:
     agent: AgentApplication
     changed_fields: list[str]
     configuration: AgentConfiguration
+
+
+@dataclass(frozen=True)
+class AgentReplyRequest:
+    reply_id: int
+    workspace: Workspace | None
+    instructions: str
+    provider_type: str
+    model_identifier: str
+    prompt: str
+    history: list[AgentMessage]

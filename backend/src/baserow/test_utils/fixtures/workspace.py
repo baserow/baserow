@@ -1,4 +1,9 @@
-from baserow.core.models import Workspace, WorkspaceInvitation, WorkspaceUser
+from baserow.core.models import (
+    Workspace,
+    WorkspaceInvitation,
+    WorkspaceInvitationLink,
+    WorkspaceUser,
+)
 
 
 class WorkspaceFixtures:
@@ -63,3 +68,12 @@ class WorkspaceFixtures:
             kwargs["message"] = self.fake.name()
 
         return WorkspaceInvitation.objects.create(**kwargs)
+
+    def create_workspace_invitation_link(self, **kwargs):
+        if "created_by" not in kwargs:
+            kwargs["created_by"] = self.create_user()
+
+        if "workspace" not in kwargs:
+            kwargs["workspace"] = self.create_workspace(user=kwargs["created_by"])
+
+        return WorkspaceInvitationLink.objects.create(**kwargs)

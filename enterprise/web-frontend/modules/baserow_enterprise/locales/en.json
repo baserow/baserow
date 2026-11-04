@@ -323,6 +323,7 @@
     "errorUnverifiedEmail": "the identity provider has not verified your email address. Please verify your email with the provider and try again.",
     "errorWorkspaceInvitationEmailMismatch": "your email address does not match with the invitation.",
     "errorSignupDisabled": "sign up has been disabled by the administrator.",
+    "errorInvitationLinkInvalid": "the invite link is no longer valid.",
     "errorApplicationUserLimitReached": "Login is temporarily unavailable. Please contact the website owner or try again later."
   },
   "roles": {
@@ -549,13 +550,15 @@
     "sources": "{count} source | {count} sources"
   },
   "assistantMessageList": {
+    "expandReasoning": "Expand reasoning",
+    "collapseReasoning": "Collapse reasoning",
     "disclaimer": "Kuma can make mistakes, please double-check responses"
   },
   "assistantMessageActions": {
     "feedbackContextTitle": "Help us improve",
     "feedbackContextPlaceholder": "What could we improve? (optional)",
-    "copiedToClipboard": "Copied to clipboard",
-    "copiedContentToast": "The Assistant's response content has been copied to your clipboard",
+    "helpful": "Mark response as helpful",
+    "notHelpful": "Mark response as not helpful",
     "copyFailed": "Failed to copy to clipboard"
   },
   "chatwootSupportSidebarWorkspace": {

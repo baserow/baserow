@@ -60,6 +60,10 @@ TESTS = True
 SECRET_KEY = "test_hardcoded_secret_key"  # nosec
 SIMPLE_JWT["SIGNING_KEY"] = "test_hardcoded_jwt_signing_key"
 
+# The default PBKDF2 hasher takes ~100ms per password by design, and almost every test
+# creates at least one user. A fast, insecure hasher is fine for tests.
+PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+
 CELERY_BROKER_BACKEND = "memory"
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True

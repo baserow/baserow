@@ -1,13 +1,17 @@
 import json
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Annotated, Any, Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import FieldDoesNotExist
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import URLValidator
 from django.db import transaction
+from django.db.models import Model
 from django.utils.translation import gettext as _
 
 from dateutil import parser as dateutil_parser
@@ -38,8 +42,13 @@ from baserow.contrib.database.views.actions import (
 from baserow.contrib.database.views.exceptions import ViewFilterNotSupported
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import FormView, View, ViewFilter
-from baserow.contrib.database.views.registries import view_type_registry
+from baserow.contrib.database.views.operations import CreateViewFilterOperationType
+from baserow.contrib.database.views.registries import (
+    view_ownership_type_registry,
+    view_type_registry,
+)
 from baserow.core.exceptions import PermissionException
+from baserow.core.handler import CoreHandler
 from baserow.core.tools import ToolContext
 
 
@@ -83,6 +92,102 @@ def _form_field_options_by_view(views: list[View]) -> dict[int, list]:
     for fo in options:
         by_view[fo.form_view_id].append(_form_field_option(fo))
     return by_view
+
+
+@dataclass(frozen=True)
+class ViewFieldOptions:
+    """Where a type of view stores its field options."""
+
+    model: type[Model]
+    view_column: str
+    hidden_field: Any
+    """The option's ``hidden`` model field, None for a view that doesn't have it."""
+
+
+def field_options_of(view: View) -> ViewFieldOptions:
+    relation = view.specific_class._meta.get_field("field_options")
+    model = relation.remote_field.through
+    try:
+        hidden_field = model._meta.get_field("hidden")
+    except FieldDoesNotExist:
+        hidden_field = None
+    return ViewFieldOptions(model, relation.m2m_column_name(), hidden_field)
+
+
+def _hidden_field_ids_by_view(views: list[View], table: Table) -> dict[int, list[int]]:
+    """
+    The hidden fields of the views, with one query per type of view. A field with no
+    stored option has its option's default, which hides it in some types of view.
+    """
+
+    views_by_options = defaultdict(list)
+    for view in views:
+        options = field_options_of(view)
+        if options.hidden_field is not None:
+            views_by_options[options].append(view.id)
+    if not views_by_options:
+        return {}
+
+    field_ids = sorted(table.field_set.values_list("id", flat=True))
+    hidden_by_view = {}
+    for options, view_ids in views_by_options.items():
+        stored = defaultdict(dict)
+        rows = options.model.objects.filter(
+            **{f"{options.view_column}__in": view_ids}
+        ).values_list(options.view_column, "field_id", "hidden")
+        for view_id, field_id, hidden in rows:
+            stored[view_id][field_id] = hidden
+        default = options.hidden_field.default
+        for view_id in view_ids:
+            hidden_by_view[view_id] = [
+                field_id
+                for field_id in field_ids
+                if stored[view_id].get(field_id, default)
+            ]
+    return hidden_by_view
+
+
+def _view_config(view: View, hidden_field_ids: list[int] | None) -> dict[str, Any]:
+    """The sorts, filters, row colours and hidden fields of a listed view."""
+
+    config = {
+        "sorts": [
+            {"id": sort.id, "field_id": sort.field_id, "order": sort.order}
+            for sort in view.viewsort_set.all()
+        ],
+        "filters": [
+            {
+                "id": view_filter.id,
+                "field_id": view_filter.field_id,
+                "type": view_filter.type,
+                "value": view_filter.value,
+                "group_id": view_filter.group_id,
+            }
+            for view_filter in view.viewfilter_set.all()
+        ],
+        "filter_type": view.filter_type,
+        "filters_disabled": view.filters_disabled,
+        "filter_groups": [
+            {
+                "id": group.id,
+                "filter_type": group.filter_type,
+                "parent_group_id": group.parent_group_id,
+            }
+            for group in view.filter_groups.all()
+        ],
+        "row_colours": [
+            {
+                "id": decoration.id,
+                "style": decoration.type,
+                "by": decoration.value_provider_type,
+                "conf": decoration.value_provider_conf,
+            }
+            for decoration in view.viewdecoration_set.all()
+        ],
+    }
+    if hidden_field_ids is not None:
+        config["hidden_field_ids"] = hidden_field_ids
+    return config
 
 
 _FROM_DJANGO_ORM: dict[str, Any] = {
@@ -159,8 +264,8 @@ def list_views(
     ],
 ) -> dict[str, Any]:
     """
-    List the views of a table, at most 100, with their id, name, type and the
-    settings of their type.
+    List the views of a table, at most 100, with their id, name, type, the settings
+    of their type, and their sorts, filters, row colours and hidden fields.
     """
 
     table = (
@@ -172,18 +277,31 @@ def list_views(
     views = ViewHandler().list_views(
         ctx.user,
         table,
-        filters=False,
-        sortings=False,
-        decorations=False,
+        filters=True,
+        sortings=True,
+        decorations=True,
         group_bys=False,
         limit=100,
         prefetch_field_options=False,
     )
-    views = list(views)
+    # The same redaction as the views API: what a view's ownership type hides from
+    # this user, like the filters and hidden fields of a restricted view.
+    views = view_ownership_type_registry.prepare_views_of_different_types_for_user(
+        ctx.user, list(views), includes={"filters", "sortings", "decorations"}
+    )
     form_options = _form_field_options_by_view(views)
+    hidden_field_ids = _hidden_field_ids_by_view(
+        [view for view in views if getattr(view, "_hidden_field_ids", None) is None],
+        table,
+    )
     return {
         "views": [
-            ViewItem.from_django_orm(view, form_options.get(view.id, [])).model_dump()
+            {
+                **ViewItem.from_django_orm(
+                    view, form_options.get(view.id, [])
+                ).model_dump(),
+                **_view_config(view, hidden_field_ids.get(view.id)),
+            }
             for view in views
         ]
     }
@@ -627,7 +745,7 @@ def _date_orm_value(f, field, **kwargs):
     """
 
     # A profile can have no timezone.
-    timezone = kwargs.get("timezone") or "UTC"
+    timezone = f.timezone or kwargs.get("timezone") or "UTC"
     if not _date_mode_takes_value(f.mode):
         return f"{timezone}??{f.mode}"
     if f.mode == "exact_date":
@@ -733,6 +851,23 @@ class ViewFilterItemCreate(BaseModel):
     )
     mode: DateFilterMode | None = Field(None, description="(date) Date filter mode.")
     or_equal: bool = Field(False, description="(number, date) Include equal values.")
+    timezone: str | None = Field(
+        None,
+        description=(
+            "(date) The user's IANA timezone, like Europe/Amsterdam, so a mode like "
+            "today follows their day. UTC when unknown."
+        ),
+    )
+
+    @field_validator("timezone")
+    @classmethod
+    def _check_timezone(cls, value: str | None) -> str | None:
+        if value is not None:
+            try:
+                ZoneInfo(value)
+            except (ZoneInfoNotFoundError, ValueError, OSError) as exc:
+                raise ValueError(f"Unknown timezone '{value}'.") from exc
+        return value
 
     @model_validator(mode="before")
     @classmethod
@@ -796,6 +931,40 @@ def get_view(ctx: ToolContext, view_id: int) -> View:
     )
 
 
+def resolve_view_filter(
+    table_fields: dict[int, Any],
+    view_filter_item: ViewFilterItemCreate,
+    timezone: str | None = None,
+) -> tuple[Any, str, str]:
+    """
+    Turn a filter definition into the field, filter type and value to store.
+
+    :param table_fields: Mapping of field ID → field instance for the table.
+    :param view_filter_item: The filter definition.
+    :param timezone: The timezone of a date filter's value, UTC when None.
+    :raises ValueError: If the field is not found or its type doesn't match.
+    """
+
+    field = table_fields.get(view_filter_item.field_id)
+    if field is None:
+        raise ValueError(
+            f"Field {view_filter_item.field_id} not found for filter. "
+            f"Available field IDs: {sorted(table_fields.keys())}"
+        )
+    field_type = field_type_registry.get_by_model(field.specific_class)
+    if field_type.type != view_filter_item.type:
+        raise ValueError(
+            f"Field '{field.name}' (id={field.id}) is type '{field_type.type}', "
+            f"but filter declared type '{view_filter_item.type}'"
+        )
+
+    return (
+        field,
+        view_filter_item.get_django_orm_type(field),
+        view_filter_item.get_django_orm_value(field, timezone=timezone),
+    )
+
+
 def create_view_filter(
     user: AbstractUser,
     orm_view: View,
@@ -814,21 +983,9 @@ def create_view_filter(
     :raises ValueError: If the field is not found or its type doesn't match.
     """
 
-    field = table_fields.get(view_filter_item.field_id)
-    if field is None:
-        raise ValueError(
-            f"Field {view_filter_item.field_id} not found for filter. "
-            f"Available field IDs: {sorted(table_fields.keys())}"
-        )
-    field_type = field_type_registry.get_by_model(field.specific_class)
-    if field_type.type != view_filter_item.type:
-        raise ValueError(
-            f"Field '{field.name}' (id={field.id}) is type '{field_type.type}', "
-            f"but filter declared type '{view_filter_item.type}'"
-        )
-
-    filter_type = view_filter_item.get_django_orm_type(field)
-    filter_value = view_filter_item.get_django_orm_value(field, timezone=timezone)
+    field, filter_type, filter_value = resolve_view_filter(
+        table_fields, view_filter_item, timezone
+    )
 
     return CreateViewFilterActionType.do(
         user,
@@ -991,6 +1148,14 @@ def create_view_filters(
     # Every view is checked before anything is written, so a missing view fails
     # the call without leaving the filters of the other views behind.
     orm_views = [get_view(ctx, view_filter.view_id) for view_filter in view_filters]
+    # Before reading the fields, as a skipped filter's error names them.
+    for orm_view in orm_views:
+        CoreHandler().check_permissions(
+            ctx.user,
+            CreateViewFilterOperationType.type,
+            workspace=ctx.workspace,
+            context=orm_view,
+        )
 
     created_view_filters = []
     # One transaction for every view, so an error on a later view doesn't leave

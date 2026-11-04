@@ -10,7 +10,9 @@ raised ``AttributeError``.
 """
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any, Callable
+from unittest.mock import patch
 
 from django.contrib.auth.models import AbstractUser
 
@@ -28,6 +30,7 @@ from baserow.contrib.database.models import Database
 from baserow.contrib.database.table.models import Table
 from baserow.core.graph.types import GraphPointPosition
 from baserow.core.models import Workspace
+from baserow.core.prosemirror.utils import prosemirror_doc_from_plain_text
 from baserow.core.tools import ToolContext
 from baserow_enterprise.assistant.tools.automation.tools import (
     list_nodes,
@@ -39,13 +42,18 @@ from baserow_enterprise.assistant.tools.builder.tools import (
     list_elements,
     list_pages,
 )
-from baserow_enterprise.assistant.tools.core.tools import list_builders
+from baserow_enterprise.assistant.tools.core.tools import (
+    list_audit_log,
+    list_builders,
+    search_workspace,
+)
 from baserow_enterprise.assistant.tools.dashboard.tools import (
     get_widget_data,
     list_widgets,
 )
 from baserow_enterprise.assistant.tools.database.tools import (
     get_tables_schema,
+    list_row_comments,
     list_rows,
     list_tables,
     list_views,
@@ -56,6 +64,8 @@ from baserow_enterprise.assistant.tools.services.tools import (
     list_filterable_data_sources,
     list_service_filters,
 )
+from baserow_enterprise.audit_log.models import AuditLogEntry
+from baserow_premium.row_comments.models import RowComment
 
 from .utils import make_test_ctx
 
@@ -353,6 +363,80 @@ class ReadToolCase:
     check: Callable[[Any, SeededWorkspace], None]
 
 
+def _check_search_workspace(result: Any, seed: SeededWorkspace) -> None:
+    assert set(result) == {"results", "has_more"}
+    assert_items(
+        result["results"],
+        {"type": str, "id": int, "title": str},
+        "search_workspace",
+    )
+    assert any(item["id"] == seed.table.id for item in result["results"])
+
+
+def _list_row_comments_of_a_new_comment(ctx: Any, seed: SeededWorkspace) -> Any:
+    row_id = seed.table.get_model().objects.first().id
+    RowComment.objects.create(
+        table=seed.table,
+        row_id=row_id,
+        user=seed.user,
+        message=prosemirror_doc_from_plain_text("Called them"),
+    )
+    with patch(
+        "baserow_premium.row_comments.handler.LicenseHandler"
+        ".raise_if_user_doesnt_have_feature"
+    ):
+        return list_row_comments(ctx, seed.table.id, row_id, thought="contract")
+
+
+def _check_list_row_comments(result: Any, seed: SeededWorkspace) -> None:
+    assert result["count"] == 1
+    assert_items(
+        result["comments"],
+        {"id": int, "user_name": str, "text": str, "created_on": str, "edited": bool},
+        "list_row_comments",
+    )
+
+
+_AUDIT_LOG_CHECK = (
+    "baserow_enterprise.audit_log.tools.check_for_license_and_permissions_or_raise"
+)
+
+
+def _audit_log_entry(seed: SeededWorkspace) -> AuditLogEntry:
+    return AuditLogEntry.objects.create(
+        workspace_id=seed.workspace.id,
+        actor_id=seed.user.id,
+        actor_name=seed.user.email,
+        action_type="create_table",
+        action_timestamp=datetime.now(timezone.utc),
+        action_params={},
+        original_action_short_descr="Create table",
+        original_action_long_descr="Table created",
+    )
+
+
+def _list_audit_log_of_a_new_entry(ctx: Any, seed: SeededWorkspace) -> Any:
+    _audit_log_entry(seed)
+    with patch(_AUDIT_LOG_CHECK):
+        return list_audit_log(ctx, thought="contract")
+
+
+def _check_audit_log(result: Any, seed: SeededWorkspace) -> None:
+    assert result["has_more"] is False
+    assert_items(
+        result["entries"],
+        {
+            "id": int,
+            "timestamp": str,
+            "actor": dict,
+            "action_type": str,
+            "description": str,
+        },
+        "audit_log",
+    )
+    assert result["entries"][0]["actor"]["id"] == seed.user.id
+
+
 def _check_list_builders(result: Any, seed: SeededWorkspace) -> None:
     assert set(result) >= {"database", "application", "automation"}
     for builder_type in ("database", "application", "automation"):
@@ -539,6 +623,17 @@ READ_TOOL_CASES: list[ReadToolCase] = [
         _check_list_builders,
     ),
     ReadToolCase(
+        "search_workspace",
+        lambda ctx, s: search_workspace(ctx, query=s.table.name, thought="contract"),
+        _check_search_workspace,
+    ),
+    ReadToolCase(
+        "list_row_comments",
+        _list_row_comments_of_a_new_comment,
+        _check_list_row_comments,
+    ),
+    ReadToolCase("list_audit_log", _list_audit_log_of_a_new_entry, _check_audit_log),
+    ReadToolCase(
         "list_tables",
         lambda ctx, s: list_tables(
             ctx,
@@ -665,6 +760,13 @@ EXEMPT_TOOLS: dict[str, str] = {
     "generate_formula": _LLM,
     "update_service_filters": _LLM,
     "create_builders": _WRITE,
+    "create_row_comments": _WRITE,
+    "set_view_sorts": _WRITE,
+    "set_field_visibility": _WRITE,
+    "add_row_colours": _WRITE,
+    "delete_views": _WRITE,
+    "delete_view_filters": _WRITE,
+    "delete_row_colours": _WRITE,
     "update_builder": _WRITE,
     "create_tables": _WRITE,
     "create_fields": _WRITE,

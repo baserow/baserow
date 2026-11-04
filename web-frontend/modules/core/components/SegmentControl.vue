@@ -17,6 +17,7 @@
         'segment-control__button--active': index === currentActiveIndex,
       }"
       :title="segment.label"
+      :disabled="disabled"
       class="segment-control__button"
       @click.prevent="setActiveIndex(index)"
     >
@@ -90,6 +91,14 @@ export default {
         return ['regular', 'rounded', 'pills'].includes(value)
       },
     },
+    /**
+     * Whether the active segment can't be changed.
+     */
+    disabled: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   emits: ['update:activeIndex'],
   data() {
@@ -114,6 +123,9 @@ export default {
   },
   methods: {
     setActiveIndex(index) {
+      if (this.disabled) {
+        return
+      }
       this.internalActiveIndex = index
       this.$emit('update:activeIndex', index)
     },

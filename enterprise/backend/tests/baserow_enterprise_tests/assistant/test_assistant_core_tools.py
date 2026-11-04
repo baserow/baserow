@@ -1,6 +1,11 @@
+from uuid import uuid4
+
 import pytest
 from pydantic_ai import ModelRetry
 
+from baserow.core.action.models import Action
+from baserow.core.action.scopes import WorkspaceActionScopeType
+from baserow.core.subjects import UserSubjectType
 from baserow.test_utils.helpers import AnyInt
 from baserow_enterprise.assistant.tools.builder.themes import (
     apply_theme,
@@ -15,6 +20,7 @@ from baserow_enterprise.assistant.tools.core.types import (
     BuilderItemCreate,
     BuilderUpdate,
 )
+from baserow_enterprise.audit_log.models import AuditLogEntry
 
 from .utils import make_test_ctx
 
@@ -379,7 +385,9 @@ def test_create_database_ignores_theme(data_fixture):
 
 @pytest.mark.django_db
 def test_update_builder_renames_an_application(data_fixture):
-    user = data_fixture.create_user()
+    message_group = uuid4()
+    session_id = "assistant-session"
+    user = data_fixture.create_user(session_id=session_id, action_group=message_group)
     workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(
         workspace=workspace, name="Old Name"
@@ -396,6 +404,23 @@ def test_update_builder_renames_an_application(data_fixture):
     assert result == {"id": database.id, "name": "New Name", "changed": True}
     database.refresh_from_db()
     assert database.name == "New Name"
+
+    action = Action.objects.get(type="update_application")
+    assert action.user_id == user.id
+    assert action.workspace_id == workspace.id
+    assert action.session == session_id
+    assert action.action_group == message_group
+    assert action.scope == WorkspaceActionScopeType.value(workspace.id)
+    assert action.params["application_id"] == database.id
+    assert action.params["original_application_name"] == "Old Name"
+    assert action.params["application_name"] == "New Name"
+
+    entry = AuditLogEntry.objects.get(action_type="update_application")
+    assert entry.actor_id == user.id
+    assert entry.actor_type == UserSubjectType.type
+    assert entry.workspace_id == workspace.id
+    assert entry.action_command_type == "DO"
+    assert entry.action_params == action.params
 
 
 @pytest.mark.django_db
@@ -439,3 +464,5 @@ def test_update_builder_with_nothing_to_change_is_a_no_op(data_fixture):
     assert result["changed"] is False
     database.refresh_from_db()
     assert database.name == "Unchanged"
+    assert not Action.objects.filter(type="update_application").exists()
+    assert not AuditLogEntry.objects.filter(action_type="update_application").exists()

@@ -1,15 +1,17 @@
 from functools import partial
-from uuid import uuid4
+from unittest.mock import call
+from uuid import UUID, uuid4
 
 from django.db import transaction
 
 import pytest
+from rest_framework.fields import DateTimeField
 
 from baserow.contrib.agent.actions import (
     CreateAgentConversationActionType,
     CreateAgentMessageActionType,
 )
-from baserow.contrib.agent.models import AgentMessage
+from baserow.contrib.agent.models import AgentConversation, AgentMessage
 
 
 def conversation_write(data_fixture, user, agent, kind):
@@ -33,9 +35,19 @@ def conversation_write(data_fixture, user, agent, kind):
     )
 
 
+def update_of(conversation: AgentConversation, run_id: UUID | None = None) -> dict:
+    return {
+        "type": "agent_conversation_updated",
+        "agent_id": conversation.agent_id,
+        "conversation_uuid": str(conversation.uuid),
+        "run_id": str(run_id) if run_id else None,
+        "updated_on": DateTimeField().to_representation(conversation.updated_on),
+    }
+
+
 @pytest.mark.django_db
 @pytest.mark.parametrize("kind", ["conversation", "message"])
-def test_new_content_notifies_only_the_owner_after_commit_and_not_on_retry(
+def test_a_reply_start_and_end_notify_only_the_owner_after_commit_and_not_on_retry(
     data_fixture, configured_agent, mocker, django_capture_on_commit_callbacks, kind
 ):
     user = data_fixture.create_user(web_socket_id="source-tab")
@@ -51,22 +63,23 @@ def test_new_content_notifies_only_the_owner_after_commit_and_not_on_retry(
         result = write()
         broadcast.assert_not_called()
 
-    broadcast.assert_called_once_with(
-        [user.id],
-        {
-            "type": "agent_conversation_updated",
-            "agent_id": agent.id,
-            "conversation_uuid": str(result.conversation.uuid),
-        },
-        ignore_web_socket_id="source-tab",
-    )
+    # The sending tab has the start from its response; every tab needs the end.
+    ended = AgentConversation.objects.get(id=result.conversation.id)
+    assert broadcast.call_args_list == [
+        call(
+            [user.id],
+            update_of(result.conversation, result.run_id),
+            ignore_web_socket_id="source-tab",
+        ),
+        call([user.id], update_of(ended), ignore_web_socket_id=None),
+    ]
 
     with django_capture_on_commit_callbacks(execute=True):
         retried = write()
 
     assert retried.message.id == result.message.id
     assert not retried.created
-    broadcast.assert_called_once()
+    assert broadcast.call_count == 2
 
 
 @pytest.mark.django_db

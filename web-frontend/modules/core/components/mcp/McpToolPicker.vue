@@ -123,6 +123,7 @@ const { t } = useI18n()
 // Translations of the groups and areas the frontend knows. Others fall back to
 // the API's English title.
 const GROUP_LABELS = {
+  workspace_read: 'mcpToolPicker.workspaceRead',
   database_read: 'mcpToolPicker.databaseRead',
   database_edit: 'mcpToolPicker.databaseEdit',
   database_delete: 'mcpToolPicker.databaseDelete',
@@ -134,12 +135,15 @@ const GROUP_LABELS = {
   dashboard_delete: 'mcpToolPicker.dashboardDelete',
   data_sources_read: 'mcpToolPicker.dataSourcesRead',
   data_sources_edit: 'mcpToolPicker.dataSourcesEdit',
+  audit_log_read: 'mcpToolPicker.auditLogRead',
 }
 const AREA_LABELS = {
+  workspace: 'mcpToolPicker.areaWorkspace',
   database: 'mcpToolPicker.areaDatabase',
   automation: 'mcpToolPicker.areaAutomation',
   dashboard: 'mcpToolPicker.areaDashboard',
   data_sources: 'mcpToolPicker.areaDataSources',
+  audit_log: 'mcpToolPicker.areaAuditLog',
 }
 
 // The tools the user sees: a tool is only listed under one of the groups.
