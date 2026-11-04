@@ -59,9 +59,7 @@ def test_write_tools_with_builder_edit_turned_on(data_fixture, builder_ctx):
     tools = {tool.name: tool for tool in listed.tools}
     for name in WRITE_TOOLS:
         assert tools[name].annotations.readOnlyHint is False
-        assert tools[name].annotations.destructiveHint is (
-            name == "update_data_source"
-        )
+        assert tools[name].annotations.destructiveHint is (name == "update_data_source")
     assert set(tools["update_data_source"].inputSchema["properties"]) == {
         "data_source_id",
         "data_source",

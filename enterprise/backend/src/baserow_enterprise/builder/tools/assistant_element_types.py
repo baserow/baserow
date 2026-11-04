@@ -66,7 +66,9 @@ def _merge_menu_item_changes(
     return change
 
 
-def _new_menu_link_targets(menu: MenuElement | None, update: ElementUpdate) -> list[int]:
+def _new_menu_link_targets(
+    menu: MenuElement | None, update: ElementUpdate
+) -> list[int]:
     """The pages an update makes menu items link to, leaving out what they already do."""
 
     linked = {

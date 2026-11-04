@@ -1337,7 +1337,9 @@ def _parameter_names(action_id):
 
 
 def _parameters(action_id):
-    return [(p["name"], p["value"]["formula"]) for p in stored(action_id).page_parameters]
+    return [
+        (p["name"], p["value"]["formula"]) for p in stored(action_id).page_parameters
+    ]
 
 
 @pytest.mark.django_db
@@ -1428,9 +1430,7 @@ def test_update_action_stores_a_complete_list_in_page_order(builder_ctx, opens_t
 
 
 @pytest.mark.django_db
-def test_create_action_stores_parameters_in_page_order(
-    builder_ctx, two_parameter_page
-):
+def test_create_action_stores_parameters_in_page_order(builder_ctx, two_parameter_page):
     action = saved(
         create(
             builder_ctx,
