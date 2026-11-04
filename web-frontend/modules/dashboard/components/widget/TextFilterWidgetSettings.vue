@@ -64,6 +64,7 @@
       required
     >
       <DashboardFormulaInput
+        allow-node-selection="value"
         placeholder=""
         :model-value="widget.options || {}"
         :data-providers-allowed="['table']"
