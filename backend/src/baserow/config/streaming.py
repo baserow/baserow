@@ -98,7 +98,7 @@ def _prepare(
         response = _handler.get_response(request)
         user = getattr(request, "user", None)
         if response.streaming and user is not None and user.is_authenticated:
-            limit = settings.ASGI_HTTP_MAX_CONCURRENT_STREAMS_PER_USER
+            limit = settings.BASEROW_CHAT_MAX_CONCURRENT_STREAMS_PER_USER
             for plugin in plugin_registry.get_all():
                 limit = plugin.get_max_concurrent_streams_per_user(user, limit)
             return response, user.id, limit
