@@ -454,6 +454,63 @@ def test_publish_warns_about_a_row_id_left_empty_by_a_bad_formula(
     ]
 
 
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("empty_row_id", ["", "''"])
+def test_publish_warns_about_a_row_id_emptied_by_an_update(data_fixture, empty_row_id):
+    endpoint, orders, log, _ = _build_workflow_over_mcp(data_fixture)
+    automation = Automation.objects.filter(workspace=endpoint.workspace).get()
+    created = _json(
+        _call(
+            endpoint,
+            "create_workflows",
+            {
+                "automation_id": automation.id,
+                "workflows": [
+                    {
+                        "name": "Emptied row",
+                        "trigger": {
+                            "ref": "trigger",
+                            "label": "Order created",
+                            "type": "rows_created",
+                            "rows_triggers_settings": {"table_id": orders["id"]},
+                        },
+                        "nodes": [
+                            {
+                                "ref": "remove",
+                                "label": "Remove it",
+                                "type": "delete_row",
+                                "previous_node_ref": "trigger",
+                                "table_id": log["id"],
+                                "row_id": "1",
+                            }
+                        ],
+                    }
+                ],
+            },
+        )
+    )
+    (workflow,) = created["created_workflows"]
+    node = AutomationNode.objects.get(workflow_id=workflow["id"], label="Remove it")
+    _json(
+        _call(
+            endpoint,
+            "update_nodes",
+            {
+                "workflow_id": workflow["id"],
+                "nodes": [{"node_id": node.id, "row_id": empty_row_id}],
+            },
+        )
+    )
+    node = AutomationNode.objects.get(id=node.id).specific
+    assert node.service.specific.row_id["formula"] == "''"
+
+    result = _json(_call(endpoint, "publish_workflow", {"workflow_id": workflow["id"]}))
+
+    assert result["warnings"] == [
+        f"Node {node.id} (Remove it): no row_id is set, so every run fails here."
+    ]
+
+
 @pytest.mark.django_db
 def test_create_workflows_says_the_result_is_a_draft(data_fixture):
     endpoint = data_fixture.create_mcp_endpoint(allowed_tools=["create_workflows"])

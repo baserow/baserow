@@ -14,6 +14,7 @@ from pydantic import Field
 
 from baserow.api.errors import ERROR_UNTRUSTED_CONTENT_CANNOT_BE_PUBLISHED
 from baserow.contrib.automation.models import Automation
+from baserow.contrib.automation.tools.formulas import EMPTY_FORMULA
 from baserow.contrib.automation.tools.types import WorkflowCreate
 from baserow.contrib.automation.workflows.actions import (
     CreateAutomationWorkflowActionType,
@@ -426,7 +427,7 @@ def check_workflow_can_run(ctx: ToolContext, workflow: AutomationWorkflow) -> li
             )
         elif (
             node_type.type in NODE_TYPES_NEEDING_A_ROW_ID
-            and not node.service.row_id["formula"]
+            and node.service.row_id["formula"] in ("", EMPTY_FORMULA)
         ):
             problem = "no row_id is set, so every run fails here."
         if problem:
