@@ -308,7 +308,7 @@ def test_agent_member_alias_is_valid_with_rbac(data_fixture, api_client):
         **headers,
     )
     assert response.status_code == 200
-    agent = User.objects_and_agents.get(id=response.json()["id"])
+    agent = User.identities_and_trash.get(id=response.json()["id"])
     assert AgentHandler().get_role_uid(agent) == "MEMBER"
     handler = RoleAssignmentHandler()
     assert handler.get_current_role_assignment(agent, workspace).role.uid == "BUILDER"

@@ -149,7 +149,9 @@ class RowCommentHandler:
 
         queryset = RowComment.objects.select_related(
             "table__database__workspace"
-        ).prefetch_related(Prefetch("mentions", queryset=User.objects_and_agents.all()))
+        ).prefetch_related(
+            Prefetch("mentions", queryset=User.identities_and_trash.all())
+        )
 
         try:
             row_comment = queryset.get(pk=comment_id)
@@ -234,7 +236,7 @@ class RowCommentHandler:
         )
 
         if mentions:
-            row_comment.mentions(manager="objects_and_agents").set(mentions)
+            row_comment.mentions(manager="identities_and_trash").set(mentions)
 
         row_comment_created.send(
             cls,
@@ -290,14 +292,16 @@ class RowCommentHandler:
 
         try:
             new_mentions = extract_mentioned_users_in_workspace(message, workspace)
-            old_mentions = set(row_comment.mentions(manager="objects_and_agents").all())
+            old_mentions = set(
+                row_comment.mentions(manager="identities_and_trash").all()
+            )
         except ValueError:
             raise InvalidRowCommentMentionException()
 
         row_comment.message = message
         row_comment.save(update_fields=["message", "updated_on"])
 
-        row_comment.mentions(manager="objects_and_agents").set(new_mentions)
+        row_comment.mentions(manager="identities_and_trash").set(new_mentions)
 
         row = RowHandler().get_row(
             requesting_user, table, row_comment.row_id, view=view
@@ -351,7 +355,7 @@ class RowCommentHandler:
 
         TrashHandler.trash(requesting_user, database.workspace, database, row_comment)
 
-        mentions = list(row_comment.mentions(manager="objects_and_agents").all())
+        mentions = list(row_comment.mentions(manager="identities_and_trash").all())
         row_comment_deleted.send(
             cls,
             row_comment=row_comment,

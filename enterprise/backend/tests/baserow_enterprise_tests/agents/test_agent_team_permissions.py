@@ -78,7 +78,7 @@ def test_agent_team_changes_require_membership_permissions(
     if not allowed:
         assert agent.first_name == "Original"
         assert list(
-            User.objects_and_agents.filter(
+            User.identities_and_trash.filter(
                 profile__identity_type="agent", workspaceuser__workspace=workspace
             )
         ) == [agent]
@@ -86,7 +86,7 @@ def test_agent_team_changes_require_membership_permissions(
             old_membership
         ]
     elif action == "create":
-        created = User.objects_and_agents.get(id=response.json()["id"])
+        created = User.identities_and_trash.get(id=response.json()["id"])
         assert created.first_name == "Changed"
         assert TeamSubject.objects.get(team=new_team).subject_id == created.id
         assert TeamSubject.objects.filter(id=old_membership.id).exists()

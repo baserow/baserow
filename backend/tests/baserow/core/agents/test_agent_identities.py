@@ -34,15 +34,35 @@ def test_people_manager_is_positive_lock_safe_and_base_manager_retains_agents(
 ):
     human = data_fixture.create_user(is_active=False)
     agent = data_fixture.create_agent(trashed=True)
-    missing = User.objects_and_agents.create(username="missing-profile")
+    missing = User.identities_and_trash.create(username="missing-profile")
     assert list(deepcopy(User.objects.all())) == [human]
     with transaction.atomic():
         assert list(User.objects.select_for_update()) == [human]
     assert User._base_manager.get(id=agent.id) == agent
-    assert User.objects_and_agents.get(id=missing.id) == missing
+    assert User.identities_and_trash.get(id=missing.id) == missing
     assert not is_human_user(missing)
     human.profile.__dict__.pop("identity_type")
     assert not is_human_user(human)
+
+
+@pytest.mark.django_db
+def test_identity_managers_include_agents_and_hide_trashed_ones(data_fixture):
+    human = data_fixture.create_user(is_active=False)
+    agent = data_fixture.create_agent()
+    trashed_agent = data_fixture.create_agent(trashed=True)
+    missing = User.identities_and_trash.create(username="missing-profile")
+
+    assert set(User.identities.all()) == {human, agent, missing}
+    assert set(User.identities_and_trash.all()) == {
+        human,
+        agent,
+        trashed_agent,
+        missing,
+    }
+    assert list(User.identities.agents()) == [agent]
+    assert set(User.identities_and_trash.agents()) == {agent, trashed_agent}
+    with transaction.atomic():
+        assert set(User.identities.select_for_update()) == {human, agent, missing}
 
 
 @pytest.mark.django_db
@@ -72,7 +92,7 @@ def test_permanent_deletion_removes_owned_identity(data_fixture, delete):
         workspace.delete()
     else:
         Workspace.objects_and_trash.filter(id=workspace.id).delete()
-    assert not User.objects_and_agents.filter(id=agent_id).exists()
+    assert not User.identities_and_trash.filter(id=agent_id).exists()
     assert not UserProfile.objects_and_trash.filter(user_id=agent_id).exists()
     assert not WorkspaceUser.objects_and_trash.filter(user_id=agent_id).exists()
 

@@ -9,7 +9,7 @@ test.each([false, true])(
     const subject = { subject_id: 201, subject_type: 'auth.User' }
     const client = {
       get: vi.fn((url) => {
-        if (loadFails && url.startsWith('/agents/')) {
+        if (loadFails && url === '/subjects/') {
           return Promise.reject({
             handler: {
               getMessage: () => ({
@@ -21,9 +21,7 @@ test.each([false, true])(
           })
         }
         return Promise.resolve({
-          data: url.startsWith('/agents/')
-            ? { results: [], next: null }
-            : [subject],
+          data: url === '/subjects/' ? { results: [], next: null } : [subject],
         })
       }),
       put: vi.fn().mockResolvedValue({ data: { id: 1, name: 'Renamed' } }),

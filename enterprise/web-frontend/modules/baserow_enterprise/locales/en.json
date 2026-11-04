@@ -393,6 +393,7 @@
     "fromWorkspace": "From workspace",
     "fromWorkspaceExplanation": "Everyone keeps their workspace role on everything inside the workspace, including this {type}.",
     "manageWorkspaceRoles": "Manage workspace roles",
+    "agentRoleCount": "{count} {role} agent | {count} {role} agents",
     "noInheritedAccess": "No one else has access to this {type}.",
     "everyoneWithRoleOn": "Everyone with a role on {name}",
     "fromLevel": "From {level}",

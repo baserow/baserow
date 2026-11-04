@@ -18,7 +18,6 @@ from django.db.models import (
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
-from baserow.core.mixins import TrashableModelMixin
 from baserow.core.models import User, Workspace, WorkspaceInvitation, WorkspaceUser
 from baserow.core.object_scopes import CoreObjectScopeType, WorkspaceObjectScopeType
 from baserow.core.registries import (
@@ -151,29 +150,9 @@ class RoleAssignmentHandler:
         role assignment related to a trashed subject.
         """
 
-        id_filters = Q()
-        for subject_type in subject_type_registry.get_all():
-            if issubclass(subject_type.model_class, TrashableModelMixin):
-                id_filters.add(
-                    ~Q(
-                        subject_id__in=subject_type.model_class.trash.all().values_list(
-                            "id", flat=True
-                        ),
-                        subject_type=subject_type.get_content_type(),
-                    ),
-                    Q.AND,
-                )
-
-        return (
-            RoleAssignment.objects.filter(id_filters)
-            .exclude(
-                subject_type=ContentType.objects.get_for_model(User),
-                subject_id__in=User.objects_and_agents.filter(
-                    profile__trashed=True
-                ).values("id"),
-            )
-            .exclude(self._direct_workspace_roles_q())
-        )
+        return RoleAssignment.objects.exclude(
+            subject_type_registry.get_trashed_subjects_q()
+        ).exclude(self._direct_workspace_roles_q())
 
     def _direct_workspace_roles_q(self):
         """Match workspace records whose role is owned by the subject type."""
@@ -1370,7 +1349,7 @@ class RoleAssignmentHandler:
                 "subject",
                 [
                     TeamHandler().get_teams_queryset(),
-                    User.objects_and_agents.select_related("profile"),
+                    User.identities_and_trash.select_related("profile"),
                 ],
             ),
         )

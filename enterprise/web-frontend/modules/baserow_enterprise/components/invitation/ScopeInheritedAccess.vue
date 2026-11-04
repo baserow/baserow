@@ -224,25 +224,34 @@ export default {
       }
       return this.targetType.getScopeTypeName(scopeType, scope).toLowerCase()
     },
-    /** Counts the subjects per role, in the order of the roles. */
+    /** Counts members, then agents, per role in the order of the roles. */
     getCounts(access, roles) {
       const counts = []
       for (const subjectType of this.enabledSubjectTypes) {
-        const perRole = {}
-        for (const entry of access) {
-          if (entry.subject_type === subjectType.type) {
-            perRole[entry.role] = (perRole[entry.role] || 0) + 1
+        for (const identityType of subjectType.isUser()
+          ? ['human', 'agent']
+          : [null]) {
+          for (const role of roles) {
+            const count = access.filter(
+              (entry) =>
+                entry.subject_type === subjectType.type &&
+                entry.role === role.uid &&
+                (!identityType ||
+                  (entry.identity_type || 'human') === identityType)
+            ).length
+            if (!count) continue
+            counts.push({
+              key: `${subjectType.type}:${identityType || ''}:${role.uid}`,
+              label:
+                identityType === 'agent'
+                  ? this.$t(
+                      'shareScope.agentRoleCount',
+                      { count, role: role.name },
+                      count
+                    )
+                  : this.$t('shareScope.roleCount', { count, role: role.name }),
+            })
           }
-        }
-        for (const role of roles) {
-          const count = perRole[role.uid]
-          if (!count) {
-            continue
-          }
-          counts.push({
-            key: `${subjectType.type}:${role.uid}`,
-            label: this.$t('shareScope.roleCount', { count, role: role.name }),
-          })
         }
       }
       return counts

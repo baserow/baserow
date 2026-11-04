@@ -14,7 +14,10 @@
       :key="index"
       class="subject-sample-field-list__avatar"
       size="large"
-      :subject="{ name: sample.subject_label }"
+      :subject="{
+        name: sample.subject_label,
+        identity_type: sample.identity_type,
+      }"
     />
 
     <div

@@ -29,7 +29,12 @@ from baserow_enterprise.audit_log.models import AuditLogEntry
 
 
 def expected_user_actor(user):
-    return {"id": user.id, "type": UserSubjectType.type, "name": user.email}
+    return {
+        "id": user.id,
+        "type": UserSubjectType.type,
+        "name": user.email,
+        "identity_type": "human",
+    }
 
 
 @pytest.mark.django_db
@@ -91,7 +96,7 @@ def test_non_admins_cannot_export_audit_log_to_csv(api_client, enterprise_data_f
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_audit_log_actor_filter_returns_users_and_agents(
+def test_audit_log_actor_filter_distinguishes_user_identity_kinds(
     api_client, enterprise_data_fixture
 ):
     admin, token = enterprise_data_fixture.create_enterprise_admin_user_and_token(
@@ -119,12 +124,14 @@ def test_audit_log_actor_filter_returns_users_and_agents(
                 "actor_id": admin.id,
                 "actor_type": UserSubjectType.type,
                 "value": admin.email,
+                "identity_type": "human",
             },
             {
                 "id": f"{UserSubjectType.type}:{agent.id}",
                 "actor_id": agent.id,
                 "actor_type": UserSubjectType.type,
                 "value": agent.first_name,
+                "identity_type": "agent",
             },
         ],
     }
@@ -202,6 +209,7 @@ def test_audit_log_actor_filter_returns_pagination_links(
             "actor_id": agent.id,
             "actor_type": UserSubjectType.type,
             "value": agent.first_name,
+            "identity_type": "agent",
         }
     ]
 
@@ -220,6 +228,7 @@ def test_audit_log_actor_filter_returns_pagination_links(
             "actor_id": other_user.id,
             "actor_type": UserSubjectType.type,
             "value": other_user.email,
+            "identity_type": "human",
         }
     ]
 
@@ -506,6 +515,7 @@ def test_audit_log_entries_can_be_filtered(api_client, enterprise_data_fixture):
     token_entry.pk = None
     token_entry.actor_id = user.id
     token_entry.actor_type = "core.Token"
+    token_entry.actor_identity_type = None
     token_entry.actor_name = "Token with colliding ID"
     token_entry.save()
 
@@ -535,6 +545,7 @@ def test_audit_log_entries_can_be_filtered(api_client, enterprise_data_fixture):
     assert response.json()["results"][0]["actor"] == {
         "id": user.id,
         "type": "core.Token",
+        "identity_type": None,
         "name": "Token with colliding ID",
     }
 

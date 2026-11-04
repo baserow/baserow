@@ -134,7 +134,12 @@ function createClient({
                   {
                     id: 7,
                     subject_type: 'auth.User',
-                    subject: { id: 4, name: 'Smith', identity_type: 'agent' },
+                    subject: {
+                      id: 4,
+                      subject_id: 4,
+                      name: 'Smith',
+                      identity_type: 'agent',
+                    },
                     role: 'VIEWER',
                     scope_id: 20,
                     scope_type: 'database_table',
@@ -144,12 +149,12 @@ function createClient({
           ],
         })
       }
-      if (url === '/agents/workspace/12/') {
+      if (url === '/subjects/') {
         return Promise.resolve({
           data: {
             results: [
-              { id: 4, name: 'Smith', identity_type: 'agent' },
-              { id: 5, name: 'Neo', identity_type: 'agent' },
+              { id: 4, subject_id: 4, name: 'Smith', identity_type: 'agent' },
+              { id: 5, subject_id: 5, name: 'Neo', identity_type: 'agent' },
             ],
             next: null,
           },
@@ -303,10 +308,7 @@ test('lists pending invitations first and tells the picker who already has a rol
     expect(wrapper.find('.picker-agents').attributes('data-enabled')).toBe(
       'true'
     )
-    expect(client.get).not.toHaveBeenCalledWith(
-      '/agents/workspace/12/',
-      expect.anything()
-    )
+    expect(client.get).not.toHaveBeenCalledWith('/subjects/', expect.anything())
     expect(wrapper.find('.inherited').exists()).toBe(true)
     // Members can be given no access on the table, invitations can't.
     expect(wrapper.find('.picker-roles').text()).toBe(
@@ -623,7 +625,7 @@ const assignment = (id, subjectType, subject, role, scopeType, scopeId) => ({
 const mark = { id: 8, name: 'Mark Delgado', email: 'mark@x.com' }
 const jane = { id: 9, name: 'Jane Roe', email: 'jane@x.com' }
 const managers = { id: 3, name: 'Management', subject_count: 2 }
-const smith = { id: 4, name: 'Smith', identity_type: 'agent' }
+const smith = { id: 4, subject_id: 4, name: 'Smith', identity_type: 'agent' }
 
 test('locks the role of admins of the workspace and of the database', async () => {
   const client = createClient({

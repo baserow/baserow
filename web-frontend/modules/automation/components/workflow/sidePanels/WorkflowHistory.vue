@@ -22,6 +22,11 @@
         />
       </div>
       <div v-if="triggeredByName" class="workflow-history__started-by">
+        <i
+          v-if="item.triggered_by?.identity_type === 'agent'"
+          class="baserow-icon-agent"
+          aria-hidden="true"
+        ></i>
         {{ $t('historySidePanel.startedBy', { name: triggeredByName }) }}
       </div>
     </template>

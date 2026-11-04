@@ -1155,3 +1155,36 @@ def test_sync_periodic_data_sync_unexpected_error_counts_as_failed_run(
     job = SyncDataSyncTableJob.objects.get()
     assert job.state == JOB_FAILED
     assert job.triggered_by == DATA_SYNC_JOB_TRIGGERED_BY_PERIODIC
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_agent_periodic_sync_runs_as_the_agent(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+    source = enterprise_data_fixture.create_database_table()
+    field = enterprise_data_fixture.create_text_field(table=source, primary=True)
+    source.get_model().objects.create(**{field.db_column: "Synced"})
+    agent = enterprise_data_fixture.create_agent(
+        workspace=source.database.workspace, role_uid="ADMIN"
+    )
+    data_sync = DataSyncHandler().create_data_sync_table(
+        agent,
+        source.database,
+        type_name="local_baserow_table",
+        synced_properties=["id", field.db_column],
+        table_name="Agent sync",
+        source_table_id=source.id,
+    )
+    assert data_sync.authorized_user == agent
+    periodic = EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
+        agent, data_sync, "DAILY", time(hour=12)
+    )
+    assert periodic.authorized_user == agent
+
+    assert EnterpriseDataSyncHandler.sync_periodic_data_sync(periodic.id)
+
+    job = SyncDataSyncTableJob.objects.get()
+    assert job.finished
+    assert job.user == agent
+    assert job.triggered_by == DATA_SYNC_JOB_TRIGGERED_BY_PERIODIC
+    assert data_sync.table.get_model().objects.count() == 1

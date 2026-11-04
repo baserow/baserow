@@ -8,8 +8,7 @@ from django.db.models import Count, OuterRef, QuerySet, Subquery
 from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
 
-from baserow.core.mixins import TrashableModelMixin
-from baserow.core.models import User, Workspace
+from baserow.core.models import Workspace
 from baserow.core.registries import subject_type_registry
 from baserow.core.subjects import UserSubjectType
 from baserow.core.trash.handler import TrashHandler
@@ -46,21 +45,9 @@ SUPPORTED_SUBJECT_TYPES = (UserSubjectType.type,)
 class TeamHandler:
     def get_team_subjects_queryset(self) -> QuerySet:
         """Hide trashed subjects while retaining memberships for their restoration."""
-        queryset = TeamSubject.objects.all()
-        queryset = queryset.exclude(
-            subject_type=ContentType.objects.get_for_model(User),
-            subject_id__in=User.objects_and_agents.filter(profile__trashed=True).values(
-                "id"
-            ),
+        return TeamSubject.objects.exclude(
+            subject_type_registry.get_trashed_subjects_q()
         )
-        for subject_type in subject_type_registry.get_all():
-            if issubclass(subject_type.model_class, TrashableModelMixin):
-                # IDs can overlap across subject types, so filter by both fields.
-                queryset = queryset.exclude(
-                    subject_type=subject_type.get_content_type(),
-                    subject_id__in=subject_type.model_class.trash.values("id"),
-                )
-        return queryset
 
     def get_teams_queryset(self) -> QuerySet:
         """
@@ -422,9 +409,6 @@ class TeamHandler:
             # Build a list of unique subject IDs, of this type.
             subject_ids_of_type = []
 
-            # Find the model class for this `subject_type`.
-            model_class = subject_type_registry.get(unique_subject_type).model_class
-
             # Find the subjects we've been given for this `subject_type`...
             subjects_of_type = filter(
                 lambda s: s["subject_type"] == unique_subject_type, subjects
@@ -441,7 +425,7 @@ class TeamHandler:
 
             subject_type = subject_type_registry.get(unique_subject_type)
             candidates = list(
-                model_class.objects_and_agents.filter(pk__in=subject_ids_of_type)
+                subject_type.get_queryset().filter(pk__in=subject_ids_of_type)
             )
             type_subject_models = [
                 subject
@@ -517,12 +501,9 @@ class TeamHandler:
                 f"A subject cannot be created with lookups {', '.join(unexpected_lookups)}."
             )
 
-        # Get the model for this `subject_natural_key`.
-        model_class = subject_type.model_class
-
         try:
-            subject = model_class.objects_and_agents.get(**subject_lookup)
-        except model_class.DoesNotExist:
+            subject = subject_type.get_queryset().get(**subject_lookup)
+        except subject_type.model_class.DoesNotExist:
             lookup_str = ", ".join([f"{k}={v}" for k, v in subject_lookup.items()])
             raise TeamSubjectDoesNotExist(
                 f"The subject with {lookup_str} and type={subject_natural_key} does not exist."

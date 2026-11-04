@@ -49,11 +49,8 @@ class AgentHandler:
         """
 
         queryset = (
-            User.objects_and_agents.filter(
-                profile__identity_type=UserProfile.IdentityType.AGENT,
-                profile__trashed=False,
-                workspaceuser__workspace=workspace,
-            )
+            User.identities.agents()
+            .filter(workspaceuser__workspace=workspace)
             .select_related("profile")
             .prefetch_related(
                 Prefetch(
@@ -84,12 +81,7 @@ class AgentHandler:
         queryset = (
             base_queryset
             if base_queryset is not None
-            else (
-                User.objects_and_agents.filter(
-                    profile__identity_type=UserProfile.IdentityType.AGENT,
-                    profile__trashed=False,
-                ).select_related("profile")
-            )
+            else User.identities.agents().select_related("profile")
         )
         if for_update:
             queryset = queryset.select_for_update(of=("self",))

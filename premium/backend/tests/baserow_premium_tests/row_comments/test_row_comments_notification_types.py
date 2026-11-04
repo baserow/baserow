@@ -709,13 +709,13 @@ def test_comment_retains_agent_mentions_without_notifications_or_subscriptions(
     message = premium_data_fixture.create_comment_message_with_mentions([agent])
 
     comment = RowCommentHandler.create_comment(user, table.id, rows[0].id, message)
-    assert list(comment.mentions(manager="objects_and_agents").all()) == [agent]
+    assert list(comment.mentions(manager="identities_and_trash").all()) == [agent]
     assert not NotificationRecipient.objects.filter(recipient=agent).exists()
     assert not RowCommentsNotificationMode.objects.filter(user=agent).exists()
 
     empty_message = premium_data_fixture.create_comment_message_with_mentions([])
     RowCommentHandler.update_comment(user, comment, empty_message)
-    assert not comment.mentions(manager="objects_and_agents").exists()
+    assert not comment.mentions(manager="identities_and_trash").exists()
 
 
 @pytest.mark.django_db
@@ -741,5 +741,5 @@ def test_comment_drops_mentions_of_unavailable_agents(premium_data_fixture, stat
 
     comment = RowCommentHandler.create_comment(user, table.id, rows[0].id, message)
 
-    assert not comment.mentions(manager="objects_and_agents").exists()
+    assert not comment.mentions(manager="identities_and_trash").exists()
     assert not NotificationRecipient.objects.filter(recipient=agent).exists()

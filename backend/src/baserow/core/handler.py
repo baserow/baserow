@@ -911,7 +911,7 @@ class CoreHandler:
 
         if not is_human_user(user):
             raise ValueError("An agent's membership is managed through its identity.")
-        User.objects_and_agents.select_for_update(of=("self",)).get(pk=user.pk)
+        User.identities_and_trash.select_for_update(of=("self",)).get(pk=user.pk)
         try:
             workspace_user = WorkspaceUser.objects.get(user=user, workspace=workspace)
         except WorkspaceUser.DoesNotExist:
@@ -1175,7 +1175,7 @@ class CoreHandler:
         """
 
         with atomic_if_not_already():
-            User.objects_and_agents.select_for_update(of=("self",)).get(
+            User.identities_and_trash.select_for_update(of=("self",)).get(
                 pk=workspace_user.user_id
             )
             if kwargs["permissions"] != "ADMIN":
@@ -1223,7 +1223,7 @@ class CoreHandler:
                 "Cannot delete yourself from workspace."
             )
 
-        User.objects_and_agents.select_for_update(of=("self",)).get(
+        User.identities_and_trash.select_for_update(of=("self",)).get(
             pk=workspace_user.user_id
         )
         if is_agent_user(workspace_user.user):
@@ -1544,7 +1544,7 @@ class CoreHandler:
 
         with atomic_if_not_already():
             # All membership writes lock the User, including AgentHandler creation.
-            User.objects_and_agents.select_for_update(of=("self",)).get(pk=user.pk)
+            User.identities_and_trash.select_for_update(of=("self",)).get(pk=user.pk)
             if is_agent_user(user):
                 memberships = list(WorkspaceUser.objects_and_trash.filter(user=user))
                 if len(memberships) != 1 or memberships[0].workspace_id != workspace.id:
@@ -1660,7 +1660,7 @@ class CoreHandler:
         """
 
         memberships = self.get_collaborator_memberships(workspace)
-        return User.objects_and_agents.filter(
+        return User.identities.filter(
             id__in=memberships.values("user_id")
         ).select_related("profile")
 

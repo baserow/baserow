@@ -68,7 +68,8 @@ Group).
 People and agent identities are both `auth.User` subjects. The immutable
 `UserProfile.identity_type` distinguishes them; their roles and grants use the same
 workspace memberships, teams and field permissions. `User.objects` lists people;
-permission and identity-resolution code opts into `User.objects_and_agents`.
+permission and identity-resolution code opts into `User.identities`, or
+`User.identities_and_trash` when trashed agents must resolve too.
 An agent must have one workspace membership and be active and untrashed to execute,
 even for trash-inclusive checks. Human account grants and authentication explicitly
 require a human identity; `isinstance(actor, User)` does not establish that.

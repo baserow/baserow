@@ -13,6 +13,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from freezegun import freeze_time
 from rest_framework.status import HTTP_200_OK
 
+from baserow.core.agents.handler import AgentHandler
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import IsNotAdminError
 from baserow.core.registries import plugin_registry
@@ -1235,3 +1236,32 @@ def test_agents_cannot_be_assigned_license_seats(data_fixture):
     with pytest.raises(CantManuallyChangeSeatsError):
         LicenseHandler.add_user_to_license(admin, license_object, agent)
     assert not license_object.users.exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("instance_wide", [False, True])
+def test_agents_get_premium_from_workspace_or_instance_entitlements(
+    data_fixture, instance_wide
+):
+    """Agent users test plan 6.3.1."""
+
+    agent = data_fixture.create_agent()
+    workspace = AgentHandler.get_workspace(agent)
+    license_plugin = type(LicenseHandler._get_license_plugin())
+
+    with (
+        patch.object(license_plugin, "workspace_has_feature", return_value=True),
+        patch.object(license_plugin, "instance_has_feature", return_value=True),
+        patch.object(license_plugin, "user_has_feature") as user_has_feature,
+        patch.object(
+            license_plugin, "user_has_feature_instance_wide"
+        ) as user_has_feature_instance_wide,
+    ):
+        if instance_wide:
+            assert LicenseHandler.user_has_feature_instance_wide(PREMIUM, agent)
+        else:
+            assert LicenseHandler.user_has_feature(PREMIUM, agent, workspace)
+
+    user_has_feature.assert_not_called()
+    user_has_feature_instance_wide.assert_not_called()
+    assert not LicenseUser.objects.filter(user=agent).exists()

@@ -38,6 +38,7 @@ def test_staff_can_search_global_subject_options(api_client, data_fixture):
             "label": matching_user.email,
             "email": matching_user.email,
             "identity_type": "human",
+            "role_uid": None,
             "subject_count": None,
         },
         {
@@ -48,6 +49,7 @@ def test_staff_can_search_global_subject_options(api_client, data_fixture):
             "label": matching_agent.first_name,
             "email": None,
             "identity_type": "agent",
+            "role_uid": "MEMBER",
             "subject_count": None,
         },
     ]

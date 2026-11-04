@@ -10,17 +10,17 @@
     @input="selectActor"
   >
     <template #items="{ results }">
-      <template v-for="subjectType in subjectTypes" :key="subjectType.type">
+      <template v-for="group in actorGroups" :key="group.key">
         <DropdownSection
-          v-if="resultsForType(results, subjectType.type).length"
-          :title="subjectType.getPluralTypeDisplayName()"
+          v-if="resultsForGroup(results, group).length"
+          :title="group.label"
         >
           <DropdownItem
-            v-for="actor in resultsForType(results, subjectType.type)"
+            v-for="actor in resultsForGroup(results, group)"
             :key="actor.id"
             :name="actor.value"
             :value="actor.id"
-            :icon="subjectType.iconClass"
+            :icon="group.icon"
           />
         </DropdownSection>
       </template>
@@ -48,8 +48,27 @@ export default {
   },
   emits: ['input'],
   computed: {
-    subjectTypes() {
-      return this.$registry.getList('subject')
+    actorGroups() {
+      return this.$registry.getList('subject').flatMap((type) => {
+        const group = {
+          key: type.type,
+          type: type.type,
+          label: type.getPluralTypeDisplayName(),
+          icon: type.iconClass,
+        }
+        return type.isUser()
+          ? [
+              { ...group, identityType: 'human' },
+              {
+                key: `${type.type}:agent`,
+                type: type.type,
+                identityType: 'agent',
+                label: this.$t('subjectType.agents'),
+                icon: 'baserow-icon-agent',
+              },
+            ]
+          : [group]
+      })
     },
     selectedKey() {
       return this.value ? `${this.value.type}:${this.value.id}` : null
@@ -59,8 +78,13 @@ export default {
     clear() {
       this.$refs.dropdown.clear()
     },
-    resultsForType(results, type) {
-      return results.filter((result) => result.actor_type === type)
+    resultsForGroup(results, group) {
+      return results.filter(
+        (result) =>
+          result.actor_type === group.type &&
+          (!group.identityType ||
+            (result.identity_type || 'human') === group.identityType)
+      )
     },
     selectActor(selection) {
       const actor = selection?.item

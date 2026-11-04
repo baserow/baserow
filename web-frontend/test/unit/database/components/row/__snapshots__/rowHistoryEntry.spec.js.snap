@@ -1,8 +1,8 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`RowHistoryEntry > renders an Agent actor without resolving it as a colliding user 1`] = `
+exports[`RowHistoryEntry > renders a deleted Agent from its recorded identity metadata 1`] = `
 "<div class="row-history-entry">
-  <div class="row-history-entry__header"><span class="row-history-entry__initials">R</span><span class="row-history-entry__name">Row writer rowHistorySidebar.updated</span><span class="row-history-entry__timestamp" title="08/05/2026 12:00 PM">12:00 PM</span></div>
+  <div class="row-history-entry__header"><span class="row-history-entry__initials"><i class="baserow-icon-agent" aria-hidden="true"></i></span><span class="row-history-entry__name">Row writer rowHistorySidebar.updated</span><span class="row-history-entry__timestamp" title="08/05/2026 12:00 PM">12:00 PM</span></div>
   <!--v-if-->
 </div>"
 `;

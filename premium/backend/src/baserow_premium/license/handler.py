@@ -27,7 +27,7 @@ from baserow.core.exceptions import IsNotAdminError
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
 from baserow.core.registries import plugin_registry
-from baserow.core.user.identity import is_human_user
+from baserow.core.user.identity import is_agent_user, is_human_user
 from baserow.core.utils import get_baserow_saas_base_url
 from baserow.ws.signals import broadcast_to_users
 from baserow_premium.api.user.user_data_types import ActiveLicensesDataType
@@ -122,6 +122,8 @@ class LicenseHandler:
         """
 
         license_plugin = cls._get_license_plugin()
+        if is_agent_user(user):
+            return license_plugin.workspace_has_feature(feature, workspace)
         return license_plugin.user_has_feature(feature, user, workspace)
 
     @classmethod
@@ -167,6 +169,8 @@ class LicenseHandler:
         """
 
         license_plugin = cls._get_license_plugin()
+        if is_agent_user(user):
+            return license_plugin.instance_has_feature(feature)
         return license_plugin.user_has_feature_instance_wide(feature, user)
 
     @classmethod

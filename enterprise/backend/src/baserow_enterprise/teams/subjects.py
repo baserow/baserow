@@ -3,7 +3,7 @@ from typing import List
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.contrib.contenttypes.models import ContentType
-from django.db.models import CharField, Count, F, Value
+from django.db.models import CharField, Count, F, QuerySet, Value
 
 from baserow.core.models import Workspace
 from baserow.core.registries import SubjectType
@@ -26,6 +26,9 @@ class TeamSubjectType(SubjectType):
     def get_display_name(self, subject: Team) -> str:
         return subject.name
 
+    def get_trashed_subject_ids(self) -> QuerySet:
+        return Team.trash.values("id")
+
     def get_options_queryset(
         self,
         workspace: Workspace | None = None,
@@ -47,6 +50,7 @@ class TeamSubjectType(SubjectType):
             subject_email=Value(None, output_field=CharField()),
             subject_count=Count("subjects"),
             subject_identity_type=Value(None, output_field=CharField()),
+            subject_role_uid=Value(None, output_field=CharField()),
         ).values(
             "subject_id",
             "subject_type",
@@ -55,6 +59,7 @@ class TeamSubjectType(SubjectType):
             "subject_email",
             "subject_count",
             "subject_identity_type",
+            "subject_role_uid",
         )
 
     def are_in_workspace(

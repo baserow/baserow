@@ -749,6 +749,7 @@ def test_get_workflow_histories_names_who_triggered_the_run(api_client, data_fix
         "id": user.id,
         "type": "auth.User",
         "name": "Ada",
+        "identity_type": "human",
     }
 
 

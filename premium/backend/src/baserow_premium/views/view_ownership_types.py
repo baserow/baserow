@@ -30,7 +30,7 @@ class PersonalViewOwnershipType(ViewOwnershipType):
 
     def can_import_view(self, serialized_values, id_mapping):
         email = serialized_values.get("owned_by", None)
-        return id_mapping["owned_by"].get(email, None) is not None
+        return is_human_user(id_mapping["owned_by"].get(email))
 
     def should_broadcast_signal_to(self, view):
         if view.owned_by is None:

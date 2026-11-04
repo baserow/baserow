@@ -28,6 +28,9 @@ class SubjectOptionsQueryParamsSerializer(serializers.Serializer):
 
 
 class SubjectOptionSerializer(serializers.Serializer):
+    role_uid = serializers.CharField(
+        source="subject_role_uid", read_only=True, allow_null=True
+    )
     identity_type = serializers.CharField(
         source="subject_identity_type", read_only=True, allow_null=True
     )
