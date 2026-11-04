@@ -323,6 +323,12 @@ def list_data_sources_on_page(user: AbstractUser, page: Page) -> list[DataSource
     ]
 
 
+def _place_order(place: str) -> int:
+    """Where a place shows in its container: a column's places are its numbers."""
+
+    return int(place) if place.isdecimal() else 0
+
+
 def _in_page_order(page: Page, elements: list) -> list:
     """
     Sort a page's elements by their place in its graph, with a container's children
@@ -344,8 +350,8 @@ def _in_page_order(page: Page, elements: list) -> list:
         if isinstance(children, list):
             children = {"": children}
         following = [*info.get("next", {}).get("", [])]
-        for ids in reversed(list(children.values())):
-            following = [*ids, *following]
+        for place in reversed(sorted(children, key=_place_order)):
+            following = [*children[place], *following]
         stack.extend(reversed(following))
     return sorted(elements, key=lambda el: position.get(el.id, len(position)))
 

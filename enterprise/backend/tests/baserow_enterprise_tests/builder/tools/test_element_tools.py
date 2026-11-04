@@ -2105,3 +2105,45 @@ def test_two_changed_columns_of_one_name_are_both_checked(data_fixture, builder_
                 ]
             ),
         )
+
+
+# ---------------------------------------------------------------------------
+# Listing order
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_children_of_a_column_are_listed_by_place(data_fixture, builder_ctx):
+    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+    column = data_fixture.create_builder_column_element(page=page, column_amount=11)
+
+    def add(ref, place):
+        return elements.create_elements(
+            ctx,
+            page.id,
+            [
+                ElementItemCreate(
+                    ref=ref,
+                    type="heading",
+                    value=ref,
+                    parent_element=column.id,
+                    place_in_container=place,
+                )
+            ],
+        )["ref_to_id_map"][ref]
+
+    ten, two, first, also_first = (
+        add("ten", "10"),
+        add("two", "2"),
+        add("first", "0"),
+        add("also_first", "0"),
+    )
+
+    listed = [item.id for item in helpers.list_elements(builder_ctx["user"], page)]
+
+    assert [id for id in listed if id in (ten, two, first, also_first)] == [
+        first,
+        also_first,
+        two,
+        ten,
+    ]
