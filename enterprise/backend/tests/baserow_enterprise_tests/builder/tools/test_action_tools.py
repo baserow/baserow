@@ -1952,3 +1952,19 @@ def test_page_parameters_with_a_repeated_name_are_refused(data_fixture, builder_
 
     assert result["created_actions"] == []
     assert "repeated: id" in result["errors"][0]
+
+
+@pytest.mark.django_db
+def test_add_action_field_mapping_refuses_a_new_mapping_on_a_trashed_field(
+    data_fixture, builder_ctx, row_action_with_mapping
+):
+    action, table, field = row_action_with_mapping
+    trashed = data_fixture.create_text_field(table=table, name="Old", trashed=True)
+
+    with pytest.raises(ToolInputError, match="trash"):
+        actions.add_action_field_mapping(
+            builder_ctx["ctx"], action.id, trashed.id, "'x'"
+        )
+
+    mapped = action.service.specific.field_mappings.values_list("field_id", flat=True)
+    assert list(mapped) == [field.id]

@@ -1651,6 +1651,11 @@ def add_field_mapping_to_action(
                     }
                 )
         if status == "created":
+            if not Field.objects.filter(id=field_id).exists():
+                raise ToolInputError(
+                    f"Field {field_id} is in the trash, so it can't get a new value. "
+                    "Use another field of the table, or restore it first."
+                )
             field_mappings.append(
                 {"field_id": field_id, "enabled": True, "value": value}
             )
