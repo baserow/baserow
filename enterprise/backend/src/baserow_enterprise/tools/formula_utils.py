@@ -1,5 +1,4 @@
 import logging
-import re
 from abc import ABC, abstractmethod
 from datetime import date, datetime
 from typing import Any
@@ -7,8 +6,10 @@ from typing import Any
 from baserow.contrib.automation.tools.formulas import (  # noqa: F401
     EMPTY_FORMULA,
     FORMULA_PREFIX,
+    RAW_FORMULA_RE,
     is_string_literal,
     is_valid_formula,
+    needs_formula,
     wrap_static_string,
 )
 from baserow.core.formula.types import (
@@ -20,32 +21,6 @@ from baserow.core.formula.types import (
 from baserow.core.utils import to_path
 
 logger = logging.getLogger(__name__)
-
-# =============================================================================
-# Formula Detection Constants and Helpers
-# =============================================================================
-
-# Raw formula syntax the builder tools send to the generator, which also fixes
-# near misses such as ``get ('x')``. The automation tools store formulas as
-# written, so they use the stricter pattern in ``automation.tools.formulas``.
-RAW_FORMULA_RE = re.compile(
-    r"\bget\s*\(|\bconcat\s*\(|\{\{.*\}\}"
-    r"|\b(?:equal|not_equal|greater_than|less_than"
-    r"|greater_than_(?:or_)?equal|less_than_(?:or_)?equal)\s*\("
-    r"|\bif\s*\(|\btoday\s*\(|\bnow\s*\("
-)
-
-
-def needs_formula(value: str | None) -> bool:
-    """
-    Whether a builder value needs the formula generator: it holds a ``$formula:``
-    description or looks like formula syntax.
-    """
-
-    if not value:
-        return False
-    stripped = value.strip()
-    return FORMULA_PREFIX in stripped.lower() or bool(RAW_FORMULA_RE.search(stripped))
 
 
 def formula_desc(value: str) -> str:

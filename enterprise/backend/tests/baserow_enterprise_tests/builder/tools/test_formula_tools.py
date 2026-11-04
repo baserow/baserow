@@ -2,14 +2,21 @@
 
 import pytest
 
+from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.registries import element_type_registry
+from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.exceptions import PermissionException
-from baserow_enterprise.builder.tools import formulas
+from baserow_enterprise.builder.tools import actions, data_sources, elements, formulas
 from baserow_enterprise.builder.tools.formulas import apply_builder_formulas
 from baserow_enterprise.builder.tools.types import (
+    ActionCreate,
+    DataSourceCreate,
     DisplayElementCreate,
+    ElementChanges,
+    ElementItemCreate,
 )
+from baserow_enterprise.tools.formula_utils import needs_formula
 
 
 def stored(element_id, field):
@@ -138,3 +145,112 @@ def test_a_denied_write_is_reported_and_marked(data_fixture, builder_ctx, monkey
 
     assert errors[0].can_repair is False
     assert errors[0].permission_denied is True
+
+
+# ---------------------------------------------------------------------------
+# Plain text with a word before a parenthesis
+# ---------------------------------------------------------------------------
+
+SENTENCE = "Order now (today only)"
+STORED_SENTENCE = f"'{SENTENCE}'"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "item, field",
+    [
+        ({"type": "heading", "value": SENTENCE}, "value"),
+        ({"type": "text", "value": SENTENCE}, "value"),
+        ({"type": "button", "value": SENTENCE}, "value"),
+        ({"type": "link", "value": SENTENCE}, "value"),
+        ({"type": "image", "alt_text": SENTENCE}, "alt_text"),
+        ({"type": "input_text", "default_value": SENTENCE}, "default_value"),
+    ],
+)
+def test_a_sentence_with_a_parenthesis_is_fixed_text_on_an_element(
+    builder_ctx, item, field
+):
+    result = elements.create_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [ElementItemCreate(ref="a", **item)],
+    )
+
+    assert "formula_errors" not in result
+    assert not result.get("errors")
+    assert stored(result["ref_to_id_map"]["a"], field)["formula"] == STORED_SENTENCE
+
+
+@pytest.mark.django_db
+def test_a_sentence_with_a_parenthesis_is_fixed_text_on_an_element_update(
+    data_fixture, builder_ctx
+):
+    heading = data_fixture.create_builder_heading_element(
+        page=builder_ctx["page"], value="'Old'"
+    )
+
+    result = elements.update_element(
+        builder_ctx["ctx"], heading.id, ElementChanges(value=SENTENCE)
+    )
+
+    assert "formula_errors" not in result
+    assert stored(heading.id, "value")["formula"] == STORED_SENTENCE
+
+
+@pytest.mark.django_db
+def test_a_sentence_with_a_parenthesis_is_fixed_text_on_a_notification(builder_ctx):
+    result = actions.create_actions(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            ActionCreate(
+                type="notification",
+                element=builder_ctx["button"].id,
+                event="click",
+                title=SENTENCE,
+            )
+        ],
+    )
+
+    assert "formula_errors" not in result
+    action = BuilderWorkflowAction.objects.get(
+        id=result["created_actions"][0]["id"]
+    ).specific
+    assert action.title["formula"] == STORED_SENTENCE
+
+
+@pytest.mark.django_db
+def test_a_sentence_with_a_parenthesis_is_fixed_text_as_a_search(builder_ctx):
+    table = builder_ctx["data_source"].service.specific.table
+
+    result = data_sources.create_data_sources(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            DataSourceCreate(
+                ref="a",
+                name="Search",
+                type="list_rows",
+                table_id=table.id,
+                search_query=SENTENCE,
+            )
+        ],
+    )
+
+    assert "formula_errors" not in result
+    data_source = DataSource.objects.get(id=result["ref_to_id_map"]["a"])
+    assert data_source.service.specific.search_query["formula"] == STORED_SENTENCE
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "Order now (today only)",
+        "Today (only)",
+        "Sold today (only)",
+        "if (you can)",
+        "Call me (concat ('a', 'b'))",
+    ],
+)
+def test_needs_formula_leaves_a_sentence_as_text(value):
+    assert not needs_formula(value)
