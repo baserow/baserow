@@ -113,7 +113,7 @@ OpenAI verifies the domain of a submitted ChatGPT app by fetching `/.well-known/
 | `create_rows` | `database_edit` | on | no | Create one or more rows using field names |
 | `update_rows` | `database_edit` | on | yes | Update rows by ID using field names |
 | `create_database` | `database_edit` | off | no | Create one database (shared with Kuma) |
-| `update_database` | `database_edit` | off | no | Rename a database (shared with Kuma) |
+| `update_database` | `database_edit` | off | yes | Rename a database (shared with Kuma) |
 | `create_tables` | `database_edit` | off | no | Create tables with their fields (shared with Kuma) |
 | `create_fields` | `database_edit` | off | no | Add fields to a table (shared with Kuma) |
 | `update_fields` | `database_edit` | off | yes | Rename fields or change their settings (shared with Kuma) |
@@ -133,7 +133,7 @@ OpenAI verifies the domain of a submitted ChatGPT app by fetching `/.well-known/
 | `list_workflows` | `automation_read` | on | no | List the automations of the workspace and their workflows (shared with Kuma) |
 | `list_nodes` | `automation_read` | on | no | List a workflow's nodes in order, with their branches and output paths (shared with Kuma) |
 | `create_automation` | `automation_edit` | off | no | Create one empty automation, with its Local Baserow connection (shared with Kuma) |
-| `update_automation` | `automation_edit` | off | no | Rename an automation (shared with Kuma) |
+| `update_automation` | `automation_edit` | off | yes | Rename an automation (shared with Kuma) |
 | `create_workflows` | `automation_edit` | off | no | Create draft workflows with a trigger and nodes. A draft does nothing until `publish_workflow` (shared with Kuma) |
 | `publish_workflow` | `automation_edit` | off | yes | Publish a workflow so it runs when its trigger fires. Refuses one with no trigger or no action |
 | `pause_workflow` | `automation_edit` | off | no | Pause a live workflow, so its trigger stops starting runs |
@@ -144,7 +144,7 @@ OpenAI verifies the domain of a submitted ChatGPT app by fetching `/.well-known/
 | `list_widgets` | `dashboard_read` | on | no | List a dashboard's widgets with the table, view, fields and aggregations they read |
 | `get_widget_data` | `dashboard_read` | on | no | Read the figures widgets show |
 | `create_dashboard` | `dashboard_edit` | off | no | Create one empty dashboard (shared with Kuma) |
-| `update_dashboard` | `dashboard_edit` | off | no | Rename a dashboard (shared with Kuma) |
+| `update_dashboard` | `dashboard_edit` | off | yes | Rename a dashboard (shared with Kuma) |
 | `create_widgets` | `dashboard_edit` | off | no | Add summary, chart and pie chart widgets to a dashboard |
 | `update_widgets` | `dashboard_edit` | off | yes | Change a widget's title, chart type, or what it shows |
 | `delete_widgets` | `dashboard_delete` | off | yes | Delete (trash) widgets |
@@ -156,7 +156,7 @@ OpenAI verifies the domain of a submitted ChatGPT app by fetching `/.well-known/
 | `list_elements` | `builder_read` | on | no | List the elements of a page (shared with Kuma) |
 | `list_actions` | `builder_read` | on | no | List the workflow actions of a page (shared with Kuma) |
 | `create_builder` | `builder_edit` | off | no | Create one application builder with a theme and a connection to the workspace data. Takes only a name and a theme (shared with Kuma) |
-| `update_builder` | `builder_edit` | off | no | Rename an application builder or set its login page (shared with Kuma) |
+| `update_builder` | `builder_edit` | off | yes | Rename an application builder or set its login page (shared with Kuma) |
 | `create_pages` | `builder_edit` | off | no | Create pages (shared with Kuma) |
 | `update_page` | `builder_edit` | off | yes | Change a page's name, path, parameters or visibility (shared with Kuma) |
 | `create_data_sources` | `builder_edit` | off | no | Create data sources on a page (shared with Kuma) |
@@ -194,7 +194,7 @@ The application tools `create_database`, `create_automation`, `create_dashboard`
 
 `create_workflows` makes draft workflows, which do nothing. `publish_workflow` makes one live and is destructive, because it replaces the live copy and starts real effects such as sent emails and written rows; the client should ask the user first. `pause_workflow` stops a live workflow, and publishing again makes it live with the current draft.
 
-The application builder tools are registered by the enterprise app (`baserow_enterprise.mcp.builder`) and are enterprise code, so an instance running with `BASEROW_OSS_ONLY` does not have them. They are in the `builder_read` and `builder_edit` groups. `builder_read` is part of the "Read only" preset. There is no builder delete group and no tool deletes an application or any builder item. The shared code is in `baserow_enterprise/builder/tools/`, and an MCP tool never offers the Kuma-only parameters (`known_refs`, `known_data_source_refs`, `defer_required_formulas`). A formula that is not valid comes back in `formula_errors` for the client to fix with the matching `update_` tool, and no model is called. A table column's formula is the exception: a new or changed one that is not valid refuses the whole `update_element`. When `update_element` changes the text of a button that also shows a notification, the result has a `note` naming that action, which stays as it was. `set_theme`, `update_page`, `update_data_source`, `update_element`, `update_element_style`, `update_action` and `add_action_field_mapping` are destructive, because each overwrites stored values: `set_theme` replaces every theme setting, `update_action` also clears an action's field values when it moves to another table, and the rest replace the values they're given.
+The application builder tools are registered by the enterprise app (`baserow_enterprise.mcp.builder`) and are enterprise code, so an instance running with `BASEROW_OSS_ONLY` does not have them. They are in the `builder_read` and `builder_edit` groups. `builder_read` is part of the "Read only" preset. There is no builder delete group and no tool deletes an application or any builder item. The shared code is in `baserow_enterprise/builder/tools/`, and an MCP tool never offers the Kuma-only parameters (`known_refs`, `known_data_source_refs`, `defer_required_formulas`). A formula that is not valid comes back in `formula_errors` for the client to fix with the matching `update_` tool, and no model is called. A table column's formula is the exception: a new or changed one that is not valid refuses the whole `update_element`. When `update_element` changes the text of a button that also shows a notification, the result has a `note` naming that action, which stays as it was. `set_theme`, `update_builder`, `update_page`, `update_data_source`, `update_element`, `update_element_style`, `update_action` and `add_action_field_mapping` are destructive, because each overwrites stored values: `set_theme` replaces every theme setting, `update_action` also clears an action's field values when it moves to another table, and the rest replace the values they're given. `update_database`, `update_automation` and `update_dashboard` are destructive for the same reason, like `update_table`.
 
 Writes over MCP can't be undone from Baserow's undo (Ctrl+Z). The action is stored without a client session id, and undo only finds actions made with the same session id as the browser, so nothing in the UI reaches it. To take back a create, delete the application, which moves it to the trash.
 

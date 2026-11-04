@@ -25,7 +25,7 @@ class UpdateAutomationMcpTool(FunctionMCPTool):
     group = GROUP_AUTOMATION_EDIT
     title = "Rename an automation"
     read_only = False
-    destructive = False
+    destructive = True
     function = automations.update_automation
 
 

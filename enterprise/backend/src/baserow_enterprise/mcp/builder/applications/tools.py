@@ -25,5 +25,5 @@ class UpdateBuilderMcpTool(FunctionMCPTool):
     group = GROUP_BUILDER_EDIT
     title = "Update an application builder"
     read_only = False
-    destructive = False
+    destructive = True
     function = applications.update_builder

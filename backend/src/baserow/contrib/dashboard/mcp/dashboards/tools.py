@@ -25,5 +25,5 @@ class UpdateDashboardMcpTool(FunctionMCPTool):
     group = GROUP_DASHBOARD_EDIT
     title = "Rename a dashboard"
     read_only = False
-    destructive = False
+    destructive = True
     function = dashboards.update_dashboard

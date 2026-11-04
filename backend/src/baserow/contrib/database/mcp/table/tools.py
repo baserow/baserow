@@ -96,7 +96,7 @@ class UpdateDatabaseMcpTool(FunctionMCPTool):
     group = GROUP_DATABASE_EDIT
     title = "Rename a database"
     read_only = False
-    destructive = False
+    destructive = True
     function = databases.update_database
 
 
