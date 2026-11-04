@@ -132,7 +132,14 @@ def test_dispatch_widget_values(api_client, filter_dashboard, public, password, 
     ]:
         response = api_client.post(url, payload, format="json", **headers)
         assert response.status_code == 200, response.json()
-        assert response.json() == {"result": expected}
+        assert response.json() == {
+            "result": expected,
+            **(
+                {"_is_filtered": True}
+                if payload.get("widget_data", {}).get(str(widget.id), "Alpha") != ""
+                else {}
+            ),
+        }
     widget.refresh_from_db()
     assert widget.default_value == "Alpha"
 
@@ -177,7 +184,10 @@ def test_multiple_dropdown_matches_individual_values(
             url, {"widget_data": {str(widget.id): values}}, format="json", **headers
         )
         assert response.status_code == 200, response.json()
-        assert response.json() == {"result": str(expected) if expected else None}
+        assert response.json() == {
+            "result": str(expected) if expected else None,
+            **({"_is_filtered": True} if values else {}),
+        }
 
     # An explicit formula that joins values still requests a scalar comparison.
     widget.target_filters[0]["group"]["filters"][0]["value"] = (
@@ -191,7 +201,10 @@ def test_multiple_dropdown_matches_individual_values(
         **headers,
     )
     assert response.status_code == 200, response.json()
-    assert response.json() == {"result": "80" if operator == "equal" else "70"}
+    assert response.json() == {
+        "result": "80" if operator == "equal" else "70",
+        "_is_filtered": True,
+    }
 
 
 @pytest.mark.django_db
@@ -218,7 +231,8 @@ def test_multiple_dropdown_preserves_other_conditions(data_fixture, filter_dashb
         data={"widget_data": {str(widget.id): ["Alpha", "Beta"]}},
     )
     assert DashboardDataSourceHandler().dispatch_data_source(source, context) == {
-        "result": "20"
+        "result": "20",
+        "_is_filtered": True,
     }
 
 
@@ -269,7 +283,14 @@ def test_multiple_dropdown_exposes_lists_and_empty_policy(
     ]:
         response = api_client.post(url, payload, format="json", **headers)
         assert response.status_code == 200, response.json()
-        assert response.json() == {"result": expected}
+        assert response.json() == {
+            "result": expected,
+            **(
+                {"_is_filtered": True}
+                if payload.get("widget_data", {}).get(str(widget.id), ["Alpha"]) != []
+                else {}
+            ),
+        }
     for value in ["Beta", [1], [None], [["Beta"]]]:
         assert (
             api_client.post(
@@ -288,7 +309,7 @@ def test_multiple_dropdown_exposes_lists_and_empty_policy(
     widget.save()
     assert api_client.post(
         url, {"widget_data": {str(widget.id): []}}, format="json", **headers
-    ).json() == {"result": "20"}
+    ).json() == {"result": "20", "_is_filtered": True}
 
 
 @pytest.mark.django_db
@@ -360,7 +381,8 @@ def test_clearing_preserves_selected_view_filtering(
         HttpRequest(), dashboard=dashboard, data={"widget_data": {str(widget.id): ""}}
     )
     assert DashboardDataSourceHandler().dispatch_data_source(source, context) == {
-        "result": "60"
+        "result": "60",
+        "_is_filtered": True,
     }
 
 
@@ -391,7 +413,10 @@ def test_empty_policy_and_constant_dependencies(filter_dashboard, behavior, expe
             dashboard=dashboard,
             data={"widget_data": {str(widget.id): ""}},
         ),
-    ) == {"result": expected}
+    ) == {
+        "result": expected,
+        **({"_is_filtered": True} if behavior == "apply_alternative" else {}),
+    }
     link["group"]["filters"][0]["value"] = BaserowFormulaObject.create(
         "Alpha", mode="raw"
     )
@@ -418,7 +443,7 @@ def test_permanent_and_contributed_groups(
     )
     assert DashboardDataSourceHandler().dispatch_data_source(
         source, DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
-    ) == {"result": expected}
+    ) == {"result": expected, "_is_filtered": True}
 
 
 @pytest.mark.django_db
@@ -583,7 +608,7 @@ def test_nested_contribution_and_source_change(data_fixture, filter_dashboard):
     widget.save()
     assert DashboardDataSourceHandler().dispatch_data_source(
         source, DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
-    ) == {"result": "30"}
+    ) == {"result": "30", "_is_filtered": True}
     service = source.service.specific
     service.table = data_fixture.create_database_table(database=service.table.database)
     service.field = data_fixture.create_number_field(table=service.table)
@@ -638,7 +663,7 @@ def test_whitespace_activates_constant_only_group(filter_dashboard):
                 dashboard=dashboard,
                 data={"widget_data": {str(widget.id): value}},
             ),
-        ) == {"result": expected}
+        ) == {"result": expected, **({"_is_filtered": True} if value != "" else {})}
 
 
 @pytest.mark.django_db
@@ -694,7 +719,7 @@ def test_import_remaps_contributed_fields_and_results(data_fixture, filter_dashb
                 dashboard=copied,
                 data={"widget_data": {str(copied_widget.id): value}},
             ),
-        ) == {"result": expected}
+        ) == {"result": expected, "_is_filtered": True}
 
 
 @pytest.mark.django_db
@@ -722,7 +747,7 @@ def test_contribution_update_undo_redo(filter_dashboard):
             assert actions and not actions[0].error
         assert DashboardDataSourceHandler().dispatch_data_source(
             source, DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
-        ) == {"result": expected}
+        ) == {"result": expected, "_is_filtered": True}
 
 
 @pytest.mark.django_db
@@ -773,7 +798,8 @@ def test_filter_capabilities_control_dispatch_and_dependencies(
 
     context = DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
     assert DashboardDataSourceHandler().dispatch_data_source(source, context) == {
-        "result": "20"
+        "result": "20",
+        "_is_filtered": True,
     }
     serializer = DashboardDispatchSerializer(
         data={"widget_data": {str(widget.id): "Alpha"}},
@@ -853,7 +879,7 @@ def test_multiple_filters_own_independent_group_operators(
                 "widget_data": {str(first.id): "active", str(second.id): second_value}
             },
         ),
-    ) == {"result": expected}
+    ) == {"result": expected, "_is_filtered": True}
 
 
 @pytest.mark.django_db
@@ -899,7 +925,7 @@ def test_source_operator_combines_multiple_inputs(filter_dashboard, operator, bo
                 dashboard=dashboard,
                 data={"widget_data": {str(first.id): a, str(second.id): b}},
             ),
-        ) == {"result": expected}
+        ) == {"result": expected, **({"_is_filtered": True} if bool(a or b) else {})}
 
 
 @pytest.mark.django_db
@@ -983,7 +1009,8 @@ def test_runtime_filter_is_complete_and_namespaces_nested_group_ids(
     )
     assert len({condition["group"] for condition in runtime_filter["filters"]}) == 2
     assert DashboardDataSourceHandler().dispatch_data_source(source, context) == {
-        "result": expected
+        "result": expected,
+        "_is_filtered": True,
     }
 
 
@@ -1124,3 +1151,27 @@ def test_dropdown_options_schema_limits_and_import(
         "api:dashboard:widgets:options", kwargs={"widget_id": widget.id}
     )
     assert api_client.get(options_url, **headers).status_code == 400
+
+
+@pytest.mark.django_db
+def test_filter_status_tracks_source_conditions_and_empty_groups(
+    data_fixture, filter_dashboard
+):
+    _, _, dashboard, source, widget, condition = filter_dashboard
+    widget.target_filters[0]["group"]["filters"] = []
+    widget.save()
+    context = DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
+    handler = DashboardDataSourceHandler()
+    assert handler.dispatch_data_source(source, context) == {"result": "70"}
+    stored_filter = data_fixture.create_local_baserow_table_service_filter(
+        service=source.service.specific,
+        field_id=condition["field"],
+        type="equal",
+        value=BaserowFormulaObject.create("Beta", mode="raw"),
+    )
+    assert handler.dispatch_data_source(source, context) == {
+        "result": "20",
+        "_is_filtered": True,
+    }
+    stored_filter.delete()
+    assert handler.dispatch_data_source(source, context) == {"result": "70"}
