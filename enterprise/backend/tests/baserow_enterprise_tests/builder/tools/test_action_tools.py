@@ -1873,3 +1873,37 @@ def test_a_new_action_and_its_update_read_a_title_the_same_way(builder_ctx):
 
         action.refresh_from_db()
         assert action.title["formula"] == created
+
+
+# ---------------------------------------------------------------------------
+# Repeated page parameters, which the frontend shows as misconfigured
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_page_parameters_with_a_repeated_name_are_refused(data_fixture, builder_ctx):
+    target = data_fixture.create_builder_page(
+        builder=builder_ctx["builder"],
+        name="Post",
+        path="/posts/:id/:slug",
+        path_params=[
+            {"name": "id", "type": "text"},
+            {"name": "slug", "type": "text"},
+        ],
+    )
+
+    result = create(
+        builder_ctx,
+        ActionCreate(
+            type="open_page",
+            element=builder_ctx["button"].id,
+            event="click",
+            navigate_to_page_id=target.id,
+            page_parameters=[
+                {"name": name, "value": "'x'"} for name in ("id", "id", "slug")
+            ],
+        ),
+    )
+
+    assert result["created_actions"] == []
+    assert "repeated: id" in result["errors"][0]

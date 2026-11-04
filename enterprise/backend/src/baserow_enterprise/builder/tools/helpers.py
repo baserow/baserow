@@ -1395,13 +1395,17 @@ def page_parameters_problem(
     expected = [param["name"] for param in page.path_params or []]
     missing = [name for name in expected if name not in names]
     unknown = [name for name in dict.fromkeys(names) if name not in expected]
-    if not missing and not unknown:
+    # The frontend hides a link or button whose list has a name twice.
+    repeated = [name for name in dict.fromkeys(names) if names.count(name) > 1]
+    if not missing and not unknown and not repeated:
         return None
     problems = []
     if missing:
         problems.append(f"missing: {', '.join(missing)}")
     if unknown:
         problems.append(f"unknown: {', '.join(unknown)}")
+    if repeated:
+        problems.append(f"repeated: {', '.join(repeated)}")
     return (
         f"The page parameters don't fit page {page.id}, which takes "
         f"{', '.join(expected) or 'none'} ({'; '.join(problems)})."
