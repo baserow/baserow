@@ -425,10 +425,9 @@ def check_workflow_can_run(ctx: ToolContext, workflow: AutomationWorkflow) -> li
                 if node_type.is_workflow_trigger
                 else "no table is set, so every run fails here."
             )
-        elif (
-            node_type.type in NODE_TYPES_NEEDING_A_ROW_ID
-            and node.service.row_id["formula"] in ("", EMPTY_FORMULA)
-        ):
+        elif node_type.type in NODE_TYPES_NEEDING_A_ROW_ID and node.service.row_id[
+            "formula"
+        ] in ("", EMPTY_FORMULA):
             problem = "no row_id is set, so every run fails here."
         if problem:
             warnings.append(f"Node {node.id} ({node.label}): {problem}")
