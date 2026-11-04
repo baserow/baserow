@@ -124,7 +124,7 @@ def test_write_tools_with_builder_edit_turned_on(
     for name in WRITE_TOOLS:
         assert tools[name].annotations.readOnlyHint is False
         assert tools[name].annotations.destructiveHint is (
-            name in ("set_theme", "update_action")
+            name in ("set_theme", "update_action", "add_action_field_mapping")
         )
     assert set(tools["create_actions"].inputSchema["properties"]) == {
         "page_id",

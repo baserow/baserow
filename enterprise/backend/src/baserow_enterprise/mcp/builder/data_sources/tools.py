@@ -25,5 +25,5 @@ class UpdateDataSourceMcpTool(FunctionMCPTool):
     group = GROUP_BUILDER_EDIT
     title = "Update a data source"
     read_only = False
-    destructive = False
+    destructive = True
     function = data_sources.update_data_source

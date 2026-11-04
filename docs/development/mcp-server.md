@@ -158,18 +158,18 @@ OpenAI verifies the domain of a submitted ChatGPT app by fetching `/.well-known/
 | `create_builder` | `builder_edit` | off | no | Create one application builder with a theme and a connection to the workspace data. Takes only a name and a theme (shared with Kuma) |
 | `update_builder` | `builder_edit` | off | no | Rename an application builder or set its login page (shared with Kuma) |
 | `create_pages` | `builder_edit` | off | no | Create pages (shared with Kuma) |
-| `update_page` | `builder_edit` | off | no | Change a page's name, path, parameters or visibility (shared with Kuma) |
+| `update_page` | `builder_edit` | off | yes | Change a page's name, path, parameters or visibility (shared with Kuma) |
 | `create_data_sources` | `builder_edit` | off | no | Create data sources on a page (shared with Kuma) |
-| `update_data_source` | `builder_edit` | off | no | Change a data source (shared with Kuma) |
+| `update_data_source` | `builder_edit` | off | yes | Change a data source (shared with Kuma) |
 | `create_display_elements` | `builder_edit` | off | no | Add headings, text, images, links, buttons and similar to a page (shared with Kuma) |
 | `create_layout_elements` | `builder_edit` | off | no | Add columns, headers, footers, menus and other layout elements (shared with Kuma) |
 | `create_form_elements` | `builder_edit` | off | no | Add forms and form inputs (shared with Kuma) |
 | `create_collection_elements` | `builder_edit` | off | no | Add tables and repeats that show the rows of a data source (shared with Kuma) |
 | `update_element` | `builder_edit` | off | yes | Change an element's text, settings, table columns or menu items (shared with Kuma) |
-| `update_element_style` | `builder_edit` | off | no | Change the style of an element (shared with Kuma) |
+| `update_element_style` | `builder_edit` | off | yes | Change the style of an element (shared with Kuma) |
 | `move_elements` | `builder_edit` | off | no | Move elements within a page (shared with Kuma) |
 | `create_actions` | `builder_edit` | off | no | Add workflow actions to buttons, forms and pages (shared with Kuma) |
-| `add_action_field_mapping` | `builder_edit` | off | no | Set the value a create row or update row action writes to one field (shared with Kuma) |
+| `add_action_field_mapping` | `builder_edit` | off | yes | Set the value a create row or update row action writes to one field (shared with Kuma) |
 | `update_action` | `builder_edit` | off | yes | Change a workflow action. Moving it to another table clears its field values (shared with Kuma) |
 | `setup_page` | `builder_edit` | off | no | Add data sources, elements and actions to an existing page in one call (shared with Kuma) |
 | `setup_user_source` | `builder_edit` | off | no | Set up password login on a users table, with a login page (shared with Kuma) |
@@ -194,7 +194,7 @@ The application tools `create_database`, `create_automation`, `create_dashboard`
 
 `create_workflows` makes draft workflows, which do nothing. `publish_workflow` makes one live and is destructive, because it replaces the live copy and starts real effects such as sent emails and written rows; the client should ask the user first. `pause_workflow` stops a live workflow, and publishing again makes it live with the current draft.
 
-The application builder tools are registered by the enterprise app (`baserow_enterprise.mcp.builder`) and are enterprise code, so an instance running with `BASEROW_OSS_ONLY` does not have them. They are in the `builder_read` and `builder_edit` groups. `builder_read` is part of the "Read only" preset. There is no builder delete group and no tool deletes an application or any builder item. The shared code is in `baserow_enterprise/builder/tools/`, and an MCP tool never offers the Kuma-only parameters (`known_refs`, `known_data_source_refs`, `defer_required_formulas`). A formula that is not valid comes back in `formula_errors` for the client to fix with the matching `update_` tool, and no model is called. A table column's formula is the exception: a new or changed one that is not valid refuses the whole `update_element`. When `update_element` changes the text of a button that also shows a notification, the result has a `note` naming that action, which stays as it was. `set_theme`, `update_element` and `update_action` are destructive: `set_theme` replaces every theme setting, `update_element` can overwrite an element's settings, and `update_action` clears an action's field values when it moves to another table.
+The application builder tools are registered by the enterprise app (`baserow_enterprise.mcp.builder`) and are enterprise code, so an instance running with `BASEROW_OSS_ONLY` does not have them. They are in the `builder_read` and `builder_edit` groups. `builder_read` is part of the "Read only" preset. There is no builder delete group and no tool deletes an application or any builder item. The shared code is in `baserow_enterprise/builder/tools/`, and an MCP tool never offers the Kuma-only parameters (`known_refs`, `known_data_source_refs`, `defer_required_formulas`). A formula that is not valid comes back in `formula_errors` for the client to fix with the matching `update_` tool, and no model is called. A table column's formula is the exception: a new or changed one that is not valid refuses the whole `update_element`. When `update_element` changes the text of a button that also shows a notification, the result has a `note` naming that action, which stays as it was. `set_theme`, `update_page`, `update_data_source`, `update_element`, `update_element_style`, `update_action` and `add_action_field_mapping` are destructive, because each overwrites stored values: `set_theme` replaces every theme setting, `update_action` also clears an action's field values when it moves to another table, and the rest replace the values they're given.
 
 Writes over MCP can't be undone from Baserow's undo (Ctrl+Z). The action is stored without a client session id, and undo only finds actions made with the same session id as the browser, so nothing in the UI reaches it. To take back a create, delete the application, which moves it to the trash.
 

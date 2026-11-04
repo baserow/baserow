@@ -25,7 +25,7 @@ class AddActionFieldMappingMcpTool(FunctionMCPTool):
     group = GROUP_BUILDER_EDIT
     title = "Set a field of a row action"
     read_only = False
-    destructive = False
+    destructive = True
     function = actions.add_action_field_mapping
 
 

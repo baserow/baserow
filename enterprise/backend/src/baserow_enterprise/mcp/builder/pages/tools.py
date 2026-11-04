@@ -25,7 +25,7 @@ class UpdatePageMcpTool(FunctionMCPTool):
     group = GROUP_BUILDER_EDIT
     title = "Update a page"
     read_only = False
-    destructive = False
+    destructive = True
     function = pages.update_page
 
 

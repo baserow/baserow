@@ -50,7 +50,7 @@ def test_write_tools_with_builder_edit_turned_on(data_fixture, builder_ctx):
     tools = {tool.name: tool for tool in listed.tools}
     for name in WRITE_TOOLS:
         assert tools[name].annotations.readOnlyHint is False
-        assert tools[name].annotations.destructiveHint is False
+        assert tools[name].annotations.destructiveHint is (name == "update_page")
     assert set(tools["update_page"].inputSchema["properties"]) == {"page_id", "page"}
 
     created_builder = _load(results["create_builder"])["created_builder"]

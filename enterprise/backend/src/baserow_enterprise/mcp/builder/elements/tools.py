@@ -61,7 +61,7 @@ class UpdateElementStyleMcpTool(FunctionMCPTool):
     group = GROUP_BUILDER_EDIT
     title = "Update an element's style"
     read_only = False
-    destructive = False
+    destructive = True
     function = elements.update_element_style
 
 
