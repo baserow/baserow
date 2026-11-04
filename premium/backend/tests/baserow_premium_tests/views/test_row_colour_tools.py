@@ -16,8 +16,8 @@ from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
 from baserow.contrib.database.tools.view_config import (
     ConditionalColour,
     RowColour,
+    add_row_colours,
     delete_row_colours,
-    set_row_colours,
 )
 from baserow.contrib.database.tools.views import ViewFilterItemCreate, list_views
 from baserow.contrib.database.views.actions import (
@@ -93,7 +93,7 @@ def _when_above_100(field_id):
 def test_row_colour_by_single_select(premium_data_fixture):
     ctx, view, status, _ = _setup(premium_data_fixture, has_active_premium_license=True)
 
-    result = set_row_colours(ctx, view.id, _by_select(status.id))
+    result = add_row_colours(ctx, view.id, _by_select(status.id))
 
     decoration = ViewDecoration.objects.get(id=result["decoration_id"])
     assert decoration.type == "left_border_color"
@@ -106,7 +106,7 @@ def test_row_colour_by_single_select(premium_data_fixture):
 def test_row_colour_conditional_builds_filters(premium_data_fixture):
     ctx, view, _, amount = _setup(premium_data_fixture, has_active_premium_license=True)
 
-    result = set_row_colours(ctx, view.id, _when_above_100(amount.id))
+    result = add_row_colours(ctx, view.id, _when_above_100(amount.id))
 
     conf = ViewDecoration.objects.get(id=result["decoration_id"]).value_provider_conf
     colour = conf["colors"][0]
@@ -124,7 +124,7 @@ def test_row_colour_needs_premium(premium_data_fixture):
     ctx, view, status, _ = _setup(premium_data_fixture)
 
     with pytest.raises(FeaturesNotAvailableError):
-        set_row_colours(ctx, view.id, _by_select(status.id))
+        add_row_colours(ctx, view.id, _by_select(status.id))
 
     assert ViewDecoration.objects.count() == 0
 
@@ -136,10 +136,10 @@ def test_row_colour_rejects_field_of_other_table(premium_data_fixture):
     foreign = premium_data_fixture.create_single_select_field(table=other)
 
     with pytest.raises(FieldDoesNotExist):
-        set_row_colours(ctx, view.id, _by_select(foreign.id))
+        add_row_colours(ctx, view.id, _by_select(foreign.id))
     with pytest.raises(ToolInputError):
         foreign_number = premium_data_fixture.create_number_field(table=other)
-        set_row_colours(ctx, view.id, _when_above_100(foreign_number.id))
+        add_row_colours(ctx, view.id, _when_above_100(foreign_number.id))
 
     assert ViewDecoration.objects.count() == 0
 
@@ -149,7 +149,7 @@ def test_row_colour_rejects_a_field_that_is_not_a_single_select(premium_data_fix
     ctx, view, _, amount = _setup(premium_data_fixture, has_active_premium_license=True)
 
     with pytest.raises(ToolInputError):
-        set_row_colours(ctx, view.id, _by_select(amount.id))
+        add_row_colours(ctx, view.id, _by_select(amount.id))
 
 
 @pytest.mark.django_db
@@ -158,7 +158,7 @@ def test_row_colour_explains_a_view_without_colours(premium_data_fixture):
     form = premium_data_fixture.create_form_view(table=view.table)
 
     with pytest.raises(ToolInputError):
-        set_row_colours(ctx, form.id, _by_select(status.id))
+        add_row_colours(ctx, form.id, _by_select(status.id))
 
 
 def test_row_colour_needs_the_input_of_its_kind():
@@ -180,11 +180,11 @@ def test_row_colour_needs_the_input_of_its_kind():
 @pytest.mark.django_db
 def test_delete_row_colours_hides_foreign_and_keeps_going(premium_data_fixture):
     ctx, view, status, _ = _setup(premium_data_fixture, has_active_premium_license=True)
-    own = set_row_colours(ctx, view.id, _by_select(status.id))["decoration_id"]
+    own = add_row_colours(ctx, view.id, _by_select(status.id))["decoration_id"]
     other_ctx, other_view, other_status, _ = _setup(
         premium_data_fixture, has_active_premium_license=True
     )
-    foreign = set_row_colours(other_ctx, other_view.id, _by_select(other_status.id))[
+    foreign = add_row_colours(other_ctx, other_view.id, _by_select(other_status.id))[
         "decoration_id"
     ]
 
@@ -207,7 +207,7 @@ def test_delete_row_colours_hides_foreign_and_keeps_going(premium_data_fixture):
 @pytest.mark.django_db
 def test_list_views_returns_row_colours(premium_data_fixture):
     ctx, view, status, _ = _setup(premium_data_fixture, has_active_premium_license=True)
-    decoration = set_row_colours(ctx, view.id, _by_select(status.id))["decoration_id"]
+    decoration = add_row_colours(ctx, view.id, _by_select(status.id))["decoration_id"]
 
     listed = list_views(ctx, view.table_id)["views"][0]
 
@@ -225,12 +225,12 @@ def test_list_views_returns_row_colours(premium_data_fixture):
 def test_row_colour_over_mcp_tells_the_client_about_the_licence(premium_data_fixture):
     ctx, view, status, _ = _setup(premium_data_fixture)
     endpoint = premium_data_fixture.create_mcp_endpoint(
-        user=ctx.user, workspace=ctx.workspace, allowed_tools=["set_row_colours"]
+        user=ctx.user, workspace=ctx.workspace, allowed_tools=["add_row_colours"]
     )
 
     result = _call(
         endpoint,
-        "set_row_colours",
+        "add_row_colours",
         {
             "view_id": view.id,
             "colour": {
@@ -254,12 +254,12 @@ def test_row_colour_over_mcp(premium_data_fixture):
         premium_data_fixture, has_active_premium_license=True
     )
     endpoint = premium_data_fixture.create_mcp_endpoint(
-        user=ctx.user, workspace=ctx.workspace, allowed_tools=["set_row_colours"]
+        user=ctx.user, workspace=ctx.workspace, allowed_tools=["add_row_colours"]
     )
 
     result = _call(
         endpoint,
-        "set_row_colours",
+        "add_row_colours",
         {
             "view_id": view.id,
             "colour": {
@@ -293,7 +293,7 @@ def test_row_colour_tools_open_their_own_transaction(premium_data_fixture):
     # database fixture.
     ctx, view, status, _ = _setup(premium_data_fixture, has_active_premium_license=True)
 
-    decoration = set_row_colours(ctx, view.id, _by_select(status.id))["decoration_id"]
+    decoration = add_row_colours(ctx, view.id, _by_select(status.id))["decoration_id"]
     deleted = delete_row_colours(ctx, [decoration])
 
     assert deleted["deleted_row_colours"] == [decoration]
@@ -321,6 +321,6 @@ def test_row_colour_leaves_nothing_behind_when_it_fails(premium_data_fixture):
         CreateDecorationActionType, "register_action", side_effect=RuntimeError
     ):
         with pytest.raises(RuntimeError):
-            set_row_colours(ctx, view.id, _by_select(status.id))
+            add_row_colours(ctx, view.id, _by_select(status.id))
 
     assert not ViewDecoration.objects.filter(view=view).exists()

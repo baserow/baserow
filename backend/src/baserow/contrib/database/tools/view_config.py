@@ -358,7 +358,7 @@ def _colour_conf(ctx: ToolContext, view: View, colour: RowColour) -> dict[str, A
         raise ToolInputError(str(exc)) from exc
 
 
-def set_row_colours(
+def add_row_colours(
     ctx: ToolContext,
     view_id: Annotated[int, Field(description="The ID of the view.")],
     colour: Annotated[RowColour, Field(description="How to colour the rows.")],

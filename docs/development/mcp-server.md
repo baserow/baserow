@@ -122,7 +122,7 @@ Some tools are currently disabled (`enabled = False`) and hidden from MCP client
 | `create_view_filters` | enabled | Add filters to views (shared with Kuma) |
 | `set_view_sorts` | enabled | Replace the sorts of a view (shared with Kuma) |
 | `set_field_visibility` | enabled | Hide or show fields in a view (shared with Kuma) |
-| `set_row_colours` | enabled | Colour rows by a single select field or by conditions. Needs premium (shared with Kuma) |
+| `add_row_colours` | enabled | Colour rows by a single select field or by conditions. Needs premium (shared with Kuma) |
 | `delete_views` | enabled | Delete (trash) views (shared with Kuma) |
 | `delete_view_filters` | enabled | Delete filters from views (shared with Kuma) |
 | `delete_row_colours` | enabled | Remove row colours from views (shared with Kuma) |

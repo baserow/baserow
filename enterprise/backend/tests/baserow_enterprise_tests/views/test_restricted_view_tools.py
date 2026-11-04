@@ -2,7 +2,7 @@
 
 import pytest
 
-from baserow.contrib.database.tools.view_config import RowColour, set_row_colours
+from baserow.contrib.database.tools.view_config import RowColour, add_row_colours
 from baserow.contrib.database.tools.views import (
     ViewFiltersArgs,
     create_view_filters,
@@ -109,7 +109,7 @@ def test_list_views_shows_a_builder_all_of_a_restricted_view(enterprise_data_fix
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("role", BELOW_BUILDER)
-def test_set_row_colours_denied_before_naming_a_hidden_field(
+def test_add_row_colours_denied_before_naming_a_hidden_field(
     enterprise_data_fixture, role
 ):
     ctx, _, view, secret = _restricted_view(enterprise_data_fixture, role)
@@ -118,7 +118,7 @@ def test_set_row_colours_denied_before_naming_a_hidden_field(
     )
 
     with pytest.raises(PermissionDenied):
-        set_row_colours(ctx, view.id, colour)
+        add_row_colours(ctx, view.id, colour)
 
 
 @pytest.mark.django_db

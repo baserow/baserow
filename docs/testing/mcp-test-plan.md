@@ -131,7 +131,7 @@ The following tools are currently enabled:
 | `create_view_filters` | Add filters to views |
 | `set_view_sorts` | Replace the sorts of a view |
 | `set_field_visibility` | Hide or show fields in a view |
-| `set_row_colours` | Colour rows of a view (premium) |
+| `add_row_colours` | Colour rows of a view (premium) |
 | `delete_views` | Delete (trash) views |
 | `delete_view_filters` | Delete filters from views |
 | `delete_row_colours` | Remove row colours from views |

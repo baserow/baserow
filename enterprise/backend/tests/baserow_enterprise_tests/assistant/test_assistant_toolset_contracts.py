@@ -436,7 +436,7 @@ TOOL_VISIBILITY: dict[str, frozenset[AgentMode]] = {
     "navigate": EVERYWHERE,
     "search_user_docs": EVERYWHERE,
     "set_field_visibility": frozenset({DATABASE}),
-    "set_row_colours": frozenset({DATABASE}),
+    "add_row_colours": frozenset({DATABASE}),
     "set_theme": frozenset({APPLICATION}),
     "set_view_sorts": frozenset({DATABASE}),
     "setup_page": frozenset({APPLICATION}),

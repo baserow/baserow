@@ -1421,7 +1421,7 @@ def set_field_visibility(
     )
 
 
-def set_row_colours(
+def add_row_colours(
     ctx: RunContext[AssistantDeps],
     view_id: Annotated[int, Field(description="The ID of the view.")],
     colour: Annotated[
@@ -1440,7 +1440,7 @@ def set_row_colours(
     HOW: For conditions, use the same filter format as create_view_filters. Colours are names like red, light-blue, dark-green.
     """
 
-    return shared_view_config.set_row_colours(ctx.deps.tool_context(), view_id, colour)
+    return shared_view_config.add_row_colours(ctx.deps.tool_context(), view_id, colour)
 
 
 def delete_views(
@@ -1524,7 +1524,7 @@ TOOL_FUNCTIONS = [
     create_view_filters,
     set_view_sorts,
     set_field_visibility,
-    set_row_colours,
+    add_row_colours,
     delete_views,
     delete_view_filters,
     delete_row_colours,
