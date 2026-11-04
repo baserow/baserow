@@ -109,8 +109,8 @@ class AgentService:
             its configuration.
         :raises AgentRunAsSubjectDoesNotExist: When the Agent can't act as the
             given subject.
-        :return: The Agent, the names of the fields that changed and the resulting
-            configuration.
+        :return: The Agent, its original and new configuration values, and the
+            resolved resulting configuration.
         """
 
         agent = self._get_authorized_agent(
@@ -121,7 +121,7 @@ class AgentService:
             for_update=True,
         )
         updated = self.handler.update_configuration(agent, **values)
-        if updated.changed_fields:
+        if updated.original_values != updated.new_values:
             # Open pages refresh readiness from this public application payload.
             application_updated.send(self, application=agent, user=user)
         return updated

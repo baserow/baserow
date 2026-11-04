@@ -1,3 +1,6 @@
+import json
+from dataclasses import asdict
+
 from django.db import DEFAULT_DB_ALIAS
 from django.urls import reverse
 
@@ -15,11 +18,13 @@ from baserow.contrib.agent.constants import (
 )
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.types import AgentConfiguration
+from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.ai_provider.resolution import (
     clear_ai_provider_state_cache,
     load_ai_provider_state,
 )
 from baserow.core.models import Agent
+from baserow.core.signals import application_updated
 
 from .utils import agent_url
 
@@ -108,7 +113,7 @@ def test_application_readiness_uses_bulk_provider_state(
 
 
 @pytest.mark.django_db
-def test_configuration_update_saves_drafts_and_records_changed_field_names(
+def test_configuration_update_records_full_snapshots_and_ignores_noop_drafts(
     data_fixture, mocker
 ):
     user = data_fixture.create_user()
@@ -116,6 +121,7 @@ def test_configuration_update_saves_drafts_and_records_changed_field_names(
     registered = mocker.spy(
         UpdateAgentConfigurationActionType, "send_action_done_signal"
     )
+    updated = mocker.spy(application_updated, "send")
 
     UpdateAgentConfigurationActionType.do(
         user, agent.id, instructions="Line 1\nLine 2", provider_type=" "
@@ -125,10 +131,135 @@ def test_configuration_update_saves_drafts_and_records_changed_field_names(
     agent.refresh_from_db()
     assert (agent.instructions, agent.provider_type) == ("Line 1\nLine 2", None)
     registered.assert_called_once()
-    assert registered.call_args.args[1] == {
+    updated.assert_called_once()
+    original_values = {
+        "instructions": "",
+        "provider_type": None,
+        "model_identifier": None,
+        "run_as_subject_type": None,
+        "run_as_subject_id": None,
+    }
+    params = registered.call_args.args[1]
+    assert params == {
+        "agent_id": agent.id,
+        "original_values": original_values,
+        "new_values": {**original_values, "instructions": "Line 1\nLine 2"},
+    }
+    assert UpdateAgentConfigurationActionType.get_analytics_properties(params) == {
         "agent_id": agent.id,
         "changed_fields": ["instructions"],
     }
+    round_tripped = UpdateAgentConfigurationActionType.serialized_to_params(
+        json.loads(json.dumps(params))
+    )
+    assert asdict(round_tripped) == params
+
+
+@pytest.mark.django_db
+def test_configuration_audit_snapshots_record_normalized_values(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    registered = mocker.spy(
+        UpdateAgentConfigurationActionType, "send_action_done_signal"
+    )
+    original_values = {
+        "instructions": agent.instructions,
+        "provider_type": agent.provider_type,
+        "model_identifier": agent.model_identifier,
+        "run_as_subject_type": None,
+        "run_as_subject_id": None,
+    }
+
+    UpdateAgentConfigurationActionType.do(
+        user,
+        agent.id,
+        instructions=" Keep whitespace\n",
+        provider_type="  anthropic \n",
+        model_identifier=" \n",
+    )
+    # Different request strings normalize to the same saved configuration.
+    UpdateAgentConfigurationActionType.do(
+        user,
+        agent.id,
+        instructions=" Keep whitespace\n",
+        provider_type="anthropic ",
+        model_identifier="",
+    )
+
+    agent.refresh_from_db()
+    registered.assert_called_once()
+    params = registered.call_args.args[1]
+    assert params == {
+        "agent_id": agent.id,
+        "original_values": original_values,
+        "new_values": {
+            **original_values,
+            "instructions": " Keep whitespace\n",
+            "provider_type": "anthropic",
+            "model_identifier": None,
+        },
+    }
+    assert (agent.instructions, agent.provider_type, agent.model_identifier) == (
+        " Keep whitespace\n",
+        "anthropic",
+        None,
+    )
+    assert UpdateAgentConfigurationActionType.get_analytics_properties(params) == {
+        "agent_id": agent.id,
+        "changed_fields": ["instructions", "provider_type", "model_identifier"],
+    }
+
+
+@pytest.mark.django_db
+def test_configuration_audit_snapshots_record_identity_assignment_replacement_and_clear(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    first = Agent.objects.create(workspace=agent.workspace, name="First")
+    second = Agent.objects.create(workspace=agent.workspace, name="Second")
+    registered = mocker.spy(
+        UpdateAgentConfigurationActionType, "send_action_done_signal"
+    )
+    snapshots = [
+        {
+            "instructions": agent.instructions,
+            "provider_type": agent.provider_type,
+            "model_identifier": agent.model_identifier,
+            "run_as_subject_type": None,
+            "run_as_subject_id": None,
+        }
+    ]
+    for identity in (first, second, None):
+        run_as = {
+            "run_as_subject_type": AgentSubjectType.type if identity else None,
+            "run_as_subject_id": identity.id if identity else None,
+        }
+        snapshots.append({**snapshots[-1], **run_as})
+        UpdateAgentConfigurationActionType.do(user, agent.id, **run_as)
+        UpdateAgentConfigurationActionType.do(user, agent.id, **run_as)
+
+    assert registered.call_count == 3
+    for index, registered_call in enumerate(registered.call_args_list):
+        params = registered_call.args[1]
+        assert params == {
+            "agent_id": agent.id,
+            "original_values": snapshots[index],
+            "new_values": snapshots[index + 1],
+        }
+        changed_fields = (
+            ["run_as_subject_id"]
+            if index == 1
+            else ["run_as_subject_type", "run_as_subject_id"]
+        )
+        assert UpdateAgentConfigurationActionType.get_analytics_properties(params) == {
+            "agent_id": agent.id,
+            "changed_fields": changed_fields,
+        }
+    agent.refresh_from_db()
+    assert (agent.run_as_subject_type, agent.run_as_subject_id) == (None, None)
 
 
 @pytest.mark.django_db

@@ -46,7 +46,8 @@ class AgentMessageCreated:
 @dataclass
 class AgentConfigurationUpdated:
     agent: AgentApplication
-    changed_fields: list[str]
+    original_values: dict[str, str | int | None]
+    new_values: dict[str, str | int | None]
     configuration: AgentConfiguration
 
 

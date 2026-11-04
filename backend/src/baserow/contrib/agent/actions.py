@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Any
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
@@ -126,12 +127,24 @@ class UpdateAgentConfigurationActionType(ActionType):
         _("Update agent configuration"),
         _("Configuration updated for agent (%(agent_id)s)."),
     )
-    analytics_params = ["agent_id", "changed_fields"]
+    analytics_params = ["agent_id"]
 
     @dataclass
     class Params:
         agent_id: int
-        changed_fields: list[str]
+        original_values: dict[str, str | int | None]
+        new_values: dict[str, str | int | None]
+
+    @classmethod
+    def get_analytics_properties(cls, action_params: dict[str, Any]) -> dict[str, Any]:
+        return {
+            **super().get_analytics_properties(action_params),
+            "changed_fields": [
+                field
+                for field, value in action_params["new_values"].items()
+                if value != action_params["original_values"][field]
+            ],
+        }
 
     @classmethod
     @transaction.atomic
@@ -139,7 +152,7 @@ class UpdateAgentConfigurationActionType(ActionType):
         cls, user: AbstractUser, agent_id: int, **values: str | int | None
     ) -> AgentConfiguration:
         """
-        Update the configuration and audit the changed field names, never values.
+        Update the configuration and audit its original and new values.
 
         :param user: The user updating the configuration.
         :param agent_id: The id of the Agent.
@@ -148,10 +161,10 @@ class UpdateAgentConfigurationActionType(ActionType):
         """
 
         updated = AgentService().update_configuration(user, agent_id, **values)
-        if updated.changed_fields:
+        if updated.original_values != updated.new_values:
             cls.register_action(
                 user,
-                cls.Params(agent_id, updated.changed_fields),
+                cls.Params(agent_id, updated.original_values, updated.new_values),
                 cls.scope(agent_id),
                 updated.agent.workspace,
             )

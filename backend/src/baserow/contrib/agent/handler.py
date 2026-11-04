@@ -234,16 +234,16 @@ class AgentHandler:
             type and id together. Unknown field names are ignored.
         :raises AgentRunAsSubjectDoesNotExist: When the Agent can't act as the
             given subject.
-        :return: The Agent, the names of the fields that changed and the
-            resulting configuration.
+        :return: The Agent, its original and new configuration values, and the
+            resolved resulting configuration.
         """
 
-        values = extract_allowed(
-            values, [*self.configuration_fields, *self.run_as_fields]
-        )
+        allowed_fields = [*self.configuration_fields, *self.run_as_fields]
+        values = extract_allowed(values, allowed_fields)
         run_as = [values.get(field) for field in self.run_as_fields]
         if any(run_as) and not self.is_run_as_subject_usable(*run_as, agent.workspace):
             raise AgentRunAsSubjectDoesNotExist()
+        original_values = {field: getattr(agent, field) for field in allowed_fields}
         changed_fields = []
         for field, value in values.items():
             if field in ("provider_type", "model_identifier"):
@@ -254,7 +254,10 @@ class AgentHandler:
         if changed_fields:
             agent.save(update_fields=[*changed_fields, "updated_on"])
         return AgentConfigurationUpdated(
-            agent, changed_fields, self.get_configuration(agent)
+            agent=agent,
+            original_values=original_values,
+            new_values={field: getattr(agent, field) for field in allowed_fields},
+            configuration=self.get_configuration(agent),
         )
 
     def list_conversations(
