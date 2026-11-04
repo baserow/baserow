@@ -137,7 +137,7 @@
       @hidden="modelFormOpen = false"
       @saved="modelSaved"
     />
-    <AIProviderConfirmModal
+    <ConfirmModal
       v-if="pendingAction"
       ref="confirmModal"
       :title="pendingAction.title"
@@ -152,7 +152,7 @@
 </template>
 
 <script>
-import AIProviderConfirmModal from '@baserow/modules/core/components/ai/AIProviderConfirmModal'
+import ConfirmModal from '@baserow/modules/core/components/modals/ConfirmModal'
 import AIProviderFeatureSettings from '@baserow/modules/core/components/ai/AIProviderFeatureSettings'
 import AIProviderFormModal from '@baserow/modules/core/components/ai/AIProviderFormModal'
 import AIProviderItem from '@baserow/modules/core/components/ai/AIProviderItem'
@@ -163,7 +163,7 @@ import { aiProviderErrorMessage } from '@baserow/modules/core/utils/aiProvider'
 export default {
   name: 'AIProviderWorkspaceSettings',
   components: {
-    AIProviderConfirmModal,
+    ConfirmModal,
     AIProviderFeatureSettings,
     AIProviderFormModal,
     AIProviderItem,

@@ -1,13 +1,6 @@
 import { registerTrustedImageUrlsFromMarkdown } from '@baserow/modules/core/editor/trustedImageUrls'
 
-/**
- * Copies the given text to the clipboard by temporarily creating a textarea and
- * using the documents `copy` command.
- * @param {string} text
- */
-export const copyToClipboard = (text) => {
-  navigator.clipboard.writeText(text)
-}
+export { copyToClipboard } from '@baserow/modules/core/utils/clipboard'
 
 export const LOCAL_STORAGE_CLIPBOARD_KEY = 'baserow.clipboardData'
 

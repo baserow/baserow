@@ -38,6 +38,9 @@ from baserow.api.sessions import (
     set_user_session_data_from_request,
 )
 from baserow.api.user.registries import user_data_registry
+from baserow.api.workspaces.invitation_links.errors import (
+    ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST,
+)
 from baserow.api.workspaces.invitations.errors import (
     ERROR_GROUP_INVITATION_DOES_NOT_EXIST,
     ERROR_GROUP_INVITATION_EMAIL_MISMATCH,
@@ -55,6 +58,7 @@ from baserow.core.exceptions import (
     LockConflict,
     WorkspaceInvitationDoesNotExist,
     WorkspaceInvitationEmailMismatch,
+    WorkspaceInvitationLinkDoesNotExist,
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Settings, Template, WorkspaceInvitation
@@ -307,7 +311,13 @@ class UserView(APIView):
                     "ERROR_CAPTCHA_VERIFICATION_FAILED",
                 ]
             ),
-            404: get_error_schema(["ERROR_GROUP_INVITATION_DOES_NOT_EXIST"]),
+            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
+            404: get_error_schema(
+                [
+                    "ERROR_GROUP_INVITATION_DOES_NOT_EXIST",
+                    "ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST",
+                ]
+            ),
         },
         auth=[],
     )
@@ -319,6 +329,9 @@ class UserView(APIView):
             BadSignature: BAD_TOKEN_SIGNATURE,
             WorkspaceInvitationDoesNotExist: ERROR_GROUP_INVITATION_DOES_NOT_EXIST,
             WorkspaceInvitationEmailMismatch: ERROR_GROUP_INVITATION_EMAIL_MISMATCH,
+            WorkspaceInvitationLinkDoesNotExist: (
+                ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST
+            ),
             DisabledSignupError: ERROR_DISABLED_SIGNUP,
             AuthProviderDisabled: ERROR_AUTH_PROVIDER_DISABLED,
             CaptchaVerificationFailed: ERROR_CAPTCHA_VERIFICATION_FAILED,
@@ -350,6 +363,7 @@ class UserView(APIView):
             language=data["language"],
             workspace_invitation_token=data.get("workspace_invitation_token"),
             template=template,
+            workspace_invitation_link_slug=data.get("workspace_invitation_link_slug"),
         )
 
         response = {"user": UserSerializer(user).data}

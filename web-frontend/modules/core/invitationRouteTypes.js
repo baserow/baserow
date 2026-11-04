@@ -94,6 +94,11 @@ export class EmailInvitationRouteType extends InvitationRouteType {
   }
 }
 
+/**
+ * Invites people with permanent links that anyone can use to join. Only offered
+ * for targets that support links, while the instance lets people sign up through
+ * them, and behind the `RBAC_IMPROVEMENTS` feature flag until links are released.
+ */
 export class LinkInvitationRouteType extends InvitationRouteType {
   static getType() {
     return 'link'
@@ -112,7 +117,19 @@ export class LinkInvitationRouteType extends InvitationRouteType {
   }
 
   isEnabled(workspace, target) {
-    return this.app.$featureFlagIsEnabled(FF_RBAC_IMPROVEMENTS)
+    // New people can only sign up from a link when the instance allows signups,
+    // or at least signups through invitations.
+    const settings = this.app.$store.getters['settings/get']
+    const signupsAllowed =
+      settings.allow_new_signups ||
+      settings.allow_signups_via_workspace_invitations
+    return (
+      this.app.$featureFlagIsEnabled(FF_RBAC_IMPROVEMENTS) &&
+      signupsAllowed &&
+      this.app.$registry
+        .get('invitationTarget', target.type)
+        .supportsInvitationLinks(workspace, target)
+    )
   }
 
   getOrder() {

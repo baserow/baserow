@@ -25,6 +25,7 @@ from baserow.core.models import (
     Template,
     Workspace,
     WorkspaceInvitation,
+    WorkspaceInvitationLink,
     WorkspaceUser,
 )
 from baserow.core.registries import ImportExportConfig, application_type_registry
@@ -1118,6 +1119,250 @@ class UpdateWorkspaceInvitationActionType(ActionType):
             workspace=workspace,
         )
         return workspace_invitation
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()
+
+
+class CreateWorkspaceInvitationLinkActionType(ActionType):
+    type = "create_workspace_invitation_link"
+    description = ActionTypeDescription(
+        _("Create workspace invitation link"),
+        _(
+            'Invitation link (%(invitation_link_id)s) created to join "%(group_name)s" '
+            "(%(group_id)s) as %(permissions)s."
+        ),
+    )
+    analytics_params = [
+        "invitation_link_id",
+        "permissions",
+        "workspace_id",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        invitation_link_id: int
+        permissions: str
+        workspace_id: int
+        workspace_name: str
+        name: str = ""
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        workspace: Workspace,
+        permissions: str,
+        name: str = "",
+    ) -> WorkspaceInvitationLink:
+        """
+        Creates a new permanent link to join the workspace.
+        Look into baserow.core.handler.CoreHandler.create_workspace_invitation_link
+        for further details.
+        """
+
+        invitation_link = CoreHandler().create_workspace_invitation_link(
+            user, workspace, permissions, name
+        )
+
+        cls.register_action(
+            user=user,
+            params=cls.Params(
+                invitation_link.id, permissions, workspace.id, workspace.name, name
+            ),
+            scope=cls.scope(),
+            workspace=workspace,
+        )
+        return invitation_link
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()
+
+
+class UpdateWorkspaceInvitationLinkActionType(ActionType):
+    type = "update_workspace_invitation_link"
+    description = ActionTypeDescription(
+        _("Update workspace invitation link"),
+        _(
+            'Invitation link (%(invitation_link_id)s) to join "%(group_name)s" '
+            '(%(group_id)s) changed from "%(original_name)s" as '
+            '%(original_permissions)s to "%(name)s" as %(permissions)s.'
+        ),
+    )
+    analytics_params = [
+        "invitation_link_id",
+        "permissions",
+        "workspace_id",
+        "original_permissions",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        invitation_link_id: int
+        permissions: str
+        workspace_id: int
+        workspace_name: str
+        original_permissions: str
+        name: str
+        original_name: str
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        invitation_link: WorkspaceInvitationLink,
+        permissions: str | None = None,
+        name: str | None = None,
+    ) -> WorkspaceInvitationLink:
+        """
+        Changes the name of the link or the permissions people get when joining
+        through it.
+        Look into baserow.core.handler.CoreHandler.update_workspace_invitation_link
+        for further details.
+        """
+
+        workspace = invitation_link.workspace
+        original_permissions = invitation_link.permissions
+        original_name = invitation_link.name
+        invitation_link = CoreHandler().update_workspace_invitation_link(
+            user, invitation_link, permissions=permissions, name=name
+        )
+
+        cls.register_action(
+            user=user,
+            params=cls.Params(
+                invitation_link.id,
+                invitation_link.permissions,
+                workspace.id,
+                workspace.name,
+                original_permissions=original_permissions,
+                name=invitation_link.name,
+                original_name=original_name,
+            ),
+            scope=cls.scope(),
+            workspace=workspace,
+        )
+        return invitation_link
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()
+
+
+class DeleteWorkspaceInvitationLinkActionType(ActionType):
+    type = "delete_workspace_invitation_link"
+    description = ActionTypeDescription(
+        _("Delete workspace invitation link"),
+        _(
+            'Invitation link "%(name)s" (%(invitation_link_id)s) to join '
+            '"%(group_name)s" (%(group_id)s) as %(permissions)s deleted.'
+        ),
+    )
+    analytics_params = [
+        "invitation_link_id",
+        "permissions",
+        "workspace_id",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        invitation_link_id: int
+        permissions: str
+        workspace_id: int
+        workspace_name: str
+        name: str = ""
+
+    @classmethod
+    def do(cls, user: AbstractUser, invitation_link: WorkspaceInvitationLink):
+        """
+        Deletes a workspace invitation link.
+        Look into baserow.core.handler.CoreHandler.delete_workspace_invitation_link
+        for further details.
+        """
+
+        workspace = invitation_link.workspace
+        params = cls.Params(
+            invitation_link.id,
+            invitation_link.permissions,
+            workspace.id,
+            workspace.name,
+            invitation_link.name,
+        )
+        CoreHandler().delete_workspace_invitation_link(user, invitation_link)
+
+        cls.register_action(
+            user=user,
+            params=params,
+            scope=cls.scope(),
+            workspace=workspace,
+        )
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()
+
+
+class JoinWorkspaceViaInvitationLinkActionType(ActionType):
+    type = "join_workspace_via_invitation_link"
+    description = ActionTypeDescription(
+        _("Join workspace via invitation link"),
+        _(
+            'Joined "%(group_name)s" (%(group_id)s) through invitation link '
+            "(%(invitation_link_id)s) as %(permissions)s."
+        ),
+    )
+    analytics_params = [
+        "invitation_link_id",
+        "permissions",
+        "workspace_id",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        invitation_link_id: int
+        permissions: str
+        workspace_id: int
+        workspace_name: str
+
+    @classmethod
+    def do(
+        cls, user: AbstractUser, invitation_link: WorkspaceInvitationLink
+    ) -> WorkspaceUser:
+        """
+        Joins the workspace of the link.
+        Look into baserow.core.handler.CoreHandler.join_workspace_via_invitation_link
+        for further details.
+        """
+
+        workspace = invitation_link.workspace
+        permissions_before = (
+            WorkspaceUser.objects.filter(user=user, workspace=workspace)
+            .values_list("permissions", flat=True)
+            .first()
+        )
+        workspace_user = CoreHandler().join_workspace_via_invitation_link(
+            user, invitation_link
+        )
+
+        # Members open the link on their way into the workspace, so only record
+        # the visits that changed their membership.
+        if workspace_user.permissions == permissions_before:
+            return workspace_user
+
+        cls.register_action(
+            user=user,
+            params=cls.Params(
+                invitation_link.id,
+                workspace_user.permissions,
+                workspace.id,
+                workspace.name,
+            ),
+            scope=cls.scope(),
+            workspace=workspace,
+        )
+        return workspace_user
 
     @classmethod
     def scope(cls) -> ActionScopeStr:

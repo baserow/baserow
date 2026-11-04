@@ -194,6 +194,19 @@ class WorkspaceInvitationDoesNotExist(Exception):
     """
 
 
+class WorkspaceInvitationLinkDoesNotExist(Exception):
+    """
+    Raised when the requested workspace invitation link doesn't exist.
+    """
+
+
+class WorkspaceInvitationLinkSignupsDisabled(Exception):
+    """
+    Raised when an invitation link is created while nobody can sign up through
+    it, because both new signups and signups via invitations are disabled.
+    """
+
+
 class WorkspaceInvitationEmailMismatch(Exception):
     """
     Raised when the workspace invitation email is not the expected email address.

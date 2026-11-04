@@ -35,6 +35,11 @@ class SsoLoginRequestSerializer(BaseSsoLoginRequestSerializer):
         help_text="If provided and valid, the user accepts the workspace invitation and"
         " will have access to the workspace after login or signing up.",
     )
+    workspace_invitation_link_slug = serializers.CharField(
+        required=False,
+        help_text="If provided and valid, a new user can sign up through the "
+        "workspace invitation link, and confirms joining its workspace afterwards.",
+    )
 
     def validate_original(self, value):
         """Only relative URLs are allowed."""

@@ -23,7 +23,7 @@
 import modal from '@baserow/modules/core/mixins/modal'
 
 export default {
-  name: 'AIProviderConfirmModal',
+  name: 'ConfirmModal',
   mixins: [modal],
   props: {
     title: { type: String, required: true },
