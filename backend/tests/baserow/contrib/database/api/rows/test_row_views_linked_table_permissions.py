@@ -1,10 +1,14 @@
+from django.db import connection
 from django.shortcuts import reverse
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_401_UNAUTHORIZED
 
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.tokens.exceptions import NoPermissionToTable
 from baserow.contrib.database.tokens.handler import TokenHandler
+from baserow.contrib.database.views.models import ViewDefaultValue
 
 SECRET = "SECRET-XYZ99"
 
@@ -252,3 +256,98 @@ def test_jwt_user_with_workspace_access_can_join_and_link(
     assert join.status_code == HTTP_200_OK
     assert SECRET in join.content.decode()
     assert write.status_code == HTTP_200_OK
+
+
+@pytest.fixture
+def view_with_link_default(data_fixture, linked_tables):
+    view = data_fixture.create_grid_view(table=linked_tables["table"])
+    ViewDefaultValue.objects.create(
+        view=view,
+        field=linked_tables["link"],
+        value=[linked_tables["other_row"].id],
+        field_type="link_row",
+    )
+    return view
+
+
+def create_in_view(api_client, table, view, auth, batch):
+    url_name = "api:database:rows:batch" if batch else "api:database:rows:list"
+    url = reverse(url_name, kwargs={"table_id": table.id})
+    return api_client.post(
+        f"{url}?view={view.id}",
+        {"items": [{}]} if batch else {},
+        format="json",
+        HTTP_AUTHORIZATION=auth,
+    )
+
+
+@pytest.mark.parametrize("batch", [False, True])
+@pytest.mark.django_db
+def test_view_default_link_is_refused_without_read_access_to_the_linked_table(
+    api_client, linked_tables, view_with_link_default, batch
+):
+    auth = scoped_token(linked_tables, can_read_other_table=False)
+
+    response = create_in_view(
+        api_client, linked_tables["table"], view_with_link_default, auth, batch
+    )
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "ERROR_NO_PERMISSION_TO_TABLE"
+    assert "Other" not in response.content.decode()
+
+
+@pytest.mark.parametrize("batch", [False, True])
+@pytest.mark.django_db
+def test_view_default_link_is_written_with_read_access_to_the_linked_table(
+    api_client, linked_tables, view_with_link_default, batch
+):
+    auth = scoped_token(linked_tables, can_read_other_table=True)
+
+    response = create_in_view(
+        api_client, linked_tables["table"], view_with_link_default, auth, batch
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert "Other" in response.content.decode()
+
+
+def token_with_read_on(user, workspace, tables):
+    token = TokenHandler().create_token(user, workspace, "Scoped")
+    TokenHandler().update_token_permissions(
+        user, token, create=False, read=tables, update=False, delete=False
+    )
+    return token
+
+
+@pytest.mark.parametrize("readable_index", [0, 1])
+@pytest.mark.django_db
+def test_token_table_checks_are_not_decided_by_a_single_table(
+    data_fixture, readable_index
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    tables = [data_fixture.create_database_table(database=database) for _ in range(2)]
+    token = token_with_read_on(user, database.workspace, [tables[readable_index]])
+
+    with pytest.raises(NoPermissionToTable):
+        TokenHandler().check_tables_permissions(token, "read", tables)
+
+
+@pytest.mark.django_db
+def test_token_table_checks_queries_do_not_grow_with_the_number_of_tables(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    tables = [data_fixture.create_database_table(database=database) for _ in range(6)]
+    token = token_with_read_on(user, database.workspace, tables)
+    handler = TokenHandler()
+    handler.check_tables_permissions(token, "read", tables)
+
+    with CaptureQueriesContext(connection) as few_tables:
+        handler.check_tables_permissions(token, "read", tables[:2])
+    with CaptureQueriesContext(connection) as many_tables:
+        handler.check_tables_permissions(token, "read", tables)
+
+    assert len(many_tables) <= len(few_tables)

@@ -203,7 +203,7 @@ def build_response_with_metadata(
 
 
 def check_token_can_read_linked_tables(
-    request: Request, model, rows_values: list[dict]
+    request: Request, model, rows_values: list[dict], view: View | None = None
 ):
     """
     Raises if the request uses a database token that can't read a table the rows values
@@ -213,6 +213,8 @@ def check_token_can_read_linked_tables(
     :param request: The request that might be authenticated with a token.
     :param model: The model of the table that the values are written to.
     :param rows_values: The validated rows values, keyed by internal field name.
+    :param view: The view new rows are created in, whose default values are written
+        for the fields that the rows values don't contain.
     :raises NoPermissionToTable: If the token can't read a linked table.
     """
 
@@ -220,10 +222,17 @@ def check_token_can_read_linked_tables(
     if token is None:
         return
 
-    for linked_table in RowHandler().get_linked_tables_written_by_rows_values(
-        model, rows_values
-    ):
-        TokenHandler().check_table_permissions(token, "read", linked_table)
+    if view is not None:
+        view_defaults = ViewHandler().get_view_default_values_for_row_creation(
+            view, model=model
+        )
+        rows_values = [{**view_defaults, **row} for row in rows_values]
+
+    TokenHandler().check_tables_permissions(
+        token,
+        "read",
+        RowHandler().get_linked_tables_written_by_rows_values(model, rows_values),
+    )
 
 
 class RowsView(APIView):
@@ -638,10 +647,10 @@ class RowsView(APIView):
             validation_serializer, request_data, partial=True, return_validated=True
         )
 
-        check_token_can_read_linked_tables(request, model, [data])
-
         view_id = query_params.get("view")
         view = ViewHandler().get_view(view_id) if view_id else None
+
+        check_token_can_read_linked_tables(request, model, [data], view=view)
 
         before_id = query_params.get("before")
         before_row = (
@@ -1474,7 +1483,7 @@ class BatchRowsView(APIView):
             validation_serializer, request_data, partial=True, return_validated=True
         )
 
-        check_token_can_read_linked_tables(request, model, data["items"])
+        check_token_can_read_linked_tables(request, model, data["items"], view=view)
 
         try:
             rows = action_type_registry.get_by_type(CreateRowsActionType).do(
