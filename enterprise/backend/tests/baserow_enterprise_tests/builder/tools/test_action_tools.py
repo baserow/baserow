@@ -1336,6 +1336,10 @@ def _parameter_names(action_id):
     return [p["name"] for p in stored(action_id).page_parameters]
 
 
+def _parameters(action_id):
+    return [(p["name"], p["value"]["formula"]) for p in stored(action_id).page_parameters]
+
+
 @pytest.mark.django_db
 def test_update_action_refuses_a_partial_parameter_list(builder_ctx, opens_two):
     with pytest.raises(ToolInputError, match="slug") as error:
@@ -1410,17 +1414,58 @@ def test_update_action_accepts_a_new_target_with_its_parameters(
 
 
 @pytest.mark.django_db
-def test_update_action_accepts_a_complete_list_in_any_order(builder_ctx, opens_two):
+def test_update_action_stores_a_complete_list_in_page_order(builder_ctx, opens_two):
     update(
         builder_ctx,
         opens_two.id,
         page_parameters=[
-            {"name": "slug", "value": "S"},
+            {"name": "slug", "value": "upper('s')"},
             {"name": "id", "value": "I"},
         ],
     )
 
-    assert sorted(_parameter_names(opens_two.id)) == ["id", "slug"]
+    assert _parameters(opens_two.id) == [("id", "'I'"), ("slug", "upper('s')")]
+
+
+@pytest.mark.django_db
+def test_create_action_stores_parameters_in_page_order(
+    builder_ctx, two_parameter_page
+):
+    action = saved(
+        create(
+            builder_ctx,
+            ActionCreate(
+                type="open_page",
+                element=builder_ctx["button"].id,
+                navigate_to_page_id=two_parameter_page.id,
+                page_parameters=[
+                    {"name": "slug", "value": "upper('s')"},
+                    {"name": "id", "value": "I"},
+                ],
+            ),
+        )
+    )
+
+    assert _parameters(action.id) == [("id", "'I'"), ("slug", "upper('s')")]
+
+
+@pytest.mark.django_db
+def test_update_action_puts_kept_parameters_in_the_new_page_order(
+    data_fixture, builder_ctx, opens_two
+):
+    reversed_page = data_fixture.create_builder_page(
+        builder=builder_ctx["builder"],
+        name="Reversed",
+        path="/reversed/:slug/:id",
+        path_params=[
+            {"name": "slug", "type": "text"},
+            {"name": "id", "type": "numeric"},
+        ],
+    )
+
+    update(builder_ctx, opens_two.id, navigate_to_page_id=reversed_page.id)
+
+    assert _parameters(opens_two.id) == [("slug", "'B'"), ("id", "'A'")]
 
 
 FUNCTION_CALLS = [

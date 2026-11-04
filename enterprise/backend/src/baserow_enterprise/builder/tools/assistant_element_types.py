@@ -1,5 +1,6 @@
 """The element types Kuma's builder tools treat in their own way."""
 
+from operator import itemgetter
 from typing import Any
 
 from django.contrib.auth.models import AbstractUser
@@ -9,7 +10,12 @@ from baserow.contrib.builder.workflow_actions.models import NotificationWorkflow
 from baserow.core.tools.errors import ToolInputError
 
 from .formulas import current_record_of, formula_problem, page_formula_context
-from .helpers import child_menu, page_parameters_problem, save_child_menu
+from .helpers import (
+    child_menu,
+    page_parameters_problem,
+    parameters_in_page_order,
+    save_child_menu,
+)
 from .menu_item_changes import MenuItemsChange, linkable_page_ids, merge_menu_items
 from .registries import AssistantElementType, PreparedElementUpdate
 from .table_column_changes import merge_table_columns
@@ -145,7 +151,7 @@ class LinkAssistantElementType(AssistantElementType):
     ) -> PreparedElementUpdate:
         """
         Check that a new target page fits the parameters the link has, which an update
-        can't change.
+        can't change, and put them in that page's order.
 
         :raises ToolInputError: When they don't fit. Nothing is saved.
         """
@@ -163,6 +169,17 @@ class LinkAssistantElementType(AssistantElementType):
                     "with link_page_parameters. This one stays on the page until "
                     "someone deletes it in the editor."
                 )
+            return PreparedElementUpdate(
+                {
+                    "page_parameters": parameters_in_page_order(
+                        element.page.builder_id,
+                        page_id,
+                        element.page_parameters,
+                        itemgetter("name"),
+                    )
+                },
+                {},
+            )
         return super().prepare_update(user, element, update)
 
 

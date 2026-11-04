@@ -1028,3 +1028,42 @@ def test_setup_page_refuses_a_link_without_the_parameters_of_its_page(builder_ct
 
     assert result["created_elements"] == []
     assert "missing: id" in result["errors"][0]
+
+
+@pytest.mark.django_db
+def test_setup_page_stores_page_parameters_in_page_order(data_fixture, builder_ctx):
+    target = data_fixture.create_builder_page(
+        builder=builder_ctx["builder"],
+        name="Target",
+        path="/target/:a/:b",
+        path_params=[{"name": "a", "type": "text"}, {"name": "b", "type": "text"}],
+    )
+    parameters = [{"name": "b", "value": "2"}, {"name": "a", "value": "1"}]
+
+    result = setup(
+        builder_ctx,
+        elements=[
+            ElementItemCreate(
+                ref="l",
+                type="link",
+                value="Open",
+                navigate_to_page_id=target.id,
+                link_page_parameters=parameters,
+            ),
+        ],
+        actions=[
+            ActionCreate(
+                type="open_page",
+                element=builder_ctx["button"].id,
+                navigate_to_page_id=target.id,
+                page_parameters=parameters,
+            )
+        ],
+    )
+
+    link = LinkElement.objects.get(id=result["created_elements"][0]["id"])
+    action = BuilderWorkflowAction.objects.get(
+        id=result["created_actions"][0]["id"]
+    ).specific
+    assert [param["name"] for param in link.page_parameters] == ["a", "b"]
+    assert [param["name"] for param in action.page_parameters] == ["a", "b"]

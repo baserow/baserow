@@ -2170,3 +2170,79 @@ def test_an_auth_form_login_button_label_is_stored_as_text(data_fixture, builder
     login = saved(result["ref_to_id_map"]["login"])
     assert login.login_button_label["formula"] == "'Sign in'"
     assert login.login_button_label["mode"] == BASEROW_FORMULA_MODE_ADVANCED
+
+
+@pytest.fixture
+def two_parameter_pages(data_fixture, builder_ctx):
+    return [
+        data_fixture.create_builder_page(
+            builder=builder_ctx["builder"],
+            name=path,
+            path=path,
+            path_params=[{"name": name, "type": "text"} for name in names],
+        )
+        for path, names in (("/one/:a/:b", "ab"), ("/two/:b/:a", "ba"))
+    ]
+
+
+def _link_parameters(element_id):
+    return [
+        (param["name"], param["value"]["formula"])
+        for param in saved(element_id).page_parameters
+    ]
+
+
+@pytest.mark.django_db
+def test_a_new_link_stores_its_parameters_in_page_order(
+    builder_ctx, two_parameter_pages
+):
+    result = elements.create_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            ElementItemCreate(
+                ref="l",
+                type="link",
+                value="Open",
+                navigate_to_page_id=two_parameter_pages[0].id,
+                link_page_parameters=[
+                    {"name": "b", "value": "upper('x')"},
+                    {"name": "a", "value": "1"},
+                ],
+            )
+        ],
+    )
+
+    assert _link_parameters(result["ref_to_id_map"]["l"]) == [
+        ("a", "1"),
+        ("b", "upper('x')"),
+    ]
+
+
+@pytest.mark.django_db
+def test_a_link_given_a_new_page_keeps_its_parameters_in_that_page_order(
+    builder_ctx, two_parameter_pages
+):
+    first, second = two_parameter_pages
+    link_id = elements.create_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            ElementItemCreate(
+                ref="l",
+                type="link",
+                value="Open",
+                navigate_to_page_id=first.id,
+                link_page_parameters=[
+                    {"name": "a", "value": "1"},
+                    {"name": "b", "value": "2"},
+                ],
+            )
+        ],
+    )["ref_to_id_map"]["l"]
+
+    elements.update_element(
+        builder_ctx["ctx"], link_id, ElementChanges(navigate_to_page_id=second.id)
+    )
+
+    assert _link_parameters(link_id) == [("b", "2"), ("a", "1")]
