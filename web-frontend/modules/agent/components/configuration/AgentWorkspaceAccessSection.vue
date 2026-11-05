@@ -38,12 +38,19 @@
       </template>
     </PaginatedDropdown>
   </FormGroup>
+  <Alert
+    v-if="toolsInactive"
+    type="warning"
+    class="margin-top-3 margin-bottom-0"
+  >
+    {{ $t('agent.toolsInactiveWithoutIdentity') }}
+  </Alert>
   <AgentWorkspaceTools
     class="margin-top-3"
-    :allowed-tools="hasIdentity ? configuration.allowed_tools : []"
+    :allowed-tools="configuration.allowed_tools"
     :available-tools="configuration.available_tools"
     :agent-name="agent.name"
-    :editable="editable && hasIdentity"
+    :editable="editable"
     @update="changeAllowedTools"
   />
 </template>
@@ -71,9 +78,14 @@ const { t } = useI18n()
 const agent = inject('agentApplication')
 const runAsDropdown = ref(null)
 
-// Saved tools are kept for the next identity: tools only run as one.
-const hasIdentity = computed(() => Boolean(props.configuration.run_as))
 const status = computed(() => getRunAsStatus(props.configuration.run_as))
+// Tool settings survive an unavailable identity and can be changed before a new
+// identity grants them workspace access for subsequent replies.
+const toolsInactive = computed(
+  () =>
+    props.configuration.allowed_tools.length > 0 &&
+    status.value !== RUN_AS_STATUS.ACTIVE
+)
 const unavailable = computed(() =>
   [RUN_AS_STATUS.TRASHED, RUN_AS_STATUS.MISSING].includes(status.value)
 )

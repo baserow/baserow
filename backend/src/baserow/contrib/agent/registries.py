@@ -8,6 +8,7 @@ from loguru import logger
 from pydantic_ai import Tool
 
 from baserow.core.cache import local_cache
+from baserow.core.db import with_usable_db_connection
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.mcp.exceptions import INTERNAL_ERROR_MESSAGE, to_mcp_error
 from baserow.core.registries import subject_type_registry
@@ -15,6 +16,7 @@ from baserow.core.registry import Instance, Registry
 from baserow.core.tools import ToolContext
 
 
+@with_usable_db_connection
 def _call_tool(
     function: Callable[..., Any], ctx: ToolContext, arguments: dict[str, Any]
 ) -> Any:
@@ -29,8 +31,9 @@ def _call_tool(
     """
 
     try:
-        # A reply can span permission changes. Each call gets current authority,
-        # while retaining the identity and tool selection made for that reply.
+        # Identity and tool selection belong to the generation: settings edits
+        # apply to the next one, and Stop ends the current one. Refresh only the
+        # selected identity's authority, so role changes and trash still apply.
         with local_cache.context():
             subject_type = subject_type_registry.get_by_model(ctx.user)
             subject = subject_type_registry.get_subject(subject_type.type, ctx.user.pk)
@@ -38,6 +41,7 @@ def _call_tool(
                 subject, ctx.workspace
             ):
                 raise PermissionDenied()
+            subject_type.track_usage(subject)
             return function(replace(ctx, user=subject), **arguments)
     except Exception as exc:
         message = to_mcp_error(exc)

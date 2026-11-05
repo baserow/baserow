@@ -282,11 +282,12 @@ class AgentHandler:
             if getattr(agent, field) != value:
                 setattr(agent, field, value)
                 changed_fields.append(field)
-        if changed_fields:
-            agent.save(update_fields=[*changed_fields, "updated_on"])
-        if allowed_tools is not None and set(allowed_tools) != set(
+        tools_changed = allowed_tools is not None and set(allowed_tools) != set(
             original_values["allowed_tools"]
-        ):
+        )
+        if changed_fields or tools_changed:
+            agent.save(update_fields=[*changed_fields, "updated_on"])
+        if tools_changed:
             self.set_allowed_tools(agent, allowed_tools)
         configuration = self.get_configuration(agent)
         return AgentConfigurationUpdated(
@@ -626,6 +627,8 @@ class AgentHandler:
         acting_subject = (
             run_as.subject if run_as.status == AgentRunAsState.ACTIVE else None
         )
+        # A generation keeps its selected identity and tools until it ends or is
+        # stopped. Configuration edits apply when the next generation is prepared.
         return AgentReplyRequest(
             reply_id=reply.id,
             workspace=agent.workspace,

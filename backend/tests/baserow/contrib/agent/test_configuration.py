@@ -6,6 +6,7 @@ from django.db import DEFAULT_DB_ALIAS
 from django.urls import reverse
 
 import pytest
+from freezegun import freeze_time
 
 from baserow.api.applications.serializers import (
     PolymorphicApplicationResponseSerializer,
@@ -302,6 +303,43 @@ def test_configuration_audit_snapshots_record_tools_and_ignore_reordered_lists(
     assert registered.call_count == updated.call_count == 2
     assert cleared["original_values"] == params["new_values"]
     assert cleared["new_values"] == params["original_values"]
+
+
+@pytest.mark.django_db
+def test_tool_configuration_updates_the_timestamp_only_when_values_change(
+    configured_agent, api_client, api_user
+):
+    with freeze_time() as clock:
+        agent = configured_agent(user=api_user)
+        url = agent_url(agent, "configuration")
+        created_on = agent.updated_on
+
+        clock.tick(1)
+        response = api_client.patch(
+            url, {"allowed_tools": ["create_rows", "list_table_rows"]}
+        )
+        assert response.status_code == 200
+        agent.refresh_from_db()
+        tools_updated_on = agent.updated_on
+        assert tools_updated_on > created_on
+
+        clock.tick(1)
+        response = api_client.patch(
+            url,
+            {"allowed_tools": ["list_table_rows", "create_rows", "create_rows"]},
+        )
+        assert response.status_code == 200
+        agent.refresh_from_db()
+        assert agent.updated_on == tools_updated_on
+
+        clock.tick(1)
+        response = api_client.patch(
+            url, {"instructions": "New instructions", "allowed_tools": []}
+        )
+        assert response.status_code == 200
+        agent.refresh_from_db()
+        assert agent.updated_on > tools_updated_on
+        assert not agent.allowed_tools.exists()
 
 
 @pytest.mark.django_db

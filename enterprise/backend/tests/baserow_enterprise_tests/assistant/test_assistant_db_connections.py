@@ -1,4 +1,6 @@
-from django.db import connection, connections
+from contextlib import ExitStack
+
+from django.db import OperationalError, connection, connections, transaction
 
 import pytest
 from asgiref.sync import async_to_sync, sync_to_async
@@ -7,6 +9,7 @@ from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolCall
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.toolsets import CombinedToolset, FunctionToolset
 
+from baserow.core.psycopg import psycopg
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.tools.database.tools import database_toolset
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
@@ -85,6 +88,84 @@ def test_tools_reconnect_after_the_database_drops_their_connection(
 
     assert "Customers" in first
     assert "Customers" in second
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("conn_max_age", [0, None])
+@pytest.mark.parametrize("catch_error", [False, True])
+def test_tool_connection_failure_does_not_poison_the_next_tool(
+    monkeypatch, conn_max_age, catch_error
+):
+    monkeypatch.setitem(connections.settings["default"], "CONN_MAX_AGE", conn_max_age)
+    attempts = 0
+
+    def disconnected_query() -> str:
+        nonlocal attempts
+        attempts += 1
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_backend_pid()")
+            own_pid = cursor.fetchone()[0]
+        # Only terminate this tool's own session, using a separate control connection.
+        with psycopg.connect(**connection.get_connection_params()) as control:
+            control.autocommit = True
+            with control.cursor() as cursor:
+                cursor.execute("SELECT pg_terminate_backend(%s)", [own_pid])
+                assert cursor.fetchone()[0]
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+        except OperationalError:
+            if catch_error:
+                return "unavailable"
+            raise
+
+    tools = AssistantFunctionToolset([disconnected_query, backend_pid]).tools
+    failed_call = tools["disconnected_query"].function_schema.function
+    if catch_error:
+        assert failed_call() == "unavailable"
+    else:
+        with pytest.raises(OperationalError):
+            failed_call()
+
+    assert connection.connection is None
+    assert tools["backend_pid"].function_schema.function() == "ok"
+    # Cleanup must never replay a tool whose write outcome could be uncertain.
+    assert attempts == 1
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("conn_max_age", [0, None])
+@pytest.mark.parametrize("transaction_owner", ["atomic", "manual"])
+def test_tool_connection_cleanup_preserves_the_callers_transaction(
+    data_fixture, monkeypatch, conn_max_age, transaction_owner
+):
+    monkeypatch.setitem(connections.settings["default"], "CONN_MAX_AGE", conn_max_age)
+    workspace = data_fixture.create_workspace(name="Before")
+
+    def rename_workspace() -> str:
+        workspace.name = "Inside transaction"
+        workspace.save(update_fields=["name"])
+        return backend_pid()
+
+    tool = AssistantFunctionToolset([rename_workspace]).tools["rename_workspace"]
+    with ExitStack() as stack:
+        if transaction_owner == "atomic":
+            stack.enter_context(transaction.atomic())
+        else:
+            transaction.set_autocommit(False)
+            stack.callback(transaction.set_autocommit, True)
+            stack.callback(transaction.rollback)
+        caller_connection = connection.connection
+        assert tool.function_schema.function() == "ok"
+        assert connection.connection is caller_connection
+        assert not connection.get_autocommit()
+        workspace.refresh_from_db()
+        assert workspace.name == "Inside transaction"
+        if transaction_owner == "atomic":
+            transaction.set_rollback(True)
+
+    workspace.refresh_from_db()
+    assert workspace.name == "Before"
 
 
 def test_every_assistant_toolset_refreshes_db_connections():

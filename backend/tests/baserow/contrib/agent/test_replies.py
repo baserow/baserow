@@ -647,6 +647,73 @@ def test_a_reply_recovers_from_invalid_tool_calls(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("change", ["clear", "replace"])
+def test_workspace_configuration_changes_apply_to_the_next_generation(
+    data_fixture, configured_agent, mocker, change
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    table = allow_create_rows(data_fixture, agent)
+    original_identity_id = agent.run_as_subject_id
+    replacement = Identity.objects.create(workspace=agent.workspace, name="Reader")
+    offered = []
+    rounds = 0
+
+    async def stream(messages, info):
+        nonlocal rounds
+        rounds += 1
+        offered.append([tool.name for tool in info.function_tools])
+        if rounds == 2:
+            await sync_to_async(AgentHandler().update_configuration)(
+                agent,
+                run_as_subject_type="core.Agent" if change == "replace" else None,
+                run_as_subject_id=replacement.id if change == "replace" else None,
+                allowed_tools=["list_views"] if change == "replace" else [],
+            )
+        if rounds in (1, 2):
+            yield {
+                0: DeltaToolCall(
+                    name="create_rows",
+                    json_args=json.dumps(
+                        {"table_id": table.id, "rows": [{"Name": f"Row {rounds}"}]}
+                    ),
+                )
+            }
+        else:
+            yield "Done."
+
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(FunctionModel(stream_function=stream), {}),
+    )
+    created = start(user, agent)
+    run_reply(run_of(created.conversation))
+
+    assert reply_state(created.reply.id) == ("completed", "", "Done.")
+    assert offered == [["create_rows"]] * 3
+    assert list(
+        table.get_model(attribute_names=True).objects.values_list("name", flat=True)
+    ) == ["Row 1", "Row 2"]
+    original_identity = Identity.objects.get(id=original_identity_id)
+    replacement.refresh_from_db()
+    assert original_identity.last_active is not None
+    assert replacement.last_active is None
+
+    next_reply = CreateAgentMessageActionType.do(
+        user, agent.id, created.conversation.uuid, uuid4(), "Try again"
+    )
+    request = AgentHandler().get_reply_request(
+        AgentHandler().get_reply(next_reply.reply.id)
+    )
+    assert request.allowed_tool_names == (["list_views"] if change == "replace" else [])
+    assert (request.acting_subject.pk if request.acting_subject else None) == (
+        replacement.id if change == "replace" else None
+    )
+    run_reply(ChatRun.objects.get(id=next_reply.run_id))
+    assert offered[-1] == (["list_views"] if change == "replace" else [])
+
+
+@pytest.mark.django_db
 def test_a_reply_cannot_keep_writing_after_its_identity_is_trashed(
     data_fixture, configured_agent, mocker, settings
 ):

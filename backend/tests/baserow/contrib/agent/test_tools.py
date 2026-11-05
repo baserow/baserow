@@ -7,6 +7,7 @@ from django.urls import reverse
 
 import pytest
 from asgiref.sync import async_to_sync
+from freezegun import freeze_time
 
 from baserow.contrib.agent.registries import AgentToolType, agent_tool_type_registry
 from baserow.contrib.database.views.models import FormView
@@ -220,6 +221,33 @@ def test_tool_errors_are_answered_to_the_model(workspace_data, data_fixture):
     assert call_tool(BrokenAgentToolType(), workspace_data.ctx, {}) == {
         "error": "Internal error."
     }
+
+
+@pytest.mark.django_db
+def test_tool_calls_track_identity_usage_with_the_existing_throttle(workspace_data):
+    identity = workspace_data.ctx.user
+    assert identity.last_active is None
+
+    with freeze_time() as clock:
+        result = call_tool(
+            agent_tool_type_registry.get("list_views"),
+            workspace_data.ctx,
+            {"table_id": workspace_data.table.id},
+        )
+        assert "error" not in result
+        identity.refresh_from_db()
+        first_activity = identity.last_active
+        assert first_activity is not None
+
+        clock.tick(30)
+        result = call_tool(
+            agent_tool_type_registry.get("list_views"),
+            workspace_data.ctx,
+            {"table_id": workspace_data.table.id},
+        )
+        assert "error" not in result
+        identity.refresh_from_db()
+        assert identity.last_active == first_activity
 
 
 @pytest.mark.django_db

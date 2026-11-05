@@ -1263,7 +1263,7 @@ describe('Agent configuration', () => {
     expect(savedValues(testApp)).toEqual([])
   })
 
-  test('keeps workspace tools off and locked without workspace access', async () => {
+  test('keeps saved workspace tools visible when workspace access is cleared', async () => {
     testApp.mock.onGet('/agent/10/run-as-subjects/').reply(200, page([]))
     mockConfiguration(testApp, withTools(['list_tables']))
     mockSaves(testApp, withTools(['list_tables'], null))
@@ -1280,19 +1280,78 @@ describe('Agent configuration', () => {
 
     const tools = wrapper.get('.agent-workspace-tools')
     const toggle = tools.get('[role="switch"]')
-    expect(toggle.attributes('aria-checked')).toBe('false')
-    expect(toggle.attributes('aria-disabled')).toBe('true')
-    expect(toggle.element.tabIndex).toBe(-1)
-    expect(tools.find('.agent-workspace-tools__presets').exists()).toBe(false)
-
-    await toggle.trigger('keydown', { key: 'Enter' })
-    await toggle.trigger('click')
-    await flushPromises()
-
-    expect(toggle.attributes('aria-checked')).toBe('false')
+    expect(toggle.attributes('aria-checked')).toBe('true')
+    expect(toggle.attributes('aria-disabled')).toBe('false')
+    expect(toggle.element.tabIndex).toBe(0)
+    expect(tools.get('.agent-workspace-tools__presets').exists()).toBe(true)
+    expect(body.get('.alert--warning').text()).toBe(
+      'agent.toolsInactiveWithoutIdentity'
+    )
     expect(savedValues(testApp)).toEqual([
       { run_as_subject_type: null, run_as_subject_id: null },
     ])
+  })
+
+  test.each([
+    ['unset', null],
+    ['trashed', { ...investor, trashed: true, status: 'trashed' }],
+    ['missing', { ...investor, name: null, status: 'missing' }],
+  ])(
+    'lets an editor inspect and change saved write tools with an %s identity',
+    async (_, identity) => {
+      mockConfiguration(
+        testApp,
+        withTools(['list_tables', 'create_rows'], identity)
+      )
+      mockSaves(testApp, withTools(['list_tables'], identity))
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.workspaceAccess')
+      const body = wrapper.get('.agent-configuration__body')
+      expect(body.get('.alert--warning').text()).toBe(
+        'agent.toolsInactiveWithoutIdentity'
+      )
+      await body.get('.agent-workspace-tools__group').trigger('click')
+      await flushPromises()
+      const inputs = [
+        ...document.body.querySelectorAll(
+          '.agent-tool-permissions__tool input'
+        ),
+      ]
+      expect(inputs.map((input) => input.checked)).toEqual([true, true, false])
+      expect(inputs.every((input) => !input.disabled)).toBe(true)
+
+      inputs[1].click()
+      ;[
+        ...document.body.querySelectorAll(
+          '.agent-tool-permissions__actions button'
+        ),
+      ]
+        .find((button) => button.textContent.includes('agent.toolsDone'))
+        .click()
+      await flushPromises()
+
+      expect(savedValues(testApp)).toEqual([{ allowed_tools: ['list_tables'] }])
+      expect(body.get('.alert--warning').exists()).toBe(true)
+    }
+  )
+
+  test('updates the tools warning when the identity becomes available again', async () => {
+    mockConfiguration(testApp, withTools(['create_rows'], null))
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    const body = wrapper.get('.agent-configuration__body')
+    expect(body.get('.alert--warning').exists()).toBe(true)
+
+    mockConfiguration(testApp, withTools(['create_rows']))
+    await remoteUpdate(testApp, agent)
+
+    expect(body.find('.alert--warning').exists()).toBe(false)
+    expect(
+      body
+        .get('.agent-workspace-tools [role="switch"]')
+        .attributes('aria-checked')
+    ).toBe('true')
+    expect(savedValues(testApp)).toEqual([])
   })
 
   test('disables an open tool permissions modal when edit access is revoked', async () => {
