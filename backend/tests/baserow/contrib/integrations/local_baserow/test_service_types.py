@@ -463,6 +463,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "filterable": False,
             "original_type": "last_modified_by",
             "properties": {
+                "type": {"title": "type", "type": "string"},
                 "id": {"title": "id", "type": "number"},
                 "name": {"title": "name", "type": "string"},
             },
@@ -477,6 +478,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "filterable": False,
             "original_type": "created_by",
             "properties": {
+                "type": {"title": "type", "type": "string"},
                 "id": {"title": "id", "type": "number"},
                 "name": {"title": "name", "type": "string"},
             },
@@ -697,6 +699,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "items": {
                 "type": "object",
                 "properties": {
+                    "type": {"title": "type", "type": "string"},
                     "id": {"title": "id", "type": "number"},
                     "name": {"title": "name", "type": "string"},
                 },
@@ -856,6 +859,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "items": {
                 "type": "object",
                 "properties": {
+                    "type": {"title": "type", "type": "string"},
                     "id": {"title": "id", "type": "number"},
                     "name": {"title": "name", "type": "string"},
                 },
@@ -937,6 +941,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
                         "items": {
                             "type": "object",
                             "properties": {
+                                "type": {"title": "type", "type": "string"},
                                 "id": {"title": "id", "type": "number"},
                                 "name": {"title": "name", "type": "string"},
                             },

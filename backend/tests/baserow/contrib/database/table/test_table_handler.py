@@ -154,8 +154,8 @@ def test_create_example_table(data_fixture):
     model = table.get_model(attribute_names=True)
 
     assert model.objects.count() == 2
-    assert model.objects.all()[0].last_modified_by == user
-    assert model.objects.all()[1].last_modified_by == user
+    assert model.objects.all()[0].last_modified_by == user.profile.subject
+    assert model.objects.all()[1].last_modified_by == user.profile.subject
 
 
 @pytest.mark.django_db(transaction=True)

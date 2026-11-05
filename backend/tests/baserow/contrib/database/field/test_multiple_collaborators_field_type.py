@@ -765,6 +765,13 @@ def test_multiple_collaborators_field_type_get_order_collate(data_fixture):
         rows.append(model())
 
     users = User.objects.bulk_create(users)
+    from baserow.core.models import UserProfile
+    from baserow.core.subjects import UserSubjectType
+
+    UserSubjectType().synchronize_persistent_subjects(users)
+    UserProfile.objects.bulk_create(
+        [UserProfile(user_id=user.pk, subject_id=user.pk) for user in users]
+    )
     rows = model.objects.bulk_create(rows)
 
     workspace_users = []

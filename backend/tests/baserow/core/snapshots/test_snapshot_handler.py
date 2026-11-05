@@ -52,7 +52,7 @@ def test_perform_create_preserves_last_modified_by(data_fixture: Fixtures):
     field = data_fixture.create_text_field(user=user, table=table)
     model = table.get_model()
     row_1 = model.objects.create(
-        **{f"field_{field.id}": "Row 1", "last_modified_by": user}
+        **{f"field_{field.id}": "Row 1", "last_modified_by": user.profile.subject}
     )
     row_1 = model.objects.create(
         **{f"field_{field.id}": "Row 2", "last_modified_by": None}
@@ -70,7 +70,7 @@ def test_perform_create_preserves_last_modified_by(data_fixture: Fixtures):
     snapshotted_table = Table.objects.get(database=snapshot.snapshot_to_application)
     model = snapshotted_table.get_model()
     assert model.objects.count() == 2
-    assert model.objects.all()[0].last_modified_by == user
+    assert model.objects.all()[0].last_modified_by == user.profile.subject
     assert model.objects.all()[1].last_modified_by is None
 
 
