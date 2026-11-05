@@ -14,6 +14,7 @@ from baserow.contrib.database.rows.actions import (
 )
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.tokens.handler import TokenHandler
+from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import ViewDefaultValue
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowCreateRowsServiceType,
@@ -65,6 +66,8 @@ def restricted_setup(data_fixture):
         user, workspace, role=Role.objects.get(uid="NO_ACCESS"), scope=hidden_table
     )
     return {
+        "admin": admin,
+        "workspace": workspace,
         "user": user,
         "table": table,
         "link": link,
@@ -414,24 +417,163 @@ def test_restricted_view_editor_can_not_self_link_a_row_outside_the_view(
     assert "Hidden" not in response.content.decode()
 
 
+def add_link_default(view, setup):
+    ViewDefaultValue.objects.create(
+        view=view,
+        field=setup["link"],
+        value=[setup["hidden_row"].id],
+        field_type="link_row",
+    )
+
+
+def linked_row_ids(table, row, link):
+    linked_rows = getattr(table.get_model().objects.get(id=row.id), link.db_column)
+    return [linked_row.id for linked_row in linked_rows.all()]
+
+
 @pytest.mark.django_db
-def test_view_default_link_is_refused_when_the_role_hides_the_linked_table(
+def test_collaborative_view_default_link_is_applied_when_the_role_hides_the_table(
+    enterprise_data_fixture, restricted_setup
+):
+    table = restricted_setup["table"]
+    link = restricted_setup["link"]
+    view = enterprise_data_fixture.create_grid_view(table=table)
+    add_link_default(view, restricted_setup)
+    user = restricted_setup["user"]
+    hidden_row_id = restricted_setup["hidden_row"].id
+
+    row = RowHandler().create_row(user, table, {}, view=view)
+    [batch_row] = RowHandler().create_rows(user, table, [{}], view=view).created_rows
+
+    assert linked_row_ids(table, row, link) == [hidden_row_id]
+    assert linked_row_ids(table, batch_row, link) == [hidden_row_id]
+
+
+@pytest.mark.django_db
+def test_view_default_link_does_not_allow_choosing_a_link_when_the_table_is_hidden(
     enterprise_data_fixture, restricted_setup
 ):
     table = restricted_setup["table"]
     view = enterprise_data_fixture.create_grid_view(table=table)
-    ViewDefaultValue.objects.create(
-        view=view,
-        field=restricted_setup["link"],
-        value=[restricted_setup["hidden_row"].id],
-        field_type="link_row",
-    )
-    user = restricted_setup["user"]
+    add_link_default(view, restricted_setup)
+    values = {restricted_setup["link"].db_column: ["Other"]}
 
     with pytest.raises(PermissionException):
-        RowHandler().create_row(user, table, {}, view=view)
+        RowHandler().create_row(
+            restricted_setup["user"], table, dict(values), view=view
+        )
+
+
+@pytest.mark.django_db
+def test_personal_view_default_link_is_refused_when_the_role_hides_the_table(
+    enterprise_data_fixture, restricted_setup
+):
+    user = restricted_setup["user"]
+    table = restricted_setup["table"]
+    link = restricted_setup["link"]
+    view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type="personal", owned_by=user
+    )
+    add_link_default(view, restricted_setup)
+    handler = RowHandler()
+
     with pytest.raises(PermissionException):
-        RowHandler().create_rows(user, table, [{}], view=view)
+        handler.create_row(user, table, {}, view=view)
+    with pytest.raises(PermissionException):
+        handler.create_rows(user, table, [{}], view=view)
+
+    row = handler.create_row(user, table, {link.db_column: []}, view=view)
+    assert linked_row_ids(table, row, link) == []
+
+
+@pytest.mark.django_db
+def test_hidden_view_default_link_stays_out_of_the_restricted_view_response(
+    api_client, data_fixture, enterprise_data_fixture, restricted_setup
+):
+    user = restricted_setup["user"]
+    table = restricted_setup["table"]
+    link = restricted_setup["link"]
+    view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+    data_fixture.create_grid_view_field_option(view, link, hidden=True)
+    add_link_default(view, restricted_setup)
+    role_handler = RoleAssignmentHandler()
+    workspace = restricted_setup["workspace"]
+    role_handler.assign_role(
+        user, workspace, role=Role.objects.get(uid="NO_ACCESS"), scope=workspace
+    )
+    role_handler.assign_role(
+        user, workspace, role=Role.objects.get(uid="EDITOR"), scope=view
+    )
+    url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
+
+    response = api_client.post(
+        f"{url}?view={view.id}",
+        {},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {data_fixture.generate_token(user)}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert link.db_column not in response.json()
+    assert "Other" not in response.content.decode()
+    row = table.get_model().objects.get(id=response.json()["id"])
+    assert linked_row_ids(table, row, link) == [restricted_setup["hidden_row"].id]
+
+
+@pytest.mark.parametrize("value", ["id", "Other", "Nope"])
+@pytest.mark.django_db
+def test_saving_a_view_default_link_is_refused_when_the_role_hides_the_table(
+    enterprise_data_fixture, restricted_setup, value
+):
+    view = enterprise_data_fixture.create_grid_view(table=restricted_setup["table"])
+    target = restricted_setup["hidden_row"].id if value == "id" else value
+
+    with pytest.raises(PermissionException):
+        ViewHandler().update_view_default_values(
+            restricted_setup["user"],
+            view,
+            [{"field": restricted_setup["link"].id, "value": [target]}],
+        )
+
+    assert not ViewDefaultValue.objects.filter(view=view).exists()
+
+
+@pytest.mark.django_db
+def test_saving_view_defaults_allows_an_unchanged_or_empty_link_when_the_table_is_hidden(
+    enterprise_data_fixture, restricted_setup
+):
+    user = restricted_setup["user"]
+    link = restricted_setup["link"]
+    view = enterprise_data_fixture.create_grid_view(table=restricted_setup["table"])
+    add_link_default(view, restricted_setup)
+    hidden_row_id = restricted_setup["hidden_row"].id
+    handler = ViewHandler()
+
+    handler.update_view_default_values(
+        user, view, [{"field": link.id, "value": [hidden_row_id]}]
+    )
+    assert ViewDefaultValue.objects.get(view=view).value == [hidden_row_id]
+
+    handler.update_view_default_values(user, view, [{"field": link.id, "value": []}])
+    assert ViewDefaultValue.objects.get(view=view).value == []
+
+
+@pytest.mark.django_db
+def test_saving_a_view_default_link_works_with_read_access_to_the_table(
+    enterprise_data_fixture, restricted_setup
+):
+    view = enterprise_data_fixture.create_grid_view(table=restricted_setup["table"])
+    hidden_row_id = restricted_setup["hidden_row"].id
+
+    ViewHandler().update_view_default_values(
+        restricted_setup["admin"],
+        view,
+        [{"field": restricted_setup["link"].id, "value": [hidden_row_id]}],
+    )
+
+    assert ViewDefaultValue.objects.get(view=view).value == [hidden_row_id]
 
 
 def count_join_queries(api_client, url, auth):

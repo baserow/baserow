@@ -5549,13 +5549,30 @@ class ViewHandler:
             field_id = item.get("field")
             if field_id and item.get("value") is not None:
                 raw_values[f"field_{field_id}"] = item["value"]
-        if raw_values:
-            RowHandler().prepare_values(model._field_objects, raw_values)
 
         existing_by_field = {
             default_value.field_id: default_value
             for default_value in ViewDefaultValue.objects.filter(view_id=view.id)
         }
+
+        if raw_values:
+            # A default is applied for people who can't read the linked table, so
+            # whoever sets a new one must be able to. Before preparing the values,
+            # because that resolves link names and its error reveals which names exist.
+            new_values = {
+                f"field_{item['field']}": item["value"]
+                for item in items
+                if item.get("field")
+                and item.get("value") is not None
+                and (
+                    int(item["field"]) not in existing_by_field
+                    or existing_by_field[int(item["field"])].value != item["value"]
+                )
+            }
+            RowHandler().check_can_read_linked_tables(
+                user, model, [new_values], view=view
+            )
+            RowHandler().prepare_values(model._field_objects, raw_values)
 
         to_create = []
         to_update = []

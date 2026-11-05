@@ -851,6 +851,7 @@ class RowHandler:
 
         self._raise_if_values_contain_hidden_fields(user, view, [values])
         self._check_write_fields_values_permissions(user, model, [values])
+        self.check_can_read_linked_tables(user, model, [values], view=view)
 
         # Apply view default values for fields not explicitly provided by the
         # user. View defaults take priority over field-level defaults.
@@ -860,11 +861,12 @@ class RowHandler:
             view_defaults = ViewHandler().get_view_default_values_for_row_creation(
                 view, model=model
             )
+            self._check_can_read_linked_tables_of_view_defaults(
+                user, model, view, view_defaults, [values]
+            )
             for field_name, default_value in view_defaults.items():
                 if field_name not in values:
                     values[field_name] = default_value
-
-        self.check_can_read_linked_tables(user, model, [values], view=view)
 
         return self.force_create_row(
             user,
@@ -1543,6 +1545,7 @@ class RowHandler:
 
         self._raise_if_values_contain_hidden_fields(user, view, rows_values)
         self._check_write_fields_values_permissions(user, model, rows_values)
+        self.check_can_read_linked_tables(user, model, rows_values, view=view)
 
         # Apply view default values for fields not explicitly provided by the user.
         # View defaults take priority over field-level defaults.
@@ -1553,12 +1556,13 @@ class RowHandler:
                 view, model=model
             )
             if view_defaults:
+                self._check_can_read_linked_tables_of_view_defaults(
+                    user, model, view, view_defaults, rows_values
+                )
                 for row_values in rows_values:
                     for field_name, default_value in view_defaults.items():
                         if field_name not in row_values:
                             row_values[field_name] = default_value
-
-        self.check_can_read_linked_tables(user, model, rows_values, view=view)
 
         return self.force_create_rows(
             user,
@@ -2361,6 +2365,41 @@ class RowHandler:
         self.check_can_list_rows_of_tables(user, other_tables)
         if len(other_tables) != len(linked_tables):
             self._check_can_read_self_links_in_view(user, model, rows_values, view)
+
+    def _check_can_read_linked_tables_of_view_defaults(
+        self,
+        user: AbstractUser,
+        model: GeneratedTableModel,
+        view: "View",
+        view_defaults: Dict[str, Any],
+        rows_values: List[Dict[str, Any]],
+    ):
+        """
+        Verifies that the user can read the tables that the view defaults link rows
+        from, for the views whose defaults aren't authorized when they're configured.
+        Only the defaults that the rows values don't override are checked.
+
+        :param user: The user to check permissions for.
+        :param model: The model of the table that the values are written to.
+        :param view: The view the rows are created in.
+        :param view_defaults: The default values of the view.
+        :param rows_values: The rows values that the defaults are applied to.
+        :raises PermissionDenied: If the user can't read a linked table.
+        """
+
+        ownership_type = view_ownership_type_registry.get(view.ownership_type)
+        if ownership_type.default_values_authorized_when_configured:
+            return
+
+        self.check_can_read_linked_tables(
+            user,
+            model,
+            [
+                {k: v for k, v in view_defaults.items() if k not in row_values}
+                for row_values in rows_values
+            ],
+            view=view,
+        )
 
     def _check_can_read_self_links_in_view(
         self,

@@ -135,6 +135,7 @@ from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.operations import (
     ReadAdjacentViewRowOperationType,
 )
+from baserow.contrib.database.views.registries import view_ownership_type_registry
 from baserow.core.action.registries import action_type_registry
 from baserow.core.db import atomic_with_retry_on_deadlock
 from baserow.core.exceptions import DeadlockException, UserNotInWorkspace
@@ -213,8 +214,8 @@ def check_token_can_read_linked_tables(
     :param request: The request that might be authenticated with a token.
     :param model: The model of the table that the values are written to.
     :param rows_values: The validated rows values, keyed by internal field name.
-    :param view: The view new rows are created in, whose default values are written
-        for the fields that the rows values don't contain.
+    :param view: The view new rows are created in. Its default values are checked too
+        if they aren't authorized when they're configured.
     :raises NoPermissionToTable: If the token can't read a linked table.
     """
 
@@ -222,7 +223,12 @@ def check_token_can_read_linked_tables(
     if token is None:
         return
 
-    if view is not None:
+    if (
+        view is not None
+        and not view_ownership_type_registry.get(
+            view.ownership_type
+        ).default_values_authorized_when_configured
+    ):
         view_defaults = ViewHandler().get_view_default_values_for_row_creation(
             view, model=model
         )
