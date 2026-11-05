@@ -1432,7 +1432,10 @@
   },
   "selectWorkspaceModal": {
     "title": "Select a workspace",
-    "search": "Search workspaces"
+    "search": "Search workspaces",
+    "allWorkspaces": "All workspaces",
+    "selectedWorkspaces": "Selected ({count})",
+    "noSelectedWorkspaces": "No excluded workspaces. Use All workspaces to add them."
   },
   "aiProviderAdmin": {
     "title": "AI providers",
@@ -1441,6 +1444,7 @@
     "editProvider": "Edit provider",
     "providerType": "Provider type",
     "excludedWorkspaces": "Excluded workspaces",
+    "moreExcludedWorkspaces": "+{count} more",
     "excludedWorkspacesHelp": "These workspaces cannot use this instance provider. Workspace providers are unaffected.",
     "addExcludedWorkspace": "Exclude a workspace",
     "removeExcludedWorkspace": "Remove {name} from excluded workspaces",

@@ -28,7 +28,7 @@ describe('SelectWorkspaceModal', () => {
       ],
     })
     const wrapper = await testApp.mount(SelectWorkspaceModal, {
-      props: { selectedIds: [1] },
+      props: { selectedWorkspaces: [{ id: 1, name: 'Already excluded' }] },
     })
     await wrapper.vm.show(anchor)
     await flushPromises()
@@ -131,6 +131,34 @@ describe('SelectWorkspaceModal', () => {
     expect(panel.getAttribute('aria-modal')).not.toBe('true')
   })
 
+  test.each([0, 60])(
+    'opens Selected when its anchor reaches or passes the viewport bottom (%spx)',
+    async (offset) => {
+      vi.spyOn(anchor, 'getBoundingClientRect').mockReturnValue({
+        top: window.innerHeight - 32 + offset,
+        bottom: window.innerHeight + offset,
+        left: 100,
+        right: 128,
+        width: 28,
+        height: 32,
+      })
+      const wrapper = await testApp.mount(SelectWorkspaceModal, {
+        props: { selectedWorkspaces: [{ id: 2, name: 'Finance' }] },
+      })
+
+      await wrapper.vm.show(anchor, true)
+      await flushPromises()
+
+      const panel = wrapper.find('[role="dialog"]')
+      expect(panel.classes()).not.toContain('visibility-hidden')
+      expect(wrapper.emitted('hidden')).toBeUndefined()
+      expect(parseFloat(panel.element.style.bottom)).toBeGreaterThanOrEqual(12)
+      expect(wrapper.find('.select-workspace-modal__option').text()).toBe(
+        'Finance'
+      )
+    }
+  )
+
   test.each(['above', 'below'])(
     'keeps the picker open when selecting moves its anchor %s the viewport',
     async (side) => {
@@ -170,6 +198,87 @@ describe('SelectWorkspaceModal', () => {
       )
     }
   )
+
+  test('searches all selected workspaces locally and removes a selection beyond the API page', async () => {
+    const selectedWorkspaces = Array.from({ length: 125 }, (_, index) => ({
+      id: 1000 + index,
+      name: `Workspace ${index}`,
+    }))
+    const wrapper = await testApp.mount(SelectWorkspaceModal, {
+      props: { selectedWorkspaces },
+    })
+    await wrapper.vm.show(anchor, true)
+    await flushPromises()
+
+    expect(wrapper.findAll('.select-workspace-modal__option')).toHaveLength(125)
+    expect(
+      wrapper.findAll('.select-workspace-modal__option').at(-1).text()
+    ).toBe('Workspace 124')
+    expect(wrapper.find('.paginator').exists()).toBe(false)
+    expect(
+      testApp.mock.history.get.filter(
+        ({ url }) => url === '/admin/workspaces/options/'
+      )
+    ).toHaveLength(0)
+
+    await wrapper.find('.data-table__search input').setValue('1124')
+    await wrapper.find('.data-table__search').trigger('submit')
+    await flushPromises()
+    expect(wrapper.findAll('.select-workspace-modal__option')).toHaveLength(1)
+    const checkbox = wrapper.find('input[type="checkbox"]')
+    expect(checkbox.element.checked).toBe(true)
+    expect(checkbox.element.disabled).toBe(false)
+    await checkbox.setValue(false)
+    expect(wrapper.emitted('unselected')).toEqual([[1124]])
+
+    await wrapper.setProps({
+      selectedWorkspaces: selectedWorkspaces.slice(0, -1),
+    })
+    await flushPromises()
+    expect(wrapper.find('.data-table__search input').element.value).toBe('1124')
+    expect(wrapper.findAll('.select-workspace-modal__option')).toHaveLength(0)
+    expect(wrapper.find('[role="dialog"]').classes()).not.toContain(
+      'visibility-hidden'
+    )
+  })
+
+  test('switches between the paginated API and selected workspaces and keeps empty selections manageable', async () => {
+    testApp.mock
+      .onGet('/admin/workspaces/options/')
+      .reply(200, { count: 101, results: [{ id: 1, value: 'API workspace' }] })
+    const wrapper = await testApp.mount(SelectWorkspaceModal, {
+      props: { selectedWorkspaces: [{ id: 999, name: 'Saved workspace' }] },
+    })
+    await wrapper.vm.show(anchor, true)
+    await flushPromises()
+    expect(wrapper.find('.select-workspace-modal__option').text()).toBe(
+      'Saved workspace'
+    )
+
+    await wrapper.findAll('.segment-control__button')[0].trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.select-workspace-modal__option').text()).toBe(
+      'API workspace'
+    )
+    expect(wrapper.find('.paginator').exists()).toBe(true)
+    const apiRequests = testApp.mock.history.get.length
+
+    await wrapper.findAll('.segment-control__button')[1].trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.select-workspace-modal__option').text()).toBe(
+      'Saved workspace'
+    )
+    await wrapper.setProps({ selectedWorkspaces: [] })
+    await flushPromises()
+    expect(wrapper.text()).toContain(
+      'selectWorkspaceModal.noSelectedWorkspaces'
+    )
+    expect(wrapper.findAll('.segment-control__button')[1].classes()).toContain(
+      'segment-control__button--active'
+    )
+    expect(wrapper.find('.paginator').exists()).toBe(false)
+    expect(testApp.mock.history.get).toHaveLength(apiRequests)
+  })
 
   test('reuses admin pagination and searches from the first page', async () => {
     testApp.mock.onGet('/admin/workspaces/options/').reply((config) => {

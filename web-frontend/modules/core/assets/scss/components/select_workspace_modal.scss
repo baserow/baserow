@@ -8,7 +8,7 @@
     inset: auto;
     padding-bottom: 0;
     font-size: 13px;
-    height: calc(var(--select-workspace-body-height) + 88px);
+    height: calc(var(--select-workspace-body-height) + 132px);
     max-height: calc(var(--select-workspace-available-height, 100vh) - 26px);
     overflow: hidden;
   }
@@ -93,6 +93,15 @@
     height: 1px;
     overflow: hidden;
     clip-path: inset(50%);
+  }
+}
+
+.select-workspace-modal__views {
+  flex-shrink: 0;
+  margin-bottom: 8px;
+
+  .segment-control__button {
+    font: inherit;
   }
 }
 
