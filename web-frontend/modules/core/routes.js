@@ -25,6 +25,7 @@ export const routes = [
         name: 'login',
         path: '/login',
         file: path.resolve(__dirname, 'pages/login.vue'),
+        meta: { applicationShell: false, authenticationPage: true },
       },
       {
         name: 'mcp-authorize',

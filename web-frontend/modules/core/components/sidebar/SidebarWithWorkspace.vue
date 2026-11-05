@@ -77,6 +77,7 @@
                 :application="application"
                 :pending-jobs="pendingJobs[application.type]"
                 :workspace="selectedWorkspace"
+                @selected="selectApplication"
               ></component>
             </ul>
             <ul v-if="pendingJobs[applicationGroup.type].length" class="tree">
@@ -129,11 +130,13 @@
 
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import SidebarApplication from '@baserow/modules/core/components/sidebar/SidebarApplication'
+import { hasApplicationBundle } from '@baserow/modules/core/utils/applicationBundles'
 import CreateApplicationContext from '@baserow/modules/core/components/application/CreateApplicationContext'
 
 export default {
   name: 'SidebarWithWorkspace',
-  components: { CreateApplicationContext },
+  components: { CreateApplicationContext, SidebarApplication },
   props: {
     applications: {
       type: Array,
@@ -199,7 +202,22 @@ export default {
     },
   },
   methods: {
+    async selectApplication(application) {
+      try {
+        const type = this.$registry.get('application', application.type)
+        await type.load()
+        await type.selectFromSidebar(application)
+      } catch (error) {
+        notifyIf(error, 'application')
+      }
+    },
     getApplicationComponent(application) {
+      if (
+        !this.$store.getters['application/isSelected'](application) &&
+        hasApplicationBundle(this.$nuxt, application.type)
+      ) {
+        return SidebarApplication
+      }
       return this.$registry
         .get('application', application.type)
         .getSidebarComponent()

@@ -1,9 +1,7 @@
+import { getApplicationComponent } from '@baserow/modules/core/utils/applicationBundles'
 import { BaserowPlugin } from '@baserow/modules/core/plugins'
 import Impersonate from '@baserow_premium/components/sidebar/Impersonate'
 import HighestLicenseTypeBadge from '@baserow_premium/components/sidebar/HighestLicenseTypeBadge'
-import PremiumViewOptions from '@baserow_premium/components/views/PremiumViewOptions'
-import PublicViewExportMenuItem from '@baserow_premium/components/views/PublicViewExportMenuItem'
-import PremiumDashboardShareOptions from '@baserow_premium/components/dashboard/PremiumDashboardShareOptions'
 
 export class PremiumPlugin extends BaserowPlugin {
   static getType() {
@@ -19,15 +17,29 @@ export class PremiumPlugin extends BaserowPlugin {
   }
 
   getAdditionalShareLinkOptions() {
-    return [PremiumViewOptions]
+    return [getApplicationComponent(this.app, 'database', 'PremiumViewOptions')]
   }
 
   getAdditionalDashboardShareLinkOptions() {
-    return [PremiumDashboardShareOptions]
+    return [
+      getApplicationComponent(
+        this.app,
+        'dashboard',
+        'PremiumDashboardShareOptions'
+      ),
+    ]
   }
 
   getAdditionalPublicViewMenuItems(view) {
-    return view.allow_public_export ? [PublicViewExportMenuItem] : []
+    return view.allow_public_export
+      ? [
+          getApplicationComponent(
+            this.app,
+            'database',
+            'PublicViewExportMenuItem'
+          ),
+        ]
+      : []
   }
 
   hasFeature(feature, forSpecificWorkspace) {

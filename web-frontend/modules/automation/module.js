@@ -20,11 +20,6 @@ export default defineNuxtModule({
     addPlugin({
       src: resolve('./plugin.js'),
     })
-
-    addPlugin({
-      src: resolve('./plugins/realtime.js'),
-    })
-
     addRouteMiddleware({
       name: 'selectWorkspaceAutomationWorkflow',
       path: resolve('./middleware/selectWorkspaceAutomationWorkflow.js'),

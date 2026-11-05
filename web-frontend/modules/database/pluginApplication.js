@@ -1,14 +1,4 @@
 import { DatabaseViewsAdminType } from '@baserow/modules/database/adminTypes'
-import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
-import { DatabaseViewLastViewedItemType } from '@baserow/modules/database/lastViewedItemTypes'
-import {
-  DuplicateTableJobType,
-  SyncDataSyncTableJobType,
-  FileImportJobType,
-  DuplicateFieldJobType,
-  AirtableJobType,
-  ButtonFieldDispatchJobType,
-} from '@baserow/modules/database/jobTypes'
 import {
   GridViewType,
   GalleryViewType,
@@ -96,7 +86,6 @@ import {
   DateIsOnOrAfterMultiStepViewFilterType,
   DateIsWithinMultiStepViewFilterType,
   DateIsNotEqualMultiStepViewFilterType,
-  // Deprecated date filter types
   DateEqualViewFilterType,
   DateNotEqualViewFilterType,
   DateEqualsTodayViewFilterType,
@@ -298,7 +287,6 @@ import {
   BaserowFormulaCharType,
   BaserowFormulaLinkType,
   BaserowFormulaDateIntervalType,
-  // Deprecated
   BaserowFormulaDurationType,
   BaserowFormulaDateType,
   BaserowFormulaInvalidType,
@@ -349,12 +337,7 @@ import {
   RowDataProviderType,
   PreviousActionDataProviderType,
 } from '@baserow/modules/database/dataProviderTypes'
-import {
-  DatabaseOnboardingType,
-  DatabaseScratchTrackOnboardingType,
-  DatabaseImportOnboardingType,
-  DatabaseScratchTrackFieldsOnboardingType,
-} from '@baserow/modules/database/onboardingTypes'
+
 import {
   ScratchDatabaseOnboardingStepType,
   ImportDatabaseOnboardingStepType,
@@ -375,13 +358,6 @@ import {
 } from '@baserow/modules/database/configureDataSyncTypes'
 import { DatabaseGuidedTourType } from '@baserow/modules/database/guidedTourTypes'
 import {
-  DatabaseSearchType,
-  DatabaseTableSearchType,
-  DatabaseFieldSearchType,
-  DatabaseRowSearchType,
-} from '@baserow/modules/database/searchTypes'
-import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
-import {
   OpenUrlWorkflowActionType,
   LocalBaserowCreateRowWorkflowActionType,
   LocalBaserowUpdateRowWorkflowActionType,
@@ -392,7 +368,7 @@ import {
   CoreStartWorkflowWorkflowActionType,
 } from '@baserow/modules/database/workflowActionTypes'
 
-/** Register this entry before rendering or hydrating its routes. */
+/** Register this feature only when its application is used. */
 export default async function register(nuxtApp) {
   const { $registry } = nuxtApp
   const context = { app: nuxtApp }
@@ -420,18 +396,7 @@ export default async function register(nuxtApp) {
   $registry.registerNamespace('databaseOnboardingStep')
   $registry.registerNamespace('copyViewConfigurationOption')
   $registry.register('plugin', new DatabasePlugin(context))
-  $registry.register('application', new DatabaseApplicationType(context))
-  $registry.register(
-    'lastViewedItem',
-    new DatabaseViewLastViewedItemType(context)
-  )
   $registry.register('admin', new DatabaseViewsAdminType(context))
-  $registry.register('job', new DuplicateTableJobType(context))
-  $registry.register('job', new SyncDataSyncTableJobType(context))
-  $registry.register('job', new FileImportJobType(context))
-  $registry.register('job', new DuplicateFieldJobType(context))
-  $registry.register('job', new AirtableJobType(context))
-  $registry.register('job', new ButtonFieldDispatchJobType(context))
   $registry.register('view', new GridViewType(context))
   $registry.register('view', new GalleryViewType(context))
   $registry.register('view', new FormViewType(context))
@@ -950,16 +915,7 @@ export default async function register(nuxtApp) {
     new WebhookPayloadTooLargedNotificationType(context)
   )
   $registry.register('rowModalSidebar', new HistoryRowModalSidebarType(context))
-  $registry.register('onboarding', new DatabaseOnboardingType(context))
-  $registry.register(
-    'onboarding',
-    new DatabaseScratchTrackOnboardingType(context)
-  )
-  $registry.register(
-    'onboarding',
-    new DatabaseScratchTrackFieldsOnboardingType(context)
-  )
-  $registry.register('onboarding', new DatabaseImportOnboardingType(context))
+
   $registry.register(
     'databaseOnboardingStep',
     new ScratchDatabaseOnboardingStepType(context)
@@ -1042,8 +998,4 @@ export default async function register(nuxtApp) {
     new CoreStartWorkflowWorkflowActionType(context)
   )
   $registry.registerNamespace('fieldContextItem')
-  searchTypeRegistry.register(new DatabaseSearchType(context))
-  searchTypeRegistry.register(new DatabaseTableSearchType(context))
-  searchTypeRegistry.register(new DatabaseFieldSearchType(context))
-  searchTypeRegistry.register(new DatabaseRowSearchType(context))
 }

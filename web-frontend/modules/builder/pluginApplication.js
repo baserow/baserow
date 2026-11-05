@@ -6,11 +6,7 @@ import {
   ThemeBuilderSettingsType,
   UserSourcesBuilderSettingsType,
 } from '@baserow/modules/builder/builderSettingTypes'
-import {
-  DuplicatePageJobType,
-  PublishBuilderJobType,
-} from '@baserow/modules/builder/jobTypes'
-import { BuilderPageLastViewedItemType } from '@baserow/modules/builder/lastViewedItemTypes'
+
 import {
   DataSourcesPageHeaderItemType,
   ElementsPageHeaderItemType,
@@ -35,19 +31,12 @@ import {
   PublishPageActionType,
 } from '@baserow/modules/builder/pageActionTypes'
 import { BuilderGuidedTourType } from '@baserow/modules/builder/guidedTourTypes'
-import { BuilderSearchType } from '@baserow/modules/builder/searchTypes'
-import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 
 /** Register this entry before rendering or hydrating its routes. */
 export default async function register(nuxtApp) {
   const { $store, $registry } = nuxtApp
   const context = { app: nuxtApp }
-  $registry.register(
-    'lastViewedItem',
-    new BuilderPageLastViewedItemType(context)
-  )
-  $registry.register('job', new DuplicatePageJobType(context))
-  $registry.register('job', new PublishBuilderJobType(context))
+
   $registry.register('builderSettings', new GeneralBuilderSettingsType(context))
   $registry.register(
     'builderSettings',
@@ -80,5 +69,4 @@ export default async function register(nuxtApp) {
   $registry.register('pageAction', new PublishPageActionType(context))
   $registry.register('pageAction', new PreviewPageActionType(context))
   $registry.register('guidedTour', new BuilderGuidedTourType(context))
-  searchTypeRegistry.register(new BuilderSearchType(context))
 }

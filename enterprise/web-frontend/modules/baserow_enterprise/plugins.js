@@ -1,23 +1,20 @@
+import { getApplicationComponent } from '@baserow/modules/core/utils/applicationBundles'
 import { EnterpriseRuntimePlugin } from '@baserow_enterprise/pluginsRuntime'
 import ChatwootSupportSidebarWorkspace from '@baserow_enterprise/components/ChatwootSupportSidebarWorkspace'
 import AuditLogSidebarWorkspace from '@baserow_enterprise/components/AuditLogSidebarWorkspace'
 import MemberRolesApplicationContextItem from '@baserow_enterprise/components/member-roles/MemberRolesApplicationContextItem'
-import MemberRolesTableContextItem from '@baserow_enterprise/components/member-roles/MemberRolesTableContextItem'
-import MemberRolesViewContextItem from '@baserow_enterprise/components/member-roles/MemberRolesViewContextItem'
+
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import SnapshotModalWarning from '@baserow_enterprise/components/SnapshotModalWarning'
 import EnterpriseSettings from '@baserow_enterprise/components/EnterpriseSettings'
 import EnterpriseSettingsOverrideDashboardHelp from '@baserow_enterprise/components/EnterpriseSettingsOverrideDashboardHelp'
-import EnterpriseLogo from '@baserow_enterprise/components/EnterpriseLogo'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import AssistantSidebarItem from '@baserow_enterprise/components/assistant/AssistantSidebarItem'
 import AssistantPanel from '@baserow_enterprise/components/assistant/AssistantPanel'
 import AssistantDashboardPrompt from '@baserow_enterprise/components/assistant/AssistantDashboardPrompt'
 import { isAssistantConfigured } from '@baserow_enterprise/utils/assistant'
-import DateDependencyMenuItem from '@baserow_enterprise/components/dateDependency/DateDependencyMenuItem'
-import DateDependencyFieldTypeIcon from '@baserow_enterprise/components/dateDependency/DateDependencyFieldTypeIcon'
+
 import ExportWorkspaceModalWarning from '@baserow_enterprise/components/ExportWorkspaceModalWarning'
-import { RestrictedViewOwnershipType } from '@baserow_enterprise/viewOwnershipTypes'
 
 export class EnterprisePlugin extends EnterpriseRuntimePlugin {
   static getType() {
@@ -57,9 +54,17 @@ export class EnterprisePlugin extends EnterpriseRuntimePlugin {
     if (
       this.app.$hasPermission('database.table.read_role', item, workspace.id)
     ) {
-      databaseComponents.push(MemberRolesTableContextItem)
+      databaseComponents.push(
+        getApplicationComponent(
+          this.app,
+          'database',
+          'MemberRolesTableContextItem'
+        )
+      )
     }
-    databaseComponents.push(DateDependencyMenuItem)
+    databaseComponents.push(
+      getApplicationComponent(this.app, 'database', 'DateDependencyMenuItem')
+    )
 
     return databaseComponents
   }
@@ -70,7 +75,13 @@ export class EnterprisePlugin extends EnterpriseRuntimePlugin {
 
   getGridViewFieldTypeIconsBefore(workspace, view, field) {
     const out = []
-    out.push(DateDependencyFieldTypeIcon)
+    out.push(
+      getApplicationComponent(
+        this.app,
+        'database',
+        'DateDependencyFieldTypeIcon'
+      )
+    )
     return out
   }
 
@@ -84,11 +95,19 @@ export class EnterprisePlugin extends EnterpriseRuntimePlugin {
       ) &&
       // Assigning a role to a user on view level only actually does something for
       // the restricted view. So we're only showing the modal there.
-      view.ownership_type === RestrictedViewOwnershipType.getType()
+      view.ownership_type === 'restricted'
     ) {
-      components.push(MemberRolesViewContextItem)
+      components.push(
+        getApplicationComponent(
+          this.app,
+          'database',
+          'MemberRolesViewContextItem'
+        )
+      )
     }
-    components.push(DateDependencyMenuItem)
+    components.push(
+      getApplicationComponent(this.app, 'database', 'DateDependencyMenuItem')
+    )
     return components
   }
 
@@ -124,18 +143,6 @@ export class EnterprisePlugin extends EnterpriseRuntimePlugin {
     } else {
       return []
     }
-  }
-
-  getLogoComponent() {
-    if (this.app.$hasFeature(EnterpriseFeatures.ENTERPRISE_SETTINGS)) {
-      return EnterpriseLogo
-    } else {
-      return null
-    }
-  }
-
-  getLogoComponentOrder() {
-    return 100
   }
 
   /**

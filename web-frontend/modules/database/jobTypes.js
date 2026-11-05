@@ -1,3 +1,4 @@
+import { loadApplicationBundle } from '@baserow/modules/core/utils/applicationBundles'
 import { JobType } from '@baserow/modules/core/jobTypes'
 import { FINISHED_STATES } from '@baserow/modules/core/store/job'
 
@@ -41,6 +42,7 @@ export class DuplicateTableJobType extends JobType {
   }
 
   async onJobDone(job) {
+    await loadApplicationBundle(this.app, 'database')
     const { $i18n: i18n, $store: store } = this.app
 
     const duplicatedTable = job.duplicated_table

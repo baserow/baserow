@@ -1,15 +1,11 @@
+import { getApplicationComponent } from '@baserow/modules/core/utils/applicationBundles'
 import { OnboardingType } from '@baserow/modules/core/onboardingTypes'
 
-import DatabaseStep from '@baserow/modules/database/components/onboarding/DatabaseStep'
-import DatabaseScratchTrackStep from '@baserow/modules/database/components/onboarding/DatabaseScratchTrackStep'
-import DatabaseImportStep from '@baserow/modules/database/components/onboarding/DatabaseImportStep'
-import DatabaseAppLayoutPreview from '@baserow/modules/database/components/onboarding/DatabaseAppLayoutPreview'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import ApplicationService from '@baserow/modules/core/services/application'
 import TableService from '@baserow/modules/database/services/table'
 import FieldService from '@baserow/modules/database/services/field'
 import RowService from '@baserow/modules/database/services/row'
-import DatabaseScratchTrackFieldsStep from '@baserow/modules/database/components/onboarding/DatabaseScratchTrackFieldsStep'
 
 const databaseTypeCondition = (data, type) => {
   const dependingType = DatabaseOnboardingType.getType()
@@ -45,7 +41,7 @@ export class DatabaseOnboardingType extends OnboardingType {
   }
 
   getFormComponent() {
-    return DatabaseStep
+    return getApplicationComponent(this.app, 'database', 'DatabaseStep')
   }
 
   getPreviewComponent(data) {
@@ -57,7 +53,11 @@ export class DatabaseOnboardingType extends OnboardingType {
         return component
       }
     }
-    return DatabaseAppLayoutPreview
+    return getApplicationComponent(
+      this.app,
+      'database',
+      'DatabaseAppLayoutPreview'
+    )
   }
 
   getAdditionalPreviewProps() {
@@ -144,11 +144,19 @@ export class DatabaseScratchTrackOnboardingType extends OnboardingType {
   }
 
   getFormComponent() {
-    return DatabaseScratchTrackStep
+    return getApplicationComponent(
+      this.app,
+      'database',
+      'DatabaseScratchTrackStep'
+    )
   }
 
   getPreviewComponent() {
-    return DatabaseAppLayoutPreview
+    return getApplicationComponent(
+      this.app,
+      'database',
+      'DatabaseAppLayoutPreview'
+    )
   }
 
   condition(data) {
@@ -194,11 +202,19 @@ export class DatabaseScratchTrackFieldsOnboardingType extends OnboardingType {
   }
 
   getFormComponent() {
-    return DatabaseScratchTrackFieldsStep
+    return getApplicationComponent(
+      this.app,
+      'database',
+      'DatabaseScratchTrackFieldsStep'
+    )
   }
 
   getPreviewComponent() {
-    return DatabaseAppLayoutPreview
+    return getApplicationComponent(
+      this.app,
+      'database',
+      'DatabaseAppLayoutPreview'
+    )
   }
 
   condition(data) {
@@ -268,11 +284,15 @@ export class DatabaseImportOnboardingType extends OnboardingType {
   }
 
   getFormComponent() {
-    return DatabaseImportStep
+    return getApplicationComponent(this.app, 'database', 'DatabaseImportStep')
   }
 
   getPreviewComponent() {
-    return DatabaseAppLayoutPreview
+    return getApplicationComponent(
+      this.app,
+      'database',
+      'DatabaseAppLayoutPreview'
+    )
   }
 
   condition(data) {

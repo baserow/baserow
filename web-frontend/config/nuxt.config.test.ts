@@ -12,6 +12,7 @@
  * By using a standard ES module import and defu merge, we achieve the same result reliably.
  */
 import { defineNuxtConfig } from 'nuxt/config'
+import { fileURLToPath } from 'node:url'
 import defu from 'defu'
 import baseConfig from './nuxt.config.base.ts'
 
@@ -20,6 +21,14 @@ export default defineNuxtConfig(
     {
       // Test-specific configuration
       modules: ['@nuxt/test-utils/module', '@nuxt/eslint'],
+      plugins: [
+        fileURLToPath(
+          new URL(
+            '../test/helpers/applicationBundlesPlugin.js',
+            import.meta.url
+          )
+        ),
+      ],
     },
     baseConfig
   )

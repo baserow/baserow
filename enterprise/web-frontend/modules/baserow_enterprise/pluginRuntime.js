@@ -1,3 +1,4 @@
+import { LocalBaserowSemanticSearchServiceType } from '@baserow_enterprise/integrations/localBaserow/serviceTypes'
 import { EnterpriseRuntimePlugin } from '@baserow_enterprise/pluginsRuntime'
 import {
   RolePermissionManagerType,
@@ -38,6 +39,7 @@ import {
 export default async function register(nuxtApp) {
   const { $config, $registry, $store, $featureFlagIsEnabled } = nuxtApp
   const context = { app: nuxtApp }
+  $registry.register('service', new LocalBaserowSemanticSearchServiceType(context))
   $registry.register('plugin', new EnterpriseRuntimePlugin(context))
   $registry.register(
     'permissionManager',

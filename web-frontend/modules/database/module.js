@@ -20,13 +20,6 @@ export default defineNuxtModule({
     addPlugin({
       src: resolve('./plugin.js'),
     })
-    addPlugin({
-      src: resolve('./plugin/store.js'),
-    })
-    addPlugin({
-      src: resolve('./plugin/realtime.js'),
-    })
-
     addRouteMiddleware({
       name: 'selectWorkspaceDatabaseTable',
       path: resolve('./middleware/selectWorkspaceDatabaseTable'),

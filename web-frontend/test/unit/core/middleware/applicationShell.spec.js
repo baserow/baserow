@@ -48,6 +48,24 @@ describe('application shell navigation', () => {
     })
   })
 
+  test('loads a fresh authentication entry when navigating from a published runtime to login', () => {
+    state.app.$isApplicationShell = false
+    applicationShell({
+      fullPath: '/login',
+      meta: { applicationShell: false, authenticationPage: true },
+    })
+    expect(state.navigate).toHaveBeenCalledWith('/login', { external: true })
+  })
+
+  test('loads a fresh application shell after sign-in', () => {
+    state.app.$isApplicationShell = false
+    state.app.$isAuthenticationPage = true
+    applicationShell({ fullPath: '/all-workspaces', meta: {} })
+    expect(state.navigate).toHaveBeenCalledWith('/all-workspaces', {
+      external: true,
+    })
+  })
+
   test('keeps navigation within the same runtime in the current document', () => {
     applicationShell({ fullPath: '/all-workspaces', meta: {} })
     expect(state.navigate).not.toHaveBeenCalled()

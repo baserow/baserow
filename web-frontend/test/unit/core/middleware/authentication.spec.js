@@ -8,11 +8,13 @@ import {
   setUserSessionCookie,
 } from '@baserow/modules/core/utils/auth'
 
-const { store } = vi.hoisted(() => ({ store: { current: null } }))
+const { store } = vi.hoisted(() => ({ store: { current: null, flags: {} } }))
 // Nuxt itself also calls useNuxtApp, so only the store is swapped.
 mockNuxtImport('useNuxtApp', (original) => () => {
   const nuxtApp = original()
-  return store.current ? { ...nuxtApp, $store: store.current } : nuxtApp
+  return store.current
+    ? { ...nuxtApp, $store: store.current, ...store.flags }
+    : nuxtApp
 })
 
 vi.mock('@baserow/modules/core/utils/auth', async (importOriginal) => ({
@@ -40,6 +42,23 @@ const buildStore = () => {
 describe('authentication middleware', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    store.flags = {}
+  })
+
+  test('refreshes an existing session in the authentication-only entry', async () => {
+    const { dispatch } = buildStore()
+    store.flags = { $isApplicationShell: false, $isAuthenticationPage: true }
+    getTokenIfEnoughTimeLeft.mockResolvedValue('existing-session')
+    await authenticationMiddleware({ query: {} })
+    expect(dispatch).toHaveBeenCalledWith('auth/refresh', 'existing-session')
+  })
+
+  test('does not initialize an administrator session on a published page', async () => {
+    const { dispatch } = buildStore()
+    store.flags = { $isApplicationShell: false, $isAuthenticationPage: false }
+    await authenticationMiddleware({ query: {} })
+    expect(getTokenIfEnoughTimeLeft).not.toHaveBeenCalled()
+    expect(dispatch).not.toHaveBeenCalled()
   })
 
   test('uses the cookie token when the query token is of the same session', async () => {
