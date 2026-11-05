@@ -422,6 +422,8 @@ describe('AIProviderFormModal', () => {
     await flushPromises()
     await wrapper.findAll('.select-workspace-modal__option')[1].trigger('click')
     await flushPromises()
+    await wrapper.find('.select-workspace-modal__close').trigger('click')
+    await flushPromises()
 
     expect(
       wrapper
@@ -478,6 +480,8 @@ describe('AIProviderFormModal', () => {
     await flushPromises()
     expect(wrapper.find('.ai-provider-form__workspace').text()).toBe('Finance')
 
+    await wrapper.find('.select-workspace-modal__close').trigger('click')
+    await flushPromises()
     await addWorkspace().trigger('click')
     await flushPromises()
     expect(
@@ -496,6 +500,84 @@ describe('AIProviderFormModal', () => {
     expect(wrapper.find('.select-workspace-modal').exists()).toBe(false)
     expect(wrapper.find('.actions button').exists()).toBe(true)
     expect(document.activeElement).toBe(addWorkspace().element)
+  })
+
+  test('keeps the picker open to exclude multiple workspaces before closing and saving', async () => {
+    testApp.mock.onGet('/admin/workspaces/options/').reply(200, {
+      count: 2,
+      results: [
+        { id: 10, value: 'Finance' },
+        { id: 20, value: 'Operations' },
+      ],
+    })
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockResolvedValue({ id: 1 })
+    const wrapper = await testApp.mount(AIProviderFormModal, {
+      props: {
+        provider: { id: 1, provider_type: 'openai', excluded_workspaces: [] },
+        providerTypes: [
+          {
+            type: 'openai',
+            name: 'OpenAI',
+            uses_api_key: true,
+            extra_fields: [],
+          },
+        ],
+      },
+    })
+    await wrapper.vm.show()
+    const addWorkspace = wrapper.find(
+      '[aria-label="aiProviderAdmin.addExcludedWorkspace"]'
+    )
+    await addWorkspace.trigger('click')
+    await flushPromises()
+
+    await wrapper
+      .find('.select-workspace-modal input[type="checkbox"]')
+      .setValue(true)
+    await flushPromises()
+    expect(wrapper.find('.select-workspace-modal').exists()).toBe(true)
+    expect(wrapper.find('.select-workspace-modal').classes()).not.toContain(
+      'visibility-hidden'
+    )
+    expect(wrapper.find('.ai-provider-form__workspace').text()).toBe('Finance')
+    let checkboxes = wrapper.findAll(
+      '.select-workspace-modal input[type="checkbox"]'
+    )
+    expect(checkboxes[0].element.checked).toBe(true)
+    expect(checkboxes[0].element.disabled).toBe(true)
+
+    await wrapper.findAll('.select-workspace-modal__option')[1].trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.select-workspace-modal').classes()).not.toContain(
+      'visibility-hidden'
+    )
+    expect(
+      wrapper
+        .findAll('.ai-provider-form__workspace')
+        .map((workspace) => workspace.text())
+    ).toEqual(['Finance', 'Operations'])
+    checkboxes = wrapper.findAll(
+      '.select-workspace-modal input[type="checkbox"]'
+    )
+    expect(
+      checkboxes.every(
+        (checkbox) => checkbox.element.checked && checkbox.element.disabled
+      )
+    ).toBe(true)
+    await wrapper.find('.select-workspace-modal__id').trigger('click')
+
+    await wrapper.find('.select-workspace-modal__close').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.select-workspace-modal').exists()).toBe(false)
+    expect(document.activeElement).toBe(addWorkspace.element)
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/update', {
+      providerId: 1,
+      values: { extra_settings: {}, excluded_workspace_ids: [10, 20] },
+    })
   })
 
   test('hides exclusions and omits them from unrelated edits when the API did not provide the list', async () => {
