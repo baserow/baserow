@@ -121,6 +121,59 @@
       </template>
     </FormGroup>
 
+    <FormGroup
+      v-if="canEditExclusions"
+      :label="$t('aiProviderAdmin.excludedWorkspaces')"
+      small-label
+      class="margin-bottom-2"
+    >
+      <div class="ai-provider-form__workspaces">
+        <span
+          v-for="workspace in excludedWorkspaces"
+          :key="workspace.id"
+          class="ai-provider-form__workspace"
+        >
+          <span :title="`${workspace.name} (#${workspace.id})`">{{
+            workspace.name
+          }}</span>
+          <button
+            type="button"
+            :aria-label="
+              $t('aiProviderAdmin.removeExcludedWorkspace', {
+                name: workspace.name,
+              })
+            "
+            @click="
+              excludedWorkspaces = excludedWorkspaces.filter(
+                ({ id }) => id !== workspace.id
+              )
+            "
+          >
+            <i class="iconoir-cancel" />
+          </button>
+        </span>
+        <Button
+          ref="addExcludedWorkspace"
+          type="secondary"
+          size="small"
+          icon="iconoir-plus"
+          :aria-label="$t('aiProviderAdmin.addExcludedWorkspace')"
+          :title="$t('aiProviderAdmin.addExcludedWorkspace')"
+          @click="openWorkspaceSelector"
+        />
+      </div>
+      <template #helper>{{
+        $t('aiProviderAdmin.excludedWorkspacesHelp')
+      }}</template>
+      <SelectWorkspaceModal
+        v-if="workspaceSelectorOpen"
+        ref="workspaceSelector"
+        :selected-ids="excludedWorkspaces.map(({ id }) => id)"
+        @selected="excludedWorkspaces.push($event)"
+        @hidden="workspaceSelectorHidden"
+      />
+    </FormGroup>
+
     <div class="actions margin-bottom-0">
       <ul class="action__links">
         <li>
@@ -137,6 +190,7 @@
 <script>
 import AIProviderModelCombobox from '@baserow/modules/core/components/ai/AIProviderModelCombobox'
 import AIProviderModelFeatureSelector from '@baserow/modules/core/components/ai/AIProviderModelFeatureSelector'
+import SelectWorkspaceModal from '@baserow/modules/core/components/admin/workspaces/modals/SelectWorkspaceModal'
 import modal from '@baserow/modules/core/mixins/modal'
 
 const defaultFeatureTypes = (registry) =>
@@ -146,7 +200,11 @@ const defaultFeatureTypes = (registry) =>
 
 export default {
   name: 'AIProviderFormModal',
-  components: { AIProviderModelCombobox, AIProviderModelFeatureSelector },
+  components: {
+    AIProviderModelCombobox,
+    AIProviderModelFeatureSelector,
+    SelectWorkspaceModal,
+  },
   mixins: [modal],
   props: {
     provider: { type: Object, default: null },
@@ -159,6 +217,8 @@ export default {
       this.provider?.provider_type || this.providerTypes[0]?.type
     return {
       loading: false,
+      workspaceSelectorOpen: false,
+      excludedWorkspaces: [...(this.provider?.excluded_workspaces || [])],
       providerTypeError: '',
       apiKeyEditing: false,
       discoveryLoading: false,
@@ -182,6 +242,12 @@ export default {
     }
   },
   computed: {
+    canEditExclusions() {
+      return (
+        this.workspaceId === null &&
+        (!this.provider || Array.isArray(this.provider.excluded_workspaces))
+      )
+    },
     selectedType() {
       return this.providerTypes.find(
         (providerType) => providerType.type === this.values.provider_type
@@ -241,6 +307,15 @@ export default {
     },
   },
   methods: {
+    openWorkspaceSelector() {
+      const anchor = this.$refs.addExcludedWorkspace.$el
+      this.workspaceSelectorOpen = true
+      this.$nextTick(() => this.$refs.workspaceSelector.show(anchor))
+    },
+    workspaceSelectorHidden() {
+      this.workspaceSelectorOpen = false
+      this.$nextTick(() => this.$refs.addExcludedWorkspace.$el.focus())
+    },
     emptyModel() {
       return {
         model_identifier: '',
@@ -318,6 +393,11 @@ export default {
       this.loading = true
       const values = {
         extra_settings: this.getExtraSettings(),
+      }
+      if (this.canEditExclusions) {
+        values.excluded_workspace_ids = this.excludedWorkspaces.map(
+          ({ id }) => id
+        )
       }
       if (this.provider) {
         if (this.apiKeyEditing) values.api_key = this.values.api_key

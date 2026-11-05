@@ -85,6 +85,7 @@ describe('AIProviderFormModal', () => {
       'generativeAIModelType.openaiApiKeyDescription',
       'generativeAIModelType.openaiBaseUrlDescription',
       'generativeAIModelType.openaiModelIdentifierDescription',
+      'aiProviderAdmin.excludedWorkspacesHelp',
     ])
 
     const modelInput = wrapper.find(
@@ -124,6 +125,7 @@ describe('AIProviderFormModal', () => {
 
     expect(dispatch).toHaveBeenCalledWith('aiProvider/create', {
       extra_settings: {},
+      excluded_workspace_ids: [],
       provider_type: 'openai',
       api_key: 'temporary-secret',
       models: [
@@ -250,7 +252,10 @@ describe('AIProviderFormModal', () => {
 
     expect(dispatch).toHaveBeenCalledWith('aiProvider/update', {
       providerId: 1,
-      values: { extra_settings: {}, api_key: 'replacement-secret' },
+      values: {
+        extra_settings: {},
+        api_key: 'replacement-secret',
+      },
     })
   })
 
@@ -379,5 +384,220 @@ describe('AIProviderFormModal', () => {
     expect(wrapper.text()).toContain(
       'generativeAIModelType.bedrockChangeSecret'
     )
+  })
+
+  test('adds and removes excluded workspaces before saving an instance provider', async () => {
+    const provider = {
+      id: 1,
+      provider_type: 'openai',
+      extra_settings: {},
+      excluded_workspaces: [{ id: 10, name: 'Original workspace' }],
+    }
+    testApp.mock.onGet('/admin/workspaces/options/').reply(200, {
+      count: 2,
+      results: [
+        { id: 10, value: 'Original workspace' },
+        { id: 20, value: 'Finance' },
+      ],
+    })
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockResolvedValue(provider)
+    const wrapper = await testApp.mount(AIProviderFormModal, {
+      props: {
+        provider,
+        providerTypes: [
+          { type: 'openai', uses_api_key: true, extra_fields: [] },
+        ],
+      },
+    })
+    await wrapper.vm.show()
+
+    expect(wrapper.find('.ai-provider-form__workspace').text()).toBe(
+      'Original workspace'
+    )
+    await wrapper
+      .find('[aria-label="aiProviderAdmin.addExcludedWorkspace"]')
+      .trigger('click')
+    await flushPromises()
+    await wrapper.findAll('.select-workspace-modal__option')[1].trigger('click')
+    await flushPromises()
+
+    expect(
+      wrapper
+        .findAll('.ai-provider-form__workspace')
+        .map((workspace) => workspace.text())
+    ).toEqual(['Original workspace', 'Finance'])
+    await wrapper.find('.ai-provider-form__workspace button').trigger('click')
+    expect(wrapper.find('.ai-provider-form__workspace').text()).toBe('Finance')
+    expect(provider.excluded_workspaces).toEqual([
+      { id: 10, name: 'Original workspace' },
+    ])
+    expect(dispatch).not.toHaveBeenCalled()
+
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/update', {
+      providerId: 1,
+      values: { extra_settings: {}, excluded_workspace_ids: [20] },
+    })
+  })
+
+  test('loads workspace labels through the options API when adding exclusions to a new provider and reopening the picker', async () => {
+    testApp.mock.onGet('/admin/workspaces/options/').reply(200, {
+      count: 2,
+      results: [
+        { id: 10, value: 'Finance' },
+        { id: 20, value: 'Operations' },
+      ],
+    })
+    const wrapper = await testApp.mount(AIProviderFormModal, {
+      props: {
+        providerTypes: [
+          { type: 'openai', uses_api_key: true, extra_fields: [] },
+        ],
+      },
+    })
+    await wrapper.vm.show()
+    const addWorkspace = () =>
+      wrapper.find('[aria-label="aiProviderAdmin.addExcludedWorkspace"]')
+
+    await addWorkspace().trigger('click')
+    await flushPromises()
+    const initialFetchCount = testApp.mock.history.get.filter(
+      ({ url }) => url === '/admin/workspaces/options/'
+    ).length
+    expect(initialFetchCount).toBeGreaterThan(0)
+    expect(
+      wrapper
+        .findAll('.select-workspace-modal__name')
+        .map((workspace) => workspace.text())
+    ).toEqual(['Finance', 'Operations'])
+
+    await wrapper.find('.select-workspace-modal__option').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.ai-provider-form__workspace').text()).toBe('Finance')
+
+    await addWorkspace().trigger('click')
+    await flushPromises()
+    expect(
+      testApp.mock.history.get.filter(
+        ({ url }) => url === '/admin/workspaces/options/'
+      ).length
+    ).toBeGreaterThan(initialFetchCount)
+    expect(
+      wrapper.find('.select-workspace-modal__option').attributes('disabled')
+    ).toBeDefined()
+
+    await wrapper
+      .find('.select-workspace-modal input')
+      .trigger('keyup', { key: 'Escape' })
+    await flushPromises()
+    expect(wrapper.find('.select-workspace-modal').exists()).toBe(false)
+    expect(wrapper.find('.actions button').exists()).toBe(true)
+    expect(document.activeElement).toBe(addWorkspace().element)
+  })
+
+  test('hides exclusions and omits them from unrelated edits when the API did not provide the list', async () => {
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockResolvedValue({ id: 1 })
+    const wrapper = await testApp.mount(AIProviderFormModal, {
+      props: {
+        provider: { id: 1, provider_type: 'openai', extra_settings: {} },
+        providerTypes: [
+          { type: 'openai', uses_api_key: true, extra_fields: [] },
+        ],
+      },
+    })
+    await wrapper.vm.show()
+    expect(wrapper.find('.ai-provider-form__workspaces').exists()).toBe(false)
+
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/update', {
+      providerId: 1,
+      values: { extra_settings: {} },
+    })
+  })
+
+  test('hides exclusions and omits instance settings for workspace providers', async () => {
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockResolvedValue({ id: 1 })
+    const wrapper = await testApp.mount(AIProviderFormModal, {
+      props: {
+        provider: { id: 1, provider_type: 'openai', extra_settings: {} },
+        providerTypes: [
+          { type: 'openai', uses_api_key: true, extra_fields: [] },
+        ],
+        workspaceId: 42,
+      },
+    })
+    await wrapper.vm.show()
+    expect(wrapper.find('.ai-provider-form__workspaces').exists()).toBe(false)
+
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/update', {
+      providerId: 1,
+      workspaceId: 42,
+      values: { extra_settings: {} },
+    })
+  })
+
+  test('keeps an explicitly empty API exclusion list editable', async () => {
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockResolvedValue({ id: 1 })
+    const wrapper = await testApp.mount(AIProviderFormModal, {
+      props: {
+        provider: { id: 1, provider_type: 'openai', excluded_workspaces: [] },
+        providerTypes: [
+          { type: 'openai', uses_api_key: true, extra_fields: [] },
+        ],
+      },
+    })
+    await wrapper.vm.show()
+    expect(
+      wrapper
+        .find('[aria-label="aiProviderAdmin.addExcludedWorkspace"]')
+        .exists()
+    ).toBe(true)
+
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/update', {
+      providerId: 1,
+      values: { extra_settings: {}, excluded_workspace_ids: [] },
+    })
+  })
+
+  test('saves an empty exclusion list after removing its last workspace', async () => {
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockResolvedValue({ id: 1 })
+    const wrapper = await testApp.mount(AIProviderFormModal, {
+      props: {
+        provider: {
+          id: 1,
+          provider_type: 'openai',
+          excluded_workspaces: [{ id: 10, name: 'Finance' }],
+        },
+        providerTypes: [
+          { type: 'openai', uses_api_key: true, extra_fields: [] },
+        ],
+      },
+    })
+    await wrapper.vm.show()
+    await wrapper.find('.ai-provider-form__workspace button').trigger('click')
+    expect(wrapper.find('.ai-provider-form__workspace').exists()).toBe(false)
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/update', {
+      providerId: 1,
+      values: { extra_settings: {}, excluded_workspace_ids: [] },
+    })
   })
 })
