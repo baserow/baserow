@@ -34,3 +34,10 @@ export const routes = [
     file: '@baserow/modules/database/pages/publicView.vue',
   },
 ]
+
+// Public premium views require the Database feature just like authenticated views.
+for (const route of routes) {
+  if (route.path.startsWith('/public/')) {
+    route.meta = { ...route.meta, applicationBundle: 'database' }
+  }
+}

@@ -1,4 +1,5 @@
-import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+import { getApplicationComponent } from '@baserow/modules/core/utils/applicationBundles'
+
 import { ApplicationType } from '@baserow/modules/core/applicationTypes'
 import { populatePage } from '@baserow/modules/builder/store/page'
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
@@ -7,31 +8,6 @@ import { nextTick } from '#imports'
 import { integrationsErrorMessage } from '@baserow/modules/core/utils/integration'
 
 // Editor controls load together, independently of the published runtime.
-const BuilderForm = lazyComponent(() =>
-  import('@baserow/modules/builder/components/authoringBundle').then(
-    (bundle) => bundle.applicationTypesBuilderForm
-  )
-)
-const SidebarComponentBuilder = lazyComponent(() =>
-  import('@baserow/modules/builder/components/authoringBundle').then(
-    (bundle) => bundle.applicationTypesSidebarComponentBuilder
-  )
-)
-const PageTemplate = lazyComponent(() =>
-  import('@baserow/modules/builder/components/authoringBundle').then(
-    (bundle) => bundle.applicationTypesPageTemplate
-  )
-)
-const PageTemplateSidebar = lazyComponent(() =>
-  import('@baserow/modules/builder/components/authoringBundle').then(
-    (bundle) => bundle.applicationTypesPageTemplateSidebar
-  )
-)
-const BuilderApplicationContext = lazyComponent(() =>
-  import('@baserow/modules/builder/components/authoringBundle').then(
-    (bundle) => bundle.applicationTypesBuilderApplicationContext
-  )
-)
 
 export class BuilderApplicationType extends ApplicationType {
   static getType() {
@@ -76,15 +52,23 @@ export class BuilderApplicationType extends ApplicationType {
   }
 
   getApplicationFormComponent() {
-    return BuilderForm
+    return getApplicationComponent(this.app, 'builder', 'BuilderForm')
   }
 
   getSidebarComponent() {
-    return SidebarComponentBuilder
+    return getApplicationComponent(
+      this.app,
+      'builder',
+      'SidebarComponentBuilder'
+    )
   }
 
   getApplicationContextComponent() {
-    return BuilderApplicationContext
+    return getApplicationComponent(
+      this.app,
+      'builder',
+      'BuilderApplicationContext'
+    )
   }
 
   getErrorMessage(application) {
@@ -92,11 +76,11 @@ export class BuilderApplicationType extends ApplicationType {
   }
 
   getTemplateSidebarComponent() {
-    return PageTemplateSidebar
+    return getApplicationComponent(this.app, 'builder', 'PageTemplateSidebar')
   }
 
   getTemplatesPageComponent() {
-    return PageTemplate
+    return getApplicationComponent(this.app, 'builder', 'PageTemplate')
   }
 
   getTemplatePage(application) {

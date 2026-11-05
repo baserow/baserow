@@ -1,3 +1,5 @@
+import SamlLoginAction from '@baserow_enterprise/components/admin/login/SamlLoginAction'
+import LoginButton from '@baserow_enterprise/components/admin/login/LoginButton'
 import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 import { AuthProviderType } from '@baserow/modules/core/authProviderTypes'
 
@@ -10,12 +12,7 @@ import GitLabIcon from '@baserow_enterprise/assets/images/providers/GitLab.svg?u
 import OpenIdIcon from '@baserow_enterprise/assets/images/providers/OpenID.svg?url'
 import VerifiedProviderIcon from '@baserow_enterprise/assets/images/providers/VerifiedProviderIcon.svg?url'
 
-// Editor controls load together, independently of the published runtime.
-const SamlLoginAction = lazyComponent(() =>
-  import('@baserow_enterprise/components/authoringBundle').then(
-    (bundle) => bundle.authProviderTypesSamlLoginAction
-  )
-)
+// Only admin controls use the authoring bundle; sign-in buttons stay lightweight.
 const AuthProviderItem = lazyComponent(() =>
   import('@baserow_enterprise/components/authoringBundle').then(
     (bundle) => bundle.authProviderTypesAuthProviderItem
@@ -39,11 +36,6 @@ const GitLabSettingsForm = lazyComponent(() =>
 const OpenIdConnectSettingsForm = lazyComponent(() =>
   import('@baserow_enterprise/components/authoringBundle').then(
     (bundle) => bundle.authProviderTypesOpenIdConnectSettingsForm
-  )
-)
-const LoginButton = lazyComponent(() =>
-  import('@baserow_enterprise/components/authoringBundle').then(
-    (bundle) => bundle.authProviderTypesLoginButton
   )
 )
 

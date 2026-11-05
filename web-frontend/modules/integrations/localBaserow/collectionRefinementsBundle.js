@@ -1,27 +1,11 @@
 import { defineComponent, h } from 'vue'
 import { useNuxtApp } from '#app'
 import LocalBaserowAdhocHeader from '@baserow/modules/integrations/localBaserow/components/integrations/LocalBaserowAdhocHeader.vue'
-import registerDatabase from '@baserow/modules/database/pluginApplication'
-import registerDatabaseStore from '@baserow/modules/database/plugin/storeApplication'
+import { loadApplicationBundle } from '@baserow/modules/core/utils/applicationBundles'
 
-const registrations = new WeakMap()
-
-/**
- * Public filtering controls reuse Database registries and stores. Load them only
- * when a collection enables refinements, and initialize once per Nuxt app so
- * concurrent collections and SSR requests keep their own registration state.
- */
+/** Public refinement controls explicitly request the shared Database feature. */
 export async function loadCollectionRefinements(app) {
-  if (!registrations.has(app) && !app.$store.hasModule('field')) {
-    registrations.set(
-      app,
-      (async () => {
-        await registerDatabaseStore(app)
-        await registerDatabase(app)
-      })()
-    )
-  }
-  if (registrations.has(app)) await registrations.get(app)
+  await loadApplicationBundle(app, 'database')
   return LocalBaserowAdhocHeader
 }
 

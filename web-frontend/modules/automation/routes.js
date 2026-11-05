@@ -11,3 +11,8 @@ export const routes = [
     }),
   },
 ]
+
+// Each route initializes its application before selecting data or rendering UI.
+for (const route of routes) {
+  route.meta = { ...route.meta, applicationBundle: 'automation' }
+}

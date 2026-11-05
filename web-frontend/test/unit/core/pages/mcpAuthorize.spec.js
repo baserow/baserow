@@ -98,7 +98,16 @@ describe('MCP authorize page', () => {
   // Nuxt's prefetch scheduler resolves each navigation against `location.href`.
   function stubLocation() {
     const assign = vi.fn()
-    vi.stubGlobal('location', { href: window.location.href, assign })
+    let href = window.location.href
+    vi.stubGlobal('location', {
+      get href() {
+        return href
+      },
+      set href(value) {
+        href = new URL(value, href).href
+      },
+      assign,
+    })
     return assign
   }
 
@@ -557,14 +566,21 @@ describe('MCP authorize page', () => {
         fullPath: '/mcp-authorize?error=unknown_client',
       })
     ).toBeUndefined()
-    // Awaited, so the login navigation and its settings middleware finish while
-    // the request mock is still in place.
+    // Sign-in has a separate startup entry, so this leaves the current document.
+    stubLocation()
     await authenticatedUnlessError({
       query: {},
       params: { request },
       fullPath: route,
     })
-    expect(useRouter().currentRoute.value.name).toBe('login')
+    expect(new URL(location.href, window.location.origin).pathname).toBe(
+      '/login'
+    )
+    expect(
+      new URL(location.href, window.location.origin).searchParams.get(
+        'original'
+      )
+    ).toBe(encodeURI(route))
   })
 
   test('still reads a request sent as a query parameter', async () => {

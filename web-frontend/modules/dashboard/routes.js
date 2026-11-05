@@ -18,3 +18,8 @@ export const routes = [
     meta: { layout: 'login' },
   },
 ]
+
+// Each route initializes its application before selecting data or rendering UI.
+for (const route of routes) {
+  route.meta = { ...route.meta, applicationBundle: 'dashboard' }
+}

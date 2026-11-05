@@ -2,8 +2,6 @@ import {
   GeneralAutomationSettingsType,
   IntegrationsAutomationSettingsType,
 } from '@baserow/modules/automation/automationSettingTypes'
-import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
-import { AutomationWorkflowLastViewedItemType } from '@baserow/modules/automation/lastViewedItemTypes'
 import automationApplicationStore from '@baserow/modules/automation/store/automationApplication'
 import automationWorkflowStore from '@baserow/modules/automation/store/automationWorkflow'
 import automationWorkflowNodeStore from '@baserow/modules/automation/store/automationWorkflowNode'
@@ -41,17 +39,11 @@ import {
   ForLoopNodeRecipeType,
   WhileLoopNodeRecipeType,
 } from '@baserow/modules/automation/nodeRecipeTypes'
-import {
-  DuplicateAutomationWorkflowJobType,
-  PublishAutomationWorkflowJobType,
-} from '@baserow/modules/automation/jobTypes'
 import { WorkflowDisabledNotificationType } from '@baserow/modules/automation/notificationTypes.jsx'
 import {
   HistoryEditorSidePanelType,
   NodeEditorSidePanelType,
 } from '@baserow/modules/automation/editorSidePanelTypes'
-import { AutomationSearchType } from '@baserow/modules/automation/searchTypes'
-import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 import { AutomationGuidedTourType } from '@baserow/modules/automation/guidedTourTypes'
 import {
   PreviousNodeDataProviderType,
@@ -59,7 +51,7 @@ import {
   CurrentNodeDataProviderType,
 } from '@baserow/modules/automation/dataProviderTypes'
 
-/** Register this entry before rendering or hydrating its routes. */
+/** Register this feature only when its application is used. */
 export default async function register(nuxtApp) {
   const { $registry, $store } = nuxtApp
   const context = { app: nuxtApp }
@@ -81,11 +73,6 @@ export default async function register(nuxtApp) {
   $registry.registerNamespace('node')
   $registry.registerNamespace('automationNodeRecipe')
   $registry.registerNamespace('editorSidePanel')
-  $registry.register('application', new AutomationApplicationType(context))
-  $registry.register(
-    'lastViewedItem',
-    new AutomationWorkflowLastViewedItemType(context)
-  )
   $registry.register(
     'automationDataProvider',
     new PreviousNodeDataProviderType(context)
@@ -145,8 +132,6 @@ export default async function register(nuxtApp) {
     'automationNodeRecipe',
     new WhileLoopNodeRecipeType(context)
   )
-  $registry.register('job', new DuplicateAutomationWorkflowJobType(context))
-  $registry.register('job', new PublishAutomationWorkflowJobType(context))
   $registry.register(
     'notification',
     new WorkflowDisabledNotificationType(context)
@@ -162,6 +147,5 @@ export default async function register(nuxtApp) {
   )
   $registry.register('editorSidePanel', new NodeEditorSidePanelType(context))
   $registry.register('editorSidePanel', new HistoryEditorSidePanelType(context))
-  searchTypeRegistry.register(new AutomationSearchType(context))
   $registry.register('guidedTour', new AutomationGuidedTourType(context))
 }

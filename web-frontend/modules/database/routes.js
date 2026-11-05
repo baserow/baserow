@@ -87,3 +87,8 @@ export const rootChildRoutes = [
     file: path.resolve(__dirname, 'pages/admin/views.vue'),
   },
 ]
+
+// Each route initializes its application before selecting data or rendering UI.
+for (const route of [...routes, ...rootChildRoutes]) {
+  route.meta = { ...route.meta, applicationBundle: 'database' }
+}
