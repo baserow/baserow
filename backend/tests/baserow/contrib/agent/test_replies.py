@@ -22,7 +22,6 @@ from baserow.contrib.agent.actions import (
     CreateAgentConversationActionType,
     CreateAgentMessageActionType,
 )
-from baserow.contrib.agent.api.serializers import AgentMessageStepSerializer
 from baserow.contrib.agent.chat_run_type import AgentChatRunType
 from baserow.contrib.agent.constants import INTERRUPTED_REPLY_NOTE, TOOL_RETRIES
 from baserow.contrib.agent.handler import AgentHandler
@@ -89,18 +88,6 @@ def allow_create_rows(
     return table
 
 
-def test_legacy_failed_steps_serialize_without_an_error_code():
-    step = {
-        "id": "legacy-call",
-        "tool": "list_table_rows",
-        "status": "failed",
-        "changes_data": False,
-        "facts": {},
-    }
-
-    assert AgentMessageStepSerializer(step).data == step
-
-
 @pytest.fixture
 def reply_run(data_fixture, configured_agent):
     user = data_fixture.create_user()
@@ -125,7 +112,6 @@ def test_failed_input_summary_keeps_the_call_without_logging_payloads(
     description = responder._describe_call("create_rows", arguments)
 
     assert description == {
-        "presentation_type": "create_rows",
         "changes_data": True,
         "input": {},
     }
@@ -446,7 +432,6 @@ def test_lost_and_unstarted_runs_end_their_reply(reply_run, mocker):
             "data": {
                 "id": "call_1",
                 "tool": "create_rows",
-                "presentation_type": "create_rows",
                 "status": "running",
                 "changes_data": True,
                 "input": {"requested_count": 3},
@@ -696,7 +681,6 @@ def test_a_reply_calls_the_allowed_tools_as_the_agent_identity(
             {
                 "id": ANY,
                 "tool": "create_rows",
-                "presentation_type": "create_rows",
                 "status": "done",
                 "changes_data": True,
                 "input": {"requested_count": 1},

@@ -71,7 +71,7 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   align-items: flex-start;
   align-self: flex-start;
   gap: 8px;
-  max-width: 90%;
+  max-width: 85%;
 }
 
 .chat-message--own {
@@ -482,7 +482,6 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   td {
     padding: 4px 8px;
     border: 1px solid $palette-neutral-200;
-    overflow-wrap: break-word;
     text-align: left;
   }
 }

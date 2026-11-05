@@ -138,7 +138,6 @@ def test_tool_presentation_contract_uses_valid_arguments_and_safe_summaries(name
         case["arguments"]
     )
 
-    assert tool_type.presentation_type == case["presentation_type"]
     assert tool_type.get_step_input(case["arguments"]) == case["input"]
     assert tool_type.get_step_input({}) == {}
     assert (

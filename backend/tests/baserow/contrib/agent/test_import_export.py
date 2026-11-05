@@ -83,7 +83,6 @@ def test_duplicate_copies_conversations_with_new_identifiers(
                 {
                     "id": "call_1",
                     "tool": "create_rows",
-                    "presentation_type": "create_rows",
                     "status": "done",
                     "changes_data": True,
                     "input": {"requested_count": 1},
@@ -390,14 +389,12 @@ def test_a_copy_never_carries_a_reply_in_progress(data_fixture, configured_agent
         agent=agent,
         role=AgentMessage.Role.ASSISTANT,
         status=ChatRunStatus.RUNNING,
-        steps=[{"id": "call_1", "status": "running"}],
     )
 
     copied = CoreHandler().duplicate_application(owner, agent).specific
 
     reply = AgentMessage.objects.get(conversation__agent=copied)
     assert (reply.status, reply.error_code) == ("failed", "interrupted")
-    assert reply.steps == [{"id": "call_1", "status": "stopped"}]
 
 
 @pytest.mark.django_db

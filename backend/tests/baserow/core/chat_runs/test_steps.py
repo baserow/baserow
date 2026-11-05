@@ -26,7 +26,6 @@ def result(call_id, content=None, facts=None, **kwargs):
 
 def describe(name, arguments):
     return {
-        "presentation_type": name,
         "changes_data": name == "create_rows",
         "input": {"requested_count": len(arguments["rows"])}
         if "rows" in arguments
@@ -131,7 +130,7 @@ def test_unknown_tools_and_presentation_errors_do_not_fail_the_run(logs):
     )
     steps.on_event(result("one", facts={"PRIVATE_FACTS_CANARY": object()}))
     step = steps.finish()[0]
-    assert step["tool"] == step["presentation_type"] == "PRIVATE_TOOL_CANARY"
+    assert step["tool"] == "PRIVATE_TOOL_CANARY"
     assert step["status"] == "done"
     assert step["input"] == step["facts"] == {}
     assert not step["changes_data"]

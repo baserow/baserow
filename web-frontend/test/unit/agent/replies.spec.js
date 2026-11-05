@@ -44,7 +44,6 @@ const spinning = (wrapper) => wrapper.find('.chat-loading__spinner').exists()
 const toolStep = (id, tool, status, extra = {}) => ({
   id,
   tool,
-  presentation_type: tool,
   status,
   changes_data: tool === 'create_rows',
   input: {},

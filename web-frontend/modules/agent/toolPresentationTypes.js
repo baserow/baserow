@@ -12,10 +12,6 @@ class DatabaseToolPresentationType extends ToolPresentationType {
     return this.definition.type
   }
 
-  get icon() {
-    return 'iconoir-db'
-  }
-
   get group() {
     return this.constructor.definition.read ? WORKSPACE_TOOL_GROUP : null
   }

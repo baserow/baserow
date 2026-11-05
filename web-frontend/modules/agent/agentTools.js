@@ -23,9 +23,8 @@ export function groupAgentTools(availableTools, registry, t) {
         tools: [],
       })
     }
-    const type = tool.presentation_type ?? tool.name
-    const presenter = registry.exists('toolPresentation', type)
-      ? registry.get('toolPresentation', type)
+    const presenter = registry.exists('toolPresentation', tool.name)
+      ? registry.get('toolPresentation', tool.name)
       : null
     groups.get(tool.group).tools.push({
       name: tool.name,

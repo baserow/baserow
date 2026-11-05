@@ -97,7 +97,6 @@ const props = defineProps({
   title: { type: String, required: true },
   status: { type: String, required: true },
   changesData: { type: Boolean, default: false },
-  icon: { type: String, default: 'iconoir-tools' },
   lines: { type: Array, default: () => [] },
   failureHint: { type: String, default: '' },
 })

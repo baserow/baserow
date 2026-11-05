@@ -32,8 +32,7 @@ describe('ChatStepGroup', () => {
       [
         {
           id: 'email-1',
-          tool: 'action_37',
-          presentation_type: 'send_email',
+          tool: 'send_email',
           status: 'done',
           changes_data: true,
           facts: { delivery: 'sent' },

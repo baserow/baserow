@@ -30,15 +30,10 @@ const FAILURE_LABELS = new Map([
 ])
 
 /**
- * Presentation shared by workspace tools and configured actions. The stable type
- * selects only presentation, never the tool to execute or its permissions.
- * Modules register their own types in Core's `toolPresentation` namespace.
+ * How a tool's calls look in chat, registered under the tool's name in Core's
+ * `toolPresentation` namespace. It never selects what runs or what is allowed.
  */
 export class ToolPresentationType extends Registerable {
-  get icon() {
-    return 'iconoir-tools'
-  }
-
   /** Only workspace reads opt into the collapsible workspace activity group. */
   get group() {
     return null
@@ -103,14 +98,12 @@ export function toolActivity(step, registry, t) {
     ),
     status,
     changesData: data.changes_data === true,
-    icon: 'iconoir-tools',
     group: null,
     failureHint: failureHint(data, status, t),
   }
   try {
-    const type = data.presentation_type || data.tool
-    if (!registry.exists('toolPresentation', type)) return fallback
-    const presenter = registry.get('toolPresentation', type)
+    if (!registry.exists('toolPresentation', data.tool)) return fallback
+    const presenter = registry.get('toolPresentation', data.tool)
     const translate = (key, values, count) => {
       const text = t(key, values, count)
       const exists = presenter.app?.$i18n?.te?.(key)
@@ -134,7 +127,6 @@ export function toolActivity(step, registry, t) {
     return {
       ...fallback,
       title,
-      icon: presenter.icon,
       group: !data.changes_data ? presenter.group : null,
     }
   } catch {
@@ -157,14 +149,12 @@ export function groupToolSteps(steps, registry, t) {
         id: activity.id,
         title: '',
         status: activity.status,
-        icon: 'iconoir-db',
         lines: [],
       }
       groups.push(group)
     }
     group.lines.push(activity)
-    // Keep pending parallel calls visible; once settled, summarize the last
-    // call in display order. Earlier outcomes remain on their individual lines.
+    // Earlier outcomes stay visible on their own lines.
     group.status = group.lines.some(
       (line) => line.status === STEP_STATUS.RUNNING
     )

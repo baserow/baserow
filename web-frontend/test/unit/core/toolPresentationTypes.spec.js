@@ -28,10 +28,6 @@ class EmailPresentation extends ToolPresentationType {
     return 'send_email'
   }
 
-  get icon() {
-    return 'iconoir-mail'
-  }
-
   getActivity({ status }, translate) {
     return translate(`testTool.${status}`)
   }
@@ -48,12 +44,11 @@ function registryWith(Presenter) {
 }
 
 describe('shared tool presentations', () => {
-  test('an action uses its stable presentation type independently of its tool name', () => {
+  test('a registered presenter describes its tool calls', () => {
     const registry = registryWith(EmailPresentation)
     const step = {
       id: 'email-1',
-      tool: 'action_37',
-      presentation_type: 'send_email',
+      tool: 'send_email',
       status: 'running',
       changes_data: false,
     }
@@ -63,7 +58,6 @@ describe('shared tool presentations', () => {
       title: 'Sending an email',
       status: 'running',
       changesData: false,
-      icon: 'iconoir-mail',
       group: null,
       failureHint: '',
     })

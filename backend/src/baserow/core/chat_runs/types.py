@@ -12,7 +12,6 @@ class ChatRunStep(TypedDict):
 
     id: str
     tool: str
-    presentation_type: str
     status: ChatRunStepStatus
     error_code: NotRequired[ToolErrorCode]
     changes_data: bool

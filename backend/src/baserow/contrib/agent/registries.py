@@ -1,6 +1,5 @@
 import asyncio
 import inspect
-import json
 from dataclasses import replace
 from typing import Any, Callable, get_type_hints
 
@@ -20,15 +19,16 @@ from baserow.core.tools.errors import INTERNAL_ERROR_MESSAGE, classify_tool_erro
 @with_usable_db_connection
 def _call_tool(
     tool_type: "AgentToolType", ctx: ToolContext, arguments: dict[str, Any]
-) -> Any:
+) -> ToolReturn | dict[str, Any]:
     """
     Run a shared tool, answering an error the model can explain instead of failing
     the reply.
 
-    :param tool_type: The shared tool and its presentation.
+    :param tool_type: The shared tool and how its calls are described.
     :param ctx: Who the tool acts for.
     :param arguments: The validated arguments.
-    :return: What the tool returned, or an ``error`` message.
+    :return: The result with the call's facts as metadata, the ``error`` the tool
+        returned, or an ``error`` for an exception with its code as metadata.
     """
 
     function = type(tool_type).function
@@ -50,9 +50,6 @@ def _call_tool(
                 return result
             try:
                 facts = tool_type.get_step_facts(ctx, arguments, result)
-                if not isinstance(facts, dict):
-                    raise TypeError("Step facts must be a dictionary")
-                facts = json.loads(json.dumps(facts, allow_nan=False))
             except Exception as exc:
                 logger.error(
                     "Agent tool {} step facts failed ({})",
@@ -75,15 +72,15 @@ def _call_tool(
 
 async def _run_tool(
     tool_type: "AgentToolType", ctx: ToolContext, arguments: dict[str, Any]
-) -> Any:
+) -> ToolReturn | dict[str, Any]:
     """
     Run a shared tool without blocking the reply's event loop. A stop waits for the
     running tool, so a reply never ends while its tool still changes data.
 
-    :param tool_type: The shared tool and its presentation.
+    :param tool_type: The shared tool and how its calls are described.
     :param ctx: Who the tool acts for.
     :param arguments: The validated arguments.
-    :return: What the tool returned, or an ``error`` message.
+    :return: What ``_call_tool`` returns.
     """
 
     # On the worker's own thread, so tools share its connection and never leak one.
@@ -115,12 +112,6 @@ class AgentToolType(Instance):
     changes_data: bool = False
     """True when the tool creates, changes or deletes data. It then runs alone, and
     new Agents start without it."""
-
-    @property
-    def presentation_type(self) -> str:
-        """The stable frontend presentation key, independent of execution identity."""
-
-        return self.type
 
     def get_step_input(self, arguments: dict[str, Any]) -> dict[str, Any]:
         """

@@ -1,6 +1,14 @@
 <template>
   <ChatMessage :own="own" :class="{ 'chat-message--steps': groups.length }">
-    <ChatStepGroup v-for="group in groups" :key="group.id" v-bind="group" />
+    <ChatStepGroup
+      v-for="group in groups"
+      :key="group.id"
+      :title="group.title"
+      :status="group.status"
+      :changes-data="group.changesData"
+      :failure-hint="group.failureHint"
+      :lines="group.lines"
+    />
     <div v-if="own" class="chat-message__bubble">{{ message.content }}</div>
     <div
       v-else-if="shown.content || (shown.replying && !toolRunning)"

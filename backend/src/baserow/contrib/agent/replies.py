@@ -133,7 +133,7 @@ class AgentResponder:
 
         :param name: The called tool's name.
         :param arguments: Its arguments.
-        :return: The presentation identity, mutation flag and input summary, or None
+        :return: Whether the tool changes data and its input summary, or None
             for a tool the reply doesn't offer, which the model can still name.
         """
 
@@ -147,11 +147,7 @@ class AgentResponder:
                 "Agent tool {} step input failed ({})", tool.type, type(exc).__name__
             )
             summary = {}
-        return {
-            "presentation_type": tool.presentation_type,
-            "changes_data": tool.changes_data,
-            "input": summary,
-        }
+        return {"changes_data": tool.changes_data, "input": summary}
 
     async def answer(self) -> ChatRunOutcome:
         """

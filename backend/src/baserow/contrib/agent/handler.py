@@ -11,7 +11,6 @@ from baserow.core.ai_provider.resolution import ScopedAIProviderState
 from baserow.core.chat_runs.constants import ChatRunErrorCode
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ACTIVE_CHAT_RUN_STATUSES, ChatRunStatus
-from baserow.core.chat_runs.steps import stop_running_steps
 from baserow.core.exceptions import SubjectTypeNotExist
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
@@ -631,9 +630,11 @@ class AgentHandler:
         conversation = reply.conversation
         agent = conversation.agent
         # The prompt is the message right before its reply.
-        prompt, *history = conversation.messages.filter(id__lt=reply.id).order_by(
-            "-id"
-        )[: HISTORY_MESSAGE_LIMIT + 1]
+        prompt, *history = (
+            conversation.messages.filter(id__lt=reply.id)
+            .defer("steps")
+            .order_by("-id")[: HISTORY_MESSAGE_LIMIT + 1]
+        )
         run_as = self.resolve_run_as_subject(
             agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
         )
@@ -833,8 +834,7 @@ class AgentHandler:
                         content=serialized_message["content"],
                         status=status,
                         error_code=error_code,
-                        steps=stop_running_steps(serialized_message.get("steps") or [])
-                        or None,
+                        steps=serialized_message.get("steps"),
                     )
                 )
                 message_data.append(serialized_message)

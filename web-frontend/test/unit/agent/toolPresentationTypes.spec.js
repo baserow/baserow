@@ -58,21 +58,18 @@ describe('Agent tool presentations', () => {
         .getList('toolPresentation')
         .map((presenter) => presenter.getType())
         .sort()
-    ).toEqual(
-      cases.tools.map(({ presentation_type }) => presentation_type).sort()
-    )
-    for (const { name, presentation_type: type, input, facts } of cases.tools) {
-      const presenter = registry.get('toolPresentation', type)
+    ).toEqual(cases.tools.map(({ name }) => name).sort())
+    for (const { name, input, facts } of cases.tools) {
+      const presenter = registry.get('toolPresentation', name)
       expect(presenter.getLabel(t)).not.toMatch(/^agent\./)
       expect(presenter.getDescription(t)).not.toMatch(/^agent\./)
       for (const status of ['running', 'done', 'failed', 'stopped']) {
         const activity = toolActivity(
-          step(name, status, { presentation_type: type, input, facts }),
+          step(name, status, { input, facts }),
           registry,
           t
         )
         expect(activity.title).not.toMatch(/^(agent|toolPresentation)\./)
-        expect(activity.icon).toBe('iconoir-db')
       }
     }
   })
@@ -181,15 +178,10 @@ describe('Agent tool presentations', () => {
     ])
   })
 
-  test('permission settings use the same presenters and stable presentation key', () => {
+  test('permission settings use the same presenters as tool activity', () => {
     const groups = groupAgentTools(
       [
-        {
-          name: 'configured_rows_action',
-          presentation_type: 'create_rows',
-          group: 'database',
-          changes_data: true,
-        },
+        { name: 'create_rows', group: 'database', changes_data: true },
         { name: 'new_tool', group: 'custom', changes_data: false },
       ],
       registry,
@@ -201,7 +193,7 @@ describe('Agent tool presentations', () => {
         label: 'Databases',
         tools: [
           {
-            name: 'configured_rows_action',
+            name: 'create_rows',
             label: 'Create rows',
             description: 'Add new rows to a table',
             changesData: true,

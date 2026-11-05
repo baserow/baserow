@@ -74,7 +74,6 @@ class AgentRunAsSubjectsQueryParamsSerializer(serializers.Serializer):
 
 class AgentToolSerializer(serializers.Serializer):
     name = serializers.CharField()
-    presentation_type = serializers.CharField()
     group = serializers.CharField()
     changes_data = serializers.BooleanField()
 
@@ -117,7 +116,6 @@ class AgentConfigurationSerializer(serializers.Serializer):
         return [
             {
                 "name": tool_type.type,
-                "presentation_type": tool_type.presentation_type,
                 "group": tool_type.group,
                 "changes_data": tool_type.changes_data,
             }
@@ -240,13 +238,10 @@ class AgentConversationSerializer(serializers.ModelSerializer):
 class AgentMessageStepSerializer(serializers.Serializer):
     id = serializers.CharField()
     tool = serializers.CharField()
-    presentation_type = serializers.CharField(required=False)
     status = serializers.ChoiceField(choices=list(ChatRunStepStatus))
-    error_code = serializers.ChoiceField(
-        choices=list(ToolErrorCode), required=False
-    )
+    error_code = serializers.ChoiceField(choices=list(ToolErrorCode), required=False)
     changes_data = serializers.BooleanField()
-    input = serializers.DictField(required=False)
+    input = serializers.DictField()
     facts = serializers.DictField()
 
 

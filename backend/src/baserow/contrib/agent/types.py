@@ -74,5 +74,8 @@ class AgentReplyRequest:
 
 @dataclass(frozen=True)
 class AgentReplyResult:
+    """What a reply produced, complete or partial."""
+
     text: str
     steps: list[ChatRunStep] | None = None
+    """Its tool calls in call order, or None when it made none."""

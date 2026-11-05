@@ -118,13 +118,9 @@ class ChatRunSteps:
                 logger.error("Could not describe tool call ({})", type(exc).__name__)
             if description is None:
                 return
-            presentation_type = description.get("presentation_type")
             step: ChatRunStep = {
                 "id": str(uuid4()),
                 "tool": name,
-                "presentation_type": presentation_type
-                if isinstance(presentation_type, str) and presentation_type
-                else name,
                 "status": ChatRunStepStatus.FAILED
                 if invalid
                 else ChatRunStepStatus.RUNNING,
