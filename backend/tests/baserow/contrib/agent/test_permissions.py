@@ -9,6 +9,7 @@ from baserow.contrib.agent.operations import (
     UpdateAgentConversationOperationType,
 )
 from baserow.contrib.agent.service import AgentService
+from baserow.core.action.registries import action_type_registry
 from baserow.core.actions import ExportApplicationsActionType
 from baserow.core.handler import CoreHandler
 from baserow.core.operations import UpdateApplicationOperationType
@@ -37,9 +38,9 @@ def call(name, user, agent, conversation, message):
         "delete conversation": lambda: service.delete_conversation(
             user, agent.id, conversation.uuid
         ),
-        "export": lambda: ExportApplicationsActionType.do(
-            user, agent.workspace, [agent]
-        ),
+        "export": lambda: action_type_registry.get_by_type(
+            ExportApplicationsActionType
+        ).do(user, agent.workspace, [agent]),
     }
     return calls[name]()
 

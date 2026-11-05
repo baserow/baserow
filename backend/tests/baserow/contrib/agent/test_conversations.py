@@ -137,7 +137,9 @@ def test_failed_first_message_leaves_no_conversation_or_action(
     mocker.patch.object(ChatRunHandler, "start_run", side_effect=RuntimeError)
 
     with pytest.raises(RuntimeError):
-        CreateAgentConversationActionType.do(user, agent.id, uuid4(), uuid4(), "Hi")
+        action_type_registry.get_by_type(CreateAgentConversationActionType).do(
+            user, agent.id, uuid4(), uuid4(), "Hi"
+        )
 
     assert not AgentConversation.objects.exists()
     registered.assert_not_called()
@@ -398,7 +400,7 @@ def test_concurrent_creation_with_one_uuid_in_two_agents_creates_one_conversatio
         close_old_connections()
         try:
             actor = get_user_model().objects.get(id=user.id)
-            CreateAgentConversationActionType.do(
+            action_type_registry.get_by_type(CreateAgentConversationActionType).do(
                 actor, agent_id, uuid, message_uuid, "Hello"
             )
             return "created"

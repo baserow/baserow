@@ -77,7 +77,9 @@ def test_configuration_update_and_application_rename_are_serialized(data_fixture
                 )
                 rename_locked.set()
                 assert release_rename.wait(10), "The rename was never released"
-                UpdateApplicationActionType.do(user, application, name="Renamed agent")
+                action_type_registry.get_by_type(UpdateApplicationActionType).do(
+                    user, application, name="Renamed agent"
+                )
         finally:
             connections.close_all()
 

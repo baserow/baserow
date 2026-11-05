@@ -41,6 +41,7 @@ from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.signals import agent_conversation_activity
 from baserow.contrib.agent.types import AgentMessageCreated
 from baserow.contrib.database.table.models import Table
+from baserow.core.action.registries import action_type_registry
 from baserow.core.agents.service import AgentService as IdentityService
 from baserow.core.chat_runs.journal import ChatRunJournal
 from baserow.core.chat_runs.models import ChatRun
@@ -54,7 +55,9 @@ from .utils import agent_url, new_conversation, run_reply
 
 
 def start(user: AbstractUser, agent: AgentApplication) -> AgentMessageCreated:
-    return CreateAgentConversationActionType.do(user, agent.id, uuid4(), uuid4(), "Hi")
+    return action_type_registry.get_by_type(CreateAgentConversationActionType).do(
+        user, agent.id, uuid4(), uuid4(), "Hi"
+    )
 
 
 def run_of(conversation: AgentConversation) -> ChatRun:
@@ -232,7 +235,9 @@ def test_the_model_gets_the_instructions_and_recent_history(
         "baserow.contrib.agent.chat_run_type.create_reply_model",
         return_value=(FunctionModel(stream_function=stream), {}),
     )
-    CreateAgentMessageActionType.do(user, agent.id, conversation.uuid, uuid4(), "Now?")
+    action_type_registry.get_by_type(CreateAgentMessageActionType).do(
+        user, agent.id, conversation.uuid, uuid4(), "Now?"
+    )
 
     run_reply(run_of(conversation))
 
@@ -344,7 +349,7 @@ def test_workspace_identity_context_is_refreshed_for_each_reply(
     created = start(user, agent)
     run_reply(run_of(created.conversation))
     TrashHandler.restore_item(user, "agent", identity.id)
-    next_reply = CreateAgentMessageActionType.do(
+    next_reply = action_type_registry.get_by_type(CreateAgentMessageActionType).do(
         user, agent.id, created.conversation.uuid, uuid4(), "Try again"
     )
 
@@ -889,7 +894,7 @@ def test_workspace_configuration_changes_apply_to_the_next_generation(
     assert original_identity.last_active is not None
     assert replacement.last_active is None
 
-    next_reply = CreateAgentMessageActionType.do(
+    next_reply = action_type_registry.get_by_type(CreateAgentMessageActionType).do(
         user, agent.id, created.conversation.uuid, uuid4(), "Try again"
     )
     request = AgentHandler().get_reply_request(
