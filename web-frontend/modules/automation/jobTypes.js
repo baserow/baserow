@@ -1,3 +1,4 @@
+import { loadApplicationBundle } from '@baserow/modules/core/utils/applicationBundles'
 import SidebarItemPendingJob from '@baserow/modules/core/components/sidebar/SidebarItemPendingJob'
 import { JobType } from '@baserow/modules/core/jobTypes'
 
@@ -39,6 +40,7 @@ export class DuplicateAutomationWorkflowJobType extends JobType {
   }
 
   async onJobDone(job) {
+    await loadApplicationBundle(this.app, 'automation')
     const { $i18n: i18n, $store: store } = this.app
 
     const duplicatedWorkflow = job.duplicated_automation_workflow

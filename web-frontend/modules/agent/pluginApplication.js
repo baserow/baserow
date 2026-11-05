@@ -1,16 +1,13 @@
-import { AgentApplicationType } from '@baserow/modules/agent/applicationTypes'
 import { AgentChatRunType } from '@baserow/modules/agent/chatRunTypes'
-import { AgentLastViewedItemType } from '@baserow/modules/agent/lastViewedItemTypes'
-import { AgentApplicationSearchType } from '@baserow/modules/agent/searchTypes'
-import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 import {
   InstructionsAgentConfigurationSectionType,
   SettingsAgentConfigurationSectionType,
   WorkspaceAccessAgentConfigurationSectionType,
 } from '@baserow/modules/agent/configurationSectionTypes'
 
-/** Register this entry before rendering or hydrating its routes. */
+/** Register this feature only when its application is used. */
 export default async function register(nuxtApp) {
+  const { $registry } = nuxtApp
   const context = { app: nuxtApp }
   nuxtApp.$registry.registerNamespace('agentConfigurationSection')
   nuxtApp.$registry.register(
@@ -25,11 +22,5 @@ export default async function register(nuxtApp) {
     'agentConfigurationSection',
     new SettingsAgentConfigurationSectionType(context)
   )
-  nuxtApp.$registry.register('application', new AgentApplicationType(context))
   nuxtApp.$registry.register('chatRunType', new AgentChatRunType(context))
-  nuxtApp.$registry.register(
-    'lastViewedItem',
-    new AgentLastViewedItemType(context)
-  )
-  searchTypeRegistry.register(new AgentApplicationSearchType(context))
 }

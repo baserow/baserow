@@ -1,5 +1,4 @@
 import { RuntimeGetEditor } from '@baserow/modules/core/formula/runtimeFormulaEditorTypes'
-import { PasswordAuthProviderType } from '@baserow/modules/core/authProviderTypes'
 import {
   CreateSnapshotJobType,
   CreateUserTemplateJobType,
@@ -114,7 +113,6 @@ export default async function register(nuxtApp) {
   registry.register('admin', new AIProvidersAdminType(context))
   registry.register('admin', new SettingsAdminType(context))
   registry.register('admin', new HealthCheckAdminType(context))
-  registry.register('authProvider', new PasswordAuthProviderType(context))
   registry.register('job', new DuplicateApplicationJobType(context))
   registry.register('job', new InstallTemplateJobType(context))
   registry.register('job', new CreateUserTemplateJobType(context))

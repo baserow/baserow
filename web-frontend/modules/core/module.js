@@ -161,6 +161,12 @@ export default defineNuxtModule({
     })
 
     addRouteMiddleware({
+      name: 'applicationBundles',
+      path: resolve('./middleware/applicationBundles.js'),
+      global: true,
+    })
+
+    addRouteMiddleware({
       name: 'settings',
       path: resolve('./middleware/settings'),
     })

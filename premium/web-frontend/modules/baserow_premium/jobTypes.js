@@ -20,6 +20,7 @@ export class GenerateAIValuesJobType extends JobType {
    */
   async _clearPendingOperations(job) {
     const { $store } = this.app
+    if (!$store.hasModule('page/view/grid')) return
     // If the job has row_ids, clear pending state for those specific rows
     if (job.row_ids && job.row_ids.length > 0 && job.field_id) {
       // We need to find all store prefixes that might have this pending state

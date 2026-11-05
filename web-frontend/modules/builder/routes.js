@@ -5,6 +5,7 @@ export const routes = [
     name: 'builder-page',
     path: '/builder/:builderId/page/:pageId',
     file: path.resolve(__dirname, 'pages/pageEditor.vue'),
+    meta: { applicationBundle: 'builder' },
   },
   {
     name: 'builder-health-check',

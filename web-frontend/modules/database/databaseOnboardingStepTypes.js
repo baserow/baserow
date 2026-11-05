@@ -1,8 +1,6 @@
+import { getApplicationComponent } from '@baserow/modules/core/utils/applicationBundles'
 import { Registerable } from '@baserow/modules/core/registry'
-import AirtableImportForm from '@baserow/modules/database/components/airtable/AirtableImportForm'
-import TemplateImportForm from '@baserow/modules/database/components/onboarding/TemplateImportForm'
-import TemplateOnboardingCancelModal from '@baserow/modules/database/components/onboarding/TemplateOnboardingCancelModal'
-import DatabaseTemplatePreview from '@baserow/modules/database/components/onboarding/DatabaseTemplatePreview'
+
 import { DatabaseOnboardingType } from '@baserow/modules/database/onboardingTypes'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import AirtableService from '@baserow/modules/database/services/airtable'
@@ -32,7 +30,7 @@ export class DatabaseOnboardingStepType extends Registerable {
 
   /**
    * The Vue component to render for this step type's form, or null if using the
-   * default name input. Components like AirtableImportForm or TemplateImportForm
+   * default name input. Components like getApplicationComponent(this.app, 'database', 'AirtableImportForm') or getApplicationComponent(this.app, 'database', 'TemplateImportForm')
    * should be returned here.
    */
   getComponent() {
@@ -195,7 +193,7 @@ export class AirtableDatabaseOnboardingStepType extends DatabaseOnboardingStepTy
   }
 
   getComponent() {
-    return AirtableImportForm
+    return getApplicationComponent(this.app, 'database', 'AirtableImportForm')
   }
 
   hasNameInput() {
@@ -271,7 +269,7 @@ export class TemplateDatabaseOnboardingStepType extends DatabaseOnboardingStepTy
   }
 
   getComponent() {
-    return TemplateImportForm
+    return getApplicationComponent(this.app, 'database', 'TemplateImportForm')
   }
 
   hasNameInput() {
@@ -286,7 +284,11 @@ export class TemplateDatabaseOnboardingStepType extends DatabaseOnboardingStepTy
   getPreviewComponent(data) {
     const template = data[DatabaseOnboardingType.getType()]?.template
     if (template) {
-      return DatabaseTemplatePreview
+      return getApplicationComponent(
+        this.app,
+        'database',
+        'DatabaseTemplatePreview'
+      )
     }
     return null
   }
@@ -310,7 +312,11 @@ export class TemplateDatabaseOnboardingStepType extends DatabaseOnboardingStepTy
     }
 
     return {
-      component: TemplateOnboardingCancelModal,
+      component: getApplicationComponent(
+        this.app,
+        'database',
+        'TemplateOnboardingCancelModal'
+      ),
       props: { categories, databaseStepType: this.getType() },
     }
   }

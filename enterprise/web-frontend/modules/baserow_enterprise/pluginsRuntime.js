@@ -1,9 +1,23 @@
+import EnterpriseFeatures from '@baserow_enterprise/features'
+import EnterpriseLogo from '@baserow_enterprise/components/EnterpriseLogo'
 import { BaserowPlugin } from '@baserow/modules/core/plugins'
 
 /** Enterprise behavior required by published and preview Builder pages. */
 export class EnterpriseRuntimePlugin extends BaserowPlugin {
   static getType() {
     return 'enterprise'
+  }
+
+  getLogoComponent() {
+    if (this.app.$hasFeature(EnterpriseFeatures.ENTERPRISE_SETTINGS)) {
+      return EnterpriseLogo
+    } else {
+      return null
+    }
+  }
+
+  getLogoComponentOrder() {
+    return 100
   }
 
   /**
