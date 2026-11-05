@@ -27,7 +27,7 @@ from .operations import (
 from .signals import (
     agent_conversation_deleted,
     agent_conversation_renamed,
-    agent_conversation_updated,
+    agent_conversation_activity,
 )
 from .types import (
     AgentConfiguration,
@@ -338,7 +338,7 @@ class AgentService:
             agent, user, uuid, message_uuid, content
         )
         if result.created:
-            agent_conversation_updated.send(
+            agent_conversation_activity.send(
                 self, conversation=result.conversation, user=user, run_id=result.run_id
             )
         return result
@@ -393,7 +393,7 @@ class AgentService:
         self._require_ready(agent)
         result = self.handler.create_message(conversation, uuid, content)
         if result.created:
-            agent_conversation_updated.send(
+            agent_conversation_activity.send(
                 self, conversation=result.conversation, user=user, run_id=result.run_id
             )
         return result

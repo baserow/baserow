@@ -22,7 +22,7 @@ function notifyConversationChange(store, data, change) {
 }
 
 export const registerRealtimeEvents = (realtime) => {
-  realtime.registerEvent('agent_conversation_updated', ({ store }, data) =>
+  realtime.registerEvent('agent_conversation_activity', ({ store }, data) =>
     notifyConversationChange(store, data, {
       runId: data.run_id,
       updatedOn: data.updated_on,

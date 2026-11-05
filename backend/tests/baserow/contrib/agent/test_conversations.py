@@ -24,7 +24,7 @@ from baserow.contrib.agent.exceptions import (
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentConversation, AgentMessage
 from baserow.contrib.agent.service import AgentService
-from baserow.contrib.agent.signals import agent_conversation_updated
+from baserow.contrib.agent.signals import agent_conversation_activity
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.models import Action
 from baserow.core.action.scopes import ApplicationActionScopeType
@@ -487,7 +487,7 @@ def test_concurrent_retries_accept_one_message(
             user=user, agent=agent, uuid=conversation_uuid
         )
     barrier = Barrier(2)
-    updated = mocker.spy(agent_conversation_updated, "send")
+    activity = mocker.spy(agent_conversation_activity, "send")
     # An eager reply would wait at the barrier and notify again when it ends.
     mocker.patch.object(ChatRunHandler, "_enqueue")
     if view == "conversations":
@@ -528,7 +528,7 @@ def test_concurrent_retries_accept_one_message(
     )
     assert AgentConversation.objects.count() == ChatRun.objects.count() == 1
     assert AgentMessage.objects.filter(role="user").count() == 1
-    updated.assert_called_once()
+    activity.assert_called_once()
 
 
 @pytest.mark.django_db(transaction=True)

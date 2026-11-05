@@ -67,7 +67,7 @@ describe('Agent conversation realtime updates', () => {
       agentId = agentData.id,
     } = {}
   ) => {
-    receivers.agent_conversation_updated(
+    receivers.agent_conversation_activity(
       { store: testApp.store },
       {
         agent_id: agentId,

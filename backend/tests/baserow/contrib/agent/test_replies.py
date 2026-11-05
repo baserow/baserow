@@ -38,7 +38,7 @@ from baserow.contrib.agent.operations import ReadAgentConversationsOperationType
 from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.contrib.agent.replies import AgentResponder, create_reply_model
 from baserow.contrib.agent.service import AgentService
-from baserow.contrib.agent.signals import agent_conversation_updated
+from baserow.contrib.agent.signals import agent_conversation_activity
 from baserow.contrib.agent.types import AgentMessageCreated
 from baserow.contrib.database.table.models import Table
 from baserow.core.agents.service import AgentService as IdentityService
@@ -492,7 +492,7 @@ def test_lost_and_unstarted_runs_end_their_reply(reply_run, mocker):
             },
         },
     ]
-    updated = mocker.spy(agent_conversation_updated, "send")
+    activity = mocker.spy(agent_conversation_activity, "send")
 
     saved = [run_type.on_run_lost(lost, events), run_type.on_run_not_started(unstarted)]
 
@@ -502,7 +502,7 @@ def test_lost_and_unstarted_runs_end_their_reply(reply_run, mocker):
         (lost.context["reply_id"], "Hello"),
         (unstarted.context["reply_id"], ""),
     ]
-    assert updated.call_count == 2
+    assert activity.call_count == 2
     assert saved[0]["steps"] == [{**events[-1]["data"], "status": "stopped"}]
     assert saved[1]["steps"] is None
 
@@ -511,7 +511,7 @@ def test_lost_and_unstarted_runs_end_their_reply(reply_run, mocker):
 def test_the_interruption_warning_only_ends_replies_still_running(reply_run, mocker):
     run_type = AgentChatRunType()
     reply_id = reply_run.context["reply_id"]
-    updated = mocker.spy(agent_conversation_updated, "send")
+    activity = mocker.spy(agent_conversation_activity, "send")
 
     run_type.ensure_interruption_warning(reply_run)
 
@@ -519,7 +519,7 @@ def test_the_interruption_warning_only_ends_replies_still_running(reply_run, moc
     AgentMessage.objects.filter(id=reply_id).update(status="completed", error_code="")
     run_type.ensure_interruption_warning(reply_run)
     assert reply_state(reply_id) == ("completed", "", "")
-    updated.assert_called_once_with(
+    activity.assert_called_once_with(
         run_type,
         conversation=AgentConversation.objects.get(id=reply_run.chat_id),
         user=None,

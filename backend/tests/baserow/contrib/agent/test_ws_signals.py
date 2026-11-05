@@ -45,7 +45,7 @@ def conversation_write(data_fixture, user, agent, kind):
 
 def update_of(conversation: AgentConversation, run_id: UUID | None = None) -> dict:
     return {
-        "type": "agent_conversation_updated",
+        "type": "agent_conversation_activity",
         "agent_id": conversation.agent_id,
         "conversation_uuid": str(conversation.uuid),
         "run_id": str(run_id) if run_id else None,

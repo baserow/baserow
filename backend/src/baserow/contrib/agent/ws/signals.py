@@ -11,7 +11,7 @@ from baserow.contrib.agent.models import AgentConversation
 from baserow.contrib.agent.signals import (
     agent_conversation_deleted,
     agent_conversation_renamed,
-    agent_conversation_updated,
+    agent_conversation_activity,
 )
 from baserow.contrib.agent.ws.tasks import broadcast_run_as_updates
 from baserow.core.agents.signals import agent_created, agent_deleted, agent_updated
@@ -77,8 +77,8 @@ def _notify_owner(
     )
 
 
-@receiver(agent_conversation_updated)
-def conversation_updated(
+@receiver(agent_conversation_activity)
+def conversation_activity(
     sender,
     conversation: AgentConversation,
     user: AbstractUser | None,
@@ -90,7 +90,7 @@ def conversation_updated(
     _notify_owner(
         conversation,
         user,
-        "agent_conversation_updated",
+        "agent_conversation_activity",
         run_id=str(run_id) if run_id else None,
         updated_on=DateTimeField().to_representation(conversation.updated_on),
     )

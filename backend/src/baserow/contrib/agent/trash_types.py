@@ -5,7 +5,7 @@ from baserow.core.trash.registries import TrashableItemType
 
 from .models import AgentApplication, AgentConversation
 from .operations import RestoreAgentConversationOperationType
-from .signals import agent_conversation_updated
+from .signals import agent_conversation_activity
 
 
 class AgentConversationTrashableItemType(TrashableItemType):
@@ -32,7 +32,7 @@ class AgentConversationTrashableItemType(TrashableItemType):
 
     def restore(self, trashed_item: AgentConversation, trash_entry: TrashEntry) -> None:
         super().restore(trashed_item, trash_entry)
-        agent_conversation_updated.send(self, conversation=trashed_item, user=None)
+        agent_conversation_activity.send(self, conversation=trashed_item, user=None)
 
     def get_restore_operation_type(self) -> str:
         return RestoreAgentConversationOperationType.type
