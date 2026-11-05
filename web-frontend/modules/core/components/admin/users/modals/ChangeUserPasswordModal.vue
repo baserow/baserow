@@ -41,6 +41,15 @@ export default {
         await UserAdminService(this.$client).update(this.user.id, {
           password: values.password,
         })
+        // Changing a password signs that user out everywhere. When admins change
+        // their own, log them back in with the new password so this session
+        // carries on.
+        if (this.user.id === this.$store.getters['auth/getUserId']) {
+          await this.$store.dispatch('auth/login', {
+            email: this.$store.getters['auth/getUsername'],
+            password: values.password,
+          })
+        }
         this.loading = false
         this.hide()
       } catch (error) {

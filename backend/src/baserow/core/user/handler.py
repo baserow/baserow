@@ -589,7 +589,9 @@ class UserHandler:
             user.save()
 
             user.profile.email_verified = True
-            self.password_changed(user)
+            self.password_changed(
+                user, ignore_web_socket_id=getattr(user, "web_socket_id", None)
+            )
 
         return user
 
@@ -622,20 +624,26 @@ class UserHandler:
         user.set_password(new_password)
         user.save()
 
-        self.password_changed(user)
+        self.password_changed(
+            user, ignore_web_socket_id=getattr(user, "web_socket_id", None)
+        )
 
         return user
 
-    def password_changed(self, user: AbstractUser) -> None:
+    def password_changed(
+        self, user: AbstractUser, ignore_web_socket_id: Optional[str] = None
+    ) -> None:
         """
         Ends the existing sessions of a user whose new password has just been set
         and saved, and tells them by email. Every path that changes a password must
         call this, otherwise someone holding an old token keeps access.
 
         Tokens issued before now stop working, open real-time connections are
-        closed (except the one making the change) and OAuth apps are signed out.
+        closed and OAuth apps are signed out.
 
         :param user: The user whose password was changed.
+        :param ignore_web_socket_id: The real-time connection to keep open, if the
+            user changed their own password from that browser tab.
         """
 
         # last_password_change is used to invalidate old JWT tokens.
@@ -643,7 +651,7 @@ class UserHandler:
         user.profile.save()
 
         user_password_changed.send(
-            self, user=user, ignore_web_socket_id=getattr(user, "web_socket_id", None)
+            self, user=user, ignore_web_socket_id=ignore_web_socket_id
         )
 
         with translation.override(user.profile.language):

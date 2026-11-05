@@ -126,7 +126,17 @@ class UserAdminHandler:
         user.save()
 
         if password is not None:
-            UserHandler().password_changed(user)
+            # An admin changing their own password keeps the tab they did it from
+            # connected, like a regular password change does.
+            changed_own_password = user.id == requesting_user.id
+            UserHandler().password_changed(
+                user,
+                ignore_web_socket_id=(
+                    getattr(requesting_user, "web_socket_id", None)
+                    if changed_own_password
+                    else None
+                ),
+            )
 
         return user
 
