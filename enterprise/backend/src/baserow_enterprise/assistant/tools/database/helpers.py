@@ -4,10 +4,14 @@ from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 
 from baserow.contrib.database.fields.actions import CreateFieldActionType
+from baserow.contrib.database.fields.operations import ListFieldsOperationType
 from baserow.contrib.database.mcp.services import filter_tables
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.tools import fields as shared_fields
-from baserow.contrib.database.tools.tables import get_tables_schema  # noqa: F401
+from baserow.contrib.database.tools.tables import (
+    get_tables_schema,  # noqa: F401
+    permitted_tables,
+)
 from baserow.contrib.database.tools.views import create_view_filter  # noqa: F401
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View
@@ -43,6 +47,26 @@ def get_table(user: AbstractUser, workspace: Workspace, table_id: int) -> Table:
             f"Table with ID {table_id} not found. "
             "Use get_tables_schema to find valid table IDs."
         )
+
+
+def readable_database_tables(
+    user: AbstractUser, workspace: Workspace, database_id: int
+) -> list[Table]:
+    """
+    The database's tables whose fields the user may list, so the formula agents only
+    see fields the user can.
+
+    :param user: The acting user.
+    :param workspace: The workspace the database is in.
+    :param database_id: The database whose tables are returned.
+    :returns: The tables, in sidebar order.
+    """
+
+    return permitted_tables(
+        ToolContext(user=user, workspace=workspace),
+        filter_tables(user, workspace).filter(database_id=database_id),
+        ListFieldsOperationType.type,
+    )
 
 
 FormulaFixer = Callable[[Table, str, str], str | None]

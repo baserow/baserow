@@ -368,8 +368,8 @@ def make_formula_fixer(
         :return: The repaired formula, or ``None`` when validation still fails.
         """
 
-        database_tables = helpers.filter_tables(user, workspace).filter(
-            database_id=table.database_id
+        database_tables = helpers.readable_database_tables(
+            user, workspace, table.database_id
         )
         schema = [
             t.model_dump() for t in helpers.get_tables_schema(database_tables, True)
