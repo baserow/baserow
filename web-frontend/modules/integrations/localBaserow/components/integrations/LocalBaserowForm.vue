@@ -20,7 +20,7 @@
             :key="subject.id"
             :name="subject.name"
             :value="subject.id"
-            icon="baserow-icon-agent"
+            icon="iconoir-lock"
           />
         </template>
       </PaginatedDropdown>

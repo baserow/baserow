@@ -92,11 +92,11 @@ export class AgentsWorkspaceSettingsPageType extends WorkspaceSettingsPageType {
   }
 
   getBadge() {
-    return this.app.$i18n.t('agents.new')
+    return this.app.$i18n.t('identities.new')
   }
 
   getName() {
-    return this.app.$i18n.t('agents.tabTitle')
+    return this.app.$i18n.t('identities.tabTitle')
   }
 
   get developmentStage() {

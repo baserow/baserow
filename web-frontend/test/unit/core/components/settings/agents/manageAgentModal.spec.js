@@ -208,7 +208,7 @@ describe('ManageAgentModal', () => {
         agentId: 42,
         values: { team_ids: [7] },
       })
-      expect(wrapper.find('.success').text()).toBe('agents.saved')
+      expect(wrapper.find('.success').text()).toBe('identities.saved')
       expect(hide).not.toHaveBeenCalled()
 
       await pages[0].trigger('click')
@@ -221,7 +221,7 @@ describe('ManageAgentModal', () => {
       expect(handleError.mock.calls[0][1]).toBe('agent')
       expect(handleError.mock.calls[0][2]).toBeNull()
       expect(handleError.mock.calls[0][3].name.invalid_name).toEqual({
-        title: 'agents.invalidNameTitle',
+        title: 'identities.invalidNameTitle',
         message: 'error.nameContainsUrl',
       })
       expect(wrapper.find('.name-input').element.value).toBe('Renamed')
@@ -356,7 +356,7 @@ describe('ManageAgentModal', () => {
       await wrapper.find('.name-input').setValue('   ')
       const create = wrapper
         .findAll('button')
-        .find((button) => button.text() === 'agents.create')
+        .find((button) => button.text() === 'identities.create')
       expect(create.attributes('disabled')).toBeDefined()
       await wrapper.find('form').trigger('submit')
       expect(dispatch).not.toHaveBeenCalled()
@@ -477,7 +477,7 @@ test('Cancel closes the Agent modal without submitting', async () => {
       .find((button) => button.text() === 'action.cancel')
     const create = wrapper
       .findAll('button')
-      .find((button) => button.text() === 'agents.create')
+      .find((button) => button.text() === 'identities.create')
     expect(cancel.attributes('type')).toBe('button')
     expect(create.attributes('type')).toBe('submit')
     cancel.element.click()

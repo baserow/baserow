@@ -57,7 +57,7 @@ async function mountSummary(
           if (key === 'shareScope.roleCount') {
             return `${params.count} ${params.role}`
           }
-          if (key === 'shareScope.agentRoleCount') {
+          if (key === 'shareScope.identityRoleCount') {
             return `${params.count} ${params.role} agent`
           }
           if (key === 'shareScope.everyoneAt') {

@@ -44,3 +44,25 @@ def test_restore_item_action_type(data_fixture):
         user, "workspace", workspace.id
     )
     assert Workspace.objects.count() == 1
+
+
+@pytest.mark.parametrize(
+    "item_type,expected_type",
+    [
+        ("agent", "identity"),
+        ("workspace", "workspace"),
+        ("removed_type", "removed_type"),
+    ],
+)
+def test_restore_item_action_long_description(item_type, expected_type):
+    params = {
+        "item_id": 2,
+        "item_type": item_type,
+        "workspace_id": 1,
+        "workspace_name": "Workspace",
+    }
+
+    assert RestoreFromTrashActionType.get_long_description(params) == (
+        f'Item of type "{expected_type}" (2) has been restored from trash '
+        'in group "Workspace" (1).'
+    )

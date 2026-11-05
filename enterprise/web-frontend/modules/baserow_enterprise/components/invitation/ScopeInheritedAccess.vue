@@ -247,7 +247,7 @@ export default {
             label: subjectType.isUser()
               ? this.$t('shareScope.roleCount', { count, role: role.name })
               : this.$t(
-                  'shareScope.agentRoleCount',
+                  'shareScope.identityRoleCount',
                   { count, role: role.name },
                   count
                 ),

@@ -118,7 +118,7 @@ describe('AgentTeamsFormField', () => {
 
     expect(wrapper.find('.loading').exists()).toBe(false)
     expect(wrapper.find('.alert').text()).toContain(
-      'enterpriseAgents.teamsLoadError'
+      'enterpriseIdentities.teamsLoadError'
     )
     expect(wrapper.find('.agent-teams-form-field').exists()).toBe(false)
 

@@ -121,7 +121,7 @@ export default {
           makeTeamSubject(
             agent,
             agentSubjectType,
-            this.$t('manageTeamForm.agentLabel')
+            this.$t('manageTeamForm.identityLabel')
           )
         )
         this.availableSubjects = [...users, ...agents]

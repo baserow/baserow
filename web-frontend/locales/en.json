@@ -370,7 +370,7 @@
   },
   "trashType": {
     "workspace": "workspace",
-    "agent": "agent",
+    "agent": "identity",
     "application": "application",
     "table": "table",
     "field": "field",

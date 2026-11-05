@@ -107,7 +107,7 @@ test('only recommends No access when the role is available', async () => {
     roles: [{ uid: 'NO_ACCESS', isDeactivated: false }],
   })
   expect(wrapper.get('.control__helper-text').text()).toBe(
-    'agents.roleHelpText'
+    'identities.roleHelpText'
   )
   wrapper.unmount()
 })
