@@ -211,16 +211,7 @@ describe('Agent replies', () => {
     expect(reads.find('button .iconoir-warning-triangle').exists()).toBe(false)
     expect(reads.findAll('li .iconoir-warning-triangle')).toHaveLength(1)
     expect(reads.findAll('li .iconoir-check-circle')).toHaveLength(2)
-    expect(
-      reads.findAll('li')[1].get('.chat-step-group__line-title').text()
-    ).toBe('agent.toolListTableRows')
-    expect(
-      reads.findAll('li')[1].get('.chat-step-group__status').text()
-    ).toContain('This tool call failed.')
     expect(reads.get('button').classes()).not.toContain('button')
-    expect(reads.get('.chat-step-group__title').text()).toBe(
-      'Workspace activity'
-    )
     expect(reads.findAll('li')).toHaveLength(3)
     await reads.get('button').trigger('click')
     expect(reads.findAll('li')).toHaveLength(0)

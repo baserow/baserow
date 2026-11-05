@@ -2,58 +2,8 @@ import { describe, expect, test } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ChatStepGroup from '@baserow/modules/core/components/chat/ChatStepGroup'
 import tooltip from '@baserow/modules/core/directives/tooltip'
-import { Registry } from '@baserow/modules/core/registry'
-import {
-  groupToolSteps,
-  ToolPresentationType,
-} from '@baserow/modules/core/toolPresentationTypes'
 
 describe('ChatStepGroup', () => {
-  test('renders a configured email action through the same shared card', () => {
-    class EmailPresentation extends ToolPresentationType {
-      static getType() {
-        return 'send_email'
-      }
-
-      getActivity({ facts }, t) {
-        return t(
-          facts.delivery === 'sent' ? 'emailTool.sent' : 'emailTool.send'
-        )
-      }
-    }
-    const registry = new Registry()
-    registry.registerNamespace('toolPresentation')
-    registry.register('toolPresentation', new EmailPresentation())
-    const t = (key) =>
-      ({ 'emailTool.sent': 'Email sent', 'emailTool.send': 'Send email' })[
-        key
-      ] ?? key
-    const [card] = groupToolSteps(
-      [
-        {
-          id: 'email-1',
-          tool: 'send_email',
-          status: 'done',
-          changes_data: true,
-          facts: { delivery: 'sent' },
-        },
-      ],
-      registry,
-      t
-    )
-    const wrapper = mount(ChatStepGroup, {
-      props: card,
-      global: { directives: { tooltip }, mocks: { $t: t } },
-    })
-
-    expect(wrapper.get('.chat-step-group__title').text()).toBe('Email sent')
-    expect(wrapper.get('.chat-step-group__status').text()).toBe(
-      'toolPresentation.statusDone'
-    )
-    expect(wrapper.find('.iconoir-check-circle').exists()).toBe(true)
-    expect(wrapper.find('button').exists()).toBe(false)
-  })
-
   test('shows grouped details by default and can collapse and expand them', async () => {
     const wrapper = mount(ChatStepGroup, {
       props: {

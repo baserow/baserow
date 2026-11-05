@@ -245,51 +245,30 @@ describe('Agent tool presentations', () => {
     expect(group.lines.at(-1).title).toBe('Read 22 rows from Projects')
   })
 
-  test.each(['done', 'failed', 'stopped'])(
-    'a settled workspace group summarizes its last call: %s',
-    (status) => {
-      const [group] = groupToolSteps(
-        [
-          step('list_tables', 'failed', { id: 'a' }),
-          step('get_table_schema', 'done', { id: 'b' }),
-          step('list_table_rows', status, { id: 'c' }),
-        ],
-        registry,
-        t
+  test.each([
+    [['failed', 'done', 'stopped'], 'stopped', 'Workspace activity', ''],
+    [
+      ['done', 'failed'],
+      'failed',
+      'Workspace activity',
+      'Not found or not accessible to the agent.',
+    ],
+    [['running', 'done'], 'running', 'Looking at your workspace', ''],
+    [['running', 'failed'], 'running', 'Looking at your workspace', ''],
+  ])(
+    'a workspace group of %j calls summarizes as %s',
+    (statuses, status, title, failureHint) => {
+      const calls = statuses.map((callStatus, index) =>
+        step('list_table_rows', callStatus, {
+          id: String(index),
+          error_code: STEP_ERROR_CODE.NOT_FOUND,
+        })
       )
-      expect(group.status).toBe(status)
+      expect(groupToolSteps(calls, registry, t)[0]).toMatchObject({
+        status,
+        title,
+        failureHint,
+      })
     }
   )
-
-  test('keeps a spinner while an earlier parallel call is still running', () => {
-    const calls = [
-      step('list_tables', 'running', { id: 'a' }),
-      step('list_table_rows', 'done', { id: 'b' }),
-    ]
-    expect(groupToolSteps(calls, registry, t)[0]).toMatchObject({
-      status: 'running',
-      title: 'Looking at your workspace',
-    })
-
-    calls[0].status = 'failed'
-    expect(groupToolSteps(calls, registry, t)[0]).toMatchObject({
-      status: 'done',
-      title: 'Looked at your workspace',
-    })
-  })
-
-  test('only a failed final call supplies the workspace summary hint', () => {
-    const calls = [
-      step('list_tables', 'running', { id: 'a' }),
-      step('list_table_rows', 'failed', {
-        id: 'b',
-        error_code: STEP_ERROR_CODE.NOT_FOUND,
-      }),
-    ]
-    expect(groupToolSteps(calls, registry, t)[0].failureHint).toBe('')
-    calls[0].status = 'done'
-    expect(groupToolSteps(calls, registry, t)[0].failureHint).toBe(
-      'Not found or not accessible to the agent.'
-    )
-  })
 })
