@@ -42,6 +42,20 @@ The backend emits `step` events and saves the same steps on the assistant messag
 
 Calls to tools the reply doesn't offer get no step.
 
+### Input previews and targets
+
+Write tools can add `input.values`, a bounded copy of the arguments they select
+in `DatabaseAgentToolType.step_input_arguments`. Core's `tool_input_preview`
+caps it at 16 KiB of JSON and sets `input.truncated` when something was left out.
+The card shows it as escaped JSON, collapsed by default. It describes the request,
+not what changed. The values are stored with the step, including password field
+values, so the approvals layer must decide how long they are kept.
+
+`input.target` names what a call worked on, using only names that earlier
+successful calls of the same reply returned (`get_step_resources` and
+`get_step_target`). It can name a failed call's table, including a linked table
+the Agent can't read. No lookup runs to find a name.
+
 ## Adding a tool
 
 **Backend.** An `AgentToolType` describes its calls with

@@ -60,6 +60,7 @@
     "toolUpdateRowsDescription": "Change values in existing rows",
     "toolDeleteRows": "Delete rows",
     "toolDeleteRowsDescription": "Move rows to the trash",
+    "toolActivityTarget": "{activity}: {target}",
     "name": "Name",
     "provider": "AI provider",
     "model": "Model",

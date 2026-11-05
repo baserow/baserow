@@ -8,6 +8,7 @@
       :changes-data="group.changesData"
       :failure-hint="group.failureHint"
       :lines="group.lines"
+      :input="group.input"
     />
     <div v-if="own" class="chat-message__bubble">{{ message.content }}</div>
     <div
