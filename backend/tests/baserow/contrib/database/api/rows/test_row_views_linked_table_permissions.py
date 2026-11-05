@@ -283,7 +283,7 @@ def create_in_view(api_client, table, view, auth, batch):
 
 @pytest.mark.parametrize("batch", [False, True])
 @pytest.mark.django_db
-def test_view_default_link_is_refused_without_read_access_to_the_linked_table(
+def test_collaborative_view_default_link_needs_no_read_access_to_the_linked_table(
     api_client, linked_tables, view_with_link_default, batch
 ):
     auth = scoped_token(linked_tables, can_read_other_table=False)
@@ -292,9 +292,8 @@ def test_view_default_link_is_refused_without_read_access_to_the_linked_table(
         api_client, linked_tables["table"], view_with_link_default, auth, batch
     )
 
-    assert response.status_code == HTTP_401_UNAUTHORIZED
-    assert response.json()["error"] == "ERROR_NO_PERMISSION_TO_TABLE"
-    assert "Other" not in response.content.decode()
+    assert response.status_code == HTTP_200_OK
+    assert SECRET not in response.content.decode()
 
 
 @pytest.mark.parametrize("batch", [False, True])
