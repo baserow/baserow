@@ -65,7 +65,6 @@ describe('shared tool presentations', () => {
       changesData: false,
       icon: 'iconoir-mail',
       group: null,
-      input: null,
       failureHint: '',
     })
     expect(groupToolSteps([step], registry, t)).toEqual([
@@ -85,7 +84,7 @@ describe('shared tool presentations', () => {
           id: 'unknown',
           tool: '<img src=secret>',
           status,
-          input: { target: 'secret', values: { password: 'secret' } },
+          input: { requested_count: 'secret' },
           facts: { output: 'private result' },
         },
         registry,
@@ -139,50 +138,6 @@ describe('shared tool presentations', () => {
     expect(
       toolActivity({ tool: 'send_email', status: 'running' }, registry, t).title
     ).toBe('Sending an email')
-  })
-
-  test('input previews require the presenter to opt in', () => {
-    const registry = registryWith(EmailPresentation)
-    const step = {
-      tool: 'send_email',
-      status: 'done',
-      input: { values: { subject: 'Hello' }, truncated: true },
-    }
-    expect(toolActivity(step, registry, t).input).toBe(null)
-
-    registry.get('toolPresentation', 'send_email').getInput = ({ input }) =>
-      input
-    expect(toolActivity(step, registry, t).input).toEqual(step.input)
-  })
-
-  test.each([null, {}, { values: [] }, { values: 'secret' }, { values: {} }])(
-    'omits malformed or empty input previews: %j',
-    (input) => {
-      const registry = registryWith(EmailPresentation)
-      registry.get('toolPresentation', 'send_email').getInput = () => input
-      expect(
-        toolActivity({ tool: 'send_email', status: 'done' }, registry, t)
-      ).toMatchObject({ title: 'Email sent', input: null })
-    }
-  )
-
-  test('broken, circular and oversized previews leave the activity usable', () => {
-    const registry = registryWith(EmailPresentation)
-    const presenter = registry.get('toolPresentation', 'send_email')
-    const circular = {}
-    circular.self = circular
-    for (const getInput of [
-      () => {
-        throw new Error('Broken preview')
-      },
-      () => ({ values: circular }),
-      () => ({ values: { body: 'x'.repeat(40000) } }),
-    ]) {
-      presenter.getInput = getInput
-      expect(
-        toolActivity({ tool: 'send_email', status: 'done' }, registry, t)
-      ).toMatchObject({ title: 'Email sent', input: null })
-    }
   })
 
   test.each([
@@ -261,61 +216,4 @@ describe('shared tool presentations', () => {
       ).failureHint
     ).toBe('This tool call failed.')
   })
-
-  test('future action presenters can name a failure target through the shared hint', () => {
-    class TargetedEmail extends EmailPresentation {
-      getActivity() {
-        return 'Send email'
-      }
-
-      getTarget({ input }) {
-        return input.target
-      }
-    }
-    const registry = registryWith(TargetedEmail)
-    const step = {
-      tool: 'action_37',
-      presentation_type: 'send_email',
-      status: 'failed',
-      error_code: STEP_ERROR_CODE.PERMISSION_DENIED,
-      input: { target: 'alice@example.com' },
-    }
-    expect(toolActivity(step, registry, t)).toMatchObject({
-      title: 'Send email',
-      failureHint: 'Permission denied for this operation on alice@example.com.',
-    })
-
-    registry.get('toolPresentation', 'send_email').getTarget = () => {
-      throw new Error('Broken target formatter')
-    }
-    expect(toolActivity(step, registry, t)).toMatchObject({
-      title: 'Send email',
-      failureHint: 'Permission denied for this operation.',
-    })
-  })
-
-  test.each([null, {}, [], ' ', 'x'.repeat(1025)])(
-    'malformed or oversized target hints use the generic reason: %j',
-    (target) => {
-      class TargetedEmail extends EmailPresentation {
-        getActivity() {
-          return 'Send email'
-        }
-        getTarget() {
-          return target
-        }
-      }
-      expect(
-        toolActivity(
-          {
-            tool: 'send_email',
-            status: 'failed',
-            error_code: STEP_ERROR_CODE.NOT_FOUND,
-          },
-          registryWith(TargetedEmail),
-          t
-        ).failureHint
-      ).toBe('Not found or not accessible to the agent.')
-    }
-  )
 })

@@ -6,7 +6,6 @@ import {
 
 export const WORKSPACE_TOOL_GROUP = 'workspace'
 
-const MAX_INPUT_PREVIEW_LENGTH = 32768
 const STATUSES = new Set(Object.values(STEP_STATUS))
 const FALLBACK_LABELS = {
   [STEP_STATUS.RUNNING]: 'Using a tool',
@@ -58,16 +57,6 @@ export class ToolPresentationType extends Registerable {
   getActivity(step, t) {
     return t(`toolPresentation.${step.status}`)
   }
-
-  /** Opt in to the backend's curated input preview; hidden by default. */
-  getInput(step, t) {
-    return null
-  }
-
-  /** Name an attempted target from approved display context, when available. */
-  getTarget(step, t) {
-    return ''
-  }
 }
 
 const record = (value) =>
@@ -84,16 +73,11 @@ function genericText(t, key, fallback, values) {
   }
 }
 
-function failureHint(data, status, t, target = '') {
+function failureHint(data, status, t) {
   if (status !== STEP_STATUS.FAILED) return ''
   const key =
     FAILURE_LABELS.get(data.error_code) || 'toolPresentation.failureFailed'
-  return genericText(
-    t,
-    target ? `${key}Target` : key,
-    'This tool call failed.',
-    { target }
-  )
+  return genericText(t, key, 'This tool call failed.')
 }
 
 /** Describe a step's status in words; an interrupted change may have completed. */
@@ -105,33 +89,6 @@ export function stepStatusText({ status, changesData, failureHint }, t) {
   return status === STEP_STATUS.FAILED
     ? `${label} ${failureHint || t('toolPresentation.failureFailed')}`
     : label
-}
-
-function toolTarget(presenter, step, t) {
-  try {
-    const target = presenter.getTarget(step, t)
-    return typeof target === 'string' && target.length <= 1024
-      ? target.trim()
-      : ''
-  } catch {
-    return ''
-  }
-}
-
-function toolInput(presenter, step, t) {
-  try {
-    const input = presenter.getInput(step, t)
-    const values = record(input?.values)
-    if (!Object.keys(values).length) return null
-    // Validate independently of the title so a broken preview cannot hide it.
-    const json = JSON.stringify(values)
-    if (json.length > MAX_INPUT_PREVIEW_LENGTH) return null
-    const parsed = record(JSON.parse(json))
-    if (!Object.keys(parsed).length) return null
-    return { values: parsed, truncated: input.truncated === true }
-  } catch {
-    return null
-  }
 }
 
 /** Resolve a safe activity without letting an unknown or broken type break chat. */
@@ -149,7 +106,6 @@ export function toolActivity(step, registry, t) {
     changesData: data.changes_data === true,
     icon: 'iconoir-tools',
     group: null,
-    input: null,
     failureHint: failureHint(data, status, t),
   }
   try {
@@ -181,13 +137,6 @@ export function toolActivity(step, registry, t) {
       title,
       icon: presenter.icon,
       group: !data.changes_data ? presenter.group : null,
-      input: toolInput(presenter, normalized, translate),
-      failureHint: failureHint(
-        data,
-        status,
-        t,
-        toolTarget(presenter, normalized, translate)
-      ),
     }
   } catch {
     return fallback

@@ -33,9 +33,6 @@ from baserow.core.tools.errors import (
     tool_error_message,
 )
 
-StepResources = dict[tuple[str, int], str]
-
-
 def _tool_error_code(exc: Exception) -> ChatRunStepErrorCode:
     """Classify failures at the same privacy boundary as the model's error text.
 
@@ -180,36 +177,14 @@ class AgentToolType(Instance):
 
     def get_step_input(self, arguments: dict[str, Any]) -> dict[str, Any]:
         """
-        Select input values that can be displayed to the conversation owner.
+        Describe a call before it runs, from its arguments alone.
 
-        :param arguments: The tool's arguments.
-        :return: Approved display values, none by default. Tools must explicitly
-            select arguments; never include credentials or execution context.
+        :param arguments: The tool's arguments, possibly invalid.
+        :return: Display values derived from the arguments, none by default. Never
+            copy argument values, which can hold private data.
         """
 
         return {}
-
-    def get_step_resources(self, result: Any) -> StepResources:
-        """Extract names already disclosed by this tool's successful result.
-
-        :param result: An authorized successful result, never a failure payload.
-        :return: Names keyed by resource namespace and ID. Do not query for names
-            or infer them from prose; these describe later calls, not authority.
-        """
-
-        return {}
-
-    def get_step_target(
-        self, arguments: dict[str, Any], resources: StepResources
-    ) -> str | None:
-        """Describe a call's target using names already disclosed in this reply.
-
-        :param arguments: The requested tool arguments.
-        :param resources: A bounded catalog of previously returned resource names.
-        :return: A display name, or None when the target is not known.
-        """
-
-        return None
 
     def get_step_facts(
         self, ctx: ToolContext, arguments: dict[str, Any], result: Any

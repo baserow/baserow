@@ -32,22 +32,10 @@ class DatabaseToolPresentationType extends ToolPresentationType {
     return t(`${this.labelKey}Description`)
   }
 
-  getInput({ input }) {
-    return this.constructor.definition.read ? null : input
-  }
-
-  getTarget({ input }) {
-    return typeof input?.target === 'string' ? input.target.trim() : ''
-  }
-
   getActivity({ status, input, facts }, t) {
     const { counted, table } = this.constructor.definition
     if (status !== STEP_STATUS.RUNNING && status !== STEP_STATUS.DONE) {
-      const activity = this.getLabel(t)
-      const target = this.getTarget({ input })
-      return target
-        ? t('agent.toolActivityTarget', { activity, target })
-        : activity
+      return this.getLabel(t)
     }
     const count =
       status === STEP_STATUS.RUNNING ? input.requested_count : facts.count
