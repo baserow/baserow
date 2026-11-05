@@ -29,11 +29,12 @@ def test_multiple_collaborators_field_type_create(api_client, data_fixture):
 
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
+    assert "multiple_collaborators_default" not in response_json
     assert response_json["name"] == "Collaborator 1"
     assert response_json["type"] == "multiple_collaborators"
     assert response_json["notify_user_when_added"] is False
     assert response_json["available_collaborators"] == [
-        {"id": user.id, "name": user.first_name}
+        {"id": user.id, "name": user.first_name, "type": "auth.User"}
     ]
 
 
@@ -68,8 +69,8 @@ def test_multiple_collaborators_field_type_update(api_client, data_fixture):
     assert response_json["name"] == "New collaborator 1"
     assert response_json["type"] == "multiple_collaborators"
     assert response_json["available_collaborators"] == [
-        {"id": user.id, "name": user.first_name},
-        {"id": user_2.id, "name": user_2.first_name},
+        {"id": user.id, "name": user.first_name, "type": "auth.User"},
+        {"id": user_2.id, "name": user_2.first_name, "type": "auth.User"},
     ]
 
 
@@ -209,8 +210,8 @@ def test_multiple_collaborators_field_type_insert_row(api_client, data_fixture):
     assert is_dict_subset(
         {
             f"field_{collaborator_field.id}": [
-                {"id": user2.id, "name": user2.first_name},
-                {"id": user3.id, "name": user3.first_name},
+                {"id": user2.id, "name": user2.first_name, "type": "auth.User"},
+                {"id": user3.id, "name": user3.first_name, "type": "auth.User"},
             ]
         },
         response.json(),
@@ -542,8 +543,8 @@ def test_multiple_collaborators_field_type_batch_insert_rows(api_client, data_fi
             "items": [
                 {
                     f"field_{collaborator_field.id}": [
-                        {"id": user2.id, "name": user2.first_name},
-                        {"id": user3.id, "name": user3.first_name},
+                        {"id": user2.id, "name": user2.first_name, "type": "auth.User"},
+                        {"id": user3.id, "name": user3.first_name, "type": "auth.User"},
                     ]
                 }
             ]

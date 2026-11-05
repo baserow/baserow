@@ -9,12 +9,17 @@ from django.core.files.storage import Storage
 from django.db.models import Q, QuerySet
 from django.db.transaction import Atomic
 
-from rest_framework.serializers import Serializer
-
 from baserow.contrib.database.constants import IMPORT_SERIALIZED_IMPORTING
 from baserow.core.auth_provider.registries import AuthenticationProviderTypeRegistry
-from baserow.core.exceptions import SubjectTypeNotExist
 from baserow.core.storage import ExportZipFile
+
+# TODO: Migrate callers to core.subject.registries and remove these compatibility
+# re-exports in a follow-up.
+from baserow.core.subject.registries import (  # noqa: F401
+    SubjectType,
+    SubjectTypeRegistry,
+    subject_type_registry,
+)
 from baserow.core.utils import ChildProgressBuilder
 
 from .exceptions import (
@@ -46,7 +51,6 @@ from .types import (
     PermissionCheck,
     ScopeObject,
     SerializationProcessorScope,
-    Subject,
 )
 
 if TYPE_CHECKING:
@@ -1462,243 +1466,6 @@ class ObjectScopeTypeRegistry(
     already_registered_exception_class = ObjectScopeTypeAlreadyRegistered
 
 
-class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
-    """
-    This type describes a subject that exists in Baserow. A subject is anything that
-    can execute an operation.
-    """
-
-    # Interactive users can persist undoable actions and emit product analytics.
-    is_interactive_user = False
-    display_name_field: Optional[str] = None
-    lookup_fields = ("id", "pk")
-    options_list_operation_type: Optional[str] = None
-
-    def supports_lookup_field(self, field_name: str) -> bool:
-        """Return whether this subject type supports lookup by the given field."""
-
-        return field_name in self.lookup_fields
-
-    # Types opting in own workspace role persistence outside RoleAssignment and
-    # must implement get_workspace_subjects, get_workspace_role_uids, and
-    # set_workspace_role_uid. Other types keep using RoleAssignment records.
-    has_direct_workspace_roles: bool = False
-
-    def track_usage(self, subject: Subject) -> None:
-        """Record usage when a subject dispatches a service through an integration."""
-
-        pass
-
-    def get_workspace_subjects(self, workspace: "Workspace", include_trash=False):
-        """Return the subjects whose direct roles belong to a workspace.
-
-        :param workspace: The workspace that the returned subjects must belong to.
-        :param include_trash: Whether trashed subjects or memberships can be returned.
-        :return: The workspace subjects to include in direct-role listings.
-        """
-        raise NotImplementedError()
-
-    def set_workspace_role_uid(
-        self,
-        subject: Subject,
-        workspace: "Workspace",
-        role_uid: str,
-        send_signals: bool = True,
-    ):
-        """Persist a subject's direct role in a workspace.
-
-        :param subject: The subject whose direct role must be changed.
-        :param workspace: The workspace in which to change the role.
-        :param role_uid: The UID of the direct role to persist.
-        :param send_signals: Whether to emit the subject and permission update signals.
-        :return: The implementation-specific result of persisting the role.
-        """
-        raise NotImplementedError()
-
-    def get_display_name(self, subject: Subject) -> str:
-        """Return the snapshot-friendly name used to identify a subject."""
-
-        return str(subject)
-
-    def get_type_display_name(self) -> str:
-        """Return the human-readable name of this subject type."""
-
-        return self.type
-
-    def get_queryset(self, workspace_id: Optional[int] = None) -> Optional[QuerySet]:
-        """Return subjects matching the workspace scope, if listable."""
-
-        return None
-
-    def get_options_queryset(
-        self,
-        workspace: Optional["Workspace"] = None,
-        search: str = "",
-        exclude_ids: Optional[List[int]] = None,
-    ) -> Optional[QuerySet]:
-        """Return a standardized queryset of selectable subject options."""
-
-        return None
-
-    def get_historical_options_queryset(
-        self,
-        workspace: Optional["Workspace"] = None,
-        search: str = "",
-        exclude_ids: Optional[List[int]] = None,
-    ) -> Optional[QuerySet]:
-        """Return options including subjects retained for historical records."""
-
-        return self.get_options_queryset(
-            workspace=workspace, search=search, exclude_ids=exclude_ids
-        )
-
-    def get_label(self, subject: Subject) -> str:
-        """Return the label shown when this subject is presented as an option."""
-
-        return self.get_display_name(subject)
-
-    def get_workspace_role_uids(
-        self,
-        subjects: List[Subject],
-        workspace: "Workspace",
-        include_trash: bool = False,
-    ) -> Optional[Dict[int, str]]:
-        """Return direct workspace role UIDs for a batch of subjects.
-
-        Only roles belonging to ``workspace`` may be returned. The mapping must be
-        keyed by subject ID and can omit subjects that have no matching direct role.
-
-        :param subjects: The subjects whose direct roles should be fetched together.
-        :param workspace: The workspace to restrict the role lookup to.
-        :param include_trash: Whether trashed subjects or memberships can be used.
-        :return: A subject-ID-to-role-UID mapping, or ``None`` when direct workspace
-            roles are unsupported by this subject type.
-        """
-
-        return None
-
-    def is_workspace_role_fallback(self, role_uid: str) -> bool:
-        """Return whether a direct role should defer to inherited roles.
-
-        :param role_uid: The direct workspace role UID to inspect.
-        :return: Whether permission managers should use inherited roles instead.
-        """
-
-        return False
-
-    def are_workspace_roles_available(
-        self, subjects: List[Subject], workspace: "Workspace"
-    ) -> List[bool]:
-        """Return whether each subject's direct workspace role is available.
-
-        :param subjects: The subjects whose roles should be checked together.
-        :param workspace: The workspace in which role availability must be checked.
-        :return: Availability flags in the same order as ``subjects``.
-        """
-
-        return [True] * len(subjects)
-
-    def is_in_workspace(
-        self,
-        subject: Subject,
-        workspace: "Workspace",
-        include_trash: bool = False,
-    ) -> bool:
-        """
-        This function checks if a subject belongs to a workspace
-        :param include_trash: Whether trashed workspace memberships should count.
-        :return: If the subject belongs to the workspace
-        """
-
-        return self.are_in_workspace([subject], workspace, include_trash=include_trash)[
-            0
-        ]
-
-    @abc.abstractmethod
-    def are_in_workspace(
-        self,
-        subjects: List[Subject],
-        workspace: "Workspace",
-        include_trash: bool = False,
-    ) -> List[bool]:
-        """
-        This function checks if the subjects belongs to a workspace
-        :param include_trash: Whether trashed workspace memberships should count.
-        :return: a list of bool. For each index whether the user at the same index
-            belongs to the workspace or not
-        """
-
-        pass
-
-    @abc.abstractmethod
-    def get_serializer(self, model_instance, **kwargs) -> Serializer:
-        """
-        This function can be used to generate different serializers based on the type
-        of subject that is being serialized
-        :param model_instance: instance of a subject
-        :param kwargs: additional kwargs that are parsed to serializer
-        :return: the correct serializer for the subject
-        """
-
-        pass
-
-    @abc.abstractmethod
-    def get_users_included_in_subject(self, subject) -> List["AbstractUser"]:
-        """
-        Returns a list of Users which are associated with this subject.
-        And associated user is any user that receives permissions in Baserow based
-        on their link to this subject.
-        :param subject: The subject we are trying to find the associated users for
-        :return: All the associated users
-        """
-
-        pass
-
-
-class SubjectTypeRegistry(Registry[SubjectType], ModelRegistryMixin[Any, SubjectType]):
-    """
-    This registry holds all the different subject types used across Baserow.
-    """
-
-    name = "subject"
-    does_not_exist_exception_class = SubjectTypeNotExist
-
-    def get_serializer(self, model_instance, **kwargs) -> Serializer:
-        """
-        This function is used to get the correct serializer for a given subject model
-        instance. A SubjectType has to implement the `get_serializer` method in order
-        to be serialized.
-        :param model_instance: Instance of a subject
-        :param kwargs: Additional kwargs passed to the serializer
-        :return: The correct subject serializer
-        """
-
-        instance_type = self.get_by_model(model_instance)
-        return instance_type.get_serializer(model_instance, **kwargs)
-
-    def get_subject(
-        self, type_name: str, subject_id: int, include_trash: bool = False
-    ) -> Optional[Subject]:
-        """
-        Returns the subject stored as a type and id pair.
-
-        :param type_name: The subject type, for example `auth.User`.
-        :param subject_id: The id of the subject.
-        :param include_trash: Whether a trashed subject is returned as well, for
-            subject types that can be trashed.
-        :return: The subject, or None when it no longer exists or its type is not
-            stored in the database.
-        """
-
-        model_class = self.get(type_name).model_class
-        manager = getattr(model_class, "objects", None)
-        if include_trash:
-            manager = getattr(model_class, "objects_and_trash", manager)
-        if manager is None:
-            return None
-        return manager.filter(id=subject_id).first()
-
-
 class OperationType(abc.ABC, Instance):
     """
     An `OperationType` represent an `Operation` an actor can do on a `ContextObject`.
@@ -2001,7 +1768,6 @@ object_scope_type_registry: ObjectScopeTypeRegistry = ObjectScopeTypeRegistry()
 last_viewed_item_type_registry: LastViewedItemTypeRegistry = (
     LastViewedItemTypeRegistry()
 )
-subject_type_registry: SubjectTypeRegistry = SubjectTypeRegistry()
 operation_type_registry: OperationTypeRegistry = OperationTypeRegistry()
 serialization_processor_registry: SerializationProcessorRegistry = (
     SerializationProcessorRegistry()

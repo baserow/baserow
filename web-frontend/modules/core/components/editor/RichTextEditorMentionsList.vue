@@ -23,6 +23,8 @@
 </template>
 
 <script>
+import { getCollaboratorSubjectType } from '@baserow/modules/core/utils/collaborator'
+
 export default {
   props: {
     users: {
@@ -55,9 +57,11 @@ export default {
       handler(query, oldQuery) {
         this.filteredUsers = this.users.filter(
           (user) =>
-            !query ||
-            user.name.toLowerCase().includes(query.toLowerCase()) ||
-            `${user.user_id}` === query
+            getCollaboratorSubjectType(user, this.$registry).isUser() &&
+            Number.isInteger(user.user_id) &&
+            (!query ||
+              user.name.toLowerCase().includes(query.toLowerCase()) ||
+              `${user.user_id}` === query)
         )
         if (query !== oldQuery) {
           this.selectedIndex = 0
@@ -119,7 +123,11 @@ export default {
     selectItem(index) {
       const item = this.filteredUsers[index]
 
-      if (item) {
+      if (
+        item &&
+        Number.isInteger(item.user_id) &&
+        getCollaboratorSubjectType(item, this.$registry).isUser()
+      ) {
         this.command({ id: item.user_id, label: item.name })
       }
     },

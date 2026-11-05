@@ -8,9 +8,10 @@ from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.functions import RandomUUID
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
-from django.db import models
+from django.db import models, router, transaction
 from django.db.models import (
     Exists,
     F,
@@ -53,10 +54,13 @@ from .mixins import (
 )
 from .notifications.models import Notification
 from .services.models import Service
+from .subject.models import Subject, SubjectRollout
 
 __all__ = [
     "ChatRun",
     "Settings",
+    "Subject",
+    "SubjectRollout",
     "UserLastViewedItem",
     "Workspace",
     "WorkspaceUser",
@@ -223,6 +227,9 @@ class UserProfile(models.Model):
         WEEKLY = "weekly", "weekly"
         NEVER = "never", "never"
 
+    subject = models.OneToOneField(
+        Subject, null=True, on_delete=models.PROTECT, related_name="user_profile"
+    )
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
     language = models.TextField(
         max_length=10,
@@ -281,6 +288,21 @@ class UserProfile(models.Model):
         help_text="Values of the registered user preference types, keyed by type. "
         "Only explicitly changed preferences are stored here.",
     )
+
+    def save(self, *args, **kwargs):
+        """Link new or repaired profiles without rewriting identity on preference edits."""
+        from baserow.core.registries import subject_type_registry
+
+        using = kwargs.get("using") or router.db_for_write(type(self), instance=self)
+        with transaction.atomic(using=using):
+            if self.user_id and self.subject_id != self.user_id:
+                subject_type_registry.get_by_model(User).synchronize_persistent_subject(
+                    self.user, using=using
+                )
+                self.subject_id = self.user_id
+                if kwargs.get("update_fields") is not None:
+                    kwargs["update_fields"] = set(kwargs["update_fields"]) | {"subject"}
+            return super().save(*args, **kwargs)
 
     def iat_before_last_password_change(self, iat: int) -> bool:
         """
@@ -484,6 +506,10 @@ class Agent(
         related_name="agents",
         on_delete=models.CASCADE,
     )
+    subject = models.OneToOneField(
+        Subject, null=True, on_delete=models.PROTECT, related_name="agent"
+    )
+    uid = models.UUIDField(db_default=RandomUUID())
     name = models.CharField(max_length=160)
     role_uid = models.CharField(
         max_length=32,
@@ -491,6 +517,26 @@ class Agent(
         db_default=WORKSPACE_USER_PERMISSION_MEMBER,
     )
     last_active = models.DateTimeField(null=True, blank=True, db_default=None)
+
+    def save(self, *args, **kwargs):
+        """Persist Agent lifecycle and attribution in the same transaction."""
+        from baserow.core.registries import subject_type_registry
+
+        using = kwargs.get("using") or router.db_for_write(type(self), instance=self)
+        update_fields = kwargs.get("update_fields")
+        synchronize = (
+            self.subject_id is None
+            or update_fields is None
+            or bool(
+                {"name", "uid", "trashed", "subject", "subject_id"} & set(update_fields)
+            )
+        )
+        with transaction.atomic(using=using):
+            super().save(*args, **kwargs)
+            if synchronize:
+                subject_type_registry.get_by_model(self).synchronize_persistent_subject(
+                    self, using=using
+                )
 
     def get_parent(self):
         return self.workspace

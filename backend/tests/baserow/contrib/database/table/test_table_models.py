@@ -1234,7 +1234,7 @@ def test_last_modified_by_reference_doesnt_prevent_user_deletion(data_fixture):
     user_id = user.id
     table = data_fixture.create_database_table(name="db", user=user)
     model = table.get_model()
-    row_data = {f"{LAST_MODIFIED_BY_COLUMN_NAME}": user}
+    row_data = {f"{LAST_MODIFIED_BY_COLUMN_NAME}": user.profile.subject}
     row = model.objects.create(**row_data)
     assert getattr(row, f"{LAST_MODIFIED_BY_COLUMN_NAME}_id") == user_id
 

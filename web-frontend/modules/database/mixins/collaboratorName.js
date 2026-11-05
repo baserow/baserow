@@ -3,7 +3,11 @@ import { getCollaboratorName } from '@baserow/modules/core/utils/collaborator'
 export default {
   methods: {
     getCollaboratorName(collaboratorValue, store) {
-      return getCollaboratorName(collaboratorValue, store ?? this.$store)
+      return getCollaboratorName(
+        collaboratorValue,
+        store ?? this.$store,
+        this.$registry
+      )
     },
     getCollaboratorNameInitials(collaboratorValue, store) {
       return this.getCollaboratorName(collaboratorValue, store)

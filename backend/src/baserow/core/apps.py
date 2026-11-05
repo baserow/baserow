@@ -652,6 +652,7 @@ class CoreConfig(AppConfig):
         import baserow.core.last_viewed.receivers  # noqa: F401
         import baserow.core.mcp.receivers  # noqa: F401
         import baserow.core.receivers  # noqa: F401
+        import baserow.core.subject.receivers  # noqa: F401
         import baserow.core.user_templates.receivers  # noqa: F401
         from baserow.core.telemetry.telemetry import setup_logging
 

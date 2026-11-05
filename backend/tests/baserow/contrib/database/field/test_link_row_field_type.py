@@ -2418,6 +2418,13 @@ def setup_table_with_collaborator_pk(user, data_fixture):
             for (i, char) in enumerate(all_chars, start=1)
         ]
     )
+    from baserow.core.models import UserProfile
+    from baserow.core.subjects import UserSubjectType
+
+    UserSubjectType().synchronize_persistent_subjects(users)
+    UserProfile.objects.bulk_create(
+        [UserProfile(user_id=user.pk, subject_id=user.pk) for user in users]
+    )
     WorkspaceUser.objects.bulk_create(
         [
             WorkspaceUser(workspace=workspace, user=usr, order=i)

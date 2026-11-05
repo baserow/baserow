@@ -1,0 +1,12 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`keeps Subject IDs out of User mentions 1`] = `
+"<div>
+  <ul class="rich-text-editor__mention-list">
+    <li class="rich-text-editor__mention-list-item is-selected">
+      <div class="select-collaborators__initials">H</div>
+      <div class="select-collaborators__dropdown-option">Human</div>
+    </li>
+  </ul>
+</div>"
+`;

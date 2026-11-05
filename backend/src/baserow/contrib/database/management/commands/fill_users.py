@@ -17,6 +17,7 @@ from baserow.core.models import (
     Workspace,
     WorkspaceUser,
 )
+from baserow.core.registries import subject_type_registry
 from baserow.core.utils import grouper
 
 User = get_user_model()
@@ -138,6 +139,11 @@ def crete_users(limit, workspace=None):
 
             with transaction.atomic():
                 User.objects.bulk_create(users, batch_size=batch_size)
+                subject_type_registry.get_by_model(
+                    User
+                ).synchronize_persistent_subjects(users)
+                for profile in users_profiles:
+                    profile.subject_id = profile.user.pk
                 UserProfile.objects.bulk_create(users_profiles, batch_size=batch_size)
                 if workspaces:
                     Workspace.objects.bulk_create(workspaces, batch_size=batch_size)

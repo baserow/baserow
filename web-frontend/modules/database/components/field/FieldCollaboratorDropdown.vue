@@ -67,6 +67,7 @@
           v-for="collaborator in results"
           :key="collaborator.id"
           :name="collaborator.name"
+          :subject-type="collaborator.type"
           :value="collaborator.id"
         ></FieldCollaboratorDropdownItem>
       </ul>

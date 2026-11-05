@@ -348,8 +348,16 @@ def test_get_row_serializer_with_user_field_names(
                 "last_modified_datetime_eu": "2021-01-02T12:00:00Z",
                 "last_modified_datetime_us": "2021-01-02T12:00:00Z",
                 "last_modified_datetime_eu_tzone": "2021-01-02T12:00:00Z",
-                "created_by": {"id": user.id, "name": user.first_name},
-                "last_modified_by": {"id": user.id, "name": user.first_name},
+                "created_by": {
+                    "type": "auth.User",
+                    "id": user.id,
+                    "name": user.first_name,
+                },
+                "last_modified_by": {
+                    "type": "auth.User",
+                    "id": user.id,
+                    "name": user.first_name,
+                },
                 "created_on_date_eu": "2021-01-02",
                 "created_on_date_us": "2021-01-02",
                 "created_on_datetime_eu": "2021-01-02T12:00:00Z",
@@ -448,8 +456,16 @@ def test_get_row_serializer_with_user_field_names(
                     "value": "BB",
                 },
                 "multiple_collaborators": [
-                    {"id": context["user2"].id, "name": context["user2"].first_name},
-                    {"id": context["user3"].id, "name": context["user3"].first_name},
+                    {
+                        "type": "auth.User",
+                        "id": context["user2"].id,
+                        "name": context["user2"].first_name,
+                    },
+                    {
+                        "type": "auth.User",
+                        "id": context["user3"].id,
+                        "name": context["user3"].first_name,
+                    },
                 ],
                 "multiple_collaborators_link_row": [
                     {
@@ -523,8 +539,8 @@ def test_get_row_serializer_with_user_field_names(
                     },
                 ],
                 "formula_multiple_collaborators": [
-                    {"id": u2.id, "name": u2.first_name},
-                    {"id": u3.id, "name": u3.first_name},
+                    {"type": "auth.User", "id": u2.id, "name": u2.first_name},
+                    {"type": "auth.User", "id": u3.id, "name": u3.first_name},
                 ],
                 "formula_text": "test FORMULA",
                 "count": "3",
@@ -540,14 +556,14 @@ def test_get_row_serializer_with_user_field_names(
                     {
                         "id": 1,
                         "value": [
-                            {"id": u2.id, "name": u2.first_name},
-                            {"id": u3.id, "name": u3.first_name},
+                            {"type": "auth.User", "id": u2.id, "name": u2.first_name},
+                            {"type": "auth.User", "id": u3.id, "name": u3.first_name},
                         ],
                     },
                     {
                         "id": 2,
                         "value": [
-                            {"id": u2.id, "name": u2.first_name},
+                            {"type": "auth.User", "id": u2.id, "name": u2.first_name},
                         ],
                     },
                 ],

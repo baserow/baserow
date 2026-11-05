@@ -279,7 +279,7 @@ def get_jsonb_contains_filter_expr(
         )
     """  # noqa: S608
     expr = RawSQL(raw_sql, (query_path, f"%{value}%"))  # nosec B611
-    annotation_name = f"{field_name}_contains_{hash(value)}"
+    annotation_name = f"{field_name}_contains_{hash((value, query_path))}"
     return AnnotatedQ(
         annotation={annotation_name: expr},
         q=Q(**{annotation_name: True}),
@@ -319,7 +319,7 @@ def get_jsonb_contains_word_filter_expr(
     """  # noqa: S608
     expr = RawSQL(raw_sql, (query_path, rf"\m{re_value}\M"))  # nosec B611
 
-    annotation_name = f"{field_name}_contains_word_{hash(value)}"
+    annotation_name = f"{field_name}_contains_word_{hash((value, query_path))}"
     return AnnotatedQ(
         annotation={annotation_name: expr},
         q=Q(**{annotation_name: True}),
@@ -372,7 +372,7 @@ def get_jsonb_has_any_in_value_filter_expr(
     """  # noqa: S608
     expr = RawSQL(raw_sql, (f"{query_path} ? ({sql_ids})",))  # nosec B611
 
-    annotation_name = f"{field_name}_has_any_of_{hash(sql_ids)}"
+    annotation_name = f"{field_name}_has_any_of_{hash((sql_ids, query_path))}"
     return AnnotatedQ(
         annotation={annotation_name: expr},
         q=Q(**{annotation_name: True}),

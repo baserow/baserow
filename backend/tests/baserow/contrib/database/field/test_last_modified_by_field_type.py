@@ -46,9 +46,9 @@ def test_create_last_modified_by_field(data_fixture):
 
     model = table.get_model()
     rows = list(model.objects.all())
-    assert getattr(rows[0], f"field_{field.id}") == user
-    assert getattr(rows[1], f"field_{field.id}") == user
-    assert getattr(rows[2], f"field_{field.id}") == user
+    assert getattr(rows[0], f"field_{field.id}") == user.profile.subject
+    assert getattr(rows[1], f"field_{field.id}") == user.profile.subject
+    assert getattr(rows[2], f"field_{field.id}") == user.profile.subject
 
 
 @pytest.mark.field_multiple_collaborators
@@ -75,7 +75,7 @@ def test_last_modified_by_field_type_create_via_api(api_client, data_fixture):
     assert response_json["name"] == "Last modified by 1"
     assert response_json["type"] == "last_modified_by"
     assert response_json["available_collaborators"] == [
-        {"id": user.id, "name": user.first_name}
+        {"id": user.id, "name": user.first_name, "type": "auth.User"}
     ]
 
 
@@ -126,7 +126,7 @@ def test_create_row_last_modified_by(data_fixture):
 
     row_1 = row_handler.create_row(user=user, table=table, values={}, model=model)
 
-    assert getattr(row_1, f"field_{field.id}") == user
+    assert getattr(row_1, f"field_{field.id}") == user.profile.subject
 
 
 @pytest.mark.field_last_modified_by
@@ -166,7 +166,7 @@ def test_create_rows_last_modified_by(data_fixture):
         user=user, table=table, rows_values=[{}, {}], model=model
     ).created_rows
 
-    assert getattr(rows[0], f"field_{field.id}") == user
+    assert getattr(rows[0], f"field_{field.id}") == user.profile.subject
 
 
 @pytest.mark.field_last_modified_by
@@ -211,7 +211,7 @@ def test_update_row_last_modified_by(data_fixture):
         user=user, table=table, row=row_1, values={"text": "test"}, model=model
     )
 
-    assert getattr(updated_row, f"field_{field.id}") == user
+    assert getattr(updated_row, f"field_{field.id}") == user.profile.subject
 
 
 @pytest.mark.field_last_modified_by
@@ -264,7 +264,7 @@ def test_update_rows_last_modified_by(data_fixture):
     )
 
     row_1.refresh_from_db()
-    assert getattr(row_1, f"field_{field.id}") == user
+    assert getattr(row_1, f"field_{field.id}") == user.profile.subject
 
 
 @pytest.mark.field_last_modified_by
@@ -343,9 +343,9 @@ def test_get_set_export_serialized_value_last_modified_by_field(data_fixture):
     core_handler = CoreHandler()
 
     model = table.get_model()
-    row_1 = model.objects.create(last_modified_by=user)
+    row_1 = model.objects.create(last_modified_by=user.profile.subject)
     row_2 = model.objects.create()
-    row_3 = model.objects.create(last_modified_by=user)
+    row_3 = model.objects.create(last_modified_by=user.profile.subject)
 
     config = ImportExportConfig(include_permission_data=False)
     exported_applications = core_handler.export_workspace_applications(
@@ -368,9 +368,9 @@ def test_get_set_export_serialized_value_last_modified_by_field(data_fixture):
     imported_row_2 = all[1]
     imported_row_3 = all[2]
 
-    assert getattr(imported_row_1, f"field_{imported_field.id}") == user
+    assert getattr(imported_row_1, f"field_{imported_field.id}") == user.profile.subject
     assert getattr(imported_row_2, f"field_{imported_field.id}") is None
-    assert getattr(imported_row_3, f"field_{imported_field.id}") == user
+    assert getattr(imported_row_3, f"field_{imported_field.id}") == user.profile.subject
 
 
 @pytest.mark.field_last_modified_by
@@ -393,17 +393,17 @@ def test_duplicate_last_modified_by_field(data_fixture):
         table=table, order=1, name="Last modified by", primary=True
     )
     model = table.get_model()
-    row1 = model.objects.create(last_modified_by=user)
-    row2 = model.objects.create(last_modified_by=user2)
-    row3 = model.objects.create(last_modified_by=user3)
+    row1 = model.objects.create(last_modified_by=user.profile.subject)
+    row2 = model.objects.create(last_modified_by=user2.profile.subject)
+    row3 = model.objects.create(last_modified_by=user3.profile.subject)
 
     new_field, _ = FieldHandler().duplicate_field(user, field)
 
     model = table.get_model()
     rows = model.objects.all()
-    assert getattr(rows[0], f"field_{new_field.id}") == user
-    assert getattr(rows[1], f"field_{new_field.id}") == user2
-    assert getattr(rows[2], f"field_{new_field.id}") == user3
+    assert getattr(rows[0], f"field_{new_field.id}") == user.profile.subject
+    assert getattr(rows[1], f"field_{new_field.id}") == user2.profile.subject
+    assert getattr(rows[2], f"field_{new_field.id}") == user3.profile.subject
 
 
 @pytest.mark.field_last_modified_by
@@ -427,10 +427,10 @@ def test_trash_restore_last_modified_by_field(data_fixture):
     )
     text_field = data_fixture.create_text_field(table=table, order=2, name="Text")
     model = table.get_model()
-    row1 = model.objects.create(last_modified_by=user2)
-    row2 = model.objects.create(last_modified_by=user2)
-    row3 = model.objects.create(last_modified_by=user3)
-    row4 = model.objects.create(last_modified_by=user3)
+    row1 = model.objects.create(last_modified_by=user2.profile.subject)
+    row2 = model.objects.create(last_modified_by=user2.profile.subject)
+    row3 = model.objects.create(last_modified_by=user3.profile.subject)
+    row4 = model.objects.create(last_modified_by=user3.profile.subject)
 
     FieldHandler().delete_field(user, field)
 
@@ -455,10 +455,10 @@ def test_trash_restore_last_modified_by_field(data_fixture):
 
     model = table.get_model()
     rows = model.objects.all()
-    assert getattr(rows[0], f"field_{field.id}") == user
-    assert getattr(rows[1], f"field_{field.id}") == user
-    assert getattr(rows[2], f"field_{field.id}") == user
-    assert getattr(rows[3], f"field_{field.id}") == user3
+    assert getattr(rows[0], f"field_{field.id}") == user.profile.subject
+    assert getattr(rows[1], f"field_{field.id}") == user.profile.subject
+    assert getattr(rows[2], f"field_{field.id}") == user.profile.subject
+    assert getattr(rows[3], f"field_{field.id}") == user3.profile.subject
 
 
 @pytest.mark.field_last_modified_by
@@ -479,10 +479,10 @@ def test_last_modified_by_field_type_sorting(data_fixture):
     model = table.get_model()
     view_handler = ViewHandler()
 
-    row1 = model.objects.create(last_modified_by=user_c)
-    row2 = model.objects.create(last_modified_by=user_b)
-    row3 = model.objects.create(last_modified_by=user_a)
-    row4 = model.objects.create(last_modified_by=user_c)
+    row1 = model.objects.create(last_modified_by=user_c.profile.subject)
+    row2 = model.objects.create(last_modified_by=user_b.profile.subject)
+    row3 = model.objects.create(last_modified_by=user_a.profile.subject)
+    row4 = model.objects.create(last_modified_by=user_c.profile.subject)
     row5 = model.objects.create(last_modified_by=None)
 
     sort = data_fixture.create_view_sort(view=grid_view, field=field, order="ASC")
@@ -516,10 +516,10 @@ def test_last_modified_by_field_view_aggregations(data_fixture):
     model = table.get_model()
     view_handler = ViewHandler()
 
-    model.objects.create(last_modified_by=user_c)
-    model.objects.create(last_modified_by=user_b)
-    model.objects.create(last_modified_by=user_a)
-    model.objects.create(last_modified_by=user_c)
+    model.objects.create(last_modified_by=user_c.profile.subject)
+    model.objects.create(last_modified_by=user_b.profile.subject)
+    model.objects.create(last_modified_by=user_a.profile.subject)
+    model.objects.create(last_modified_by=user_c.profile.subject)
     model.objects.create(last_modified_by=None)
 
     result = view_handler.get_field_aggregations(user_a, view, [(field, "empty_count")])
