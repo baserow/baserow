@@ -4,12 +4,7 @@ import pytest
 
 from baserow.core.agents.handler import AgentHandler
 from baserow.core.models import Agent, Subject, SubjectRollout, User
-from baserow.core.subject.export import export_subject, import_subject
-from baserow.core.subject.handler import (
-    eligible_subjects,
-    resolve_actor,
-    subject_for_actor,
-)
+from baserow.core.subject.handler import SubjectHandler
 
 
 @pytest.mark.django_db
@@ -25,7 +20,7 @@ def test_human_identity_save_and_delete(data_fixture):
     user.delete()
     subject.refresh_from_db()
     assert (subject.state, subject.uid) == ("retained", "renamed@example.com")
-    assert resolve_actor(subject) is None
+    assert SubjectHandler().resolve_actor(subject) is None
     replacement = data_fixture.create_user(email="renamed@example.com")
     assert replacement.id != subject.id
 
@@ -44,14 +39,21 @@ def test_agent_identity_gate_and_lifecycle(data_fixture):
     subject_type = subject_type_registry.get_by_model(agent)
     assert subject_type.get_persistent_subject(agent).id == agent.subject_id
     assert subject_type.get_persistent_subject(agent, for_write=True) is None
-    assert subject_for_actor(agent, for_write=True) is None
+    assert SubjectHandler().subject_for_actor(agent, for_write=True) is None
     SubjectRollout.objects.create(pk=1, agent_references_enabled=True)
     assert (
         subject_type.get_persistent_subject(agent, for_write=True).id
         == agent.subject_id
     )
-    assert subject_for_actor(agent, for_write=True).id == agent.subject_id
-    assert eligible_subjects(workspace.id).filter(pk=agent.subject_id).exists()
+    assert (
+        SubjectHandler().subject_for_actor(agent, for_write=True).id == agent.subject_id
+    )
+    assert (
+        SubjectHandler()
+        .eligible_subjects(workspace.id)
+        .filter(pk=agent.subject_id)
+        .exists()
+    )
     agent.name, agent.trashed = "Renamed", True
     agent.save(update_fields=["name", "trashed"])
     subject = Subject.objects.get(pk=agent.subject_id)
@@ -62,12 +64,17 @@ def test_agent_identity_gate_and_lifecycle(data_fixture):
         )
         is None
     )
-    assert resolve_actor(subject) is None
-    assert not eligible_subjects(workspace.id).filter(pk=subject.id).exists()
+    assert SubjectHandler().resolve_actor(subject) is None
+    assert (
+        not SubjectHandler()
+        .eligible_subjects(workspace.id)
+        .filter(pk=subject.id)
+        .exists()
+    )
     agent.trashed = False
     agent.save(update_fields=["trashed"])
     subject.refresh_from_db()
-    assert resolve_actor(subject).id == agent.id
+    assert SubjectHandler().resolve_actor(subject).id == agent.id
     agent.delete()
     subject.refresh_from_db()
     assert subject.state == "retained"
@@ -89,14 +96,14 @@ def test_import_identity_does_not_create_agent_or_match_foreign_user(data_fixtur
     """Imports retain foreign attribution without manufacturing execution privileges."""
     workspace = data_fixture.create_workspace()
     foreign = data_fixture.create_user()
-    value = export_subject(foreign.profile.subject)
+    value = SubjectHandler().export_subject(foreign.profile.subject)
     cache = {}
-    retained = import_subject(value, workspace.id, cache)
+    retained = SubjectHandler().import_subject(value, workspace.id, cache)
     assert retained.id != foreign.id
     assert retained.state == "retained"
-    assert import_subject(value, workspace.id, cache).id == retained.id
-    assert resolve_actor(retained) is None
-    assert import_subject(foreign.email, workspace.id, {}) is None
+    assert SubjectHandler().import_subject(value, workspace.id, cache).id == retained.id
+    assert SubjectHandler().resolve_actor(retained) is None
+    assert SubjectHandler().import_subject(foreign.email, workspace.id, {}) is None
     agent_value = {
         "subject": {
             "version": 1,
@@ -108,9 +115,9 @@ def test_import_identity_does_not_create_agent_or_match_foreign_user(data_fixtur
     from django.core.exceptions import ValidationError
 
     with pytest.raises(ValidationError):
-        import_subject(agent_value, workspace.id, {})
+        SubjectHandler().import_subject(agent_value, workspace.id, {})
     SubjectRollout.objects.create(pk=1, agent_references_enabled=True)
-    retained_agent = import_subject(agent_value, workspace.id, {})
+    retained_agent = SubjectHandler().import_subject(agent_value, workspace.id, {})
     assert retained_agent.state == "retained"
     assert not Agent.objects.filter(subject=retained_agent).exists()
 
@@ -166,8 +173,8 @@ def test_missing_profile_link_fails_closed_without_losing_attribution(data_fixtu
         )
         is None
     )
-    assert subject_for_actor(fresh_user, for_write=True) is None
-    assert resolve_actor(subject) is None
+    assert SubjectHandler().subject_for_actor(fresh_user, for_write=True) is None
+    assert SubjectHandler().resolve_actor(subject) is None
 
 
 @pytest.mark.django_db(transaction=True)
@@ -185,7 +192,9 @@ def test_reconciliation_repairs_missing_profiles_before_activation(data_fixture)
     assert UserProfile.objects.get(user_id=user.id).subject_id == user.id
     assert SubjectRollout.objects.get(pk=1).agent_references_enabled is True
     assert (
-        subject_for_actor(Agent.objects.get(pk=agent.pk), for_write=True).id
+        SubjectHandler()
+        .subject_for_actor(Agent.objects.get(pk=agent.pk), for_write=True)
+        .id
         == agent.subject_id
     )
 
@@ -199,8 +208,6 @@ def test_registered_identity_type_controls_selection_import_and_display(
     from django.db.models import Q
 
     from baserow.core.registries import subject_type_registry
-    from baserow.core.subject.export import human_readable_subject
-    from baserow.core.subject.handler import allocate_subject_id
     from baserow.core.subjects import AnonymousUserSubjectType
 
     workspace = data_fixture.create_workspace()
@@ -234,14 +241,17 @@ def test_registered_identity_type_controls_selection_import_and_display(
     subject_type = ExternalSubjectType()
     monkeypatch.setitem(subject_type_registry.registry, subject_type.type, subject_type)
     identity = Subject.objects.create(
-        id=allocate_subject_id(),
+        id=SubjectHandler().allocate_subject_id(),
         type=subject_type.type,
         name="Extension",
         uid="external",
     )
-    assert eligible_subjects(workspace.id).get(pk=identity.pk).id == identity.pk
-    assert human_readable_subject(identity) == "External: Extension"
-    assert export_subject(identity)["subject"] == {
+    assert (
+        SubjectHandler().eligible_subjects(workspace.id).get(pk=identity.pk).id
+        == identity.pk
+    )
+    assert SubjectHandler().human_readable_subject(identity) == "External: Extension"
+    assert SubjectHandler().export_subject(identity)["subject"] == {
         "version": 1,
         "type": subject_type.type,
         "uid": "external",
@@ -250,18 +260,32 @@ def test_registered_identity_type_controls_selection_import_and_display(
     assert identity.name == "Extension"
     cache = {}
     assert (
-        import_subject(export_subject(identity), workspace.id, cache).id == identity.pk
+        SubjectHandler()
+        .import_subject(SubjectHandler().export_subject(identity), workspace.id, cache)
+        .id
+        == identity.pk
     )
     assert cache["external_import_called"] is True
     with django_assert_num_queries(0):
         assert (
-            import_subject(export_subject(identity), workspace.id, cache).id
+            SubjectHandler()
+            .import_subject(
+                SubjectHandler().export_subject(identity), workspace.id, cache
+            )
+            .id
             == identity.pk
         )
     subject_type.enabled = False
-    assert not eligible_subjects(workspace.id).filter(pk=identity.pk).exists()
+    assert (
+        not SubjectHandler()
+        .eligible_subjects(workspace.id)
+        .filter(pk=identity.pk)
+        .exists()
+    )
     with pytest.raises(ValidationError):
-        import_subject(export_subject(identity), workspace.id, {})
+        SubjectHandler().import_subject(
+            SubjectHandler().export_subject(identity), workspace.id, {}
+        )
 
 
 @pytest.mark.django_db
@@ -279,7 +303,7 @@ def test_registered_permission_only_type_cannot_be_imported(data_fixture):
         }
     }
     with pytest.raises(ValueError, match="Unsupported exported Subject identity"):
-        import_subject(value, workspace.id, {})
+        SubjectHandler().import_subject(value, workspace.id, {})
     assert not Subject.objects.filter(uid="not-persistent").exists()
 
 
@@ -381,3 +405,17 @@ def test_subject_lifecycle_registration_is_idempotent(data_fixture, monkeypatch)
     user.save(update_fields=["first_name"])
     assert synchronized_ids == [user.pk]
     assert Subject.objects.get(pk=user.pk).name == "Renamed"
+
+
+def test_legacy_subject_imports_share_types_and_registry():
+    """Compatibility imports must not introduce separate types or registry state."""
+    from baserow.core import registries, subjects
+    from baserow.core.subject import registries as subject_registries
+    from baserow.core.subject import subject_types
+    from baserow.core.user.subject_types import UserSubjectType
+
+    assert registries.SubjectType is subject_registries.SubjectType
+    assert registries.SubjectTypeRegistry is subject_registries.SubjectTypeRegistry
+    assert registries.subject_type_registry is subject_registries.subject_type_registry
+    assert subjects.UserSubjectType is UserSubjectType
+    assert subjects.AnonymousUserSubjectType is subject_types.AnonymousUserSubjectType

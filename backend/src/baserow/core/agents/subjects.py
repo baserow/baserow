@@ -40,7 +40,7 @@ class AgentSubjectType(SubjectType):
     def synchronize_persistent_subject(self, actor, *, using="default"):
         """Keep the independent Agent ID and its cached identity transactionally linked."""
         from baserow.core.models import Subject as PersistentSubject
-        from baserow.core.subject.handler import allocate_subject_id
+        from baserow.core.subject.handler import SubjectHandler
 
         with transaction.atomic(using=using):
             agent = (
@@ -48,7 +48,7 @@ class AgentSubjectType(SubjectType):
             )
             subject_id = agent.subject_id
             if subject_id is None:
-                subject_id = allocate_subject_id(using=using)
+                subject_id = SubjectHandler().allocate_subject_id(using=using)
             subject, created = PersistentSubject.objects.using(using).get_or_create(
                 pk=subject_id,
                 defaults={

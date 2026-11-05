@@ -79,7 +79,7 @@ from baserow.contrib.database.formula.types.formula_type import (
 from baserow.core.db import collate_expression
 from baserow.core.models import Subject
 from baserow.core.storage import get_default_storage
-from baserow.core.subject.handler import workspace_subject_filter
+from baserow.core.subject.handler import SubjectHandler
 from baserow.core.utils import list_to_comma_separated_string
 
 
@@ -1947,7 +1947,7 @@ class BaserowFormulaMultipleCollaboratorsType(
                 {
                     subject.id: subject
                     for subject in Subject.objects.filter(
-                        workspace_subject_filter(
+                        SubjectHandler().workspace_subject_filter(
                             field.table.database.workspace_id, selectable=False
                         )
                         | Q(id__in=referenced_ids)

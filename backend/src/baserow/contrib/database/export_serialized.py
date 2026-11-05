@@ -1,4 +1,4 @@
-from baserow.core.subject.export import export_subject
+from baserow.core.subject.handler import SubjectHandler
 
 
 class DatabaseExportSerializedStructure:
@@ -24,10 +24,12 @@ class DatabaseExportSerializedStructure:
         optional = {}
 
         if created_by:
-            optional["created_by"] = export_subject(created_by)
+            optional["created_by"] = SubjectHandler().export_subject(created_by)
 
         if last_modified_by:
-            optional["last_modified_by"] = export_subject(last_modified_by)
+            optional["last_modified_by"] = SubjectHandler().export_subject(
+                last_modified_by
+            )
 
         return {
             "id": id,
