@@ -406,3 +406,51 @@ def test_date_group_rows_match_sub_group_offsets(
         ("Open", "Export broken"),
         ("Open", "Login fails"),
     ]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("mode", REQUEST_MODES)
+@pytest.mark.parametrize("kind", ["created_on", "last_modified"])
+@pytest.mark.parametrize("include_time", [False, True])
+@pytest.mark.parametrize("grouped", [False, True])
+def test_audit_date_sort_matches_displayed_precision(
+    api_client, data_fixture, mode, kind, include_time, grouped
+):
+    """Hidden times must not reorder rows whose displayed audit dates are equal."""
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    ticket = data_fixture.create_text_field(table=table, name="Ticket", primary=True)
+    date = getattr(data_fixture, f"create_{kind}_field")(
+        table=table, date_include_time=include_time
+    )
+    view = data_fixture.create_grid_view(table=table, public=True)
+    params = _configure_ordering(
+        data_fixture,
+        view,
+        [(date, "ASC")] if grouped else [],
+        [(date, "DESC")],
+        mode,
+    )
+    values = [
+        datetime(2024, 1, 8, 9, 0, second, tzinfo=timezone.utc)
+        for second in range(1, 5)
+    ] + [
+        datetime(2024, 1, 7, 23, 59, 59, tzinfo=timezone.utc),
+        datetime(2024, 1, 8, 0, 0, tzinfo=timezone.utc),
+        None,
+    ]
+    model = table.get_model()
+    for index, value in enumerate(values, start=1):
+        row = model.objects.create(order=index, **{ticket.db_column: str(index)})
+        model.objects.filter(id=row.id).update(**{date.db_column: value})
+
+    rows_url, _, auth = _grid_urls_and_auth(view, token, mode)
+    rows = _get_json(api_client, rows_url, params, auth)["results"]
+
+    if include_time:
+        # An explicit view sort retains seconds inside the minute group.
+        expected = [7, 5, 6, 4, 3, 2, 1] if grouped else [4, 3, 2, 1, 6, 5, 7]
+    else:
+        # Equal UTC days retain row order, including midnight and midday values.
+        expected = [7, 5, 1, 2, 3, 4, 6] if grouped else [1, 2, 3, 4, 6, 5, 7]
+    assert [row[ticket.db_column] for row in rows] == [str(index) for index in expected]

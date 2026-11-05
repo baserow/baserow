@@ -2561,6 +2561,24 @@ class BaseDateFieldType extends FieldType {
     return RowHistoryFieldDate
   }
 
+  getGroupValueFromRowValue(field, value) {
+    // Date formulas delegate here, but their backend groups keep full timestamps.
+    if (value == null || !field.date_include_time || field.type !== this.type) {
+      return value
+    }
+    return moment.utc(value).startOf('minute').format()
+  }
+
+  getGroupBySort(name, order, field, sortType) {
+    const sort = super.getGroupBySort(name, order, field, sortType)
+    // Equal minute groups fall through to the next group-by or view sort.
+    return (a, b) =>
+      sort(
+        { [name]: this.getGroupValueFromRowValue(field, a[name]) },
+        { [name]: this.getGroupValueFromRowValue(field, b[name]) }
+      )
+  }
+
   getSort(name, order) {
     return (a, b) => {
       if (moment.isMoment(a[name]) && moment.isMoment(b[name])) {
@@ -2924,8 +2942,8 @@ export class CreatedOnLastModifiedBaseFieldType extends BaseDateFieldType {
    * The "new row" value for the new row in the case of LastModified or CreatedOn Fields
    * is simply the current time.
    */
-  getNewRowValue() {
-    return moment().local().format()
+  getNewRowValue(field) {
+    return this.formatValue(field, moment())
   }
 
   shouldFetchDataWhenAdded() {
@@ -2978,16 +2996,16 @@ export class LastModifiedFieldType extends CreatedOnLastModifiedBaseFieldType {
     )
   }
 
-  _onRowChangeOrMove() {
-    return moment().utc().format()
+  _onRowChangeOrMove(field) {
+    return this.formatValue(field, moment())
   }
 
   onRowChange(row, currentField, currentFieldValue) {
-    return this._onRowChangeOrMove()
+    return this._onRowChangeOrMove(currentField)
   }
 
   onRowMove(row, order, oldOrder, currentField, currentFieldValue) {
-    return this._onRowChangeOrMove()
+    return this._onRowChangeOrMove(currentField)
   }
 }
 

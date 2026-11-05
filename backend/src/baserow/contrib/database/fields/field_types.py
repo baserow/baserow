@@ -2250,6 +2250,24 @@ class CreatedOnLastModifiedBaseFieldType(ReadOnlyFieldType, DateFieldType):
         kwargs.update(self.model_field_kwargs)
         return self.model_field_class(**kwargs)
 
+    def get_order(
+        self,
+        field: Field,
+        field_name: str,
+        order_direction: str,
+        sort_type: str,
+        table_model: Optional["GeneratedTableModel"] = None,
+    ) -> OptionallyAnnotatedOrderBy:
+        """Ignore hidden times when sorting date-only audit values."""
+
+        if field.date_include_time:
+            return super().get_order(
+                field, field_name, order_direction, sort_type, table_model=table_model
+            )
+        return self._order_by_group_key(
+            self.get_group_by_expression(field, field_name, None), order_direction
+        )
+
     def get_group_by_expression(
         self, field: Field, field_name: str, base_queryset: Optional[QuerySet]
     ) -> Expression:

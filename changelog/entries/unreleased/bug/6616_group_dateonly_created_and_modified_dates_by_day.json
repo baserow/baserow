@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Group date-only created and modified dates by day",
+    "message": "Fix grouping and sorting of date-only created and modified fields, and row placement in timed date groups",
     "issue_origin": "github",
     "issue_number": 6616,
     "domain": "database",
