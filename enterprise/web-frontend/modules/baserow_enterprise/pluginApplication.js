@@ -47,7 +47,7 @@ import {
   SemanticSearchPaidFeature,
   XLSFileReaderPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
-import { AIPromptOnboardingType } from '@baserow_enterprise/onboardingTypes'
+
 import { FF_SEMANTIC_SEARCH } from '@baserow/modules/core/plugins/featureFlags'
 
 /** Register shared shell features; application-specific UI is initialized separately. */
@@ -135,5 +135,4 @@ export default async function register(nuxtApp) {
   }
   $registry.register('paidFeature', new DataScannerPaidFeature(context))
   $registry.register('paidFeature', new DateDependencyPaidFeature(context))
-  $registry.register('onboarding', new AIPromptOnboardingType(context))
 }

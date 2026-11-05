@@ -1,8 +1,7 @@
-import { loadApplicationBundle } from '@baserow/modules/core/utils/applicationBundles'
+import { loadFeatureBundle } from '@baserow/modules/core/utils/featureBundles'
 
-/** Routes initialize their feature before named middleware selects its data. */
+/** Initialize route features before named middleware selects data or renders UI. */
 export default defineNuxtRouteMiddleware(async (to) => {
-  if (to.meta.applicationBundle) {
-    await loadApplicationBundle(useNuxtApp(), to.meta.applicationBundle)
-  }
+  const feature = to.meta.applicationBundle || to.meta.featureBundle
+  if (feature) await loadFeatureBundle(useNuxtApp(), feature)
 })

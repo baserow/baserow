@@ -1,10 +1,12 @@
 import { Registerable } from '@baserow/modules/core/registry'
 
-import UserPreview from '@baserow/modules/core/components/onboarding/UserPreview'
-import MoreStep from '@baserow/modules/core/components/onboarding/MoreStep'
+import { getFeatureComponent } from '@baserow/modules/core/utils/featureBundles'
 import AuthService from '@baserow/modules/core/services/auth'
 
 export class OnboardingType extends Registerable {
+  /** Load any optional dependencies before the form is mounted and exposed by ref. */
+  async load() {}
+
   /**
    * The order in which the onboarding step must be. Note that if the complete
    * method depends on another step, then the order by be lower, otherwise not all
@@ -131,11 +133,11 @@ export class MoreOnboardingType extends OnboardingType {
   }
 
   getFormComponent() {
-    return MoreStep
+    return getFeatureComponent(this.app, 'onboarding', 'MoreStep')
   }
 
   getPreviewComponent() {
-    return UserPreview
+    return getFeatureComponent(this.app, 'onboarding', 'UserPreview')
   }
 
   canSkip() {

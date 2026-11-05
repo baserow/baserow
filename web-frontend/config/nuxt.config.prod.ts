@@ -59,10 +59,10 @@ export default {
       }
       for (const id of Object.keys(manifest)) {
         if (
-          /\/(?:\w+(?:Application|Authentication)|elementEditorBundle|authoringBundle|editorRenderingBundle|collectionRefinementsBundle|(?:application|database|dashboard|automation|builder|agent)Bundle)\.js$|\/GraphElement\.vue$/.test(
+          /\/(?:\w+(?:Application|Authentication)|elementEditorBundle|authoringBundle|editorRenderingBundle|collectionRefinementsBundle|onboarding(?:Rendering)?Bundle|(?:application|database|dashboard|automation|builder|agent)Bundle)\.js$|\/GraphElement\.vue$/.test(
             id
           ) ||
-          /^(?:(?:database|builder|dashboard|automation|agent)-application|application-shared)$/.test(
+          /^(?:(?:database|builder|dashboard|automation|agent)-application|application-shared|onboarding(?:-rendering|-shared)?)$/.test(
             manifest[id].name || ''
           ) ||
           /(?:^|\/)node_modules\/tldjs\//.test(id)

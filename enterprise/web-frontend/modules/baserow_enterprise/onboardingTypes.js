@@ -1,4 +1,4 @@
-import { getApplicationComponent } from '@baserow/modules/core/utils/applicationBundles'
+import { getFeatureComponent } from '@baserow/modules/core/utils/featureBundles'
 import { nextTick } from 'vue'
 import { OnboardingType } from '@baserow/modules/core/onboardingTypes'
 import { DatabaseOnboardingType } from '@baserow/modules/database/onboardingTypes'
@@ -18,13 +18,13 @@ export class AIPromptOnboardingType extends OnboardingType {
   }
 
   getFormComponent() {
-    return getApplicationComponent(this.app, 'database', 'AIPromptStep')
+    return getFeatureComponent(this.app, 'onboarding', 'AIPromptStep')
   }
 
   getPreviewComponent() {
-    return getApplicationComponent(
+    return getFeatureComponent(
       this.app,
-      'database',
+      'onboarding',
       'DatabaseAppLayoutPreview'
     )
   }
@@ -54,11 +54,7 @@ export class AIPromptOnboardingType extends OnboardingType {
 
     callback(
       null,
-      getApplicationComponent(
-        this.app,
-        'database',
-        'AssistantOnboardingMessage'
-      )
+      getFeatureComponent(this.app, 'onboarding', 'AssistantOnboardingMessage')
     )
     await this.app.$store.dispatch('assistant/sendMessage', {
       message,

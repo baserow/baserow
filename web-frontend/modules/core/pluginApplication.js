@@ -50,7 +50,7 @@ import {
   BaserowVersionUpgradeNotificationType,
   AbuseReportCreatedNotificationType,
 } from '@baserow/modules/core/notificationTypes'
-import { MoreOnboardingType } from '@baserow/modules/core/onboardingTypes'
+
 import { SidebarGuidedTourType } from '@baserow/modules/core/guidedTourTypes'
 import { TOTPAuthType } from '@baserow/modules/core/twoFactorAuthTypes'
 import {
@@ -150,6 +150,6 @@ export default async function register(nuxtApp) {
     new AbuseReportCreatedNotificationType(context)
   )
   registry.register('twoFactorAuth', new TOTPAuthType(context))
-  registry.register('onboarding', new MoreOnboardingType(context))
+
   registry.register('guidedTour', new SidebarGuidedTourType(context))
 }

@@ -3,12 +3,7 @@ import {
   DATABASE_VIEW_METADATA,
   registerViewMetadata,
 } from '@baserow/modules/database/viewMetadata'
-import {
-  DatabaseOnboardingType,
-  DatabaseScratchTrackOnboardingType,
-  DatabaseImportOnboardingType,
-  DatabaseScratchTrackFieldsOnboardingType,
-} from '@baserow/modules/database/onboardingTypes'
+
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import { DatabaseViewLastViewedItemType } from '@baserow/modules/database/lastViewedItemTypes'
 import {
@@ -48,14 +43,4 @@ export default async function register(nuxtApp) {
   searchTypeRegistry.register(new DatabaseTableSearchType(context))
   searchTypeRegistry.register(new DatabaseFieldSearchType(context))
   searchTypeRegistry.register(new DatabaseRowSearchType(context))
-  $registry.register('onboarding', new DatabaseOnboardingType(context))
-  $registry.register(
-    'onboarding',
-    new DatabaseScratchTrackOnboardingType(context)
-  )
-  $registry.register(
-    'onboarding',
-    new DatabaseScratchTrackFieldsOnboardingType(context)
-  )
-  $registry.register('onboarding', new DatabaseImportOnboardingType(context))
 }
