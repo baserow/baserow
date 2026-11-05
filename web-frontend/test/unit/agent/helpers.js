@@ -311,8 +311,8 @@ export async function chooseFromMenu(wrapper, title, action) {
     .trigger('click')
   await wrapper
     .findComponent(Context)
-    .findAll('.menu-list__item-button')
-    .find((button) => button.text().includes(action))
+    .findAll('.context__menu-item-link')
+    .find((link) => link.text().includes(action))
     .trigger('click')
   await flushPromises()
 }
