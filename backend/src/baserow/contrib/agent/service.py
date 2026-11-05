@@ -483,9 +483,7 @@ class AgentService:
             self, application=agent, user_ids=[conversation.owner_user_id]
         )
         if not all_decided:
-            agent_conversation_activity.send(
-                self, conversation=conversation, user=user
-            )
+            agent_conversation_activity.send(self, conversation=conversation, user=user)
             return AgentToolDecisionsResult(reply, None, always_allowed_tools)
         self._require_ready(self.handler.get_agent(agent_id))
         run = self.handler.resume_reply(reply)

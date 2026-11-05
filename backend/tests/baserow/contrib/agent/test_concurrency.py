@@ -191,7 +191,7 @@ def test_always_allow_while_its_conversation_is_deleted_does_not_deadlock(
                 AgentConversation.objects.select_for_update().get(id=conversation.id)
                 conversation_locked.set()
                 assert release_delete.wait(10), "The delete was never released"
-                DeleteAgentConversationActionType.do(
+                action_type_registry.get_by_type(DeleteAgentConversationActionType).do(
                     user, conversation.agent_id, conversation.uuid
                 )
         finally:

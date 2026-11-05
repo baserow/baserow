@@ -12,6 +12,7 @@ from baserow.contrib.agent.models import (
     AgentReplyStatus,
     AgentToolApproval,
 )
+from baserow.core.action.registries import action_type_registry
 from baserow.core.chat_runs.exceptions import ChatRunAlreadyActive, ChatRunLimitReached
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
@@ -281,7 +282,7 @@ def test_each_decision_sends_the_owner_the_pending_count_left(
 
     for approval in held_reply.approvals.all():
         with django_capture_on_commit_callbacks(execute=True):
-            DecideAgentToolApprovalsActionType.do(
+            action_type_registry.get_by_type(DecideAgentToolApprovalsActionType).do(
                 api_user,
                 agent.id,
                 held_reply.conversation.uuid,
