@@ -253,8 +253,8 @@ class AgentService:
         :raises AgentMessageConflict: When the uuid was accepted with another first
             message.
         :raises AgentNotReady: When the agent isn't ready for a new conversation.
-        :raises ChatRunLimitReached: When the workspace has its maximum of replies
-            running.
+        :raises ChatRunLimitReached: When the user or workspace has its maximum of
+            queued or running replies.
         :return: The conversation, its first message and its reply, and whether they
             are new.
         """
@@ -310,8 +310,8 @@ class AgentService:
         :raises AgentNotReady: When the agent isn't ready for a new message.
         :raises ChatRunAlreadyActive: When the agent is still replying in this
             conversation.
-        :raises ChatRunLimitReached: When the workspace has its maximum of replies
-            running.
+        :raises ChatRunLimitReached: When the user or workspace has its maximum of
+            queued or running replies.
         :return: The conversation, the message and its reply, and whether the message
             is new.
         """
