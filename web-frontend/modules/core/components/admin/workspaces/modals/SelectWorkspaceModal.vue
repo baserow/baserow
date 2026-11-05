@@ -17,6 +17,8 @@
       <i class="iconoir-cancel" />
     </button>
     <CrudTable
+      :key="selectedOnly ? 'selected' : 'all'"
+      ref="table"
       :columns="columns"
       :service="service"
       :column-widths="{ selected: '40px', id: '72px' }"
@@ -25,22 +27,40 @@
       fixed-layout
       @rows-update="updatePosition"
     >
+      <template #header-filters>
+        <SegmentControl
+          class="select-workspace-modal__views"
+          size="small"
+          :active-index="selectedOnly ? 1 : 0"
+          :segments="[
+            { label: $t('selectWorkspaceModal.allWorkspaces') },
+            {
+              label: $t('selectWorkspaceModal.selectedWorkspaces', {
+                count: selectedWorkspaces.length,
+              }),
+            },
+          ]"
+          @update:active-index="selectedOnly = $event === 1"
+        />
+      </template>
+      <template v-if="selectedOnly" #empty>
+        <p>{{ $t('selectWorkspaceModal.noSelectedWorkspaces') }}</p>
+      </template>
       <template #rows="{ rows }">
         <tr
           v-for="workspace in rows"
           :key="workspace.id"
           class="data-table__table-row select-workspace-modal__row"
           :class="{
-            'select-workspace-modal__row--selected': selectedIds.includes(
-              workspace.id
-            ),
+            'select-workspace-modal__row--selected':
+              !selectedOnly && selectedIds.includes(workspace.id),
           }"
           @click="select(workspace)"
         >
           <td class="data-table__table-cell">
             <Checkbox
               :checked="selectedIds.includes(workspace.id)"
-              :disabled="selectedIds.includes(workspace.id)"
+              :disabled="!selectedOnly && selectedIds.includes(workspace.id)"
               @click.stop
               @input="select(workspace)"
               >{{ workspace.value }}</Checkbox
@@ -53,7 +73,7 @@
             <button
               type="button"
               class="select-workspace-modal__option"
-              :disabled="selectedIds.includes(workspace.id)"
+              :disabled="!selectedOnly && selectedIds.includes(workspace.id)"
               @click.stop="select(workspace)"
             >
               <span
@@ -70,7 +90,7 @@
 </template>
 
 <script setup>
-import { nextTick, onBeforeUnmount, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useNuxtApp } from '#app'
 
 import CrudTable from '@baserow/modules/core/components/crudTable/CrudTable'
@@ -78,18 +98,44 @@ import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
 import baseService from '@baserow/modules/core/crudTable/baseService'
 import SimpleField from '@baserow/modules/core/components/crudTable/fields/SimpleField'
 import { ADMIN_WORKSPACE_OPTIONS_URL } from '@baserow/modules/core/services/admin/workspaces'
+import SegmentControl from '@baserow/modules/core/components/SegmentControl'
 
-const props = defineProps({ selectedIds: { type: Array, default: () => [] } })
-const emit = defineEmits(['selected', 'hidden'])
+const props = defineProps({
+  selectedWorkspaces: { type: Array, default: () => [] },
+})
+const emit = defineEmits(['selected', 'unselected', 'hidden'])
 const { $client, $i18n } = useNuxtApp()
 const context = ref(null)
+const table = ref(null)
+const selectedOnly = ref(false)
+const selectedIds = computed(() => props.selectedWorkspaces.map(({ id }) => id))
 // Header, ten rows, and the table's outer border.
 const MAX_BODY_HEIGHT = 33 * 11 + 2
 const EDGE = 12
 const GAP = 6
 let anchor = null
 let generation = 0
-const service = baseService($client, ADMIN_WORKSPACE_OPTIONS_URL)
+const allWorkspacesService = baseService($client, ADMIN_WORKSPACE_OPTIONS_URL)
+const selectedWorkspacesService = {
+  options: { isPaginated: false },
+  fetch(_baseUrl, _page, search) {
+    const query = String(search || '')
+      .trim()
+      .toLowerCase()
+    const results = props.selectedWorkspaces
+      .filter(
+        ({ id, name }) =>
+          !query ||
+          name.toLowerCase().includes(query) ||
+          String(id).includes(query)
+      )
+      .map(({ id, name }) => ({ id, value: name }))
+    return Promise.resolve({ data: { count: results.length, results } })
+  },
+}
+const service = computed(() =>
+  selectedOnly.value ? selectedWorkspacesService : allWorkspacesService
+)
 const columns = [
   new CrudTableColumn('selected', '', SimpleField),
   new CrudTableColumn(
@@ -105,9 +151,37 @@ const columns = [
 ]
 
 function select(workspace) {
-  if (props.selectedIds.includes(workspace.id)) return
-  emit('selected', { id: workspace.id, name: workspace.value })
+  const isSelected = selectedIds.value.includes(workspace.id)
+  if (selectedOnly.value) {
+    if (!isSelected) return
+    emit('unselected', workspace.id)
+  } else {
+    if (isSelected) return
+    emit('selected', { id: workspace.id, name: workspace.value })
+  }
   updatePosition()
+}
+
+watch(
+  () => props.selectedWorkspaces,
+  async () => {
+    if (selectedOnly.value) await table.value?.refresh({ silent: true })
+    updatePosition()
+  },
+  { deep: true }
+)
+
+function verticalPlacement(target, preferredHeight = Infinity) {
+  const targetTop = Math.min(target.top, window.innerHeight - EDGE)
+  const targetBottom = Math.max(target.bottom, EDGE)
+  const below = window.innerHeight - targetBottom - GAP - EDGE
+  const above = targetTop - GAP - EDGE
+  const vertical = below >= preferredHeight || below >= above ? 'bottom' : 'top'
+  const available = Math.max(0, vertical === 'bottom' ? below : above)
+  const verticalOffset =
+    GAP +
+    (vertical === 'top' ? target.top - targetTop : targetBottom - target.bottom)
+  return { vertical, available, verticalOffset }
 }
 
 async function updatePosition() {
@@ -119,12 +193,10 @@ async function updatePosition() {
   if (!body) return
   const preferredHeight = panelRect.height - body.offsetHeight + MAX_BODY_HEIGHT
   const target = anchor.getBoundingClientRect()
-  const targetTop = Math.min(target.top, window.innerHeight - EDGE)
-  const targetBottom = Math.max(target.bottom, EDGE)
-  const below = window.innerHeight - targetBottom - GAP - EDGE
-  const above = targetTop - GAP - EDGE
-  const vertical = below >= preferredHeight || below >= above ? 'bottom' : 'top'
-  const available = Math.max(0, vertical === 'bottom' ? below : above)
+  const { vertical, available, verticalOffset } = verticalPlacement(
+    target,
+    preferredHeight
+  )
   panel.style.setProperty(
     '--select-workspace-available-height',
     `${available}px`
@@ -133,9 +205,6 @@ async function updatePosition() {
     EDGE,
     Math.min(target.left, window.innerWidth - panelRect.width - EDGE)
   )
-  const verticalOffset =
-    GAP +
-    (vertical === 'top' ? target.top - targetTop : targetBottom - target.bottom)
   await context.value.show(
     anchor,
     vertical,
@@ -166,10 +235,14 @@ function hidden() {
   emit('hidden')
 }
 
-async function show(target) {
+async function show(target, showSelected = false) {
   const currentGeneration = ++generation
   anchor = target
-  await context.value.show(anchor, 'bottom', 'left', GAP)
+  selectedOnly.value = showSelected
+  const { vertical, verticalOffset } = verticalPlacement(
+    anchor.getBoundingClientRect()
+  )
+  await context.value.show(anchor, vertical, 'left', verticalOffset)
   if (generation !== currentGeneration || !context.value?.isOpen()) return
   await updatePosition()
   if (generation !== currentGeneration || !context.value?.isOpen()) return

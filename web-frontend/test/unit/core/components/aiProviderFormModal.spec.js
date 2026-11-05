@@ -580,6 +580,81 @@ describe('AIProviderFormModal', () => {
     })
   })
 
+  test('bounds chip previews and manages all hidden selections locally without losing saved IDs', async () => {
+    const selectedWorkspaces = Array.from({ length: 125 }, (_, index) => ({
+      id: 1000 + index,
+      name: `Chosen ${index}`,
+    }))
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockResolvedValue({ id: 1 })
+    const wrapper = await testApp.mount(AIProviderFormModal, {
+      props: {
+        provider: {
+          id: 1,
+          provider_type: 'openai',
+          excluded_workspaces: selectedWorkspaces,
+        },
+        providerTypes: [
+          {
+            type: 'openai',
+            name: 'OpenAI',
+            uses_api_key: true,
+            extra_fields: [],
+          },
+        ],
+      },
+    })
+    await wrapper.vm.show()
+    expect(
+      wrapper
+        .findAll('.ai-provider-form__workspace')
+        .map((workspace) => workspace.text())
+    ).toEqual(['Chosen 0', 'Chosen 1'])
+    const more = wrapper.find('.ai-provider-form__more-workspaces')
+    expect(more.text()).toBe('aiProviderAdmin.moreExcludedWorkspaces - 123')
+
+    await more.trigger('click')
+    await flushPromises()
+    expect(wrapper.findAll('.select-workspace-modal__option')).toHaveLength(125)
+    expect(wrapper.find('.paginator').exists()).toBe(false)
+    expect(
+      testApp.mock.history.get.filter(
+        ({ url }) => url === '/admin/workspaces/options/'
+      )
+    ).toHaveLength(0)
+
+    await wrapper.find('.data-table__search input').setValue('Chosen 124')
+    await wrapper.find('.data-table__search').trigger('submit')
+    await flushPromises()
+    expect(wrapper.find('.select-workspace-modal__option').text()).toBe(
+      'Chosen 124'
+    )
+    await wrapper
+      .find('.select-workspace-modal input[type="checkbox"]')
+      .setValue(false)
+    await flushPromises()
+    expect(wrapper.findAll('.select-workspace-modal__option')).toHaveLength(0)
+    expect(wrapper.find('.ai-provider-form__more-workspaces').text()).toBe(
+      'aiProviderAdmin.moreExcludedWorkspaces - 122'
+    )
+
+    await wrapper.find('.select-workspace-modal__close').trigger('click')
+    await flushPromises()
+    expect(document.activeElement).toBe(more.element)
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/update', {
+      providerId: 1,
+      values: {
+        extra_settings: {},
+        excluded_workspace_ids: selectedWorkspaces
+          .slice(0, -1)
+          .map(({ id }) => id),
+      },
+    })
+  })
+
   test('hides exclusions and omits them from unrelated edits when the API did not provide the list', async () => {
     const dispatch = vi
       .spyOn(testApp.store, 'dispatch')

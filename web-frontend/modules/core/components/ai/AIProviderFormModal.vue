@@ -129,7 +129,7 @@
     >
       <div class="ai-provider-form__workspaces">
         <span
-          v-for="workspace in excludedWorkspaces"
+          v-for="workspace in visibleExcludedWorkspaces"
           :key="workspace.id"
           class="ai-provider-form__workspace"
         >
@@ -143,24 +143,34 @@
                 name: workspace.name,
               })
             "
-            @click="
-              excludedWorkspaces = excludedWorkspaces.filter(
-                ({ id }) => id !== workspace.id
-              )
-            "
+            @click="removeExcludedWorkspace(workspace.id)"
           >
             <i class="iconoir-cancel" />
           </button>
         </span>
-        <Button
-          ref="addExcludedWorkspace"
-          type="secondary"
-          size="small"
-          icon="iconoir-plus"
-          :aria-label="$t('aiProviderAdmin.addExcludedWorkspace')"
-          :title="$t('aiProviderAdmin.addExcludedWorkspace')"
-          @click="openWorkspaceSelector"
-        />
+        <div class="ai-provider-form__workspace-controls">
+          <Button
+            v-if="hiddenExcludedWorkspacesCount"
+            type="secondary"
+            size="small"
+            class="ai-provider-form__more-workspaces"
+            @click.stop="openWorkspaceSelector(true, $event.currentTarget)"
+            >{{
+              $t('aiProviderAdmin.moreExcludedWorkspaces', {
+                count: hiddenExcludedWorkspacesCount,
+              })
+            }}</Button
+          >
+          <Button
+            ref="addExcludedWorkspace"
+            type="secondary"
+            size="small"
+            icon="iconoir-plus"
+            :aria-label="$t('aiProviderAdmin.addExcludedWorkspace')"
+            :title="$t('aiProviderAdmin.addExcludedWorkspace')"
+            @click="openWorkspaceSelector(false, $event.currentTarget)"
+          />
+        </div>
       </div>
       <template #helper>{{
         $t('aiProviderAdmin.excludedWorkspacesHelp')
@@ -168,8 +178,9 @@
       <SelectWorkspaceModal
         v-if="workspaceSelectorOpen"
         ref="workspaceSelector"
-        :selected-ids="excludedWorkspaces.map(({ id }) => id)"
+        :selected-workspaces="excludedWorkspaces"
         @selected="excludedWorkspaces.push($event)"
+        @unselected="removeExcludedWorkspace"
         @hidden="workspaceSelectorHidden"
       />
     </FormGroup>
@@ -218,6 +229,7 @@ export default {
     return {
       loading: false,
       workspaceSelectorOpen: false,
+      workspaceSelectorOpener: null,
       excludedWorkspaces: [...(this.provider?.excluded_workspaces || [])],
       providerTypeError: '',
       apiKeyEditing: false,
@@ -242,6 +254,12 @@ export default {
     }
   },
   computed: {
+    visibleExcludedWorkspaces() {
+      return this.excludedWorkspaces.slice(0, 2)
+    },
+    hiddenExcludedWorkspacesCount() {
+      return Math.max(0, this.excludedWorkspaces.length - 2)
+    },
     canEditExclusions() {
       return (
         this.workspaceId === null &&
@@ -307,14 +325,28 @@ export default {
     },
   },
   methods: {
-    openWorkspaceSelector() {
+    removeExcludedWorkspace(workspaceId) {
+      this.excludedWorkspaces = this.excludedWorkspaces.filter(
+        ({ id }) => id !== workspaceId
+      )
+    },
+    openWorkspaceSelector(showSelected = false, opener = null) {
       const anchor = this.$refs.addExcludedWorkspace.$el
+      this.workspaceSelectorOpener = opener || anchor
       this.workspaceSelectorOpen = true
-      this.$nextTick(() => this.$refs.workspaceSelector.show(anchor))
+      this.$nextTick(() =>
+        this.$refs.workspaceSelector.show(anchor, showSelected)
+      )
     },
     workspaceSelectorHidden() {
       this.workspaceSelectorOpen = false
-      this.$nextTick(() => this.$refs.addExcludedWorkspace.$el.focus())
+      this.$nextTick(() => {
+        const opener = this.workspaceSelectorOpener
+        const target = opener?.isConnected
+          ? opener
+          : this.$refs.addExcludedWorkspace.$el
+        target.focus()
+      })
     },
     emptyModel() {
       return {

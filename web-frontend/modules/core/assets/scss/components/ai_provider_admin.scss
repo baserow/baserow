@@ -275,11 +275,19 @@
   gap: 8px;
 }
 
+.ai-provider-form__workspace-controls {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
 .ai-provider-form__workspace {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  max-width: 100%;
+  flex: 1 1 0;
+  min-width: 80px;
+  max-width: 160px;
   padding: 4px 8px;
   background: $palette-neutral-100;
   border: 1px solid $palette-neutral-300;
@@ -288,6 +296,7 @@
 
   > span {
     overflow: hidden;
+    min-width: 0;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -299,6 +308,7 @@
     background: transparent;
     color: $palette-neutral-900;
     cursor: pointer;
+    flex-shrink: 0;
   }
 }
 
