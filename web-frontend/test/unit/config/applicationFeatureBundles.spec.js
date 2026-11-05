@@ -3,6 +3,12 @@ import { createApplicationFeatureBundles } from '@baserow/config/applicationFeat
 
 test('groups exclusive feature code while keeping startup metadata and cross-application helpers shared', () => {
   const graph = {
+    '/modules/core/pages/onboarding.vue': ['/route-progress'],
+    '/modules/core/onboardingBundle.js': [
+      '/modules/core/components/onboarding/MoreStep.vue',
+    ],
+    '/modules/database/onboardingBundle.js': ['/onboarding-form'],
+    '/modules/database/onboardingRenderingBundle.js': ['/onboarding-preview'],
     '/modules/database/applicationBundle.js': [
       '/database-ui',
       '/shared',
@@ -21,6 +27,13 @@ test('groups exclusive feature code while keeping startup metadata and cross-app
   })
   const assignedTo = (id) =>
     groups.filter((group) => group.test(id)).map((group) => group.name)
+  expect(
+    assignedTo('/modules/core/components/onboarding/MoreStep.vue')
+  ).toEqual(['onboarding'])
+  expect(assignedTo('/modules/core/pages/onboarding.vue')).toEqual([])
+  expect(assignedTo('/route-progress')).toEqual([])
+  expect(assignedTo('/onboarding-form')).toEqual(['onboarding'])
+  expect(assignedTo('/onboarding-preview')).toEqual(['onboarding-rendering'])
   expect(assignedTo('/database-ui')).toEqual(['database-application'])
   expect(assignedTo('/database-cycle')).toEqual(['database-application'])
   expect(assignedTo('/premium-database-ui')).toEqual(['database-application'])
@@ -75,6 +88,60 @@ test('the production bundler leaves application UI out of the metadata import gr
     expect(
       chunks.find((chunk) => '/database-ui.js' in chunk.modules).name
     ).toBe('database-application')
+  } finally {
+    await bundle.close()
+  }
+})
+
+test('initial onboarding does not fetch Database through shared preview metadata', async () => {
+  const { rolldown } = await import('rolldown')
+  const modules = {
+    '/entry.js': `export const start = () => import('/modules/core/onboardingBundle.js'); export const database = () => import('/modules/database/applicationBundle.js')`,
+    '/modules/core/onboardingBundle.js': `export { exclusive } from '/onboarding-form.js'; export { form } from '/onboarding-metadata.js'; export const preview = () => import('/modules/database/onboardingRenderingBundle.js')`,
+    '/onboarding-metadata.js': `export const form = 'Database name'`,
+    '/onboarding-form.js': `export const exclusive = 'Onboarding form'`,
+    '/modules/database/onboardingRenderingBundle.js': `export { form } from '/onboarding-metadata.js'; export { grid } from '/database-editor.js'`,
+    '/modules/database/applicationBundle.js': `export { grid } from '/database-editor.js'; export { form } from '/onboarding-metadata.js'`,
+    '/database-editor.js': `export const grid = 'Full Grid editor'`,
+  }
+  const features = createApplicationFeatureBundles()
+  const bundle = await rolldown({
+    input: '/entry.js',
+    plugins: [
+      {
+        name: 'onboarding-test-modules',
+        resolveId: (id) => (id in modules ? id : null),
+        load: (id) => modules[id],
+      },
+      features.plugin,
+    ],
+  })
+  try {
+    const { output } = await bundle.generate({
+      format: 'esm',
+      codeSplitting: { groups: features.groups },
+    })
+    const chunks = output.filter((file) => file.type === 'chunk')
+    const loaded = new Set()
+    const visit = (chunk) => {
+      for (const id of Object.keys(chunk.modules)) loaded.add(id)
+      for (const dependency of chunk.imports)
+        visit(chunks.find((file) => file.fileName === dependency))
+    }
+    visit(
+      chunks.find(
+        (chunk) => '/modules/core/onboardingBundle.js' in chunk.modules
+      )
+    )
+    expect(loaded.has('/onboarding-metadata.js')).toBe(true)
+    expect(loaded.has('/database-editor.js')).toBe(false)
+    loaded.clear()
+    visit(
+      chunks.find(
+        (chunk) => '/modules/database/applicationBundle.js' in chunk.modules
+      )
+    )
+    expect(loaded.has('/onboarding-form.js')).toBe(false)
   } finally {
     await bundle.close()
   }

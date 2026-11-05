@@ -1,3 +1,4 @@
+import { registerFeatureBundle } from '@baserow/modules/core/utils/featureBundles'
 import { registerApplicationBundle } from '@baserow/modules/core/utils/applicationBundles'
 import { defineNuxtPlugin } from '#app'
 import registerRuntime from '@baserow_enterprise/pluginRuntime'
@@ -6,6 +7,12 @@ export default defineNuxtPlugin({
   name: 'enterprise',
   dependsOn: ['premium', 'registry', 'feature-flags', 'application-shell'],
   async setup(nuxtApp) {
+    registerFeatureBundle(nuxtApp, 'onboarding', async (app) => {
+      const bundle = await import('@baserow_enterprise/onboardingBundle')
+      await bundle.default(app)
+      return bundle
+    })
+
     await registerRuntime(nuxtApp)
     registerApplicationBundle(nuxtApp, 'database', async (app) => {
       const bundle = await import('@baserow_enterprise/databaseBundle')

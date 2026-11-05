@@ -1,4 +1,7 @@
-import { getApplicationComponent } from '@baserow/modules/core/utils/applicationBundles'
+import {
+  getFeatureComponent,
+  loadFeatureBundle,
+} from '@baserow/modules/core/utils/featureBundles'
 import { OnboardingType } from '@baserow/modules/core/onboardingTypes'
 
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
@@ -41,7 +44,7 @@ export class DatabaseOnboardingType extends OnboardingType {
   }
 
   getFormComponent() {
-    return getApplicationComponent(this.app, 'database', 'DatabaseStep')
+    return getFeatureComponent(this.app, 'onboarding', 'DatabaseStep')
   }
 
   getPreviewComponent(data) {
@@ -53,9 +56,9 @@ export class DatabaseOnboardingType extends OnboardingType {
         return component
       }
     }
-    return getApplicationComponent(
+    return getFeatureComponent(
       this.app,
-      'database',
+      'onboarding',
       'DatabaseAppLayoutPreview'
     )
   }
@@ -144,17 +147,17 @@ export class DatabaseScratchTrackOnboardingType extends OnboardingType {
   }
 
   getFormComponent() {
-    return getApplicationComponent(
+    return getFeatureComponent(
       this.app,
-      'database',
+      'onboarding',
       'DatabaseScratchTrackStep'
     )
   }
 
   getPreviewComponent() {
-    return getApplicationComponent(
+    return getFeatureComponent(
       this.app,
-      'database',
+      'onboarding',
       'DatabaseAppLayoutPreview'
     )
   }
@@ -193,6 +196,11 @@ export class DatabaseScratchTrackOnboardingType extends OnboardingType {
 }
 
 export class DatabaseScratchTrackFieldsOnboardingType extends OnboardingType {
+  /** These steps use Database field renderers and importers rather than metadata alone. */
+  async load() {
+    await loadFeatureBundle(this.app, 'onboarding-rendering')
+  }
+
   static getType() {
     return 'database_scratch_track_fields'
   }
@@ -202,17 +210,17 @@ export class DatabaseScratchTrackFieldsOnboardingType extends OnboardingType {
   }
 
   getFormComponent() {
-    return getApplicationComponent(
+    return getFeatureComponent(
       this.app,
-      'database',
+      'onboarding-rendering',
       'DatabaseScratchTrackFieldsStep'
     )
   }
 
   getPreviewComponent() {
-    return getApplicationComponent(
+    return getFeatureComponent(
       this.app,
-      'database',
+      'onboarding',
       'DatabaseAppLayoutPreview'
     )
   }
@@ -275,6 +283,11 @@ export class DatabaseScratchTrackFieldsOnboardingType extends OnboardingType {
 }
 
 export class DatabaseImportOnboardingType extends OnboardingType {
+  /** These steps use Database field renderers and importers rather than metadata alone. */
+  async load() {
+    await loadFeatureBundle(this.app, 'onboarding-rendering')
+  }
+
   static getType() {
     return 'database_scratch_import'
   }
@@ -284,13 +297,17 @@ export class DatabaseImportOnboardingType extends OnboardingType {
   }
 
   getFormComponent() {
-    return getApplicationComponent(this.app, 'database', 'DatabaseImportStep')
+    return getFeatureComponent(
+      this.app,
+      'onboarding-rendering',
+      'DatabaseImportStep'
+    )
   }
 
   getPreviewComponent() {
-    return getApplicationComponent(
+    return getFeatureComponent(
       this.app,
-      'database',
+      'onboarding',
       'DatabaseAppLayoutPreview'
     )
   }

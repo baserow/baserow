@@ -131,7 +131,10 @@
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import SidebarApplication from '@baserow/modules/core/components/sidebar/SidebarApplication'
-import { hasApplicationBundle } from '@baserow/modules/core/utils/applicationBundles'
+import {
+  hasApplicationBundle,
+  isApplicationBundleLoaded,
+} from '@baserow/modules/core/utils/applicationBundles'
 import CreateApplicationContext from '@baserow/modules/core/components/application/CreateApplicationContext'
 
 export default {
@@ -213,7 +216,8 @@ export default {
     },
     getApplicationComponent(application) {
       if (
-        !this.$store.getters['application/isSelected'](application) &&
+        (!this.$store.getters['application/isSelected'](application) ||
+          !isApplicationBundleLoaded(this.$nuxt, application.type)) &&
         hasApplicationBundle(this.$nuxt, application.type)
       ) {
         return SidebarApplication

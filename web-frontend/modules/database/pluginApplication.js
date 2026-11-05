@@ -339,19 +339,6 @@ import {
 } from '@baserow/modules/database/dataProviderTypes'
 
 import {
-  ScratchDatabaseOnboardingStepType,
-  ImportDatabaseOnboardingStepType,
-  AirtableDatabaseOnboardingStepType,
-  TemplateDatabaseOnboardingStepType,
-} from '@baserow/modules/database/databaseOnboardingStepTypes'
-import {
-  DatabaseScratchTrackCampaignFieldsOnboardingType,
-  DatabaseScratchTrackCustomFieldsOnboardingType,
-  DatabaseScratchTrackProjectFieldsOnboardingType,
-  DatabaseScratchTrackTaskFieldsOnboardingType,
-  DatabaseScratchTrackTeamFieldsOnboardingType,
-} from '@baserow/modules/database/databaseScratchTrackFieldsStepType'
-import {
   SyncedFieldsConfigureDataSyncType,
   SettingsConfigureDataSyncType,
   SyncHistoryConfigureDataSyncType,
@@ -391,9 +378,9 @@ export default async function register(nuxtApp) {
   $registry.registerNamespace('databaseDataProvider')
   $registry.registerNamespace('databaseWorkflowActionType')
   $registry.registerNamespace('rowModalSidebar')
-  $registry.registerNamespace('onboardingTrackFields')
+
   $registry.registerNamespace('configureDataSync')
-  $registry.registerNamespace('databaseOnboardingStep')
+
   $registry.registerNamespace('copyViewConfigurationOption')
   $registry.register('plugin', new DatabasePlugin(context))
   $registry.register('admin', new DatabaseViewsAdminType(context))
@@ -916,42 +903,6 @@ export default async function register(nuxtApp) {
   )
   $registry.register('rowModalSidebar', new HistoryRowModalSidebarType(context))
 
-  $registry.register(
-    'databaseOnboardingStep',
-    new ScratchDatabaseOnboardingStepType(context)
-  )
-  $registry.register(
-    'databaseOnboardingStep',
-    new ImportDatabaseOnboardingStepType(context)
-  )
-  $registry.register(
-    'databaseOnboardingStep',
-    new AirtableDatabaseOnboardingStepType(context)
-  )
-  $registry.register(
-    'databaseOnboardingStep',
-    new TemplateDatabaseOnboardingStepType(context)
-  )
-  $registry.register(
-    'onboardingTrackFields',
-    new DatabaseScratchTrackProjectFieldsOnboardingType(context)
-  )
-  $registry.register(
-    'onboardingTrackFields',
-    new DatabaseScratchTrackTeamFieldsOnboardingType(context)
-  )
-  $registry.register(
-    'onboardingTrackFields',
-    new DatabaseScratchTrackTaskFieldsOnboardingType(context)
-  )
-  $registry.register(
-    'onboardingTrackFields',
-    new DatabaseScratchTrackCampaignFieldsOnboardingType(context)
-  )
-  $registry.register(
-    'onboardingTrackFields',
-    new DatabaseScratchTrackCustomFieldsOnboardingType(context)
-  )
   $registry.register(
     'configureDataSync',
     new SyncedFieldsConfigureDataSyncType(context)
