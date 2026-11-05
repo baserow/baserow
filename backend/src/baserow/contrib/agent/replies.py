@@ -200,23 +200,20 @@ class AgentResponder:
         :param event: An event of the run.
         """
 
-        if isinstance(event, AgentRunResultEvent):
-            self._result = event.result.output
-            return
-        if isinstance(event, FunctionToolCallEvent):
-            # The next response replaces what the model wrote before calling a tool.
-            self._parts = {}
-            return
-        if isinstance(event, PartStartEvent) and isinstance(event.part, TextPart):
-            self._parts[event.index] = event.part.content
-        elif isinstance(event, PartDeltaEvent) and isinstance(
-            event.delta, TextPartDelta
-        ):
-            self._parts[event.index] = (
-                self._parts.get(event.index, "") + event.delta.content_delta
-            )
-        else:
-            return
+        match event:
+            case AgentRunResultEvent(result=result):
+                self._result = result.output
+                return
+            case FunctionToolCallEvent():
+                # The next response replaces what the model wrote before calling a tool.
+                self._parts = {}
+                return
+            case PartStartEvent(index=index, part=TextPart(content=content)):
+                self._parts[index] = content
+            case PartDeltaEvent(index=index, delta=TextPartDelta(content_delta=delta)):
+                self._parts[index] = self._parts.get(index, "") + delta
+            case _:
+                return
         self._text = "".join(self._parts[index] for index in sorted(self._parts))
         self._journal.emit_text(self._text)
 

@@ -3,12 +3,15 @@ import threading
 from types import SimpleNamespace
 
 from django.db import OperationalError
+from django.urls import reverse
 
 import pytest
 from asgiref.sync import async_to_sync
 
 from baserow.contrib.agent.registries import AgentToolType, agent_tool_type_registry
+from baserow.contrib.database.views.models import FormView
 from baserow.core.models import Agent
+from baserow.core.notifications.models import NotificationRecipient
 from baserow.core.tools import ToolContext
 
 # Whether each tool changes data, and arguments it succeeds with on workspace_data.
@@ -146,6 +149,56 @@ def test_every_tool_acts_as_the_agent_identity(workspace_data, name):
     assert not (
         isinstance(result, dict) and (result.get("error") or result.get("errors"))
     ), result
+
+
+@pytest.mark.django_db
+def test_agent_form_creation_does_not_notify_user_with_same_id(
+    data_fixture, api_client
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table, name="Name", primary=True)
+    workspace = table.database.workspace
+    identity = Agent.objects.create(id=user.id, workspace=workspace, name="Ops")
+
+    result = call_tool(
+        agent_tool_type_registry.get("create_views"),
+        ToolContext(user=identity, workspace=workspace),
+        {
+            "table_id": table.id,
+            "views": [
+                {
+                    "name": "Contact form",
+                    "type": "form",
+                    "public": True,
+                    "receive_notification_on_submit": True,
+                    "field_options": [
+                        {
+                            "field_id": field.id,
+                            "name": "Name",
+                            "description": "",
+                            "required": False,
+                            "order": 1,
+                        }
+                    ],
+                }
+            ],
+        },
+    )
+
+    assert "error" not in result
+    form = FormView.objects.get(id=result["created_views"][0]["id"])
+    response = api_client.post(
+        reverse("api:database:views:form:submit", kwargs={"slug": form.slug}),
+        {field.db_column: "Submitted name"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert not NotificationRecipient.objects.filter(
+        recipient=user, notification__type="form_submitted"
+    ).exists()
+    assert not form.users_to_notify_on_submit.exists()
 
 
 @pytest.mark.django_db
