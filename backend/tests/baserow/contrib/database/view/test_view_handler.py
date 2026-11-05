@@ -2466,6 +2466,39 @@ def test_get_public_rows_queryset_and_field_ids_view_group_by(data_fixture):
 
 
 @pytest.mark.django_db
+def test_get_public_rows_queryset_and_field_ids_group_by_skips_hidden_view_sorts(
+    data_fixture,
+):
+    grid_view = data_fixture.create_grid_view(public=True)
+    group_field = data_fixture.create_number_field(table=grid_view.table)
+    hidden_field = data_fixture.create_number_field(table=grid_view.table)
+    sort_field = data_fixture.create_number_field(table=grid_view.table)
+    data_fixture.create_grid_view_field_option(grid_view, group_field, hidden=False)
+    data_fixture.create_grid_view_field_option(grid_view, hidden_field, hidden=True)
+    data_fixture.create_grid_view_field_option(grid_view, sort_field, hidden=False)
+    data_fixture.create_view_sort(view=grid_view, field=hidden_field)
+    data_fixture.create_view_sort(view=grid_view, field=sort_field)
+
+    model = grid_view.table.get_model()
+    row_1, row_2, row_3 = [
+        model.objects.create(
+            **{
+                group_field.db_column: group,
+                hidden_field.db_column: hidden,
+                sort_field.db_column: value,
+            }
+        )
+        for group, hidden, value in [(2, 0, 0), (1, 2, 1), (1, 1, 2)]
+    ]
+
+    queryset, _, _ = ViewHandler().get_public_rows_queryset_and_field_ids(
+        grid_view, group_by=group_field.db_column
+    )
+
+    assert list(queryset.values_list("pk", flat=True)) == [row_2.id, row_3.id, row_1.id]
+
+
+@pytest.mark.django_db
 def test_get_public_rows_queryset_and_field_ids_include_exclude_fields(data_fixture):
     grid_view = data_fixture.create_grid_view(public=True)
     field = data_fixture.create_number_field(table=grid_view.table)
