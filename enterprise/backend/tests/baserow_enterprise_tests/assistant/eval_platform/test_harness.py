@@ -32,6 +32,7 @@ from baserow.core.ai_provider.constants import (
     AI_PROVIDER_FEATURE_MODE_MODEL,
 )
 from baserow.core.ai_provider.handler import AIProviderHandler
+from baserow.core.generative_ai.lifecycle import run_agent_sync_with_model
 from baserow_enterprise.assistant.agents import main_agent
 from baserow_enterprise.assistant.assistant import build_agent_run_context
 from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps, ToolHelpers
@@ -1090,6 +1091,32 @@ class TestCaseToolCleanup:
                 asyncio.gather(*cleanup_tasks, return_exceptions=True)
             )
         assert model.closed
+
+    def test_a_timed_out_case_starts_no_new_model_call(self, isolated_case):
+        requests: list[list] = []
+
+        # Async on purpose: a sync one would be refused by the draining executor.
+        async def respond(messages, info) -> ModelResponse:
+            requests.append(messages)
+            return ModelResponse(parts=[TextPart(content="Done")])
+
+        def tool_with_a_sub_agent(ctx: RunContext[AssistantDeps]) -> str:
+            helpers = ctx.deps.tool_helpers
+            deadline = time.monotonic() + 3
+            while not helpers.is_cancelled and time.monotonic() < deadline:
+                time.sleep(0.01)
+            sub_agent_run = run_agent_sync_with_model(
+                Agent(output_type=str),
+                "Help the tool",
+                model=RetryingModel(FunctionModel(respond)),
+            )
+            return sub_agent_run.output
+
+        case = isolated_case(tool_with_a_sub_agent)
+        with pytest.raises(EvalCaseTimeout):
+            run_case(case, TestModel())
+
+        assert requests == []
 
 
 @pytest.mark.parametrize("value", ["", "   "])

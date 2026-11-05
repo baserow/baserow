@@ -265,3 +265,42 @@ variables are unchanged or bridged for backward compatibility.
 | `AWS_DEFAULT_REGION` | Preferred replacement for `AWS_REGION_NAME`. |
 | `OLLAMA_BASE_URL` | Replaces `UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL` for Ollama. Defaults to `http://localhost:11434/v1`. |
 | `ANTHROPIC_API_KEY` | New provider — Anthropic models are now supported. |
+
+## 8) Background runs
+
+Kuma answers every message in a background task, so its reply keeps going when
+the browser is closed. The reply streams through Redis Streams, and a reloaded
+page picks it up without repeating the prompt or its tools.
+
+Redis keeps each run's live output, up to 8 MiB or 10,000 events, until an hour
+after its last output. Without that output, the browser waits for the saved
+answer. Postgres saves the answer only when the run ends, so if both the worker
+and Redis are lost the partial answer is lost; tool changes already made remain,
+and the run is not retried.
+
+For adapter and protocol details, see
+[Background chat runs](../development/background-chat-runs.md).
+
+Background runs use the existing worker infrastructure:
+
+- **Worker.** The tasks run on the `chat_run` queue, which the existing export
+  worker (`celery-exportworker`) consumes, so no new service is needed. A custom
+  worker command must include `chat_run` in its `-Q` list, or Kuma messages wait
+  and fail after an hour. For how worker settings affect Kuma, see
+  `BASEROW_AMOUNT_OF_WORKERS` and `BASEROW_RUN_MINIMAL` in the
+  [Celery configuration](https://baserow.io/docs/installation%2Fconfiguration#celery-configuration).
+  The worker calls Kuma's model, so with the deprecated environment model it
+  also needs `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` and the provider's
+  credentials.
+- **Sharing.** Kuma shares the export worker with exports, imports, webhooks and
+  notification emails. When they delay each other, isolate Kuma without code
+  changes: start the export worker with `-X chat_run` and add a container that
+  runs `celery-exportworker -Q chat_run`.
+- **Deploys.** A deploy interrupts runs that take longer than the worker's stop
+  grace. The compose files and the Helm chart give the export worker 120
+  seconds. The all-in-one image stops it after 10 seconds, so a deploy there
+  interrupts the runs in flight. An interrupted run ends with an error, and the
+  message can be sent again.
+- **Health.** The health check warns when a run has waited more than 5 minutes
+  for a worker, or when a run lost its worker and wasn't cleaned up (check that
+  `celery-beat` runs).

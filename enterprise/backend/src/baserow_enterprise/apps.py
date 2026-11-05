@@ -573,6 +573,15 @@ class BaserowEnterpriseConfig(AppConfig):
         assistant_element_type_registry.register(HeaderAssistantElementType())
         assistant_element_type_registry.register(FooterAssistantElementType())
 
+        from baserow.core.chat_runs.registries import chat_run_type_registry
+        from baserow_enterprise.assistant.chat_run_type import AssistantChatRunType
+
+        chat_run_type_registry.register(AssistantChatRunType())
+
+        from baserow.config.streaming import register_async_stream_path
+
+        register_async_stream_path("assistant:chat_messages")
+
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
         import baserow_enterprise.assistant.tasks  # noqa: F401

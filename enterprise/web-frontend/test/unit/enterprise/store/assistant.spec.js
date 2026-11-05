@@ -2,7 +2,11 @@ import { flushPromises } from '@vue/test-utils'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
 import assistantService from '@baserow_enterprise/services/assistant'
-import { TestApp } from '@baserow/test/helpers/testApp'
+import {
+  createRunsTestApp,
+  destroyRunsTestApp,
+  runRecord,
+} from '../assistantRunHelpers'
 
 vi.mock('@baserow_enterprise/services/assistant', () => ({
   default: vi.fn(),
@@ -29,12 +33,11 @@ describe('Assistant store', () => {
       fetchChats: vi.fn().mockResolvedValue({ results: [] }),
       fetchChatMessages: vi.fn().mockResolvedValue({ messages: [] }),
       sendMessage: vi.fn().mockResolvedValue(undefined),
-      cancelMessage: vi.fn().mockResolvedValue(undefined),
       submitFeedback: vi.fn().mockResolvedValue(undefined),
     }
     assistantService.mockReturnValue(service)
 
-    testApp = new TestApp()
+    testApp = createRunsTestApp()
     store = testApp.store
     // `uiContext` builds the assistant payload from the current undo/redo scope.
     await store.dispatch('workspace/forceCreate', workspace)
@@ -44,8 +47,7 @@ describe('Assistant store', () => {
   })
 
   afterEach(async () => {
-    await testApp.afterEach()
-    vi.useRealTimers()
+    await destroyRunsTestApp(testApp)
   })
 
   test('sending a message recovers when the current chat is gone', async () => {
@@ -76,22 +78,6 @@ describe('Assistant store', () => {
     ])
   })
 
-  test('sending a message leaves the assistant idle once it finishes', async () => {
-    await store.dispatch('assistant/createChat', workspace.id)
-    service.sendMessage.mockImplementation(
-      async (chatUuid, message, uiContext, onUpdate) => {
-        await onUpdate({ type: 'ai/message', content: 'hi' })
-      }
-    )
-
-    await store.dispatch('assistant/sendMessage', {
-      message: 'hello',
-      workspace,
-    })
-
-    expect(store.getters['assistant/currentChat'].running).toBe(false)
-  })
-
   test('keeps creation timestamps through chunks and accepts saved server timestamps', async () => {
     const createdAt = '2026-11-03T12:00:00.000Z'
     const serverTimestamp = '2026-11-03T12:00:05.000Z'
@@ -115,6 +101,18 @@ describe('Assistant store', () => {
     await flushPromises()
 
     try {
+      expect(store.getters['assistant/messages'][0].timestamp).toBe(createdAt)
+      await updateMessage(
+        runRecord(
+          'human',
+          {
+            id: 1,
+            content: 'hello',
+            timestamp: createdAt,
+          },
+          { status: 'queued' }
+        )
+      )
       expect(
         store.getters['assistant/messages'].map((message) => message.timestamp)
       ).toStrictEqual([createdAt, createdAt])
@@ -124,16 +122,21 @@ describe('Assistant store', () => {
         { type: 'ai/message', content: 'Partial answer' },
         { type: 'ai/message', content: 'Legacy final answer', timestamp: null },
       ]) {
-        await updateMessage(update)
+        await updateMessage(runRecord(update.type, update))
         expect(store.getters['assistant/messages'][1].timestamp).toBe(createdAt)
       }
-      await updateMessage({
-        type: 'ai/message',
-        id: 42,
-        content: 'Saved answer',
-        timestamp: serverTimestamp,
-      })
-      await updateMessage({ type: 'ai/message', content: 'Saved answer' })
+      await updateMessage(
+        runRecord(
+          'ai/message',
+          {
+            id: 42,
+            content: 'Saved answer',
+            timestamp: serverTimestamp,
+          },
+          { status: 'completed' }
+        )
+      )
+      await updateMessage(runRecord('ai/message', { content: 'Saved answer' }))
       expect(
         store.getters['assistant/messages'].map((message) => message.timestamp)
       ).toStrictEqual([createdAt, serverTimestamp])
@@ -143,6 +146,7 @@ describe('Assistant store', () => {
     }
 
     service.fetchChatMessages.mockResolvedValue({
+      chat_id: 7,
       messages: [
         { id: 1, type: 'human', content: 'hello', timestamp: createdAt },
         {
@@ -165,6 +169,7 @@ describe('Assistant store', () => {
   test('loading legacy history does not invent creation timestamps', async () => {
     await store.dispatch('assistant/createChat', workspace.id)
     service.fetchChatMessages.mockResolvedValue({
+      chat_id: 7,
       messages: [
         { id: 1, type: 'human', content: 'Earlier question' },
         {
@@ -184,29 +189,6 @@ describe('Assistant store', () => {
     const messages = store.getters['assistant/messages']
     expect(messages[0]).not.toHaveProperty('timestamp')
     expect(messages[1].timestamp).toBe(null)
-  })
-
-  test('a late title goes to the chat it was generated for', async () => {
-    await store.dispatch('assistant/createChat', workspace.id)
-    const firstChatId = store.getters['assistant/currentChatId']
-    service.sendMessage.mockImplementation(
-      async (chatUuid, message, uiContext, onUpdate) => {
-        // The user started another chat before this one got its title.
-        await store.dispatch('assistant/clearChat')
-        await store.dispatch('assistant/createChat', workspace.id)
-        await onUpdate({ type: 'chat/title', content: 'First title' })
-        await onUpdate({ type: 'ai/message', content: 'hi' })
-      }
-    )
-
-    await store.dispatch('assistant/sendMessage', {
-      message: 'hello',
-      workspace,
-    })
-
-    const chats = store.getters['assistant/chats']
-    expect(chats.find((c) => c.id === firstChatId).title).toBe('First title')
-    expect(store.getters['assistant/currentChat'].title).toBe('')
   })
 
   test('fetching chats keeps a current chat that is not persisted yet', async () => {
