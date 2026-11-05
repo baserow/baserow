@@ -154,6 +154,7 @@ describe('Agent replies', () => {
 
     await receive('run-1', 'step', running)
 
+    expect(announcement(wrapper)).toBe('toolPresentation.stepAnnouncement')
     expect(wrapper.get('.chat-step-group').attributes('aria-busy')).toBe('true')
     expect(wrapper.get('.chat-step-group__title').text()).toContain('3')
     expect(typing(wrapper)).toBe(false)

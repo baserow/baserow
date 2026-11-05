@@ -31,7 +31,7 @@
       />
       <main class="agent-chat" :class="{ 'agent-chat--empty': showChatIntro }">
         <div class="agent-chat__announcement" role="status">
-          {{ announcement ? $t(announcement) : '' }}
+          {{ announcement }}
         </div>
         <div
           ref="historyElement"
@@ -196,7 +196,10 @@ import { useNuxtApp } from '#app'
 import agentOrb from '@baserow/modules/agent/assets/images/agent-orb.svg?url'
 import ChatComposer from '@baserow/modules/core/components/chat/ChatComposer'
 import { STEP_STATUS } from '@baserow/modules/core/chatRuns/constants'
-import { toolActivity } from '@baserow/modules/core/toolPresentationTypes'
+import {
+  stepStatusText,
+  toolActivity,
+} from '@baserow/modules/core/toolPresentationTypes'
 import { provideNow } from '@baserow/modules/core/composables/useNow'
 import AgentConversationList from '@baserow/modules/agent/components/AgentConversationList'
 import AgentMessage from '@baserow/modules/agent/components/AgentMessage'
@@ -293,13 +296,30 @@ watch(
   () => state.replyFollower,
   (follower, previous) => {
     if (follower) {
-      announcement.value = 'agent.replying'
+      announcedSteps.clear()
+      announcement.value = t('agent.replying')
     } else if (previous?.finished) {
       const { note, error } = replyOutcome({
         status: previous.view.status,
         error_code: previous.view.errorCode,
       })
-      announcement.value = note || error || ''
+      announcement.value = note || error ? t(note || error) : ''
+    }
+  }
+)
+// Steps arrive as whole lists; announce only the steps whose status changed.
+const announcedSteps = new Map()
+watch(
+  () => state.replyFollower?.view.steps,
+  (steps) => {
+    for (const step of steps ?? []) {
+      if (announcedSteps.get(step.id) === step.status) continue
+      announcedSteps.set(step.id, step.status)
+      const activity = toolActivity(step, $registry, t)
+      announcement.value = t('toolPresentation.stepAnnouncement', {
+        title: activity.title,
+        status: stepStatusText(activity, t),
+      })
     }
   }
 )

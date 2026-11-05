@@ -28,11 +28,8 @@
         aria-hidden="true"
       />
       <span class="chat-step-group__title">{{ title }}</span>
-      <span class="chat-step-group__status">
-        {{ $t(statusLabels[status]) }}
-        <template v-if="status === STEP_STATUS.FAILED">
-          {{ failureHint || $t('toolPresentation.failureFailed') }}
-        </template>
+      <span class="chat-step-group__status" :class="statusClass">
+        {{ stepStatusText({ status, changesData, failureHint }, $t) }}
       </span>
       <i
         class="chat-step-group__chevron"
@@ -57,11 +54,8 @@
         aria-hidden="true"
       />
       <span class="chat-step-group__title">{{ title }}</span>
-      <span class="chat-step-group__status">
-        {{ $t(statusLabels[status]) }}
-        <template v-if="status === STEP_STATUS.FAILED">
-          {{ failureHint || $t('toolPresentation.failureFailed') }}
-        </template>
+      <span class="chat-step-group__status" :class="statusClass">
+        {{ stepStatusText({ status, changesData, failureHint }, $t) }}
       </span>
     </div>
     <div v-if="hasDetails && expanded" :id="detailsId">
@@ -84,10 +78,7 @@
           />
           <span class="chat-step-group__line-title">{{ line.title }}</span>
           <span class="chat-step-group__status">
-            {{ $t(statusLabels[line.status]) }}
-            <template v-if="line.status === STEP_STATUS.FAILED">
-              {{ line.failureHint || $t('toolPresentation.failureFailed') }}
-            </template>
+            {{ stepStatusText(line, $t) }}
           </span>
         </li>
       </ul>
@@ -111,10 +102,12 @@
 <script setup>
 import { computed, ref, useId } from 'vue'
 import { STEP_STATUS } from '@baserow/modules/core/chatRuns/constants'
+import { stepStatusText } from '@baserow/modules/core/toolPresentationTypes'
 
 const props = defineProps({
   title: { type: String, required: true },
   status: { type: String, required: true },
+  changesData: { type: Boolean, default: false },
   icon: { type: String, default: 'iconoir-tools' },
   lines: { type: Array, default: () => [] },
   input: { type: Object, default: null },
@@ -147,16 +140,14 @@ const inputText = computed(() => {
   }
 })
 const hasDetails = computed(() => props.lines.length > 0 || !!inputText.value)
+const statusClass = computed(() => ({
+  'chat-step-group__status--visible':
+    props.status === STEP_STATUS.STOPPED && props.changesData,
+}))
 const statusIcons = {
   [STEP_STATUS.DONE]: 'iconoir-check-circle chat-step-group__icon--done',
   [STEP_STATUS.FAILED]:
     'iconoir-warning-triangle chat-step-group__icon--failed',
   [STEP_STATUS.STOPPED]: 'iconoir-minus-circle chat-step-group__icon--stopped',
-}
-const statusLabels = {
-  [STEP_STATUS.RUNNING]: 'toolPresentation.statusRunning',
-  [STEP_STATUS.DONE]: 'toolPresentation.statusDone',
-  [STEP_STATUS.FAILED]: 'toolPresentation.statusFailed',
-  [STEP_STATUS.STOPPED]: 'toolPresentation.statusStopped',
 }
 </script>

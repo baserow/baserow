@@ -14,6 +14,12 @@ const FALLBACK_LABELS = {
   [STEP_STATUS.FAILED]: 'Tool failed',
   [STEP_STATUS.STOPPED]: 'Tool interrupted',
 }
+const STATUS_LABELS = {
+  [STEP_STATUS.RUNNING]: 'toolPresentation.statusRunning',
+  [STEP_STATUS.DONE]: 'toolPresentation.statusDone',
+  [STEP_STATUS.FAILED]: 'toolPresentation.statusFailed',
+  [STEP_STATUS.STOPPED]: 'toolPresentation.statusInterrupted',
+}
 const FAILURE_LABELS = new Map([
   [STEP_ERROR_CODE.NOT_FOUND, 'toolPresentation.failureNotFound'],
   [
@@ -90,6 +96,17 @@ function failureHint(data, status, t, target = '') {
   )
 }
 
+/** Describe a step's status in words; an interrupted change may have completed. */
+export function stepStatusText({ status, changesData, failureHint }, t) {
+  if (status === STEP_STATUS.STOPPED && changesData) {
+    return t('toolPresentation.statusStopped')
+  }
+  const label = t(STATUS_LABELS[status])
+  return status === STEP_STATUS.FAILED
+    ? `${label} ${failureHint || t('toolPresentation.failureFailed')}`
+    : label
+}
+
 function toolTarget(presenter, step, t) {
   try {
     const target = presenter.getTarget(step, t)
@@ -129,6 +146,7 @@ export function toolActivity(step, registry, t) {
       FALLBACK_LABELS[status]
     ),
     status,
+    changesData: data.changes_data === true,
     icon: 'iconoir-tools',
     group: null,
     input: null,

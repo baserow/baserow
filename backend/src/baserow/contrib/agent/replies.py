@@ -315,9 +315,8 @@ class AgentResponder:
                 self._remember_step_resources(part)
                 return
             case FunctionToolCallEvent():
-                # The next response replaces what the model wrote before calling a tool.
+                # Text before a tool call is narration; the next response is the answer.
                 self._parts = {}
-                return
             case PartStartEvent(index=index, part=TextPart(content=content)):
                 self._parts[index] = content
             case PartDeltaEvent(index=index, delta=TextPartDelta(content_delta=delta)):

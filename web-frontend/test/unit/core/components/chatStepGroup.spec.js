@@ -103,7 +103,7 @@ describe('ChatStepGroup', () => {
     ['running', '.chat-step-group__spinner', 'toolPresentation.statusRunning'],
     ['done', '.iconoir-check-circle', 'toolPresentation.statusDone'],
     ['failed', '.iconoir-warning-triangle', 'toolPresentation.statusFailed'],
-    ['stopped', '.iconoir-minus-circle', 'toolPresentation.statusStopped'],
+    ['stopped', '.iconoir-minus-circle', 'toolPresentation.statusInterrupted'],
   ])(
     'shows the %s icon and accessible label for each expanded call',
     (status, icon, label) => {
@@ -123,6 +123,21 @@ describe('ChatStepGroup', () => {
       )
     }
   )
+
+  test('says that an interrupted change may have completed', () => {
+    const card = (changesData) =>
+      mount(ChatStepGroup, {
+        props: { title: 'Create rows', status: 'stopped', changesData },
+        global: { directives: { tooltip }, mocks: { $t: (key) => key } },
+      })
+
+    expect(card(true).get('.chat-step-group__status--visible').text()).toBe(
+      'toolPresentation.statusStopped'
+    )
+    expect(card(false).find('.chat-step-group__status--visible').exists()).toBe(
+      false
+    )
+  })
 
   test('expands input safely, indicates a shortened preview, and keeps it open through completion', async () => {
     const values = {
@@ -288,7 +303,7 @@ describe('ChatStepGroup', () => {
     ['running', '.chat-step-group__spinner', 'toolPresentation.statusRunning'],
     ['done', '.iconoir-check-circle', 'toolPresentation.statusDone'],
     ['failed', '.iconoir-warning-triangle', 'toolPresentation.statusFailed'],
-    ['stopped', '.iconoir-minus-circle', 'toolPresentation.statusStopped'],
+    ['stopped', '.iconoir-minus-circle', 'toolPresentation.statusInterrupted'],
   ])('shows %s for a standalone action', (status, icon, label) => {
     const wrapper = mount(ChatStepGroup, {
       props: { title: 'Sending an email', status },

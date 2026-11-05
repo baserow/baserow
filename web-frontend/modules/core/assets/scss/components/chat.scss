@@ -271,6 +271,17 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   white-space: nowrap;
 }
 
+.chat-step-group__status--visible {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
+  font-weight: 400;
+  color: $palette-neutral-600;
+}
+
 .chat-step-group__icon {
   flex-shrink: 0;
   width: 16px;

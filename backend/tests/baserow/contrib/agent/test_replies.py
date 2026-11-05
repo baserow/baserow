@@ -373,7 +373,7 @@ def test_unfinished_replies_persist_partial_text_without_private_error_details(
 
     def emit_and_stop(journal, text):
         emit_text(journal, text)
-        if reason:
+        if reason and text:
             journal.request_stop(reason)
 
     mocker.patch.object(ChatRunJournal, "emit_text", emit_and_stop)
@@ -740,6 +740,38 @@ def test_a_reply_calls_the_allowed_tools_as_the_agent_identity(
         assert (offered, rows) == ([["create_rows"], ["create_rows"]], ["Plan"])
     else:
         assert (offered, rows) == ([[]], [])
+
+
+@pytest.mark.django_db
+def test_text_before_a_tool_call_is_cleared_when_the_call_starts(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    table = allow_create_rows(data_fixture, agent)
+    emitted = mocker.spy(ChatRunJournal, "emit_text")
+
+    async def stream(messages, info):
+        if len(messages) == 1:
+            yield "Let me add it."
+            arguments = {"table_id": table.id, "rows": [{"Name": "Plan"}]}
+            yield {
+                1: DeltaToolCall(name="create_rows", json_args=json.dumps(arguments))
+            }
+        else:
+            yield "Done."
+
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(FunctionModel(stream_function=stream), {}),
+    )
+    created = start(user, agent)
+
+    run_reply(run_of(created.conversation))
+
+    texts = [call.args[1] for call in emitted.call_args_list]
+    assert texts == ["Let me add it.", "", "Done."]
+    assert reply_state(created.reply.id) == ("completed", "", "Done.")
 
 
 @pytest.mark.django_db

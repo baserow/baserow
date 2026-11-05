@@ -62,6 +62,7 @@ describe('shared tool presentations', () => {
       id: 'email-1',
       title: 'Sending an email',
       status: 'running',
+      changesData: false,
       icon: 'iconoir-mail',
       group: null,
       input: null,
