@@ -637,11 +637,11 @@ class AvailableCollaboratorsSerializer(serializers.ListField):
 
         workspace = instance.table.database.workspace
         if not hasattr(workspace, "available_collaborators"):
-            from baserow.core.subject.handler import eligible_subjects
+            from baserow.core.subject.handler import SubjectHandler
 
-            workspace.available_collaborators = eligible_subjects(
-                workspace.id
-            ).order_by("name", "id")
+            workspace.available_collaborators = (
+                SubjectHandler().eligible_subjects(workspace.id).order_by("name", "id")
+            )
 
         return [
             CollaboratorSerializer(user).data

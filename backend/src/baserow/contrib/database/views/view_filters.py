@@ -74,7 +74,7 @@ from baserow.contrib.database.formula.types.formula_types import (
 from baserow.core.datetime import get_timezones
 from baserow.core.models import Subject as PersistentSubject
 from baserow.core.models import WorkspaceUser
-from baserow.core.subject.export import export_subject, import_subject
+from baserow.core.subject.handler import SubjectHandler
 
 from .registries import ViewFilterType
 
@@ -1532,10 +1532,12 @@ class MultipleCollaboratorsHasViewFilterType(ManyToManyHasBaseViewFilter):
             id_mapping[key] = {}
         if int(value) not in id_mapping[key]:
             id_mapping[key].update(PersistentSubject.objects.in_bulk([int(value)]))
-        return export_subject(id_mapping[key].get(int(value))) or ""
+        return SubjectHandler().export_subject(id_mapping[key].get(int(value))) or ""
 
     def set_import_serialized_value(self, value, id_mapping, field=None):
-        subject = import_subject(value, id_mapping.get("workspace_id"), id_mapping)
+        subject = SubjectHandler().import_subject(
+            value, id_mapping.get("workspace_id"), id_mapping
+        )
         return str(subject.id) if subject else ""
 
 

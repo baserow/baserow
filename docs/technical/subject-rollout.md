@@ -32,6 +32,12 @@ Collaborator assignment never grants access. Mentions continue to use User IDs.
 
 ## Subject types
 
+The base type and registry live in `core/subject/registries.py`. UserSubjectType
+lives in `core/user/subject_types.py`, and AnonymousUserSubjectType lives in
+`core/subject/subject_types.py`. The original
+`core.registries` and `core.subjects` imports remain compatibility re-exports;
+callers can migrate and these aliases can be removed in a follow-up.
+
 Persistent attribution is an explicit `SubjectType` capability:
 `supports_persistent_subjects` defaults to false. Types own lifecycle synchronization, actor resolution,
 workspace selection predicates, reference activation, reconciliation checks,
@@ -39,6 +45,8 @@ legacy portable-value recognition, manifest metadata export and human-readable
 formatting. Selection
 combines their predicates into one query; import caches activation checks.
 Registering a permission actor alone never enables field attribution.
+`SubjectHandler` coordinates selection, actor resolution and import/export through
+these hooks, including packing and unpacking the identity manifest.
 
 The frontend uses registered subject types for collaborator display names and
 avatars, and `isUser()` for User-only mention eligibility. Historical migrations

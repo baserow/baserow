@@ -5320,11 +5320,11 @@ def test_export_import_remaps_multiple_collaborators_default_value(data_fixture)
 
     # The exported value contains portable identity metadata instead of local IDs.
     exported_value = serialized["default_row_values"][str(field.id)]["value"]
-    from baserow.core.subject.export import export_subject
+    from baserow.core.subject.handler import SubjectHandler
 
     assert exported_value == [
-        export_subject(user.profile.subject),
-        export_subject(user_b.profile.subject),
+        SubjectHandler().export_subject(user.profile.subject),
+        SubjectHandler().export_subject(user_b.profile.subject),
     ]
 
     # Import the view back into the same table.

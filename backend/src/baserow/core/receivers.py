@@ -5,7 +5,6 @@ from django.dispatch import receiver
 
 from baserow.core.cache import invalidate_cached_settings
 from baserow.core.models import Settings, UserProfile
-from baserow.core.registries import subject_type_registry
 from baserow.core.user.cache import invalidate_cached_user
 
 
@@ -34,7 +33,3 @@ def invalidate_user_cache_on_profile_delete(sender, instance, **kwargs):
 @receiver(post_save, sender=Settings, dispatch_uid="cache_settings_save")
 def invalidate_settings_cache_on_save(sender, **kwargs):
     transaction.on_commit(invalidate_cached_settings)
-
-
-for subject_type in subject_type_registry.get_all():
-    subject_type.register_lifecycle_signals()

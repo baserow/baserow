@@ -42,12 +42,7 @@ from baserow.core.registries import (
     serialization_processor_registry,
 )
 from baserow.core.storage import ExportZipFile
-from baserow.core.subject.export import (
-    import_subject,
-    pack_identity_manifest,
-    transform_table_identities,
-    unpack_identity_manifest,
-)
+from baserow.core.subject.handler import SubjectHandler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import PermissionCheck
 from baserow.core.utils import ChildProgressBuilder, Progress, grouper
@@ -273,8 +268,10 @@ class DatabaseApplicationType(ApplicationType):
                     structure.update(**extra_data)
             if import_export_config.is_user_template:
                 # Templates exclude source users and their retained attribution.
-                transform_table_identities(structure, lambda value: None)
-            pack_identity_manifest(structure)
+                SubjectHandler().transform_table_identities(
+                    structure, lambda value: None
+                )
+            SubjectHandler().pack_identity_manifest(structure)
             serialized_tables.append(structure)
 
         return serialized_tables
@@ -681,7 +678,7 @@ class DatabaseApplicationType(ApplicationType):
             id_mapping["database_tables"] = {}
 
         for serialized_table in serialized_tables:
-            unpack_identity_manifest(serialized_table)
+            SubjectHandler().unpack_identity_manifest(serialized_table)
 
         if "database_fields" not in id_mapping:
             id_mapping["database_fields"] = {}
@@ -1007,10 +1004,10 @@ class DatabaseApplicationType(ApplicationType):
             updated_on = now
 
         workspace_id = user_email_mapping.get("__workspace_id")
-        created_by = import_subject(
+        created_by = SubjectHandler().import_subject(
             serialized_row.get("created_by"), workspace_id, user_email_mapping
         )
-        last_modified_by = import_subject(
+        last_modified_by = SubjectHandler().import_subject(
             serialized_row.get("last_modified_by"), workspace_id, user_email_mapping
         )
 

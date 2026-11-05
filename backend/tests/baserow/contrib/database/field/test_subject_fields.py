@@ -8,7 +8,7 @@ from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.agents.handler import AgentHandler
 from baserow.core.models import Agent, SubjectRollout
-from baserow.core.subject.handler import eligible_subjects
+from baserow.core.subject.handler import SubjectHandler
 
 
 @pytest.mark.django_db
@@ -75,7 +75,11 @@ def test_subject_options_query_count_is_bounded(
     workspace = data_fixture.create_workspace(user=user)
     agent = AgentHandler().create_agent(workspace, name="Selectable Agent")
     with django_assert_num_queries(1):
-        options = list(eligible_subjects(workspace.id, include_disabled_types=True))
+        options = list(
+            SubjectHandler().eligible_subjects(
+                workspace.id, include_disabled_types=True
+            )
+        )
     assert {subject.id for subject in options} == {agent.subject_id, user.id}
 
 

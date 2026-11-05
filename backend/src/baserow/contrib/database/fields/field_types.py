@@ -191,12 +191,7 @@ from baserow.core.storage import (
     OverwritingStorageHandler,
     get_default_storage,
 )
-from baserow.core.subject.export import (
-    export_subject,
-    human_readable_subject,
-    import_subject,
-)
-from baserow.core.subject.handler import eligible_subjects
+from baserow.core.subject.handler import SubjectHandler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_files.exceptions import UserFileDoesNotExist
 from baserow.core.user_files.handler import UserFileHandler
@@ -2523,7 +2518,7 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
         """
 
         user = self.get_internal_value_from_db(row, field_name)
-        return export_subject(user)
+        return SubjectHandler().export_subject(user)
 
     def set_import_serialized_value(
         self,
@@ -2557,7 +2552,7 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
         user = value
         if user is None:
             return None
-        return human_readable_subject(user, include_name=False)
+        return SubjectHandler().human_readable_subject(user, include_name=False)
 
     def get_order(
         self, field, field_name, order_direction, sort_type, table_model=None
@@ -2753,7 +2748,7 @@ class CreatedByFieldType(ReadOnlyFieldType):
         """
 
         user = self.get_internal_value_from_db(row, field_name)
-        return export_subject(user)
+        return SubjectHandler().export_subject(user)
 
     def set_import_serialized_value(
         self,
@@ -2787,7 +2782,7 @@ class CreatedByFieldType(ReadOnlyFieldType):
         user = value
         if user is None:
             return None
-        return human_readable_subject(user, include_name=False)
+        return SubjectHandler().human_readable_subject(user, include_name=False)
 
     def get_order(
         self, field, field_name, order_direction, sort_type, table_model=None
@@ -7977,7 +7972,10 @@ class MultipleCollaboratorsFieldType(
         user_ids = [v["id"] if isinstance(v, dict) else v for v in value]
         workspace = instance.table.database.workspace
         workspace_users_count = (
-            eligible_subjects(workspace.id).filter(id__in=user_ids).count()
+            SubjectHandler()
+            .eligible_subjects(workspace.id)
+            .filter(id__in=user_ids)
+            .count()
         )
 
         if workspace_users_count != len(user_ids):
@@ -8001,7 +7999,8 @@ class MultipleCollaboratorsFieldType(
         workspace = instance.table.database.workspace
 
         selected_ids = (
-            eligible_subjects(workspace.id)
+            SubjectHandler()
+            .eligible_subjects(workspace.id)
             .filter(id__in=all_user_ids)
             .values_list("id", flat=True)
         )
@@ -8035,7 +8034,7 @@ class MultipleCollaboratorsFieldType(
         if not value:
             return [] if rich_value else ""
 
-        result = [human_readable_subject(user) for user in value]
+        result = [SubjectHandler().human_readable_subject(user) for user in value]
         if rich_value:
             return result
         else:
@@ -8154,7 +8153,9 @@ class MultipleCollaboratorsFieldType(
             current_field, relation_field = through_model._meta.get_fields()[1:3]
             for relation in through_model.objects.select_related(relation_field.name):
                 cache[cache_entry][getattr(relation, current_field.attname)].append(
-                    export_subject(getattr(relation, relation_field.name))
+                    SubjectHandler().export_subject(
+                        getattr(relation, relation_field.name)
+                    )
                 )
         return cache[cache_entry][row.id]
 
@@ -8169,7 +8170,9 @@ class MultipleCollaboratorsFieldType(
         )
         relations = []
         for identity in value:
-            subject = import_subject(identity, id_mapping["import_workspace_id"], cache)
+            subject = SubjectHandler().import_subject(
+                identity, id_mapping["import_workspace_id"], cache
+            )
             if subject is not None:
                 relations.append(
                     through_model(
@@ -8191,7 +8194,7 @@ class MultipleCollaboratorsFieldType(
         ids = {item["id"] for item in value}
         cache[key].update(Subject.objects.in_bulk(ids - cache[key].keys()))
         return [
-            export_subject(cache[key][item["id"]])
+            SubjectHandler().export_subject(cache[key][item["id"]])
             for item in value
             if item["id"] in cache[key]
         ]
@@ -8205,7 +8208,7 @@ class MultipleCollaboratorsFieldType(
         )
         result = []
         for identity in value:
-            subject = import_subject(identity, workspace_id, cache)
+            subject = SubjectHandler().import_subject(identity, workspace_id, cache)
             if subject is not None:
                 result.append(
                     {"id": subject.id, "name": subject.name, "type": subject.type}
