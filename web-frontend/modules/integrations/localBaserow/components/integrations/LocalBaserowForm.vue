@@ -2,26 +2,39 @@
   <div>
     <FormGroup :label="$t('localBaserowForm.subject')" required small-label>
       <PaginatedDropdown
+        class="local-baserow-form__subject"
         :value="authenticationSubject"
-        :fetch-page="fetchAgentPage"
+        :fetch-page="fetchIdentityPage"
         :add-empty-item="false"
         :initial-display-name="initialSubjectName"
         :include-display-name-in-selected-event="true"
         @input="setAuthenticationSubject"
       >
         <template #items="{ results }">
-          <DropdownItem
-            :name="$t('localBaserowForm.currentUser')"
-            value="user"
-            icon="iconoir-user"
-          />
-          <DropdownItem
-            v-for="subject in results"
-            :key="subject.id"
-            :name="subject.name"
-            :value="subject.id"
-            icon="iconoir-lock"
-          />
+          <DropdownSection :title="userSubjectType.getTabDisplayName()">
+            <DropdownItem
+              :name="$t('localBaserowForm.currentUser')"
+              :value="currentUserKey"
+              :icon="userSubjectType.iconClass"
+              :description="$t('localBaserowForm.currentUserDescription')"
+            />
+          </DropdownSection>
+          <DropdownSection :title="agentSubjectType.getTabDisplayName()">
+            <DropdownItem
+              v-for="identity in results"
+              :key="identity.id"
+              :name="identity.name"
+              :value="identity.id"
+              :icon="agentSubjectType.iconClass"
+              :description="identity.description"
+            />
+            <DropdownItem
+              v-if="hasIdentities === false"
+              :name="$t('localBaserowForm.noIdentities')"
+              value="no-identities"
+              disabled
+            />
+          </DropdownSection>
         </template>
       </PaginatedDropdown>
       <template #helper>
@@ -34,10 +47,15 @@
 <script>
 import form from '@baserow/modules/core/mixins/form'
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
-import SubjectService from '@baserow/modules/core/services/subject'
+import DropdownSection from '@baserow/modules/core/components/DropdownSection'
+import AgentService from '@baserow/modules/core/services/agent'
+import {
+  AgentSubjectType,
+  UserSubjectType,
+} from '@baserow/modules/core/subjectTypes.jsx'
 
 export default {
-  components: { PaginatedDropdown },
+  components: { PaginatedDropdown, DropdownSection },
   mixins: [form],
   props: {
     application: {
@@ -51,14 +69,26 @@ export default {
         authorized_subject_id:
           this.defaultValues.authorized_subject?.id || null,
         authorized_subject_type:
-          this.defaultValues.authorized_subject?.type || 'auth.User',
+          this.defaultValues.authorized_subject?.type ||
+          UserSubjectType.getType(),
       },
       allowedValues: ['authorized_subject_id', 'authorized_subject_type'],
+      // Whether the workspace has identities, unknown until they're fetched.
+      hasIdentities: null,
     }
   },
   computed: {
     currentUserId() {
       return this.$store.getters['auth/getUserId']
+    },
+    userSubjectType() {
+      return this.$registry.get('subject', UserSubjectType.getType())
+    },
+    agentSubjectType() {
+      return this.$registry.get('subject', AgentSubjectType.getType())
+    },
+    currentUserKey() {
+      return this.userSubjectType.getKey({ id: this.currentUserId })
     },
     initialSubjectName() {
       const subject = this.defaultValues.authorized_subject
@@ -76,36 +106,63 @@ export default {
       }
       return subjectType.getDisplayName(subject)
     },
-    authenticationSubject: {
-      get() {
-        return this.values.authorized_subject_type === 'auth.User' &&
-          (this.values.authorized_subject_id === null ||
-            this.values.authorized_subject_id === this.currentUserId)
-          ? 'user'
-          : `${this.values.authorized_subject_type}:${this.values.authorized_subject_id}`
-      },
-      set(value) {
-        if (value === 'user') {
-          this.values.authorized_subject_id = this.currentUserId
-          this.values.authorized_subject_type = 'auth.User'
-        }
-      },
+    authenticationSubject() {
+      const type = this.values.authorized_subject_type
+      const id =
+        type === UserSubjectType.getType() &&
+        this.values.authorized_subject_id === null
+          ? this.currentUserId
+          : this.values.authorized_subject_id
+      return this.$registry.get('subject', type).getKey({ id })
     },
   },
   methods: {
-    fetchAgentPage(page, search) {
-      return SubjectService(this.$client).list(this.application.workspace.id, {
-        page,
-        search,
-        subjectTypes: 'core.Agent',
+    /**
+     * Fetches a page of the identities of the workspace, with their role as
+     * description. The identities endpoint, unlike the subjects one, has it.
+     */
+    async fetchIdentityPage(page, search) {
+      const workspaceId = this.application.workspace.id
+      const [response, roles] = await Promise.all([
+        AgentService(this.$client).listPage(workspaceId, { page, search }),
+        this.fetchRoles(workspaceId),
+      ])
+      if (!search) {
+        this.hasIdentities = response.data.count > 0
+      }
+      const results = response.data.results.map((agent) => {
+        const role = roles.find(({ uid }) => uid === agent.role_uid)
+        return {
+          id: this.agentSubjectType.getKey(agent),
+          subject_id: this.agentSubjectType.getId(agent),
+          name: agent.name,
+          description: role
+            ? this.$t('localBaserowForm.identityRole', { role: role.name })
+            : null,
+        }
       })
+      return { ...response, data: { ...response.data, results } }
+    },
+    /**
+     * The roles of the workspace, to name the role of each identity. The
+     * identities are listed without them if they can't be fetched.
+     */
+    async fetchRoles(workspaceId) {
+      const workspace = this.$store.getters['workspace/get'](workspaceId)
+      try {
+        await this.$store.dispatch('workspace/fetchRoles', workspace)
+      } catch {
+        return []
+      }
+      return workspace._.roles || []
     },
     setAuthenticationSubject({ value, item }) {
-      if (value === 'user') {
-        this.authenticationSubject = value
+      if (value === this.currentUserKey) {
+        this.values.authorized_subject_id = this.currentUserId
+        this.values.authorized_subject_type = UserSubjectType.getType()
       } else {
         this.values.authorized_subject_id = item.subject_id
-        this.values.authorized_subject_type = item.subject_type
+        this.values.authorized_subject_type = AgentSubjectType.getType()
       }
     },
   },
