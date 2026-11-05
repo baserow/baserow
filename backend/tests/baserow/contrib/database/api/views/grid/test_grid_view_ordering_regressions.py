@@ -1,3 +1,5 @@
+import json
+from datetime import datetime, timezone
 from itertools import product
 
 from django.urls import reverse
@@ -339,3 +341,68 @@ def test_grouping_collaborators_preserves_selection_order_sort(
     assert [row.id for row in queryset] == _expected_selection_order(
         selections, [(0, "ASC")], [(0, direction)], separator=""
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("mode", REQUEST_MODES)
+@pytest.mark.parametrize(
+    "create_field,include_time",
+    [
+        ("create_created_on_field", False),
+        ("create_created_on_field", True),
+        ("create_date_field", True),
+    ],
+)
+def test_date_group_rows_match_sub_group_offsets(
+    api_client, data_fixture, mode, create_field, include_time
+):
+    """Rows sharing a date group sort by the group key, not the raw timestamp."""
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    ticket = data_fixture.create_text_field(table=table, name="Ticket", primary=True)
+    date = getattr(data_fixture, create_field)(
+        table=table, date_include_time=include_time
+    )
+    status = data_fixture.create_text_field(table=table, name="Status")
+    view = data_fixture.create_grid_view(table=table, public=True)
+    params = _configure_ordering(
+        data_fixture,
+        view,
+        [(date, "ASC"), (status, "ASC")],
+        [(ticket, "ASC")],
+        mode,
+    )
+    model = table.get_model()
+    # Seconds apart within one minute, so every row shares one date group.
+    for second, (name, state) in enumerate(
+        [
+            ("Login fails", "Open"),
+            ("Refund request", "Closed"),
+            ("Export broken", "Open"),
+            ("Billing question", "Closed"),
+        ],
+        start=1,
+    ):
+        row = model.objects.create(**{ticket.db_column: name, status.db_column: state})
+        model.objects.filter(id=row.id).update(
+            **{date.db_column: datetime(2024, 1, 1, 9, 0, second, tzinfo=timezone.utc)}
+        )
+
+    rows_url, groups_url, auth = _grid_urls_and_auth(view, token, mode)
+    [date_group] = _get_json(api_client, groups_url, params, auth)["pages"][0]["groups"]
+    parents = [{"parent": date_group["path"], "offset": 0, "limit": 10}]
+    [status_page] = _get_json(
+        api_client, groups_url, {**params, "parents": json.dumps(parents)}, auth
+    )["pages"]
+    rows = _get_json(api_client, rows_url, params, auth)["results"]
+
+    assert [
+        (group["path"][status.db_column], group["row_offset"], group["row_count"])
+        for group in status_page["groups"]
+    ] == [("Closed", 0, 2), ("Open", 2, 2)]
+    assert [(row[status.db_column], row[ticket.db_column]) for row in rows] == [
+        ("Closed", "Billing question"),
+        ("Closed", "Refund request"),
+        ("Open", "Export broken"),
+        ("Open", "Login fails"),
+    ]

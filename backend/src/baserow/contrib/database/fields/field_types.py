@@ -2177,6 +2177,48 @@ class DateFieldType(FieldType):
             )
         return super().get_group_by_expression(field, field_name, base_queryset)
 
+    def get_group_by_sort_order(
+        self,
+        field: Field,
+        field_name: str,
+        order_direction: str,
+        sort_type: str,
+        table_model: Optional["GeneratedTableModel"] = None,
+    ) -> OptionallyAnnotatedOrderBy:
+        """
+        Rows sort by their group key, not the raw value, so the rows of a group
+        stay together and line up with the group's row offset and count.
+        """
+
+        return self._order_by_group_key(
+            self.get_group_by_expression(field, field_name, None), order_direction
+        )
+
+    def get_group_by_order(
+        self,
+        field: Field,
+        field_name: str,
+        order_direction: str,
+        sort_type: str,
+        table_model: Optional["GeneratedTableModel"] = None,
+        group_by_expression: Optional[Expression] = None,
+    ) -> OptionallyAnnotatedOrderBy:
+        """
+        Grouped queries already hold the group key in the field column, so the
+        groups sort by that column as is.
+        """
+
+        if group_by_expression is None:
+            group_by_expression = F(field_name)
+        return self._order_by_group_key(group_by_expression, order_direction)
+
+    def _order_by_group_key(
+        self, group_key: Expression, order_direction: str
+    ) -> OptionallyAnnotatedOrderBy:
+        if order_direction == "ASC":
+            return OptionallyAnnotatedOrderBy(order=group_key.asc(nulls_first=True))
+        return OptionallyAnnotatedOrderBy(order=group_key.desc(nulls_last=True))
+
     def get_group_by_field_filters_and_annotations(
         self, field, field_name, base_queryset, value, cte, rows
     ):
@@ -2209,7 +2251,7 @@ class CreatedOnLastModifiedBaseFieldType(ReadOnlyFieldType, DateFieldType):
         return self.model_field_class(**kwargs)
 
     def get_group_by_expression(
-        self, field: Field, field_name: str, base_queryset: QuerySet
+        self, field: Field, field_name: str, base_queryset: Optional[QuerySet]
     ) -> Expression:
         """
         Date-only values are still stored as timestamps, so they group by the UTC
