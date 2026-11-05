@@ -14,7 +14,7 @@ from baserow.contrib.agent.actions import (
     CreateAgentConversationActionType,
     CreateAgentMessageActionType,
     DeleteAgentConversationActionType,
-    RenameAgentConversationActionType,
+    UpdateAgentConversationActionType,
 )
 from baserow.contrib.agent.exceptions import (
     AgentConversationDoesNotExist,
@@ -27,6 +27,7 @@ from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.signals import agent_conversation_activity
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.models import Action
+from baserow.core.action.registries import action_type_registry
 from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun
@@ -254,8 +255,8 @@ def test_conversations_are_private_to_their_owner_and_agent(
         lambda: service.create_conversation(
             actor, target.id, conversation.uuid, message.uuid, message.content
         ),
-        lambda: service.rename_conversation(
-            actor, target.id, conversation.uuid, "Renamed"
+        lambda: service.update_conversation(
+            actor, target.id, conversation.uuid, title="Renamed"
         ),
         lambda: service.delete_conversation(actor, target.id, conversation.uuid),
     ]:
@@ -573,7 +574,7 @@ def test_message_rechecks_readiness_after_waiting_for_the_conversation(
 
 
 @pytest.mark.django_db
-def test_renaming_collapses_whitespace_and_keeps_the_list_order(
+def test_updating_a_title_collapses_whitespace_and_keeps_the_list_order(
     data_fixture, configured_agent, api_client, api_user
 ):
     agent = configured_agent(user=api_user)
@@ -589,6 +590,10 @@ def test_renaming_collapses_whitespace_and_keeps_the_list_order(
     assert [item["uuid"] for item in listed] == [str(newer.uuid), str(renamed.uuid)]
     blank = api_client.patch(url, {"title": " \n"})
     assert blank.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert api_client.patch(url, {}).json()["title"] == "Daily research"
+    assert (
+        Action.objects.filter(type=UpdateAgentConversationActionType.type).count() == 1
+    )
 
 
 @pytest.mark.django_db
@@ -638,15 +643,19 @@ def test_a_deleted_conversation_stops_its_reply_and_only_its_owner_restores_it(
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
-def test_renaming_and_deleting_can_be_undone_and_redone(data_fixture, configured_agent):
+def test_updating_and_deleting_can_be_undone_and_redone(data_fixture, configured_agent):
     user = data_fixture.create_user(session_id="session")
     agent = configured_agent(user=user)
     conversation = data_fixture.create_agent_conversation(
         user=user, agent=agent, title="Original"
     )
     scopes = [ApplicationActionScopeType.value(agent.id)]
-    RenameAgentConversationActionType.do(user, agent.id, conversation.uuid, "Renamed")
-    DeleteAgentConversationActionType.do(user, agent.id, conversation.uuid)
+    action_type_registry.get_by_type(UpdateAgentConversationActionType).do(
+        user, agent.id, conversation.uuid, title="Renamed"
+    )
+    action_type_registry.get_by_type(DeleteAgentConversationActionType).do(
+        user, agent.id, conversation.uuid
+    )
 
     ActionHandler.undo(user, scopes, "session")
     assert AgentConversation.objects.get().title == "Renamed"

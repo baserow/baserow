@@ -128,7 +128,7 @@
     </div>
     <Context ref="menu" @hidden="menuUuid = null">
       <ul class="context__menu">
-        <li v-if="canRename" class="context__menu-item">
+        <li v-if="canUpdate" class="context__menu-item">
           <a class="context__menu-item-link" @click="startRename">
             <i class="context__menu-item-icon iconoir-edit-pencil"></i>
             {{ $t('action.rename') }}
@@ -137,7 +137,7 @@
         <li
           v-if="canDelete"
           class="context__menu-item"
-          :class="{ 'context__menu-item--with-separator': canRename }"
+          :class="{ 'context__menu-item--with-separator': canUpdate }"
         >
           <a
             class="context__menu-item-link context__menu-link--delete"
@@ -165,7 +165,7 @@ const props = defineProps({
   hasMore: Boolean,
   canCreate: Boolean,
   readyToSend: Boolean,
-  canRename: Boolean,
+  canUpdate: Boolean,
   canDelete: Boolean,
 })
 const emit = defineEmits([
@@ -173,7 +173,7 @@ const emit = defineEmits([
   'retry',
   'load-more',
   'create',
-  'rename',
+  'update',
   'delete',
 ])
 
@@ -185,7 +185,7 @@ const renamingUuid = ref(null)
 const renameTitle = ref('')
 
 // A draft exists only in this tab until its first message is sent.
-const hasOptions = (item) => !item.local && (props.canRename || props.canDelete)
+const hasOptions = (item) => !item.local && (props.canUpdate || props.canDelete)
 
 function toggleMenu(target, item) {
   const otherItem = menuUuid.value !== item.uuid
@@ -207,7 +207,7 @@ function finishRename(item) {
   if (renamingUuid.value !== item.uuid) return
   renamingUuid.value = null
   const title = renameTitle.value.trim()
-  if (title && title !== item.title) emit('rename', item, title)
+  if (title && title !== item.title) emit('update', item, { title })
 }
 
 function remove() {

@@ -38,6 +38,7 @@ from .registries import agent_tool_type_registry
 from .types import (
     AgentConfiguration,
     AgentConfigurationUpdated,
+    AgentConversationUpdated,
     AgentMessageCreated,
     AgentReplyRequest,
     AgentReplyResult,
@@ -47,6 +48,7 @@ from .types import (
 
 class AgentHandler:
     configuration_fields = ["instructions", "provider_type", "model_identifier"]
+    conversation_fields = ["title"]
     run_as_fields = ["run_as_subject_type", "run_as_subject_id"]
 
     def get_agent(self, agent_id: int, for_update: bool = False) -> AgentApplication:
@@ -355,22 +357,32 @@ class AgentHandler:
         conversation.agent, conversation.owner_user = agent, owner
         return conversation
 
-    def rename_conversation(
-        self, conversation: AgentConversation, title: str
-    ) -> AgentConversation:
+    def update_conversation(
+        self, conversation: AgentConversation, **values: str
+    ) -> AgentConversationUpdated:
         """
-        Rename a conversation without moving it in the list, which is ordered by
-        activity.
+        Update a conversation's own values without moving it in the list, which is
+        ordered by activity.
 
-        :param conversation: The conversation to rename.
-        :param title: The new title, with its whitespace collapsed like a first
-            message's.
-        :return: The renamed conversation.
+        :param conversation: The conversation to update.
+        :param values: The values to set, by field name. A title has its whitespace
+            collapsed like a first message's. Unknown field names are ignored.
+        :return: The conversation with its original and new values of the given
+            fields.
         """
 
-        conversation.title = " ".join(title.split())
-        conversation.save(update_fields=["title"])
-        return conversation
+        values = extract_allowed(values, self.conversation_fields)
+        if "title" in values:
+            values["title"] = " ".join(values["title"].split())
+        original_values = {field: getattr(conversation, field) for field in values}
+        changed_fields = [
+            field for field, value in values.items() if value != original_values[field]
+        ]
+        for field in changed_fields:
+            setattr(conversation, field, values[field])
+        if changed_fields:
+            conversation.save(update_fields=changed_fields)
+        return AgentConversationUpdated(conversation, original_values, values)
 
     def delete_conversation(
         self, user: AbstractUser, conversation: AgentConversation

@@ -239,7 +239,8 @@ class AgentConversationUpdateSerializer(
     UnknownFieldRaisesExceptionSerializerMixin, serializers.Serializer
 ):
     title = serializers.CharField(
-        max_length=AgentConversation._meta.get_field("title").max_length
+        required=False,
+        max_length=AgentConversation._meta.get_field("title").max_length,
     )
 
 

@@ -64,7 +64,7 @@ export function useAgentConversations(agent, configuration) {
   const canCreateMessage = computed(() =>
     permission('agent_application.create_message')
   )
-  const canRenameConversation = computed(() =>
+  const canUpdateConversation = computed(() =>
     permission('agent_application.update_conversation')
   )
   const canDeleteConversation = computed(() =>
@@ -464,18 +464,20 @@ export function useAgentConversations(agent, configuration) {
     }
   }
 
-  async function renameConversation(conversation, title) {
-    const previous = conversation.title
-    conversation.title = title
+  async function updateConversation(conversation, values) {
+    const previous = Object.fromEntries(
+      Object.keys(values).map((field) => [field, conversation[field]])
+    )
+    Object.assign(conversation, values)
     try {
       const { data } = await service.updateConversation(
         agent.value.id,
         conversation.uuid,
-        { title }
+        values
       )
-      conversation.title = data.title
+      for (const field of Object.keys(values)) conversation[field] = data[field]
     } catch (error) {
-      conversation.title = previous
+      Object.assign(conversation, previous)
       notifyIf(error)
     }
   }
@@ -558,8 +560,8 @@ export function useAgentConversations(agent, configuration) {
       if (!update || !canReadConversations.value) return
       if (update.deleted) return removeConversation(update.uuid)
       const conversation = findConversation(update.uuid)
-      if (update.title !== undefined) {
-        if (conversation) conversation.title = update.title
+      if (update.values) {
+        if (conversation) Object.assign(conversation, update.values)
         return
       }
       if (!conversation) return refreshConversations()
@@ -649,7 +651,7 @@ export function useAgentConversations(agent, configuration) {
   return {
     canReadConversations,
     canCreateConversation,
-    canRenameConversation,
+    canUpdateConversation,
     canDeleteConversation,
     conversationItems,
     conversationsLoading,
@@ -670,7 +672,7 @@ export function useAgentConversations(agent, configuration) {
     updateMessage,
     sendMessage,
     stopReply,
-    renameConversation,
+    updateConversation,
     deleteConversation,
   }
 }

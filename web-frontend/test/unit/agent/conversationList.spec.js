@@ -131,7 +131,7 @@ describe('Agent conversation list', () => {
           { uuid: 'saved', title: 'Saved conversation' },
           { uuid: 'draft', title: '', local: true },
         ],
-        canRename: true,
+        canUpdate: true,
         canDelete: true,
       },
     })
@@ -151,6 +151,6 @@ describe('Agent conversation list', () => {
     expect(wrapper.get('.agent-conversations__item').text()).toBe(
       'Saved conversation'
     )
-    expect(wrapper.emitted('rename')).toBeUndefined()
+    expect(wrapper.emitted('update')).toBeUndefined()
   })
 })

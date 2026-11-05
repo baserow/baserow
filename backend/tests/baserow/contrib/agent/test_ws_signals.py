@@ -11,12 +11,13 @@ from baserow.contrib.agent.actions import (
     CreateAgentConversationActionType,
     CreateAgentMessageActionType,
     DeleteAgentConversationActionType,
-    RenameAgentConversationActionType,
+    UpdateAgentConversationActionType,
 )
 from baserow.contrib.agent.models import (
     AgentConversation,
     AgentMessage,
 )
+from baserow.core.action.registries import action_type_registry
 from baserow.core.agents.service import AgentService as IdentityService
 from baserow.core.models import Agent
 from baserow.core.trash.handler import TrashHandler
@@ -210,16 +211,22 @@ def test_renames_deletions_and_restores_notify_only_the_owner(
     )
 
     with django_capture_on_commit_callbacks(execute=True):
-        RenameAgentConversationActionType.do(
-            user, agent.id, conversation.uuid, "Renamed"
+        action_type_registry.get_by_type(UpdateAgentConversationActionType).do(
+            user, agent.id, conversation.uuid, title="Renamed"
         )
-        DeleteAgentConversationActionType.do(user, agent.id, conversation.uuid)
+        action_type_registry.get_by_type(DeleteAgentConversationActionType).do(
+            user, agent.id, conversation.uuid
+        )
         TrashHandler.restore_item(user, "agent_conversation", conversation.id)
 
     assert broadcast.call_args_list == [
         call(
             [user.id],
-            {"type": "agent_conversation_renamed", **event, "title": "Renamed"},
+            {
+                "type": "agent_conversation_updated",
+                **event,
+                "values": {"title": "Renamed"},
+            },
             ignore_web_socket_id="source-tab",
         ),
         call(

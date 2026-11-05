@@ -484,9 +484,9 @@ describe('Agent conversation realtime updates', () => {
         { agent_id: agentData.id, ...data }
       )
 
-    receive('agent_conversation_renamed', {
+    receive('agent_conversation_updated', {
       conversation_uuid: second.uuid,
-      title: 'Renamed elsewhere',
+      values: { title: 'Renamed elsewhere' },
     })
     receive('agent_conversation_deleted', { conversation_uuid: first.uuid })
     await flushPromises()

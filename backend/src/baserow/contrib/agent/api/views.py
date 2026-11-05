@@ -29,8 +29,8 @@ from baserow.contrib.agent.actions import (
     CreateAgentConversationActionType,
     CreateAgentMessageActionType,
     DeleteAgentConversationActionType,
-    RenameAgentConversationActionType,
     UpdateAgentConfigurationActionType,
+    UpdateAgentConversationActionType,
 )
 from baserow.contrib.agent.exceptions import (
     AgentConversationDoesNotExist,
@@ -43,6 +43,7 @@ from baserow.contrib.agent.models import AgentApplication
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.signals import agent_loaded
 from baserow.contrib.agent.types import AgentMessageCreated
+from baserow.core.action.registries import action_type_registry
 from baserow.core.chat_runs.exceptions import ChatRunAlreadyActive, ChatRunLimitReached
 from baserow.core.exceptions import ApplicationDoesNotExist, UserNotInWorkspace
 from baserow.core.service import CoreService
@@ -345,8 +346,8 @@ class AgentConversationView(APIView):
         tags=["Agent applications"],
         operation_id="update_agent_conversation",
         description=(
-            "Renames one of the authenticated user's conversations. It keeps its "
-            "place in the list, which is ordered by activity."
+            "Updates one of the authenticated user's conversations, for now only its "
+            "title. It keeps its place in the list, which is ordered by activity."
         ),
         parameters=[AGENT_ID_PATH_PARAMETER],
         request=AgentConversationUpdateSerializer,
@@ -361,11 +362,11 @@ class AgentConversationView(APIView):
     def patch(
         self, request: Request, agent_id: int, conversation_uuid: UUID, data: dict
     ) -> Response:
-        """Renames a conversation of the authenticated owner."""
+        """Updates a conversation of the authenticated owner."""
 
-        conversation = RenameAgentConversationActionType.do(
-            request.user, agent_id, conversation_uuid, **data
-        )
+        conversation = action_type_registry.get_by_type(
+            UpdateAgentConversationActionType
+        ).do(request.user, agent_id, conversation_uuid, **data)
         runs = AgentHandler().get_conversation_runs([conversation.id])
         return Response(
             AgentConversationSerializer(
@@ -390,7 +391,9 @@ class AgentConversationView(APIView):
     ) -> Response:
         """Trashes a conversation of the authenticated owner."""
 
-        DeleteAgentConversationActionType.do(request.user, agent_id, conversation_uuid)
+        action_type_registry.get_by_type(DeleteAgentConversationActionType).do(
+            request.user, agent_id, conversation_uuid
+        )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

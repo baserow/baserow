@@ -9,9 +9,9 @@ from rest_framework.fields import DateTimeField
 
 from baserow.contrib.agent.models import AgentConversation
 from baserow.contrib.agent.signals import (
-    agent_conversation_deleted,
-    agent_conversation_renamed,
     agent_conversation_activity,
+    agent_conversation_deleted,
+    agent_conversation_updated,
 )
 from baserow.contrib.agent.ws.tasks import broadcast_run_as_updates
 from baserow.core.agents.signals import agent_created, agent_deleted, agent_updated
@@ -58,7 +58,7 @@ def _notify_owner(
     conversation: AgentConversation,
     user: AbstractUser | None,
     event_type: str,
-    **values: str | None,
+    **data: object,
 ) -> None:
     """Send an event about the conversation to its owner's other sessions only."""
 
@@ -66,7 +66,7 @@ def _notify_owner(
         "type": event_type,
         "agent_id": conversation.agent_id,
         "conversation_uuid": str(conversation.uuid),
-        **values,
+        **data,
     }
     owner_id = conversation.owner_user_id
     web_socket_id = getattr(user, "web_socket_id", None)
@@ -96,13 +96,15 @@ def conversation_activity(
     )
 
 
-@receiver(agent_conversation_renamed)
-def conversation_renamed(
-    sender, conversation: AgentConversation, user: AbstractUser, **kwargs
+@receiver(agent_conversation_updated)
+def conversation_updated(
+    sender,
+    conversation: AgentConversation,
+    user: AbstractUser,
+    values: dict[str, str],
+    **kwargs,
 ):
-    _notify_owner(
-        conversation, user, "agent_conversation_renamed", title=conversation.title
-    )
+    _notify_owner(conversation, user, "agent_conversation_updated", values=values)
 
 
 @receiver(agent_conversation_deleted)

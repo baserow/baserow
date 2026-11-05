@@ -125,11 +125,11 @@ class CreateAgentMessageActionType(ActionType):
         return ApplicationActionScopeType.value(agent_id)
 
 
-class RenameAgentConversationActionType(UndoableActionType):
-    type = "rename_agent_conversation"
+class UpdateAgentConversationActionType(UndoableActionType):
+    type = "update_agent_conversation"
     description = ActionTypeDescription(
-        _("Rename agent conversation"),
-        _("Conversation (%(conversation_id)s) renamed in agent (%(agent_id)s)."),
+        _("Update agent conversation"),
+        _("Conversation (%(conversation_id)s) updated in agent (%(agent_id)s)."),
     )
     analytics_params = ["agent_id", "conversation_id"]
 
@@ -138,41 +138,42 @@ class RenameAgentConversationActionType(UndoableActionType):
         agent_id: int
         conversation_id: int
         conversation_uuid: str
-        title: str
-        original_title: str
+        original_values: dict[str, str]
+        new_values: dict[str, str]
 
     @classmethod
     @transaction.atomic
     def do(
-        cls, user: AbstractUser, agent_id: int, conversation_uuid: UUID, title: str
+        cls, user: AbstractUser, agent_id: int, conversation_uuid: UUID, **values: str
     ) -> AgentConversation:
         """
-        Rename a conversation. The description names it by id because titles are
-        private.
+        Update a conversation, such as its title. The description names it by id
+        because titles are private.
 
-        :param user: The user renaming the conversation.
+        :param user: The user updating the conversation.
         :param agent_id: The id of the agent.
         :param conversation_uuid: The uuid of the conversation.
-        :param title: The new title.
-        :return: The renamed conversation.
+        :param values: The values to set, by field name.
+        :return: The updated conversation.
         """
 
-        conversation, original_title = AgentService().rename_conversation(
-            user, agent_id, conversation_uuid, title
+        updated = AgentService().update_conversation(
+            user, agent_id, conversation_uuid, **values
         )
-        cls.register_action(
-            user,
-            cls.Params(
-                agent_id,
-                conversation.id,
-                str(conversation.uuid),
-                conversation.title,
-                original_title,
-            ),
-            cls.scope(agent_id),
-            conversation.agent.workspace,
-        )
-        return conversation
+        if updated.original_values != updated.new_values:
+            cls.register_action(
+                user,
+                cls.Params(
+                    agent_id,
+                    updated.conversation.id,
+                    str(updated.conversation.uuid),
+                    updated.original_values,
+                    updated.new_values,
+                ),
+                cls.scope(agent_id),
+                updated.conversation.agent.workspace,
+            )
+        return updated.conversation
 
     @classmethod
     def scope(cls, agent_id: int) -> ActionScopeStr:
@@ -180,14 +181,17 @@ class RenameAgentConversationActionType(UndoableActionType):
 
     @classmethod
     def undo(cls, user: AbstractUser, params: Params, action_being_undone: Action):
-        AgentService().rename_conversation(
-            user, params.agent_id, UUID(params.conversation_uuid), params.original_title
+        AgentService().update_conversation(
+            user,
+            params.agent_id,
+            UUID(params.conversation_uuid),
+            **params.original_values,
         )
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
-        AgentService().rename_conversation(
-            user, params.agent_id, UUID(params.conversation_uuid), params.title
+        AgentService().update_conversation(
+            user, params.agent_id, UUID(params.conversation_uuid), **params.new_values
         )
 
 

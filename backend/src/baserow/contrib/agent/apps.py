@@ -19,8 +19,8 @@ class AgentConfig(AppConfig):
             CreateAgentConversationActionType,
             CreateAgentMessageActionType,
             DeleteAgentConversationActionType,
-            RenameAgentConversationActionType,
             UpdateAgentConfigurationActionType,
+            UpdateAgentConversationActionType,
         )
         from .application_types import AgentApplicationType
         from .chat_run_type import AgentChatRunType
@@ -69,7 +69,7 @@ class AgentConfig(AppConfig):
         for action in (
             CreateAgentConversationActionType,
             CreateAgentMessageActionType,
-            RenameAgentConversationActionType,
+            UpdateAgentConversationActionType,
             DeleteAgentConversationActionType,
             UpdateAgentConfigurationActionType,
         ):

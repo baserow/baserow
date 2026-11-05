@@ -9,6 +9,7 @@ import pytest
 from baserow.contrib.agent.actions import DeleteAgentConversationActionType
 from baserow.contrib.agent.constants import AGENT_RUN_TYPE
 from baserow.contrib.agent.service import AgentService
+from baserow.core.action.registries import action_type_registry
 from baserow.core.actions import UpdateApplicationActionType
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
@@ -140,7 +141,7 @@ def test_deleting_a_conversation_while_its_run_ends_does_not_deadlock(data_fixtu
         try:
             delete_pid.append(start_session())
             delete_connected.set()
-            DeleteAgentConversationActionType.do(
+            action_type_registry.get_by_type(DeleteAgentConversationActionType).do(
                 user, conversation.agent_id, conversation.uuid
             )
         finally:
