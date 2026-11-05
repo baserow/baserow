@@ -16,9 +16,16 @@ const applicationTypes = [
  * groups so sidebar icons cannot cause a feature download at startup. Core
  * components stay outside application groups too: settings and other core pages
  * can reuse them without downloading shared application editors. The
- * higher-priority public runtime group stays shared.
+ * higher-priority public runtime group stays shared. Dependencies shared with onboarding get their
+ * own small group, so an importer used by Database cannot download every onboarding
+ * form, and onboarding metadata cannot download the full Grid renderer.
  */
 export function createApplicationFeatureBundles() {
+  const featureTypes = [
+    ...applicationTypes,
+    'onboarding',
+    'onboarding-rendering',
+  ]
   const owners = new Map()
   const startupModules = new Set()
   return {
@@ -44,7 +51,10 @@ export function createApplicationFeatureBundles() {
         for (const id of this.getModuleIds()) {
           if (
             /\/plugin(?:Metadata|Authentication)\.js$/.test(id) ||
-            id.includes('/modules/core/') ||
+            (id.includes('/modules/core/') &&
+              !/\/(?:onboardingBundle\.js|components\/onboarding\/|pages\/onboarding\.vue)/.test(
+                id
+              )) ||
             (id.includes('virtual:nuxt:') && id.endsWith('app.vue')) ||
             /\/modules\/(?:core|baserow_premium|baserow_enterprise)\/pluginApplication\.js$/.test(
               id
@@ -52,8 +62,14 @@ export function createApplicationFeatureBundles() {
           ) {
             visitStartup(id)
           }
-          for (const type of applicationTypes) {
+          // Keep route components in their normal chunks. Combining a route with
+          // feature registration entries can snapshot its default export before
+          // initialization during Nitro's server rebundling.
+          for (const type of featureTypes) {
             if (
+              (type === 'onboarding' && id.endsWith('/onboardingBundle.js')) ||
+              (type === 'onboarding-rendering' &&
+                id.endsWith('/onboardingRenderingBundle.js')) ||
               id.endsWith(`/modules/${type}/applicationBundle.js`) ||
               (/\/modules\/baserow_(?:premium|enterprise)\//.test(id) &&
                 id.endsWith(`/${type}Bundle.js`))
@@ -65,8 +81,8 @@ export function createApplicationFeatureBundles() {
       },
     },
     groups: [
-      ...applicationTypes.map((type) => ({
-        name: `${type}-application`,
+      ...featureTypes.map((type) => ({
+        name: applicationTypes.includes(type) ? `${type}-application` : type,
         priority: 90,
         // The graph above already selects dependencies; recursive assignment would
         // pull excluded metadata and shared helpers back into the feature chunk.
@@ -77,10 +93,22 @@ export function createApplicationFeatureBundles() {
           owners.get(id).has(type),
       })),
       {
+        name: 'onboarding-shared',
+        priority: 85,
+        includeDependenciesRecursively: false,
+        test: (id) =>
+          !startupModules.has(id) &&
+          owners.get(id)?.has('onboarding') &&
+          owners.get(id)?.size > 1,
+      },
+      {
         name: 'application-shared',
         priority: 80,
         includeDependenciesRecursively: false,
-        test: (id) => !startupModules.has(id) && owners.get(id)?.size > 1,
+        test: (id) =>
+          !startupModules.has(id) &&
+          !owners.get(id)?.has('onboarding') &&
+          owners.get(id)?.size > 1,
       },
     ],
   }

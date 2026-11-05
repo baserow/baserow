@@ -1,4 +1,4 @@
-import { getApplicationComponent } from '@baserow/modules/core/utils/applicationBundles'
+import { getFeatureComponent } from '@baserow/modules/core/utils/featureBundles'
 import { DatabaseOnboardingStepType } from '@baserow/modules/database/databaseOnboardingStepTypes'
 
 /**
@@ -20,9 +20,9 @@ export class AIDatabaseOnboardingStepType extends DatabaseOnboardingStepType {
   }
 
   getComponent() {
-    return getApplicationComponent(
+    return getFeatureComponent(
       this.app,
-      'database',
+      'onboarding',
       'AIDatabaseOnboardingForm'
     )
   }

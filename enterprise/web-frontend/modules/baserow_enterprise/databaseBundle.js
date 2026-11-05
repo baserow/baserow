@@ -15,7 +15,7 @@ import {
 } from '@baserow_enterprise/dateDependencyTypes'
 import { RealtimePushTwoWaySyncStrategyType } from '@baserow_enterprise/twoWaySyncStrategyTypes'
 import { RestrictedViewOwnershipType } from '@baserow_enterprise/viewOwnershipTypes'
-import { AIDatabaseOnboardingStepType } from '@baserow_enterprise/databaseOnboardingStepTypes'
+
 import { SemanticSearchFieldFormAdvancedSettingType } from '@baserow_enterprise/fieldFormAdvancedSettingTypes'
 import {
   AISemanticSearchFieldType,
@@ -77,10 +77,7 @@ export default async function register(nuxtApp) {
     'fieldContextItem',
     new DateDependencyContextItemType(context)
   )
-  $registry.register(
-    'databaseOnboardingStep',
-    new AIDatabaseOnboardingStepType(context)
-  )
+
   $registry.register(
     'fieldContextItem',
     new FieldPermissionsContextItemType(context)
@@ -99,7 +96,3 @@ export { default as MemberRolesTableContextItem } from '@baserow_enterprise/comp
 export { default as MemberRolesViewContextItem } from '@baserow_enterprise/components/member-roles/MemberRolesViewContextItem'
 export { default as DateDependencyMenuItem } from '@baserow_enterprise/components/dateDependency/DateDependencyMenuItem'
 export { default as DateDependencyFieldTypeIcon } from '@baserow_enterprise/components/dateDependency/DateDependencyFieldTypeIcon'
-export { default as AIDatabaseOnboardingForm } from '@baserow_enterprise/components/onboarding/AIDatabaseOnboardingForm'
-export { default as DatabaseAppLayoutPreview } from '@baserow/modules/database/components/onboarding/DatabaseAppLayoutPreview'
-export { default as AIPromptStep } from '@baserow_enterprise/components/onboarding/AIPromptStep'
-export { default as AssistantOnboardingMessage } from '@baserow_enterprise/components/assistant/AssistantOnboardingMessage.vue'
