@@ -27,6 +27,7 @@ class ListRowsMcpTool(FunctionMCPTool):
     title = "List rows"
     read_only = True
     function = rows.list_table_rows
+    ignore_extra_arguments = True
 
 
 class CreateRowsMcpTool(RowChangeMcpTool):
@@ -34,6 +35,7 @@ class CreateRowsMcpTool(RowChangeMcpTool):
     group = GROUP_DATABASE_EDIT
     title = "Create rows"
     function = rows.create_rows
+    ignore_extra_arguments = True
 
 
 class UpdateRowsMcpTool(RowChangeMcpTool):
@@ -42,6 +44,7 @@ class UpdateRowsMcpTool(RowChangeMcpTool):
     title = "Update rows"
     destructive = True
     function = rows.update_rows
+    ignore_extra_arguments = True
 
 
 class DeleteRowsMcpTool(RowChangeMcpTool):
@@ -50,3 +53,4 @@ class DeleteRowsMcpTool(RowChangeMcpTool):
     title = "Delete rows"
     destructive = True
     function = rows.delete_rows
+    ignore_extra_arguments = True
