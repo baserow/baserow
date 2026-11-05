@@ -19,25 +19,29 @@
         <Copied ref="copied"></Copied>
       </a>
     </div>
+    <i18n-t
+      scope="global"
+      keypath="mcpOAuthConnections.setupSteps"
+      tag="p"
+      class="mcp-oauth-connections__description"
+    >
+      <template #link>
+        <a
+          href="https://baserow.io/user-docs/mcp-server"
+          target="_blank"
+          rel="noopener noreferrer"
+          data-test="mcp-oauth-setup-docs"
+          >{{ $t('mcpOAuthConnections.setupStepsLink') }}</a
+        >
+      </template>
+    </i18n-t>
     <Tabs header-no-padding content-no-x-padding>
-      <Tab title="Claude">
-        <MarkdownIt
-          class="mcp-oauth-connections__instructions"
-          :content="$t('mcpOAuthConnections.claudeInstructions')"
-        ></MarkdownIt>
-      </Tab>
       <Tab title="Claude Code">
         <MarkdownIt
           class="mcp-oauth-connections__instructions margin-bottom-1"
           :content="$t('mcpOAuthConnections.claudeCodeInstructions')"
         ></MarkdownIt>
         <pre><code class="mcp-oauth-connections__code">claude mcp add --transport http baserow {{ mcpUrl }}</code></pre>
-      </Tab>
-      <Tab title="ChatGPT">
-        <MarkdownIt
-          class="mcp-oauth-connections__instructions"
-          :content="$t('mcpOAuthConnections.chatGptInstructions')"
-        ></MarkdownIt>
       </Tab>
       <Tab title="Cursor">
         <MarkdownIt
