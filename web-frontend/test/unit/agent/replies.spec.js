@@ -276,6 +276,31 @@ describe('Agent replies', () => {
     expect(announcement(wrapper)).toBe('agent.replyStopped')
   })
 
+  test('reopening a running reply announces it without repeating its old steps', async () => {
+    mockConversations(
+      testApp,
+      page([
+        existingConversation,
+        conversation('conversation-b', 'Conversation B'),
+      ])
+    )
+    mockMessages(
+      testApp,
+      existingConversation.uuid,
+      page([prompt, runningReply('run-2')])
+    )
+    mockMessages(testApp, 'conversation-b', page([]))
+    const wrapper = await mount()
+    await selectConversation(wrapper, existingConversation.title)
+    await receive('run-2', 'step', toolStep('a', 'list_tables', 'done'))
+    expect(announcement(wrapper)).toBe('toolPresentation.stepAnnouncement')
+
+    await selectConversation(wrapper, 'Conversation B')
+    await selectConversation(wrapper, existingConversation.title)
+
+    expect(announcement(wrapper)).toBe('agent.replying')
+  })
+
   // Logging out suspends followers; reopening the chat must resume them or Stop stays.
   test('follows an active reply on reload and recovers its saved outcome after logout', async () => {
     withConversation([prompt, runningReply('run-2')])

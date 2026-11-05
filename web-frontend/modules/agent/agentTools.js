@@ -4,7 +4,8 @@ const GROUPS = {
 
 /**
  * Groups the tools the backend lists in `available_tools`, in their order, with
- * their translated labels. A tool or group without labels here shows its name.
+ * their translated labels. A group without a label here, or a tool without a
+ * registered presenter, shows its name.
  *
  * @param {Array} availableTools Each tool's name, group and changes_data.
  * @param {Object} registry The registry containing shared tool presentations.

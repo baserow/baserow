@@ -149,6 +149,6 @@
     "toolGetTableSchemaRunningCount": "Reading the structure of {count} table | Reading the structure of {count} tables",
     "toolListTableRowsDoneCount": "Read {count} row | Read {count} rows",
     "toolListTableRowsDoneCountTable": "Read {count} row from {table} | Read {count} rows from {table}",
-    "toolCreateTablesDoneCountTable": "Created {count} table: {table} | Created {count} tables, including {table}"
+    "toolCreateTablesDoneCountTable": "Created {count} table: {table} | Created {count} tables: {table}"
   }
 }

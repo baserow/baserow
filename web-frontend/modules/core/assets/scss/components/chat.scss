@@ -257,8 +257,9 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .chat-step-group__title {
-  flex: 1;
-  overflow-wrap: anywhere;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 
 .chat-step-group__status {
@@ -273,13 +274,15 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
 .chat-step-group__status--visible {
   position: static;
+  flex: 0 3 auto;
   width: auto;
+  min-width: 0;
   height: auto;
   overflow: visible;
   clip-path: none;
   white-space: normal;
   font-weight: 400;
-  color: $palette-neutral-600;
+  color: $palette-neutral-900;
 }
 
 .chat-step-group__icon {

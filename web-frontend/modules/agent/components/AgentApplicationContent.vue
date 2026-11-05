@@ -297,6 +297,9 @@ watch(
   (follower, previous) => {
     if (follower) {
       announcedSteps.clear()
+      for (const step of follower.view.steps ?? []) {
+        announcedSteps.set(step.id, step.status)
+      }
       announcement.value = t('agent.replying')
     } else if (previous?.finished) {
       const { note, error } = replyOutcome({

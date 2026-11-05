@@ -1,5 +1,6 @@
 import asyncio
 import inspect
+import json
 from dataclasses import replace
 from typing import Any, Callable, get_type_hints
 
@@ -50,6 +51,10 @@ def _call_tool(
                 return result
             try:
                 facts = tool_type.get_step_facts(ctx, arguments, result)
+                if not isinstance(facts, dict):
+                    raise TypeError("Step facts must be a dictionary")
+                # The facts stay in the model messages, which must serialize as JSON.
+                facts = json.loads(json.dumps(facts, allow_nan=False))
             except Exception as exc:
                 logger.error(
                     "Agent tool {} step facts failed ({})",
