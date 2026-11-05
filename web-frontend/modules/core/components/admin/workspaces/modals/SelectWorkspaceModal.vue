@@ -107,7 +107,7 @@ const columns = [
 function select(workspace) {
   if (props.selectedIds.includes(workspace.id)) return
   emit('selected', { id: workspace.id, name: workspace.value })
-  context.value.hide()
+  updatePosition()
 }
 
 async function updatePosition() {
@@ -119,8 +119,10 @@ async function updatePosition() {
   if (!body) return
   const preferredHeight = panelRect.height - body.offsetHeight + MAX_BODY_HEIGHT
   const target = anchor.getBoundingClientRect()
-  const below = window.innerHeight - target.bottom - GAP - EDGE
-  const above = target.top - GAP - EDGE
+  const targetTop = Math.min(target.top, window.innerHeight - EDGE)
+  const targetBottom = Math.max(target.bottom, EDGE)
+  const below = window.innerHeight - targetBottom - GAP - EDGE
+  const above = targetTop - GAP - EDGE
   const vertical = below >= preferredHeight || below >= above ? 'bottom' : 'top'
   const available = Math.max(0, vertical === 'bottom' ? below : above)
   panel.style.setProperty(
@@ -131,7 +133,16 @@ async function updatePosition() {
     EDGE,
     Math.min(target.left, window.innerWidth - panelRect.width - EDGE)
   )
-  await context.value.show(anchor, vertical, 'left', GAP, left - target.left)
+  const verticalOffset =
+    GAP +
+    (vertical === 'top' ? target.top - targetTop : targetBottom - target.bottom)
+  await context.value.show(
+    anchor,
+    vertical,
+    'left',
+    verticalOffset,
+    left - target.left
+  )
 }
 
 function onScroll(event) {

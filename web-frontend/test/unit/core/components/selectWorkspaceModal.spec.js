@@ -59,6 +59,11 @@ describe('SelectWorkspaceModal', () => {
     expect(wrapper.emitted('selected')).toEqual([
       [{ id: 2, name: 'Another workspace' }],
     ])
+    expect(wrapper.emitted('hidden')).toBeUndefined()
+    expect(wrapper.find('[role="dialog"]').classes()).not.toContain(
+      'visibility-hidden'
+    )
+    await wrapper.find('.select-workspace-modal__close').trigger('click')
     expect(wrapper.emitted('hidden')).toHaveLength(1)
   })
 
@@ -88,6 +93,8 @@ describe('SelectWorkspaceModal', () => {
       expect(wrapper.emitted('selected')).toEqual([
         [{ id: 2, name: 'Finance' }],
       ])
+      expect(wrapper.emitted('hidden')).toBeUndefined()
+      await wrapper.find('.select-workspace-modal__close').trigger('click')
       expect(wrapper.emitted('hidden')).toHaveLength(1)
     }
   )
@@ -123,6 +130,46 @@ describe('SelectWorkspaceModal', () => {
     expect(panel.style.top).toBe('auto')
     expect(panel.getAttribute('aria-modal')).not.toBe('true')
   })
+
+  test.each(['above', 'below'])(
+    'keeps the picker open when selecting moves its anchor %s the viewport',
+    async (side) => {
+      testApp.mock.onGet('/admin/workspaces/options/').reply(200, {
+        count: 1,
+        results: [{ id: 2, value: 'Finance' }],
+      })
+      const bounds = vi.spyOn(anchor, 'getBoundingClientRect').mockReturnValue({
+        top: 100,
+        bottom: 128,
+        left: 100,
+        right: 128,
+        width: 28,
+        height: 28,
+      })
+      const wrapper = await testApp.mount(SelectWorkspaceModal)
+      await wrapper.vm.show(anchor)
+      await flushPromises()
+
+      const top = side === 'above' ? -80 : window.innerHeight + 40
+      bounds.mockReturnValue({
+        top,
+        bottom: top + 28,
+        left: 100,
+        right: 128,
+        width: 28,
+        height: 28,
+      })
+      await wrapper.find('.select-workspace-modal__option').trigger('click')
+      await flushPromises()
+
+      const panel = wrapper.find('[role="dialog"]')
+      expect(panel.classes()).not.toContain('visibility-hidden')
+      expect(wrapper.emitted('hidden')).toBeUndefined()
+      expect(panel.element.style[side === 'above' ? 'top' : 'bottom']).toBe(
+        '18px'
+      )
+    }
+  )
 
   test('reuses admin pagination and searches from the first page', async () => {
     testApp.mock.onGet('/admin/workspaces/options/').reply((config) => {
