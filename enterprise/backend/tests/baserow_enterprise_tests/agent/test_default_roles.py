@@ -13,13 +13,13 @@ from baserow.core.handler import CoreHandler
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 
-READ = {
+OWN_CONVERSATIONS = {
     ReadAgentConversationsOperationType.type,
     UpdateAgentConversationOperationType.type,
     DeleteAgentConversationOperationType.type,
     RestoreAgentConversationOperationType.type,
 }
-WRITE = READ | {
+WRITE = OWN_CONVERSATIONS | {
     CreateAgentConversationOperationType.type,
     CreateAgentMessageOperationType.type,
 }
@@ -30,8 +30,8 @@ CONFIGURE = WRITE | {ReadAgentConfigurationOperationType.type}
 @pytest.mark.parametrize(
     "role_uid,granted",
     [
-        ("VIEWER", READ),
-        ("COMMENTER", READ),
+        ("VIEWER", OWN_CONVERSATIONS),
+        ("COMMENTER", OWN_CONVERSATIONS),
         ("EDITOR", WRITE),
         ("BUILDER", CONFIGURE),
         ("ADMIN", CONFIGURE),

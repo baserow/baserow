@@ -60,7 +60,7 @@ def _notify_owner(
     event_type: str,
     **data: object,
 ) -> None:
-    """Send an event about the conversation to its owner's other sessions only."""
+    """Send an event to the conversation owner's sessions, except the acting one."""
 
     payload = {
         "type": event_type,
@@ -84,9 +84,12 @@ def conversation_activity(
     user: AbstractUser | None,
     run_id: UUID | None = None,
     **kwargs,
-):
+) -> None:
     """Tell the owner's sessions which run is replying, without message content."""
 
+    # A deleted conversation is already gone from every list.
+    if conversation.trashed:
+        return
     _notify_owner(
         conversation,
         user,
@@ -103,12 +106,16 @@ def conversation_updated(
     user: AbstractUser,
     values: dict[str, str],
     **kwargs,
-):
+) -> None:
+    """Send the changed values, so the owner's lists show them without a re-read."""
+
     _notify_owner(conversation, user, "agent_conversation_updated", values=values)
 
 
 @receiver(agent_conversation_deleted)
 def conversation_deleted(
     sender, conversation: AgentConversation, user: AbstractUser, **kwargs
-):
+) -> None:
+    """Remove the conversation from the owner's other lists."""
+
     _notify_owner(conversation, user, "agent_conversation_deleted")

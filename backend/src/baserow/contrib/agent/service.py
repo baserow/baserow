@@ -319,7 +319,7 @@ class AgentService:
             the agent.
         :raises ValidationError: When the content is blank or too long.
         :raises AgentConversationDoesNotExist: When the uuid belongs to another
-            owner's or agent's conversation.
+            owner's or agent's conversation, or to a deleted one.
         :raises AgentMessageConflict: When the uuid was accepted with another first
             message.
         :raises AgentNotReady: When the agent isn't ready for a new conversation.

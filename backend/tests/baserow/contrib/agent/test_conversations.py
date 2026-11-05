@@ -639,6 +639,25 @@ def test_a_deleted_conversation_stops_its_reply_and_only_its_owner_restores_it(
     TrashHandler.restore_item(api_user, "agent_conversation", entry.trash_item_id)
 
     assert api_client.get(messages_url).json()["count"] == 2
+    api_client.delete(url)
+    TrashHandler.empty(api_user, agent.workspace_id, agent.id)
+    TrashHandler.permanently_delete_marked_trash()
+    assert not AgentConversation.objects_and_trash.exists()
+    assert not AgentMessage.objects.exists()
+
+
+@pytest.mark.django_db
+def test_deleting_an_owner_removes_their_trashed_conversations_from_the_trash(
+    data_fixture, configured_agent
+):
+    owner = data_fixture.create_user()
+    agent = configured_agent(user=owner)
+    conversation = data_fixture.create_agent_conversation(user=owner, agent=agent)
+    AgentService().delete_conversation(owner, agent.id, conversation.uuid)
+
+    owner.delete()
+
+    assert not TrashEntry.objects.exists()
 
 
 @pytest.mark.django_db

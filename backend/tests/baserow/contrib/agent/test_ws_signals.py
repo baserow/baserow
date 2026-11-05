@@ -17,6 +17,7 @@ from baserow.contrib.agent.models import (
     AgentConversation,
     AgentMessage,
 )
+from baserow.contrib.agent.signals import agent_conversation_activity
 from baserow.core.action.registries import action_type_registry
 from baserow.core.agents.service import AgentService as IdentityService
 from baserow.core.models import Agent
@@ -237,3 +238,18 @@ def test_renames_deletions_and_restores_notify_only_the_owner(
         # The restoring tab also needs it back in its list.
         call([user.id], update_of(conversation), ignore_web_socket_id=None),
     ]
+
+
+@pytest.mark.django_db
+def test_a_deleted_conversation_sends_no_reply_activity(
+    data_fixture, mocker, django_capture_on_commit_callbacks
+):
+    conversation = data_fixture.create_agent_conversation(trashed=True)
+    broadcast = mocker.patch(
+        "baserow.contrib.agent.ws.signals.broadcast_to_users.delay"
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        agent_conversation_activity.send(None, conversation=conversation, user=None)
+
+    broadcast.assert_not_called()
