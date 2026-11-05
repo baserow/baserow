@@ -1,3 +1,5 @@
+from django.utils.translation import gettext_lazy as _
+
 from baserow.core.agents.operations import DeleteAgentOperationType
 from baserow.core.agents.signals import agent_created
 from baserow.core.models import Agent
@@ -13,6 +15,9 @@ class AgentTrashableItemType(TrashableItemType):
 
     def get_name(self, trashed_item):
         return trashed_item.name
+
+    def get_type_display_name(self):
+        return _("identity")
 
     def restore(self, trashed_item, trash_entry):
         super().restore(trashed_item, trash_entry)
