@@ -471,6 +471,27 @@ describe('Agent conversation realtime updates', () => {
     expect(agent._.conversationUpdate.version).toBe(1)
   })
 
+  test('does not bring back a conversation deleted while the list was being read', async () => {
+    const stale = deferredReply()
+    mockConversations(testApp, page([first]), stale.reply, page([second]))
+    await mount()
+    await update(second.uuid)
+
+    receivers.agent_conversation_deleted(
+      { store: testApp.store },
+      { agent_id: agentData.id, conversation_uuid: first.uuid }
+    )
+    stale.resolve(200, page([first, second]))
+    await flushPromises()
+
+    expect(agent._.conversationUpdate.kind).toBe('deleted')
+    expect(
+      testApp.mock.history.get.filter(
+        ({ url }) => url === '/agent/10/conversations/'
+      )
+    ).toHaveLength(3)
+  })
+
   test('renames and removes conversations changed in another session', async () => {
     mockConversations(testApp, page([first, second]))
     mockMessages(testApp, first.uuid, page([]))

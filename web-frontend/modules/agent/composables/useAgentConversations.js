@@ -86,6 +86,8 @@ export function useAgentConversations(agent, configuration) {
   let conversationsRequest = 0
   let requestedConversationPage = 1
   let conversationsRefreshPending = false
+  // Deletes and updates since a list read started, whose older copy would undo them.
+  let conversationChanges = 0
 
   const conversationItems = computed(() => [
     ...localConversations.value.filter((item) =>
@@ -187,6 +189,7 @@ export function useAgentConversations(agent, configuration) {
     const currentScope = scope
     const agentId = agent.value.id
     const request = ++conversationsRequest
+    const changes = conversationChanges
     requestedConversationPage = page
     conversationsLoading.value = true
     conversationsError.value = false
@@ -202,6 +205,9 @@ export function useAgentConversations(agent, configuration) {
         !canReadConversations.value
       ) {
         return
+      }
+      if (changes !== conversationChanges) {
+        return fetchConversations(page, realtimeRecovery)
       }
       mergeConversations(data.results)
       conversationsPage.value = page
@@ -468,7 +474,7 @@ export function useAgentConversations(agent, configuration) {
     const previous = Object.fromEntries(
       Object.keys(values).map((field) => [field, conversation[field]])
     )
-    Object.assign(conversation, values)
+    applyConversationValues(conversation, values)
     try {
       const { data } = await service.updateConversation(
         agent.value.id,
@@ -478,8 +484,21 @@ export function useAgentConversations(agent, configuration) {
       for (const field of Object.keys(values)) conversation[field] = data[field]
     } catch (error) {
       Object.assign(conversation, previous)
-      notifyIf(error)
+      if (isDeletedElsewhere(error)) removeConversation(conversation.uuid)
+      else notifyIf(error)
     }
+  }
+
+  function applyConversationValues(conversation, values) {
+    conversationChanges++
+    Object.assign(conversation, values)
+  }
+
+  function isDeletedElsewhere(error) {
+    return (
+      error.response?.data?.error ===
+      API_ERROR_CODE.AGENT_CONVERSATION_DOES_NOT_EXIST
+    )
   }
 
   /** Drop a conversation, selecting the one that takes its place in the list. */
@@ -487,9 +506,12 @@ export function useAgentConversations(agent, configuration) {
     const index = conversationItems.value.findIndex(
       (item) => item.uuid === conversationUuid
     )
+    conversationChanges++
     conversations.value = conversations.value.filter(
       (item) => item.uuid !== conversationUuid
     )
+    // Later rows moved up a page, so the next page would skip one.
+    if (conversationsNext.value) refreshConversations()
     delete histories[conversationUuid]
     delete drafts[conversationUuid]
     if (selectedUuid.value !== conversationUuid) return
@@ -504,7 +526,8 @@ export function useAgentConversations(agent, configuration) {
     try {
       await service.deleteConversation(agent.value.id, conversation.uuid)
     } catch (error) {
-      notifyIf(error)
+      if (isDeletedElsewhere(error)) removeConversation(conversation.uuid)
+      else notifyIf(error)
       return
     }
     removeConversation(conversation.uuid)
@@ -558,10 +581,10 @@ export function useAgentConversations(agent, configuration) {
     () => agent.value?._?.conversationUpdate,
     (update) => {
       if (!update || !canReadConversations.value) return
-      if (update.deleted) return removeConversation(update.uuid)
+      if (update.kind === 'deleted') return removeConversation(update.uuid)
       const conversation = findConversation(update.uuid)
-      if (update.values) {
-        if (conversation) Object.assign(conversation, update.values)
+      if (update.kind === 'updated') {
+        if (conversation) applyConversationValues(conversation, update.values)
         return
       }
       if (!conversation) return refreshConversations()

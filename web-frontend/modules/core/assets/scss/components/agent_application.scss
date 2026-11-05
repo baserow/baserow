@@ -79,10 +79,6 @@
 
   @include rounded($rounded-md);
 
-  &:hover {
-    background: $palette-neutral-100;
-  }
-
   &:focus-visible {
     outline: 2px solid $palette-blue-500;
     outline-offset: -2px;
@@ -179,7 +175,10 @@
 .agent-conversations__row {
   position: relative;
 
-  &:hover > .agent-conversations__item {
+  &:hover
+    > .agent-conversations__item:not(.agent-conversations__item--selected):not(
+      .agent-conversations__item--renaming
+    ) {
     background: $palette-neutral-100;
   }
 

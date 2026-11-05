@@ -24,14 +24,18 @@ function notifyConversationChange(store, data, change) {
 export const registerRealtimeEvents = (realtime) => {
   realtime.registerEvent('agent_conversation_activity', ({ store }, data) =>
     notifyConversationChange(store, data, {
+      kind: 'activity',
       runId: data.run_id,
       updatedOn: data.updated_on,
     })
   )
   realtime.registerEvent('agent_conversation_updated', ({ store }, data) =>
-    notifyConversationChange(store, data, { values: data.values })
+    notifyConversationChange(store, data, {
+      kind: 'updated',
+      values: data.values,
+    })
   )
   realtime.registerEvent('agent_conversation_deleted', ({ store }, data) =>
-    notifyConversationChange(store, data, { deleted: true })
+    notifyConversationChange(store, data, { kind: 'deleted' })
   )
 }

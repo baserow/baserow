@@ -25,7 +25,7 @@
           class="agent-conversations__row"
           :class="{
             'agent-conversations__row--manageable': hasOptions(item),
-            'agent-conversations__row--menu-open': item.uuid === menuUuid,
+            'agent-conversations__row--menu-open': item.uuid === menuItem?.uuid,
           }"
         >
           <div
@@ -43,13 +43,14 @@
               class="agent-conversations__rename"
               maxlength="250"
               :aria-label="$t('agent.conversationTitle')"
-              @keydown.enter.prevent="finishRename(item)"
-              @keydown.esc.prevent="renamingUuid = null"
+              @keydown.enter="confirmRename($event, item)"
+              @keydown.esc.prevent="cancelRename(item)"
               @blur="finishRename(item)"
             />
           </div>
           <button
             v-else
+            :ref="(element) => setItemButton(item.uuid, element)"
             type="button"
             class="agent-conversations__item"
             :class="{
@@ -85,7 +86,7 @@
             class="agent-conversations__options"
             :aria-label="$t('agent.conversationOptions')"
             aria-haspopup="menu"
-            :aria-expanded="item.uuid === menuUuid ? 'true' : 'false'"
+            :aria-expanded="item.uuid === menuItem?.uuid ? 'true' : 'false'"
             @click="toggleMenu($event.currentTarget, item)"
           >
             <i class="baserow-icon-more-vertical" aria-hidden="true"></i>
@@ -126,36 +127,23 @@
         >{{ $t('agent.newConversation') }}</Button
       >
     </div>
-    <Context ref="menu" @hidden="menuUuid = null">
-      <ul class="context__menu">
-        <li v-if="canUpdate" class="context__menu-item">
-          <a class="context__menu-item-link" @click="startRename">
-            <i class="context__menu-item-icon iconoir-edit-pencil"></i>
-            {{ $t('action.rename') }}
-          </a>
-        </li>
-        <li
-          v-if="canDelete"
-          class="context__menu-item"
-          :class="{ 'context__menu-item--with-separator': canUpdate }"
-        >
-          <a
-            class="context__menu-item-link context__menu-link--delete"
-            @click="remove"
-          >
-            <i class="context__menu-item-icon iconoir-bin"></i>
-            {{ $t('action.delete') }}
-          </a>
-        </li>
-      </ul>
+    <Context ref="menu" @shown="menuList.focus()" @hidden="menuItem = null">
+      <MenuList
+        ref="menuList"
+        :items="menuActions"
+        @select="chooseAction"
+        @close="closeMenu"
+      />
     </Context>
   </aside>
 </template>
 
 <script setup>
-import { nextTick, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Icon from '@baserow/modules/core/components/Icon'
 import Context from '@baserow/modules/core/components/Context'
+import MenuList from '@baserow/modules/core/components/MenuList'
 
 const props = defineProps({
   items: { type: Array, required: true },
@@ -177,41 +165,99 @@ const emit = defineEmits([
   'delete',
 ])
 
+const { t } = useI18n()
 const menu = ref(null)
+const menuList = ref(null)
 const menuItem = ref(null)
-const menuUuid = ref(null)
 const renameInput = ref([])
 const renamingUuid = ref(null)
 const renameTitle = ref('')
+const itemButtons = {}
+let menuTrigger = null
+let renameOriginal = ''
 
 // A draft exists only in this tab until its first message is sent.
 const hasOptions = (item) => !item.local && (props.canUpdate || props.canDelete)
+const isListed = (uuid) => props.items.some((item) => item.uuid === uuid)
+const menuActions = computed(() => [
+  ...(props.canUpdate
+    ? [{ id: 'rename', label: t('action.rename'), icon: 'iconoir-edit-pencil' }]
+    : []),
+  ...(props.canDelete
+    ? [
+        {
+          id: 'delete',
+          label: t('action.delete'),
+          icon: 'iconoir-bin',
+          iconColor: 'dark-red',
+        },
+      ]
+    : []),
+])
 
-function toggleMenu(target, item) {
-  const otherItem = menuUuid.value !== item.uuid
-  menuItem.value = item
-  menuUuid.value = item.uuid
-  menu.value.toggle(target, 'bottom', 'right', 4, 0, otherItem || undefined)
+// Another session can delete the conversation whose menu or rename is open.
+watch(
+  () => props.items,
+  () => {
+    if (menuItem.value && !isListed(menuItem.value.uuid)) menu.value.hide()
+    if (renamingUuid.value && !isListed(renamingUuid.value)) {
+      renamingUuid.value = null
+    }
+  }
+)
+
+function setItemButton(uuid, element) {
+  if (element) itemButtons[uuid] = element
+  else delete itemButtons[uuid]
 }
 
-async function startRename() {
+function toggleMenu(target, item) {
+  if (menuItem.value?.uuid === item.uuid) return menu.value.hide()
+  menuItem.value = item
+  menuTrigger = target
+  menu.value.show(target, 'bottom', 'right', 4)
+}
+
+function closeMenu() {
   menu.value.hide()
-  renameTitle.value = menuItem.value.title
-  renamingUuid.value = menuItem.value.uuid
+  menuTrigger?.focus()
+}
+
+function chooseAction({ id }) {
+  const item = menuItem.value
+  menu.value.hide()
+  if (id === 'rename') startRename(item)
+  else emit('delete', item)
+}
+
+async function startRename(item) {
+  renameOriginal = item.title
+  renameTitle.value = item.title
+  renamingUuid.value = item.uuid
   await nextTick()
   renameInput.value[0]?.focus()
   renameInput.value[0]?.select()
 }
 
 function finishRename(item) {
-  if (renamingUuid.value !== item.uuid) return
+  if (renamingUuid.value !== item.uuid || !isListed(item.uuid)) return
   renamingUuid.value = null
   const title = renameTitle.value.trim()
-  if (title && title !== item.title) emit('update', item, { title })
+  if (title && title !== renameOriginal) emit('update', item, { title })
 }
 
-function remove() {
-  menu.value.hide()
-  emit('delete', menuItem.value)
+async function confirmRename(event, item) {
+  // Enter also confirms an input method's composition.
+  if (event.isComposing || event.keyCode === 229) return
+  event.preventDefault()
+  finishRename(item)
+  await nextTick()
+  itemButtons[item.uuid]?.focus()
+}
+
+async function cancelRename(item) {
+  renamingUuid.value = null
+  await nextTick()
+  itemButtons[item.uuid]?.focus()
 }
 </script>
