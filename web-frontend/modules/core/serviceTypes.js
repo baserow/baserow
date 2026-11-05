@@ -213,6 +213,11 @@ export const DataSourceServiceTypeMixin = (Base) =>
   class extends Base {
     isDataSource = true
 
+    /** Return optional metadata available alongside the source records. */
+    getContextDataSchema(service) {
+      return service.context_data_schema || null
+    }
+
     /**
      * In a service which returns a list, this method is used to
      * return the name of the given record.
