@@ -9,51 +9,9 @@ from django.urls import reverse
 from loguru import logger
 
 SENTRY_LOG_PREFIX = "[SENTRY]"
-_SAFE_EXCEPTION_CONTEXT = "baserow_safe_exception"
-
-
-def report_exception(
-    exc: Exception, message: str, *, context: dict[str, Any] | None = None
-) -> None:
-    """
-    Capture the original exception in Sentry and log a payload-free summary.
-
-    The message must be developer-supplied text without exception messages or private
-    values. Context and traceback locals remain available in Sentry, subject to its
-    existing scrubbing and size limits. Reporting must not interrupt the caller's
-    fallback if Sentry is unavailable.
-
-    :param exc: The original caught exception, with its traceback.
-    :param message: A safe console summary without private values.
-    :param context: Additional debugging context sent only to Sentry.
-    """
-
-    summary = f"{message} ({type(exc).__name__})"
-    event_id = None
-    if settings.SENTRY_DSN:
-        try:
-            from sentry_sdk import capture_exception, new_scope
-
-            with new_scope() as scope:
-                scope.set_context(_SAFE_EXCEPTION_CONTEXT, {"summary": summary})
-                if context is not None:
-                    scope.set_context("report_exception", context)
-                event_id = capture_exception(exc)
-        except Exception:
-            # Logging this reporting error or its traceback could disclose the same
-            # private values that the safe summary is intended to keep off stdout.
-            pass
-
-    if event_id:
-        summary += f" [Sentry event: {event_id}]"
-    logger.warning(summary)
 
 
 def _get_sentry_event_message(event: dict[str, Any]) -> str:
-    safe_summary = event.get("contexts", {}).get(_SAFE_EXCEPTION_CONTEXT, {})
-    if safe_summary.get("summary"):
-        return safe_summary["summary"]
-
     exception_values = event.get("exception", {}).get("values", [])
     if exception_values:
         exception = exception_values[-1]
@@ -78,12 +36,7 @@ def log_sentry_event_to_console(event: dict[str, Any]) -> None:
     level = str(event.get("level", "error")).upper()
     event_id = event.get("event_id", "unknown")
     message = _get_sentry_event_message(event)
-    log = (
-        logger.warning
-        if _SAFE_EXCEPTION_CONTEXT in event.get("contexts", {})
-        else logger.error
-    )
-    log(f"{SENTRY_LOG_PREFIX} [{level}] [{event_id}] {message}")
+    logger.error(f"{SENTRY_LOG_PREFIX} [{level}] [{event_id}] {message}")
 
 
 # asyncio logs a benign websocket close as "<ExceptionType> exception in shielded

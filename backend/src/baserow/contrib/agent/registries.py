@@ -7,6 +7,7 @@ from typing import Any, Callable, get_type_hints
 from django.core.exceptions import ValidationError as DjangoValidationError
 
 from asgiref.sync import sync_to_async
+from loguru import logger
 from pydantic import ValidationError
 from pydantic_ai import Tool, ToolReturn
 from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
@@ -24,7 +25,6 @@ from baserow.core.exceptions import (
 )
 from baserow.core.registries import subject_type_registry
 from baserow.core.registry import Instance, Registry
-from baserow.core.sentry import report_exception
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import (
     INTERNAL_ERROR_MESSAGE,
@@ -104,20 +104,18 @@ def _call_tool(
                     raise TypeError("Step facts must be a dictionary")
                 facts = json.loads(json.dumps(facts, allow_nan=False))
             except Exception as exc:
-                report_exception(
-                    exc,
-                    f"Agent tool {tool_type.type} step facts failed",
-                    context={"tool": tool_type.type, "phase": "step_facts"},
+                logger.error(
+                    "Agent tool {} step facts failed ({})",
+                    tool_type.type,
+                    type(exc).__name__,
                 )
                 facts = {}
             return ToolReturn(return_value=result, metadata=facts)
     except Exception as exc:
         message = tool_error_message(exc)
         if message is None:
-            report_exception(
-                exc,
-                f"Agent tool {tool_type.type} failed",
-                context={"tool": tool_type.type, "phase": "execution"},
+            logger.error(
+                "Agent tool {} failed ({})", tool_type.type, type(exc).__name__
             )
             message = INTERNAL_ERROR_MESSAGE
         return ToolReturn(

@@ -24,7 +24,6 @@ from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.chat_runs.steps import ChatRunSteps
 from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
-from baserow.core.sentry import report_exception
 from baserow.core.tools import ToolContext
 from baserow.core.utils import remove_null_characters
 
@@ -143,10 +142,8 @@ class AgentResponder:
         try:
             summary = tool.get_step_input(arguments)
         except Exception as exc:
-            report_exception(
-                exc,
-                f"Agent tool {tool.type} step input failed",
-                context={"tool": tool.type, "phase": "step_input"},
+            logger.error(
+                "Agent tool {} step input failed ({})", tool.type, type(exc).__name__
             )
             summary = {}
         return {

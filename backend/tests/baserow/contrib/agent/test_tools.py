@@ -265,9 +265,7 @@ def test_agent_form_creation_does_not_notify_user_with_same_id(
 
 
 @pytest.mark.django_db
-def test_tool_errors_are_answered_to_the_model(
-    workspace_data, data_fixture, sentry_events
-):
+def test_tool_errors_are_answered_to_the_model(workspace_data, data_fixture):
     def broken(ctx: ToolContext) -> None:
         raise RuntimeError("Private details")
 
@@ -293,14 +291,10 @@ def test_tool_errors_are_answered_to_the_model(
         {"table_ids": [other_table.id]},
     )
     assert (hidden_schema.return_value, hidden_schema.metadata) == ([], {})
-    assert len(sentry_events) == 1
-    assert sentry_events[0]["exception"]["values"][-1]["type"] == "RuntimeError"
 
 
 @pytest.mark.django_db
-def test_display_facts_failure_keeps_the_successful_tool_result(
-    workspace_data, logs, sentry_events
-):
+def test_display_facts_failure_keeps_the_successful_tool_result(workspace_data, logs):
     private_argument = "PRIVATE_FACTS_ARGUMENT_CANARY"
     private_result = "PRIVATE_FACTS_RESULT_CANARY"
     private_error = "PRIVATE_FACTS_ERROR_CANARY"
@@ -322,24 +316,13 @@ def test_display_facts_failure_keeps_the_successful_tool_result(
     )
 
     assert (result.return_value, result.metadata) == (private_result, {})
-    assert len(sentry_events) == 1
-    event = sentry_events[0]
-    assert event["contexts"]["report_exception"] == {
-        "tool": "factless",
-        "phase": "step_facts",
-    }
-    assert event["exception"]["values"][-1]["value"] == private_error
     assert [log.record["message"] for log in logs] == [
         "Agent tool factless step facts failed (RuntimeError)"
-        f" [Sentry event: {event['event_id']}]"
     ]
     output = "".join(str(entry) for entry in logs)
     assert private_argument not in output
     assert private_result not in output
     assert private_error not in output
-    captured = json.dumps(event)
-    assert private_argument in captured
-    assert private_result in captured
 
 
 @pytest.mark.django_db
@@ -419,9 +402,7 @@ def test_tool_calls_track_identity_usage_with_the_existing_throttle(workspace_da
 
 
 @pytest.mark.django_db
-def test_unexpected_tool_errors_do_not_log_private_values(
-    workspace_data, mocker, logs, sentry_events
-):
+def test_unexpected_tool_errors_do_not_log_private_values(workspace_data, mocker, logs):
     private_search = "PRIVATE_SEARCH_CANARY"
     private_error = "PRIVATE_ERROR_CANARY"
     mocker.patch(
@@ -442,14 +423,6 @@ def test_unexpected_tool_errors_do_not_log_private_values(
     assert "OperationalError" in output
     assert private_search not in output
     assert private_error not in output
-    assert len(sentry_events) == 1
-    event = sentry_events[0]
-    assert event["contexts"]["report_exception"] == {
-        "tool": "list_table_rows",
-        "phase": "execution",
-    }
-    assert event["exception"]["values"][-1]["value"] == private_error
-    assert private_search in json.dumps(event)
 
 
 @pytest.mark.django_db

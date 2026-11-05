@@ -108,8 +108,8 @@ def reply_run(data_fixture, configured_agent):
 
 
 @pytest.mark.django_db
-def test_failed_input_summary_retains_sentry_context_without_logging_payloads(
-    reply_run, data_fixture, reply_model, mocker, logs, sentry_events
+def test_failed_input_summary_keeps_the_call_without_logging_payloads(
+    reply_run, data_fixture, reply_model, mocker, logs
 ):
     agent = AgentConversation.objects.get(id=reply_run.chat_id).agent
     allow_create_rows(data_fixture, agent)
@@ -129,14 +129,9 @@ def test_failed_input_summary_retains_sentry_context_without_logging_payloads(
         "changes_data": True,
         "input": {},
     }
-    assert len(sentry_events) == 1
-    event = sentry_events[0]
-    assert event["contexts"]["report_exception"] == {
-        "tool": "create_rows",
-        "phase": "step_input",
-    }
-    assert event["exception"]["values"][-1]["value"] == "PRIVATE_INPUT_ERROR_CANARY"
-    assert "PRIVATE_INPUT_ARGUMENT_CANARY" in json.dumps(event)
+    assert [log.record["message"] for log in logs] == [
+        "Agent tool create_rows step input failed (ValueError)"
+    ]
     output = "".join(str(entry) for entry in logs)
     assert "PRIVATE_INPUT_ERROR_CANARY" not in output
     assert "PRIVATE_INPUT_ARGUMENT_CANARY" not in output

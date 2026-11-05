@@ -9,7 +9,6 @@ from pydantic_ai.messages import (
     ToolReturnPart,
 )
 
-from baserow.core.chat_runs import steps as chat_steps
 from baserow.core.chat_runs.steps import ChatRunSteps
 
 
@@ -120,8 +119,7 @@ def test_invalid_call_is_failed_even_without_a_result_and_has_no_input():
     assert saved["input"] == {}
 
 
-def test_unknown_tools_and_presentation_errors_do_not_fail_the_run(logs, mocker):
-    reported = mocker.spy(chat_steps, "report_exception")
+def test_unknown_tools_and_presentation_errors_do_not_fail_the_run(logs):
     steps = ChatRunSteps(
         Mock(), Mock(side_effect=LookupError("PRIVATE_DESCRIPTION_ERROR_CANARY"))
     )
@@ -148,15 +146,6 @@ def test_unknown_tools_and_presentation_errors_do_not_fail_the_run(logs, mocker)
         assert private not in output
     assert "LookupError" in output
     assert "TypeError" in output
-    assert len(reported.call_args_list) == 2
-    description_failure, display_failure = reported.call_args_list
-    assert isinstance(description_failure.args[0], LookupError)
-    assert description_failure.kwargs["context"] == {
-        "tool": "PRIVATE_TOOL_CANARY",
-        "phase": "step_description",
-    }
-    assert isinstance(display_failure.args[0], TypeError)
-    assert display_failure.kwargs["context"] == {"phase": "step_display"}
 
 
 def test_invalid_display_input_and_unmatched_results_are_ignored():
