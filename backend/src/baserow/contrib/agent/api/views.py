@@ -244,9 +244,9 @@ class AgentConfigurationView(RealtimeRecoveryPrimaryReadMixin, APIView):
     def patch(self, request: Request, agent_id: int, data: dict) -> Response:
         """Updates the configuration if the user can both update and read it."""
 
-        configuration = UpdateAgentConfigurationActionType.do(
-            request.user, agent_id, **data
-        )
+        configuration = action_type_registry.get_by_type(
+            UpdateAgentConfigurationActionType
+        ).do(request.user, agent_id, **data)
         return Response(AgentConfigurationSerializer(configuration).data)
 
 
@@ -333,7 +333,9 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
     def post(self, request: Request, agent_id: int, data: dict) -> Response:
         """Starts a private conversation with its first message."""
 
-        result = CreateAgentConversationActionType.do(request.user, agent_id, **data)
+        result = action_type_registry.get_by_type(CreateAgentConversationActionType).do(
+            request.user, agent_id, **data
+        )
         return Response(
             AgentMessageCreatedSerializer(
                 result, context=_accepted_context(result)
@@ -458,7 +460,7 @@ class AgentMessagesView(RealtimeRecoveryPrimaryReadMixin, APIView):
     ) -> Response:
         """Accept an authorized owner's message or recover its identical retry."""
 
-        result = CreateAgentMessageActionType.do(
+        result = action_type_registry.get_by_type(CreateAgentMessageActionType).do(
             request.user, agent_id, conversation_uuid, **data
         )
         return Response(
