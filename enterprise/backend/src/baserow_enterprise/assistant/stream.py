@@ -86,6 +86,8 @@ async def stream_run_messages(
                 record = data["human_message"]
         elif kind == ChatRunEventKind.RUN_STARTED:
             metadata["status"] = ChatRunStatus.RUNNING
+        elif kind == ChatRunEventKind.RUN_CANCEL_REQUESTED:
+            metadata["cancel_requested"] = True
         elif kind == ChatRunEventKind.RUN_FINISHED:
             metadata.update(
                 status=data["status"], error_code=data.get("error_code", "")

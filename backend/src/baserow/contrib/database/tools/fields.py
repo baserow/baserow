@@ -1210,12 +1210,16 @@ def update_fields(
     errors = []
     formula_errors = []
     changed = False
+    stopped = None
 
     with transaction.atomic():
         _lock_fields(ctx, [field_update.field_id for field_update in fields])
         # Applied in the caller's order, so a rename can come before a formula
         # that uses the new name.
         for index, field_update in enumerate(fields):
+            if ctx.is_cancelled():
+                stopped = index
+                break
             ctx.update_status(
                 _("Updating field %(field_id)s...")
                 % {"field_id": field_update.field_id}
@@ -1247,6 +1251,8 @@ def update_fields(
         result["errors"] = errors
     if formula_errors:
         result["formula_errors"] = formula_errors
+    if stopped is not None:
+        result["stopped_after"] = stopped
     return result
 
 
@@ -1263,9 +1269,13 @@ def delete_fields(
 
     deleted = []
     errors = []
+    stopped = None
 
     with transaction.atomic():
-        for field_id in field_ids:
+        for index, field_id in enumerate(field_ids):
+            if ctx.is_cancelled():
+                stopped = index
+                break
             ctx.update_status(
                 _("Deleting field %(field_id)s...") % {"field_id": field_id}
             )
@@ -1282,6 +1292,8 @@ def delete_fields(
                 )
 
     result: dict[str, Any] = {"deleted_field_ids": deleted}
+    if stopped is not None:
+        result["stopped_after"] = stopped
     if errors:
         result["errors"] = errors
     return result

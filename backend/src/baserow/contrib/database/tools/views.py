@@ -1043,8 +1043,12 @@ def create_views(
 
     created_views = []
     skipped_views = []
+    stopped = None
     with transaction.atomic():
-        for view in views:
+        for index, view in enumerate(views):
+            if ctx.is_cancelled():
+                stopped = index
+                break
             if view.name in used_names:
                 skipped_views.append(view.name)
                 continue
@@ -1109,6 +1113,8 @@ def create_views(
             created_views.append(created)
 
     result: dict[str, Any] = {"created_views": created_views}
+    if stopped is not None:
+        result["stopped_after"] = stopped
     if skipped_views:
         result["skipped_views"] = skipped_views
     return result
