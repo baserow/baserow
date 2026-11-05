@@ -10,6 +10,9 @@ export default defineNuxtPlugin({
         isApplicationShell:
           nuxtApp.$isWebFrontendHostname &&
           route.meta.applicationShell !== false,
+        isAuthenticationPage:
+          nuxtApp.$isWebFrontendHostname &&
+          route.meta.authenticationPage === true,
       },
     }
   },

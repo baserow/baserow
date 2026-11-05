@@ -1,3 +1,4 @@
+import { loadApplicationBundle } from '@baserow/modules/core/utils/applicationBundles'
 import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 import { Registerable } from '@baserow/modules/core/registry'
 
@@ -13,6 +14,16 @@ const ApplicationForm = lazyComponent(() =>
 )
 
 export class ApplicationType extends Registerable {
+  /** Initialize this application's feature before using its editing controls. */
+  async load() {
+    await loadApplicationBundle(this.app, this.getType())
+  }
+
+  /** Select a sidebar item after its application's feature is initialized. */
+  selectFromSidebar(application) {
+    return this.app.$store.dispatch('application/select', application)
+  }
+
   /**
    * The icon class name that is used as convenience for the user to
    * recognize certain application types. If you for example want the database

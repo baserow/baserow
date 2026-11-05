@@ -7,7 +7,12 @@ export default defineNuxtRouteMiddleware((to) => {
   if (import.meta.server || app.isHydrating || useError().value) return
   const applicationShell =
     app.$isWebFrontendHostname && to.meta.applicationShell !== false
-  if (applicationShell !== app.$isApplicationShell) {
+  const authenticationPage =
+    app.$isWebFrontendHostname && to.meta.authenticationPage === true
+  if (
+    applicationShell !== app.$isApplicationShell ||
+    authenticationPage !== Boolean(app.$isAuthenticationPage)
+  ) {
     return navigateTo(to.fullPath, { external: true })
   }
 })

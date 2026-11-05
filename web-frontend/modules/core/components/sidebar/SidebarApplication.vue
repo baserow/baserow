@@ -40,7 +40,7 @@
       <a
         ref="contextLink"
         class="tree__options"
-        @click="$refs.context.toggle($refs.contextLink, 'bottom', 'right', 0)"
+        @click="toggleContext"
         @mousedown.stop
       >
         <i class="baserow-icon-more-vertical"></i>
@@ -48,6 +48,7 @@
 
       <component
         :is="getApplicationContextComponent(application)"
+        v-if="contextRequested || bundleLoaded"
         ref="context"
         :application="application"
         :workspace="workspace"
@@ -69,6 +70,9 @@
 import SidebarDuplicateApplicationContextItem from '@baserow/modules/core/components/sidebar/SidebarDuplicateApplicationContextItem.vue'
 import TrashModal from '@baserow/modules/core/components/trash/TrashModal'
 import SnapshotsModal from '@baserow/modules/core/components/snapshots/SnapshotsModal'
+import { nextTick } from 'vue'
+import { notifyIf } from '@baserow/modules/core/utils/error'
+import { isApplicationBundleLoaded } from '@baserow/modules/core/utils/applicationBundles'
 import application from '@baserow/modules/core/mixins/application'
 
 export default {
@@ -97,9 +101,13 @@ export default {
   data() {
     return {
       deleting: false,
+      contextRequested: false,
     }
   },
   computed: {
+    bundleLoaded() {
+      return isApplicationBundleLoaded(this.$nuxt, this.application.type)
+    },
     additionalContextComponents() {
       return Object.values(this.$registry.getAll('plugin'))
         .reduce((components, plugin) => {
@@ -120,6 +128,21 @@ export default {
     },
     isInError() {
       return Boolean(this.errorMessage)
+    },
+  },
+  methods: {
+    /** Load hidden application controls on demand and report download failures. */
+    async toggleContext() {
+      try {
+        if (!this.bundleLoaded) {
+          await this.applicationType.load()
+          this.contextRequested = true
+          await nextTick()
+        }
+        this.$refs.context.toggle(this.$refs.contextLink, 'bottom', 'right', 0)
+      } catch (error) {
+        notifyIf(error, 'application')
+      }
     },
   },
 }

@@ -14,6 +14,7 @@ export const rootChildRoutes = [
   },
   {
     name: 'admin-data-scanner',
+    meta: { applicationBundle: 'database' },
     path: '/admin/data-scanner',
     redirect: '/admin/data-scanner/scans',
     file: path.resolve(__dirname, 'pages/admin/dataScanner.vue'),

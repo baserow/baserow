@@ -14,6 +14,7 @@
 
 import baseConfig from './nuxt.config.base.ts'
 import { createPublicRuntimeBundle } from './publicRuntimeBundle.js'
+import { createApplicationFeatureBundles } from './applicationFeatureBundles.js'
 export default {
   ...baseConfig,
   hooks: {
@@ -23,13 +24,18 @@ export default {
      * otherwise creates many requests for small shared modules on public pages.
      * The helper follows static imports only, so dynamically imported editor UI
      * and optional features remain outside this group and load when requested.
-     * This changes the production client build; server bundling is unchanged.
+     * Exclusive application dependencies get one named group per application type;
+     * cross-application dependencies remain shared. This changes the production
+     * client build; server bundling is unchanged.
      */
     'vite:extendConfig'(config, { isClient }) {
       if (!isClient) return
       const { plugin, group } = createPublicRuntimeBundle()
-      config.plugins.push(plugin)
-      config.build.rollupOptions.output.codeSplitting = { groups: [group] }
+      const features = createApplicationFeatureBundles()
+      config.plugins.push(plugin, features.plugin)
+      config.build.rollupOptions.output.codeSplitting = {
+        groups: [group, ...features.groups],
+      }
     },
     /**
      * Keep deferred features from downloading before they are needed. A dynamic
@@ -53,8 +59,11 @@ export default {
       }
       for (const id of Object.keys(manifest)) {
         if (
-          /\/(?:\w+Application|elementEditorBundle|authoringBundle|editorRenderingBundle|collectionRefinementsBundle)\.js$|\/GraphElement\.vue$/.test(
+          /\/(?:\w+(?:Application|Authentication)|elementEditorBundle|authoringBundle|editorRenderingBundle|collectionRefinementsBundle|(?:application|database|dashboard|automation|builder|agent)Bundle)\.js$|\/GraphElement\.vue$/.test(
             id
+          ) ||
+          /^(?:(?:database|builder|dashboard|automation|agent)-application|application-shared)$/.test(
+            manifest[id].name || ''
           ) ||
           /(?:^|\/)node_modules\/tldjs\//.test(id)
         ) {
