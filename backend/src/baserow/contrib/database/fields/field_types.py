@@ -2268,6 +2268,14 @@ class CreatedOnLastModifiedBaseFieldType(ReadOnlyFieldType, DateFieldType):
             self.get_group_by_expression(field, field_name, None), order_direction
         )
 
+    def get_value_for_filter(self, row: "GeneratedTableModel", field: Field) -> Any:
+        """Match the SQL ordering precision while preserving full timed values."""
+
+        value = super().get_value_for_filter(row, field)
+        if field.date_include_time:
+            return value
+        return self.get_group_by_field_unique_value(field, field.db_column, value)
+
     def get_group_by_expression(
         self, field: Field, field_name: str, base_queryset: Optional[QuerySet]
     ) -> Expression:
