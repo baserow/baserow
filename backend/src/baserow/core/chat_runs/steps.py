@@ -13,7 +13,9 @@ from pydantic_ai.messages import (
     ToolReturnPart,
 )
 
-from .constants import ChatRunEventKind, ChatRunStepErrorCode, ChatRunStepStatus
+from baserow.core.tools.errors import ToolErrorCode
+
+from .constants import ChatRunEventKind, ChatRunStepStatus
 from .types import ChatRunStep
 
 if TYPE_CHECKING:
@@ -55,7 +57,7 @@ def _display_data(value: Any) -> dict[str, Any]:
 
 def _ended(
     part: ToolReturnPart | RetryPromptPart,
-) -> tuple[ChatRunStepStatus, dict[str, Any], ChatRunStepErrorCode | None]:
+) -> tuple[ChatRunStepStatus, dict[str, Any], ToolErrorCode | None]:
     """Read a tool outcome without confusing domain errors with success.
 
     :param part: The tool result or validation retry.
@@ -63,22 +65,20 @@ def _ended(
     """
 
     if isinstance(part, RetryPromptPart):
-        return ChatRunStepStatus.FAILED, {}, ChatRunStepErrorCode.INVALID_INPUT
+        return ChatRunStepStatus.FAILED, {}, ToolErrorCode.INVALID_INPUT
     if part.outcome == "interrupted":
         return ChatRunStepStatus.STOPPED, {}, None
     if part.outcome == "denied":
-        return ChatRunStepStatus.FAILED, {}, ChatRunStepErrorCode.PERMISSION_DENIED
-    if isinstance(part.content, dict) and part.content.get("errors"):
-        return ChatRunStepStatus.FAILED, {}, ChatRunStepErrorCode.PARTIAL_FAILURE
+        return ChatRunStepStatus.FAILED, {}, ToolErrorCode.PERMISSION_DENIED
     if part.outcome != "success" or (
         isinstance(part.content, dict) and "error" in part.content
     ):
         code = (
             part.metadata.get("error_code") if isinstance(part.metadata, dict) else None
         )
-        if not isinstance(code, str) or code not in ChatRunStepErrorCode:
-            code = ChatRunStepErrorCode.FAILED
-        return ChatRunStepStatus.FAILED, {}, ChatRunStepErrorCode(code)
+        if not isinstance(code, str) or code not in ToolErrorCode:
+            code = ToolErrorCode.FAILED
+        return ChatRunStepStatus.FAILED, {}, ToolErrorCode(code)
     return ChatRunStepStatus.DONE, _display_data(part.metadata), None
 
 
@@ -88,11 +88,12 @@ class ChatRunSteps:
     def __init__(
         self,
         journal: "ChatRunJournal",
-        describe_call: Callable[[str, dict[str, Any]], dict[str, Any]],
+        describe_call: Callable[[str, dict[str, Any]], dict[str, Any] | None],
     ) -> None:
         """
         :param journal: Receives a complete step whenever its state changes.
-        :param describe_call: Maps a tool and arguments to safe presentation data.
+        :param describe_call: Maps a tool and arguments to safe presentation data, or
+            to None for a call the run never offered, which then has no step.
         """
 
         self._journal = journal
@@ -113,10 +114,10 @@ class ChatRunSteps:
             try:
                 arguments = {} if invalid else event.part.args_as_dict()
                 description = self._describe_call(name, arguments)
-                if not isinstance(description, dict):
-                    description = {}
             except Exception as exc:
                 logger.error("Could not describe tool call ({})", type(exc).__name__)
+            if description is None:
+                return
             presentation_type = description.get("presentation_type")
             step: ChatRunStep = {
                 "id": str(uuid4()),
@@ -132,7 +133,7 @@ class ChatRunSteps:
                 "facts": {},
             }
             if invalid:
-                step["error_code"] = ChatRunStepErrorCode.INVALID_INPUT
+                step["error_code"] = ToolErrorCode.INVALID_INPUT
             self._pending[event.tool_call_id].append(step["id"])
             self._update(step)
         elif isinstance(event, FunctionToolResultEvent):

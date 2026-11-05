@@ -3,7 +3,6 @@
     "not_found",
     "permission_denied",
     "invalid_input",
-    "partial_failure",
     "failed"
   ],
   "tools": [

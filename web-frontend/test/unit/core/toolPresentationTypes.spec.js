@@ -147,10 +147,6 @@ describe('shared tool presentations', () => {
       'Permission denied for this operation.',
     ],
     [STEP_ERROR_CODE.INVALID_INPUT, 'The tool received invalid input.'],
-    [
-      STEP_ERROR_CODE.PARTIAL_FAILURE,
-      'Some requested operations could not be completed.',
-    ],
     [STEP_ERROR_CODE.FAILED, 'This tool call failed.'],
   ])(
     'translates the shared failure code %s even for an unknown presenter',

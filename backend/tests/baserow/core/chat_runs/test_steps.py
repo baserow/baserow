@@ -66,23 +66,6 @@ def test_steps_keep_call_order_and_distinct_ids_when_provider_ids_are_reused():
     [
         (RetryPromptPart("Try again", tool_call_id="one"), "failed", "invalid_input"),
         (ToolReturnPart("tool", {"error": "denied"}, "one"), "failed", "failed"),
-        (
-            ToolReturnPart(
-                "tool", {"deleted_field_ids": [], "errors": ["denied"]}, "one"
-            ),
-            "failed",
-            "partial_failure",
-        ),
-        (
-            ToolReturnPart(
-                "tool",
-                {"updated_fields": [{"id": 1}], "errors": ["other field denied"]},
-                "one",
-                metadata={"count": 1},
-            ),
-            "failed",
-            "partial_failure",
-        ),
         (ToolReturnPart("tool", None, "one", outcome="failed"), "failed", "failed"),
         (
             ToolReturnPart("tool", None, "one", outcome="denied"),
@@ -106,6 +89,22 @@ def test_failed_or_interrupted_calls_have_no_success_facts(part, status, error_c
         assert "error_code" not in steps.finish()[0]
     else:
         assert steps.finish()[0]["error_code"] == error_code
+
+
+def test_a_partly_completed_batch_is_done_with_the_count_the_tool_reports():
+    steps = ChatRunSteps(Mock(), describe)
+    steps.on_event(call("one"))
+    steps.on_event(
+        result(
+            "one",
+            content={"updated_fields": [{"id": 1}], "errors": ["Field 2 denied"]},
+            facts={"count": 1},
+        )
+    )
+
+    step = steps.finish()[0]
+    assert (step["status"], step["facts"]) == ("done", {"count": 1})
+    assert "error_code" not in step
 
 
 def test_invalid_call_is_failed_even_without_a_result_and_has_no_input():
@@ -161,7 +160,6 @@ def test_invalid_display_input_and_unmatched_results_are_ignored():
         ("not_found", "not_found"),
         ("permission_denied", "permission_denied"),
         ("invalid_input", "invalid_input"),
-        ("partial_failure", "partial_failure"),
         ("failed", "failed"),
         ("PRIVATE_ERROR_MESSAGE", "failed"),
         ({"raw_error": "PRIVATE_ERROR_MESSAGE"}, "failed"),

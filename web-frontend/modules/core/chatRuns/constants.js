@@ -22,7 +22,6 @@ export const STEP_ERROR_CODE = Object.freeze({
   NOT_FOUND: 'not_found',
   PERMISSION_DENIED: 'permission_denied',
   INVALID_INPUT: 'invalid_input',
-  PARTIAL_FAILURE: 'partial_failure',
   FAILED: 'failed',
 })
 

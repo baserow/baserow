@@ -26,7 +26,6 @@ const FAILURE_LABELS = new Map([
     'toolPresentation.failurePermissionDenied',
   ],
   [STEP_ERROR_CODE.INVALID_INPUT, 'toolPresentation.failureInvalidInput'],
-  [STEP_ERROR_CODE.PARTIAL_FAILURE, 'toolPresentation.failurePartial'],
   [STEP_ERROR_CODE.FAILED, 'toolPresentation.failureFailed'],
 ])
 

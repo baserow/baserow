@@ -1845,7 +1845,6 @@
     "failureNotFound": "Not found or not accessible to the agent.",
     "failurePermissionDenied": "Permission denied for this operation.",
     "failureInvalidInput": "The tool received invalid input.",
-    "failurePartial": "Some requested operations could not be completed.",
     "failureFailed": "This tool call failed.",
     "workspaceRunning": "Looking at your workspace",
     "workspaceDone": "Looked at your workspace",

@@ -4,67 +4,17 @@ import json
 from dataclasses import replace
 from typing import Any, Callable, get_type_hints
 
-from django.core.exceptions import ValidationError as DjangoValidationError
-
 from asgiref.sync import sync_to_async
 from loguru import logger
-from pydantic import ValidationError
 from pydantic_ai import Tool, ToolReturn
-from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
-from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from baserow.api.exceptions import RequestBodyValidationException
 from baserow.core.cache import local_cache
 from baserow.core.db import with_usable_db_connection
-from baserow.core.chat_runs.constants import ChatRunStepErrorCode
-from baserow.core.exceptions import (
-    InstanceTypeDoesNotExist,
-    PermissionDenied,
-    PermissionException,
-    UserNotInWorkspace,
-)
+from baserow.core.exceptions import PermissionDenied
 from baserow.core.registries import subject_type_registry
 from baserow.core.registry import Instance, Registry
 from baserow.core.tools import ToolContext
-from baserow.core.tools.errors import (
-    INTERNAL_ERROR_MESSAGE,
-    ToolInputError,
-    _is_does_not_exist,
-    tool_error_message,
-)
-
-def _tool_error_code(exc: Exception) -> ChatRunStepErrorCode:
-    """Classify failures at the same privacy boundary as the model's error text.
-
-    :param exc: The original exception, never inspected for message content.
-    :return: A fixed category safe for a translated frontend explanation.
-    """
-
-    # Match the shared tools' existence hiding across workspaces.
-    if isinstance(exc, UserNotInWorkspace):
-        return ChatRunStepErrorCode.NOT_FOUND
-    if isinstance(exc, (PermissionException, DRFPermissionDenied)):
-        return ChatRunStepErrorCode.PERMISSION_DENIED
-    if isinstance(
-        exc,
-        (
-            ToolInputError,
-            DjangoValidationError,
-            RequestBodyValidationException,
-            DRFValidationError,
-            ValidationError,
-        ),
-    ):
-        return ChatRunStepErrorCode.INVALID_INPUT
-    if isinstance(exc, InstanceTypeDoesNotExist):
-        return (
-            ChatRunStepErrorCode.INVALID_INPUT
-            if exc.args
-            else ChatRunStepErrorCode.FAILED
-        )
-    if _is_does_not_exist(exc):
-        return ChatRunStepErrorCode.NOT_FOUND
-    return ChatRunStepErrorCode.FAILED
+from baserow.core.tools.errors import INTERNAL_ERROR_MESSAGE, classify_tool_error
 
 
 @with_usable_db_connection
@@ -112,15 +62,14 @@ def _call_tool(
                 facts = {}
             return ToolReturn(return_value=result, metadata=facts)
     except Exception as exc:
-        message = tool_error_message(exc)
-        if message is None:
+        error = classify_tool_error(exc)
+        if error.message is None:
             logger.error(
                 "Agent tool {} failed ({})", tool_type.type, type(exc).__name__
             )
-            message = INTERNAL_ERROR_MESSAGE
         return ToolReturn(
-            return_value={"error": message},
-            metadata={"error_code": _tool_error_code(exc)},
+            return_value={"error": error.message or INTERNAL_ERROR_MESSAGE},
+            metadata={"error_code": error.code},
         )
 
 

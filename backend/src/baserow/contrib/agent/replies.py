@@ -127,17 +127,18 @@ class AgentResponder:
         self._result: str | None = None
         self._steps = ChatRunSteps(journal, self._describe_call)
 
-    def _describe_call(self, name: str, arguments: dict) -> dict:
+    def _describe_call(self, name: str, arguments: dict) -> dict | None:
         """
-        Describe allowed tools using only their approved input display values.
+        Describe a call to one of the reply's tools from its arguments.
 
-        :param name: The called tool's execution name.
+        :param name: The called tool's name.
         :param arguments: Its arguments.
-        :return: The presentation identity, mutation flag and safe input summary.
+        :return: The presentation identity, mutation flag and input summary, or None
+            for a tool the reply doesn't offer, which the model can still name.
         """
 
         if name not in self._request.allowed_tool_names:
-            return {"presentation_type": name, "changes_data": False, "input": {}}
+            return None
         tool = agent_tool_type_registry.get(name)
         try:
             summary = tool.get_step_input(arguments)

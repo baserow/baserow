@@ -868,6 +868,34 @@ def test_workspace_configuration_changes_apply_to_the_next_generation(
 
 
 @pytest.mark.django_db
+def test_calls_to_tools_the_reply_does_not_offer_have_no_step(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    allow_create_rows(data_fixture, agent)
+    calls = iter(["delete_rows"])
+
+    async def stream(messages, info):
+        name = next(calls, None)
+        if name is None:
+            yield "Done."
+        else:
+            yield {0: DeltaToolCall(name=name, json_args="{}")}
+
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(FunctionModel(stream_function=stream), {}),
+    )
+    created = start(user, agent)
+
+    run_reply(run_of(created.conversation))
+
+    assert reply_state(created.reply.id) == ("completed", "", "Done.")
+    assert AgentMessage.objects.get(id=created.reply.id).steps is None
+
+
+@pytest.mark.django_db
 def test_a_reply_cannot_keep_writing_after_its_identity_is_trashed(
     data_fixture, configured_agent, mocker, settings
 ):
