@@ -278,7 +278,9 @@ def test_only_the_decision_that_resumes_a_reply_notifies_the_owner(
     run_ids = []
     for approval in (first, last):
         with django_capture_on_commit_callbacks(execute=True):
-            _, run_id = DecideAgentToolApprovalsActionType.do(
+            _, run_id = action_type_registry.get_by_type(
+                DecideAgentToolApprovalsActionType
+            ).do(
                 user,
                 agent.id,
                 reply.conversation.uuid,
