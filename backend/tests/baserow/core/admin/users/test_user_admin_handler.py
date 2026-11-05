@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.test.utils import override_settings
 
@@ -272,6 +274,53 @@ def test_updating_a_users_password_uses_djangos_built_in_smart_set_password(
     assert updated_user.password != "new_password"
     assert updated_user.password != old_password_hash
     assert set_password_spy.call_count == 1
+
+
+@pytest.mark.django_db
+def test_updating_a_users_password_ends_their_sessions(
+    data_fixture, mailoutbox, django_capture_on_commit_callbacks
+):
+    admin_user = data_fixture.create_user(is_staff=True)
+    user_to_modify = data_fixture.create_user(email="user@test.nl")
+    assert user_to_modify.profile.last_password_change is None
+
+    with (
+        patch(
+            "baserow.core.user.handler.user_password_changed.send"
+        ) as password_changed_signal,
+        django_capture_on_commit_callbacks(execute=True),
+    ):
+        UserAdminHandler().update_user(
+            admin_user, user_to_modify.id, password="new_password"
+        )
+
+    user_to_modify.profile.refresh_from_db()
+    assert user_to_modify.profile.last_password_change is not None
+    password_changed_signal.assert_called_once()
+    assert password_changed_signal.call_args.kwargs["user"].id == user_to_modify.id
+    assert [email.to for email in mailoutbox] == [["user@test.nl"]]
+    assert mailoutbox[0].subject == "Password changed - Baserow"
+
+
+@pytest.mark.django_db
+def test_updating_a_user_without_a_password_keeps_their_sessions(
+    data_fixture, mailoutbox, django_capture_on_commit_callbacks
+):
+    admin_user = data_fixture.create_user(is_staff=True)
+    user_to_modify = data_fixture.create_user()
+
+    with (
+        patch(
+            "baserow.core.user.handler.user_password_changed.send"
+        ) as password_changed_signal,
+        django_capture_on_commit_callbacks(execute=True),
+    ):
+        UserAdminHandler().update_user(admin_user, user_to_modify.id, name="New name")
+
+    user_to_modify.profile.refresh_from_db()
+    assert user_to_modify.profile.last_password_change is None
+    password_changed_signal.assert_not_called()
+    assert mailoutbox == []
 
 
 @pytest.mark.django_db

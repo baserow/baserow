@@ -79,7 +79,8 @@ class UserAdminHandler:
             UserDoesNotExistException.
         :param is_staff: Optional value used to set if the user is an admin or not.
         :param is_active: Optional value to disable or enable login for the user.
-        :param password: Optional new password to securely set for the user.
+        :param password: Optional new password to securely set for the user. Setting
+            it signs the user out of their existing sessions.
         :param name: Optional new name to set on the user.
         :param username: Optional new username/email to set for the user.
         :raises PasswordDoesNotMatchValidation: When the provided password value is not
@@ -123,6 +124,10 @@ class UserAdminHandler:
             user.username = email
 
         user.save()
+
+        if password is not None:
+            UserHandler().password_changed(user)
+
         return user
 
     @staticmethod
