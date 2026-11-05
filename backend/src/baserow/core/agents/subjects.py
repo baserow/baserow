@@ -146,20 +146,26 @@ class AgentSubjectType(SubjectType):
             queryset = queryset.filter(workspace=workspace)
         if search:
             queryset = queryset.filter(name__icontains=search)
-        return queryset.annotate(
-            subject_id=F("id"),
-            subject_type=Value(self.type, output_field=CharField()),
-            subject_name=F("name"),
-            subject_label=F("name"),
-            subject_email=Value(None, output_field=CharField()),
-            subject_count=Cast(Value(None), output_field=IntegerField()),
-        ).values(
-            "subject_id",
-            "subject_type",
-            "subject_name",
-            "subject_label",
-            "subject_email",
-            "subject_count",
+        # Options expose the concrete Agent ID, not its retained Subject ID.
+        # Project first so this API alias cannot collide with Agent.subject_id.
+        return (
+            queryset.values("id", "name")
+            .annotate(
+                subject_id=F("id"),
+                subject_type=Value(self.type, output_field=CharField()),
+                subject_name=F("name"),
+                subject_label=F("name"),
+                subject_email=Value(None, output_field=CharField()),
+                subject_count=Cast(Value(None), output_field=IntegerField()),
+            )
+            .values(
+                "subject_id",
+                "subject_type",
+                "subject_name",
+                "subject_label",
+                "subject_email",
+                "subject_count",
+            )
         )
 
     def get_historical_options_queryset(

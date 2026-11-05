@@ -126,6 +126,7 @@ def test_api_create_last_modified_by_field_type_row(api_client, data_fixture):
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
     assert response_json[f"field_{field.id}"] == {
+        "type": "auth.User",
         "name": user.first_name,
         "id": user.id,
     }
@@ -175,6 +176,7 @@ def test_update_last_modified_by_field_type_row(api_client, data_fixture):
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
     assert response_json[f"field_{field.id}"] == {
+        "type": "auth.User",
         "name": user.first_name,
         "id": user.id,
     }
@@ -258,9 +260,9 @@ def test_last_modified_by_field_type_batch_update_rows(api_client, data_fixture)
     )
     text_field = data_fixture.create_text_field(table=table, order=2, name="Text")
     model = table.get_model()
-    row1 = model.objects.create(last_modified_by=user2)
-    row2 = model.objects.create(last_modified_by=user3)
-    row3 = model.objects.create(last_modified_by=user3)
+    row1 = model.objects.create(last_modified_by=user2.profile.subject)
+    row2 = model.objects.create(last_modified_by=user3.profile.subject)
+    row3 = model.objects.create(last_modified_by=user3.profile.subject)
 
     # can't set the field value directly
     response = api_client.patch(
@@ -297,4 +299,4 @@ def test_last_modified_by_field_type_batch_update_rows(api_client, data_fixture)
     # assert response_json == {}
     assert response_json["items"][0][f"field_{field.id}"]["id"] == user.id
     assert response_json["items"][1][f"field_{field.id}"]["id"] == user.id
-    assert getattr(row3, f"field_{field.id}") == user3
+    assert getattr(row3, f"field_{field.id}") == user3.profile.subject

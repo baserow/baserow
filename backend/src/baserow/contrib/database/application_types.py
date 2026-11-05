@@ -45,6 +45,7 @@ from baserow.core.storage import ExportZipFile
 from baserow.core.subject.export import (
     import_subject,
     pack_identity_manifest,
+    transform_table_identities,
     unpack_identity_manifest,
 )
 from baserow.core.trash.handler import TrashHandler
@@ -270,6 +271,9 @@ class DatabaseApplicationType(ApplicationType):
                 )
                 if extra_data is not None:
                     structure.update(**extra_data)
+            if import_export_config.is_user_template:
+                # Templates exclude source users and their retained attribution.
+                transform_table_identities(structure, lambda value: None)
             pack_identity_manifest(structure)
             serialized_tables.append(structure)
 

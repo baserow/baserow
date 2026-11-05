@@ -1796,7 +1796,7 @@ def test_submit_form_view(send_mock, data_fixture):
     assert getattr(all[1], f"field_{text_field.id}") == "Another value"
     assert getattr(all[1], f"field_{number_field.id}") == 10
     assert not getattr(all[1], f"field_{boolean_field.id}")
-    assert all[1].last_modified_by == user
+    assert all[1].last_modified_by == user.profile.subject
 
 
 @pytest.mark.django_db
@@ -5318,9 +5318,14 @@ def test_export_import_remaps_multiple_collaborators_default_value(data_fixture)
     prefetch_related_objects([view], "view_default_values")
     serialized = view_type.export_serialized(view, config, {})
 
-    # The exported value should contain email addresses, not user IDs.
+    # The exported value contains portable identity metadata instead of local IDs.
     exported_value = serialized["default_row_values"][str(field.id)]["value"]
-    assert set(exported_value) == {user.email, user_b.email}
+    from baserow.core.subject.export import export_subject
+
+    assert exported_value == [
+        export_subject(user.profile.subject),
+        export_subject(user_b.profile.subject),
+    ]
 
     # Import the view back into the same table.
     id_mapping = {
@@ -5337,8 +5342,8 @@ def test_export_import_remaps_multiple_collaborators_default_value(data_fixture)
     imported_record = ViewDefaultValue.objects.get(view=imported_view, field=field)
     assert sorted(imported_record.value, key=lambda x: x["id"]) == sorted(
         [
-            {"id": user.id, "name": user.first_name},
-            {"id": user_b.id, "name": user_b.first_name},
+            {"type": "auth.User", "id": user.id, "name": user.first_name},
+            {"type": "auth.User", "id": user_b.id, "name": user_b.first_name},
         ],
         key=lambda x: x["id"],
     )
@@ -5383,7 +5388,9 @@ def test_export_import_multiple_collaborators_default_value_skips_missing_users(
     )
 
     imported_record = ViewDefaultValue.objects.get(view=imported_view, field=field)
-    assert imported_record.value == [{"id": user.id, "name": user.first_name}]
+    assert imported_record.value == [
+        {"type": "auth.User", "id": user.id, "name": user.first_name}
+    ]
 
 
 @pytest.mark.django_db

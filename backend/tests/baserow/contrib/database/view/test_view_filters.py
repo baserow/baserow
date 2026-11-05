@@ -6838,12 +6838,12 @@ def test_user_is_filter_type(data_fixture):
 
     row = model.objects.create(
         **{
-            f"last_modified_by": user,
+            f"last_modified_by": user.profile.subject,
         }
     )
     row_2 = model.objects.create(
         **{
-            f"last_modified_by": user2,
+            f"last_modified_by": user2.profile.subject,
         }
     )
     row_3 = model.objects.create(
@@ -6890,12 +6890,12 @@ def test_user_is_not_filter_type(data_fixture):
 
     row = model.objects.create(
         **{
-            f"last_modified_by": user,
+            f"last_modified_by": user.profile.subject,
         }
     )
     row_2 = model.objects.create(
         **{
-            f"last_modified_by": user2,
+            f"last_modified_by": user2.profile.subject,
         }
     )
     row_3 = model.objects.create(

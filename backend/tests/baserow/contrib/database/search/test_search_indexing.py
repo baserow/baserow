@@ -608,10 +608,10 @@ def test_last_modified_by_field_get_search_expression(data_fixture):
     )
     model = table.get_model()
 
-    row1 = model.objects.create(last_modified_by=user_mary_black)
-    row2 = model.objects.create(last_modified_by=user_john_smith)
-    row3 = model.objects.create(last_modified_by=user_adam)
-    row4 = model.objects.create(last_modified_by=user_mary_black)
+    row1 = model.objects.create(last_modified_by=user_mary_black.profile.subject)
+    row2 = model.objects.create(last_modified_by=user_john_smith.profile.subject)
+    row3 = model.objects.create(last_modified_by=user_adam.profile.subject)
+    row4 = model.objects.create(last_modified_by=user_mary_black.profile.subject)
     row5 = model.objects.create(last_modified_by=None)
 
     SearchHandler.update_search_data(table=table)

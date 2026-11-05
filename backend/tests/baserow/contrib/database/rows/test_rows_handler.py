@@ -179,7 +179,7 @@ def test_create_row(send_mock, data_fixture):
     assert getattr(row_1, f"field_{price_field.id}") == Decimal("59999.99")
     assert not getattr(row_1, f"field_9999", None)
     assert row_1.order == Decimal("1.00000000000000000000")
-    assert row_1.last_modified_by == user
+    assert row_1.last_modified_by == user.profile.subject
 
     send_mock.assert_called_once()
     assert send_mock.call_args[1]["rows"][0].id == row_1.id
@@ -195,7 +195,7 @@ def test_create_row(send_mock, data_fixture):
     row_1.refresh_from_db()
     assert row_1.order == Decimal("1.00000000000000000000")
     assert row_2.order == Decimal("2.00000000000000000000")
-    assert row_2.last_modified_by == user
+    assert row_2.last_modified_by == user.profile.subject
 
     row_3 = handler.create_row(user=user, table=table, before_row=row_2)
     row_1.refresh_from_db()
@@ -978,13 +978,13 @@ def test_update_row_last_modified_by(data_fixture):
     name_field = data_fixture.create_text_field(table=table, name="Name")
     model = table.get_model()
     row = model.objects.create(
-        **{f"field_{name_field.id}": "Test", "last_modified_by": user}
+        **{f"field_{name_field.id}": "Test", "last_modified_by": user.profile.subject}
     )
 
     handler = RowHandler()
     updated_row = handler.update_row(user_2, table, row, {"Name": "Test 2"})
 
-    assert updated_row.last_modified_by == user_2
+    assert updated_row.last_modified_by == user_2.profile.subject
 
 
 @pytest.mark.django_db
@@ -1129,8 +1129,8 @@ def test_create_rows_last_modified_by(data_fixture):
         ],
     ).created_rows
 
-    assert rows[0].last_modified_by == user
-    assert rows[1].last_modified_by == user
+    assert rows[0].last_modified_by == user.profile.subject
+    assert rows[1].last_modified_by == user.profile.subject
 
 
 @pytest.mark.django_db
@@ -1169,13 +1169,13 @@ def test_update_rows_last_modified_by(data_fixture):
     model = table.get_model()
 
     row = model.objects.create(
-        **{f"field_{name_field.id}": "Test", "last_modified_by": user}
+        **{f"field_{name_field.id}": "Test", "last_modified_by": user.profile.subject}
     )
     row_2 = model.objects.create(
-        **{f"field_{name_field.id}": "Test", "last_modified_by": user_2}
+        **{f"field_{name_field.id}": "Test", "last_modified_by": user_2.profile.subject}
     )
     row_3 = model.objects.create(
-        **{f"field_{name_field.id}": "Test", "last_modified_by": user_2}
+        **{f"field_{name_field.id}": "Test", "last_modified_by": user_2.profile.subject}
     )
 
     handler = RowHandler()
@@ -1196,9 +1196,9 @@ def test_update_rows_last_modified_by(data_fixture):
 
     updated_rows = model.objects.all()
 
-    assert updated_rows[0].last_modified_by == user_3
-    assert updated_rows[1].last_modified_by == user_3
-    assert updated_rows[2].last_modified_by == user_2
+    assert updated_rows[0].last_modified_by == user_3.profile.subject
+    assert updated_rows[1].last_modified_by == user_3.profile.subject
+    assert updated_rows[2].last_modified_by == user_2.profile.subject
 
 
 @pytest.mark.django_db
@@ -1626,9 +1626,9 @@ def test_move_row(before_send_mock, send_mock, data_fixture):
     assert row_1.order == Decimal("4.00000000000000000000")
     assert row_2.order == Decimal("2.00000000000000000000")
     assert row_3.order == Decimal("3.00000000000000000000")
-    assert row_1.last_modified_by == original_creator
-    assert row_2.last_modified_by == original_creator
-    assert row_3.last_modified_by == original_creator
+    assert row_1.last_modified_by == original_creator.profile.subject
+    assert row_2.last_modified_by == original_creator.profile.subject
+    assert row_3.last_modified_by == original_creator.profile.subject
 
     before_send_mock.assert_called_once()
     assert before_send_mock.call_args[1]["rows"][0].id == row_1.id
@@ -1724,7 +1724,7 @@ def test_delete_row(before_send_mock, send_mock, data_fixture):
     assert model.trash.all().count() == 1
     row.refresh_from_db()
     assert row.trashed
-    assert row.last_modified_by == original_creator
+    assert row.last_modified_by == original_creator.profile.subject
 
     before_send_mock.assert_called_once()
     assert before_send_mock.call_args[1]["rows"]
@@ -1782,8 +1782,8 @@ def test_delete_rows_preserves_last_modified_by(
 
     assert row.trashed
     assert row2.trashed
-    assert row.last_modified_by == original_creator
-    assert row2.last_modified_by == original_creator
+    assert row.last_modified_by == original_creator.profile.subject
+    assert row2.last_modified_by == original_creator.profile.subject
 
 
 @pytest.mark.django_db

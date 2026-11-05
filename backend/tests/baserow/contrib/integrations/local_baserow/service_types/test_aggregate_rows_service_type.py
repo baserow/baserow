@@ -93,7 +93,7 @@ def test_local_baserow_aggregate_rows_service_get_public_context_data(data_fixtu
     context_data = service_type.get_context_data(service)
     assert context_data["field"]["table_id"] == table.id
     assert context_data["field"]["available_collaborators"] == [
-        {"id": user.id, "name": "Hidden collaborator"}
+        {"type": "auth.User", "id": user.id, "name": "Hidden collaborator"}
     ]
 
     # Anonymous visitors only get what they need to format the result.

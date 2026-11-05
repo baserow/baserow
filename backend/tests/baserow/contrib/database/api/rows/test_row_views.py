@@ -895,12 +895,12 @@ def test_list_rows_join_lookup(api_client, data_fixture, user_field_names):
             "row": linked_row.created_on.isoformat().replace("+00:00", "Z"),
         },
         "last_modified_by": {
-            "blank": {"id": user.id, "name": user.first_name},
-            "row": {"id": user.id, "name": user.first_name},
+            "blank": {"type": "auth.User", "id": user.id, "name": user.first_name},
+            "row": {"type": "auth.User", "id": user.id, "name": user.first_name},
         },
         "created_by": {
-            "blank": {"id": user.id, "name": user.first_name},
-            "row": {"id": user.id, "name": user.first_name},
+            "blank": {"type": "auth.User", "id": user.id, "name": user.first_name},
+            "row": {"type": "auth.User", "id": user.id, "name": user.first_name},
         },
         "duration_hm": {
             "blank": None,
@@ -980,8 +980,16 @@ def test_list_rows_join_lookup(api_client, data_fixture, user_field_names):
         "multiple_collaborators": {
             "blank": [],
             "row": [
-                {"id": AnyInt(), "name": context["user2"].first_name},
-                {"id": AnyInt(), "name": context["user3"].first_name},
+                {
+                    "type": "auth.User",
+                    "id": AnyInt(),
+                    "name": context["user2"].first_name,
+                },
+                {
+                    "type": "auth.User",
+                    "id": AnyInt(),
+                    "name": context["user3"].first_name,
+                },
             ],
         },
         "phone_number": {
@@ -4322,8 +4330,16 @@ def test_list_row_history_for_different_fields(data_fixture, api_client):
                         "id": collaborator_field.id,
                         "type": "multiple_collaborators",
                         "collaborators": {
-                            f"{user2.id}": {"id": user2.id, "name": user2.first_name},
-                            f"{user3.id}": {"id": user3.id, "name": user3.first_name},
+                            f"{user2.id}": {
+                                "type": "auth.User",
+                                "id": user2.id,
+                                "name": user2.first_name,
+                            },
+                            f"{user3.id}": {
+                                "type": "auth.User",
+                                "id": user3.id,
+                                "name": user3.first_name,
+                            },
                         },
                     },
                     f"field_{linkrow_field.id}": {
