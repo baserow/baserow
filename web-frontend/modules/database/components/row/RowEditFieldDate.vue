@@ -10,7 +10,7 @@
         :disabled="readOnly"
         icon-right="iconoir-calendar"
         @keyup.enter="$refs.date.blur()"
-        @keyup="updateDate(field, date)"
+        @update:model-value="updateDate(field, $event)"
         @focus="focus($refs.dateContext, $event)"
         @blur="blur($refs.dateContext, $event)"
       />
@@ -50,7 +50,7 @@
         :disabled="readOnly"
         icon-right="iconoir-clock"
         @keyup.enter="$refs.time.blur()"
-        @keyup="updateTime(field, time)"
+        @update:model-value="updateTime(field, $event)"
         @focus="focus($refs.timeContext, $event)"
         @blur="blur($refs.timeContext, $event)"
       />
