@@ -29,6 +29,7 @@ from baserow.contrib.agent.models import AgentMessage
 from baserow.contrib.agent.replies import AgentResponder, _web_search_step_input
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 from baserow.core.chat_runs.models import ChatRun
+from baserow.core.generative_ai.constants import WEB_SEARCH_MAX_PER_REPLY
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Agent as Identity
@@ -211,6 +212,81 @@ def test_search_left_waiting_by_a_tool_call_keeps_its_tool(
     assert reply.status == "completed"
     assert len(seen[1]) == 1
     assert seen[1][0].max_uses == 1
+
+
+def test_the_model_is_told_how_many_searches_a_reply_may_make():
+    assert f"at most {WEB_SEARCH_MAX_PER_REPLY} times" in WEB_SEARCH_INSTRUCTIONS
+
+
+LIMIT_REACHED = NativeToolReturnPart(
+    "code_execution",
+    {
+        "type": "encrypted_code_execution_result",
+        "return_code": 1,
+        "stderr": "Server tool use limit exceeded during code execution.",
+    },
+    tool_call_id="code-2",
+)
+
+
+@pytest.mark.django_db
+def test_reaching_the_limit_inside_provider_code_shows_one_failed_search(
+    mocker, data_fixture, configured_agent
+):
+    # Newer Claude models search from code they run, which reports the limit only
+    # in its output, so no search result says the search was refused.
+    user = data_fixture.create_user()
+
+    async def stream(messages, info):
+        yield {0: CALL}
+        yield {1: RESULT}
+        for index in (2, 4):
+            yield {
+                index: NativeToolCallPart(
+                    "code_execution", args={"code": "..."}, tool_call_id=f"c{index}"
+                )
+            }
+            yield {index + 1: LIMIT_REACHED}
+        yield "What I found."
+
+    use_stream(mocker, stream)
+
+    reply = answer(user, configured_agent(user=user, web_search_enabled=True))
+
+    assert reply.status == "completed"
+    assert [(step["tool"], step["status"], step["input"]) for step in reply.steps] == [
+        (WebSearchTool.kind, "done", {"queries": ["baserow"]}),
+        (WebSearchTool.kind, "failed", {"limit_reached": True}),
+    ]
+    assert reply.steps[1]["error_code"] == "failed"
+
+
+@pytest.mark.django_db
+def test_other_provider_code_failures_add_no_step(
+    mocker, data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+
+    async def stream(messages, info):
+        yield {0: NativeToolCallPart("code_execution", tool_call_id="c")}
+        yield {
+            1: NativeToolReturnPart(
+                "code_execution",
+                {
+                    "type": "code_execution_result",
+                    "return_code": 1,
+                    "stderr": "KeyError",
+                },
+                tool_call_id="c",
+            )
+        }
+        yield "Done."
+
+    use_stream(mocker, stream)
+
+    reply = answer(user, configured_agent(user=user, web_search_enabled=True))
+
+    assert not reply.steps
 
 
 def test_gemini_2_does_not_search_alongside_workspace_tools():

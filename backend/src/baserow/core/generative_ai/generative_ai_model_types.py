@@ -9,6 +9,7 @@ from django.conf import settings
 from baserow.core.ai_provider.resolution import ScopedAIProviderState
 from baserow.core.models import Workspace
 
+from .constants import WEB_SEARCH_MAX_PER_REPLY
 from .registries import (
     EmbedKindLimit,
     FileHandler,
@@ -106,10 +107,6 @@ def sanitize_google_model_settings(
         for key, value in model_settings.items()
         if key not in _GOOGLE_SAMPLING_SETTINGS
     }
-
-
-# Web searches one reply may run, at about $10 per 1,000 searches plus tokens.
-WEB_SEARCH_MAX_PER_REPLY = 5
 
 
 class EmbedOnlyFileHandler(FileHandler):

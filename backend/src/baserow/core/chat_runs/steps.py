@@ -225,6 +225,26 @@ class ChatRunSteps:
         self._steps.pop(step["id"], None)
         self._update(step)
 
+    def add_failed(self, tool: str, step_input: dict[str, Any]) -> None:
+        """Add a failed step that no call of its own reports, such as a search the
+        provider refused inside code it ran.
+
+        :param tool: The tool the step is about.
+        :param step_input: Its safe display input.
+        """
+
+        self._update(
+            {
+                "id": str(uuid4()),
+                "tool": tool,
+                "status": ChatRunStepStatus.FAILED,
+                "changes_data": False,
+                "input": _display_data(step_input),
+                "facts": {},
+                "error_code": ToolErrorCode.FAILED,
+            }
+        )
+
     def _describe_native_call(self, part: NativeToolCallPart) -> None:
         """Add what a search looks for, which only arrives after the step started.
 

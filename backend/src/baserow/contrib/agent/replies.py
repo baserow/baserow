@@ -29,9 +29,7 @@ from baserow.core.chat_runs.constants import ChatRunErrorCode, ChatRunStopReason
 from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.chat_runs.steps import ChatRunSteps
 from baserow.core.chat_runs.types import ChatRunOutcome
-from baserow.core.generative_ai.generative_ai_model_types import (
-    WEB_SEARCH_MAX_PER_REPLY,
-)
+from baserow.core.generative_ai.constants import WEB_SEARCH_MAX_PER_REPLY
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.tools import ToolContext
 from baserow.core.utils import remove_null_characters
@@ -40,6 +38,7 @@ from .constants import (
     INTERRUPTED_CHANGES_NOTE,
     INTERRUPTED_REPLY_NOTE,
     REPLY_REQUEST_LIMIT,
+    SEARCH_LIMIT_IN_CODE_ERROR,
     TOOL_RETRIES,
     UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS,
     WEB_SEARCH_INSTRUCTIONS,
@@ -200,6 +199,7 @@ class AgentResponder:
         self._text = ""
         self._parts: dict[int, str] = {}
         self._text_is_commentary = False
+        self._search_limit_shown = False
         self._result: str | None = None
         self._steps = ChatRunSteps(journal, self._describe_call)
 
@@ -313,6 +313,25 @@ class AgentResponder:
             async for event in events:
                 self._on_event(event)
 
+    def _show_search_limit(self, part: NativeToolReturnPart) -> None:
+        """
+        Show once that the reply ran out of searches inside code the provider runs
+        to filter results, whose output is the only place that reports it.
+
+        :param part: A result of a call the provider ran.
+        """
+
+        content = part.content
+        if (
+            self._search_limit_shown
+            or part.tool_name == WebSearchTool.kind
+            or not isinstance(content, dict)
+            or SEARCH_LIMIT_IN_CODE_ERROR not in str(content.get("stderr", "")).lower()
+        ):
+            return
+        self._search_limit_shown = True
+        self._steps.add_failed(WebSearchTool.kind, {"limit_reached": True})
+
     def _offered_web_search(
         self, web_search_tool: WebSearchTool, ctx: RunContext
     ) -> WebSearchTool | None:
@@ -390,6 +409,9 @@ class AgentResponder:
             case FunctionToolCallEvent():
                 # Text before a tool call is narration; the next response is the answer.
                 self._parts = {}
+            case PartStartEvent(part=NativeToolReturnPart() as part):
+                self._show_search_limit(part)
+                return
             case PartStartEvent(part=NativeToolCallPart()):
                 # Text before a search is narration too, but only once more text
                 # follows, because Gemini reports its searches after the answer.

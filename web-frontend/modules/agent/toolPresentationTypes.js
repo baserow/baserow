@@ -232,6 +232,8 @@ export class WebSearchToolPresentationType extends ToolPresentationType {
   }
 
   getActivity({ status, input }, t) {
+    if (input?.limit_reached === true)
+      return t('agent.toolWebSearchLimitReached')
     // A step without queries but with a page is the provider opening that page.
     const key =
       this.getQueries({ input }).length === 0 && this.getUrl({ input })
