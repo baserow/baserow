@@ -1,14 +1,20 @@
 import asyncio
+from dataclasses import replace
+from functools import partial
 from typing import TYPE_CHECKING
 
 from loguru import logger
-from pydantic_ai import Agent, AgentRunResultEvent
+from pydantic_ai import Agent, AgentRunResultEvent, RunContext, WebSearchTool
+from pydantic_ai.capabilities import WebSearch
+from pydantic_ai.exceptions import ModelHTTPError
 from pydantic_ai.messages import (
     AgentStreamEvent,
     FunctionToolCallEvent,
     ModelMessage,
     ModelRequest,
     ModelResponse,
+    NativeToolCallPart,
+    NativeToolReturnPart,
     PartDeltaEvent,
     PartStartEvent,
     TextPart,
@@ -23,6 +29,9 @@ from baserow.core.chat_runs.constants import ChatRunErrorCode, ChatRunStopReason
 from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.chat_runs.steps import ChatRunSteps
 from baserow.core.chat_runs.types import ChatRunOutcome
+from baserow.core.generative_ai.generative_ai_model_types import (
+    WEB_SEARCH_MAX_PER_REPLY,
+)
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.tools import ToolContext
 from baserow.core.utils import remove_null_characters
@@ -33,6 +42,10 @@ from .constants import (
     REPLY_REQUEST_LIMIT,
     TOOL_RETRIES,
     UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS,
+    WEB_SEARCH_INSTRUCTIONS,
+    WEB_SEARCH_STEP_MAX_QUERIES,
+    WEB_SEARCH_STEP_QUERY_MAX_LENGTH,
+    WEB_SEARCH_UNAVAILABLE_INSTRUCTIONS,
 )
 from .models import AgentMessage
 from .registries import agent_tool_type_registry
@@ -122,6 +135,47 @@ def _describe_failure(error: BaseException) -> str:
     return f"{name}, status {status_code}" if status_code else name
 
 
+def _step_text(value: object) -> str | None:
+    """Validate and bound a value a provider reported before saving it in a step."""
+
+    if not isinstance(value, str) or not value.strip() or "\x00" in value:
+        return None
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        return None
+    max_length = WEB_SEARCH_STEP_QUERY_MAX_LENGTH
+    return value if len(value) <= max_length else value[: max_length - 1] + "…"
+
+
+def _web_search_step_input(arguments: dict) -> dict:
+    """
+    Pick what a search looked for or opened, which providers report in different
+    shapes. These steps are the only record of what left the workspace, so every
+    query is kept.
+
+    :param arguments: The arguments the provider reported.
+    :return: The queries and the opened page, without unusable values.
+    """
+
+    reported = arguments.get("queries")
+    candidates = [arguments.get("query")]
+    if isinstance(reported, list):
+        candidates.extend(reported)
+    queries = []
+    for candidate in candidates:
+        query = _step_text(candidate)
+        if query is not None and query not in queries:
+            queries.append(query)
+    step_input = {}
+    if queries:
+        step_input["queries"] = queries[:WEB_SEARCH_STEP_MAX_QUERIES]
+    url = _step_text(arguments.get("url"))
+    if url is not None:
+        step_input["url"] = url
+    return step_input
+
+
 class AgentResponder:
     """Stream one reply into a run's journal until it ends or a stop is requested."""
 
@@ -145,6 +199,7 @@ class AgentResponder:
         self._model_settings = model_settings
         self._text = ""
         self._parts: dict[int, str] = {}
+        self._text_is_commentary = False
         self._result: str | None = None
         self._steps = ChatRunSteps(journal, self._describe_call)
 
@@ -155,9 +210,12 @@ class AgentResponder:
         :param name: The called tool's name.
         :param arguments: Its arguments.
         :return: Whether the tool changes data and its input summary, or None
-            for a tool the reply doesn't offer, which the model can still name.
+            for a tool the reply doesn't offer, which the model can still name,
+            such as code a provider runs on its own to filter search results.
         """
 
+        if name == WebSearchTool.kind:
+            return {"changes_data": False, "input": _web_search_step_input(arguments)}
         if name not in self._request.allowed_tool_names:
             return None
         tool = agent_tool_type_registry.get(name)
@@ -187,32 +245,111 @@ class AgentResponder:
             await asyncio.gather(work, stop, return_exceptions=True)
         return self._outcome(work)
 
-    def _get_instructions(self) -> str:
-        """Combine saved instructions with this reply's workspace access context."""
+    def _get_instructions(self, web_search_tool: WebSearchTool | None) -> str:
+        """
+        Combine saved instructions with this reply's workspace access and web search
+        context.
+
+        :param web_search_tool: The web search this attempt offers, if any.
+        :return: The instructions.
+        """
 
         instructions = self._request.instructions
         if self._request.run_as_unavailable:
             instructions += f"\n\n{UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS}"
+        if web_search_tool is not None:
+            instructions += f"\n\n{WEB_SEARCH_INSTRUCTIONS}"
+        elif self._request.web_search_enabled:
+            instructions += f"\n\n{WEB_SEARCH_UNAVAILABLE_INSTRUCTIONS}"
         return instructions
 
     async def _stream(self) -> None:
+        web_search_tool = self._request.web_search_tool
+        async with self._model:
+            try:
+                await self._run_model(web_search_tool)
+            except ModelHTTPError as exc:
+                # Some models refuse the tool, which only the provider knows. A refused
+                # request searched nothing and showed nothing, so it can run again.
+                if (
+                    web_search_tool is None
+                    or exc.status_code != 400
+                    or self._text
+                    or self._steps.started
+                ):
+                    raise
+                logger.warning(
+                    "Agent reply {} got a 400 with web search, retrying without it",
+                    self._request.reply_id,
+                )
+                await self._run_model(None)
+
+    async def _run_model(self, web_search_tool: WebSearchTool | None) -> None:
+        """
+        Run the model once, passing its events on.
+
+        :param web_search_tool: The web search to offer, if any.
+        """
+
         agent = Agent(
-            instructions=self._get_instructions(),
+            instructions=self._get_instructions(web_search_tool),
             retries={"tools": TOOL_RETRIES},
+            capabilities=[
+                WebSearch(native=partial(self._offered_web_search, web_search_tool))
+            ]
+            if web_search_tool
+            else [],
         )
         # Kuma enables content tracing for every Agent; conversations are private.
         agent.instrument = False
-        async with self._model:
-            async with agent.run_stream_events(
-                self._request.prompt,
-                message_history=build_history(self._request.history),
-                model=self._model,
-                model_settings=self._model_settings,
-                usage_limits=UsageLimits(request_limit=REPLY_REQUEST_LIMIT),
-                toolsets=self._toolsets(),
-            ) as events:
-                async for event in events:
-                    self._on_event(event)
+        async with agent.run_stream_events(
+            self._request.prompt,
+            message_history=build_history(self._request.history),
+            model=self._model,
+            model_settings=self._model_settings,
+            usage_limits=UsageLimits(request_limit=REPLY_REQUEST_LIMIT),
+            toolsets=self._toolsets(),
+        ) as events:
+            async for event in events:
+                self._on_event(event)
+
+    def _offered_web_search(
+        self, web_search_tool: WebSearchTool, ctx: RunContext
+    ) -> WebSearchTool | None:
+        """
+        Offer web search to the next request while the reply has searches left.
+
+        :param web_search_tool: The web search of this attempt.
+        :param ctx: The run so far.
+        :return: The tool, capped at what is left, or None once the reply used them.
+        """
+
+        searches = [
+            part
+            for message in ctx.messages
+            if isinstance(message, ModelResponse)
+            for part in message.parts
+            if isinstance(part, NativeToolCallPart)
+            and part.tool_name == WebSearchTool.kind
+        ]
+        # Anthropic runs a search emitted next to a function tool call in the next
+        # request, and rejects that request when the search tool is missing.
+        answered = {
+            part.tool_call_id
+            for message in ctx.messages
+            if isinstance(message, ModelResponse)
+            for part in message.parts
+            if isinstance(part, NativeToolReturnPart)
+        }
+        waiting = any(part.tool_call_id not in answered for part in searches)
+        remaining = max(WEB_SEARCH_MAX_PER_REPLY - len(searches), int(waiting))
+        if remaining <= 0:
+            return None
+        if web_search_tool.max_uses is None:
+            return web_search_tool
+        return replace(
+            web_search_tool, max_uses=min(web_search_tool.max_uses, remaining)
+        )
 
     def _toolsets(self) -> list[FunctionToolset]:
         """
@@ -253,7 +390,15 @@ class AgentResponder:
             case FunctionToolCallEvent():
                 # Text before a tool call is narration; the next response is the answer.
                 self._parts = {}
+            case PartStartEvent(part=NativeToolCallPart()):
+                # Text before a search is narration too, but only once more text
+                # follows, because Gemini reports its searches after the answer.
+                self._text_is_commentary = True
+                return
             case PartStartEvent(index=index, part=TextPart(content=content)):
+                if self._text_is_commentary:
+                    self._parts = {}
+                    self._text_is_commentary = False
                 self._parts[index] = content
             case PartDeltaEvent(index=index, delta=TextPartDelta(content_delta=delta)):
                 self._parts[index] = self._parts.get(index, "") + delta

@@ -18,6 +18,9 @@ export const CONFIGURATION_FIELD = Object.freeze({
   RUN_AS: 'run_as',
   ALLOWED_TOOLS: 'allowed_tools',
   AVAILABLE_TOOLS: 'available_tools',
+  WEB_SEARCH_ENABLED: 'web_search_enabled',
+  WEB_SEARCH_AVAILABLE: 'web_search_available',
+  WEB_SEARCH_BLOCKED_BY_TOOLS: 'web_search_blocked_by_tools',
 })
 
 export const CONFIGURATION_SAVE_RESULT = Object.freeze({

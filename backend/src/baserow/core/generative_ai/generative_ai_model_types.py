@@ -17,6 +17,8 @@ from .registries import (
 )
 
 if TYPE_CHECKING:
+    from pydantic_ai import WebSearchTool
+
     from baserow_premium.fields.ai_file import AIFile
 
 
@@ -104,6 +106,10 @@ def sanitize_google_model_settings(
         for key, value in model_settings.items()
         if key not in _GOOGLE_SAMPLING_SETTINGS
     }
+
+
+# Web searches one reply may run, at about $10 per 1,000 searches plus tokens.
+WEB_SEARCH_MAX_PER_REPLY = 5
 
 
 class EmbedOnlyFileHandler(FileHandler):
@@ -406,6 +412,13 @@ class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
 class OpenAIGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
     type = "openai"
 
+    def get_web_search_tool(
+        self, model_name: str, with_function_tools: bool
+    ) -> WebSearchTool | None:
+        from pydantic_ai import WebSearchTool
+
+        return WebSearchTool()
+
     def get_known_models(self) -> list[str]:
         from pydantic_ai.models.openai import OpenAIModelName
 
@@ -433,6 +446,14 @@ class OpenAIGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
 
 class AnthropicGenerativeAIModelType(GenerativeAIModelType):
     type = "anthropic"
+
+    def get_web_search_tool(
+        self, model_name: str, with_function_tools: bool
+    ) -> WebSearchTool | None:
+        from pydantic_ai import WebSearchTool
+
+        # Only Anthropic can stop within one request; other providers ignore the cap.
+        return WebSearchTool(max_uses=WEB_SEARCH_MAX_PER_REPLY)
 
     _FILES_API_BETA = "files-api-2025-04-14"
 
@@ -609,6 +630,19 @@ class BedrockGenerativeAIModelType(GenerativeAIModelType):
 class GoogleGenerativeAIModelType(GenerativeAIModelType):
     type = "google"
     supports_legacy_workspace_settings = False
+
+    def get_web_search_tool(
+        self, model_name: str, with_function_tools: bool
+    ) -> WebSearchTool | None:
+        from pydantic_ai import WebSearchTool
+        from pydantic_ai.profiles.google import google_model_profile
+
+        # Gemini before version 3 refuses web search next to function tools.
+        if with_function_tools and not google_model_profile(model_name).get(
+            "google_supports_tool_combination"
+        ):
+            return None
+        return WebSearchTool()
 
     @cached_property
     def file_handler(self) -> GoogleFileHandler:
