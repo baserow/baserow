@@ -60,6 +60,7 @@ from baserow.core.registries import WorkspaceFilterDecision, operation_type_regi
 from baserow.core.snapshots.handler import SnapshotHandler
 from baserow.core.types import PermissionCheck
 from baserow.core.utils import Progress
+from baserow_enterprise.role.constants import BUILDER_ROLE_UID, VIEWER_ROLE_UID
 from baserow_enterprise.role.default_roles import default_roles
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
@@ -951,6 +952,40 @@ def test_check_multiple_permissions(data_fixture, enterprise_data_fixture):
         False,
         True,
     ]
+
+
+@pytest.mark.django_db
+def test_check_multiple_permissions_reuses_operations_only_within_batch(
+    data_fixture, mocker
+):
+    owner = data_fixture.create_user()
+    users = [data_fixture.create_user() for _ in range(2)]
+    workspace = data_fixture.create_workspace(
+        user=owner, custom_permissions=[(user, VIEWER_ROLE_UID) for user in users]
+    )
+    applications = [
+        data_fixture.create_database_application(workspace=workspace) for _ in range(2)
+    ]
+    checks = [
+        PermissionCheck(user, UpdateApplicationOperationType.type, application)
+        for user in users
+        for application in applications
+    ]
+    manager = RolePermissionManagerType()
+    operations = mocker.spy(manager, "get_role_operations")
+
+    result = manager.check_multiple_permissions(checks, workspace=workspace)
+    assert all(isinstance(result[check], PermissionException) for check in checks)
+    operations.assert_called_once()
+
+    handler = RoleAssignmentHandler()
+    handler.assign_role(users[0], workspace, handler.get_role_by_uid(BUILDER_ROLE_UID))
+    operations.reset_mock()
+    result = manager.check_multiple_permissions(checks, workspace=workspace)
+    assert all(result[check] is True for check in checks[:2])
+    assert all(isinstance(result[check], PermissionException) for check in checks[2:])
+    # A new batch resolves current roles, while each role is expanded only once.
+    assert operations.call_count == 2
 
 
 @pytest.mark.django_db(transaction=True)

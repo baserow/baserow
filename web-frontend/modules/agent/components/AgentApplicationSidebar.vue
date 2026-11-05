@@ -8,6 +8,7 @@
 </template>
 
 <script setup>
+import { AGENT_APPLICATION_TYPE } from '@baserow/modules/agent/constants'
 import { computed } from 'vue'
 import SidebarApplication from '@baserow/modules/core/components/sidebar/SidebarApplication'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -23,7 +24,9 @@ const selected = computed(() =>
 
 async function selectApplication() {
   try {
-    await $registry.get('application', 'agent').select(props.application)
+    await $registry
+      .get('application', AGENT_APPLICATION_TYPE)
+      .select(props.application)
   } catch (error) {
     notifyIf(error, 'application')
   }

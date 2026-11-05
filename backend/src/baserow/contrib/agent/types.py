@@ -1,20 +1,34 @@
 from dataclasses import dataclass
-from typing import Literal, TypedDict
 from uuid import UUID
 
 from baserow.core.models import Workspace
+from baserow.core.types import Subject
 
+from .constants import AgentConfigurationErrorCode, AgentReadinessState, AgentRunAsState
 from .models import AgentApplication, AgentConversation, AgentMessage
 
-AgentReadinessState = Literal["ready", "incomplete", "unavailable"]
+
+@dataclass(frozen=True)
+class AgentRunAsResolution:
+    """A configured identity and its availability in the Agent's workspace."""
+
+    status: AgentRunAsState
+    subject_type: str | None
+    subject_id: int | None
+    subject: Subject | None = None
+    name: str | None = None
 
 
-class AgentConfiguration(TypedDict):
+@dataclass(frozen=True)
+class AgentConfiguration:
+    """The saved Agent configuration and its readiness at the time it was read."""
+
     readiness: AgentReadinessState
     instructions: str
     provider_type: str | None
     model_identifier: str | None
-    errors: dict[str, str]
+    run_as: AgentRunAsResolution
+    errors: dict[str, AgentConfigurationErrorCode]
 
 
 @dataclass
@@ -32,7 +46,8 @@ class AgentMessageCreated:
 @dataclass
 class AgentConfigurationUpdated:
     agent: AgentApplication
-    changed_fields: list[str]
+    original_values: dict[str, str | int | None]
+    new_values: dict[str, str | int | None]
     configuration: AgentConfiguration
 
 
@@ -45,3 +60,5 @@ class AgentReplyRequest:
     model_identifier: str
     prompt: str
     history: list[AgentMessage]
+    run_as_unavailable: bool = False
+    """An identity is configured but cannot be used for workspace access."""

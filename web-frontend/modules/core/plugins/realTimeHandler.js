@@ -1,3 +1,4 @@
+import { AGENT_APPLICATION_TYPE } from '@baserow/modules/agent/constants'
 import { isSecureURL } from '@baserow/modules/core/utils/string'
 import { logoutAndRedirectToLogin } from '@baserow/modules/core/utils/auth'
 import {
@@ -871,6 +872,27 @@ export class RealTimeHandler {
         workspaceId: data.workspace_id,
         agentId: data.agent_id,
       })
+    })
+
+    this.registerEvent('agent_run_as_updated', ({ store }, data) => {
+      const selectedAgentIds = new Set(data.selected_agent_ids)
+      for (const agentId of data.agent_ids) {
+        const application = store.getters['application/get'](agentId)
+        if (application?.type !== AGENT_APPLICATION_TYPE) continue
+        store.dispatch('application/forceUpdate', {
+          application,
+          data: {
+            _: {
+              ...application._,
+              runAsOptionsVersion:
+                (application._?.runAsOptionsVersion || 0) + 1,
+              runAsIdentityVersion:
+                (application._?.runAsIdentityVersion || 0) +
+                Number(selectedAgentIds.has(agentId)),
+            },
+          },
+        })
+      }
     })
 
     this.registerEvent('application_created', ({ store }, data) => {

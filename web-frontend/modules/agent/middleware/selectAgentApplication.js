@@ -1,3 +1,4 @@
+import { AGENT_APPLICATION_TYPE } from '@baserow/modules/agent/constants'
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { normalizeError } from '@baserow/modules/database/utils/errors'
 
@@ -7,7 +8,7 @@ export async function selectAgentApplication(app, to) {
 
   try {
     const agent = $store.getters['application/get'](agentId)
-    if (!agent || agent.type !== 'agent') {
+    if (!agent || agent.type !== AGENT_APPLICATION_TYPE) {
       throw new StoreItemLookupError('Agent not found.')
     }
 

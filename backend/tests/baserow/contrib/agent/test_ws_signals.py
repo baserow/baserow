@@ -11,7 +11,13 @@ from baserow.contrib.agent.actions import (
     CreateAgentConversationActionType,
     CreateAgentMessageActionType,
 )
-from baserow.contrib.agent.models import AgentConversation, AgentMessage
+from baserow.contrib.agent.models import (
+    AgentConversation,
+    AgentMessage,
+)
+from baserow.core.agents.service import AgentService as IdentityService
+from baserow.core.models import Agent
+from baserow.core.trash.handler import TrashHandler
 
 
 def conversation_write(data_fixture, user, agent, kind):
@@ -101,4 +107,87 @@ def test_rolled_back_content_does_not_notify_other_sessions(
                 raise RuntimeError("Abort the outer transaction")
 
     assert not AgentMessage.objects.exists()
+    broadcast.assert_not_called()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("change", ["create", "rename", "trash", "restore", "delete"])
+def test_identity_changes_queue_one_invalidation_after_commit(
+    data_fixture, mocker, django_capture_on_commit_callbacks, change
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    identity = Agent.objects.create(workspace=workspace, name="PRIVATE IDENTITY")
+    identity_id = identity.id
+    identities = IdentityService()
+    if change in {"restore", "delete"}:
+        identities.delete_agent(user, identity)
+    broadcast = mocker.patch(
+        "baserow.contrib.agent.ws.signals.broadcast_run_as_updates.delay"
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        with transaction.atomic():
+            if change == "create":
+                identity_id = identities.create_agent(
+                    user, workspace, name="PRIVATE NEW IDENTITY"
+                ).id
+            elif change == "rename":
+                identities.update_agent(user, identity, name="PRIVATE NEW NAME")
+            elif change == "trash":
+                identities.delete_agent(user, identity)
+            elif change == "restore":
+                TrashHandler.restore_item(user, "agent", identity.id)
+            else:
+                TrashHandler.permanently_delete(identity)
+            broadcast.assert_not_called()
+
+    broadcast.assert_called_once_with(workspace.id, identity_id)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "values",
+    [
+        {},
+        {"name": "Original"},
+        {"role_uid": "ADMIN"},
+        {"name": "Original", "role_uid": "ADMIN"},
+    ],
+)
+def test_unchanged_identity_name_does_not_invalidate_run_as_options(
+    data_fixture, mocker, django_capture_on_commit_callbacks, values
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    identity = Agent.objects.create(workspace=workspace, name="Original")
+    broadcast = mocker.patch(
+        "baserow.contrib.agent.ws.signals.broadcast_run_as_updates.delay"
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        IdentityService().update_agent(user, identity, **values)
+
+    broadcast.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_rolled_back_identity_change_does_not_invalidate_configuration(
+    data_fixture, mocker, django_capture_on_commit_callbacks
+):
+    user = data_fixture.create_user()
+    application = data_fixture.create_agent_application(user=user)
+    identity = Agent.objects.create(workspace=application.workspace, name="Original")
+    broadcast = mocker.patch(
+        "baserow.contrib.agent.ws.signals.broadcast_run_as_updates.delay"
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        with pytest.raises(RuntimeError):
+            with transaction.atomic():
+                IdentityService().update_agent(user, identity, name="Rolled back")
+                raise RuntimeError("Abort identity change")
+
+    identity.refresh_from_db()
+    assert identity.name == "Original"
     broadcast.assert_not_called()

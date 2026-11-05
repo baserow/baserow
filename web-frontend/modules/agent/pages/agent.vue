@@ -3,6 +3,7 @@
 </template>
 
 <script setup>
+import { AGENT_APPLICATION_TYPE } from '@baserow/modules/agent/constants'
 import { computed } from 'vue'
 import { createError } from '#app'
 import AgentApplicationContent from '@baserow/modules/agent/components/AgentApplicationContent'
@@ -24,7 +25,7 @@ const { $store, $client } = useNuxtApp()
 const agentId = Number(useRoute().params.agentId)
 const agent = computed(() => {
   const application = $store.getters['application/get'](agentId)
-  return application?.type === 'agent' ? application : null
+  return application?.type === AGENT_APPLICATION_TYPE ? application : null
 })
 useHead(() => ({ title: agent.value?.name }))
 

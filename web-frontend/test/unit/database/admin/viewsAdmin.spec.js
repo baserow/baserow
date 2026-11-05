@@ -4,10 +4,6 @@ import ViewsAdminContext from '@baserow/modules/database/components/admin/views/
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
 import flushPromises from 'flush-promises'
 
-// Mock out debounce so we dont have to wait or simulate waiting for the search
-// debounce.
-vi.mock('lodash/debounce', () => ({ default: vi.fn((fn) => fn) }))
-
 describe('ViewsAdminTable component', () => {
   let testApp = null
 

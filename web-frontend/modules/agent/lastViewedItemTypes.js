@@ -1,8 +1,9 @@
+import { AGENT_APPLICATION_TYPE } from '@baserow/modules/agent/constants'
 import { ApplicationLastViewedItemType } from '@baserow/modules/core/lastViewedItemTypes'
 
 export class AgentLastViewedItemType extends ApplicationLastViewedItemType {
   static getType() {
-    return 'agent'
+    return AGENT_APPLICATION_TYPE
   }
 
   getOrder() {
@@ -10,7 +11,7 @@ export class AgentLastViewedItemType extends ApplicationLastViewedItemType {
   }
 
   getApplicationTypeName() {
-    return 'agent'
+    return AGENT_APPLICATION_TYPE
   }
 
   getName() {

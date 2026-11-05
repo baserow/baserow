@@ -72,6 +72,69 @@ function fire(handler, type, data) {
 }
 
 describe('RealTimeHandler application updates', () => {
+  test.each([false, true])(
+    'invalidates agent choices, with selected identity changed=%s',
+    async (changed) => {
+      const { handler, store } = makeHandler()
+      const application = { id: 3, type: 'agent', _: { realtimeVersion: 7 } }
+      store.getters['application/get'] = () => application
+      await fire(handler, 'agent_run_as_updated', {
+        agent_ids: [3],
+        selected_agent_ids: changed ? [3] : [],
+      })
+      expect(store._dispatched).toEqual([
+        [
+          'application/forceUpdate',
+          {
+            application,
+            data: {
+              _: {
+                realtimeVersion: 7,
+                runAsOptionsVersion: 1,
+                runAsIdentityVersion: Number(changed),
+              },
+            },
+          },
+        ],
+      ])
+    }
+  )
+
+  test('invalidates each loaded Agent once from a combined identity update', async () => {
+    const { handler, store } = makeHandler()
+    const applications = [
+      { id: 3, type: 'agent', _: { runAsIdentityVersion: 7 } },
+      { id: 4, type: 'agent', _: { runAsOptionsVersion: 2 } },
+      { id: 5, type: 'database' },
+    ]
+    store.getters['application/get'] = (id) =>
+      applications.find((application) => application.id === id)
+
+    await fire(handler, 'agent_run_as_updated', {
+      agent_ids: [3, 4, 5, 6],
+      selected_agent_ids: [3],
+    })
+
+    expect(
+      store._dispatched.map(([action, { application, data }]) => [
+        action,
+        application.id,
+        data._,
+      ])
+    ).toEqual([
+      [
+        'application/forceUpdate',
+        3,
+        { runAsIdentityVersion: 8, runAsOptionsVersion: 1 },
+      ],
+      [
+        'application/forceUpdate',
+        4,
+        { runAsOptionsVersion: 3, runAsIdentityVersion: 0 },
+      ],
+    ])
+  })
+
   test('marks application updates as external, including unchanged public metadata', async () => {
     const { handler, store } = makeHandler()
     const application = { id: 3, type: 'agent', readiness: 'ready' }

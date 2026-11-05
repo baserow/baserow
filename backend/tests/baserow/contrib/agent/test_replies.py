@@ -32,10 +32,12 @@ from baserow.contrib.agent.replies import create_reply_model
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.signals import agent_conversation_updated
 from baserow.contrib.agent.types import AgentMessageCreated
+from baserow.core.agents.service import AgentService as IdentityService
 from baserow.core.chat_runs.journal import ChatRunJournal
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
+from baserow.core.models import Agent as Identity
 from baserow.core.models import WorkspaceUser
 from baserow.core.trash.handler import TrashHandler
 
@@ -170,6 +172,108 @@ def test_the_model_gets_the_instructions_and_recent_history(
         ("ModelRequest", "Now?"),
     ]
     assert seen[-1].instructions == "Be brief."
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "identity_state,unavailable",
+    [
+        ("unset", False),
+        ("active", False),
+        ("trashed", True),
+        ("missing", True),
+        ("other_workspace", True),
+        ("unknown_type", True),
+        ("user", True),
+        ("type_only", True),
+        ("id_only", True),
+    ],
+)
+def test_the_model_knows_when_its_configured_workspace_identity_is_unavailable(
+    data_fixture, configured_agent, mocker, identity_state, unavailable
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user, instructions="Be brief.")
+    identity = Identity.objects.create(
+        workspace=agent.workspace, name="PRIVATE_IDENTITY_NAME"
+    )
+    if identity_state != "unset":
+        agent.run_as_subject_type = "core.Agent"
+        agent.run_as_subject_id = identity.id
+        if identity_state == "trashed":
+            IdentityService().delete_agent(user, identity)
+        elif identity_state == "missing":
+            identity.delete()
+        elif identity_state == "other_workspace":
+            identity.workspace = data_fixture.create_workspace()
+            identity.save()
+        elif identity_state == "unknown_type":
+            agent.run_as_subject_type = "unknown.subject"
+        elif identity_state == "user":
+            agent.run_as_subject_type = "auth.User"
+            agent.run_as_subject_id = user.id
+        elif identity_state == "type_only":
+            agent.run_as_subject_id = None
+        elif identity_state == "id_only":
+            agent.run_as_subject_type = None
+        agent.save()
+    seen = []
+
+    async def stream(messages, info):
+        seen.append(messages[-1].instructions)
+        yield "ok"
+
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(FunctionModel(stream_function=stream), {}),
+    )
+    created = start(user, agent)
+
+    run_reply(run_of(created.conversation))
+
+    assert reply_state(created.reply.id) == ("completed", "", "ok")
+    assert seen[-1].startswith("Be brief.")
+    assert (
+        "The identity configured for your workspace access is no longer available."
+        in seen[-1]
+    ) is unavailable
+    assert "PRIVATE_IDENTITY_NAME" not in seen[-1]
+    agent.refresh_from_db()
+    assert agent.instructions == "Be brief."
+
+
+@pytest.mark.django_db
+def test_workspace_identity_context_is_refreshed_for_each_reply(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user, instructions="Be brief.")
+    identity = Identity.objects.create(workspace=agent.workspace, name="Writer")
+    agent.run_as_subject_type = "core.Agent"
+    agent.run_as_subject_id = identity.id
+    agent.save()
+    IdentityService().delete_agent(user, identity)
+    seen = []
+
+    async def stream(messages, info):
+        seen.append(messages[-1].instructions)
+        yield "ok"
+
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(FunctionModel(stream_function=stream), {}),
+    )
+    created = start(user, agent)
+    run_reply(run_of(created.conversation))
+    TrashHandler.restore_item(user, "agent", identity.id)
+    next_reply = CreateAgentMessageActionType.do(
+        user, agent.id, created.conversation.uuid, uuid4(), "Try again"
+    )
+
+    run_reply(ChatRun.objects.get(id=next_reply.run_id))
+
+    assert "workspace access is no longer available" in seen[0]
+    assert seen[1] == "Be brief."
 
 
 @pytest.mark.django_db

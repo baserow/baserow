@@ -1,5 +1,7 @@
 from uuid import UUID
 
+from django.db import transaction
+
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -12,11 +14,17 @@ from baserow.api.applications.serializers import (
     PolymorphicApplicationResponseSerializer,
 )
 from baserow.api.chat_runs.errors import ERROR_CHAT_RUN_IN_PROGRESS
-from baserow.api.decorators import map_exceptions, validate_body
+from baserow.api.decorators import (
+    map_exceptions,
+    validate_body,
+    validate_query_parameters,
+)
 from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
 from baserow.api.mixins import RealtimeRecoveryPrimaryReadMixin
+from baserow.api.pagination import PageNumberPagination
 from baserow.api.schemas import get_error_schema
 from baserow.api.serializers import get_example_pagination_serializer_class
+from baserow.api.subjects.serializers import SubjectOptionSerializer
 from baserow.contrib.agent.actions import (
     CreateAgentConversationActionType,
     CreateAgentMessageActionType,
@@ -26,6 +34,7 @@ from baserow.contrib.agent.exceptions import (
     AgentConversationDoesNotExist,
     AgentMessageConflict,
     AgentNotReady,
+    AgentRunAsSubjectDoesNotExist,
 )
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication
@@ -41,6 +50,7 @@ from .errors import (
     ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST,
     ERROR_AGENT_MESSAGE_CONFLICT,
     ERROR_AGENT_NOT_READY,
+    ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST,
 )
 from .serializers import (
     AgentConfigurationSerializer,
@@ -52,6 +62,7 @@ from .serializers import (
     AgentMessageCreateSerializer,
     AgentMessagePagination,
     AgentMessageSerializer,
+    AgentRunAsSubjectsQueryParamsSerializer,
 )
 
 AGENT_ID_PATH_PARAMETER = OpenApiParameter(
@@ -65,6 +76,7 @@ AGENT_EXCEPTIONS = {
     AgentConversationDoesNotExist: ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST,
     AgentNotReady: ERROR_AGENT_NOT_READY,
     AgentMessageConflict: ERROR_AGENT_MESSAGE_CONFLICT,
+    AgentRunAsSubjectDoesNotExist: ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST,
     ChatRunAlreadyActive: ERROR_CHAT_RUN_IN_PROGRESS,
     ChatRunLimitReached: ERROR_AGENT_BUSY,
 }
@@ -181,14 +193,15 @@ class AgentApplicationView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class AgentConfigurationView(APIView):
+class AgentConfigurationView(RealtimeRecoveryPrimaryReadMixin, APIView):
     @extend_schema(
         parameters=[AGENT_ID_PATH_PARAMETER],
         tags=["Agent applications"],
         operation_id="get_agent_configuration",
         description=(
-            "Returns the instructions, provider and model of the agent, with its "
-            "readiness and the fields that are missing or no longer available."
+            "Returns the instructions, provider, model and run-as identity of the "
+            "agent, with its readiness and the fields that are missing or no longer "
+            "available."
         ),
         responses={200: AgentConfigurationSerializer, **READ_ERRORS},
     )
@@ -211,9 +224,15 @@ class AgentConfigurationView(APIView):
         responses={
             200: AgentConfigurationSerializer,
             **READ_ERRORS,
-            400: get_error_schema(["ERROR_REQUEST_BODY_VALIDATION"]),
+            400: get_error_schema(
+                [
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST",
+                ]
+            ),
         },
     )
+    @transaction.atomic
     @map_exceptions(AGENT_EXCEPTIONS)
     @validate_body(
         AgentConfigurationUpdateSerializer, partial=True, return_validated=True
@@ -225,6 +244,35 @@ class AgentConfigurationView(APIView):
             request.user, agent_id, **data
         )
         return Response(AgentConfigurationSerializer(configuration).data)
+
+
+class AgentRunAsSubjectsView(RealtimeRecoveryPrimaryReadMixin, APIView):
+    @extend_schema(
+        parameters=[AGENT_ID_PATH_PARAMETER, AgentRunAsSubjectsQueryParamsSerializer],
+        tags=["Agent applications"],
+        operation_id="list_agent_run_as_subjects",
+        description="Lists active workspace identities selectable for this Agent. "
+        "Requires permission to read and update its configuration.",
+        responses={
+            200: get_example_pagination_serializer_class(SubjectOptionSerializer),
+            **READ_ERRORS,
+        },
+    )
+    @map_exceptions(AGENT_EXCEPTIONS)
+    @validate_query_parameters(
+        AgentRunAsSubjectsQueryParamsSerializer, return_validated=True
+    )
+    def get(self, request: Request, agent_id: int, query_params: dict) -> Response:
+        """Return paginated choices authorized in this Agent's application scope."""
+
+        options = AgentService().get_run_as_subject_options(
+            request.user, agent_id, search=query_params["search"]
+        )
+        paginator = PageNumberPagination(limit_page_size=100)
+        page = paginator.paginate_queryset(options, request, view=self)
+        return paginator.get_paginated_response(
+            SubjectOptionSerializer(page, many=True).data
+        )
 
 
 class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):

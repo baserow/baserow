@@ -27,6 +27,14 @@ export default {
       required: false,
       default: false,
     },
+    refreshOnOpen: {
+      type: Boolean,
+      default: false,
+    },
+    refreshKey: {
+      type: [String, Number],
+      default: null,
+    },
     addEmptyItem: {
       type: Boolean,
       required: false,
@@ -78,17 +86,48 @@ export default {
    * the dropdown is opened.
    */
   async fetch() {
-    if (!this.fetchOnOpen) {
+    if (!this.fetchOnOpen && !this.disabled) {
       await this.fetch(this.page, this.query)
     }
   },
   created() {
+    this._fetchGeneration = 0
     // Small debounce when searching to prevent a lot of requests to the backend.
     this._search_debounced = debounce(async () => {
       await this.fetch(1, this.query)
     }, this.debounceTime)
   },
+  beforeUnmount() {
+    ++this._fetchGeneration
+    this._search_debounced.cancel()
+  },
+  watch: {
+    refreshKey() {
+      this.refresh()
+    },
+    disabled(disabled) {
+      if (disabled) {
+        this.hide()
+        this.invalidate()
+      } else {
+        this.refresh()
+      }
+    },
+  },
   methods: {
+    invalidate() {
+      ++this._fetchGeneration
+      this._search_debounced.cancel()
+      this.fetched = false
+      this.loading = false
+      this.results = []
+      this.count = 0
+      this.page = 1
+    },
+    refresh() {
+      this.invalidate()
+      if (this.open && !this.disabled) return this.fetch(1, this.query)
+    },
     clear() {
       this.displayName = this.initialDisplayName
     },
@@ -117,6 +156,10 @@ export default {
      * results, otherwise they will be appended.
      */
     async fetch(page = 1, search = null, replace = true) {
+      if (this.disabled) return
+      const generation = replace
+        ? ++this._fetchGeneration
+        : this._fetchGeneration
       this.fetched = true
       this.page = page
       this.loading = true
@@ -128,21 +171,27 @@ export default {
         results = data.results
         count = data.count
       } catch (e) {
-        notifyIf(e)
-      } finally {
-        if (replace) {
-          this.results = results
-        } else {
-          const resultIds = new Set(this.results.map((res) => res[this.idName]))
-          this.results.push(
-            ...results.filter((res) => {
-              return !resultIds.has(res[this.idName])
-            })
-          )
+        if (generation === this._fetchGeneration) {
+          this.fetched = false
+          notifyIf(e)
         }
-
-        this.count = count
-        this.loading = false
+      } finally {
+        if (generation === this._fetchGeneration) {
+          if (replace) {
+            this.results = results
+          } else {
+            const resultIds = new Set(
+              this.results.map((res) => res[this.idName])
+            )
+            this.results.push(
+              ...results.filter((res) => {
+                return !resultIds.has(res[this.idName])
+              })
+            )
+          }
+          this.count = count
+          this.loading = false
+        }
       }
     },
     /**
@@ -150,6 +199,8 @@ export default {
      * searching. Otherwise there could be conflicting results.
      */
     search() {
+      // Invalidate immediately, before the debounced request starts.
+      ++this._fetchGeneration
       this._search_debounced()
     },
     /**
@@ -169,9 +220,10 @@ export default {
       }
     },
     async show(...args) {
-      dropdown.methods.show.call(this, ...args)
-      if (!this.fetched) {
-        await this.fetch(this.page, this.query)
+      if (this.disabled || this.open || this.opening) return
+      await dropdown.methods.show.call(this, ...args)
+      if (!this.fetched || this.refreshOnOpen) {
+        await this.fetch(1, this.query)
       }
     },
     /**
@@ -182,10 +234,12 @@ export default {
     hide() {
       this.open = false
       this.$emit('hide')
+      this.hideCleanupFunctions.forEach((cleanup) => cleanup())
+      this.hideCleanupFunctions = []
     },
     reset() {
-      this.fetched = false
-      this.open = false
+      this.hide()
+      this.invalidate()
       this.displayName = null
       this.query = ''
       this.results = []

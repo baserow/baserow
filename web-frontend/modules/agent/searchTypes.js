@@ -1,9 +1,10 @@
+import { AGENT_APPLICATION_TYPE } from '@baserow/modules/agent/constants'
 import { BaseSearchType } from '@baserow/modules/core/search/types/base'
 
 export class AgentApplicationSearchType extends BaseSearchType {
   constructor(context = {}) {
     super(context)
-    this.type = 'agent'
+    this.type = AGENT_APPLICATION_TYPE
     this.name = this.app.$i18n.t('applicationType.agent')
     this.icon = 'baserow-icon-agent'
     this.priority = 5

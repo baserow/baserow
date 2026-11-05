@@ -10,10 +10,24 @@ export default (client) => ({
   recordView(agentId) {
     return client.post(`/agent/${agentId}/`)
   },
-  getConfiguration(agentId) {
-    return client.get(`/agent/${agentId}/configuration/`)
+  getConfiguration(agentId, realtimeRecovery = false) {
+    return client.get(`/agent/${agentId}/configuration/`, {
+      ...(realtimeRecovery ? getRealtimeRecoveryRequestConfig() : {}),
+    })
   },
-  updateConfiguration(agentId, values) {
+  getRunAsSubjects(agentId, page = 1, search = '') {
+    return client.get(`/agent/${agentId}/run-as-subjects/`, {
+      params: { page, search, size: 100 },
+      // Opening the picker revalidates choices, including changes missed while
+      // disconnected. A lagging replica must not reintroduce a deleted choice.
+      ...getRealtimeRecoveryRequestConfig(),
+    })
+  },
+  updateConfiguration(agentId, { run_as: runAs, ...values }) {
+    if (runAs !== undefined) {
+      values.run_as_subject_type = runAs?.type ?? null
+      values.run_as_subject_id = runAs?.id ?? null
+    }
     return client.patch(`/agent/${agentId}/configuration/`, values)
   },
   getConversations(agentId, page = 1, realtimeRecovery = false) {
