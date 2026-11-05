@@ -9,6 +9,12 @@
   }
 }
 
+// The subjects have a description, so they're taller than the four one-line
+// items the list fits by default.
+.local-baserow-form__subject .select__items {
+  max-height: 320px;
+}
+
 .field-mapping-form__placeholder {
   width: 100%;
   height: 36px;

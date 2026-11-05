@@ -7,6 +7,7 @@ from django.db.transaction import Atomic
 from django.urls import URLResolver, include, path
 
 from baserow.contrib.agent.api.serializers import AgentApplicationSerializer
+from baserow.contrib.agent.constants import AgentRunAsState
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication
 from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
@@ -39,6 +40,39 @@ class AgentApplicationType(ApplicationType):
             and not import_export_config.only_structure
             and not import_export_config.exclude_sensitive_data
         )
+
+    @staticmethod
+    def _imported_run_as(
+        workspace: Workspace | None,
+        serialized_values: dict,
+        import_export_config: ImportExportConfig,
+    ) -> tuple[str | None, int | None]:
+        """
+        Keep existing identity references in internal copies of their workspace.
+
+        A trashed identity remains configured so restoring it also restores access
+        for the copy. Execution still requires an active identity.
+
+        :param workspace: The workspace the Agent is imported into, or None for a
+            snapshot, which keeps the identity for its restore.
+        :param serialized_values: The exported Agent.
+        :param import_export_config: How the Agent is imported.
+        :return: The run-as type and id to save.
+        """
+
+        run_as = (
+            serialized_values.get("run_as_subject_type"),
+            serialized_values.get("run_as_subject_id"),
+        )
+        # Ids from another instance or template could match unrelated identities.
+        if not import_export_config.is_duplicate or import_export_config.is_template:
+            return None, None
+        if workspace is None:
+            return run_as
+        resolution = AgentHandler().resolve_run_as_subject(*run_as, workspace)
+        if resolution.status in {AgentRunAsState.ACTIVE, AgentRunAsState.TRASHED}:
+            return run_as
+        return None, None
 
     def get_api_urls(self) -> list[URLResolver]:
         from baserow.contrib.agent.api import urls as api_urls
@@ -93,6 +127,16 @@ class AgentApplicationType(ApplicationType):
             provider_type=application.provider_type,
             model_identifier=application.model_identifier,
         )
+        # Identity ids are local references, not portable configuration.
+        if (
+            import_export_config.is_duplicate
+            and not import_export_config.is_template
+            and not import_export_config.exclude_sensitive_data
+        ):
+            serialized.update(
+                run_as_subject_type=application.run_as_subject_type,
+                run_as_subject_id=application.run_as_subject_id,
+            )
         if self._includes_conversations(import_export_config):
             serialized["conversations"] = AgentHandler().export_conversations(
                 application
@@ -123,6 +167,9 @@ class AgentApplicationType(ApplicationType):
         application.instructions = serialized_values.get("instructions", "")
         application.provider_type = serialized_values.get("provider_type") or None
         application.model_identifier = serialized_values.get("model_identifier") or None
+        application.run_as_subject_type, application.run_as_subject_id = (
+            self._imported_run_as(workspace, serialized_values, import_export_config)
+        )
         application.save()
         if self._includes_conversations(import_export_config):
             AgentHandler().import_conversations(

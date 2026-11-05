@@ -88,7 +88,7 @@
     <ConfirmModal
       ref="adminConfirmModal"
       :title="$t('invitationLinkAdminConfirmModal.title')"
-      :message="$t('invitationLinkAdminConfirmModal.message')"
+      :message="targetType.getInvitationLinkAdminWarning(workspace, target)"
       :confirm-label="$t('invitationLinkAdminConfirmModal.confirm')"
       danger
       @hidden="pendingChange = null"

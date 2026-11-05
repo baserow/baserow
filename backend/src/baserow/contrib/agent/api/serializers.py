@@ -1,4 +1,3 @@
-from typing import get_args
 from uuid import UUID
 
 from drf_spectacular.utils import extend_schema_field
@@ -6,16 +5,22 @@ from rest_framework import serializers
 
 from baserow.api.mixins import UnknownFieldRaisesExceptionSerializerMixin
 from baserow.api.pagination import PageNumberPagination
+from baserow.contrib.agent.constants import (
+    RUN_AS_SUBJECT_TYPES,
+    AgentConfigurationErrorCode,
+    AgentReadinessState,
+    AgentRunAsState,
+)
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import (
     AgentApplication,
     AgentConversation,
     AgentMessage,
 )
-from baserow.contrib.agent.types import AgentReadinessState
+from baserow.contrib.agent.types import AgentConfiguration
 from baserow.contrib.agent.validators import AGENT_TEXT_MAX_LENGTH
 
-READINESS_CHOICES = get_args(AgentReadinessState)
+READINESS_CHOICES = [state.value for state in AgentReadinessState]
 
 
 class AgentApplicationSerializer(serializers.ModelSerializer):
@@ -40,9 +45,28 @@ class AgentApplicationSerializer(serializers.ModelSerializer):
         provider_state = self.context.get("ai_provider_states", {}).get(
             instance.workspace_id
         )
-        return AgentHandler().get_configuration(
+        readiness, _ = AgentHandler().get_configuration_readiness(
             instance, provider_state=provider_state
-        )["readiness"]
+        )
+        return readiness
+
+
+class AgentRunAsSerializer(serializers.Serializer):
+    type = serializers.CharField(allow_null=True)
+    id = serializers.IntegerField(allow_null=True)
+    name = serializers.CharField(allow_null=True)
+    trashed = serializers.BooleanField()
+    status = serializers.ChoiceField(
+        choices=[
+            state.value for state in AgentRunAsState if state != AgentRunAsState.UNSET
+        ]
+    )
+
+
+class AgentRunAsSubjectsQueryParamsSerializer(serializers.Serializer):
+    page = serializers.IntegerField(min_value=1, required=False, default=1)
+    size = serializers.IntegerField(min_value=1, max_value=100, required=False)
+    search = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class AgentConfigurationSerializer(serializers.Serializer):
@@ -52,23 +76,89 @@ class AgentConfigurationSerializer(serializers.Serializer):
     instructions = serializers.CharField(allow_blank=True, trim_whitespace=False)
     provider_type = serializers.CharField(allow_null=True)
     model_identifier = serializers.CharField(allow_null=True)
-    errors = serializers.DictField(
-        child=serializers.ChoiceField(choices=["required", "unavailable"])
+    run_as = serializers.SerializerMethodField(
+        help_text="The configured identity and its active, trashed or missing status. "
+        "Null means no workspace access was selected."
     )
+    errors = serializers.DictField(
+        child=serializers.ChoiceField(
+            choices=[error.value for error in AgentConfigurationErrorCode]
+        )
+    )
+
+    @extend_schema_field(AgentRunAsSerializer(allow_null=True))
+    def get_run_as(self, configuration: AgentConfiguration) -> dict | None:
+        """
+        Serialize the identity from the configuration's resolved snapshot.
+
+        :param configuration: The configuration being serialized.
+        :return: The configured identity and status, or None when unset.
+        """
+
+        run_as = configuration.run_as
+        if run_as.status == AgentRunAsState.UNSET:
+            return None
+        return {
+            "type": run_as.subject_type,
+            "id": run_as.subject_id,
+            "name": run_as.name,
+            "trashed": run_as.status == AgentRunAsState.TRASHED,
+            "status": run_as.status.value,
+        }
 
 
 class AgentConfigurationUpdateSerializer(
     UnknownFieldRaisesExceptionSerializerMixin, serializers.ModelSerializer
 ):
+    run_as_subject_type = serializers.ChoiceField(
+        choices=RUN_AS_SUBJECT_TYPES,
+        allow_null=True,
+        required=False,
+        help_text="The type of the identity the agent's tools act as. Provide it "
+        "with run_as_subject_id; both null means no workspace access.",
+    )
+    run_as_subject_id = serializers.IntegerField(
+        allow_null=True,
+        required=False,
+        help_text="The id of the identity the agent's tools act as.",
+    )
+
     class Meta:
         model = AgentApplication
-        fields = ("instructions", "provider_type", "model_identifier")
+        fields = (
+            "instructions",
+            "provider_type",
+            "model_identifier",
+            "run_as_subject_type",
+            "run_as_subject_id",
+        )
         extra_kwargs = {
             "instructions": {
                 "max_length": AGENT_TEXT_MAX_LENGTH,
                 "trim_whitespace": False,
             },
         }
+
+    def validate(self, values: dict) -> dict:
+        """
+        Require the run-as type and id together, both set or both null.
+
+        :param values: The validated fields.
+        :raises ValidationError: When only one of them is given or set.
+        :return: The validated fields.
+        """
+
+        values = super().validate(values)
+        fields = AgentHandler.run_as_fields
+        given = [field for field in fields if field in values]
+        if given and (
+            len(given) < len(fields)
+            or len({values[field] is None for field in fields}) > 1
+        ):
+            raise serializers.ValidationError(
+                "run_as_subject_type and run_as_subject_id must be set together."
+            )
+        return values
 
 
 class AgentConversationSerializer(serializers.ModelSerializer):

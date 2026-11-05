@@ -9,8 +9,10 @@ from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.signals import application_updated
+from baserow.core.subject_options import SubjectOptionsHandler
 from baserow.core.types import PermissionCheck
 
+from .constants import RUN_AS_SUBJECT_TYPES, AgentReadinessState
 from .exceptions import AgentNotReady
 from .handler import AgentHandler
 from .models import AgentApplication, AgentConversation, AgentMessage
@@ -68,9 +70,34 @@ class AgentService:
         )
         return self.handler.get_configuration(agent)
 
+    def get_run_as_subject_options(
+        self, user: AbstractUser, agent_id: int, search: str = ""
+    ) -> QuerySet:
+        """
+        List identities selectable by a user who may change this Agent's configuration.
+
+        :param user: The user choosing a workspace identity.
+        :param agent_id: The Agent whose configuration is being edited.
+        :param search: The optional identity-name search.
+        :raises PermissionException: When the user may not read and update the Agent.
+        :return: Active identity options from the Agent's authoritative workspace.
+        """
+
+        agent = self._get_authorized_agent(
+            user,
+            agent_id,
+            UpdateApplicationOperationType.type,
+            ReadAgentConfigurationOperationType.type,
+        )
+        return SubjectOptionsHandler.get_options(
+            workspace=agent.workspace,
+            search=search,
+            subject_types=set(RUN_AS_SUBJECT_TYPES),
+        )
+
     @transaction.atomic
     def update_configuration(
-        self, user: AbstractUser, agent_id: int, **values: str | None
+        self, user: AbstractUser, agent_id: int, **values: str | int | None
     ) -> AgentConfigurationUpdated:
         """
         Save part of the configuration for a user who may update and read it.
@@ -80,8 +107,10 @@ class AgentService:
         :param values: The configuration values to set, by field name.
         :raises PermissionException: When the user may not update the Agent or read
             its configuration.
-        :return: The Agent, the names of the fields that changed and the resulting
-            configuration.
+        :raises AgentRunAsSubjectDoesNotExist: When the Agent can't act as the
+            given subject.
+        :return: The Agent, its original and new configuration values, and the
+            resolved resulting configuration.
         """
 
         agent = self._get_authorized_agent(
@@ -92,7 +121,7 @@ class AgentService:
             for_update=True,
         )
         updated = self.handler.update_configuration(agent, **values)
-        if updated.changed_fields:
+        if updated.original_values != updated.new_values:
             # Open pages refresh readiness from this public application payload.
             application_updated.send(self, application=agent, user=user)
         return updated
@@ -140,7 +169,8 @@ class AgentService:
     def _require_ready(self, agent: AgentApplication) -> None:
         """Reject new content without leaking privileged setting diagnostics."""
 
-        if self.handler.get_configuration(agent)["readiness"] != "ready":
+        readiness, _ = self.handler.get_configuration_readiness(agent)
+        if readiness != AgentReadinessState.READY:
             raise AgentNotReady
 
     def can_read_conversation(self, user: AbstractUser, conversation_id: int) -> bool:

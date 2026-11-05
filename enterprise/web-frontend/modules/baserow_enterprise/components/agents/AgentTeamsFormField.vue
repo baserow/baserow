@@ -1,16 +1,18 @@
 <template>
-  <FormGroup :label="$t('enterpriseAgents.teams')" class="margin-top-2">
+  <FormGroup :label="$t('enterpriseIdentities.teams')" class="margin-top-2">
     <div v-if="loading" class="loading"></div>
     <Alert v-else-if="loadError" type="error">
-      <template #title>{{ $t('enterpriseAgents.teamsLoadError') }}</template>
-      <p>{{ $t('enterpriseAgents.teamsLoadErrorDescription') }}</p>
+      <template #title>{{
+        $t('enterpriseIdentities.teamsLoadError')
+      }}</template>
+      <p>{{ $t('enterpriseIdentities.teamsLoadErrorDescription') }}</p>
       <Button type="secondary" @click="fetchTeams">
-        {{ $t('enterpriseAgents.retry') }}
+        {{ $t('enterpriseIdentities.retry') }}
       </Button>
     </Alert>
     <div v-else class="agent-teams-form-field">
       <span v-if="teams.length === 0" class="agent-teams-form-field__empty">
-        {{ $t('enterpriseAgents.noTeams') }}
+        {{ $t('enterpriseIdentities.noTeams') }}
       </span>
       <RadioButton
         v-for="team in teams"

@@ -18,6 +18,15 @@ export const RUN_STATUS = {
   FAILED: 'failed',
 }
 
+// Wire values of the backend ChatRunErrorCode enum.
+export const RUN_ERROR_CODE = Object.freeze({
+  FAILED: 'failed',
+  TIMEOUT: 'timeout',
+  INTERRUPTED: 'interrupted',
+  NOT_STARTED: 'not_started',
+  PERSIST_FAILED: 'persist_failed',
+})
+
 export const STATUS_CHECK_MS = 5000
 // A quiet stream sends a heartbeat about every 5 s, so this much silence means it stalled.
 export const STREAM_IDLE_MS = 15000

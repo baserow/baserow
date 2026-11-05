@@ -10,8 +10,8 @@ const names = {
   'subjectType.user': 'User',
   'subjectType.users': 'Users',
   'subjectType.anonymousUser': 'Anonymous user',
-  'subjectType.agent': 'Agent',
-  'subjectType.agents': 'Agents',
+  'subjectType.identity': 'Identity',
+  'subjectType.identities': 'Identities',
 }
 
 const context = {
@@ -26,7 +26,7 @@ describe('SubjectType', () => {
   test.each([
     [new UserSubjectType(context), 'User'],
     [new AnonymousUserSubjectType(context), 'Anonymous user'],
-    [new AgentSubjectType(context), 'Agent'],
+    [new AgentSubjectType(context), 'Identity'],
   ])('resolves its frontend display name', (subjectType, expected) => {
     expect(subjectType.getTypeDisplayName()).toBe(expected)
   })
@@ -34,7 +34,7 @@ describe('SubjectType', () => {
   test.each([
     [new UserSubjectType(context), 'Users'],
     [new AnonymousUserSubjectType(context), 'Anonymous user'],
-    [new AgentSubjectType(context), 'Agents'],
+    [new AgentSubjectType(context), 'Identities'],
   ])('resolves its plural frontend display name', (subjectType, expected) => {
     expect(subjectType.getPluralTypeDisplayName()).toBe(expected)
   })
@@ -123,13 +123,13 @@ describe('SubjectType invite options', () => {
       {
         key: 'core.Agent:4',
         name: 'Smith',
-        subtitle: 'Agent',
+        subtitle: 'Identity',
         search: 'Smith',
         avatarComponent: expect.any(Function),
       }
     )
     expect(subjectType.getSubtitle({ id: 4 })).toBeNull()
-    expect(subjectType.getBadge()).toBe('Agent')
+    expect(subjectType.getBadge()).toBe('Identity')
   })
 
   test('offers users and agents but not anonymous visitors for role assignments', () => {

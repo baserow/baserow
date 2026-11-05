@@ -4165,7 +4165,12 @@ class ViewHandler:
                 )
 
             if not has_adhoc_sorting:
-                effective_order_by = serialize_sorts_to_string(view.viewsort_set.all())
+                # The public view info leaves out sorts on hidden fields too.
+                effective_order_by = serialize_sorts_to_string(
+                    sort
+                    for sort in view.viewsort_set.all()
+                    if sort.field_id in visible_field_ids
+                )
 
             queryset = queryset.order_by_fields_string(
                 effective_order_by,

@@ -141,6 +141,86 @@ describe('ScopeInvitationTargetType', () => {
   })
 })
 
+describe('ScopeInvitationTargetType invitation links', () => {
+  const target = {
+    scopeType: 'database_table',
+    scope: { id: 5, name: 'Sales' },
+  }
+
+  test('manages the links of the object through the role endpoints', async () => {
+    const link = { id: 4, slug: 'abc', permissions: 'EDITOR', name: '' }
+    const client = {
+      get: vi.fn().mockResolvedValue({ data: [link] }),
+      post: vi.fn().mockResolvedValue({ data: link }),
+      patch: vi.fn().mockResolvedValue({ data: { ...link, name: 'Partners' } }),
+      delete: vi.fn().mockResolvedValue({}),
+    }
+    const targetType = new ScopeInvitationTargetType({ app: createApp(client) })
+
+    expect(targetType.supportsInvitationLinks(workspace, target)).toBe(true)
+
+    expect(await targetType.fetchInvitationLinks(workspace, target)).toEqual([
+      link,
+    ])
+    expect(client.get).toHaveBeenCalledWith('/role/12/invitation-links/', {
+      params: { scope_id: 5, scope_type: 'database_table' },
+    })
+
+    expect(
+      await targetType.createInvitationLink(workspace, target, 'EDITOR')
+    ).toEqual(link)
+    expect(client.post).toHaveBeenCalledWith('/role/12/invitation-links/', {
+      name: '',
+      permissions: 'EDITOR',
+      scope_id: 5,
+      scope_type: 'database_table',
+    })
+
+    const updated = await targetType.updateInvitationLink(
+      workspace,
+      target,
+      link,
+      { name: 'Partners' }
+    )
+    expect(updated.name).toBe('Partners')
+    expect(client.patch).toHaveBeenCalledWith('/role/invitation-links/4/', {
+      name: 'Partners',
+    })
+
+    await targetType.deleteInvitationLink(workspace, target, link)
+    expect(client.delete).toHaveBeenCalledWith('/role/invitation-links/4/')
+  })
+
+  test.each([
+    ['restricted', true],
+    ['collaborative', false],
+    ['personal', false],
+  ])(
+    'offers view links only for restricted views (%s)',
+    (ownershipType, expected) => {
+      const targetType = new ScopeInvitationTargetType({ app: createApp() })
+
+      expect(
+        targetType.supportsInvitationLinks(workspace, {
+          scopeType: 'database_view',
+          scope: { id: 9, ownership_type: ownershipType },
+        })
+      ).toBe(expected)
+    }
+  )
+
+  test('warns about what a link to the object gives', () => {
+    const targetType = new ScopeInvitationTargetType({ app: createApp() })
+
+    expect(targetType.getInvitationLinkAdminWarning(workspace, target)).toBe(
+      'scopeInvitationTarget.linkAdminWarning:{"name":"Sales"}'
+    )
+    expect(targetType.getInvitationLinkDeleteWarning(workspace, target)).toBe(
+      'scopeInvitationTarget.linkDeleteWarning:{"name":"Sales"}'
+    )
+  })
+})
+
 describe('MemberInvitationRouteType', () => {
   test('is only enabled for scope targets with the RBAC feature', () => {
     const app = createApp()

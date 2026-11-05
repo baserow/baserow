@@ -1,14 +1,53 @@
+from functools import partial
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
-from django.db import transaction
+from django.db import DEFAULT_DB_ALIAS, transaction
 from django.dispatch import receiver
 
 from rest_framework.fields import DateTimeField
 
 from baserow.contrib.agent.models import AgentConversation
 from baserow.contrib.agent.signals import agent_conversation_updated
+from baserow.contrib.agent.ws.tasks import broadcast_run_as_updates
+from baserow.core.agents.signals import agent_created, agent_deleted, agent_updated
+from baserow.core.models import Agent
+from baserow.core.trash.signals import permanently_deleted
 from baserow.ws.tasks import broadcast_to_users
+
+
+@receiver(agent_created)
+@receiver(agent_deleted)
+def run_as_identity_changed(sender, agent: Agent, **kwargs) -> None:
+    """Refresh application-scoped identity state after creation, restore or trash."""
+
+    transaction.on_commit(
+        partial(broadcast_run_as_updates.delay, agent.workspace_id, agent.id),
+        using=DEFAULT_DB_ALIAS,
+    )
+
+
+@receiver(agent_updated)
+def run_as_identity_updated(sender, agent: Agent, updated_fields=(), **kwargs) -> None:
+    """Role and team changes do not alter identity names or availability."""
+
+    if "name" in updated_fields:
+        run_as_identity_changed(sender, agent)
+
+
+@receiver(permanently_deleted)
+def run_as_identity_permanently_deleted(
+    sender, trash_item, trash_item_id: int, **kwargs
+) -> None:
+    """Refresh references after an identity is permanently removed from trash."""
+
+    if isinstance(trash_item, Agent):
+        transaction.on_commit(
+            partial(
+                broadcast_run_as_updates.delay, trash_item.workspace_id, trash_item_id
+            ),
+            using=DEFAULT_DB_ALIAS,
+        )
 
 
 @receiver(agent_conversation_updated)

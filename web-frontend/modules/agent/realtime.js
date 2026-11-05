@@ -1,7 +1,8 @@
+import { AGENT_APPLICATION_TYPE } from '@baserow/modules/agent/constants'
 export const registerRealtimeEvents = (realtime) => {
   realtime.registerEvent('agent_conversation_updated', ({ store }, data) => {
     const agent = store.getters['application/get'](data.agent_id)
-    if (agent?.type !== 'agent') return
+    if (agent?.type !== AGENT_APPLICATION_TYPE) return
 
     // Only invalidation metadata enters the application store. Private content
     // is fetched through the permission-checked API by the open Agent page.

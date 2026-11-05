@@ -7,6 +7,7 @@ from urllib.parse import parse_qsl, urlparse
 
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
+from django.db.models import Max
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils.timezone import now
@@ -15,6 +16,8 @@ import pytest
 import responses
 from rest_framework.status import HTTP_302_FOUND, HTTP_404_NOT_FOUND
 
+from baserow.core.app_auth_providers.models import AppAuthProvider
+from baserow.core.auth_provider.models import AuthProviderModel
 from baserow.core.auth_provider.types import UserInfo
 from baserow.core.cache import global_cache
 from baserow.core.registries import plugin_registry
@@ -25,6 +28,7 @@ from baserow_enterprise.integrations.common.sso.oauth2.app_auth_provider_types i
 from baserow_enterprise.integrations.common.sso.oauth2.models import (
     OpenIdConnectAppAuthProviderModel,
 )
+from baserow_enterprise.sso.oauth2.models import OpenIdConnectAuthProviderModel
 from baserow_premium.application_user_usage.constants import (
     DEFAULT_APPLICATION_USERS_LIMIT,
 )
@@ -532,7 +536,20 @@ def builder_and_core_providers_with_the_same_id(
     id, and both have the `openid_connect` type.
     """
 
+    data = populate_local_baserow_test_data(data_fixture)
+    user_source = data["user_source"]
+    # The builder fixture creates password providers, so choose an id unused by
+    # either parent table before creating the two providers with the same id.
+    shared_id = (
+        max(
+            AuthProviderModel.objects.aggregate(value=Max("id"))["value"] or 0,
+            AppAuthProvider.objects.aggregate(value=Max("id"))["value"] or 0,
+        )
+        + 1
+    )
     core_provider = enterprise_data_fixture.create_oauth_provider(
+        id=shared_id,
+        content_type=ContentType.objects.get_for_model(OpenIdConnectAuthProviderModel),
         type="openid_connect",
         client_id="clientid",
         secret="secret",
@@ -541,8 +558,6 @@ def builder_and_core_providers_with_the_same_id(
         access_token_url="https://core-idp.example.com/token",
         user_info_url="https://core-idp.example.com/userinfo",
     )
-    data = populate_local_baserow_test_data(data_fixture)
-    user_source = data["user_source"]
     builder_provider = OpenIdConnectAppAuthProviderModel.objects.create(
         id=core_provider.id,
         content_type=ContentType.objects.get_for_model(

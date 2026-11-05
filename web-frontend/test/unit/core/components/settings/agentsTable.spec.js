@@ -65,7 +65,7 @@ describe('AgentsTable', () => {
       global: {
         mocks: {
           $t: (key, params) =>
-            key === 'agents.title' ? `${params.count} agents` : key,
+            key === 'identities.title' ? `${params.count} agents` : key,
         },
       },
       props: {
@@ -186,14 +186,14 @@ describe('AgentsTable', () => {
       expect(
         wrapper
           .findAll('button')
-          .filter((button) => button.text() === 'agents.create')
+          .filter((button) => button.text() === 'identities.create')
       ).toHaveLength(createButtonCount)
       expect(wrapper.find('.column-count').text()).toBe(String(columnCount))
 
       await wrapper.find('.open-row').trigger('click')
       await flushPromises()
-      expect(wrapper.text().includes('agents.edit')).toBe(showsEdit)
-      expect(wrapper.text().includes('agents.delete')).toBe(showsDelete)
+      expect(wrapper.text().includes('identities.edit')).toBe(showsEdit)
+      expect(wrapper.text().includes('identities.delete')).toBe(showsDelete)
       expect(
         wrapper
           .findAll('.agent-modal')

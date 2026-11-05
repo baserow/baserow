@@ -18,7 +18,7 @@ export class EnterpriseTeamsAgentExtensionType extends AgentExtensionType {
       ...columns,
       new CrudTableColumn(
         'teams',
-        this.app.$i18n.t('enterpriseAgents.teams'),
+        this.app.$i18n.t('enterpriseIdentities.teams'),
         AgentTeamsCell
       ),
     ]

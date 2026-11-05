@@ -29,6 +29,7 @@
 </template>
 
 <script setup>
+import { MESSAGE_ROLE } from '@baserow/modules/agent/constants'
 import { computed } from 'vue'
 import { useStore } from 'vuex'
 import ChatMessageFooter from '@baserow/modules/core/components/chat/ChatMessageFooter'
@@ -41,7 +42,7 @@ import { replyOutcome } from '@baserow/modules/agent/utils/replies'
 const props = defineProps({ message: { type: Object, required: true } })
 
 const store = useStore()
-const own = computed(() => props.message.role === 'user')
+const own = computed(() => props.message.role === MESSAGE_ROLE.USER)
 /** The saved message, or what its run wrote so far while it isn't saved. */
 const shown = computed(() => {
   const { message } = props

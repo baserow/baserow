@@ -161,7 +161,7 @@ const sectionItems = computed(() =>
     label: registered.name,
     description: registered.description,
     icon: registered.icon,
-    error: registered.getErrorMessage(props.errors),
+    error: registered.getErrorMessage(props.errors, props.configuration),
   }))
 )
 

@@ -228,14 +228,14 @@ test('only mentions and offers the subject types it is given', async () => {
   try {
     const input = withAgents.find('input')
     expect(input.attributes('placeholder')).toBe(
-      'shareScope.searchPlaceholder: subjecttype.members, subjecttype.teams, subjecttype.agents'
+      'shareScope.searchPlaceholder: subjecttype.members, subjecttype.teams, subjecttype.identities'
     )
     await input.trigger('focus')
     expect(tabLabels(withAgents)).toEqual([
       'inviteInput.tabAll',
       'subjectType.members',
       'subjectType.teams',
-      'subjectType.agents',
+      'subjectType.identities',
     ])
     expect(itemTitles(withAgents)).toEqual([
       'Mark Delgado',
@@ -245,7 +245,7 @@ test('only mentions and offers the subject types it is given', async () => {
 
     await input.setValue('nobody')
     expect(withAgents.find('.invite-input__empty').text()).toBe(
-      'shareScope.noResults: subjecttype.members, subjecttype.teams, or subjecttype.agents'
+      'shareScope.noResults: subjecttype.members, subjecttype.teams, or subjecttype.identities'
     )
   } finally {
     withAgents.unmount()

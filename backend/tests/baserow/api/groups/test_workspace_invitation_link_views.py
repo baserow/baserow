@@ -285,6 +285,9 @@ def test_get_public_workspace_invitation_link(api_client, data_fixture, settings
         "invited_by": "Bram",
         "workspace": "Widelab",
         "workspace_id": workspace.id,
+        "scope_type": None,
+        "scope_id": None,
+        "scope_name": None,
         "role_upgrade": None,
     }
 
