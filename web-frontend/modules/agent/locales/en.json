@@ -28,6 +28,7 @@
     "toolWebSearchRunning": "Searching the web",
     "toolWebSearchDone": "Searched the web",
     "toolWebSearchTarget": "{activity}: {target}",
+    "toolWebSearchLimitReached": "Reached the search limit for this reply",
     "toolWebSearchOpenPage": "Open a web page",
     "toolWebSearchOpenPageRunning": "Opening a web page",
     "toolWebSearchOpenPageDone": "Opened a web page",
