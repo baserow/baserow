@@ -273,6 +273,9 @@ def test_configuration_audit_snapshots_record_tools_and_ignore_reordered_lists(
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
+    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
+    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    agent.save()
     registered = mocker.spy(
         UpdateAgentConfigurationActionType, "send_action_done_signal"
     )
@@ -311,6 +314,9 @@ def test_tool_configuration_updates_the_timestamp_only_when_values_change(
 ):
     with freeze_time() as clock:
         agent = configured_agent(user=api_user)
+        identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
+        agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+        agent.save()
         url = agent_url(agent, "configuration")
         created_on = agent.updated_on
 
@@ -629,7 +635,11 @@ def test_run_as_rejects_subjects_the_agent_cannot_act_as(
 def test_allowed_tools_are_replaced_and_validated(
     configured_agent, api_client, api_user
 ):
-    url = agent_url(configured_agent(user=api_user), "configuration")
+    agent = configured_agent(user=api_user)
+    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
+    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    agent.save()
+    url = agent_url(agent, "configuration")
 
     response = api_client.patch(
         url, {"allowed_tools": ["create_rows", "list_table_rows"]}
@@ -651,6 +661,145 @@ def test_allowed_tools_are_replaced_and_validated(
     ]
 
     assert api_client.patch(url, {"allowed_tools": []}).json()["allowed_tools"] == []
+
+
+@pytest.mark.django_db
+def test_workspace_tools_stay_off_without_a_selected_identity(
+    configured_agent, api_client, api_user, mocker
+):
+    agent = configured_agent(user=api_user)
+    registered = mocker.spy(
+        UpdateAgentConfigurationActionType, "send_action_done_signal"
+    )
+    updated_on = agent.updated_on
+
+    response = api_client.patch(
+        agent_url(agent, "configuration"), {"allowed_tools": ["create_rows"]}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["run_as"] is None
+    assert response.json()["allowed_tools"] == []
+    assert response.json()["readiness"] == "ready"
+    agent.refresh_from_db()
+    assert not agent.allowed_tools.exists()
+    assert agent.updated_on == updated_on
+    registered.assert_not_called()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("submitted_tools", [None, ["list_tables", "create_rows"]])
+def test_no_workspace_access_clears_tools_in_the_configuration_update(
+    configured_agent, api_client, api_user, mocker, submitted_tools
+):
+    with freeze_time() as clock:
+        agent = configured_agent(user=api_user)
+        identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
+        agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+        agent.save()
+        AgentHandler().set_allowed_tools(agent, ["list_tables", "create_rows"])
+        previous_updated_on = agent.updated_on
+        registered = mocker.spy(
+            UpdateAgentConfigurationActionType, "send_action_done_signal"
+        )
+        values = {"run_as_subject_type": None, "run_as_subject_id": None}
+        if submitted_tools is not None:
+            values["allowed_tools"] = submitted_tools
+
+        clock.tick(1)
+        response = api_client.patch(agent_url(agent, "configuration"), values)
+
+        assert response.status_code == 200
+        assert response.json()["run_as"] is None
+        assert response.json()["allowed_tools"] == []
+        agent.refresh_from_db()
+        assert (agent.run_as_subject_type, agent.run_as_subject_id) == (None, None)
+        assert not agent.allowed_tools.exists()
+        assert agent.updated_on > previous_updated_on
+        registered.assert_called_once()
+        params = registered.call_args.args[1]
+        assert params["original_values"]["allowed_tools"] == [
+            "list_tables",
+            "create_rows",
+        ]
+        assert params["new_values"]["allowed_tools"] == []
+        assert params["new_values"]["run_as_subject_id"] is None
+
+
+@pytest.mark.django_db
+def test_selecting_an_identity_does_not_reactivate_legacy_default_tools(
+    configured_agent, api_client, api_user
+):
+    agent = configured_agent(user=api_user)
+    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
+    # Previous versions inserted read tools even with No workspace access.
+    AgentHandler().set_allowed_tools(agent, ["list_tables", "create_rows"])
+    url = agent_url(agent, "configuration")
+
+    assert api_client.get(url).json()["allowed_tools"] == []
+    assert agent.allowed_tools.count() == 2  # Reading does not mutate saved data.
+    response = api_client.patch(
+        url,
+        {"run_as_subject_type": "core.Agent", "run_as_subject_id": identity.id},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["run_as"]["id"] == identity.id
+    assert response.json()["allowed_tools"] == []
+    assert not agent.allowed_tools.exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("state", ["trashed", "missing"])
+def test_unavailable_selected_identity_keeps_its_tool_configuration(
+    configured_agent, api_client, api_user, state
+):
+    agent = configured_agent(user=api_user)
+    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
+    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    agent.save()
+    AgentHandler().set_allowed_tools(agent, ["list_tables", "create_rows"])
+    if state == "trashed":
+        identity.trashed = True
+        identity.save()
+    else:
+        identity.delete()
+
+    response = api_client.patch(
+        agent_url(agent, "configuration"), {"instructions": "Updated instructions"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["run_as"]["status"] == state
+    assert response.json()["allowed_tools"] == ["list_tables", "create_rows"]
+    assert agent.allowed_tools.count() == 2
+
+
+@pytest.mark.django_db
+def test_clearing_workspace_access_rolls_back_both_identity_and_tools_on_failure(
+    configured_agent, api_user, mocker
+):
+    agent = configured_agent(user=api_user)
+    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
+    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    agent.save()
+    handler = AgentHandler()
+    handler.set_allowed_tools(agent, ["create_rows"])
+    set_allowed_tools = AgentHandler.set_allowed_tools
+
+    def fail_after_clearing(self, agent, names):
+        set_allowed_tools(self, agent, names)
+        raise RuntimeError("Failed after clearing tools")
+
+    mocker.patch.object(AgentHandler, "set_allowed_tools", fail_after_clearing)
+    with pytest.raises(RuntimeError, match="Failed after clearing tools"):
+        UpdateAgentConfigurationActionType.do(
+            api_user, agent.id, run_as_subject_type=None, run_as_subject_id=None
+        )
+
+    agent.refresh_from_db()
+    assert agent.run_as_subject_id == identity.id
+    assert handler.get_allowed_tool_names(agent) == ["create_rows"]
 
 
 @pytest.mark.django_db

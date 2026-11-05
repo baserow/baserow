@@ -88,7 +88,7 @@ def test_duplicate_copies_conversations_with_new_identifiers(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("trashed", [False, True])
-def test_copies_keep_the_tools_and_only_same_workspace_copies_keep_run_as(
+def test_only_copies_that_keep_run_as_keep_the_tools(
     data_fixture, configured_agent, trashed
 ):
     user = data_fixture.create_user()
@@ -118,9 +118,12 @@ def test_copies_keep_the_tools_and_only_same_workspace_copies_keep_run_as(
     assert resolution.status == (
         AgentRunAsState.TRASHED if trashed else AgentRunAsState.ACTIVE
     )
-    assert [
-        AgentHandler().get_allowed_tool_names(copy) for copy in (duplicate, imported)
-    ] == [["list_tables", "create_rows"]] * 2
+    assert AgentHandler().get_allowed_tool_names(duplicate) == [
+        "list_tables",
+        "create_rows",
+    ]
+    assert AgentHandler().get_allowed_tool_names(imported) == []
+    assert not imported.allowed_tools.exists()
 
 
 @pytest.mark.django_db
@@ -158,6 +161,7 @@ def test_snapshot_preserves_run_as_through_identity_trash_and_restore(
     )
     agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
     agent.save()
+    AgentHandler().set_allowed_tools(agent, ["list_tables", "create_rows"])
     snapshot = data_fixture.create_snapshot(
         snapshot_from_application=agent, name=agent.name, created_by=user
     )
@@ -171,6 +175,10 @@ def test_snapshot_preserves_run_as_through_identity_trash_and_restore(
         "core.Agent",
         identity.id,
     )
+    assert AgentHandler().get_allowed_tool_names(archived) == [
+        "list_tables",
+        "create_rows",
+    ]
 
     identity.trashed = True
     identity.save()
@@ -180,6 +188,7 @@ def test_snapshot_preserves_run_as_through_identity_trash_and_restore(
         identity.id,
     )
     handler = AgentHandler()
+    assert handler.get_allowed_tool_names(restored) == ["list_tables", "create_rows"]
     assert (
         handler.get_usable_run_as_subject(
             restored.run_as_subject_type, restored.run_as_subject_id, restored.workspace
@@ -244,6 +253,7 @@ def test_portable_import_clears_run_as_even_when_identity_exists(
     agent = configured_agent()
     identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
     agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    AgentHandler().set_allowed_tools(agent, ["list_tables", "create_rows"])
 
     imported = AgentApplicationType().import_serialized(
         agent.workspace,
@@ -253,6 +263,7 @@ def test_portable_import_clears_run_as_even_when_identity_exists(
     )
 
     assert (imported.run_as_subject_type, imported.run_as_subject_id) == (None, None)
+    assert not imported.allowed_tools.exists()
 
 
 @pytest.mark.django_db
@@ -263,6 +274,7 @@ def test_template_install_clears_run_as_with_a_destination_identity_collision(
     agent = configured_agent(user=user)
     identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
     agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    AgentHandler().set_allowed_tools(agent, ["list_tables", "create_rows"])
     template = data_fixture.create_template(slug="agent-identity-collision")
     settings.APPLICATION_TEMPLATES_DIR = str(tmp_path)
     # Old or crafted templates can contain an id that is valid in the destination.
@@ -276,6 +288,7 @@ def test_template_install_clears_run_as_with_a_destination_identity_collision(
 
     installed = applications[0].specific
     assert (installed.run_as_subject_type, installed.run_as_subject_id) == (None, None)
+    assert not installed.allowed_tools.exists()
 
 
 @pytest.mark.django_db

@@ -65,7 +65,7 @@ def test_agent_creation_requires_feature_flag(data_fixture, settings, enabled):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("models_available", [True, False])
-def test_new_agent_selects_the_first_enabled_model_and_the_read_tools(
+def test_new_agent_selects_the_first_enabled_model_and_starts_with_tools_off(
     data_fixture, models_available
 ):
     user = data_fixture.create_user()
@@ -93,12 +93,8 @@ def test_new_agent_selects_the_first_enabled_model_and_the_read_tools(
         ("openai", "first-enabled") if models_available else (None, None)
     )
     assert agent.instructions == ""
-    assert AgentHandler().get_allowed_tool_names(agent) == [
-        "list_tables",
-        "get_table_schema",
-        "list_table_rows",
-        "list_views",
-    ]
+    assert AgentHandler().get_allowed_tool_names(agent) == []
+    assert not agent.allowed_tools.exists()
 
 
 @pytest.mark.import_export_workspace

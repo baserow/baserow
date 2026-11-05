@@ -38,19 +38,13 @@
       </template>
     </PaginatedDropdown>
   </FormGroup>
-  <Alert
-    v-if="toolsInactive"
-    type="warning"
-    class="margin-top-3 margin-bottom-0"
-  >
-    {{ $t('agent.toolsInactiveWithoutIdentity') }}
-  </Alert>
   <AgentWorkspaceTools
     class="margin-top-3"
-    :allowed-tools="configuration.allowed_tools"
+    :allowed-tools="configuredTools"
     :available-tools="configuration.available_tools"
     :agent-name="agent.name"
-    :editable="editable"
+    :editable="editable && identityAvailable"
+    :disabled-reason="identityAvailable ? '' : $t('agent.toolsRequireIdentity')"
     @update="changeAllowedTools"
   />
 </template>
@@ -79,12 +73,11 @@ const agent = inject('agentApplication')
 const runAsDropdown = ref(null)
 
 const status = computed(() => getRunAsStatus(props.configuration.run_as))
-// Tool settings survive an unavailable identity and can be changed before a new
-// identity grants them workspace access for subsequent replies.
-const toolsInactive = computed(
-  () =>
-    props.configuration.allowed_tools.length > 0 &&
-    status.value !== RUN_AS_STATUS.ACTIVE
+const identityAvailable = computed(() => status.value === RUN_AS_STATUS.ACTIVE)
+// Intentionally unset access means tools are off. A broken selected identity
+// keeps its settings visible so restoring or replacing it recovers the setup.
+const configuredTools = computed(() =>
+  status.value === RUN_AS_STATUS.UNSET ? [] : props.configuration.allowed_tools
 )
 const unavailable = computed(() =>
   [RUN_AS_STATUS.TRASHED, RUN_AS_STATUS.MISSING].includes(status.value)
@@ -133,6 +126,7 @@ function fetchIdentities(page, search) {
 }
 
 function changeAllowedTools(allowedTools) {
+  if (!props.editable || !identityAvailable.value) return
   emit('change', { allowed_tools: allowedTools })
   emit('flush')
 }
@@ -150,6 +144,9 @@ function select({ value, item }) {
             trashed: false,
             status: RUN_AS_STATUS.ACTIVE,
           },
+    ...(value === NO_WORKSPACE_ACCESS || status.value === RUN_AS_STATUS.UNSET
+      ? { allowed_tools: [] }
+      : {}),
   })
   emit('flush')
 }

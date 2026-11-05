@@ -139,12 +139,15 @@ class AgentHandler:
 
     def get_allowed_tool_names(self, agent: AgentApplication) -> list[str]:
         """
-        Return the tools the Agent may call, leaving out tools no longer registered.
+        Return configured tools, excluding intentionally unset workspace access.
 
         :param agent: The Agent to read.
-        :return: The tool names, in registry order.
+        :return: Registered tool names in registry order. An unavailable selected
+            identity retains its settings, but no selected identity means tools are off.
         """
 
+        if not agent.run_as_subject_type or not agent.run_as_subject_id:
+            return []
         names = set(agent.allowed_tools.values_list("name", flat=True))
         return [name for name in agent_tool_type_registry.get_types() if name in names]
 
@@ -258,7 +261,9 @@ class AgentHandler:
         :param values: The configuration values to set, by field name, and
             ``allowed_tools``, the names of all the tools the Agent may call. The caller
             must validate their types, lengths and tool names beforehand, and pass
-            the run-as type and id together. Unknown field names are ignored.
+            the run-as type and id together. Clearing the identity clears tools;
+            without a selected identity, submitted tools remain off. Unknown field
+            names are ignored.
         :raises AgentRunAsSubjectDoesNotExist: When the Agent can't act as the
             given subject.
         :return: The Agent, its original and new configuration values, and the
@@ -266,6 +271,7 @@ class AgentHandler:
         """
 
         allowed_tools = values.get("allowed_tools")
+        had_run_as = bool(agent.run_as_subject_type and agent.run_as_subject_id)
         allowed_fields = [*self.configuration_fields, *self.run_as_fields]
         values = extract_allowed(values, allowed_fields)
         run_as = [values.get(field) for field in self.run_as_fields]
@@ -282,12 +288,17 @@ class AgentHandler:
             if getattr(agent, field) != value:
                 setattr(agent, field, value)
                 changed_fields.append(field)
+        has_run_as = bool(agent.run_as_subject_type and agent.run_as_subject_id)
+        if not has_run_as or (not had_run_as and allowed_tools is None):
+            # No workspace access deliberately turns tools off. Selecting an
+            # identity later must not reactivate old default tool rows.
+            allowed_tools = []
         tools_changed = allowed_tools is not None and set(allowed_tools) != set(
             original_values["allowed_tools"]
         )
         if changed_fields or tools_changed:
             agent.save(update_fields=[*changed_fields, "updated_on"])
-        if tools_changed:
+        if tools_changed or not has_run_as or not had_run_as:
             self.set_allowed_tools(agent, allowed_tools)
         configuration = self.get_configuration(agent)
         return AgentConfigurationUpdated(

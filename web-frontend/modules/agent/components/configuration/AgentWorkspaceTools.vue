@@ -6,7 +6,7 @@
           {{ $t('agent.workspaceTools') }}
         </div>
         <div class="agent-workspace-tools__description">
-          {{ $t('agent.workspaceToolsDescription') }}
+          {{ disabledReason || $t('agent.workspaceToolsDescription') }}
         </div>
       </div>
       <SwitchInput
@@ -29,6 +29,7 @@
         class="agent-workspace-tools__presets"
         :segments="presets"
         :active-index="presetIndex"
+        :disabled="!editable"
         size="small"
         @update:active-index="choosePreset"
       />
@@ -46,7 +47,7 @@
         <span class="agent-workspace-tools__group-name">{{ group.label }}</span>
         <span class="agent-workspace-tools__group-count">
           {{
-            $t('agent.toolsOn', {
+            $t(disabledReason ? 'agent.toolsSelected' : 'agent.toolsOn', {
               count: group.tools.filter((tool) =>
                 allowedTools.includes(tool.name)
               ).length,
@@ -84,6 +85,7 @@ const props = defineProps({
   availableTools: { type: Array, required: true },
   agentName: { type: String, required: true },
   editable: Boolean,
+  disabledReason: { type: String, default: '' },
 })
 const emit = defineEmits(['update'])
 const { t } = useI18n()

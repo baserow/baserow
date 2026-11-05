@@ -149,7 +149,8 @@ class AgentConfigurationUpdateSerializer(
         allow_null=True,
         required=False,
         help_text="The type of the identity the agent's tools act as. Provide it "
-        "with run_as_subject_id; both null means no workspace access.",
+        "with run_as_subject_id; both null means no workspace access and clears "
+        "the allowed tools.",
     )
     run_as_subject_id = serializers.IntegerField(
         allow_null=True,
@@ -160,7 +161,7 @@ class AgentConfigurationUpdateSerializer(
         child=serializers.CharField(),
         required=False,
         help_text="The names of all the tools the agent may call. Tools left out "
-        "are turned off.",
+        "are turned off. Without a selected Run as identity, all tools stay off.",
     )
 
     class Meta:
