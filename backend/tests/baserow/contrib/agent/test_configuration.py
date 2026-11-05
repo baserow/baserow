@@ -141,6 +141,7 @@ def test_configuration_update_records_full_snapshots_and_ignores_noop_drafts(
         "run_as_subject_type": None,
         "run_as_subject_id": None,
         "allowed_tools": [],
+        "web_search_enabled": False,
     }
     params = registered.call_args.args[1]
     assert params == {
@@ -174,6 +175,7 @@ def test_configuration_audit_snapshots_record_normalized_values(
         "run_as_subject_type": None,
         "run_as_subject_id": None,
         "allowed_tools": [],
+        "web_search_enabled": False,
     }
 
     UpdateAgentConfigurationActionType.do(
@@ -235,6 +237,7 @@ def test_configuration_audit_snapshots_record_identity_assignment_replacement_an
             "run_as_subject_type": None,
             "run_as_subject_id": None,
             "allowed_tools": [],
+            "web_search_enabled": False,
         }
     ]
     for identity in (first, second, None):
@@ -861,6 +864,9 @@ def test_configuration_is_served_only_by_the_agent_endpoints(
         "run_as": None,
         "allowed_tools": [],
         "available_tools": ANY,
+        "web_search_enabled": False,
+        "web_search_available": True,
+        "web_search_blocked_by_tools": False,
         "errors": {},
     }
     assert response.json() == configuration

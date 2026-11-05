@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from uuid import UUID
 
+from pydantic_ai import WebSearchTool
+
 from baserow.core.chat_runs.types import ChatRunStep
 from baserow.core.models import Workspace
 from baserow.core.types import Subject
@@ -30,6 +32,9 @@ class AgentConfiguration:
     model_identifier: str | None
     run_as: AgentRunAsResolution
     allowed_tools: list[str]
+    web_search_enabled: bool
+    web_search_available: bool
+    web_search_blocked_by_tools: bool
     errors: dict[str, AgentConfigurationErrorCode]
 
 
@@ -70,6 +75,10 @@ class AgentReplyRequest:
     """The tools the reply may call, none without an identity to act as."""
     timezone: str | None = None
     """The timezone of the owner, for the dates the tools read and write."""
+    web_search_tool: WebSearchTool | None = None
+    """The provider's web search, when it's turned on and the model has one."""
+    web_search_enabled: bool = False
+    """Whether web search is turned on, even when the model can't use it."""
 
 
 @dataclass(frozen=True)

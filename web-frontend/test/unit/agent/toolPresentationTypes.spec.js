@@ -57,6 +57,8 @@ describe('Agent tool presentations', () => {
       registry
         .getList('toolPresentation')
         .map((presenter) => presenter.getType())
+        // The provider runs web search, so the backend has no agent tool for it.
+        .filter((type) => type !== 'web_search')
         .sort()
     ).toEqual(cases.tools.map(({ name }) => name).sort())
     for (const { name, input, facts } of cases.tools) {
@@ -321,4 +323,53 @@ describe('Agent tool presentations', () => {
       })
     }
   )
+
+  test.each([
+    ['running', 'Searching the web: baserow'],
+    ['done', 'Searched the web: baserow'],
+    ['failed', 'Search the web: baserow'],
+    ['stopped', 'Search the web: baserow'],
+  ])('shows a %s web search with its query', (status, title) => {
+    const activity = toolActivity(
+      step('web_search', status, { input: { queries: [' baserow '] } }),
+      registry,
+      t
+    )
+    expect(activity.title).toBe(title)
+    expect(activity.group).toBeNull()
+  })
+
+  test.each([undefined, 42, '  ', [], ['  '], [42]])(
+    'shows a web search without a usable query: %j',
+    (queries) => {
+      const activity = toolActivity(
+        step('web_search', 'done', { input: { queries } }),
+        registry,
+        t
+      )
+      expect(activity.title).toBe('Searched the web')
+    }
+  )
+
+  test('shows every query of a web search', () => {
+    const activity = toolActivity(
+      step('web_search', 'done', { input: { queries: ['a', 'b'] } }),
+      registry,
+      t
+    )
+    expect(activity.title).toBe('Searched the web: a, b')
+  })
+
+  test.each([
+    ['running', 'Opening a web page: https://x.test'],
+    ['done', 'Opened a web page: https://x.test'],
+    ['failed', 'Open a web page: https://x.test'],
+  ])('shows a %s page the provider opened', (status, title) => {
+    const activity = toolActivity(
+      step('web_search', status, { input: { url: 'https://x.test' } }),
+      registry,
+      t
+    )
+    expect(activity.title).toBe(title)
+  })
 })
