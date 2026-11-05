@@ -268,6 +268,40 @@
   justify-content: space-between;
 }
 
+.ai-provider-form__workspaces {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ai-provider-form__workspace {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 4px 8px;
+  background: $palette-neutral-100;
+  border: 1px solid $palette-neutral-300;
+  border-radius: 4px;
+  font-size: 12px;
+
+  > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  > button {
+    display: flex;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: $palette-neutral-900;
+    cursor: pointer;
+  }
+}
+
 .ai-provider-form__hint {
   margin-top: 6px;
   color: $palette-neutral-900;

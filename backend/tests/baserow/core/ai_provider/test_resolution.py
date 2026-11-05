@@ -7,13 +7,21 @@ from baserow.core.ai_provider.constants import (
     AI_PROVIDER_FEATURE_KUMA,
     AI_PROVIDER_FEATURE_MODE_MODEL,
 )
+from baserow.core.ai_provider.exceptions import (
+    AIProviderDoesNotExist,
+    AIProviderFeatureModelNotAvailable,
+    AIProviderModelDoesNotExist,
+)
 from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.ai_provider.models import (
     AIProviderConfig,
     AIProviderModel,
     AIProviderWorkspaceOverride,
 )
-from baserow.core.ai_provider.resolution import get_ai_provider_state
+from baserow.core.ai_provider.resolution import (
+    get_ai_provider_state,
+    load_ai_provider_state,
+)
 from baserow.core.cache import local_cache
 from baserow.core.generative_ai.generative_ai_model_types import (
     GoogleGenerativeAIModelType,
@@ -519,6 +527,143 @@ def test_single_scope_state_is_cached_for_the_local_request(data_fixture, settin
         with CaptureQueriesContext(connection) as repeated_load_queries:
             repeated_state = get_ai_provider_state(workspace)
 
-    assert len(first_load_queries) == 4
+    assert len(first_load_queries) == 5
     assert len(repeated_load_queries) == 0
     assert repeated_state is first_state
+
+
+@pytest.mark.django_db
+def test_excluded_workspaces_cannot_resolve_instance_provider_or_environment(
+    data_fixture, settings
+):
+    settings.BASEROW_OPENAI_API_KEY = "environment-key"
+    settings.BASEROW_OPENAI_MODELS = ["instance-model", "environment-model"]
+    excluded = data_fixture.create_workspace()
+    allowed = data_fixture.create_workspace()
+    provider = AIProviderHandler.create_provider(
+        "openai",
+        api_key="instance-key",
+        models_data=[{"model_identifier": "instance-model"}],
+        excluded_workspaces=[excluded],
+    )
+    model_type = OpenAIGenerativeAIModelType()
+
+    states = load_ai_provider_state([excluded, allowed])
+    assert states[excluded.id].excluded_instance_provider_ids == {provider.id}
+    assert states[allowed.id].excluded_instance_provider_ids == set()
+    for state in [states[excluded.id], get_ai_provider_state(excluded)]:
+        assert model_type.get_enabled_models(excluded, state=state) == []
+        assert model_type.get_api_key(excluded, state=state) is None
+        assert (
+            model_type.get_model_settings_override(
+                "instance-model", excluded, state=state
+            )
+            is None
+        )
+        assert (
+            model_type.get_model_settings_override(
+                "environment-model", excluded, state=state
+            )
+            is None
+        )
+        assert AIProviderHandler.list_providers(excluded, state=state) == []
+    assert AIProviderHandler.list_providers(excluded) == []
+    assert model_type.get_enabled_models(allowed) == ["instance-model"]
+    assert model_type.get_api_key(allowed) == "instance-key"
+    assert model_type.get_enabled_models() == ["instance-model"]
+
+    AIProviderHandler.update_provider(provider, excluded_workspaces=[])
+    assert model_type.get_enabled_models(excluded) == ["instance-model"]
+    assert model_type.get_api_key(excluded) == "instance-key"
+
+
+@pytest.mark.django_db
+def test_exclusions_hide_direct_model_references_but_allow_workspace_providers(
+    data_fixture,
+):
+    workspace = data_fixture.create_workspace()
+    instance_provider = AIProviderHandler.create_provider(
+        "openai",
+        api_key="instance-key",
+        models_data=[{"model_identifier": "instance-model"}],
+        excluded_workspaces=[workspace],
+    )
+    model = instance_provider.models.get()
+    with pytest.raises(AIProviderDoesNotExist):
+        AIProviderHandler.get_provider(
+            instance_provider.id, workspace=workspace, include_inherited=True
+        )
+    with pytest.raises(AIProviderModelDoesNotExist):
+        AIProviderHandler.get_model(
+            model.id, workspace=workspace, include_inherited=True
+        )
+    with pytest.raises(AIProviderModelDoesNotExist):
+        AIProviderHandler.get_models(
+            [model.id], workspace=workspace, include_inherited=True
+        )
+
+    owned = AIProviderHandler.create_provider(
+        "openai",
+        api_key="workspace-key",
+        workspace=workspace,
+        models_data=[{"model_identifier": "instance-model"}],
+    )
+    model_type = OpenAIGenerativeAIModelType()
+    assert [p.id for p in AIProviderHandler.list_providers(workspace)] == [owned.id]
+    assert model_type.get_enabled_models(workspace) == ["instance-model"]
+    assert model_type.get_api_key(workspace) == "workspace-key"
+    assert (
+        model_type.get_model_settings_override("instance-model", workspace)["api_key"]
+        == "workspace-key"
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("workspace_selection", [False, True])
+def test_exclusion_blocks_inherited_and_explicit_feature_models(
+    data_fixture, workspace_selection
+):
+    workspace = data_fixture.create_workspace()
+    provider = AIProviderHandler.create_provider(
+        "openai",
+        api_key="instance-key",
+        models_data=[{"model_identifier": "instance-model", "feature_types": ["kuma"]}],
+    )
+    model = provider.models.get()
+    AIProviderHandler.update_feature_setting("kuma", "model", model=model)
+    if workspace_selection:
+        AIProviderHandler.update_feature_setting(
+            "kuma", "model", model=model, workspace=workspace
+        )
+
+    AIProviderHandler.update_provider(provider, excluded_workspaces=[workspace])
+    setting = next(
+        s
+        for s in AIProviderHandler.list_feature_settings(workspace)
+        if s["feature_type"] == "kuma"
+    )
+    assert setting["state"] == "invalid"
+    assert setting["model"] is None
+    assert setting["inherited_model"] is None
+    assert setting["inherited_state"] == "invalid"
+    with pytest.raises(AIProviderFeatureModelNotAvailable):
+        AIProviderHandler.update_feature_setting(
+            "kuma", "model", model=model, workspace=workspace
+        )
+    assert (
+        next(
+            s
+            for s in AIProviderHandler.list_feature_settings()
+            if s["feature_type"] == "kuma"
+        )["model"].id
+        == model.id
+    )
+
+    AIProviderHandler.update_provider(provider, excluded_workspaces=[])
+    setting = next(
+        s
+        for s in AIProviderHandler.list_feature_settings(workspace)
+        if s["feature_type"] == "kuma"
+    )
+    assert setting["model"].id == model.id
+    assert setting["state"] == ("overridden" if workspace_selection else "inherited")

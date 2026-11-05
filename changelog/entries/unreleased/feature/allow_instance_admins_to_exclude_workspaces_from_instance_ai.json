@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Allow instance admins to exclude workspaces from instance AI providers",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-11-05"
+}

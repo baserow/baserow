@@ -31,6 +31,7 @@ class ScopedAIProviderState:
     owned_providers: dict[str, AIProviderConfig] = field(default_factory=dict)
     instance_providers: dict[str, AIProviderConfig] = field(default_factory=dict)
     disabled_instance_provider_ids: frozenset[int] = frozenset()
+    excluded_instance_provider_ids: frozenset[int] = frozenset()
     feature_settings: dict[str, AIProviderFeatureSetting] = field(default_factory=dict)
     instance_feature_settings: dict[str, AIProviderFeatureSetting] = field(
         default_factory=dict
@@ -93,12 +94,21 @@ def load_ai_provider_state(
     disabled_provider_ids: dict[int, set[int]] = {
         workspace_id: set() for workspace_id in workspace_ids
     }
+    excluded_provider_ids: dict[int, set[int]] = {
+        workspace_id: set() for workspace_id in workspace_ids
+    }
     if workspace_ids:
         overrides = AIProviderWorkspaceOverride.objects.filter(
             workspace_id__in=workspace_ids
         ).values_list("workspace_id", "provider_config_id")
         for workspace_id, provider_config_id in overrides:
             disabled_provider_ids[workspace_id].add(provider_config_id)
+        exclusions = AIProviderConfig.excluded_workspaces.through.objects.filter(
+            workspace_id__in=workspace_ids,
+            aiproviderconfig_id__in=[p.id for p in instance_providers.values()],
+        ).values_list("workspace_id", "aiproviderconfig_id")
+        for workspace_id, provider_config_id in exclusions:
+            excluded_provider_ids[workspace_id].add(provider_config_id)
 
     settings_per_scope: dict[int | None, dict[str, AIProviderFeatureSetting]] = {
         None: {},
@@ -125,6 +135,9 @@ def load_ai_provider_state(
             instance_providers=instance_providers,
             disabled_instance_provider_ids=frozenset(
                 disabled_provider_ids[workspace.id]
+            ),
+            excluded_instance_provider_ids=frozenset(
+                excluded_provider_ids[workspace.id]
             ),
             feature_settings=settings_per_scope[workspace.id],
             instance_feature_settings=instance_feature_settings,

@@ -45,6 +45,12 @@ class AIProviderConfig(CreatedAndUpdatedOnMixin, models.Model):
     api_key = models.CharField(max_length=4096, blank=True, default="", db_default="")
     extra_settings = models.JSONField(default=dict, blank=True, db_default={})
     is_active = models.BooleanField(default=True, db_default=True)
+    excluded_workspaces = models.ManyToManyField(
+        "core.Workspace",
+        blank=True,
+        related_name="+",
+        help_text="Workspaces that cannot use this instance-wide provider.",
+    )
 
     class Meta:
         ordering = ("id",)

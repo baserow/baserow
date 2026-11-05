@@ -1430,12 +1430,20 @@
     "workspaces": "Workspaces",
     "aiProviders": "AI providers"
   },
+  "selectWorkspaceModal": {
+    "title": "Select a workspace",
+    "search": "Search workspaces"
+  },
   "aiProviderAdmin": {
     "title": "AI providers",
     "description": "Manage the instance-level providers and models available to workspaces and automations.",
     "addProvider": "Add provider",
     "editProvider": "Edit provider",
     "providerType": "Provider type",
+    "excludedWorkspaces": "Excluded workspaces",
+    "excludedWorkspacesHelp": "These workspaces cannot use this instance provider. Workspace providers are unaffected.",
+    "addExcludedWorkspace": "Exclude a workspace",
+    "removeExcludedWorkspace": "Remove {name} from excluded workspaces",
     "apiKey": "API key",
     "changeApiKey": "Change API key",
     "apiKeyUpdateHint": "Enter a new API key to replace the existing key.",
@@ -1458,6 +1466,7 @@
     "kumaDisabled": "Disabled",
     "kumaInvalidFallback": "Selected model unavailable — using deprecated environment model: {model}",
     "kumaInvalidNoFallback": "Selected model unavailable — no environment model configured",
+    "modelUnavailableInWorkspace": "Selected model unavailable in this workspace",
     "kumaDisabledInWorkspace": "Disabled in this workspace",
     "kumaUseInstance": "Use instance setting — {model}",
     "kumaInheritedUnavailable": "selected instance model unavailable",
