@@ -247,9 +247,14 @@ def _row_action_table(action: "ActionCreate", user, workspace) -> Any:
         names isn't in it.
     """
 
-    from baserow.contrib.database.mcp.services import filter_tables
+    from baserow.contrib.database.table.handler import TableHandler
 
-    table = filter_tables(user, workspace).filter(id=action.table_id).first()
+    table = (
+        TableHandler()
+        .list_workspace_tables(user, workspace)
+        .filter(id=action.table_id)
+        .first()
+    )
     if table is None:
         raise ToolInputError(f"Table with id {action.table_id} not found.")
 

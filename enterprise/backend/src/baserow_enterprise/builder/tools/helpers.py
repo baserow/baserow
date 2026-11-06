@@ -1790,11 +1790,16 @@ def resolve_existing_table(
         SingleSelectField,
         TextField,
     )
-    from baserow.contrib.database.mcp.services import filter_tables
+    from baserow.contrib.database.table.handler import TableHandler
     from baserow.core.db import specific_iterator
     from baserow.core.user_sources.registries import user_source_type_registry
 
-    table = filter_tables(user, workspace).filter(id=table_id).first()
+    table = (
+        TableHandler()
+        .list_workspace_tables(user, workspace)
+        .filter(id=table_id)
+        .first()
+    )
     if table is None:
         raise ToolInputError(f"Table with id {table_id} not found.")
 

@@ -185,10 +185,15 @@ class DataSourceCreate(BaseModel):
         :raises ToolInputError: When the referenced table does not exist.
         """
 
-        from baserow.contrib.database.mcp.services import filter_tables
+        from baserow.contrib.database.table.handler import TableHandler
         from baserow.core.tools.errors import ToolInputError
 
-        table = filter_tables(user, workspace).filter(id=self.table_id).first()
+        table = (
+            TableHandler()
+            .list_workspace_tables(user, workspace)
+            .filter(id=self.table_id)
+            .first()
+        )
         if table is None:
             raise ToolInputError(f"Table with id {self.table_id} not found.")
         kwargs: dict[str, Any] = {"table": table}
@@ -341,10 +346,15 @@ class DataSourceUpdate(BaseModel):
             kwargs["name"] = self.name
 
         if self.table_id is not None:
-            from baserow.contrib.database.mcp.services import filter_tables
+            from baserow.contrib.database.table.handler import TableHandler
             from baserow.core.tools.errors import ToolInputError
 
-            table = filter_tables(user, workspace).filter(id=self.table_id).first()
+            table = (
+                TableHandler()
+                .list_workspace_tables(user, workspace)
+                .filter(id=self.table_id)
+                .first()
+            )
             if table is None:
                 raise ToolInputError(f"Table with id {self.table_id} not found.")
             kwargs["table"] = table
