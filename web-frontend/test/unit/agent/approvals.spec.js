@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
+import * as vueI18n from 'vue-i18n'
 import service from '@baserow/modules/core/services/chatRuns'
 import {
   composer,
   composerExists,
   conversation,
+  conversationsPage,
   createAgentPage,
   deferredReply,
   destroyAgentPage,
@@ -127,7 +129,7 @@ describe('Agent tool approvals', () => {
     testApp.mock.history.get.filter(({ url }) => url.includes('/messages/'))
 
   async function openReply(saved, ...later) {
-    mockConversations(testApp, page([chat]))
+    mockConversations(testApp, conversationsPage([chat]))
     mockMessages(testApp, chat.uuid, page([prompt, saved]), ...later)
     const wrapper = await mount()
     await selectConversation(wrapper, chat.title)
@@ -136,7 +138,187 @@ describe('Agent tool approvals', () => {
   const openWaitingReply = (approvals, ...later) =>
     openReply(reply('waiting', approvals), ...later)
 
+  test.each(['approved', 'rejected'])(
+    'keeps a saved %s decision when an older message snapshot arrives',
+    async (status) => {
+      const reading = deferredReply()
+      const initial = [approval(1), approval(2), approval(3)]
+      mockApprovals(
+        testApp,
+        chat.uuid,
+        reply('waiting', [approval(1, status), approval(2), approval(3)]),
+        reply(
+          'running',
+          [
+            approval(1, status),
+            approval(2, 'approved'),
+            approval(3, 'approved'),
+          ],
+          { runId: 'run-2' }
+        )
+      )
+      const wrapper = await openWaitingReply(initial, reading.reply)
+      testApp.getRegistry().get('chatRunType', 'agent').refreshChat(chat.id)
+      await flushPromises()
+
+      if (status === 'approved') {
+        await itemButtons(items(wrapper)[0])[1].trigger('click')
+      } else {
+        await itemButtons(items(wrapper)[0])[0].trigger('click')
+        await flushPromises()
+        modalButton('agent.reject').click()
+      }
+      await flushPromises()
+      expect(decisions(wrapper)).toEqual([`agent.${status}`])
+
+      reading.resolve(200, page([prompt, reply('waiting', initial)]))
+      await flushPromises()
+
+      expect(decisions(wrapper)).toEqual([`agent.${status}`])
+      await headerButtons(wrapper)[1].trigger('click')
+      await flushPromises()
+      expect(sentBodies(testApp)).toEqual([
+        { decisions: [{ id: 1, approved: status === 'approved' }] },
+        {
+          decisions: [
+            { id: 2, approved: true },
+            { id: 3, approved: true },
+          ],
+        },
+      ])
+      expect(messageReads()).toHaveLength(2)
+    }
+  )
+
+  test.each(['earlier pause', 'omitted approvals'])(
+    'keeps a later pause when a snapshot has %s',
+    async (older) => {
+      const reading = deferredReply()
+      mockApprovals(
+        testApp,
+        chat.uuid,
+        reply('running', [approval(1, 'approved')], { runId: 'run-2' }),
+        reply('running', [approval(1, 'approved'), approval(2, 'approved')], {
+          runId: 'run-3',
+        })
+      )
+      const wrapper = await openWaitingReply([approval(1)], reading.reply)
+      testApp.getRegistry().get('chatRunType', 'agent').refreshChat(chat.id)
+      await flushPromises()
+      await headerButtons(wrapper)[1].trigger('click')
+      await flushPromises()
+      await finish(
+        'run-2',
+        reply(
+          'waiting',
+          [approval(1, 'approved'), approval(2, 'pending', { pause: 2 })],
+          {
+            steps: [read, heldStep(1, 'done'), heldStep(2, 'waiting')],
+          }
+        )
+      )
+      const snapshot = reply('running', [approval(1, 'approved')], {
+        runId: 'run-2',
+      })
+      if (older === 'omitted approvals') delete snapshot.approvals
+      reading.resolve(200, page([prompt, snapshot]))
+      await flushPromises()
+
+      expect(cards(wrapper)).toHaveLength(2)
+      expect(decisions(wrapper)).toEqual(['agent.approved'])
+      expect(activity(wrapper).text()).toBe('agent.waitingForApproval')
+      expect(composer(wrapper).element.disabled).toBe(true)
+      await wrapper
+        .findAll('.agent-approval__actions button')[1]
+        .trigger('click')
+      await flushPromises()
+      expect(sentBodies(testApp).at(-1)).toEqual({
+        decisions: [{ id: 2, approved: true }],
+      })
+      expect(messageReads()).toHaveLength(2)
+    }
+  )
+
+  test('a delayed run snapshot cannot undo decisions made after a reconnect', async () => {
+    const reading = deferredReply()
+    mockApprovals(
+      testApp,
+      chat.uuid,
+      reply('running', [approval(1, 'approved')], { runId: 'run-2' }),
+      reply('running', [approval(1, 'approved'), approval(2, 'approved')], {
+        runId: 'run-3',
+      })
+    )
+    const wrapper = await openWaitingReply([approval(1)], reading.reply)
+    await headerButtons(wrapper)[1].trigger('click')
+    await flushPromises()
+    testApp.getRegistry().get('chatRunType', 'agent').refreshChat(chat.id)
+    await flushPromises()
+    const paused = reply(
+      'waiting',
+      [approval(1, 'approved'), approval(2, 'pending', { pause: 2 })],
+      { steps: [read, heldStep(1, 'done'), heldStep(2, 'waiting')] }
+    )
+    reading.resolve(200, page([prompt, paused]))
+    await flushPromises()
+    await wrapper.findAll('.agent-approval__actions button')[1].trigger('click')
+    await flushPromises()
+    expect(decisions(wrapper)).toEqual(['agent.approved', 'agent.approved'])
+
+    await finish('run-2', paused)
+
+    expect(decisions(wrapper)).toEqual(['agent.approved', 'agent.approved'])
+    expect(wrapper.findAll('.agent-approval__actions button')).toHaveLength(0)
+    expect(stop(wrapper).exists()).toBe(true)
+  })
+
+  test('accepts a newer snapshot with another pause and pending approval', async () => {
+    const reading = deferredReply()
+    mockApprovals(
+      testApp,
+      chat.uuid,
+      reply('running', [approval(1, 'approved')], { runId: 'run-2' })
+    )
+    const wrapper = await openWaitingReply([approval(1)], reading.reply)
+    await headerButtons(wrapper)[1].trigger('click')
+    await flushPromises()
+    testApp.getRegistry().get('chatRunType', 'agent').refreshChat(chat.id)
+    await flushPromises()
+    reading.resolve(
+      200,
+      page([
+        prompt,
+        reply(
+          'waiting',
+          [approval(1, 'approved'), approval(2, 'pending', { pause: 2 })],
+          {
+            steps: [read, heldStep(1, 'done'), heldStep(2, 'waiting')],
+          }
+        ),
+      ])
+    )
+    await flushPromises()
+
+    expect(cards(wrapper)).toHaveLength(2)
+    expect(decisions(wrapper)).toEqual(['agent.approved'])
+    expect(texts(wrapper.findAll('.agent-approval__actions button'))).toEqual([
+      'agent.reject',
+      'agent.approve',
+    ])
+  })
+
   test('a reply that pauses asks for approval of its step', async () => {
+    const useI18n = vueI18n.useI18n
+    vi.spyOn(vueI18n, 'useI18n').mockImplementation((...args) => {
+      const composer = useI18n(...args)
+      return {
+        ...composer,
+        t: (key, ...values) =>
+          key === 'agent.waitingForApproval'
+            ? 'Waiting for your approval'
+            : composer.t(key, ...values),
+      }
+    })
     mockStartConversation(testApp, ({ data }) => {
       const body = JSON.parse(data)
       return [
@@ -173,7 +355,7 @@ describe('Agent tool approvals', () => {
     )
     expect(wrapper.find('.chat-message__bubble--error').exists()).toBe(false)
     expect(wrapper.get('.agent-chat__announcement[role="status"]').text()).toBe(
-      'agent.waitingForApproval'
+      'Waiting for your approval'
     )
     expect(activity(wrapper).classes()).toEqual(
       expect.arrayContaining([
@@ -181,7 +363,7 @@ describe('Agent tool approvals', () => {
         'chat-composer__activity--waiting',
       ])
     )
-    expect(activity(wrapper).text()).toBe('agent.waitingForApproval')
+    expect(activity(wrapper).text()).toBe('Waiting for your approval')
     expect(composer(wrapper).element.disabled).toBe(true)
     expect(composer(wrapper).attributes('placeholder')).toBe(
       'agent.approvalPlaceholder'
@@ -332,6 +514,55 @@ describe('Agent tool approvals', () => {
     expect(activity(wrapper).text()).toBe('agent.waitingForApproval')
   })
 
+  test.each(['cancel', 'Escape'])(
+    'keeps rejection keyboard focus in the dialog and restores it on %s',
+    async (dismiss) => {
+      const wrapper = await openWaitingReply([approval(1)])
+      const opener = headerButtons(wrapper)[0]
+      // Pointer opening must return to its actual trigger, even when it wasn't
+      // focused. Escape exercises opening from a keyboard-focused trigger.
+      headerButtons(wrapper)[dismiss === 'cancel' ? 1 : 0].element.focus()
+      await opener.trigger('click')
+      await flushPromises()
+
+      const dialog = inModal('.agent-reject-modal')
+      const reason = dialog.querySelector('textarea')
+      const reject = modalButton('agent.reject')
+      expect(dialog.getAttribute('role')).toBe('dialog')
+      expect(dialog.getAttribute('aria-modal')).toBe('true')
+      expect(
+        document.getElementById(dialog.getAttribute('aria-labelledby'))
+      ).toBe(dialog.querySelector('.box__title'))
+      expect(document.activeElement).toBe(reason)
+
+      const backwards = new KeyboardEvent('keydown', {
+        key: 'Tab',
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      })
+      reason.dispatchEvent(backwards)
+      expect(backwards.defaultPrevented).toBe(true)
+      expect(document.activeElement).toBe(reject)
+
+      const forwards = new KeyboardEvent('keydown', {
+        key: 'Tab',
+        bubbles: true,
+        cancelable: true,
+      })
+      reject.dispatchEvent(forwards)
+      expect(forwards.defaultPrevented).toBe(true)
+      expect(document.activeElement).toBe(reason)
+      expect(sentBodies(testApp)).toEqual([])
+
+      if (dismiss === 'cancel') modalButton('action.cancel').click()
+      else window.dispatchEvent(new KeyboardEvent('keyup', { key: 'Escape' }))
+      await flushPromises()
+      expect(document.activeElement).toBe(opener.element)
+      expect(sentBodies(testApp)).toEqual([])
+    }
+  )
+
   test('re-reads the reply when a step was already decided elsewhere', async () => {
     testApp.dontFailOnErrorResponses()
     mockApprovals(testApp, chat.uuid, [
@@ -402,7 +633,7 @@ describe('Agent tool approvals', () => {
       409,
       { error: 'ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL' },
     ])
-    mockConversations(testApp, page([chat]))
+    mockConversations(testApp, conversationsPage([chat]))
     mockMessages(
       testApp,
       chat.uuid,

@@ -193,3 +193,5 @@ class AgentReplyTranscript(BigAutoFieldMixin, models.Model):
     usage = models.JSONField(null=True)
     # The whole run, not only its new messages, so a resume keeps its request limit.
     paused_conversation = models.JSONField(null=True)
+    # Only failed steps from the paused response can be retried by the next one.
+    step_retry_slots = models.JSONField(null=True)

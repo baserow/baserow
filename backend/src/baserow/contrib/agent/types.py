@@ -97,6 +97,8 @@ class AgentReplyResume:
     """The step id of each held call, by its tool call id."""
     approved_ids: frozenset[str]
     """The tool call ids of the held calls the owner approved."""
+    step_retry_slots: dict[str, list[str]] = field(default_factory=dict)
+    """Failed steps the next model response may retry, by tool name."""
 
 
 @dataclass(frozen=True)
@@ -145,6 +147,8 @@ class AgentReplyResult:
     """The calls held for the owner's approval, when the run paused."""
     paused_conversation: dict | None = None
     """The paused run, dumped to resume it once its held calls are decided."""
+    step_retry_slots: dict[str, list[str]] | None = None
+    """Failed steps the next model response may retry, only while paused."""
 
     @property
     def paused(self) -> bool:

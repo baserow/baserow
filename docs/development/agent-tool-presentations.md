@@ -29,12 +29,15 @@ The backend emits `step` events and saves the same steps on the assistant messag
 
 - `tool` is the tool's name. Frontend presenters are registered under it. They
   only describe calls and never select what runs or what is allowed.
-- `status` is `running`, `done`, `failed`, `stopped` or `skipped`, see
-  `STEP_STATUS` in `modules/core/chatRuns/constants.js`. A call is `running` from
-  the moment the model makes it, so a change waiting behind another change in the
-  same response is `running` too. `stopped` means the reply ended before the
-  call's result: a change may already have completed, and the card says so.
-  `skipped` means the call changed nothing and failed nothing; it has no card.
+- `status` is `running`, `waiting`, `done`, `failed`, `rejected`, `stopped` or
+  `skipped`, see `STEP_STATUS` in `modules/core/chatRuns/constants.js`. Calls
+  held for approval are `waiting` from their call event, including changes held
+  behind another change in the same response. Other valid calls are `running`
+  until their result arrives. `rejected` means the owner denied the call, so it
+  did not run. `stopped` means the reply ended before the call's result: a change
+  may already have completed, and the card says so. `skipped` means the call
+  changed nothing and failed nothing; it has no card. A held call is never
+  `skipped`, as the owner already saw it.
 - `input` is what the call asked for. `requested_count` is known when the call
   starts. `values`, the request with names instead of IDs, follows while it
   runs, before the tool changes anything; see

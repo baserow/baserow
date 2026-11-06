@@ -232,6 +232,7 @@ class ChatRunSteps:
         saved_steps: Iterable[ChatRunStep] = (),
         held_step_ids: Mapping[str, str] = MappingProxyType({}),
         approved_ids: Iterable[str] = (),
+        retry_slots: Mapping[str, Iterable[str]] = MappingProxyType({}),
     ) -> None:
         """
         :param journal: Receives a complete step whenever its state changes.
@@ -242,6 +243,8 @@ class ChatRunSteps:
         :param saved_steps: The saved steps of a paused reply, in call order.
         :param held_step_ids: The step id of each held call, by its tool call id.
         :param approved_ids: The tool call ids the user approved.
+        :param retry_slots: Failed steps from the paused response, by tool, which
+            only its next response may retry.
         """
 
         self._journal = journal
@@ -259,17 +262,25 @@ class ChatRunSteps:
         for step in self._steps.values():
             self._journal.emit(ChatRunEventKind.STEP, step)
 
-    def on_event(self, event: AgentStreamEvent | AgentRunResultEvent) -> None:
+    def on_event(
+        self, event: AgentStreamEvent | AgentRunResultEvent, *, waiting: bool = False
+    ) -> None:
         """Start, hold and complete steps, ignoring unrelated model events.
 
         :param event: One event from the model run.
+        :param waiting: Whether this new call is held for approval.
         """
 
         match event:
             case FunctionToolCallEvent(tool_call_id=tool_call_id, part=part):
                 step_id = self._held_step_ids.pop(tool_call_id, None)
                 if step_id is None:
-                    self._start(tool_call_id, part, invalid=event.args_valid is False)
+                    self._start(
+                        tool_call_id,
+                        part,
+                        invalid=event.args_valid is False,
+                        waiting=waiting,
+                    )
                 else:
                     self._resume(tool_call_id, step_id, event.args_valid)
             case ToolCallInputEvent(tool_call_id=str() as tool_call_id):
@@ -289,7 +300,18 @@ class ChatRunSteps:
                     pending = self._pending.get(part.tool_call_id)
                     if pending:
                         step = self._steps[pending[-1]]
-                        self._update({**step, "status": ChatRunStepStatus.WAITING})
+                        if step["status"] != ChatRunStepStatus.WAITING:
+                            self._update({**step, "status": ChatRunStepStatus.WAITING})
+
+    def retry_slots(self) -> dict[str, list[str]]:
+        """Return this response's failed steps for a durable pause.
+
+        Unused slots from an earlier response expire, so they must not be saved.
+
+        :return: The pending retry step ids, in call order within each tool.
+        """
+
+        return {name: list(ids) for name, ids in self._retrying.items() if ids}
 
     @property
     def started(self) -> bool:
@@ -318,25 +340,31 @@ class ChatRunSteps:
             return {}
 
     def _start(
-        self, tool_call_id: str, part: BaseToolCallPart, invalid: bool = False
+        self,
+        tool_call_id: str,
+        part: BaseToolCallPart,
+        invalid: bool = False,
+        waiting: bool = False,
     ) -> None:
         """Add the step of a call the model made, unless it has none.
 
         :param tool_call_id: The call's id, which its result refers to.
         :param part: The tool call.
         :param invalid: Whether its arguments failed validation.
+        :param waiting: Whether the call is held for approval.
         """
 
         self._call_started = True
         description = self._describe(part, invalid)
         if description is None:
             return
+        status = ChatRunStepStatus.WAITING if waiting else ChatRunStepStatus.RUNNING
+        if invalid:
+            status = ChatRunStepStatus.FAILED
         step: ChatRunStep = {
             "id": str(uuid4()),
             "tool": part.tool_name,
-            "status": ChatRunStepStatus.FAILED
-            if invalid
-            else ChatRunStepStatus.RUNNING,
+            "status": status,
             "changes_data": description.get("changes_data") is True,
             "input": _display_data(description.get("input")) if not invalid else {},
             "facts": {},

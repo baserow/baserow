@@ -1,4 +1,5 @@
 import asyncio
+from collections.abc import Iterable
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
@@ -26,9 +27,11 @@ from pydantic_ai.messages import (
     NativeToolCallPart,
     NativeToolReturnPart,
     PartDeltaEvent,
+    PartEndEvent,
     PartStartEvent,
     TextPart,
     TextPartDelta,
+    ToolCallPart,
     UserPromptPart,
 )
 from pydantic_ai.models import Model
@@ -220,6 +223,8 @@ class AgentResponder:
         self._parts: dict[int, str] = {}
         self._text_is_commentary = False
         self._result: AgentRunResult[str | DeferredToolRequests] | None = None
+        self._response_calls: list[ToolCallPart] = []
+        self._response_held_ids: set[str] | None = None
         resume = request.resume
         self._steps = (
             ChatRunSteps(journal, self._describe_call)
@@ -230,6 +235,7 @@ class AgentResponder:
                 resume.saved_steps,
                 resume.held_step_ids,
                 resume.approved_ids,
+                resume.step_retry_slots,
             )
         )
 
@@ -447,20 +453,20 @@ class AgentResponder:
             for message in reversed(ctx.messages)
             if isinstance(message, ModelResponse)
         )
-        return ctx.tool_call_id in self._held_call_ids(response)
+        return ctx.tool_call_id in self._held_call_ids(response.tool_calls)
 
-    def _held_call_ids(self, response: ModelResponse) -> set[str]:
+    def _held_call_ids(self, calls: Iterable[ToolCallPart]) -> set[str]:
         """
         Hold the ask first calls of a model response, and the changes after a held
         call, so that changes still run in the order the model asked for them.
 
-        :param response: A response of the model.
+        :param calls: The calls of one model response, in order.
         :return: The ids of its held calls.
         """
 
         request = self._request
         held: set[str] = set()
-        for call in response.tool_calls:
+        for call in calls:
             changes_data = (
                 call.tool_name in request.allowed_tool_names
                 and agent_tool_type_registry.get(call.tool_name).changes_data
@@ -478,7 +484,19 @@ class AgentResponder:
         :param event: An event of the run.
         """
 
-        self._steps.on_event(event)
+        if isinstance(event, PartStartEvent) and event.index == 0:
+            self._response_calls = []
+            self._response_held_ids = None
+        elif isinstance(event, PartEndEvent) and isinstance(event.part, ToolCallPart):
+            self._response_calls.append(event.part)
+        waiting = False
+        if isinstance(event, FunctionToolCallEvent):
+            # All parts are complete before call events. Decide the response once,
+            # so held writes never look running while sibling reads still execute.
+            if self._response_held_ids is None:
+                self._response_held_ids = self._held_call_ids(self._response_calls)
+            waiting = event.tool_call_id in self._response_held_ids
+        self._steps.on_event(event, waiting=waiting)
         match event:
             case AgentRunResultEvent(result=result):
                 self._result = result
@@ -555,6 +573,7 @@ class AgentResponder:
             usage=to_jsonable_python(self._result.usage),
             steps=steps,
             waiting_calls=self._steps.waiting_calls() if paused else [],
+            step_retry_slots=self._steps.retry_slots() if paused else None,
             paused_conversation=ConversationTypeAdapter.dump_python(
                 self._result.conversation, mode="json"
             )

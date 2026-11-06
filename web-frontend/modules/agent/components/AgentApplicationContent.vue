@@ -282,7 +282,7 @@ const composerActivity = computed(() => {
       ? t('agent.waitingForApprovalSteps', { count })
       : t('agent.waitingForApproval')
   }
-  // Calls run in call order, so the first unfinished one is executing.
+  // Held calls are waiting; name the first call that can actually be running.
   const runningStep = state.replyFollower.view.steps?.find(
     (step) => step.status === STEP_STATUS.RUNNING
   )
@@ -327,7 +327,7 @@ watch(
     } else if (previous?.finished) {
       // A paused run ends completed; only its saved reply says it waits.
       if (previous.view.message?.status === AGENT_REPLY_STATUS.WAITING) {
-        announcement.value = 'agent.waitingForApproval'
+        announcement.value = t('agent.waitingForApproval')
         return
       }
       const { note, error } = replyOutcome({

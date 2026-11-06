@@ -1,5 +1,6 @@
 import asyncio
 import json
+from functools import wraps
 from unittest.mock import ANY
 from uuid import uuid4
 
@@ -755,6 +756,7 @@ def test_a_later_segment_of_a_reply_keeps_what_the_paused_one_saved(
         model_messages=[{"kind": "request"}],
         usage={"requests": 1},
         paused_conversation={"messages": []},
+        step_retry_slots={"create_rows": ["invalid-step"]},
     )
 
     AgentHandler().finish_reply(reply.id, "cancelled", "", result)
@@ -771,6 +773,7 @@ def test_a_later_segment_of_a_reply_keeps_what_the_paused_one_saved(
         saved.usage,
         saved.paused_conversation,
     ) == (*transcript, None)
+    assert saved.step_retry_slots is None
 
 
 @pytest.mark.django_db
@@ -1503,6 +1506,104 @@ def test_a_reply_runs_its_reads_and_waits_for_approval_of_an_ask_first_call(
         agent_url(agent, "messages", conversation_uuid=reply.conversation.uuid)
     ).json()["results"]
     assert run.outcome == listed[-1]
+
+
+@pytest.mark.django_db
+def test_a_held_write_is_waiting_while_a_sibling_read_still_runs(
+    ask_first_agent, mocker
+):
+    user, agent, table = ask_first_agent
+    respond(mocker, ({0: add_row(table), 1: tool_call("list_tables", "call_read")},))
+    emitted = mocker.spy(ChatRunJournal, "emit")
+    tool_type = type(agent_tool_type_registry.get("list_tables"))
+    original = tool_type.function
+    during_read = []
+
+    @wraps(original)
+    def read(*args, **kwargs):
+        steps = {
+            entry.args[2]["id"]: entry.args[2]
+            for entry in emitted.call_args_list
+            if entry.args[1] == "step"
+        }
+        during_read.extend((step["tool"], step["status"]) for step in steps.values())
+        return original(*args, **kwargs)
+
+    mocker.patch.object(tool_type, "function", read)
+
+    reply = pause(user, agent)
+
+    assert during_read == [("create_rows", "waiting"), ("list_tables", "running")]
+    assert [
+        entry.args[2]["status"]
+        for entry in emitted.call_args_list
+        if entry.args[1] == "step" and entry.args[2]["tool"] == "create_rows"
+    ] == ["waiting"]
+    assert reply.status == "waiting"
+    assert row_names(table) == []
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("intervening_read", [False, True], ids=["retry", "later-call"])
+def test_a_pause_preserves_only_the_next_responses_retry_slots(
+    ask_first_agent, mocker, intervening_read
+):
+    user, agent, table = ask_first_agent
+    responses = [
+        (
+            {
+                0: tool_call(
+                    "create_rows", "call_invalid", table_id=table.id, rows="invalid"
+                ),
+                1: add_row(table),
+            },
+        ),
+    ]
+    if intervening_read:
+        # The next response pauses on another tool instead of retrying the failure.
+        AgentHandler().update_configuration(
+            agent,
+            allowed_tools=["create_rows", "list_tables"],
+            ask_first_tools=["create_rows", "list_tables"],
+        )
+        responses.append(({0: tool_call("list_tables", "call_read")},))
+    # A provider may reuse the invalid attempt's call id for the corrected call.
+    responses.append(({0: add_row(table, "call_invalid")},))
+    respond(mocker, *responses)
+    reply = pause(user, agent)
+    failed_id, held_id = [step["id"] for step in reply.steps]
+    assert reply.transcript.step_retry_slots == {"create_rows": [failed_id]}
+
+    run_reply(decide(user, reply, approved=True))
+    if intervening_read:
+        # Resuming this second pause must not revive the now-expired create slot.
+        assert AgentReplyTranscript.objects.get(reply=reply).step_retry_slots == {}
+        run_reply(decide(user, reply, approved=True))
+
+    reply.refresh_from_db()
+    if intervening_read:
+        assert [step["status"] for step in reply.steps] == [
+            "failed",
+            "done",
+            "done",
+            "waiting",
+        ]
+        assert reply.steps[0]["id"] == failed_id
+        assert reply.steps[-1]["id"] != failed_id
+    else:
+        assert [(step["id"], step["status"]) for step in reply.steps] == [
+            (held_id, "done"),
+            (failed_id, "waiting"),
+        ]
+        assert "error_code" not in reply.steps[-1]
+
+    run_reply(decide(user, reply, approved=True))
+
+    reply.refresh_from_db()
+    assert reply.status == "completed"
+    assert row_names(table) == ["Plan", "Plan"]
+    assert len(reply.steps) == (4 if intervening_read else 2)
+    assert AgentReplyTranscript.objects.get(reply=reply).step_retry_slots is None
 
 
 @pytest.mark.django_db

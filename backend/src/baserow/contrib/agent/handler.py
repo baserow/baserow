@@ -953,11 +953,12 @@ class AgentHandler:
             if acting_subject
             else {"allowed_tools": [], "ask_first_tools": []}
         )
-        paused_conversation = (
+        transcript = (
             AgentReplyTranscript.objects.filter(reply=reply)
-            .values_list("paused_conversation", flat=True)
+            .values("paused_conversation", "step_retry_slots")
             .first()
         )
+        paused_conversation = transcript and transcript["paused_conversation"]
         resume = (
             None
             if paused_conversation is None
@@ -965,6 +966,7 @@ class AgentHandler:
                 reply,
                 ConversationTypeAdapter.validate_python(paused_conversation),
                 tools["allowed_tools"],
+                transcript["step_retry_slots"] or {},
             )
         )
         prompt, history = (
@@ -1013,6 +1015,7 @@ class AgentHandler:
         reply: AgentMessage,
         paused_conversation: Conversation,
         allowed_tool_names: list[str],
+        step_retry_slots: dict[str, list[str]],
     ) -> AgentReplyResume:
         """
         Continue a paused reply with the owner's decision on each held call, showing
@@ -1021,6 +1024,7 @@ class AgentHandler:
         :param reply: The paused reply.
         :param paused_conversation: Its paused run, holding the calls.
         :param allowed_tool_names: The tools the reply may call now.
+        :param step_retry_slots: Failed steps from the paused model response.
         :return: The paused run with the decisions and the saved steps.
         """
 
@@ -1046,6 +1050,7 @@ class AgentHandler:
                 tool_call_id: approval.step_id
                 for tool_call_id, approval in approvals.items()
             },
+            step_retry_slots=step_retry_slots,
             approved_ids=frozenset(
                 tool_call_id
                 for tool_call_id, approval in approvals.items()
@@ -1152,7 +1157,7 @@ class AgentHandler:
 
         if result is None or not result.provider_type:
             AgentReplyTranscript.objects.filter(reply=reply).update(
-                paused_conversation=None
+                paused_conversation=None, step_retry_slots=None
             )
             return
         transcript = AgentReplyTranscript.objects.filter(reply=reply).first()
@@ -1165,6 +1170,7 @@ class AgentHandler:
         transcript.paused_conversation = remove_null_characters(
             result.paused_conversation
         )
+        transcript.step_retry_slots = result.step_retry_slots if result.paused else None
         if result.model_messages is not None:
             transcript.provider_type = result.provider_type
             transcript.model_identifier = result.model_identifier

@@ -20,7 +20,7 @@
           type="secondary"
           size="small"
           :disabled="locked"
-          @click="askToReject(pending)"
+          @click="askToReject(pending, $event)"
         >
           {{ $t(pending.length > 1 ? 'agent.rejectAll' : 'agent.reject') }}
         </Button>
@@ -80,7 +80,7 @@
               size="small"
               :disabled="locked"
               :aria-describedby="itemTitleId(item)"
-              @click="askToReject([item])"
+              @click="askToReject([item], $event)"
             >
               {{ $t('agent.reject') }}
             </Button>
@@ -217,9 +217,12 @@ function approve(items) {
   decide(items.map((item) => ({ id: item.id, approved: true })))
 }
 
-function askToReject(items) {
+function askToReject(items, event) {
   rejecting = items
-  rejectModal.value.show(items.map((item) => item.title))
+  rejectModal.value.show(
+    items.map((item) => item.title),
+    event.currentTarget
+  )
 }
 
 function reject(reason) {

@@ -435,3 +435,39 @@ def test_resumed_calls_update_their_saved_steps_in_place():
         for step in emitted
         if step["id"] in (saved[2]["id"], saved[3]["id"])
     ] == ["waiting", "waiting", "rejected", "failed"]
+
+
+def test_resumed_siblings_keep_each_invalid_attempts_retry_slot():
+    steps = ChatRunSteps(Mock(), describe)
+    for call_id in ("invalid-one", "invalid-two"):
+        steps.on_event(call(call_id, valid=False))
+    for call_id in ("held-one", "held-two"):
+        steps.on_event(call(call_id), waiting=True)
+    steps.on_event(retry("invalid-one"))
+    steps.on_event(retry("invalid-two"))
+    saved = steps.finish(paused=True)
+    invalid_ids = [step["id"] for step in saved[:2]]
+    held_ids = {call_id: step_id for call_id, step_id, _ in steps.waiting_calls()}
+    resumed = ChatRunSteps(
+        Mock(),
+        describe,
+        saved_steps=saved,
+        held_step_ids=held_ids,
+        retry_slots=steps.retry_slots(),
+    )
+
+    # Resumed siblings still belong to the original batch, even if their call
+    # and result events alternate. They cannot expire each other's retry slots.
+    for call_id in ("held-one", "held-two"):
+        resumed.on_event(call(call_id))
+        resumed.on_event(result(call_id))
+    for call_id in ("invalid-one", "invalid-two"):
+        resumed.on_event(call(call_id, arguments={"rows": [1]}), waiting=True)
+
+    finished = resumed.finish(paused=True)
+    assert [(step["id"], step["status"]) for step in finished] == [
+        *[(step_id, "done") for step_id in held_ids.values()],
+        *[(step_id, "waiting") for step_id in invalid_ids],
+    ]
+    assert all("error_code" not in step for step in finished)
+    assert resumed.retry_slots() == {}

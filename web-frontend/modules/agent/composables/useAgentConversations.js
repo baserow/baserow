@@ -8,13 +8,32 @@ import { isTerminalStatus } from '@baserow/modules/core/chatRuns/constants'
 import { AGENT_RUN_TYPE } from '@baserow/modules/agent/chatRunTypes'
 import AgentApplicationService from '@baserow/modules/agent/services/agentApplication'
 import { API_ERROR_CODE } from '@baserow/modules/agent/constants'
-import { pendingApprovals } from '@baserow/modules/agent/utils/replies'
+import {
+  APPROVAL_STATUS,
+  pendingApprovals,
+} from '@baserow/modules/agent/utils/replies'
 
 // The API's order, so positions compare with the pages it returns.
 const byNewest = (a, b) =>
   Date.parse(b.updated_on) - Date.parse(a.updated_on) || b.id - a.id
 const pick = (source, fields) =>
   Object.fromEntries(fields.map((field) => [field, source[field]]))
+
+/** Approval snapshots are complete: rows are only added and decisions are final. */
+function isOlderApprovalSnapshot(current, incoming) {
+  if (!current.approvals?.length) return false
+  const incomingApprovals = new Map(
+    (incoming.approvals || []).map((approval) => [approval.id, approval])
+  )
+  return current.approvals.some((approval) => {
+    const next = incomingApprovals.get(approval.id)
+    return (
+      !next ||
+      (approval.status !== APPROVAL_STATUS.PENDING &&
+        next.status !== approval.status)
+    )
+  })
+}
 
 /** Merge pages given oldest first in place, never undoing a reply's end. */
 function mergeMessages(...pages) {
@@ -24,8 +43,8 @@ function mergeMessages(...pages) {
     if (!current) {
       merged.set(message.uuid, message)
     } else if (
-      !isTerminalStatus(current.status) ||
-      isTerminalStatus(message.status)
+      (!isTerminalStatus(current.status) || isTerminalStatus(message.status)) &&
+      !isOlderApprovalSnapshot(current, message)
     ) {
       Object.assign(current, message)
     }
@@ -753,7 +772,7 @@ export function useAgentConversations(agent, configuration) {
       const saved = follower.view.message
       const row =
         saved && history?.items.find((message) => message.uuid === saved.uuid)
-      if (row) Object.assign(row, saved)
+      if (row) history.items = mergeMessages(history.items, [saved])
       else if (conversation.uuid === selectedUuid.value)
         refreshMessages(conversation.uuid)
       else if (history) history.stale = true
