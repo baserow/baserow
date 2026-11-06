@@ -299,7 +299,9 @@ class TemplateView(APIView):
         """
 
         revisions = Template.objects.openable(
-            request.user, private_link_token=get_private_link_token()
+            request.user,
+            private_link_token=get_private_link_token(),
+            allow_instance_admin=True,
         ).filter_by_root(slug=slug)
         template = revisions.public_revisions().first()
         if template is None or (
@@ -678,9 +680,9 @@ class DownloadUserTemplateView(APIView):
             "one of the user that builds it already is responded with. Once the "
             "job is finished, the archive is asked for again.\n\n"
             "A user template can be downloaded by whoever can install it. Its "
-            "owner may download any revision of it. Anyone else downloads the "
-            "public revision, or the latest one of a template that isn't public "
-            "with the token of its private link in the "
+            "owner and the instance admins may download any revision of it. Anyone "
+            "else downloads the public revision, or the latest one of a template "
+            "that isn't public with the token of its private link in the "
             "`Baserow-Template-Authorization` header: when "
             "another revision than the one shown is that one since, "
             "`ERROR_TEMPLATE_UPDATED` is responded with."

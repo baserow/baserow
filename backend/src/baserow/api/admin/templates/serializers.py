@@ -76,11 +76,22 @@ class AdminUserTemplateSerializer(TemplateSerializer):
         help_text="When an admin, or a submit without review, last reviewed the "
         "revision. Null if never.",
     )
+    install_count = serializers.IntegerField(
+        source="template_install_count",
+        read_only=True,
+        help_text="How many times the template was installed.",
+    )
+    submitted_on = serializers.DateTimeField(
+        read_only=True,
+        allow_null=True,
+        help_text="When the revision was submitted for review, if it was.",
+    )
 
     class Meta(TemplateSerializer.Meta):
         fields = (
             "id",
             "revision_id",
+            "slug",
             "type",
             "name",
             "description",
@@ -98,6 +109,8 @@ class AdminUserTemplateSerializer(TemplateSerializer):
             "reject_unlists",
             "updated_on",
             "reviewed_on",
+            "install_count",
+            "submitted_on",
         )
 
     @extend_schema_field(serializers.CharField(allow_null=True))

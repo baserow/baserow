@@ -57,7 +57,9 @@ def what_the_actor_gets(api_client, actor, token, root, revisions):
     opens = [
         id
         for id in revisions
-        if Template.objects.get(id=id).workspace.has_openable_template(actor)
+        if Template.objects.get(id=id).workspace.has_openable_template(
+            actor, allow_instance_admin=True
+        )
     ]
     headers = {"HTTP_AUTHORIZATION": f"JWT {token}"} if token else {}
     response = api_client.get(
@@ -99,23 +101,23 @@ def started(job):
     user_template_plan_rows(
         "3",
         [
-            (["private"], False, "0:0:0", "-:-:-", "-:-", "-:-:-"),
-            (["shared"], False, "0:0:0", "-:-:-", "-:-", "-:-:-"),
+            (["private"], False, "0:0:0", "-:-:-", "-:-", "0:0:0"),
+            (["shared"], False, "0:0:0", "-:-:-", "-:-", "0:0:0"),
             (["public"], True, "0:0:0", "0:0:0", "0:0", "0:0:0"),
-            (["in_review"], False, "0:0:0", "-:-:-", "-:-", "0:-:-"),
-            (["rejected"], False, "0:0:0", "-:-:-", "-:-", "0:-:-"),
-            (["resubmitted"], False, "0:0:0", "-:-:-", "-:-", "0:-:-"),
-            (["withdrawn_rejected"], False, "0:0:0", "-:-:-", "-:-", "-:-:-"),
-            (["rejected", "private"], False, "01:1:1", "-:-:-", "-:-", "0:-:-"),
-            (["rejected", "in_review"], False, "01:1:1", "-:-:-", "-:-", "1:-:-"),
-            (["private", "in_review"], False, "01:1:1", "-:-:-", "-:-", "1:-:-"),
-            (["public", "private"], True, "01:1:1", "0:0:0", "0:0", "0:0:0"),
+            (["in_review"], False, "0:0:0", "-:-:-", "-:-", "0:0:0"),
+            (["rejected"], False, "0:0:0", "-:-:-", "-:-", "0:0:0"),
+            (["resubmitted"], False, "0:0:0", "-:-:-", "-:-", "0:0:0"),
+            (["withdrawn_rejected"], False, "0:0:0", "-:-:-", "-:-", "0:0:0"),
+            (["rejected", "private"], False, "01:1:1", "-:-:-", "-:-", "01:1:1"),
+            (["rejected", "in_review"], False, "01:1:1", "-:-:-", "-:-", "01:1:1"),
+            (["private", "in_review"], False, "01:1:1", "-:-:-", "-:-", "01:1:1"),
+            (["public", "private"], True, "01:1:1", "0:0:0", "0:0", "01:0:0"),
             (["public", "in_review"], True, "01:1:1", "0:0:0", "0:0", "01:0:0"),
             (["public", "rejected"], True, "01:1:1", "0:0:0", "0:0", "01:0:0"),
-            (["rejected", "public"], True, "01:1:1", "1:1:1", "1:1", "1:1:1"),
-            (["blocked"], False, "0:0:-", "-:-:-", "-:-", "-:-:-"),
-            (["public_blocked"], False, "0:0:-", "-:-:-", "-:-", "-:-:-"),
-            (["blocked", "in_review"], False, "01:1:-", "-:-:-", "-:-", "-:-:-"),
+            (["rejected", "public"], True, "01:1:1", "1:1:1", "1:1", "01:1:1"),
+            (["blocked"], False, "0:0:-", "-:-:-", "-:-", "0:0:0"),
+            (["public_blocked"], False, "0:0:-", "-:-:-", "-:-", "0:0:0"),
+            (["blocked", "in_review"], False, "01:1:-", "-:-:-", "-:-", "01:1:1"),
             (["marked"], False, "-:-:-", "-:-:-", "-:-", "-:-:-"),
             (["public", "marked"], False, "-:-:-", "-:-:-", "-:-", "-:-:-"),
             (["marked", "in_review"], False, "-:-:-", "-:-:-", "-:-", "-:-:-"),

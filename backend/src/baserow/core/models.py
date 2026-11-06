@@ -394,13 +394,24 @@ class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOn
         return _get_workspace_template_types(_WorkspaceTemplatesCacheKey(self))
 
     def has_openable_template(
-        self, actor, *, private_link_token: str | None = None
+        self,
+        actor,
+        *,
+        private_link_token: str | None = None,
+        allow_instance_admin: bool = False,
     ) -> bool:
         """
         Whether the actor can open this workspace as a template: official, own,
         public, with the token of its private link or, for an instance admin, in the
         review queue. Prefetch `template_set__root` to check many workspaces without a
         query each, except the review queue and the private link queries.
+
+        :param actor: The user or anonymous user who opens the template.
+        :param private_link_token: The token of the private link the actor opened
+            the template through, if any.
+        :param allow_instance_admin: Whether an instance admin opens every user
+            template, see `TemplateQuerySet.openable`.
+        :return: Whether the actor can open the workspace as a template.
         """
 
         template_types = self.get_template_types()
@@ -417,11 +428,14 @@ class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOn
             templates = templates.select_related("root")
         if any(template.is_openable_outside_review_by(actor) for template in templates):
             return True
-        if (
-            is_instance_admin(actor)
-            and Template.objects.review_queue().filter(workspace=self).exists()
-        ):
-            return True
+        if is_instance_admin(actor):
+            if allow_instance_admin:
+                return any(
+                    template.get_root().marked_for_deletion_at is None
+                    for template in templates
+                )
+            if Template.objects.review_queue().filter(workspace=self).exists():
+                return True
         return (
             private_link_token is not None
             and Template.objects.filter(workspace=self)
@@ -962,17 +976,25 @@ class TemplateQuerySet(QuerySet):
         return self.filter(q)
 
     def openable(
-        self, actor: Any, *, private_link_token: str | None = None
+        self,
+        actor: Any,
+        *,
+        private_link_token: str | None = None,
+        allow_instance_admin: bool = False,
     ) -> "TemplateQuerySet":
         """
-        The templates the actor can open, except the admin review queue. With the
-        token of a private link, any actor, also a signed out one, opens the latest
-        revision of the private template whose link has the token, unless it's
-        blocked or marked for deletion. Lists pass no token, so that this template
-        isn't listed.
+        The templates the actor can open. With the token of a private link, any
+        actor, also a signed out one, opens the latest revision of the private
+        template whose link has the token, unless it's blocked or marked for
+        deletion. With `allow_instance_admin`, an instance admin opens every
+        revision of every user template not marked for deletion; without it, the
+        admin review queue is left out. Lists pass neither, so that these templates
+        aren't listed.
 
         :param actor: The user or anonymous user.
         :param private_link_token: The token of the private link of the request.
+        :param allow_instance_admin: Whether an instance admin opens every user
+            template, only for the checks of a single template.
         :return: Those templates.
         """
 
@@ -996,6 +1018,8 @@ class TemplateQuerySet(QuerySet):
                 blocked_at__isnull=True,
                 marked_for_deletion_at__isnull=True,
             ) & ~Q(Exists(_later_revisions()))
+        if allow_instance_admin and is_instance_admin(actor):
+            visible |= _root_q(marked_for_deletion_at__isnull=True)
         return queryset.filter(official | Q(type=Template.Type.USER) & visible)
 
 

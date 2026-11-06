@@ -1479,8 +1479,9 @@ def create_templates_of_each_state(data_fixture, owner, with_links=False):
     Returns templates with who can open them while user templates are enabled:
     the others (not the owner, a link holder or an admin), anyone with the token of
     the private link of the template, see `get_link_token`, the owner, and an
-    instance admin who isn't the owner. Only the official ones open while user
-    templates are disabled.
+    instance admin who isn't the owner. With `allow_instance_admin`, which only the
+    checks of a single template pass, the admin opens what the owner opens. Only the
+    official ones open while user templates are disabled.
 
     :param with_links: Whether the templates that can have a private link get one.
     """
@@ -1593,8 +1594,12 @@ def test_allow_if_template_permission_manager_allows_openable_templates(
             token = get_link_token(template) if has_link else None
             enabled = user_templates_enabled or template.type != Template.Type.USER
             allowed = row[column] and enabled
-            listed = row[OTHERS if column == HOLDER else column] and enabled
+            listed_column = OTHERS if column == HOLDER else column
+            listed = row[listed_column] and enabled
             in_lists = column != ADMIN or row[OTHERS]
+            as_admin = OWNER if column == ADMIN else None
+            checked = row[as_admin or column] and enabled
+            checked_listed = row[as_admin or listed_column] and enabled
             for operation in manager.OPERATION_ALLOWED_ON_TEMPLATES:
                 check = PermissionCheck(actor, operation, workspace)
                 queryset = workspace.application_set.all()
@@ -1602,25 +1607,38 @@ def test_allow_if_template_permission_manager_allows_openable_templates(
 
                 with private_link_token(token):
                     assert manager.check_multiple_permissions([check], workspace) == (
-                        {check: True} if allowed else {}
+                        {check: True} if checked else {}
                     ), reason
                     assert (
                         manager.filter_queryset(
                             check.actor, operation, queryset, workspace
                         )
                         is not None
-                    ) is allowed, reason
+                    ) is checked, reason
                     assert (
                         workspace.id
                         in manager.filter_queryset_for_workspaces(
                             check.actor, operation, queryset, [workspace]
                         )
-                    ) is allowed, reason
+                    ) is checked, reason
                 assert (
                     Template.objects.openable(check.actor, private_link_token=token)
                     .filter(id=template.id)
                     .exists()
                 ) is (allowed and in_lists), reason
+                assert (
+                    Template.objects.openable(
+                        check.actor, private_link_token=token, allow_instance_admin=True
+                    )
+                    .filter(id=template.id)
+                    .exists()
+                ) is checked, reason
+                assert (
+                    workspace.has_openable_template(
+                        check.actor, allow_instance_admin=True
+                    )
+                    is checked_listed
+                ), reason
                 assert (
                     Template.objects.openable(check.actor)
                     .filter(id=template.id)
@@ -1719,10 +1737,18 @@ def test_openable_template_check_uses_prefetched_templates(
         )
     )
 
+    admin = data_fixture.create_user(is_staff=True)
+
     with django_assert_num_queries(0):
         openable = {w.id for w in workspaces if w.has_openable_template(owner)}
+        openable_by_admin = {
+            w.id
+            for w in workspaces
+            if w.has_openable_template(admin, allow_instance_admin=True)
+        }
 
     assert openable == {row[0].workspace_id for row in templates if row[OWNER]}
+    assert openable_by_admin == openable
 
 
 @pytest.mark.django_db

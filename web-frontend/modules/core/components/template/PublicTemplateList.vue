@@ -163,6 +163,11 @@ const props = defineProps({
     required: false,
     default: true,
   },
+  initialSearch: {
+    type: String,
+    required: false,
+    default: '',
+  },
 })
 
 const emit = defineEmits(['selected'])
@@ -178,7 +183,7 @@ const updatedLabel = (t, updatedOn) =>
 // The categories holding a public template.
 const categories = ref([])
 const searchInput = ref(null)
-const search = ref('')
+const search = ref(props.initialSearch)
 const categoryId = ref(null)
 const templates = ref([])
 // Where the next page starts: the number of templates received so far, which is

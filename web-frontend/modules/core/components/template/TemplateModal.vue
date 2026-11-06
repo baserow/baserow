@@ -52,6 +52,7 @@
         v-show="selectedTemplate === null"
         ref="publicTemplateList"
         :active="open && selectedTemplate === null"
+        :initial-search="sharedSearch"
         class="templates__body"
         @selected="selectPublicTemplate"
       >
@@ -188,6 +189,7 @@ export default {
       selectedTemplate: null,
       selectedOwnerActions: false,
       tab: 'official',
+      sharedSearch: '',
       // The list of the user's templates is loaded when its tab is opened first.
       userTemplatesOpened: false,
       // While a template is created, its modal takes the search shortcut.
@@ -286,6 +288,7 @@ export default {
       this.categories = []
       this.selectTemplate(null)
       this.tab = 'official'
+      this.sharedSearch = ''
       this.userTemplatesOpened = false
 
       try {
@@ -309,8 +312,18 @@ export default {
         this.selectTemplate(template)
       }
     },
+    async showShared(search) {
+      await this.show()
+      if (this.loading) {
+        return
+      }
+      this.selectTemplate(null)
+      this.sharedSearch = search
+      this.tab = 'public'
+    },
     selectTab(tab) {
       this.tab = tab
+      this.sharedSearch = ''
       if (tab === 'own') {
         this.userTemplatesOpened = true
       }

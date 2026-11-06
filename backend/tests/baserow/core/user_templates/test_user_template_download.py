@@ -167,6 +167,7 @@ def test_download_admitted_through_private_link_when_the_link_changes(
         # The owner may download a revision that isn't the public one.
         ("owner", "old", None),
         ("owner", "other_template", TemplateDoesNotExist),
+        ("staff", "old", None),
         ("user", "public", None),
         ("user", "old", TemplateUpdated),
     ],
@@ -176,7 +177,11 @@ def test_get_downloadable_revision(data_fixture, actor, shown, error):
     template = create_template(data_fixture, owner)
     revision = add_revision(data_fixture, template)
     data_fixture.set_user_template_state(template, "public", revision=revision)
-    user = owner if actor == "owner" else data_fixture.create_user()
+    user = (
+        owner
+        if actor == "owner"
+        else data_fixture.create_user(is_staff=actor == "staff")
+    )
     shown = {
         "old": template,
         "public": revision,

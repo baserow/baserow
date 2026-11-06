@@ -8,20 +8,17 @@
     >
       {{ $t('templatesAdmin.review') }}
     </Button>
-    <Button
-      v-else-if="row.reject_unlists"
-      type="secondary"
-      size="small"
-      icon="iconoir-eye-off"
-      @click.stop="emit('reject', row)"
-    >
-      {{ $t('templatesAdmin.unlist') }}
-    </Button>
+    <MoreField
+      :row="row"
+      @row-context="emit('row-context', $event)"
+    ></MoreField>
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
+
+import MoreField from '@baserow/modules/core/components/crudTable/fields/MoreField'
 
 const props = defineProps({
   row: {
@@ -30,7 +27,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['open-review', 'reject'])
+const emit = defineEmits(['open-review', 'row-context'])
 
 const hasOpenReview = computed(() =>
   ['in_review', 'rejected'].includes(props.row.state)

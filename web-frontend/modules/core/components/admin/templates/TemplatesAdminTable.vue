@@ -5,9 +5,9 @@
     :service="service"
     row-id-key="id"
     :filters="filters"
-    :enable-search="false"
+    :search-placeholder="$t('templatesAdmin.searchPlaceholder')"
     @open-review="showReviewModal"
-    @reject="showRejectModal"
+    @row-context="onRowContext"
   >
     <template #title>
       {{ $t('templatesAdmin.title') }}
@@ -20,7 +20,11 @@
     </template>
     <template #header-filters>
       <div class="templates-admin-tabs">
-        <Tabs v-model:selected-index="tabIndex" header-no-padding>
+        <Tabs
+          v-model:selected-index="tabIndex"
+          header-no-padding
+          content-no-padding
+        >
           <Tab v-for="tab in tabs" :key="tab.state" :title="tab.title"></Tab>
         </Tabs>
       </div>
@@ -41,6 +45,20 @@
         @done="(id) => reviewed(slotProps.refresh, id)"
         @hidden="rejectHidden"
       ></RejectTemplateModal>
+      <TemplateAdminContext
+        ref="adminContext"
+        :template="contextRow"
+        @view="showInTemplates"
+        @unlist="showRejectModal"
+        @delete="showDeleteModal"
+        @changed="(id) => reviewed(slotProps.refresh, id)"
+      ></TemplateAdminContext>
+      <DeleteUserTemplateModal
+        ref="deleteModal"
+        :template="deletedRow"
+        @deleted="(id) => deleted(id, slotProps)"
+      ></DeleteUserTemplateModal>
+      <TemplateModal ref="templateModal"></TemplateModal>
     </template>
   </CrudTable>
 </template>
@@ -51,14 +69,18 @@ import { useNuxtApp } from '#app'
 
 import CrudTable from '@baserow/modules/core/components/crudTable/CrudTable'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
-import LocalDateField from '@baserow/modules/core/components/crudTable/fields/LocalDateField'
 import TemplatesAdminService from '@baserow/modules/core/services/admin/templates'
 import TemplateNameField from '@baserow/modules/core/components/admin/templates/fields/TemplateNameField'
 import TemplateAuthorField from '@baserow/modules/core/components/admin/templates/fields/TemplateAuthorField'
 import TemplateReasonField from '@baserow/modules/core/components/admin/templates/fields/TemplateReasonField'
+import TemplateSubmittedField from '@baserow/modules/core/components/admin/templates/fields/TemplateSubmittedField'
+import TemplateUsedField from '@baserow/modules/core/components/admin/templates/fields/TemplateUsedField'
 import TemplateReviewActionsField from '@baserow/modules/core/components/admin/templates/fields/TemplateReviewActionsField'
 import RejectTemplateModal from '@baserow/modules/core/components/admin/templates/RejectTemplateModal'
 import TemplateReviewModal from '@baserow/modules/core/components/admin/templates/TemplateReviewModal'
+import TemplateAdminContext from '@baserow/modules/core/components/admin/templates/contexts/TemplateAdminContext'
+import DeleteUserTemplateModal from '@baserow/modules/core/components/template/DeleteUserTemplateModal'
+import TemplateModal from '@baserow/modules/core/components/template/TemplateModal'
 import { useTemplateReview } from '@baserow/modules/core/composables/useTemplateReview'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
@@ -80,19 +102,23 @@ const TABS = [
   },
 ]
 
-const { $client, $i18n } = useNuxtApp()
+const { $client, $i18n, $store } = useNuxtApp()
 
 const service = TemplatesAdminService($client)
 const { decide } = useTemplateReview()
 const crudTable = ref(null)
 const tabIndex = ref(0)
-const counts = ref(null)
-let lastCountsRequest = 0
+const counts = computed(() => $store.getters['templatesAdmin/counts'])
 const reviewRow = ref({})
 const reviewModal = ref(null)
 const rejectRow = ref({})
 const rejecting = ref(false)
 const rejectModal = ref(null)
+const contextRow = ref(null)
+const adminContext = ref(null)
+const deletedRow = ref({})
+const deleteModal = ref(null)
+const templateModal = ref(null)
 
 const state = computed(() => TABS[tabIndex.value].state)
 const filters = computed(() => ({ state: state.value }))
@@ -109,20 +135,16 @@ const tabs = computed(() =>
   }))
 )
 
-async function fetchCounts() {
-  const request = ++lastCountsRequest
+async function fetchCounts({ force = false } = {}) {
   try {
-    const { data } = await service.counts()
-    if (request === lastCountsRequest) {
-      counts.value = data
-    }
+    await $store.dispatch('templatesAdmin/fetchCounts', { force })
   } catch (error) {
     notifyIf(error, 'template')
   }
 }
 
-onMounted(fetchCounts)
-watch(tabIndex, fetchCounts)
+onMounted(() => fetchCounts())
+watch(tabIndex, () => fetchCounts())
 
 function showReviewModal(row) {
   if (rejecting.value) {
@@ -151,12 +173,44 @@ async function rejectHidden() {
   reviewModal.value.focusReject()
 }
 
+/**
+ * Opens the menu of the row next to its button, or at the pointer for a right
+ * click, or closes it when it's already open for the row.
+ */
+function onRowContext({ row, event, target }) {
+  event.preventDefault()
+  if (target === undefined) {
+    target = { left: event.clientX, top: event.clientY }
+  }
+  const action = row.id === contextRow.value?.id ? 'toggle' : 'show'
+  contextRow.value = row
+  adminContext.value[action](target, 'bottom', 'right', 4)
+}
+
+function showInTemplates(row) {
+  templateModal.value.showShared(row.name)
+}
+
+function showDeleteModal(row) {
+  deletedRow.value = row
+  deleteModal.value.show()
+}
+
+/**
+ * Drops the deleted template from the list right away, then refreshes the list
+ * and the counts, also when it was already deleted, for example by its author.
+ */
+function deleted(id, { deleteRow, refresh }) {
+  deleteRow(id)
+  reviewed(refresh, id)
+}
+
 async function reviewed(refresh, id) {
   if (reviewRow.value.id === id) {
     reviewModal.value.hide()
   }
   const refreshed = refresh()
-  fetchCounts()
+  fetchCounts({ force: true })
   await refreshed
   await focusRow(id)
 }
@@ -176,6 +230,29 @@ async function focusRow(id) {
   }
 }
 
+const STATE_COLUMNS = {
+  in_review: () =>
+    new CrudTableColumn(
+      'submitted',
+      () => $i18n.t('templatesAdmin.submitted'),
+      TemplateSubmittedField,
+      true
+    ),
+  public: () =>
+    new CrudTableColumn(
+      'used',
+      () => $i18n.t('templatesAdmin.used'),
+      TemplateUsedField,
+      true
+    ),
+  rejected: () =>
+    new CrudTableColumn(
+      'reason',
+      () => $i18n.t('templatesAdmin.reason'),
+      TemplateReasonField
+    ),
+}
+
 const columns = computed(() => [
   new CrudTableColumn(
     'name',
@@ -190,18 +267,7 @@ const columns = computed(() => [
     TemplateAuthorField,
     true
   ),
-  state.value === 'rejected'
-    ? new CrudTableColumn(
-        'reason',
-        () => $i18n.t('templatesAdmin.reason'),
-        TemplateReasonField
-      )
-    : new CrudTableColumn(
-        'updated_on',
-        () => $i18n.t('templatesAdmin.updatedOn'),
-        LocalDateField,
-        true
-      ),
+  STATE_COLUMNS[state.value](),
   new CrudTableColumn(
     'actions',
     '',

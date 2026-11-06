@@ -1,7 +1,7 @@
 from typing import Any, Dict, Optional
 
 from django.db import transaction
-from django.db.models import QuerySet
+from django.db.models import F, QuerySet
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -107,11 +107,13 @@ def serialize_admin_row(revision: Template) -> Dict[str, Any]:
 
 class AdminUserTemplatesView(AdminListingView):
     serializer_class = AdminUserTemplateSerializer
-    search_fields = []
+    search_fields = ["name", "author_name", "author__email", "root__author__email"]
     sort_field_mapping = {
         "name": "name",
         "author": "author_name",
         "updated_on": "template_updated_on",
+        "used": "template_install_count",
+        "submitted": "submitted_on",
     }
 
     def get_queryset(self, request: Request) -> QuerySet[Template]:
@@ -140,7 +142,14 @@ class AdminUserTemplatesView(AdminListingView):
         """
 
         queryset = super().apply_sorts_or_default_sort(sorts or "-updated_on", queryset)
-        return queryset.order_by(*queryset.query.order_by, "-id")
+        order_by = []
+        for order in queryset.query.order_by:
+            if order == "submitted_on":
+                order = F("submitted_on").asc(nulls_last=True)
+            elif order == "-submitted_on":
+                order = F("submitted_on").desc(nulls_last=True)
+            order_by.append(order)
+        return queryset.order_by(*order_by, "-id")
 
     def apply_ids_filter(
         self, ids_param: Optional[str], queryset: QuerySet[Template]
@@ -163,7 +172,8 @@ class AdminUserTemplatesView(AdminListingView):
         operation_id="admin_list_user_templates",
         description="Returns the user templates in review, public or rejected, if "
         "the requesting user is staff: the revision under review of a template in "
-        "review or rejected, otherwise its public revision.",
+        "review or rejected, otherwise its public revision. The templates can be "
+        "searched by name and by the name or email of the author.",
         **AdminListingView.get_extend_schema_parameters(
             "templates",
             serializer_class,

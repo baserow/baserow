@@ -1,5 +1,6 @@
 import re
 from datetime import timedelta
+from enum import Enum
 
 from baserow.core.models import UserTemplateState
 
@@ -19,6 +20,13 @@ USER_TEMPLATE_DELETION_GRACE_PERIOD = timedelta(days=1)
 # that a backlog doesn't keep it from cleaning up the rest. The next run takes the
 # next ones.
 USER_TEMPLATE_PURGE_BATCH_SIZE = 20
+
+
+class InstallAccess(Enum):
+    OWNER = "owner"
+    INSTANCE_ADMIN = "instance_admin"
+    LISTED = "listed"
+    PRIVATE_LINK = "private_link"
 
 
 USER_TEMPLATE_ADMIN_STATES = (

@@ -106,7 +106,7 @@ def test_install_user_template_pins_revision(data_fixture):
             _start_install(user, root, latest=True, link_token=tokens.get(user))
 
     Template.objects.filter(id=root.id).update(public_revision=None)
-    for user in [owner, holder]:
+    for user in [owner, staff, holder]:
         installed = _start_install(user, root, link_token=tokens.get(user))
         assert installed.template_id == revision_3.id
     for link_token in [None, wrong_token]:

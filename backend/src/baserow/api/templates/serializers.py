@@ -64,9 +64,9 @@ class InstallTemplateQueryParamSerializer(serializers.Serializer):
 class DownloadTemplateSerializer(serializers.Serializer):
     revision_id = serializers.IntegerField(
         help_text="The id of the revision of the user template that the user was "
-        "shown. Its owner may download any revision. Anyone else downloads the "
-        "public revision, or the latest one of a template that isn't public with "
-        "the token of its private link."
+        "shown. Its owner and the instance admins may download any revision. "
+        "Anyone else downloads the public revision, or the latest one of a "
+        "template that isn't public with the token of its private link."
     )
 
 
