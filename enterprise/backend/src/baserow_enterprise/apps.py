@@ -121,15 +121,79 @@ class BaserowEnterpriseConfig(AppConfig):
 
         from baserow.core.mcp.groups import (
             AuditLogReadMCPToolGroup,
+            BuilderEditMCPToolGroup,
+            BuilderReadMCPToolGroup,
             mcp_tool_group_registry,
         )
         from baserow.core.mcp.registries import mcp_tool_registry
         from baserow_enterprise.mcp.audit_log.tools import (
             ListAuditLogMcpTool,
         )
+        from baserow_enterprise.mcp.builder.actions.tools import (
+            AddActionFieldMappingMcpTool,
+            CreateActionsMcpTool,
+            ListActionsMcpTool,
+            UpdateActionMcpTool,
+        )
+        from baserow_enterprise.mcp.builder.applications.tools import (
+            CreateBuilderMcpTool,
+            ListBuildersMcpTool,
+            UpdateBuilderMcpTool,
+        )
+        from baserow_enterprise.mcp.builder.data_sources.tools import (
+            CreateDataSourcesMcpTool,
+            ListDataSourcesMcpTool,
+            UpdateDataSourceMcpTool,
+        )
+        from baserow_enterprise.mcp.builder.elements.tools import (
+            CreateCollectionElementsMcpTool,
+            CreateDisplayElementsMcpTool,
+            CreateFormElementsMcpTool,
+            CreateLayoutElementsMcpTool,
+            ListElementsMcpTool,
+            MoveElementsMcpTool,
+            UpdateElementMcpTool,
+            UpdateElementStyleMcpTool,
+        )
+        from baserow_enterprise.mcp.builder.pages.tools import (
+            CreatePagesMcpTool,
+            ListPagesMcpTool,
+            SetupPageMcpTool,
+            UpdatePageMcpTool,
+        )
+        from baserow_enterprise.mcp.builder.themes.tools import SetThemeMcpTool
+        from baserow_enterprise.mcp.builder.user_sources.tools import (
+            SetupUserSourceMcpTool,
+        )
 
         mcp_tool_group_registry.register(AuditLogReadMCPToolGroup())
+        mcp_tool_group_registry.register(BuilderReadMCPToolGroup())
+        mcp_tool_group_registry.register(BuilderEditMCPToolGroup())
         mcp_tool_registry.register(ListAuditLogMcpTool())
+        mcp_tool_registry.register(ListBuildersMcpTool())
+        mcp_tool_registry.register(ListPagesMcpTool())
+        mcp_tool_registry.register(ListDataSourcesMcpTool())
+        mcp_tool_registry.register(ListElementsMcpTool())
+        mcp_tool_registry.register(ListActionsMcpTool())
+        mcp_tool_registry.register(CreateBuilderMcpTool())
+        mcp_tool_registry.register(UpdateBuilderMcpTool())
+        mcp_tool_registry.register(CreatePagesMcpTool())
+        mcp_tool_registry.register(UpdatePageMcpTool())
+        mcp_tool_registry.register(CreateDataSourcesMcpTool())
+        mcp_tool_registry.register(UpdateDataSourceMcpTool())
+        mcp_tool_registry.register(CreateDisplayElementsMcpTool())
+        mcp_tool_registry.register(CreateLayoutElementsMcpTool())
+        mcp_tool_registry.register(CreateFormElementsMcpTool())
+        mcp_tool_registry.register(CreateCollectionElementsMcpTool())
+        mcp_tool_registry.register(UpdateElementMcpTool())
+        mcp_tool_registry.register(UpdateElementStyleMcpTool())
+        mcp_tool_registry.register(MoveElementsMcpTool())
+        mcp_tool_registry.register(CreateActionsMcpTool())
+        mcp_tool_registry.register(AddActionFieldMappingMcpTool())
+        mcp_tool_registry.register(UpdateActionMcpTool())
+        mcp_tool_registry.register(SetupPageMcpTool())
+        mcp_tool_registry.register(SetupUserSourceMcpTool())
+        mcp_tool_registry.register(SetThemeMcpTool())
 
         job_type_registry.register(DataScanResultExportJobType())
         agent_extension_type_registry.register(EnterpriseAgentExtensionType())
@@ -515,18 +579,6 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.assistant.tools.automation.tool_types import (
             AutomationToolType,
         )
-        from baserow_enterprise.assistant.tools.builder.assistant_element_types import (
-            ButtonAssistantElementType,
-            ColumnAssistantElementType,
-            FooterAssistantElementType,
-            HeaderAssistantElementType,
-            LinkAssistantElementType,
-            MenuAssistantElementType,
-            TableAssistantElementType,
-        )
-        from baserow_enterprise.assistant.tools.builder.registries import (
-            assistant_element_type_registry,
-        )
         from baserow_enterprise.assistant.tools.builder.tool_types import (
             BuilderToolType,
         )
@@ -545,6 +597,18 @@ class BaserowEnterpriseConfig(AppConfig):
         )
         from baserow_enterprise.assistant.tools.search_user_docs.tool_types import (
             SearchDocsToolType,
+        )
+        from baserow_enterprise.builder.tools.assistant_element_types import (
+            ButtonAssistantElementType,
+            ColumnAssistantElementType,
+            FooterAssistantElementType,
+            HeaderAssistantElementType,
+            LinkAssistantElementType,
+            MenuAssistantElementType,
+            TableAssistantElementType,
+        )
+        from baserow_enterprise.builder.tools.registries import (
+            assistant_element_type_registry,
         )
 
         ai_provider_model_feature_type_registry.register(

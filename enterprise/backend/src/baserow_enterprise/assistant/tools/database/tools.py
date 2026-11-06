@@ -514,7 +514,8 @@ def create_tables(
         int,
         Field(
             ...,
-            description="The ID of the database to create tables in.",
+            description="The ID of the database to create tables in. "
+            "create_database returns the ID of a new one.",
         ),
     ],
     tables: Annotated[

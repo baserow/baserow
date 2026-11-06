@@ -688,7 +688,10 @@ def test_contact_form_accepts_primitive_tools_and_requires_submit_action(data_fi
     )
     for name in ["name", "email"]:
         element = data_fixture.create_builder_input_text_element(
-            page=page, reference_element=form, position=GraphPointPosition.CHILD
+            page=page,
+            reference_element=form,
+            position=GraphPointPosition.CHILD,
+            label=f"'{name.title()}'",
         )
         service.field_mappings.create(
             field=scenario.refs[f"{name}_field"],

@@ -10,6 +10,7 @@ from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.tools.workflows import (  # noqa: F401
     WorkflowCreationPlan,
+    describe_workflow,
     plan_workflow_creation,
 )
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
@@ -70,9 +71,7 @@ def describe_reused_workflows(
 
     return [
         {
-            "id": workflow.id,
-            "name": workflow.name,
-            "state": workflow.state,
+            **describe_workflow(workflow),
             "nodes": [
                 {**node, "type": _short_node_type(node["type"])}
                 for node in helpers.get_nodes_in_order(user, workflow)

@@ -441,7 +441,7 @@ def test_literal_values_with_apostrophes_stay_valid_formulas(data_fixture):
 
     from baserow.contrib.automation.workflows.service import AutomationWorkflowService
     from baserow.core.formula import BaserowFormulaObject
-    from baserow_enterprise.assistant.tools.shared.formula_utils import is_valid_formula
+    from baserow_enterprise.tools.formula_utils import is_valid_formula
 
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)

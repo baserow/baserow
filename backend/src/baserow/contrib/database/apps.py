@@ -1243,12 +1243,14 @@ class DatabaseConfig(AppConfig):
             UpdateRowsMcpTool,
         )
         from baserow.contrib.database.mcp.table.tools import (
+            CreateDatabaseMcpTool,
             CreateTablesMcpTool,
             DeleteTableMcpTool,
             GetTableSchemaMcpTool,
             ListApplicationsMcpTool,
             ListDatabasesMcpTool,
             ListTablesMcpTool,
+            UpdateDatabaseMcpTool,
             UpdateTableMcpTool,
         )
         from baserow.contrib.database.mcp.views.tools import (
@@ -1282,6 +1284,8 @@ class DatabaseConfig(AppConfig):
         mcp_tool_registry.register(UpdateRowsMcpTool())
         mcp_tool_registry.register(DeleteRowsMcpTool())
         mcp_tool_registry.register(ListViewsMcpTool())
+        mcp_tool_registry.register(CreateDatabaseMcpTool())
+        mcp_tool_registry.register(UpdateDatabaseMcpTool())
         mcp_tool_registry.register(CreateTablesMcpTool())
         mcp_tool_registry.register(CreateFieldsMcpTool())
         mcp_tool_registry.register(UpdateFieldsMcpTool())

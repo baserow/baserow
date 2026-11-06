@@ -12,37 +12,48 @@ from django.utils.translation import gettext as _
 
 from pydantic import Field
 
+from baserow.api.errors import ERROR_UNTRUSTED_CONTENT_CANNOT_BE_PUBLISHED
 from baserow.contrib.automation.models import Automation
+from baserow.contrib.automation.tools.formulas import EMPTY_FORMULA
 from baserow.contrib.automation.tools.types import WorkflowCreate
 from baserow.contrib.automation.workflows.actions import (
     CreateAutomationWorkflowActionType,
+    UpdateAutomationWorkflowActionType,
 )
+from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.operations import (
+    PublishAutomationWorkflowOperationType,
     ReadAutomationWorkflowOperationType,
+    UpdateAutomationWorkflowOperationType,
 )
-from baserow.core.exceptions import PermissionException
+from baserow.contrib.automation.workflows.service import AutomationWorkflowService
+from baserow.contrib.integrations.local_baserow.models import LocalBaserowTableService
+from baserow.core.exceptions import (
+    PermissionException,
+    UntrustedContentCannotBePublished,
+)
 from baserow.core.handler import CoreHandler
-from baserow.core.service import CoreService
 from baserow.core.tools import ToolContext
-from baserow.core.tools.applications import visible_applications
-from baserow.core.tools.errors import item_error_message
+from baserow.core.tools.applications import (
+    get_application_in_workspace,
+    visible_applications,
+)
+from baserow.core.tools.errors import ToolInputError, item_error_message
+
+NODE_TYPES_NEEDING_A_ROW_ID = {"local_baserow_update_row", "local_baserow_delete_row"}
 
 
 def get_automation_in_workspace(ctx: ToolContext, automation_id: int) -> Automation:
     """
     Get an automation of the context's workspace.
 
-    :raises ApplicationDoesNotExist: When the automation is missing, trashed or in
-        another workspace.
+    :raises ApplicationDoesNotExist: When the automation is missing, trashed, in
+        another workspace or hidden from the user.
     """
 
-    return CoreService().get_application(
-        ctx.user,
-        automation_id,
-        base_queryset=Automation.objects.filter(workspace=ctx.workspace),
-    )
+    return get_application_in_workspace(ctx, automation_id, Automation)
 
 
 def get_workflow_in_workspace(ctx: ToolContext, workflow_id: int) -> AutomationWorkflow:
@@ -70,7 +81,27 @@ def get_workflow_in_workspace(ctx: ToolContext, workflow_id: int) -> AutomationW
 
 
 def describe_workflow(workflow: AutomationWorkflow) -> dict[str, Any]:
-    return {"id": workflow.id, "name": workflow.name, "state": workflow.state}
+    """
+    The id, name and state of a workflow. Publishing copies a workflow, so its state
+    is the one of its published version, as the REST API reports it, and a workflow
+    without one is a draft.
+
+    :param workflow: The workflow. One from `annotate_published_workflow_data` runs
+        no query.
+    """
+
+    try:
+        state = workflow.published_workflow_state
+    except AttributeError:
+        published = AutomationWorkflowHandler().get_published_workflow(
+            workflow, with_cache=False
+        )
+        state = published.state if published else None
+    return {
+        "id": workflow.id,
+        "name": workflow.name,
+        "state": WorkflowState(state or WorkflowState.DRAFT).value,
+    }
 
 
 def list_workflows(
@@ -85,8 +116,10 @@ def list_workflows(
 ) -> dict[str, Any]:
     """
     List the automations of the workspace with their workflows: id, name and state
-    (draft, live, paused or disabled). Pass automation_id to list one automation.
-    Use list_nodes to see the nodes of a workflow.
+    (draft, live, paused or disabled). A draft has never been published and doesn't
+    run. The other states are those of the last published version, so a live workflow
+    can have later edits that aren't running yet. Pass automation_id to list one
+    automation. Use list_nodes to see the nodes of a workflow.
     """
 
     if automation_id is None:
@@ -97,7 +130,9 @@ def list_workflows(
     workflows = CoreHandler().filter_queryset(
         ctx.user,
         ReadAutomationWorkflowOperationType.type,
-        AutomationWorkflow.objects.filter(automation__in=automations),
+        AutomationWorkflowHandler().annotate_published_workflow_data(
+            AutomationWorkflow.objects.filter(automation__in=automations)
+        ),
         workspace=ctx.workspace,
     )
     by_automation: dict[int, list[dict[str, Any]]] = {}
@@ -259,7 +294,9 @@ def create_workflows_in_automation(
     existing = CoreHandler().filter_queryset(
         ctx.user,
         ReadAutomationWorkflowOperationType.type,
-        AutomationWorkflow.objects.filter(automation=automation),
+        AutomationWorkflowHandler().annotate_published_workflow_data(
+            AutomationWorkflow.objects.filter(automation=automation)
+        ),
         workspace=ctx.workspace,
     )
     plan = plan_workflow_creation(workflows, existing)
@@ -309,7 +346,11 @@ def create_workflows_in_automation(
 def create_workflows(
     ctx: ToolContext,
     automation_id: Annotated[
-        int, Field(description="The ID of the automation to create workflows in.")
+        int,
+        Field(
+            description="The ID of the automation to create workflows in. "
+            "create_automation returns the ID of a new one."
+        ),
     ],
     workflows: Annotated[
         list[WorkflowCreate],
@@ -317,7 +358,8 @@ def create_workflows(
     ],
 ) -> dict[str, Any]:
     """
-    Create workflows, each with a trigger and the nodes after it. Nodes follow
+    Create workflows, each with a trigger and the nodes after it. Created workflows
+    are drafts and don't run until published with publish_workflow. Nodes follow
     each other through previous_node_ref, the ref of an earlier node in the same
     workflow, and router_edge_label attaches a node to a router branch. A row
     trigger or row action needs the table_id and field IDs of a table in the
@@ -345,3 +387,152 @@ def create_workflows(
     return create_workflows_in_automation(ctx, automation, workflows).to_response(
         ctx.user
     )
+
+
+def check_workflow_can_run(ctx: ToolContext, workflow: AutomationWorkflow) -> list[str]:
+    """
+    Checks what can be told about a workflow before it goes live. This isn't a full
+    check: a node can still fail when it runs.
+
+    :raises ToolInputError: When the workflow can never do anything.
+    :return: A warning for each node that is found to be misconfigured.
+    """
+
+    from baserow.contrib.automation.tools.nodes import nodes_in_order
+
+    nodes = [node for node, *_ in nodes_in_order(ctx.user, workflow)]
+    if not nodes or not nodes[0].get_type().is_workflow_trigger:
+        raise ToolInputError(
+            "This workflow has no trigger, so it would never run. Nothing was "
+            "published."
+        )
+    if not any(node.get_type().is_workflow_action for node in nodes[1:]):
+        raise ToolInputError(
+            "This workflow has no action after its trigger, so it would do nothing. "
+            "Nothing was published."
+        )
+
+    warnings = []
+    for node in nodes:
+        node_type = node.get_type()
+        problem = None
+        if (
+            isinstance(node.service, LocalBaserowTableService)
+            and node.service.table_id is None
+        ):
+            problem = (
+                "no table is set, so it never fires."
+                if node_type.is_workflow_trigger
+                else "no table is set, so every run fails here."
+            )
+        elif node_type.type in NODE_TYPES_NEEDING_A_ROW_ID and node.service.row_id[
+            "formula"
+        ] in ("", EMPTY_FORMULA):
+            problem = "no row_id is set, so every run fails here."
+        if problem:
+            warnings.append(f"Node {node.id} ({node.label}): {problem}")
+    return warnings
+
+
+def publish_workflow(
+    ctx: ToolContext,
+    workflow_id: Annotated[
+        int,
+        Field(
+            description="The ID of the workflow to publish, from create_workflows or "
+            "list_workflows."
+        ),
+    ],
+) -> dict[str, Any]:
+    """
+    Publish a workflow, so it runs when its trigger fires. Effects are real and start
+    straight away: rows written or deleted, emails sent, HTTP calls made. Get the
+    user's approval first. A run that fails keeps what earlier nodes did.
+
+    A copy of the current workflow is live when this returns and the workflow keeps
+    its ID. Later edits don't reach the live version until it is published again,
+    which replaces that version. Republishing makes a paused or disabled workflow live
+    again with a fresh error count. pause_workflow stops a live workflow.
+
+    A workflow with no trigger, or no action after its trigger, is refused. warnings
+    lists nodes found to be misconfigured, which doesn't mean the others are sound.
+    Imported content must be reviewed and trusted in the app before it can be
+    published.
+    """
+
+    workflow = get_workflow_in_workspace(ctx, workflow_id)
+    CoreHandler().check_permissions(
+        ctx.user,
+        PublishAutomationWorkflowOperationType.type,
+        workspace=ctx.workspace,
+        context=workflow.automation,
+    )
+    try:
+        with transaction.atomic():
+            # Deleting a node changes the workflow's graph, so locking it first keeps
+            # the checked draft unchanged until it is published.
+            workflow = AutomationWorkflowHandler().get_workflow(
+                workflow.id, for_update=True
+            )
+            warnings = check_workflow_can_run(ctx, workflow)
+            published = AutomationWorkflowService().publish(ctx.user, workflow)
+    except UntrustedContentCannotBePublished as exc:
+        raise ToolInputError(ERROR_UNTRUSTED_CONTENT_CANNOT_BE_PUBLISHED[2]) from exc
+    result: dict[str, Any] = {
+        "published_workflow": {
+            "id": workflow.id,
+            "name": workflow.name,
+            "state": WorkflowState(published.state).value,
+        }
+    }
+    if warnings:
+        result["warnings"] = warnings
+    return result
+
+
+def pause_workflow(
+    ctx: ToolContext,
+    workflow_id: Annotated[
+        int,
+        Field(
+            description="The ID of the workflow to pause, from create_workflows or "
+            "list_workflows."
+        ),
+    ],
+) -> dict[str, Any]:
+    """
+    Pause a live workflow, so its trigger no longer starts runs. Events while it is
+    paused aren't replayed. A run already under way isn't stopped. publish_workflow
+    makes it live again by publishing the current draft, with any edits made since,
+    not the paused version. changed is false when it was already paused. A workflow
+    that was never published or was disabled is refused.
+    """
+
+    workflow = get_workflow_in_workspace(ctx, workflow_id)
+    CoreHandler().check_permissions(
+        ctx.user,
+        UpdateAutomationWorkflowOperationType.type,
+        workspace=ctx.workspace,
+        context=workflow,
+    )
+    handler = AutomationWorkflowHandler()
+    with transaction.atomic():
+        # Waits for a publish in progress, so what it leaves live is what gets paused.
+        handler.get_workflow(workflow.id, for_update=True)
+        published = handler.get_published_workflow(workflow, with_cache=False)
+        if published is None:
+            raise ToolInputError(
+                "This workflow has never been published, so it isn't running and "
+                "there is nothing to pause."
+            )
+        if published.state == WorkflowState.DISABLED:
+            raise ToolInputError(
+                "This workflow was disabled after too many failed runs, so it isn't "
+                "running and stays disabled. Publishing it again makes it live."
+            )
+        changed = published.state != WorkflowState.PAUSED
+        if changed:
+            UpdateAutomationWorkflowActionType.do(
+                ctx.user, workflow.id, {"state": WorkflowState.PAUSED}
+            )
+    return {"paused_workflow": describe_workflow(workflow), "changed": changed}

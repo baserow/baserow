@@ -1,3 +1,5 @@
+from django.db import transaction
+
 import pytest
 from pytest_unordered import unordered
 
@@ -8,9 +10,11 @@ from baserow.core.actions import (
     CreateApplicationActionType,
     DeleteApplicationActionType,
     DuplicateApplicationActionType,
+    InstallTemplateActionType,
     OrderApplicationsActionType,
     UpdateApplicationActionType,
 )
+from baserow.core.handler import CoreHandler
 from baserow.core.models import Application
 from baserow.test_utils.helpers import assert_undo_redo_actions_are_valid
 
@@ -262,6 +266,117 @@ def test_can_undo_redo_duplicate_simple_application(data_fixture):
     assert list(Application.objects.values_list("name", flat=True)) == unordered(
         [application_name, f"{application_name} 2"]
     )
+
+
+# The builder registers no actions, see `test_can_redo_builder_creation`.
+TYPES_WITH_ACTIONS = ["database", "automation", "dashboard"]
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+@pytest.mark.parametrize("application_type", TYPES_WITH_ACTIONS)
+def test_can_undo_redo_create_application_of_each_type(data_fixture, application_type):
+    session_id = "session-id"
+    user = data_fixture.create_user(session_id=session_id)
+    workspace = data_fixture.create_workspace(user=user)
+    scopes = [WorkspaceActionScopeType.value(workspace_id=workspace.id)]
+
+    application = action_type_registry.get_by_type(CreateApplicationActionType).do(
+        user, workspace, application_type, name="Created"
+    )
+
+    with transaction.atomic():
+        ActionHandler.undo(user, scopes, session_id)
+    assert not Application.objects.filter(id=application.id).exists()
+
+    with transaction.atomic():
+        redone = ActionHandler.redo(user, scopes, session_id)
+    assert_undo_redo_actions_are_valid(redone, [CreateApplicationActionType])
+    assert Application.objects.filter(id=application.id).exists()
+
+
+@pytest.mark.django_db
+def test_can_redo_builder_creation(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = CreateApplicationActionType.do(user, workspace, "builder", name="Site")
+    params = CreateApplicationActionType.Params(
+        workspace.id, workspace.name, "builder", builder.id, builder.name, False
+    )
+
+    CreateApplicationActionType.undo(user, params, None)
+    assert not Application.objects.filter(id=builder.id).exists()
+
+    CreateApplicationActionType.redo(user, params, None)
+    assert Application.objects.filter(id=builder.id).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+@pytest.mark.parametrize("application_type", [*TYPES_WITH_ACTIONS, "builder"])
+def test_can_undo_redo_delete_application_of_each_type(data_fixture, application_type):
+    session_id = "session-id"
+    user = data_fixture.create_user(session_id=session_id)
+    workspace = data_fixture.create_workspace(user=user)
+    scopes = [WorkspaceActionScopeType.value(workspace_id=workspace.id)]
+    application = CoreHandler().create_application(
+        user, workspace, application_type, name="To delete"
+    )
+
+    action_type_registry.get_by_type(DeleteApplicationActionType).do(user, application)
+    assert not Application.objects.filter(id=application.id).exists()
+
+    with transaction.atomic():
+        undone = ActionHandler.undo(user, scopes, session_id)
+    assert_undo_redo_actions_are_valid(undone, [DeleteApplicationActionType])
+    assert Application.objects.filter(id=application.id).exists()
+
+    with transaction.atomic():
+        redone = ActionHandler.redo(user, scopes, session_id)
+    assert_undo_redo_actions_are_valid(redone, [DeleteApplicationActionType])
+    assert not Application.objects.filter(id=application.id).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_can_undo_redo_duplicate_automation(data_fixture):
+    session_id = "session-id"
+    user = data_fixture.create_user(session_id=session_id)
+    workspace = data_fixture.create_workspace(user=user)
+    scopes = [WorkspaceActionScopeType.value(workspace_id=workspace.id)]
+    automation = data_fixture.create_automation_application(
+        workspace=workspace, name="Original"
+    )
+
+    duplicate = action_type_registry.get_by_type(DuplicateApplicationActionType).do(
+        user, automation
+    )
+
+    with transaction.atomic():
+        ActionHandler.undo(user, scopes, session_id)
+    assert not Application.objects.filter(id=duplicate.id).exists()
+
+    with transaction.atomic():
+        redone = ActionHandler.redo(user, scopes, session_id)
+    assert_undo_redo_actions_are_valid(redone, [DuplicateApplicationActionType])
+    assert Application.objects.filter(id=duplicate.id).exists()
+
+
+@pytest.mark.django_db
+def test_can_redo_install_template_holding_an_automation(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    params = InstallTemplateActionType.Params(
+        workspace.id, workspace.name, 1, "Template", [database.id, automation.id]
+    )
+
+    InstallTemplateActionType.undo(user, params, None)
+    assert Application.objects.filter(workspace=workspace).count() == 0
+
+    InstallTemplateActionType.redo(user, params, None)
+    assert Application.objects.filter(workspace=workspace).count() == 2
 
 
 def test_update_application_action_long_description():

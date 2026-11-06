@@ -3,6 +3,7 @@ A bad item in a Kuma builder batch is reported in ``errors`` with a readable mes
 and leaves nothing behind, while the other items of the call are saved.
 """
 
+import asyncio
 from typing import Any
 
 import pytest
@@ -15,7 +16,6 @@ from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.cache import local_cache
 from baserow.core.services.models import Service
-from baserow_enterprise.assistant.tools.builder.errors import item_error
 from baserow_enterprise.assistant.tools.builder.tools import (
     add_action_field_mapping,
     create_actions,
@@ -26,7 +26,9 @@ from baserow_enterprise.assistant.tools.builder.tools import (
     setup_page,
     update_page,
 )
-from baserow_enterprise.assistant.tools.builder.types import (
+from baserow_enterprise.assistant.tools.shared import ToolInputError
+from baserow_enterprise.builder.tools.errors import item_error
+from baserow_enterprise.builder.tools.types import (
     ActionCreate,
     DataSourceCreate,
     DisplayElementCreate,
@@ -35,14 +37,13 @@ from baserow_enterprise.assistant.tools.builder.types import (
     PageCreate,
     PageUpdate,
 )
-from baserow_enterprise.assistant.tools.builder.types.page import (
+from baserow_enterprise.builder.tools.types.page import (
     PagePathParam,
     PageQueryParam,
 )
-from baserow_enterprise.assistant.tools.builder.types.workflow_action import (
+from baserow_enterprise.builder.tools.types.workflow_action import (
     FieldValueMapping,
 )
-from baserow_enterprise.assistant.tools.shared import ToolInputError
 
 from .utils import make_test_ctx
 
@@ -181,6 +182,31 @@ def test_element_failing_after_it_is_written_leaves_nothing(site, monkeypatch):
         for e in Element.objects.filter(page=site["page"]).order_by("id")
     ]
     assert values == ["'First'", "'Last'"]
+
+
+@pytest.mark.django_db
+def test_a_cancel_between_elements_rolls_the_batch_back(site, monkeypatch):
+    post_create = ElementItemCreate.post_create
+
+    def cancel_after_first(self, user, orm_element, page):
+        result = post_create(self, user, orm_element, page)
+        site["ctx"].deps.tool_helpers.cancel()
+        return result
+
+    monkeypatch.setattr(ElementItemCreate, "post_create", cancel_after_first)
+
+    with pytest.raises(asyncio.CancelledError):
+        create_display_elements(
+            site["ctx"],
+            page_id=site["page"].id,
+            elements=[
+                DisplayElementCreate(ref="first", type="heading", value="First"),
+                DisplayElementCreate(ref="second", type="heading", value="Second"),
+            ],
+            thought="test",
+        )
+
+    assert not Element.objects.filter(page=site["page"]).exists()
 
 
 @pytest.mark.django_db
@@ -421,9 +447,7 @@ def test_a_bug_in_create_pages_is_not_reported_as_an_item_error(site, monkeypatc
     def broken(*args, **kwargs):
         raise AttributeError("'Page' object has no attribute 'order'")
 
-    monkeypatch.setattr(
-        "baserow_enterprise.assistant.tools.builder.helpers.create_page", broken
-    )
+    monkeypatch.setattr("baserow_enterprise.builder.tools.helpers.create_page", broken)
 
     with pytest.raises(AttributeError):
         create_pages(
@@ -442,7 +466,7 @@ def test_a_bug_in_create_data_sources_is_not_reported_as_an_item_error(
         raise AttributeError("'Service' object has no attribute 'table'")
 
     monkeypatch.setattr(
-        "baserow_enterprise.assistant.tools.builder.helpers.create_data_source",
+        "baserow_enterprise.builder.tools.helpers.create_data_source",
         broken,
     )
 

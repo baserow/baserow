@@ -13,27 +13,36 @@ from django.utils.translation import gettext as _
 from pydantic import Field
 from pydantic_ai import ModelRetry, RunContext
 
+from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.handler import PageHandler
-from baserow.core.exceptions import PermissionException
-from baserow_enterprise.assistant.deps import AssistantDeps
-from baserow_enterprise.assistant.tools.builder.themes import (
-    THEME_CATALOG,
-    ThemeName,
-    apply_theme,
+from baserow.contrib.builder.workflow_actions.handler import (
+    BuilderWorkflowActionHandler,
 )
+from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
+from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.tools.shared import (
+    ToolInputError,
     permission_denied_result,
     raise_if_permission_denied,
     require_payload,
 )
 from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 from baserow_enterprise.assistant.types import BuilderPageNavigationType
-
-from . import agents, helpers
-from .errors import is_input_error, item_error
-from .registries import assistant_element_type_registry
-from .types import (
+from baserow_enterprise.builder.tools import BuilderWriteOptions, helpers
+from baserow_enterprise.builder.tools import actions as shared_actions
+from baserow_enterprise.builder.tools import data_sources as shared_data_sources
+from baserow_enterprise.builder.tools import elements as shared_elements
+from baserow_enterprise.builder.tools import pages as shared_pages
+from baserow_enterprise.builder.tools import themes as shared_themes
+from baserow_enterprise.builder.tools import user_sources as shared_user_sources
+from baserow_enterprise.builder.tools.errors import is_input_error, item_error
+from baserow_enterprise.builder.tools.formulas import BuilderFormulaError
+from baserow_enterprise.builder.tools.registries import assistant_element_type_registry
+from baserow_enterprise.builder.tools.themes import THEME_CATALOG, ThemeName
+from baserow_enterprise.builder.tools.types import (
+    ActionChanges,
     ActionCreate,
+    ActionItem,
     CollectionElementCreate,
     DataSourceCreate,
     DataSourceUpdate,
@@ -45,10 +54,11 @@ from .types import (
     FormElementCreate,
     LayoutElementCreate,
     PageCreate,
-    PageItem,
     PageUpdate,
 )
-from .types.user_source import UserSourceSetup
+from baserow_enterprise.builder.tools.types.user_source import UserSourceSetup
+
+from . import agents
 
 # ---------------------------------------------------------------------------
 # Page-scoped ref tracking
@@ -82,6 +92,24 @@ def _get_data_source_refs(tool_helpers, page_id: int) -> dict[str, int]:
     return _get_page_context(tool_helpers, page_id)["data_source_refs"].copy()
 
 
+def _page_not_found(page_id: int) -> ToolInputError:
+    return ToolInputError(
+        f"Page with ID {page_id} not found or not accessible. "
+        "Use list_pages to find valid page IDs."
+    )
+
+
+def _input_item_error(exc: Exception) -> str:
+    """
+    The message for an item of a batch whose input is at fault. Anything else is a
+    bug, which stops the call and undoes the batch.
+    """
+
+    if not is_input_error(exc):
+        raise exc
+    return item_error(exc)
+
+
 # ---------------------------------------------------------------------------
 # Page tools
 # ---------------------------------------------------------------------------
@@ -103,40 +131,15 @@ def list_pages(
     DO NOT USE when: You already have the page IDs you need.
     """
 
-    from baserow.core.user_sources.service import UserSourceService
-
-    user = ctx.deps.user
-    workspace = ctx.deps.workspace
-    tool_helpers = ctx.deps.tool_helpers
-
-    builder = helpers.get_builder(user, workspace, application_id)
-    tool_helpers.update_status(
-        _("Listing pages in %(app_name)s...") % {"app_name": builder.name}
-    )
-
-    pages = helpers.list_pages(user, builder)
-
     try:
-        user_sources = UserSourceService().get_user_sources(user, builder)
-    except PermissionException:
-        # Only application editors may list them.
-        user_sources = []
-    user_source_data = []
-    roles: set[str] = set()
-    for us in user_sources:
-        roles.update(us.get_type().get_roles(us))
-        entry = {"id": us.id, "name": us.name}
-        specific = us.specific if hasattr(us, "specific") else us
-        if hasattr(specific, "table_id"):
-            entry["table_id"] = specific.table_id
-        user_source_data.append(entry)
-
+        result = shared_pages.list_pages(ctx.deps.tool_context(), application_id)
+    except ApplicationDoesNotExist:
+        raise ToolInputError(
+            f"Application with ID {application_id} not found in this workspace. "
+            "Use list_builders to find valid application IDs."
+        )
     return {
-        "application_id": builder.id,
-        "pages": [p.model_dump() for p in pages],
-        "login_page_id": builder.login_page_id,
-        "user_sources": user_source_data,
-        "available_roles": sorted(roles),
+        **result,
         "next_steps": (
             "For a requested new page, use create_pages with this application_id "
             "first, then use its returned page ID in setup_page or element tools. "
@@ -188,31 +191,20 @@ def create_pages(
 
     # Skip duplicates
     existing = {p.name.lower(): p for p in helpers.list_pages(user, builder)}
-    helpers.ensure_distinct_paths([p for p in pages if p.name.lower() not in existing])
-    created_pages: list[PageItem] = []
-    skipped_pages: list[PageItem] = []
-    errors: list[str] = []
+    new_pages = [p for p in pages if p.name.lower() not in existing]
+    helpers.ensure_distinct_paths(new_pages)
+    skipped_pages = [
+        existing[p.name.lower()] for p in pages if p.name.lower() in existing
+    ]
 
-    with transaction.atomic():
-        for page_create in pages:
-            tool_helpers.raise_if_cancelled()
-            ex = existing.get(page_create.name.lower())
-            if ex:
-                skipped_pages.append(ex)
-                continue
-            tool_helpers.update_status(
-                _("Creating page %(name)s...") % {"name": page_create.name}
-            )
-            try:
-                with transaction.atomic():
-                    page = helpers.create_page(user, builder, page_create)
-            except Exception as exc:
-                raise_if_permission_denied(exc)
-                if not is_input_error(exc):
-                    raise
-                errors.append(f"{page_create.name}: {item_error(exc)}")
-                continue
-            created_pages.append(PageItem.from_orm(page))
+    created = shared_pages.create_pages_with_options(
+        ctx.deps.tool_context(),
+        application_id,
+        new_pages,
+        BuilderWriteOptions(item_error=_input_item_error),
+    )
+    created_pages = created["created_pages"]
+    errors = created.get("errors", [])
 
     if created_pages:
         last = created_pages[-1]
@@ -220,14 +212,12 @@ def create_pages(
             BuilderPageNavigationType(
                 type="builder-page",
                 application_id=application_id,
-                page_id=last.id,
-                page_name=last.name,
+                page_id=last["id"],
+                page_name=last["name"],
             )
         )
 
-    result: dict[str, Any] = {
-        "created_pages": [p.model_dump() for p in created_pages],
-    }
+    result: dict[str, Any] = {"created_pages": created_pages}
     if skipped_pages:
         result["existing_pages"] = [p.model_dump() for p in skipped_pages]
     if errors:
@@ -273,17 +263,14 @@ def update_page(
     - When changing path, also update path_params if the new path has different parameters.
     """
 
-    user = ctx.deps.user
-    tool_helpers = ctx.deps.tool_helpers
-
-    tool_helpers.update_status(_("Updating page %(id)d...") % {"id": page.page_id})
-
-    updated_page = helpers.update_page(user, ctx.deps.workspace, page)
-    page_item = PageItem.from_orm(updated_page)
+    try:
+        result = shared_pages.update_page(ctx.deps.tool_context(), page.page_id, page)
+    except PageDoesNotExist:
+        raise _page_not_found(page.page_id)
 
     return {
         "status": "ok",
-        "page": page_item.model_dump(),
+        "page": result["updated_page"],
         "updated_fields": page.get_updated_field_names(),
     }
 
@@ -308,16 +295,36 @@ def list_data_sources(
     RETURNS: Data sources array.
     """
 
-    user = ctx.deps.user
-    tool_helpers = ctx.deps.tool_helpers
+    try:
+        return shared_data_sources.list_data_sources(ctx.deps.tool_context(), page_id)
+    except PageDoesNotExist:
+        raise _page_not_found(page_id)
 
-    page = helpers.get_page(user, ctx.deps.workspace, page_id)
-    tool_helpers.update_status(
-        _("Listing data sources on %(name)s...") % {"name": page.name}
-    )
 
-    ds_list = helpers.list_data_sources(user, page)
-    return {"data_sources": [ds.model_dump() for ds in ds_list]}
+def _split_reused_data_sources(
+    user, page, data_sources: list[DataSourceCreate]
+) -> tuple[dict[str, int], list[DataSourceCreate]]:
+    """
+    Skip the data sources the page has, by name or structural match.
+
+    :return: The IDs to use for the refs of those it has, and the others.
+    """
+
+    existing_ds = helpers.list_data_sources(user, page)
+    existing_by_name = {ds.name.lower(): ds for ds in existing_ds}
+    reused: dict[str, int] = {}
+    new_data_sources: list[DataSourceCreate] = []
+    for ds_create in data_sources:
+        ex = existing_by_name.get(ds_create.name.lower())
+        if not ex:
+            ex = next(
+                (ds for ds in existing_ds if ds_create.matches_existing(ds)), None
+            )
+        if ex:
+            reused[ds_create.ref] = ex.id
+        else:
+            new_data_sources.append(ds_create)
+    return reused, new_data_sources
 
 
 def create_data_sources(
@@ -359,66 +366,50 @@ def create_data_sources(
     require_payload("create_data_sources", "data_sources", data_sources)
 
     page = helpers.get_page(user, ctx.deps.workspace, page_id)
-    integration = helpers.get_local_baserow_integration(user, page.builder)
 
-    existing_ds = helpers.list_data_sources(user, page)
-    existing_by_name = {ds.name.lower(): ds for ds in existing_ds}
-    ref_to_id: dict[str, int] = {}
-    created: list[dict] = []
-    ds_pairs: list[tuple] = []
-    errors: list[str] = []
+    reused, new_data_sources = _split_reused_data_sources(user, page, data_sources)
 
-    with transaction.atomic():
-        for ds_create in data_sources:
-            tool_helpers.raise_if_cancelled()
-            ex = existing_by_name.get(ds_create.name.lower())
-            if not ex:
-                ex = next(
-                    (ds for ds in existing_ds if ds_create.matches_existing(ds)), None
-                )
-            if ex:
-                ref_to_id[ds_create.ref] = ex.id
-                continue
-
-            tool_helpers.update_status(
-                _("Creating data source '%(name)s'...") % {"name": ds_create.name}
-            )
-            try:
-                with transaction.atomic():
-                    orm_ds, ds_id = helpers.create_data_source(
-                        user, page, ds_create, integration
-                    )
-            except Exception as exc:
-                raise_if_permission_denied(exc)
-                if not is_input_error(exc):
-                    raise
-                errors.append(f"{ds_create.ref}: {item_error(exc)}")
-                continue
-            ref_to_id[ds_create.ref] = ds_id
-            ds_pairs.append((orm_ds, ds_create))
-            created.append(
-                {
-                    "id": ds_id,
-                    "ref": ds_create.ref,
-                    "name": ds_create.name,
-                    "type": ds_create.type,
-                }
-            )
-
-    # Formula generation (separate transactions)
-    errors.extend(
-        agents.update_data_source_formulas(user, page, ds_pairs, tool_helpers)
+    tool_context = ctx.deps.tool_context()
+    created = shared_data_sources.create_data_sources_with_options(
+        tool_context,
+        page_id,
+        new_data_sources,
+        BuilderWriteOptions(defer_required_formulas=True, item_error=_input_item_error),
     )
 
+    # Formula generation (separate transactions)
+    errors = created.get("errors", [])
+    errors.extend(
+        _create_data_source_formula_error(entry)
+        for entry in agents.repair_builder_formula_errors(
+            tool_context, tool_helpers, page, created.get("formula_errors", [])
+        )
+    )
+
+    ids = {**reused, **created["ref_to_id_map"]}
+    ref_to_id = {ds.ref: ids[ds.ref] for ds in data_sources if ds.ref in ids}
     _track_data_source_refs(tool_helpers, page_id, ref_to_id)
 
     result: dict[str, Any] = {
-        "created_data_sources": created,
+        "created_data_sources": created["created_data_sources"],
         "ref_to_id_map": ref_to_id,
     }
     if errors:
         result["errors"] = errors
     return result
+
+
+def _create_data_source_formula_error(entry: BuilderFormulaError) -> str:
+    """How Kuma words a value the repair of a new data source couldn't fill."""
+
+    name = entry.item.name
+    if entry.permission_denied:
+        return (
+            f"Permission denied while configuring data source '{name}'. "
+            "It was created, but its formulas were not applied. "
+            "Do not retry the denied operation."
+        )
+    return f"Formula generation failed for data source '{name}': {entry['error']}"
 
 
 # ---------------------------------------------------------------------------
@@ -463,22 +454,22 @@ def update_data_source(
         _("Updating data source %(id)d...") % {"id": data_source.data_source_id}
     )
 
-    with transaction.atomic():
-        orm_ds, ds_type = helpers.update_data_source(user, page, data_source)
+    tool_context = ctx.deps.tool_context()
+    _orm_ds, ds_type, formula_errors = shared_data_sources.update_data_source_on_page(
+        tool_context, page, data_source
+    )
 
     # Handle formula generation for $formula: fields (separate transaction)
-    errors: list[str] = []
-    updated_fields = data_source.get_updated_field_names()
-    formulas = data_source.get_formulas_to_update(orm_ds, None)
-    if formulas:
-        applied, errors = agents.update_single_data_source_formulas(
-            user, page, orm_ds, data_source, tool_helpers
-        )
-        updated_fields = [
-            field
-            for field in updated_fields
-            if field not in formulas or field in applied
-        ]
+    remaining = agents.repair_builder_formula_errors(
+        tool_context, tool_helpers, page, formula_errors
+    )
+    errors = _kept_value_errors(remaining)
+    not_applied = {entry["field"] for entry in remaining}
+    updated_fields = [
+        field
+        for field in data_source.get_updated_field_names()
+        if field not in not_applied
+    ]
 
     result: dict[str, Any] = {
         "status": "partial" if errors else "ok",
@@ -489,6 +480,34 @@ def update_data_source(
     if errors:
         result["errors"] = errors
     return result
+
+
+def _kept_value_errors(remaining: list[BuilderFormulaError]) -> list[str]:
+    """
+    How Kuma words values the repair of an updated item couldn't fill.
+
+    :raises PermissionException: When the user may not write one of them.
+    """
+
+    fields_by_error: dict[str, list[str]] = {}
+    for entry in remaining:
+        if entry.permission_denied:
+            raise PermissionException()
+        fields_by_error.setdefault(entry["error"], []).append(entry["field"])
+    return [
+        _kept_value_error(error, fields) for error, fields in fields_by_error.items()
+    ]
+
+
+def _kept_value_error(error: str, fields: list[str]) -> str:
+    names = ", ".join(sorted(fields))
+    if error == agents.NO_VALID_FORMULA:
+        return (
+            f"No valid formula was generated for {names}. The previous value was kept."
+        )
+    return (
+        f"Formula generation failed for {names}: {error}. The previous value was kept."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -507,6 +526,7 @@ def list_elements(
     List all elements on a page.
 
     WHEN to use: Check existing elements, find element IDs or container structure.
+    NOT LISTED: What a button does when clicked, like the message it shows or the page it opens. Use list_actions for that.
     WHAT it does: Lists elements with id, type, parent_element_id, is_container. Tables also show their data_source_id and table_columns in display order: uid, name, type, and value (text, boolean, rating) or label (button). value and label are formulas: fixed text is quoted, and '' or "''" is an empty cell. Menus show their items in order: uid, name, type, page_id (or url, for a link to a custom address), and a top-level link's sub-links as children.
     RETURNS: Elements array.
 
@@ -514,16 +534,51 @@ def list_elements(
     Do not add page-specific children to them.
     """
 
-    user = ctx.deps.user
-    tool_helpers = ctx.deps.tool_helpers
+    try:
+        return shared_elements.list_elements(ctx.deps.tool_context(), page_id)
+    except PageDoesNotExist:
+        raise _page_not_found(page_id)
 
-    page = helpers.get_page(user, ctx.deps.workspace, page_id)
-    tool_helpers.update_status(
-        _("Listing elements on %(name)s...") % {"name": page.name}
+
+def _create_element_formula_errors(entries: list[BuilderFormulaError]) -> list[str]:
+    """
+    How Kuma words the values the repair of new elements couldn't fill: one error per
+    item. A value the model left out isn't reported.
+    """
+
+    errors: list[str] = []
+    reported: set[tuple[str, int]] = set()
+    for entry in entries:
+        item_key = (entry.kind, entry.source.id)
+        if entry["error"] == agents.NO_VALID_FORMULA or item_key in reported:
+            continue
+        reported.add(item_key)
+        errors.append(_new_item_formula_error(entry))
+    return errors
+
+
+def _new_item_formula_error(entry: BuilderFormulaError) -> str:
+    item = entry.item
+    if entry.kind == "element":
+        if entry.permission_denied:
+            return (
+                f"Permission denied while configuring element '{item.ref}'. "
+                "The element was created, but its formulas were not applied. "
+                "Do not retry the denied operation."
+            )
+        return f"Formula generation failed for '{item.ref}': {entry['error']}"
+    if entry.permission_denied:
+        return (
+            f"Permission denied while configuring action on '{item.element}'. "
+            "The action was created, but its formulas were not applied. "
+            "Do not retry the denied operation."
+        )
+    ref = (
+        item.element
+        if isinstance(item.element, str)
+        else f"element_{entry.source.element_id}"
     )
-
-    elements = helpers.list_elements(user, page)
-    return {"elements": [el.model_dump() for el in elements]}
+    return f"Formula generation failed for action on '{ref}': {entry['error']}"
 
 
 def _create_elements_internal(
@@ -534,66 +589,42 @@ def _create_elements_internal(
 ) -> dict[str, Any]:
     """Shared implementation for all create_*_elements tools."""
 
-    user = ctx.deps.user
     tool_helpers = ctx.deps.tool_helpers
 
-    page = helpers.get_page(user, ctx.deps.workspace, page_id)
+    page = helpers.get_page(ctx.deps.user, ctx.deps.workspace, page_id)
     shared_page = PageHandler().get_shared_page(page.builder)
 
-    tool_helpers.update_status(
-        _("Creating %(count)d elements on %(name)s...")
-        % {"count": len(elements), "name": page.name}
-    )
-
-    ref_to_id: dict[str, int] = _get_element_refs(tool_helpers, page_id)
-    element_mapping: dict[str, tuple[Any, ElementItemCreate]] = {}
-    created_elements_by_id: dict[int, Any] = {}
-    ds_ref_to_id = _get_data_source_refs(tool_helpers, page_id)
+    known_refs = _get_element_refs(tool_helpers, page_id)
     shared_page_refs: set[str] = set(
         _get_element_refs(tool_helpers, shared_page.id).keys()
     )
-    created: list[dict] = []
 
-    errors: list[str] = []
-    table_action_pairs: list[tuple] = []
-    with transaction.atomic():
-        for el_create in elements:
-            tool_helpers.raise_if_cancelled()
-            try:
-                with transaction.atomic():
-                    element, el_id, action_pairs = helpers.create_element(
-                        user,
-                        page,
-                        el_create,
-                        ref_to_id,
-                        ds_ref_to_id,
-                        shared_page_refs,
-                        before_element_id,
-                    )
-            except Exception as exc:
-                raise_if_permission_denied(exc)
-                helpers.forget_page_graphs(page)
-                errors.append(f"{el_create.ref}: {item_error(exc)}")
-                continue
-            ref_to_id[el_create.ref] = el_id
-            element_mapping[el_create.ref] = (element, el_create)
-            created_elements_by_id[el_id] = element
-            table_action_pairs.extend(action_pairs)
-            created.append({"id": el_id, "ref": el_create.ref, "type": el_create.type})
+    tool_context = ctx.deps.tool_context()
+    shared = shared_elements.create_elements_with_options(
+        tool_context,
+        page_id,
+        elements,
+        before_element_id,
+        BuilderWriteOptions(
+            known_refs=known_refs,
+            known_data_source_refs=_get_data_source_refs(tool_helpers, page_id),
+            known_shared_page_refs=shared_page_refs,
+            column_name_beats_formula=True,
+            item_error=item_error,
+        ),
+    )
+    created = shared["created_elements"]
+    ref_to_id = {**known_refs, **shared["ref_to_id_map"]}
 
     # Formula generation (separate transactions)
+    errors = shared.get("errors", [])
     errors.extend(
-        agents.update_element_formulas(
-            user, page, elements, element_mapping, tool_helpers
-        )
-    )
-
-    if table_action_pairs:
-        errors.extend(
-            agents.update_workflow_action_formulas(
-                user, page, table_action_pairs, tool_helpers
+        _create_element_formula_errors(
+            agents.repair_builder_formula_errors(
+                tool_context, tool_helpers, page, shared.get("formula_errors", [])
             )
         )
+    )
 
     _track_element_refs(tool_helpers, page_id, ref_to_id)
     _track_element_refs(
@@ -607,14 +638,7 @@ def _create_elements_internal(
     if errors:
         result["errors"] = errors
 
-    # Report the saved graph after the entire batch, including children added by
-    # post-create hooks. A container's successful creation does not add content.
-    empty_containers = [
-        item
-        for item in created
-        if (element := created_elements_by_id[item["id"]]).get_type().is_container
-        and not element.page.get_graph().get_children(element)
-    ]
+    empty_containers = shared.get("empty_containers")
     next_steps = []
     if empty_containers:
         result["empty_containers"] = empty_containers
@@ -628,10 +652,11 @@ def _create_elements_internal(
         )
 
     # Guide the model to create workflow actions for interactive elements.
+    created_refs = {item["ref"] for item in created}
     actionable = [
         el.ref
         for el in elements
-        if el.ref in element_mapping and el.type in ("button", "form_container")
+        if el.ref in created_refs and el.type in ("button", "form_container")
     ]
     if actionable:
         next_steps.append(
@@ -864,6 +889,9 @@ def update_element(
     - Unsupported properties reject the update without applying any changes.
     - Button navigation belongs in create_actions(type='open_page', event='click'),
       not in update_element. Links support navigation properties directly.
+    - A button's text is what it says before it's clicked. What it shows or does when
+      clicked, like the message of a notification, is a click action: find it with
+      list_actions and change it with update_action.
 
     ## Table Columns
     - list_elements shows each table's columns with uid, name, type, and value or label.
@@ -918,24 +946,20 @@ def update_element(
         _("Updating element %(id)d...") % {"id": element.element_id}
     )
 
-    with transaction.atomic():
-        outcome = helpers.update_element(user, page, element)
+    tool_context = ctx.deps.tool_context()
+    outcome, formula_errors = shared_elements.update_element_on_page(
+        tool_context, page, element
+    )
     orm_element, element_type = outcome.element, outcome.element_type
 
     # Handle formula generation for $formula: fields (separate transaction)
+    remaining = agents.repair_builder_formula_errors(
+        tool_context, tool_helpers, page, formula_errors
+    )
+    errors = _update_element_formula_errors(element.element_id, remaining)
+    not_applied = {entry["field"] for entry in remaining}
     formulas = element.get_formulas_to_update(orm_element, None, element_type)
-    applied_formulas: list[str] = []
-    errors: list[str] = []
-    if formulas:
-        try:
-            applied_formulas, errors = agents.update_single_element_formulas(
-                user, page, orm_element, element, element_type, tool_helpers
-            )
-        except PermissionException:
-            errors = [
-                "Permission denied while applying element formulas. "
-                "Previous formula values were retained. Do not retry the denied operation."
-            ]
+    applied_formulas = [field for field in formulas if field not in not_applied]
 
     dependent_fields = element.get_formula_dependent_fields(element_type)
     property_aliases = assistant_element_type_registry.get_for(
@@ -957,6 +981,33 @@ def update_element(
     if errors:
         result["errors"] = errors
     return result
+
+
+def _update_element_formula_errors(
+    element_id: int, entries: list[BuilderFormulaError]
+) -> list[str]:
+    """How Kuma words values the repair of an updated element couldn't fill."""
+
+    if any(entry.permission_denied for entry in entries):
+        return [
+            "Permission denied while applying element formulas. "
+            "Previous formula values were retained. Do not retry the denied operation."
+        ]
+    fields_by_error: dict[str, list[str]] = {}
+    for entry in entries:
+        fields_by_error.setdefault(entry["error"], []).append(entry["field"])
+    return [
+        (
+            "No valid formula was generated for: "
+            f"{', '.join(sorted(fields))}. Previous values were retained."
+        )
+        if error == agents.NO_VALID_FORMULA
+        else (
+            f"Formula generation failed for element {element_id}: {error}. "
+            "Previous formula values were retained."
+        )
+        for error, fields in fields_by_error.items()
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -1125,21 +1176,15 @@ def list_actions(
     """\
     List all workflow actions on a page.
 
-    WHEN to use: Check existing actions, find action IDs, or review field mappings.
+    WHEN to use: Check existing actions, find action IDs, review field mappings, or find what a button does when clicked, like the message it shows.
     WHAT it does: Lists actions with id, type, element_id, event, field_mappings.
     RETURNS: Workflow actions array.
     """
 
-    user = ctx.deps.user
-    tool_helpers = ctx.deps.tool_helpers
-
-    page = helpers.get_page(user, ctx.deps.workspace, page_id)
-    tool_helpers.update_status(
-        _("Listing actions on %(name)s...") % {"name": page.name}
-    )
-
-    actions = helpers.list_workflow_actions(user, page)
-    return {"workflow_actions": [a.model_dump() for a in actions]}
+    try:
+        return shared_actions.list_actions(ctx.deps.tool_context(), page_id)
+    except PageDoesNotExist:
+        raise _page_not_found(page_id)
 
 
 def create_actions(
@@ -1167,7 +1212,7 @@ def create_actions(
 
     ## Action Types
     - notification: Show a message (title/description are formulas)
-    - open_page: Navigate to another page (set navigate_to_page_id). Use page_parameters to pass context like the current row's ID to the target page's path parameters.
+    - open_page: Navigate to another page (set navigate_to_page_id). Give page_parameters with exactly the names of the target page's path parameters, like the current row's ID: without them the action isn't created.
     - create_row: Insert a row (needs table_id and field_values)
     - update_row: Update a row (needs table_id, row_id, field_values)
     - delete_row: Delete a row (needs table_id and row_id)
@@ -1180,54 +1225,36 @@ def create_actions(
     - row_id: "$formula: the id from the page parameter"
     """
 
-    user = ctx.deps.user
     tool_helpers = ctx.deps.tool_helpers
 
     require_payload("create_actions", "actions", actions)
 
-    page = helpers.get_page(user, ctx.deps.workspace, page_id)
-    integration = helpers.get_local_baserow_integration(user, page.builder)
+    page = helpers.get_page(ctx.deps.user, ctx.deps.workspace, page_id)
 
-    el_refs = _get_element_refs(tool_helpers, page_id)
-    ds_refs = _get_data_source_refs(tool_helpers, page_id)
-    created: list[dict] = []
-    action_pairs: list[tuple] = []
-
-    errors: list[str] = []
-    with transaction.atomic():
-        for action_create in actions:
-            tool_helpers.raise_if_cancelled()
-            tool_helpers.update_status(
-                _("Creating %(type)s action...") % {"type": action_create.type}
-            )
-            try:
-                with transaction.atomic():
-                    orm_action, action_id = helpers.create_workflow_action(
-                        user, page, action_create, el_refs, ds_refs, integration
-                    )
-            except Exception as exc:
-                raise_if_permission_denied(exc)
-                errors.append(
-                    f"{action_create.type} on {action_create.element}: "
-                    f"{item_error(exc)}"
-                )
-                continue
-            action_pairs.append((orm_action, action_create))
-            created.append(
-                {
-                    "id": action_id,
-                    "type": action_create.type,
-                    "element": action_create.element,
-                    "event": action_create.event,
-                }
-            )
-
-    # Formula generation (separate transactions)
-    errors.extend(
-        agents.update_workflow_action_formulas(user, page, action_pairs, tool_helpers)
+    tool_context = ctx.deps.tool_context()
+    shared = shared_actions.create_actions_with_options(
+        tool_context,
+        page_id,
+        actions,
+        BuilderWriteOptions(
+            known_refs=_get_element_refs(tool_helpers, page_id),
+            known_data_source_refs=_get_data_source_refs(tool_helpers, page_id),
+            defer_required_formulas=True,
+            item_error=item_error,
+        ),
     )
 
-    result: dict[str, Any] = {"created_actions": created}
+    # Formula generation (separate transactions)
+    errors = shared.get("errors", [])
+    errors.extend(
+        _create_element_formula_errors(
+            agents.repair_builder_formula_errors(
+                tool_context, tool_helpers, page, shared.get("formula_errors", [])
+            )
+        )
+    )
+
+    result: dict[str, Any] = {"created_actions": shared["created_actions"]}
     if errors:
         result["errors"] = errors
     return result
@@ -1265,214 +1292,49 @@ def add_action_field_mapping(
     )
 
 
-# ---------------------------------------------------------------------------
-# Composite page setup — phase helpers
-# ---------------------------------------------------------------------------
+def update_action(
+    ctx: RunContext[AssistantDeps],
+    action_id: Annotated[int, Field(description="The workflow action ID.")],
+    changes: Annotated[
+        ActionChanges,
+        Field(description="The values to change. Set only what should change."),
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+) -> dict[str, Any]:
+    """\
+    Change the values of an existing workflow action.
 
+    WHEN to use: A notification, open_page, row or refresh_data_source action should do something else, like a new message (a notification's title), target page or row_id.
+    WHAT it does: Changes the given values. Its type, element and event stay as they are. page_parameters and query_parameters replace the whole list; field_values change the named fields only.
+    RETURNS: The updated action, with errors for values that kept their previous value.
+    DO NOT USE when: The action doesn't exist yet — use create_actions instead.
+    EXAMPLE: {"action_id": 12, "changes": {"title": "'Order placed'"}, "thought": "Change the message of the Buy button's notification."}. thought is required, however small the change.
 
-def _setup_data_sources(
-    user,
-    page,
-    data_sources: list,
-    ds_ref_to_id: dict[str, int],
-    integration,
-    tool_helpers,
-) -> tuple[list[dict], list[str]]:
+    ## Dynamic Values with $formula:
+    - title: "$formula: the name of the product"
+    - row_id: "$formula: the id from the page parameter"
+    - field_values: {"field_id": "123", "value": "$formula: the Name form input"}
     """
-    Create data sources, skipping duplicates by name or structural match.
 
-    :param user: The acting user.
-    :param page: The page to create data sources on.
-    :param data_sources: The requested data source definitions.
-    :param ds_ref_to_id: Ref-to-ID mapping, mutated in place.
-    :param integration: The local Baserow integration to attach to.
-    :param tool_helpers: Provides status updates and cancellation.
-    :return: ``(created, errors)``.
-    """
-
-    created: list[dict] = []
-    errors: list[str] = []
-    if not data_sources:
-        return created, errors
-
-    existing_ds = helpers.list_data_sources(user, page)
-    existing_by_name = {ds.name.lower(): ds for ds in existing_ds}
-    ds_pairs: list[tuple] = []
-
-    with transaction.atomic():
-        for ds_create in data_sources:
-            tool_helpers.raise_if_cancelled()
-            ex = existing_by_name.get(ds_create.name.lower())
-            if not ex:
-                ex = next(
-                    (ds for ds in existing_ds if ds_create.matches_existing(ds)),
-                    None,
-                )
-            if ex:
-                ds_ref_to_id[ds_create.ref] = ex.id
-                continue
-            tool_helpers.update_status(
-                _("Creating data source '%(name)s'...") % {"name": ds_create.name}
-            )
-            try:
-                with transaction.atomic():
-                    orm_ds, ds_id = helpers.create_data_source(
-                        user, page, ds_create, integration
-                    )
-                ds_ref_to_id[ds_create.ref] = ds_id
-                ds_pairs.append((orm_ds, ds_create))
-                created.append(
-                    {
-                        "id": ds_id,
-                        "ref": ds_create.ref,
-                        "name": ds_create.name,
-                        "type": ds_create.type,
-                    }
-                )
-            except Exception as exc:
-                raise_if_permission_denied(exc)
-                errors.append(f"data_source {ds_create.ref}: {item_error(exc)}")
-    errors.extend(
-        agents.update_data_source_formulas(user, page, ds_pairs, tool_helpers)
+    tool_context = ctx.deps.tool_context()
+    action, formula_errors = shared_actions.update_action_values(
+        tool_context, action_id, changes
     )
-    return created, errors
 
-
-def _setup_elements(
-    user,
-    page,
-    elements: list,
-    el_ref_to_id: dict[str, int],
-    ds_ref_to_id: dict[str, int],
-    shared_page_refs: set[str],
-    tool_helpers,
-) -> tuple[list[dict], list[str]]:
-    """
-    Create elements in order, generate formulas, and handle table actions.
-
-    :param user: The acting user.
-    :param page: The page to create elements on.
-    :param elements: The requested element definitions.
-    :param el_ref_to_id: Ref-to-ID mapping, mutated in place.
-    :param ds_ref_to_id: Data source ref-to-ID mapping.
-    :param shared_page_refs: Refs placed on the shared page, mutated in place.
-    :param tool_helpers: Provides status updates and cancellation.
-    :return: ``(created, errors)``.
-    """
-
-    created: list[dict] = []
-    errors: list[str] = []
-    if not elements:
-        return created, errors
-
-    element_mapping: dict[str, tuple[Any, ElementItemCreate]] = {}
-    table_action_pairs: list[tuple] = []
-
-    tool_helpers.update_status(
-        _("Creating %(count)d elements on %(name)s...")
-        % {"count": len(elements), "name": page.name}
-    )
-    with transaction.atomic():
-        for el_create in elements:
-            tool_helpers.raise_if_cancelled()
-            try:
-                with transaction.atomic():
-                    element, el_id, action_pairs = helpers.create_element(
-                        user,
-                        page,
-                        el_create,
-                        el_ref_to_id,
-                        ds_ref_to_id,
-                        shared_page_refs,
-                        None,
-                    )
-                el_ref_to_id[el_create.ref] = el_id
-                element_mapping[el_create.ref] = (element, el_create)
-                table_action_pairs.extend(action_pairs)
-                created.append(
-                    {"id": el_id, "ref": el_create.ref, "type": el_create.type}
-                )
-            except Exception as exc:
-                raise_if_permission_denied(exc)
-                helpers.forget_page_graphs(page)
-                errors.append(f"element {el_create.ref}: {item_error(exc)}")
-    errors.extend(
-        agents.update_element_formulas(
-            user, page, elements, element_mapping, tool_helpers
+    errors = _kept_value_errors(
+        agents.repair_builder_formula_errors(
+            tool_context, ctx.deps.tool_helpers, action.page, formula_errors
         )
     )
-    if table_action_pairs:
-        errors.extend(
-            agents.update_workflow_action_formulas(
-                user, page, table_action_pairs, tool_helpers
-            )
-        )
-    return created, errors
-
-
-def _setup_actions(
-    user,
-    page,
-    actions: list,
-    el_ref_to_id: dict[str, int],
-    ds_ref_to_id: dict[str, int],
-    integration,
-    tool_helpers,
-) -> tuple[list[dict], list[str]]:
-    """
-    Create workflow actions and generate their formulas.
-
-    :param user: The acting user.
-    :param page: The page to create actions on.
-    :param actions: The requested action definitions.
-    :param el_ref_to_id: Element ref-to-ID mapping.
-    :param ds_ref_to_id: Data source ref-to-ID mapping.
-    :param integration: The local Baserow integration to attach to.
-    :param tool_helpers: Provides status updates and cancellation.
-    :return: ``(created, errors)``.
-    """
-
-    created: list[dict] = []
-    errors: list[str] = []
-    if not actions:
-        return created, errors
-
-    action_pairs: list[tuple] = []
-    with transaction.atomic():
-        for action_create in actions:
-            tool_helpers.raise_if_cancelled()
-            tool_helpers.update_status(
-                _("Creating %(type)s action...") % {"type": action_create.type}
-            )
-            try:
-                with transaction.atomic():
-                    orm_action, action_id = helpers.create_workflow_action(
-                        user,
-                        page,
-                        action_create,
-                        el_ref_to_id,
-                        ds_ref_to_id,
-                        integration,
-                    )
-                action_pairs.append((orm_action, action_create))
-                created.append(
-                    {
-                        "id": action_id,
-                        "type": action_create.type,
-                        "element": action_create.element,
-                        "event": action_create.event,
-                    }
-                )
-            except Exception as exc:
-                raise_if_permission_denied(exc)
-                errors.append(
-                    f"action {action_create.type} on {action_create.element}: "
-                    f"{item_error(exc)}"
-                )
-    errors.extend(
-        agents.update_workflow_action_formulas(user, page, action_pairs, tool_helpers)
-    )
-    return created, errors
+    updated = BuilderWorkflowActionHandler().get_workflow_action(action_id)
+    result: dict[str, Any] = {
+        "updated_action": ActionItem.from_orm(updated).model_dump()
+    }
+    if errors:
+        result["errors"] = errors
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -1567,80 +1429,77 @@ def setup_page(
 
     page = helpers.get_page(user, ctx.deps.workspace, page_id)
     shared_page = PageHandler().get_shared_page(page.builder)
-    integration = helpers.get_local_baserow_integration(user, page.builder)
 
-    ds_ref_to_id: dict[str, int] = _get_data_source_refs(tool_helpers, page_id)
-    el_ref_to_id: dict[str, int] = _get_element_refs(tool_helpers, page_id)
+    reused, new_data_sources = _split_reused_data_sources(
+        user, page, data_sources or []
+    )
+    _track_data_source_refs(tool_helpers, page_id, reused)
     shared_page_refs: set[str] = set(
         _get_element_refs(tool_helpers, shared_page.id).keys()
     )
+    tool_context = ctx.deps.tool_context()
 
-    result: dict[str, Any] = {}
-    all_errors: list[str] = []
-
-    # Phase 1: Data sources
-    try:
-        created_ds, ds_errors = _setup_data_sources(
-            user, page, data_sources or [], ds_ref_to_id, integration, tool_helpers
+    def after_phase(kind: str, phase: dict[str, Any]) -> list[BuilderFormulaError]:
+        # Tracked as each phase ends, so a cancelled call keeps the refs it saved.
+        if kind == "data_source":
+            _track_data_source_refs(tool_helpers, page_id, phase["ref_to_id_map"])
+        elif kind == "element":
+            _track_element_refs(tool_helpers, page_id, phase["ref_to_id_map"])
+            _track_element_refs(
+                tool_helpers,
+                shared_page.id,
+                {
+                    ref: 0
+                    for ref in _get_element_refs(tool_helpers, page_id)
+                    if ref in shared_page_refs
+                },
+            )
+        return agents.repair_builder_formula_errors(
+            tool_context, tool_helpers, page, phase.get("formula_errors", [])
         )
-    except PermissionException:
-        return {
-            **result,
-            "errors": all_errors,
-            **permission_denied_result("setup_page"),
-        }
-    all_errors.extend(ds_errors)
-    _track_data_source_refs(tool_helpers, page_id, ds_ref_to_id)
-    if created_ds:
-        result["created_data_sources"] = created_ds
 
-    # Phase 2: Elements
-    try:
-        created_el, el_errors = _setup_elements(
-            user,
-            page,
-            elements or [],
-            el_ref_to_id,
-            ds_ref_to_id,
-            shared_page_refs,
-            tool_helpers,
-        )
-    except PermissionException:
-        return {
-            **result,
-            "errors": all_errors,
-            **permission_denied_result("setup_page"),
-        }
-    all_errors.extend(el_errors)
-    _track_element_refs(tool_helpers, page_id, el_ref_to_id)
-    _track_element_refs(
-        tool_helpers,
-        shared_page.id,
-        {r: 0 for r in el_ref_to_id if r in shared_page_refs},
+    shared = shared_pages.setup_page_with_options(
+        tool_context,
+        page_id,
+        new_data_sources,
+        elements,
+        actions,
+        BuilderWriteOptions(
+            known_refs=_get_element_refs(tool_helpers, page_id),
+            known_data_source_refs=_get_data_source_refs(tool_helpers, page_id),
+            known_shared_page_refs=shared_page_refs,
+            column_name_beats_formula=True,
+            defer_required_formulas=True,
+            item_error=item_error,
+            after_phase=after_phase,
+        ),
     )
-    if created_el:
-        result["created_elements"] = created_el
 
-    # Phase 3: Actions
-    try:
-        created_actions, action_errors = _setup_actions(
-            user,
-            page,
-            actions or [],
-            el_ref_to_id,
-            ds_ref_to_id,
-            integration,
-            tool_helpers,
+    all_errors = shared.get("errors", [])
+    formula_errors = shared.get("formula_errors", [])
+    all_errors.extend(
+        _create_data_source_formula_error(entry)
+        for entry in formula_errors
+        if entry.kind == "data_source"
+    )
+    all_errors.extend(
+        _create_element_formula_errors(
+            [entry for entry in formula_errors if entry.kind != "data_source"]
         )
-    except PermissionException:
+    )
+
+    result: dict[str, Any] = {
+        key: shared[key]
+        for key in ("created_data_sources", "created_elements", "created_actions")
+        if shared[key]
+    }
+
+    if shared.get("permission_denied"):
         return {
             **result,
             "errors": all_errors,
             **permission_denied_result("setup_page"),
         }
-    all_errors.extend(action_errors)
-    if created_actions:
-        result["created_actions"] = created_actions
 
     if all_errors:
         result["errors"] = all_errors
@@ -1676,64 +1535,37 @@ def setup_user_source(
 
     WHEN to use: User wants login, authentication, role-based access, or user accounts in their app.
     WHAT it does: Creates a users table (or uses an existing one) and configures a Local Baserow user source with password authentication.
-    RETURNS: User source ID, table ID, available roles.
-    DO NOT USE when: A user source already exists for this application.
+    RETURNS: User source ID, table ID, available roles, login page ID.
+    REUSE: If the application already has a Local Baserow user source on that table, it is reused instead of creating another, and the login page and its login form are still added when missing. One that isn't set up for password login is refused.
     HOW: If user mentions a specific table, use table_id. Otherwise use database_id to create a new users table.
     """
 
     user = ctx.deps.user
     workspace = ctx.deps.workspace
-    tool_helpers = ctx.deps.tool_helpers
 
     try:
-        builder = helpers.get_builder(user, workspace, application_id)
+        helpers.get_builder(user, workspace, application_id)
     except Exception as exc:
         raise_if_permission_denied(exc)
         return {"error": f"Could not find application: {exc}"}
 
-    tool_helpers.update_status(_("Setting up user source..."))
-    integration = helpers.get_local_baserow_integration(user, builder)
-
     try:
-        with transaction.atomic():
-            if setup.table_id:
-                tool_helpers.update_status(_("Validating existing table..."))
-                table, field_map = helpers.resolve_existing_table(
-                    user, workspace, setup.table_id
-                )
-            else:
-                tool_helpers.update_status(_("Creating users table..."))
-                table, field_map = helpers.create_users_table(
-                    user, setup.database_id, workspace, setup.get_roles()
-                )
-
-            tool_helpers.update_status(_("Creating user source..."))
-            user_source = helpers.create_user_source(
-                user, builder, setup.name, table, field_map, integration
-            )
+        shared = shared_user_sources.setup_user_source(
+            ctx.deps.tool_context(), application_id, setup
+        )
     except Exception as exc:
         raise_if_permission_denied(exc)
         return {"error": str(exc)}
 
-    # Create login page if not already set
-    login_page_id = builder.login_page_id
-    if not login_page_id:
-        tool_helpers.update_status(_("Creating login page..."))
-        login_page = helpers.create_login_page(user, builder, user_source.id)
-        login_page_id = login_page.id
-
-    from baserow.core.user_sources.handler import UserSourceHandler
-
-    roles = UserSourceHandler().get_all_roles_for_application(builder)
-
+    user_source = shared.get("created_user_source") or shared["reused_user_source"]
     result: dict[str, Any] = {
-        "user_source_id": user_source.id,
-        "table_id": table.id,
-        "roles": roles,
-        "login_page_id": login_page_id,
+        "user_source_id": user_source["id"],
+        "table_id": shared["table_id"],
+        "roles": shared["roles"],
+        "login_page_id": shared["login_page_id"],
     }
-    if "hint" in field_map:
-        result["hint"] = field_map["hint"]
+    if "hint" in shared:
+        result["hint"] = shared["hint"]
     return result
 
 
@@ -1756,30 +1588,22 @@ def set_theme(
     WHEN to use: User wants to change the look and feel of an existing application.
     WHAT it does: Applies a predefined theme (colors, typography, button styles, etc.) to the application.
     RETURNS: Confirmation with applied theme name.
-    DO NOT USE when: Creating a new application — use the theme parameter on create_builders instead.
+    DO NOT USE when: Creating a new application — use the theme parameter on create_builder instead.
 
     ## Available Themes
     {theme_list}
     """
 
-    user = ctx.deps.user
-    workspace = ctx.deps.workspace
-    tool_helpers = ctx.deps.tool_helpers
+    helpers.get_builder(ctx.deps.user, ctx.deps.workspace, application_id)
 
-    builder = helpers.get_builder(user, workspace, application_id)
-    tool_helpers.update_status(
-        _("Applying %(theme)s theme to %(app)s...")
-        % {"theme": theme_name, "app": builder.name}
-    )
-
-    applied = apply_theme(builder, theme_name, user=user)
-
-    if not applied:
+    try:
+        shared_themes.set_theme(ctx.deps.tool_context(), application_id, theme_name)
+    except ToolInputError as exc:
         return {
             "status": "error",
             "application_id": application_id,
             "theme": theme_name,
-            "error": f"Theme template '{theme_name}' could not be loaded.",
+            "error": str(exc),
         }
 
     return {
@@ -1819,6 +1643,7 @@ TOOL_FUNCTIONS = [
     list_actions,
     create_actions,
     add_action_field_mapping,
+    update_action,
     setup_page,
     setup_user_source,
     set_theme,

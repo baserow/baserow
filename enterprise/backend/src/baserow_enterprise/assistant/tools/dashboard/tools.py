@@ -97,7 +97,7 @@ def create_widgets(
     WHAT it does: A summary shows one field aggregated over the rows, like the sum of Amount. A chart (BAR or LINE) or pie_chart (PIE or DOUGHNUT) shows one or more series, optionally per value of group_by_field_id. Set view_id to aggregate only the rows a view shows.
     RETURNS: The created widgets, and an error for each one that failed, naming the aggregations that fit when one doesn't fit its field.
     DO NOT USE when: The user asks a question. Answer it with get_widget_data on the existing widgets, or with list_rows; never add a widget, view or filter only to compute an answer.
-    HOW: Use get_tables_schema first for the table and field IDs. Create the dashboard with create_builders when it doesn't exist. Charts need a premium licence.
+    HOW: Use get_tables_schema first for the table and field IDs. Create the dashboard with create_dashboard when it doesn't exist. Charts need a premium licence.
     REQUIRED: `dashboard_id` and `widgets` must arrive in the same call.
     """
 
