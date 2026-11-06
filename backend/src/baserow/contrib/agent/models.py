@@ -62,10 +62,10 @@ class AgentConversation(
     trashed = models.BooleanField(default=False, db_default=False)
 
     class Meta:
-        ordering = ("-updated_on", "id")
+        ordering = ("-updated_on", "-id")
         indexes = [
             models.Index(
-                fields=["agent", "owner_user", "-updated_on", "id"],
+                fields=["agent", "owner_user", "-updated_on", "-id"],
                 name="agent_conversation_owner_idx",
             ),
         ]

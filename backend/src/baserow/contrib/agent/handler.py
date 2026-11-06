@@ -15,6 +15,7 @@ from baserow.core.exceptions import SubjectTypeNotExist
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
+from baserow.core.pagination import KeysetCursor
 from baserow.core.registries import subject_type_registry
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import Subject
@@ -323,17 +324,24 @@ class AgentHandler:
         )
 
     def list_conversations(
-        self, agent: AgentApplication, owner: AbstractUser
+        self,
+        agent: AgentApplication,
+        owner: AbstractUser,
+        cursor: KeysetCursor | None = None,
     ) -> QuerySet[AgentConversation]:
         """
         Return the owner's conversations with the agent.
 
         :param agent: The agent the conversations belong to.
         :param owner: The user whose conversations are returned.
+        :param cursor: The last conversation of the previous page, to continue after.
         :return: The owner's conversations, most recently updated first.
         """
 
-        return AgentConversation.objects.filter(agent=agent, owner_user=owner)
+        conversations = AgentConversation.objects.filter(agent=agent, owner_user=owner)
+        if cursor is not None:
+            conversations = conversations.filter(cursor.get_filter("updated_on"))
+        return conversations
 
     def get_conversation(
         self,

@@ -21,7 +21,7 @@ from baserow.api.decorators import (
 )
 from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
 from baserow.api.mixins import RealtimeRecoveryPrimaryReadMixin
-from baserow.api.pagination import PageNumberPagination
+from baserow.api.pagination import PageNumberPagination, encode_keyset_cursor
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.api.subjects.serializers import SubjectOptionSerializer
@@ -46,6 +46,7 @@ from baserow.contrib.agent.types import AgentMessageCreated
 from baserow.core.action.registries import action_type_registry
 from baserow.core.chat_runs.exceptions import ChatRunAlreadyActive, ChatRunLimitReached
 from baserow.core.exceptions import ApplicationDoesNotExist, UserNotInWorkspace
+from baserow.core.pagination import KeysetCursor
 from baserow.core.service import CoreService
 
 from .errors import (
@@ -59,8 +60,9 @@ from .serializers import (
     AgentConfigurationSerializer,
     AgentConfigurationUpdateSerializer,
     AgentConversationCreateSerializer,
-    AgentConversationPagination,
     AgentConversationSerializer,
+    AgentConversationsQuerySerializer,
+    AgentConversationsResponseSerializer,
     AgentConversationUpdateSerializer,
     AgentMessageCreatedSerializer,
     AgentMessageCreateSerializer,
@@ -289,31 +291,52 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
         ),
         parameters=[
             AGENT_ID_PATH_PARAMETER,
-            OpenApiParameter("page", OpenApiTypes.INT, default=1),
             OpenApiParameter(
-                "size",
+                "limit",
                 OpenApiTypes.INT,
                 default=20,
-                description="Number of conversations per page, up to 100.",
+                description="Maximum number of conversations to return, up to 100.",
+            ),
+            OpenApiParameter(
+                "cursor",
+                OpenApiTypes.STR,
+                description="The `next_cursor` of the previous page, omitted for "
+                "the first page. The next page continues after the last conversation "
+                "of the previous one, even when conversations changed in between.",
             ),
         ],
         responses={
-            200: get_example_pagination_serializer_class(AgentConversationSerializer),
+            200: AgentConversationsResponseSerializer,
+            400: get_error_schema(["ERROR_QUERY_PARAMETER_VALIDATION"]),
             **READ_ERRORS,
         },
     )
     @map_exceptions(AGENT_EXCEPTIONS)
-    def get(self, request: Request, agent_id: int) -> Response:
-        """Paginate only the authenticated owner's conversations."""
+    @validate_query_parameters(AgentConversationsQuerySerializer, return_validated=True)
+    def get(self, request: Request, agent_id: int, query_params: dict) -> Response:
+        """List only the authenticated owner's conversations, a page at a time."""
 
-        conversations = AgentService().list_conversations(request.user, agent_id)
-        paginator = AgentConversationPagination(limit_page_size=100)
-        page = paginator.paginate_queryset(conversations, request, self)
+        limit = query_params["limit"]
+        # One more than requested tells whether a next page exists without a count.
+        conversations = list(
+            AgentService().list_conversations(
+                request.user, agent_id, query_params.get("cursor")
+            )[: limit + 1]
+        )
+        page = conversations[:limit]
+        next_cursor = (
+            KeysetCursor(value=page[-1].updated_on, id=page[-1].id)
+            if len(conversations) > limit
+            else None
+        )
         runs = AgentHandler().get_conversation_runs([item.id for item in page])
-        return paginator.get_paginated_response(
-            AgentConversationSerializer(
-                page, many=True, context={"conversation_runs": runs}
-            ).data
+        return Response(
+            {
+                "results": AgentConversationSerializer(
+                    page, many=True, context={"conversation_runs": runs}
+                ).data,
+                "next_cursor": encode_keyset_cursor(next_cursor),
+            }
         )
 
     @extend_schema(

@@ -331,7 +331,7 @@ def test_conversations_and_messages_are_paginated_newest_first(
         agent, "messages", conversation_uuid=conversations[-1].uuid
     )
 
-    listed = api_client.get(agent_url(agent, "conversations") + "?size=2")
+    listed = api_client.get(agent_url(agent, "conversations") + "?limit=2")
     pages = [
         api_client.get(messages_url + f"?size=2&page={page}").json() for page in (1, 2)
     ]
@@ -345,6 +345,34 @@ def test_conversations_and_messages_are_paginated_newest_first(
     assert api_client.get(messages_url + "?size=101").status_code == 400
     assert missing.status_code == 404
     assert missing.json()["error"] == "ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_the_next_conversations_page_continues_after_the_previous_one(
+    data_fixture, configured_agent, api_client, api_user
+):
+    agent = configured_agent(user=api_user)
+    with freeze_time("2026-10-14 08:00:00"):
+        oldest, *others = [
+            data_fixture.create_agent_conversation(
+                user=api_user, agent=agent, title=str(index)
+            )
+            for index in range(4)
+        ]
+    url = agent_url(agent, "conversations")
+    first = api_client.get(url, {"limit": 2}).json()
+    # Deleting a listed conversation or moving an unlisted one up shifts no page.
+    AgentService().delete_conversation(api_user, agent.id, others[-1].uuid)
+    with freeze_time("2026-10-14 08:01:00"):
+        AgentService().create_message(api_user, agent.id, oldest.uuid, uuid4(), "Hi")
+
+    second = api_client.get(url, {"limit": 2, "cursor": first["next_cursor"]}).json()
+
+    assert [item["title"] for item in first["results"]] == ["3", "2"]
+    assert [item["title"] for item in second["results"]] == ["1"]
+    assert second["next_cursor"] is None
+    for params in [{"cursor": "nope"}, {"limit": 101}]:
+        assert api_client.get(url, params).status_code == 400
 
 
 @pytest.mark.django_db

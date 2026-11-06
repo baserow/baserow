@@ -8,6 +8,7 @@ from baserow.core.exceptions import PermissionDenied
 from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.operations import UpdateApplicationOperationType
+from baserow.core.pagination import KeysetCursor
 from baserow.core.signals import application_updated
 from baserow.core.subject_options import SubjectOptionsHandler
 from baserow.core.types import PermissionCheck
@@ -134,13 +135,14 @@ class AgentService:
         return updated
 
     def list_conversations(
-        self, user: AbstractUser, agent_id: int
+        self, user: AbstractUser, agent_id: int, cursor: KeysetCursor | None = None
     ) -> QuerySet[AgentConversation]:
         """
         Return only the user's own conversations, never another owner's.
 
         :param user: The user listing their conversations.
         :param agent_id: The id of the agent.
+        :param cursor: The last conversation of the previous page, to continue after.
         :raises PermissionException: When the user may not read conversations of the
             agent.
         :return: The user's conversations, most recently updated first.
@@ -149,7 +151,7 @@ class AgentService:
         agent = self._get_authorized_agent(
             user, agent_id, ReadAgentConversationsOperationType.type
         )
-        return self.handler.list_conversations(agent, user)
+        return self.handler.list_conversations(agent, user, cursor)
 
     def list_messages(
         self, user: AbstractUser, agent_id: int, conversation_uuid: UUID
