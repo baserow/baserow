@@ -469,7 +469,7 @@ export default {
      */
     /**
      * Fetches the rows of a page. A `silent` fetch keeps showing the current
-     * rows until the new ones arrive, for when they were only changed in place.
+     * rows until the new ones arrive.
      */
     async fetch(page = null, { silent = false } = {}) {
       if (page == null && this.service.options.isPaginated) {
@@ -480,8 +480,8 @@ export default {
         this.expandedRows.clear()
       }
 
-      // The columns can change, for example per tab, so a sort on a column that
-      // isn't shown or sortable anymore is dropped instead of being sent.
+      // The columns can change between fetches, so sorts on ones no longer
+      // sortable are dropped.
       const sortableKeys = new Set(
         this.columns.filter((column) => column.sortable).map(({ key }) => key)
       )

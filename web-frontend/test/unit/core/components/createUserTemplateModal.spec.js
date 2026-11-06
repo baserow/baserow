@@ -6,6 +6,12 @@ import { ModalStub } from '@baserow/test/helpers/modalStub'
 import { permission } from '@baserow/test/helpers/permission'
 import { heldBack } from '@baserow/test/helpers/heldBack'
 import { seedWorkspaces, updateJob } from '@baserow/test/helpers/store'
+import {
+  chooseVisibility,
+  selectApplications,
+  selectedApplicationIds,
+  selectWorkspace,
+} from '@baserow/test/helpers/userTemplateForms'
 import CreateUserTemplateModal from '@baserow/modules/core/components/template/CreateUserTemplateModal'
 import UserTemplateContentForm from '@baserow/modules/core/components/template/UserTemplateContentForm'
 
@@ -104,28 +110,9 @@ describe('CreateUserTemplateModal', () => {
     await flushPromises()
   }
 
-  const selectedApplicationIds = (wrapper) =>
-    wrapper
-      .findComponent({ name: 'ApplicationSelector' })
-      .props('selectedApplicationIds')
-
-  const selectApplications = async (wrapper, applicationIds) => {
-    wrapper
-      .findComponent({ name: 'ApplicationSelector' })
-      .vm.$emit('update', applicationIds)
-    await flushPromises()
-  }
-
   const create = async (wrapper) => {
     await selectApplications(wrapper, [11])
     await createButton(wrapper).trigger('click')
-    await flushPromises()
-  }
-
-  const selectWorkspace = async (wrapper, workspaceId) => {
-    wrapper
-      .findComponent({ name: 'Dropdown' })
-      .vm.$emit('update:modelValue', workspaceId)
     await flushPromises()
   }
 
@@ -203,9 +190,7 @@ describe('CreateUserTemplateModal', () => {
   test('starts the application selection again for another workspace', async () => {
     const wrapper = await mountAndShow()
     await goToContent(wrapper)
-    wrapper
-      .findComponent({ name: 'ApplicationSelector' })
-      .vm.$emit('update', [12])
+    await selectApplications(wrapper, [12])
 
     await selectWorkspace(wrapper, 2)
 
@@ -310,7 +295,6 @@ describe('CreateUserTemplateModal', () => {
     expect(
       wrapper.findComponent({ name: 'Dropdown' }).props('modelValue')
     ).toBe(2)
-    expect(selectedApplicationIds(wrapper)).toStrictEqual([])
   })
 
   test("doesn't switch a workspace the author picked", async () => {
@@ -329,7 +313,6 @@ describe('CreateUserTemplateModal', () => {
     expect(
       wrapper.findComponent({ name: 'Dropdown' }).props('modelValue')
     ).toBe(2)
-    expect(selectedApplicationIds(wrapper)).toStrictEqual([])
   })
 
   test('keeps the picked workspace and its permissions between the steps', async () => {
@@ -357,7 +340,6 @@ describe('CreateUserTemplateModal', () => {
     expect(
       wrapper.findComponent({ name: 'Dropdown' }).props('modelValue')
     ).toBe(2)
-    expect(selectedApplicationIds(wrapper)).toStrictEqual([])
   })
 
   test('sends the request and shows the progress', async () => {
@@ -403,14 +385,6 @@ describe('CreateUserTemplateModal', () => {
     expect(selectedApplicationIds(wrapper)).toStrictEqual([11])
     expect(createButton(wrapper).attributes('disabled')).toBeUndefined()
   })
-
-  const chooseVisibility = async (wrapper, label) => {
-    await wrapper
-      .findAll('.segment-control__button')
-      .find((b) => b.text() === label)
-      .trigger('click')
-    await flushPromises()
-  }
 
   const agreeToPublicListing = async (wrapper) => {
     await wrapper

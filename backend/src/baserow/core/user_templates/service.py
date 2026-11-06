@@ -5,8 +5,7 @@ from django.contrib.auth.models import AbstractUser
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.job_types import ExportApplicationsJobType
 from baserow.core.jobs.registries import job_type_registry
-from baserow.core.models import Application, Template, Workspace
-from baserow.core.user_templates.constants import UserTemplateState
+from baserow.core.models import Application, Template, UserTemplateState, Workspace
 from baserow.core.user_templates.exceptions import (
     NoApplicationsSelected,
     TemplateHasNoContent,
@@ -139,25 +138,16 @@ class UserTemplateService:
         self,
         user: AbstractUser,
         template_id: int,
-        listed: bool,
+        make_public: bool,
         public_listing_consent: bool,
         job_id: Optional[int] = None,
     ) -> Tuple[Template, Optional[int], Optional[UserTemplateState]]:
         """
-        Makes a user template public or private. A public template lists its
-        latest revision for everybody on the instance, or waits for the review of
-        an admin when approval is required or one rejected it, see
-        `UserTemplateHandler.submit_revision`. A private one isn't listed anymore
-        and is withdrawn from the review, and only its owner can open it, and the
-        unfinished create user template jobs of the template don't make it public
-        anymore. Asking for the visibility it has, or making public a template in
-        review, changes nothing else, except that making public a listed template
-        whose latest edit was rejected submits that edit for review again. Must run
-        in a transaction.
+        Makes a user template public or private. Must run in a transaction.
 
         :param user: The owner of the template.
         :param template_id: The id of the template, which is its root.
-        :param listed: Whether the template is made public.
+        :param make_public: Whether the template is made public, else private.
         :param public_listing_consent: Whether the user agreed that the template
             and their name are listed for everybody on the instance.
         :param job_id: The id of the create user template job making the template
@@ -173,10 +163,10 @@ class UserTemplateService:
         """
 
         handler = UserTemplateHandler()
-        # Read before the root is locked, see `read_require_approval`.
-        require_approval = listed and handler.read_require_approval()
+        # Read before the root is locked.
+        require_approval = make_public and handler.read_require_approval()
         root = handler.get_own_template(user, template_id, for_update=True)
-        if listed and not public_listing_consent:
+        if make_public and not public_listing_consent:
             raise UserTemplatePublicListingConsentRequired(
                 "Making a template public needs the consent of its author."
             )
@@ -188,18 +178,17 @@ class UserTemplateService:
             # Reads the state of the template from the locked root.
             revision.root = root
 
-        if not listed:
+        if not make_public:
             # Also when it's private already: a job can be about to list it.
             handler.drop_scheduled_make_public(root)
             public_revision_id = root.public_revision_id
             if public_revision_id is not None:
                 handler.withdraw_listing(root)
-            # Also when it was listed: an edit of it can be in review or rejected.
-            withdrawn = handler.withdraw_review(revision)
+            withdrawn = handler.withdraw_review(root)
             if public_revision_id is not None:
                 return revision, public_revision_id, UserTemplateState.PRIVATE
-            if withdrawn:
-                return revision, revision.id, UserTemplateState.PRIVATE
+            if withdrawn is not None:
+                return revision, withdrawn.id, UserTemplateState.PRIVATE
             return revision, None, None
 
         # Read under the lock of the root, after which a make private clears it.
@@ -212,10 +201,7 @@ class UserTemplateService:
             return revision, None, None
 
         self.get_template_content(revision)
-        if (
-            root.public_revision_id == revision.id
-            or revision.review_state == Template.ReviewState.PENDING
-        ):
+        if not handler.make_public_submits(revision):
             return revision, None, None
         if handler.submit_revision(root, revision, require_approval=require_approval):
             return revision, revision.id, UserTemplateState.PUBLIC

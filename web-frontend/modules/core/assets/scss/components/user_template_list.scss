@@ -124,7 +124,6 @@
   -webkit-box-orient: vertical;
 }
 
-// A state can show next to "Listed", which wraps when a translation is longer.
 .user-template-list__state {
   @include flex-align-items(4px);
 

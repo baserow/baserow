@@ -1,6 +1,5 @@
 <template>
-  <!-- Keyed by the phase, so that the result of a download closes itself like the
-  other toasts, counted from when it shows. -->
+  <!-- Keyed by phase: each phase restarts the auto-close timer. -->
   <Toast
     :key="phase"
     class="download-template-toast"
@@ -33,7 +32,7 @@
 </template>
 
 <script setup>
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useStore } from 'vuex'
 import { useNuxtApp } from '#app'
 
@@ -134,25 +133,25 @@ watch(
   }
 )
 
-// A running download stays until it ends. Its result closes itself like the other
-// toasts, the ready archive once it's saved.
+const closeWhenSaved = ref(false)
+watch(
+  () => props.toast.data.downloading,
+  (downloading) => {
+    if (closeWhenSaved.value && !downloading) {
+      remove()
+    }
+  }
+)
+
 function autoClose() {
   if (phase.value === 'running') {
     return
   }
-  if (!props.toast.data.downloading) {
+  if (props.toast.data.downloading) {
+    closeWhenSaved.value = true
+  } else {
     remove()
-    return
   }
-  const stop = watch(
-    () => props.toast.data.downloading,
-    (downloading) => {
-      if (!downloading) {
-        stop()
-        remove()
-      }
-    }
-  )
 }
 
 async function downloadArchive() {

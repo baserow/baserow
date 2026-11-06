@@ -274,7 +274,6 @@ const PAGE_SIZE = 20
 
 // The tooltips hold sentences, which don't fit in one line.
 const TOOLTIP_OPTIONS = { contentClasses: 'tooltip__content--expandable' }
-// A reason can hold a long word, such as a link, which must wrap too.
 const REASON_TOOLTIP_OPTIONS = {
   contentClasses: [
     'tooltip__content--expandable',

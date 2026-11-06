@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
-import { updateJob } from '@baserow/test/helpers/store'
+import { toastsOfType, updateJob } from '@baserow/test/helpers/store'
 import InstallTemplateToast from '@baserow/modules/core/components/toasts/InstallTemplateToast'
 import Toasts from '@baserow/modules/core/components/toasts/Toasts'
 
@@ -46,8 +46,7 @@ describe('InstallTemplateToast', () => {
     await testApp.afterEach()
   })
 
-  const installToasts = () =>
-    store.state.toast.items.filter((toast) => toast.type === 'installTemplate')
+  const installToasts = () => toastsOfType(store, 'installTemplate')
 
   // Starts an install the way the template browser does: the toast first, then
   // the job.

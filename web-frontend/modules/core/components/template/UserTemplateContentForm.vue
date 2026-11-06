@@ -64,12 +64,7 @@ const props = defineProps({
     type: Object,
     required: true,
   },
-  // The content of an existing template, the workspace and applications it was
-  // copied from before: `{ workspaceId, applicationIds }`. That workspace is
-  // selected first while the user can still export it. In it those
-  // applications are selected, in any other workspace none, since the template
-  // has none of theirs. Without it, for a new template, none are selected, so
-  // that the author picks what the template exposes.
+  // `{ workspaceId, applicationIds }` to select first.
   preselect: {
     type: Object,
     required: false,
@@ -153,8 +148,7 @@ function getApplicationIds(workspaceId) {
 
 /**
  * A different workspace has different applications, so the selection starts
- * again: empty, so that the author picks what the template exposes, or with
- * the ones an existing template still has in its own workspace.
+ * again.
  */
 function selectWorkspace(workspaceId) {
   const applicationIds =
@@ -171,10 +165,6 @@ function chooseWorkspace(workspaceId) {
   selectWorkspace(workspaceId)
 }
 
-/**
- * Starts with the preselected workspace while the user still has it, otherwise
- * with the default one.
- */
 function selectFirstWorkspace() {
   const preselected =
     props.preselect &&

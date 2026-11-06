@@ -16,8 +16,7 @@ from baserow.core.action.scopes import (
     RootActionScopeType,
     WorkspaceActionScopeType,
 )
-from baserow.core.models import Template, Workspace
-from baserow.core.user_templates.constants import UserTemplateState
+from baserow.core.models import Template, UserTemplateState, Workspace
 from baserow.core.user_templates.exceptions import TemplateChangedDuringUpdate
 from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.user_templates.service import UserTemplateService
@@ -336,17 +335,16 @@ class UpdateUserTemplateVisibilityActionType(ActionType):
             "and their name"
         ),
     )
-    analytics_params = ["template_id", "revision_id", "listed", "state"]
+    analytics_params = ["template_id", "revision_id", "make_public", "state"]
 
     @dataclasses.dataclass
     class Params:
         template_id: int
         template_name: str
         revision_id: int
-        listed: bool
+        make_public: bool
         # Recorded so the audit log shows that the author agreed to the listing.
         public_listing_consent: bool
-        # The state the template got: public, in review or private.
         state: str
 
     @classmethod
@@ -354,20 +352,18 @@ class UpdateUserTemplateVisibilityActionType(ActionType):
         cls,
         user: AbstractUser,
         template_id: int,
-        listed: bool,
+        make_public: bool,
         *,
         public_listing_consent: bool,
         job_id: Optional[int] = None,
     ) -> Template:
         """
-        Makes a user template owned by the user public or private, or sends it
-        to review, see `UserTemplateService.update_visibility`. Asking for the
-        visibility it has changes nothing and isn't recorded. This action is not
-        undoable.
+        Makes a user template owned by the user public or private, see
+        `UserTemplateService.update_visibility`. Not undoable.
 
         :param user: The user changing the visibility of the template.
         :param template_id: The id of the template, which is its root.
-        :param listed: Whether the template is made public.
+        :param make_public: Whether the template is made public, else private.
         :param public_listing_consent: Whether the user agreed that the template
             and their name are listed for everybody on the instance.
         :param job_id: The id of the create user template job making the template
@@ -382,14 +378,14 @@ class UpdateUserTemplateVisibilityActionType(ActionType):
                 changed_revision_id,
                 state,
             ) = UserTemplateService().update_visibility(
-                user, template_id, listed, public_listing_consent, job_id
+                user, template_id, make_public, public_listing_consent, job_id
             )
             if changed_revision_id is not None:
                 params = cls.Params(
                     template_id=template_id,
                     template_name=revision.name,
                     revision_id=changed_revision_id,
-                    listed=listed,
+                    make_public=make_public,
                     public_listing_consent=public_listing_consent,
                     state=state,
                 )
@@ -399,13 +395,14 @@ class UpdateUserTemplateVisibilityActionType(ActionType):
 
     @classmethod
     def get_long_description(cls, params_dict: Dict[str, Any], *args, **kwargs) -> str:
-        if not params_dict.get("listed"):
+        # Older entries carry `listed` instead of `make_public`, and no `state`.
+        if not params_dict.get("make_public", params_dict.get("listed")):
             description = ActionTypeDescription(
                 cls.description.short,
                 _('Template "%(template_name)s" (%(template_id)s) made private'),
             )
             return render_action_type_description(description, params_dict)
-        if params_dict["state"] == UserTemplateState.IN_REVIEW:
+        if params_dict.get("state") == UserTemplateState.IN_REVIEW:
             description = ActionTypeDescription(
                 cls.description.short,
                 _(
@@ -450,8 +447,7 @@ class ApproveUserTemplateAdminActionType(ActionType):
         seen_listed: bool,
     ) -> Template:
         """
-        Approves a user template, by an instance admin, see
-        `UserTemplateHandler.approve_template`. This action is not undoable.
+        Approves the template. Not undoable.
 
         :param user: The instance admin approving the template.
         :param template_id: The id of the template, which is its root.
@@ -471,6 +467,13 @@ class ApproveUserTemplateAdminActionType(ActionType):
 
     @classmethod
     def _register(cls, user: AbstractUser, revision: Template) -> None:
+        """
+        Records the approval of a revision.
+
+        :param user: The instance admin who approved it.
+        :param revision: The approved revision.
+        """
+
         root = revision.get_root()
         params = cls.Params(
             template_id=root.id,
@@ -522,8 +525,7 @@ class RejectUserTemplateAdminActionType(ActionType):
         seen_listed: bool,
     ) -> Template:
         """
-        Rejects a user template, by an instance admin, see
-        `UserTemplateHandler.reject_template`. This action is not undoable.
+        Rejects the template. Not undoable.
 
         :param user: The instance admin rejecting the template.
         :param template_id: The id of the template, which is its root.
@@ -555,43 +557,6 @@ class RejectUserTemplateAdminActionType(ActionType):
         if params_dict["unlisted"]:
             return render_action_type_description(cls.unlisted_description, params_dict)
         return super().get_long_description(params_dict, *args, **kwargs)
-
-    @classmethod
-    def scope(cls) -> ActionScopeStr:
-        return RootActionScopeType.value()
-
-
-class ApproveWaitingUserTemplatesAdminActionType(ActionType):
-    type = "admin_approve_waiting_user_templates"
-    description = ActionTypeDescription(
-        _("Admin approved waiting templates"),
-        _(
-            "Approval switched off, so every template in review was approved and "
-            "listed (%(count)s)"
-        ),
-    )
-    analytics_params = ["count"]
-
-    @dataclasses.dataclass
-    class Params:
-        count: int
-
-    @classmethod
-    def do(cls, user: AbstractUser) -> int:
-        """
-        Approves every user template in review when an instance admin switches
-        approval off, see `UserTemplateHandler.approve_waiting_revisions`, and
-        records how many if any. This action is not undoable. Must run in the
-        transaction that switched approval off, see `CoreHandler.update_settings`.
-
-        :param user: The instance admin who switched approval off.
-        :return: The number of approved templates.
-        """
-
-        count = UserTemplateHandler().approve_waiting_revisions(user)
-        if count:
-            cls.register_action(user, cls.Params(count=count), cls.scope())
-        return count
 
     @classmethod
     def scope(cls) -> ActionScopeStr:

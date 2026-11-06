@@ -56,7 +56,13 @@ export default {
       required: false,
       default: null,
     },
+    loadErrorHandler: {
+      type: Function,
+      required: false,
+      default: null,
+    },
   },
+  emits: ['loaded'],
   data() {
     return {
       loading: false,
@@ -163,10 +169,15 @@ export default {
         }
         this.applications = []
         this.page = null
-        notifyIf(error, 'templates')
+        if (this.loadErrorHandler) {
+          this.loadErrorHandler(error)
+        } else {
+          notifyIf(error, 'templates')
+        }
       } finally {
         if (request === this.lastRequest) {
           this.loading = false
+          this.$emit('loaded')
         }
       }
     },

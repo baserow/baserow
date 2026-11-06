@@ -24,8 +24,6 @@ const props = defineProps({
   },
 })
 
-// A user can have an empty first name, for example after `createsuperuser` or
-// a SAML login without one, so the email names them then.
 const authorName = computed(
   () => props.row.author?.first_name || props.row.author?.email || ''
 )

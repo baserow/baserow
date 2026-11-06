@@ -186,7 +186,7 @@ export default {
       const { makePublic, publicListingConsent } = this.values
       return { makePublic, publicListingConsent }
     },
-    // A new template made public goes to an instance admin's review first.
+    // A new template has no rejection, so only the setting decides on review.
     requireApproval() {
       return Boolean(
         this.$store.getters['settings/get'].user_templates_require_approval

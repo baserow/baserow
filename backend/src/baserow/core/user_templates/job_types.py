@@ -37,7 +37,6 @@ from baserow.core.jobs.exceptions import JobCancelled
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.models import JobQuerySet
 from baserow.core.jobs.registries import JobType
-from baserow.core.models import Template
 from baserow.core.user_templates.actions import (
     CreateUserTemplateActionType,
     UpdateUserTemplateActionType,
@@ -603,7 +602,7 @@ class DownloadUserTemplateJobType(JobType):
         revision = job.revision
         if revision is None:
             raise TemplateDoesNotExist("The template was deleted.")
-        self._check_access(job, revision)
+        UserTemplateHandler().check_install_access(job.user, revision)
         # A repeated download reuses the archive.
         if has_valid_archive(revision):
             progress.increment(progress.total)
@@ -619,23 +618,6 @@ class DownloadUserTemplateJobType(JobType):
             # Saving the job with the deleted revision would fail.
             job.revision = None
             raise
-
-    def _check_access(self, job: DownloadUserTemplateJob, revision: Template) -> None:
-        """
-        Checks the access like install does, but unlike install, a download fails
-        once the template is marked for deletion too, so that its archive isn't
-        built after the owner deleted it.
-
-        :param job: The job that runs.
-        :param revision: The revision to download, with its root selected.
-        :raises TemplateDoesNotExist: If the template is marked for deletion, or
-            the user lost access.
-        :raises TemplateBlocked: If the user owns the template and it's blocked.
-        """
-
-        if revision.get_root().marked_for_deletion_at is not None:
-            raise TemplateDoesNotExist("The template was deleted.")
-        UserTemplateHandler().check_install_access(job.user, revision)
 
     def enhance_queryset(self, queryset: JobQuerySet) -> JobQuerySet:
         """

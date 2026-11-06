@@ -6,37 +6,30 @@ export function isOwnTemplate(template) {
 }
 
 /**
- * Whether the owner can make the template public. Making public a template that
- * an admin rejected submits it for review again, also when an earlier version is
- * still listed, see `make_public_needs_review`.
+ * Whether Make public is offered, also when it sends the template to review.
  */
 export function canMakePublic(template) {
+  return Boolean(template?.can_make_public)
+}
+
+/**
+ * Whether making the template public submits its listed edit for review.
+ */
+export function makePublicResubmits(template) {
   return (
-    Boolean(template?.make_public_needs_review) || template?.state === 'private'
+    canMakePublic(template) &&
+    Boolean(template?.make_public_needs_review) &&
+    Boolean(template?.listed)
   )
 }
 
 /**
- * Whether making the template public submits it for review again, rather than
- * making it public: it's listed already, with its latest change rejected.
- */
-export function makePublicResubmits(template) {
-  return canMakePublic(template) && Boolean(template?.listed)
-}
-
-/**
- * Whether the owner can make the template private. Making private a template in
- * review or rejected withdraws it from the review.
+ * Whether the owner can make the template private, or withdraw its review.
  */
 export function canMakePrivate(template) {
   return ['public', 'in_review', 'rejected'].includes(template?.state)
 }
 
-/**
- * Whether Edit details offers to make the template public or private. A template
- * in review or rejected is sent to review again or withdrawn from its menu, see
- * `canMakePublic` and `canMakePrivate`.
- */
 export function canChangeVisibilityInDetails(template) {
   return ['private', 'public'].includes(template?.state)
 }

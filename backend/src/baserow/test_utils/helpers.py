@@ -10,8 +10,10 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.db import connection
+from django.test import override_settings
 from django.utils.dateparse import parse_date, parse_datetime
 
+import pytest
 from freezegun import freeze_time
 from pytest_unordered import unordered
 
@@ -25,7 +27,8 @@ from baserow.contrib.database.models import Database
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.action.models import Action
 from baserow.core.action.registries import ActionType
-from baserow.core.models import Workspace
+from baserow.core.cache import invalidate_cached_settings, set_cached_settings
+from baserow.core.models import Settings, Workspace
 from baserow.core.psycopg import psycopg
 
 User = get_user_model()
@@ -523,6 +526,47 @@ def register_instance_temporarily(registry, instance):
         yield instance
     finally:
         registry.unregister(instance)
+
+
+@contextmanager
+def stale_cached_settings(**stored: bool) -> Generator[Settings, None, None]:
+    """
+    Stores the `stored` settings and caches them flipped, like a stale cache.
+
+    :param stored: The values of the settings stored in the database.
+    :return: The stale settings in the cache.
+    """
+
+    with override_settings(BASEROW_CACHE_TTL_SECONDS=600):
+        stale, _ = Settings.objects.update_or_create(defaults=stored)
+        for name, value in stored.items():
+            setattr(stale, name, not value)
+        set_cached_settings(stale)
+        try:
+            yield stale
+        finally:
+            invalidate_cached_settings()
+
+
+def user_template_plan_rows(
+    area: str, rows: List[tuple], key_columns: int = 1
+) -> List[Any]:
+    """
+    Names each row of a user template table test by its key columns.
+
+    :param area: The prefix of the ids, like "3".
+    :param rows: The rows, each starting with the states of the revisions.
+    :param key_columns: How many columns, from the first, make the id.
+    :return: The rows as pytest params.
+    """
+
+    return [
+        pytest.param(
+            *row,
+            id="-".join([f"{area}.{'+'.join(row[0])}", *row[1:key_columns]]),
+        )
+        for row in rows
+    ]
 
 
 def assert_undo_redo_actions_are_valid(

@@ -18,7 +18,7 @@
         :template="selectedTemplate"
         :categories="selectedTemplateCategories"
         :workspace="workspace"
-        :is-own="selectedIsOwn"
+        :owner-actions="selectedOwnerActions"
         show-back
         class="templates__body"
         @back="selectTemplate(null)"
@@ -186,10 +186,9 @@ export default {
       loading: true,
       categories: [],
       selectedTemplate: null,
-      // Whether the selected template is one of the user's, who can update it.
-      // Also when it's opened from the public ones, which list its public revision
-      // then.
-      selectedIsOwn: false,
+      // Whether the owner's actions are shown for the selected template, also
+      // when their own template is opened from the public list.
+      selectedOwnerActions: false,
       tab: 'official',
       // The list of the user's templates is loaded when its tab is opened first.
       userTemplatesOpened: false,
@@ -320,7 +319,7 @@ export default {
     },
     selectTemplate(template, own = false) {
       this.selectedTemplate = template
-      this.selectedIsOwn = own
+      this.selectedOwnerActions = own
     },
     /**
      * Shows the public template as it is now, which may have been made private or
@@ -381,7 +380,10 @@ export default {
     async templateUpdated(job) {
       this.$refs.userTemplateList?.refresh()
       this.$refs.publicTemplateList?.refresh()
-      if (!this.selectedIsOwn || this.selectedTemplate?.id !== job.template) {
+      if (
+        !this.selectedOwnerActions ||
+        this.selectedTemplate?.id !== job.template
+      ) {
         return
       }
       try {
@@ -400,13 +402,13 @@ export default {
      * template was listed since. The preview then shows the new revision.
      */
     async templateOutdated() {
-      if (this.selectedIsOwn) {
+      if (this.selectedOwnerActions) {
         return this.templateUpdated({ template: this.selectedTemplate.id })
       }
       const { id, slug } = this.selectedTemplate
       try {
         const { data } = await TemplateService(this.$client).fetch(slug)
-        if (!this.selectedIsOwn && this.selectedTemplate?.id === id) {
+        if (!this.selectedOwnerActions && this.selectedTemplate?.id === id) {
           this.selectedTemplate = data
         }
       } catch (error) {
@@ -446,7 +448,10 @@ export default {
     templateChanged(template) {
       this.$refs.userTemplateList?.replace(template)
       this.$refs.publicTemplateList?.refresh()
-      if (this.selectedIsOwn && this.selectedTemplate?.id === template.id) {
+      if (
+        this.selectedOwnerActions &&
+        this.selectedTemplate?.id === template.id
+      ) {
         this.selectedTemplate = template
       }
       if (this.updatedTemplate?.id === template.id) {
@@ -473,7 +478,10 @@ export default {
         this.$refs.userTemplateList?.remove(templateId, requestedAt)
       }
       this.$refs.publicTemplateList?.refresh()
-      if (this.selectedIsOwn && this.selectedTemplate?.id === templateId) {
+      if (
+        this.selectedOwnerActions &&
+        this.selectedTemplate?.id === templateId
+      ) {
         this.selectTemplate(null)
       }
       if (this.updatedTemplate?.id === templateId) {

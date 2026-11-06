@@ -81,6 +81,7 @@ describe('MakeTemplatePublicModal', () => {
         template: {
           ...template,
           state: 'rejected',
+          can_make_public: true,
           make_public_needs_review: true,
           listed,
         },
@@ -99,7 +100,7 @@ describe('MakeTemplatePublicModal', () => {
       await flushPromises()
 
       expect(wrapper.emitted('made-public')).toStrictEqual([[row]])
-      // It isn't listed until an admin approves it.
+      // Sent to review, not made public yet, so there is no toast.
       expect(testApp.store.state.toast.items).toHaveLength(0)
     }
   )

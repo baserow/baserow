@@ -2,7 +2,7 @@ import dataclasses
 import secrets
 import string
 from datetime import timedelta
-from typing import Any, Callable, Dict, Iterable, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -13,7 +13,6 @@ from django.db import IntegrityError, connection, transaction
 from django.db.models import (
     Case,
     CharField,
-    Count,
     Exists,
     F,
     OuterRef,
@@ -30,7 +29,6 @@ from django.utils.text import slugify
 from celery.exceptions import SoftTimeLimitExceeded
 from loguru import logger
 
-from baserow.cachalot_patch import cachalot_disabled
 from baserow.core.exceptions import IsNotAdminError, TemplateDoesNotExist
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.cache import job_progress_key
@@ -41,10 +39,12 @@ from baserow.core.jobs.models import JOB_STATES_ENDED, Job
 from baserow.core.models import (
     Application,
     InstallTemplateJob,
+    Settings,
     Template,
     TemplateCategory,
+    UserTemplateState,
     Workspace,
-    review_state_expression,
+    is_instance_admin,
 )
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.storage import get_default_storage
@@ -63,7 +63,6 @@ from baserow.core.user_templates.constants import (
     USER_TEMPLATE_ICON_MAX_LENGTH,
     USER_TEMPLATE_ICON_REGEX,
     USER_TEMPLATE_PURGE_BATCH_SIZE,
-    UserTemplateState,
 )
 from baserow.core.user_templates.exceptions import (
     InvalidTemplateCategory,
@@ -141,8 +140,10 @@ def _is_unique_root_slug_violation(error: IntegrityError) -> bool:
 
 def author_name_expression(author: str) -> Coalesce:
     """
-    The name of the user at the `author` path: their first name, or their email
-    when it's empty.
+    The first name of the user, or their email when it's empty.
+
+    :param author: The path to the user from the template.
+    :return: The expression of the name.
     """
 
     return Coalesce(
@@ -327,13 +328,8 @@ class UserTemplateHandler:
         Creates the next revision of a user template, whose content is already
         copied. This is the only place where revisions are created.
 
-        The root is locked first, so that updates of the same template commit one
-        after the other. The revision is only created while the user still owns
-        the template and `base_revision` is still its latest revision. The new
-        revision of a public template that isn't blocked is submitted to be listed,
-        see `submit_revision`: it's listed in place of the one listed before, or it
-        waits for review while that one stays listed. Otherwise, it takes the
-        place of the latest revision in review, if that one is in review.
+        Locks the root, so updates of a template commit one after the other. The
+        review follows the new revision, see `update_review_step`.
 
         :param user: The user who updates the template, who must own it.
         :param root: The root of the template.
@@ -386,14 +382,10 @@ class UserTemplateHandler:
             revision.categories.set(categories)
             # See `create_template_root`.
             workspace.save(update_fields=["updated_on"])
-            # An edit of a public template replaces the listed revision, or waits
-            # for review while the listed one stays. A blocked template stays as
-            # it is until it's unblocked.
-            if self._is_public(root):
+            step = self.update_review_step(latest_revision)
+            if step == "submit":
                 self.submit_revision(root, revision, require_approval=require_approval)
-            elif latest_revision.review_state == Template.ReviewState.PENDING:
-                # The edit is reviewed instead, also while it's blocked, so that
-                # it's still in review once it's unblocked.
+            elif step == "move":
                 self._move_review(latest_revision, revision)
 
         return revision
@@ -727,13 +719,13 @@ class UserTemplateHandler:
         """
 
         return self._get_locked_user_root(
-            template_id, owner=None if user.is_staff else user
+            template_id, owner=None if is_instance_admin(user) else user
         )
 
     def get_template_for_review(self, template_id: int) -> Template:
         """
-        Returns a user template for an instance admin to approve or reject, locked
-        until the end of the transaction. The caller checks the admin.
+        Returns the locked root of a user template to review. The caller checks
+        the admin.
 
         :param template_id: The id of the template, which is its root.
         :raises TemplateDoesNotExist: If the template doesn't exist, isn't the root
@@ -747,10 +739,12 @@ class UserTemplateHandler:
         self, template_id: int, owner: Optional[AbstractUser] = None
     ) -> Template:
         """
-        Returns the root of a user template that isn't marked for deletion, owned
-        by `owner` if given, locked until the end of the transaction.
+        Returns the locked root of a user template not marked for deletion.
 
+        :param template_id: The id of the template, which is its root.
+        :param owner: The user who must own the template, if any.
         :raises TemplateDoesNotExist: If there is no such template.
+        :return: The locked root.
         """
 
         queryset = Template.objects.user().filter(
@@ -768,51 +762,55 @@ class UserTemplateHandler:
                 f"The template {template_id} does not exist."
             ) from exc
 
-    def list_templates_for_admin(self) -> QuerySet[Template]:
+    def list_templates_for_admin(self, state: UserTemplateState) -> QuerySet[Template]:
         """
-        Returns the latest revision of every user template that isn't marked for
-        deletion, for the instance admins. Every row is annotated with
-        `admin_state`, the state of its template, see `get_template_state`, and
-        with `author_name` and `template_updated_on` of the template, so that
-        they can be filtered and sorted on.
+        Returns the annotated rows of a tab of the admin page.
+
+        :param state: The tab, one of `USER_TEMPLATE_ADMIN_STATES`.
+        :return: The rows of the tab.
         """
 
-        return (
-            Template.objects.user()
-            .filter_by_root(marked_for_deletion_at__isnull=True)
-            .latest_revisions()
-            .with_review_state()
-            .annotate(
-                admin_state=review_state_expression(latest_only=True),
-                # The author of the template is the root's. Named as on the page:
-                # by first name, or by email when it's empty.
-                author_name=Case(
-                    When(root__isnull=True, then=author_name_expression("author")),
-                    default=author_name_expression("root__author"),
-                ),
-                # A revision isn't changed after it's created, so the latest one
-                # dates the last update of the template.
-                template_updated_on=F("created_on"),
+        queue = Template.objects.review_queue()
+        if state == UserTemplateState.PUBLIC:
+            in_queue = queue.filter(
+                Q(id=OuterRef("family_id")) | Q(root_id=OuterRef("family_id"))
             )
-            .select_related("author", "root__author")
-        )
+            rows = (
+                Template.objects.user()
+                .public_revisions()
+                .filter_by_root(marked_for_deletion_at__isnull=True)
+                .alias(family_id=Coalesce("root_id", "id"))
+                .filter(~Exists(in_queue))
+                .annotate(can_approve=Value(False), edited_since_submitted=Value(False))
+            )
+        else:
+            rows = queue.filter(
+                review_state=Template.ReviewState.PENDING
+                if state == UserTemplateState.IN_REVIEW
+                else Template.ReviewState.REJECTED
+            ).with_can_approve()
+
+        return rows.annotate(
+            admin_state=Value(state, output_field=CharField()),
+            author_name=Case(
+                When(root__isnull=True, then=author_name_expression("author")),
+                default=author_name_expression("root__author"),
+            ),
+            # A revision isn't changed after it's created.
+            template_updated_on=F("created_on"),
+        ).select_related("author", "root__author")
 
     def count_templates_for_admin(self) -> Dict[str, int]:
         """
-        Counts the templates in each state of the admin page, see
-        `USER_TEMPLATE_ADMIN_STATES`.
+        Counts the rows of each tab of the admin page.
 
-        :return: The number of templates by state, every state included.
+        :return: The number of rows of each tab, by state.
         """
 
-        counts = dict(
-            self.list_templates_for_admin()
-            .filter(admin_state__in=USER_TEMPLATE_ADMIN_STATES)
-            .order_by()
-            .values_list("admin_state")
-            .annotate(count=Count("id"))
-        )
-        return {state: counts.get(state, 0) for state in USER_TEMPLATE_ADMIN_STATES}
+        return {
+            state: self.list_templates_for_admin(state).count()
+            for state in USER_TEMPLATE_ADMIN_STATES
+        }
 
     def mark_template_for_deletion(self, root: Template) -> None:
         """
@@ -896,99 +894,115 @@ class UserTemplateHandler:
             .first()
         )
 
-    def read_require_approval(self, for_update: bool = False) -> bool:
+    def read_require_approval(self) -> bool:
         """
-        Whether a user template needs the approval of an admin to be listed, read
-        from the settings row, which stays locked for share, or for update with
-        `for_update`, until the end of the transaction. Switching approval off
-        updates that row and then approves the revisions waiting for review (see
-        `approve_waiting_revisions`), so a
-        revision submitted while approval was on is either seen by that approval,
-        or submitted after it with approval off.
-        Must run in a transaction, before the root of the template is locked.
+        Whether user templates need approval. Locks the settings row FOR SHARE
+        until the transaction ends, so approval can't be switched off before the
+        submit commits. Call it before locking the root: switching approval off
+        locks the settings row, then the roots.
 
-        :param for_update: Locks the row for update instead, to change the value.
         :return: The value of `Settings.user_templates_require_approval`.
         """
 
-        query = (
-            "SELECT user_templates_require_approval FROM core_settings "
-            "ORDER BY id LIMIT 1 FOR UPDATE"
-            if for_update
-            else "SELECT user_templates_require_approval FROM core_settings "
-            "ORDER BY id LIMIT 1 FOR SHARE"
-        )
-        # Never from a cache: the settings are cached for everything else.
-        with cachalot_disabled(), connection.cursor() as cursor:
-            cursor.execute(query)
+        # Raw SQL, as the ORM has no `FOR SHARE`.
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT user_templates_require_approval FROM core_settings "
+                "ORDER BY id LIMIT 1 FOR SHARE"
+            )
             row = cursor.fetchone()
-            if row is None:
-                CoreHandler().get_settings()  # Creates the row.
-                cursor.execute(query)
-                row = cursor.fetchone()
+        if row is None:
+            return Settings._meta.get_field(
+                "user_templates_require_approval"
+            ).get_default()
         return row[0]
 
     def submit_revision(
-        self,
-        root: Template,
-        revision: Template,
-        reviewer: Optional[AbstractUser] = None,
-        *,
-        require_approval: bool,
+        self, root: Template, revision: Template, *, require_approval: bool
     ) -> bool:
         """
-        Submits a revision of a user template to be listed, as its public
-        revision once it's approved. Making it public, an edit of a public
-        template, a template created as public and an approval by an admin all go
-        through it; only switching approval off lists templates without it, all
-        at once, see `approve_waiting_revisions`. The revision waits for an admin
-        to review it when approval is required, or when an admin rejected the
-        template since it was last approved; the revision listed until then stays
-        listed. Otherwise it's approved and listed right away. Either way, an older
-        revision in review is withdrawn.
-
-        The caller checks the owner or the admin and that the revision has
-        content, and holds the lock of the root.
+        Lists a revision, or sends it to review. The caller checks the owner and
+        the content, and holds the lock of the root.
 
         :param root: The root of the template, locked.
-        :param revision: The revision to list, the root itself for revision 1.
-        :param reviewer: The admin who approves the revision, if any.
+        :param revision: The revision to submit, the root itself for revision 1.
         :param require_approval: Whether a revision needs the approval of an
-            admin, see `read_require_approval`. Ignored with a reviewer.
+            admin, see `read_require_approval`.
         :return: Whether the revision is listed, otherwise it's in review.
         """
 
-        now = timezone.now()
-        # The reasons of older rejections are kept, see `with_review_state`.
         Template.objects.filter(Q(id=root.id) | Q(root=root)).exclude(
             id=revision.id
         ).filter(review_state=Template.ReviewState.PENDING).update(
             review_state=Template.ReviewState.WITHDRAWN
         )
-        if reviewer is None and (
-            require_approval or self._get_review(revision)["review_open_rejection"]
-        ):
+        revision.submitted_on = timezone.now()
+        if self.submit_needs_review(revision, require_approval):
             revision.review_state = Template.ReviewState.PENDING
-            revision.submitted_on = now
             revision.save(update_fields=["review_state", "submitted_on"])
             return False
 
-        revision.review_state = Template.ReviewState.APPROVED
-        if reviewer is None or revision.submitted_on is None:
-            revision.submitted_on = now
-        revision.reviewed_on = now
-        revision.reviewed_by = reviewer
-        update_fields = ["review_state", "submitted_on", "reviewed_on", "reviewed_by"]
-        root.public_revision = revision
-        if revision.id == root.id:
-            # Revision 1 is the root: one update of the row, see
-            # `approve_waiting_revisions`.
-            revision.public_revision = revision
-            revision.save(update_fields=[*update_fields, "public_revision"])
-        else:
-            revision.save(update_fields=update_fields)
-            root.save(update_fields=["public_revision"])
+        self._approve_revisions(
+            [(revision.id, revision.root_id)], None, submitted_on=revision.submitted_on
+        )
         return True
+
+    def submit_needs_review(self, revision: Template, require_approval: bool) -> bool:
+        """
+        Whether a submitted revision waits for review: approval is required, or
+        the template was rejected since its last approval.
+
+        :param revision: The revision, see `get_template_state`.
+        :param require_approval: Whether approval is required, see
+            `read_require_approval`.
+        :return: True if the revision waits for review.
+        """
+
+        return (
+            require_approval
+            or self._get_template_state_fields(revision)["has_open_rejection"]
+        )
+
+    def _approve_revisions(
+        self,
+        revisions: List[Tuple[int, Optional[int]]],
+        reviewer: Optional[AbstractUser],
+        **fields: Any,
+    ) -> Dict[str, Any]:
+        """
+        Approves and lists revisions, at most one per template, in bulk. The
+        caller holds the locks of the roots.
+
+        :param revisions: The id and the root id of each revision, the root id
+            None for revision 1, which is the root.
+        :param reviewer: The admin who approves them, None when they need no
+            review.
+        :param fields: Other values to write to the revisions, by field name.
+        :return: The values written to the revisions, by field name.
+        """
+
+        values = {
+            "review_state": Template.ReviewState.APPROVED,
+            "reviewed_on": timezone.now(),
+            "reviewed_by": reviewer,
+            **fields,
+        }
+        first_ids = [revision_id for revision_id, root_id in revisions if not root_id]
+        edit_ids = [revision_id for revision_id, root_id in revisions if root_id]
+        Template.objects.filter(id__in=first_ids).update(
+            **values, public_revision_id=F("id")
+        )
+        Template.objects.filter(id__in=edit_ids).update(**values)
+        Template.objects.filter(
+            id__in=[root_id for _, root_id in revisions if root_id]
+        ).update(
+            public_revision_id=Subquery(
+                Template.objects.filter(root_id=OuterRef("id"), id__in=edit_ids).values(
+                    "id"
+                )[:1]
+            )
+        )
+        return values
 
     def _get_revision_for_review(
         self,
@@ -997,60 +1011,71 @@ class UserTemplateHandler:
         revision_id: int,
         seen_state: UserTemplateState,
         seen_listed: bool,
-        states: List[UserTemplateState],
+        can_review: Callable[[UserTemplateState, bool], bool],
     ) -> Template:
         """
-        Returns the latest revision of a user template that an admin approves or
-        rejects, with its root locked until the end of the transaction. It must be
-        the revision the admin reviewed, still in the state they saw and listed or
-        not as they saw it, and the template must be in one of the states.
+        Returns the revision an admin reviews, with its root locked, if the
+        template is still as the admin saw it.
 
-        :raises IsNotAdminError: If the admin isn't an active staff member.
+        :param admin: The admin who reviews the template.
+        :param template_id: The id of the template, which is its root.
+        :param revision_id: The id of the revision the admin reviewed.
+        :param seen_state: The state of the template the admin reviewed.
+        :param seen_listed: Whether the template the admin reviewed was listed.
+        :param can_review: Whether the review applies to a template in a state,
+            listed or not.
+        :raises IsNotAdminError: If the admin isn't an instance admin.
         :raises TemplateDoesNotExist: See `get_template_for_review`.
         :raises TemplateBlocked: If the template is blocked.
-        :raises TemplateUpdated: If `revision_id` isn't the latest revision, or the
-            template isn't in `seen_state` or `seen_listed` anymore.
-        :raises TemplateAlreadyApproved: If the template was approved since.
+        :raises TemplateAlreadyApproved: If the template is public now, while the
+            admin saw it in another state.
         :raises TemplateAlreadyRejected: If the template was rejected, or taken
             out of the listing, since.
-        :raises TemplateNotReviewable: If the template is in another state.
+        :raises TemplateUpdated: If the template isn't in `seen_state` or
+            `seen_listed` anymore, or its row is another revision now.
+        :raises TemplateNotReviewable: If the review doesn't apply to the template.
+        :return: The revision, annotated with `edited_since_submitted` and
+            `can_approve`.
         """
 
-        if not admin.is_active or not admin.is_staff:
+        if not is_instance_admin(admin):
             raise IsNotAdminError()
 
         root = self.get_template_for_review(template_id)
         if root.blocked_at is not None:
             raise TemplateBlocked(f"The template {template_id} is blocked.")
 
-        revision = self.get_latest_revision(root)
-        if revision.id != revision_id:
-            raise TemplateUpdated(
-                f"The revision {revision_id} isn't the latest of the template "
-                f"{template_id}."
-            )
-        if revision.id == root.id:
-            revision = root
-        else:
-            revision.root = root
-
-        state, _ = self.get_template_state(revision)
-        listed = root.public_revision_id is not None
+        state, _ = self.get_template_state(root)
+        listed = self.is_listed(root)
         if (state, listed) != (seen_state, seen_listed):
             message = (
                 f"The template {template_id} is {state} and listed: {listed}, not "
                 f"{seen_state} and listed: {seen_listed}."
             )
-            # Most likely another admin reviewed it meanwhile.
             if state == UserTemplateState.PUBLIC:
                 raise TemplateAlreadyApproved(message)
             if state == UserTemplateState.REJECTED:
                 raise TemplateAlreadyRejected(message)
             raise TemplateUpdated(message)
-        if state not in states:
+        if not can_review(state, listed):
             raise TemplateNotReviewable(
-                f"The template {template_id} can't be reviewed while {state}."
+                f"The template {template_id} can't be reviewed while {state} and "
+                f"listed: {listed}."
             )
+
+        revisions = (
+            Template.objects.filter(id=root.public_revision_id)
+            if state == UserTemplateState.PUBLIC
+            else Template.objects.review_queue().filter_by_root(id=root.id)
+        )
+        revision = revisions.with_can_approve().get()
+        if revision.id != revision_id:
+            raise TemplateUpdated(
+                f"The revision {revision_id} isn't the one in review of the template "
+                f"{template_id}."
+            )
+        if revision.id != root.id:
+            revision.root = root
         return revision
 
     def approve_template(
@@ -1062,16 +1087,16 @@ class UserTemplateHandler:
         seen_listed: bool,
     ) -> Template:
         """
-        Approves a user template in review or rejected, which lists the revision
-        the admin reviewed, its latest one, in place of the one listed until then.
-        Must run in a transaction.
+        Approves and lists the reviewed revision. Must run in a transaction.
 
         :param admin: The instance admin who approves the template.
         :param template_id: The id of the template, which is its root.
         :param revision_id: The id of the revision the admin reviewed.
         :param seen_state: The state of the template the admin reviewed.
         :param seen_listed: Whether the template the admin reviewed was listed.
-        :raises TemplateHasNoContent: If the revision has no content anymore.
+        :raises TemplateHasNoContent: If the revision has no content.
+        :raises TemplateUpdated: If the template was edited since the revision was
+            submitted, see `TemplateQuerySet.with_can_approve`.
         :raises: See `_get_revision_for_review`.
         :return: The approved revision.
         """
@@ -1082,14 +1107,17 @@ class UserTemplateHandler:
             revision_id,
             seen_state,
             seen_listed,
-            [UserTemplateState.IN_REVIEW, UserTemplateState.REJECTED],
+            lambda state, listed: self.approve_applies(state),
         )
-        if not revision.has_content:
+        if revision.edited_since_submitted:
+            raise TemplateUpdated(
+                f"The template {template_id} was edited after revision "
+                f"{revision_id} was submitted."
+            )
+        if not revision.can_approve:
             raise TemplateHasNoContent(f"The template {template_id} has no content.")
 
-        self.submit_revision(
-            revision.get_root(), revision, reviewer=admin, require_approval=False
-        )
+        self._approve_revisions([(revision.id, revision.root_id)], admin)
         return revision
 
     def reject_template(
@@ -1102,10 +1130,7 @@ class UserTemplateHandler:
         seen_listed: bool,
     ) -> tuple[Template, bool]:
         """
-        Rejects a user template in review, or a listed one, which takes it out of
-        the listing. A listed template whose edit is in review keeps its listing:
-        only the edit is rejected. Its author sees the reason, and making it public
-        again sends it to review. Must run in a transaction.
+        Rejects a user template. Must run in a transaction.
 
         :param admin: The instance admin who rejects the template.
         :param template_id: The id of the template, which is its root.
@@ -1114,7 +1139,6 @@ class UserTemplateHandler:
         :param seen_state: The state of the template the admin reviewed.
         :param seen_listed: Whether the template the admin reviewed was listed.
         :raises TemplateRejectReasonRequired: If the reason is blank.
-        :raises TemplateNotReviewable: If the template is rejected and not listed.
         :raises: See `_get_revision_for_review`.
         :return: The rejected revision, and whether the template was taken out of
             the listing.
@@ -1129,141 +1153,82 @@ class UserTemplateHandler:
             revision_id,
             seen_state,
             seen_listed,
-            [
-                UserTemplateState.PUBLIC,
-                UserTemplateState.IN_REVIEW,
-                UserTemplateState.REJECTED,
-            ],
+            self.reject_applies,
         )
-        root = revision.get_root()
-        if seen_state == UserTemplateState.REJECTED and not seen_listed:
-            raise TemplateNotReviewable(
-                f"The template {template_id} can't be reviewed while {seen_state}."
-            )
-        unlisted = seen_listed and seen_state != UserTemplateState.IN_REVIEW
-        update_fields = ["review_state", "reject_reason", "reviewed_by", "reviewed_on"]
-        if unlisted and revision.id == root.id:
-            # Revision 1 is the root: one update of the row, see
-            # `approve_waiting_revisions`.
-            revision.public_revision = None
-            update_fields.append("public_revision")
-        elif unlisted:
-            self.withdraw_listing(root)
+        unlisted = self.reject_unlists(seen_state, seen_listed)
+        if unlisted:
+            self.withdraw_listing(revision.get_root())
 
         revision.review_state = Template.ReviewState.REJECTED
         revision.reject_reason = reason
         revision.reviewed_by = admin
         revision.reviewed_on = timezone.now()
-        revision.save(update_fields=update_fields)
+        revision.save(
+            update_fields=[
+                "review_state",
+                "reject_reason",
+                "reviewed_by",
+                "reviewed_on",
+            ]
+        )
         return revision, unlisted
 
-    def approve_waiting_revisions(self, admin: AbstractUser) -> int:
+    def approve_pending_revisions(self, admin: AbstractUser) -> int:
         """
-        Approves the revision in review of every user template, as when approval
-        is switched off, like `approve_template` does one by one, but in a fixed
-        number of queries however long the queue is. A template that is blocked,
-        marked for deletion, rejected since it was last approved (see
-        `make_public_needs_review`), or whose revision has no content anymore keeps
-        waiting. The roots are locked in the order of their ids. Must run in the
-        transaction that switched approval off, after its update of the settings
-        row, see `CoreHandler.update_settings`. The caller checks the admin.
+        Approves the pending revisions an admin could approve, except on templates
+        rejected since their last approval, when approval is switched off. Must run
+        in the transaction that updated the settings row, see
+        `read_require_approval`.
 
         :param admin: The instance admin who switched approval off.
-        :return: The number of updated roots, one per approved revision, since a
-            template has at most one revision in review.
+        :return: The number of approved revisions.
         """
 
-        # A template has at most one revision in review, its latest one: an edit
-        # moves the review to the new revision, see `create_template_revision`.
-        # So there is nothing older to withdraw, unlike in `submit_revision`.
-        waiting = (
-            Template.objects.user()
-            .filter(
-                review_state=Template.ReviewState.PENDING,
-                workspace__isnull=False,
-                pruned_at__isnull=True,
-            )
-            .with_review_state()
-            .filter(review_open_rejection=False)
+        pending = (
+            Template.objects.review_queue()
+            .approvable()
+            .filter(review_state=Template.ReviewState.PENDING)
+            .with_template_state()
+            .filter(has_open_rejection=False)
         )
-        roots = Template.objects.filter(
-            id__in=waiting.annotate(family_root_id=Coalesce("root_id", "id")).values(
-                "family_root_id"
-            ),
-            blocked_at__isnull=True,
-            marked_for_deletion_at__isnull=True,
-        )
-        # Locked, so the selected templates can't change until the end of the
-        # transaction.
-        list(roots.order_by("id").select_for_update().values_list("id", flat=True))
-
-        now = timezone.now()
-        approval = {
-            "review_state": Value(Template.ReviewState.APPROVED),
-            "submitted_on": Coalesce("submitted_on", Value(now)),
-            "reviewed_on": Value(now),
-            "reviewed_by": Value(admin.id),
+        root_ids = {
+            root_id or revision_id
+            for revision_id, root_id in pending.values_list("id", "root_id")
         }
-        # Every row is updated once. Postgres checks every foreign key of a row
-        # that is updated again in the same transaction when it commits, which
-        # locks the referenced users. The deletion of users locks the templates
-        # of all the deleted users in the order of their ids, then the users,
-        # see `lock_templates_of_users`, and this locks the settings row, then
-        # the roots in the order of their ids: a second update here would lock a
-        # user while holding roots, after the deletion locked it. So a root that
-        # is the revision in review is approved by the same update.
-        root_waits = Exists(waiting.filter(id=OuterRef("id")))
-        approved = roots.update(
-            public_revision_id=Subquery(
-                waiting.filter(Q(id=OuterRef("id")) | Q(root_id=OuterRef("id")))
-                .order_by()
-                .values("id")[:1]
-            ),
-            **{
-                name: Case(
-                    When(root_waits, then=value),
-                    default=F(name),
-                    output_field=Template._meta.get_field(name),
-                )
-                for name, value in approval.items()
-            },
+        # Locked, then read again, so they can't change until approved.
+        list(
+            Template.objects.filter(id__in=root_ids)
+            .order_by("id")
+            .select_for_update()
+            .values_list("id", flat=True)
         )
-        Template.objects.filter(
-            root__isnull=False,
-            id__in=roots.values("public_revision_id"),
-            review_state=Template.ReviewState.PENDING,
-        ).update(**approval)
-        # A locked root has one revision in review, approved by either update.
-        return approved
+        revisions = list(
+            pending.filter_by_root(id__in=root_ids).values_list("id", "root_id")
+        )
+        self._approve_revisions(revisions, admin)
+        return len(revisions)
 
-    def withdraw_review(self, latest: Template) -> bool:
+    def withdraw_review(self, root: Template) -> Optional[Template]:
         """
-        Withdraws a user template from the review of an admin: its revision in
-        review, or the latest revision of a rejected template. The rejection stays
-        open, so making it public again sends it to review. The caller checks the
-        owner, takes it out of the listing if it's listed, and holds the lock of
-        the root.
+        Withdraws the open review of a user template, keeping a reject reason.
+        The caller checks the owner, unlists it, and holds the lock of the root.
 
-        :param latest: The latest revision of the template.
-        :return: Whether the template was in review or rejected.
+        :param root: The root of the template, locked.
+        :return: The withdrawn revision, or None if none was in review or rejected.
         """
 
-        if (
-            latest.review_state != Template.ReviewState.PENDING
-            and self._get_review(latest)["review_decided_state"]
-            != Template.ReviewState.REJECTED
-        ):
-            return False
-
-        latest.review_state = Template.ReviewState.WITHDRAWN
-        latest.save(update_fields=["review_state"])
-        return True
+        revision = Template.objects.open_reviews().filter_by_root(id=root.id).first()
+        if revision is not None:
+            revision.review_state = Template.ReviewState.WITHDRAWN
+            revision.save(update_fields=["review_state"])
+        return revision
 
     def _move_review(self, previous: Template, revision: Template) -> None:
         """
-        Moves the review of a user template in review to its new revision: the
-        previous one is withdrawn, keeping its reason, and the new one waits for
-        an admin. Runs under the lock of the root.
+        Moves the review to the new revision. Runs under the lock of the root.
+
+        :param previous: The revision in review.
+        :param revision: The new revision.
         """
 
         previous.review_state = Template.ReviewState.WITHDRAWN
@@ -1274,12 +1239,8 @@ class UserTemplateHandler:
 
     def withdraw_listing(self, root: Template) -> None:
         """
-        Takes a user template out of the listing: it has no public revision
-        anymore. The review state of its revisions isn't changed: when its owner
-        makes it private, the revision stays approved, and when an admin rejects
-        it, `reject_template` rejects the revision afterwards, without this when
-        the revision is the root. The caller checks the owner or the admin and
-        holds the lock of the root.
+        Clears the public revision of a user template. The caller checks the user
+        and holds the lock of the root.
 
         :param root: The root of the template, locked.
         """
@@ -1304,27 +1265,22 @@ class UserTemplateHandler:
             template=root, make_public=True
         ).is_pending_or_running().update(make_public=False)
 
-    def _is_public(self, root: Template) -> bool:
-        """Whether the template has a public revision and isn't blocked."""
-
-        return root.public_revision_id is not None and root.blocked_at is None
-
     def _get_install_access(self, user: AbstractUser, root: Template) -> Optional[str]:
         """
-        Why the user may install a user template: as its owner, even while it's
-        blocked, or as anyone signed in while it's public. Whether it's marked for deletion is checked by the caller.
+        Why the user may install a user template. The caller checks whether it's
+        marked for deletion.
 
         :param user: The user who installs the template.
         :param root: The root of the template.
-        :return: `"owner"`, `"public"`, or None without access.
+        :return: `"owner"`, `"listed"`, or None without access.
         """
 
         if not user.is_active:
             return None
         if root.owner_id == user.id:
             return "owner"
-        if self._is_public(root):
-            return "public"
+        if self.is_listed(root):
+            return "listed"
         return None
 
     def _check_install_access(
@@ -1367,7 +1323,7 @@ class UserTemplateHandler:
         """
 
         self._check_install_access(user, root, latest)
-        if not latest and self._is_public(root):
+        if not latest and self.is_listed(root):
             # Fetched like the latest revision, even when it's the root, so that
             # the request costs the same whichever revision is public.
             revision = Template.objects.select_related("root").get(
@@ -1442,18 +1398,20 @@ class UserTemplateHandler:
 
     def check_install_access(self, user: AbstractUser, revision: Template) -> None:
         """
-        Checks again, when the install runs, that the user may still install the
-        pinned revision of a user template. The revision is installed even if the
-        public revision changed since, and even if the template was marked for
-        deletion since, so that the installs already running finish.
+        Checks again, when an install or download job runs, that the user may
+        install the pinned revision.
 
         :param user: The user who installs the template.
         :param revision: The pinned revision, with its root selected.
-        :raises TemplateDoesNotExist: If the user lost access to the template.
+        :raises TemplateDoesNotExist: If the user lost access to the template, or
+            it's marked for deletion.
         :raises TemplateBlocked: If the user owns the template and it's blocked.
         """
 
-        self._check_install_access(user, revision.get_root())
+        root = revision.get_root()
+        if root.marked_for_deletion_at is not None:
+            raise TemplateDoesNotExist(f"The template {root.id} does not exist.")
+        self._check_install_access(user, root)
 
     def _lock_user(self, user: AbstractUser) -> bool:
         """
@@ -1466,38 +1424,6 @@ class UserTemplateHandler:
 
         return User.objects.select_for_update().filter(id=user.id).exists()
 
-    def lock_templates_of_users(self, user_ids: Iterable[int] | QuerySet) -> List[int]:
-        """
-        Locks the roots of the user templates that deleting the users changes, in
-        the order of their ids: owned, authored, reviewed or blocked by one of
-        them, in any revision. A change of a template locks its root first,
-        and switching approval off locks every root it lists in the order of their
-        ids, see `approve_waiting_revisions`. So deleting several users at once,
-        each marking their templates in turn, locks the roots of all of them first,
-        or the two can deadlock. Must run in the transaction deleting the users,
-        before it locks their rows.
-
-        :param user_ids: The ids of the users, or a queryset of them.
-        :return: The ids of the locked roots.
-        """
-
-        changed = (
-            Template.objects.user()
-            .filter(
-                Q(owner__in=user_ids)
-                | Q(author__in=user_ids)
-                | Q(reviewed_by__in=user_ids)
-                | Q(blocked_by__in=user_ids)
-            )
-            .values(family_root_id=Coalesce("root_id", "id"))
-        )
-        return list(
-            Template.objects.filter(id__in=changed)
-            .order_by("id")
-            .select_for_update()
-            .values_list("id", flat=True)
-        )
-
     def mark_owned_templates_for_deletion(self, user: AbstractUser) -> None:
         """
         Marks the user templates owned by the user for deletion. The templates
@@ -1505,28 +1431,26 @@ class UserTemplateHandler:
         user, see `_lock_user`.
         """
 
-        self.lock_templates_of_users([user.id])
         self._lock_user(user)
         Template.objects.user().filter(
             owner=user, root__isnull=True, marked_for_deletion_at__isnull=True
         ).update(marked_for_deletion_at=timezone.now())
 
-    def _get_review(self, template: Template) -> dict[str, Any]:
+    def _get_template_state_fields(self, template: Template) -> Dict[str, Any]:
         """
-        The review of a user template, see `TemplateQuerySet.with_review_state`,
-        read from the row when it's annotated, otherwise with one query.
+        The state of the template of a row, from its annotations or one query.
+
+        :param template: A revision of the template.
+        :return: `template_state`, `last_submitted_reason` and
+            `has_open_rejection`.
         """
 
-        fields = (
-            "review_decided_state",
-            "review_decided_reason",
-            "review_open_rejection",
-        )
-        if hasattr(template, fields[-1]):
+        fields = ("template_state", "last_submitted_reason", "has_open_rejection")
+        if hasattr(template, "template_state"):
             return {field: getattr(template, field) for field in fields}
         return (
             Template.objects.filter(id=template.id)
-            .with_review_state()
+            .with_template_state()
             .values(*fields)
             .get()
         )
@@ -1535,66 +1459,130 @@ class UserTemplateHandler:
         self, template: Template
     ) -> tuple[UserTemplateState, Optional[str]]:
         """
-        Returns the state of a user template as shown to its author, together with
-        the reason given by an admin for a rejected or blocked template. A
-        revision in review, or rejected, comes before the listing: a public
-        template whose edit waits for review is in review, see `is_listed` for
-        whether it's still listed meanwhile. A rejected template stays rejected
-        when it's edited, until it's withdrawn or approved.
-        `review_state_expression` is the same rule in SQL: keep both in line.
+        Returns the state of a user template, with the admin's reason if any.
 
-        :param template: The latest revision of the template. Whether it's blocked
-            or public is read from its root, the rejection from all its revisions,
-            with a query unless it's annotated with `with_review_state`.
+        :param template: A revision of the template, with its root, see
+            `_get_template_state_fields`.
+        :return: The state, and the reason if any.
         """
 
-        root = template.get_root()
-        if root.blocked_at is not None:
-            return UserTemplateState.BLOCKED, root.blocked_reason or None
-        if template.review_state == Template.ReviewState.PENDING:
-            return UserTemplateState.IN_REVIEW, None
-        review = self._get_review(template)
-        if review["review_decided_state"] == Template.ReviewState.REJECTED:
-            return UserTemplateState.REJECTED, review["review_decided_reason"] or None
-        if root.public_revision_id is not None:
-            return UserTemplateState.PUBLIC, None
-        return UserTemplateState.PRIVATE, None
+        fields = self._get_template_state_fields(template)
+        state = fields["template_state"]
+        reason = None
+        if state == UserTemplateState.BLOCKED:
+            reason = template.get_root().blocked_reason
+        elif state == UserTemplateState.REJECTED:
+            reason = fields["last_submitted_reason"]
+        return state, reason or None
 
     def is_listed(self, template: Template) -> bool:
         """
-        Whether a revision of a user template is listed for everybody, also while
-        a later revision is in review or rejected.
+        Whether a user template is listed, also while an edit is in review.
 
-        :param template: A revision of the template.
-        """
-
-        return self._is_public(template.get_root())
-
-    def make_public_needs_review(
-        self, template: Template, require_approval: bool
-    ) -> bool:
-        """
-        Whether making a user template public sends it to the review of an admin:
-        when approval is required, or when an admin rejected it since it was last
-        approved. False while it's blocked or in review already, and while it's
-        listed unless an admin rejected its edit.
-
-        :param template: The latest revision of the template, see
-            `get_template_state`.
-        :param require_approval: Whether approval is required, see
-            `read_require_approval`.
+        :param template: A revision of the template, with its root.
+        :return: True if it has a public revision and isn't blocked.
         """
 
         root = template.get_root()
-        if (
-            root.blocked_at is not None
-            or template.review_state == Template.ReviewState.PENDING
-        ):
-            return False
-        open_rejection = self._get_review(template)["review_open_rejection"]
-        if root.public_revision_id is not None:
-            return open_rejection
-        return require_approval or open_rejection
+        return root.public_revision_id is not None and root.blocked_at is None
+
+    def approve_applies(self, state: UserTemplateState) -> bool:
+        """
+        Whether approving applies to a user template in a state.
+
+        :param state: The state of the template.
+        :return: True if it's in review or rejected.
+        """
+
+        return state in [UserTemplateState.IN_REVIEW, UserTemplateState.REJECTED]
+
+    def reject_applies(self, state: UserTemplateState, listed: bool) -> bool:
+        """
+        Whether an admin can reject a user template in a state, listed or not.
+
+        :param state: The state of the template.
+        :param listed: Whether the template is listed, see `is_listed`.
+        :return: True if it's in review or listed.
+        """
+
+        return state == UserTemplateState.IN_REVIEW or listed
+
+    def reject_unlists(self, state: UserTemplateState, listed: bool) -> bool:
+        """
+        Whether rejecting a user template unlists it.
+
+        :param state: The state of the template.
+        :param listed: Whether the template is listed, see `is_listed`.
+        :return: True if it's listed, unless only its edit is in review: then the
+            listed revision stays.
+        """
+
+        return listed and state != UserTemplateState.IN_REVIEW
+
+    def make_public_submits(self, latest: Template) -> bool:
+        """
+        Whether making a user template public submits its latest revision.
+
+        :param latest: The latest revision of the template, with its root.
+        :return: True if it's submitted, see `submit_revision`.
+        """
+
+        root = latest.get_root()
+        return (
+            root.blocked_at is None
+            and root.public_revision_id != latest.id
+            and latest.review_state != Template.ReviewState.PENDING
+        )
+
+    def make_public_needs_review(
+        self, latest: Template, require_approval: bool
+    ) -> bool:
+        """
+        Whether making a user template public sends it to the review of an admin.
+
+        :param latest: The latest revision of the template, see
+            `get_template_state`.
+        :param require_approval: Whether approval is required, see
+            `read_require_approval`.
+        :return: True if it's submitted and needs review, see
+            `make_public_submits` and `submit_needs_review`.
+        """
+
+        return self.make_public_submits(latest) and self.submit_needs_review(
+            latest, require_approval
+        )
+
+    def update_review_step(self, latest: Template) -> Optional[str]:
+        """
+        What an update of a user template does to its review. A blocked one
+        keeps its review moving, so it's in review once unblocked.
+
+        :param latest: The latest revision of the template, with its root.
+        :return: "submit", "move", or None when the review is left as it is.
+        """
+
+        if self.is_listed(latest):
+            return "submit"
+        if latest.review_state == Template.ReviewState.PENDING:
+            return "move"
+        return None
+
+    def update_needs_review(self, latest: Template, require_approval: bool) -> bool:
+        """
+        Whether an update of a user template sends its new revision to review.
+
+        :param latest: The latest revision of the template, see
+            `get_template_state`.
+        :param require_approval: Whether approval is required, see
+            `read_require_approval`.
+        :return: True if the review moves to the new revision, or if it's
+            submitted and needs review, see `update_review_step`.
+        """
+
+        step = self.update_review_step(latest)
+        return step == "move" or (
+            step == "submit" and self.submit_needs_review(latest, require_approval)
+        )
 
     def delete_content_without_template(
         self, workspace_id: Optional[int], archive_name: str
@@ -1702,8 +1690,8 @@ class UserTemplateHandler:
                 | Q(id__in=install_jobs.values("template_id"))
                 | Q(id__in=download_jobs.values("revision_id"))
             )
-            .annotate(family_root_id=Coalesce("root_id", "id"))
-            .values("family_root_id")
+            .annotate(family_id=Coalesce("root_id", "id"))
+            .values("family_id")
         )
         cutoff = timezone.now() - USER_TEMPLATE_DELETION_GRACE_PERIOD
         root_ids = list(

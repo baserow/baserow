@@ -37,15 +37,10 @@ from loguru import logger
 from opentelemetry import trace
 from tqdm import tqdm
 
-from baserow.core.action.registries import action_type_registry
 from baserow.core.cache import get_cached_settings, set_cached_settings
 from baserow.core.db import specific_queryset
 from baserow.core.deferred_callbacks import deferred_callback_context
-from baserow.core.feature_flags import (
-    FF_RBAC_IMPROVEMENTS,
-    FF_USER_TEMPLATES,
-    feature_flag_is_enabled,
-)
+from baserow.core.feature_flags import FF_RBAC_IMPROVEMENTS, feature_flag_is_enabled
 from baserow.core.registries import plugin_registry
 from baserow.core.user.utils import normalize_email_address
 from baserow.core.user_templates.constants import USER_TEMPLATE_SEEDED_ID_MAPPINGS
@@ -129,6 +124,7 @@ from .signals import (
     before_workspace_deleted,
     before_workspace_user_deleted,
     before_workspace_user_updated,
+    settings_updated,
     workspace_created,
     workspace_deleted,
     workspace_invitation_accepted,
@@ -220,35 +216,21 @@ class CoreHandler:
 
     def update_settings(
         self, user: User, settings_instance: Optional[Settings] = None, **kwargs
-    ) -> Settings:
+    ) -> Tuple[Settings, Dict[str, Any]]:
         """
-        Updates one or more setting values if the user has staff permissions. Only
-        the received settings are saved, so that a stale cached instance doesn't
-        write back the others, and all of them are returned as stored. Switching
-        `user_templates_require_approval` from true to false approves the user
-        templates waiting for review, see `ApproveWaitingUserTemplatesAdminActionType`.
+        Updates one or more setting values if the user has staff permissions.
 
         :param user: The user on whose behalf the settings are updated.
-        :param settings_instance: If already fetched, the settings instance can be
-            provided to avoid fetching the values for a second time.
+        :param settings_instance: The settings, if already fetched. The update reads
+            the row again, locked, so a stale instance is fine.
         :param kwargs: An dict containing the settings that need to be updated.
-        :raises FeatureDisabledException: If `user_templates_require_approval` is
-            changed with the user templates feature disabled.
-        :return: The update settings instance.
+        :return: The updated settings instance, and the new values of the settings
+            that changed, by name, a file as its id.
         """
-
-        # These import this module.
-        from baserow.core.user_templates.actions import (
-            ApproveWaitingUserTemplatesAdminActionType,
-        )
-        from baserow.core.user_templates.handler import UserTemplateHandler
 
         CoreHandler().check_permissions(
             user, UpdateSettingsOperationType.type, context=settings_instance
         )
-
-        if "user_templates_require_approval" in kwargs:
-            feature_flag_is_enabled(FF_USER_TEMPLATES, raise_if_disabled=True)
 
         if not settings_instance:
             settings_instance = self.get_settings()
@@ -272,22 +254,40 @@ class CoreHandler:
             if name in kwargs
         ]
         with transaction.atomic():
-            # Only switching approval off approves the templates in review:
-            # sending false again keeps one that waits with approval off, like a
-            # rejected one made public again. Read from the locked row, not from
-            # the instance, which can be stale.
-            switches_off = kwargs.get(
-                "user_templates_require_approval"
-            ) is False and UserTemplateHandler().read_require_approval(for_update=True)
-            settings_instance = set_allowed_attrs(kwargs, fields, settings_instance)
+            # The previous values are the stored ones: a cached instance can be stale.
+            settings_instance = Settings.objects.select_for_update().get(
+                id=settings_instance.id
+            )
+            old_values = self._get_settings_values(settings_instance, fields)
+            set_allowed_attrs(kwargs, fields, settings_instance)
             settings_instance.save(update_fields=fields)
-            # The others are returned as stored, not as the stale instance has them.
-            settings_instance.refresh_from_db()
-            if switches_off:
-                action_type_registry.get_by_type(
-                    ApproveWaitingUserTemplatesAdminActionType
-                ).do(user)
-        return settings_instance
+            settings_updated.send(
+                self, user=user, settings=settings_instance, old_values=old_values
+            )
+        changed = {
+            name: value
+            for name, value in self._get_settings_values(
+                settings_instance, fields
+            ).items()
+            if value != old_values[name]
+        }
+        return settings_instance, changed
+
+    def _get_settings_values(
+        self, settings_instance: Settings, fields: List[str]
+    ) -> Dict[str, Any]:
+        """
+        The values of settings, in the form they're stored in.
+
+        :param settings_instance: The settings.
+        :param fields: The names of the settings to read.
+        :return: The values of the settings by name, a file as its id.
+        """
+
+        return {
+            name: Settings._meta.get_field(name).value_from_object(settings_instance)
+            for name in fields
+        }
 
     @baserow_trace(tracer, allow_nested=True)
     def check_multiple_permissions(
@@ -2596,7 +2596,7 @@ class CoreHandler:
             )
         templates = (
             templates.listed() if listed else templates.latest_revisions()
-        ).with_review_state()
+        ).with_template_state()
 
         # A revision isn't changed after it's created, an official template is.
         # A listed revision is dated by when it was listed, see `submit_revision`.

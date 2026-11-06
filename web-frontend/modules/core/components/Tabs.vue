@@ -226,18 +226,9 @@ export default {
       }
       return null
     },
-    /**
-     * Tabs without a route have no href, so they're only reachable with the
-     * keyboard with a tabindex. Disabled ones stay out of reach, like disabled
-     * route tabs, which have no href.
-     */
     getTabindex(i) {
       return this.route || this.tabs[i].disabled ? null : 0
     },
-    /**
-     * Selects a tab without a route with Enter. A route tab is a link, which Enter
-     * already clicks.
-     */
     selectWithKeyboard(event, i) {
       if (this.route) {
         return

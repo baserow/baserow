@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from unittest.mock import patch
 
 from django.db import connection
 from django.shortcuts import reverse
@@ -15,28 +14,45 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
-from baserow.api.admin.templates.views import serialize_admin_row
 from baserow.core.models import Template
+from baserow.test_utils.helpers import user_template_plan_rows
+from tests.baserow.core.user_templates.utils import (
+    create_template,
+    revision_ids,
+)
 
 pytestmark = pytest.mark.django_db
 
 LIST_URL = reverse("api:admin:templates:list")
 COUNTS_URL = reverse("api:admin:templates:counts")
-STATES = ["private", "in_review", "rejected", "blocked", "public"]
-# The states of the templates on the admin page.
 LISTED_STATES = ["in_review", "public", "rejected"]
-# The reason set by `set_user_template_state`.
 REASONS = {"rejected": "Reason"}
-
-
-def create_template(data_fixture, state="private", **kwargs):
-    template = data_fixture.create_user_template(blocked_reason="Spam", **kwargs)
-    return data_fixture.set_user_template_state(template, state)
 
 
 def list_admin_templates(api_client, token, url=LIST_URL, **params):
     headers = {"HTTP_AUTHORIZATION": f"JWT {token}"} if token else {}
     return api_client.get(url, params, **headers)
+
+
+def admin_rows(api_client, token, state, *fields, **params):
+    """
+    Lists a tab of the admin page.
+
+    :param api_client: The API client.
+    :param token: The token of a staff user.
+    :param state: The state the tab lists.
+    :param fields: The fields to keep of each row, all of them by default.
+    :param params: The other query parameters.
+    :return: The rows: the value of the only field, a tuple of `fields`, or the
+        whole row without `fields`.
+    """
+
+    response = list_admin_templates(api_client, token, state=state, **params)
+    assert response.status_code == HTTP_200_OK
+    rows = response.json()["results"]
+    if len(fields) == 1:
+        return [row[fields[0]] for row in rows]
+    return [tuple(row[field] for field in fields) if fields else row for row in rows]
 
 
 def get_staff_token(data_fixture):
@@ -54,7 +70,7 @@ def test_list_rows(api_client, data_fixture):
     token = get_staff_token(data_fixture)
     author = data_fixture.create_user(first_name="Ann", email="ann@example.com")
     with freeze_time("2026-09-30 12:00"):
-        edited = create_template(data_fixture, "public", user=author, name="First")
+        edited = create_template(data_fixture, author, "public", name="First")
     # Dated by its latest revision.
     category = data_fixture.create_template_category(name="Planning")
     latest = data_fixture.create_user_template_revision(
@@ -62,10 +78,10 @@ def test_list_rows(api_client, data_fixture):
     )
     # Stays listed while its edit is in review.
     data_fixture.set_user_template_state(edited, "in_review", latest)
-    without_author = create_template(data_fixture, "in_review", author=None)
+    without_author = create_template(data_fixture, None, "in_review", author=None)
     data_fixture.create_template()
 
-    response = list_admin_templates(api_client, token)
+    response = list_admin_templates(api_client, token, state="in_review")
 
     assert response.status_code == HTTP_200_OK
     rows = {row["id"]: row for row in response.json()["results"]}
@@ -77,7 +93,6 @@ def test_list_rows(api_client, data_fixture):
         "name": "Latest",
         "description": "Text",
         "icon": "document",
-        # Previewed by the admin: the content of the revision.
         "workspace_id": latest.workspace_id,
         "open_application": None,
         "categories": [{"id": category.id, "name": "Planning"}],
@@ -85,258 +100,369 @@ def test_list_rows(api_client, data_fixture):
         "state": "in_review",
         "reason": None,
         "listed": True,
+        "can_approve": True,
+        "edited_since_submitted": False,
+        "can_reject": True,
+        # Only the edit is rejected.
+        "reject_unlists": False,
         "updated_on": "2026-10-01T12:00:00Z",
     }
     assert rows[without_author.id]["author"] is None
     # The ids are of the templates, not of their latest revisions.
-    response = list_admin_templates(api_client, token, ids=str(edited.id))
-    assert [row["revision_id"] for row in response.json()["results"]] == [latest.id]
+    assert admin_rows(
+        api_client, token, "in_review", "revision_id", ids=str(edited.id)
+    ) == [latest.id]
 
 
-@pytest.mark.parametrize("url", [LIST_URL, COUNTS_URL])
 @pytest.mark.parametrize(
-    "user,status",
-    [
-        (None, HTTP_401_UNAUTHORIZED),
-        ("member", HTTP_403_FORBIDDEN),
-        ("staff", HTTP_200_OK),
-    ],
+    "method,endpoint",
+    [("get", "list"), ("get", "counts"), ("post", "approve"), ("post", "reject")],
 )
-def test_list_permissions(api_client, data_fixture, user, status, url):
-    token = None
+@pytest.mark.parametrize(
+    "user,status", [(None, HTTP_401_UNAUTHORIZED), ("member", HTTP_403_FORBIDDEN)]
+)
+def test_permissions(api_client, data_fixture, method, endpoint, user, status):
+    headers = {}
     if user is not None:
-        token = data_fixture.create_user_and_token(is_staff=user == "staff")[1]
+        token = data_fixture.create_user_and_token()[1]
+        headers["HTTP_AUTHORIZATION"] = f"JWT {token}"
+    template = create_template(data_fixture, None, "in_review")
 
-    assert list_admin_templates(api_client, token, url).status_code == status
+    if method == "get":
+        url = reverse(f"api:admin:templates:{endpoint}")
+        response = api_client.get(url, {"state": "in_review"}, **headers)
+    else:
+        url = reverse(
+            f"api:admin:templates:{endpoint}", kwargs={"template_id": template.id}
+        )
+        body = {"revision_id": template.id, "state": "in_review", "listed": False}
+        response = api_client.post(
+            url, {**body, "reason": "Spam"}, format="json", **headers
+        )
 
-
-@pytest.mark.parametrize("state", [None, "rejected"])
-def test_list_filter_by_state(api_client, data_fixture, state):
-    token = get_staff_token(data_fixture)
-    # Not published nor submitted, or gone, are never listed.
-    templates = {name: create_template(data_fixture, name) for name in STATES}
-    create_template(data_fixture, "marked")
-    shown = [state] if state else LISTED_STATES
-    expected = {(templates[s].id, s, REASONS.get(s), s == "public") for s in shown}
-
-    params = {} if state is None else {"state": state}
-    response = list_admin_templates(api_client, token, **params)
-
-    assert response.status_code == HTTP_200_OK
-    rows = response.json()["results"]
-    assert {(r["id"], r["state"], r["reason"], r["listed"]) for r in rows} == expected
+    assert response.status_code == status
+    assert Template.objects.get(id=template.id).review_state == "pending"
 
 
-@pytest.mark.parametrize("state", ["private"])
+@pytest.mark.parametrize("state", [None, "private"])
 def test_list_filter_by_invalid_state(api_client, data_fixture, state):
     token = get_staff_token(data_fixture)
+    params = {} if state is None else {"state": state}
 
-    response = list_admin_templates(api_client, token, state=state)
+    response = list_admin_templates(api_client, token, **params)
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_QUERY_PARAMETER_VALIDATION"
 
 
+# The authors of the templates "a", "b" and "c", and the day each was updated on.
+AUTHORS = [("Zoe", "z@x.com", 3), ("Ann", "a@x.com", 1), ("Bob", "b@x.com", 2)]
+
+
 @pytest.mark.parametrize(
-    "sorts,expected",
+    "authors,sorts,expected",
     [
-        (None, "cba"),
-        ("+name", "abc"),
+        # Newest first.
+        (AUTHORS, None, "acb"),
+        (AUTHORS, "+name", "abc"),
+        # Named by email without a first name on the page, and sorted as named.
+        (
+            [("zoe", "z@x.com", 1), ("", "b@x.com", 1), ("ann", "a@x.com", 1)],
+            "+author",
+            "cba",
+        ),
+        # Updated together, the newest first.
+        ([(name, email, 1) for name, email, _ in AUTHORS], None, "cba"),
     ],
 )
-def test_list_sorts(api_client, data_fixture, sorts, expected):
+def test_list_sorts(api_client, data_fixture, authors, sorts, expected):
     token = get_staff_token(data_fixture)
     names = {}
-    for day, (name, first_name, state) in enumerate(
-        [("a", "Zoe", "rejected"), ("b", "Ann", "public"), ("c", "Bob", "in_review")],
-        start=1,
-    ):
-        user = data_fixture.create_user(first_name=first_name)
-        template = create_template(data_fixture, state, name=name, user=user)
+    for name, (first_name, email, day) in zip("abc", authors):
+        user = data_fixture.create_user(first_name=first_name, email=email)
+        template = create_template(data_fixture, user, "public", name=name)
         Template.objects.filter(id=template.id).update(
             created_on=datetime(2026, 10, day, tzinfo=timezone.utc)
         )
         names[template.id] = name
 
     params = {} if sorts is None else {"sorts": sorts}
-    response = list_admin_templates(api_client, token, **params)
+    ids = admin_rows(api_client, token, "public", "id", **params)
 
-    assert "".join(names[row["id"]] for row in response.json()["results"]) == expected
-
-
-def test_list_sorts_authors_without_first_name_by_email(api_client, data_fixture):
-    # They're named by email on the page then, and sorted as named.
-    token = get_staff_token(data_fixture)
-    names = {}
-    for name, first_name, email in [
-        ("a", "zoe", "zoe@example.com"),
-        ("b", "", "bob@example.com"),
-        ("c", "ann", "ann@example.com"),
-    ]:
-        user = data_fixture.create_user(first_name=first_name, email=email)
-        template = create_template(data_fixture, "public", name=name, user=user)
-        names[template.id] = name
-
-    response = list_admin_templates(api_client, token, sorts="+author")
-
-    assert "".join(names[row["id"]] for row in response.json()["results"]) == "cba"
+    assert "".join(names[template_id] for template_id in ids) == expected
 
 
-def test_list_sorts_templates_updated_together_by_id(api_client, data_fixture):
-    token = get_staff_token(data_fixture)
-    ids = [create_template(data_fixture, "public").id for _ in range(3)]
-    Template.objects.filter(id__in=ids).update(
-        created_on=datetime(2026, 10, 1, tzinfo=timezone.utc)
-    )
-
-    response = list_admin_templates(api_client, token)
-
-    assert [row["id"] for row in response.json()["results"]] == ids[::-1]
-
-
-def test_list_query_count(api_client, data_fixture):
+@pytest.mark.parametrize("state", LISTED_STATES)
+def test_list_query_count(api_client, data_fixture, state):
     token = get_staff_token(data_fixture)
 
-    def create_templates(states):
-        for state in states:
-            template = create_template(data_fixture, state)
+    def create_templates(count):
+        for _ in range(count):
+            template = create_template(data_fixture, None, state)
             data_fixture.create_user_template_revision(template)
 
-    create_templates(["rejected"])
-    with CaptureQueriesContext(connection) as one_template:
-        assert list_admin_templates(api_client, token).json()["count"] == 1
+    def list_count():
+        response = list_admin_templates(api_client, token, state=state)
+        return response.json()["count"]
 
-    create_templates(["public", "rejected", "public"])
+    create_templates(1)
+    with CaptureQueriesContext(connection) as one_template:
+        assert list_count() == 1
+
+    create_templates(3)
     with CaptureQueriesContext(connection) as four_templates:
-        assert list_admin_templates(api_client, token).json()["count"] == 4
+        assert list_count() == 4
 
     assert len(four_templates.captured_queries) == len(one_template.captured_queries)
 
 
-def test_counts(api_client, data_fixture):
-    for state in STATES + ["in_review", "marked"]:
-        create_template(data_fixture, state)
-    data_fixture.create_template()
+def admin_page(api_client, token):
+    """
+    The rows of every tab of the admin page, checked against the counts of the
+    tabs.
 
-    response = list_admin_templates(
-        api_client, get_staff_token(data_fixture), COUNTS_URL
-    )
+    :param api_client: The API client.
+    :param token: The token of a staff user.
+    :return: The rows by tab.
+    """
 
-    assert response.status_code == HTTP_200_OK
-    assert response.json() == {"in_review": 2, "public": 1, "rejected": 1}
-
-
-def test_list_and_counts_template_with_revisions(api_client, data_fixture):
-    token = get_staff_token(data_fixture)
-    expected = "rejected"
-    root = revision = create_template(data_fixture)
-    for index, state in enumerate(["public", "rejected", "private"]):
-        if index:
-            revision = data_fixture.create_user_template_revision(root)
-        data_fixture.set_user_template_state(root, state, revision)
-
-    def listed(**params):
-        rows = list_admin_templates(api_client, token, **params).json()["results"]
-        return [(row["id"], row["revision_id"], row["state"]) for row in rows]
-
-    # Once, with the state of its latest revision.
-    assert listed() == listed(state=expected) == [(root.id, revision.id, expected)]
-    assert all(listed(state=s) == [] for s in LISTED_STATES if s != expected)
+    tabs = {state: admin_rows(api_client, token, state) for state in LISTED_STATES}
     counts = list_admin_templates(api_client, token, COUNTS_URL).json()
-    assert counts == {state: int(state == expected) for state in LISTED_STATES}
+    assert counts == {state: len(rows) for state, rows in tabs.items()}
+    return tabs
+
+
+def review_outcome(root, revision_id, before, admin):
+    """
+    What a review of a user template did: "refused", its revision "listed",
+    "rejected" while the listed one stays, or "unlisted". Also checks what every
+    review keeps.
+
+    :param root: The template.
+    :param revision_id: The id of the reviewed revision.
+    :param before: The rows of the templates before the review.
+    :param admin: The admin who reviewed it.
+    :return: The outcome.
+    """
+
+    after = {row["id"]: row for row in Template.objects.values()}
+    changed = {row["id"] for row in before if after[row["id"]] != row}
+    if not changed:
+        return "refused"
+    # Only the reviewed revision and the listing of its template change.
+    assert changed <= {root.id, revision_id}
+    reviewed = after[revision_id]
+    assert reviewed["reviewed_by_id"] == admin.id
+    listed_before = next(r for r in before if r["id"] == root.id)["public_revision_id"]
+    listed = after[root.id]["public_revision_id"]
+    if reviewed["review_state"] == Template.ReviewState.APPROVED:
+        assert listed == revision_id
+        return "listed"
+    assert reviewed["review_state"] == Template.ReviewState.REJECTED
+    assert reviewed["reject_reason"] == "Spam"
+    if listed is None and listed_before is not None:
+        return "unlisted"
+    assert listed == listed_before
+    return "rejected"
+
+
+def per_review_action(rows):
+    """
+    Runs each row once per review action, and once without a review when the
+    template isn't on the admin page.
+    """
+
+    return [
+        pytest.param(*row.values, action, id=f"{row.id}-{action}" if action else row.id)
+        for row in rows
+        # The tab is the second column.
+        for action in (["approve", "reject"] if row.values[1] else [None])
+    ]
 
 
 @pytest.mark.parametrize(
-    "user,status",
-    [
-        (None, HTTP_401_UNAUTHORIZED),
-        ("member", HTTP_403_FORBIDDEN),
-        ("staff", HTTP_200_OK),
-    ],
+    "revision_states,tab,row,approve_does,reject_does,action",
+    per_review_action(
+        user_template_plan_rows(
+            "4",
+            [
+                # The tab and the row of the template on the admin page, by the index of
+                # its revision, and what reviewing that row does.
+                (["private"], None, None, None, None),
+                (["shared"], None, None, None, None),
+                (["in_review"], "in_review", 0, "listed", "rejected"),
+                (["resubmitted"], "in_review", 0, "listed", "rejected"),
+                (["in_review", "pruned"], "in_review", 0, "refused", "rejected"),
+                (["rejected"], "rejected", 0, "listed", "refused"),
+                (["withdrawn_rejected"], None, None, None, None),
+                # Edited since it was rejected, so it's not approved as reviewed.
+                (["rejected", "private"], "rejected", 0, "refused", "refused"),
+                (["rejected", "in_review"], "in_review", 1, "listed", "rejected"),
+                (["public"], "public", 0, "refused", "unlisted"),
+                (["public", "private"], "public", 0, "refused", "unlisted"),
+                # Only the edit is rejected, the approved revision stays listed.
+                (["public", "in_review"], "in_review", 1, "listed", "rejected"),
+                (["public", "resubmitted"], "in_review", 1, "listed", "rejected"),
+                (["public", "rejected"], "rejected", 1, "listed", "unlisted"),
+                (
+                    ["public", "rejected", "private"],
+                    "rejected",
+                    1,
+                    "refused",
+                    "unlisted",
+                ),
+                (["rejected", "public"], "public", 1, "refused", "unlisted"),
+                (["blocked"], None, None, None, None),
+                (["public_blocked"], None, None, None, None),
+                (["blocked", "in_review"], None, None, None, None),
+                (["marked"], None, None, None, None),
+                (["marked", "in_review"], None, None, None, None),
+                (["public", "marked"], None, None, None, None),
+            ],
+        ),
+    ),
 )
-@pytest.mark.parametrize(
-    "action,state,result",
-    [("approve", "in_review", "public"), ("reject", "public", "rejected")],
-)
-def test_review_permissions(
-    api_client, data_fixture, user, status, action, state, result
+def test_admin_is_shown_what_a_review_does(
+    api_client,
+    data_fixture,
+    revision_states,
+    tab,
+    row,
+    approve_does,
+    reject_does,
+    action,
 ):
-    token = None
-    if user is not None:
-        token = data_fixture.create_user_and_token(is_staff=user == "staff")[1]
-    template = create_template(data_fixture, state)
+    admin, token = data_fixture.create_user_and_token(is_staff=True)
+    data_fixture.create_template()
+    root = create_template(data_fixture, None)
+    data_fixture.set_user_template_revision_states(root, revision_states)
+    revisions = revision_ids(root)
+
+    tabs = admin_page(api_client, token)
+
+    expected = [] if tab is None else [(tab, root.id, revisions[row])]
+    rows = [(state, r) for state, rows in tabs.items() for r in rows]
+    assert [(state, r["id"], r["revision_id"]) for state, r in rows] == expected
+    # The admin opens what the page shows: its row and the listed revision.
+    root = Template.objects.get(id=root.id)
+    hidden = root.blocked_at or root.marked_for_deletion_at
+    listed = None if hidden else root.public_revision_id
+    opens = {
+        id for id in revisions if Template.objects.get(id=id).is_openable_by(admin)
+    }
+    assert opens == {id for id in [listed, *(r["revision_id"] for _, r in rows)] if id}
+    if tab is None:
+        return
+    shown = rows[0][1]
+    assert (shown["state"], shown["reason"]) == (tab, REASONS.get(tab))
+    assert shown["listed"] is (listed is not None)
+    before = list(Template.objects.values())
 
     response = review_template(
         api_client,
         token,
         action,
-        template.id,
-        revision_id=template.id,
-        state=state,
-        listed=state == "public",
+        root.id,
+        revision_id=shown["revision_id"],
+        state=shown["state"],
+        listed=shown["listed"],
         reason="Spam",
     )
 
-    assert response.status_code == status
-    if status == HTTP_200_OK:
-        assert response.json()["id"] == template.id
-        assert response.json()["state"] == result
-
-
-def test_reject_reason_required(api_client, data_fixture):
-    template = create_template(data_fixture, "public")
-    body = {"revision_id": template.id, "state": "public", "listed": True}
-
-    response = review_template(
-        api_client,
-        get_staff_token(data_fixture),
-        "reject",
-        template.id,
-        reason="  ",
-        **body,
-    )
-
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
-    assert list(response.json()["detail"]) == ["reason"]
-    assert Template.objects.get(id=template.id).public_revision_id == template.id
+    outcome = review_outcome(root, shown["revision_id"], before, admin)
+    assert outcome == {"approve": approve_does, "reject": reject_does}[action]
+    if action == "approve":
+        assert shown["can_approve"] is (outcome == "listed")
+        # The admin is told when it's not approved because it was edited.
+        edited = response.json().get("error") == "ERROR_TEMPLATE_UPDATED"
+        assert shown["edited_since_submitted"] is edited
+    else:
+        assert shown["can_reject"] is (outcome != "refused")
+        assert shown["reject_unlists"] is (outcome == "unlisted")
+    if outcome != "refused":
+        assert response.status_code == HTTP_200_OK
+        reviewed = response.json()
+        assert admin_page(api_client, token)[reviewed["state"]] == [reviewed]
 
 
 @pytest.mark.parametrize(
-    "action,revision_states,revision,seen,code",
+    "action,revision_states,revision,seen,reason,error",
     [
         # Both views map the same errors, each code is checked once.
-        ("reject", ["public"], "missing", ("public", True), "DOES_NOT_EXIST"),
-        ("reject", ["public_blocked"], "latest", ("public", True), "BLOCKED"),
-        ("approve", ["rejected", "private"], "previous", ("private", False), "UPDATED"),
-        ("reject", ["public"], "latest", ("in_review", False), "ALREADY_APPROVED"),
-        ("approve", ["rejected"], "latest", ("rejected", True), "ALREADY_REJECTED"),
-        ("reject", ["rejected"], "latest", ("rejected", False), "NOT_REVIEWABLE"),
+        (
+            "reject",
+            ["public"],
+            "missing",
+            ("public", True),
+            "Spam",
+            "ERROR_TEMPLATE_DOES_NOT_EXIST",
+        ),
+        (
+            "reject",
+            ["public_blocked"],
+            "latest",
+            ("public", True),
+            "Spam",
+            "ERROR_TEMPLATE_BLOCKED",
+        ),
+        (
+            "approve",
+            ["rejected", "private"],
+            "previous",
+            ("rejected", False),
+            "Spam",
+            "ERROR_TEMPLATE_UPDATED",
+        ),
+        (
+            "reject",
+            ["public"],
+            "latest",
+            ("in_review", False),
+            "Spam",
+            "ERROR_TEMPLATE_ALREADY_APPROVED",
+        ),
+        (
+            "approve",
+            ["rejected"],
+            "latest",
+            ("rejected", True),
+            "Spam",
+            "ERROR_TEMPLATE_ALREADY_REJECTED",
+        ),
+        (
+            "reject",
+            ["rejected"],
+            "latest",
+            ("rejected", False),
+            "Spam",
+            "ERROR_TEMPLATE_NOT_REVIEWABLE",
+        ),
         (
             "approve",
             ["in_review", "pruned"],
             "latest",
             ("in_review", False),
-            "HAS_NO_CONTENT",
+            "Spam",
+            "ERROR_TEMPLATE_HAS_NO_CONTENT",
+        ),
+        (
+            "reject",
+            ["public"],
+            "latest",
+            ("public", True),
+            "  ",
+            "ERROR_REQUEST_BODY_VALIDATION",
         ),
     ],
 )
 def test_review_errors(
-    api_client, data_fixture, action, revision_states, revision, seen, code
+    api_client, data_fixture, action, revision_states, revision, seen, reason, error
 ):
-    # When they're raised is tested with the handler, only their codes are here.
-    root = latest = create_template(data_fixture)
-    for index, revision_state in enumerate(revision_states):
-        if revision_state == "pruned":
-            Template.objects.filter(id=latest.id).update(
-                pruned_at=datetime.now(tz=timezone.utc)
-            )
-            continue
-        if index:
-            latest = data_fixture.create_user_template_revision(root)
-        data_fixture.set_user_template_state(root, revision_state, latest)
+    root = create_template(data_fixture, None)
+    latest = data_fixture.set_user_template_revision_states(root, revision_states)
     template_id = 0 if revision == "missing" else root.id
     revision_id = root.id if revision == "previous" else latest.id
+    before = list(Template.objects.values().order_by("id"))
 
     response = review_template(
         api_client,
@@ -346,39 +472,11 @@ def test_review_errors(
         revision_id=revision_id,
         state=seen[0],
         listed=seen[1],
-        reason="Spam",
+        reason=reason,
     )
 
-    status = HTTP_404_NOT_FOUND if code == "DOES_NOT_EXIST" else HTTP_400_BAD_REQUEST
+    missing = error == "ERROR_TEMPLATE_DOES_NOT_EXIST"
+    status = HTTP_404_NOT_FOUND if missing else HTTP_400_BAD_REQUEST
     assert response.status_code == status
-    assert response.json()["error"] == f"ERROR_TEMPLATE_{code}"
-
-
-@pytest.mark.django_db(transaction=True)
-@pytest.mark.parametrize("action", ["approve", "reject"])
-def test_review_builds_the_row_in_its_transaction(api_client, data_fixture, action):
-    # So that a deletion of the template can't commit between the review and
-    # the row of the response.
-    template = create_template(data_fixture, "in_review")
-    in_transaction = []
-
-    def serialize(revision):
-        in_transaction.append(connection.in_atomic_block)
-        return serialize_admin_row(revision)
-
-    with patch(
-        "baserow.api.admin.templates.views.serialize_admin_row", side_effect=serialize
-    ):
-        response = review_template(
-            api_client,
-            get_staff_token(data_fixture),
-            action,
-            template.id,
-            revision_id=template.id,
-            state="in_review",
-            listed=False,
-            reason="Spam",
-        )
-
-    assert response.status_code == HTTP_200_OK
-    assert in_transaction == [True]
+    assert response.json()["error"] == error
+    assert list(Template.objects.values().order_by("id")) == before

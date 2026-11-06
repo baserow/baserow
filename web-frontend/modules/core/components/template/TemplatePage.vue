@@ -110,9 +110,8 @@ if (error.value) {
 // of the template page.
 const showList = ref(false)
 const currentSlug = ref(slug)
-// The public templates opened from the list or loaded again, by slug. They aren't
-// part of the official categories, and win over the linked template, which can
-// be an older revision of the same one.
+// Public templates fetched by slug. They win over the linked template, which
+// can be an older revision of the same one.
 const publicTemplates = ref({})
 const publicTemplateList = ref(null)
 // The id of the public template being opened, so that only the last opened one

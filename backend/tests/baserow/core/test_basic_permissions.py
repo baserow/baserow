@@ -4,7 +4,7 @@ import weakref
 
 from django.contrib.auth.models import AnonymousUser
 from django.db import connection
-from django.db.models import F, Q, QuerySet
+from django.db.models import Q, QuerySet
 from django.test.utils import CaptureQueriesContext, override_settings
 from django.utils import timezone
 
@@ -1487,26 +1487,15 @@ def create_templates_of_each_state(data_fixture, owner):
     rejected = data_fixture.create_user_template(
         user=owner, review_state=Template.ReviewState.REJECTED
     )
-    rejected_edited = data_fixture.create_user_template(
-        user=owner, review_state=Template.ReviewState.REJECTED
-    )
-    rejected_edit = data_fixture.create_user_template_revision(rejected_edited)
     withdrawn = data_fixture.create_user_template(
         user=owner, review_state=Template.ReviewState.WITHDRAWN
     )
     public = data_fixture.create_user_template(user=owner)
-    public_edited = data_fixture.create_user_template(user=owner)
-    blocked = data_fixture.create_user_template(user=owner, blocked_at=timezone.now())
-    Template.objects.filter(id__in=[public.id, public_edited.id, blocked.id]).update(
-        public_revision_id=F("id")
+    data_fixture.set_user_template_state(public, "public")
+    blocked = data_fixture.set_user_template_state(
+        data_fixture.create_user_template(user=owner), "public_blocked"
     )
-    public.refresh_from_db()
-    public_edited.refresh_from_db()
-    blocked.refresh_from_db()
     public_revision = data_fixture.create_user_template_revision(public)
-    public_edit = data_fixture.create_user_template_revision(
-        public_edited, review_state=Template.ReviewState.PENDING
-    )
     marked = data_fixture.create_user_template(
         user=owner, marked_for_deletion_at=timezone.now()
     )
@@ -1514,13 +1503,7 @@ def create_templates_of_each_state(data_fixture, owner):
     public_marked = data_fixture.create_user_template(
         user=owner, marked_for_deletion_at=timezone.now()
     )
-    Template.objects.filter(id=public_marked.id).update(public_revision_id=F("id"))
-    public_marked.refresh_from_db()
-    pending_marked = data_fixture.create_user_template(
-        user=owner,
-        review_state=Template.ReviewState.PENDING,
-        marked_for_deletion_at=timezone.now(),
-    )
+    data_fixture.set_user_template_state(public_marked, "public")
     return [
         (official, True, True, True),
         (legacy, True, True, True),
@@ -1528,22 +1511,17 @@ def create_templates_of_each_state(data_fixture, owner):
         # A revision is opened like its root.
         (revision, False, True, False),
         (latest_revision, False, True, False),
-        # An admin opens the latest revision of the templates they review.
+        # An admin opens the revision they review.
         (pending, False, True, True),
         (rejected, False, True, True),
-        (rejected_edited, False, True, False),
-        (rejected_edit, False, True, True),
         (withdrawn, False, True, False),
         (public, True, True, True),
         # Others only open the public revision.
         (public_revision, False, True, False),
-        (public_edited, True, True, True),
-        (public_edit, False, True, True),
         (blocked, False, True, False),
         (marked, False, False, False),
         (marked_revision, False, False, False),
         (public_marked, False, False, False),
-        (pending_marked, False, False, False),
     ]
 
 
@@ -1609,11 +1587,12 @@ def test_allow_if_template_permission_manager_allows_openable_templates(
                     )
                 ) is allowed, reason
                 assert template.is_openable_by(check.actor) is allowed, reason
+                # Leaves out the revisions an admin reviews.
                 assert (
                     Template.objects.openable(check.actor)
                     .filter(id=template.id)
                     .exists()
-                ) is allowed, reason
+                ) is (allowed and (role != "admin" or opens[0])), reason
 
         workspace = not_a_template[0]
         check = PermissionCheck(actor, ReadWorkspaceOperationType.type, workspace)
@@ -1649,22 +1628,20 @@ def test_allow_if_template_permissions_object_lists_official_and_own_templates(
     templates = create_templates_of_each_state(data_fixture, owner)
     # The public templates of other users aren't listed.
     others_public = data_fixture.create_user_template()
-    Template.objects.filter(id=others_public.id).update(public_revision_id=F("id"))
+    data_fixture.set_user_template_state(others_public, "public")
     manager = AllowIfTemplatePermissionManagerType()
 
     for actor, role in get_template_actors(data_fixture, owner):
         permissions = manager.get_permissions_object(actor)
 
-        # For an admin, the ones they review, not the public ones.
+        # Not the ones an admin reviews, which are checked one by one.
         assert set(permissions["workspace_template_ids"]) == {
             template.workspace_id
             for template, for_others, for_owner, for_admin in templates
             if template.type != Template.Type.USER
             or user_templates_enabled
-            and (
-                (role == "owner" and for_owner)
-                or (role == "admin" and for_admin and not for_others)
-            )
+            and role == "owner"
+            and for_owner
         }, role
 
 

@@ -62,6 +62,13 @@
   gap: 8px;
 }
 
+.templates-admin-review-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-900;
+}
+
 .templates-admin-reason {
   @extend %ellipsis;
 

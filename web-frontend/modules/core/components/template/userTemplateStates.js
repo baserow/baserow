@@ -1,7 +1,3 @@
-/**
- * The states of a user template as the server reports them, with the color and
- * icon of their badge and the locale key of their label.
- */
 export const STATES = {
   private: {
     color: 'neutral',
@@ -31,8 +27,7 @@ export const STATES = {
 }
 
 /**
- * A state that this version doesn't know is shown as it is, so that a list still
- * works when a new state is added.
+ * Returns the badge of a user template state; an unknown one is shown as is.
  *
  * @param {string} state The state of a user template.
  * @param {function} t Translates a locale key.
@@ -47,8 +42,7 @@ export function getState(state, t) {
 }
 
 /**
- * A template in review or rejected can still be listed with an earlier approved
- * version, which its badge tells next to the state.
+ * Whether a template in review or rejected still lists an approved version.
  *
  * @param {object} template A user template with its `state` and `listed`.
  * @returns {boolean} Whether the template shows that it's still listed.

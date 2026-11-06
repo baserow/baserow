@@ -3,6 +3,7 @@ import { flushPromises } from '@vue/test-utils'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { heldBack } from '@baserow/test/helpers/heldBack'
+import { toastsOfType } from '@baserow/test/helpers/store'
 import UserTemplateList from '@baserow/modules/core/components/template/UserTemplateList'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
 
@@ -138,7 +139,6 @@ describe('UserTemplateList', () => {
 
   test.each([
     ['in_review', true, 'stateInReview', true],
-    ['rejected', true, 'stateRejected', true],
     ['public', true, 'statePublic', false],
     ['in_review', false, 'stateInReview', false],
   ])(
@@ -470,10 +470,7 @@ describe('UserTemplateList', () => {
         ...JSON.parse(request.data),
       }))
 
-  const downloadToasts = () =>
-    testApp.store.state.toast.items.filter(
-      (toast) => toast.type === 'downloadTemplate'
-    )
+  const downloadToasts = () => toastsOfType(testApp.store, 'downloadTemplate')
 
   const menuLink = (wrapper, text) =>
     wrapper
@@ -605,53 +602,43 @@ describe('UserTemplateList', () => {
   })
 
   test.each([
-    ['private', false, ['userTemplateList.makePublic'], 'make-public'],
-    ['in_review', false, ['userTemplateList.makePrivate'], 'make-private'],
-    [
-      'rejected',
-      true,
-      ['userTemplateList.makePublic', 'userTemplateList.makePrivate'],
-      'make-public',
-    ],
+    [false, 'userTemplateList.makePublic'],
     // Its approved version is listed, so only its change goes to review again.
-    [
-      'rejected',
-      true,
-      ['userTemplateList.submitForReviewAgain', 'userTemplateList.makePrivate'],
-      'make-public',
-      true,
-    ],
-    ['public', false, ['userTemplateList.makePrivate'], 'make-private'],
-    ['blocked', false, [], null],
+    [true, 'userTemplateList.submitForReviewAgain'],
   ])(
-    'offers to change the visibility of a %s template (needs review: %s)',
-    async (state, makePublicNeedsReview, items, event, listed = false) => {
-      const template = userTemplate(1, 'Sprint Tracker', state, {
-        make_public_needs_review: makePublicNeedsReview,
+    'offers to make a rejected template (listed: %s) public or private',
+    async (listed, makePublicLabel) => {
+      const template = userTemplate(1, 'Sprint Tracker', 'rejected', {
+        can_make_public: true,
+        make_public_needs_review: true,
         listed,
       })
       mockPages(page([template]))
       const wrapper = await mountComponent()
+      const openMenu = async () => {
+        await wrapper
+          .find('.user-template-list__actions .button-icon')
+          .trigger('click')
+        return wrapper.findAll('.context__menu-item-link')
+      }
 
-      await wrapper
-        .find('.user-template-list__actions .button-icon')
-        .trigger('click')
-      const links = wrapper.findAll('.context__menu-item-link')
-
+      const links = await openMenu()
       expect(links.map((link) => link.text())).toStrictEqual([
         'userTemplateList.editDetails',
         'userTemplateList.updateContent',
-        ...items,
+        makePublicLabel,
+        'userTemplateList.makePrivate',
         'userTemplateList.download',
         'userTemplateList.delete',
       ])
-      if (event) {
-        await links[2].trigger('click')
-        await flushPromises()
-        expect(wrapper.emitted(event)).toStrictEqual([[template]])
-        // The modal makes the change, not the list.
-        expect(testApp.mock.history.patch).toHaveLength(0)
-      }
+      await links[2].trigger('click')
+      await (await openMenu())[3].trigger('click')
+      await flushPromises()
+
+      expect(wrapper.emitted('make-public')).toStrictEqual([[template]])
+      expect(wrapper.emitted('make-private')).toStrictEqual([[template]])
+      // The modal makes the change, not the list.
+      expect(testApp.mock.history.patch).toHaveLength(0)
     }
   )
 

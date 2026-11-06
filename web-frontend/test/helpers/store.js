@@ -30,3 +30,6 @@ export const updateJob = async (store, id, data) => {
   await store.dispatch('job/forceUpdate', { job, data })
   await flushPromises()
 }
+
+export const toastsOfType = (store, type) =>
+  store.state.toast.items.filter((toast) => toast.type === type)

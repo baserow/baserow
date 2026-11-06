@@ -705,7 +705,6 @@
     "reviewText": "The approved version stays listed in the template browser until an admin approves the changes.",
     "inReviewTitle": "This template is in review",
     "inReviewText": "Saving replaces the version in review, so an admin reviews your changes instead.",
-    "inReviewListedText": "Saving replaces the version in review. The approved version stays listed in the template browser until an admin approves the changes.",
     "rejectedTitle": "Saving doesn’t send this template back to review",
     "rejectedText": "It stays rejected. Make it public once your changes are ready."
   },
@@ -718,7 +717,7 @@
     "title": "Make “{name}” public?",
     "description": "“{name}” will be listed in the template browser for everyone on this instance, and your account name, {author}, is shared as author. You can make it private again later.",
     "makePublic": "Make public",
-    "resubmitDescription": "“{name}” will be listed in the template browser for everyone on this instance once an instance admin approves it, and your account name, {author}, is shared as author. You can make it private again later.",
+    "reviewDescription": "“{name}” will be listed in the template browser for everyone on this instance once an instance admin approves it, and your account name, {author}, is shared as author. You can make it private again later.",
     "resubmitListedDescription": "The approved version of “{name}” stays listed in the template browser until an instance admin approves this one, which then replaces it.",
     "resubmitTitle": "Submit “{name}” for review again?",
     "submitForReviewAgain": "Submit for review again"
@@ -1066,7 +1065,7 @@
     "settingAllowReportingAbuseName": "Allow reporting abuse",
     "settingAllowReportingAbuseDescription": "When enabled, visitors of publicly shared views and forms can report them for abuse, and all instance admins are notified about the report.",
     "settingUserTemplatesRequireApprovalName": "Templates need approval",
-    "settingUserTemplatesRequireApprovalDescription": "When enabled, a template made public is listed in the template browser only after an instance admin approves it, and so is every change to a listed template. Turning it off approves every template waiting for review, except the ones an admin rejected."
+    "settingUserTemplatesRequireApprovalDescription": "When enabled, a template made public is listed in the template browser only after an instance admin approves it, and so is every change to a listed template. Turning it off approves the templates in review that an admin can approve, except the ones rejected since their last approval."
   },
   "formSidebar": {
     "fields": "Fields",
@@ -1571,13 +1570,13 @@
   },
   "templatesAdmin": {
     "title": "Templates",
-    "subtitle": "Every template published or submitted on this instance.",
+    "subtitle": "Every public template on this instance, and every one submitted for review.",
     "inReview": "In review",
-    "published": "Published",
+    "public": "Public",
     "rejectedTab": "Rejected",
     "tabCount": "{name} · {count}",
     "inReviewEmpty": "No templates in review.",
-    "publishedEmpty": "No published templates.",
+    "publicEmpty": "No public templates.",
     "rejectedEmpty": "No rejected templates.",
     "template": "Template",
     "author": "Author",
@@ -1586,6 +1585,8 @@
     "deletedAuthor": "A deleted user",
     "review": "Review",
     "approve": "Approve",
+    "editedSinceSubmitted": "Its author edited it since submitting it. It can be approved once they make it public again.",
+    "noContent": "Its content is no longer available, so it can't be approved.",
     "reject": "Reject",
     "unlist": "Unlist",
     "changedTitle": "The template changed",
@@ -1602,7 +1603,7 @@
     "description": "The author sees this reason on their template. It stays out of the browser until you approve it.",
     "editDescription": "Only the latest change is rejected. The approved version stays listed in the template browser, and its author sees the reason.",
     "reasonLabel": "Reason",
-    "reasonPlaceholder": "Why the template can't be listed",
+    "reasonPlaceholder": "Why this version can't be listed",
     "reject": "Reject template",
     "unlistTitle": "Unlist “{name}”?",
     "unlistDescription": "The author sees this reason on their template. It comes out of the browser until you approve it again.",

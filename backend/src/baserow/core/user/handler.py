@@ -49,7 +49,6 @@ from baserow.core.signals import (
     user_updated,
 )
 from baserow.core.trash.handler import TrashHandler
-from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.utils import (
     generate_hash,
     get_baserow_saas_base_url,
@@ -913,8 +912,6 @@ class UserHandler:
         )
 
         with transaction.atomic():
-            # Before the deletion of the first user marks their templates.
-            UserTemplateHandler().lock_templates_of_users(users_to_delete.values("id"))
             for workspace in workspaces_to_be_deleted:
                 # Here we use the trash handler to be sure that we delete every thing
                 # related the workspaces like

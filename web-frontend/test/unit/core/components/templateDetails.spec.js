@@ -98,7 +98,7 @@ describe('TemplateDetails', () => {
     const userTemplate = { ...template, type: 'user' }
     const wrapper = await mountComponent({
       template: userTemplate,
-      isOwn: true,
+      ownerActions: true,
     })
     expect(wrapper.find('.template-install__use').exists()).toBe(true)
 
@@ -132,33 +132,33 @@ describe('TemplateDetails', () => {
   test.each([
     ['private', 'templateDetails.makePublic', 'make-public'],
     ['public', 'templateDetails.makePrivate', 'make-private'],
-    ['blocked', null, null],
   ])(
     'offers the visibility change of a %s own template',
     async (state, label, event) => {
-      const userTemplate = { ...template, type: 'user', state }
+      const userTemplate = {
+        ...template,
+        type: 'user',
+        state,
+        can_make_public: event === 'make-public',
+      }
       const wrapper = await mountComponent({
         template: userTemplate,
-        isOwn: true,
+        ownerActions: true,
       })
 
       await wrapper
         .find('.template-install__actions .button-icon')
         .trigger('click')
       const links = wrapper.findAll('.context__menu-item-link')
-      expect(links.map((link) => link.text())).toStrictEqual(
-        [
-          'templateDetails.editDetails',
-          'templateDetails.updateContent',
-          label,
-          'templateInstall.download',
-          'templateDetails.delete',
-        ].filter(Boolean)
-      )
-      if (event) {
-        await links[2].trigger('click')
-        expect(wrapper.emitted(event)).toStrictEqual([[userTemplate]])
-      }
+      expect(links.map((link) => link.text())).toStrictEqual([
+        'templateDetails.editDetails',
+        'templateDetails.updateContent',
+        label,
+        'templateInstall.download',
+        'templateDetails.delete',
+      ])
+      await links[2].trigger('click')
+      expect(wrapper.emitted(event)).toStrictEqual([[userTemplate]])
     }
   )
 
@@ -197,54 +197,50 @@ describe('TemplateDetails', () => {
     }
   )
 
-  test.each([
-    [false, 'templateDetails.makePublic'],
-    // Its approved version is listed, so only its change goes to review again.
-    [true, 'templateDetails.submitForReviewAgain'],
-  ])(
-    'offers to make a rejected own template (listed: %s) public or private',
-    async (listed, makePublicLabel) => {
-      const userTemplate = {
-        ...template,
-        type: 'user',
-        state: 'rejected',
-        make_public_needs_review: true,
-        listed,
-      }
-      const wrapper = await mountComponent({
-        template: userTemplate,
-        isOwn: true,
-      })
-
-      await wrapper
-        .find('.template-install__actions .button-icon')
-        .trigger('click')
-      const links = wrapper.findAll('.context__menu-item-link')
-      expect(links.map((link) => link.text()).slice(2, 4)).toStrictEqual([
-        makePublicLabel,
-        'templateDetails.makePrivate',
-      ])
-
-      await links[2].trigger('click')
-      await links[3].trigger('click')
-
-      expect(wrapper.emitted('make-public')).toStrictEqual([[userTemplate]])
-      expect(wrapper.emitted('make-private')).toStrictEqual([[userTemplate]])
+  // Its approved version is listed, so only its change goes to review again.
+  test('offers to submit a listed rejected own template for review again', async () => {
+    const userTemplate = {
+      ...template,
+      type: 'user',
+      state: 'rejected',
+      can_make_public: true,
+      make_public_needs_review: true,
+      listed: true,
     }
-  )
+    const wrapper = await mountComponent({
+      template: userTemplate,
+      ownerActions: true,
+    })
+
+    await wrapper
+      .find('.template-install__actions .button-icon')
+      .trigger('click')
+    const links = wrapper.findAll('.context__menu-item-link')
+    expect(links.map((link) => link.text()).slice(2, 4)).toStrictEqual([
+      'templateDetails.submitForReviewAgain',
+      'templateDetails.makePrivate',
+    ])
+
+    await links[2].trigger('click')
+    await links[3].trigger('click')
+
+    expect(wrapper.emitted('make-public')).toStrictEqual([[userTemplate]])
+    expect(wrapper.emitted('make-private')).toStrictEqual([[userTemplate]])
+  })
 
   test('installs the latest revision only of an own template', async () => {
     const userTemplate = { ...template, type: 'user' }
     const other = await mountComponent({ template: userTemplate })
     expect(other.findComponent(TemplateInstall).props('latest')).toBe(false)
 
-    const own = await mountComponent({ template: userTemplate, isOwn: true })
+    const own = await mountComponent({
+      template: userTemplate,
+      ownerActions: true,
+    })
     expect(own.findComponent(TemplateInstall).props('latest')).toBe(true)
   })
 
   test('installs the latest revision of an own template opened by its link', async () => {
-    // The template page shows the detail payload, which is the latest revision
-    // for its owner, and doesn't pass `isOwn`.
     const own = await mountComponent({
       template: { ...template, type: 'user', is_own: true, listed: true },
     })

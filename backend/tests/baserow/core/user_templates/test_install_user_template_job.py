@@ -7,7 +7,6 @@ from django.core.files.base import ContentFile
 from django.db import OperationalError
 from django.db.models import Q
 from django.test import override_settings
-from django.utils import timezone
 
 import pytest
 
@@ -225,11 +224,9 @@ def test_install_pinned_revision_survives_an_update(data_fixture, queued_install
 
     # A content update is approved and made public while the install waits in
     # the queue.
-    revision = data_fixture.create_user_template_revision(
-        root, review_state=Template.ReviewState.APPROVED
-    )
+    revision = data_fixture.create_user_template_revision(root)
     data_fixture.create_template_table(revision.workspace, "Updated", "Updated row")
-    Template.objects.filter(id=root.id).update(public_revision=revision)
+    data_fixture.set_user_template_state(root, "public", revision)
 
     job = run_job(queued_install.job)
 
@@ -255,17 +252,21 @@ def _refused_after_request(data_fixture, flip, installer="owner"):
     job = request_install(user, target, root)
     counts = _counts()
 
-    flip({"root": root, "user": user, "target": target})
+    flip({"root": root, "user": user, "target": target, "data_fixture": data_fixture})
 
     return run_job(job), target, root, counts
 
 
 def _block(context):
-    Template.objects.filter(id=context["root"].id).update(blocked_at=timezone.now())
+    context["data_fixture"].set_user_template_state(context["root"], "blocked")
 
 
 def _make_private(context):
     Template.objects.filter(id=context["root"].id).update(public_revision=None)
+
+
+def _mark_for_deletion(context):
+    context["data_fixture"].set_user_template_state(context["root"], "marked")
 
 
 def _remove_from_target(context):
@@ -280,6 +281,7 @@ def _remove_from_target(context):
         ("owner", _block, "TemplateBlocked"),
         ("viewer", _make_private, "TemplateDoesNotExist"),
         ("viewer", _block, "TemplateDoesNotExist"),
+        ("owner", _mark_for_deletion, "TemplateDoesNotExist"),
         ("owner", _remove_from_target, "UserNotInWorkspace"),
     ],
 )
@@ -504,7 +506,7 @@ def _assert_removed_and_installed_copy_kept(root, target, job):
 
 
 @install_marks
-def test_deleted_template_is_removed_after_a_requested_install(data_fixture):
+def test_deleted_template_refuses_a_requested_install(data_fixture):
     owner = data_fixture.create_user()
     viewer = data_fixture.create_user()
     target = data_fixture.create_workspace(user=viewer)
@@ -513,21 +515,21 @@ def test_deleted_template_is_removed_after_a_requested_install(data_fixture):
 
     _delete(owner, root)
 
-    # A new install is refused, the requested one waits in the queue, and the
-    # template waits for it.
+    # A new install is refused, and so is the requested one once it runs. The
+    # template waits for it in the queue.
     with pytest.raises(TemplateDoesNotExist):
         request_install(viewer, target, root)
     purge()
     assert Template.objects.filter(id=root.id).exists()
 
     job = run_job(job)
-    assert job.state == JOB_FINISHED
-    assert _installed_names(target) == ["First", "Second"]
-    assert Template.objects.get(id=root.id).install_count == 1
+    assert job.state == JOB_FAILED
+    assert _installed_names(target) == []
 
     purge()
 
-    _assert_removed_and_installed_copy_kept(root, target, job)
+    assert not Template.objects.filter(Q(id=root.id) | Q(root_id=root.id)).exists()
+    assert not InstallTemplateJob.objects.filter(id=job.id).exists()
 
 
 def _add_files(data_fixture, owner, workspace):

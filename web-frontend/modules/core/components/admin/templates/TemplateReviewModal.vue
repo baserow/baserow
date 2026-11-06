@@ -4,12 +4,14 @@
     class="templates-modal"
     :full-screen="true"
     :can-close="canClose"
+    :inert="!canClose"
+    @hidden="restoreFocus"
   >
-    <!-- Keyed by the revision, so that the preview loads its content again. -->
     <TemplateDetails
-      :key="`${template.id}:${template.revision_id}`"
+      ref="details"
       :template="preview"
       :categories="template.categories || []"
+      :load-error-handler="contentFailed"
       show-back
       class="templates__body"
       @back="hide()"
@@ -19,7 +21,9 @@
           <Button
             v-if="rejectLabel"
             type="secondary"
-            :icon="unlists ? 'iconoir-eye-off' : 'iconoir-cancel'"
+            :icon="
+              template.reject_unlists ? 'iconoir-eye-off' : 'iconoir-cancel'
+            "
             :disabled="approving"
             full-width
             @click="emit('reject', template)"
@@ -29,43 +33,36 @@
           <Button
             icon="iconoir-check"
             :loading="approving"
-            :disabled="approving"
+            :disabled="approving || !template.can_approve"
             full-width
             @click="approve"
           >
             {{ $t('templatesAdmin.approve') }}
           </Button>
         </div>
+        <p v-if="approveHint" class="templates-admin-review-hint">
+          {{ $t(approveHint) }}
+        </p>
       </template>
     </TemplateDetails>
   </Modal>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, nextTick, reactive, ref } from 'vue'
 import { useNuxtApp } from '#app'
 
 import TemplateDetails from '@baserow/modules/core/components/template/TemplateDetails'
-import {
-  rejectUnlists,
-  useTemplateReview,
-} from '@baserow/modules/core/composables/useTemplateReview'
+import { useTemplateReview } from '@baserow/modules/core/composables/useTemplateReview'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { useReturnFocus } from '@baserow/modules/core/composables/useReturnFocus'
 
-/**
- * Shows the revision of a template in review or rejected, the one the admin
- * approves or rejects, with the review actions where the preview installs it.
- * Rejecting asks for a reason in the modal of the table, which `reject` is
- * emitted for.
- */
 const props = defineProps({
-  // The row of the template on the admin page.
   template: {
     type: Object,
     required: true,
   },
-  // False while the reject modal is open on top, so that escape closes that one
-  // only.
+  // False while the reject modal is on top, so only it gets the keyboard.
   canClose: {
     type: Boolean,
     required: false,
@@ -73,14 +70,18 @@ const props = defineProps({
   },
 })
 
-// `reviewed` tells that the template was approved, or changed since.
+// `reviewed(id)`: the template was approved, or changed since.
 const emit = defineEmits(['reject', 'reviewed'])
 
 const { $i18n } = useNuxtApp()
-const { review } = useTemplateReview()
+const { decide, contentFailed: notifyContentChanged } = useTemplateReview()
+const { remember: rememberFocus, restore: restoreFocus } = useReturnFocus()
 
 const modal = ref(null)
-const approving = ref(false)
+const details = ref(null)
+const approvingIds = reactive(new Set())
+
+const approving = computed(() => approvingIds.has(props.template.id))
 
 const preview = computed(() => {
   const { author } = props.template
@@ -90,33 +91,51 @@ const preview = computed(() => {
   }
 })
 
-// A template in review is rejected, a listed one unlisted. A rejected one that
-// isn't listed can only be approved.
-const unlists = computed(() => rejectUnlists(props.template))
 const rejectLabel = computed(() => {
-  if (unlists.value) {
-    return $i18n.t('templatesAdmin.unlist')
+  if (!props.template.can_reject) {
+    return null
   }
-  return props.template.state === 'in_review'
-    ? $i18n.t('templatesAdmin.reject')
-    : null
+  return $i18n.t(
+    props.template.reject_unlists
+      ? 'templatesAdmin.unlist'
+      : 'templatesAdmin.reject'
+  )
+})
+
+const approveHint = computed(() => {
+  if (props.template.edited_since_submitted) {
+    return 'templatesAdmin.editedSinceSubmitted'
+  }
+  return props.template.can_approve ? null : 'templatesAdmin.noContent'
 })
 
 async function approve() {
-  approving.value = true
+  const template = props.template
+  approvingIds.add(template.id)
   try {
-    await review(props.template, 'approve')
-    // The table closes the modal and refreshes the list.
-    emit('reviewed')
+    await decide(template, 'approve')
+    emit('reviewed', template.id)
   } catch (error) {
     notifyIf(error, 'template')
   } finally {
-    approving.value = false
+    approvingIds.delete(template.id)
   }
 }
 
-function show(...args) {
+function contentFailed(error) {
+  const template = props.template
+  if (notifyContentChanged(template, error)) {
+    emit('reviewed', template.id)
+  } else {
+    notifyIf(error, 'templates')
+  }
+}
+
+async function show(...args) {
+  rememberFocus()
   modal.value.show(...args)
+  await nextTick()
+  details.value?.focus()
 }
 
 function hide(...args) {

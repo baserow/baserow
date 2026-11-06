@@ -22,6 +22,7 @@ from baserow.core.import_export.handler import ImportExportHandler
 from baserow.core.models import (
     Application,
     ImportExportResource,
+    Settings,
     Template,
     Workspace,
     WorkspaceInvitation,
@@ -1430,6 +1431,44 @@ class LeaveWorkspaceActionType(ActionType):
             scope=cls.scope(),
             workspace=workspace,
         )
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()
+
+
+class UpdateAdminSettingsActionType(ActionType):
+    type = "admin_update_settings"
+    description = ActionTypeDescription(
+        _("Update settings"),
+        _("Settings updated: %(settings)s"),
+    )
+
+    @dataclasses.dataclass
+    class Params:
+        settings: Dict[str, Any]
+
+    @classmethod
+    def do(cls, user: AbstractUser, **kwargs) -> Settings:
+        """
+        Updates the settings. Not undoable.
+
+        :param user: The instance admin who updates the settings.
+        :param kwargs: The settings to update, by name.
+        :return: The updated settings instance.
+        """
+
+        settings, values = CoreHandler().update_settings(user, **kwargs)
+        if values:
+            cls.register_action(user, cls.Params(settings=values), cls.scope())
+        return settings
+
+    @classmethod
+    def get_long_description(cls, params_dict: Dict[str, Any], *args, **kwargs) -> str:
+        settings = ", ".join(
+            f"{name}: {value}" for name, value in params_dict["settings"].items()
+        )
+        return render_action_type_description(cls.description, {"settings": settings})
 
     @classmethod
     def scope(cls) -> ActionScopeStr:

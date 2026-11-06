@@ -2,12 +2,15 @@
   <TemplatePreview
     :template="template"
     :sidebar-width="320"
+    :load-error-handler="loadErrorHandler"
     class="template-details"
+    @loaded="focusBackLink"
   >
     <template #sidebar="{ applications, page, selectPage, selectApplication }">
       <div class="template-details__sidebar">
         <div v-if="showBack" class="template-details__back">
           <a
+            ref="backLink"
             class="template-details__back-link"
             role="button"
             tabindex="0"
@@ -75,17 +78,16 @@
           </ul>
         </div>
         <div class="template-details__foot">
-          <!-- Replaced on the admin page by the review actions. -->
           <slot name="foot">
             <TemplateInstall
               :template="template"
               :workspace="workspace"
-              :show-copy-link="!isOwn"
-              :latest="isOwn || isOwner"
+              :show-copy-link="!ownerActions"
+              :latest="ownerActions || isOwner"
               @installed="emit('installed')"
               @outdated="emit('outdated')"
             >
-              <template v-if="isOwn" #menu-items="{ hide }">
+              <template v-if="ownerActions" #menu-items="{ hide }">
                 <li class="context__menu-item">
                   <a
                     class="context__menu-item-link"
@@ -129,8 +131,7 @@
                   </a>
                 </li>
               </template>
-              <!-- Delete comes last, after the items of every template. -->
-              <template v-if="isOwn" #menu-items-end="{ hide }">
+              <template v-if="ownerActions" #menu-items-end="{ hide }">
                 <li
                   class="context__menu-item context__menu-item--with-separator"
                 >
@@ -152,7 +153,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { useNuxtApp } from '#app'
 
 import {
@@ -186,13 +187,15 @@ const props = defineProps({
     required: false,
     default: false,
   },
-  // Whether the template is one of the user's, opened from "Your templates". The
-  // user can then update it. Their own template always installs its latest
-  // revision, the one shown, also when opened by its link.
-  isOwn: {
+  ownerActions: {
     type: Boolean,
     required: false,
     default: false,
+  },
+  loadErrorHandler: {
+    type: Function,
+    required: false,
+    default: null,
   },
 })
 
@@ -217,7 +220,6 @@ function edit(mode, hideMenu) {
   emit('edit', mode)
 }
 
-// Also when opened from the public templates.
 const isOwner = computed(() => isOwnTemplate(props.template))
 
 function changeVisibility(event, hideMenu) {
@@ -229,6 +231,25 @@ function askToDelete(hideMenu) {
   hideMenu()
   emit('delete', props.template)
 }
+
+const backLink = ref(null)
+// The back link is hidden while the content loads, so it's focused once loaded.
+let focusWanted = false
+
+function focus() {
+  focusWanted = true
+  focusBackLink()
+}
+
+async function focusBackLink() {
+  await nextTick()
+  if (focusWanted) {
+    backLink.value?.focus()
+    focusWanted = document.activeElement !== backLink.value
+  }
+}
+
+defineExpose({ focus })
 
 function sortApplications(applications) {
   return [...applications].sort((a, b) => a.order - b.order)
