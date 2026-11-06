@@ -328,18 +328,36 @@ def test_returned_errors_never_extract_display_facts(workspace_data, mocker):
 
 
 @pytest.mark.django_db
-def test_reused_tables_do_not_count_as_created(workspace_data):
-    result = call_tool(
+def test_reused_tables_and_views_are_reported_apart_from_created_ones(
+    workspace_data,
+):
+    tables = call_tool(
         agent_tool_type_registry.get("create_tables"),
         workspace_data.ctx,
         {
             "database_id": workspace_data.table.database_id,
-            "tables": [{"name": "Tasks", "primary_field_name": "Name", "fields": []}],
+            "tables": [
+                {"name": "Tasks", "primary_field_name": "Name", "fields": []},
+                {"name": "Projects", "primary_field_name": "Name", "fields": []},
+            ],
+        },
+    )
+    views = call_tool(
+        agent_tool_type_registry.get("create_views"),
+        workspace_data.ctx,
+        {
+            "table_id": workspace_data.table.id,
+            "views": [{"type": "grid", "name": workspace_data.view.name}] * 2,
         },
     )
 
-    assert result.metadata == {"count": 0}
-    assert result.return_value["created_tables"] == []
+    assert tables.metadata == {
+        "count": 1,
+        "table": "Projects",
+        "existing_count": 1,
+        "existing_table": "Tasks",
+    }
+    assert views.metadata == {"count": 0, "table": "Tasks", "existing_count": 1}
 
 
 @pytest.mark.django_db

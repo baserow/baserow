@@ -143,6 +143,42 @@ describe('Agent tool presentations', () => {
     ).toBe('Created 1 table: Projects')
   })
 
+  test.each([
+    [
+      { count: 0, existing_count: 1, existing_table: 'Tasks' },
+      'create_tables',
+      'Used the existing table Tasks',
+    ],
+    [
+      { count: 0, existing_count: 2, existing_table: 'Tasks, Notes' },
+      'create_tables',
+      'Used 2 existing tables: Tasks, Notes',
+    ],
+    [
+      {
+        count: 1,
+        table: 'Projects',
+        existing_count: 1,
+        existing_table: 'Tasks',
+      },
+      'create_tables',
+      'Created 1 table: Projects',
+    ],
+    [
+      { count: 0, table: 'Tasks', existing_count: 1 },
+      'create_views',
+      'Used the existing view in Tasks',
+    ],
+    [{ count: 0, existing_count: 2 }, 'create_views', 'Used 2 existing views'],
+  ])(
+    'names reused items when nothing new was created: %j',
+    (facts, tool, title) => {
+      expect(
+        toolActivity(step(tool, 'done', { facts }), registry, t).title
+      ).toBe(title)
+    }
+  )
+
   test.each([null, [], { requested_count: -1 }, { requested_count: '3' }])(
     'malformed summaries retain a tool-specific action label: %j',
     (input) => {

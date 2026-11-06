@@ -93,9 +93,13 @@ class CreateTablesAgentToolType(DatabaseAgentToolType):
         self, ctx: ToolContext, arguments: dict[str, Any], result: Any
     ) -> dict[str, Any]:
         names = [table["name"] for table in result["created_tables"]]
+        existing = [table["name"] for table in result["reused_tables"]]
         facts: dict[str, Any] = {"count": len(names)}
         if names:
             facts["table"] = ", ".join(names)
+        if existing:
+            facts["existing_count"] = len(existing)
+            facts["existing_table"] = ", ".join(existing)
         return facts
 
 
@@ -144,7 +148,10 @@ class CreateViewsAgentToolType(DatabaseAgentToolType):
     def get_step_facts(
         self, ctx: ToolContext, arguments: dict[str, Any], result: Any
     ) -> dict[str, Any]:
-        return _table_facts(ctx, arguments["table_id"], len(result["created_views"]))
+        facts = _table_facts(ctx, arguments["table_id"], len(result["created_views"]))
+        if existing := result.get("skipped_views"):
+            facts["existing_count"] = len(set(existing))
+        return facts
 
 
 class CreateViewFiltersAgentToolType(DatabaseAgentToolType):
