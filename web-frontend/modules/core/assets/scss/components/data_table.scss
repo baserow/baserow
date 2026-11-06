@@ -214,6 +214,17 @@ thead + .data-table__row-group .data-table__table-cell-content {
   justify-content: space-between;
 }
 
+// The name of the column, followed by its help icon when it has one.
+.data-table__table-cell-head-title {
+  min-width: 0;
+
+  @include flex-align-items(4px);
+
+  .help-icon {
+    font-size: 14px;
+  }
+}
+
 .data-table__table-cell-head-link {
   padding: 0;
   border: 0;

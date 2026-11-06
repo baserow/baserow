@@ -670,3 +670,32 @@ msgstr ""
 #, python-format
 msgid "Invitation (%(invitation_id)s) for \"%(email)s\" revoked"
 msgstr ""
+
+#: src/baserow_enterprise/teams/actions.py:416
+msgid "Create team invitation link"
+msgstr ""
+
+#: src/baserow_enterprise/teams/actions.py:417
+#, python-format
+msgid "Invitation link \"%(name)s\" (%(invitation_link_id)s) created"
+msgstr ""
+
+#: src/baserow_enterprise/teams/actions.py:467
+msgid "Update team invitation link"
+msgstr ""
+
+#: src/baserow_enterprise/teams/actions.py:469
+#, python-format
+msgid ""
+"Invitation link (%(invitation_link_id)s) renamed from \"%(original_name)s\" "
+"to \"%(name)s\""
+msgstr ""
+
+#: src/baserow_enterprise/teams/actions.py:530
+msgid "Delete team invitation link"
+msgstr ""
+
+#: src/baserow_enterprise/teams/actions.py:531
+#, python-format
+msgid "Invitation link \"%(name)s\" (%(invitation_link_id)s) deleted"
+msgstr ""
