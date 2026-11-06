@@ -24,6 +24,7 @@ from baserow.core.utils import random_string
 
 from .exceptions import (
     MaximumUniqueTokenTriesError,
+    NoPermissionToLinkedTable,
     NoPermissionToTable,
     TokenDoesNotBelongToUser,
     TokenDoesNotExist,
@@ -490,18 +491,15 @@ class TokenHandler:
         if should_check_permissions and not has_table_permissions:
             self.raise_table_permission_error(table, type_name)
 
-    def check_tables_permissions(
-        self, token: Token, type_name: str, tables: List[Table]
-    ):
+    def check_can_read_linked_tables(self, token: Token, tables: List[Table]):
         """
-        Checks one operation of the token on several tables at once, so the number of
+        Checks that the token can read all the linked tables at once, so the number of
         queries doesn't depend on the number of tables.
 
         :param token: The token instance.
-        :param type_name: The CRUD operation to check the permissions for.
-        :param tables: The tables to check, with their database selected.
-        :raises NoPermissionToTable: when the token does not have permissions to one
-            of the tables.
+        :param tables: The linked tables to check, with their database selected.
+        :raises NoPermissionToLinkedTable: when the token can't read one of the
+            tables.
         """
 
         if not tables:
@@ -509,7 +507,7 @@ class TokenHandler:
 
         for table in tables:
             if table.database.workspace_id != token.workspace_id:
-                self.raise_table_permission_error(table, type_name)
+                raise NoPermissionToLinkedTable(table.id)
 
         if not CoreHandler().check_permissions(
             token.user,
@@ -517,10 +515,10 @@ class TokenHandler:
             workspace=token.workspace,
             context=token,
         ):
-            self.raise_table_permission_error(tables[0], type_name)
+            raise NoPermissionToLinkedTable(tables[0].id)
 
         checks = {
-            table: PermissionCheck(token, TOKEN_TO_OPERATION_MAP[type_name], table)
+            table: PermissionCheck(token, TOKEN_TO_OPERATION_MAP["read"], table)
             for table in tables
         }
         results = CoreHandler().check_multiple_permissions(
@@ -528,7 +526,7 @@ class TokenHandler:
         )
         for table, check in checks.items():
             if results[check] is not True:
-                self.raise_table_permission_error(table, type_name)
+                raise NoPermissionToLinkedTable(table.id)
 
     def delete_token(self, user, token):
         """

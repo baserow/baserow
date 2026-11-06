@@ -135,7 +135,6 @@ from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.operations import (
     ReadAdjacentViewRowOperationType,
 )
-from baserow.contrib.database.views.registries import view_ownership_type_registry
 from baserow.core.action.registries import action_type_registry
 from baserow.core.db import atomic_with_retry_on_deadlock
 from baserow.core.exceptions import DeadlockException, UserNotInWorkspace
@@ -215,29 +214,25 @@ def check_token_can_read_linked_tables(
     :param model: The model of the table that the values are written to.
     :param rows_values: The validated rows values, keyed by internal field name.
     :param view: The view new rows are created in. Its default values are checked too
-        if they aren't authorized when they're configured.
-    :raises NoPermissionToTable: If the token can't read a linked table.
+        if they aren't authorized when they're configured, otherwise values equal to
+        them aren't checked.
+    :raises NoPermissionToLinkedTable: If the token can't read a linked table.
     """
 
     token = TokenHandler().get_token_from_request(request)
     if token is None:
         return
 
-    if (
-        view is not None
-        and not view_ownership_type_registry.get(
-            view.ownership_type
-        ).default_values_authorized_when_configured
-    ):
+    if view is not None:
         view_defaults = ViewHandler().get_view_default_values_for_row_creation(
             view, model=model
         )
-        rows_values = [{**view_defaults, **row} for row in rows_values]
+        rows_values = RowHandler().get_rows_values_to_check_for_linked_tables(
+            model, rows_values, view, view_defaults
+        )
 
-    TokenHandler().check_tables_permissions(
-        token,
-        "read",
-        RowHandler().get_linked_tables_written_by_rows_values(model, rows_values),
+    TokenHandler().check_can_read_linked_tables(
+        token, RowHandler().get_linked_tables_written_by_rows_values(model, rows_values)
     )
 
 
@@ -589,6 +584,9 @@ class RowsView(APIView):
             "types, the numbers/ids in the example are just there for example "
             "purposes, the field_ID must be replaced with the actual id of the field "
             "or the name of the field if `user_field_names` is provided."
+            " Linking rows in a link row field also needs read access to the "
+            "linked table, or to the linked rows in the view for a link to the same "
+            "table."
         ),
         request=get_example_row_serializer_class(
             example_type="post", user_field_names=True
@@ -1004,6 +1002,9 @@ class RowView(APIView):
             "numbers/ids in the example are just there for example purposes, "
             "the field_ID must be replaced with the actual id of the field or the name "
             "of the field if `user_field_names` is provided."
+            " Linking rows in a link row field also needs read access to the "
+            "linked table, or to the linked rows in the view for a link to the same "
+            "table."
         ),
         request=get_example_row_serializer_class(
             example_type="patch", user_field_names=True
@@ -1412,6 +1413,9 @@ class BatchRowsView(APIView):
             "types, the numbers/ids in the example are just there for example "
             "purposes, the field_ID must be replaced with the actual id of the field "
             "or the name of the field if `user_field_names` is provided."
+            " Linking rows in a link row field also needs read access to the "
+            "linked table, or to the linked rows in the view for a link to the same "
+            "table."
             "\n\n **WARNING:** This endpoint doesn't yet work with row created webhooks."
         ),
         request=get_example_batch_rows_serializer_class(
@@ -1584,6 +1588,9 @@ class BatchRowsView(APIView):
             "numbers/ids in the example are just there for example purposes, "
             "the field_ID must be replaced with the actual id of the field or the name "
             "of the field if `user_field_names` is provided."
+            " Linking rows in a link row field also needs read access to the "
+            "linked table, or to the linked rows in the view for a link to the same "
+            "table."
             "\n\n **WARNING:** This endpoint doesn't yet work with row updated webhooks."
         ),
         request=get_example_batch_rows_serializer_class(

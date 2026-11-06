@@ -1378,6 +1378,29 @@ class DatabaseConfig(AppConfig):
         if not settings.DISABLE_ANONYMOUS_PUBLIC_VIEW_WS_CONNECTIONS:
             view_realtime_rows_registry.register(PublicViewRealtimeRowsType())
 
+        from baserow.api.registries import RegisteredException, api_exception_registry
+        from baserow.contrib.database.api.rows.errors import (
+            ERROR_CANNOT_READ_LINKED_TABLE,
+        )
+        from baserow.contrib.database.api.tokens.errors import (
+            ERROR_NO_PERMISSION_TO_LINKED_TABLE,
+        )
+        from baserow.contrib.database.rows.exceptions import CannotReadLinkedTable
+        from baserow.contrib.database.tokens.exceptions import (
+            NoPermissionToLinkedTable,
+        )
+
+        # Registered for every API view, because links are written from many of them
+        # and the generic permission errors don't say which table can't be read.
+        api_exception_registry.register(
+            RegisteredException(CannotReadLinkedTable, ERROR_CANNOT_READ_LINKED_TABLE)
+        )
+        api_exception_registry.register(
+            RegisteredException(
+                NoPermissionToLinkedTable, ERROR_NO_PERMISSION_TO_LINKED_TABLE
+            )
+        )
+
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
         import baserow.contrib.database.data_sync.signals  # noqa: F403, F401

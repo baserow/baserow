@@ -232,8 +232,8 @@ def check_can_list_rows_of_tables(request, table_ids: set[int]):
 
     :param request: The request to take the user and token from.
     :param table_ids: The ids of the tables to check the permissions for.
-    :raises NoPermissionToTable: If the token can't read a table.
-    :raises PermissionDenied: If the user can't list the rows of a table.
+    :raises NoPermissionToLinkedTable: If the token can't read a table.
+    :raises CannotReadLinkedTable: If the user can't list the rows of a table.
     """
 
     if not table_ids:
@@ -247,7 +247,7 @@ def check_can_list_rows_of_tables(request, table_ids: set[int]):
     RowHandler().check_can_list_rows_of_tables(request.user, tables)
     token = TokenHandler().get_token_from_request(request)
     if token is not None:
-        TokenHandler().check_tables_permissions(token, "read", tables)
+        TokenHandler().check_can_read_linked_tables(token, tables)
 
 
 def extract_link_row_joins_from_request(

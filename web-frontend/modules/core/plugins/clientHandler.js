@@ -191,6 +191,10 @@ export class ClientErrorMap {
         $i18n.t('clientHandler.cannotCreateRowsInTableTitle'),
         $i18n.t('clientHandler.cannotCreateRowsInTableDescription')
       ),
+      ERROR_CANNOT_READ_LINKED_TABLE: new ResponseErrorMessage(
+        $i18n.t('clientHandler.cannotReadLinkedTableTitle'),
+        $i18n.t('clientHandler.cannotReadLinkedTableDescription')
+      ),
       ERROR_DATABASE_DEADLOCK: new ResponseErrorMessage(
         $i18n.t('clientHandler.databaseDeadlockTitle'),
         $i18n.t('clientHandler.databaseDeadlockDescription')
