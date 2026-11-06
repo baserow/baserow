@@ -41,11 +41,12 @@
   <AgentWorkspaceTools
     class="margin-top-3"
     :allowed-tools="configuredTools"
+    :ask-first-tools="configuredAskFirstTools"
     :available-tools="configuration.available_tools"
     :agent-name="agent.name"
     :editable="editable && identityAvailable"
     :disabled-reason="identityAvailable ? '' : $t('agent.toolsRequireIdentity')"
-    @update="changeAllowedTools"
+    @update="changeTools"
   />
 </template>
 
@@ -78,6 +79,11 @@ const identityAvailable = computed(() => status.value === RUN_AS_STATUS.ACTIVE)
 // keeps its settings visible so restoring or replacing it recovers the setup.
 const configuredTools = computed(() =>
   status.value === RUN_AS_STATUS.UNSET ? [] : props.configuration.allowed_tools
+)
+const configuredAskFirstTools = computed(() =>
+  status.value === RUN_AS_STATUS.UNSET
+    ? []
+    : props.configuration.ask_first_tools
 )
 const unavailable = computed(() =>
   [RUN_AS_STATUS.TRASHED, RUN_AS_STATUS.MISSING].includes(status.value)
@@ -125,9 +131,9 @@ function fetchIdentities(page, search) {
   )
 }
 
-function changeAllowedTools(allowedTools) {
+function changeTools(tools) {
   if (!props.editable || !identityAvailable.value) return
-  emit('change', { allowed_tools: allowedTools })
+  emit('change', tools)
   emit('flush')
 }
 

@@ -70,7 +70,7 @@ describe('shared tool presentations', () => {
     )
   })
 
-  test.each(['running', 'done', 'failed', 'stopped'])(
+  test.each(['running', 'waiting', 'done', 'failed', 'rejected', 'stopped'])(
     'unknown tools retain their %s status without exposing their data',
     (status) => {
       const registry = registryWith(EmailPresentation)

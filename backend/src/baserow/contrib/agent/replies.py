@@ -1,13 +1,21 @@
 import asyncio
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
-from pydantic_ai import Agent, AgentRunResultEvent
+from pydantic_ai import (
+    Agent,
+    AgentRunResultEvent,
+    ConversationTypeAdapter,
+    DeferredToolRequests,
+    RunContext,
+    ToolDefinition,
+)
 from pydantic_ai.messages import (
     AgentStreamEvent,
     FunctionToolCallEvent,
     FunctionToolResultEvent,
     ModelMessage,
+    ModelMessagesTypeAdapter,
     ModelRequest,
     ModelResponse,
     PartDeltaEvent,
@@ -18,8 +26,10 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 from pydantic_ai.models import Model
-from pydantic_ai.toolsets import FunctionToolset
+from pydantic_ai.run import AgentRunResult
+from pydantic_ai.toolsets import AbstractToolset, FunctionToolset
 from pydantic_ai.usage import UsageLimits
+from pydantic_core import to_jsonable_python
 
 from baserow.core.chat_runs.constants import ChatRunErrorCode, ChatRunStopReason
 from baserow.core.chat_runs.models import ChatRunStatus
@@ -30,6 +40,7 @@ from baserow.core.tools import ToolContext
 from baserow.core.utils import remove_null_characters
 
 from .constants import (
+    ASK_FIRST_INSTRUCTIONS,
     INTERRUPTED_CHANGES_NOTE,
     INTERRUPTED_REPLY_NOTE,
     REPLY_REQUEST_LIMIT,
@@ -162,9 +173,20 @@ class AgentResponder:
         self._model_settings = model_settings
         self._text = ""
         self._parts: dict[int, str] = {}
-        self._result: str | None = None
+        self._result: AgentRunResult[str | DeferredToolRequests] | None = None
         self._step_resources: StepResources = {}
-        self._steps = ChatRunSteps(journal, self._describe_call)
+        resume = request.resume
+        self._steps = (
+            ChatRunSteps(journal, self._describe_call)
+            if resume is None
+            else ChatRunSteps(
+                journal,
+                self._describe_call,
+                resume.saved_steps,
+                resume.held_step_ids,
+                resume.approved_ids,
+            )
+        )
 
     def _describe_call(self, name: str, arguments: dict) -> dict | None:
         """
@@ -238,13 +260,26 @@ class AgentResponder:
                 "Agent tool {} step resources failed ({})", name, type(exc).__name__
             )
 
+    def _remember_resumed_step_resources(self) -> None:
+        """Recall the names disclosed by the results the paused run received."""
+
+        if self._request.resume is None:
+            return
+        for message in self._request.resume.paused_conversation.messages:
+            if isinstance(message, ModelRequest):
+                for part in message.parts:
+                    if isinstance(part, ToolReturnPart):
+                        self._remember_step_resources(part)
+
     async def answer(self) -> ChatRunOutcome:
         """
         Answer until the model finishes or the journal asks the run to stop.
 
-        :return: How the reply ended, with the complete or partial reply text.
+        :return: How the reply ended, with its text and the model's transcript.
         """
 
+        self._remember_resumed_step_resources()
+        self._steps.start()
         work = asyncio.create_task(self._stream())
         stop = asyncio.create_task(self._journal.wait_for_stop())
         try:
@@ -258,22 +293,32 @@ class AgentResponder:
     def _get_instructions(self) -> str:
         """Combine saved instructions with this reply's workspace access context."""
 
-        instructions = self._request.instructions
-        if self._request.run_as_unavailable:
+        request = self._request
+        instructions = request.instructions
+        if request.run_as_unavailable:
             instructions += f"\n\n{UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS}"
+        if request.allowed_tool_names and request.ask_first_tool_names:
+            instructions += f"\n\n{ASK_FIRST_INSTRUCTIONS}"
         return instructions
 
     async def _stream(self) -> None:
+        request = self._request
         agent = Agent(
             instructions=self._get_instructions(),
+            output_type=[str, DeferredToolRequests],
             retries={"tools": TOOL_RETRIES},
         )
         # Kuma enables content tracing for every Agent; conversations are private.
         agent.instrument = False
+        resume = request.resume
+        # A paused run carries its own history, and pydantic-ai refuses both.
+        history = build_history(request.history) if resume is None else None
         async with self._model:
             async with agent.run_stream_events(
-                self._request.prompt,
-                message_history=build_history(self._request.history),
+                request.prompt,
+                conversation=resume.paused_conversation if resume else None,
+                message_history=history,
+                deferred_tool_results=resume.deferred_tool_results if resume else None,
                 model=self._model,
                 model_settings=self._model_settings,
                 usage_limits=UsageLimits(request_limit=REPLY_REQUEST_LIMIT),
@@ -282,7 +327,7 @@ class AgentResponder:
                 async for event in events:
                     self._on_event(event)
 
-    def _toolsets(self) -> list[FunctionToolset]:
+    def _toolsets(self) -> list[AbstractToolset[None]]:
         """
         The tools the reply may call, acting as the Agent's identity.
 
@@ -303,8 +348,49 @@ class AgentResponder:
                     agent_tool_type_registry.get(name).get_tool(ctx)
                     for name in request.allowed_tool_names
                 ]
-            )
+            ).approval_required(self._requires_approval)
         ]
+
+    def _requires_approval(
+        self, ctx: RunContext[None], tool_def: ToolDefinition, arguments: dict[str, Any]
+    ) -> bool:
+        """
+        Decide whether a call waits for the owner's approval.
+
+        :param ctx: The run, with the response that made the call.
+        :param tool_def: The called tool.
+        :param arguments: Its validated arguments.
+        :return: Whether the call is held.
+        """
+
+        response = next(
+            message
+            for message in reversed(ctx.messages)
+            if isinstance(message, ModelResponse)
+        )
+        return ctx.tool_call_id in self._held_call_ids(response)
+
+    def _held_call_ids(self, response: ModelResponse) -> set[str]:
+        """
+        Hold the ask first calls of a model response, and the changes after a held
+        call, so that changes still run in the order the model asked for them.
+
+        :param response: A response of the model.
+        :return: The ids of its held calls.
+        """
+
+        request = self._request
+        held: set[str] = set()
+        for call in response.tool_calls:
+            changes_data = (
+                call.tool_name in request.allowed_tool_names
+                and agent_tool_type_registry.get(call.tool_name).changes_data
+            )
+            if call.tool_name in request.ask_first_tool_names or (
+                held and changes_data
+            ):
+                held.add(call.tool_call_id)
+        return held
 
     def _on_event(self, event: AgentStreamEvent | AgentRunResultEvent) -> None:
         """
@@ -316,7 +402,7 @@ class AgentResponder:
         self._steps.on_event(event)
         match event:
             case AgentRunResultEvent(result=result):
-                self._result = result.output
+                self._result = result
                 return
             case FunctionToolResultEvent(part=ToolReturnPart() as part):
                 self._remember_step_resources(part)
@@ -336,7 +422,7 @@ class AgentResponder:
     def _outcome(self, work: asyncio.Task) -> ChatRunOutcome:
         result = self._reply_result()
         # A blank answer is no reply, and some providers reject it in the history.
-        if self._result is not None and result.text.strip():
+        if result.paused or (self._result is not None and result.text.strip()):
             return ChatRunOutcome(ChatRunStatus.COMPLETED, result=result)
         if self._journal.stop_reason == ChatRunStopReason.CANCELLED:
             return ChatRunOutcome(ChatRunStatus.CANCELLED, result=result)
@@ -354,12 +440,37 @@ class AgentResponder:
 
     def _reply_result(self) -> AgentReplyResult:
         """
-        Collect what the reply produced: its text and its tool activity.
+        Collect what the reply produced: its text, the provider and model, and once
+        the model finished or paused, its messages and usage. A paused reply keeps
+        the text the owner saw, the held calls and the run to resume.
 
-        :return: The final answer once the model finished, else the text so far.
+        :return: The text and the execution details of the reply.
         """
 
-        steps = self._steps.finish() or None
+        paused = self._result is not None and isinstance(
+            self._result.output, DeferredToolRequests
+        )
+        steps = self._steps.finish(paused) or None
         if self._result is None:
-            return AgentReplyResult(text=self._text, steps=steps)
-        return AgentReplyResult(text=remove_null_characters(self._result), steps=steps)
+            return AgentReplyResult(
+                text=self._text,
+                provider_type=self._request.provider_type,
+                model_identifier=self._request.model_identifier,
+                steps=steps,
+            )
+        return AgentReplyResult(
+            text=self._text if paused else remove_null_characters(self._result.output),
+            provider_type=self._request.provider_type,
+            model_identifier=self._request.model_identifier,
+            model_messages=ModelMessagesTypeAdapter.dump_python(
+                self._result.new_messages(), mode="json"
+            ),
+            usage=to_jsonable_python(self._result.usage),
+            steps=steps,
+            waiting_calls=self._steps.waiting_calls() if paused else [],
+            paused_conversation=ConversationTypeAdapter.dump_python(
+                self._result.conversation, mode="json"
+            )
+            if paused
+            else None,
+        )

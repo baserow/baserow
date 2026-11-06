@@ -10,14 +10,18 @@ const MAX_INPUT_PREVIEW_LENGTH = 32768
 const STATUSES = new Set(Object.values(STEP_STATUS))
 const FALLBACK_LABELS = {
   [STEP_STATUS.RUNNING]: 'Using a tool',
+  [STEP_STATUS.WAITING]: 'Tool waiting for approval',
   [STEP_STATUS.DONE]: 'Tool completed',
   [STEP_STATUS.FAILED]: 'Tool failed',
+  [STEP_STATUS.REJECTED]: 'Tool rejected',
   [STEP_STATUS.STOPPED]: 'Tool interrupted',
 }
 const STATUS_LABELS = {
   [STEP_STATUS.RUNNING]: 'toolPresentation.statusRunning',
+  [STEP_STATUS.WAITING]: 'toolPresentation.statusWaiting',
   [STEP_STATUS.DONE]: 'toolPresentation.statusDone',
   [STEP_STATUS.FAILED]: 'toolPresentation.statusFailed',
+  [STEP_STATUS.REJECTED]: 'toolPresentation.statusRejected',
   [STEP_STATUS.STOPPED]: 'toolPresentation.statusInterrupted',
 }
 const FAILURE_LABELS = new Map([

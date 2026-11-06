@@ -19,8 +19,10 @@ class ChatRunStepStatus(StrEnum):
     """How a tool call progressed, independently of its enclosing run."""
 
     RUNNING = "running"
+    WAITING = "waiting"
     DONE = "done"
     FAILED = "failed"
+    REJECTED = "rejected"
     STOPPED = "stopped"
 
 

@@ -13,8 +13,10 @@ export const RUN_HEARTBEAT = 'run.heartbeat'
 
 export const STEP_STATUS = Object.freeze({
   RUNNING: 'running',
+  WAITING: 'waiting',
   DONE: 'done',
   FAILED: 'failed',
+  REJECTED: 'rejected',
   STOPPED: 'stopped',
 })
 
