@@ -414,6 +414,75 @@ def test_dispatch_even_if_simulated_with_error_sample_data():
     assert result.data == {"someother": "data"}
 
 
+@pytest.mark.django_db
+@pytest.mark.parametrize("keep_sample_data_on_error", [True, False])
+def test_dispatch_failure_when_updating_sample_data(keep_sample_data_on_error):
+    """
+    A failed dispatch that updates the sample data stores the error sentinel,
+    unless the context asks to keep the sample data the service already had.
+    """
+
+    service_type_cls = ServiceType
+    service_type_cls.model_class = MagicMock()
+    service_type = service_type_cls()
+
+    service_type.resolve_service_formulas = MagicMock(return_value={})
+    service_type.dispatch_data = MagicMock(side_effect=ValueError("Boom"))
+
+    mock_service = MagicMock()
+    mock_service.sample_data = {"data": {"previous": "data"}}
+
+    dispatch_context = FakeDispatchContext(
+        use_sample_data=True,
+        update_sample_data_for=[mock_service],
+        keep_sample_data_on_error=keep_sample_data_on_error,
+    )
+
+    with pytest.raises(ValueError):
+        service_type.dispatch(mock_service, dispatch_context)
+
+    if keep_sample_data_on_error:
+        assert mock_service.sample_data == {"data": {"previous": "data"}}
+        mock_service.save.assert_not_called()
+    else:
+        assert mock_service.sample_data == {"_error": "Boom"}
+        mock_service.save.assert_called_once()
+
+
+@pytest.mark.django_db
+def test_dispatch_keeps_sample_data_when_saving_new_sample_data_fails():
+    """
+    When the new sample data can't be saved and the context asks to keep the
+    previous sample data, the service is left with the sample data it had.
+    """
+
+    service_type_cls = ServiceType
+    service_type_cls.model_class = MagicMock()
+    service_type = service_type_cls()
+
+    service_type.resolve_service_formulas = MagicMock(return_value={})
+    service_type.dispatch_data = MagicMock(return_value={"new": "data"})
+    service_type.dispatch_transform = MagicMock(
+        return_value=DispatchResult(data={"new": "data"})
+    )
+
+    mock_service = MagicMock()
+    mock_service.sample_data = {"data": {"previous": "data"}}
+    mock_service.save.side_effect = ValueError("Rejected")
+
+    dispatch_context = FakeDispatchContext(
+        use_sample_data=True,
+        update_sample_data_for=[mock_service],
+        keep_sample_data_on_error=True,
+    )
+
+    with pytest.raises(ValueError):
+        service_type.dispatch(mock_service, dispatch_context)
+
+    assert mock_service.sample_data == {"data": {"previous": "data"}}
+    mock_service.save.assert_called_once()
+
+
 def test_dispatch_context_actor_defaults_to_none():
     from baserow.test_utils.pytest_conftest import FakeDispatchContext
 

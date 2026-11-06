@@ -565,6 +565,14 @@
     "noActionsFound": "No actions found",
     "errorUniqueName": "Data source name must be unique."
   },
+  "dataSourceTestForm": {
+    "buttonLabelTest": "Test data source",
+    "buttonLabelTestAgain": "Test data source again",
+    "testDescription": "Test this data source to see the data it returns. Its fields can then be used in your elements.",
+    "sampleDataModalTitle": "Payload for {dataSourceName}",
+    "sampleDataModalSubTitle": "JSON payload",
+    "unexpectedError": "The data source could not be tested."
+  },
   "dataSourceContext": {
     "addDataSource": "Add new data source",
     "noDataSourceTitle": "You have not yet added a data source.",
