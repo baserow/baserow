@@ -27,7 +27,7 @@ from .exceptions import GenerativeAITypeDoesNotExist, get_user_friendly_error_me
 from .lifecycle import run_agent_sync_with_model
 
 if TYPE_CHECKING:
-    from pydantic_ai import Agent
+    from pydantic_ai import Agent, WebSearchTool
     from pydantic_ai.messages import UserContent
 
     from baserow_premium.fields.ai_file import AIFile
@@ -367,6 +367,20 @@ class GenerativeAIModelType(Instance):
         """Return True if this provider supports file attachments."""
 
         return self.file_handler is not None
+
+    def get_web_search_tool(
+        self, model_name: str, with_function_tools: bool
+    ) -> WebSearchTool | None:
+        """
+        Return the provider's own web search for a model, when it offers one.
+
+        :param model_name: The model identifier.
+        :param with_function_tools: Whether the model also gets function tools, which
+            some models can't combine with web search.
+        :return: The tool to give the model, or None when it can't search the web.
+        """
+
+        return None
 
     def get_known_models(self) -> list[str] | None:
         """

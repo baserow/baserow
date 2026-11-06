@@ -128,6 +128,7 @@ class AgentApplicationType(ApplicationType):
             provider_type=application.provider_type,
             model_identifier=application.model_identifier,
             allowed_tools=AgentHandler().get_allowed_tool_names(application),
+            web_search_enabled=application.web_search_enabled,
         )
         # Identity ids are local references, not portable configuration.
         if (
@@ -171,6 +172,12 @@ class AgentApplicationType(ApplicationType):
         application.model_identifier = serialized_values.get("model_identifier") or None
         application.run_as_subject_type, application.run_as_subject_id = (
             self._imported_run_as(workspace, serialized_values, import_export_config)
+        )
+        # Searching is paid and sends data out, so outside copies must opt in again.
+        application.web_search_enabled = (
+            import_export_config.is_duplicate
+            and not import_export_config.is_template
+            and serialized_values.get("web_search_enabled", False)
         )
         application.save()
         registered = agent_tool_type_registry.get_types()

@@ -21,6 +21,8 @@ class AgentApplication(Application):
         max_length=255, null=True, blank=True, db_default=None
     )
     run_as_subject_id = models.BigIntegerField(null=True, blank=True, db_default=None)
+    # Searches run at the AI provider, which charges for them.
+    web_search_enabled = models.BooleanField(default=False, db_default=False)
 
 
 class AgentAllowedTool(models.Model):

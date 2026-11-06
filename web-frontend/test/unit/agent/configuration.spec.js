@@ -1177,6 +1177,140 @@ describe('Agent configuration', () => {
     }
   )
 
+  describe('web search', () => {
+    const setting = (wrapper) => wrapper.get('.agent-web-search')
+    const webSearch = (extra = {}) =>
+      completeConfiguration({
+        web_search_enabled: false,
+        web_search_available: true,
+        allowed_tools: [],
+        ...extra,
+      })
+
+    test('is off by default and saves when turned on', async () => {
+      mockConfiguration(testApp, webSearch())
+      mockSaves(testApp, webSearch({ web_search_enabled: true }))
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.agentSettings')
+
+      const input = setting(wrapper).findComponent({ name: 'SwitchInput' })
+      expect(input.props('modelValue')).toBe(false)
+      expect(input.props('disabled')).toBe(false)
+
+      input.vm.$emit('update:modelValue', true)
+      await flushPromises()
+
+      expect(savedValues(testApp)).toEqual([{ web_search_enabled: true }])
+      expect(input.props('modelValue')).toBe(true)
+    })
+
+    test('explains that an unsupported model cannot search', async () => {
+      mockConfiguration(testApp, webSearch({ web_search_available: false }))
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.agentSettings')
+
+      const input = setting(wrapper).findComponent({ name: 'SwitchInput' })
+      expect(input.props('disabled')).toBe(true)
+      expect(input.props('modelValue')).toBe(false)
+      expect(
+        setting(wrapper).get('.agent-web-search__unavailable').text()
+      ).toBe('agent.webSearchUnavailable')
+    })
+
+    test('explains when the model cannot search alongside workspace tools', async () => {
+      mockConfiguration(
+        testApp,
+        webSearch({
+          web_search_available: false,
+          web_search_blocked_by_tools: true,
+          run_as: investor,
+          allowed_tools: ['list_tables'],
+        })
+      )
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.agentSettings')
+
+      const input = setting(wrapper).findComponent({ name: 'SwitchInput' })
+      expect(input.props('disabled')).toBe(true)
+      expect(
+        setting(wrapper).get('.agent-web-search__unavailable').text()
+      ).toBe('agent.webSearchBlockedByTools')
+    })
+
+    test.each([
+      { provider_type: null, model_identifier: null },
+      { model_identifier: null },
+    ])(
+      'says nothing about the model before one is chosen: %j',
+      async (extra) => {
+        mockConfiguration(
+          testApp,
+          webSearch({
+            web_search_available: false,
+            web_search_enabled: true,
+            ...extra,
+          })
+        )
+        const wrapper = await mount()
+        await openSection(wrapper, 'agent.agentSettings')
+
+        expect(
+          setting(wrapper).find('.agent-web-search__unavailable').exists()
+        ).toBe(false)
+      }
+    )
+
+    test('can be turned off after the model stopped supporting it', async () => {
+      mockConfiguration(
+        testApp,
+        webSearch({ web_search_available: false, web_search_enabled: true })
+      )
+      mockSaves(
+        testApp,
+        webSearch({ web_search_available: false, web_search_enabled: false })
+      )
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.agentSettings')
+
+      const input = setting(wrapper).findComponent({ name: 'SwitchInput' })
+      expect(input.props('disabled')).toBe(false)
+      expect(
+        setting(wrapper).get('.agent-web-search__unavailable').text()
+      ).toBe('agent.webSearchUnavailableWhileOn')
+
+      expect(input.props('modelValue')).toBe(true)
+      await setting(wrapper).get('.switch').trigger('click')
+      await flushPromises()
+
+      expect(savedValues(testApp)).toEqual([{ web_search_enabled: false }])
+      expect(input.props('modelValue')).toBe(false)
+      expect(input.props('disabled')).toBe(true)
+    })
+
+    test.each([
+      [true, investor, ['list_tables'], true],
+      [false, investor, ['list_tables'], false],
+      [true, null, [], false],
+      [true, investor, [], false],
+    ])(
+      'warns only when searching can reach workspace data (%s, %j, %j)',
+      async (enabled, runAs, allowedTools, warned) => {
+        mockConfiguration(
+          testApp,
+          webSearch({
+            web_search_enabled: enabled,
+            run_as: runAs,
+            allowed_tools: allowedTools,
+          })
+        )
+        const wrapper = await mount()
+        await openSection(wrapper, 'agent.agentSettings')
+
+        expect(setting(wrapper).find('.alert').exists()).toBe(warned)
+      }
+    )
+  })
+
   const withTools = (allowedTools, runAs = investor) =>
     completeConfiguration({
       run_as: runAs,
