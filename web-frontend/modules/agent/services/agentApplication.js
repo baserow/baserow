@@ -30,9 +30,9 @@ export default (client) => ({
     }
     return client.patch(`/agent/${agentId}/configuration/`, values)
   },
-  getConversations(agentId, page = 1, realtimeRecovery = false) {
+  getConversations(agentId, cursor = null, realtimeRecovery = false) {
     return client.get(`/agent/${agentId}/conversations/`, {
-      params: { page, size: CONVERSATION_PAGE_SIZE },
+      params: { cursor, limit: CONVERSATION_PAGE_SIZE },
       ...(realtimeRecovery ? getRealtimeRecoveryRequestConfig() : {}),
     })
   },

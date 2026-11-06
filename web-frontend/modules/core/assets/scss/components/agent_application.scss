@@ -159,6 +159,7 @@
   color: $palette-neutral-900;
   cursor: pointer;
   opacity: 0;
+  pointer-events: none;
 
   @include rounded($rounded);
 
@@ -187,6 +188,7 @@
   &.agent-conversations__row--manageable:focus-within {
     .agent-conversations__options {
       opacity: 1;
+      pointer-events: auto;
     }
 
     .agent-conversations__status {

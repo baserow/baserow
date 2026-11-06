@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
-import Context from '@baserow/modules/core/components/Context'
 import {
   acceptConversation,
   chooseFromMenu,
@@ -36,6 +35,7 @@ import {
   warning,
   withoutConfiguration,
   workspace,
+  conversationsPage,
 } from './helpers'
 
 describe('Agent conversations', () => {
@@ -50,7 +50,7 @@ describe('Agent conversations', () => {
   const twoConversations = () =>
     mockConversations(
       testApp,
-      page([
+      conversationsPage([
         conversation('conversation-a', 'Conversation A'),
         conversation('conversation-b', 'Conversation B'),
       ])
@@ -324,7 +324,7 @@ describe('Agent conversations', () => {
       withoutConfiguration(operation) && !operation.includes('create')
     mockConversations(
       testApp,
-      page([conversation('conversation-a', 'Conversation A')])
+      conversationsPage([conversation('conversation-a', 'Conversation A')])
     )
     mockMessages(testApp, 'conversation-a', page([message('a1', 'Earlier')]))
     const wrapper = await mount()
@@ -340,7 +340,7 @@ describe('Agent conversations', () => {
   test('keeps history and the hidden draft until an incomplete configuration is repaired', async () => {
     mockConversations(
       testApp,
-      page([conversation('conversation-a', 'Conversation A')])
+      conversationsPage([conversation('conversation-a', 'Conversation A')])
     )
     mockMessages(testApp, 'conversation-a', page([message('a1', 'Earlier')]))
     mockSaves(
@@ -367,7 +367,7 @@ describe('Agent conversations', () => {
       operation !== 'agent_application.create_conversation'
     mockConversations(
       testApp,
-      page([conversation('conversation-a', 'Conversation A')])
+      conversationsPage([conversation('conversation-a', 'Conversation A')])
     )
     mockMessages(testApp, 'conversation-a', page([message('a1', 'Earlier')]))
     const wrapper = await mount()
@@ -423,14 +423,14 @@ describe('Agent conversations', () => {
     testApp.dontFailOnErrorResponses()
     mockConversations(
       testApp,
-      page(
+      conversationsPage(
         [
           conversation('conversation-new', 'Newest'),
           conversation('conversation-a', 'Conversation A'),
         ],
         'next'
       ),
-      page([
+      conversationsPage([
         conversation('conversation-a', 'Conversation A'),
         conversation('conversation-b', 'Conversation B'),
       ])
@@ -579,7 +579,7 @@ describe('Agent conversations', () => {
 
     list.resolve(
       200,
-      page([
+      conversationsPage([
         conversation('older-conversation', 'Existing', '2026-10-13T10:00:00Z'),
       ])
     )
@@ -601,7 +601,7 @@ describe('Agent conversations', () => {
     )
     mockConversations(
       testApp,
-      page([
+      conversationsPage([
         conversation(
           'conversation-b',
           'Conversation B',
@@ -668,18 +668,17 @@ describe('Agent conversations', () => {
     )
   })
 
-  test('re-reads the first page after a delete, so loading more skips nothing', async () => {
+  test('loads the conversations after the last one shown, also after a delete', async () => {
     mockConversations(
       testApp,
-      page(
+      conversationsPage(
         [
           conversation('conversation-a', 'Conversation A'),
           conversation('conversation-b', 'Conversation B'),
         ],
-        'next'
+        'after-b'
       ),
-      page([conversation('conversation-b', 'Conversation B')], 'next'),
-      page([conversation('conversation-c', 'Conversation C')])
+      conversationsPage([conversation('conversation-c', 'Conversation C')])
     )
     testApp.mock.onDelete('/agent/10/conversations/conversation-a/').reply(204)
     const wrapper = await mount()
@@ -695,8 +694,9 @@ describe('Agent conversations', () => {
     expect(
       testApp.mock.history.get
         .filter(({ url }) => url === '/agent/10/conversations/')
-        .map(({ params }) => params.page)
-    ).toEqual([1, 1, 2])
+        .map(({ params }) => params.cursor)
+    ).toEqual([null, 'after-b'])
+    expect(wrapper.find('.agent-conversations__more').exists()).toBe(false)
   })
 
   test('rolls a failed rename back and drops a conversation deleted elsewhere', async () => {

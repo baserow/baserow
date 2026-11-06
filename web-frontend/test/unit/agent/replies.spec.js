@@ -23,6 +23,7 @@ import {
   sendMessage,
   stop,
   useFakeTimers,
+  conversationsPage,
 } from './helpers'
 
 vi.mock('@baserow/modules/core/services/chatRuns', () => ({ default: vi.fn() }))
@@ -83,7 +84,7 @@ describe('Agent replies', () => {
   const messageReads = () =>
     testApp.mock.history.get.filter(({ url }) => url.includes('/messages/'))
   const withConversation = (...responses) => {
-    mockConversations(testApp, page([existingConversation]))
+    mockConversations(testApp, conversationsPage([existingConversation]))
     mockMessages(
       testApp,
       existingConversation.uuid,
@@ -295,7 +296,7 @@ describe('Agent replies', () => {
   test('reopening a running reply announces it without repeating its old steps', async () => {
     mockConversations(
       testApp,
-      page([
+      conversationsPage([
         existingConversation,
         conversation('conversation-b', 'Conversation B'),
       ])
@@ -374,7 +375,7 @@ describe('Agent replies', () => {
     const otherPrompt = message('m3', 'Other tab', { id: 3 })
     mockConversations(
       testApp,
-      page([
+      conversationsPage([
         existingConversation,
         conversation('conversation-b', 'Conversation B'),
       ])

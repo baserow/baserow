@@ -124,7 +124,7 @@ export async function createAgentPage() {
   mockAvailability(testApp, [workspace])
   mockAgent(testApp, agentData)
   mockConfiguration(testApp, completeConfiguration())
-  mockConversations(testApp, page([]))
+  mockConversations(testApp, conversationsPage([]))
   mockStartConversation(testApp, acceptConversation)
   // Nuxt's $hasPermission is a non-configurable getter, so override a child.
   const permissionApp = Object.create(testApp.nuxtApp)
@@ -210,6 +210,11 @@ export const page = (results, next = null) => ({
   next,
   previous: null,
   results,
+})
+
+export const conversationsPage = (results, nextCursor = null) => ({
+  results,
+  next_cursor: nextCursor,
 })
 
 const conversationIds = new Map()
