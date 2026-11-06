@@ -80,6 +80,23 @@ class AgentApplicationType(ApplicationType):
 
         return [path("agent/", include(api_urls, namespace=self.type))]
 
+    def get_pending_counts(
+        self, user: AbstractUser, applications: list[AgentApplication]
+    ) -> dict[int, int]:
+        """
+        Count the held calls waiting for the user's decision in their own
+        conversations with each Agent.
+
+        :param user: The user to count for.
+        :param applications: The Agents to count in.
+        :return: The number of pending approvals by Agent id, leaving out Agents
+            with none.
+        """
+
+        return AgentHandler().get_pending_approval_counts(
+            user, [application.id for application in applications]
+        )
+
     def export_safe_transaction_context(self, application: AgentApplication) -> Atomic:
         return transaction.atomic()
 

@@ -667,6 +667,21 @@ class ApplicationType(
 
         return queryset
 
+    def get_pending_counts(
+        self, user: "AbstractUser", applications: list["Application"]
+    ) -> dict[int, int]:
+        """
+        Counts the things in each application waiting for the user to act, like
+        tool calls to approve. The count shows next to the application.
+
+        :param user: The signed in user to count for.
+        :param applications: The applications to count in, all of this type.
+        :return: The count per application id. Applications with nothing waiting
+            may be left out.
+        """
+
+        return {}
+
     def get_application_urls(self, application: "Application") -> list[str]:
         """
         Returns the frontend urls of the application if any.

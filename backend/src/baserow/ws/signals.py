@@ -37,6 +37,7 @@ from baserow.core.utils import generate_hash
 from .tasks import (
     broadcast_ai_provider_update,
     broadcast_application_created,
+    broadcast_application_pending_counts,
     broadcast_to_group,
     broadcast_to_groups,
     broadcast_to_permitted_users,
@@ -248,6 +249,11 @@ def workspace_restored(sender, workspace_user, user, **kwargs):
                 workspace_user.user, [a.id for a in applications_qs]
             )
         ),
+        "pending_count_per_application": (
+            CoreHandler().get_pending_count_per_application(
+                workspace_user.user, applications_qs
+            )
+        ),
     }
     applications = [
         PolymorphicApplicationResponseSerializer(application, context=context).data
@@ -346,6 +352,26 @@ def applications_reordered(sender, workspace, order, user, **kwargs):
             },
             getattr(user, "web_socket_id", None),
         )
+    )
+
+
+@receiver(signals.application_pending_count_changed)
+def application_pending_count_changed(
+    sender: Any, application: Application, user_ids: list[int], **kwargs: Any
+) -> None:
+    """
+    Once the change is committed, sends each user their new pending count of the
+    application. Every tab gets it, the one that made the change included, because
+    the response of that change does not carry the count.
+
+    :param sender: What sent the signal.
+    :param application: The application whose pending counts changed.
+    :param user_ids: The ids of the users whose count changed.
+    :param kwargs: The remaining signal arguments, which this receiver ignores.
+    """
+
+    transaction.on_commit(
+        lambda: broadcast_application_pending_counts.delay(application.id, user_ids)
     )
 
 

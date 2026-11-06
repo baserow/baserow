@@ -10,6 +10,7 @@
       :class="{
         'tree__action--highlighted': highlighted,
         'tree__action--error': isInError,
+        'tree__action--has-counter': application.pending_count > 0,
       }"
       data-sortable-handle
       :data-highlight="`sidebar-application-${application.id}`"
@@ -46,6 +47,13 @@
         <i class="baserow-icon-more-vertical"></i>
       </a>
 
+      <BadgeCounter
+        v-if="application.pending_count > 0"
+        class="tree__counter"
+        color="yellow"
+        :count="application.pending_count"
+      />
+
       <component
         :is="getApplicationContextComponent(application)"
         ref="context"
@@ -66,6 +74,7 @@
 </template>
 
 <script>
+import BadgeCounter from '@baserow/modules/core/components/BadgeCounter'
 import SidebarDuplicateApplicationContextItem from '@baserow/modules/core/components/sidebar/SidebarDuplicateApplicationContextItem.vue'
 import TrashModal from '@baserow/modules/core/components/trash/TrashModal'
 import SnapshotsModal from '@baserow/modules/core/components/snapshots/SnapshotsModal'
@@ -74,6 +83,7 @@ import application from '@baserow/modules/core/mixins/application'
 export default {
   name: 'SidebarApplication',
   components: {
+    BadgeCounter,
     TrashModal,
     SidebarDuplicateApplicationContextItem,
     SnapshotsModal,

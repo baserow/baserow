@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import service from '@baserow/modules/core/services/chatRuns'
+import { registerRealtimeEvents } from '@baserow/modules/agent/realtime'
+import { pendingApprovals } from '@baserow/modules/agent/utils/replies'
 import {
+  agentData,
   composer,
   composerExists,
   conversation,
@@ -17,6 +20,7 @@ import {
   mockStartConversation,
   page,
   selectConversation,
+  selected,
   sendMessage,
   sentBodies,
   stop,
@@ -90,7 +94,11 @@ const decisions = (wrapper) =>
   texts(card(wrapper).findAll('.agent-approval__decision'))
 const announcement = (wrapper) =>
   card(wrapper).get('.agent-approval__announcement[role="status"]').text()
+const alwaysAllow = (wrapper) =>
+  card(wrapper).find('.agent-approval__always-allow')
 const activity = (wrapper) => wrapper.get('.chat-composer__activity')
+const waitingDot = (wrapper) =>
+  wrapper.find('.agent-conversations__status--waiting').exists()
 const inModal = (selector) => document.body.querySelector(selector)
 const modalButton = (text) =>
   [
@@ -98,10 +106,10 @@ const modalButton = (text) =>
   ].find((button) => button.textContent.trim() === text)
 
 describe('Agent tool approvals', () => {
-  let testApp, mount, allowed, api, streams, cursor
+  let testApp, agent, mount, allowed, api, streams, cursor
 
   beforeEach(async () => {
-    ;({ testApp, mount, allowed } = await createAgentPage())
+    ;({ testApp, agent, mount, allowed } = await createAgentPage())
     testApp.authenticate({ id: 1 })
     streams = {}
     cursor = 0
@@ -126,9 +134,18 @@ describe('Agent tool approvals', () => {
     receive(runId, 'run.finished', { status: 'completed', message: saved })
   const messageReads = () =>
     testApp.mock.history.get.filter(({ url }) => url.includes('/messages/'))
+  const configurationReads = () =>
+    testApp.mock.history.get.filter(
+      ({ url }) => url === '/agent/10/configuration/'
+    ).length
 
   async function openReply(saved, ...later) {
-    mockConversations(testApp, page([chat]))
+    mockConversations(
+      testApp,
+      page([
+        { ...chat, pending_approval_count: pendingApprovals(saved).length },
+      ])
+    )
     mockMessages(testApp, chat.uuid, page([prompt, saved]), ...later)
     const wrapper = await mount()
     await selectConversation(wrapper, chat.title)
@@ -257,6 +274,8 @@ describe('Agent tool approvals', () => {
     const decision = deferredReply()
     mockApprovals(testApp, chat.uuid, decision.reply)
     const wrapper = await openWaitingReply([approval(1), approval(2)])
+    expect(waitingDot(wrapper)).toBe(true)
+    const reads = configurationReads()
 
     await headerButtons(wrapper)[1].trigger('click')
     await flushPromises()
@@ -264,12 +283,13 @@ describe('Agent tool approvals', () => {
       card(wrapper)
         .findAll('button:not(.agent-approval__details-toggle)')
         .map((button) => button.element.disabled)
-    ).toEqual(Array(6).fill(true))
+    ).toEqual(Array(7).fill(true))
     const approved = [approval(1, 'approved'), approval(2, 'approved')]
     decision.resolve(200, reply('running', approved, { runId: 'run-2' }))
     await flushPromises()
     expect(title(wrapper)).toBe('agent.approvalReviewed')
     expect(messages(wrapper)).toEqual(['Add the companies', 'Adding them.'])
+    expect(waitingDot(wrapper)).toBe(false)
 
     expect(sentBodies(testApp)).toEqual([
       {
@@ -279,6 +299,8 @@ describe('Agent tool approvals', () => {
         ],
       },
     ])
+    expect(sentBodies(testApp)[0]).not.toHaveProperty('always_allow')
+    expect(configurationReads()).toBe(reads)
     expect(api.stream.mock.calls.map(([runId]) => runId)).toEqual(['run-2'])
     expect(stop(wrapper).exists()).toBe(true)
     expect(activity(wrapper).text()).toBe('agent.thinking')
@@ -296,6 +318,42 @@ describe('Agent tool approvals', () => {
     )
     expect(decisions(wrapper)).toEqual(['agent.approved', 'agent.approved'])
     expect(headerButtons(wrapper)).toHaveLength(0)
+  })
+
+  test('always allow approves every pending step and re-reads the configuration', async () => {
+    mockApprovals(
+      testApp,
+      chat.uuid,
+      reply('running', [approval(1, 'approved'), approval(2, 'approved')], {
+        runId: 'run-2',
+      })
+    )
+    const wrapper = await openWaitingReply([approval(1), approval(2)])
+    const reads = configurationReads()
+    expect(alwaysAllow(wrapper).text()).toBe('agent.alwaysAllow')
+
+    await alwaysAllow(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(sentBodies(testApp)).toEqual([
+      {
+        decisions: [
+          { id: 1, approved: true },
+          { id: 2, approved: true },
+        ],
+        always_allow: true,
+      },
+    ])
+    expect(configurationReads()).toBe(reads + 1)
+    expect(alwaysAllow(wrapper).exists()).toBe(false)
+  })
+
+  test('always allow is offered only to members who can edit the configuration', async () => {
+    allowed.value = (operation) => operation !== 'application.update'
+    const wrapper = await openWaitingReply([approval(1)])
+
+    expect(alwaysAllow(wrapper).exists()).toBe(false)
+    expect(headerButtons(wrapper)).toHaveLength(2)
   })
 
   test('rejecting one step sends the reason given in the modal', async () => {
@@ -351,6 +409,159 @@ describe('Agent tool approvals', () => {
     expect(decisions(wrapper)).toEqual(['agent.rejected'])
     expect(testApp.store.state.toast.items).toHaveLength(1)
     expect(headerButtons(wrapper)[1].element.disabled).toBe(false)
+  })
+
+  async function updatedElsewhere(uuid, count, runId = null) {
+    const receivers = {}
+    registerRealtimeEvents({
+      registerEvent: (type, handler) => (receivers[type] = handler),
+    })
+    receivers.agent_conversation_activity(
+      { store: testApp.store },
+      {
+        agent_id: agentData.id,
+        conversation_uuid: uuid,
+        run_id: runId,
+        updated_on: chat.updated_on,
+        pending_approval_count: count,
+      }
+    )
+    await flushPromises()
+  }
+
+  test('re-reads the open reply only when another tab changed its pending count', async () => {
+    const wrapper = await openWaitingReply(
+      [approval(1), approval(2)],
+      page([prompt, reply('waiting', [approval(1, 'approved'), approval(2)])])
+    )
+
+    await updatedElsewhere(chat.uuid, 2)
+    expect(messageReads()).toHaveLength(1)
+
+    await updatedElsewhere(chat.uuid, 1)
+    expect(messageReads()).toHaveLength(2)
+    expect(decisions(wrapper)).toEqual(['agent.approved'])
+  })
+
+  test('a pause arriving while following the run does not re-read the reply', async () => {
+    let started
+    mockStartConversation(testApp, ({ data }) => {
+      const body = JSON.parse(data)
+      started = body.uuid
+      return [
+        200,
+        {
+          conversation: conversation(body.uuid, body.content, undefined, 5),
+          message: message(body.message_uuid, body.content, { id: 1 }),
+          reply: reply('running', [], { runId: 'run-1' }),
+        },
+      ]
+    })
+    const wrapper = await mount()
+    await sendMessage(wrapper, 'Add the companies')
+
+    await updatedElsewhere(started, 1)
+
+    expect(messageReads()).toHaveLength(0)
+    await finish('run-1', reply('waiting', [approval(1)]))
+    expect(title(wrapper)).toBe('agent.approvalRequest')
+  })
+
+  test('an update from another tab moves the waiting dot of a closed conversation', async () => {
+    const other = conversation('conversation-b', 'Conversation B')
+    mockConversations(testApp, page([chat, other]))
+    mockMessages(testApp, chat.uuid, page([prompt]))
+    const wrapper = await mount()
+    await selectConversation(wrapper, chat.title)
+    expect(waitingDot(wrapper)).toBe(false)
+
+    await updatedElsewhere(other.uuid, 1)
+
+    expect(waitingDot(wrapper)).toBe(true)
+  })
+
+  test('the header pill opens the next waiting conversation, loading missing ones', async () => {
+    const row = (uuid, updatedOn, count) => ({
+      ...conversation(uuid, uuid, updatedOn),
+      pending_approval_count: count,
+    })
+    const loaded = [
+      row('newest', '2026-10-14T10:00:03Z', 1),
+      row('idle', '2026-10-14T10:00:02Z', 0),
+      row('middle', '2026-10-14T10:00:01Z', 2),
+    ]
+    const oldest = row('oldest', '2026-10-01T10:00:00Z', 1)
+    mockConversations(
+      testApp,
+      page(loaded, 'next'),
+      page([loaded[0], loaded[2], oldest])
+    )
+    for (const { uuid } of [...loaded, oldest]) {
+      mockMessages(testApp, uuid, page([]))
+    }
+    await testApp.store.dispatch('application/forceUpdate', {
+      application: agent,
+      data: { pending_count: 4 },
+    })
+    const wrapper = await mount()
+    const pill = () => wrapper.find('.agent-application__approvals')
+    expect(pill().text()).toBe('agent.approvalsWaiting - 4')
+
+    const opened = []
+    for (let click = 0; click < 4; click++) {
+      await pill().trigger('click')
+      await flushPromises()
+      opened.push(
+        selected(wrapper).get('.agent-conversations__item-name').text()
+      )
+    }
+
+    expect(opened).toEqual(['newest', 'middle', 'oldest', 'newest'])
+    expect(
+      testApp.mock.history.get
+        .filter(({ url }) => url === '/agent/10/conversations/')
+        .map(({ params }) => params.has_pending_approvals)
+    ).toEqual([undefined, true])
+    expect(
+      testApp.mock.history.get
+        .filter(({ url }) => url === '/agent/10/conversations/')
+        .map(({ params }) => params.size)
+    ).toEqual([20, 100])
+    await testApp.store.dispatch('application/forceUpdate', {
+      application: agent,
+      data: { pending_count: 0 },
+    })
+    await flushPromises()
+    expect(pill().exists()).toBe(false)
+  })
+
+  test('a second click while the waiting conversations load does nothing', async () => {
+    const waiting = deferredReply()
+    const row = { ...chat, pending_approval_count: 1 }
+    mockConversations(
+      testApp,
+      page([{ ...conversation('idle', 'Idle'), pending_approval_count: 0 }]),
+      waiting.reply
+    )
+    mockMessages(testApp, chat.uuid, page([]))
+    await testApp.store.dispatch('application/forceUpdate', {
+      application: agent,
+      data: { pending_count: 1 },
+    })
+    const wrapper = await mount()
+    const pill = wrapper.get('.agent-application__approvals')
+
+    await pill.trigger('click')
+    await pill.trigger('click')
+    waiting.resolve(200, page([row]))
+    await flushPromises()
+
+    expect(
+      testApp.mock.history.get.filter(
+        ({ url, params }) =>
+          url === '/agent/10/conversations/' && params.has_pending_approvals
+      )
+    ).toHaveLength(1)
   })
 
   test('a busy workspace keeps the step pending with the agent copy', async () => {

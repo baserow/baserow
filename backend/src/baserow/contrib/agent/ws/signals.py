@@ -7,6 +7,7 @@ from django.dispatch import receiver
 
 from rest_framework.fields import DateTimeField
 
+from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentConversation
 from baserow.contrib.agent.signals import (
     agent_conversation_activity,
@@ -85,7 +86,7 @@ def conversation_activity(
     run_id: UUID | None = None,
     **kwargs,
 ) -> None:
-    """Tell the owner's sessions which run is replying, without message content."""
+    """Tell the owner's sessions which run replies and how many held calls wait."""
 
     # A deleted conversation is already gone from every list.
     if conversation.trashed:
@@ -96,6 +97,7 @@ def conversation_activity(
         "agent_conversation_activity",
         run_id=str(run_id) if run_id else None,
         updated_on=DateTimeField().to_representation(conversation.updated_on),
+        pending_approval_count=AgentHandler().count_pending_approvals(conversation),
     )
 
 

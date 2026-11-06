@@ -558,6 +558,7 @@ export function useAgentConfiguration(agent) {
     renameAgent,
     updateConfiguration,
     saveConfiguration,
+    fetchConfiguration,
     refreshConfiguration,
   }
 }

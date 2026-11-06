@@ -1,6 +1,8 @@
 import { getRealtimeRecoveryRequestConfig } from '@baserow/modules/core/plugins/realtimeProtocol'
 
 const CONVERSATION_PAGE_SIZE = 20
+// The API's largest page, so up to 100 waiting conversations are reachable.
+const WAITING_CONVERSATIONS_PAGE_SIZE = 100
 const MESSAGE_PAGE_SIZE = 50
 
 export default (client) => ({
@@ -30,9 +32,19 @@ export default (client) => ({
     }
     return client.patch(`/agent/${agentId}/configuration/`, values)
   },
-  getConversations(agentId, page = 1, realtimeRecovery = false) {
+  getConversations(
+    agentId,
+    page = 1,
+    { realtimeRecovery = false, hasPendingApprovals = false } = {}
+  ) {
     return client.get(`/agent/${agentId}/conversations/`, {
-      params: { page, size: CONVERSATION_PAGE_SIZE },
+      params: {
+        page,
+        size: hasPendingApprovals
+          ? WAITING_CONVERSATIONS_PAGE_SIZE
+          : CONVERSATION_PAGE_SIZE,
+        ...(hasPendingApprovals ? { has_pending_approvals: true } : {}),
+      },
       ...(realtimeRecovery ? getRealtimeRecoveryRequestConfig() : {}),
     })
   },
@@ -63,10 +75,10 @@ export default (client) => ({
       values
     )
   },
-  decideApprovals(agentId, conversationUuid, decisions) {
+  decideApprovals(agentId, conversationUuid, decisions, { alwaysAllow } = {}) {
     return client.post(
       `/agent/${agentId}/conversations/${conversationUuid}/approvals/`,
-      { decisions }
+      { decisions, ...(alwaysAllow ? { always_allow: true } : {}) }
     )
   },
 })

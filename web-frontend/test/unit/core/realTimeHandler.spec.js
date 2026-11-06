@@ -2043,3 +2043,25 @@ describe('RealTimeHandler last_viewed_updated', () => {
     expect(fireFor(undefined, '2026-01-01T12:05:00Z')).toEqual([])
   })
 })
+
+describe('RealTimeHandler application_pending_count_updated', () => {
+  test('sets the count of an application in the store only', () => {
+    const { handler, store } = makeHandler()
+    const application = { id: 3, pending_count: 0 }
+    store.getters['application/get'] = (id) =>
+      application.id === id ? application : undefined
+
+    fire(handler, 'application_pending_count_updated', {
+      application_id: 3,
+      pending_count: 2,
+    })
+    fire(handler, 'application_pending_count_updated', {
+      application_id: 4,
+      pending_count: 1,
+    })
+
+    expect(store._dispatched).toEqual([
+      ['application/forceUpdate', { application, data: { pending_count: 2 } }],
+    ])
+  })
+})
