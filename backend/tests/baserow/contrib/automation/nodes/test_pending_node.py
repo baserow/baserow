@@ -6,7 +6,7 @@ a worker in the meantime. No node type of its own yet: the HTTP request node is
 patched to suspend itself.
 """
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from unittest.mock import ANY, patch
 
 from django.core.cache import cache
@@ -30,6 +30,7 @@ from baserow.contrib.automation.history.models import (
 )
 from baserow.contrib.automation.nodes.constants import (
     AUTOMATION_PENDING_NODE_COUNTDOWN_CHUNK_SECONDS,
+    AUTOMATION_PENDING_NODE_STALE_SECONDS,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.tasks import resume_pending_node_celery_task
@@ -52,6 +53,9 @@ HTTP_SERVICE_TYPE_PATH = (
 NODE_HANDLER_PATH = "baserow.contrib.automation.nodes.handler"
 DISPATCH_TASK = "baserow.contrib.automation.nodes.tasks.dispatch_node_celery_task"
 RESUME_TASK = "baserow.contrib.automation.nodes.tasks.resume_pending_node_celery_task"
+DISPATCH_DONE_TASK = (
+    "baserow.contrib.automation.workflows.tasks.handle_workflow_dispatch_done"
+)
 NOW = "2026-10-30 12:00:00"
 
 
@@ -770,6 +774,151 @@ def test_resume_pending_node_fails_when_the_service_type_cannot_resume(
         "http_request service type returned a pending dispatch but does not "
         "implement resume_dispatch()."
     )
+
+
+# Recovery sweep --------------------------------------------------------------
+
+# A sweep late enough for a node suspended at NOW to count as stale.
+STALE_SWEEP = datetime.fromisoformat(NOW) + timedelta(
+    seconds=AUTOMATION_PENDING_NODE_STALE_SECONDS + 60
+)
+# A sweep at which that node is overdue, but no later than a live resume can be.
+EARLY_SWEEP = datetime.fromisoformat(NOW) + timedelta(
+    seconds=AUTOMATION_PENDING_NODE_STALE_SECONDS - 60
+)
+
+
+@pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.chain")
+def test_resume_stale_waiting_nodes_schedules_a_new_resume_task(
+    mock_chain, data_fixture, django_capture_on_commit_callbacks
+):
+    """
+    The broker lost the resume task of a waiting node, so nothing would ever
+    wake it up: the sweep queues a new one, with the run's dispatch-done tail
+    behind it so the recovered branch still completes the run.
+    """
+
+    data = create_pending_workflow(data_fixture)
+    workflow_history = data["workflow_history"]
+    node_history = suspend_node(data, seconds=5)
+
+    with freeze_time(STALE_SWEEP), django_capture_on_commit_callbacks(execute=True):
+        assert AutomationNodeHandler().resume_stale_waiting_nodes() == 1
+
+    resume_signature, tail_signature = mock_chain.call_args.args
+    assert resume_signature.task == RESUME_TASK
+    assert resume_signature.args == (node_history.id,)
+    assert tail_signature.task == DISPATCH_DONE_TASK
+    assert tail_signature.kwargs == {
+        "history_id": workflow_history.id,
+        "simulate_until_node_id": None,
+    }
+    # Queued only once the sweep's transaction committed.
+    mock_chain.return_value.delay.assert_called_once_with()
+
+    # The node is left `waiting` for the new task to claim.
+    node_history.refresh_from_db()
+    assert node_history.status == HistoryStatusChoices.WAITING
+
+
+@pytest.mark.django_db
+@patch(f"{HTTP_NODE_TYPE_PATH}.resume_dispatch")
+def test_a_recovered_resume_task_resumes_the_node_at_once(
+    mock_resume_dispatch, data_fixture
+):
+    """
+    The task the sweep queues finds the node long overdue, so it resumes it
+    straight away rather than asking for another wake-up. `chain` is left
+    unpatched here, since the resumed node builds its canvas with it; the
+    sweep's own chain is never sent, because the test's transaction does not
+    commit.
+    """
+
+    data = create_pending_workflow(data_fixture)
+    next_node = data["next_node"]
+    workflow_history = data["workflow_history"]
+    node_history = suspend_node(data, seconds=5)
+    mock_resume_dispatch.return_value = DispatchResult(data={"seconds": 5})
+
+    with freeze_time(STALE_SWEEP):
+        assert AutomationNodeHandler().resume_stale_waiting_nodes() == 1
+
+        with patch.object(
+            resume_pending_node_celery_task, "replace", side_effect=lambda sig: sig
+        ):
+            result = resume_pending_node_celery_task.run(node_history.id)
+
+    assert_dispatches_next_node(result, next_node, workflow_history)
+    node_history.refresh_from_db()
+    assert node_history.status == HistoryStatusChoices.SUCCESS
+
+
+@pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.chain")
+def test_resume_stale_waiting_nodes_leaves_a_live_resume_alone(
+    mock_chain, data_fixture
+):
+    """
+    The node is overdue, but a resume task that is still alive can be this
+    late: a redelivered message re-arms for up to one more chunk.
+    """
+
+    data = create_pending_workflow(data_fixture)
+    node_history = suspend_node(data, seconds=5)
+
+    with freeze_time(EARLY_SWEEP):
+        assert AutomationNodeHandler().resume_stale_waiting_nodes() == 0
+
+    mock_chain.assert_not_called()
+    node_history.refresh_from_db()
+    assert node_history.status == HistoryStatusChoices.WAITING
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "status",
+    [
+        HistoryStatusChoices.ERROR,
+        HistoryStatusChoices.CANCELLED,
+        HistoryStatusChoices.SUCCESS,
+    ],
+)
+@patch(f"{NODE_HANDLER_PATH}.chain")
+def test_resume_stale_waiting_nodes_leaves_a_resolved_run_alone(
+    mock_chain, data_fixture, status
+):
+    """Nobody waits for a run that is over; the node is closed with it."""
+
+    data = create_pending_workflow(data_fixture)
+    suspend_node(data, seconds=5)
+    AutomationWorkflowHistory.objects.filter(id=data["workflow_history"].id).update(
+        status=status
+    )
+
+    with freeze_time(STALE_SWEEP):
+        assert AutomationNodeHandler().resume_stale_waiting_nodes() == 0
+
+    mock_chain.assert_not_called()
+
+
+@pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.chain")
+def test_resume_stale_waiting_nodes_leaves_a_claimed_node_alone(
+    mock_chain, data_fixture
+):
+    """A node that a resume task already claimed is no longer waiting."""
+
+    data = create_pending_workflow(data_fixture)
+    node_history = suspend_node(data, seconds=5)
+    AutomationNodeHistory.objects.filter(id=node_history.id).update(
+        status=HistoryStatusChoices.STARTED
+    )
+
+    with freeze_time(STALE_SWEEP):
+        assert AutomationNodeHandler().resume_stale_waiting_nodes() == 0
+
+    mock_chain.assert_not_called()
 
 
 # Node type -------------------------------------------------------------------

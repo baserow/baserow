@@ -1,6 +1,6 @@
 import math
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
 from django.conf import settings
@@ -33,6 +33,7 @@ from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.constants import (
     AUTOMATION_NODE_RETRY_COUNTDOWNS,
     AUTOMATION_PENDING_NODE_COUNTDOWN_CHUNK_SECONDS,
+    AUTOMATION_PENDING_NODE_STALE_SECONDS,
     AutomationNodeOnFailure,
 )
 from baserow.contrib.automation.nodes.exceptions import (
@@ -1252,6 +1253,83 @@ class AutomationNodeHandler:
         AutomationNodeHistory.objects.filter(
             id=node_history.id, status=HistoryStatusChoices.WAITING
         ).update(status=status, message=message, completed_on=timezone.now())
+
+    def resume_stale_waiting_nodes(self) -> int:
+        """
+        Safety net for a waiting node whose resume task is gone: the broker lost
+        its message (a flushed or restarted Redis without persistence), so
+        nothing will ever wake the node up and its run would stay `started`
+        until the run timeout. A node is considered stale when its resume is
+        overdue by more than `AUTOMATION_PENDING_NODE_STALE_SECONDS`, which is
+        longer than a live resume can be late (see the constant), and is given a
+        fresh resume task. A message that turns out to have been late rather
+        than lost loses the claim and is dropped, so a node still resumes once
+        at most.
+
+        Called by the periodic cleanup, after the runs that are over their
+        budget were timed out: their waiting nodes are resolved with them and
+        need no recovery.
+
+        Known limitation: only the waiting node itself is recovered. If the
+        broker really lost the run's messages, the sibling iterations and the
+        nodes queued after an iterator are gone with them, so the run completes
+        without ever running those. The alternative is a run that hangs
+        `started` until it times out a day later.
+
+        :return: How many waiting nodes were given a new resume task.
+        """
+
+        stale_before = timezone.now() - timedelta(
+            seconds=AUTOMATION_PENDING_NODE_STALE_SECONDS
+        )
+        # Served by the conditional `resume_at` index on waiting rows.
+        stale_nodes = AutomationNodeHistory.objects.filter(
+            status=HistoryStatusChoices.WAITING,
+            resume_at__lt=stale_before,
+            workflow_history__status=HistoryStatusChoices.STARTED,
+        ).values_list(
+            "id", "workflow_history_id", "workflow_history__simulate_until_node"
+        )
+
+        resumed = 0
+        for node_history_id, history_id, simulate_until_node_id in stale_nodes:
+            logger.warning(
+                f"The resume of waiting node history {node_history_id} of "
+                f"workflow history {history_id} is overdue by more than "
+                f"{AUTOMATION_PENDING_NODE_STALE_SECONDS} seconds. Its resume "
+                "task was likely lost, scheduling a new one."
+            )
+            self._schedule_waiting_node_recovery(
+                node_history_id, history_id, simulate_until_node_id
+            )
+            resumed += 1
+
+        return resumed
+
+    def _schedule_waiting_node_recovery(
+        self,
+        node_history_id: int,
+        history_id: int,
+        simulate_until_node_id: Optional[int],
+    ) -> None:
+        """
+        Queues a replacement resume task for a stale waiting node, with the
+        run's dispatch-done tail behind it as `start_workflow()` has, so the run
+        is still completed once the recovered branch is finished.
+        """
+
+        from baserow.contrib.automation.workflows.tasks import (
+            handle_workflow_dispatch_done,
+        )
+
+        recovery = chain(
+            resume_pending_node_celery_task.si(node_history_id),
+            handle_workflow_dispatch_done.si(
+                history_id=history_id,
+                simulate_until_node_id=simulate_until_node_id,
+            ),
+        )
+        transaction.on_commit(recovery.delay)
 
     def complete_pending_node(
         self, node_history: AutomationNodeHistory

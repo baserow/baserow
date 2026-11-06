@@ -96,10 +96,15 @@ def handle_workflow_dispatch_done(
 
 @app.task(queue="automation_workflow")
 def automation_periodic_cleanup():
+    from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
     from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 
     handler = AutomationWorkflowHandler()
+    # The runs that are over their budget are resolved first, so that the
+    # recovery sweep leaves their waiting nodes, which were just resolved with
+    # them, alone.
     handler.mark_failure_for_timed_out_history()
+    AutomationNodeHandler().resume_stale_waiting_nodes()
     handler.clear_old_history()
 
 
