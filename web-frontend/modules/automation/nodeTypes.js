@@ -26,6 +26,7 @@ import {
   CoreHTTPRequestServiceType,
   CoreRouterServiceType,
   CoreGotoServiceType,
+  CoreWaitServiceType,
   CoreSMTPEmailServiceType,
   CoreHTTPTriggerServiceType,
   CoreIteratorServiceType,
@@ -1500,6 +1501,28 @@ export class CoreGotoActionNodeType extends ActionNodeTypeMixin(
     return {
       service: { ...node.service, destination_service_id: null },
     }
+  }
+}
+
+export class CoreWaitActionNodeType extends ActionNodeTypeMixin(NodeType) {
+  static getType() {
+    return 'wait'
+  }
+
+  getOrder() {
+    return 12
+  }
+
+  get name() {
+    return this.app.$i18n.t('nodeType.waitNodeLabel')
+  }
+
+  get aliases() {
+    return parseAliases(this.app.$i18n.t('nodeType.waitAliases'))
+  }
+
+  get serviceType() {
+    return this.app.$registry.get('service', CoreWaitServiceType.getType())
   }
 }
 

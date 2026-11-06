@@ -5,7 +5,7 @@ import re
 import socket
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import partial
 from smtplib import (
     SMTPAuthenticationError,
@@ -75,6 +75,7 @@ from baserow.contrib.integrations.core.models import (
     CoreRouterServiceEdge,
     CoreSMTPEmailService,
     CoreStartWorkflowService,
+    CoreWaitService,
     HTTPFormData,
     HTTPHeader,
     HTTPQueryParam,
@@ -129,7 +130,12 @@ from baserow.core.services.registries import (
     ServiceType,
     TriggerServiceTypeMixin,
 )
-from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
+from baserow.core.services.types import (
+    DispatchResult,
+    FormulaToResolve,
+    PendingDispatch,
+    ServiceDict,
+)
 from baserow.core.utils import remove_null_characters
 from baserow.version import VERSION as BASEROW_VERSION
 
@@ -1744,6 +1750,124 @@ class CoreGotoServiceType(CoreServiceType):
         return DispatchResult(
             destination_service_id=data["destination_service_id"], data=data["data"]
         )
+
+
+class CoreWaitServiceType(CoreServiceType):
+    """
+    Pauses for a number of seconds.
+
+    The service never sleeps itself: it returns a `PendingDispatch` naming the
+    time to resume at, and the consumer that dispatched it parks the dispatch
+    and calls `resume_dispatch()` once that time has passed.
+    """
+
+    type = "wait"
+    model_class = CoreWaitService
+    dispatch_types = [DispatchTypes.ACTION]
+    allowed_fields = ["seconds"]
+    serializer_field_names = ["seconds"]
+    simple_formula_fields = ["seconds"]
+
+    class SerializedDict(ServiceDict):
+        seconds: str
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.core.formula.serializers import FormulaSerializerField
+
+        return {
+            "seconds": FormulaSerializerField(
+                help_text=CoreWaitService._meta.get_field("seconds").help_text,
+                required=False,
+                default="",
+            ),
+        }
+
+    def get_schema_name(self, service: CoreWaitService) -> str:
+        return f"Wait{service.id}Schema"
+
+    def generate_schema(
+        self,
+        service: CoreWaitService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        properties = {}
+        if allowed_fields is None or "seconds" in allowed_fields:
+            properties["seconds"] = {
+                "type": "integer",
+                "title": _("Seconds"),
+                "description": _("The number of seconds waited."),
+            }
+        if allowed_fields is None or "resumed_at" in allowed_fields:
+            properties["resumed_at"] = {
+                "type": "string",
+                "format": "date-time",
+                "title": _("Resumed at"),
+                "description": _("When the wait ended."),
+            }
+
+        return {
+            "title": self.get_schema_name(service),
+            "type": "object",
+            "properties": properties,
+        }
+
+    def formulas_to_resolve(self, service: CoreWaitService) -> list[FormulaToResolve]:
+        # Only a whole, non-negative number of seconds is a valid wait. An
+        # empty, text, boolean, fractional or negative value is a value error:
+        # it is never rounded or clamped.
+        return [
+            FormulaToResolve(
+                "seconds",
+                service.seconds,
+                lambda value: ensure_integer(
+                    value, allow_empty=False, allow_negative=False
+                ),
+                'property "seconds"',
+            )
+        ]
+
+    def _wait_result(self, seconds: int) -> Dict[str, Any]:
+        return {"seconds": seconds, "resumed_at": timezone.now().isoformat()}
+
+    def dispatch_data(
+        self,
+        service: CoreWaitService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Dict[str, Any] | PendingDispatch:
+        seconds = resolved_values["seconds"]
+        max_seconds = settings.AUTOMATION_WAIT_MAX_SECONDS
+        if seconds > max_seconds:
+            raise ServiceImproperlyConfiguredDispatchException(
+                f"The wait of {seconds} seconds exceeds the maximum of "
+                f"{max_seconds} seconds."
+            )
+
+        # A simulation never waits, and a wait of zero seconds has nothing to
+        # wait for: both complete at once.
+        if dispatch_context.use_sample_data or seconds == 0:
+            return self._wait_result(seconds)
+
+        return PendingDispatch(
+            resume_at=timezone.now() + timedelta(seconds=seconds),
+            state={"seconds": seconds},
+        )
+
+    def dispatch_transform(
+        self, data: Dict[str, Any] | PendingDispatch
+    ) -> DispatchResult:
+        if isinstance(data, PendingDispatch):
+            return DispatchResult(pending=data)
+        return DispatchResult(data=data)
+
+    def resume_dispatch(
+        self,
+        service: CoreWaitService,
+        state: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> DispatchResult:
+        return DispatchResult(data=self._wait_result(state["seconds"]))
 
 
 class CorePeriodicTriggerServiceType(TriggerServiceTypeMixin, CoreServiceType):

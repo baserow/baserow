@@ -1145,9 +1145,11 @@ class AutomationWorkflowHandler:
             completed_on=now,
         )
 
+        # A waiting node belongs to a run that is still going, so it times out
+        # with it; its resume task finds the run resolved and leaves it alone.
         AutomationNodeHistory.objects.filter(
             workflow_history_id__in=workflow_history_ids,
-            status=HistoryStatusChoices.STARTED,
+            status__in=(HistoryStatusChoices.STARTED, HistoryStatusChoices.WAITING),
         ).update(
             status=HistoryStatusChoices.ERROR,
             message=error,

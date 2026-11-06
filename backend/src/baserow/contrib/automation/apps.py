@@ -31,6 +31,7 @@ class AutomationConfig(AppConfig):
             CoreRouterActionNodeType,
             CoreSMTPEmailActionNodeType,
             CoreStartWorkflowActionNodeType,
+            CoreWaitActionNodeType,
             LocalBaserowAggregateRowsActionNodeType,
             LocalBaserowCreateRowActionNodeType,
             LocalBaserowCreateRowsActionNodeType,
@@ -227,6 +228,7 @@ class AutomationConfig(AppConfig):
         automation_node_type_registry.register(CoreRouterActionNodeType())
         automation_node_type_registry.register(CoreStartWorkflowActionNodeType())
         automation_node_type_registry.register(CoreGotoActionNodeType())
+        automation_node_type_registry.register(CoreWaitActionNodeType())
         automation_node_type_registry.register(CoreResponseActionNodeType())
         automation_node_type_registry.register(LocalBaserowRowsCreatedTriggerNodeType())
         automation_node_type_registry.register(LocalBaserowRowsUpdatedTriggerNodeType())

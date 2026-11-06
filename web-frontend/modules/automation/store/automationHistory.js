@@ -12,6 +12,10 @@ const state = () => ({
   workflowId: null,
   request: null,
   nodeHistoriesByWorkflowHistory: {},
+  // The request in flight per run, so that only the latest one applies its
+  // node histories when several overlap (a toggle, a realtime refresh and the
+  // refetch on completion can all target the same run).
+  nodeHistoriesRequests: {},
   nodeResults: {},
 })
 
@@ -46,6 +50,12 @@ const mutations = {
       results[index] = { ...results[index], ...values }
     }
   },
+  START_NODE_HISTORIES_REQUEST(state, { workflowHistoryId }) {
+    state.nodeHistoriesRequests[workflowHistoryId] = {}
+  },
+  FINISH_NODE_HISTORIES_REQUEST(state, { workflowHistoryId }) {
+    delete state.nodeHistoriesRequests[workflowHistoryId]
+  },
   SET_NODE_HISTORIES(state, { workflowHistoryId, data }) {
     state.nodeHistoriesByWorkflowHistory[workflowHistoryId] = data
   },
@@ -54,6 +64,7 @@ const mutations = {
   },
   CLEAR_HISTORY_CACHES(state) {
     state.nodeHistoriesByWorkflowHistory = {}
+    state.nodeHistoriesRequests = {}
     state.nodeResults = {}
   },
 }
@@ -119,16 +130,50 @@ const actions = {
     commit('RESET_HISTORY')
     commit('CLEAR_HISTORY_CACHES')
   },
-  async fetchNodeHistories({ state, commit }, { workflowHistoryId }) {
-    if (workflowHistoryId in state.nodeHistoriesByWorkflowHistory) return
+  /**
+   * Fetches the node histories of a run once. `refresh` fetches them again,
+   * for a run whose rows changed while they were shown: a node of a run still
+   * in progress started or stopped waiting, or the run completed. Only the
+   * latest request of a run applies its response, so an older one cannot
+   * overwrite newer rows, and a response that lands after the panel was reset
+   * does not repopulate the cache.
+   */
+  async fetchNodeHistories(
+    { state, commit },
+    { workflowHistoryId, refresh = false }
+  ) {
+    if (!refresh && workflowHistoryId in state.nodeHistoriesByWorkflowHistory) {
+      return
+    }
 
-    const { data } = await AutomationHistoryService(
-      useNuxtApp().$client
-    ).getNodeHistories(workflowHistoryId)
-    commit('SET_NODE_HISTORIES', {
+    commit('START_NODE_HISTORIES_REQUEST', { workflowHistoryId })
+    const request = state.nodeHistoriesRequests[workflowHistoryId]
+    try {
+      const { data } = await AutomationHistoryService(
+        useNuxtApp().$client
+      ).getNodeHistories(workflowHistoryId)
+      if (state.nodeHistoriesRequests[workflowHistoryId] !== request) return
+      commit('SET_NODE_HISTORIES', {
+        workflowHistoryId,
+        data: Object.freeze(data),
+      })
+    } finally {
+      if (state.nodeHistoriesRequests[workflowHistoryId] === request) {
+        commit('FINISH_NODE_HISTORIES_REQUEST', { workflowHistoryId })
+      }
+    }
+  },
+  /**
+   * Refetches the node histories of a run the panel already shows, after a
+   * realtime event said they changed. A run that was never expanded has
+   * nothing to refresh: its rows are fetched when it is.
+   */
+  refreshNodeHistories({ state, dispatch }, { workflowHistoryId }) {
+    if (!(workflowHistoryId in state.nodeHistoriesByWorkflowHistory)) return
+    return dispatch('fetchNodeHistories', {
       workflowHistoryId,
-      data: Object.freeze(data),
-    })
+      refresh: true,
+    }).catch((error) => notifyIf(error, 'automationWorkflow'))
   },
   async fetchNodeResult({ state, commit }, { nodeHistoryId }) {
     if (nodeHistoryId in state.nodeResults) return

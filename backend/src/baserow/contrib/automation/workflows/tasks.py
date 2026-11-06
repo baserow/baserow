@@ -5,6 +5,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from celery.canvas import Signature
+from loguru import logger
 
 from baserow.config.celery import app
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
@@ -52,6 +53,9 @@ def handle_workflow_dispatch_done(
     If history_id is provided, the workflow's history is updated to 'success'.
 
     If simulate_until_node_id is provided, the related workflow history is deleted.
+
+    A run history that no longer exists is ignored: the workflow, and with it the
+    run's history, can be deleted while the run is still in flight.
     """
 
     if simulate_until_node_id:
@@ -63,7 +67,17 @@ def handle_workflow_dispatch_done(
         # Only update the history if it's still started.
         # If the workflow history was marked as failed by a specific node, we
         # don't want to overwrite it.
-        history = AutomationWorkflowHistory.objects.get(id=history_id)
+        history = AutomationWorkflowHistory.objects.filter(id=history_id).first()
+        if history is None:
+            # The run history is gone, for example because the workflow was
+            # deleted while the run was still in flight (a waiting node can keep
+            # a run alive for hours). Nothing is left to update.
+            logger.warning(
+                f"Workflow history with ID {history_id} was not found. It was "
+                "likely deleted while the workflow was still running."
+            )
+            return
+
         AutomationHistoryHandler().ensure_default_response(history)
         AutomationWorkflowHistory.objects.filter(
             id=history_id,
@@ -82,10 +96,15 @@ def handle_workflow_dispatch_done(
 
 @app.task(queue="automation_workflow")
 def automation_periodic_cleanup():
+    from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
     from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 
     handler = AutomationWorkflowHandler()
+    # The runs that are over their budget are resolved first, so that the
+    # recovery sweep leaves their waiting nodes, which were just resolved with
+    # them, alone.
     handler.mark_failure_for_timed_out_history()
+    AutomationNodeHandler().resume_stale_waiting_nodes()
     handler.clear_old_history()
 
 
