@@ -24,10 +24,14 @@
         :has-more="state.conversationsNext"
         :can-create="state.canCreateConversation"
         :ready-to-send="state.readyToSend"
+        :can-update="state.canUpdateConversation"
+        :can-delete="state.canDeleteConversation"
         @select="state.selectConversation"
         @create="startConversation"
         @retry="state.retryConversations"
         @load-more="state.loadMoreConversations"
+        @update="state.updateConversation"
+        @delete="state.deleteConversation"
       />
       <main class="agent-chat" :class="{ 'agent-chat--empty': showChatIntro }">
         <div class="agent-chat__announcement" role="status">

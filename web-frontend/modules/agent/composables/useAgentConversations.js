@@ -9,6 +9,8 @@ import AgentApplicationService from '@baserow/modules/agent/services/agentApplic
 import { API_ERROR_CODE } from '@baserow/modules/agent/constants'
 
 const byNewest = (a, b) => Date.parse(b.updated_on) - Date.parse(a.updated_on)
+const pick = (source, fields) =>
+  Object.fromEntries(fields.map((field) => [field, source[field]]))
 
 /** Merge pages given oldest first in place, never undoing a reply's end. */
 function mergeMessages(...pages) {
@@ -64,11 +66,18 @@ export function useAgentConversations(agent, configuration) {
   const canCreateMessage = computed(() =>
     permission('agent_application.create_message')
   )
+  const canUpdateConversation = computed(() =>
+    permission('agent_application.update_conversation')
+  )
+  const canDeleteConversation = computed(() =>
+    permission('agent_application.delete_conversation')
+  )
 
   const conversations = ref([])
   const localConversations = ref([])
-  const conversationsPage = ref(0)
-  const conversationsNext = ref(false)
+  // Where the next page continues, after the last loaded conversation.
+  const conversationsCursor = ref(null)
+  const conversationsNext = computed(() => Boolean(conversationsCursor.value))
   // The first load starts on mount, so the server renders the same pending state.
   const conversationsLoading = ref(canReadConversations.value)
   const conversationsError = ref(false)
@@ -78,8 +87,10 @@ export function useAgentConversations(agent, configuration) {
 
   let scope = 0
   let conversationsRequest = 0
-  let requestedConversationPage = 1
+  let requestedConversationsCursor = null
   let conversationsRefreshPending = false
+  // Deletes and updates since a list read started, whose older copy would undo them.
+  let conversationChanges = 0
 
   const conversationItems = computed(() => [
     ...localConversations.value.filter((item) =>
@@ -176,18 +187,19 @@ export function useAgentConversations(agent, configuration) {
     conversations.value = [...known.values()].sort(byNewest)
   }
 
-  async function fetchConversations(page = 1, realtimeRecovery = false) {
+  async function fetchConversations(cursor = null, realtimeRecovery = false) {
     if (!canReadConversations.value) return
     const currentScope = scope
     const agentId = agent.value.id
     const request = ++conversationsRequest
-    requestedConversationPage = page
+    const changes = conversationChanges
+    requestedConversationsCursor = cursor
     conversationsLoading.value = true
     conversationsError.value = false
     try {
       const { data } = await service.getConversations(
         agentId,
-        page,
+        cursor,
         realtimeRecovery
       )
       if (
@@ -197,9 +209,14 @@ export function useAgentConversations(agent, configuration) {
       ) {
         return
       }
+      if (changes !== conversationChanges) {
+        return fetchConversations(cursor, realtimeRecovery)
+      }
       mergeConversations(data.results)
-      conversationsPage.value = page
-      conversationsNext.value = Boolean(data.next)
+      // Reading the newest ones again leaves the loaded pages after them as they are.
+      if (cursor === conversationsCursor.value) {
+        conversationsCursor.value = data.next_cursor
+      }
     } catch {
       if (scopeIsCurrent(currentScope) && request === conversationsRequest) {
         conversationsError.value = true
@@ -215,13 +232,13 @@ export function useAgentConversations(agent, configuration) {
     }
   }
 
-  /** Read page 1 again after an event, so the next page can't skip new rows. */
+  /** Read the newest conversations again after an event that changed them. */
   function refreshConversations() {
     if (conversationsLoading.value) {
       conversationsRefreshPending = true
       return
     }
-    return fetchConversations(1, true)
+    return fetchConversations(null, true)
   }
 
   /** Follow the conversation's reply, and resume replies a logout suspended. */
@@ -248,11 +265,11 @@ export function useAgentConversations(agent, configuration) {
   }
 
   function loadMoreConversations() {
-    return fetchConversations(conversationsPage.value + 1)
+    return fetchConversations(conversationsCursor.value)
   }
 
   function retryConversations() {
-    return fetchConversations(requestedConversationPage)
+    return fetchConversations(requestedConversationsCursor)
   }
 
   async function fetchMessages(conversationUuid, page = 1) {
@@ -414,6 +431,8 @@ export function useAgentConversations(agent, configuration) {
           })
         : await service.createMessage(agentId, conversationUuid, submission)
       if (!scopeIsCurrent(currentScope) || !canReadConversations.value) return
+      // Deleted while sending, so it must not come back.
+      if (drafts[conversationUuid] !== draft) return
       mergeConversations([data.conversation])
       localConversations.value = localConversations.value.filter(
         (item) => item.uuid !== conversationUuid
@@ -458,6 +477,70 @@ export function useAgentConversations(agent, configuration) {
     }
   }
 
+  async function updateConversation(conversation, values) {
+    const fields = Object.keys(values)
+    const previous = pick(conversation, fields)
+    applyConversationValues(conversation, values)
+    try {
+      const { data } = await service.updateConversation(
+        agent.value.id,
+        conversation.uuid,
+        values
+      )
+      applyConversationValues(conversation, pick(data, fields))
+    } catch (error) {
+      applyConversationValues(conversation, previous)
+      if (isDeletedElsewhere(error)) removeConversation(conversation.uuid)
+      else notifyIf(error)
+    }
+  }
+
+  function applyConversationValues(conversation, values) {
+    conversationChanges++
+    Object.assign(conversation, values)
+  }
+
+  function isDeletedElsewhere(error) {
+    return (
+      error.response?.data?.error ===
+      API_ERROR_CODE.AGENT_CONVERSATION_DOES_NOT_EXIST
+    )
+  }
+
+  /** Drop a conversation, selecting the one that takes its place in the list. */
+  function removeConversation(conversationUuid) {
+    const index = conversationItems.value.findIndex(
+      (item) => item.uuid === conversationUuid
+    )
+    conversationChanges++
+    conversations.value = conversations.value.filter(
+      (item) => item.uuid !== conversationUuid
+    )
+    delete histories[conversationUuid]
+    delete drafts[conversationUuid]
+    if (selectedUuid.value !== conversationUuid) return
+    const next =
+      conversationItems.value[index] || conversationItems.value.at(-1)
+    selectedUuid.value = null
+    if (next) selectConversation(next)
+    else createLocalConversation()
+  }
+
+  async function deleteConversation(conversation) {
+    try {
+      await service.deleteConversation(agent.value.id, conversation.uuid)
+    } catch (error) {
+      if (isDeletedElsewhere(error)) removeConversation(conversation.uuid)
+      else notifyIf(error)
+      return
+    }
+    removeConversation(conversation.uuid)
+    await store.dispatch('toast/restore', {
+      trash_item_type: 'agent_conversation',
+      trash_item_id: conversation.id,
+    })
+  }
+
   async function stopReply() {
     const runId = replyFollower.value?.runId
     if (!runId) return
@@ -471,6 +554,7 @@ export function useAgentConversations(agent, configuration) {
   function clearConversations() {
     ++conversationsRequest
     conversations.value = []
+    conversationsCursor.value = null
     conversationsRefreshPending = false
     localConversations.value = []
     selectedUuid.value = null
@@ -481,8 +565,6 @@ export function useAgentConversations(agent, configuration) {
   function reset() {
     ++scope
     clearConversations()
-    conversationsPage.value = 0
-    conversationsNext.value = false
     conversationsLoading.value = false
     conversationsError.value = false
   }
@@ -502,7 +584,12 @@ export function useAgentConversations(agent, configuration) {
     () => agent.value?._?.conversationUpdate,
     (update) => {
       if (!update || !canReadConversations.value) return
+      if (update.kind === 'deleted') return removeConversation(update.uuid)
       const conversation = findConversation(update.uuid)
+      if (update.kind === 'updated') {
+        if (conversation) applyConversationValues(conversation, update.values)
+        return
+      }
       if (!conversation) return refreshConversations()
       mergeConversations([
         {
@@ -590,6 +677,8 @@ export function useAgentConversations(agent, configuration) {
   return {
     canReadConversations,
     canCreateConversation,
+    canUpdateConversation,
+    canDeleteConversation,
     conversationItems,
     conversationsLoading,
     conversationsError,
@@ -609,5 +698,7 @@ export function useAgentConversations(agent, configuration) {
     updateMessage,
     sendMessage,
     stopReply,
+    updateConversation,
+    deleteConversation,
   }
 }

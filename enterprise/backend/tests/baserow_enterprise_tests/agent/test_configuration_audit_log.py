@@ -6,6 +6,7 @@ import pytest
 
 from baserow.contrib.agent.actions import UpdateAgentConfigurationActionType
 from baserow.contrib.agent.models import AgentApplication
+from baserow.core.action.registries import action_type_registry
 from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.models import Agent
 from baserow_enterprise.audit_log.models import AuditLogEntry
@@ -38,8 +39,12 @@ def test_configuration_audit_log_persists_full_before_and_after_snapshots(
         "run_as_subject_id": identity.id,
     }
 
-    UpdateAgentConfigurationActionType.do(user, agent.id, **changed_values)
-    UpdateAgentConfigurationActionType.do(user, agent.id, **changed_values)
+    action_type_registry.get_by_type(UpdateAgentConfigurationActionType).do(
+        user, agent.id, **changed_values
+    )
+    action_type_registry.get_by_type(UpdateAgentConfigurationActionType).do(
+        user, agent.id, **changed_values
+    )
 
     entry = AuditLogEntry.objects.get(
         action_type=UpdateAgentConfigurationActionType.type

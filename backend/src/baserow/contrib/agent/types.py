@@ -53,6 +53,13 @@ class AgentConfigurationUpdated:
     configuration: AgentConfiguration
 
 
+@dataclass
+class AgentConversationUpdated:
+    conversation: AgentConversation
+    original_values: dict[str, str]
+    new_values: dict[str, str]
+
+
 @dataclass(frozen=True)
 class AgentReplyRequest:
     reply_id: int

@@ -465,7 +465,7 @@ class TrashHandler:
             not in the requested workspace.
         :raises UserNotInWorkspace: If the user does not belong to the workspace.
         :return: a queryset of the trash items in the workspace optionally filtered by
-            the provided application.
+            the provided application, without the private items of other users.
         """
 
         workspace = _get_workspace(workspace_id)
@@ -493,7 +493,7 @@ class TrashHandler:
 
         trash_contents = TrashEntry.objects.filter(
             workspace=workspace, should_be_permanently_deleted=False
-        )
+        ).filter(Q(trash_item_owner=user) | Q(trash_item_owner__isnull=True))
         if application:
             trash_contents = trash_contents.filter(application=application)
         return trash_contents

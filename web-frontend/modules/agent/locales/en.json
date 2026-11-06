@@ -69,6 +69,8 @@
     "loadingConversations": "Loading conversations…",
     "loadingMessages": "Loading messages…",
     "draft": "Draft",
+    "conversationOptions": "Conversation options",
+    "conversationTitle": "Conversation title",
     "loadMore": "Load more",
     "olderMessages": "Load older messages",
     "talkTo": "Talk to {name}",
@@ -153,5 +155,8 @@
     "toolListTableRowsDoneCount": "Read {count} row | Read {count} rows",
     "toolListTableRowsDoneCountTable": "Read {count} row from {table} | Read {count} rows from {table}",
     "toolCreateTablesDoneCountTable": "Created {count} table: {table} | Created {count} tables: {table}"
+  },
+  "trashType": {
+    "agent_conversation": "conversation"
   }
 }

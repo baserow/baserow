@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import AgentConversationList from '@baserow/modules/agent/components/AgentConversationList'
+import { flushPromises } from '@vue/test-utils'
+import { chooseFromMenu } from './helpers'
 
 describe('Agent conversation list', () => {
   let testApp, form
@@ -121,5 +123,54 @@ describe('Agent conversation list', () => {
     expect(wrapper.get('.agent-conversations__content').isVisible()).toBe(true)
     expect(wrapper.get('aside').attributes('aria-hidden')).toBeUndefined()
     expect(wrapper.find('.agent-conversations__footer').exists()).toBe(false)
+  })
+
+  const mountList = (items) =>
+    testApp.mount(AgentConversationList, {
+      props: { items, canUpdate: true, canDelete: true },
+    })
+  const saved = { uuid: 'saved', title: 'Saved conversation' }
+
+  test('offers a menu only for saved conversations and cancels a rename on Escape', async () => {
+    const wrapper = await mountList([
+      saved,
+      { uuid: 'draft', title: '', local: true },
+    ])
+    const [, draftRow] = wrapper.findAll('.agent-conversations__row')
+    expect(draftRow.find('.agent-conversations__options').exists()).toBe(false)
+
+    await chooseFromMenu(wrapper, 'Saved conversation', 'action.rename')
+    const input = wrapper.get('.agent-conversations__rename')
+    await input.setValue('Unsaved title')
+    await input.trigger('keydown', { key: 'Escape' })
+    await flushPromises()
+
+    expect(wrapper.find('.agent-conversations__rename').exists()).toBe(false)
+    expect(document.activeElement).toBe(
+      wrapper.get('.agent-conversations__item').element
+    )
+    expect(wrapper.emitted('update')).toBeUndefined()
+  })
+
+  test('saves only a typed title, not on an input method Enter or after a removal', async () => {
+    const wrapper = await mountList([saved])
+    const rename = async (title) => {
+      await chooseFromMenu(wrapper, title, 'action.rename')
+      return wrapper.get('.agent-conversations__rename')
+    }
+
+    let input = await rename('Saved conversation')
+    await wrapper.setProps({
+      items: [{ ...saved, title: 'Renamed elsewhere' }],
+    })
+    await input.trigger('blur')
+    input = await rename('Renamed elsewhere')
+    await input.setValue('Typed')
+    await input.trigger('keydown', { key: 'Enter', isComposing: true })
+    expect(wrapper.find('.agent-conversations__rename').exists()).toBe(true)
+    await wrapper.setProps({ items: [] })
+    await flushPromises()
+
+    expect(wrapper.emitted('update')).toBeUndefined()
   })
 })

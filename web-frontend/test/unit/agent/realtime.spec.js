@@ -8,6 +8,7 @@ import {
   conversation,
   conversationTitles,
   createAgentPage,
+  chooseFromMenu,
   deferredReply,
   destroyAgentPage,
   message,
@@ -20,6 +21,7 @@ import {
   selected,
   send,
   sendMessage,
+  conversationsPage,
 } from './helpers'
 
 vi.mock('@baserow/modules/core/services/chatRuns', () => ({ default: vi.fn() }))
@@ -41,7 +43,7 @@ const isRecovery = (request) =>
   request.headers['X-Baserow-Realtime-Recovery'] === 'true'
 
 describe('Agent conversation realtime updates', () => {
-  let testApp, agent, allowed, mount, receive
+  let testApp, agent, allowed, mount, receivers
 
   beforeEach(async () => {
     ;({ testApp, agent, allowed, mount } = await createAgentPage())
@@ -49,9 +51,10 @@ describe('Agent conversation realtime updates', () => {
       get: vi.fn().mockResolvedValue({ status: 'running' }),
       stream: vi.fn(() => new Promise(() => {})),
     })
+    receivers = {}
     registerRealtimeEvents({
       registerEvent: (type, handler) => {
-        if (type === 'agent_conversation_updated') receive = handler
+        receivers[type] = handler
       },
     })
   })
@@ -66,7 +69,7 @@ describe('Agent conversation realtime updates', () => {
       agentId = agentData.id,
     } = {}
   ) => {
-    receive(
+    receivers.agent_conversation_activity(
       { store: testApp.store },
       {
         agent_id: agentId,
@@ -83,7 +86,11 @@ describe('Agent conversation realtime updates', () => {
   }
 
   test('lists a remote conversation and loads a remote reply, keeping history, draft and focus', async () => {
-    mockConversations(testApp, page([first], 'next'), page([second]))
+    mockConversations(
+      testApp,
+      conversationsPage([first], 'next'),
+      conversationsPage([second])
+    )
     mockMessages(
       testApp,
       second.uuid,
@@ -101,7 +108,7 @@ describe('Agent conversation realtime updates', () => {
     textarea.focus()
     mockConversations(
       testApp,
-      page(
+      conversationsPage(
         [
           conversation(
             'conversation-c',
@@ -138,7 +145,7 @@ describe('Agent conversation realtime updates', () => {
   })
 
   test('keeps a send accepted after a background read started in API order', async () => {
-    mockConversations(testApp, page([first]))
+    mockConversations(testApp, conversationsPage([first]))
     mockMessages(testApp, first.uuid, page([storedMessage(1, 'Earlier')]))
     const wrapper = await mount()
     await selectConversation(wrapper, first.title)
@@ -172,7 +179,7 @@ describe('Agent conversation realtime updates', () => {
   })
 
   test('loads a remote reply that starts during the first history load without replacing the draft', async () => {
-    mockConversations(testApp, page([first]))
+    mockConversations(testApp, conversationsPage([first]))
     const initial = deferredReply()
     mockMessages(
       testApp,
@@ -207,7 +214,7 @@ describe('Agent conversation realtime updates', () => {
   })
 
   test('queues a reconnect read during a send without duplicating the accepted message', async () => {
-    mockConversations(testApp, page([first]))
+    mockConversations(testApp, conversationsPage([first]))
     mockMessages(testApp, first.uuid, page([storedMessage(1, 'Earlier')]))
     const write = deferredReply()
     mockSendMessage(testApp, first.uuid, write.reply)
@@ -256,7 +263,7 @@ describe('Agent conversation realtime updates', () => {
 
   test('keeps the focused draft after a failed background history refresh and retries the newest page', async () => {
     testApp.dontFailOnErrorResponses()
-    mockConversations(testApp, page([first]))
+    mockConversations(testApp, conversationsPage([first]))
     mockMessages(
       testApp,
       first.uuid,
@@ -301,7 +308,7 @@ describe('Agent conversation realtime updates', () => {
   })
 
   test('anchors older messages without including an appended remote message in the scroll adjustment', async () => {
-    mockConversations(testApp, page([first]))
+    mockConversations(testApp, conversationsPage([first]))
     const older = deferredReply()
     mockMessages(
       testApp,
@@ -347,7 +354,7 @@ describe('Agent conversation realtime updates', () => {
   })
 
   test('follows an accepted own message even when reading older history', async () => {
-    mockConversations(testApp, page([first]))
+    mockConversations(testApp, conversationsPage([first]))
     mockMessages(testApp, first.uuid, page([storedMessage(1, 'Earlier')]))
     mockSendMessage(testApp, first.uuid, ({ data }) => [
       200,
@@ -377,7 +384,7 @@ describe('Agent conversation realtime updates', () => {
   })
 
   test('does not jump to the latest remote message while reading older history', async () => {
-    mockConversations(testApp, page([first]))
+    mockConversations(testApp, conversationsPage([first]))
     mockMessages(testApp, first.uuid, page([storedMessage(1, 'Earlier')]))
     const wrapper = await mount()
     await selectConversation(wrapper, first.title)
@@ -402,7 +409,7 @@ describe('Agent conversation realtime updates', () => {
   })
 
   test('refreshes cached inactive conversations only when selected again', async () => {
-    mockConversations(testApp, page([first, second]))
+    mockConversations(testApp, conversationsPage([first, second]))
     mockMessages(testApp, first.uuid, page([storedMessage(1, 'Earlier A')]))
     mockMessages(testApp, second.uuid, page([storedMessage(2, 'Earlier B')]))
     const wrapper = await mount()
@@ -428,7 +435,10 @@ describe('Agent conversation realtime updates', () => {
   })
 
   test('pulses the dot while any session writes a reply, without reading again', async () => {
-    mockConversations(testApp, page([first, { ...second, run_id: 'run-b' }]))
+    mockConversations(
+      testApp,
+      conversationsPage([first, { ...second, run_id: 'run-b' }])
+    )
     const wrapper = await mount()
     const replying = () =>
       wrapper
@@ -468,5 +478,111 @@ describe('Agent conversation realtime updates', () => {
 
     expect(testApp.mock.history.get).toHaveLength(reads)
     expect(agent._.conversationUpdate.version).toBe(1)
+  })
+
+  test('does not bring back a conversation deleted while the list was being read', async () => {
+    const stale = deferredReply()
+    mockConversations(
+      testApp,
+      conversationsPage([first]),
+      stale.reply,
+      conversationsPage([second])
+    )
+    await mount()
+    await update(second.uuid)
+
+    receivers.agent_conversation_deleted(
+      { store: testApp.store },
+      { agent_id: agentData.id, conversation_uuid: first.uuid }
+    )
+    stale.resolve(200, conversationsPage([first, second]))
+    await flushPromises()
+
+    expect(agent._.conversationUpdate.kind).toBe('deleted')
+    expect(
+      testApp.mock.history.get.filter(
+        ({ url }) => url === '/agent/10/conversations/'
+      )
+    ).toHaveLength(3)
+  })
+
+  test('keeps a conversation deleted while its message was being sent', async () => {
+    mockConversations(testApp, conversationsPage([first, second]))
+    mockMessages(testApp, first.uuid, page([]))
+    mockMessages(testApp, second.uuid, page([]))
+    const write = deferredReply()
+    mockSendMessage(testApp, first.uuid, write.reply)
+    const wrapper = await mount()
+    await selectConversation(wrapper, first.title)
+    await sendMessage(wrapper, 'My message')
+
+    receivers.agent_conversation_deleted(
+      { store: testApp.store },
+      { agent_id: agentData.id, conversation_uuid: first.uuid }
+    )
+    write.resolve(200, {
+      conversation: first,
+      message: storedMessage(1, 'My message'),
+    })
+    await flushPromises()
+
+    expect(conversationTitles(wrapper)).toEqual([second.title])
+  })
+
+  test('keeps a rename that an older list read missed', async () => {
+    const stale = deferredReply()
+    const renamed = { ...first, title: 'Renamed' }
+    mockConversations(
+      testApp,
+      conversationsPage([first]),
+      stale.reply,
+      conversationsPage([renamed])
+    )
+    const saved = deferredReply()
+    testApp.mock
+      .onPatch(`/agent/10/conversations/${first.uuid}/`)
+      .reply(saved.reply)
+    const wrapper = await mount()
+    await chooseFromMenu(wrapper, first.title, 'action.rename')
+    const input = wrapper.get('.agent-conversations__rename')
+    await input.setValue(renamed.title)
+    await input.trigger('keydown', { key: 'Enter' })
+
+    // The read starts after the rename shows, but answers before it's saved.
+    await update(second.uuid)
+    saved.resolve(200, renamed)
+    await flushPromises()
+    stale.resolve(200, conversationsPage([first]))
+    await flushPromises()
+
+    expect(conversationTitles(wrapper)).toEqual([renamed.title])
+  })
+
+  test('renames and removes conversations changed in another session', async () => {
+    mockConversations(testApp, conversationsPage([first, second]))
+    mockMessages(testApp, first.uuid, page([]))
+    mockMessages(testApp, second.uuid, page([]))
+    const wrapper = await mount()
+    await selectConversation(wrapper, first.title)
+    const reads = testApp.mock.history.get.length
+    const receive = (type, data) =>
+      receivers[type](
+        { store: testApp.store },
+        { agent_id: agentData.id, ...data }
+      )
+
+    receive('agent_conversation_updated', {
+      conversation_uuid: second.uuid,
+      values: { title: 'Renamed elsewhere' },
+    })
+    receive('agent_conversation_deleted', { conversation_uuid: first.uuid })
+    await flushPromises()
+
+    expect(conversationTitles(wrapper)).toEqual(['Renamed elsewhere'])
+    expect(selected(wrapper).text()).toContain('Renamed elsewhere')
+    // Only the newly selected conversation's history is read.
+    expect(testApp.mock.history.get.slice(reads).map(({ url }) => url)).toEqual(
+      [`/agent/10/conversations/${second.uuid}/messages/`]
+    )
   })
 })
