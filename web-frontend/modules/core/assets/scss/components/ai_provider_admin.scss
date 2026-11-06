@@ -270,14 +270,20 @@
 
 .ai-provider-form__workspaces {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
+  align-items: flex-start;
   gap: 8px;
+
+  > .button {
+    flex-shrink: 0;
+  }
 }
 
-.ai-provider-form__workspace-controls {
+.ai-provider-form__workspace-list {
   display: flex;
-  flex-shrink: 0;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -285,9 +291,8 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  flex: 1 1 0;
-  min-width: 80px;
-  max-width: 160px;
+  min-width: 0;
+  max-width: min(120px, calc((100% - 8px) / 2));
   padding: 4px 8px;
   background: $palette-neutral-100;
   border: 1px solid $palette-neutral-300;

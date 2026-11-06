@@ -19,7 +19,7 @@ describe('SelectWorkspaceModal', () => {
     vi.restoreAllMocks()
   })
 
-  test('lists all workspace options and prevents selecting an existing workspace', async () => {
+  test('lists workspace options and allows removing a selection from All workspaces', async () => {
     testApp.mock.onGet('/admin/workspaces/options/').reply(200, {
       count: 2,
       results: [
@@ -44,15 +44,18 @@ describe('SelectWorkspaceModal', () => {
     ])
     const selectedCheckbox = wrapper.find('input[type="checkbox"]')
     expect(selectedCheckbox.element.checked).toBe(true)
-    expect(selectedCheckbox.element.disabled).toBe(true)
+    expect(selectedCheckbox.element.disabled).toBe(false)
     expect(
       options.map((option) =>
         option.find('.select-workspace-modal__name').text()
       )
     ).toEqual(['Already excluded', 'Another workspace'])
-    expect(options[0].attributes('disabled')).toBeDefined()
+    expect(options[0].attributes('disabled')).toBeUndefined()
     await options[0].trigger('click')
-    await wrapper.find('.select-workspace-modal__id').trigger('click')
+    expect(wrapper.emitted('unselected')).toEqual([[1]])
+    await wrapper.setProps({ selectedWorkspaces: [] })
+    await flushPromises()
+    expect(wrapper.find('input[type="checkbox"]').element.checked).toBe(false)
     expect(wrapper.emitted('selected')).toBeUndefined()
 
     await options[1].trigger('click')
@@ -288,7 +291,9 @@ describe('SelectWorkspaceModal', () => {
         { count: 101, results: [{ id: config.params.page, value: name }] },
       ]
     })
-    const wrapper = await testApp.mount(SelectWorkspaceModal)
+    const wrapper = await testApp.mount(SelectWorkspaceModal, {
+      props: { selectedWorkspaces: [{ id: 2, name: 'Page 2' }] },
+    })
     await wrapper.vm.show(anchor)
     await flushPromises()
 
@@ -297,6 +302,16 @@ describe('SelectWorkspaceModal', () => {
     expect(wrapper.find('.select-workspace-modal__option').text()).toContain(
       'Page 2'
     )
+    const requestsBeforeToggle = testApp.mock.history.get.length
+    expect(wrapper.find('input[type="checkbox"]').element.checked).toBe(true)
+    await wrapper.find('.select-workspace-modal__option').trigger('click')
+    expect(wrapper.emitted('unselected')).toEqual([[2]])
+    await wrapper.setProps({ selectedWorkspaces: [] })
+    await flushPromises()
+    expect(wrapper.find('.paginator__content-input').element.value).toBe('2')
+    await wrapper.find('.select-workspace-modal__option').trigger('click')
+    expect(wrapper.emitted('selected')).toEqual([[{ id: 2, name: 'Page 2' }]])
+    expect(testApp.mock.history.get).toHaveLength(requestsBeforeToggle)
 
     await wrapper.find('.data-table__search input').setValue('Finance')
     await wrapper.find('.data-table__search').trigger('submit')
@@ -309,5 +324,24 @@ describe('SelectWorkspaceModal', () => {
     expect(wrapper.find('.select-workspace-modal__option').text()).toContain(
       'Finance'
     )
+    const filteredRequests = testApp.mock.history.get.length
+    await wrapper.find('.select-workspace-modal__option').trigger('click')
+    expect(wrapper.emitted('selected').at(-1)).toEqual([
+      { id: 1, name: 'Finance' },
+    ])
+    await wrapper.setProps({ selectedWorkspaces: [{ id: 1, name: 'Finance' }] })
+    await flushPromises()
+    await wrapper.find('input[type="checkbox"]').setValue(false)
+    expect(wrapper.emitted('unselected').at(-1)).toEqual([1])
+    await wrapper.setProps({ selectedWorkspaces: [] })
+    await flushPromises()
+    expect(wrapper.find('.data-table__search input').element.value).toBe(
+      'Finance'
+    )
+    expect(wrapper.find('.paginator__content-input').element.value).toBe('1')
+    expect(wrapper.find('[role="dialog"]').classes()).not.toContain(
+      'visibility-hidden'
+    )
+    expect(testApp.mock.history.get).toHaveLength(filteredRequests)
   })
 })
