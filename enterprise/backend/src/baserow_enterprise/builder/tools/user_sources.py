@@ -40,6 +40,32 @@ def _local_baserow_user_source_on(
     return None
 
 
+def _raise_unless_password_login_works(user_source: UserSource) -> None:
+    """
+    :raises ToolInputError: When members couldn't log in with a password through
+        the user source, so a login form for it would only fail.
+    """
+
+    from baserow_enterprise.integrations.local_baserow.models import (
+        LocalBaserowPasswordAppAuthProvider,
+    )
+
+    provider = LocalBaserowPasswordAppAuthProvider.objects.filter(
+        user_source=user_source.id
+    ).first()
+    if (
+        user_source.get_type().is_configured(user_source)
+        and provider is not None
+        and provider.get_type().is_configured(provider)
+    ):
+        return
+    raise ToolInputError(
+        f"User source {user_source.id} on that table isn't set up for password "
+        "login, so nobody could log in through it. Finish its settings in the editor, "
+        "or use another table. No changes were applied."
+    )
+
+
 def _user_source_item(user_source: UserSource, table_id: int) -> dict[str, Any]:
     return {"id": user_source.id, "name": user_source.name, "table_id": table_id}
 
@@ -62,8 +88,9 @@ def setup_user_source(
     With table_id, the table needs an email field and a name or primary field; a
     password field is added if it has none, unless another type of field is already
     named Password, which is refused. A user source already on that table is
-    reused, and returned as reused_user_source instead of created_user_source. Calling
-    this again with database_id creates a second table and user source.
+    reused, and returned as reused_user_source instead of created_user_source; one
+    that isn't set up for password login is refused. Calling this again with
+    database_id creates a second table and user source.
 
     The login page is the one already set, or a page at /login that anyone can see, or
     a new one, which created_pages lists. One already set must be visible to everyone,
@@ -77,6 +104,8 @@ def setup_user_source(
     ctx.update_status(_("Setting up user source..."))
 
     existing = _local_baserow_user_source_on(ctx.user, builder, setup.table_id)
+    if existing is not None:
+        _raise_unless_password_login_works(existing)
     # A login page that was undone is in the trash, so it counts as none.
     set_login_page = (
         helpers.workspace_pages(ctx.workspace).filter(id=builder.login_page_id).first()

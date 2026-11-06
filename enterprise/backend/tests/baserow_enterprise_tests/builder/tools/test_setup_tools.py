@@ -3,6 +3,7 @@ Setting up a page, a user source and a theme, without a model. The conftest of t
 folder fails any model call.
 """
 
+from django.contrib.auth.hashers import make_password
 from django.urls import reverse
 
 import pytest
@@ -38,6 +39,7 @@ from baserow_enterprise.builder.tools.types import (
     TableFieldConfig,
 )
 from baserow_enterprise.builder.tools.types.user_source import UserSourceSetup
+from baserow_enterprise.integrations.local_baserow.models import LocalBaserowUserSource
 
 
 def table_of(builder_ctx):
@@ -448,6 +450,7 @@ def _rest_results(api_client, data_fixture, builder_ctx, users_table):
     token = data_fixture.generate_token(builder_ctx["user"])
     builder = builder_ctx["builder"]
     integration = helpers.get_local_baserow_integration(builder_ctx["user"], builder)
+    password = data_fixture.create_password_field(table=users_table, name="Password")
     user_source = api_client.post(
         reverse("api:user_sources:list", kwargs={"application_id": builder.id}),
         {
@@ -455,6 +458,11 @@ def _rest_results(api_client, data_fixture, builder_ctx, users_table):
             "name": "From REST",
             "integration_id": integration.id,
             "table_id": users_table.id,
+            "email_field_id": users_table.field_set.get(name="Email").id,
+            "name_field_id": users_table.field_set.get(name="Name").id,
+            "auth_providers": [
+                {"type": "local_baserow_password", "password_field_id": password.id}
+            ],
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -601,6 +609,70 @@ def test_setup_user_source_does_not_reuse_a_trashed_or_other_user_source(
     )
 
     assert "created_user_source" in user_sources.setup_user_source(*args)
+
+
+@pytest.mark.django_db
+def test_setup_user_source_refuses_a_user_source_without_password_login(
+    data_fixture, builder_ctx, users_table
+):
+    builder = builder_ctx["builder"]
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=builder_ctx["ctx"].user
+    )
+    source = data_fixture.create_user_source(
+        LocalBaserowUserSource,
+        application=builder,
+        integration=integration,
+        table=users_table,
+        email_field=users_table.field_set.get(name="Email"),
+        name_field=users_table.field_set.get(name="Name"),
+    )
+    pages_before = Page.objects.count()
+
+    with pytest.raises(ToolInputError, match=f"User source {source.id}"):
+        user_sources.setup_user_source(
+            builder_ctx["ctx"],
+            builder.id,
+            UserSourceSetup(name="People", table_id=users_table.id),
+        )
+
+    assert Page.objects.count() == pages_before
+    assert not AuthFormElement.objects.filter(page__builder=builder).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("twice", [False, True])
+def test_after_setup_user_source_a_member_can_log_in(
+    data_fixture, builder_ctx, users_table, twice
+):
+    # The fixture's integration is authorized by a user outside the workspace.
+    builder = data_fixture.create_builder_application(
+        workspace=builder_ctx["workspace"]
+    )
+    args = (
+        builder_ctx["ctx"],
+        builder.id,
+        UserSourceSetup(name="People", table_id=users_table.id),
+    )
+    result = user_sources.setup_user_source(*args)
+    if twice:
+        result = user_sources.setup_user_source(*args)
+
+    source = UserSource.objects.get(application=builder).specific
+    fields = {f.name: f for f in users_table.field_set.all()}
+    users_table.get_model().objects.create(
+        **{
+            fields["Name"].db_column: "Ada",
+            fields["Email"].db_column: "ada@example.com",
+            fields["Password"].db_column: make_password("a long secret"),
+        }
+    )
+
+    user = source.get_type().authenticate(
+        source, email="ada@example.com", password="a long secret"
+    )
+    assert user.email == "ada@example.com"
+    assert result["login_page_id"]
 
 
 @pytest.mark.django_db
