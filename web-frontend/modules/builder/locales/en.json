@@ -357,6 +357,7 @@
     "missingValue": "Missing IFrame source...",
     "emptyValue": "Empty IFrame source...",
     "editorPreviewPlaceholder": "This iframe isn't displayed in the editor.\nUse Preview to check how it appears in your application.",
+    "editorEmbedHint": "Some embeds only display fully in Preview.",
     "sourceTypeLabel": "Source type",
     "urlLabel": "URL",
     "urlPlaceholder": "Link to the external resource to be embedded",

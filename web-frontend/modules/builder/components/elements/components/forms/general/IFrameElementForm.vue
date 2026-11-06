@@ -16,7 +16,7 @@
 
     <Alert type="warning" class="margin-bottom-2">
       <template #title>{{ $t('iframeElementForm.warningTitle') }}</template>
-      {{ $t('iframeElementForm.warningMessage') }}
+      <p>{{ $t('iframeElementForm.warningMessage') }}</p>
     </Alert>
 
     <FormGroup
