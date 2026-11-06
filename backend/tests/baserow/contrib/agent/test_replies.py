@@ -23,7 +23,11 @@ from baserow.contrib.agent.actions import (
     CreateAgentMessageActionType,
 )
 from baserow.contrib.agent.chat_run_type import AgentChatRunType
-from baserow.contrib.agent.constants import INTERRUPTED_REPLY_NOTE, TOOL_RETRIES
+from baserow.contrib.agent.constants import (
+    INTERRUPTED_CHANGES_NOTE,
+    INTERRUPTED_REPLY_NOTE,
+    TOOL_RETRIES,
+)
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import (
     AgentApplication,
@@ -197,15 +201,25 @@ def test_the_model_gets_the_instructions_and_recent_history(
     user = data_fixture.create_user()
     agent = configured_agent(user=user, instructions="Be brief.")
     conversation = data_fixture.create_agent_conversation(user=user, agent=agent)
-    for status, reply in [
-        ("completed", "Old"),
-        ("completed", "First"),
-        ("cancelled", "Half"),
-        ("failed", ""),
+    step = {"id": "s", "input": {}, "facts": {}}
+    steps = [
+        {**step, "tool": "list_tables", "status": "done", "changes_data": False},
+        {**step, "tool": "create_rows", "status": "stopped", "changes_data": True},
+        "malformed",
+    ]
+    for status, reply, reply_steps in [
+        ("completed", "Old", None),
+        ("completed", "First", steps),
+        ("cancelled", "Half", None),
+        ("failed", "", steps),
     ]:
         data_fixture.create_agent_message(conversation=conversation, content="Q")
         data_fixture.create_agent_message(
-            conversation=conversation, role="assistant", content=reply, status=status
+            conversation=conversation,
+            role="assistant",
+            content=reply,
+            status=status,
+            steps=reply_steps,
         )
     mocker.patch("baserow.contrib.agent.handler.HISTORY_MESSAGE_LIMIT", 6)
     seen = []
@@ -228,7 +242,11 @@ def test_the_model_gets_the_instructions_and_recent_history(
         ("ModelRequest", "Q"),
         ("ModelResponse", f"Half\n\n{INTERRUPTED_REPLY_NOTE}"),
         ("ModelRequest", "Q"),
-        ("ModelResponse", INTERRUPTED_REPLY_NOTE),
+        (
+            "ModelResponse",
+            f"{INTERRUPTED_REPLY_NOTE}\n"
+            f"{INTERRUPTED_CHANGES_NOTE.format(changes='create_rows (stopped)')}",
+        ),
         ("ModelRequest", "Now?"),
     ]
     assert seen[-1].instructions == "Be brief."

@@ -630,11 +630,9 @@ class AgentHandler:
         conversation = reply.conversation
         agent = conversation.agent
         # The prompt is the message right before its reply.
-        prompt, *history = (
-            conversation.messages.filter(id__lt=reply.id)
-            .defer("steps")
-            .order_by("-id")[: HISTORY_MESSAGE_LIMIT + 1]
-        )
+        prompt, *history = conversation.messages.filter(id__lt=reply.id).order_by(
+            "-id"
+        )[: HISTORY_MESSAGE_LIMIT + 1]
         run_as = self.resolve_run_as_subject(
             agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
         )

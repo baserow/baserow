@@ -28,6 +28,7 @@ from baserow.core.tools import ToolContext
 from baserow.core.utils import remove_null_characters
 
 from .constants import (
+    INTERRUPTED_CHANGES_NOTE,
     INTERRUPTED_REPLY_NOTE,
     REPLY_REQUEST_LIMIT,
     TOOL_RETRIES,
@@ -39,6 +40,26 @@ from .types import AgentReplyRequest, AgentReplyResult
 
 if TYPE_CHECKING:
     from baserow.core.chat_runs.journal import ChatRunJournal
+
+
+def _interruption_note(reply: AgentMessage) -> str:
+    """
+    Name the changes an interrupted reply started, since its text may not.
+
+    :param reply: A reply that did not complete.
+    :return: The interruption note, followed by the changes it started, if any.
+    """
+
+    changes = ", ".join(
+        f"{step.get('tool')} ({step.get('status')})"
+        for step in reply.steps or []
+        if isinstance(step, dict) and step.get("changes_data") is True
+    )
+    if not changes:
+        return INTERRUPTED_REPLY_NOTE
+    return (
+        f"{INTERRUPTED_REPLY_NOTE}\n{INTERRUPTED_CHANGES_NOTE.format(changes=changes)}"
+    )
 
 
 def build_history(messages: list[AgentMessage]) -> list[ModelMessage]:
@@ -60,7 +81,7 @@ def build_history(messages: list[AgentMessage]) -> list[ModelMessage]:
         elif history:
             text = message.content
             if message.status != ChatRunStatus.COMPLETED:
-                text = f"{text}\n\n{INTERRUPTED_REPLY_NOTE}".strip()
+                text = f"{text}\n\n{_interruption_note(message)}".strip()
             if text:
                 history.append(ModelResponse(parts=[TextPart(content=text)]))
     return history
