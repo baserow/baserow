@@ -39,6 +39,7 @@
     "toolGetTableSchema": "Read table structure",
     "toolGetTableSchemaDescription": "Field names, types and options",
     "toolListTableRows": "Read rows",
+    "toolActivityTarget": "{activity}: {target}",
     "toolListTableRowsDescription": "Read row data, with search",
     "toolListViews": "List views",
     "toolListViewsDescription": "See the views of a table",
