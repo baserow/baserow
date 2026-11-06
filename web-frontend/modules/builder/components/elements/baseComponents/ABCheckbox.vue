@@ -2,6 +2,7 @@
   <div class="ab-checkbox">
     <input
       :id="inputId"
+      v-pre-hydration-input
       type="checkbox"
       :checked="modelValue"
       :required="required"
@@ -22,9 +23,11 @@
 
 <script>
 import { useId } from 'vue'
+import preHydrationInput from '@baserow/modules/core/directives/preHydrationInput'
 
 export default {
   name: 'ABCheckbox',
+  directives: { preHydrationInput },
   props: {
     /**
      * The state of the checkbox.
