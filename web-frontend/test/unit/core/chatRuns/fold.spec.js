@@ -38,6 +38,16 @@ describe('foldRunEvent', () => {
     ).toEqual([saved])
   })
 
+  test('moves a failed step that is retried to the end, as the new call it is', () => {
+    expect(
+      fold([
+        ['step', step('a', 'failed')],
+        ['step', step('b', 'done')],
+        ['step', step('a')],
+      ]).steps.map(({ id }) => id)
+    ).toEqual(['b', 'a'])
+  })
+
   test('clears steps on an empty baseline and ends unresolved calls on finish', () => {
     expect(
       fold([

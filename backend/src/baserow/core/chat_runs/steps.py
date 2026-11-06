@@ -100,6 +100,9 @@ class ChatRunSteps:
         self._describe_call = describe_call
         self._steps: dict[str, ChatRunStep] = {}
         self._pending: dict[str, deque[str]] = defaultdict(deque)
+        self._retrying: dict[str, deque[str]] = defaultdict(deque)
+        self._retryable: dict[str, deque[str]] = defaultdict(deque)
+        self._batch_ended = False
 
     def on_event(self, event: AgentStreamEvent | AgentRunResultEvent) -> None:
         """Start and complete steps, ignoring unrelated model events.
@@ -108,6 +111,9 @@ class ChatRunSteps:
         """
 
         if isinstance(event, FunctionToolCallEvent):
+            if self._batch_ended:
+                self._retryable, self._retrying = self._retrying, defaultdict(deque)
+                self._batch_ended = False
             name = event.part.tool_name
             invalid = event.args_valid is False
             description = {}
@@ -118,8 +124,9 @@ class ChatRunSteps:
                 logger.error("Could not describe tool call ({})", type(exc).__name__)
             if description is None:
                 return
+            retried = self._retryable[name]
             step: ChatRunStep = {
-                "id": str(uuid4()),
+                "id": retried.popleft() if retried else str(uuid4()),
                 "tool": name,
                 "status": ChatRunStepStatus.FAILED
                 if invalid
@@ -131,8 +138,10 @@ class ChatRunSteps:
             if invalid:
                 step["error_code"] = ToolErrorCode.INVALID_INPUT
             self._pending[event.tool_call_id].append(step["id"])
+            self._steps.pop(step["id"], None)
             self._update(step)
         elif isinstance(event, FunctionToolResultEvent):
+            self._batch_ended = True
             pending = self._pending.get(event.tool_call_id)
             if pending:
                 step = self._steps[pending.popleft()]
@@ -144,6 +153,8 @@ class ChatRunSteps:
                 if error_code is not None:
                     updated["error_code"] = error_code
                 self._update(updated)
+                if isinstance(event.part, RetryPromptPart):
+                    self._retrying[updated["tool"]].append(updated["id"])
 
     def finish(self) -> list[ChatRunStep]:
         """Finish activity once the model run ends.

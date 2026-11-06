@@ -830,11 +830,10 @@ def test_a_reply_recovers_from_invalid_tool_calls(
     assert reply_state(created.reply.id) == ("completed", "", "Done.")
     rows = [row.name for row in table.get_model(attribute_names=True).objects.all()]
     assert rows == ["Plan"]
-    steps = AgentMessage.objects.get(id=created.reply.id).steps
-    assert [step["status"] for step in steps] == ["failed"] * TOOL_RETRIES + ["done"]
-    assert all(step["input"] == {} and step["facts"] == {} for step in steps[:-1])
-    assert all(step["error_code"] == "invalid_input" for step in steps[:-1])
-    assert "error_code" not in steps[-1]
+    [step] = AgentMessage.objects.get(id=created.reply.id).steps
+    assert step["status"] == "done"
+    assert step["input"] == {"requested_count": 1}
+    assert "error_code" not in step
 
 
 @pytest.mark.django_db

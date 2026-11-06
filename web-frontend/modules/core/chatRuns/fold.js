@@ -53,7 +53,11 @@ export function foldRunEvent(view, event) {
     case STEP: {
       const index = view.steps.findIndex((step) => step.id === data.id)
       const steps = [...view.steps]
-      if (index === -1) steps.push(data)
+      // A failed step only changes again when its call is retried, which is a new call.
+      if (index !== -1 && steps[index].status === STEP_STATUS.FAILED) {
+        steps.splice(index, 1)
+        steps.push(data)
+      } else if (index === -1) steps.push(data)
       else steps[index] = data
       return { ...view, steps }
     }

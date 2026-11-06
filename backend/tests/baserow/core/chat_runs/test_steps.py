@@ -117,6 +117,57 @@ def test_invalid_call_is_failed_even_without_a_result_and_has_no_input():
     assert saved["input"] == {}
 
 
+def retry(call_id):
+    return FunctionToolResultEvent(RetryPromptPart("Fix it", tool_call_id=call_id))
+
+
+def test_a_retry_continues_the_step_of_its_invalid_attempt_but_not_of_siblings():
+    journal = Mock()
+    steps = ChatRunSteps(journal, describe)
+    steps.on_event(call("invalid", valid=False))
+    steps.on_event(call("sibling", arguments={"rows": [1]}))
+    steps.on_event(retry("invalid"))
+    steps.on_event(result("sibling", facts={"count": 1}))
+    steps.on_event(call("retry", arguments={"rows": [1, 2]}))
+    steps.on_event(result("retry", facts={"count": 2}))
+
+    saved = steps.finish()
+    first = journal.emit.call_args_list[0].args[1]
+    assert [(step["status"], step["facts"]) for step in saved] == [
+        ("done", {"count": 1}),
+        ("done", {"count": 2}),
+    ]
+    assert saved[1]["id"] == first["id"]
+    assert "error_code" not in saved[1]
+
+
+def test_only_the_next_response_can_retry_an_invalid_call():
+    steps = ChatRunSteps(Mock(), describe)
+    steps.on_event(call("invalid", valid=False))
+    steps.on_event(retry("invalid"))
+    steps.on_event(call("read", name="list_tables"))
+    steps.on_event(result("read"))
+    steps.on_event(call("later", arguments={"rows": [1]}))
+
+    assert [step["status"] for step in steps.finish()] == [
+        "failed",
+        "done",
+        "stopped",
+    ]
+
+
+def test_a_call_that_runs_out_of_retries_leaves_one_failed_step():
+    steps = ChatRunSteps(Mock(), describe)
+    steps.on_event(call("one", valid=False))
+    steps.on_event(retry("one"))
+    steps.on_event(call("two", valid=False))
+
+    saved = steps.finish()
+    assert [(step["status"], step["error_code"]) for step in saved] == [
+        ("failed", "invalid_input")
+    ]
+
+
 def test_unknown_tools_and_presentation_errors_do_not_fail_the_run(logs):
     steps = ChatRunSteps(
         Mock(), Mock(side_effect=LookupError("PRIVATE_DESCRIPTION_ERROR_CANARY"))
