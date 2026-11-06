@@ -45,9 +45,26 @@ def cascade_workspace_user_delete(sender, instance, **kwargs):
     ).delete()
 
 
+def cascade_team_invitation_links_delete(sender, instance, **kwargs):
+    """
+    Deletes the invitation links to a team when the team is permanently deleted.
+    A link points to its team through a generic relation, which the database
+    doesn't cascade.
+    """
+
+    from baserow.core.models import WorkspaceInvitationLink
+
+    WorkspaceInvitationLink.objects.filter(
+        scope_type=ContentType.objects.get_for_model(instance),
+        scope_id=instance.id,
+    ).delete()
+
+
 def connect_to_post_delete_signals_to_cascade_deletion_to_team_subjects():
     from baserow.core.models import WorkspaceUser
     from baserow.core.registries import subject_type_registry
+
+    from .models import Team
 
     for subject_type in subject_type_registry.get_all():
         if subject_type.type == TeamSubjectType.type:
@@ -57,3 +74,4 @@ def connect_to_post_delete_signals_to_cascade_deletion_to_team_subjects():
         post_delete.connect(cascade_subject_delete, subject_type.model_class)
 
     post_delete.connect(cascade_workspace_user_delete, WorkspaceUser)
+    post_delete.connect(cascade_team_invitation_links_delete, Team)

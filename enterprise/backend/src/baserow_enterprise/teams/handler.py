@@ -9,10 +9,19 @@ from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
 
 from baserow.core.agents.subjects import AgentSubjectType
+from baserow.core.exceptions import WorkspaceInvitationLinkSignupsDisabled
+from baserow.core.feature_flags import FF_RBAC_IMPROVEMENTS, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.mixins import TrashableModelMixin
-from baserow.core.models import Workspace, WorkspaceInvitation
-from baserow.core.operations import ListInvitationsWorkspaceOperationType
+from baserow.core.models import (
+    Workspace,
+    WorkspaceInvitation,
+    WorkspaceInvitationLink,
+)
+from baserow.core.operations import (
+    CreateInvitationLinkWorkspaceOperationType,
+    ListInvitationsWorkspaceOperationType,
+)
 from baserow.core.registries import subject_type_registry
 from baserow.core.subjects import UserSubjectType
 from baserow.core.trash.handler import TrashHandler
@@ -750,3 +759,146 @@ class TeamHandler:
                 self.create_subject(user, {"id": user.id}, UserSubjectType.type, team)
             )
         return team_subjects
+
+    def _check_invitation_link_permissions(self, user: AbstractUser, team: Team):
+        """
+        Runs the checks that guard managing the invitation links of a team. Links
+        add people to the team and bring newcomers into the workspace, so the user
+        must be allowed to add members to the team and to create invitation links
+        to the workspace.
+
+        :param user: The user managing the links of the team.
+        :param team: The team the links add people to.
+        :raises FeatureDisabledException: If invitation links aren't enabled.
+        :raises FeatureNotAvailable: If the workspace doesn't have teams.
+        :raises PermissionDenied: If the user isn't allowed to manage the links.
+        """
+
+        feature_flag_is_enabled(FF_RBAC_IMPROVEMENTS, raise_if_disabled=True)
+
+        workspace = team.workspace
+        LicenseHandler.raise_if_user_doesnt_have_feature(TEAMS, user, workspace)
+        CoreHandler().check_permissions(
+            user,
+            CreateTeamSubjectOperationType.type,
+            workspace=workspace,
+            context=team,
+        )
+        CoreHandler().check_permissions(
+            user,
+            CreateInvitationLinkWorkspaceOperationType.type,
+            workspace=workspace,
+            context=workspace,
+        )
+
+    def _get_team_invitation_links_queryset(
+        self, team: Team
+    ) -> QuerySet[WorkspaceInvitationLink]:
+        return WorkspaceInvitationLink.objects.filter(
+            workspace_id=team.workspace_id,
+            scope_type=ContentType.objects.get_for_model(Team),
+            scope_id=team.id,
+        )
+
+    def list_team_invitation_links(
+        self, user: AbstractUser, team: Team
+    ) -> QuerySet[WorkspaceInvitationLink]:
+        """
+        Returns the permanent invitation links to a team. Anyone with a link can
+        use it, so listing them needs the same rights as managing them.
+
+        :param user: The user on whose behalf the links are listed.
+        :param team: The team the links add people to.
+        :return: A queryset of the links of the team, oldest first.
+        """
+
+        self._check_invitation_link_permissions(user, team)
+        return self._get_team_invitation_links_queryset(team).order_by("id")
+
+    def get_team_invitation_link(
+        self, invitation_link_id: int, team: Team
+    ) -> WorkspaceInvitationLink:
+        """
+        Returns the invitation link with the given id to the given team.
+
+        :param invitation_link_id: The id of the invitation link.
+        :param team: The team the link must add people to.
+        :raises WorkspaceInvitationLinkDoesNotExist: If the team has no such link.
+        :return: The invitation link with its workspace loaded.
+        """
+
+        return CoreHandler().get_workspace_invitation_link(
+            invitation_link_id,
+            base_queryset=self._get_team_invitation_links_queryset(team),
+        )
+
+    def create_team_invitation_link(
+        self, user: AbstractUser, team: Team, name: str = ""
+    ) -> WorkspaceInvitationLink:
+        """
+        Creates a permanent link that anyone can use to join the team. People who
+        aren't a member of the workspace yet join it without a workspace role, so
+        that the role of the team applies to them, and members of the workspace
+        are added to the team. The link itself has no role: the team gives it.
+
+        :param user: The user on whose behalf the link is created.
+        :param team: The team the link adds people to.
+        :param name: A name that reminds the admins what the link is for.
+        :raises WorkspaceInvitationLinkSignupsDisabled: If the instance settings
+            don't let anyone sign up through the link.
+        :return: The created invitation link.
+        """
+
+        self._check_invitation_link_permissions(user, team)
+
+        if not CoreHandler().invitation_link_signups_allowed():
+            raise WorkspaceInvitationLinkSignupsDisabled(
+                "Invitation links can't be created while signups are disabled."
+            )
+
+        return WorkspaceInvitationLink.objects.create(
+            workspace=team.workspace,
+            created_by=user,
+            # The workspace role of newcomers, which lets the team's role apply.
+            permissions=NO_ROLE_LOW_PRIORITY_ROLE_UID,
+            name=name,
+            scope=team,
+        )
+
+    def update_team_invitation_link(
+        self,
+        user: AbstractUser,
+        team: Team,
+        invitation_link: WorkspaceInvitationLink,
+        name: str,
+    ) -> WorkspaceInvitationLink:
+        """
+        Changes the name of a link to a team.
+
+        :param user: The user on whose behalf the link is updated.
+        :param team: The team of the link.
+        :param invitation_link: The link that must be updated.
+        :param name: The new name of the link.
+        :return: The updated invitation link.
+        """
+
+        self._check_invitation_link_permissions(user, team)
+
+        invitation_link.name = name
+        invitation_link.save(update_fields=["name", "updated_on"])
+        return invitation_link
+
+    def delete_team_invitation_link(
+        self, user: AbstractUser, team: Team, invitation_link: WorkspaceInvitationLink
+    ):
+        """
+        Deletes a link to a team, after which it can't be used anymore. People who
+        joined through it stay in the team.
+
+        :param user: The user on whose behalf the link is deleted.
+        :param team: The team of the link.
+        :param invitation_link: The link that must be deleted.
+        """
+
+        self._check_invitation_link_permissions(user, team)
+        invitation_link.delete()

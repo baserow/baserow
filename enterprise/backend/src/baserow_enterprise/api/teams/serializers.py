@@ -3,6 +3,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from baserow.api.mixins import UnknownFieldRaisesExceptionSerializerMixin
+from baserow.core.models import WorkspaceInvitationLink
 from baserow.core.registries import subject_type_registry
 from baserow_enterprise.api.role.serializers import RoleField
 from baserow_enterprise.exceptions import RoleNotExist
@@ -213,3 +214,32 @@ class CreateTeamInvitationSerializer(serializers.Serializer):
         help_text="The captcha token proving the request comes from a person, only "
         "required if a captcha provider is enabled for workspace invitations.",
     )
+
+
+class TeamInvitationLinkSerializer(serializers.ModelSerializer):
+    """
+    Serializer of a permanent link that adds people to a team. It has no role,
+    because the team gives its own role.
+    """
+
+    team_id = serializers.IntegerField(
+        source="scope_id", read_only=True, help_text="The team the link adds people to."
+    )
+
+    class Meta:
+        model = WorkspaceInvitationLink
+        fields = ("id", "workspace", "team_id", "name", "slug", "created_on")
+        read_only_fields = fields
+
+
+class CreateTeamInvitationLinkSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WorkspaceInvitationLink
+        fields = ("name",)
+
+
+class UpdateTeamInvitationLinkSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WorkspaceInvitationLink
+        fields = ("name",)
+        extra_kwargs = {"name": {"required": True}}
