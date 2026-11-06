@@ -1,10 +1,17 @@
-from typing import Any, Optional
+from typing import Any, NamedTuple, Optional
 
 from django.db.models import QuerySet
 
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.core.registry import Instance, Registry
+
+
+class SemanticSearchTexts(NamedTuple):
+    texts: list[str]
+    # False if a part of the value couldn't be read, like a file of which the
+    # storage was unavailable, so that the value is read again by a later update.
+    complete: bool = True
 
 
 class SemanticSearchFieldType(Instance):
@@ -33,7 +40,7 @@ class SemanticSearchFieldType(Instance):
 
         raise NotImplementedError
 
-    def get_texts(self, field: Field, value: Any) -> list[str]:
+    def get_texts(self, field: Field, value: Any) -> SemanticSearchTexts:
         """
         :param field: The field of the value.
         :param value: A value returned by `get_values`.
@@ -41,6 +48,14 @@ class SemanticSearchFieldType(Instance):
         """
 
         raise NotImplementedError
+
+    def get_index_settings(self) -> list:
+        """
+        :return: The settings that change the texts of the same value, so that all
+            values are indexed again when they change.
+        """
+
+        return []
 
 
 class SemanticSearchFieldTypeRegistry(Registry[SemanticSearchFieldType]):
