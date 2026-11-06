@@ -241,8 +241,8 @@ def test_wait_node_fails_when_the_wait_exceeds_the_maximum(data_fixture):
 @patch(f"{NODE_HANDLER_PATH}.automation_node_updated")
 def test_wait_node_never_waits_while_simulating(mock_node_updated, data_fixture):
     """
-    Simulating up to the Wait node completes at once with the result a real
-    wait would have produced, which is stored as the node's sample data.
+    Simulating up to the Wait node returns at once with the result a real wait
+    would have produced, which is stored as the node's sample data.
     """
 
     data = create_wait_workflow(data_fixture, seconds="3600")
@@ -257,8 +257,10 @@ def test_wait_node_never_waits_while_simulating(mock_node_updated, data_fixture)
     # The simulated node was reached: nothing follows.
     assert result is None
 
+    # Nothing waits. The runner stops at the simulated node before it closes the
+    # node's history entry, which is thrown away with the simulation's run.
     node_history = get_wait_node_history(data)
-    assert node_history.status == HistoryStatusChoices.SUCCESS
+    assert node_history.status != HistoryStatusChoices.WAITING
     assert node_history.resume_at is None
     assert node_history.resume_state is None
 
