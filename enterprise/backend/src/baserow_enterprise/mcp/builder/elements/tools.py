@@ -70,5 +70,5 @@ class MoveElementsMcpTool(FunctionMCPTool):
     group = GROUP_BUILDER_EDIT
     title = "Move elements"
     read_only = False
-    destructive = False
+    destructive = True
     function = elements.move_elements

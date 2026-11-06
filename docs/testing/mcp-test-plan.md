@@ -345,7 +345,8 @@ goes to the trash.
 
 ### Create a new application website
 
-Needs an enterprise licence. Connect with `builder_edit` ticked. Ask Claude:
+Needs the enterprise app, which an instance with `BASEROW_OSS_ONLY` doesn't
+have. No licence is needed. Connect with `builder_edit` ticked. Ask Claude:
 *"create a new application website"*
 
 Expected: Claude calls `create_builder` and nothing else that creates an
@@ -367,9 +368,10 @@ ask Claude, one request at a time:
 2. *"On Products, list the rows of [table name] and show them in a table."*
    Expected: `create_data_sources`, then `create_collection_elements`. The
    table shows the rows.
-3. *"Filter that data source with a formula."* Give a formula that doesn't
-   parse. Expected: the item is created and listed in `formula_errors`, and
-   Claude repairs it with `update_data_source`. No model is called by Baserow.
+3. *"Search that data source for get('page_parameter.missing')."* The page
+   has no such parameter. Expected: `update_data_source` changes the existing
+   data source, its search query stays as it was (empty), and the value is
+   listed in `formula_errors`. No model is called by Baserow.
 4. *"Add a button on Home that opens Products."* Expected: `create_display_elements`,
    then `create_actions`.
 5. *"Let people log in with the [users table]."* Expected: `setup_user_source`
