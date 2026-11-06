@@ -510,6 +510,8 @@ def test_resume_pending_node_keeps_the_iterator_position(
         "state": {"seconds": 5},
         "current_iterations": current_iterations,
     }
+    # Stored at creation, so the history panel can place the waiting node.
+    assert node_history.iteration_path == "1"
 
     mock_resume_dispatch.return_value = DispatchResult(data={"id": 10})
     with freeze_time("2026-10-30 12:00:05"):

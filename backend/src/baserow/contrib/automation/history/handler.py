@@ -278,10 +278,13 @@ class AutomationHistoryHandler:
         completed_on: Optional[datetime] = None,
         message: str = "",
         attempt: int = 1,
+        iteration_path: str = "",
     ) -> AutomationNodeHistory:
         """
         Creates a history entry for a Node dispatch. Every attempt of a node
         gets its own entry; `attempt` records which one this is, starting at 1.
+        `iteration_path` is the iteration the node is dispatched in ("" outside
+        an iterator).
         """
 
         return AutomationNodeHistory.objects.create(
@@ -292,6 +295,7 @@ class AutomationHistoryHandler:
             completed_on=completed_on,
             message=message,
             attempt=attempt,
+            iteration_path=iteration_path,
         )
 
     def create_node_result(

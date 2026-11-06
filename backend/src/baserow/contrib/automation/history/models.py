@@ -141,6 +141,14 @@ class AutomationNodeHistory(AutomationHistory):
         db_default=1,
         help_text="Which attempt of the node this entry records, starting at 1.",
     )
+    iteration_path = models.CharField(
+        default="",
+        db_default="",
+        blank=True,
+        help_text="The iteration path the node was dispatched in, set when the entry "
+        "is created so a node without a result yet (waiting, cancelled while "
+        "waiting) can still be placed under its iteration.",
+    )
     resume_at = models.DateTimeField(
         null=True,
         blank=True,
