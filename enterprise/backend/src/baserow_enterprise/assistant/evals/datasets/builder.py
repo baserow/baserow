@@ -21,6 +21,7 @@ from baserow.contrib.builder.elements.actions import (
 )
 from baserow.contrib.builder.elements.models import (
     Element,
+    InputTextElement,
     MenuElement,
     MenuItemElement,
     TableElement,
@@ -497,6 +498,21 @@ def _check_creates_contact_form(
         else False
     )
 
+    inputs = {
+        element.id: element.specific
+        for element in elements.filter(content_type__model="inputtextelement")
+    }
+
+    def _input_of(field) -> InputTextElement | None:
+        ids = {int(m) for m in form_data_re.findall(str(mappings.get(field.id, "")))}
+        return inputs.get(ids.pop()) if len(ids) == 1 else None
+
+    name_input, email_input = _input_of(name_field), _input_of(email_field)
+    email_input_ok = email_input is not None and (
+        email_input.validation_type == "email"
+        or "mail" in str(email_input.label).lower()
+    )
+
     return [
         CheckResult("page created", pages.exists(), hint="no pages found in DB"),
         CheckResult(
@@ -541,6 +557,14 @@ def _check_creates_contact_form(
             "all field mappings reference form input elements",
             all_map_formulas_ok,
             hint=f"formulas: {list(mappings.values())}, form input IDs: {form_input_ids}",
+        ),
+        CheckResult(
+            "Name and Email read their own inputs",
+            name_input is not None
+            and email_input_ok
+            and name_input.id != email_input.id
+            and "mail" not in str(name_input.label).lower(),
+            hint=f"formulas: {list(mappings.values())}",
         ),
     ]
 

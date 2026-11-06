@@ -94,9 +94,28 @@ def _check_search_finds_row(
     ]
 
 
+_DENIALS = (
+    "no table",
+    "no invoices table",
+    "not find",
+    "couldn't find",
+    "could not find",
+    "didn't find",
+    "don't see",
+    "doesn't exist",
+    "does not exist",
+    "isn't one",
+    "create it",
+    "create one",
+    "create an invoices",
+    "create a new",
+)
+
+
 def _check_search_finds_table(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
+    answer = output.answer.lower()
     return [
         CheckResult(
             "called search_workspace or list_tables",
@@ -104,8 +123,13 @@ def _check_search_finds_table(
             >= 1,
         ),
         CheckResult(
-            "answer mentions Invoices",
-            "invoices" in output.answer.lower(),
+            "answer names the Sales/Invoices table",
+            "invoices" in answer and "sales" in answer,
+            hint=output.answer[:200],
+        ),
+        CheckResult(
+            "answer doesn't deny it or offer to create it",
+            not any(marker in answer for marker in _DENIALS),
             hint=output.answer[:200],
         ),
     ]
@@ -484,13 +508,18 @@ def _check_creates_dashboard(
 ) -> list[CheckResult]:
     workspace = scenario.workspace
     dashboards = list(Dashboard.objects.filter(workspace=workspace))
+    applications = [
+        application.name
+        for application in Application.objects.filter(workspace=workspace)
+    ]
     return [
         CheckResult(
             "called create_dashboard", tool_called(output, "create_dashboard") >= 1
         ),
         CheckResult(
             "exactly one dashboard, named Sales Overview",
-            len(dashboards) == 1 and "sales" in dashboards[0].name.lower(),
+            len(dashboards) == 1
+            and len(_named(Dashboard, workspace, "Sales Overview")) == 1,
             hint=f"found {len(dashboards)}: {[d.name for d in dashboards]}",
         ),
         CheckResult(
@@ -501,6 +530,11 @@ def _check_creates_dashboard(
         CheckResult(
             "databases unchanged",
             Database.objects.filter(workspace=workspace).count() == 1,
+        ),
+        CheckResult(
+            "no other application created",
+            len(applications) == 2,
+            hint=f"applications: {applications}",
         ),
     ]
 
