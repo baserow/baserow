@@ -67,6 +67,11 @@ class PublicWorkspaceInvitationLinkSerializer(serializers.ModelSerializer):
         "and joining through the link would raise their role, on the object of the "
         "link if it has one."
     )
+    adds_member = serializers.SerializerMethodField(
+        help_text="Set when the user who opens the link is a member of the workspace "
+        "and joining through the link would add them to the object of the link, "
+        "like a team."
+    )
 
     class Meta:
         model = WorkspaceInvitationLink
@@ -79,6 +84,7 @@ class PublicWorkspaceInvitationLinkSerializer(serializers.ModelSerializer):
             "scope_id",
             "scope_name",
             "role_upgrade",
+            "adds_member",
         )
 
     @extend_schema_field(OpenApiTypes.STR)
@@ -117,3 +123,10 @@ class PublicWorkspaceInvitationLinkSerializer(serializers.ModelSerializer):
             "current_permissions": current_permissions,
             "permissions": object.permissions,
         }
+
+    @extend_schema_field(OpenApiTypes.BOOL)
+    def get_adds_member(self, object):
+        user = self.context.get("user")
+        if user is None:
+            return False
+        return CoreHandler().invitation_link_adds_member(user, object)

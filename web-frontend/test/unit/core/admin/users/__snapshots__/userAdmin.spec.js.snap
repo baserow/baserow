@@ -26,7 +26,7 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
         <tr class="data-table__table-row">
           <th style="" class="data-table__table-cell data-table__table-cell--header data-table__table-cell--sticky-left">
             <div class="data-table__table-cell-head">
-              <div><button type="button" class="data-table__table-cell-head-link">usersAdminTable.username</button>
+              <div class="data-table__table-cell-head-title"><button type="button" class="data-table__table-cell-head-link">usersAdminTable.username</button>
                 <!--v-if-->
               </div>
               <div class="data-table__table-cell-head-sort-icon">
@@ -36,7 +36,7 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
           </th>
           <th style="" class="data-table__table-cell data-table__table-cell--header">
             <div class="data-table__table-cell-head">
-              <div><button type="button" class="data-table__table-cell-head-link">usersAdminTable.name</button>
+              <div class="data-table__table-cell-head-title"><button type="button" class="data-table__table-cell-head-link">usersAdminTable.name</button>
                 <!--v-if-->
               </div>
               <div class="data-table__table-cell-head-sort-icon">
@@ -46,14 +46,14 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
           </th>
           <th style="" class="data-table__table-cell data-table__table-cell--header">
             <div class="data-table__table-cell-head">
-              <div>usersAdminTable.workspaces
+              <div class="data-table__table-cell-head-title">usersAdminTable.workspaces
                 <!--v-if-->
               </div>
             </div>
           </th>
           <th style="" class="data-table__table-cell data-table__table-cell--header">
             <div class="data-table__table-cell-head">
-              <div><button type="button" class="data-table__table-cell-head-link">usersAdminTable.lastLogin</button>
+              <div class="data-table__table-cell-head-title"><button type="button" class="data-table__table-cell-head-link">usersAdminTable.lastLogin</button>
                 <!--v-if-->
               </div>
               <div class="data-table__table-cell-head-sort-icon">
@@ -63,7 +63,7 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
           </th>
           <th style="" class="data-table__table-cell data-table__table-cell--header">
             <div class="data-table__table-cell-head">
-              <div><button type="button" class="data-table__table-cell-head-link">usersAdminTable.dateJoined</button>
+              <div class="data-table__table-cell-head-title"><button type="button" class="data-table__table-cell-head-link">usersAdminTable.dateJoined</button>
                 <!--v-if-->
               </div>
               <div class="data-table__table-cell-head-sort-icon">
@@ -73,7 +73,7 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
           </th>
           <th style="" class="data-table__table-cell data-table__table-cell--header">
             <div class="data-table__table-cell-head">
-              <div><button type="button" class="data-table__table-cell-head-link">user.active</button>
+              <div class="data-table__table-cell-head-title"><button type="button" class="data-table__table-cell-head-link">user.active</button>
                 <!--v-if-->
               </div>
               <div class="data-table__table-cell-head-sort-icon">
@@ -83,14 +83,14 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
           </th>
           <th style="" class="data-table__table-cell data-table__table-cell--header">
             <div class="data-table__table-cell-head">
-              <div>usersAdminTable.twoFactorAuth
+              <div class="data-table__table-cell-head-title">usersAdminTable.twoFactorAuth
                 <!--v-if-->
               </div>
             </div>
           </th>
           <th style="" class="data-table__table-cell data-table__table-cell--header data-table__table-cell--sticky-right">
             <div class="data-table__table-cell-head">
-              <div>
+              <div class="data-table__table-cell-head-title">
                 <!--v-if-->
               </div>
             </div>
@@ -208,7 +208,7 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
         <tr class="data-table__table-row">
           <th style="" class="data-table__table-cell data-table__table-cell--header data-table__table-cell--sticky-left">
             <div class="data-table__table-cell-head">
-              <div><button type="button" class="data-table__table-cell-head-link">usersAdminTable.username</button>
+              <div class="data-table__table-cell-head-title"><button type="button" class="data-table__table-cell-head-link">usersAdminTable.username</button>
                 <!--v-if-->
               </div>
               <div class="data-table__table-cell-head-sort-icon">
@@ -218,7 +218,7 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
           </th>
           <th style="" class="data-table__table-cell data-table__table-cell--header">
             <div class="data-table__table-cell-head">
-              <div><button type="button" class="data-table__table-cell-head-link">usersAdminTable.name</button>
+              <div class="data-table__table-cell-head-title"><button type="button" class="data-table__table-cell-head-link">usersAdminTable.name</button>
                 <!--v-if-->
               </div>
               <div class="data-table__table-cell-head-sort-icon">
@@ -228,14 +228,14 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
           </th>
           <th style="" class="data-table__table-cell data-table__table-cell--header">
             <div class="data-table__table-cell-head">
-              <div>usersAdminTable.workspaces
+              <div class="data-table__table-cell-head-title">usersAdminTable.workspaces
                 <!--v-if-->
               </div>
             </div>
           </th>
           <th style="" class="data-table__table-cell data-table__table-cell--header">
             <div class="data-table__table-cell-head">
-              <div><button type="button" class="data-table__table-cell-head-link">usersAdminTable.lastLogin</button>
+              <div class="data-table__table-cell-head-title"><button type="button" class="data-table__table-cell-head-link">usersAdminTable.lastLogin</button>
                 <!--v-if-->
               </div>
               <div class="data-table__table-cell-head-sort-icon">
@@ -245,7 +245,7 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
           </th>
           <th style="" class="data-table__table-cell data-table__table-cell--header">
             <div class="data-table__table-cell-head">
-              <div><button type="button" class="data-table__table-cell-head-link">usersAdminTable.dateJoined</button>
+              <div class="data-table__table-cell-head-title"><button type="button" class="data-table__table-cell-head-link">usersAdminTable.dateJoined</button>
                 <!--v-if-->
               </div>
               <div class="data-table__table-cell-head-sort-icon">
@@ -255,7 +255,7 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
           </th>
           <th style="" class="data-table__table-cell data-table__table-cell--header">
             <div class="data-table__table-cell-head">
-              <div><button type="button" class="data-table__table-cell-head-link">user.active</button>
+              <div class="data-table__table-cell-head-title"><button type="button" class="data-table__table-cell-head-link">user.active</button>
                 <!--v-if-->
               </div>
               <div class="data-table__table-cell-head-sort-icon">
@@ -265,14 +265,14 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
           </th>
           <th style="" class="data-table__table-cell data-table__table-cell--header">
             <div class="data-table__table-cell-head">
-              <div>usersAdminTable.twoFactorAuth
+              <div class="data-table__table-cell-head-title">usersAdminTable.twoFactorAuth
                 <!--v-if-->
               </div>
             </div>
           </th>
           <th style="" class="data-table__table-cell data-table__table-cell--header data-table__table-cell--sticky-right">
             <div class="data-table__table-cell-head">
-              <div>
+              <div class="data-table__table-cell-head-title">
                 <!--v-if-->
               </div>
             </div>

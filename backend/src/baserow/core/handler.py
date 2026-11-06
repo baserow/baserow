@@ -1937,6 +1937,30 @@ class CoreHandler:
             return None
         return permissions
 
+    def invitation_link_adds_member(
+        self, user: AbstractUser, invitation_link: WorkspaceInvitationLink
+    ) -> bool:
+        """
+        Whether joining through a link to an object of the workspace would add a
+        member of the workspace to that object, like a team they aren't in yet.
+
+        :param user: The user who opened the link, possibly anonymous.
+        :param invitation_link: The link the user opened.
+        :return: True if the user is a member and joining would add them to the
+            object of the link.
+        """
+
+        if not user.is_authenticated or invitation_link.scope_type_id is None:
+            return False
+
+        if not WorkspaceUser.objects.filter(
+            user=user, workspace_id=invitation_link.workspace_id
+        ).exists():
+            return False
+
+        scope_type = self.get_invitation_link_scope_type(invitation_link)
+        return scope_type is not None and scope_type.adds_member(user, invitation_link)
+
     def join_workspace_via_invitation_link(
         self, user: AbstractUser, invitation_link: WorkspaceInvitationLink
     ) -> WorkspaceUser:
@@ -1945,7 +1969,9 @@ class CoreHandler:
         link. Someone who is already a member gets the permissions of the link when
         they are an upgrade, and otherwise keeps their current permissions. A link
         to an object of the workspace gives its permissions on that object only,
-        and with the same rule: they're never lowered.
+        and with the same rule: they're never lowered. A link that adds members
+        to its object, like a team, adds anyone who isn't in it yet, which can
+        change their access to what the object gives access to, and lower it.
 
         :param user: The user who joins the workspace.
         :param invitation_link: The link the user joins through.
@@ -1963,8 +1989,12 @@ class CoreHandler:
                 permissions=scope_type.get_newcomer_permissions(invitation_link),
             )
             # A link can raise the role of a member on its object, but never
-            # lowers it.
-            if scope_type.get_raised_role(user, invitation_link) is not None:
+            # lowers it. A link that adds members to its object, like a team,
+            # adds anyone who isn't in it yet, even if the role of the object
+            # gives them less access somewhere.
+            if scope_type.get_raised_role(
+                user, invitation_link
+            ) is not None or scope_type.adds_member(user, invitation_link):
                 scope_type.give_role(user, invitation_link)
         else:
             workspace_user = self.add_user_to_workspace(

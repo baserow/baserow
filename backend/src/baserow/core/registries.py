@@ -1130,12 +1130,29 @@ class InvitationLinkScopeType(Instance, abc.ABC):
             doesn't give the member more than they already have there.
         """
 
+    def adds_member(
+        self, user: "AbstractUser", invitation_link: "WorkspaceInvitationLink"
+    ) -> bool:
+        """
+        Whether joining through the link adds a member of the workspace to the
+        object of the link itself, like a team, instead of giving them a role on
+        it. Such a join can't be compared with the role the member has, so they
+        confirm it without a role upgrade.
+
+        :param user: A member of the workspace of the link.
+        :param invitation_link: The link that targets an object of this type.
+        :return: True if joining would add the member to the object.
+        """
+
+        return False
+
     @abc.abstractmethod
     def give_role(
         self, user: "AbstractUser", invitation_link: "WorkspaceInvitationLink"
     ):
         """
-        Gives the member the role of the link on the object of the link.
+        Gives the member what the link grants on its object: the role of the link
+        on it, or a place in it when the link adds members to the object.
 
         :param user: The member who joins through the link.
         :param invitation_link: The link that targets an object of this type.

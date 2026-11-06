@@ -181,11 +181,14 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.teams.actions import (
             CreateTeamActionType,
             CreateTeamInvitationActionType,
+            CreateTeamInvitationLinkActionType,
             CreateTeamSubjectActionType,
             DeleteTeamActionType,
             DeleteTeamInvitationActionType,
+            DeleteTeamInvitationLinkActionType,
             DeleteTeamSubjectActionType,
             UpdateTeamActionType,
+            UpdateTeamInvitationLinkActionType,
         )
         from baserow_enterprise.teams.object_scopes import (
             TeamObjectScopeType,
@@ -249,6 +252,9 @@ class BaserowEnterpriseConfig(AppConfig):
         action_type_registry.register(DeleteTeamSubjectActionType())
         action_type_registry.register(CreateTeamInvitationActionType())
         action_type_registry.register(DeleteTeamInvitationActionType())
+        action_type_registry.register(CreateTeamInvitationLinkActionType())
+        action_type_registry.register(UpdateTeamInvitationLinkActionType())
+        action_type_registry.register(DeleteTeamInvitationLinkActionType())
         action_type_registry.register(BatchAssignRoleActionType())
         action_type_registry.register(CreateScopedInvitationActionType())
         action_type_registry.register(UpdateScopedInvitationActionType())
@@ -322,6 +328,10 @@ class BaserowEnterpriseConfig(AppConfig):
                 invitation_link_scope_type_registry.register(
                     RoleInvitationLinkScopeType(scope_type_name)
                 )
+
+        from .teams.invitation_link_scope_types import TeamInvitationLinkScopeType
+
+        invitation_link_scope_type_registry.register(TeamInvitationLinkScopeType())
 
         from baserow_enterprise.license_types import (
             AdvancedLicenseType,

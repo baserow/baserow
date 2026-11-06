@@ -59,3 +59,25 @@ describe('WorkspaceInvitationTargetType', () => {
     }
   })
 })
+
+describe('InvitationTargetType link defaults', () => {
+  test('links grant admin only with the admin role and have no role label', () => {
+    const targetType = new WorkspaceInvitationTargetType({ app: {} })
+    const workspace = { id: 1 }
+    const target = { type: 'workspace' }
+
+    expect(
+      targetType.invitationLinkGrantsAdmin(workspace, target, 'ADMIN')
+    ).toBe(true)
+    expect(
+      targetType.invitationLinkGrantsAdmin(workspace, target, 'MEMBER')
+    ).toBe(false)
+    expect(targetType.invitationLinkGrantsAdmin(workspace, target, null)).toBe(
+      false
+    )
+    expect(targetType.getInvitationLinkRole(workspace, target)).toBe(null)
+    expect(targetType.getInvitationLinkRoleHelpText(workspace, target)).toBe(
+      null
+    )
+  })
+})
