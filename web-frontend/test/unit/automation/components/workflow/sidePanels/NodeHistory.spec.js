@@ -203,6 +203,10 @@ describe('NodeHistory of a run in progress', () => {
     expect(badge.text()).toBe('historySidePanel.statusCancelledBadge')
     expect(badge.classes()).toContain('badge--neutral')
     expect(labels(wrapper)).toEqual([])
+    // It was stopped before it ran, so it has no result to show.
+    expect(wrapper.find('.node-history__header-show-result').exists()).toBe(
+      false
+    )
   })
 
   test('a finished node keeps its result toggle', () => {

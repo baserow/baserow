@@ -392,10 +392,11 @@ const waitingUntilTitle = computed(() =>
 )
 
 /**
- * A node that is still waiting or running has not produced its result yet.
+ * A node that is still waiting or running has not produced its result yet, and
+ * a waiting one the run was cancelled at never will.
  */
 const hasResult = computed(
-  () => !['waiting', 'started'].includes(props.nodeHistory.status)
+  () => !['waiting', 'started', 'cancelled'].includes(props.nodeHistory.status)
 )
 
 const errorMessage = computed(() => props.nodeHistory.message)
