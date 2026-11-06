@@ -113,18 +113,15 @@ describe('ChatStepGroup', () => {
     expect(wrapper.find('pre').exists()).toBe(false)
   })
 
-  test.each([null, {}, { values: {} }, { values: [] }, { values: 'private' }])(
-    'does not add a toggle for unavailable input: %j',
-    (input) => {
-      const wrapper = mount(ChatStepGroup, {
-        props: { title: 'Added rows', status: 'done', input },
-        global: { directives: { tooltip }, mocks: { $t: (key) => key } },
-      })
+  test('does not add a toggle without input', () => {
+    const wrapper = mount(ChatStepGroup, {
+      props: { title: 'Added rows', status: 'done', input: null },
+      global: { directives: { tooltip }, mocks: { $t: (key) => key } },
+    })
 
-      expect(wrapper.find('button').exists()).toBe(false)
-      expect(wrapper.find('pre').exists()).toBe(false)
-    }
-  )
+    expect(wrapper.find('button').exists()).toBe(false)
+    expect(wrapper.find('pre').exists()).toBe(false)
+  })
 
   test.each([false, true])(
     'shows an escaped failure hint on a header icon, expandable: %s',

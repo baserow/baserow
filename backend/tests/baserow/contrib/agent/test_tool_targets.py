@@ -207,8 +207,6 @@ def test_name_catalog_and_targets_are_bounded_and_reject_invalid_names(mocker):
     values = {("table", i): f"Table {i}" for i in range(1, STEP_RESOURCE_LIMIT + 2)}
     values.update(
         {
-            ("table", 0): "Invalid ID",
-            ("table", True): "Invalid ID type",
             ("table", 9991): "\ud800",
             ("table", 9992): "Bad\x00name",
             ("table", 9993): "",

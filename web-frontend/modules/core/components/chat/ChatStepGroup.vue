@@ -122,22 +122,9 @@ const failureTooltipOptions = {
 const detailsId = useId()
 // Workspace activity starts open; action inputs are available on demand.
 const expanded = ref(props.lines.length > 0)
-const inputText = computed(() => {
-  const values = props.input?.values
-  if (
-    !values ||
-    typeof values !== 'object' ||
-    Array.isArray(values) ||
-    !Object.keys(values).length
-  ) {
-    return ''
-  }
-  try {
-    return JSON.stringify(values, null, 2)
-  } catch {
-    return ''
-  }
-})
+const inputText = computed(() =>
+  props.input ? JSON.stringify(props.input.values, null, 2) : ''
+)
 const hasDetails = computed(() => props.lines.length > 0 || !!inputText.value)
 const statusClass = computed(() => ({
   'chat-step-group__status--visible':

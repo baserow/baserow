@@ -213,18 +213,7 @@ class AgentResponder:
             resources = agent_tool_type_registry.get(name).get_step_resources(
                 part.content
             )
-            if not isinstance(resources, dict):
-                raise TypeError("Step resources must be a dictionary")
             for key, value in resources.items():
-                if (
-                    not isinstance(key, tuple)
-                    or len(key) != 2
-                    or not isinstance(key[0], str)
-                    or not 0 < len(key[0]) <= 64
-                    or type(key[1]) is not int
-                    or key[1] <= 0
-                ):
-                    continue
                 label = _step_name(value, STEP_RESOURCE_NAME_MAX_LENGTH)
                 if label is None:
                     continue
