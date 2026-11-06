@@ -30,7 +30,8 @@ class BaserowEmbedder:
         self.dimensions = dimensions
         self.timeout = timeout
 
-    def _embed(self, texts: list[str], batch_size=8) -> list[list[float]]:
+    def _embed(self, texts: list[str]) -> list[list[float]]:
+        batch_size = settings.BASEROW_EMBEDDINGS_TEXTS_PER_REQUEST
         embeddings = []
         client = httpxClient(base_url=self.api_url, timeout=self.timeout)
         try:
