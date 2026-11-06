@@ -14,6 +14,7 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from baserow.contrib.database.models import Database
 from baserow.contrib.database.views.models import GridView, View
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.contrib.database.views.view_types import GridViewType
@@ -237,15 +238,25 @@ def test_admin_search_finds_every_view_of_a_database_with_many_tables(
 @pytest.mark.django_db
 def test_admin_search_matches_ids_exactly(api_client, data_fixture):
     _, token = data_fixture.create_user_and_token(is_staff=True)
+    # Parent IDs also match searches. Keep them independent of the view IDs so
+    # sequence values left by other tests cannot introduce legitimate matches.
+    workspace = data_fixture.create_workspace(id=50, name="Workspace")
+    database = data_fixture.create_database_application(
+        id=51,
+        content_type=ContentType.objects.get_for_model(Database),
+        workspace=workspace,
+        name="Database",
+    )
+    table = data_fixture.create_database_table(id=52, database=database, name="Table")
     # The ids are set explicitly so that one contains the other, which is what tells
     # an exact match apart from a substring one. A view only sets its own content
     # type when it is saved without an id, so it has to be provided here as well.
     content_type = ContentType.objects.get_for_model(GridView)
     view = data_fixture.create_grid_view(
-        id=1000, content_type=content_type, name="Some view"
+        id=1000, content_type=content_type, table=table, name="Some view"
     )
     data_fixture.create_grid_view(
-        id=10001, content_type=content_type, name="Another view"
+        id=10001, content_type=content_type, table=table, name="Another view"
     )
 
     url = reverse("api:database:admin:views:list")

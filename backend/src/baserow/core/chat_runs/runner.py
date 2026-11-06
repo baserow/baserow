@@ -6,6 +6,8 @@ from django.db import transaction
 from asgiref.sync import sync_to_async
 from loguru import logger
 
+from baserow.core.db import with_usable_db_connection
+
 from .buffer import close_buffer_redis
 from .constants import (
     RUN_DEADLINE_SECONDS,
@@ -67,6 +69,7 @@ async def run_chat_run(run: ChatRun, run_type: ChatRunType) -> None:
         await close_buffer_redis()
 
 
+@with_usable_db_connection
 def _finish(
     run_type: ChatRunType, run: ChatRun, outcome: ChatRunOutcome
 ) -> dict | None:

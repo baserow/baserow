@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from uuid import UUID
 
 from baserow.core.models import Workspace
@@ -28,6 +28,7 @@ class AgentConfiguration:
     provider_type: str | None
     model_identifier: str | None
     run_as: AgentRunAsResolution
+    allowed_tools: list[str]
     errors: dict[str, AgentConfigurationErrorCode]
 
 
@@ -46,8 +47,8 @@ class AgentMessageCreated:
 @dataclass
 class AgentConfigurationUpdated:
     agent: AgentApplication
-    original_values: dict[str, str | int | None]
-    new_values: dict[str, str | int | None]
+    original_values: dict[str, str | int | list[str] | None]
+    new_values: dict[str, str | int | list[str] | None]
     configuration: AgentConfiguration
 
 
@@ -62,3 +63,9 @@ class AgentReplyRequest:
     history: list[AgentMessage]
     run_as_unavailable: bool = False
     """An identity is configured but cannot be used for workspace access."""
+    acting_subject: Subject | None = None
+    """Who the tools act as, or None for no workspace access."""
+    allowed_tool_names: list[str] = field(default_factory=list)
+    """The tools the reply may call, none without an identity to act as."""
+    timezone: str | None = None
+    """The timezone of the owner, for the dates the tools read and write."""

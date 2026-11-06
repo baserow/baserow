@@ -1,4 +1,5 @@
 import asyncio
+import json
 from uuid import uuid4
 
 from django.contrib.auth.models import AbstractUser
@@ -6,12 +7,13 @@ from django.test import override_settings
 from django.urls import reverse
 
 import pytest
+from asgiref.sync import sync_to_async
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelHTTPError
-from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.models.function import DeltaToolCall, FunctionModel
 from pydantic_ai.models.instrumented import InstrumentationSettings
 from pydantic_ai.models.openai import OpenAIResponsesModel
 
@@ -20,7 +22,7 @@ from baserow.contrib.agent.actions import (
     CreateAgentMessageActionType,
 )
 from baserow.contrib.agent.chat_run_type import AgentChatRunType
-from baserow.contrib.agent.constants import INTERRUPTED_REPLY_NOTE
+from baserow.contrib.agent.constants import INTERRUPTED_REPLY_NOTE, TOOL_RETRIES
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import (
     AgentApplication,
@@ -32,6 +34,7 @@ from baserow.contrib.agent.replies import create_reply_model
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.signals import agent_conversation_updated
 from baserow.contrib.agent.types import AgentMessageCreated
+from baserow.contrib.database.table.models import Table
 from baserow.core.agents.service import AgentService as IdentityService
 from baserow.core.chat_runs.journal import ChatRunJournal
 from baserow.core.chat_runs.models import ChatRun
@@ -55,6 +58,32 @@ def run_of(conversation: AgentConversation) -> ChatRun:
 def reply_state(reply_id: int) -> tuple[str, str, str]:
     reply = AgentMessage.objects.get(id=reply_id)
     return reply.status, reply.error_code, reply.content
+
+
+def allow_create_rows(
+    data_fixture, agent: AgentApplication, with_identity: bool = True
+) -> Table:
+    """
+    Allow the Agent to create rows, in a new table of its workspace.
+
+    :param agent: The Agent to configure.
+    :param with_identity: Whether the Agent runs as an identity, without which it
+        calls no tool.
+    :return: The table, with a primary ``Name`` field.
+    """
+
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(workspace=agent.workspace)
+    )
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    identity = Identity.objects.create(workspace=agent.workspace, name="Ops")
+    AgentHandler().update_configuration(
+        agent,
+        run_as_subject_type="core.Agent" if with_identity else None,
+        run_as_subject_id=identity.id if with_identity else None,
+        allowed_tools=["create_rows"],
+    )
+    return table
 
 
 @pytest.fixture
@@ -546,3 +575,184 @@ def test_busy_conversations_and_workspaces_are_refused_with_their_errors(
     )
     assert AgentConversation.objects.count() == ChatRun.objects.count() == 1
     assert AgentMessage.objects.count() == 2
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("with_identity", [True, False])
+def test_a_reply_calls_the_allowed_tools_as_the_agent_identity(
+    data_fixture, configured_agent, mocker, with_identity
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    table = allow_create_rows(data_fixture, agent, with_identity)
+    offered = []
+
+    async def stream(messages, info):
+        offered.append([tool.name for tool in info.function_tools])
+        if info.function_tools and len(messages) == 1:
+            arguments = {"table_id": table.id, "rows": [{"Name": "Plan"}]}
+            yield {
+                0: DeltaToolCall(name="create_rows", json_args=json.dumps(arguments))
+            }
+        else:
+            yield "Done."
+
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(FunctionModel(stream_function=stream), {}),
+    )
+    created = start(user, agent)
+
+    run_reply(run_of(created.conversation))
+
+    assert reply_state(created.reply.id) == ("completed", "", "Done.")
+    rows = [row.name for row in table.get_model(attribute_names=True).objects.all()]
+    if with_identity:
+        assert (offered, rows) == ([["create_rows"], ["create_rows"]], ["Plan"])
+    else:
+        assert (offered, rows) == ([[]], [])
+
+
+@pytest.mark.django_db
+def test_a_reply_recovers_from_invalid_tool_calls(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    table = allow_create_rows(data_fixture, agent)
+    invalid = {"table_id": table.id, "rows": "Plan"}
+    valid = {"table_id": table.id, "rows": [{"Name": "Plan"}]}
+    calls = iter([invalid] * TOOL_RETRIES + [valid])
+
+    async def stream(messages, info):
+        arguments = next(calls, None)
+        if arguments is None:
+            yield "Done."
+        else:
+            yield {
+                0: DeltaToolCall(name="create_rows", json_args=json.dumps(arguments))
+            }
+
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(FunctionModel(stream_function=stream), {}),
+    )
+    created = start(user, agent)
+
+    run_reply(run_of(created.conversation))
+
+    assert reply_state(created.reply.id) == ("completed", "", "Done.")
+    rows = [row.name for row in table.get_model(attribute_names=True).objects.all()]
+    assert rows == ["Plan"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("change", ["clear", "replace"])
+def test_workspace_configuration_changes_apply_to_the_next_generation(
+    data_fixture, configured_agent, mocker, change
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    table = allow_create_rows(data_fixture, agent)
+    original_identity_id = agent.run_as_subject_id
+    replacement = Identity.objects.create(workspace=agent.workspace, name="Reader")
+    offered = []
+    rounds = 0
+
+    async def stream(messages, info):
+        nonlocal rounds
+        rounds += 1
+        offered.append([tool.name for tool in info.function_tools])
+        if rounds == 2:
+            await sync_to_async(AgentHandler().update_configuration)(
+                agent,
+                run_as_subject_type="core.Agent" if change == "replace" else None,
+                run_as_subject_id=replacement.id if change == "replace" else None,
+                allowed_tools=["list_views"] if change == "replace" else [],
+            )
+        if rounds in (1, 2):
+            yield {
+                0: DeltaToolCall(
+                    name="create_rows",
+                    json_args=json.dumps(
+                        {"table_id": table.id, "rows": [{"Name": f"Row {rounds}"}]}
+                    ),
+                )
+            }
+        else:
+            yield "Done."
+
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(FunctionModel(stream_function=stream), {}),
+    )
+    created = start(user, agent)
+    run_reply(run_of(created.conversation))
+
+    assert reply_state(created.reply.id) == ("completed", "", "Done.")
+    assert offered == [["create_rows"]] * 3
+    assert list(
+        table.get_model(attribute_names=True).objects.values_list("name", flat=True)
+    ) == ["Row 1", "Row 2"]
+    original_identity = Identity.objects.get(id=original_identity_id)
+    replacement.refresh_from_db()
+    assert original_identity.last_active is not None
+    assert replacement.last_active is None
+
+    next_reply = CreateAgentMessageActionType.do(
+        user, agent.id, created.conversation.uuid, uuid4(), "Try again"
+    )
+    request = AgentHandler().get_reply_request(
+        AgentHandler().get_reply(next_reply.reply.id)
+    )
+    assert request.allowed_tool_names == (["list_views"] if change == "replace" else [])
+    assert (request.acting_subject.pk if request.acting_subject else None) == (
+        replacement.id if change == "replace" else None
+    )
+    run_reply(ChatRun.objects.get(id=next_reply.run_id))
+    assert offered[-1] == (["list_views"] if change == "replace" else [])
+
+
+@pytest.mark.django_db
+def test_a_reply_cannot_keep_writing_after_its_identity_is_trashed(
+    data_fixture, configured_agent, mocker, settings
+):
+    settings.BASEROW_USE_LOCAL_CACHE = True
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    table = allow_create_rows(data_fixture, agent)
+    identity = Identity.objects.get(id=agent.run_as_subject_id)
+    rounds = 0
+
+    async def stream(messages, info):
+        nonlocal rounds
+        rounds += 1
+        if rounds == 2:
+            await sync_to_async(IdentityService().delete_agent)(user, identity)
+        if rounds in (1, 2):
+            name = "Before revocation" if rounds == 1 else "After revocation"
+            yield {
+                0: DeltaToolCall(
+                    name="create_rows",
+                    json_args=json.dumps(
+                        {"table_id": table.id, "rows": [{"Name": name}]}
+                    ),
+                )
+            }
+        else:
+            yield "Done."
+
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(FunctionModel(stream_function=stream), {}),
+    )
+    created = start(user, agent)
+
+    run_reply(run_of(created.conversation))
+
+    identity.refresh_from_db()
+    assert identity.trashed
+    assert reply_state(created.reply.id) == ("completed", "", "Done.")
+    assert list(
+        table.get_model(attribute_names=True).objects.values_list("name", flat=True)
+    ) == ["Before revocation"]

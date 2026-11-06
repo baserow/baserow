@@ -11,6 +11,7 @@ from baserow.contrib.agent.constants import AgentRunAsState
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication
 from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
+from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
 from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
@@ -126,6 +127,7 @@ class AgentApplicationType(ApplicationType):
             instructions=application.instructions,
             provider_type=application.provider_type,
             model_identifier=application.model_identifier,
+            allowed_tools=AgentHandler().get_allowed_tool_names(application),
         )
         # Identity ids are local references, not portable configuration.
         if (
@@ -171,6 +173,17 @@ class AgentApplicationType(ApplicationType):
             self._imported_run_as(workspace, serialized_values, import_export_config)
         )
         application.save()
+        registered = agent_tool_type_registry.get_types()
+        AgentHandler().set_allowed_tools(
+            application,
+            [
+                name
+                for name in serialized_values.get("allowed_tools", [])
+                if name in registered
+            ]
+            if application.run_as_subject_type and application.run_as_subject_id
+            else [],
+        )
         if self._includes_conversations(import_export_config):
             AgentHandler().import_conversations(
                 application, serialized_values.get("conversations", [])

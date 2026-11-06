@@ -1177,6 +1177,399 @@ describe('Agent configuration', () => {
     }
   )
 
+  const withTools = (allowedTools, runAs = investor) =>
+    completeConfiguration({
+      run_as: runAs,
+      allowed_tools: allowedTools,
+      available_tools: [
+        { name: 'list_tables', group: 'database', changes_data: false },
+        { name: 'create_rows', group: 'database', changes_data: true },
+        { name: 'delete_rows', group: 'database', changes_data: true },
+      ],
+    })
+
+  test.each(['Enter', ' '])(
+    'enables workspace tools with %s and opens named tool permissions',
+    async (key) => {
+      mockConfiguration(testApp, withTools([]))
+      mockSaves(
+        testApp,
+        withTools(['list_tables']),
+        withTools(['list_tables', 'create_rows'])
+      )
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.workspaceAccess')
+      const tools = wrapper.get('.agent-workspace-tools')
+      const toggle = tools.get('[role="switch"]')
+      expect(toggle.attributes('aria-label')).toBe('agent.workspaceTools')
+      expect(toggle.attributes('aria-checked')).toBe('false')
+      expect(toggle.element.tabIndex).toBe(0)
+      toggle.element.focus()
+      expect(document.activeElement).toBe(toggle.element)
+
+      await toggle.trigger('keydown', { key })
+      await flushPromises()
+
+      expect(toggle.attributes('aria-checked')).toBe('true')
+      const group = tools.get('button.agent-workspace-tools__group')
+      group.element.focus()
+      expect(document.activeElement).toBe(group.element)
+      await group.trigger('click')
+      await flushPromises()
+      const inputs = [
+        ...document.body.querySelectorAll(
+          '.agent-tool-permissions__tool input'
+        ),
+      ]
+      expect(inputs.map((input) => input.labels[0].textContent.trim())).toEqual(
+        ['agent.toolListTables', 'agent.toolCreateRows', 'agent.toolDeleteRows']
+      )
+      inputs[1].click()
+      ;[
+        ...document.body.querySelectorAll(
+          '.agent-tool-permissions__actions button'
+        ),
+      ]
+        .find((button) => button.textContent.includes('agent.toolsDone'))
+        .click()
+      await flushPromises()
+
+      expect(savedValues(testApp)).toEqual([
+        { allowed_tools: ['list_tables'] },
+        { allowed_tools: ['list_tables', 'create_rows'] },
+      ])
+    }
+  )
+
+  test('keeps workspace tool controls inactive for a read-only member', async () => {
+    allowed.value = (operation) => operation !== 'application.update'
+    mockConfiguration(testApp, withTools(['list_tables']))
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    const tools = wrapper.get('.agent-workspace-tools')
+    const toggle = tools.get('[role="switch"]')
+    expect(toggle.attributes('aria-disabled')).toBe('true')
+    expect(toggle.element.tabIndex).toBe(-1)
+    expect(
+      tools.get('button.agent-workspace-tools__group').element.disabled
+    ).toBe(true)
+
+    await toggle.trigger('keydown', { key: 'Enter' })
+    await toggle.trigger('keydown', { key: ' ' })
+    await tools.get('.segment-control__button').trigger('click')
+    await flushPromises()
+
+    expect(toggle.attributes('aria-checked')).toBe('true')
+    expect(savedValues(testApp)).toEqual([])
+  })
+
+  test('clears workspace tools when no workspace access is selected', async () => {
+    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(200, page([]))
+    mockConfiguration(testApp, withTools(['list_tables', 'create_rows']))
+    mockSaves(testApp, withTools([], null))
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    await pickRunAs(wrapper, 'agent.noWorkspaceAccess')
+
+    const tools = wrapper.get('.agent-workspace-tools')
+    const toggle = tools.get('[role="switch"]')
+    expect(toggle.attributes('aria-checked')).toBe('false')
+    expect(toggle.attributes('aria-disabled')).toBe('true')
+    expect(toggle.element.tabIndex).toBe(-1)
+    expect(tools.find('.agent-workspace-tools__presets').exists()).toBe(false)
+    expect(tools.get('.agent-workspace-tools__description').text()).toBe(
+      'agent.toolsRequireIdentity'
+    )
+    expect(wrapper.find('.alert--warning').exists()).toBe(false)
+    expect(savedValues(testApp)).toEqual([
+      {
+        run_as_subject_type: null,
+        run_as_subject_id: null,
+        allowed_tools: [],
+      },
+    ])
+    await wrapper.get('button[aria-label="action.back"]').trigger('click')
+    expect(workspaceAccessRow(wrapper).find('.icon--error').exists()).toBe(
+      false
+    )
+  })
+
+  test('requires an identity before tools can be enabled and keeps them off after selection', async () => {
+    mockConfiguration(testApp, withTools([], null))
+    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
+      200,
+      page([
+        {
+          id: 'core.Agent:7',
+          subject_id: 7,
+          subject_type: 'core.Agent',
+          name: 'Investor',
+        },
+      ])
+    )
+    mockSaves(testApp, withTools([]))
+    const wrapper = await mount()
+    expect(workspaceAccessRow(wrapper).find('.icon--error').exists()).toBe(
+      false
+    )
+    await openSection(wrapper, 'agent.workspaceAccess')
+    const tools = wrapper.get('.agent-workspace-tools')
+    const toggle = tools.get('[role="switch"]')
+    expect(toggle.attributes('aria-checked')).toBe('false')
+    expect(toggle.attributes('aria-disabled')).toBe('true')
+    expect(tools.get('.agent-workspace-tools__description').text()).toBe(
+      'agent.toolsRequireIdentity'
+    )
+
+    await toggle.trigger('click')
+    await toggle.trigger('keydown', { key: 'Enter' })
+    await toggle.trigger('keydown', { key: ' ' })
+    await flushPromises()
+    expect(savedValues(testApp)).toEqual([])
+    expect(toggle.attributes('aria-checked')).toBe('false')
+
+    await pickRunAs(wrapper, 'Investor')
+    expect(toggle.attributes('aria-checked')).toBe('false')
+    expect(toggle.attributes('aria-disabled')).toBe('false')
+    expect(tools.get('.agent-workspace-tools__description').text()).toBe(
+      'agent.workspaceToolsDescription'
+    )
+    expect(savedValues(testApp)).toEqual([
+      { run_as_subject_type: 'core.Agent', run_as_subject_id: 7 },
+    ])
+  })
+
+  test('keeps explicit tool activation while the identity selection is still saving', async () => {
+    const patch = deferredReply()
+    mockConfiguration(testApp, withTools([], null))
+    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
+      200,
+      page([
+        {
+          id: 'core.Agent:7',
+          subject_id: 7,
+          subject_type: 'core.Agent',
+          name: 'Investor',
+        },
+      ])
+    )
+    mockSaves(testApp, patch.reply, withTools(['list_tables']))
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+
+    await pickRunAs(wrapper, 'Investor')
+    const toggle = wrapper.get('.agent-workspace-tools [role="switch"]')
+    expect(toggle.attributes('aria-disabled')).toBe('false')
+    expect(toggle.attributes('aria-checked')).toBe('false')
+    await toggle.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(toggle.attributes('aria-checked')).toBe('true')
+    expect(savedValues(testApp)).toEqual([
+      { run_as_subject_type: 'core.Agent', run_as_subject_id: 7 },
+    ])
+
+    patch.resolve(200, withTools([]))
+    await flushPromises()
+
+    expect(toggle.attributes('aria-checked')).toBe('true')
+    expect(savedValues(testApp)).toEqual([
+      { run_as_subject_type: 'core.Agent', run_as_subject_id: 7 },
+      { allowed_tools: ['list_tables'] },
+    ])
+  })
+
+  test('does not reactivate legacy tool settings when selecting an identity from no workspace access', async () => {
+    mockConfiguration(testApp, withTools(['list_tables', 'create_rows'], null))
+    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
+      200,
+      page([
+        {
+          id: 'core.Agent:7',
+          subject_id: 7,
+          subject_type: 'core.Agent',
+          name: 'Investor',
+        },
+      ])
+    )
+    mockSaves(testApp, withTools([]))
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    const tools = wrapper.get('.agent-workspace-tools')
+    expect(tools.get('[role="switch"]').attributes('aria-checked')).toBe(
+      'false'
+    )
+    expect(tools.find('.agent-workspace-tools__presets').exists()).toBe(false)
+
+    await pickRunAs(wrapper, 'Investor')
+
+    expect(tools.get('[role="switch"]').attributes('aria-checked')).toBe(
+      'false'
+    )
+    expect(savedValues(testApp)).toEqual([
+      {
+        run_as_subject_type: 'core.Agent',
+        run_as_subject_id: 7,
+        allowed_tools: [],
+      },
+    ])
+  })
+
+  test.each([
+    [
+      'trashed',
+      { ...investor, trashed: true, status: 'trashed' },
+      'agent.runAsTrashed',
+    ],
+    [
+      'missing',
+      { ...investor, name: null, status: 'missing' },
+      'agent.runAsMissing',
+    ],
+  ])(
+    'keeps saved tools visible but inactive with a selected %s identity',
+    async (_, identity, errorMessage) => {
+      mockConfiguration(
+        testApp,
+        withTools(['list_tables', 'create_rows'], identity)
+      )
+      const wrapper = await mount()
+      expect(
+        workspaceAccessRow(wrapper).get('.icon--error').attributes('aria-label')
+      ).toBe(errorMessage)
+      await openSection(wrapper, 'agent.workspaceAccess')
+      const body = wrapper.get('.agent-configuration__body')
+      const tools = body.get('.agent-workspace-tools')
+      expect(body.get('.control__messages--error').text()).toBe(errorMessage)
+      expect(body.find('.alert--warning').exists()).toBe(false)
+      const toggle = tools.get('[role="switch"]')
+      expect(toggle.attributes('aria-checked')).toBe('true')
+      expect(toggle.attributes('aria-disabled')).toBe('true')
+      expect(tools.get('.agent-workspace-tools__group').element.disabled).toBe(
+        true
+      )
+      expect(tools.get('.agent-workspace-tools__group').text()).toContain(
+        'agent.toolsSelected'
+      )
+      expect(
+        tools
+          .findAll('.segment-control__button')
+          .every((button) => button.element.disabled)
+      ).toBe(true)
+      expect(tools.get('.agent-workspace-tools__description').text()).toBe(
+        'agent.toolsRequireIdentity'
+      )
+
+      await toggle.trigger('keydown', { key: 'Enter' })
+      await tools.get('.segment-control__button').trigger('click')
+      await tools.get('.agent-workspace-tools__group').trigger('click')
+      await flushPromises()
+
+      expect(savedValues(testApp)).toEqual([])
+      expect(
+        document.body.querySelector('.agent-tool-permissions__tool')
+      ).toBeNull()
+    }
+  )
+
+  test('restores saved tools and clears the section error when the identity becomes available again', async () => {
+    mockConfiguration(
+      testApp,
+      withTools(['create_rows'], { ...investor, trashed: true })
+    )
+    const wrapper = await mount()
+    expect(workspaceAccessRow(wrapper).find('.icon--error').exists()).toBe(true)
+    await openSection(wrapper, 'agent.workspaceAccess')
+    const body = wrapper.get('.agent-configuration__body')
+    const toggle = body.get('.agent-workspace-tools [role="switch"]')
+    expect(toggle.attributes('aria-checked')).toBe('true')
+    expect(toggle.attributes('aria-disabled')).toBe('true')
+
+    mockConfiguration(testApp, withTools(['create_rows']))
+    await remoteUpdate(testApp, agent)
+
+    expect(body.find('.control__messages--error').exists()).toBe(false)
+    expect(body.find('.alert--warning').exists()).toBe(false)
+    expect(toggle.attributes('aria-checked')).toBe('true')
+    expect(toggle.attributes('aria-disabled')).toBe('false')
+    await wrapper.get('button[aria-label="action.back"]').trigger('click')
+    expect(workspaceAccessRow(wrapper).find('.icon--error').exists()).toBe(
+      false
+    )
+    expect(savedValues(testApp)).toEqual([])
+  })
+
+  test('disables an open tool permissions modal when edit access is revoked', async () => {
+    mockConfiguration(testApp, withTools(['list_tables']))
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    await wrapper.get('.agent-workspace-tools__group').trigger('click')
+    await flushPromises()
+
+    allowed.value = (operation) => operation !== 'application.update'
+    await flushPromises()
+
+    const inputs = [
+      ...document.body.querySelectorAll('.agent-tool-permissions__tool input'),
+    ]
+    expect(inputs).toHaveLength(3)
+    expect(inputs.every((input) => input.disabled)).toBe(true)
+    const done = [
+      ...document.body.querySelectorAll(
+        '.agent-tool-permissions__actions button'
+      ),
+    ].find((button) => button.textContent.includes('agent.toolsDone'))
+    expect(done.disabled).toBe(true)
+    done.click()
+    expect(savedValues(testApp)).toEqual([])
+  })
+
+  test('allows workspace tools with presets or one by one', async () => {
+    const everything = ['list_tables', 'create_rows', 'delete_rows']
+    mockConfiguration(testApp, withTools(['list_tables']))
+    mockSaves(
+      testApp,
+      withTools(everything),
+      withTools(['list_tables', 'create_rows']),
+      withTools([])
+    )
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    await flushPromises()
+    const tools = () => wrapper.get('.agent-workspace-tools')
+    const inModal = (selector, text) =>
+      [...document.body.querySelectorAll(selector)].find((element) =>
+        element.textContent.includes(text)
+      )
+    expect(tools().get('.segment-control__button--active').text()).toBe(
+      'agent.toolsReadOnly'
+    )
+
+    await tools()
+      .findAll('.segment-control__button')
+      .find((button) => button.text() === 'agent.toolsEverything')
+      .trigger('click')
+    await flushPromises()
+    await tools().get('.agent-workspace-tools__group').trigger('click')
+    await flushPromises()
+    inModal('.agent-tool-permissions__tool', 'agent.toolDeleteRows')
+      .querySelector('input')
+      .click()
+    inModal(
+      '.agent-tool-permissions__actions button',
+      'agent.toolsDone'
+    ).click()
+    await flushPromises()
+    await tools().get('.switch').trigger('click')
+    await flushPromises()
+
+    expect(savedValues(testApp)).toEqual([
+      { allowed_tools: everything },
+      { allowed_tools: ['list_tables', 'create_rows'] },
+      { allowed_tools: [] },
+    ])
+    expect(wrapper.find('.agent-workspace-tools__group').exists()).toBe(false)
+  })
+
   test('renames the Agent through the application with the trimmed name', async () => {
     mockRename(testApp, { ...agentData, name: 'Support' })
     const wrapper = await mount()

@@ -11,8 +11,36 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.notification_types import (
     FormSubmittedNotificationType,
 )
-from baserow.core.models import WorkspaceUser
+from baserow.core.models import Agent, WorkspaceUser
 from baserow.test_utils.helpers import AnyInt, setup_interesting_test_table
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("subscribed", [False, True])
+@pytest.mark.parametrize("receive_notification_on_submit", [False, True])
+def test_agent_cannot_change_notification_subscription_of_user_with_same_id(
+    data_fixture, subscribed, receive_notification_on_submit
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    form = data_fixture.create_form_view(table=table)
+    if subscribed:
+        form.users_to_notify_on_submit.add(user)
+    # These identities have independent sequences, so their IDs can overlap.
+    identity = Agent.objects.create(
+        id=user.id, workspace=table.database.workspace, name="Ops"
+    )
+
+    ViewHandler().update_view(
+        identity,
+        form,
+        title="Updated form",
+        receive_notification_on_submit=receive_notification_on_submit,
+    )
+
+    form.refresh_from_db()
+    assert form.title == "Updated form"
+    assert list(form.users_to_notify_on_submit.all()) == ([user] if subscribed else [])
 
 
 @pytest.mark.django_db(transaction=True)

@@ -1,6 +1,6 @@
 import asyncio
 
-from django.db import connection
+from django.db import OperationalError, connection
 
 import pytest
 from asgiref.sync import async_to_sync
@@ -8,7 +8,7 @@ from asgiref.sync import async_to_sync
 from baserow.core.chat_runs.constants import ChatRunStopReason
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
-from baserow.core.chat_runs.runner import run_chat_run
+from baserow.core.chat_runs.runner import _finish, run_chat_run
 from baserow.core.chat_runs.tasks import execute_chat_run
 from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.models import Workspace
@@ -27,6 +27,42 @@ def test_task_claims_once_and_persists_only_final_output(
     assert run.status == "completed"
     assert run.outcome["content"] == "Hello"
     assert len(fake_run_type.persisted) == 1
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("conn_max_age", [0, None])
+@pytest.mark.parametrize("failed_query", [False, True])
+def test_outcome_survives_a_connection_lost_during_generation(
+    create_run, fake_run_type, monkeypatch, conn_max_age, failed_query
+):
+    monkeypatch.setitem(connection.settings_dict, "CONN_MAX_AGE", conn_max_age)
+    run = create_run(claim=True)
+    outcome = ChatRunOutcome(ChatRunStatus.COMPLETED, result="Completed answer")
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_backend_pid()")
+        pid = cursor.fetchone()[0]
+
+    # Terminate only this test's worker connection, through a separate connection
+    # to the same isolated database, as a disconnect during a model wait would.
+    control_connection = connection.copy()
+    try:
+        with control_connection.cursor() as cursor:
+            cursor.execute("SELECT pg_terminate_backend(%s)", [pid])
+            assert cursor.fetchone()[0]
+    finally:
+        control_connection.close()
+
+    if failed_query:
+        # A tool may already have caught a database error before final persistence.
+        with pytest.raises(OperationalError):
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+
+    assert _finish(fake_run_type, run, outcome)
+    run.refresh_from_db()
+    assert run.status == ChatRunStatus.COMPLETED
+    assert run.outcome["content"] == "Completed answer"
+    assert fake_run_type.persisted == [outcome]
 
 
 def test_redis_failure_does_not_prevent_durable_completion(

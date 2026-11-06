@@ -32,7 +32,8 @@ from .exceptions import (
     AgentMessageConflict,
     AgentRunAsSubjectDoesNotExist,
 )
-from .models import AgentApplication, AgentConversation, AgentMessage
+from .models import AgentAllowedTool, AgentApplication, AgentConversation, AgentMessage
+from .registries import agent_tool_type_registry
 from .types import (
     AgentConfiguration,
     AgentConfigurationUpdated,
@@ -93,6 +94,7 @@ class AgentHandler:
             run_as=self.resolve_run_as_subject(
                 agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
             ),
+            allowed_tools=self.get_allowed_tool_names(agent),
             errors=errors,
         )
 
@@ -134,6 +136,34 @@ class AgentHandler:
         else:
             readiness = AgentReadinessState.READY
         return readiness, errors
+
+    def get_allowed_tool_names(self, agent: AgentApplication) -> list[str]:
+        """
+        Return configured tools, excluding intentionally unset workspace access.
+
+        :param agent: The Agent to read.
+        :return: Registered tool names in registry order. An unavailable selected
+            identity retains its settings, but no selected identity means tools are off.
+        """
+
+        if not agent.run_as_subject_type or not agent.run_as_subject_id:
+            return []
+        names = set(agent.allowed_tools.values_list("name", flat=True))
+        return [name for name in agent_tool_type_registry.get_types() if name in names]
+
+    def set_allowed_tools(self, agent: AgentApplication, names: list[str]) -> None:
+        """
+        Let the Agent call exactly these tools.
+
+        :param agent: The Agent to update.
+        :param names: Registered tool names.
+        """
+
+        agent.allowed_tools.exclude(name__in=names).delete()
+        AgentAllowedTool.objects.bulk_create(
+            [AgentAllowedTool(agent=agent, name=name) for name in names],
+            ignore_conflicts=True,
+        )
 
     def get_run_as_subject(
         self,
@@ -204,46 +234,53 @@ class AgentHandler:
             registered_type.get_display_name(subject),
         )
 
-    def is_run_as_subject_usable(
+    def get_usable_run_as_subject(
         self, subject_type: str | None, subject_id: int | None, workspace: Workspace
-    ) -> bool:
+    ) -> Subject | None:
         """
-        Whether an Agent in the workspace may act as the subject.
+        Return the subject if an Agent in the workspace may act as it.
 
         :param subject_type: The subject type.
         :param subject_id: The subject id.
         :param workspace: The workspace of the Agent.
-        :return: Whether the type is allowed and the subject exists, isn't trashed
-            and belongs to the workspace.
+        :return: The subject, or None if its saved reference is not active.
         """
 
+        resolution = self.resolve_run_as_subject(subject_type, subject_id, workspace)
         return (
-            self.resolve_run_as_subject(subject_type, subject_id, workspace).status
-            == AgentRunAsState.ACTIVE
+            resolution.subject if resolution.status == AgentRunAsState.ACTIVE else None
         )
 
     def update_configuration(
-        self, agent: AgentApplication, **values: str | int | None
+        self, agent: AgentApplication, **values: str | int | list[str] | None
     ) -> AgentConfigurationUpdated:
         """
         Save part of the configuration, accepting blank values as a draft.
 
         :param agent: The Agent to update.
-        :param values: The configuration values to set, by field name. The caller
-            must validate their types and lengths beforehand, and pass the run-as
-            type and id together. Unknown field names are ignored.
+        :param values: The configuration values to set, by field name, and
+            ``allowed_tools``, the names of all the tools the Agent may call. The caller
+            must validate their types, lengths and tool names beforehand, and pass
+            the run-as type and id together. Clearing the identity clears tools;
+            without a selected identity, submitted tools remain off. Unknown field
+            names are ignored.
         :raises AgentRunAsSubjectDoesNotExist: When the Agent can't act as the
             given subject.
         :return: The Agent, its original and new configuration values, and the
             resolved resulting configuration.
         """
 
+        allowed_tools = values.get("allowed_tools")
+        had_run_as = bool(agent.run_as_subject_type and agent.run_as_subject_id)
         allowed_fields = [*self.configuration_fields, *self.run_as_fields]
         values = extract_allowed(values, allowed_fields)
         run_as = [values.get(field) for field in self.run_as_fields]
-        if any(run_as) and not self.is_run_as_subject_usable(*run_as, agent.workspace):
+        if any(run_as) and not self.get_usable_run_as_subject(*run_as, agent.workspace):
             raise AgentRunAsSubjectDoesNotExist()
-        original_values = {field: getattr(agent, field) for field in allowed_fields}
+        original_values = {
+            **{field: getattr(agent, field) for field in allowed_fields},
+            "allowed_tools": self.get_allowed_tool_names(agent),
+        }
         changed_fields = []
         for field, value in values.items():
             if field in ("provider_type", "model_identifier"):
@@ -251,13 +288,27 @@ class AgentHandler:
             if getattr(agent, field) != value:
                 setattr(agent, field, value)
                 changed_fields.append(field)
-        if changed_fields:
+        has_run_as = bool(agent.run_as_subject_type and agent.run_as_subject_id)
+        if not has_run_as or (not had_run_as and allowed_tools is None):
+            # No workspace access deliberately turns tools off. Selecting an
+            # identity later must not reactivate old default tool rows.
+            allowed_tools = []
+        tools_changed = allowed_tools is not None and set(allowed_tools) != set(
+            original_values["allowed_tools"]
+        )
+        if changed_fields or tools_changed:
             agent.save(update_fields=[*changed_fields, "updated_on"])
+        if tools_changed or not has_run_as or not had_run_as:
+            self.set_allowed_tools(agent, allowed_tools)
+        configuration = self.get_configuration(agent)
         return AgentConfigurationUpdated(
             agent=agent,
             original_values=original_values,
-            new_values={field: getattr(agent, field) for field in allowed_fields},
-            configuration=self.get_configuration(agent),
+            new_values={
+                **{field: getattr(agent, field) for field in allowed_fields},
+                "allowed_tools": configuration.allowed_tools,
+            },
+            configuration=configuration,
         )
 
     def list_conversations(
@@ -584,6 +635,11 @@ class AgentHandler:
         run_as = self.resolve_run_as_subject(
             agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
         )
+        acting_subject = (
+            run_as.subject if run_as.status == AgentRunAsState.ACTIVE else None
+        )
+        # A generation keeps its selected identity and tools until it ends or is
+        # stopped. Configuration edits apply when the next generation is prepared.
         return AgentReplyRequest(
             reply_id=reply.id,
             workspace=agent.workspace,
@@ -594,6 +650,11 @@ class AgentHandler:
             history=list(reversed(history)),
             run_as_unavailable=run_as.status
             in {AgentRunAsState.TRASHED, AgentRunAsState.MISSING},
+            acting_subject=acting_subject,
+            allowed_tool_names=self.get_allowed_tool_names(agent)
+            if acting_subject
+            else [],
+            timezone=conversation.owner_user.profile.timezone,
         )
 
     def finish_reply(

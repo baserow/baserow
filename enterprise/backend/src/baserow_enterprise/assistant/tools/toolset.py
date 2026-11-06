@@ -8,15 +8,12 @@ Contains schema helpers, lenient argument validation, the
 from __future__ import annotations
 
 import dataclasses
-import functools
 import json
 import re
 from collections import Counter
 from collections.abc import Iterator
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any, Callable
-
-from django.db import close_old_connections
 
 from loguru import logger
 from pydantic import ValidationError
@@ -26,6 +23,7 @@ from pydantic_ai.toolsets import AbstractToolset, FunctionToolset
 from pydantic_ai.toolsets.abstract import AgentDepsT, ToolsetTool
 from typing_extensions import Self
 
+from baserow.core.db import with_usable_db_connection
 from baserow.core.generative_ai.lifecycle import run_agent_with_model
 
 if TYPE_CHECKING:
@@ -841,29 +839,6 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
 # ---------------------------------------------------------------------------
 
 
-def _with_usable_db_connection(function: Callable[..., Any]) -> Callable[..., Any]:
-    """
-    Wrap a sync tool so it drops unusable or expired database connections
-    before and after the call, as Django does around a request. With
-    ``CONN_MAX_AGE=0`` this opens a new connection for every call, which keeps
-    idle worker threads from holding connections.
-
-    :param function: The tool function pydantic-ai runs on a worker thread.
-    :return: The wrapped function.
-    """
-
-    @functools.wraps(function)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        close_old_connections()
-        try:
-            return function(*args, **kwargs)
-        finally:
-            close_old_connections()
-
-    wrapper._uses_usable_db_connection = True
-    return wrapper
-
-
 class AssistantFunctionToolset(FunctionToolset[AgentDepsT]):
     """
     A ``FunctionToolset`` for tools that use the database. pydantic-ai runs sync
@@ -876,6 +851,6 @@ class AssistantFunctionToolset(FunctionToolset[AgentDepsT]):
         already_wrapped = getattr(schema.function, "_uses_usable_db_connection", False)
         if not schema.is_async and not already_wrapped:
             tool.function_schema = dataclasses.replace(
-                schema, function=_with_usable_db_connection(schema.function)
+                schema, function=with_usable_db_connection(schema.function)
             )
         super().add_tool(tool)
