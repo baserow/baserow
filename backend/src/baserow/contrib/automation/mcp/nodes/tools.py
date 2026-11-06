@@ -21,6 +21,8 @@ class AddNodesMcpTool(FunctionMCPTool):
     title = "Add workflow nodes"
     read_only = False
     destructive = False
+    # Its nodes can send email and Slack messages, call an AI model or expose a webhook.
+    open_world = True
     function = nodes.add_nodes
 
 
@@ -30,6 +32,8 @@ class UpdateNodesMcpTool(FunctionMCPTool):
     title = "Update workflow nodes"
     read_only = False
     destructive = True
+    # Its nodes can send email and Slack messages, call an AI model or expose a webhook.
+    open_world = True
     function = nodes.update_nodes
 
 

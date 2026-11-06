@@ -35,6 +35,8 @@ class CreateWorkflowsMcpTool(FunctionMCPTool):
     title = "Create workflows"
     read_only = False
     destructive = False
+    # Its nodes can send email and Slack messages, call an AI model or expose a webhook.
+    open_world = True
     function = workflows.create_workflows
 
 
@@ -44,6 +46,9 @@ class PublishWorkflowMcpTool(FunctionMCPTool):
     title = "Publish a workflow"
     read_only = False
     destructive = True
+    # Makes the workflow live, so its nodes send email and Slack messages, call an AI
+    # model and accept webhook calls.
+    open_world = True
     function = workflows.publish_workflow
 
 
