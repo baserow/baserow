@@ -374,7 +374,10 @@
     "upgradeScopeRole": "You're already a member of {workspace}. Your role on {name} will change from {from} to {to}.",
     "failed": "Could not join the workspace",
     "failedMessage": "Something went wrong while joining the workspace. Please try again.",
-    "invalidLinkMessage": "This invite link is no longer valid. Ask the person who shared it for a new one."
+    "invalidLinkMessage": "This invite link is no longer valid. Ask the person who shared it for a new one.",
+    "addMemberTitle": "Join {name}",
+    "addMember": "You're already a member of {workspace}. You will be added to {name}.",
+    "addMemberButton": "Join"
   },
   "workspaceForm": {
     "nameLabel": "Name"
@@ -479,11 +482,13 @@
     "linkTitle": "Invite members with a link",
     "linkEmptyTitle": "You have not yet created an invite link",
     "linkEmptyDescription": "You can create multiple links with different roles.",
+    "linkEmptyDescriptionNoRole": "Anyone you share a link with can join. You can create as many links as you need.",
     "linkColumn": "Link",
     "linkName": "Name",
     "linkNamePlaceholder": "E.g. Sales team",
     "linkAdd": "Add link",
     "linkInviteAs": "Invite as",
+    "linkNoRole": "No role",
     "linkCopy": "Copy link",
     "linkDelete": "Delete link",
     "pendingTitle": "Pending invitations",

@@ -356,3 +356,96 @@ def test_sign_up_through_invitation_link_without_joining(data_fixture):
     # The link allows the signup, and the user joins after confirming it.
     assert not WorkspaceUser.objects.filter(user=user).exists()
     assert user.profile.completed_onboarding is True
+
+
+class AddsMemberScopeType:
+    """
+    Stands in for a link scope type whose links add members to their object, like
+    a team, and that never raises a role.
+    """
+
+    def __init__(self):
+        self.members = set()
+
+    def is_usable(self, invitation_link):
+        return True
+
+    def get_newcomer_permissions(self, invitation_link):
+        return "MEMBER"
+
+    def get_raised_role(self, user, invitation_link):
+        return None
+
+    def adds_member(self, user, invitation_link):
+        return user.id not in self.members
+
+    def give_role(self, user, invitation_link):
+        self.members.add(user.id)
+
+
+def create_scoped_link(data_fixture, admin, workspace):
+    application = data_fixture.create_database_application(workspace=workspace)
+    return WorkspaceInvitationLink.objects.create(
+        workspace=workspace, created_by=admin, permissions="MEMBER", scope=application
+    )
+
+
+@pytest.mark.django_db
+@patch("baserow.core.action.signals.action_done.send")
+def test_join_through_link_that_adds_members_to_its_object(
+    action_done_mock, data_fixture
+):
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    newcomer = data_fixture.create_user()
+    outsider = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin, members=[member])
+    invitation_link = create_scoped_link(data_fixture, admin, workspace)
+    scope_type = AddsMemberScopeType()
+
+    def recorded_joins():
+        return [
+            call.kwargs["user"]
+            for call in action_done_mock.call_args_list
+            if call.kwargs["action_type"] is JoinWorkspaceViaInvitationLinkActionType
+        ]
+
+    with patch.object(
+        CoreHandler, "get_invitation_link_scope_type", return_value=scope_type
+    ):
+        handler = CoreHandler()
+        # Only members of the workspace are told they will be added.
+        assert handler.invitation_link_adds_member(member, invitation_link)
+        assert not handler.invitation_link_adds_member(outsider, invitation_link)
+        assert (
+            handler.get_permissions_raised_by_invitation_link(member, invitation_link)
+            is None
+        )
+
+        JoinWorkspaceViaInvitationLinkActionType.do(member, invitation_link)
+        JoinWorkspaceViaInvitationLinkActionType.do(newcomer, invitation_link)
+
+        assert scope_type.members == {member.id, newcomer.id}
+        assert not handler.invitation_link_adds_member(member, invitation_link)
+        assert recorded_joins() == [member, newcomer]
+
+        # Opening the link again changes nothing, so it isn't recorded.
+        JoinWorkspaceViaInvitationLinkActionType.do(member, invitation_link)
+        assert recorded_joins() == [member, newcomer]
+
+    assert (
+        WorkspaceUser.objects.get(user=newcomer, workspace=workspace).permissions
+        == "MEMBER"
+    )
+
+
+@pytest.mark.django_db
+def test_links_without_object_never_add_members(data_fixture):
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin, members=[member])
+    invitation_link = data_fixture.create_workspace_invitation_link(
+        workspace=workspace, created_by=admin, permissions="MEMBER"
+    )
+
+    assert not CoreHandler().invitation_link_adds_member(member, invitation_link)

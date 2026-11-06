@@ -78,7 +78,8 @@ export class InvitationTargetType extends Registerable {
 
   /**
    * Creates an invitation link that grants the `permissions` role uid and
-   * resolves with it.
+   * resolves with it. `permissions` is null for targets without roles to choose
+   * from.
    */
   async createInvitationLink(workspace, target, permissions) {
     throw new Error(
@@ -100,6 +101,32 @@ export class InvitationTargetType extends Registerable {
     throw new Error(
       'The invitation links of this target type are not supported.'
     )
+  }
+
+  /**
+   * The role people get through a link of the target, shown in a disabled role
+   * selector, for targets without roles to choose from because the target
+   * gives its own role. Null when the target gives no role.
+   */
+  getInvitationLinkRole(workspace, target) {
+    return null
+  }
+
+  /**
+   * Explains where the role of the links comes from, shown next to the role
+   * column for targets without roles to choose from. Null shows nothing.
+   */
+  getInvitationLinkRoleHelpText(workspace, target) {
+    return null
+  }
+
+  /**
+   * Whether people get the admin role through a link of the target that
+   * grants the `roleUid` role, which is null for targets without roles to
+   * choose from. Such links are only created or changed after a confirmation.
+   */
+  invitationLinkGrantsAdmin(workspace, target, roleUid) {
+    return roleUid === 'ADMIN'
   }
 
   /**

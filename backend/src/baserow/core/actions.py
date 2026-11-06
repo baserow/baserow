@@ -1359,13 +1359,14 @@ class JoinWorkspaceViaInvitationLinkActionType(ActionType):
         raised_permissions = handler.get_permissions_raised_by_invitation_link(
             user, invitation_link
         )
+        adds_member = handler.invitation_link_adds_member(user, invitation_link)
         workspace_user = handler.join_workspace_via_invitation_link(
             user, invitation_link
         )
 
         # Members open the link on their way into the workspace, so only record
         # the visits that changed their membership.
-        if was_member and raised_permissions is None:
+        if was_member and raised_permissions is None and not adds_member:
             return workspace_user
 
         scope_type_name = None

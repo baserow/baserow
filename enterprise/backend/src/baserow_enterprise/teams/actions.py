@@ -9,7 +9,7 @@ from baserow.core.action.registries import (
     ActionType,
     ActionTypeDescription,
 )
-from baserow.core.models import Workspace
+from baserow.core.models import Workspace, WorkspaceInvitationLink
 from baserow_enterprise.models import Team, TeamSubject, WorkspaceTeamInvitation
 from baserow_enterprise.role.models import Role
 from baserow_enterprise.scopes import TeamsActionScopeType
@@ -397,6 +397,171 @@ class DeleteTeamInvitationActionType(ActionType):
             team.workspace_id,
         )
         TeamHandler().delete_team_invitation(user, team_invitation)
+
+        cls.register_action(
+            user=user,
+            params=params,
+            scope=cls.scope(team.workspace_id),
+            workspace=team.workspace,
+        )
+
+    @classmethod
+    def scope(cls, workspace_id: int) -> ActionScopeStr:
+        return TeamsActionScopeType.value(workspace_id)
+
+
+class CreateTeamInvitationLinkActionType(ActionType):
+    type = "create_team_invitation_link"
+    description = ActionTypeDescription(
+        _("Create team invitation link"),
+        _('Invitation link "%(name)s" (%(invitation_link_id)s) created'),
+        TEAM_CONTEXT,
+    )
+    analytics_params = [
+        "invitation_link_id",
+        "team_id",
+        "workspace_id",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        invitation_link_id: int
+        name: str
+        team_id: int
+        team_name: str
+        workspace_id: int
+
+    @classmethod
+    def do(
+        cls, user: AbstractUser, team: Team, name: str = ""
+    ) -> WorkspaceInvitationLink:
+        """
+        Creates a permanent link that anyone can use to join a team. Look into
+        `TeamHandler.create_team_invitation_link` for further details.
+        """
+
+        invitation_link = TeamHandler().create_team_invitation_link(user, team, name)
+
+        cls.register_action(
+            user=user,
+            params=cls.Params(
+                invitation_link.id,
+                invitation_link.name,
+                team.id,
+                team.name,
+                team.workspace_id,
+            ),
+            scope=cls.scope(team.workspace_id),
+            workspace=team.workspace,
+        )
+        return invitation_link
+
+    @classmethod
+    def scope(cls, workspace_id: int) -> ActionScopeStr:
+        return TeamsActionScopeType.value(workspace_id)
+
+
+class UpdateTeamInvitationLinkActionType(ActionType):
+    type = "update_team_invitation_link"
+    description = ActionTypeDescription(
+        _("Update team invitation link"),
+        _(
+            'Invitation link (%(invitation_link_id)s) renamed from "%(original_name)s" '
+            'to "%(name)s"'
+        ),
+        TEAM_CONTEXT,
+    )
+    analytics_params = [
+        "invitation_link_id",
+        "team_id",
+        "workspace_id",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        invitation_link_id: int
+        name: str
+        original_name: str
+        team_id: int
+        team_name: str
+        workspace_id: int
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        team: Team,
+        invitation_link: WorkspaceInvitationLink,
+        name: str,
+    ) -> WorkspaceInvitationLink:
+        """
+        Renames a link to a team. Look into `TeamHandler.update_team_invitation_link`
+        for further details.
+        """
+
+        original_name = invitation_link.name
+        invitation_link = TeamHandler().update_team_invitation_link(
+            user, team, invitation_link, name
+        )
+
+        cls.register_action(
+            user=user,
+            params=cls.Params(
+                invitation_link.id,
+                invitation_link.name,
+                original_name,
+                team.id,
+                team.name,
+                team.workspace_id,
+            ),
+            scope=cls.scope(team.workspace_id),
+            workspace=team.workspace,
+        )
+        return invitation_link
+
+    @classmethod
+    def scope(cls, workspace_id: int) -> ActionScopeStr:
+        return TeamsActionScopeType.value(workspace_id)
+
+
+class DeleteTeamInvitationLinkActionType(ActionType):
+    type = "delete_team_invitation_link"
+    description = ActionTypeDescription(
+        _("Delete team invitation link"),
+        _('Invitation link "%(name)s" (%(invitation_link_id)s) deleted'),
+        TEAM_CONTEXT,
+    )
+    analytics_params = [
+        "invitation_link_id",
+        "team_id",
+        "workspace_id",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        invitation_link_id: int
+        name: str
+        team_id: int
+        team_name: str
+        workspace_id: int
+
+    @classmethod
+    def do(
+        cls, user: AbstractUser, team: Team, invitation_link: WorkspaceInvitationLink
+    ):
+        """
+        Deletes a link to a team. Look into `TeamHandler.delete_team_invitation_link`
+        for further details.
+        """
+
+        params = cls.Params(
+            invitation_link.id,
+            invitation_link.name,
+            team.id,
+            team.name,
+            team.workspace_id,
+        )
+        TeamHandler().delete_team_invitation_link(user, team, invitation_link)
 
         cls.register_action(
             user=user,

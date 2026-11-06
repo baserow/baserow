@@ -367,7 +367,10 @@
     "title": "Manage {name} members",
     "subtitle": "Team in {workspace}",
     "subtitleWithRole": "Team in {workspace} • {role}",
-    "navigationLabel": "team"
+    "navigationLabel": "team",
+    "linkRoleHelpText": "People new to the workspace get the role of the team, which you can change in the team's settings. Existing members keep their own workspace role.",
+    "linkAdminWarning": "Anyone with this link joins {name}, which gives admin access to the whole workspace, including its members and invite links. Only share it with people you trust.",
+    "linkDeleteWarning": "Are you sure that you want to delete this invite link to {name}? After deleting, it will not be possible to join the team through this link. Everyone that you have shared the link with won't be able to use it anymore. People who already joined through it stay in the team."
   },
   "teamMembersRoute": {
     "name": "Team members",

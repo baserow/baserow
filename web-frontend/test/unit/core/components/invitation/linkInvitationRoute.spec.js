@@ -270,3 +270,127 @@ describe('LinkInvitationRoute', () => {
     expect(url(rows(wrapper)[0])).toBe('/invite/second')
   })
 })
+
+describe('LinkInvitationRoute without roles', () => {
+  let testApp = null
+
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    testApp.afterEach()
+  })
+
+  /**
+   * A target that gives its own role, like a team, so its links have none.
+   */
+  function createTargetType({ grantsAdmin = false } = {}) {
+    return {
+      getTitle: () => null,
+      getRoles: () => [],
+      getInvitationLinkRole: () => ({ uid: 'EDITOR', name: 'Editor' }),
+      getInvitationLinkRoleHelpText: () => 'The role comes from the team.',
+      invitationLinkGrantsAdmin: vi.fn(() => grantsAdmin),
+      getInvitationLinkAdminWarning: () => 'Anyone becomes an admin.',
+      getInvitationLinkDeleteWarning: () => 'Delete it?',
+      fetchInvitationLinks: vi.fn(async () => [
+        { id: 1, name: 'Fair', slug: 'first' },
+      ]),
+      createInvitationLink: vi.fn(async () => ({
+        id: 2,
+        name: '',
+        slug: 'second',
+      })),
+    }
+  }
+
+  async function mountRoute(targetType) {
+    const wrapper = await testApp.mount(LinkInvitationRoute, {
+      propsData: { workspace, target: { type: 'team' }, targetType },
+      global: {
+        mocks: {
+          $config: { public: { publicWebFrontendUrl: 'https://baserow.test' } },
+          $router: {
+            resolve: ({ params }) => ({ href: `/invite/${params.slug}` }),
+          },
+        },
+      },
+    })
+    await flushPromises()
+    return wrapper
+  }
+
+  test('says what a link does in the empty state, without roles', async () => {
+    const targetType = createTargetType()
+    targetType.fetchInvitationLinks = vi.fn(async () => [])
+    const wrapper = await mountRoute(targetType)
+
+    expect(wrapper.find('.invitation-link-empty').text()).toContain(
+      'inviteModal.linkEmptyDescriptionNoRole'
+    )
+  })
+
+  test('shows the role of the target in a disabled role selector', async () => {
+    const wrapper = await mountRoute(createTargetType())
+    const selector = wrapper.findComponent(WorkspaceRoleSelector)
+
+    expect(selector.props('modelValue')).toBe('EDITOR')
+    expect(selector.props('roles')).toEqual([{ uid: 'EDITOR', name: 'Editor' }])
+    expect(selector.attributes('class')).toContain('dropdown--disabled')
+    expect(wrapper.findComponent({ name: 'HelpIcon' }).props('tooltip')).toBe(
+      'The role comes from the team.'
+    )
+  })
+
+  test('shows a disabled selector without role for a target giving none', async () => {
+    const targetType = createTargetType()
+    targetType.getInvitationLinkRole = () => null
+    const wrapper = await mountRoute(targetType)
+    const selector = wrapper.findComponent(WorkspaceRoleSelector)
+
+    expect(selector.props('roles')).toEqual([])
+    expect(selector.text()).toContain('inviteModal.linkNoRole')
+  })
+
+  test('creates a link without a role', async () => {
+    const targetType = createTargetType()
+    const wrapper = await mountRoute(targetType)
+    const button = wrapper.find('.button-floating')
+
+    expect(button.attributes('disabled')).toBeUndefined()
+    await button.trigger('click')
+    await flushPromises()
+
+    expect(targetType.invitationLinkGrantsAdmin).toHaveBeenCalledWith(
+      workspace,
+      { type: 'team' },
+      null
+    )
+    expect(targetType.createInvitationLink).toHaveBeenCalledWith(
+      workspace,
+      { type: 'team' },
+      null
+    )
+    expect(wrapper.findAll('.invitation-links__item')).toHaveLength(2)
+  })
+
+  test('asks first when the target gives the admin role', async () => {
+    const targetType = createTargetType({ grantsAdmin: true })
+    const wrapper = await mountRoute(targetType)
+    const confirmModal = wrapper.findComponent(ConfirmModal)
+    const show = vi.spyOn(confirmModal.vm, 'show')
+
+    await wrapper.find('.button-floating').trigger('click')
+    await flushPromises()
+
+    expect(show).toHaveBeenCalled()
+    expect(targetType.createInvitationLink).not.toHaveBeenCalled()
+
+    await confirmModal.find('button').trigger('click')
+    await flushPromises()
+
+    expect(targetType.createInvitationLink).toHaveBeenCalledTimes(1)
+  })
+})
