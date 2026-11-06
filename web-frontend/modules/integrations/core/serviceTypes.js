@@ -20,6 +20,45 @@ import CorePeriodicTriggerServiceForm from '@baserow/modules/integrations/core/c
 import CoreStartWorkflowServiceForm from '@baserow/modules/integrations/core/components/services/CoreStartWorkflowServiceForm.vue'
 import { SMTPIntegrationType } from '@baserow/modules/integrations/core/integrationTypes'
 import CoreResponseServiceForm from '@baserow/modules/integrations/core/components/services/CoreResponseServiceForm.vue'
+import CoreHTTPDataSourceServiceForm from '@baserow/modules/integrations/core/components/services/CoreHTTPDataSourceServiceForm'
+import {
+  HTTP_DATA_SOURCE_MAX_RESULT_LIMIT,
+  HTTP_DATA_SOURCE_TYPE,
+} from '@baserow/modules/integrations/core/enums'
+import parseBaserowFormula from '@baserow/modules/core/formula/parser/parser'
+import { ToTipTapVisitor } from '@baserow/modules/core/formula/tiptap/toTipTapVisitor'
+import { RuntimeFunctionCollection } from '@baserow/modules/core/functionCollection'
+import { toFormulaStringLiteral } from '@baserow/modules/core/formula'
+import { uuid } from '@baserow/modules/core/utils/string'
+
+/**
+ * The text of a formula as its input shows it: the text in simple mode, with
+ * each data reference as `{path}`, and the formula itself in advanced mode.
+ */
+const getFormulaText = (app, { formula, mode }) => {
+  if (mode === 'advanced') {
+    return formula
+  }
+  const toText = (node) => {
+    if (node.type === 'text') {
+      return node.text.replaceAll('\u200B', '')
+    }
+    if (node.attrs?.path) {
+      return `{${node.attrs.path}}`
+    }
+    if (node.type === 'newLine' || node.type === 'hardBreak') {
+      return ' '
+    }
+    return (node.content || []).map(toText).join('')
+  }
+  try {
+    const tree = parseBaserowFormula(formula, false)
+    const functions = new RuntimeFunctionCollection(app.$registry)
+    return toText(new ToTipTapVisitor(functions).visit(tree))
+  } catch {
+    return formula
+  }
+}
 
 export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
   ServiceType
@@ -415,7 +454,7 @@ export class CoreIteratorServiceType extends WorkflowActionServiceTypeMixin(
     return getWorkflowGroup(this.app)
   }
 
-  get returnsList() {
+  returnsList(service) {
     return true
   }
 
@@ -463,7 +502,7 @@ export class CoreCSVFileReaderServiceType extends DataSourceServiceTypeMixin(
     return getFilesGroup(this.app)
   }
 
-  get returnsList() {
+  returnsList(service) {
     return true
   }
 
@@ -510,6 +549,155 @@ export class CoreCSVFileReaderServiceType extends DataSourceServiceTypeMixin(
 
   getOrder() {
     return 6
+  }
+}
+
+/**
+ * An HTTP request used as a data source. It always sends a GET, and its result
+ * is the JSON body of the response. Whether the body is a single record or a
+ * list of them is the type itself: this one, or the list type below, which
+ * the picker shows as this same entry.
+ */
+export class CoreHTTPDataSourceServiceType extends DataSourceServiceTypeMixin(
+  ServiceType
+) {
+  static getType() {
+    return HTTP_DATA_SOURCE_TYPE
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.coreHTTPDataSource')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.coreHTTPDataSourceDescription')
+  }
+
+  get icon() {
+    return 'iconoir-globe'
+  }
+
+  get group() {
+    return getHTTPGroup(this.app)
+  }
+
+  get canBeTested() {
+    return true
+  }
+
+  get hasOwnTestButton() {
+    return true
+  }
+
+  getDescription(service, application) {
+    const url = service.url?.formula
+      ? getFormulaText(this.app, service.url).trim()
+      : ''
+    return url ? `GET ${url}` : this.name
+  }
+
+  getErrorMessage({ service }) {
+    // The url isn't returned in public mode, where nothing is checked.
+    if (service?.url === undefined) {
+      return super.getErrorMessage({ service })
+    }
+
+    if (!service.url.formula) {
+      return this.app.$i18n.t('serviceType.errorUrlMissing')
+    }
+
+    // The schema is built from the response of the last test.
+    if (!service.schema) {
+      return this.app.$i18n.t('serviceType.errorHTTPDataSourceNotTested')
+    }
+
+    return super.getErrorMessage({ service })
+  }
+
+  getDataSchema(service) {
+    return service.schema
+  }
+
+  /**
+   * The response of the last test, or undefined when there is none.
+   */
+  getSampleResponse(service) {
+    const sample = this.getSampleData(service)
+    if (!sample || sample._error || !('data' in sample)) {
+      return undefined
+    }
+    // A list keeps the response next to the records read from it.
+    return this.returnsList(service) ? sample.data?.response : sample.data
+  }
+
+  returnsList(service) {
+    return Boolean(service?.returns_list)
+  }
+
+  getRecordName(service, record) {
+    return record?.name ?? record?.id ?? record?._id ?? ''
+  }
+
+  getIdProperty(service, record) {
+    // Records are given their position when not all of them have an `id`. It
+    // identifies them then, as an `id` could be the same as another position.
+    return record?._id != null ? '_id' : 'id'
+  }
+
+  parseRecordId(value) {
+    // An API's ids are as often strings as numbers.
+    return value === '' || value === null || value === undefined
+      ? null
+      : `${value}`
+  }
+
+  getRecordIdDataType(service) {
+    return 'string'
+  }
+
+  getMaxResultLimit(service) {
+    return HTTP_DATA_SOURCE_MAX_RESULT_LIMIT
+  }
+
+  /**
+   * A column per property of the records holding a plain value. Nested objects
+   * and lists can't be shown as text, and a name with a dot can't be a path.
+   */
+  getDefaultCollectionFields(service) {
+    const properties = this.getDataSchema(service)?.items?.properties || {}
+    return Object.entries(properties)
+      .map(([name, property]) => [
+        name,
+        [property.type].flat().find((type) => type !== 'null'),
+      ])
+      .filter(
+        ([name, type]) =>
+          name !== '_id' &&
+          !name.includes('.') &&
+          ['string', 'number', 'integer', 'boolean'].includes(type)
+      )
+      .map(([name, type]) => ({
+        id: uuid(), // Temporary id
+        name,
+        type: type === 'boolean' ? 'boolean' : 'text',
+        value: {
+          formula: `get(${toFormulaStringLiteral(`current_record.${name}`)})`,
+        },
+      }))
+  }
+
+  getResult(service, data) {
+    return this.returnsList(service)
+      ? data.results
+      : super.getResult(service, data)
+  }
+
+  get formComponent() {
+    return CoreHTTPDataSourceServiceForm
+  }
+
+  getOrder() {
+    return 5
   }
 }
 

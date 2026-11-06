@@ -688,4 +688,42 @@ describe('Builder data provider types', () => {
       )
     ).toBeNull()
   })
+
+  test('data source context provider skips data sources without context data', () => {
+    const dataProvider = testApp
+      .getRegistry()
+      .get('builderDataProvider', 'data_source_context')
+
+    const contextDataSchema = {
+      type: 'object',
+      properties: { 1: { type: 'object', title: 'Status' } },
+    }
+    const page = {
+      id: 1,
+      dataSources: [
+        {
+          id: 10,
+          type: 'local_baserow_get_row',
+          context_data_schema: contextDataSchema,
+        },
+        { id: 11, type: 'http_get', url: { formula: "'https://x'" } },
+        {
+          id: 12,
+          type: 'http_get',
+          url: { formula: "'https://x'" },
+          returns_list: true,
+        },
+      ],
+    }
+    const sharedPage = { id: 2, shared: true, dataSources: [] }
+    const applicationContext = {
+      builder: { pages: [sharedPage, page] },
+      page,
+    }
+
+    expect(dataProvider.getDataSchema(applicationContext)).toEqual({
+      type: 'object',
+      properties: { 10: { ...contextDataSchema, order: 0 } },
+    })
+  })
 })

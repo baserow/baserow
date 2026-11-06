@@ -1,7 +1,10 @@
 import { defineComponent, nextTick } from 'vue'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
+import { flushPromises } from '@vue/test-utils'
+import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 
 import DataSourceForm from '@baserow/modules/builder/components/dataSource/DataSourceForm'
+import { CoreHTTPDataSourceServiceType } from '@baserow/modules/integrations/core/serviceTypes'
 
 const FormGroupStub = defineComponent({
   name: 'FormGroup',
@@ -165,6 +168,7 @@ async function mountComponent({
   create = true,
   dataSource = {},
   defaultValues = {},
+  storeDispatch = () => Promise.resolve(),
 } = {}) {
   const integrations = [
     { id: 1, type: 'local_baserow' },
@@ -204,7 +208,9 @@ async function mountComponent({
         GroupedDropdown: GroupedDropdownStub,
         DataSourceTestForm: {
           name: 'DataSourceTestForm',
-          template: '<div class="data-source-test-form-stub" />',
+          inject: ['dataSourceTest'],
+          template:
+            '<div class="data-source-test-form-stub" @click="dataSourceTest.test()" />',
         },
       },
       mocks: {
@@ -213,6 +219,7 @@ async function mountComponent({
           getters: {
             'dataSource/getPageDataSources': () => [],
           },
+          dispatch: storeDispatch,
         },
         $t: (key) => key,
       },
@@ -245,6 +252,7 @@ describe('DataSourceForm', () => {
             disabledReason: null,
           },
         ],
+        order: 0,
       },
     ])
   })
@@ -270,9 +278,11 @@ describe('DataSourceForm', () => {
     })
     const items = wrapper.findComponent(GroupedDropdownStub).props('items')
 
-    expect(items.map(({ id }) => id)).toEqual([
-      'integration-local_baserow',
-      'http',
+    // The menu sorts groups by order before label, so Local Baserow stays
+    // above HTTP.
+    expect(items.map(({ id, order }) => [id, order])).toEqual([
+      ['integration-local_baserow', 0],
+      ['http', 1],
     ])
     expect(items[1]).toEqual({
       id: 'http',
@@ -292,6 +302,7 @@ describe('DataSourceForm', () => {
           disabledReason: null,
         },
       ],
+      order: 1,
     })
   })
 
@@ -326,5 +337,115 @@ describe('DataSourceForm', () => {
 
     expect(wrapper.find('.service-form-stub').exists()).toBe(true)
     expect(wrapper.find('.data-source-test-form-stub').exists()).toBe(true)
+  })
+
+  describe('with the HTTP request type', () => {
+    const app = {
+      $i18n: { t: (key) => key },
+      $registry: { get: () => ({}) },
+    }
+    const httpTypes = () => [new CoreHTTPDataSourceServiceType({ app })]
+
+    test('the picker shows the HTTP request entry', async () => {
+      const wrapper = await mountComponent({ serviceTypes: httpTypes() })
+      const items = wrapper.findComponent(GroupedDropdownStub).props('items')
+
+      expect(items).toHaveLength(1)
+      expect(items[0].id).toBe('http')
+      expect(items[0].children.map(({ value }) => value)).toEqual(['http_get'])
+    })
+
+    test('a list data source is shown as the HTTP request entry', async () => {
+      const dataSource = {
+        id: 3,
+        name: 'Products',
+        type: 'http_get',
+        returns_list: true,
+        integration_id: null,
+      }
+      const wrapper = await mountComponent({
+        serviceTypes: httpTypes(),
+        create: false,
+        dataSource,
+        defaultValues: dataSource,
+      })
+      await nextTick()
+
+      expect(
+        wrapper.findComponent(GroupedDropdownStub).props('modelValue')
+      ).toBe('http_get')
+      expect(wrapper.find('.data-source-test-form-stub').exists()).toBe(true)
+    })
+  })
+
+  test('saves unsaved changes before testing', async () => {
+    const EditableServiceFormStub = defineComponent({
+      name: 'EditableServiceForm',
+      data: () => ({ values: { url: { formula: '', mode: 'simple' } } }),
+      methods: {
+        getFormValues() {
+          return { ...this.values }
+        },
+        isFormValid() {
+          return true
+        },
+      },
+      template: '<div class="editable-service-form-stub" />',
+    })
+    const dataSource = {
+      id: 3,
+      name: 'Products',
+      type: 'http_get',
+      integration_id: null,
+      url: { formula: '', mode: 'simple' },
+    }
+    // The form saves through its own store, the test dispatches through the
+    // app's.
+    const dispatch = vi.fn().mockResolvedValue({})
+    const simulateDispatch = vi
+      .spyOn(useNuxtApp().$store, 'dispatch')
+      .mockResolvedValue({})
+    vi.spyOn(
+      DataProviderType,
+      'getAllDataSourceDispatchContext'
+    ).mockReturnValue({})
+
+    const wrapper = await mountComponent({
+      serviceTypes: [
+        { ...httpServiceType, formComponent: EditableServiceFormStub },
+      ],
+      create: false,
+      dataSource,
+      defaultValues: dataSource,
+      storeDispatch: dispatch,
+    })
+    await nextTick()
+
+    // Nothing changed, so nothing is saved before the test.
+    await wrapper.find('.data-source-test-form-stub').trigger('click')
+    await flushPromises()
+    expect(dispatch).not.toHaveBeenCalled()
+    expect(simulateDispatch).toHaveBeenCalledTimes(1)
+    expect(wrapper.emitted('saved')).toBeUndefined()
+
+    wrapper.findComponent(EditableServiceFormStub).vm.values.url = {
+      formula: 'https://httpbin.org/get',
+      mode: 'simple',
+    }
+    await wrapper.find('.data-source-test-form-stub').trigger('click')
+    await flushPromises()
+
+    expect(dispatch).toHaveBeenCalledWith('dataSource/update', {
+      page: { id: 1 },
+      dataSourceId: 3,
+      values: { url: { formula: 'https://httpbin.org/get', mode: 'simple' } },
+    })
+    // So that the elements using the data source show what it now returns.
+    expect(wrapper.emitted('saved')).toHaveLength(1)
+    expect(simulateDispatch).toHaveBeenLastCalledWith(
+      'dataSource/simulateDispatch',
+      { page: { id: 1 }, dataSourceId: 3, dispatchContext: {} }
+    )
+    vi.restoreAllMocks()
   })
 })

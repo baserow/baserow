@@ -29,7 +29,7 @@ export class LocalBaserowGroupedAggregateRowsServiceType extends DataSourceLocal
     return 'iconoir-stats-report'
   }
 
-  get returnsList() {
+  returnsList(service) {
     return true
   }
 
@@ -67,7 +67,7 @@ export class LocalBaserowGroupedAggregateRowsServiceType extends DataSourceLocal
     return null
   }
 
-  get supportsPagination() {
+  supportsPagination(service) {
     return false
   }
 
