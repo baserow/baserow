@@ -2,6 +2,7 @@
   <textarea
     v-if="multiline === true"
     ref="textarea"
+    v-pre-hydration-input
     class="ab-input"
     style="resize: none"
     :value="fromValue(currentValue)"
@@ -16,6 +17,7 @@
   <input
     v-else
     ref="input"
+    v-pre-hydration-input
     :type="type"
     class="ab-input"
     :value="fromValue(currentValue)"
@@ -29,8 +31,11 @@
 </template>
 
 <script>
+import preHydrationInput from '@baserow/modules/core/directives/preHydrationInput'
+
 export default {
   name: 'ABInput',
+  directives: { preHydrationInput },
   props: {
     /**
      * @type {string} - The value of the input.
