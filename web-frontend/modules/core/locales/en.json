@@ -72,6 +72,9 @@
     "dashboardRead": "Read dashboards and widgets",
     "dashboardEdit": "Create and change",
     "dashboardDelete": "Delete",
+    "areaDataSources": "Data sources",
+    "dataSourcesRead": "Read filters",
+    "dataSourcesEdit": "Change filters",
     "areaAuditLog": "Audit log",
     "auditLogRead": "Read the audit log"
   },
