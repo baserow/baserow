@@ -5,7 +5,7 @@ function notifyConversationChange(store, data, change) {
   const agent = store.getters['application/get'](data.agent_id)
   if (agent?.type !== AGENT_APPLICATION_TYPE) return
 
-  // Conversation values and run metadata only: messages are read through the API.
+  // Conversations only: messages are read through the API.
   store.dispatch('application/forceUpdate', {
     application: agent,
     data: {
@@ -25,8 +25,7 @@ export const registerRealtimeEvents = (realtime) => {
   realtime.registerEvent('agent_conversation_activity', ({ store }, data) =>
     notifyConversationChange(store, data, {
       kind: 'activity',
-      runId: data.run_id,
-      updatedOn: data.updated_on,
+      conversation: data.conversation,
     })
   )
   realtime.registerEvent('agent_conversation_updated', ({ store }, data) =>

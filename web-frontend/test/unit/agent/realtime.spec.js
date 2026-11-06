@@ -67,6 +67,7 @@ describe('Agent conversation realtime updates', () => {
       runId = null,
       updatedOn = '2026-10-22T10:00:00Z',
       agentId = agentData.id,
+      title = '',
     } = {}
   ) => {
     receivers.agent_conversation_activity(
@@ -74,8 +75,10 @@ describe('Agent conversation realtime updates', () => {
       {
         agent_id: agentId,
         conversation_uuid: uuid,
-        run_id: runId,
-        updated_on: updatedOn,
+        conversation: {
+          ...conversation(uuid, title, updatedOn),
+          run_id: runId,
+        },
       }
     )
     await flushPromises()
@@ -106,19 +109,9 @@ describe('Agent conversation realtime updates', () => {
     await composer(wrapper).setValue('Unfinished draft')
     const textarea = composer(wrapper).element
     textarea.focus()
-    mockConversations(
-      testApp,
-      conversationsPage(
-        [
-          conversation(
-            'conversation-c',
-            'New remote conversation',
-            '2026-10-22T10:00:00Z'
-          ),
-        ],
-        'next'
-      )
-    )
+    const listReads = testApp.mock.history.get.filter(({ url }) =>
+      url.endsWith('/conversations/')
+    ).length
     mockMessages(
       testApp,
       second.uuid,
@@ -126,15 +119,15 @@ describe('Agent conversation realtime updates', () => {
       page([storedMessage(2, 'Recent')], 'next')
     )
 
-    await update('conversation-c')
+    await update('conversation-c', { title: 'New remote conversation' })
     await update(second.uuid, { runId: 'remote-run' })
 
     expect(conversationTitles(wrapper)).toContain('New remote conversation')
     expect(
-      testApp.mock.history.get
-        .filter(({ url }) => url.endsWith('/conversations/'))
-        .at(-1)
-    ).toSatisfy(isRecovery)
+      testApp.mock.history.get.filter(({ url }) =>
+        url.endsWith('/conversations/')
+      )
+    ).toHaveLength(listReads)
     expect(selected(wrapper).text()).toContain(second.title)
     expect(messages(wrapper)).toEqual(['Older', 'Recent', 'Remote message', ''])
     expect(composer(wrapper).element).toBe(textarea)
@@ -488,8 +481,8 @@ describe('Agent conversation realtime updates', () => {
       stale.reply,
       conversationsPage([second])
     )
-    await mount()
-    await update(second.uuid)
+    const wrapper = await mount()
+    await reconnect(first.id)
 
     receivers.agent_conversation_deleted(
       { store: testApp.store },
@@ -498,12 +491,12 @@ describe('Agent conversation realtime updates', () => {
     stale.resolve(200, conversationsPage([first, second]))
     await flushPromises()
 
-    expect(agent._.conversationUpdate.kind).toBe('deleted')
-    expect(
-      testApp.mock.history.get.filter(
-        ({ url }) => url === '/agent/10/conversations/'
-      )
-    ).toHaveLength(3)
+    expect(conversationTitles(wrapper)).toEqual([second.title])
+    const reads = testApp.mock.history.get.filter(
+      ({ url }) => url === '/agent/10/conversations/'
+    )
+    expect(reads).toHaveLength(3)
+    expect(reads.at(-1)).toSatisfy(isRecovery)
   })
 
   test('keeps a conversation deleted while its message was being sent', async () => {
@@ -549,13 +542,79 @@ describe('Agent conversation realtime updates', () => {
     await input.trigger('keydown', { key: 'Enter' })
 
     // The read starts after the rename shows, but answers before it's saved.
-    await update(second.uuid)
+    await reconnect(first.id)
     saved.resolve(200, renamed)
     await flushPromises()
     stale.resolve(200, conversationsPage([first]))
     await flushPromises()
 
     expect(conversationTitles(wrapper)).toEqual([renamed.title])
+  })
+
+  const paged = {
+    a: conversation('paged-a', 'A', '2026-10-14T10:04:00Z'),
+    b: conversation('paged-b', 'B', '2026-10-14T10:03:00Z'),
+    c: conversation('paged-c', 'C', '2026-10-14T10:02:00Z'),
+    d: conversation('paged-d', 'D', '2026-10-14T10:01:00Z'),
+  }
+  const loadMore = async (wrapper) => {
+    await wrapper.get('.agent-conversations__more').trigger('click')
+    await flushPromises()
+  }
+  const hasMore = (wrapper) =>
+    wrapper.find('.agent-conversations__more').exists()
+
+  test('lists a restored conversation only inside the loaded pages', async () => {
+    const { a, b, c, d } = paged
+    mockConversations(
+      testApp,
+      conversationsPage([a, b], 'after-b'),
+      conversationsPage([c, d])
+    )
+    const wrapper = await mount()
+
+    await update(c.uuid, { title: c.title, updatedOn: c.updated_on })
+    expect(conversationTitles(wrapper)).toEqual(['A', 'B'])
+
+    await loadMore(wrapper)
+    receivers.agent_conversation_deleted(
+      { store: testApp.store },
+      { agent_id: agentData.id, conversation_uuid: c.uuid }
+    )
+    await flushPromises()
+    expect(conversationTitles(wrapper)).toEqual(['A', 'B', 'D'])
+
+    await update(c.uuid, { title: c.title, updatedOn: c.updated_on })
+    expect(conversationTitles(wrapper)).toEqual(['A', 'B', 'C', 'D'])
+    expect(hasMore(wrapper)).toBe(false)
+    expect(
+      testApp.mock.history.get.filter(({ url }) =>
+        url.endsWith('/conversations/')
+      )
+    ).toHaveLength(2)
+  })
+
+  test('reads the loaded pages again after a reconnect, dropping deleted ones', async () => {
+    const { a, b, c, d } = paged
+    mockConversations(
+      testApp,
+      conversationsPage([a, b], 'after-b'),
+      conversationsPage([c, d]),
+      conversationsPage([a, b], 'after-b'),
+      conversationsPage([d])
+    )
+    const wrapper = await mount()
+    await loadMore(wrapper)
+
+    await reconnect(a.id)
+
+    expect(conversationTitles(wrapper)).toEqual(['A', 'B', 'D'])
+    expect(hasMore(wrapper)).toBe(false)
+    expect(
+      testApp.mock.history.get
+        .filter(({ url }) => url.endsWith('/conversations/'))
+        .map(({ params }) => params.cursor)
+    ).toEqual([null, 'after-b', null, 'after-b'])
   })
 
   test('renames and removes conversations changed in another session', async () => {

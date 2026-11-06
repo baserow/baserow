@@ -218,9 +218,10 @@ export const conversationsPage = (results, nextCursor = null) => ({
 })
 
 const conversationIds = new Map()
+// The API lists equal moments by descending id, so the first one seen sorts first.
 const conversationId = (uuid) => {
   if (!conversationIds.has(uuid)) {
-    conversationIds.set(uuid, conversationIds.size + 1)
+    conversationIds.set(uuid, 1000 - conversationIds.size)
   }
   return conversationIds.get(uuid)
 }

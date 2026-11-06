@@ -425,7 +425,7 @@ describe('Agent conversations', () => {
       testApp,
       conversationsPage(
         [
-          conversation('conversation-new', 'Newest'),
+          conversation('conversation-new', 'Newest', '2026-10-14T11:00:00Z'),
           conversation('conversation-a', 'Conversation A'),
         ],
         'next'
@@ -573,16 +573,15 @@ describe('Agent conversations', () => {
 
   test('keeps a conversation sent while the list was still loading', async () => {
     const list = deferredReply()
-    mockConversations(testApp, list.reply)
+    const existing = conversationsPage([
+      conversation('older-conversation', 'Existing', '2026-10-13T10:00:00Z'),
+    ])
+    // The read started before the send, so it reads again.
+    mockConversations(testApp, list.reply, existing)
     const wrapper = await mount()
     await sendMessage(wrapper, 'Sent during load')
 
-    list.resolve(
-      200,
-      conversationsPage([
-        conversation('older-conversation', 'Existing', '2026-10-13T10:00:00Z'),
-      ])
-    )
+    list.resolve(200, existing)
     await flushPromises()
 
     expect(conversationTitles(wrapper)).toEqual([

@@ -50,8 +50,14 @@ def update_of(conversation: AgentConversation, run_id: UUID | None = None) -> di
         "type": "agent_conversation_activity",
         "agent_id": conversation.agent_id,
         "conversation_uuid": str(conversation.uuid),
-        "run_id": str(run_id) if run_id else None,
-        "updated_on": DateTimeField().to_representation(conversation.updated_on),
+        "conversation": {
+            "id": conversation.id,
+            "uuid": str(conversation.uuid),
+            "title": conversation.title,
+            "created_on": DateTimeField().to_representation(conversation.created_on),
+            "updated_on": DateTimeField().to_representation(conversation.updated_on),
+            "run_id": str(run_id) if run_id else None,
+        },
     }
 
 
@@ -220,6 +226,7 @@ def test_renames_deletions_and_restores_notify_only_the_owner(
         )
         TrashHandler.restore_item(user, "agent_conversation", conversation.id)
 
+    conversation.refresh_from_db()
     assert broadcast.call_args_list == [
         call(
             [user.id],

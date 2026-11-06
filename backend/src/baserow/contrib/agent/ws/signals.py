@@ -5,8 +5,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import DEFAULT_DB_ALIAS, transaction
 from django.dispatch import receiver
 
-from rest_framework.fields import DateTimeField
-
+from baserow.contrib.agent.api.serializers import AgentConversationSerializer
 from baserow.contrib.agent.models import AgentConversation
 from baserow.contrib.agent.signals import (
     agent_conversation_activity,
@@ -58,6 +57,7 @@ def _notify_owner(
     conversation: AgentConversation,
     user: AbstractUser | None,
     event_type: str,
+    /,
     **data: object,
 ) -> None:
     """Send an event to the conversation owner's sessions, except the acting one."""
@@ -85,17 +85,19 @@ def conversation_activity(
     run_id: UUID | None = None,
     **kwargs,
 ) -> None:
-    """Tell the owner's sessions which run is replying, without message content."""
+    """Send the conversation and the run replying in it, without message content."""
 
     # A deleted conversation is already gone from every list.
     if conversation.trashed:
         return
+    runs = {conversation.id: str(run_id)} if run_id else {}
     _notify_owner(
         conversation,
         user,
         "agent_conversation_activity",
-        run_id=str(run_id) if run_id else None,
-        updated_on=DateTimeField().to_representation(conversation.updated_on),
+        conversation=AgentConversationSerializer(
+            conversation, context={"conversation_runs": runs}
+        ).data,
     )
 
 

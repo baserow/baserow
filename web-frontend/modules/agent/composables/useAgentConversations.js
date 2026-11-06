@@ -8,7 +8,9 @@ import { AGENT_RUN_TYPE } from '@baserow/modules/agent/chatRunTypes'
 import AgentApplicationService from '@baserow/modules/agent/services/agentApplication'
 import { API_ERROR_CODE } from '@baserow/modules/agent/constants'
 
-const byNewest = (a, b) => Date.parse(b.updated_on) - Date.parse(a.updated_on)
+// The API's order, so positions compare with the pages it returns.
+const byNewest = (a, b) =>
+  Date.parse(b.updated_on) - Date.parse(a.updated_on) || b.id - a.id
 const pick = (source, fields) =>
   Object.fromEntries(fields.map((field) => [field, source[field]]))
 
@@ -73,10 +75,12 @@ export function useAgentConversations(agent, configuration) {
     permission('agent_application.delete_conversation')
   )
 
+  // Every conversation down to `loadedUntil`, newest first.
   const conversations = ref([])
   const localConversations = ref([])
-  // Where the next page continues, after the last loaded conversation.
+  // Where the next page continues, null once every conversation is loaded.
   const conversationsCursor = ref(null)
+  let loadedUntil = null
   const conversationsNext = computed(() => Boolean(conversationsCursor.value))
   // The first load starts on mount, so the server renders the same pending state.
   const conversationsLoading = ref(canReadConversations.value)
@@ -87,9 +91,9 @@ export function useAgentConversations(agent, configuration) {
 
   let scope = 0
   let conversationsRequest = 0
-  let requestedConversationsCursor = null
-  let conversationsRefreshPending = false
-  // Deletes and updates since a list read started, whose older copy would undo them.
+  let lastConversationsRead = () => {}
+  let conversationsReloadPending = false
+  // Changes since a list read started, whose older copy would undo them.
   let conversationChanges = 0
 
   const conversationItems = computed(() => [
@@ -107,6 +111,8 @@ export function useAgentConversations(agent, configuration) {
   const currentDraft = computed(() => drafts[selectedUuid.value] || null)
   const findConversation = (conversationUuid) =>
     conversations.value.find((item) => item.uuid === conversationUuid)
+  const isInLoadedRange = (conversation) =>
+    !conversationsCursor.value || byNewest(conversation, loadedUntil) <= 0
 
   const replyFollower = computed(() => {
     const id = selectedConversation.value?.id
@@ -175,6 +181,7 @@ export function useAgentConversations(agent, configuration) {
 
   /** Keep the newest copy of each conversation, newest first. */
   function mergeConversations(incoming) {
+    conversationChanges++
     const known = new Map(conversations.value.map((item) => [item.uuid, item]))
     for (const conversation of incoming) {
       const current = known.get(conversation.uuid)
@@ -187,36 +194,56 @@ export function useAgentConversations(agent, configuration) {
     conversations.value = [...known.values()].sort(byNewest)
   }
 
-  async function fetchConversations(cursor = null, realtimeRecovery = false) {
+  /**
+   * Read the page after `cursor`, or with `reload` every page down to
+   * `loadedUntil` again, dropping the conversations they no longer list.
+   */
+  async function fetchConversations(cursor = null, reload = false) {
     if (!canReadConversations.value) return
     const currentScope = scope
     const agentId = agent.value.id
     const request = ++conversationsRequest
     const changes = conversationChanges
-    requestedConversationsCursor = cursor
+    const until = loadedUntil
+    lastConversationsRead = () => fetchConversations(cursor, reload)
     conversationsLoading.value = true
     conversationsError.value = false
     try {
-      const { data } = await service.getConversations(
-        agentId,
-        cursor,
-        realtimeRecovery
+      const results = []
+      let data
+      do {
+        ;({ data } = await service.getConversations(
+          agentId,
+          data ? data.next_cursor : cursor,
+          reload
+        ))
+        if (
+          !scopeIsCurrent(currentScope) ||
+          request !== conversationsRequest ||
+          !canReadConversations.value
+        ) {
+          return
+        }
+        results.push(...data.results)
+      } while (
+        reload &&
+        data.next_cursor &&
+        until &&
+        byNewest(data.results.at(-1), until) < 0
       )
-      if (
-        !scopeIsCurrent(currentScope) ||
-        request !== conversationsRequest ||
-        !canReadConversations.value
-      ) {
-        return
-      }
       if (changes !== conversationChanges) {
-        return fetchConversations(cursor, realtimeRecovery)
+        return fetchConversations(cursor, reload)
       }
-      mergeConversations(data.results)
-      // Reading the newest ones again leaves the loaded pages after them as they are.
-      if (cursor === conversationsCursor.value) {
-        conversationsCursor.value = data.next_cursor
+      if (reload) {
+        const listed = new Set(results.map(({ uuid }) => uuid))
+        conversations.value
+          .filter(({ uuid }) => !listed.has(uuid))
+          .forEach(({ uuid }) => removeConversation(uuid))
       }
+      mergeConversations(results)
+      conversationsCursor.value = data.next_cursor
+      if (results.length)
+        loadedUntil = pick(results.at(-1), ['updated_on', 'id'])
     } catch {
       if (scopeIsCurrent(currentScope) && request === conversationsRequest) {
         conversationsError.value = true
@@ -224,18 +251,18 @@ export function useAgentConversations(agent, configuration) {
     } finally {
       if (scopeIsCurrent(currentScope) && request === conversationsRequest) {
         conversationsLoading.value = false
-        if (conversationsRefreshPending) {
-          conversationsRefreshPending = false
-          refreshConversations()
+        if (conversationsReloadPending) {
+          conversationsReloadPending = false
+          reloadConversations()
         }
       }
     }
   }
 
-  /** Read the newest conversations again after an event that changed them. */
-  function refreshConversations() {
+  /** Read the loaded conversations again after missing events that changed them. */
+  function reloadConversations() {
     if (conversationsLoading.value) {
-      conversationsRefreshPending = true
+      conversationsReloadPending = true
       return
     }
     return fetchConversations(null, true)
@@ -269,7 +296,7 @@ export function useAgentConversations(agent, configuration) {
   }
 
   function retryConversations() {
-    return fetchConversations(requestedConversationsCursor)
+    return lastConversationsRead()
   }
 
   async function fetchMessages(conversationUuid, page = 1) {
@@ -555,7 +582,8 @@ export function useAgentConversations(agent, configuration) {
     ++conversationsRequest
     conversations.value = []
     conversationsCursor.value = null
-    conversationsRefreshPending = false
+    loadedUntil = null
+    conversationsReloadPending = false
     localConversations.value = []
     selectedUuid.value = null
     Object.keys(histories).forEach((key) => delete histories[key])
@@ -590,13 +618,16 @@ export function useAgentConversations(agent, configuration) {
         if (conversation) applyConversationValues(conversation, update.values)
         return
       }
-      if (!conversation) return refreshConversations()
+      // Past the loaded range, the next page lists it.
+      if (!conversation) {
+        if (isInLoadedRange(update.conversation)) {
+          mergeConversations([update.conversation])
+        }
+        return
+      }
+      // A rename's own event can arrive after this one, so only take the activity.
       mergeConversations([
-        {
-          uuid: update.uuid,
-          run_id: update.runId,
-          updated_on: update.updatedOn,
-        },
+        pick(update.conversation, ['id', 'uuid', 'run_id', 'updated_on']),
       ])
       if (update.uuid === selectedUuid.value) followReplies(conversation)
       else if (histories[update.uuid]) histories[update.uuid].stale = true
@@ -660,7 +691,7 @@ export function useAgentConversations(agent, configuration) {
     },
     /** Events missed while the websocket was down change lists and histories. */
     chatReconnected(chatId) {
-      refreshConversations()
+      reloadConversations()
       for (const [conversationUuid, history] of Object.entries(histories)) {
         if (conversationUuid !== selectedUuid.value) history.stale = true
       }
