@@ -267,6 +267,8 @@ def _get_database_model(
     :param workspace: The workspace scope, or ``None`` for the instance scope.
     :param state: An already-loaded provider state for the requested scope.
     :return: The selected model, if any, and its resolution source.
+    :raises AssistantConfiguredModelNotAvailableError: If an instance admin
+        excluded this workspace from the selected provider.
     """
 
     if state is None:
@@ -280,6 +282,22 @@ def _get_database_model(
         ),
         None,
     )
+
+    selected_setting = state.get_feature_setting(AI_PROVIDER_FEATURE_KUMA)
+    if selected_setting is None and state.workspace is not None:
+        selected_setting = state.get_instance_feature_setting(AI_PROVIDER_FEATURE_KUMA)
+    if (
+        selected_setting is not None
+        and selected_setting.model is not None
+        and selected_setting.model.provider_config_id
+        in state.excluded_instance_provider_ids
+    ):
+        # An admin exclusion must not reopen the legacy environment connection
+        # when the saved model becomes unavailable in this workspace.
+        raise AssistantConfiguredModelNotAvailableError(
+            "The selected Kuma model is unavailable in this workspace."
+        )
+
     if setting is None or setting["state"] in {"unconfigured", "invalid"}:
         return None, "legacy"
     if setting["state"] == "disabled":
@@ -354,6 +372,8 @@ def resolve_assistant_model(
     :param model: An explicit model identifier that bypasses persisted selection.
     :return: The resolved model profile and provider-state snapshot.
     :raises AssistantModelDisabledError: If Kuma is explicitly disabled.
+    :raises AssistantConfiguredModelNotAvailableError: If the selected provider
+        excludes this workspace.
     """
 
     if model is not None:

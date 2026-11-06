@@ -1,0 +1,152 @@
+.select-workspace-modal {
+  width: 520px;
+  max-width: calc(100vw - 24px);
+  padding: 12px;
+
+  .data-table {
+    position: relative;
+    inset: auto;
+    padding-bottom: 0;
+    font-size: 13px;
+    height: calc(var(--select-workspace-body-height) + 132px);
+    max-height: calc(var(--select-workspace-available-height, 100vh) - 26px);
+    overflow: hidden;
+  }
+
+  .data-table__header {
+    height: 44px;
+    margin: 0;
+    padding: 0 36px 0 0;
+    flex-shrink: 0;
+  }
+
+  .data-table__title {
+    display: none;
+  }
+
+  .data-table__actions,
+  .data-table__search {
+    width: 100%;
+  }
+
+  .form-input {
+    height: 43px;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .form-input__input {
+    font-size: 14px;
+  }
+
+  .data-table__body {
+    flex: 0 1 var(--select-workspace-body-height);
+    height: var(--select-workspace-body-height);
+    max-height: var(--select-workspace-body-height);
+    margin: 0;
+    border: 1px solid $palette-neutral-200;
+    border-radius: 6px;
+    scrollbar-gutter: auto;
+  }
+
+  .data-table__table {
+    font-size: 13px;
+  }
+
+  .data-table__table-cell {
+    padding: 0 10px;
+    vertical-align: middle;
+    border-right: 1px solid $palette-neutral-200;
+    border-bottom: 1px solid $palette-neutral-200;
+
+    &:first-child {
+      padding-left: 12px;
+    }
+
+    &:last-child {
+      padding-right: 10px;
+      border-right: 0;
+    }
+  }
+
+  .data-table__table-cell-head,
+  .data-table__table-cell-content {
+    height: 32px;
+    padding: 0;
+    font-size: 13px;
+    font-weight: normal;
+  }
+
+  .data-table__footer {
+    width: 100%;
+    height: 44px;
+    padding: 10px 0 0;
+  }
+
+  .data-table__empty {
+    padding: 24px 12px;
+  }
+
+  .checkbox__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+
+.select-workspace-modal__views {
+  flex-shrink: 0;
+  margin-bottom: 8px;
+
+  .segment-control__button {
+    font: inherit;
+  }
+}
+
+.select-workspace-modal__close {
+  position: absolute;
+  z-index: 1;
+  top: 22px;
+  right: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: $palette-neutral-900;
+  cursor: pointer;
+}
+
+.select-workspace-modal__row {
+  cursor: pointer;
+}
+
+.select-workspace-modal__option {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: inherit;
+
+  @include fixed-height(32px, 13px);
+}
+
+.select-workspace-modal__name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.select-workspace-modal__id {
+  color: $palette-neutral-700;
+}
