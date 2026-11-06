@@ -6,7 +6,6 @@ export const FF_AGENT_BUILDER = 'agent-builder'
 export const FF_RBAC_IMPROVEMENTS = 'rbac_improvements'
 export const FF_APPLICATION_IN_ERROR = 'application_in_error'
 export const FF_USER_TEMPLATES = 'user_templates'
-export const FF_SEMANTIC_SEARCH = 'semantic_search'
 
 function getFeatureFlags(env) {
   return (env.FEATURE_FLAGS || '')

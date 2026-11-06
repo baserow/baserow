@@ -1,4 +1,7 @@
-from baserow_enterprise.automation.nodes.models import CoreCodeActionNode
+from baserow_enterprise.automation.nodes.models import (
+    CoreCodeActionNode,
+    LocalBaserowSemanticSearchActionNode,
+)
 from baserow_enterprise.builder.custom_code.models import (
     BuilderCustomCode,
     BuilderCustomScript,
@@ -16,6 +19,9 @@ from baserow_enterprise.integrations.common.sso.saml.models import (
 from baserow_enterprise.integrations.core.models import (
     CoreCodeService,
     CoreCodeServiceInjection,
+)
+from baserow_enterprise.integrations.local_baserow.models import (
+    LocalBaserowSemanticSearch,
 )
 from baserow_enterprise.integrations.models import (
     LocalBaserowPasswordAppAuthProvider,
@@ -51,6 +57,8 @@ __all__ = [
     "CoreCodeServiceInjection",
     "CoreCodeWorkflowAction",
     "CoreCodeActionNode",
+    "LocalBaserowSemanticSearch",
+    "LocalBaserowSemanticSearchActionNode",
     "SemanticSearchField",
     "SemanticSearchPendingUpdate",
 ]

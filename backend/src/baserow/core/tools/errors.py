@@ -107,7 +107,12 @@ def tool_error_message(exc: Exception) -> str | None:
     if isinstance(exc, DRFPermissionDenied):
         return str(exc.detail)
     if isinstance(exc, DRFValidationError):
-        return "Invalid value. " + "; ".join(flatten_error_detail(exc.detail))
+        detail = exc.detail
+        # A coded error, like `{"detail": "...", "error": "invalid_view"}`, of which
+        # the code is for the editor.
+        if isinstance(detail, dict) and set(detail) == {"detail", "error"}:
+            detail = detail["detail"]
+        return "Invalid value. " + "; ".join(flatten_error_detail(detail))
     # Any other client error, like a feature that needs a licence (402). Those
     # come as an error code and a message.
     if isinstance(exc, APIException) and exc.status_code < 500:

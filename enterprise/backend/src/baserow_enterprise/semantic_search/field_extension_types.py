@@ -12,7 +12,6 @@ from baserow.contrib.database.fields.registries import (
     FieldExtensionType,
     field_type_registry,
 )
-from baserow.core.feature_flags import FF_SEMANTIC_SEARCH, feature_flag_is_enabled
 from baserow.core.registries import ImportExportConfig
 from baserow_enterprise.features import SEMANTIC_SEARCH
 from baserow_premium.license.handler import LicenseHandler
@@ -132,13 +131,10 @@ class SemanticSearchFieldExtensionType(FieldExtensionType):
 
         :param field: The field of which the values become searchable.
         :raises FeaturesNotAvailableError: If the workspace doesn't have the license.
-        :raises SemanticSearchNotAvailable: If the instance doesn't support it, or
-            the feature flag isn't enabled.
+        :raises SemanticSearchNotAvailable: If the instance doesn't support it.
         :raises SemanticSearchNotSupported: If the type of the field isn't supported.
         """
 
-        if not feature_flag_is_enabled(FF_SEMANTIC_SEARCH):
-            raise SemanticSearchNotAvailable()
         handler = SemanticSearchHandler()
         LicenseHandler.raise_if_workspace_doesnt_have_feature(
             SEMANTIC_SEARCH, field.table.database.workspace
