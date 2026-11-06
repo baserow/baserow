@@ -167,11 +167,25 @@ describe('Agent tool presentations', () => {
     [
       { count: 0, table: 'Tasks', existing_count: 1 },
       'create_views',
-      'Used the existing view in Tasks',
+      'Skipped 1 view in Tasks: name already exists',
     ],
-    [{ count: 0, existing_count: 2 }, 'create_views', 'Used 2 existing views'],
+    [
+      { count: 0, table: 'Tasks', existing_count: 2 },
+      'create_views',
+      'Skipped 2 views in Tasks: names already exist',
+    ],
+    [
+      { count: 0, existing_count: 1 },
+      'create_views',
+      'Skipped 1 view: name already exists',
+    ],
+    [
+      { count: 0, existing_count: 2 },
+      'create_views',
+      'Skipped 2 views: names already exist',
+    ],
   ])(
-    'names reused items when nothing new was created: %j',
+    'reports reused tables and skipped views accurately: %j',
     (facts, tool, title) => {
       expect(
         toolActivity(step(tool, 'done', { facts }), registry, t).title
