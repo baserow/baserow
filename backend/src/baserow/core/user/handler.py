@@ -588,17 +588,10 @@ class UserHandler:
             user.set_password(password)
             user.save()
 
-            # last_password_change is used to invalidate old JWT tokens.
-            user.profile.last_password_change = datetime.now(tz=timezone.utc)
             user.profile.email_verified = True
-            user.profile.save()
-
-        user_password_changed.send(
-            self, user=user, ignore_web_socket_id=getattr(user, "web_socket_id", None)
-        )
-
-        with translation.override(user.profile.language):
-            PasswordChangedEmail(user, to=[user.email]).send()
+            self.password_changed(
+                user, ignore_web_socket_id=getattr(user, "web_socket_id", None)
+            )
 
         return user
 
@@ -631,18 +624,38 @@ class UserHandler:
         user.set_password(new_password)
         user.save()
 
+        self.password_changed(
+            user, ignore_web_socket_id=getattr(user, "web_socket_id", None)
+        )
+
+        return user
+
+    def password_changed(
+        self, user: AbstractUser, ignore_web_socket_id: Optional[str] = None
+    ) -> None:
+        """
+        Ends the existing sessions of a user whose new password has just been set
+        and saved, and tells them by email. Every path that changes a password must
+        call this, otherwise someone holding an old token keeps access.
+
+        Tokens issued before now stop working, open real-time connections are
+        closed and OAuth apps are signed out.
+
+        :param user: The user whose password was changed.
+        :param ignore_web_socket_id: The real-time connection to keep open, if the
+            user changed their own password from that browser tab.
+        """
+
         # last_password_change is used to invalidate old JWT tokens.
         user.profile.last_password_change = datetime.now(tz=timezone.utc)
         user.profile.save()
 
         user_password_changed.send(
-            self, user=user, ignore_web_socket_id=getattr(user, "web_socket_id", None)
+            self, user=user, ignore_web_socket_id=ignore_web_socket_id
         )
 
         with translation.override(user.profile.language):
             PasswordChangedEmail(user, to=[user.email]).send()
-
-        return user
 
     def send_change_email_confirmation(
         self, user: AbstractUser, new_email: str, password: str

@@ -1031,7 +1031,7 @@ export class RealTimeHandler {
 
     this.registerEvent('force_disconnect', ({ store }) => {
       this.reconnect = false
-      logoutAndRedirectToLogin(this.context.app.router, store, false, true)
+      logoutAndRedirectToLogin(this.context.app.$router, store, false, true)
     })
 
     this.registerEvent('job_started', ({ store }, data) => {

@@ -695,6 +695,55 @@ def test_admin_can_patch_user_without_providing_password(api_client, data_fixtur
 
 
 @pytest.mark.django_db
+def test_admin_password_change_invalidates_the_users_existing_tokens(
+    api_client, data_fixture
+):
+    admin, _ = data_fixture.create_user_and_token(is_staff=True)
+    user = data_fixture.create_user()
+
+    with freeze_time("2026-11-05 12:00:00"):
+        refresh_token = RefreshToken.for_user(user)
+        access_token = str(refresh_token.access_token)
+        refresh_token = str(refresh_token)
+
+    with freeze_time("2026-11-05 12:01:00"):
+        response = api_client.get(
+            reverse("api:workspaces:list"), HTTP_AUTHORIZATION=f"JWT {access_token}"
+        )
+        assert response.status_code == HTTP_200_OK
+
+    with freeze_time("2026-11-05 12:02:00"):
+        admin_token = str(AccessToken.for_user(admin))
+        response = api_client.patch(
+            reverse("api:admin:users:edit", kwargs={"user_id": user.id}),
+            {"password": "a-brand-new-password"},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {admin_token}",
+        )
+        assert response.status_code == HTTP_200_OK
+
+    with freeze_time("2026-11-05 12:03:00"):
+        response = api_client.get(
+            reverse("api:workspaces:list"), HTTP_AUTHORIZATION=f"JWT {access_token}"
+        )
+        assert response.status_code == HTTP_401_UNAUTHORIZED
+
+        response = api_client.post(
+            reverse("api:user:token_refresh"),
+            {"refresh_token": refresh_token},
+            format="json",
+        )
+        assert response.status_code == HTTP_401_UNAUTHORIZED
+
+        response = api_client.post(
+            reverse("api:user:token_auth"),
+            {"email": user.email, "password": "a-brand-new-password"},
+            format="json",
+        )
+        assert response.status_code == HTTP_200_OK
+
+
+@pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_admin_update_to_existing_user(api_client, data_fixture):
     user_to_change = data_fixture.create_user()
