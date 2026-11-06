@@ -41,6 +41,15 @@ const announcement = (wrapper) =>
 const liveReply = (wrapper) => wrapper.get('.chat-message__bubble[aria-live]')
 const typing = (wrapper) => wrapper.find('.chat-typing').exists()
 const spinning = (wrapper) => wrapper.find('.chat-loading__spinner').exists()
+const toolStep = (id, tool, status, extra = {}) => ({
+  id,
+  tool,
+  status,
+  changes_data: tool === 'create_rows',
+  input: {},
+  facts: {},
+  ...extra,
+})
 
 describe('Agent replies', () => {
   let testApp, mount, api, streams, cursor
@@ -133,6 +142,98 @@ describe('Agent replies', () => {
     expect(messageReads()).toEqual([])
   })
 
+  test('shows live tool activity and replaces it with the saved outcome', async () => {
+    const wrapper = await startReply()
+    const running = toolStep('call-1', 'create_rows', 'running', {
+      input: { requested_count: 3 },
+    })
+
+    await receive('run-1', 'step', running)
+
+    expect(announcement(wrapper)).toBe('toolPresentation.stepAnnouncement')
+    expect(wrapper.get('.chat-step-group').attributes('aria-busy')).toBe('true')
+    expect(wrapper.get('.chat-step-group__title').text()).toContain('3')
+    expect(typing(wrapper)).toBe(false)
+    expect(activity(wrapper).text()).toContain(
+      'agent.toolCreateRowsRunningCount'
+    )
+    expect(activity(wrapper).text()).toContain('3')
+
+    const done = {
+      ...running,
+      status: 'done',
+      facts: { count: 2, table: 'Tasks' },
+    }
+    await finish(
+      'run-1',
+      'completed',
+      reply('completed', 'Added rows', { steps: [done] })
+    )
+
+    expect(wrapper.findAll('.chat-step-group')).toHaveLength(1)
+    expect(wrapper.get('.chat-step-group').attributes('aria-busy')).toBe(
+      'false'
+    )
+    expect(wrapper.get('.chat-step-group__title').text()).toContain('2')
+    expect(
+      wrapper.find('.chat-step-group .iconoir-check-circle').exists()
+    ).toBe(true)
+    expect(activity(wrapper).classes()).not.toContain(
+      'chat-composer__activity--visible'
+    )
+  })
+
+  test('names the call that runs first while later calls wait', async () => {
+    const wrapper = await startReply()
+
+    await receive('run-1', 'step', toolStep('a', 'list_tables', 'running'))
+    await receive('run-1', 'step', toolStep('b', 'create_rows', 'running'))
+
+    expect(activity(wrapper).text()).toContain('agent.toolListTablesRunning')
+
+    await receive('run-1', 'step', toolStep('a', 'list_tables', 'done'))
+
+    expect(activity(wrapper).text()).toContain('agent.toolCreateRowsRunning')
+  })
+
+  test('reloads grouped reads and failed calls from saved message steps', async () => {
+    withConversation([
+      prompt,
+      reply('completed', 'Finished', {
+        steps: [
+          toolStep('a', 'list_tables', 'done'),
+          toolStep('failed-read', 'list_table_rows', 'failed', {
+            error_code: 'not_found',
+          }),
+          toolStep('b', 'get_table_schema', 'done', {
+            facts: { table: 'Tasks' },
+          }),
+          toolStep('c', 'create_rows', 'failed'),
+        ],
+      }),
+    ])
+    const wrapper = await mount()
+    await selectConversation(wrapper, existingConversation.title)
+
+    expect(wrapper.findAll('.chat-step-group')).toHaveLength(2)
+    expect(
+      wrapper.find('.chat-step-group .iconoir-warning-triangle').exists()
+    ).toBe(true)
+    const reads = wrapper.findAll('.chat-step-group')[0]
+    expect(reads.find('button .iconoir-check-circle').exists()).toBe(true)
+    expect(reads.find('button .iconoir-warning-triangle').exists()).toBe(false)
+    expect(reads.findAll('li .iconoir-warning-triangle')).toHaveLength(1)
+    expect(reads.findAll('li .iconoir-check-circle')).toHaveLength(2)
+    expect(reads.get('button').classes()).not.toContain('button')
+    expect(reads.findAll('li')).toHaveLength(3)
+    await reads.get('button').trigger('click')
+    expect(reads.findAll('li')).toHaveLength(0)
+    expect(wrapper.findAll('.chat-step-group')[1].find('button').exists()).toBe(
+      false
+    )
+    expect(api.stream).not.toHaveBeenCalled()
+  })
+
   test('keeps Stop while the configuration stops being ready', async () => {
     mockSaves(testApp, incompleteConfiguration('instructions'))
     const wrapper = await startReply()
@@ -159,12 +260,15 @@ describe('Agent replies', () => {
           updated() {
             if (this.$options.__name === 'AgentMessage') {
               updated.push(this.message.uuid)
+            } else if (this.$options.__name === 'ChatStepGroup') {
+              updated.push('steps')
             }
           },
         },
       ],
     })
     await selectConversation(wrapper, existingConversation.title)
+    await receive('run-4', 'step', toolStep('a', 'create_rows', 'running'))
     updated.length = 0
 
     await streamText('run-4', 'Hel')
@@ -186,6 +290,31 @@ describe('Agent replies', () => {
     expect(messages(wrapper)).toEqual(['Hello', 'Hel!'])
     expect(note(wrapper)).toBe('agent.replyStopped')
     expect(announcement(wrapper)).toBe('agent.replyStopped')
+  })
+
+  test('reopening a running reply announces it without repeating its old steps', async () => {
+    mockConversations(
+      testApp,
+      page([
+        existingConversation,
+        conversation('conversation-b', 'Conversation B'),
+      ])
+    )
+    mockMessages(
+      testApp,
+      existingConversation.uuid,
+      page([prompt, runningReply('run-2')])
+    )
+    mockMessages(testApp, 'conversation-b', page([]))
+    const wrapper = await mount()
+    await selectConversation(wrapper, existingConversation.title)
+    await receive('run-2', 'step', toolStep('a', 'list_tables', 'done'))
+    expect(announcement(wrapper)).toBe('toolPresentation.stepAnnouncement')
+
+    await selectConversation(wrapper, 'Conversation B')
+    await selectConversation(wrapper, existingConversation.title)
+
+    expect(announcement(wrapper)).toBe('agent.replying')
   })
 
   // Logging out suspends followers; reopening the chat must resume them or Stop stays.

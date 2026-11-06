@@ -13,8 +13,69 @@ const fold = (events) =>
   )
 const delta = (segment, text) => ['text.delta', { segment, text }]
 const message = { id: 5, content: 'Done' }
+const step = (id, status = 'running') => ({ id, tool: 'list_tables', status })
 
 describe('foldRunEvent', () => {
+  test('updates parallel steps in call order, then replaces them from history', () => {
+    const a = step('a', 'done')
+    const b = step('b', 'failed')
+    const saved = step('saved', 'done')
+
+    expect(
+      fold([
+        ['step', step('a')],
+        ['step', step('b')],
+        ['step', b],
+        ['step', a],
+      ]).steps
+    ).toEqual([a, b])
+    expect(
+      fold([
+        ['step', a],
+        ['run.baseline', { steps: [b] }],
+        ['run.finished', { status: 'completed', message: { steps: [saved] } }],
+      ]).steps
+    ).toEqual([saved])
+  })
+
+  test('moves a failed step that is retried to the end, as the new call it is', () => {
+    expect(
+      fold([
+        ['step', step('a', 'failed')],
+        ['step', step('b', 'done')],
+        ['step', step('a')],
+      ]).steps.map(({ id }) => id)
+    ).toEqual(['b', 'a'])
+  })
+
+  test('clears steps on an empty baseline and ends unresolved calls on finish', () => {
+    expect(
+      fold([
+        ['step', step('a')],
+        ['run.baseline', {}],
+      ]).steps
+    ).toEqual([])
+    expect(
+      fold([
+        ['step', step('a')],
+        ['run.finished', { status: 'cancelled' }],
+      ]).steps
+    ).toEqual([step('a', 'stopped')])
+  })
+
+  test('retains a failure code through live events, reconnect and saved history', () => {
+    const failed = { ...step('a', 'failed'), error_code: 'not_found' }
+    const events = [
+      ['step', step('a')],
+      ['step', failed],
+      ['run.baseline', { steps: [failed] }],
+      ['run.finished', { status: 'completed', message: { steps: [failed] } }],
+    ]
+    for (const count of [2, 3, 4]) {
+      expect(fold(events.slice(0, count)).steps).toEqual([failed])
+    }
+  })
+
   test.each([
     ['a new run is queued', [['run.created']], { status: 'queued', text: '' }],
     ['a started run is running', [['run.started']], { status: 'running' }],

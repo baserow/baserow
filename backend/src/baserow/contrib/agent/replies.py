@@ -21,12 +21,14 @@ from pydantic_ai.usage import UsageLimits
 
 from baserow.core.chat_runs.constants import ChatRunErrorCode, ChatRunStopReason
 from baserow.core.chat_runs.models import ChatRunStatus
+from baserow.core.chat_runs.steps import ChatRunSteps
 from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.tools import ToolContext
 from baserow.core.utils import remove_null_characters
 
 from .constants import (
+    INTERRUPTED_CHANGES_NOTE,
     INTERRUPTED_REPLY_NOTE,
     REPLY_REQUEST_LIMIT,
     TOOL_RETRIES,
@@ -34,10 +36,30 @@ from .constants import (
 )
 from .models import AgentMessage
 from .registries import agent_tool_type_registry
-from .types import AgentReplyRequest
+from .types import AgentReplyRequest, AgentReplyResult
 
 if TYPE_CHECKING:
     from baserow.core.chat_runs.journal import ChatRunJournal
+
+
+def _interruption_note(reply: AgentMessage) -> str:
+    """
+    Name the changes an interrupted reply started, since its text may not.
+
+    :param reply: A reply that did not complete.
+    :return: The interruption note, followed by the changes it started, if any.
+    """
+
+    changes = ", ".join(
+        f"{step.get('tool')} ({step.get('status')})"
+        for step in reply.steps or []
+        if isinstance(step, dict) and step.get("changes_data") is True
+    )
+    if not changes:
+        return INTERRUPTED_REPLY_NOTE
+    return (
+        f"{INTERRUPTED_REPLY_NOTE}\n{INTERRUPTED_CHANGES_NOTE.format(changes=changes)}"
+    )
 
 
 def build_history(messages: list[AgentMessage]) -> list[ModelMessage]:
@@ -59,7 +81,7 @@ def build_history(messages: list[AgentMessage]) -> list[ModelMessage]:
         elif history:
             text = message.content
             if message.status != ChatRunStatus.COMPLETED:
-                text = f"{text}\n\n{INTERRUPTED_REPLY_NOTE}".strip()
+                text = f"{text}\n\n{_interruption_note(message)}".strip()
             if text:
                 history.append(ModelResponse(parts=[TextPart(content=text)]))
     return history
@@ -124,6 +146,29 @@ class AgentResponder:
         self._text = ""
         self._parts: dict[int, str] = {}
         self._result: str | None = None
+        self._steps = ChatRunSteps(journal, self._describe_call)
+
+    def _describe_call(self, name: str, arguments: dict) -> dict | None:
+        """
+        Describe a call to one of the reply's tools from its arguments.
+
+        :param name: The called tool's name.
+        :param arguments: Its arguments.
+        :return: Whether the tool changes data and its input summary, or None
+            for a tool the reply doesn't offer, which the model can still name.
+        """
+
+        if name not in self._request.allowed_tool_names:
+            return None
+        tool = agent_tool_type_registry.get(name)
+        try:
+            summary = tool.get_step_input(arguments)
+        except Exception as exc:
+            logger.error(
+                "Agent tool {} step input failed ({})", tool.type, type(exc).__name__
+            )
+            summary = {}
+        return {"changes_data": tool.changes_data, "input": summary}
 
     async def answer(self) -> ChatRunOutcome:
         """
@@ -200,14 +245,14 @@ class AgentResponder:
         :param event: An event of the run.
         """
 
+        self._steps.on_event(event)
         match event:
             case AgentRunResultEvent(result=result):
                 self._result = result.output
                 return
             case FunctionToolCallEvent():
-                # The next response replaces what the model wrote before calling a tool.
+                # Text before a tool call is narration; the next response is the answer.
                 self._parts = {}
-                return
             case PartStartEvent(index=index, part=TextPart(content=content)):
                 self._parts[index] = content
             case PartDeltaEvent(index=index, delta=TextPartDelta(content_delta=delta)):
@@ -218,15 +263,15 @@ class AgentResponder:
         self._journal.emit_text(self._text)
 
     def _outcome(self, work: asyncio.Task) -> ChatRunOutcome:
+        result = self._reply_result()
         # A blank answer is no reply, and some providers reject it in the history.
-        text = remove_null_characters(self._result or "")
-        if text.strip():
-            return ChatRunOutcome(ChatRunStatus.COMPLETED, result=text)
+        if self._result is not None and result.text.strip():
+            return ChatRunOutcome(ChatRunStatus.COMPLETED, result=result)
         if self._journal.stop_reason == ChatRunStopReason.CANCELLED:
-            return ChatRunOutcome(ChatRunStatus.CANCELLED, result=self._text)
+            return ChatRunOutcome(ChatRunStatus.CANCELLED, result=result)
         if self._journal.stop_reason == ChatRunStopReason.TIMEOUT:
             return ChatRunOutcome(
-                ChatRunStatus.FAILED, ChatRunErrorCode.TIMEOUT, self._text
+                ChatRunStatus.FAILED, ChatRunErrorCode.TIMEOUT, result
             )
         if not work.cancelled() and work.exception() is not None:
             logger.error(
@@ -234,4 +279,16 @@ class AgentResponder:
                 self._request.reply_id,
                 _describe_failure(work.exception()),
             )
-        return ChatRunOutcome(ChatRunStatus.FAILED, ChatRunErrorCode.FAILED, self._text)
+        return ChatRunOutcome(ChatRunStatus.FAILED, ChatRunErrorCode.FAILED, result)
+
+    def _reply_result(self) -> AgentReplyResult:
+        """
+        Collect what the reply produced: its text and its tool activity.
+
+        :return: The final answer once the model finished, else the text so far.
+        """
+
+        steps = self._steps.finish() or None
+        if self._result is None:
+            return AgentReplyResult(text=self._text, steps=steps)
+        return AgentReplyResult(text=remove_null_characters(self._result), steps=steps)

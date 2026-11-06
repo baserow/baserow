@@ -5,6 +5,8 @@ import {
   RUN_FINISHED,
   RUN_STARTED,
   RUN_STATUS,
+  STEP,
+  STEP_STATUS,
   TEXT_DELTA,
 } from '@baserow/modules/core/chatRuns/constants'
 
@@ -23,6 +25,7 @@ export function initialRunView() {
     segment: -1,
     text: '',
     progress: '',
+    steps: [],
     message: null,
   }
 }
@@ -47,6 +50,17 @@ export function foldRunEvent(view, event) {
         : { ...view, segment: data.segment, text: data.text }
     case PROGRESS:
       return { ...view, progress: data.text }
+    case STEP: {
+      const index = view.steps.findIndex((step) => step.id === data.id)
+      const steps = [...view.steps]
+      // A failed step only changes again when its call is retried, which is a new call.
+      if (index !== -1 && steps[index].status === STEP_STATUS.FAILED) {
+        steps.splice(index, 1)
+        steps.push(data)
+      } else if (index === -1) steps.push(data)
+      else steps[index] = data
+      return { ...view, steps }
+    }
     case RUN_CANCEL_REQUESTED:
       return { ...view, cancelRequested: true }
     case RUN_FINISHED:
@@ -57,6 +71,13 @@ export function foldRunEvent(view, event) {
         message: data.message ?? null,
         text: data.message?.content ?? view.text,
         progress: '',
+        steps:
+          data.message?.steps ??
+          view.steps.map((step) =>
+            step.status === STEP_STATUS.RUNNING
+              ? { ...step, status: STEP_STATUS.STOPPED }
+              : step
+          ),
       }
     case RUN_BASELINE:
       return {
@@ -64,6 +85,7 @@ export function foldRunEvent(view, event) {
         segment: data.segment ?? -1,
         text: data.text || '',
         progress: data.progress?.text || '',
+        steps: data.steps ?? [],
       }
     default:
       return view

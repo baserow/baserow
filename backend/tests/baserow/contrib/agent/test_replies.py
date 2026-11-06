@@ -1,5 +1,6 @@
 import asyncio
 import json
+from unittest.mock import ANY
 from uuid import uuid4
 
 from django.contrib.auth.models import AbstractUser
@@ -22,7 +23,11 @@ from baserow.contrib.agent.actions import (
     CreateAgentMessageActionType,
 )
 from baserow.contrib.agent.chat_run_type import AgentChatRunType
-from baserow.contrib.agent.constants import INTERRUPTED_REPLY_NOTE, TOOL_RETRIES
+from baserow.contrib.agent.constants import (
+    INTERRUPTED_CHANGES_NOTE,
+    INTERRUPTED_REPLY_NOTE,
+    TOOL_RETRIES,
+)
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import (
     AgentApplication,
@@ -30,7 +35,8 @@ from baserow.contrib.agent.models import (
     AgentMessage,
 )
 from baserow.contrib.agent.operations import ReadAgentConversationsOperationType
-from baserow.contrib.agent.replies import create_reply_model
+from baserow.contrib.agent.registries import agent_tool_type_registry
+from baserow.contrib.agent.replies import AgentResponder, create_reply_model
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.signals import agent_conversation_updated
 from baserow.contrib.agent.types import AgentMessageCreated
@@ -90,6 +96,35 @@ def allow_create_rows(
 def reply_run(data_fixture, configured_agent):
     user = data_fixture.create_user()
     return run_of(start(user, configured_agent(user=user)).conversation)
+
+
+@pytest.mark.django_db
+def test_failed_input_summary_keeps_the_call_without_logging_payloads(
+    reply_run, data_fixture, reply_model, mocker, logs
+):
+    agent = AgentConversation.objects.get(id=reply_run.chat_id).agent
+    allow_create_rows(data_fixture, agent)
+    request = AgentService().prepare_reply(reply_run.context["reply_id"])
+    responder = AgentResponder(request, mocker.Mock(), reply_model, {})
+    mocker.patch.object(
+        agent_tool_type_registry.get("create_rows"),
+        "get_step_input",
+        side_effect=ValueError("PRIVATE_INPUT_ERROR_CANARY"),
+    )
+    arguments = {"rows": [{"Name": "PRIVATE_INPUT_ARGUMENT_CANARY"}]}
+
+    description = responder._describe_call("create_rows", arguments)
+
+    assert description == {
+        "changes_data": True,
+        "input": {},
+    }
+    assert [log.record["message"] for log in logs] == [
+        "Agent tool create_rows step input failed (ValueError)"
+    ]
+    output = "".join(str(entry) for entry in logs)
+    assert "PRIVATE_INPUT_ERROR_CANARY" not in output
+    assert "PRIVATE_INPUT_ARGUMENT_CANARY" not in output
 
 
 @pytest.mark.django_db
@@ -166,15 +201,25 @@ def test_the_model_gets_the_instructions_and_recent_history(
     user = data_fixture.create_user()
     agent = configured_agent(user=user, instructions="Be brief.")
     conversation = data_fixture.create_agent_conversation(user=user, agent=agent)
-    for status, reply in [
-        ("completed", "Old"),
-        ("completed", "First"),
-        ("cancelled", "Half"),
-        ("failed", ""),
+    step = {"id": "s", "input": {}, "facts": {}}
+    steps = [
+        {**step, "tool": "list_tables", "status": "done", "changes_data": False},
+        {**step, "tool": "create_rows", "status": "stopped", "changes_data": True},
+        "malformed",
+    ]
+    for status, reply, reply_steps in [
+        ("completed", "Old", None),
+        ("completed", "First", steps),
+        ("cancelled", "Half", None),
+        ("failed", "", steps),
     ]:
         data_fixture.create_agent_message(conversation=conversation, content="Q")
         data_fixture.create_agent_message(
-            conversation=conversation, role="assistant", content=reply, status=status
+            conversation=conversation,
+            role="assistant",
+            content=reply,
+            status=status,
+            steps=reply_steps,
         )
     mocker.patch("baserow.contrib.agent.handler.HISTORY_MESSAGE_LIMIT", 6)
     seen = []
@@ -197,7 +242,11 @@ def test_the_model_gets_the_instructions_and_recent_history(
         ("ModelRequest", "Q"),
         ("ModelResponse", f"Half\n\n{INTERRUPTED_REPLY_NOTE}"),
         ("ModelRequest", "Q"),
-        ("ModelResponse", INTERRUPTED_REPLY_NOTE),
+        (
+            "ModelResponse",
+            f"{INTERRUPTED_REPLY_NOTE}\n"
+            f"{INTERRUPTED_CHANGES_NOTE.format(changes='create_rows (stopped)')}",
+        ),
         ("ModelRequest", "Now?"),
     ]
     assert seen[-1].instructions == "Be brief."
@@ -315,18 +364,30 @@ def test_workspace_identity_context_is_refreshed_for_each_reply(
     ],
 )
 def test_unfinished_replies_persist_partial_text_without_private_error_details(
-    reply_run, mocker, logs, reason, status, error_code
+    reply_run, data_fixture, mocker, logs, reason, status, error_code
 ):
+    agent = AgentConversation.objects.get(id=reply_run.chat_id).agent
+    table = allow_create_rows(data_fixture, agent)
     emit_text = ChatRunJournal.emit_text
 
     def emit_and_stop(journal, text):
         emit_text(journal, text)
-        if reason:
+        if reason and text:
             journal.request_stop(reason)
 
     mocker.patch.object(ChatRunJournal, "emit_text", emit_and_stop)
 
     async def stream(messages, info):
+        if len(messages) == 1:
+            yield {
+                0: DeltaToolCall(
+                    name="create_rows",
+                    json_args=json.dumps(
+                        {"table_id": table.id, "rows": [{"Name": "Private row value"}]}
+                    ),
+                )
+            }
+            return
         yield "Hel"
         if reason is None:
             raise ModelHTTPError(429, "m", body="Private provider details")
@@ -341,11 +402,50 @@ def test_unfinished_replies_persist_partial_text_without_private_error_details(
 
     reply_id = reply_run.context["reply_id"]
     assert reply_state(reply_id) == (status, error_code, "Hel")
+    steps = AgentMessage.objects.get(id=reply_id).steps
+    assert [(step["status"], step["facts"]) for step in steps] == [
+        ("done", {"table": table.name, "count": 1})
+    ]
     assert [log.record["message"] for log in logs] == (
         [f"Agent reply {reply_id} could not be written (ModelHTTPError, status 429)"]
         if reason is None
         else []
     )
+
+
+@pytest.mark.django_db
+def test_a_stop_during_a_change_waits_for_it_and_saves_it_as_interrupted(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    table = allow_create_rows(data_fixture, agent)
+    emit = ChatRunJournal.emit
+
+    def emit_and_stop(journal, kind, data=None, flush_now=False):
+        emit(journal, kind, data, flush_now)
+        if kind == "step" and data["status"] == "running":
+            journal.request_stop("cancelled")
+
+    mocker.patch.object(ChatRunJournal, "emit", emit_and_stop)
+
+    async def stream(messages, info):
+        arguments = {"table_id": table.id, "rows": [{"Name": "Plan"}]}
+        yield {0: DeltaToolCall(name="create_rows", json_args=json.dumps(arguments))}
+
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(FunctionModel(stream_function=stream), {}),
+    )
+    created = start(user, agent)
+
+    run_reply(run_of(created.conversation))
+
+    assert reply_state(created.reply.id) == ("cancelled", "", "")
+    steps = AgentMessage.objects.get(id=created.reply.id).steps
+    assert [(s["status"], s["changes_data"]) for s in steps] == [("stopped", True)]
+    rows = [row.name for row in table.get_model(attribute_names=True).objects.all()]
+    assert rows == ["Plan"]
 
 
 @pytest.mark.django_db
@@ -380,6 +480,17 @@ def test_lost_and_unstarted_runs_end_their_reply(reply_run, mocker):
     events = [
         {"kind": "text.delta", "data": {"segment": 0, "text": "Hel"}},
         {"kind": "text.delta", "data": {"segment": 0, "text": "lo"}},
+        {
+            "kind": "step",
+            "data": {
+                "id": "call_1",
+                "tool": "create_rows",
+                "status": "running",
+                "changes_data": True,
+                "input": {"requested_count": 3},
+                "facts": {},
+            },
+        },
     ]
     updated = mocker.spy(agent_conversation_updated, "send")
 
@@ -392,6 +503,8 @@ def test_lost_and_unstarted_runs_end_their_reply(reply_run, mocker):
         (unstarted.context["reply_id"], ""),
     ]
     assert updated.call_count == 2
+    assert saved[0]["steps"] == [{**events[-1]["data"], "status": "stopped"}]
+    assert saved[1]["steps"] is None
 
 
 @pytest.mark.django_db
@@ -578,14 +691,23 @@ def test_busy_conversations_and_workspaces_are_refused_with_their_errors(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("with_identity", [True, False])
+@pytest.mark.parametrize(
+    "with_identity,valid_facts", [(True, True), (True, False), (False, True)]
+)
 def test_a_reply_calls_the_allowed_tools_as_the_agent_identity(
-    data_fixture, configured_agent, mocker, with_identity
+    data_fixture, configured_agent, mocker, with_identity, valid_facts, api_client
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
     table = allow_create_rows(data_fixture, agent, with_identity)
     offered = []
+    emitted = mocker.spy(ChatRunJournal, "emit")
+    if not valid_facts:
+        mocker.patch.object(
+            agent_tool_type_registry.get("create_rows"),
+            "get_step_facts",
+            return_value={"count": object()},
+        )
 
     async def stream(messages, info):
         offered.append([tool.name for tool in info.function_tools])
@@ -606,11 +728,75 @@ def test_a_reply_calls_the_allowed_tools_as_the_agent_identity(
     run_reply(run_of(created.conversation))
 
     assert reply_state(created.reply.id) == ("completed", "", "Done.")
+    steps = AgentMessage.objects.get(id=created.reply.id).steps
+    if with_identity:
+        assert steps == [
+            {
+                "id": ANY,
+                "tool": "create_rows",
+                "status": "done",
+                "changes_data": True,
+                "input": {"requested_count": 1},
+                "facts": {"table": table.name, "count": 1} if valid_facts else {},
+            }
+        ]
+        streamed = [
+            call.args[2] for call in emitted.call_args_list if call.args[1] == "step"
+        ]
+        assert [step["status"] for step in streamed] == ["running", "done"]
+        assert streamed[-1] == steps[0]
+        run = run_of(created.conversation)
+        assert run.outcome["steps"] == steps
+        api_client.force_authenticate(user)
+        response = api_client.get(
+            agent_url(agent, "messages", conversation_uuid=created.conversation.uuid)
+        )
+        assert response.status_code == 200
+        saved_reply = next(
+            message
+            for message in response.json()["results"]
+            if message["role"] == "assistant"
+        )
+        assert saved_reply["steps"] == steps
+    else:
+        assert steps is None
     rows = [row.name for row in table.get_model(attribute_names=True).objects.all()]
     if with_identity:
         assert (offered, rows) == ([["create_rows"], ["create_rows"]], ["Plan"])
     else:
         assert (offered, rows) == ([[]], [])
+
+
+@pytest.mark.django_db
+def test_text_before_a_tool_call_is_cleared_when_the_call_starts(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    table = allow_create_rows(data_fixture, agent)
+    emitted = mocker.spy(ChatRunJournal, "emit_text")
+
+    async def stream(messages, info):
+        if len(messages) == 1:
+            yield "Let me add it."
+            arguments = {"table_id": table.id, "rows": [{"Name": "Plan"}]}
+            yield {
+                1: DeltaToolCall(name="create_rows", json_args=json.dumps(arguments))
+            }
+        else:
+            yield "Done."
+
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(FunctionModel(stream_function=stream), {}),
+    )
+    created = start(user, agent)
+
+    run_reply(run_of(created.conversation))
+
+    texts = [call.args[1] for call in emitted.call_args_list]
+    assert texts == ["Let me add it.", "", "Done."]
+    assert reply_state(created.reply.id) == ("completed", "", "Done.")
 
 
 @pytest.mark.django_db
@@ -644,6 +830,10 @@ def test_a_reply_recovers_from_invalid_tool_calls(
     assert reply_state(created.reply.id) == ("completed", "", "Done.")
     rows = [row.name for row in table.get_model(attribute_names=True).objects.all()]
     assert rows == ["Plan"]
+    [step] = AgentMessage.objects.get(id=created.reply.id).steps
+    assert step["status"] == "done"
+    assert step["input"] == {"requested_count": 1}
+    assert "error_code" not in step
 
 
 @pytest.mark.django_db
@@ -714,6 +904,34 @@ def test_workspace_configuration_changes_apply_to_the_next_generation(
 
 
 @pytest.mark.django_db
+def test_calls_to_tools_the_reply_does_not_offer_have_no_step(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    allow_create_rows(data_fixture, agent)
+    calls = iter(["delete_rows"])
+
+    async def stream(messages, info):
+        name = next(calls, None)
+        if name is None:
+            yield "Done."
+        else:
+            yield {0: DeltaToolCall(name=name, json_args="{}")}
+
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(FunctionModel(stream_function=stream), {}),
+    )
+    created = start(user, agent)
+
+    run_reply(run_of(created.conversation))
+
+    assert reply_state(created.reply.id) == ("completed", "", "Done.")
+    assert AgentMessage.objects.get(id=created.reply.id).steps is None
+
+
+@pytest.mark.django_db
 def test_a_reply_cannot_keep_writing_after_its_identity_is_trashed(
     data_fixture, configured_agent, mocker, settings
 ):
@@ -756,3 +974,51 @@ def test_a_reply_cannot_keep_writing_after_its_identity_is_trashed(
     assert list(
         table.get_model(attribute_names=True).objects.values_list("name", flat=True)
     ) == ["Before revocation"]
+
+
+@pytest.mark.django_db
+def test_failed_tool_calls_keep_their_category_in_the_api(
+    data_fixture, configured_agent, mocker, api_client
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    table = allow_create_rows(data_fixture, agent)
+    targets = iter([0, table.id])
+
+    async def stream(messages, info):
+        target = next(targets, None)
+        if target is None:
+            yield "Done."
+        else:
+            yield {
+                0: DeltaToolCall(
+                    name="create_rows",
+                    json_args=json.dumps(
+                        {"table_id": target, "rows": [{"Name": "Plan"}]}
+                    ),
+                )
+            }
+
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(FunctionModel(stream_function=stream), {}),
+    )
+    created = start(user, agent)
+    run_reply(run_of(created.conversation))
+
+    steps = AgentMessage.objects.get(id=created.reply.id).steps
+    assert [step["status"] for step in steps] == ["failed", "done"]
+    assert steps[0]["error_code"] == "not_found"
+    assert "error_code" not in steps[1]
+    assert "Not found in this workspace." not in json.dumps(steps)
+    api_client.force_authenticate(user)
+    response = api_client.get(
+        agent_url(agent, "messages", conversation_uuid=created.conversation.uuid)
+    )
+    assert response.status_code == 200
+    saved_reply = next(
+        message
+        for message in response.json()["results"]
+        if message["role"] == "assistant"
+    )
+    assert saved_reply["steps"] == steps

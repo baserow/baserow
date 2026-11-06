@@ -10,6 +10,7 @@ from pydantic_ai.models import Model
 from baserow.core.chat_runs.constants import ChatRunErrorCode
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
 from baserow.core.chat_runs.registries import ChatRunType
+from baserow.core.chat_runs.steps import stop_running_steps
 from baserow.core.chat_runs.stream import fold_output
 from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.exceptions import PermissionException
@@ -22,7 +23,7 @@ from .handler import AgentHandler
 from .replies import AgentResponder, create_reply_model
 from .service import AgentService
 from .signals import agent_conversation_updated
-from .types import AgentReplyRequest
+from .types import AgentReplyRequest, AgentReplyResult
 
 if TYPE_CHECKING:
     from baserow.core.chat_runs.journal import ChatRunJournal
@@ -88,10 +89,17 @@ class AgentChatRunType(ChatRunType):
     def on_run_lost(
         self, run: ChatRun, events: list[dict[str, Any]] | None = None
     ) -> dict | None:
-        """Keep the text the user already saw."""
+        """Keep the text and activity the user already saw."""
 
-        text = fold_output(events)["text"] if events else ""
-        return self._finish_reply(run, run.status, run.error_code, text)
+        output = fold_output(events or [])
+        return self._finish_reply(
+            run,
+            run.status,
+            run.error_code,
+            AgentReplyResult(
+                text=output["text"], steps=stop_running_steps(output["steps"]) or None
+            ),
+        )
 
     def on_run_not_started(self, run: ChatRun) -> dict | None:
         return self._finish_reply(run, run.status, run.error_code, None)
@@ -104,7 +112,11 @@ class AgentChatRunType(ChatRunType):
             agent_conversation_updated.send(self, conversation=conversation, user=None)
 
     def _finish_reply(
-        self, run: ChatRun, status: str, error_code: str, text: str | None
+        self,
+        run: ChatRun,
+        status: str,
+        error_code: str,
+        result: AgentReplyResult | None,
     ) -> dict | None:
         """
         Save how the reply ended and tell all the owner's sessions.
@@ -112,13 +124,13 @@ class AgentChatRunType(ChatRunType):
         :param run: The run that wrote the reply.
         :param status: The final status.
         :param error_code: Why the reply failed, or an empty string.
-        :param text: What the reply produced, or None when it never started.
+        :param result: What the reply produced, or None when it never started.
         :return: The saved reply as the messages list shows it, so followers don't
             read it again, or None when the reply no longer exists.
         """
 
         reply = AgentHandler().finish_reply(
-            run.context["reply_id"], status, error_code, text
+            run.context["reply_id"], status, error_code, result
         )
         if reply is None:
             return None

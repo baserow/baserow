@@ -31,12 +31,14 @@ def test_tool_calls_recheck_the_identity_role(
         )
         return async_to_sync(tool.function)(**arguments)
 
-    assert create("Before downgrade")[0]["Name"] == "Before downgrade"
+    assert create("Before downgrade").return_value[0]["Name"] == "Before downgrade"
     service.update_agent(admin, identity, role_uid="VIEWER")
 
-    assert create("After downgrade") == {
+    refused = create("After downgrade")
+    assert refused.return_value == {
         "error": "You don't have permission to do this in this workspace."
     }
+    assert refused.metadata == {"error_code": "permission_denied"}
     assert list(
         table.get_model(attribute_names=True).objects.values_list("name", flat=True)
     ) == ["Before downgrade"]
