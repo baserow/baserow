@@ -269,11 +269,19 @@ CELERY_RESULT_EXPIRES = int(
     os.getenv("CELERY_RESULT_EXPIRES") or 3600
 )
 
+# channels-redis blocks for five seconds while waiting for messages. Leave headroom
+# above that wait so redis-py's socket deadline does not close idle WebSockets.
+CHANNELS_REDIS_SOCKET_TIMEOUT = 10
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [REDIS_URL],
+            "hosts": [
+                {
+                    "address": REDIS_URL,
+                    "socket_timeout": CHANNELS_REDIS_SOCKET_TIMEOUT,
+                }
+            ],
         },
     },
 }
@@ -522,6 +530,9 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_RENDERER_CLASSES": ("baserow.api.renderers.BaserowJSONRenderer",),
     "DEFAULT_SCHEMA_CLASS": "baserow.api.openapi.AutoSchema",
+    # Preserve positional list-validation errors in the public API. DRF 3.18
+    # defaults to dictionaries; migrate this contract before upgrading to 3.20.
+    "LIST_SERIALIZER_ERRORS_AS_DICT": False,
 }
 
 # Throttling / rate-limiting — see docs/installation/configuration.md

@@ -31,6 +31,9 @@ const config: StorybookConfig = {
   async viteFinal(viteConfig) {
     return mergeConfig(viteConfig, {
       optimizeDeps: {
+        // Storybook 10 disables discovery; Nuxt's transitive CommonJS imports
+        // (such as tldjs) still need prebundling.
+        noDiscovery: false,
         holdUntilCrawlEnd: true,
         include: [
           'axios',
