@@ -47,7 +47,15 @@
               'tooltip__content--expandable-plain-text',
             ]"
           />
+          <ButtonIcon
+            v-if="item.removeOnly"
+            icon="iconoir-bin"
+            :title="$t('scopeAccessList.remove')"
+            :disabled="item.disabled"
+            @click="$emit('role-updated', item, null)"
+          />
           <ScopeRoleSelector
+            v-else
             class="invite-list__role"
             :value="getRole(item)"
             :roles="item.roles || roles"
@@ -70,6 +78,8 @@ import ScopeRoleSelector from '@baserow/modules/core/components/invitation/Scope
  * Direct access for existing users, teams and agents, plus pending invitations.
  * Callers provide normalized rows and own the permissions, API calls and
  * meaning of removal. Null roles emitted here request removal, not no access.
+ * A row with `removeOnly`, like a member of a team, has no role and only gets
+ * a remove button.
  */
 export default {
   name: 'ScopeAccessList',
@@ -78,7 +88,8 @@ export default {
     /**
      * Rows of `{ key, name, subtitle, badge, badgeColor, avatarComponent, subject,
      * initials, icon, color,
-     * roleUid, roles, disabled, allowRemovingRole, helpText }`, prepared by the
+     * roleUid, roles, disabled, allowRemovingRole, removeOnly, helpText }`,
+     * prepared by the
      * caller. `helpText`, when set, explains the role next to it.
      */
     items: {
