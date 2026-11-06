@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from baserow.api.captcha.errors import ERROR_CAPTCHA_VERIFICATION_FAILED
 from baserow.api.decorators import (
     map_exceptions,
     validate_body,
@@ -15,10 +16,19 @@ from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST, ERROR_USER_NOT_IN_GRO
 from baserow.api.mixins import SearchableViewMixin, SortableViewMixin
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.api.trash.errors import ERROR_CANNOT_DELETE_ALREADY_DELETED_ITEM
+from baserow.api.workspaces.users.errors import ERROR_GROUP_USER_ALREADY_EXISTS
 from baserow.core.action.registries import action_type_registry
-from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
+from baserow.core.captcha.exceptions import CaptchaVerificationFailed
+from baserow.core.captcha.handler import CaptchaHandler
+from baserow.core.exceptions import (
+    UserNotInWorkspace,
+    WorkspaceDoesNotExist,
+    WorkspaceUserAlreadyExists,
+)
 from baserow.core.handler import CoreHandler
 from baserow.core.trash.exceptions import CannotDeleteAlreadyDeletedItem
+from baserow.core.utils import get_user_remote_ip_address_from_request
+from baserow.throttling.handler import WorkspaceInvitationRateThrottle
 from baserow_enterprise.api.errors import (
     ERROR_ROLE_DOES_NOT_EXIST,
     ERROR_SUBJECT_BAD_REQUEST,
@@ -26,10 +36,13 @@ from baserow_enterprise.api.errors import (
     ERROR_SUBJECT_NOT_IN_GROUP,
     ERROR_SUBJECT_TYPE_UNSUPPORTED,
     ERROR_TEAM_DOES_NOT_EXIST,
+    ERROR_TEAM_INVITATION_DOES_NOT_EXIST,
     ERROR_TEAM_NAME_NOT_UNIQUE,
 )
 from baserow_enterprise.api.teams.serializers import (
+    CreateTeamInvitationSerializer,
     GetTeamsViewParamsSerializer,
+    TeamInvitationSerializer,
     TeamListResponseSerializer,
     TeamResponseSerializer,
     TeamSerializer,
@@ -41,13 +54,16 @@ from baserow_enterprise.role.constants import NO_ACCESS_ROLE_UID
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.teams.actions import (
     CreateTeamActionType,
+    CreateTeamInvitationActionType,
     CreateTeamSubjectActionType,
     DeleteTeamActionType,
+    DeleteTeamInvitationActionType,
     DeleteTeamSubjectActionType,
     UpdateTeamActionType,
 )
 from baserow_enterprise.teams.exceptions import (
     TeamDoesNotExist,
+    TeamInvitationDoesNotExist,
     TeamNameNotUnique,
     TeamSubjectBadRequest,
     TeamSubjectDoesNotExist,
@@ -530,4 +546,159 @@ class TeamSubjectView(APIView):
             request.user, subject
         )
 
+        return Response(status=204)
+
+
+TEAM_ID_PARAMETER = OpenApiParameter(
+    name="team_id",
+    location=OpenApiParameter.PATH,
+    type=OpenApiTypes.INT,
+    description="The team the invitations add people to.",
+)
+
+
+class TeamInvitationsView(APIView):
+    """Lists and creates invitations that add a person to a team."""
+
+    permission_classes = (IsAuthenticated,)
+
+    def get_throttles(self):
+        throttles = super().get_throttles()
+
+        if self.request.method == "POST":
+            self.invitation_throttle = WorkspaceInvitationRateThrottle()
+            throttles.append(self.invitation_throttle)
+
+        return throttles
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        # The throttle reserves a slot before this view runs, so that parallel
+        # requests can't all pass the check. If no invitation was sent after all,
+        # the slot is given back and the request costs the user nothing.
+        if response.status_code >= 400 and hasattr(self, "invitation_throttle"):
+            self.invitation_throttle.release()
+
+        return super().finalize_response(request, response, *args, **kwargs)
+
+    @extend_schema(
+        parameters=[TEAM_ID_PARAMETER],
+        tags=["Teams"],
+        operation_id="list_team_invitations",
+        description=(
+            "Lists the pending invitations that add a person to the team once they "
+            "are accepted."
+        ),
+        responses={
+            200: TeamInvitationSerializer(many=True),
+            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            404: get_error_schema(["ERROR_TEAM_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            TeamDoesNotExist: ERROR_TEAM_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+        }
+    )
+    def get(self, request, team_id: int):
+        team = TeamHandler().get_team(request.user, team_id)
+        team_invitations = TeamHandler().list_team_invitations(request.user, team)
+        return Response(TeamInvitationSerializer(team_invitations, many=True).data)
+
+    @extend_schema(
+        parameters=[TEAM_ID_PARAMETER, CLIENT_SESSION_ID_SCHEMA_PARAMETER],
+        tags=["Teams"],
+        operation_id="create_team_invitation",
+        description=(
+            "Invites an email address to the team. The person joins the workspace "
+            "without a workspace role, so that the role of the team applies, and is "
+            "added to the team once they accept. If a pending invitation already "
+            "exists for the address, the team is added to it. The invitation email "
+            "is sent out immediately."
+        ),
+        request=CreateTeamInvitationSerializer,
+        responses={
+            200: TeamInvitationSerializer,
+            400: get_error_schema(
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_GROUP_USER_ALREADY_EXISTS",
+                    "ERROR_CAPTCHA_VERIFICATION_FAILED",
+                ]
+            ),
+            404: get_error_schema(["ERROR_TEAM_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            TeamDoesNotExist: ERROR_TEAM_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            WorkspaceUserAlreadyExists: ERROR_GROUP_USER_ALREADY_EXISTS,
+            CaptchaVerificationFailed: ERROR_CAPTCHA_VERIFICATION_FAILED,
+        }
+    )
+    @validate_body(CreateTeamInvitationSerializer, return_validated=True)
+    def post(self, request, team_id: int, data):
+        """Creates a team invitation and sends it to the provided email."""
+
+        CaptchaHandler.validate_if_required(
+            "workspace_invitation",
+            data.get("captcha_token"),
+            get_user_remote_ip_address_from_request(request),
+        )
+
+        with transaction.atomic():
+            team = TeamHandler().get_team(request.user, team_id)
+            team_invitation = action_type_registry.get_by_type(
+                CreateTeamInvitationActionType
+            ).do(request.user, team, data["email"])
+
+        return Response(TeamInvitationSerializer(team_invitation).data)
+
+
+class TeamInvitationView(APIView):
+    """Revokes one pending invitation to a team."""
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            TEAM_ID_PARAMETER,
+            OpenApiParameter(
+                name="team_invitation_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The team invitation to revoke.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=["Teams"],
+        operation_id="delete_team_invitation",
+        description=(
+            "Revokes the invitation of a person to the team. The workspace "
+            "invitation itself is kept."
+        ),
+        responses={
+            204: None,
+            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            404: get_error_schema(
+                ["ERROR_TEAM_DOES_NOT_EXIST", "ERROR_TEAM_INVITATION_DOES_NOT_EXIST"]
+            ),
+        },
+    )
+    @map_exceptions(
+        {
+            TeamDoesNotExist: ERROR_TEAM_DOES_NOT_EXIST,
+            TeamInvitationDoesNotExist: ERROR_TEAM_INVITATION_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+        }
+    )
+    @transaction.atomic
+    def delete(self, request, team_id: int, team_invitation_id: int):
+        team = TeamHandler().get_team(request.user, team_id)
+        team_invitation = TeamHandler().get_team_invitation(team_invitation_id, team)
+        action_type_registry.get_by_type(DeleteTeamInvitationActionType).do(
+            request.user, team_invitation
+        )
         return Response(status=204)

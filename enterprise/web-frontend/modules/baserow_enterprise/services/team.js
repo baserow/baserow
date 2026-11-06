@@ -32,6 +32,21 @@ export default (client) => {
       deleteSubject(teamId, subjectId) {
         return client.delete(`/teams/${teamId}/subjects/${subjectId}/`)
       },
+      fetchInvitations(teamId) {
+        return client.get(`/teams/${teamId}/invitations/`)
+      },
+      createInvitation(teamId, { email, captchaToken }) {
+        const values = { email }
+        if (captchaToken) {
+          values.captcha_token = captchaToken
+        }
+        return client.post(`/teams/${teamId}/invitations/`, values)
+      },
+      deleteInvitation(teamId, teamInvitationId) {
+        return client.delete(
+          `/teams/${teamId}/invitations/${teamInvitationId}/`
+        )
+      },
     }
   )
 }

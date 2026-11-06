@@ -1,5 +1,6 @@
 import { InvitationTargetType } from '@baserow/modules/core/invitationTargetTypes'
 import RoleAssignmentsService from '@baserow_enterprise/services/roleAssignments'
+import TeamService from '@baserow_enterprise/services/team'
 import { filterRoles } from '@baserow_enterprise/utils/roles'
 import { RestrictedViewOwnershipType } from '@baserow_enterprise/viewOwnershipTypes'
 
@@ -161,7 +162,8 @@ export class ScopeInvitationTargetType extends InvitationTargetType {
 /**
  * The members of one team. The target is `{ type: 'team', team }`. Joining a
  * team comes with the team's own role rather than one per member, so there are
- * no roles to choose from.
+ * no roles to choose from. Invitees join the workspace without a workspace role
+ * and land in the team once they accept.
  */
 export class TeamInvitationTargetType extends InvitationTargetType {
   static getType() {
@@ -193,7 +195,18 @@ export class TeamInvitationTargetType extends InvitationTargetType {
       : this.$t('teamInvitationTarget.subtitle', { workspace: workspace.name })
   }
 
-  sendInvitation(workspace, target, values) {
-    throw new Error('Teams can only be joined by members of the workspace.')
+  async sendInvitation(workspace, { team }, values) {
+    const { data } = await TeamService(this.app.$client).createInvitation(
+      team.id,
+      { email: values.email, captchaToken: values.captchaToken }
+    )
+    // Lets the members page recount its pending invitations, as a new address
+    // gets a workspace invitation along with the team.
+    this.app.$bus.$emit('invite-submitted', {
+      id: data.invitation_id,
+      workspace: workspace.id,
+      email: data.email,
+    })
+    return data
   }
 }
