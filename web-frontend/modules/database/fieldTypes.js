@@ -942,9 +942,8 @@ export class FieldType extends Registerable {
 
   /**
    * Is called for each field in the row when a row has moved to another position.
-   * Optionally, a different value can be returned here for that field. This is for
-   * example used by the last modified field type to update the last modified value
-   * in real time when a row has moved.
+   * Optionally, a different value can be returned here for fields whose values
+   * depend on the row order.
    */
   onRowMove(row, order, oldOrder, currentField, currentFieldValue) {
     return currentFieldValue
@@ -2996,16 +2995,8 @@ export class LastModifiedFieldType extends CreatedOnLastModifiedBaseFieldType {
     )
   }
 
-  _onRowChangeOrMove(field) {
-    return this.formatValue(field, moment())
-  }
-
   onRowChange(row, currentField, currentFieldValue) {
-    return this._onRowChangeOrMove(currentField)
-  }
-
-  onRowMove(row, order, oldOrder, currentField, currentFieldValue) {
-    return this._onRowChangeOrMove(currentField)
+    return this.formatValue(currentField, moment())
   }
 }
 

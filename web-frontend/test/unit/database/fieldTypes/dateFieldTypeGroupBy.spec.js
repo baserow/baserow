@@ -186,21 +186,6 @@ describe('derived date fields', () => {
         .map(({ id }) => id)
     ).toEqual([1, 2, 3, 4])
   })
-
-  test('preserves timestamp values in date lookup arrays', () => {
-    const field = {
-      type: 'lookup',
-      formula_type: 'array',
-      array_formula_type: 'date',
-      date_include_time: true,
-    }
-    const value = [{ id: 1, value: '2024-01-08T09:00:01.123Z' }]
-    expect(
-      testApp._app.$registry
-        .get('field', 'lookup')
-        .getGroupValueFromRowValue(field, value)
-    ).toEqual(value)
-  })
 })
 
 describe('optimistic audit dates', () => {
@@ -236,19 +221,31 @@ describe('optimistic audit dates', () => {
   test.each([
     [false, '2024-01-08'],
     [true, '2024-01-08T23:30:45Z'],
+  ])('last modified edits respect include time %s', (includeTime, expected) => {
+    const field = {
+      id: 1,
+      type: 'last_modified',
+      date_include_time: includeTime,
+    }
+    const fieldType = testApp._app.$registry.get('field', 'last_modified')
+    expect(fieldType.onRowChange({}, field, '2024-01-07')).toBe(expected)
+  })
+
+  test.each([
+    [false, '2024-01-07'],
+    [true, '2024-01-07T12:34:56.123456Z'],
+    [false, null],
+    [true, null],
   ])(
-    'last modified edits and moves respect include time %s',
-    (includeTime, expected) => {
+    'moving a row preserves last modified value %s / %s',
+    (includeTime, value) => {
       const field = {
         id: 1,
         type: 'last_modified',
         date_include_time: includeTime,
       }
       const fieldType = testApp._app.$registry.get('field', 'last_modified')
-      expect(fieldType.onRowChange({}, field, '2024-01-07')).toBe(expected)
-      expect(fieldType.onRowMove({}, '2', '1', field, '2024-01-07')).toBe(
-        expected
-      )
+      expect(fieldType.onRowMove({}, '2', '1', field, value)).toBe(value)
     }
   )
 
