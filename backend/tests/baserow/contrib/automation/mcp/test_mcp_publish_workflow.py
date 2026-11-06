@@ -1,9 +1,10 @@
 """Publishing and pausing a workflow over MCP."""
 
 import json
+from threading import Thread
 from unittest.mock import patch
 
-from django.db import transaction
+from django.db import connection, transaction
 
 import pytest
 from asgiref.sync import async_to_sync
@@ -14,6 +15,8 @@ from mcp.shared.memory import (
 from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.models import Automation
 from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.service import AutomationNodeService
+from baserow.contrib.automation.tools import workflows as workflows_tools
 from baserow.contrib.automation.workflows.actions import (
     UpdateAutomationWorkflowActionType,
 )
@@ -224,6 +227,40 @@ def test_edits_reach_the_live_workflow_only_after_publishing_again(data_fixture)
 
     _create_order(endpoint.user, orders)
     assert _logged(log) == ["Written", "Edited"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_an_action_deleted_while_publishing_waits_for_the_publication(data_fixture):
+    endpoint, orders, log, workflow = _build_workflow_over_mcp(data_fixture)
+    log_node = AutomationNode.objects.get(workflow_id=workflow["id"], label="Log it")
+    check = workflows_tools.check_workflow_can_run
+    deletion = Thread(target=_delete_node, args=(endpoint.user, log_node.id))
+    waited = []
+
+    def check_then_delete(ctx, draft):
+        warnings = check(ctx, draft)
+        # Another request deletes the action after the checks ran.
+        deletion.start()
+        deletion.join(timeout=2)
+        waited.append(deletion.is_alive())
+        return warnings
+
+    with patch.object(workflows_tools, "check_workflow_can_run", check_then_delete):
+        _json(_call(endpoint, "publish_workflow", {"workflow_id": workflow["id"]}))
+    deletion.join(timeout=30)
+
+    assert waited == [True]
+    assert not AutomationNode.objects.filter(id=log_node.id).exists()
+    _create_order(endpoint.user, orders)
+    assert _logged(log) == ["Written"]
+
+
+def _delete_node(user, node_id):
+    try:
+        with transaction.atomic():
+            AutomationNodeService().delete_node(user, node_id)
+    finally:
+        connection.close()
 
 
 @pytest.mark.django_db

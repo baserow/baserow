@@ -467,10 +467,14 @@ def publish_workflow(
         workspace=ctx.workspace,
         context=workflow.automation,
     )
-    warnings = check_workflow_can_run(ctx, workflow)
     try:
-        # The publish locks the workflow, which needs a transaction.
         with transaction.atomic():
+            # Deleting a node changes the workflow's graph, so locking it first keeps
+            # the checked draft unchanged until it is published.
+            workflow = AutomationWorkflowHandler().get_workflow(
+                workflow.id, for_update=True
+            )
+            warnings = check_workflow_can_run(ctx, workflow)
             published = AutomationWorkflowService().publish(ctx.user, workflow)
     except UntrustedContentCannotBePublished as exc:
         raise ToolInputError(ERROR_UNTRUSTED_CONTENT_CANNOT_BE_PUBLISHED[2]) from exc
