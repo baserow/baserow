@@ -545,3 +545,30 @@ def test_admin_list_workspaces_as_options_filter_by_invalid_ids(
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_QUERY_PARAMETER_VALIDATION"
+
+
+@pytest.mark.django_db
+def test_workspace_options_use_the_estimated_count(api_client, data_fixture, mocker):
+    _, token = data_fixture.create_user_and_token(is_staff=True)
+    workspaces = [
+        data_fixture.create_workspace(name=f"workspace {i:03}") for i in range(101)
+    ]
+    template_workspace = data_fixture.create_workspace(name="workspace 000 template")
+    data_fixture.create_template(workspace=template_workspace)
+    data_fixture.create_workspace(name="workspace 000 trashed", trashed=True)
+    estimate = mocker.patch(
+        "baserow.api.pagination.get_approximate_row_count", return_value=100_000
+    )
+    response = api_client.get(
+        reverse("api:admin:workspaces:options"),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["count"] == 100_000
+    assert response.json()["next"] is not None
+    assert response.json()["previous"] is None
+    assert response.json()["results"] == [
+        {"id": workspace.id, "value": workspace.name} for workspace in workspaces[:100]
+    ]
+    estimate.assert_called_once()
