@@ -52,6 +52,7 @@ if REDIS_PROTOCOL == "rediss" or "rediss" in REDIS_TLS_URL:  # noqa: F405
         "password": parsed_redis_url.password,
         "connection_class": CustomSSLConnection,
         "ssl_context": ssl_context,
+        "socket_timeout": CHANNELS_REDIS_SOCKET_TIMEOUT,  # noqa: F405
     }
     CHANNEL_LAYERS["default"]["CONFIG"]["hosts"] = [CHANNELS_REDIS_HOST]  # noqa: F405
 
