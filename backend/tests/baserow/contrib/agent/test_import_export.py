@@ -85,10 +85,7 @@ def test_duplicate_copies_conversations_with_new_identifiers(
                     "tool": "create_rows",
                     "status": "done",
                     "changes_data": True,
-                    "input": {
-                        "requested_count": 1,
-                        "values": {"table_id": 1, "rows": [{"Name": "Plan"}]},
-                    },
+                    "input": {"requested_count": 1},
                     "facts": {},
                 }
             ],

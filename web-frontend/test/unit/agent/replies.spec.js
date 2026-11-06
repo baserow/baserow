@@ -213,7 +213,6 @@ describe('Agent replies', () => {
           toolStep('a', 'list_tables', 'done'),
           toolStep('failed-read', 'list_table_rows', 'failed', {
             error_code: 'not_found',
-            input: { target: 'Clients' },
           }),
           toolStep('b', 'get_table_schema', 'done', {
             facts: { table: 'Tasks' },
@@ -236,9 +235,6 @@ describe('Agent replies', () => {
     expect(reads.find('button .iconoir-warning-triangle').exists()).toBe(false)
     expect(reads.findAll('li .iconoir-warning-triangle')).toHaveLength(1)
     expect(reads.findAll('li .iconoir-check-circle')).toHaveLength(2)
-    expect(
-      reads.findAll('li')[1].get('.chat-step-group__line-title').text()
-    ).toBe('agent.toolActivityTarget')
     expect(reads.get('button').classes()).not.toContain('button')
     expect(reads.findAll('li')).toHaveLength(3)
     await reads.get('button').trigger('click')

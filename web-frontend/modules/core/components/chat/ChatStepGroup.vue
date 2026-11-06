@@ -82,7 +82,7 @@
           </span>
         </li>
       </ul>
-      <div v-if="inputText" class="chat-step-group__input">
+      <div v-if="input" class="chat-step-group__input">
         <div class="chat-step-group__input-label">
           {{ $t('toolPresentation.input') }}
         </div>
@@ -125,7 +125,7 @@ const expanded = ref(props.lines.length > 0)
 const inputText = computed(() =>
   props.input ? JSON.stringify(props.input.values, null, 2) : ''
 )
-const hasDetails = computed(() => props.lines.length > 0 || !!inputText.value)
+const hasDetails = computed(() => props.lines.length > 0 || !!props.input)
 const statusClass = computed(() => ({
   'chat-step-group__status--visible':
     props.status === STEP_STATUS.STOPPED && props.changesData,

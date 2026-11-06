@@ -16,8 +16,6 @@ from baserow.core.registry import Instance, Registry
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import INTERNAL_ERROR_MESSAGE, classify_tool_error
 
-StepResources = dict[tuple[str, int], str]
-
 
 @with_usable_db_connection
 def _call_tool(
@@ -130,29 +128,6 @@ class AgentToolType(Instance):
         """
 
         return {}
-
-    def get_step_resources(self, result: Any) -> StepResources:
-        """
-        Extract names already disclosed by this tool's successful result.
-
-        :param result: An authorized successful result, never a failure payload.
-        :return: Names keyed by resource namespace and ID. Do not query for names
-            or infer them from prose; these describe later calls, not authority.
-        """
-
-        return {}
-
-    def get_step_target(
-        self, arguments: dict[str, Any], resources: StepResources
-    ) -> str | None:
-        """Describe a call's target using names already disclosed in this reply.
-
-        :param arguments: The requested tool arguments.
-        :param resources: A bounded catalog of previously returned resource names.
-        :return: A display name, or None when the target is not known.
-        """
-
-        return None
 
     def get_step_facts(
         self, ctx: ToolContext, arguments: dict[str, Any], result: Any

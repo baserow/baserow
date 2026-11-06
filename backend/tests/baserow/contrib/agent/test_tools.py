@@ -164,21 +164,12 @@ def test_tool_input_excludes_unapproved_arguments_without_mutating_the_call(name
     assert UnrepresentedTool().get_step_input(arguments) == {}
 
 
-def test_large_row_input_is_a_bounded_preview_without_changing_requested_count():
-    arguments = {
-        "table_id": 1,
-        "rows": [{"Notes": "long text " * 1000} for _ in range(1000)],
-    }
+def test_row_writes_keep_values_out_of_the_step_input():
+    arguments = {"table_id": 1, "rows": [{"Password": "Hunter2!"}]}
 
-    summary = agent_tool_type_registry.get("create_rows").get_step_input(arguments)
-
-    assert summary["requested_count"] == 1000
-    assert summary["values"]["table_id"] == 1
-    assert summary["values"]["rows"][0]["Notes"].startswith("long text ")
-    assert summary["truncated"] is True
-    assert len(json.dumps(summary["values"], separators=(",", ":"))) <= 16_384
-    assert len(arguments["rows"]) == 1000
-    assert arguments["rows"][0]["Notes"] == "long text " * 1000
+    for name in ("create_rows", "update_rows"):
+        summary = agent_tool_type_registry.get(name).get_step_input(arguments)
+        assert summary == {"requested_count": 1}
 
 
 @pytest.mark.django_db

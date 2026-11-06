@@ -411,10 +411,6 @@ def test_unfinished_replies_persist_partial_text_without_private_error_details(
     assert [(step["status"], step["facts"]) for step in steps] == [
         ("done", {"table": table.name, "count": 1})
     ]
-    assert steps[0]["input"]["values"] == {
-        "table_id": table.id,
-        "rows": [{"Name": "Private row value"}],
-    }
     assert [log.record["message"] for log in logs] == (
         [f"Agent reply {reply_id} could not be written (ModelHTTPError, status 429)"]
         if reason is None
@@ -750,10 +746,7 @@ def test_a_reply_calls_the_allowed_tools_as_the_agent_identity(
                 "tool": "create_rows",
                 "status": "done",
                 "changes_data": True,
-                "input": {
-                    "requested_count": 1,
-                    "values": {"table_id": table.id, "rows": [{"Name": "Plan"}]},
-                },
+                "input": {"requested_count": 1},
                 "facts": {"table": table.name, "count": 1} if valid_facts else {},
             }
         ]
@@ -849,7 +842,7 @@ def test_a_reply_recovers_from_invalid_tool_calls(
     assert rows == ["Plan"]
     [step] = AgentMessage.objects.get(id=created.reply.id).steps
     assert step["status"] == "done"
-    assert step["input"]["requested_count"] == 1
+    assert step["input"] == {"requested_count": 1}
     assert "error_code" not in step
 
 

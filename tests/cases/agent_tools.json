@@ -134,28 +134,19 @@
     {
       "name": "create_rows",
       "arguments": { "table_id": 1, "rows": [{ "Name": "Plan" }] },
-      "input": {
-        "requested_count": 1,
-        "values": { "table_id": 1, "rows": [{ "Name": "Plan" }] }
-      },
+      "input": { "requested_count": 1 },
       "facts": { "table": "Tasks", "count": 1 }
     },
     {
       "name": "update_rows",
       "arguments": { "table_id": 1, "rows": [{ "id": 1, "Name": "Done" }] },
-      "input": {
-        "requested_count": 1,
-        "values": { "table_id": 1, "rows": [{ "id": 1, "Name": "Done" }] }
-      },
+      "input": { "requested_count": 1 },
       "facts": { "table": "Tasks", "count": 1 }
     },
     {
       "name": "delete_rows",
       "arguments": { "table_id": 1, "row_ids": [1] },
-      "input": {
-        "requested_count": 1,
-        "values": { "table_id": 1, "row_ids": [1] }
-      },
+      "input": { "requested_count": 1 },
       "facts": { "table": "Tasks", "count": 1 }
     }
   ]
