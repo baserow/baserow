@@ -123,17 +123,22 @@ export default {
   },
   methods: {
     isFormFieldDisplayed(descendant, descendantType) {
+      // Match PageElement's context so visibility formulas can read sibling inputs.
+      const applicationContext = {
+        ...this.applicationContext,
+        element: descendant,
+      }
       // In the published app PageElement hides misconfigured
       // elements, so we exclude them from  validation here too.
       if (
         this.mode !== 'editing' &&
-        descendantType.isInError(descendant, this.applicationContext)
+        descendantType.isInError(descendant, applicationContext)
       ) {
         return false
       }
       return descendantType.isVisible({
         element: descendant,
-        applicationContext: this.applicationContext,
+        applicationContext,
       })
     },
     /*
