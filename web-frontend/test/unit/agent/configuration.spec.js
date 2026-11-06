@@ -21,6 +21,7 @@ import {
   openSection,
   page,
   providerDropdown,
+  reasoningEffortDropdown,
   savedValues,
   saving,
   unavailableModel,
@@ -561,11 +562,15 @@ describe('Agent configuration', () => {
   })
 
   test.each([
-    ['instructions', 'agent.instructions', '.agent-configuration textarea'],
-    ['model_identifier', 'agent.model', '.agent-configuration .dropdown'],
+    [
+      'instructions',
+      'agent.instructions',
+      (wrapper) => wrapper.findAll('.agent-configuration textarea').at(-1),
+    ],
+    ['model_identifier', 'agent.model', modelDropdown],
   ])(
     'opens the configuration on the invalid %s field from its warning',
-    async (field, label, selector) => {
+    async (field, label, findTarget) => {
       mockConfiguration(testApp, incompleteConfiguration(field))
       const wrapper = await mount()
       await wrapper
@@ -578,7 +583,7 @@ describe('Agent configuration', () => {
         .trigger('click')
       await flushPromises()
 
-      const target = wrapper.findAll(selector).at(-1).element
+      const target = findTarget(wrapper).element
       expect(target.contains(document.activeElement)).toBe(true)
     }
   )
@@ -1568,6 +1573,33 @@ describe('Agent configuration', () => {
       { allowed_tools: [] },
     ])
     expect(wrapper.find('.agent-workspace-tools__group').exists()).toBe(false)
+  })
+
+  test('saves the reasoning effort and saves the model default as null', async () => {
+    mockSaves(
+      testApp,
+      completeConfiguration({ reasoning_effort: 'high' }),
+      completeConfiguration({ reasoning_effort: null })
+    )
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.agentSettings')
+    const dropdown = () => reasoningEffortDropdown(wrapper)
+    expect(dropdown().get('.dropdown__selected-text').text()).toBe(
+      'agent.reasoningEffortDefault'
+    )
+
+    await choose(dropdown(), 'agent.reasoningEffortHigh')
+    await flushPromises()
+    expect(dropdown().get('.dropdown__selected-text').text()).toBe(
+      'agent.reasoningEffortHigh'
+    )
+    await choose(dropdown(), 'agent.reasoningEffortDefault')
+    await flushPromises()
+
+    expect(savedValues(testApp)).toEqual([
+      { reasoning_effort: 'high' },
+      { reasoning_effort: null },
+    ])
   })
 
   test('renames the Agent through the application with the trimmed name', async () => {

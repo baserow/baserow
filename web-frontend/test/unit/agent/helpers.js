@@ -193,6 +193,9 @@ export const providerDropdown = (wrapper) =>
 export const modelDropdown = (wrapper) =>
   field(wrapper, 'agent.model').get('.dropdown')
 
+export const reasoningEffortDropdown = (wrapper) =>
+  field(wrapper, 'agent.reasoningEffort').get('.dropdown')
+
 export const modelError = (wrapper) =>
   field(wrapper, 'agent.model').find('.control__messages--error')
 

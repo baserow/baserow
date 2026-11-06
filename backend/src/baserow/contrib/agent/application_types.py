@@ -7,7 +7,7 @@ from django.db.transaction import Atomic
 from django.urls import URLResolver, include, path
 
 from baserow.contrib.agent.api.serializers import AgentApplicationSerializer
-from baserow.contrib.agent.constants import AgentRunAsState
+from baserow.contrib.agent.constants import AgentReasoningEffort, AgentRunAsState
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication
 from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
@@ -127,6 +127,7 @@ class AgentApplicationType(ApplicationType):
             instructions=application.instructions,
             provider_type=application.provider_type,
             model_identifier=application.model_identifier,
+            reasoning_effort=application.reasoning_effort,
             allowed_tools=AgentHandler().get_allowed_tool_names(application),
         )
         # Identity ids are local references, not portable configuration.
@@ -169,6 +170,10 @@ class AgentApplicationType(ApplicationType):
         application.instructions = serialized_values.get("instructions", "")
         application.provider_type = serialized_values.get("provider_type") or None
         application.model_identifier = serialized_values.get("model_identifier") or None
+        reasoning_effort = serialized_values.get("reasoning_effort")
+        application.reasoning_effort = (
+            reasoning_effort if reasoning_effort in AgentReasoningEffort else None
+        )
         application.run_as_subject_type, application.run_as_subject_id = (
             self._imported_run_as(workspace, serialized_values, import_export_config)
         )

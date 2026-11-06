@@ -77,10 +77,33 @@
       />
     </Dropdown>
   </FormGroup>
+  <FormGroup
+    class="margin-top-2"
+    :label="$t('agent.reasoningEffort')"
+    :helper-text="$t('agent.reasoningEffortDescription')"
+    small-label
+  >
+    <Dropdown
+      :model-value="configuration.reasoning_effort || DEFAULT_REASONING_EFFORT"
+      :disabled="!editable"
+      :show-search="false"
+      fixed-items
+      @update:model-value="changeReasoningEffort"
+    >
+      <DropdownItem
+        v-for="effort in reasoningEfforts"
+        :key="effort.value"
+        :value="effort.value"
+        :name="effort.name"
+      />
+    </Dropdown>
+  </FormGroup>
 </template>
 
 <script setup>
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { REASONING_EFFORTS } from '@baserow/modules/agent/constants'
 
 const props = defineProps({
   name: { type: String, required: true },
@@ -93,6 +116,25 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:name', 'rename', 'change', 'flush'])
 const { $registry } = useNuxtApp()
+const { t } = useI18n()
+// The dropdown needs a value for the default, which is saved as null.
+const DEFAULT_REASONING_EFFORT = 'default'
+const REASONING_EFFORT_LABELS = {
+  off: 'agent.reasoningEffortOff',
+  low: 'agent.reasoningEffortLow',
+  medium: 'agent.reasoningEffortMedium',
+  high: 'agent.reasoningEffortHigh',
+}
+const reasoningEfforts = computed(() => [
+  {
+    value: DEFAULT_REASONING_EFFORT,
+    name: t('agent.reasoningEffortDefault'),
+  },
+  ...REASONING_EFFORTS.map((effort) => ({
+    value: effort,
+    name: t(REASONING_EFFORT_LABELS[effort]),
+  })),
+])
 const providerInput = ref(null)
 const modelInput = ref(null)
 const providers = computed(() => {
@@ -127,6 +169,13 @@ function changeProvider(providerType) {
 
 function changeModel(model) {
   emit('change', { model_identifier: model })
+  emit('flush')
+}
+
+function changeReasoningEffort(value) {
+  const effort = value === DEFAULT_REASONING_EFFORT ? null : value
+  if (effort === props.configuration.reasoning_effort) return
+  emit('change', { reasoning_effort: effort })
   emit('flush')
 }
 

@@ -33,6 +33,7 @@ from .constants import (
     REPLY_REQUEST_LIMIT,
     TOOL_RETRIES,
     UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS,
+    AgentReasoningEffort,
 )
 from .models import AgentMessage
 from .registries import agent_tool_type_registry
@@ -40,6 +41,15 @@ from .types import AgentReplyRequest, AgentReplyResult
 
 if TYPE_CHECKING:
     from baserow.core.chat_runs.journal import ChatRunJournal
+
+
+# Pydantic AI maps the shared thinking setting to each provider's own parameter.
+REASONING_EFFORT_THINKING = {
+    AgentReasoningEffort.OFF: False,
+    AgentReasoningEffort.LOW: "low",
+    AgentReasoningEffort.MEDIUM: "medium",
+    AgentReasoningEffort.HIGH: "high",
+}
 
 
 def _interruption_note(reply: AgentMessage) -> str:
@@ -100,6 +110,8 @@ def create_reply_model(request: AgentReplyRequest) -> tuple[Model, dict]:
         request.model_identifier,
         model_type.prepare_model_settings(request.model_identifier),
     )
+    if request.reasoning_effort:
+        model_settings["thinking"] = REASONING_EFFORT_THINKING[request.reasoning_effort]
     settings_override = model_type.get_model_settings_override(
         request.model_identifier, request.workspace
     )

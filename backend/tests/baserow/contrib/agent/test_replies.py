@@ -1022,3 +1022,21 @@ def test_failed_tool_calls_keep_their_category_in_the_api(
         if message["role"] == "assistant"
     )
     assert saved_reply["steps"] == steps
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "effort,thinking",
+    [(None, None), ("off", False), ("low", "low"), ("high", "high")],
+)
+def test_reply_model_settings_carry_the_reasoning_effort(
+    data_fixture, configured_agent, effort, thinking
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user, reasoning_effort=effort)
+    created = start(user, agent)
+
+    request = AgentHandler().get_reply_request(created.reply)
+    _, model_settings = create_reply_model(request)
+
+    assert model_settings.get("thinking") == thinking

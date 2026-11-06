@@ -24,6 +24,7 @@ const REQUIRED_FIELDS = [
 // The tools an Agent can be allowed to call are listed with its configuration.
 const CONFIGURATION_FIELDS = [
   ...REQUIRED_FIELDS,
+  CONFIGURATION_FIELD.REASONING_EFFORT,
   CONFIGURATION_FIELD.RUN_AS,
   CONFIGURATION_FIELD.ALLOWED_TOOLS,
   CONFIGURATION_FIELD.AVAILABLE_TOOLS,
@@ -33,6 +34,7 @@ const emptyConfiguration = () => ({
   instructions: '',
   provider_type: null,
   model_identifier: null,
+  reasoning_effort: null,
   run_as: null,
   allowed_tools: [],
   available_tools: [],

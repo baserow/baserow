@@ -414,3 +414,29 @@ def test_old_conversation_payloads_without_steps_still_import(
     )
 
     assert AgentMessage.objects.get(conversation__agent=copied).steps is None
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "exported,imported",
+    [("high", "high"), ("off", "off"), (None, None), ("unknown", None)],
+)
+def test_reasoning_effort_is_copied_and_unknown_values_are_dropped(
+    configured_agent, exported, imported
+):
+    agent = configured_agent()
+    serialized = export_internal(agent)
+    serialized["reasoning_effort"] = exported
+
+    copy = AgentApplicationType().import_serialized(
+        agent.workspace, serialized, INTERNAL_CONFIG, {}
+    )
+
+    assert copy.reasoning_effort == imported
+
+
+@pytest.mark.django_db
+def test_reasoning_effort_is_exported(configured_agent):
+    agent = configured_agent(reasoning_effort="medium")
+
+    assert export_internal(agent)["reasoning_effort"] == "medium"

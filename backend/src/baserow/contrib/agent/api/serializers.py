@@ -9,6 +9,7 @@ from baserow.contrib.agent.constants import (
     RUN_AS_SUBJECT_TYPES,
     AgentConfigurationErrorCode,
     AgentReadinessState,
+    AgentReasoningEffort,
     AgentRunAsState,
 )
 from baserow.contrib.agent.handler import AgentHandler
@@ -85,6 +86,12 @@ class AgentConfigurationSerializer(serializers.Serializer):
     instructions = serializers.CharField(allow_blank=True, trim_whitespace=False)
     provider_type = serializers.CharField(allow_null=True)
     model_identifier = serializers.CharField(allow_null=True)
+    reasoning_effort = serializers.ChoiceField(
+        choices=[effort.value for effort in AgentReasoningEffort],
+        allow_null=True,
+        help_text="How much the model reasons before it replies. Null uses the "
+        "model's default.",
+    )
     run_as = serializers.SerializerMethodField(
         help_text="The configured identity and its active, trashed or missing status. "
         "Null means no workspace access was selected."
@@ -146,6 +153,13 @@ class AgentConfigurationSerializer(serializers.Serializer):
 class AgentConfigurationUpdateSerializer(
     UnknownFieldRaisesExceptionSerializerMixin, serializers.ModelSerializer
 ):
+    reasoning_effort = serializers.ChoiceField(
+        choices=[effort.value for effort in AgentReasoningEffort],
+        allow_null=True,
+        required=False,
+        help_text="How much the model reasons before it replies. Null uses the "
+        "model's default. Models without reasoning ignore it.",
+    )
     run_as_subject_type = serializers.ChoiceField(
         choices=RUN_AS_SUBJECT_TYPES,
         allow_null=True,
@@ -172,6 +186,7 @@ class AgentConfigurationUpdateSerializer(
             "instructions",
             "provider_type",
             "model_identifier",
+            "reasoning_effort",
             "run_as_subject_type",
             "run_as_subject_id",
             "allowed_tools",

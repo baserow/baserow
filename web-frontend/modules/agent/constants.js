@@ -15,10 +15,14 @@ export const CONFIGURATION_FIELD = Object.freeze({
   INSTRUCTIONS: 'instructions',
   PROVIDER_TYPE: 'provider_type',
   MODEL_IDENTIFIER: 'model_identifier',
+  REASONING_EFFORT: 'reasoning_effort',
   RUN_AS: 'run_as',
   ALLOWED_TOOLS: 'allowed_tools',
   AVAILABLE_TOOLS: 'available_tools',
 })
+
+// Null keeps the model's default reasoning.
+export const REASONING_EFFORTS = Object.freeze(['off', 'low', 'medium', 'high'])
 
 export const CONFIGURATION_SAVE_RESULT = Object.freeze({
   REJECTED_IDENTITY: 'rejected_identity',
