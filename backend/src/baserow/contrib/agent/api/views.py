@@ -21,14 +21,16 @@ from baserow.api.decorators import (
 )
 from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
 from baserow.api.mixins import RealtimeRecoveryPrimaryReadMixin
-from baserow.api.pagination import PageNumberPagination
-from baserow.api.schemas import get_error_schema
+from baserow.api.pagination import PageNumberPagination, encode_keyset_cursor
+from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.api.subjects.serializers import SubjectOptionSerializer
 from baserow.contrib.agent.actions import (
     CreateAgentConversationActionType,
     CreateAgentMessageActionType,
+    DeleteAgentConversationActionType,
     UpdateAgentConfigurationActionType,
+    UpdateAgentConversationActionType,
 )
 from baserow.contrib.agent.exceptions import (
     AgentConversationDoesNotExist,
@@ -41,8 +43,10 @@ from baserow.contrib.agent.models import AgentApplication
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.signals import agent_loaded
 from baserow.contrib.agent.types import AgentMessageCreated
+from baserow.core.action.registries import action_type_registry
 from baserow.core.chat_runs.exceptions import ChatRunAlreadyActive, ChatRunLimitReached
 from baserow.core.exceptions import ApplicationDoesNotExist, UserNotInWorkspace
+from baserow.core.pagination import KeysetCursor
 from baserow.core.service import CoreService
 
 from .errors import (
@@ -56,8 +60,10 @@ from .serializers import (
     AgentConfigurationSerializer,
     AgentConfigurationUpdateSerializer,
     AgentConversationCreateSerializer,
-    AgentConversationPagination,
     AgentConversationSerializer,
+    AgentConversationsQuerySerializer,
+    AgentConversationsResponseSerializer,
+    AgentConversationUpdateSerializer,
     AgentMessageCreatedSerializer,
     AgentMessageCreateSerializer,
     AgentMessagePagination,
@@ -240,9 +246,9 @@ class AgentConfigurationView(RealtimeRecoveryPrimaryReadMixin, APIView):
     def patch(self, request: Request, agent_id: int, data: dict) -> Response:
         """Updates the configuration if the user can both update and read it."""
 
-        configuration = UpdateAgentConfigurationActionType.do(
-            request.user, agent_id, **data
-        )
+        configuration = action_type_registry.get_by_type(
+            UpdateAgentConfigurationActionType
+        ).do(request.user, agent_id, **data)
         return Response(AgentConfigurationSerializer(configuration).data)
 
 
@@ -285,31 +291,52 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
         ),
         parameters=[
             AGENT_ID_PATH_PARAMETER,
-            OpenApiParameter("page", OpenApiTypes.INT, default=1),
             OpenApiParameter(
-                "size",
+                "limit",
                 OpenApiTypes.INT,
                 default=20,
-                description="Number of conversations per page, up to 100.",
+                description="Maximum number of conversations to return, up to 100.",
+            ),
+            OpenApiParameter(
+                "cursor",
+                OpenApiTypes.STR,
+                description="The `next_cursor` of the previous page, omitted for "
+                "the first page. The next page continues after the last conversation "
+                "of the previous one, even when conversations changed in between.",
             ),
         ],
         responses={
-            200: get_example_pagination_serializer_class(AgentConversationSerializer),
+            200: AgentConversationsResponseSerializer,
+            400: get_error_schema(["ERROR_QUERY_PARAMETER_VALIDATION"]),
             **READ_ERRORS,
         },
     )
     @map_exceptions(AGENT_EXCEPTIONS)
-    def get(self, request: Request, agent_id: int) -> Response:
-        """Paginate only the authenticated owner's conversations."""
+    @validate_query_parameters(AgentConversationsQuerySerializer, return_validated=True)
+    def get(self, request: Request, agent_id: int, query_params: dict) -> Response:
+        """List only the authenticated owner's conversations, a page at a time."""
 
-        conversations = AgentService().list_conversations(request.user, agent_id)
-        paginator = AgentConversationPagination(limit_page_size=100)
-        page = paginator.paginate_queryset(conversations, request, self)
+        limit = query_params["limit"]
+        # One more than requested tells whether a next page exists without a count.
+        conversations = list(
+            AgentService().list_conversations(
+                request.user, agent_id, query_params.get("cursor")
+            )[: limit + 1]
+        )
+        page = conversations[:limit]
+        next_cursor = (
+            KeysetCursor(value=page[-1].updated_on, id=page[-1].id)
+            if len(conversations) > limit
+            else None
+        )
         runs = AgentHandler().get_conversation_runs([item.id for item in page])
-        return paginator.get_paginated_response(
-            AgentConversationSerializer(
-                page, many=True, context={"conversation_runs": runs}
-            ).data
+        return Response(
+            {
+                "results": AgentConversationSerializer(
+                    page, many=True, context={"conversation_runs": runs}
+                ).data,
+                "next_cursor": encode_keyset_cursor(next_cursor),
+            }
         )
 
     @extend_schema(
@@ -329,12 +356,70 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
     def post(self, request: Request, agent_id: int, data: dict) -> Response:
         """Starts a private conversation with its first message."""
 
-        result = CreateAgentConversationActionType.do(request.user, agent_id, **data)
+        result = action_type_registry.get_by_type(CreateAgentConversationActionType).do(
+            request.user, agent_id, **data
+        )
         return Response(
             AgentMessageCreatedSerializer(
                 result, context=_accepted_context(result)
             ).data
         )
+
+
+class AgentConversationView(APIView):
+    @extend_schema(
+        tags=["Agent applications"],
+        operation_id="update_agent_conversation",
+        description=(
+            "Updates one of the authenticated user's conversations, for now only its "
+            "title. It keeps its place in the list, which is ordered by activity."
+        ),
+        parameters=[AGENT_ID_PATH_PARAMETER, CLIENT_SESSION_ID_SCHEMA_PARAMETER],
+        request=AgentConversationUpdateSerializer,
+        responses={
+            200: AgentConversationSerializer,
+            400: get_error_schema(["ERROR_REQUEST_BODY_VALIDATION"]),
+            **CONVERSATION_READ_ERRORS,
+        },
+    )
+    @map_exceptions(AGENT_EXCEPTIONS)
+    @validate_body(AgentConversationUpdateSerializer, return_validated=True)
+    def patch(
+        self, request: Request, agent_id: int, conversation_uuid: UUID, data: dict
+    ) -> Response:
+        """Updates a conversation of the authenticated owner."""
+
+        conversation = action_type_registry.get_by_type(
+            UpdateAgentConversationActionType
+        ).do(request.user, agent_id, conversation_uuid, **data)
+        runs = AgentHandler().get_conversation_runs([conversation.id])
+        return Response(
+            AgentConversationSerializer(
+                conversation, context={"conversation_runs": runs}
+            ).data
+        )
+
+    @extend_schema(
+        tags=["Agent applications"],
+        operation_id="delete_agent_conversation",
+        description=(
+            "Moves one of the authenticated user's conversations to the trash and "
+            "stops the reply being written in it. Only the owner sees and restores "
+            "it there."
+        ),
+        parameters=[AGENT_ID_PATH_PARAMETER, CLIENT_SESSION_ID_SCHEMA_PARAMETER],
+        responses={204: None, **CONVERSATION_READ_ERRORS},
+    )
+    @map_exceptions(AGENT_EXCEPTIONS)
+    def delete(
+        self, request: Request, agent_id: int, conversation_uuid: UUID
+    ) -> Response:
+        """Trashes a conversation of the authenticated owner."""
+
+        action_type_registry.get_by_type(DeleteAgentConversationActionType).do(
+            request.user, agent_id, conversation_uuid
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class AgentMessagesView(RealtimeRecoveryPrimaryReadMixin, APIView):
@@ -398,7 +483,7 @@ class AgentMessagesView(RealtimeRecoveryPrimaryReadMixin, APIView):
     ) -> Response:
         """Accept an authorized owner's message or recover its identical retry."""
 
-        result = CreateAgentMessageActionType.do(
+        result = action_type_registry.get_by_type(CreateAgentMessageActionType).do(
             request.user, agent_id, conversation_uuid, **data
         )
         return Response(

@@ -597,3 +597,23 @@ def test_workspace_member_can_still_use_application_trash(data_fixture):
 
     TrashHandler.empty(member, workspace.id, other_application.id)
     assert TrashEntry.objects.get().should_be_permanently_deleted
+
+
+@pytest.mark.django_db
+def test_emptying_trash_keeps_the_private_items_of_other_users(data_fixture):
+    admin = data_fixture.create_user()
+    other_user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(users=[admin, other_user])
+    shared = data_fixture.create_database_application(workspace=workspace)
+    private = data_fixture.create_database_application(workspace=workspace)
+    TrashHandler.trash(admin, workspace, shared, shared)
+    TrashHandler.trash(other_user, workspace, private, private)
+    TrashEntry.objects.filter(trash_item_id=private.id).update(
+        trash_item_owner=other_user
+    )
+
+    TrashHandler.empty(admin, workspace.id, None)
+
+    assert dict(
+        TrashEntry.objects.values_list("trash_item_id", "should_be_permanently_deleted")
+    ) == {shared.id: True, private.id: False}

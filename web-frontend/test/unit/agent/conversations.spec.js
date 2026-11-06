@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import {
   acceptConversation,
+  chooseFromMenu,
   agentData,
   completeConfiguration,
   composer,
@@ -34,6 +35,7 @@ import {
   warning,
   withoutConfiguration,
   workspace,
+  conversationsPage,
 } from './helpers'
 
 describe('Agent conversations', () => {
@@ -48,7 +50,7 @@ describe('Agent conversations', () => {
   const twoConversations = () =>
     mockConversations(
       testApp,
-      page([
+      conversationsPage([
         conversation('conversation-a', 'Conversation A'),
         conversation('conversation-b', 'Conversation B'),
       ])
@@ -322,7 +324,7 @@ describe('Agent conversations', () => {
       withoutConfiguration(operation) && !operation.includes('create')
     mockConversations(
       testApp,
-      page([conversation('conversation-a', 'Conversation A')])
+      conversationsPage([conversation('conversation-a', 'Conversation A')])
     )
     mockMessages(testApp, 'conversation-a', page([message('a1', 'Earlier')]))
     const wrapper = await mount()
@@ -338,7 +340,7 @@ describe('Agent conversations', () => {
   test('keeps history and the hidden draft until an incomplete configuration is repaired', async () => {
     mockConversations(
       testApp,
-      page([conversation('conversation-a', 'Conversation A')])
+      conversationsPage([conversation('conversation-a', 'Conversation A')])
     )
     mockMessages(testApp, 'conversation-a', page([message('a1', 'Earlier')]))
     mockSaves(
@@ -365,7 +367,7 @@ describe('Agent conversations', () => {
       operation !== 'agent_application.create_conversation'
     mockConversations(
       testApp,
-      page([conversation('conversation-a', 'Conversation A')])
+      conversationsPage([conversation('conversation-a', 'Conversation A')])
     )
     mockMessages(testApp, 'conversation-a', page([message('a1', 'Earlier')]))
     const wrapper = await mount()
@@ -421,14 +423,14 @@ describe('Agent conversations', () => {
     testApp.dontFailOnErrorResponses()
     mockConversations(
       testApp,
-      page(
+      conversationsPage(
         [
-          conversation('conversation-new', 'Newest'),
+          conversation('conversation-new', 'Newest', '2026-10-14T11:00:00Z'),
           conversation('conversation-a', 'Conversation A'),
         ],
         'next'
       ),
-      page([
+      conversationsPage([
         conversation('conversation-a', 'Conversation A'),
         conversation('conversation-b', 'Conversation B'),
       ])
@@ -571,16 +573,15 @@ describe('Agent conversations', () => {
 
   test('keeps a conversation sent while the list was still loading', async () => {
     const list = deferredReply()
-    mockConversations(testApp, list.reply)
+    const existing = conversationsPage([
+      conversation('older-conversation', 'Existing', '2026-10-13T10:00:00Z'),
+    ])
+    // The read started before the send, so it reads again.
+    mockConversations(testApp, list.reply, existing)
     const wrapper = await mount()
     await sendMessage(wrapper, 'Sent during load')
 
-    list.resolve(
-      200,
-      page([
-        conversation('older-conversation', 'Existing', '2026-10-13T10:00:00Z'),
-      ])
-    )
+    list.resolve(200, existing)
     await flushPromises()
 
     expect(conversationTitles(wrapper)).toEqual([
@@ -599,7 +600,7 @@ describe('Agent conversations', () => {
     )
     mockConversations(
       testApp,
-      page([
+      conversationsPage([
         conversation(
           'conversation-b',
           'Conversation B',
@@ -625,5 +626,101 @@ describe('Agent conversations', () => {
       'Conversation A',
       'Conversation B',
     ])
+  })
+
+  test('renames inline, then deletes and offers a restore, selecting the next one', async () => {
+    const renamed = conversation('conversation-a', 'Renamed')
+    twoConversations()
+    mockMessages(testApp, 'conversation-a', page([]))
+    mockMessages(testApp, 'conversation-b', page([]))
+    testApp.mock
+      .onPatch('/agent/10/conversations/conversation-a/')
+      .reply(200, renamed)
+    testApp.mock.onDelete('/agent/10/conversations/conversation-a/').reply(204)
+    const wrapper = await mount()
+    await selectConversation(wrapper, 'Conversation A')
+
+    await chooseFromMenu(wrapper, 'Conversation A', 'action.rename')
+    const input = wrapper.get('.agent-conversations__rename')
+    expect(document.activeElement).toBe(input.element)
+    await input.setValue('  Renamed ')
+    await input.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    expect(JSON.parse(testApp.mock.history.patch.at(-1).data)).toEqual({
+      title: 'Renamed',
+    })
+    expect(conversationTitles(wrapper)).toEqual(['Renamed', 'Conversation B'])
+
+    await chooseFromMenu(wrapper, 'Renamed', 'action.delete')
+
+    expect(conversationTitles(wrapper)).toEqual(['Conversation B'])
+    expect(selected(wrapper).text()).toContain('Conversation B')
+    expect(testApp.store.state.toast.items).toContainEqual(
+      expect.objectContaining({
+        type: 'restore',
+        data: {
+          trash_item_type: 'agent_conversation',
+          trash_item_id: renamed.id,
+        },
+      })
+    )
+  })
+
+  test('loads the conversations after the last one shown, also after a delete', async () => {
+    mockConversations(
+      testApp,
+      conversationsPage(
+        [
+          conversation('conversation-a', 'Conversation A'),
+          conversation('conversation-b', 'Conversation B'),
+        ],
+        'after-b'
+      ),
+      conversationsPage([conversation('conversation-c', 'Conversation C')])
+    )
+    testApp.mock.onDelete('/agent/10/conversations/conversation-a/').reply(204)
+    const wrapper = await mount()
+
+    await chooseFromMenu(wrapper, 'Conversation A', 'action.delete')
+    await wrapper.get('.agent-conversations__more').trigger('click')
+    await flushPromises()
+
+    expect(conversationTitles(wrapper)).toEqual([
+      'Conversation B',
+      'Conversation C',
+    ])
+    expect(
+      testApp.mock.history.get
+        .filter(({ url }) => url === '/agent/10/conversations/')
+        .map(({ params }) => params.cursor)
+    ).toEqual([null, 'after-b'])
+    expect(wrapper.find('.agent-conversations__more').exists()).toBe(false)
+  })
+
+  test('rolls a failed rename back and drops a conversation deleted elsewhere', async () => {
+    twoConversations()
+    testApp.mock
+      .onPatch('/agent/10/conversations/conversation-a/')
+      .replyOnce(500)
+      .onPatch('/agent/10/conversations/conversation-a/')
+      .replyOnce(404, { error: 'ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST' })
+    const wrapper = await mount()
+    const rename = async (title) => {
+      await chooseFromMenu(wrapper, 'Conversation A', 'action.rename')
+      const input = wrapper.get('.agent-conversations__rename')
+      await input.setValue(title)
+      await input.trigger('keydown', { key: 'Enter' })
+      await flushPromises()
+    }
+
+    await rename('Fails')
+    expect(conversationTitles(wrapper)).toEqual([
+      'Conversation A',
+      'Conversation B',
+    ])
+
+    await rename('Gone')
+    expect(conversationTitles(wrapper)).toEqual(['Conversation B'])
   })
 })

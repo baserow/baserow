@@ -4,7 +4,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from baserow.api.mixins import UnknownFieldRaisesExceptionSerializerMixin
-from baserow.api.pagination import PageNumberPagination
+from baserow.api.pagination import KeysetCursorField, PageNumberPagination
 from baserow.contrib.agent.constants import (
     RUN_AS_SUBJECT_TYPES,
     AgentConfigurationErrorCode,
@@ -235,6 +235,15 @@ class AgentConversationSerializer(serializers.ModelSerializer):
         return self.context.get("conversation_runs", {}).get(conversation.id)
 
 
+class AgentConversationUpdateSerializer(
+    UnknownFieldRaisesExceptionSerializerMixin, serializers.Serializer
+):
+    title = serializers.CharField(
+        required=False,
+        max_length=AgentConversation._meta.get_field("title").max_length,
+    )
+
+
 class AgentMessageStepSerializer(serializers.Serializer):
     id = serializers.CharField()
     tool = serializers.CharField()
@@ -304,8 +313,26 @@ class AgentMessageCreatedSerializer(serializers.Serializer):
     reply = AgentMessageSerializer(allow_null=True)
 
 
-class AgentConversationPagination(PageNumberPagination):
-    page_size = 20
+class AgentConversationsQuerySerializer(serializers.Serializer):
+    limit = serializers.IntegerField(
+        default=20,
+        min_value=1,
+        max_value=100,
+        help_text="Maximum number of conversations to return.",
+    )
+    cursor = KeysetCursorField(
+        required=False,
+        help_text="The `next_cursor` of the previous page, omitted for the first page.",
+    )
+
+
+class AgentConversationsResponseSerializer(serializers.Serializer):
+    results = AgentConversationSerializer(many=True)
+    next_cursor = serializers.CharField(
+        allow_null=True,
+        help_text="Pass as `cursor` to get the next page, `null` when no more "
+        "conversations follow.",
+    )
 
 
 class AgentMessagePagination(PageNumberPagination):

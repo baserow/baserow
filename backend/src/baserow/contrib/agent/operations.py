@@ -15,3 +15,15 @@ class CreateAgentMessageOperationType(ApplicationOperationType):
 
 class ReadAgentConfigurationOperationType(ApplicationOperationType):
     type = "agent_application.read_configuration"
+
+
+class UpdateAgentConversationOperationType(ApplicationOperationType):
+    type = "agent_application.update_conversation"
+
+
+class DeleteAgentConversationOperationType(ApplicationOperationType):
+    type = "agent_application.delete_conversation"
+
+
+class RestoreAgentConversationOperationType(ApplicationOperationType):
+    type = "agent_application.restore_conversation"
