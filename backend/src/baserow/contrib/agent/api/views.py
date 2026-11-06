@@ -22,7 +22,7 @@ from baserow.api.decorators import (
 from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
 from baserow.api.mixins import RealtimeRecoveryPrimaryReadMixin
 from baserow.api.pagination import PageNumberPagination
-from baserow.api.schemas import get_error_schema
+from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.api.subjects.serializers import SubjectOptionSerializer
 from baserow.contrib.agent.actions import (
@@ -351,7 +351,7 @@ class AgentConversationView(APIView):
             "Updates one of the authenticated user's conversations, for now only its "
             "title. It keeps its place in the list, which is ordered by activity."
         ),
-        parameters=[AGENT_ID_PATH_PARAMETER],
+        parameters=[AGENT_ID_PATH_PARAMETER, CLIENT_SESSION_ID_SCHEMA_PARAMETER],
         request=AgentConversationUpdateSerializer,
         responses={
             200: AgentConversationSerializer,
@@ -384,7 +384,7 @@ class AgentConversationView(APIView):
             "stops the reply being written in it. Only the owner sees and restores "
             "it there."
         ),
-        parameters=[AGENT_ID_PATH_PARAMETER],
+        parameters=[AGENT_ID_PATH_PARAMETER, CLIENT_SESSION_ID_SCHEMA_PARAMETER],
         responses={204: None, **CONVERSATION_READ_ERRORS},
     )
     @map_exceptions(AGENT_EXCEPTIONS)

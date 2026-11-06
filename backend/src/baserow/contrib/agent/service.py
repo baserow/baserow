@@ -189,22 +189,20 @@ class AgentService:
             the agent.
         :raises AgentConversationDoesNotExist: When the user has no conversation with
             this uuid in the agent.
-        :return: The conversation with its original and new values.
+        :return: The conversation with the original and new values that changed.
         """
 
         agent = self._get_authorized_agent(
             user, agent_id, UpdateAgentConversationOperationType.type
         )
-        conversation = self.handler.get_conversation(agent, user, conversation_uuid)
+        # Locked so a concurrent delete or rename can't interleave with this one.
+        conversation = self.handler.get_conversation(
+            agent, user, conversation_uuid, for_update=True
+        )
         updated = self.handler.update_conversation(conversation, **values)
-        changed_values = {
-            field: value
-            for field, value in updated.new_values.items()
-            if value != updated.original_values[field]
-        }
-        if changed_values:
+        if updated.new_values:
             agent_conversation_updated.send(
-                self, conversation=conversation, user=user, values=changed_values
+                self, conversation=conversation, user=user, values=updated.new_values
             )
         return updated
 
@@ -275,7 +273,8 @@ class AgentService:
         still send it: access and configuration can change while the reply waits.
 
         :param reply_id: The id of the reply.
-        :raises AgentConversationDoesNotExist: When the reply no longer exists.
+        :raises AgentConversationDoesNotExist: When the reply no longer exists or its
+            conversation is in the trash.
         :raises PermissionException: When the agent or its workspace is trashed, or
             the owner left the workspace or may no longer send messages to the agent.
         :raises AgentNotReady: When the agent's configuration is no longer ready.

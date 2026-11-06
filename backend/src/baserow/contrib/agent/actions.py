@@ -160,7 +160,7 @@ class UpdateAgentConversationActionType(UndoableActionType):
         updated = AgentService().update_conversation(
             user, agent_id, conversation_uuid, **values
         )
-        if updated.original_values != updated.new_values:
+        if updated.new_values:
             cls.register_action(
                 user,
                 cls.Params(

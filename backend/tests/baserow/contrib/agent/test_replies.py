@@ -464,8 +464,13 @@ def test_the_reply_model_is_the_configured_one(reply_run):
 
 
 @pytest.mark.django_db
-def test_a_reply_to_a_deleted_conversation_fails_without_an_error_log(reply_run, logs):
-    AgentConversation.objects.get(id=reply_run.chat_id).delete()
+@pytest.mark.parametrize("trash_only", [False, True])
+def test_a_reply_to_a_deleted_conversation_fails_without_an_error_log(
+    reply_run, logs, trash_only
+):
+    conversation = AgentConversation.objects.filter(id=reply_run.chat_id)
+    # A trashed conversation whose run wasn't stopped mustn't be answered either.
+    conversation.update(trashed=True) if trash_only else conversation.delete()
 
     run_reply(reply_run)
 

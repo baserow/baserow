@@ -46,6 +46,13 @@ from .types import (
 )
 
 
+def normalize_title(text: str) -> str:
+    """Collapse whitespace so a title fits on one line, cut to the stored length."""
+
+    max_length = AgentConversation._meta.get_field("title").max_length
+    return " ".join(text.split())[:max_length]
+
+
 class AgentHandler:
     configuration_fields = ["instructions", "provider_type", "model_identifier"]
     conversation_fields = ["title"]
@@ -365,24 +372,26 @@ class AgentHandler:
         ordered by activity.
 
         :param conversation: The conversation to update.
-        :param values: The values to set, by field name. A title has its whitespace
-            collapsed like a first message's. Unknown field names are ignored.
-        :return: The conversation with its original and new values of the given
-            fields.
+        :param values: The values to set, by field name. A title is normalized like
+            a first message's. Unknown field names are ignored.
+        :return: The conversation with the original and new values of the fields
+            that changed.
         """
 
         values = extract_allowed(values, self.conversation_fields)
         if "title" in values:
-            values["title"] = " ".join(values["title"].split())
-        original_values = {field: getattr(conversation, field) for field in values}
-        changed_fields = [
-            field for field, value in values.items() if value != original_values[field]
-        ]
-        for field in changed_fields:
-            setattr(conversation, field, values[field])
-        if changed_fields:
-            conversation.save(update_fields=changed_fields)
-        return AgentConversationUpdated(conversation, original_values, values)
+            values["title"] = normalize_title(values["title"])
+        new_values = {
+            field: value
+            for field, value in values.items()
+            if value != getattr(conversation, field)
+        }
+        original_values = {field: getattr(conversation, field) for field in new_values}
+        for field, value in new_values.items():
+            setattr(conversation, field, value)
+        if new_values:
+            conversation.save(update_fields=list(new_values))
+        return AgentConversationUpdated(conversation, original_values, new_values)
 
     def delete_conversation(
         self, user: AbstractUser, conversation: AgentConversation
@@ -518,7 +527,7 @@ class AgentHandler:
                     uuid=uuid,
                     agent=agent,
                     owner_user=user,
-                    title=" ".join(content.split())[:250],
+                    title=normalize_title(content),
                 )
         except IntegrityError:
             # A concurrent request created this uuid after the retry check.
@@ -657,7 +666,8 @@ class AgentHandler:
         Fetch a reply with its conversation, the conversation's owner and its agent.
 
         :param reply_id: The id of the reply.
-        :raises AgentConversationDoesNotExist: When the reply no longer exists.
+        :raises AgentConversationDoesNotExist: When the reply no longer exists or its
+            conversation is in the trash.
         :return: The reply.
         """
 
@@ -665,7 +675,7 @@ class AgentHandler:
             AgentMessage.objects.select_related(
                 "conversation__agent__workspace", "conversation__owner_user"
             )
-            .filter(id=reply_id)
+            .filter(id=reply_id, conversation__trashed=False)
             .first()
         )
         if reply is None:
