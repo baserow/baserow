@@ -10,10 +10,7 @@ from rest_framework.views import APIView
 from baserow.api.admin.views import AdminListingView, APIListingView
 from baserow.api.decorators import map_exceptions
 from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST
-from baserow.api.pagination import (
-    ApproximateCountPaginator,
-    PageNumberPaginationWithApproximateCount,
-)
+from baserow.api.pagination import PageNumberPaginationWithApproximateCount
 from baserow.api.schemas import get_error_schema
 from baserow.core.admin.workspaces.exceptions import CannotDeleteATemplateGroupError
 from baserow.core.admin.workspaces.handler import WorkspacesAdminHandler
@@ -70,32 +67,10 @@ class WorkspacesAdminView(AdminListingView):
         return super().get(request)
 
 
-class WorkspaceOptionsPaginator(ApproximateCountPaginator):
-    """Use observed rows to keep workspace choices reachable despite estimates."""
-
-    def page(self, number):
-        number = self.validate_number(number)
-        start = (number - 1) * self.per_page
-        rows = list(self.object_list[start : start + self.per_page + 1])
-        if len(rows) > self.per_page:
-            self.count = max(self.count, start + self.per_page + 1)
-        elif rows or number == 1:
-            self.count = start + len(rows)
-        else:
-            # An empty stale page does not prove that every earlier page was full.
-            self.count = min(self.count, start)
-        self.__dict__.pop("num_pages", None)
-        return self._get_page(rows[: self.per_page], number, self)
-
-
-class WorkspaceOptionsPagination(PageNumberPaginationWithApproximateCount):
-    django_paginator_class = WorkspaceOptionsPaginator
-
-
 class WorkspaceOptionsAdminView(APIListingView):
     permission_classes = (IsAdminUser,)
     serializer_class = AdminWorkspaceOptionsSerializer
-    pagination_class = WorkspaceOptionsPagination
+    pagination_class = PageNumberPaginationWithApproximateCount
     search_fields = ["name"]
     default_order_by = "name"
 
