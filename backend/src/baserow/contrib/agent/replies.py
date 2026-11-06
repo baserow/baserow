@@ -6,6 +6,7 @@ from pydantic_ai import Agent, AgentRunResultEvent
 from pydantic_ai.messages import (
     AgentStreamEvent,
     FunctionToolCallEvent,
+    FunctionToolResultEvent,
     ModelMessage,
     ModelRequest,
     ModelResponse,
@@ -13,6 +14,7 @@ from pydantic_ai.messages import (
     PartStartEvent,
     TextPart,
     TextPartDelta,
+    ToolReturnPart,
     UserPromptPart,
 )
 from pydantic_ai.models import Model
@@ -31,11 +33,14 @@ from .constants import (
     INTERRUPTED_CHANGES_NOTE,
     INTERRUPTED_REPLY_NOTE,
     REPLY_REQUEST_LIMIT,
+    STEP_RESOURCE_LIMIT,
+    STEP_RESOURCE_NAME_MAX_LENGTH,
+    STEP_TARGET_MAX_LENGTH,
     TOOL_RETRIES,
     UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS,
 )
 from .models import AgentMessage
-from .registries import agent_tool_type_registry
+from .registries import StepResources, agent_tool_type_registry
 from .types import AgentReplyRequest, AgentReplyResult
 
 if TYPE_CHECKING:
@@ -122,6 +127,18 @@ def _describe_failure(error: BaseException) -> str:
     return f"{name}, status {status_code}" if status_code else name
 
 
+def _step_name(value: object, max_length: int) -> str | None:
+    """Validate and bound display names before putting them in persisted JSON."""
+
+    if not isinstance(value, str) or not value.strip() or "\x00" in value:
+        return None
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        return None
+    return value if len(value) <= max_length else value[: max_length - 1] + "…"
+
+
 class AgentResponder:
     """Stream one reply into a run's journal until it ends or a stop is requested."""
 
@@ -146,6 +163,7 @@ class AgentResponder:
         self._text = ""
         self._parts: dict[int, str] = {}
         self._result: str | None = None
+        self._step_resources: StepResources = {}
         self._steps = ChatRunSteps(journal, self._describe_call)
 
     def _describe_call(self, name: str, arguments: dict) -> dict | None:
@@ -168,7 +186,57 @@ class AgentResponder:
                 "Agent tool {} step input failed ({})", tool.type, type(exc).__name__
             )
             summary = {}
+        try:
+            target = _step_name(
+                tool.get_step_target(arguments, self._step_resources),
+                STEP_TARGET_MAX_LENGTH,
+            )
+            if target is not None:
+                summary = {**summary, "target": target}
+        except Exception as exc:
+            logger.error(
+                "Agent tool {} step target failed ({})", tool.type, type(exc).__name__
+            )
         return {"changes_data": tool.changes_data, "input": summary}
+
+    def _remember_step_resources(self, part: ToolReturnPart) -> None:
+        """Retain only names from successful allowed calls, scoped to this reply."""
+
+        name = part.tool_name
+        if (
+            name not in self._request.allowed_tool_names
+            or part.outcome != "success"
+            or (isinstance(part.content, dict) and "error" in part.content)
+        ):
+            return
+        try:
+            resources = agent_tool_type_registry.get(name).get_step_resources(
+                part.content
+            )
+            if not isinstance(resources, dict):
+                raise TypeError("Step resources must be a dictionary")
+            for key, value in resources.items():
+                if (
+                    not isinstance(key, tuple)
+                    or len(key) != 2
+                    or not isinstance(key[0], str)
+                    or not 0 < len(key[0]) <= 64
+                    or type(key[1]) is not int
+                    or key[1] <= 0
+                ):
+                    continue
+                label = _step_name(value, STEP_RESOURCE_NAME_MAX_LENGTH)
+                if label is None:
+                    continue
+                # Newest names win when a large workspace fills the catalog.
+                self._step_resources.pop(key, None)
+                self._step_resources[key] = label
+                if len(self._step_resources) > STEP_RESOURCE_LIMIT:
+                    self._step_resources.pop(next(iter(self._step_resources)))
+        except Exception as exc:
+            logger.error(
+                "Agent tool {} step resources failed ({})", name, type(exc).__name__
+            )
 
     async def answer(self) -> ChatRunOutcome:
         """
@@ -249,6 +317,9 @@ class AgentResponder:
         match event:
             case AgentRunResultEvent(result=result):
                 self._result = result.output
+                return
+            case FunctionToolResultEvent(part=ToolReturnPart() as part):
+                self._remember_step_resources(part)
                 return
             case FunctionToolCallEvent():
                 # Text before a tool call is narration; the next response is the answer.
