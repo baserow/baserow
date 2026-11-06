@@ -73,7 +73,7 @@
     "coreGotoDescription": "Jumps back to an earlier node while a condition is true, to repeat or retry steps.",
     "coreGotoDestinationRequired": "A destination is required.",
     "coreWait": "Wait",
-    "coreWaitDescription": "Pauses for a number of seconds before the next node runs.",
+    "coreWaitDescription": "Pauses the workflow for a number of seconds before the next node runs.",
     "coreWaitSecondsRequired": "The number of seconds to wait is required.",
     "coreSMTPEmailDescription": "Sends an email using SMTP configuration.",
     "coreIteration": "Iterator",
