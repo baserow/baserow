@@ -1,5 +1,15 @@
+from typing import Any
+
+from django.contrib.auth.models import AbstractUser
+
 import pytest
 
+from baserow.contrib.agent.models import (
+    AgentApplication,
+    AgentConversation,
+    AgentMessage,
+    AgentToolApproval,
+)
 from baserow.contrib.agent.operations import (
     CreateAgentConversationOperationType,
     CreateAgentMessageOperationType,
@@ -15,7 +25,14 @@ from baserow.core.handler import CoreHandler
 from baserow.core.operations import UpdateApplicationOperationType
 
 
-def call(name, user, agent, conversation, message):
+def call(
+    name: str,
+    user: AbstractUser,
+    agent: AgentApplication,
+    conversation: AgentConversation,
+    message: AgentMessage,
+    approval: AgentToolApproval,
+) -> Any:
     service = AgentService()
     calls = {
         "read configuration": lambda: service.get_configuration(user, agent.id),
@@ -37,6 +54,9 @@ def call(name, user, agent, conversation, message):
         ),
         "delete conversation": lambda: service.delete_conversation(
             user, agent.id, conversation.uuid
+        ),
+        "decide approvals": lambda: service.decide_approvals(
+            user, agent.id, conversation.uuid, [{"id": approval.id, "approved": True}]
         ),
         "export": lambda: action_type_registry.get_by_type(
             ExportApplicationsActionType
@@ -63,6 +83,7 @@ def call(name, user, agent, conversation, message):
         ("retry message", [CreateAgentMessageOperationType]),
         ("update conversation", [UpdateAgentConversationOperationType]),
         ("delete conversation", [DeleteAgentConversationOperationType]),
+        ("decide approvals", [CreateAgentMessageOperationType]),
         ("export", [ReadAgentConfigurationOperationType]),
     ],
 )
@@ -73,9 +94,10 @@ def test_each_call_checks_its_operation_on_the_agent(
     agent = configured_agent(user=user)
     message = data_fixture.create_agent_message(user=user, agent=agent)
     conversation = message.conversation
+    approval = data_fixture.create_agent_tool_approval(conversation=conversation)
     check = mocker.spy(CoreHandler, "check_multiple_permissions")
 
-    call(name, user, agent, conversation, message)
+    call(name, user, agent, conversation, message, approval)
 
     assert [
         (permission.operation_name, permission.context.id)

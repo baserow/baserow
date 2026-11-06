@@ -82,18 +82,11 @@
           </span>
         </li>
       </ul>
-      <div v-if="inputText" class="chat-step-group__input">
+      <div v-if="hasInput" class="chat-step-group__input">
         <div class="chat-step-group__input-label">
           {{ $t('toolPresentation.input') }}
         </div>
-        <pre
-          class="chat-step-group__input-values"
-          tabindex="0"
-          :aria-label="$t('toolPresentation.input')"
-        ><code>{{ inputText }}</code></pre>
-        <p v-if="input.truncated" class="chat-step-group__input-note">
-          {{ $t('toolPresentation.inputTruncated') }}
-        </p>
+        <ChatToolInput :input="input" />
       </div>
     </div>
   </div>
@@ -103,6 +96,9 @@
 import { computed, ref, useId } from 'vue'
 import { STEP_STATUS } from '@baserow/modules/core/chatRuns/constants'
 import { stepStatusText } from '@baserow/modules/core/toolPresentationTypes'
+import ChatToolInput, {
+  toolInputText,
+} from '@baserow/modules/core/components/chat/ChatToolInput'
 
 const props = defineProps({
   title: { type: String, required: true },
@@ -122,31 +118,18 @@ const failureTooltipOptions = {
 const detailsId = useId()
 // Workspace activity starts open; action inputs are available on demand.
 const expanded = ref(props.lines.length > 0)
-const inputText = computed(() => {
-  const values = props.input?.values
-  if (
-    !values ||
-    typeof values !== 'object' ||
-    Array.isArray(values) ||
-    !Object.keys(values).length
-  ) {
-    return ''
-  }
-  try {
-    return JSON.stringify(values, null, 2)
-  } catch {
-    return ''
-  }
-})
-const hasDetails = computed(() => props.lines.length > 0 || !!inputText.value)
+const hasInput = computed(() => !!toolInputText(props.input))
+const hasDetails = computed(() => props.lines.length > 0 || hasInput.value)
 const statusClass = computed(() => ({
   'chat-step-group__status--visible':
     props.status === STEP_STATUS.STOPPED && props.changesData,
 }))
 const statusIcons = {
+  [STEP_STATUS.WAITING]: 'iconoir-clock chat-step-group__icon--waiting',
   [STEP_STATUS.DONE]: 'iconoir-check-circle chat-step-group__icon--done',
   [STEP_STATUS.FAILED]:
     'iconoir-warning-triangle chat-step-group__icon--failed',
+  [STEP_STATUS.REJECTED]: 'iconoir-prohibition chat-step-group__icon--rejected',
   [STEP_STATUS.STOPPED]: 'iconoir-minus-circle chat-step-group__icon--stopped',
 }
 </script>

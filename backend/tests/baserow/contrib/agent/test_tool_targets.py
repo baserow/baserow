@@ -1,4 +1,3 @@
-from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
@@ -17,10 +16,18 @@ from baserow.contrib.agent.constants import (
 )
 from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.contrib.agent.replies import AgentResponder
+from baserow.contrib.agent.types import AgentReplyRequest
 
 
 def responder():
-    request = SimpleNamespace(allowed_tool_names=agent_tool_type_registry.get_types())
+    request = AgentReplyRequest(
+        reply_id=1,
+        workspace=None,
+        instructions="",
+        provider_type="openai",
+        model_identifier="test-model",
+        allowed_tool_names=agent_tool_type_registry.get_types(),
+    )
     return AgentResponder(request, Mock(), Mock(), {})
 
 

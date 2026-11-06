@@ -6,6 +6,8 @@ from baserow.contrib.agent.models import (
     AgentApplication,
     AgentConversation,
     AgentMessage,
+    AgentReplyStatus,
+    AgentToolApproval,
 )
 
 
@@ -45,3 +47,31 @@ class AgentApplicationFixtures:
         kwargs.setdefault("uuid", uuid4())
         kwargs.setdefault("content", "Hello")
         return AgentMessage.objects.create(**kwargs)
+
+    def create_agent_tool_approval(
+        self,
+        user: AbstractUser | None = None,
+        conversation: AgentConversation | None = None,
+        **kwargs,
+    ) -> AgentToolApproval:
+        """
+        Create a pending approval, in a new waiting reply unless one is given.
+
+        :param user: The owner of the new reply's conversation, when none is given.
+        :param conversation: The conversation of the new reply.
+        :return: The created approval.
+        """
+
+        if "reply" not in kwargs:
+            reply_kwargs = {"conversation": conversation} if conversation else {}
+            kwargs["reply"] = self.create_agent_message(
+                user=user,
+                role=AgentMessage.Role.ASSISTANT,
+                status=AgentReplyStatus.WAITING,
+                **reply_kwargs,
+            )
+        kwargs.setdefault("tool_call_id", f"call_{uuid4().hex}")
+        kwargs.setdefault("step_id", str(uuid4()))
+        kwargs.setdefault("pause", 1)
+        kwargs.setdefault("tool_name", "create_rows")
+        return AgentToolApproval.objects.create(**kwargs)

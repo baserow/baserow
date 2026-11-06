@@ -10,6 +10,7 @@ from baserow.contrib.agent.models import (
     AgentApplication,
     AgentConversation,
     AgentMessage,
+    AgentReplyTranscript,
 )
 from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.handler import CoreHandler
@@ -29,6 +30,16 @@ def export_internal(agent: AgentApplication) -> dict:
     return json.loads(json.dumps(serialized))
 
 
+def transcript_values(message: AgentMessage) -> tuple | None:
+    transcript = getattr(message, "transcript", None)
+    return transcript and (
+        transcript.provider_type,
+        transcript.model_identifier,
+        transcript.model_messages,
+        transcript.usage,
+    )
+
+
 def conversation_values(agent: AgentApplication) -> list[tuple]:
     return [
         (
@@ -43,6 +54,7 @@ def conversation_values(agent: AgentApplication) -> list[tuple]:
                     message.status,
                     message.error_code,
                     message.steps,
+                    transcript_values(message),
                     message.created_on,
                     message.updated_on,
                 )
@@ -74,7 +86,7 @@ def test_duplicate_copies_conversations_with_new_identifiers(
         conversation = data_fixture.create_agent_conversation(user=owner, agent=agent)
         for role in AgentMessage.Role.values:
             data_fixture.create_agent_message(conversation=conversation, role=role)
-        data_fixture.create_agent_message(
+        reply = data_fixture.create_agent_message(
             conversation=conversation,
             role=AgentMessage.Role.ASSISTANT,
             status=ChatRunStatus.FAILED,
@@ -92,6 +104,13 @@ def test_duplicate_copies_conversations_with_new_identifiers(
                     "facts": {},
                 }
             ],
+        )
+        AgentReplyTranscript.objects.create(
+            reply=reply,
+            provider_type="openai",
+            model_identifier="test-model",
+            model_messages=[{"kind": "request"}],
+            usage={"requests": 1},
         )
 
     data_fixture.create_agent_conversation(user=owner, agent=agent, trashed=True)
@@ -115,15 +134,22 @@ def test_only_copies_that_keep_run_as_keep_the_tools(
     )
     agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
     agent.save()
-    AgentHandler().set_allowed_tools(agent, ["list_tables", "create_rows"])
+    AgentHandler().set_allowed_tools(
+        agent, ["list_tables", "create_rows"], ask_first_names=["list_tables"]
+    )
+    workspace = data_fixture.create_workspace(user=user)
+    exported = export_internal(agent)
+    legacy_export = {
+        key: value for key, value in exported.items() if key != "ask_first_tools"
+    }
 
     duplicate = CoreHandler().duplicate_application(user, agent).specific
-    imported = AgentApplicationType().import_serialized(
-        data_fixture.create_workspace(user=user),
-        export_internal(agent),
-        INTERNAL_CONFIG,
-        {},
-    )
+    imported, legacy = [
+        AgentApplicationType().import_serialized(
+            workspace, serialized, INTERNAL_CONFIG, {}
+        )
+        for serialized in (exported, legacy_export)
+    ]
 
     assert duplicate.run_as_subject_id == identity.id
     assert (imported.run_as_subject_type, imported.run_as_subject_id) == (None, None)
@@ -135,12 +161,16 @@ def test_only_copies_that_keep_run_as_keep_the_tools(
     assert resolution.status == (
         AgentRunAsState.TRASHED if trashed else AgentRunAsState.ACTIVE
     )
-    assert AgentHandler().get_allowed_tool_names(duplicate) == [
-        "list_tables",
-        "create_rows",
-    ]
-    assert AgentHandler().get_allowed_tool_names(imported) == []
-    assert not imported.allowed_tools.exists()
+    assert AgentHandler().get_tool_configuration(duplicate) == {
+        "allowed_tools": ["list_tables", "create_rows"],
+        "ask_first_tools": ["list_tables"],
+    }
+    for copy in (imported, legacy):
+        assert AgentHandler().get_tool_configuration(copy) == {
+            "allowed_tools": [],
+            "ask_first_tools": [],
+        }
+        assert not copy.allowed_tools.exists()
 
 
 @pytest.mark.django_db
@@ -192,7 +222,7 @@ def test_snapshot_preserves_run_as_through_identity_trash_and_restore(
         "core.Agent",
         identity.id,
     )
-    assert AgentHandler().get_allowed_tool_names(archived) == [
+    assert AgentHandler().get_tool_configuration(archived)["allowed_tools"] == [
         "list_tables",
         "create_rows",
     ]
@@ -205,7 +235,10 @@ def test_snapshot_preserves_run_as_through_identity_trash_and_restore(
         identity.id,
     )
     handler = AgentHandler()
-    assert handler.get_allowed_tool_names(restored) == ["list_tables", "create_rows"]
+    assert handler.get_tool_configuration(restored)["allowed_tools"] == [
+        "list_tables",
+        "create_rows",
+    ]
     assert (
         handler.get_usable_run_as_subject(
             restored.run_as_subject_type, restored.run_as_subject_id, restored.workspace
@@ -387,20 +420,31 @@ def test_duplicate_agent_job_rolls_back_failed_conversation_import(
 
 
 @pytest.mark.django_db
-def test_a_copy_never_carries_a_reply_in_progress(data_fixture, configured_agent):
+@pytest.mark.parametrize("status", ["running", "waiting"])
+def test_a_copy_never_carries_a_reply_in_progress(
+    data_fixture, configured_agent, status
+):
     owner = data_fixture.create_user()
     agent = configured_agent(user=owner)
-    data_fixture.create_agent_message(
+    reply = data_fixture.create_agent_message(
         user=owner,
         agent=agent,
         role=AgentMessage.Role.ASSISTANT,
-        status=ChatRunStatus.RUNNING,
+        status=status,
+        steps=[{"id": "call_1", "status": status}],
+    )
+    data_fixture.create_agent_tool_approval(reply=reply, step_id="call_1")
+    AgentReplyTranscript.objects.create(
+        reply=reply, paused_conversation={"messages": []}
     )
 
     copied = CoreHandler().duplicate_application(owner, agent).specific
 
     reply = AgentMessage.objects.get(conversation__agent=copied)
     assert (reply.status, reply.error_code) == ("failed", "interrupted")
+    assert reply.steps == [{"id": "call_1", "status": "stopped"}]
+    assert not reply.approvals.exists()
+    assert reply.transcript.paused_conversation is None
 
 
 @pytest.mark.django_db

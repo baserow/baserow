@@ -10,6 +10,7 @@ from rest_framework.fields import DateTimeField
 from baserow.contrib.agent.actions import (
     CreateAgentConversationActionType,
     CreateAgentMessageActionType,
+    DecideAgentToolApprovalsActionType,
     DeleteAgentConversationActionType,
     UpdateAgentConversationActionType,
 )
@@ -20,6 +21,7 @@ from baserow.contrib.agent.models import (
 from baserow.contrib.agent.signals import agent_conversation_activity
 from baserow.core.action.registries import action_type_registry
 from baserow.core.agents.service import AgentService as IdentityService
+from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.models import Agent
 from baserow.core.trash.handler import TrashHandler
 
@@ -253,3 +255,45 @@ def test_a_deleted_conversation_sends_no_reply_activity(
         agent_conversation_activity.send(None, conversation=conversation, user=None)
 
     broadcast.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_only_the_decision_that_resumes_a_reply_notifies_the_owner(
+    data_fixture, configured_agent, mocker, django_capture_on_commit_callbacks
+):
+    user = data_fixture.create_user(web_socket_id="source-tab")
+    agent = configured_agent(user=user)
+    reply = data_fixture.create_agent_message(
+        user=user, agent=agent, role="assistant", status="waiting"
+    )
+    first, last = [
+        data_fixture.create_agent_tool_approval(reply=reply) for _ in range(2)
+    ]
+    broadcast = mocker.patch(
+        "baserow.contrib.agent.ws.signals.broadcast_to_users.delay"
+    )
+    # A resumed reply would notify again when it ends.
+    mocker.patch.object(ChatRunHandler, "_enqueue")
+
+    run_ids = []
+    for approval in (first, last):
+        with django_capture_on_commit_callbacks(execute=True):
+            _, run_id = action_type_registry.get_by_type(
+                DecideAgentToolApprovalsActionType
+            ).do(
+                user,
+                agent.id,
+                reply.conversation.uuid,
+                [{"id": approval.id, "approved": True}],
+            )
+        run_ids.append(run_id)
+
+    assert run_ids[0] is None
+    conversation = AgentConversation.objects.get(id=reply.conversation_id)
+    assert broadcast.call_args_list == [
+        call(
+            [user.id],
+            update_of(conversation, run_ids[1]),
+            ignore_web_socket_id="source-tab",
+        )
+    ]

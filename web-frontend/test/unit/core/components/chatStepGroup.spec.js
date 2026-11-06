@@ -41,6 +41,8 @@ describe('ChatStepGroup', () => {
     ['done', '.iconoir-check-circle', 'toolPresentation.statusDone'],
     ['failed', '.iconoir-warning-triangle', 'toolPresentation.statusFailed'],
     ['stopped', '.iconoir-minus-circle', 'toolPresentation.statusInterrupted'],
+    ['waiting', '.iconoir-clock', 'toolPresentation.statusWaiting'],
+    ['rejected', '.iconoir-prohibition', 'toolPresentation.statusRejected'],
   ])(
     'shows the %s icon and accessible label for each expanded call',
     (status, icon, label) => {
@@ -102,7 +104,7 @@ describe('ChatStepGroup', () => {
     expect(wrapper.get('pre').text()).toBe(JSON.stringify(values, null, 2))
     expect(wrapper.find('img').exists()).toBe(false)
     expect(wrapper.get('pre').attributes('tabindex')).toBe('0')
-    expect(wrapper.get('.chat-step-group__input-note').text()).toBe(
+    expect(wrapper.get('.chat-tool-input__note').text()).toBe(
       'toolPresentation.inputTruncated'
     )
 
@@ -183,7 +185,7 @@ describe('ChatStepGroup', () => {
     }
   })
 
-  test.each(['running', 'done', 'stopped'])(
+  test.each(['running', 'done', 'stopped', 'waiting', 'rejected'])(
     'does not show a failure tooltip for a %s call',
     async (status) => {
       const wrapper = mount(ChatStepGroup, {
@@ -241,6 +243,8 @@ describe('ChatStepGroup', () => {
     ['done', '.iconoir-check-circle', 'toolPresentation.statusDone'],
     ['failed', '.iconoir-warning-triangle', 'toolPresentation.statusFailed'],
     ['stopped', '.iconoir-minus-circle', 'toolPresentation.statusInterrupted'],
+    ['waiting', '.iconoir-clock', 'toolPresentation.statusWaiting'],
+    ['rejected', '.iconoir-prohibition', 'toolPresentation.statusRejected'],
   ])('shows %s for a standalone action', (status, icon, label) => {
     const wrapper = mount(ChatStepGroup, {
       props: { title: 'Sending an email', status },
