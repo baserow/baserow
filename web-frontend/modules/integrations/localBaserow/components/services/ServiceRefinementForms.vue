@@ -103,6 +103,7 @@
             v-model:filter-type="values.filter_type"
             :fields="tableFields"
           />
+          <slot v-if="values.table_id" name="after-filter-form" />
           <p v-if="!values.table_id">
             {{ $t('serviceRefinementForms.noTableChosenForFiltering') }}
           </p>
@@ -200,6 +201,7 @@
               v-model:filter-type="values.filter_type"
               :fields="tableFields"
             />
+            <slot v-if="values.table_id" name="after-filter-form" />
             <p v-if="!values.table_id">
               {{ $t('serviceRefinementForms.noTableChosenForFiltering') }}
             </p>
@@ -291,6 +293,11 @@ export default {
       type: Boolean,
       default: false,
     },
+    filterCountOverride: {
+      type: Number,
+      required: false,
+      default: null,
+    },
     sortCountOverride: {
       type: Number,
       required: false,
@@ -309,6 +316,9 @@ export default {
   },
   computed: {
     filterCount() {
+      if (this.filterCountOverride !== null) {
+        return this.filterCountOverride
+      }
       return this.values.filters ? this.values.filters.length : 0
     },
     sortCount() {
@@ -334,7 +344,7 @@ export default {
       return this.values.group_bys ? this.values.group_bys.length : 0
     },
     hasActiveFilters() {
-      return this.values.filters && this.values.filters.length > 0
+      return this.filterCount > 0
     },
     hasActiveSorts() {
       return this.sortCount > 0

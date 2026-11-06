@@ -1,0 +1,107 @@
+.dashboard-text-filter-widget {
+  min-width: 0;
+
+  > .control__label > span:first-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .form-input__wrapper {
+    min-width: 0;
+  }
+
+  .form-input__suffix {
+    flex-shrink: 0;
+    padding: 0 16px 0 4px;
+    border-left: 0;
+    background: transparent;
+
+    &:empty {
+      display: none;
+    }
+  }
+}
+
+.dashboard-text-filter-widget__input--active .form-input__icon-left {
+  color: $palette-blue-500;
+}
+
+.dashboard-text-filter-widget__dropdown-wrapper {
+  position: relative;
+  min-width: 0;
+}
+
+.dashboard-text-filter-widget__dropdown {
+  .dropdown__selected {
+    padding-right: 16px;
+    padding-left: 16px;
+    line-height: normal;
+  }
+
+  .dropdown__selected-icon {
+    font-size: 16px;
+  }
+
+  &.dashboard-text-filter-widget__dropdown--active .dropdown__selected-icon {
+    color: $palette-blue-500;
+  }
+}
+
+.dashboard-text-filter-widget__actions {
+  position: absolute;
+  top: 0;
+  right: 16px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+
+  &:empty {
+    display: none;
+  }
+}
+
+.dashboard-text-filter-widget__footer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px 4px 12px;
+}
+
+.dashboard-widget--layout-editable
+  .dashboard-text-filter-widget
+  > .control__label {
+  cursor: move;
+}
+
+.dashboard-widget--selected .dashboard-text-filter-widget__input,
+.dashboard-widget--selected
+  .dashboard-text-filter-widget__dropdown
+  .dropdown__selected {
+  border-color: $palette-blue-500;
+  box-shadow: 0 0 0 4px rgba($palette-blue-500, 0.08);
+}
+
+.dashboard-text-filter-widget__dropdown-wrapper:has(
+    > .dashboard-text-filter-widget__actions:not(:empty)
+  )
+  .dropdown__selected {
+  padding-right: 52px;
+}
+
+.dashboard-widget .dashboard-text-filter-widget .widget__header-context-menu {
+  position: static;
+  width: auto;
+  margin-left: 0;
+  pointer-events: auto;
+  opacity: 1;
+
+  .button-icon {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    color: $palette-neutral-700;
+  }
+}

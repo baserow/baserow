@@ -1829,5 +1829,8 @@
   },
   "managementPages": {
     "you": "You"
+  },
+  "itemPickerModal": {
+    "noResults": "No results found"
   }
 }

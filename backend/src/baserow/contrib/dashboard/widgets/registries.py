@@ -7,12 +7,12 @@ from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.dashboard.types import WidgetDict
 from baserow.contrib.dashboard.widgets.types import UpdatedWidget, WidgetGridLayout
 from baserow.core.registry import (
-    CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
     EasyImportExportMixin,
     Instance,
     ModelInstanceMixin,
     ModelRegistryMixin,
+    PublicCustomFieldsInstanceMixin,
     Registry,
 )
 
@@ -24,12 +24,15 @@ DASHBOARD_WIDGETS = "dashboard_widgets"
 
 class WidgetType(
     EasyImportExportMixin[Widget],
-    CustomFieldsInstanceMixin,
+    PublicCustomFieldsInstanceMixin,
     ModelInstanceMixin[Widget],
     Instance,
     ABC,
 ):
     """Widget type"""
+
+    is_display_widget = False
+    is_filter_widget = False
 
     SerializedDict = WidgetDict
     parent_property_name = "dashboard"
@@ -117,24 +120,20 @@ class WidgetType(
 
         pass
 
-    def before_trashed(self, instance: Widget):
-        """
-        This function allows you to hook into the process of trashing
-        a widget and do widget type specific steps.
-
-        :param instance: The instance that will be restored.
-        """
-
+    def before_trashed(self, instance: Widget, requesting_user, trash_entry):
+        """Prepare widget-specific state before trashing, using restoration metadata."""
         pass
 
-    def before_restore(self, instance: Widget):
-        """
-        This function allows you to hook into the process of restoring
-        a widget and do widget type specific steps.
+    def after_trashed(self, instance: Widget, requesting_user, trash_entry):
+        """Run widget-specific cleanup after the widget has been marked trashed."""
+        pass
 
-        :param instance: The instance that will be restored.
-        """
+    def before_restore(self, instance: Widget, trash_entry):
+        """Prepare related state before restoring the widget from its trash entry."""
+        pass
 
+    def after_restore(self, instance: Widget, trash_entry):
+        """Restore widget-specific state after the widget and layout are restored."""
         pass
 
     def deserialize_property(

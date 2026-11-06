@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 
+from baserow.core.formula.field import FormulaField
 from baserow.core.mixins import (
     CreatedAndUpdatedOnMixin,
     FractionOrderableMixin,
@@ -12,6 +13,8 @@ from baserow.core.mixins import (
     TrashableModelMixin,
     WithRegistry,
 )
+
+from .fields import TargetFiltersField
 
 if TYPE_CHECKING:
     from baserow.contrib.dashboard.models import Dashboard
@@ -106,3 +109,25 @@ class SummaryWidget(Widget):
         on_delete=models.PROTECT,
         help_text="Data source for fetching the result to display.",
     )
+
+
+class TextFilterWidget(Widget):
+    """A text filter whose viewer value remains local to the browser."""
+
+    class Mode(models.TextChoices):
+        INPUT = "input", "Input"
+        DROPDOWN = "dropdown", "Dropdown"
+
+    mode = models.CharField(
+        max_length=16, choices=Mode.choices, default=Mode.INPUT, db_default=Mode.INPUT
+    )
+    options = FormulaField(db_default="")
+    multiple = models.BooleanField(default=False, db_default=False)
+
+    target_filters = TargetFiltersField(
+        default=list,
+        db_default=[],
+        blank=True,
+    )
+    placeholder = models.TextField(blank=True, default="", db_default="")
+    default_value = models.JSONField(blank=True, default=str, db_default="")

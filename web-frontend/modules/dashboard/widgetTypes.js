@@ -1,3 +1,12 @@
+import isEqual from 'lodash/isEqual'
+import { notifyIf } from '@baserow/modules/core/utils/error'
+import {
+  refreshWidgetSources,
+  getTextFilterDefaultValue,
+} from '@baserow/modules/dashboard/utils/widgetFilters'
+import TextFilterWidgetSvg from '@baserow/modules/dashboard/assets/images/widgets/text_filter_widget.svg?url'
+import TextFilterWidget from '@baserow/modules/dashboard/components/widget/TextFilterWidget'
+import TextFilterWidgetSettings from '@baserow/modules/dashboard/components/widget/TextFilterWidgetSettings'
 import { Registerable } from '@baserow/modules/core/registry'
 import SummaryWidgetSvg from '@baserow/modules/dashboard/assets/images/widgets/summary_widget.svg?url'
 import SummaryWidget from '@baserow/modules/dashboard/components/widget/SummaryWidget'
@@ -66,6 +75,10 @@ export class WidgetType extends Registerable {
     return true
   }
 
+  get hasCard() {
+    return true
+  }
+
   isAvailable() {
     return true
   }
@@ -73,9 +86,60 @@ export class WidgetType extends Registerable {
   getDeactivatedModal() {
     return null
   }
+
+  get isDisplayWidget() {
+    return false
+  }
+
+  get isFilterWidget() {
+    return false
+  }
+
+  /** Widget lifecycle hooks receive the local Vuex context and widget registry. */
+  afterCreate(widget, context) {}
+
+  afterUpdate(widget, context, previousWidget) {}
+
+  afterDelete(widget, context) {}
+
+  /** Called after the server accepts a configuration update. */
+  afterSave(widget, context, values) {}
+
+  valueChanged(widget, context, value) {}
+
+  getTargetWidgetIds(widget) {
+    return []
+  }
 }
 
 export class DataSourceWidgetType extends WidgetType {
+  get isDisplayWidget() {
+    return true
+  }
+
+  getDataSourceId(widget) {
+    return widget.data_source_id
+  }
+  afterCreate(widget, context) {
+    if (
+      context.state.dataSources.some(
+        (source) => source.id === widget.data_source_id
+      )
+    ) {
+      context.dispatch('refreshDataSources', [widget.data_source_id])
+    }
+  }
+
+  /** Refresh dependencies when a display widget changes its source. */
+  afterUpdate(widget, context, previousWidget) {
+    if (widget.data_source_id !== previousWidget.data_source_id) {
+      context.dispatch(
+        'refreshDataSources',
+        [previousWidget.data_source_id, widget.data_source_id].filter(Boolean)
+      )
+    }
+  }
+
   getDataSourceData(widget, data) {
     return data?.[widget.data_source_id]
   }
@@ -114,5 +178,186 @@ export class SummaryWidgetType extends DataSourceWidgetType {
 
   get showHeaderBorder() {
     return false
+  }
+}
+
+export class FilterWidgetType extends WidgetType {
+  get hasCard() {
+    return false
+  }
+
+  get isFilterWidget() {
+    return true
+  }
+
+  getDefaultValue(widget) {
+    return null
+  }
+
+  getValueSchema(widget) {
+    throw new Error('Filter types must define their value schema.')
+  }
+  afterCreate(widget, context) {
+    if (!Object.hasOwn(context.state.widgetValues, widget.id)) {
+      this.valueChanged(widget, context, this.getDefaultValue(widget))
+    }
+  }
+
+  getValueAfterUpdate(widget, previousWidget, value) {
+    return isEqual(
+      this.getDefaultValue(widget),
+      this.getDefaultValue(previousWidget)
+    )
+      ? value
+      : this.getDefaultValue(widget)
+  }
+
+  /** Reconcile viewer values; editing links refreshes both old and new targets. */
+  afterUpdate(widget, context, previousWidget) {
+    this.valueChanged(
+      widget,
+      context,
+      this.getValueAfterUpdate(
+        widget,
+        previousWidget,
+        context.state.widgetValues[widget.id]
+      )
+    )
+    if (
+      !isEqual(widget.target_filters, previousWidget.target_filters) ||
+      !isEqual(widget.target_widget_ids, previousWidget.target_widget_ids)
+    ) {
+      refreshWidgetSources(previousWidget, context)
+      refreshWidgetSources(widget, context)
+    }
+  }
+
+  afterDelete(widget, context) {
+    refreshWidgetSources(widget, context)
+    context.commit('DELETE_WIDGET_VALUE', widget.id)
+  }
+
+  /** Refresh persisted groups after the server accepts the configuration. */
+  afterSave(widget, context, values) {
+    if (Object.hasOwn(values, 'target_filters'))
+      refreshWidgetSources(widget, context)
+  }
+
+  valueChanged(widget, context, value) {
+    if (isEqual(context.state.widgetValues[widget.id], value)) return
+    context.commit('SET_WIDGET_VALUE', { widgetId: widget.id, value })
+    refreshWidgetSources(widget, context)
+  }
+
+  getTargetWidgetIds(widget) {
+    return widget.target_filters
+      ? widget.target_filters
+          .filter((link) => link.enabled !== false)
+          .map((link) => link.target_widget_id)
+      : widget.target_widget_ids || []
+  }
+}
+
+export class TextFilterWidgetType extends FilterWidgetType {
+  isMultiple(widget) {
+    return widget.mode === 'dropdown' && widget.multiple === true
+  }
+
+  getValueAfterUpdate(widget, previousWidget, value) {
+    // A configured default only fills an empty filter, never an active selection.
+    if (value?.length) {
+      return this.getDefaultValue({ ...widget, default_value: value })
+    }
+    // Normalizing the default for a new mode must not replace the viewer's selection.
+    if (
+      this.isMultiple(widget) !== this.isMultiple(previousWidget) &&
+      isEqual(
+        this.getDefaultValue(widget),
+        this.getDefaultValue({
+          ...widget,
+          default_value: previousWidget.default_value,
+        })
+      )
+    ) {
+      return this.getDefaultValue({ ...widget, default_value: value })
+    }
+    return super.getValueAfterUpdate(widget, previousWidget, value)
+  }
+
+  afterSave(widget, context, values) {
+    super.afterSave(widget, context, values)
+    context.dispatch('fetchWidgetOptions', { widgetId: widget.id })
+  }
+  async afterOptionsLoad(widget, context, options) {
+    if (widget.mode !== 'dropdown') return
+    const available = new Set(options)
+    const retainAvailable = (value) =>
+      Array.isArray(value)
+        ? value.filter((item) => available.has(item))
+        : available.has(value)
+          ? value
+          : ''
+    const previousDefault = this.getDefaultValue(widget)
+    const defaultValue = retainAvailable(previousDefault)
+    const selectedValue = retainAvailable(context.state.widgetValues[widget.id])
+    const dashboard = context.rootGetters['application/get']?.(
+      context.state.dashboardId
+    )
+    const canSave =
+      !context.state.publicSlug &&
+      context.state === this.app.$store.state.dashboardApplication &&
+      dashboard &&
+      this.app.$hasPermission(
+        'dashboard.widget.update',
+        widget,
+        dashboard.workspace.id
+      )
+
+    let saving
+    if (!isEqual(previousDefault, defaultValue)) {
+      const update = {
+        widgetId: widget.id,
+        values: { default_value: defaultValue },
+        originalValues: { default_value: widget.default_value },
+      }
+      // Viewers use the valid defaults locally without writing dashboard settings.
+      if (canSave) saving = context.dispatch('updateWidget', update)
+      else context.commit('UPDATE_WIDGET', update)
+    }
+    this.valueChanged(widget, context, selectedValue)
+    try {
+      await saving
+    } catch (error) {
+      notifyIf(error, 'dashboard')
+    }
+  }
+
+  getDefaultValue(widget) {
+    return getTextFilterDefaultValue(widget)
+  }
+
+  getValueSchema(widget) {
+    return this.isMultiple(widget)
+      ? { type: 'array', items: { type: 'string' }, title: widget.title }
+      : { type: 'string', title: widget.title }
+  }
+  static getType() {
+    return 'text_filter'
+  }
+
+  get name() {
+    return this.app.$i18n.t('textFilterWidget.name')
+  }
+
+  get createWidgetImage() {
+    return TextFilterWidgetSvg
+  }
+
+  get component() {
+    return TextFilterWidget
+  }
+
+  get settingsComponent() {
+    return TextFilterWidgetSettings
   }
 }

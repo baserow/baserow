@@ -1,3 +1,4 @@
+import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import { useNuxtApp } from '#app'
 import WidgetService from '@baserow/modules/dashboard/services/widget'
 import DataSourceService from '@baserow/modules/dashboard/services/dataSource'
@@ -6,6 +7,8 @@ import IntegrationService from '@baserow/modules/core/services/integration'
 import { getToken, setToken } from '@baserow/modules/core/utils/auth'
 import { ConcurrentPriorityTaskQueue } from '@baserow/modules/core/utils/queue'
 import debounce from 'lodash/debounce'
+import isEqual from 'lodash/isEqual'
+import { WidgetValueUpdate } from '@baserow/modules/dashboard/utils/widgetValueUpdate'
 
 export const state = () => ({
   dashboardId: null,
@@ -18,6 +21,10 @@ export const state = () => ({
   editMode: false,
   selectedWidgetId: null,
   widgets: [],
+  widgetValues: {},
+  widgetSelections: {},
+  widgetSaveGenerations: {},
+  widgetOptions: {},
   dataSources: [],
   integrations: [],
   // A cache for data that has been
@@ -31,12 +38,72 @@ export const state = () => ({
   publicAuthToken: null,
 })
 
-let debouncedWidgetUpdate = null
+const widgetUpdates = new WeakMap()
 
 const DEFAULT_DATA_SOURCE_DISPATCH_CONCURRENCY = 5
 const DATA_SOURCE_DISPATCH_MAX_RETRIES = 3
 const DATA_SOURCE_DISPATCH_RETRY_DELAY_MS = 250
 const dataSourceDispatchQueues = new WeakMap()
+const dataSourceRefreshes = new WeakMap()
+
+/** Include both old and new targets while their configuration is being saved. */
+const getWidgetSaveSourceIds = (state, registry, widget, values) => {
+  const type = widget && registry?.get?.('dashboardWidget', widget.type)
+  if (type?.isFilterWidget) {
+    // Every dispatch includes all viewer values, and the API validates all of
+    // them. A scalar/list change must therefore wait even on unrelated sources.
+    if (
+      type.getValueSchema(widget).type !==
+      type.getValueSchema({ ...widget, ...values }).type
+    ) {
+      return state.dataSources.map(({ id }) => id)
+    }
+    const targets = new Set([
+      ...type.getTargetWidgetIds(widget),
+      ...type.getTargetWidgetIds({ ...widget, ...values }),
+    ])
+    return state.widgets.flatMap((target) => {
+      const targetType = registry.get('dashboardWidget', target.type)
+      return targetType.isDisplayWidget && targets.has(target.id)
+        ? [targetType.getDataSourceId(target)]
+        : []
+    })
+  }
+  if (
+    type?.isDisplayWidget &&
+    type.getDataSourceId(widget) !==
+      type.getDataSourceId({ ...widget, ...values })
+  ) {
+    return [
+      type.getDataSourceId(widget),
+      type.getDataSourceId({ ...widget, ...values }),
+    ].filter((id) => id != null)
+  }
+  return []
+}
+
+/** Attach a debounce to the local Vuex action context, including template stores. */
+const ensureDataSourceRefresh = (state, dispatch) => {
+  if (!dataSourceRefreshes.has(state)) {
+    const refresh = { ids: new Set(), saves: new Set() }
+    refresh.run = debounce(() => {
+      for (const dataSourceId of refresh.ids) {
+        // Keep only affected sources waiting. Completion of their saves will
+        // schedule the next attempt, without polling or blocking other sources.
+        if ([...refresh.saves].some((save) => save.sourceIds.has(dataSourceId)))
+          continue
+        refresh.ids.delete(dataSourceId)
+        dispatch('dispatchDataSource', { dataSourceId })
+      }
+    }, 300)
+    dataSourceRefreshes.set(state, refresh)
+  }
+}
+
+const cancelDataSourceRefresh = (state) => {
+  dataSourceRefreshes.get(state)?.run.cancel()
+  dataSourceRefreshes.delete(state)
+}
 
 const getDataSourceDispatchQueue = (state, concurrency) => {
   let queue = dataSourceDispatchQueues.get(state)
@@ -221,7 +288,83 @@ const refreshAfterWidgetCreation = async (dispatch, dashboard) => {
   await Promise.allSettled(retries)
 }
 
+/** Invoke a registered widget lifecycle hook using this store's local action context. */
+const notifyWidgetHook = (context, registry, hook, widget, ...args) => {
+  if (!widget?.type) return
+  return registry
+    ?.get?.('dashboardWidget', widget.type)
+    ?.[hook]?.(widget, { ...context, registry }, ...args)
+}
+
+const applyWidgetUpdate = (context, registry, { widgetId, values }) => {
+  const widget = context.state.widgets.find((widget) => widget.id === widgetId)
+  if (!widget) return
+  const previous = { ...widget }
+  context.commit('UPDATE_WIDGET', { widgetId, values })
+  notifyWidgetHook(context, registry, 'afterUpdate', widget, previous)
+}
+
+const applyWidgetCreate = (context, registry, widget) => {
+  const previous = context.state.widgets.find(
+    (existing) => existing.id === widget.id
+  )
+  if (previous)
+    return applyWidgetUpdate(context, registry, {
+      widgetId: widget.id,
+      values: widget,
+    })
+  context.commit('ADD_WIDGET', widget)
+  notifyWidgetHook(context, registry, 'afterCreate', widget)
+}
+
+const applyWidgetDelete = (context, registry, widgetId) => {
+  const widget = context.state.widgets.find((widget) => widget.id === widgetId)
+  context.commit('DELETE_WIDGET', widgetId)
+  if (widget) notifyWidgetHook(context, registry, 'afterDelete', widget)
+}
+
+/** Reconcile lifecycle hooks for a full list, including creations, updates, and removals. */
+const applyWidgetCollection = (context, registry, widgets) => {
+  const previous = new Map(
+    context.state.widgets.map((widget) => [widget.id, { ...widget }])
+  )
+  context.commit('SET_WIDGETS', widgets)
+  for (const widget of previous.values()) {
+    if (!widgets.some((current) => current.id === widget.id))
+      notifyWidgetHook(context, registry, 'afterDelete', widget)
+  }
+  for (const widget of widgets) {
+    const original = previous.get(widget.id)
+    notifyWidgetHook(
+      context,
+      registry,
+      original ? 'afterUpdate' : 'afterCreate',
+      widget,
+      original
+    )
+  }
+}
+
 export const mutations = {
+  SET_WIDGET_OPTIONS(state, { widgetId, options }) {
+    state.widgetOptions = { ...state.widgetOptions, [widgetId]: options }
+  },
+  INVALIDATE_WIDGET_SAVE(state, widgetId) {
+    state.widgetSaveGenerations[widgetId] =
+      (state.widgetSaveGenerations[widgetId] || 0) + 1
+  },
+  RECORD_WIDGET_SELECTION(state, { widgetId, value }) {
+    // Object identity records a new user choice even when its value repeats.
+    state.widgetSelections[widgetId] = { value }
+  },
+  SET_WIDGET_VALUE(state, { widgetId, value }) {
+    state.widgetValues = { ...state.widgetValues, [widgetId]: value }
+  },
+  DELETE_WIDGET_VALUE(state, widgetId) {
+    delete state.widgetValues[widgetId]
+    delete state.widgetSelections[widgetId]
+    delete state.widgetOptions[widgetId]
+  },
   RESET(state) {
     dataSourceDispatchQueues.get(state)?.cancelPending()
     state.dashboardId = null
@@ -232,6 +375,11 @@ export const mutations = {
     state.dataSourceMutationGenerations = {}
     state.editMode = false
     state.selectedWidgetId = null
+    cancelDataSourceRefresh(state)
+    state.widgetValues = {}
+    state.widgetSelections = {}
+    state.widgetSaveGenerations = {}
+    state.widgetOptions = {}
     state.widgets = []
     state.dataSources = []
     state.integrations = []
@@ -245,6 +393,9 @@ export const mutations = {
   },
   SET_DASHBOARD_ID(state, dashboardId) {
     if (state.dashboardId !== dashboardId) {
+      cancelDataSourceRefresh(state)
+      state.widgetValues = {}
+      state.widgetOptions = {}
       dataSourceDispatchQueues.get(state)?.cancelPending()
       state.dashboardGeneration += 1
       state.widgetFetchGeneration += 1
@@ -352,10 +503,6 @@ export const mutations = {
     if (!widget) {
       return
     }
-    // In Vue 3, direct assignment works thanks to Proxy-based reactivity
-    if (Array.isArray(values.series_config)) {
-      widget.series_config = [...values.series_config]
-    }
     Object.assign(widget, values)
   },
   UPDATE_WIDGET_LAYOUTS(state, layouts) {
@@ -384,6 +531,97 @@ export const mutations = {
 }
 
 export const actions = {
+  async fetchWidgetOptions(context, { widgetId, force = false }) {
+    const { state, commit } = context
+    // Optimistic settings are not available on the server until afterSave runs.
+    if (widgetUpdates.get(state)?.has(widgetId)) return
+    const widget = state.widgets.find(({ id }) => id === widgetId)
+    if (widget?.type !== 'text_filter' || widget.mode !== 'dropdown') return
+    const signature = JSON.stringify(widget.options)
+    const previous = state.widgetOptions[widgetId]
+    if (!force && previous && previous.signature === signature) return
+    const generation = state.dashboardGeneration
+    commit('SET_WIDGET_OPTIONS', {
+      widgetId,
+      options: { signature, loading: true, values: [], error: false },
+    })
+    const pending = state.widgetOptions[widgetId]
+    const isCurrent = () =>
+      state.dashboardGeneration === generation &&
+      state.widgetOptions[widgetId] === pending &&
+      JSON.stringify(
+        state.widgets.find(({ id }) => id === widgetId)?.options
+      ) === signature
+    try {
+      const { data } = state.publicSlug
+        ? await PublicDashboardService(this.$client).getWidgetOptions(
+            state.publicSlug,
+            widgetId,
+            state.publicAuthToken
+          )
+        : await WidgetService(this.$client).getOptions(widgetId)
+      if (isCurrent()) {
+        commit('SET_WIDGET_OPTIONS', {
+          widgetId,
+          options: {
+            signature,
+            loading: false,
+            values: data.results,
+            error: false,
+          },
+        })
+        const currentWidget = state.widgets.find(({ id }) => id === widgetId)
+        await notifyWidgetHook(
+          context,
+          this.$registry,
+          'afterOptionsLoad',
+          currentWidget,
+          data.results
+        )
+      }
+    } catch (error) {
+      if (isCurrent())
+        commit('SET_WIDGET_OPTIONS', {
+          widgetId,
+          options: {
+            signature,
+            loading: false,
+            values: [],
+            error: true,
+          },
+        })
+    }
+  },
+  forceSetWidgets(context, widgets) {
+    applyWidgetCollection(context, this.$registry, widgets)
+  },
+  forceCreateWidget(context, widget) {
+    applyWidgetCreate(context, this.$registry, widget)
+  },
+  forceUpdateWidget(context, values) {
+    applyWidgetUpdate(context, this.$registry, values)
+  },
+  forceDeleteWidget(context, widgetId) {
+    applyWidgetDelete(context, this.$registry, widgetId)
+  },
+  /** Invalidate immediately and coalesce source refreshes per local store. */
+  refreshDataSources({ state, commit, dispatch }, sourceIds) {
+    if (!sourceIds.length) return
+    ensureDataSourceRefresh(state, dispatch)
+    const refresh = dataSourceRefreshes.get(state)
+    for (const id of sourceIds) {
+      commit('INVALIDATE_DATA_SOURCE_DISPATCH', id)
+      refresh.ids.add(id)
+    }
+    refresh.run()
+  },
+  setWidgetValue(context, { widgetId, value }) {
+    const widget = context.state.widgets.find(
+      (widget) => widget.id === widgetId
+    )
+    if (widget) context.commit('RECORD_WIDGET_SELECTION', { widgetId, value })
+    notifyWidgetHook(context, this.$registry, 'valueChanged', widget, value)
+  },
   reset({ commit }) {
     commit('RESET')
   },
@@ -398,54 +636,134 @@ export const actions = {
   selectWidget({ commit }, widgetId) {
     commit('SELECT_WIDGET', widgetId)
   },
-  updateWidget(
-    { state, commit, dispatch },
-    { widgetId, values, originalValues }
-  ) {
+  updateWidget(context, { widgetId, values, originalValues }) {
+    const { state, commit, dispatch } = context
     return new Promise((resolve, reject) => {
-      const { $client } = this
+      const { $client, $registry } = this
       commit('INVALIDATE_WIDGET_FETCH')
+      commit('INVALIDATE_WIDGET_SAVE', widgetId)
       const request = normalizeDashboardFetchRequest(
         state.dashboardId,
         state,
         'widgetFetchGeneration'
       )
-      commit('UPDATE_WIDGET', { widgetId, values })
+      const sourceIds = getWidgetSaveSourceIds(
+        state,
+        $registry,
+        state.widgets.find((widget) => widget.id === widgetId),
+        values
+      )
+      const previousWidgetValue = state.widgetValues[widgetId]
+      applyWidgetUpdate(context, $registry, { widgetId, values })
+      const updatedWidgetValue = state.widgetValues[widgetId]
 
-      let previousOriginalValues = originalValues
-      if (debouncedWidgetUpdate) {
-        debouncedWidgetUpdate.cancel()
-        previousOriginalValues = debouncedWidgetUpdate.originalValues
+      if (!widgetUpdates.has(state)) widgetUpdates.set(state, new Map())
+      const updates = widgetUpdates.get(state)
+      let batch = updates.get(widgetId)
+      if (
+        batch &&
+        !batch.started &&
+        isDashboardRequestCurrent(state, batch.request)
+      ) {
+        // Keep every caller waiting for the combined save, with the latest value
+        // for each field and the earliest value for rolling that field back.
+        batch.valueUpdate.merge(
+          previousWidgetValue,
+          updatedWidgetValue,
+          state.widgetSelections[widgetId]
+        )
+        batch.saveGeneration = state.widgetSaveGenerations[widgetId]
+        Object.assign(batch.values, values)
+        batch.originalValues = { ...originalValues, ...batch.originalValues }
+        batch.request = request
+        sourceIds.forEach((id) => batch.sourceIds.add(id))
+        batch.waiters.push({ resolve, reject })
+        batch.run()
+        return
       }
 
-      debouncedWidgetUpdate = debounce(async () => {
+      batch = {
+        values: { ...values },
+        originalValues: { ...originalValues },
+        valueUpdate: new WidgetValueUpdate(
+          previousWidgetValue,
+          updatedWidgetValue,
+          state.widgetSelections[widgetId]
+        ),
+        saveGeneration: state.widgetSaveGenerations[widgetId],
+        request,
+        waiters: [{ resolve, reject }],
+        started: false,
+        sourceIds: new Set(sourceIds),
+      }
+      ensureDataSourceRefresh(state, dispatch)
+      const refresh = dataSourceRefreshes.get(state)
+      refresh.saves.add(batch)
+      batch.run = debounce(async () => {
+        batch.started = true
+        const { values, originalValues, request } = batch
         try {
           await WidgetService($client).update(widgetId, values)
-          debouncedWidgetUpdate = null
+          if (updates.get(widgetId) === batch) updates.delete(widgetId)
+          if (isDashboardRequestCurrent(state, request)) {
+            const widget = state.widgets.find(
+              (widget) => widget.id === widgetId
+            )
+            await notifyWidgetHook(
+              context,
+              $registry,
+              'afterSave',
+              widget,
+              values
+            )
+          }
           if (
             isDashboardRequestCurrent(state, request) &&
             !isFetchRequestCurrent(state, request, 'widgetFetchGeneration')
           ) {
             await dispatch('fetchWidgets', request.dashboardId)
           }
-          resolve()
+          batch.waiters.forEach(({ resolve }) => resolve())
         } catch (error) {
-          if (isFetchRequestCurrent(state, request, 'widgetFetchGeneration')) {
-            commit('UPDATE_WIDGET', {
-              widgetId,
-              values: previousOriginalValues,
-            })
-          } else if (isDashboardRequestCurrent(state, request)) {
-            await dispatch('fetchWidgets', request.dashboardId)
+          if (updates.get(widgetId) === batch) updates.delete(widgetId)
+          try {
+            if (
+              isFetchRequestCurrent(state, request, 'widgetFetchGeneration')
+            ) {
+              applyWidgetUpdate(context, $registry, {
+                widgetId,
+                values: originalValues,
+              })
+            } else if (isDashboardRequestCurrent(state, request)) {
+              await dispatch('fetchWidgets', request.dashboardId)
+            }
+          } catch {
+            // Report the original save error even if refreshing server state fails.
+          } finally {
+            // Collection fetches are dashboard-wide; viewer rollback belongs to
+            // this widget's save and must not undo a newer save of the same widget.
+            if (
+              isDashboardRequestCurrent(state, request) &&
+              state.widgetSaveGenerations[widgetId] === batch.saveGeneration
+            ) {
+              batch.valueUpdate.restore(context, $registry, widgetId)
+            }
+            // A failed recovery must also release every waiting component.
+            batch.waiters.forEach(({ reject }) => reject(error))
           }
-          reject(error)
+        } finally {
+          refresh.saves.delete(batch)
+          if (dataSourceRefreshes.get(state) === refresh && refresh.ids.size) {
+            refresh.run()
+          }
         }
       }, 1000)
-      debouncedWidgetUpdate.originalValues = previousOriginalValues
-      debouncedWidgetUpdate()
+      updates.set(widgetId, batch)
+      batch.run()
     })
   },
-  async handleWidgetUpdated({ state, commit, dispatch }, widget) {
+  async handleWidgetUpdated(context, widget) {
+    const { state, commit, dispatch } = context
     commit('INVALIDATE_WIDGET_FETCH')
     if (
       state.loading ||
@@ -454,13 +772,19 @@ export const actions = {
       await dispatch('fetchWidgets', state.dashboardId)
       return
     }
-    commit('UPDATE_WIDGET', { widgetId: widget.id, values: widget })
+    applyWidgetUpdate(context, this.$registry, {
+      widgetId: widget.id,
+      values: widget,
+    })
   },
   async updateDataSource(
     { state, commit, dispatch },
     { dataSourceId, values, widget }
   ) {
     const { $client, $registry } = this
+    const previousTableId = state.dataSources.find(
+      ({ id }) => id === dataSourceId
+    )?.table_id
     const previousData = state.data[dataSourceId]
     commit('INVALIDATE_DATA_SOURCE_COLLECTION_FETCH')
     commit('INVALIDATE_DATA_SOURCE_DISPATCH', dataSourceId)
@@ -497,6 +821,11 @@ export const actions = {
       values: data,
     })
     try {
+      if (data.table_id !== previousTableId) {
+        // The backend resets linked filter conditions in the same transaction.
+        await dispatch('fetchWidgets', request.dashboardId)
+        if (!isDataSourceMutationCurrent(state, request)) return
+      }
       if (widget) {
         const widgetType = $registry.get('dashboardWidget', widget.type)
         await widgetType.dataSourceUpdated(widget, data)
@@ -521,6 +850,12 @@ export const actions = {
     }
   },
   async handleDataSourceUpdated({ state, commit, dispatch }, dataSource) {
+    // Realtime payloads cannot include a table schema checked against this viewer's
+    // permissions. Fetch the private representation before replacing the source.
+    if ('table_schema' in dataSource && dataSource.table_schema === null) {
+      await dispatch('fetchNewDataSources', state.dashboardId)
+      return
+    }
     commit('INVALIDATE_DATA_SOURCE_COLLECTION_FETCH')
     commit('INVALIDATE_DATA_SOURCE_MUTATION', dataSource.id)
     commit('UPDATE_DATA_SOURCE', {
@@ -539,13 +874,14 @@ export const actions = {
    * dispatched afterwards with `dispatchDataSources`, in the browser only.
    */
   openPublicDashboard(
-    { commit },
+    context,
     { slug, authToken = null, dashboardId, widgets, dataSources }
   ) {
+    const { commit } = context
     commit('RESET')
     commit('SET_DASHBOARD_ID', dashboardId)
     commit('SET_PUBLIC', { slug, authToken })
-    commit('SET_WIDGETS', widgets)
+    applyWidgetCollection(context, this.$registry, widgets)
     commit('SET_DATA_SOURCES', dataSources)
   },
   /**
@@ -633,7 +969,8 @@ export const actions = {
       })
     }
   },
-  async fetchWidgets({ state, commit }, requestValues) {
+  async fetchWidgets(context, requestValues) {
+    const { state, commit } = context
     const { $client } = this
     const dashboardId =
       typeof requestValues === 'object' && requestValues !== null
@@ -654,7 +991,7 @@ export const actions = {
     if (!isFetchRequestCurrent(state, request, 'widgetFetchGeneration')) {
       return
     }
-    commit('SET_WIDGETS', data)
+    applyWidgetCollection(context, this.$registry, data)
     return data
   },
   async fetchNewDataSources(
@@ -695,6 +1032,7 @@ export const actions = {
         const existingData = state.data[dataSource.id]
         const shouldDispatch =
           !existingDataSource ||
+          !isEqual(existingDataSource, dataSource) ||
           !existingData ||
           Object.keys(existingData).length === 0
         return shouldDispatch ? [dataSource.id] : []
@@ -750,17 +1088,18 @@ export const actions = {
     await refreshAfterWidgetCreation(dispatch, dashboard)
     return createdWidget
   },
-  handleNewWidgetCreated({ state, commit }, widget) {
+  handleNewWidgetCreated(context, widget) {
+    const { state, commit } = context
     if (widget.dashboard_id !== state.dashboardId) {
       return widget
     }
     commit('INVALIDATE_WIDGET_FETCH')
     commit('INVALIDATE_DATA_SOURCE_COLLECTION_FETCH')
-    commit('ADD_WIDGET', widget)
+    applyWidgetCreate(context, this.$registry, widget)
     return widget
   },
   async dispatchDataSource({ state, commit }, requestValues) {
-    const { $client, $config } = this
+    const { $client, $config, $registry } = this
     const requestContext = normalizeDataSourceRequestContext(
       requestValues,
       state
@@ -789,14 +1128,25 @@ export const actions = {
           if (!isDataSourceDispatchCurrent(state, request)) {
             return undefined
           }
+          const context = DataProviderType.getAllDataSourceDispatchContext(
+            $registry.getAll('dashboardDataProvider'),
+            {
+              dashboard: { id: state.dashboardId },
+              widgetValues: state.widgetValues,
+            }
+          )
           if (state.publicSlug !== null) {
             return PublicDashboardService($client).dispatch(
               state.publicSlug,
               request.dataSourceId,
-              state.publicAuthToken
+              state.publicAuthToken,
+              context
             )
           }
-          return DataSourceService($client).dispatch(request.dataSourceId)
+          return DataSourceService($client).dispatch(
+            request.dataSourceId,
+            context
+          )
         },
         priority,
         {
@@ -841,16 +1191,20 @@ export const actions = {
     }
     await dispatch('fetchWidgets', request.dashboardId)
   },
-  async handleWidgetDeleted({ state, commit, dispatch }, widgetId) {
+  async handleWidgetDeleted(context, widgetId) {
+    const { state, commit, dispatch } = context
     const widgetExists = state.widgets.some((widget) => widget.id === widgetId)
     commit('INVALIDATE_WIDGET_FETCH')
     if (state.loading || !widgetExists) {
       await dispatch('fetchWidgets', state.dashboardId)
       return
     }
-    commit('DELETE_WIDGET', widgetId)
+    applyWidgetDelete(context, this.$registry, widgetId)
   },
-  async updateWidgetLayout({ state, commit }, { dashboardId, layout }) {
+  async updateWidgetLayout(
+    { state, commit, dispatch },
+    { dashboardId, layout }
+  ) {
     const { $client } = this
     commit('INVALIDATE_WIDGET_FETCH')
     const request = normalizeDashboardFetchRequest(
@@ -879,6 +1233,8 @@ export const actions = {
 }
 
 export const getters = {
+  getWidgetOptions: (state) => state.widgetOptions,
+  getWidgetValues: (state) => state.widgetValues,
   getDashboardId(state) {
     return state.dashboardId
   },

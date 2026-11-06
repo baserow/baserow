@@ -12,28 +12,13 @@
         horizontal
         horizontal-narrow
       >
-        <Dropdown
+        <DashboardTableSelector
           v-model="computedTableId"
-          :show-search="true"
-          fixed-items
+          :databases="databases"
+          :data-source="{ ...dataSource, filters: values.filters }"
+          :store-prefix="storePrefix"
           :error="fieldHasErrors('table_id')"
-        >
-          <DropdownSection
-            v-for="database in databases"
-            :key="database.id"
-            :title="`${database.name} (${database.id})`"
-          >
-            <DropdownItem
-              v-for="table in database.tables"
-              :key="table.id"
-              :name="table.name"
-              :value="table.id"
-              :indented="true"
-            >
-              {{ table.name }}
-            </DropdownItem>
-          </DropdownSection>
-        </Dropdown>
+        />
       </FormGroup>
       <FormGroup
         v-if="values.table_id && !fieldHasErrors('table_id')"
@@ -103,11 +88,14 @@
       >
       </AggregationSeriesForm>
     </FormSection>
-    <ServiceRefinementForms
+    <DashboardServiceRefinementForms
       v-if="values.table_id && !fieldHasErrors('table_id')"
       small
       :values="values"
       :table-fields="tableFields"
+      :widget="widget"
+      :dashboard="dashboard"
+      :store-prefix="storePrefix"
       :group-count-override="values.aggregation_group_bys.length"
       :group-title-override="groupTitleOverride"
       :sort-count-override="values.aggregation_sorts.length"
@@ -134,11 +122,12 @@
         >
         </AggregationSortByForm>
       </template>
-    </ServiceRefinementForms>
+    </DashboardServiceRefinementForms>
   </form>
 </template>
 
 <script>
+import DashboardTableSelector from '@baserow/modules/dashboard/components/data_source/DashboardTableSelector'
 import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
 import { required } from '@vuelidate/validators'
@@ -146,7 +135,7 @@ import AggregationSeriesForm from '@baserow_premium/integrations/localBaserow/co
 import AggregationGroupByForm from '@baserow_premium/integrations/localBaserow/components/services/AggregationGroupByForm'
 import AggregationSortByForm from '@baserow_premium/integrations/localBaserow/components/services/AggregationSortByForm'
 import tableFields from '@baserow/modules/database/mixins/tableFields'
-import ServiceRefinementForms from '@baserow/modules/integrations/localBaserow/components/services/ServiceRefinementForms'
+import DashboardServiceRefinementForms from '@baserow/modules/dashboard/components/data_source/DashboardServiceRefinementForms'
 
 const includesIfSet = (array) => (value) => {
   if (value === null || value === undefined) {
@@ -159,10 +148,11 @@ export default {
   name: 'GroupedAggregateRowsDataSourceForm',
   emits: ['values-changed', 'widget-values-changed'],
   components: {
+    DashboardTableSelector,
     AggregationSeriesForm,
     AggregationGroupByForm,
     AggregationSortByForm,
-    ServiceRefinementForms,
+    DashboardServiceRefinementForms,
   },
   mixins: [form, tableFields],
   props: {
@@ -198,6 +188,7 @@ export default {
         'table_id',
         'view_id',
         'filters',
+        'filter_groups',
         'filter_type',
         'aggregation_series',
         'aggregation_group_bys',
@@ -208,6 +199,7 @@ export default {
         table_id: null,
         view_id: null,
         filters: [],
+        filter_groups: [],
         filter_type: 'AND',
         aggregation_series: [],
         aggregation_group_bys: [],
@@ -245,6 +237,7 @@ export default {
           this.values.aggregation_group_bys = []
           this.values.aggregation_sorts = []
           this.values.filters = []
+          this.values.filter_groups = []
 
           // reset widget conf
           this.$emit('widget-values-changed', {

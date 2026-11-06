@@ -1,6 +1,10 @@
 <template>
   <div v-if="modelValue">
-    <div v-if="modelValue.length === 0 && filterGroups.length === 0">
+    <div
+      v-if="
+        showEmptyState && modelValue.length === 0 && filterGroups.length === 0
+      "
+    >
       <div class="filters__none">
         <div class="filters__none-title">
           {{ $t('localBaserowTableServiceConditionalForm.noFilterTitle') }}
@@ -14,9 +18,10 @@
       :filters="getDataSourceFilters()"
       :filter-groups="filterGroups"
       :disable-filter="false"
+      :filter-read-only="readOnly"
       :filter-type="filterType"
       :fields="fields"
-      :read-only="false"
+      :read-only="readOnly"
       full-width
       sorted
       class="filters__items"
@@ -49,6 +54,8 @@
           :model-value="getFormulaObject(filter)"
           class="filters__value--formula-input"
           allow-raw-values
+          :read-only="readOnly"
+          :disabled="readOnly"
           :placeholder="
             $t(
               'localBaserowTableServiceConditionalForm.expressionFilterInputPlaceholder'
@@ -66,8 +73,8 @@
               :is="propFilterType.getInputComponent(field)"
               :filter="{ ...filter, value }"
               :fields="fields"
-              :disabled="false"
-              :read-only="false"
+              :disabled="readOnly"
+              :read-only="readOnly"
               :placeholder="
                 $t(
                   'localBaserowTableServiceConditionalForm.textFilterInputPlaceholder'
@@ -80,25 +87,27 @@
         </InjectedFormulaInput>
       </template>
     </ViewFieldConditionsForm>
-    <div class="filters_footer">
-      <ButtonText
-        type="secondary"
-        size="small"
-        icon="iconoir-plus"
-        class="filters__add"
-        @click.prevent="addFilter()"
-      >
-        {{ $t('localBaserowTableServiceConditionalForm.addFilter') }}
-      </ButtonText>
-      <ButtonText
-        type="secondary"
-        size="small"
-        icon="iconoir-plus"
-        class="filters__add"
-        @click.prevent="addFilterGroup()"
-      >
-        {{ $t('localBaserowTableServiceConditionalForm.addFilterGroup') }}
-      </ButtonText>
+    <div v-if="!readOnly" class="filters_footer">
+      <slot name="actions" v-bind="{ addFilter, addFilterGroup }">
+        <ButtonText
+          type="secondary"
+          size="small"
+          icon="iconoir-plus"
+          class="filters__add"
+          @click.prevent="addFilter()"
+        >
+          {{ $t('localBaserowTableServiceConditionalForm.addFilter') }}
+        </ButtonText>
+        <ButtonText
+          type="secondary"
+          size="small"
+          icon="iconoir-plus"
+          class="filters__add"
+          @click.prevent="addFilterGroup()"
+        >
+          {{ $t('localBaserowTableServiceConditionalForm.addFilterGroup') }}
+        </ButtonText>
+      </slot>
     </div>
   </div>
 </template>
@@ -117,6 +126,8 @@ export default {
     ViewFieldConditionsForm,
   },
   props: {
+    showEmptyState: { type: Boolean, default: true },
+    readOnly: { type: Boolean, default: false },
     modelValue: {
       type: Array,
       required: true,

@@ -1,4 +1,9 @@
 {
+  "dashboardTableSelector": {
+    "confirmTitle": "Change table and reset filters?",
+    "confirmMessage": "Changing the table will clear all filter conditions for widgets using this source, including conditions from dashboard filters.",
+    "confirmAction": "Change and reset"
+  },
   "dashboard": {
     "descriptionPlaceholder": "Description",
     "addWidget": "Add widget",
@@ -63,10 +68,14 @@
     "incorrectPasswordText": "The provided password is incorrect."
   },
   "createWidgetModal": {
-    "title": "Add new widget"
+    "title": "Add new widget",
+    "searchPlaceholder": "Search widgets and filters",
+    "widgets": "Widgets",
+    "filters": "Filters"
   },
   "widget": {
-    "fixConfiguration": "Fix configuration"
+    "fixConfiguration": "Fix configuration",
+    "filteredResults": "This widget’s results are filtered."
   },
   "summaryWidget": {
     "name": "Summary"
@@ -95,5 +104,52 @@
   },
   "lastViewedItemType": {
     "dashboard": "Dashboard"
+  },
+  "textFilterWidget": {
+    "name": "Text filter",
+    "filterType": "Filter type",
+    "input": "Input",
+    "dropdown": "Dropdown",
+    "selection": "Selection",
+    "singleValue": "Single value",
+    "multipleValues": "Multiple values",
+    "filterValues": "Filter values",
+    "filterValuesHelp": "Choose a data source field or enter values separated by commas.",
+    "optionsError": "Could not load filter values. Check the source or formula.",
+    "clear": "Clear selection",
+    "placeholder": "Placeholder",
+    "defaultValue": "Default value",
+    "targets": "Apply to widgets",
+    "configureFilters": "Edit conditions",
+    "emptyBehavior": "When nothing is selected",
+    "apply_nothing": "Ignore this filter",
+    "apply_alternative": "Use different conditions",
+    "permanentGroup": "Widget settings",
+    "removeLink": "Remove from filter",
+    "incompatibleConditions": "Some input conditions are incompatible with the selected source. Update their fields or operators before using this filter.",
+    "configureSourceFirst": "Choose a data source for this widget first.",
+    "unsupportedTarget": "This widget does not have a filterable data source.",
+    "targetsHelp": "Choose where this filter is used.",
+    "addWidgets": "Add widgets",
+    "noTargets": "No widgets selected. Add a widget, then set up its conditions.",
+    "noAvailableTargets": "No matching widgets available.",
+    "setUpConditions": "Set up conditions",
+    "conditionCount": "1 condition | {count} conditions",
+    "targetDisabled": "Disabled",
+    "applyToWidget": "Apply filter to {widget}",
+    "targetOptions": "Options for {widget}",
+    "filterTarget": "Filter {widget}",
+    "withValue": "With a value",
+    "whenEmpty": "When empty",
+    "otherConditions": "Other conditions",
+    "editFilterConditions": "Edit these conditions in the {filter} filter settings.",
+    "editWidgetConditions": "Edit these conditions in the widget’s data source settings.",
+    "fieldsError": "Could not load the fields. Try again."
+  },
+  "dashboardDataProviderType": {
+    "widgetData": "Filter widgets"
+  },
+  "dashboardServiceRefinementForms": {
+    "dashboardFilters": "Dashboard filters"
   }
 }
