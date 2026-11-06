@@ -427,6 +427,7 @@ EXPECTED_CASE_IDS = {
         "builder/changes-detail-path-keeps-param-type",
         "builder/changes-notification-title",
         "builder/changes-open-page-parameter",
+        "builder/changes-row-action-mapping",
         "builder/changes-theme",
         "builder/creates-app-when-table-exists",
         "builder/creates-app-with-theme",
@@ -515,7 +516,7 @@ class TestDatasetCounts:
         assert len(grouped["kuma-core"]) == 11
         assert len(grouped["kuma-database"]) == 25
         assert len(grouped["kuma-docs"]) == 64
-        assert len(grouped["kuma-builder"]) == 37
+        assert len(grouped["kuma-builder"]) == 38
         assert len(grouped["kuma-automation"]) == 11
         assert len(grouped["kuma-prod-replay"]) == 9
 

@@ -2,6 +2,7 @@
 
 import pytest
 
+from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow_enterprise.assistant.evals.datasets.builder import (
     _check_creates_contact_form,
     _creates_contact_form_scenario,
@@ -68,6 +69,7 @@ def test_creates_dashboard_check_wants_the_name_and_nothing_else(
             False,
         ),
         ("I couldn't find an invoices table in Sales.", False),
+        ("I don\u2019t see an invoices table, only Sales > Customers.", False),
     ],
 )
 def test_search_finds_table_check_rejects_a_denial(answer, passes):
@@ -114,3 +116,21 @@ def test_creates_contact_form_check_wants_each_field_from_its_input(
     checks = _check_creates_contact_form(None, scenario, _output())
 
     assert all(c.passed for c in checks) is passes
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("status,passes", [("'Done'", True), ("'Open'", False)])
+def test_changes_row_action_mapping_check(status, passes):
+    def prepare(scenario):
+        action = BuilderWorkflowAction.objects.get(
+            id=scenario.refs["action_id"]
+        ).specific
+        action.service.specific.field_mappings.filter(
+            field=scenario.refs["status_field"]
+        ).update(value=status)
+
+    checks = _run(
+        "builder/changes-row-action-mapping", _output("update_action"), prepare
+    )
+
+    assert all(checks.values()) is passes

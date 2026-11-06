@@ -115,7 +115,8 @@ _DENIALS = (
 def _check_search_finds_table(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
-    answer = output.answer.lower()
+    # Models often write a typographic apostrophe.
+    answer = output.answer.lower().replace("\u2019", "'")
     return [
         CheckResult(
             "called search_workspace or list_tables",

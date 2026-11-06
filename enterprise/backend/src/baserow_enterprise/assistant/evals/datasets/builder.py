@@ -183,6 +183,11 @@ PROMPT_CHANGE_NOTIFICATION_TITLE = (
     "'All done!'."
 )
 
+PROMPT_CHANGE_ROW_ACTION_MAPPING = (
+    "In builder '{builder_name}', make the Close button set the task's Status to "
+    "'Done' instead of 'Open'."
+)
+
 PROMPT_CHANGE_OPEN_PAGE_PARAMETER = (
     "In builder '{builder_name}', make the Open button's slug parameter 'latest' "
     "and leave its id as it is."
@@ -3346,6 +3351,100 @@ register_case(
         prompt=PROMPT_CHANGE_OPEN_PAGE_PARAMETER.format(builder_name="Shop"),
         scenario="builder-changes-actions",
         checks=_check_changes_open_page_parameter,
+        mode=AgentMode.APPLICATION,
+        max_iters=15,
+    )
+)
+
+
+@register_scenario("builder-changes-row-action")
+def _changes_row_action_scenario(fx: Fixtures) -> EvalScenario:
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    builder = fx.create_builder_application(user=user, workspace=workspace, name="Shop")
+    home = fx.create_builder_page(builder=builder, name="Home", path="/")
+    database = fx.create_database_application(
+        user=user, workspace=workspace, name="Work"
+    )
+    tasks, (name_field, status_field), _ = fx.build_table(
+        user=user,
+        database=database,
+        name="Tasks",
+        columns=[("Name", "text"), ("Status", "text")],
+        rows=[["Write docs", "Open"], ["Ship it", "Open"]],
+    )
+    integration = fx.create_local_baserow_integration(application=builder, user=user)
+    service = fx.create_local_baserow_upsert_row_service(
+        table=tasks, integration=integration, row_id="'2'"
+    )
+    service.field_mappings.create(field=name_field, value="'Ship it'", enabled=True)
+    service.field_mappings.create(field=status_field, value="'Open'", enabled=True)
+    button = fx.create_builder_button_element(page=home, value="'Close'")
+    action = fx.create_local_baserow_update_row_workflow_action(
+        page=home, element=button, event="click", service=service
+    )
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_builder_ui_context(user, workspace, builder),
+        refs={
+            "button": button,
+            "action_id": action.id,
+            "table": tasks,
+            "name_field": name_field,
+            "status_field": status_field,
+        },
+    )
+
+
+def _check_changes_row_action_mapping(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    actions = _actions_of(scenario.refs["button"])
+    action = actions[0].specific if len(actions) == 1 else None
+    service = action.service.specific if action is not None else None
+    mappings = (
+        {
+            m.field_id: _render_saved_formula(m.value)
+            for m in service.field_mappings.filter(enabled=True)
+        }
+        if service is not None
+        else {}
+    )
+    return [
+        CheckResult("called update_action", tool_called(output, "update_action") >= 1),
+        CheckResult(
+            "Close button still has one action, the same one",
+            len(actions) == 1 and actions[0].id == scenario.refs["action_id"],
+            hint=f"actions: {[(a.id, type(a).__name__) for a in actions]}",
+        ),
+        CheckResult(
+            "still updates row 2 of Tasks",
+            service is not None
+            and service.table_id == scenario.refs["table"].id
+            and _render_saved_formula(service.row_id) == "2",
+            hint=f"row_id: {_formula_text(getattr(service, 'row_id', None))}",
+        ),
+        CheckResult(
+            "Status is set to 'Done'",
+            mappings.get(scenario.refs["status_field"].id) == "Done",
+            hint=f"mappings: {mappings}",
+        ),
+        CheckResult(
+            "Name mapping unchanged",
+            mappings.get(scenario.refs["name_field"].id) == "Ship it",
+            hint=f"mappings: {mappings}",
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="builder/changes-row-action-mapping",
+        dataset="kuma-builder",
+        prompt=PROMPT_CHANGE_ROW_ACTION_MAPPING.format(builder_name="Shop"),
+        scenario="builder-changes-row-action",
+        checks=_check_changes_row_action_mapping,
         mode=AgentMode.APPLICATION,
         max_iters=15,
     )
