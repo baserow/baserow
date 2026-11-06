@@ -5,10 +5,25 @@ export const RUN_CREATED = 'run.created'
 export const RUN_STARTED = 'run.started'
 export const TEXT_DELTA = 'text.delta'
 export const PROGRESS = 'progress'
+export const STEP = 'step'
 export const RUN_CANCEL_REQUESTED = 'run.cancel_requested'
 export const RUN_FINISHED = 'run.finished'
 export const RUN_BASELINE = 'run.baseline'
 export const RUN_HEARTBEAT = 'run.heartbeat'
+
+export const STEP_STATUS = Object.freeze({
+  RUNNING: 'running',
+  DONE: 'done',
+  FAILED: 'failed',
+  STOPPED: 'stopped',
+})
+
+export const STEP_ERROR_CODE = Object.freeze({
+  NOT_FOUND: 'not_found',
+  PERMISSION_DENIED: 'permission_denied',
+  INVALID_INPUT: 'invalid_input',
+  FAILED: 'failed',
+})
 
 export const RUN_STATUS = {
   QUEUED: 'queued',

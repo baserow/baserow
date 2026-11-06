@@ -2,6 +2,9 @@
 Errors of the shared tools, as the messages their clients get.
 """
 
+from dataclasses import dataclass
+from enum import StrEnum
+
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError as DjangoValidationError
 
@@ -53,6 +56,23 @@ def raise_if_permission_denied(error: Exception) -> None:
 
     if isinstance(error, PermissionException):
         raise error
+
+
+class ToolErrorCode(StrEnum):
+    """Why a tool call failed, safe to show to users unlike the message."""
+
+    NOT_FOUND = "not_found"
+    PERMISSION_DENIED = "permission_denied"
+    INVALID_INPUT = "invalid_input"
+    FAILED = "failed"
+
+
+@dataclass(frozen=True)
+class ToolError:
+    code: ToolErrorCode
+    message: str | None
+    """The message for the client, or None when the error is unexpected and must be
+    logged and hidden behind a generic message."""
 
 
 PERMISSION_DENIED_MESSAGE = "You don't have permission to do this in this workspace."
@@ -115,6 +135,66 @@ def flatten_error_detail(detail, prefix: str = "") -> list[str]:
     return [f"{prefix}: {detail}" if prefix else str(detail)]
 
 
+def classify_tool_error(exc: Exception) -> ToolError:
+    """
+    Turns an exception raised by a tool into what the client calling the tool learns.
+
+    :param exc: The exception raised while calling the tool.
+    :return: The failure's code and the message for the client.
+    """
+
+    if isinstance(exc, ToolInputError):
+        return ToolError(ToolErrorCode.INVALID_INPUT, str(exc))
+    # UserNotInWorkspace is a PermissionException, but the user must not learn
+    # whether the object exists in another workspace.
+    if isinstance(exc, UserNotInWorkspace):
+        return ToolError(ToolErrorCode.NOT_FOUND, NOT_FOUND_MESSAGE)
+    if isinstance(exc, PermissionException):
+        return ToolError(ToolErrorCode.PERMISSION_DENIED, PERMISSION_DENIED_MESSAGE)
+    if isinstance(exc, DjangoValidationError):
+        return ToolError(
+            ToolErrorCode.INVALID_INPUT, "Invalid value. " + " ".join(exc.messages)
+        )
+    if isinstance(exc, RequestBodyValidationException):
+        return ToolError(
+            ToolErrorCode.INVALID_INPUT,
+            "Invalid value. " + "; ".join(flatten_error_detail(exc.detail["detail"])),
+        )
+    # Raised with a reason, like a node type that is deactivated on this instance.
+    if isinstance(exc, DRFPermissionDenied):
+        return ToolError(ToolErrorCode.PERMISSION_DENIED, str(exc.detail))
+    if isinstance(exc, DRFValidationError):
+        return ToolError(
+            ToolErrorCode.INVALID_INPUT,
+            "Invalid value. " + "; ".join(flatten_error_detail(exc.detail)),
+        )
+    # Any other client error. Those come as an error code and a message.
+    if isinstance(exc, APIException) and exc.status_code < 500:
+        detail = exc.detail
+        if isinstance(detail, dict) and "detail" in detail:
+            # The REST message doesn't say a licence is what's missing.
+            if detail.get("error") == "ERROR_FEATURE_NOT_AVAILABLE":
+                return ToolError(ToolErrorCode.FAILED, LICENCE_REQUIRED_MESSAGE)
+            detail = detail["detail"]
+        return ToolError(ToolErrorCode.FAILED, "; ".join(flatten_error_detail(detail)))
+    if isinstance(exc, ServiceImproperlyConfiguredDispatchException):
+        return ToolError(ToolErrorCode.INVALID_INPUT, "Invalid value. " + str(exc))
+    # Before the generic rule. `Registry.get` passes the client's type name and a
+    # message, while `Registry.get_by_model` passes only a message for a server bug.
+    if isinstance(exc, InstanceTypeDoesNotExist):
+        if not exc.args:
+            return ToolError(ToolErrorCode.FAILED, None)
+        return ToolError(
+            ToolErrorCode.INVALID_INPUT, f"'{exc.type_name}' is not a valid type."
+        )
+    if _is_does_not_exist(exc):
+        logger.warning(
+            "Tool referenced a missing resource: {}: {}", type(exc).__name__, exc
+        )
+        return ToolError(ToolErrorCode.NOT_FOUND, NOT_FOUND_MESSAGE)
+    return ToolError(ToolErrorCode.FAILED, None)
+
+
 def tool_error_message(exc: Exception) -> str | None:
     """
     Turns an exception raised by a tool into the message for the client calling the tool.
@@ -124,44 +204,7 @@ def tool_error_message(exc: Exception) -> str | None:
         and must be logged and hidden behind a generic message.
     """
 
-    if isinstance(exc, ToolInputError):
-        return str(exc)
-    # UserNotInWorkspace is a PermissionException, but the user must not learn
-    # whether the object exists in another workspace.
-    if isinstance(exc, UserNotInWorkspace):
-        return NOT_FOUND_MESSAGE
-    if isinstance(exc, PermissionException):
-        return PERMISSION_DENIED_MESSAGE
-    if isinstance(exc, DjangoValidationError):
-        return "Invalid value. " + " ".join(exc.messages)
-    if isinstance(exc, RequestBodyValidationException):
-        return "Invalid value. " + "; ".join(flatten_error_detail(exc.detail["detail"]))
-    # Raised with a reason, like a node type that is deactivated on this instance.
-    if isinstance(exc, DRFPermissionDenied):
-        return str(exc.detail)
-    if isinstance(exc, DRFValidationError):
-        return "Invalid value. " + "; ".join(flatten_error_detail(exc.detail))
-    # Any other client error. Those come as an error code and a message.
-    if isinstance(exc, APIException) and exc.status_code < 500:
-        detail = exc.detail
-        if isinstance(detail, dict) and "detail" in detail:
-            # The REST message doesn't say a licence is what's missing.
-            if detail.get("error") == "ERROR_FEATURE_NOT_AVAILABLE":
-                return LICENCE_REQUIRED_MESSAGE
-            detail = detail["detail"]
-        return "; ".join(flatten_error_detail(detail))
-    if isinstance(exc, ServiceImproperlyConfiguredDispatchException):
-        return "Invalid value. " + str(exc)
-    # Before the generic rule. `Registry.get` passes the client's type name and a
-    # message, while `Registry.get_by_model` passes only a message for a server bug.
-    if isinstance(exc, InstanceTypeDoesNotExist):
-        return f"'{exc.type_name}' is not a valid type." if exc.args else None
-    if _is_does_not_exist(exc):
-        logger.warning(
-            "Tool referenced a missing resource: {}: {}", type(exc).__name__, exc
-        )
-        return NOT_FOUND_MESSAGE
-    return None
+    return classify_tool_error(exc).message
 
 
 def item_error_message(exc: Exception) -> str:

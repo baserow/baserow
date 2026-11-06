@@ -30,10 +30,14 @@ class AgentRunAsState(StrEnum):
 AGENT_RUN_TYPE = "agent"
 RUN_AS_SUBJECT_TYPES = [AgentSubjectType.type]
 HISTORY_MESSAGE_LIMIT = 20
-REPLY_REQUEST_LIMIT = 3
+REPLY_REQUEST_LIMIT = 20
 AGENT_NOT_READY = "not_ready"
 AGENT_NOT_ALLOWED = "not_allowed"
 INTERRUPTED_REPLY_NOTE = "[This reply was interrupted and may be incomplete.]"
+INTERRUPTED_CHANGES_NOTE = (
+    "[Changes started before the interruption: {changes}. A stopped change may "
+    "have completed; check before repeating it.]"
+)
 UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS = (
     "The identity configured for your workspace access is no longer available. "
     "You cannot read or change workspace data. When a request needs workspace "
@@ -42,3 +46,4 @@ UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS = (
     "active Run as identity in Workspace access. Continue helping with requests "
     "that do not need workspace access."
 )
+TOOL_RETRIES = 3

@@ -17,8 +17,11 @@ from baserow.contrib.agent.models import (
     AgentConversation,
     AgentMessage,
 )
+from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.contrib.agent.types import AgentConfiguration
 from baserow.contrib.agent.validators import AGENT_TEXT_MAX_LENGTH
+from baserow.core.chat_runs.constants import ChatRunStepStatus
+from baserow.core.tools.errors import ToolErrorCode
 
 READINESS_CHOICES = [state.value for state in AgentReadinessState]
 
@@ -69,6 +72,12 @@ class AgentRunAsSubjectsQueryParamsSerializer(serializers.Serializer):
     search = serializers.CharField(required=False, allow_blank=True, default="")
 
 
+class AgentToolSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    group = serializers.CharField()
+    changes_data = serializers.BooleanField()
+
+
 class AgentConfigurationSerializer(serializers.Serializer):
     # Settings readers need readiness from the same snapshot as the editable values,
     # including after PATCH. Application payloads expose readiness to all readers.
@@ -80,11 +89,38 @@ class AgentConfigurationSerializer(serializers.Serializer):
         help_text="The configured identity and its active, trashed or missing status. "
         "Null means no workspace access was selected."
     )
+    allowed_tools = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="The names of the tools the agent may call while it has an "
+        "identity to act as.",
+    )
+    available_tools = serializers.SerializerMethodField(
+        help_text="Every tool an agent can be allowed to call, with its group and "
+        "whether it changes data."
+    )
     errors = serializers.DictField(
         child=serializers.ChoiceField(
             choices=[error.value for error in AgentConfigurationErrorCode]
         )
     )
+
+    @extend_schema_field(AgentToolSerializer(many=True))
+    def get_available_tools(self, configuration: AgentConfiguration) -> list[dict]:
+        """
+        List the registered tools.
+
+        :param configuration: The configuration being serialized.
+        :return: Each tool's name, group and whether it changes data.
+        """
+
+        return [
+            {
+                "name": tool_type.type,
+                "group": tool_type.group,
+                "changes_data": tool_type.changes_data,
+            }
+            for tool_type in agent_tool_type_registry.get_all()
+        ]
 
     @extend_schema_field(AgentRunAsSerializer(allow_null=True))
     def get_run_as(self, configuration: AgentConfiguration) -> dict | None:
@@ -115,12 +151,19 @@ class AgentConfigurationUpdateSerializer(
         allow_null=True,
         required=False,
         help_text="The type of the identity the agent's tools act as. Provide it "
-        "with run_as_subject_id; both null means no workspace access.",
+        "with run_as_subject_id; both null means no workspace access and clears "
+        "the allowed tools.",
     )
     run_as_subject_id = serializers.IntegerField(
         allow_null=True,
         required=False,
         help_text="The id of the identity the agent's tools act as.",
+    )
+    allowed_tools = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        help_text="The names of all the tools the agent may call. Tools left out "
+        "are turned off. Without a selected Run as identity, all tools stay off.",
     )
 
     class Meta:
@@ -131,6 +174,7 @@ class AgentConfigurationUpdateSerializer(
             "model_identifier",
             "run_as_subject_type",
             "run_as_subject_id",
+            "allowed_tools",
         )
         extra_kwargs = {
             "instructions": {
@@ -138,6 +182,22 @@ class AgentConfigurationUpdateSerializer(
                 "trim_whitespace": False,
             },
         }
+
+    def validate_allowed_tools(self, names: list[str]) -> list[str]:
+        """
+        Accept only registered tools.
+
+        :param names: The requested tool names.
+        :raises ValidationError: When a name isn't a tool.
+        :return: The names without duplicates.
+        """
+
+        unknown = set(names) - set(agent_tool_type_registry.get_types())
+        if unknown:
+            raise serializers.ValidationError(
+                f"Unknown tools: {', '.join(sorted(unknown))}."
+            )
+        return list(dict.fromkeys(names))
 
     def validate(self, values: dict) -> dict:
         """
@@ -175,7 +235,18 @@ class AgentConversationSerializer(serializers.ModelSerializer):
         return self.context.get("conversation_runs", {}).get(conversation.id)
 
 
+class AgentMessageStepSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    tool = serializers.CharField()
+    status = serializers.ChoiceField(choices=list(ChatRunStepStatus))
+    error_code = serializers.ChoiceField(choices=list(ToolErrorCode), required=False)
+    changes_data = serializers.BooleanField()
+    input = serializers.DictField()
+    facts = serializers.DictField()
+
+
 class AgentMessageSerializer(serializers.ModelSerializer):
+    steps = AgentMessageStepSerializer(many=True, allow_null=True, read_only=True)
     run_id = serializers.SerializerMethodField(
         help_text=(
             "The run writing this reply, to follow its output: set while it runs "
@@ -194,6 +265,7 @@ class AgentMessageSerializer(serializers.ModelSerializer):
             "status",
             "error_code",
             "run_id",
+            "steps",
         )
         read_only_fields = ("id",)
 

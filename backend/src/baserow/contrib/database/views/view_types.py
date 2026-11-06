@@ -51,6 +51,7 @@ from baserow.core.import_export.utils import file_chunk_generator
 from baserow.core.last_viewed.handler import LastViewedHandler
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile
+from baserow.core.types import Actor
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_files.models import UserFile
 
@@ -1420,12 +1421,13 @@ class FormViewType(ViewType):
 
         mode_type.before_form_create(values, table, user)
 
-    def before_view_update(self, values: dict, view: "View", user: AbstractUser):
+    def before_view_update(self, values: dict, view: "View", user: Actor) -> None:
         mode_type = form_view_mode_registry.get(values.get("mode", view.mode))
         mode_type.before_form_update(values, view, user)
 
         notify_on_submit = values.pop("receive_notification_on_submit", None)
-        if notify_on_submit is not None:
+        # The actor may be an Agent; leave user subscriptions unchanged in that case.
+        if notify_on_submit is not None and isinstance(user, AbstractUser):
             users_to_notify_on_submit = [
                 utn.id
                 for utn in view.users_to_notify_on_submit.all()

@@ -48,14 +48,14 @@ def _read_state(run_id: UUID, reader: AbstractUser | None) -> dict:
 
 
 def fold_output(events: list[dict[str, Any]]) -> dict[str, Any]:
-    """Fold buffered output into its latest text segment and progress.
+    """Fold buffered output into text, progress and ordered tool steps.
 
     :param events: Buffered events in order, each with a ``kind`` and ``data``.
-    :return: The latest segment's text, number and variant, and the latest
-        progress data.
+    :return: The latest text segment and progress, and steps in call order.
     """
 
     text, segment, progress, variant = "", None, None, None
+    steps = {}
     for event in events:
         data = event["data"]
         if event["kind"] == ChatRunEventKind.TEXT_DELTA:
@@ -65,7 +65,15 @@ def fold_output(events: list[dict[str, Any]]) -> dict[str, Any]:
             variant = data.get("variant")
         elif event["kind"] == ChatRunEventKind.PROGRESS:
             progress = data
-    return {"text": text, "segment": segment, "progress": progress, "variant": variant}
+        elif event["kind"] == ChatRunEventKind.STEP:
+            steps[data["id"]] = data
+    return {
+        "text": text,
+        "segment": segment,
+        "progress": progress,
+        "variant": variant,
+        "steps": list(steps.values()),
+    }
 
 
 def _is_active(state: dict[str, Any]) -> bool:

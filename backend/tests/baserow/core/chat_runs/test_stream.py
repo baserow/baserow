@@ -16,6 +16,33 @@ from baserow.core.chat_runs.stream import follow_run
 
 
 @pytest.mark.asyncio
+async def test_resume_baseline_preserves_step_order_and_latest_state():
+    run = SimpleNamespace(id=uuid4())
+    writer = ChatRunBuffer(run.id)
+    first = {"id": "first", "status": "running"}
+    second = {"id": "second", "status": "running"}
+    done = {**first, "status": "done", "facts": {"count": 3}}
+    prefix = await writer.append(
+        [("run.started", {}), ("step", first), ("step", second), ("step", done)]
+    )
+    await writer.append([("step", {**second, "status": "failed"})])
+    follower = follow_run(
+        run,
+        None,
+        prefix[-1]["cursor"],
+        snapshot=AsyncMock(return_value={"status": "running"}),
+    )
+    async with aclosing(follower):
+        baseline = await anext(follower)
+        assert baseline["kind"] == "run.baseline"
+        assert baseline["data"]["steps"] == [done, second]
+        replay = await anext(follower)
+        assert replay["kind"] == "step"
+        assert replay["data"] == {**second, "status": "failed"}
+        assert replay["replayed"]
+
+
+@pytest.mark.asyncio
 async def test_resume_baseline_survives_appends_and_suppresses_catchup_effects(
     buffer_redis, monkeypatch
 ):

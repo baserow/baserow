@@ -335,6 +335,28 @@ def test_validate_data():
     )
 
 
+def test_validate_data_list_errors_preserve_item_positions():
+    with pytest.raises(APIException) as api_exception:
+        validate_data(
+            TemporaryListSerializer,
+            [
+                {"field_1": "valid", "field_2": "choice_1"},
+                {"field_1": "invalid"},
+                {"field_1": "valid", "field_2": "choice_2"},
+            ],
+        )
+
+    assert api_exception.value.status_code == status.HTTP_400_BAD_REQUEST
+    assert api_exception.value.detail == {
+        "error": "ERROR_REQUEST_BODY_VALIDATION",
+        "detail": [
+            {},
+            {"field_2": [{"error": "This field is required.", "code": "required"}]},
+            {},
+        ],
+    }
+
+
 def test_validate_data_custom_fields():
     registry = TemporaryTypeRegistry()
     registry.register(TemporaryInstanceType1())

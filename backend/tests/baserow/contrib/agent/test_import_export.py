@@ -4,6 +4,7 @@ import pytest
 from freezegun import freeze_time
 
 from baserow.contrib.agent.application_types import AgentApplicationType
+from baserow.contrib.agent.constants import AgentRunAsState
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import (
     AgentApplication,
@@ -41,6 +42,7 @@ def conversation_values(agent: AgentApplication) -> list[tuple]:
                     message.content,
                     message.status,
                     message.error_code,
+                    message.steps,
                     message.created_on,
                     message.updated_on,
                 )
@@ -77,6 +79,16 @@ def test_duplicate_copies_conversations_with_new_identifiers(
             role=AgentMessage.Role.ASSISTANT,
             status=ChatRunStatus.FAILED,
             error_code="timeout",
+            steps=[
+                {
+                    "id": "call_1",
+                    "tool": "create_rows",
+                    "status": "done",
+                    "changes_data": True,
+                    "input": {"requested_count": 1},
+                    "facts": {},
+                }
+            ],
         )
 
     copied = CoreHandler().duplicate_application(copier, agent).specific
@@ -87,7 +99,7 @@ def test_duplicate_copies_conversations_with_new_identifiers(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("trashed", [False, True])
-def test_run_as_is_kept_only_by_copies_in_the_same_workspace(
+def test_only_copies_that_keep_run_as_keep_the_tools(
     data_fixture, configured_agent, trashed
 ):
     user = data_fixture.create_user()
@@ -97,6 +109,7 @@ def test_run_as_is_kept_only_by_copies_in_the_same_workspace(
     )
     agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
     agent.save()
+    AgentHandler().set_allowed_tools(agent, ["list_tables", "create_rows"])
 
     duplicate = CoreHandler().duplicate_application(user, agent).specific
     imported = AgentApplicationType().import_serialized(
@@ -108,14 +121,20 @@ def test_run_as_is_kept_only_by_copies_in_the_same_workspace(
 
     assert duplicate.run_as_subject_id == identity.id
     assert (imported.run_as_subject_type, imported.run_as_subject_id) == (None, None)
-    assert (
-        AgentHandler().is_run_as_subject_usable(
-            duplicate.run_as_subject_type,
-            duplicate.run_as_subject_id,
-            duplicate.workspace,
-        )
-        is not trashed
+    resolution = AgentHandler().resolve_run_as_subject(
+        duplicate.run_as_subject_type,
+        duplicate.run_as_subject_id,
+        duplicate.workspace,
     )
+    assert resolution.status == (
+        AgentRunAsState.TRASHED if trashed else AgentRunAsState.ACTIVE
+    )
+    assert AgentHandler().get_allowed_tool_names(duplicate) == [
+        "list_tables",
+        "create_rows",
+    ]
+    assert AgentHandler().get_allowed_tool_names(imported) == []
+    assert not imported.allowed_tools.exists()
 
 
 @pytest.mark.django_db
@@ -153,6 +172,7 @@ def test_snapshot_preserves_run_as_through_identity_trash_and_restore(
     )
     agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
     agent.save()
+    AgentHandler().set_allowed_tools(agent, ["list_tables", "create_rows"])
     snapshot = data_fixture.create_snapshot(
         snapshot_from_application=agent, name=agent.name, created_by=user
     )
@@ -166,6 +186,10 @@ def test_snapshot_preserves_run_as_through_identity_trash_and_restore(
         "core.Agent",
         identity.id,
     )
+    assert AgentHandler().get_allowed_tool_names(archived) == [
+        "list_tables",
+        "create_rows",
+    ]
 
     identity.trashed = True
     identity.save()
@@ -175,14 +199,21 @@ def test_snapshot_preserves_run_as_through_identity_trash_and_restore(
         identity.id,
     )
     handler = AgentHandler()
-    assert not handler.is_run_as_subject_usable(
-        restored.run_as_subject_type, restored.run_as_subject_id, restored.workspace
+    assert handler.get_allowed_tool_names(restored) == ["list_tables", "create_rows"]
+    assert (
+        handler.get_usable_run_as_subject(
+            restored.run_as_subject_type, restored.run_as_subject_id, restored.workspace
+        )
+        is None
     )
 
     identity.trashed = False
     identity.save()
-    assert handler.is_run_as_subject_usable(
-        restored.run_as_subject_type, restored.run_as_subject_id, restored.workspace
+    assert (
+        handler.get_usable_run_as_subject(
+            restored.run_as_subject_type, restored.run_as_subject_id, restored.workspace
+        )
+        == identity
     )
 
 
@@ -233,6 +264,7 @@ def test_portable_import_clears_run_as_even_when_identity_exists(
     agent = configured_agent()
     identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
     agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    AgentHandler().set_allowed_tools(agent, ["list_tables", "create_rows"])
 
     imported = AgentApplicationType().import_serialized(
         agent.workspace,
@@ -242,6 +274,7 @@ def test_portable_import_clears_run_as_even_when_identity_exists(
     )
 
     assert (imported.run_as_subject_type, imported.run_as_subject_id) == (None, None)
+    assert not imported.allowed_tools.exists()
 
 
 @pytest.mark.django_db
@@ -252,6 +285,7 @@ def test_template_install_clears_run_as_with_a_destination_identity_collision(
     agent = configured_agent(user=user)
     identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
     agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    AgentHandler().set_allowed_tools(agent, ["list_tables", "create_rows"])
     template = data_fixture.create_template(slug="agent-identity-collision")
     settings.APPLICATION_TEMPLATES_DIR = str(tmp_path)
     # Old or crafted templates can contain an id that is valid in the destination.
@@ -265,6 +299,7 @@ def test_template_install_clears_run_as_with_a_destination_identity_collision(
 
     installed = applications[0].specific
     assert (installed.run_as_subject_type, installed.run_as_subject_id) == (None, None)
+    assert not installed.allowed_tools.exists()
 
 
 @pytest.mark.django_db
@@ -360,3 +395,22 @@ def test_a_copy_never_carries_a_reply_in_progress(data_fixture, configured_agent
 
     reply = AgentMessage.objects.get(conversation__agent=copied)
     assert (reply.status, reply.error_code) == ("failed", "interrupted")
+
+
+@pytest.mark.django_db
+def test_old_conversation_payloads_without_steps_still_import(
+    data_fixture, configured_agent
+):
+    owner = data_fixture.create_user()
+    agent = configured_agent(user=owner)
+    data_fixture.create_agent_message(user=owner, agent=agent)
+    serialized = export_internal(agent)
+    for conversation in serialized["conversations"]:
+        for message in conversation["messages"]:
+            del message["steps"]
+
+    copied = AgentApplicationType().import_serialized(
+        agent.workspace, serialized, INTERNAL_CONFIG, {}
+    )
+
+    assert AgentMessage.objects.get(conversation__agent=copied).steps is None

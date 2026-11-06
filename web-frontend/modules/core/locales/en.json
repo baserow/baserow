@@ -1832,5 +1832,25 @@
   },
   "managementPages": {
     "you": "You"
+  },
+  "toolPresentation": {
+    "tool": "Tool",
+    "running": "Using a tool",
+    "done": "Tool completed",
+    "failed": "Tool failed",
+    "stopped": "Tool interrupted",
+    "statusRunning": "Running",
+    "statusDone": "Completed",
+    "statusFailed": "Failed",
+    "statusStopped": "Interrupted; changes may have completed",
+    "statusInterrupted": "Interrupted",
+    "stepAnnouncement": "{title}: {status}",
+    "failureNotFound": "Not found or not accessible to the agent.",
+    "failurePermissionDenied": "Permission denied for this operation.",
+    "failureInvalidInput": "The tool received invalid input.",
+    "failureFailed": "This tool call failed.",
+    "workspaceRunning": "Looking at your workspace",
+    "workspaceDone": "Looked at your workspace",
+    "workspace": "Workspace activity"
   }
 }

@@ -23,6 +23,22 @@ class AgentApplication(Application):
     run_as_subject_id = models.BigIntegerField(null=True, blank=True, db_default=None)
 
 
+class AgentAllowedTool(models.Model):
+    """A tool an Agent may call. A missing row means the tool is not allowed."""
+
+    agent = models.ForeignKey(
+        AgentApplication, on_delete=models.CASCADE, related_name="allowed_tools"
+    )
+    name = models.CharField(max_length=100)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["agent", "name"], name="agent_allowed_tool_unique_name"
+            )
+        ]
+
+
 class AgentConversation(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
     """A conversation with an agent, private to the user who started it."""
 
@@ -66,6 +82,7 @@ class AgentMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
     # Only the agent's replies have one.
     status = models.CharField(max_length=16, choices=ChatRunStatus.choices, null=True)
     error_code = models.CharField(max_length=64, blank=True, default="", db_default="")
+    steps = models.JSONField(null=True)
 
     class Meta:
         ordering = ("-id",)
