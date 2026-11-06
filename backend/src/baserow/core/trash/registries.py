@@ -66,6 +66,17 @@ class TrashableItemType(ModelInstanceMixin, Instance, ABC):
 
         return False
 
+    @property
+    def entry_type(self) -> str:
+        """
+        :returns The `trash_item_type` stored on the trash entry of an item of this
+            type. A type that specialises another one for a sub model can return the
+            type of the one it specialises, so that entries are found by that type.
+            Restoring and permanently deleting the entry then use that type too.
+        """
+
+        return self.type
+
     @abstractmethod
     def get_parent(self, trashed_item: Any) -> Optional[Any]:
         """
