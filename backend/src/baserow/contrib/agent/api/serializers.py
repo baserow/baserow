@@ -235,6 +235,15 @@ class AgentConversationSerializer(serializers.ModelSerializer):
         return self.context.get("conversation_runs", {}).get(conversation.id)
 
 
+class AgentConversationUpdateSerializer(
+    UnknownFieldRaisesExceptionSerializerMixin, serializers.Serializer
+):
+    title = serializers.CharField(
+        required=False,
+        max_length=AgentConversation._meta.get_field("title").max_length,
+    )
+
+
 class AgentMessageStepSerializer(serializers.Serializer):
     id = serializers.CharField()
     tool = serializers.CharField()

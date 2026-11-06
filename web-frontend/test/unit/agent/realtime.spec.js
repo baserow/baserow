@@ -41,7 +41,7 @@ const isRecovery = (request) =>
   request.headers['X-Baserow-Realtime-Recovery'] === 'true'
 
 describe('Agent conversation realtime updates', () => {
-  let testApp, agent, allowed, mount, receive
+  let testApp, agent, allowed, mount, receivers
 
   beforeEach(async () => {
     ;({ testApp, agent, allowed, mount } = await createAgentPage())
@@ -49,9 +49,10 @@ describe('Agent conversation realtime updates', () => {
       get: vi.fn().mockResolvedValue({ status: 'running' }),
       stream: vi.fn(() => new Promise(() => {})),
     })
+    receivers = {}
     registerRealtimeEvents({
       registerEvent: (type, handler) => {
-        if (type === 'agent_conversation_updated') receive = handler
+        receivers[type] = handler
       },
     })
   })
@@ -66,7 +67,7 @@ describe('Agent conversation realtime updates', () => {
       agentId = agentData.id,
     } = {}
   ) => {
-    receive(
+    receivers.agent_conversation_activity(
       { store: testApp.store },
       {
         agent_id: agentId,
@@ -468,5 +469,54 @@ describe('Agent conversation realtime updates', () => {
 
     expect(testApp.mock.history.get).toHaveLength(reads)
     expect(agent._.conversationUpdate.version).toBe(1)
+  })
+
+  test('does not bring back a conversation deleted while the list was being read', async () => {
+    const stale = deferredReply()
+    mockConversations(testApp, page([first]), stale.reply, page([second]))
+    await mount()
+    await update(second.uuid)
+
+    receivers.agent_conversation_deleted(
+      { store: testApp.store },
+      { agent_id: agentData.id, conversation_uuid: first.uuid }
+    )
+    stale.resolve(200, page([first, second]))
+    await flushPromises()
+
+    expect(agent._.conversationUpdate.kind).toBe('deleted')
+    expect(
+      testApp.mock.history.get.filter(
+        ({ url }) => url === '/agent/10/conversations/'
+      )
+    ).toHaveLength(3)
+  })
+
+  test('renames and removes conversations changed in another session', async () => {
+    mockConversations(testApp, page([first, second]))
+    mockMessages(testApp, first.uuid, page([]))
+    mockMessages(testApp, second.uuid, page([]))
+    const wrapper = await mount()
+    await selectConversation(wrapper, first.title)
+    const reads = testApp.mock.history.get.length
+    const receive = (type, data) =>
+      receivers[type](
+        { store: testApp.store },
+        { agent_id: agentData.id, ...data }
+      )
+
+    receive('agent_conversation_updated', {
+      conversation_uuid: second.uuid,
+      values: { title: 'Renamed elsewhere' },
+    })
+    receive('agent_conversation_deleted', { conversation_uuid: first.uuid })
+    await flushPromises()
+
+    expect(conversationTitles(wrapper)).toEqual(['Renamed elsewhere'])
+    expect(selected(wrapper).text()).toContain('Renamed elsewhere')
+    // Only the newly selected conversation's history is read.
+    expect(testApp.mock.history.get.slice(reads).map(({ url }) => url)).toEqual(
+      [`/agent/10/conversations/${second.uuid}/messages/`]
+    )
   })
 })

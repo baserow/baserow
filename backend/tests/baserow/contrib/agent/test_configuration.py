@@ -20,6 +20,7 @@ from baserow.contrib.agent.constants import (
 )
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.types import AgentConfiguration
+from baserow.core.action.registries import action_type_registry
 from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.ai_provider.resolution import (
     clear_ai_provider_state_cache,
@@ -125,10 +126,12 @@ def test_configuration_update_records_full_snapshots_and_ignores_noop_drafts(
     )
     updated = mocker.spy(application_updated, "send")
 
-    UpdateAgentConfigurationActionType.do(
+    action_type_registry.get_by_type(UpdateAgentConfigurationActionType).do(
         user, agent.id, instructions="Line 1\nLine 2", provider_type=" "
     )
-    UpdateAgentConfigurationActionType.do(user, agent.id, instructions="Line 1\nLine 2")
+    action_type_registry.get_by_type(UpdateAgentConfigurationActionType).do(
+        user, agent.id, instructions="Line 1\nLine 2"
+    )
 
     agent.refresh_from_db()
     assert (agent.instructions, agent.provider_type) == ("Line 1\nLine 2", None)
@@ -176,7 +179,7 @@ def test_configuration_audit_snapshots_record_normalized_values(
         "allowed_tools": [],
     }
 
-    UpdateAgentConfigurationActionType.do(
+    action_type_registry.get_by_type(UpdateAgentConfigurationActionType).do(
         user,
         agent.id,
         instructions=" Keep whitespace\n",
@@ -184,7 +187,7 @@ def test_configuration_audit_snapshots_record_normalized_values(
         model_identifier=" \n",
     )
     # Different request strings normalize to the same saved configuration.
-    UpdateAgentConfigurationActionType.do(
+    action_type_registry.get_by_type(UpdateAgentConfigurationActionType).do(
         user,
         agent.id,
         instructions=" Keep whitespace\n",
@@ -243,8 +246,12 @@ def test_configuration_audit_snapshots_record_identity_assignment_replacement_an
             "run_as_subject_id": identity.id if identity else None,
         }
         snapshots.append({**snapshots[-1], **run_as})
-        UpdateAgentConfigurationActionType.do(user, agent.id, **run_as)
-        UpdateAgentConfigurationActionType.do(user, agent.id, **run_as)
+        action_type_registry.get_by_type(UpdateAgentConfigurationActionType).do(
+            user, agent.id, **run_as
+        )
+        action_type_registry.get_by_type(UpdateAgentConfigurationActionType).do(
+            user, agent.id, **run_as
+        )
 
     assert registered.call_count == 3
     for index, registered_call in enumerate(registered.call_args_list):
@@ -281,10 +288,10 @@ def test_configuration_audit_snapshots_record_tools_and_ignore_reordered_lists(
     )
     updated = mocker.spy(application_updated, "send")
 
-    configuration = UpdateAgentConfigurationActionType.do(
-        user, agent.id, allowed_tools=["create_rows", "list_table_rows"]
-    )
-    UpdateAgentConfigurationActionType.do(
+    configuration = action_type_registry.get_by_type(
+        UpdateAgentConfigurationActionType
+    ).do(user, agent.id, allowed_tools=["create_rows", "list_table_rows"])
+    action_type_registry.get_by_type(UpdateAgentConfigurationActionType).do(
         user, agent.id, allowed_tools=["list_table_rows", "create_rows", "create_rows"]
     )
     registered.assert_called_once()
@@ -301,7 +308,9 @@ def test_configuration_audit_snapshots_record_tools_and_ignore_reordered_lists(
         "changed_fields": ["allowed_tools"],
     }
 
-    UpdateAgentConfigurationActionType.do(user, agent.id, allowed_tools=[])
+    action_type_registry.get_by_type(UpdateAgentConfigurationActionType).do(
+        user, agent.id, allowed_tools=[]
+    )
     cleared = registered.call_args.args[1]
     assert registered.call_count == updated.call_count == 2
     assert cleared["original_values"] == params["new_values"]
@@ -793,7 +802,7 @@ def test_clearing_workspace_access_rolls_back_both_identity_and_tools_on_failure
 
     mocker.patch.object(AgentHandler, "set_allowed_tools", fail_after_clearing)
     with pytest.raises(RuntimeError, match="Failed after clearing tools"):
-        UpdateAgentConfigurationActionType.do(
+        action_type_registry.get_by_type(UpdateAgentConfigurationActionType).do(
             api_user, agent.id, run_as_subject_type=None, run_as_subject_id=None
         )
 

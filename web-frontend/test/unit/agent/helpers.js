@@ -3,6 +3,7 @@ import { flushPromises } from '@vue/test-utils'
 import { ref } from 'vue'
 import { matchedRouteKey } from 'vue-router'
 import { TestApp } from '@baserow/test/helpers/testApp'
+import Context from '@baserow/modules/core/components/Context'
 import { clone } from '@baserow/modules/core/utils/object'
 import AgentApplicationContent from '@baserow/modules/agent/components/AgentApplicationContent'
 
@@ -300,3 +301,18 @@ export const messages = (wrapper) =>
 
 export const conversationTitles = (wrapper) =>
   wrapper.findAll('.agent-conversations__item').map((item) => item.text())
+
+/** Open a conversation's ⋮ menu and choose an action by its label. */
+export async function chooseFromMenu(wrapper, title, action) {
+  await wrapper
+    .findAll('.agent-conversations__row')
+    .find((row) => row.text().includes(title))
+    .get('.agent-conversations__options')
+    .trigger('click')
+  await wrapper
+    .findComponent(Context)
+    .findAll('.context__menu-item-link')
+    .find((link) => link.text().includes(action))
+    .trigger('click')
+  await flushPromises()
+}

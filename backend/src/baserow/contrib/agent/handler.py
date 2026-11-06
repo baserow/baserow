@@ -16,6 +16,7 @@ from baserow.core.generative_ai.registries import generative_ai_model_type_regis
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
 from baserow.core.registries import subject_type_registry
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import Subject
 from baserow.core.utils import extract_allowed, remove_null_characters
 
@@ -37,6 +38,7 @@ from .registries import agent_tool_type_registry
 from .types import (
     AgentConfiguration,
     AgentConfigurationUpdated,
+    AgentConversationUpdated,
     AgentMessageCreated,
     AgentReplyRequest,
     AgentReplyResult,
@@ -46,6 +48,7 @@ from .types import (
 
 class AgentHandler:
     configuration_fields = ["instructions", "provider_type", "model_identifier"]
+    conversation_fields = ["title"]
     run_as_fields = ["run_as_subject_type", "run_as_subject_id"]
 
     def get_agent(self, agent_id: int, for_update: bool = False) -> AgentApplication:
@@ -354,6 +357,52 @@ class AgentHandler:
         conversation.agent, conversation.owner_user = agent, owner
         return conversation
 
+    def update_conversation(
+        self, conversation: AgentConversation, **values: str
+    ) -> AgentConversationUpdated:
+        """
+        Update a conversation's own values without moving it in the list, which is
+        ordered by activity.
+
+        :param conversation: The conversation to update.
+        :param values: The values to set, by field name. A title has its whitespace
+            collapsed like a first message's. Unknown field names are ignored.
+        :return: The conversation with its original and new values of the given
+            fields.
+        """
+
+        values = extract_allowed(values, self.conversation_fields)
+        if "title" in values:
+            values["title"] = " ".join(values["title"].split())
+        original_values = {field: getattr(conversation, field) for field in values}
+        changed_fields = [
+            field for field, value in values.items() if value != original_values[field]
+        ]
+        for field in changed_fields:
+            setattr(conversation, field, values[field])
+        if changed_fields:
+            conversation.save(update_fields=changed_fields)
+        return AgentConversationUpdated(conversation, original_values, values)
+
+    def delete_conversation(
+        self, user: AbstractUser, conversation: AgentConversation
+    ) -> None:
+        """
+        Trash a conversation and stop the reply still being written in it.
+
+        :param user: The user deleting the conversation.
+        :param conversation: The conversation, locked so no new reply can start.
+        """
+
+        agent = conversation.agent
+        TrashHandler.trash(user, agent.workspace, agent, conversation)
+        run = ChatRunHandler().get_active_run(AGENT_RUN_TYPE, conversation.id)
+        if run is not None:
+            # Runs are locked before their conversation, so stop it after commit.
+            transaction.on_commit(
+                lambda: ChatRunHandler().request_cancel(run.id), robust=True
+            )
+
     def get_creation_retry(
         self,
         agent: AgentApplication,
@@ -371,14 +420,14 @@ class AgentHandler:
         :param message_uuid: The uuid of the first message.
         :param content: The content of the first message.
         :raises AgentConversationDoesNotExist: When the uuid belongs to another
-            owner's or agent's conversation.
+            owner's or agent's conversation, or to a deleted one.
         :raises AgentMessageConflict: When the conversation was created with another
             first message.
         :return: The conversation, its first message, its reply and the run writing
             it, or None when nothing was accepted with this uuid before.
         """
 
-        conversation = AgentConversation.objects.filter(uuid=uuid).first()
+        conversation = AgentConversation.objects_and_trash.filter(uuid=uuid).first()
         if conversation is None:
             return None
         return self._get_first_message_retry(
@@ -395,7 +444,11 @@ class AgentHandler:
     ) -> AgentMessageCreated:
         """Validate an existing identifier, also one a racing request just created."""
 
-        if conversation.agent_id != agent.id or conversation.owner_user_id != owner.id:
+        if (
+            conversation.trashed
+            or conversation.agent_id != agent.id
+            or conversation.owner_user_id != owner.id
+        ):
             raise AgentConversationDoesNotExist
         message = conversation.messages.order_by("id").first()
         if (
@@ -470,7 +523,7 @@ class AgentHandler:
         except IntegrityError:
             # A concurrent request created this uuid after the retry check.
             return self._get_first_message_retry(
-                AgentConversation.objects.get(uuid=uuid),
+                AgentConversation.objects_and_trash.get(uuid=uuid),
                 agent,
                 user,
                 message_uuid,

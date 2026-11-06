@@ -4,6 +4,7 @@ from .views import (
     AgentApplicationView,
     AgentConfigurationView,
     AgentConversationsView,
+    AgentConversationView,
     AgentMessagesView,
     AgentRunAsSubjectsView,
 )
@@ -26,6 +27,11 @@ urlpatterns = [
         "<int:agent_id>/conversations/",
         AgentConversationsView.as_view(),
         name="conversations",
+    ),
+    path(
+        "<int:agent_id>/conversations/<uuid:conversation_uuid>/",
+        AgentConversationView.as_view(),
+        name="conversation",
     ),
     path(
         "<int:agent_id>/conversations/<uuid:conversation_uuid>/messages/",

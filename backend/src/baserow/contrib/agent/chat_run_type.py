@@ -22,7 +22,7 @@ from .exceptions import AgentConversationDoesNotExist, AgentNotReady
 from .handler import AgentHandler
 from .replies import AgentResponder, create_reply_model
 from .service import AgentService
-from .signals import agent_conversation_updated
+from .signals import agent_conversation_activity
 from .types import AgentReplyRequest, AgentReplyResult
 
 if TYPE_CHECKING:
@@ -109,7 +109,7 @@ class AgentChatRunType(ChatRunType):
 
         conversation = AgentHandler().mark_reply_interrupted(run.context["reply_id"])
         if conversation is not None:
-            agent_conversation_updated.send(self, conversation=conversation, user=None)
+            agent_conversation_activity.send(self, conversation=conversation, user=None)
 
     def _finish_reply(
         self,
@@ -134,7 +134,7 @@ class AgentChatRunType(ChatRunType):
         )
         if reply is None:
             return None
-        agent_conversation_updated.send(
+        agent_conversation_activity.send(
             self, conversation=reply.conversation, user=None
         )
         return dict(AgentMessageSerializer(reply).data)

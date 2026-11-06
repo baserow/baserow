@@ -19,13 +19,20 @@ from .models import AgentApplication, AgentConversation, AgentMessage
 from .operations import (
     CreateAgentConversationOperationType,
     CreateAgentMessageOperationType,
+    DeleteAgentConversationOperationType,
     ReadAgentConfigurationOperationType,
     ReadAgentConversationsOperationType,
+    UpdateAgentConversationOperationType,
 )
-from .signals import agent_conversation_updated
+from .signals import (
+    agent_conversation_activity,
+    agent_conversation_deleted,
+    agent_conversation_updated,
+)
 from .types import (
     AgentConfiguration,
     AgentConfigurationUpdated,
+    AgentConversationUpdated,
     AgentMessageCreated,
     AgentReplyRequest,
 )
@@ -166,6 +173,69 @@ class AgentService:
         conversation = self.handler.get_conversation(agent, user, conversation_uuid)
         return conversation, conversation.messages.all()
 
+    @transaction.atomic
+    def update_conversation(
+        self, user: AbstractUser, agent_id: int, conversation_uuid: UUID, **values: str
+    ) -> AgentConversationUpdated:
+        """
+        Update one of the user's conversations and tell their other sessions what
+        changed.
+
+        :param user: The user updating the conversation.
+        :param agent_id: The id of the agent.
+        :param conversation_uuid: The uuid of the conversation.
+        :param values: The values to set, by field name, such as the title.
+        :raises PermissionException: When the user may not update conversations of
+            the agent.
+        :raises AgentConversationDoesNotExist: When the user has no conversation with
+            this uuid in the agent.
+        :return: The conversation with its original and new values.
+        """
+
+        agent = self._get_authorized_agent(
+            user, agent_id, UpdateAgentConversationOperationType.type
+        )
+        conversation = self.handler.get_conversation(agent, user, conversation_uuid)
+        updated = self.handler.update_conversation(conversation, **values)
+        changed_values = {
+            field: value
+            for field, value in updated.new_values.items()
+            if value != updated.original_values[field]
+        }
+        if changed_values:
+            agent_conversation_updated.send(
+                self, conversation=conversation, user=user, values=changed_values
+            )
+        return updated
+
+    @transaction.atomic
+    def delete_conversation(
+        self, user: AbstractUser, agent_id: int, conversation_uuid: UUID
+    ) -> AgentConversation:
+        """
+        Move one of the user's conversations to the trash, where only they see it.
+
+        :param user: The user deleting the conversation.
+        :param agent_id: The id of the agent.
+        :param conversation_uuid: The uuid of the conversation.
+        :raises PermissionException: When the user may not delete conversations of
+            the agent.
+        :raises AgentConversationDoesNotExist: When the user has no conversation with
+            this uuid in the agent.
+        :return: The trashed conversation.
+        """
+
+        agent = self._get_authorized_agent(
+            user, agent_id, DeleteAgentConversationOperationType.type
+        )
+        # The lock waits for a message being sent, so its reply is stopped too.
+        conversation = self.handler.get_conversation(
+            agent, user, conversation_uuid, for_update=True
+        )
+        self.handler.delete_conversation(user, conversation)
+        agent_conversation_deleted.send(self, conversation=conversation, user=user)
+        return conversation
+
     def _require_ready(self, agent: AgentApplication) -> None:
         """Reject new content without leaking privileged setting diagnostics."""
 
@@ -249,7 +319,7 @@ class AgentService:
             the agent.
         :raises ValidationError: When the content is blank or too long.
         :raises AgentConversationDoesNotExist: When the uuid belongs to another
-            owner's or agent's conversation.
+            owner's or agent's conversation, or to a deleted one.
         :raises AgentMessageConflict: When the uuid was accepted with another first
             message.
         :raises AgentNotReady: When the agent isn't ready for a new conversation.
@@ -277,7 +347,7 @@ class AgentService:
             agent, user, uuid, message_uuid, content
         )
         if result.created:
-            agent_conversation_updated.send(
+            agent_conversation_activity.send(
                 self, conversation=result.conversation, user=user, run_id=result.run_id
             )
         return result
@@ -332,7 +402,7 @@ class AgentService:
         self._require_ready(agent)
         result = self.handler.create_message(conversation, uuid, content)
         if result.created:
-            agent_conversation_updated.send(
+            agent_conversation_activity.send(
                 self, conversation=result.conversation, user=user, run_id=result.run_id
             )
         return result

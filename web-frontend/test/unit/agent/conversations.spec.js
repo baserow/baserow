@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
+import Context from '@baserow/modules/core/components/Context'
 import {
   acceptConversation,
+  chooseFromMenu,
   agentData,
   completeConfiguration,
   composer,
@@ -625,5 +627,101 @@ describe('Agent conversations', () => {
       'Conversation A',
       'Conversation B',
     ])
+  })
+
+  test('renames inline, then deletes and offers a restore, selecting the next one', async () => {
+    const renamed = conversation('conversation-a', 'Renamed')
+    twoConversations()
+    mockMessages(testApp, 'conversation-a', page([]))
+    mockMessages(testApp, 'conversation-b', page([]))
+    testApp.mock
+      .onPatch('/agent/10/conversations/conversation-a/')
+      .reply(200, renamed)
+    testApp.mock.onDelete('/agent/10/conversations/conversation-a/').reply(204)
+    const wrapper = await mount()
+    await selectConversation(wrapper, 'Conversation A')
+
+    await chooseFromMenu(wrapper, 'Conversation A', 'action.rename')
+    const input = wrapper.get('.agent-conversations__rename')
+    expect(document.activeElement).toBe(input.element)
+    await input.setValue('  Renamed ')
+    await input.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    expect(JSON.parse(testApp.mock.history.patch.at(-1).data)).toEqual({
+      title: 'Renamed',
+    })
+    expect(conversationTitles(wrapper)).toEqual(['Renamed', 'Conversation B'])
+
+    await chooseFromMenu(wrapper, 'Renamed', 'action.delete')
+
+    expect(conversationTitles(wrapper)).toEqual(['Conversation B'])
+    expect(selected(wrapper).text()).toContain('Conversation B')
+    expect(testApp.store.state.toast.items).toContainEqual(
+      expect.objectContaining({
+        type: 'restore',
+        data: {
+          trash_item_type: 'agent_conversation',
+          trash_item_id: renamed.id,
+        },
+      })
+    )
+  })
+
+  test('re-reads the first page after a delete, so loading more skips nothing', async () => {
+    mockConversations(
+      testApp,
+      page(
+        [
+          conversation('conversation-a', 'Conversation A'),
+          conversation('conversation-b', 'Conversation B'),
+        ],
+        'next'
+      ),
+      page([conversation('conversation-b', 'Conversation B')], 'next'),
+      page([conversation('conversation-c', 'Conversation C')])
+    )
+    testApp.mock.onDelete('/agent/10/conversations/conversation-a/').reply(204)
+    const wrapper = await mount()
+
+    await chooseFromMenu(wrapper, 'Conversation A', 'action.delete')
+    await wrapper.get('.agent-conversations__more').trigger('click')
+    await flushPromises()
+
+    expect(conversationTitles(wrapper)).toEqual([
+      'Conversation B',
+      'Conversation C',
+    ])
+    expect(
+      testApp.mock.history.get
+        .filter(({ url }) => url === '/agent/10/conversations/')
+        .map(({ params }) => params.page)
+    ).toEqual([1, 1, 2])
+  })
+
+  test('rolls a failed rename back and drops a conversation deleted elsewhere', async () => {
+    twoConversations()
+    testApp.mock
+      .onPatch('/agent/10/conversations/conversation-a/')
+      .replyOnce(500)
+      .onPatch('/agent/10/conversations/conversation-a/')
+      .replyOnce(404, { error: 'ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST' })
+    const wrapper = await mount()
+    const rename = async (title) => {
+      await chooseFromMenu(wrapper, 'Conversation A', 'action.rename')
+      const input = wrapper.get('.agent-conversations__rename')
+      await input.setValue(title)
+      await input.trigger('keydown', { key: 'Enter' })
+      await flushPromises()
+    }
+
+    await rename('Fails')
+    expect(conversationTitles(wrapper)).toEqual([
+      'Conversation A',
+      'Conversation B',
+    ])
+
+    await rename('Gone')
+    expect(conversationTitles(wrapper)).toEqual(['Conversation B'])
   })
 })
