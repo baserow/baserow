@@ -893,6 +893,87 @@ def test_resume_stale_waiting_nodes_schedules_a_new_resume_task(
 
 
 @pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.chain")
+@patch(f"{CREATE_ROW_NODE_TYPE_PATH}.resume_dispatch")
+@patch(f"{CREATE_ROW_NODE_TYPE_PATH}.dispatch")
+def test_resume_stale_waiting_nodes_fails_a_waiting_node_inside_a_loop(
+    mock_dispatch, mock_resume_dispatch, mock_chain, data_fixture
+):
+    """
+    The resume task of a node inside an iterator carried the rest of the loop,
+    which a fresh resume task would not run: the run would end `success` after
+    one iteration. The sweep ends the node and the run as `error` instead, and a
+    late original wake-up, with the rest of the loop behind it, does nothing.
+    """
+
+    data = data_fixture.iterator_graph_fixture()
+    iterator_node = data["iterator_node"]
+    child_1 = data["iterator_child_1_node"]
+    workflow_history = data_fixture.create_automation_workflow_history(
+        workflow=data["workflow"].get_original(),
+        event_payload={
+            "results": [{"id": 1}, {"id": 2}, {"id": 3}],
+            "has_next_page": False,
+        },
+    )
+    handler = AutomationNodeHandler()
+
+    with freeze_time(NOW):
+        mock_dispatch.return_value = pending_result(5)
+        handler.dispatch_node(
+            child_1.id,
+            history_id=workflow_history.id,
+            current_iterations={str(iterator_node.id): 0},
+        )
+    node_history = AutomationNodeHistory.objects.get(
+        workflow_history=workflow_history, node=child_1
+    )
+    assert node_history.status == HistoryStatusChoices.WAITING
+
+    with freeze_time(STALE_SWEEP):
+        failed_on = timezone.now()
+        assert handler.resume_stale_waiting_nodes() == 0
+
+    mock_chain.assert_not_called()
+    message = (
+        "The run was interrupted while waiting inside a loop and could not be resumed."
+    )
+
+    node_history.refresh_from_db()
+    assert node_history.status == HistoryStatusChoices.ERROR
+    assert node_history.message == message
+    assert node_history.completed_on == failed_on
+    assert node_history.resume_state is None
+
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.ERROR
+    assert workflow_history.message == message
+    assert workflow_history.completed_on == failed_on
+
+    # The original wake-up was only late: it finds the run resolved, and the
+    # next iteration and the chain's tail behind it leave the error alone.
+    with freeze_time(STALE_SWEEP):
+        assert resume_pending_node_celery_task.run(node_history.id) is None
+        assert (
+            handler.dispatch_node(
+                child_1.id,
+                history_id=workflow_history.id,
+                current_iterations={str(iterator_node.id): 1},
+            )
+            is None
+        )
+    handle_workflow_dispatch_done(history_id=workflow_history.id)
+
+    mock_resume_dispatch.assert_not_called()
+    mock_dispatch.assert_called_once()
+    node_history.refresh_from_db()
+    assert node_history.status == HistoryStatusChoices.ERROR
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.ERROR
+    assert workflow_history.message == message
+
+
+@pytest.mark.django_db
 @patch(f"{HTTP_NODE_TYPE_PATH}.resume_dispatch")
 def test_a_recovered_resume_task_resumes_the_node_at_once(
     mock_resume_dispatch, data_fixture

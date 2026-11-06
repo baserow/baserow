@@ -1275,11 +1275,13 @@ class AutomationNodeHandler:
         budget were timed out: their waiting nodes are resolved with them and
         need no recovery.
 
-        Known limitation: only the waiting node itself is recovered. If the
-        broker really lost the run's messages, the sibling iterations and the
-        nodes queued after an iterator are gone with them, so the run completes
-        without ever running those. The alternative is a run that hangs
-        `started` until it times out a day later.
+        A waiting node inside an iterator is not recovered: the node and its run
+        end as `error` instead. Its resume task carried the rest of the loop
+        (the next iterations, then the nodes after the iterator), which the
+        runner does not plan again from the graph, so a fresh resume task would
+        run one iteration and let its tail mark a truncated run as `success`.
+        This holds whether the message was lost or is only late: a late original
+        wake-up finds the run resolved and does nothing.
 
         :return: How many waiting nodes were given a new resume task.
         """
@@ -1293,11 +1295,23 @@ class AutomationNodeHandler:
             resume_at__lt=stale_before,
             workflow_history__status=HistoryStatusChoices.STARTED,
         ).values_list(
-            "id", "workflow_history_id", "workflow_history__simulate_until_node"
+            "id",
+            "workflow_history_id",
+            "workflow_history__simulate_until_node",
+            "resume_state",
         )
 
         resumed = 0
-        for node_history_id, history_id, simulate_until_node_id in stale_nodes:
+        for (
+            node_history_id,
+            history_id,
+            simulate_until_node_id,
+            resume_state,
+        ) in stale_nodes:
+            if (resume_state or {}).get("current_iterations"):
+                self._fail_stale_waiting_node_in_loop(node_history_id, history_id)
+                continue
+
             logger.warning(
                 f"The resume of waiting node history {node_history_id} of "
                 f"workflow history {history_id} is overdue by more than "
@@ -1310,6 +1324,48 @@ class AutomationNodeHandler:
             resumed += 1
 
         return resumed
+
+    def _fail_stale_waiting_node_in_loop(
+        self, node_history_id: int, history_id: int
+    ) -> None:
+        """
+        Ends a stale waiting node inside an iterator, and its run, as `error`,
+        see `resume_stale_waiting_nodes`. Both updates are guarded like the
+        claim: a resume task that claimed the node in the meantime keeps it, and
+        a run resolved in the meantime keeps its outcome.
+        """
+
+        message = (
+            "The run was interrupted while waiting inside a loop and could not "
+            "be resumed."
+        )
+        now = timezone.now()
+
+        failed = AutomationNodeHistory.objects.filter(
+            id=node_history_id, status=HistoryStatusChoices.WAITING
+        ).update(
+            status=HistoryStatusChoices.ERROR,
+            message=message,
+            completed_on=now,
+            resume_state=None,
+        )
+        if not failed:
+            return
+
+        logger.warning(
+            f"The resume of waiting node history {node_history_id} of workflow "
+            f"history {history_id} is overdue by more than "
+            f"{AUTOMATION_PENDING_NODE_STALE_SECONDS} seconds and the node is "
+            "inside a loop, whose remaining iterations cannot be recovered. The "
+            "run is marked as failed."
+        )
+        AutomationWorkflowHistory.objects.filter(
+            id=history_id, status=HistoryStatusChoices.STARTED
+        ).update(
+            status=HistoryStatusChoices.ERROR,
+            message=message,
+            completed_on=now,
+        )
 
     def _schedule_waiting_node_recovery(
         self,
