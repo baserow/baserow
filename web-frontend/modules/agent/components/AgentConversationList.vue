@@ -18,9 +18,9 @@
           <SkeletonBlock :width="width" />
         </div>
       </div>
-      <ul v-if="items.length" class="agent-conversations__list">
+      <ul v-if="shownItems.length" class="agent-conversations__list">
         <li
-          v-for="item in items"
+          v-for="item in shownItems"
           :key="item.uuid"
           class="agent-conversations__row"
           :class="{
@@ -183,12 +183,18 @@ const menuItem = ref(null)
 const renameInput = ref([])
 const renamingUuid = ref(null)
 const renameTitle = ref('')
+// Chrome blurs a focused input that the list moves, which would end the rename.
+const shownItems = ref(props.items)
 const itemButtons = {}
 let renameOriginal = ''
 
 // A draft exists only in this tab until its first message is sent.
 const hasOptions = (item) => !item.local && (props.canUpdate || props.canDelete)
 const isListed = (uuid) => props.items.some((item) => item.uuid === uuid)
+
+watch([() => props.items, renamingUuid], ([items, renaming]) => {
+  if (!renaming) shownItems.value = items
+})
 
 // Another session can delete the conversation whose menu or rename is open.
 watch(

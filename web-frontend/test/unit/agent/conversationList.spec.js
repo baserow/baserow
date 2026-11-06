@@ -173,4 +173,22 @@ describe('Agent conversation list', () => {
 
     expect(wrapper.emitted('update')).toBeUndefined()
   })
+
+  test('keeps the row being renamed in place until the rename ends', async () => {
+    const other = { uuid: 'other', title: 'Other conversation' }
+    const wrapper = await mountList([other, saved])
+    const rows = () =>
+      wrapper.findAll('.agent-conversations__row').map(({ element }) => element)
+    await chooseFromMenu(wrapper, 'Saved conversation', 'action.rename')
+    const [, renaming] = rows()
+
+    await wrapper.setProps({ items: [saved, other] })
+    expect(rows()[1]).toBe(renaming)
+
+    const input = wrapper.get('.agent-conversations__rename')
+    await input.setValue('Renamed')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(rows()[0]).toBe(renaming)
+    expect(wrapper.emitted('update')).toEqual([[saved, { title: 'Renamed' }]])
+  })
 })
