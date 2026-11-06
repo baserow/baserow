@@ -1575,6 +1575,19 @@ describe('Agent configuration', () => {
     expect(wrapper.find('.agent-workspace-tools__group').exists()).toBe(false)
   })
 
+  test('shows an unknown reasoning effort as the model default', async () => {
+    mockConfiguration(
+      testApp,
+      completeConfiguration({ reasoning_effort: 'xhigh' })
+    )
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.agentSettings')
+
+    expect(
+      reasoningEffortDropdown(wrapper).get('.dropdown__selected-text').text()
+    ).toBe('agent.reasoningEffortDefault')
+  })
+
   test('saves the reasoning effort and saves the model default as null', async () => {
     mockSaves(
       testApp,

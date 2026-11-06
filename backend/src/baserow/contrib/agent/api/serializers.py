@@ -25,6 +25,7 @@ from baserow.core.chat_runs.constants import ChatRunStepStatus
 from baserow.core.tools.errors import ToolErrorCode
 
 READINESS_CHOICES = [state.value for state in AgentReadinessState]
+REASONING_EFFORT_CHOICES = [effort.value for effort in AgentReasoningEffort]
 
 
 class AgentApplicationSerializer(serializers.ModelSerializer):
@@ -87,7 +88,7 @@ class AgentConfigurationSerializer(serializers.Serializer):
     provider_type = serializers.CharField(allow_null=True)
     model_identifier = serializers.CharField(allow_null=True)
     reasoning_effort = serializers.ChoiceField(
-        choices=[effort.value for effort in AgentReasoningEffort],
+        choices=REASONING_EFFORT_CHOICES,
         allow_null=True,
         help_text="How much the model reasons before it replies. Null uses the "
         "model's default.",
@@ -154,7 +155,7 @@ class AgentConfigurationUpdateSerializer(
     UnknownFieldRaisesExceptionSerializerMixin, serializers.ModelSerializer
 ):
     reasoning_effort = serializers.ChoiceField(
-        choices=[effort.value for effort in AgentReasoningEffort],
+        choices=REASONING_EFFORT_CHOICES,
         allow_null=True,
         required=False,
         help_text="How much the model reasons before it replies. Null uses the "

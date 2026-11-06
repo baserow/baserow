@@ -22,7 +22,12 @@ export const CONFIGURATION_FIELD = Object.freeze({
 })
 
 // Null keeps the model's default reasoning.
-export const REASONING_EFFORTS = Object.freeze(['off', 'low', 'medium', 'high'])
+export const REASONING_EFFORTS = Object.freeze([
+  { value: 'off', label: 'agent.reasoningEffortOff' },
+  { value: 'low', label: 'agent.reasoningEffortLow' },
+  { value: 'medium', label: 'agent.reasoningEffortMedium' },
+  { value: 'high', label: 'agent.reasoningEffortHigh' },
+])
 
 export const CONFIGURATION_SAVE_RESULT = Object.freeze({
   REJECTED_IDENTITY: 'rejected_identity',

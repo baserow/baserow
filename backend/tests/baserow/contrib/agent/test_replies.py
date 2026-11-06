@@ -14,6 +14,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelHTTPError
+from pydantic_ai.models import ModelRequestParameters
 from pydantic_ai.models.function import DeltaToolCall, FunctionModel
 from pydantic_ai.models.instrumented import InstrumentationSettings
 from pydantic_ai.models.openai import OpenAIResponsesModel
@@ -39,7 +40,7 @@ from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.contrib.agent.replies import AgentResponder, create_reply_model
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.signals import agent_conversation_updated
-from baserow.contrib.agent.types import AgentMessageCreated
+from baserow.contrib.agent.types import AgentMessageCreated, AgentReplyRequest
 from baserow.contrib.database.table.models import Table
 from baserow.core.agents.service import AgentService as IdentityService
 from baserow.core.chat_runs.journal import ChatRunJournal
@@ -1026,17 +1027,37 @@ def test_failed_tool_calls_keep_their_category_in_the_api(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "effort,thinking",
-    [(None, None), ("off", False), ("low", "low"), ("high", "high")],
+    "model_identifier,effort,thinking",
+    [
+        ("gpt-5.1", None, None),
+        ("gpt-5.1", "off", False),
+        ("gpt-5.1", "low", "low"),
+        ("gpt-5.1", "high", "high"),
+        # o3 always reasons and ignores False, so off sends its lowest level.
+        ("o3", "off", "low"),
+        ("o3", "medium", "medium"),
+        # Models that cannot reason never receive the setting.
+        ("gpt-4.1", "high", None),
+        # A value this version doesn't know keeps the model's default.
+        ("gpt-5.1", "xhigh", None),
+    ],
 )
-def test_reply_model_settings_carry_the_reasoning_effort(
-    data_fixture, configured_agent, effort, thinking
+def test_reply_requests_carry_the_reasoning_effort(
+    configured_agent, model_identifier, effort, thinking
 ):
-    user = data_fixture.create_user()
-    agent = configured_agent(user=user, reasoning_effort=effort)
-    created = start(user, agent)
+    agent = configured_agent()
+    request = AgentReplyRequest(
+        reply_id=1,
+        workspace=agent.workspace,
+        instructions="",
+        provider_type="openai",
+        model_identifier=model_identifier,
+        prompt="Hi",
+        history=[],
+        reasoning_effort=effort,
+    )
 
-    request = AgentHandler().get_reply_request(created.reply)
-    _, model_settings = create_reply_model(request)
+    model, model_settings = create_reply_model(request)
+    _, params = model.prepare_request(model_settings, ModelRequestParameters())
 
-    assert model_settings.get("thinking") == thinking
+    assert params.thinking == thinking

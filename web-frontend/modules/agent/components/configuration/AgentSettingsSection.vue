@@ -84,7 +84,7 @@
     small-label
   >
     <Dropdown
-      :model-value="configuration.reasoning_effort || DEFAULT_REASONING_EFFORT"
+      :model-value="selectedReasoningEffort"
       :disabled="!editable"
       :show-search="false"
       fixed-items
@@ -119,22 +119,21 @@ const { $registry } = useNuxtApp()
 const { t } = useI18n()
 // The dropdown needs a value for the default, which is saved as null.
 const DEFAULT_REASONING_EFFORT = 'default'
-const REASONING_EFFORT_LABELS = {
-  off: 'agent.reasoningEffortOff',
-  low: 'agent.reasoningEffortLow',
-  medium: 'agent.reasoningEffortMedium',
-  high: 'agent.reasoningEffortHigh',
-}
 const reasoningEfforts = computed(() => [
   {
     value: DEFAULT_REASONING_EFFORT,
     name: t('agent.reasoningEffortDefault'),
   },
-  ...REASONING_EFFORTS.map((effort) => ({
-    value: effort,
-    name: t(REASONING_EFFORT_LABELS[effort]),
-  })),
+  ...REASONING_EFFORTS.map(({ value, label }) => ({ value, name: t(label) })),
 ])
+// Replies use the model's default for a value this version doesn't know.
+const selectedReasoningEffort = computed(() =>
+  REASONING_EFFORTS.some(
+    ({ value }) => value === props.configuration.reasoning_effort
+  )
+    ? props.configuration.reasoning_effort
+    : DEFAULT_REASONING_EFFORT
+)
 const providerInput = ref(null)
 const modelInput = ref(null)
 const providers = computed(() => {
