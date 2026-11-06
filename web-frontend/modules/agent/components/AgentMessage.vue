@@ -55,6 +55,8 @@ import {
 } from '@baserow/modules/core/chatRuns/constants'
 import { replyOutcome } from '@baserow/modules/agent/utils/replies'
 
+const NO_STEPS = []
+
 const props = defineProps({ message: { type: Object, required: true } })
 
 const store = useStore()
@@ -83,11 +85,11 @@ const shown = computed(() => {
     replying: !follower.finished,
   }
 })
-const groups = computed(() =>
-  own.value ? [] : groupToolSteps(shown.value.steps, $registry, t)
-)
+// A stable array lets text deltas skip regrouping and re-rendering the steps.
+const steps = computed(() => (own.value ? NO_STEPS : shown.value.steps))
+const groups = computed(() => groupToolSteps(steps.value, $registry, t))
 const toolRunning = computed(() =>
-  shown.value.steps?.some((step) => step.status === STEP_STATUS.RUNNING)
+  steps.value?.some((step) => step.status === STEP_STATUS.RUNNING)
 )
 const outcome = computed(() => replyOutcome(shown.value))
 </script>

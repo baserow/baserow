@@ -260,7 +260,8 @@ const fieldLabels = {
 const replyRunning = computed(() => Boolean(state.replyFollower))
 const composerActivity = computed(() => {
   if (!replyRunning.value) return ''
-  const runningStep = state.replyFollower.view.steps?.findLast(
+  // Calls run in call order, so the first unfinished one is executing.
+  const runningStep = state.replyFollower.view.steps?.find(
     (step) => step.status === STEP_STATUS.RUNNING
   )
   if (runningStep) return `${toolActivity(runningStep, $registry, t).title}…`

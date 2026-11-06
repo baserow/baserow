@@ -183,6 +183,19 @@ describe('Agent replies', () => {
     )
   })
 
+  test('names the call that runs first while later calls wait', async () => {
+    const wrapper = await startReply()
+
+    await receive('run-1', 'step', toolStep('a', 'list_tables', 'running'))
+    await receive('run-1', 'step', toolStep('b', 'create_rows', 'running'))
+
+    expect(activity(wrapper).text()).toContain('agent.toolListTablesRunning')
+
+    await receive('run-1', 'step', toolStep('a', 'list_tables', 'done'))
+
+    expect(activity(wrapper).text()).toContain('agent.toolCreateRowsRunning')
+  })
+
   test('reloads grouped reads and failed calls from saved message steps', async () => {
     withConversation([
       prompt,
@@ -247,12 +260,15 @@ describe('Agent replies', () => {
           updated() {
             if (this.$options.__name === 'AgentMessage') {
               updated.push(this.message.uuid)
+            } else if (this.$options.__name === 'ChatStepGroup') {
+              updated.push('steps')
             }
           },
         },
       ],
     })
     await selectConversation(wrapper, existingConversation.title)
+    await receive('run-4', 'step', toolStep('a', 'create_rows', 'running'))
     updated.length = 0
 
     await streamText('run-4', 'Hel')
