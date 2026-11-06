@@ -518,3 +518,35 @@ def test_the_highest_values_the_rest_api_takes_are_stored(data_fixture, builder_
 
     assert not result.get("errors")
     assert len(result["created_elements"]) == 3
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "tool,count,limit",
+    [
+        ("create_display_elements", 51, "50"),
+        ("create_layout_elements", 101, "100"),
+    ],
+)
+def test_a_call_over_the_item_limits_saves_nothing(
+    data_fixture, builder_ctx, tool, count, limit
+):
+    endpoint = _endpoint(data_fixture, builder_ctx, WRITE_TOOLS)
+    page_id = builder_ctx["page"].id
+    if tool == "create_display_elements":
+        elements = [
+            {"ref": f"h{i}", "type": "heading", "value": "Hi"} for i in range(count)
+        ]
+    else:
+        items = [{"name": f"Link {i}", "page_id": page_id} for i in range(count)]
+        elements = [{"ref": "menu", "type": "menu", "menu_items": items}]
+    before = Element.objects.count()
+
+    async def callback(client):
+        return await client.call_tool(tool, {"page_id": page_id, "elements": elements})
+
+    result = _session(endpoint, callback)
+
+    assert result.isError is True
+    assert f"at most {limit} items" in result.content[0].text
+    assert Element.objects.count() == before

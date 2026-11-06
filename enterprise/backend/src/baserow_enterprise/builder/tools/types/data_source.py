@@ -18,6 +18,7 @@ from baserow_enterprise.tools.formula_utils import (
 )
 from baserow_enterprise.tools.types import BaseModel, without_field
 
+from .limits import MAX_NESTED_ITEMS
 from .workflow_action import is_text_formula, text_or_placeholder
 
 if TYPE_CHECKING:
@@ -130,6 +131,7 @@ class DataSourceCreate(BaseModel):
         ),
     )
     sortings: list[DataSourceSort] | None = Field(
+        max_length=MAX_NESTED_ITEMS,
         default=None,
         description="(list_rows) Sort configuration.",
     )

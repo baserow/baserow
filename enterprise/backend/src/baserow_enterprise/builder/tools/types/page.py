@@ -11,6 +11,8 @@ from pydantic import Field, model_validator
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow_enterprise.tools.types import BaseModel, without_field
 
+from .limits import MAX_NESTED_ITEMS
+
 RoleType = Literal["allow_all", "allow_all_except", "disallow_all_except"]
 
 
@@ -62,11 +64,14 @@ class PageCreate(BaseModel):
     name: str = Field(..., description="Page name (unique in app).")
     path: str = Field(..., description="URL path, e.g. '/products/:id'.")
     path_params: list[PagePathParam] = Field(
+        max_length=MAX_NESTED_ITEMS,
         default_factory=list,
         description="Path parameters. Omitted parameters in the URL default to text.",
     )
     query_params: list[PageQueryParam] = Field(
-        default_factory=list, description="Query parameters."
+        max_length=MAX_NESTED_ITEMS,
+        default_factory=list,
+        description="Query parameters.",
     )
     visibility: Literal["all", "logged-in"] = Field(
         "all", description="'all' or 'logged-in'."
@@ -79,6 +84,7 @@ class PageCreate(BaseModel):
         ),
     )
     roles: list[str] = Field(
+        max_length=MAX_NESTED_ITEMS,
         default_factory=list,
         description="Role names for the access strategy.",
     )
@@ -100,10 +106,10 @@ class PageUpdate(BaseModel):
     name: str | None = Field(default=None, description="New page name.")
     path: str | None = Field(default=None, description="New URL path.")
     path_params: list[PagePathParam] | None = Field(
-        default=None, description="New path parameters."
+        max_length=MAX_NESTED_ITEMS, default=None, description="New path parameters."
     )
     query_params: list[PageQueryParam] | None = Field(
-        default=None, description="New query parameters."
+        max_length=MAX_NESTED_ITEMS, default=None, description="New query parameters."
     )
     visibility: Literal["all", "logged-in"] | None = Field(
         default=None, description="Page visibility."
@@ -112,7 +118,9 @@ class PageUpdate(BaseModel):
         default=None, description="Role access strategy."
     )
     roles: list[str] | None = Field(
-        default=None, description="Role names for the access strategy."
+        max_length=MAX_NESTED_ITEMS,
+        default=None,
+        description="Role names for the access strategy.",
     )
 
     def to_update_kwargs(self) -> dict:

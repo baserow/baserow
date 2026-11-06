@@ -35,6 +35,7 @@ from .types import (
     PageItem,
     PageUpdate,
 )
+from .types.limits import MAX_ITEMS_PER_CALL
 
 
 def get_page_in_workspace(ctx: ToolContext, page_id: int) -> Page:
@@ -140,7 +141,10 @@ def create_pages(
     builder_id: Annotated[
         int, Field(description="The ID of the application builder, from list_builders.")
     ],
-    pages: Annotated[list[PageCreate], Field(description="The pages to create.")],
+    pages: Annotated[
+        list[PageCreate],
+        Field(max_length=MAX_ITEMS_PER_CALL, description="The pages to create."),
+    ],
 ) -> dict[str, Any]:
     """
     Create pages in an application builder. A parameter in a path, like :id in
@@ -260,15 +264,20 @@ def setup_page(
     page_id: Annotated[int, Field(description="The ID of the page, from list_pages.")],
     data_sources: Annotated[
         list[DataSourceCreate] | None,
-        Field(description="The data sources to create."),
+        Field(max_length=MAX_ITEMS_PER_CALL, description="The data sources to create."),
     ] = None,
     elements: Annotated[
         list[ElementItemCreate] | None,
-        Field(description="The elements to create, parents before children."),
+        Field(
+            max_length=MAX_ITEMS_PER_CALL,
+            description="The elements to create, parents before children.",
+        ),
     ] = None,
     actions: Annotated[
         list[ActionCreate] | None,
-        Field(description="The workflow actions to create."),
+        Field(
+            max_length=MAX_ITEMS_PER_CALL, description="The workflow actions to create."
+        ),
     ] = None,
 ) -> dict[str, Any]:
     """

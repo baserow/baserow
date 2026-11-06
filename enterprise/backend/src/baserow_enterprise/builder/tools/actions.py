@@ -28,6 +28,7 @@ from .formulas import (
 )
 from .pages import get_page_in_workspace
 from .types import ActionChanges, ActionCreate, ActionItem
+from .types.limits import MAX_ITEMS_PER_CALL
 
 
 def list_actions(
@@ -121,7 +122,10 @@ def create_actions(
     ctx: ToolContext,
     page_id: Annotated[int, Field(description="The ID of the page, from list_pages.")],
     actions: Annotated[
-        list[ActionCreate], Field(description="The workflow actions to create.")
+        list[ActionCreate],
+        Field(
+            max_length=MAX_ITEMS_PER_CALL, description="The workflow actions to create."
+        ),
     ],
 ) -> dict[str, Any]:
     """

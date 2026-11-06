@@ -26,6 +26,8 @@ from baserow_enterprise.tools.formula_utils import (
 )
 from baserow_enterprise.tools.types import BaseModel
 
+from .limits import MAX_NESTED_ITEMS
+
 if TYPE_CHECKING:
     from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
     from baserow_enterprise.builder.tools.formulas import BuilderFormulaContext
@@ -519,6 +521,7 @@ class ActionCreate(BaseModel):
         default=None, description="(open_page) Target page ID."
     )
     page_parameters: list[ParameterMapping] | None = Field(
+        max_length=MAX_NESTED_ITEMS,
         default=None,
         description=(
             "(open_page) Page parameter mappings: exactly the path parameters of "
@@ -526,7 +529,9 @@ class ActionCreate(BaseModel):
         ),
     )
     query_parameters: list[ParameterMapping] | None = Field(
-        default=None, description="(open_page) Query parameter mappings."
+        max_length=MAX_NESTED_ITEMS,
+        default=None,
+        description="(open_page) Query parameter mappings.",
     )
     target: Literal["self", "blank"] = Field(
         default="self", description="(open_page) Navigation target."
@@ -541,6 +546,7 @@ class ActionCreate(BaseModel):
         description="(update_row, delete_row) Row ID formula. Can be a formula: see the tool description.",
     )
     field_values: list[FieldValueMapping] | None = Field(
+        max_length=MAX_NESTED_ITEMS,
         default=None,
         description="(create_row, update_row) Field value mappings. Can be a formula: see the tool description.",
     )
@@ -782,10 +788,12 @@ class ActionChanges(BaseModel):
         default=None, description="(open_page) Target page ID."
     )
     page_parameters: list[ParameterMapping] | None = Field(
+        max_length=MAX_NESTED_ITEMS,
         default=None,
         description="(open_page) Page parameter mappings. Replaces the whole list.",
     )
     query_parameters: list[ParameterMapping] | None = Field(
+        max_length=MAX_NESTED_ITEMS,
         default=None,
         description="(open_page) Query parameter mappings. Replaces the whole list.",
     )
@@ -804,6 +812,7 @@ class ActionChanges(BaseModel):
         default=None, description="(update_row, delete_row) Row ID formula."
     )
     field_values: list[FieldValueMapping] | None = Field(
+        max_length=MAX_NESTED_ITEMS,
         default=None,
         description=(
             "(create_row, update_row) Field value formulas. Fields not named here "

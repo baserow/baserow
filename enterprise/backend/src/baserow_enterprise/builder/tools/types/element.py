@@ -39,6 +39,7 @@ from baserow_enterprise.tools.formula_utils import (
 from baserow_enterprise.tools.types import BaseModel, without_field
 
 from .changes import name_key
+from .limits import MAX_NESTED_ITEMS
 from .menu_items import (
     ListedTopLevelMenuItem,
     MenuItemAdd,
@@ -839,6 +840,7 @@ class ElementItemCreate(BaseModel):
         description="Role access strategy. Only relevant when visibility='logged-in'.",
     )
     roles: list[str] = Field(
+        max_length=MAX_NESTED_ITEMS,
         default_factory=list,
         description="Role names for the access strategy.",
     )
@@ -877,7 +879,9 @@ class ElementItemCreate(BaseModel):
         description="(link) Custom URL. Can be a formula: see the tool description.",
     )
     link_page_parameters: list[ParameterMapping] | None = Field(
-        default=None, description="(link) Page parameter mappings."
+        max_length=MAX_NESTED_ITEMS,
+        default=None,
+        description="(link) Page parameter mappings.",
     )
     link_target: Literal["self", "blank"] | None = Field(
         default=None, description="(link) Navigation target."
@@ -954,7 +958,9 @@ class ElementItemCreate(BaseModel):
         default=None, description="(choice) Show as dropdown."
     )
     choice_options: list[ChoiceOption] | None = Field(
-        default=None, description="(choice) List of options."
+        max_length=MAX_NESTED_ITEMS,
+        default=None,
+        description="(choice) List of options.",
     )
 
     # datetime_picker specific
@@ -974,7 +980,9 @@ class ElementItemCreate(BaseModel):
         default=None, description="(table) Load more button label."
     )
     fields: list[TableFieldConfig] | None = Field(
-        default=None, description="(table) Column configurations."
+        max_length=MAX_NESTED_ITEMS,
+        default=None,
+        description="(table) Column configurations.",
     )
     orientation: Literal["vertical", "horizontal"] | None = Field(
         default=None, description="(repeat, menu) Orientation."
@@ -989,7 +997,9 @@ class ElementItemCreate(BaseModel):
         default=None, description="(header, footer) Page sharing."
     )
     page_ids: list[int] | None = Field(
-        default=None, description="(header, footer) Page IDs for sharing."
+        max_length=MAX_NESTED_ITEMS,
+        default=None,
+        description="(header, footer) Page IDs for sharing.",
     )
     menu_orientation: Literal["horizontal", "vertical"] | None = Field(
         default=None, description="(menu) Menu orientation."
@@ -998,7 +1008,9 @@ class ElementItemCreate(BaseModel):
         default=None, description="(menu) Menu alignment."
     )
     menu_items: list[MenuItemCreate] | None = Field(
-        default=None, description="(menu) Menu item configurations."
+        max_length=MAX_NESTED_ITEMS,
+        default=None,
+        description="(menu) Menu item configurations.",
     )
 
     # -- Auth form fields ---------------------------------------------------
@@ -1140,6 +1152,7 @@ class DisplayElementCreate(_ElementBase):
         description="(link) Custom URL. Can be a formula: see the tool description.",
     )
     link_page_parameters: list[ParameterMapping] | None = Field(
+        max_length=MAX_NESTED_ITEMS,
         default=None,
         description=(
             "(link) Page parameter mappings: the path parameters of the target page."
@@ -1190,13 +1203,16 @@ class LayoutElementCreate(_ElementBase):
         default=None, ge=1, le=6, description="(column) Number of columns (1-6)."
     )
     menu_items: list[MenuItemCreate] | None = Field(
-        default=None, description="(menu) Menu item configurations."
+        max_length=MAX_NESTED_ITEMS,
+        default=None,
+        description="(menu) Menu item configurations.",
     )
     share_type: Literal["all", "only", "except"] | None = Field(
         default=None,
         description="(header, footer) Page sharing: 'all' (default), 'only' (show on page_ids only), 'except' (hide on page_ids).",
     )
     page_ids: list[int] | None = Field(
+        max_length=MAX_NESTED_ITEMS,
         default=None,
         description="(header, footer) Page IDs for share_type='only' or 'except'.",
     )
@@ -1251,7 +1267,9 @@ class FormElementCreate(_ElementBase):
         default=None, description="(choice, record_selector) Allow multiple."
     )
     choice_options: list[ChoiceOption] | None = Field(
-        default=None, description="(choice) List of options."
+        max_length=MAX_NESTED_ITEMS,
+        default=None,
+        description="(choice) List of options.",
     )
     include_time: bool | None = Field(
         default=None, description="(datetime_picker) Include time."
@@ -1301,7 +1319,9 @@ class CollectionElementCreate(_ElementBase):
         description="Data source: int ID (existing) or string ref (same batch).",
     )
     fields: list[TableFieldConfig] | None = Field(
-        default=None, description="(table) Column configurations."
+        max_length=MAX_NESTED_ITEMS,
+        default=None,
+        description="(table) Column configurations.",
     )
     orientation: Literal["vertical", "horizontal"] | None = Field(
         default=None, description="(repeat) Orientation."
@@ -1641,7 +1661,9 @@ class ElementUpdate(BaseModel):
         Literal["allow_all", "allow_all_except", "disallow_all_except"] | None
     ) = Field(default=None, description="Role access strategy.")
     roles: list[str] | None = Field(
-        default=None, description="Role names for the access strategy."
+        max_length=MAX_NESTED_ITEMS,
+        default=None,
+        description="Role names for the access strategy.",
     )
 
     # -- Display fields -------------------------------------------------------
@@ -1745,18 +1767,22 @@ class ElementUpdate(BaseModel):
         default=None, description="(table) Load more button label."
     )
     add_table_columns: list[TableColumnAdd] | None = Field(
+        max_length=MAX_NESTED_ITEMS,
         default=None,
         description="(table) New columns. They go last unless before_uid is set.",
     )
     update_table_columns: list[TableColumnUpdate] | None = Field(
+        max_length=MAX_NESTED_ITEMS,
         default=None,
         description="(table) Existing columns to change, by uid from list_elements. Only the keys you send change.",
     )
     reorder_table_columns: list[str] | None = Field(
+        max_length=MAX_NESTED_ITEMS,
         default=None,
         description="(table) Uids of every column that stays, in the new order, from list_elements.",
     )
     remove_table_columns: list[str] | None = Field(
+        max_length=MAX_NESTED_ITEMS,
         default=None,
         description="(table) Uids of columns to delete, from list_elements. Only remove columns the user asked to remove. Undo doesn't restore them or their click actions.",
     )
@@ -1775,18 +1801,22 @@ class ElementUpdate(BaseModel):
         default=None, description="(menu) Menu alignment."
     )
     add_menu_items: list[MenuItemAdd] | None = Field(
+        max_length=MAX_NESTED_ITEMS,
         default=None,
         description="(menu, header, footer) New page links. They go last at their level unless before_uid is set; parent_uid makes one a sub-link.",
     )
     update_menu_items: list[MenuItemUpdate] | None = Field(
+        max_length=MAX_NESTED_ITEMS,
         default=None,
         description="(menu, header, footer) Existing items to change, by uid from list_elements. Only the keys you send change.",
     )
     reorder_menu_items: list[str] | None = Field(
+        max_length=MAX_NESTED_ITEMS,
         default=None,
         description="(menu, header, footer) Uids of every top-level item that stays, in the new order, from list_elements. Sub-links can't be reordered.",
     )
     remove_menu_items: list[str] | None = Field(
+        max_length=MAX_NESTED_ITEMS,
         default=None,
         description="(menu, header, footer) Uids of items to delete, from list_elements. A removed item's sub-links go with it. Only remove items the user asked to remove. Undo doesn't restore them or their click actions.",
     )

@@ -36,6 +36,7 @@ from .types import (
     FormElementCreate,
     LayoutElementCreate,
 )
+from .types.limits import MAX_ITEMS_PER_CALL
 
 
 def list_elements(
@@ -156,7 +157,8 @@ def create_elements(
     ctx: ToolContext,
     page_id: Annotated[int, Field(description="The ID of the page, from list_pages.")],
     elements: Annotated[
-        list[ElementItemCreate], Field(description="The elements to create.")
+        list[ElementItemCreate],
+        Field(max_length=MAX_ITEMS_PER_CALL, description="The elements to create."),
     ],
     before_element_id: Annotated[
         int | None,
@@ -187,7 +189,8 @@ def create_display_elements(
     ctx: ToolContext,
     page_id: Annotated[int, Field(description="The ID of the page, from list_pages.")],
     elements: Annotated[
-        list[DisplayElementCreate], Field(description="The elements to create.")
+        list[DisplayElementCreate],
+        Field(max_length=MAX_ITEMS_PER_CALL, description="The elements to create."),
     ],
     before_element_id: Annotated[
         int | None,
@@ -223,7 +226,8 @@ def create_layout_elements(
     ctx: ToolContext,
     page_id: Annotated[int, Field(description="The ID of the page, from list_pages.")],
     elements: Annotated[
-        list[LayoutElementCreate], Field(description="The elements to create.")
+        list[LayoutElementCreate],
+        Field(max_length=MAX_ITEMS_PER_CALL, description="The elements to create."),
     ],
     before_element_id: Annotated[
         int | None,
@@ -257,7 +261,8 @@ def create_form_elements(
     ctx: ToolContext,
     page_id: Annotated[int, Field(description="The ID of the page, from list_pages.")],
     elements: Annotated[
-        list[FormElementCreate], Field(description="The elements to create.")
+        list[FormElementCreate],
+        Field(max_length=MAX_ITEMS_PER_CALL, description="The elements to create."),
     ],
     before_element_id: Annotated[
         int | None,
@@ -289,7 +294,8 @@ def create_collection_elements(
     ctx: ToolContext,
     page_id: Annotated[int, Field(description="The ID of the page, from list_pages.")],
     elements: Annotated[
-        list[CollectionElementCreate], Field(description="The elements to create.")
+        list[CollectionElementCreate],
+        Field(max_length=MAX_ITEMS_PER_CALL, description="The elements to create."),
     ],
     before_element_id: Annotated[
         int | None,
@@ -436,7 +442,10 @@ def update_element_style(
 
 def move_elements(
     ctx: ToolContext,
-    moves: Annotated[list[ElementMove], Field(description="The moves to make.")],
+    moves: Annotated[
+        list[ElementMove],
+        Field(max_length=MAX_ITEMS_PER_CALL, description="The moves to make."),
+    ],
 ) -> dict[str, Any]:
     """
     Move elements within their page: before another element, into a container, or to

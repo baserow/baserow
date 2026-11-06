@@ -28,6 +28,7 @@ from .types import (
     DataSourceItem,
     DataSourceUpdate,
 )
+from .types.limits import MAX_ITEMS_PER_CALL
 
 
 def list_data_sources(
@@ -113,7 +114,8 @@ def create_data_sources(
     ctx: ToolContext,
     page_id: Annotated[int, Field(description="The ID of the page, from list_pages.")],
     data_sources: Annotated[
-        list[DataSourceCreate], Field(description="The data sources to create.")
+        list[DataSourceCreate],
+        Field(max_length=MAX_ITEMS_PER_CALL, description="The data sources to create."),
     ],
 ) -> dict[str, Any]:
     """

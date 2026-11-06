@@ -9,6 +9,8 @@ from pydantic import Field, model_validator
 
 from baserow_enterprise.tools.types import BaseModel
 
+from .limits import MAX_NESTED_ITEMS
+
 _DEFAULT_ROLES = ["Admin", "Member", "Viewer"]
 
 
@@ -30,6 +32,7 @@ class UserSourceSetup(BaseModel):
 
     roles: list[str] | None = Field(
         None,
+        max_length=MAX_NESTED_ITEMS,
         description=(
             "Role names for the SingleSelect role field. "
             'Defaults to ["Admin", "Member", "Viewer"]. '
