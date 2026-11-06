@@ -49,9 +49,7 @@
           v-if="showVisibility"
           :model-value="visibility"
           :disabled="jobIsRunning || updateLoading"
-          :needs-review="
-            Boolean(template.make_public_needs_review) || requireApproval
-          "
+          :needs-review="Boolean(template.make_public_needs_review)"
           :listed="Boolean(template.listed)"
           class="margin-top-2"
           @update:model-value="Object.assign(values, $event)"
@@ -236,9 +234,7 @@ export default {
       )
       return [...this.categories, ...missing]
     },
-    // The content is copied from the same workspace and applications as before,
-    // if known. Also without them it's the content of an existing template, so
-    // no other workspace starts with all its applications selected.
+    // The workspace and applications the content was copied from, if known.
     preselect() {
       return {
         workspaceId: this.template.source_workspace_id ?? null,
@@ -255,37 +251,25 @@ export default {
         sorted(this.values.categoryIds) !== sorted(initial.categoryIds)
       )
     },
-    requireApproval() {
-      return Boolean(
-        this.$store.getters['settings/get'].user_templates_require_approval
-      )
-    },
-    // An update of a listed template goes to review when approval is on, and
-    // also with approval off after an admin rejected an earlier update. One of a
-    // template in review replaces the version in review. One of a rejected
-    // template that isn't listed stays rejected until the author makes it
-    // public again. A template made private isn't reviewed.
+    // Whether the update goes to review is the server's answer, see
+    // `update_needs_review`. Not listed, the review moves to the new revision.
     reviewNotice() {
-      const { listed, state } = this.template
-      if (state === 'in_review') {
-        return {
-          title: 'updateUserTemplateModal.inReviewTitle',
-          text: listed
-            ? 'updateUserTemplateModal.inReviewListedText'
-            : 'updateUserTemplateModal.inReviewText',
-        }
-      }
       if (
-        listed &&
-        (this.requireApproval || state !== 'public') &&
+        this.template.update_needs_review &&
         (!this.showVisibility || this.values.makePublic)
       ) {
-        return {
-          title: 'updateUserTemplateModal.reviewTitle',
-          text: 'updateUserTemplateModal.reviewText',
-        }
+        return this.template.listed
+          ? {
+              title: 'updateUserTemplateModal.reviewTitle',
+              text: 'updateUserTemplateModal.reviewText',
+            }
+          : {
+              title: 'updateUserTemplateModal.inReviewTitle',
+              text: 'updateUserTemplateModal.inReviewText',
+            }
       }
-      if (state === 'rejected') {
+      // A rejected template that isn't listed stays rejected.
+      if (this.template.state === 'rejected') {
         return {
           title: 'updateUserTemplateModal.rejectedTitle',
           text: 'updateUserTemplateModal.rejectedText',

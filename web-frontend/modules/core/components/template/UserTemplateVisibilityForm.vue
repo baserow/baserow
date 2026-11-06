@@ -57,12 +57,12 @@ const props = defineProps({
     required: false,
     default: false,
   },
-  // Public goes to review first instead of being listed right away.
+  // Whether Public goes to review first instead of being listed right away.
   needsReview: {
     type: Boolean,
     default: false,
   },
-  // The template is listed already, so Public keeps it listed.
+  // Whether the template is listed already, so Public keeps it listed.
   listed: {
     type: Boolean,
     default: false,

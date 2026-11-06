@@ -5,7 +5,7 @@
     row-id-key="id"
     :filters="filters"
     :enable-search="false"
-    @review="showReviewModal"
+    @open-review="showReviewModal"
     @reject="showRejectModal"
   >
     <template #title>
@@ -31,15 +31,13 @@
         :template="reviewRow"
         :can-close="!rejecting"
         @reject="showRejectModal"
-        @reviewed="reviewed(slotProps.refresh)"
+        @reviewed="(id) => reviewed(slotProps.refresh, id)"
       ></TemplateReviewModal>
       <RejectTemplateModal
         ref="rejectModal"
         :template="rejectRow"
-        :edit-only="rejectRow.listed && rejectRow.state === 'in_review'"
-        :unlist="rejectAction === 'unlist'"
-        :request="(reason) => review(rejectRow, rejectAction, reason)"
-        @done="reviewed(slotProps.refresh)"
+        :request="reject"
+        @done="(id) => reviewed(slotProps.refresh, id)"
         @hidden="rejecting = false"
       ></RejectTemplateModal>
     </template>
@@ -60,14 +58,9 @@ import TemplateReasonField from '@baserow/modules/core/components/admin/template
 import TemplateReviewActionsField from '@baserow/modules/core/components/admin/templates/fields/TemplateReviewActionsField'
 import RejectTemplateModal from '@baserow/modules/core/components/admin/templates/RejectTemplateModal'
 import TemplateReviewModal from '@baserow/modules/core/components/admin/templates/TemplateReviewModal'
-import {
-  rejectUnlists,
-  useTemplateReview,
-} from '@baserow/modules/core/composables/useTemplateReview'
+import { useTemplateReview } from '@baserow/modules/core/composables/useTemplateReview'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
-// The tabs, one per state of the templates on the page, with the locale keys of
-// their name and of the text shown when they're empty.
 const TABS = [
   {
     state: 'in_review',
@@ -76,8 +69,8 @@ const TABS = [
   },
   {
     state: 'public',
-    name: 'templatesAdmin.published',
-    empty: 'templatesAdmin.publishedEmpty',
+    name: 'templatesAdmin.public',
+    empty: 'templatesAdmin.publicEmpty',
   },
   {
     state: 'rejected',
@@ -89,22 +82,16 @@ const TABS = [
 const { $client, $i18n } = useNuxtApp()
 
 const service = TemplatesAdminService($client)
-const { review } = useTemplateReview()
+const { decide } = useTemplateReview()
 const tabIndex = ref(0)
 // The number of templates by state, null until loaded.
 const counts = ref(null)
-// The rows that the review and reject modals are for. The modals are the
-// table's, not the row's, as the row is unmounted when the list is refreshed
-// after a review.
+// The modals' rows are the table's: a review's refresh unmounts the rows.
 const reviewRow = ref({})
 const reviewModal = ref(null)
 const rejectRow = ref({})
 // While the reject modal is open, also on top of the review modal.
 const rejecting = ref(false)
-// Rejecting a listed template unlists it.
-const rejectAction = computed(() =>
-  rejectUnlists(rejectRow.value) ? 'unlist' : 'reject'
-)
 const rejectModal = ref(null)
 
 const state = computed(() => TABS[tabIndex.value].state)
@@ -123,9 +110,8 @@ const tabs = computed(() =>
 )
 
 /**
- * Fetches the counts of the tabs. Only a review changes them, which moves a
- * template to another tab, so they're fetched on load, on tab change and after
- * a review, not when the page or the sorting of the list changes.
+ * Fetches the counts of the tabs: on load, on tab change and after a review, not
+ * on page or sort changes, which don't move templates between tabs.
  */
 async function fetchCounts() {
   try {
@@ -139,24 +125,40 @@ async function fetchCounts() {
 onMounted(fetchCounts)
 watch(tabIndex, fetchCounts)
 
+// The rows behind the reject modal are still reachable by the keyboard, but the
+// modal must keep the template it was opened for.
 function showReviewModal(row) {
+  if (rejecting.value) {
+    return
+  }
   reviewRow.value = row
   reviewModal.value.show()
 }
 
+function reject(template, reason) {
+  return decide(template, template.reject_unlists ? 'unlist' : 'reject', reason)
+}
+
 function showRejectModal(row) {
+  if (rejecting.value) {
+    return
+  }
   rejectRow.value = row
   rejecting.value = true
   rejectModal.value.show()
 }
 
 /**
- * Closes the preview and refreshes the list and the counts once a template was
- * approved, rejected or unlisted, or the server refused because the template
- * changed since.
+ * Refreshes the list and the counts once a template was approved, rejected or
+ * unlisted, or found changed since, and closes its preview if it's still open.
+ *
+ * @param {Function} refresh Refreshes the list of the table.
+ * @param {number} id The id of the reviewed template.
  */
-function reviewed(refresh) {
-  reviewModal.value.hide()
+function reviewed(refresh, id) {
+  if (reviewRow.value.id === id) {
+    reviewModal.value.hide()
+  }
   refresh()
   fetchCounts()
 }

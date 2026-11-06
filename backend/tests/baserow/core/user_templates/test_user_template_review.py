@@ -1,17 +1,13 @@
-from collections import Counter
-from contextlib import contextmanager
 from unittest.mock import patch
 
 from django.db import connection, transaction
 from django.test.utils import CaptureQueriesContext
-from django.utils import timezone
 
 import pytest
 from freezegun import freeze_time
 
 from baserow.core.action.registries import action_type_registry
-from baserow.core.cache import invalidate_cached_settings, set_cached_settings
-from baserow.core.exceptions import IsNotAdminError
+from baserow.core.exceptions import IsNotAdminError, TemplateDoesNotExist
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Template
 from baserow.core.user_templates.actions import (
@@ -29,7 +25,11 @@ from baserow.core.user_templates.exceptions import (
     TemplateUpdated,
 )
 from baserow.core.user_templates.handler import UserTemplateHandler
-from tests.baserow.core.user_templates.utils import create_template, make_public
+from baserow.test_utils.helpers import (
+    stale_cached_settings,
+    user_template_plan_rows,
+)
+from tests.baserow.core.user_templates.utils import create_template
 
 
 def get_state(root):
@@ -58,12 +58,8 @@ def review(action, admin, root, revision_id, seen_state=None, seen_listed=None):
 def create_reviewable(data_fixture, revision_states):
     """A user template whose revisions are in the states, and its latest one."""
 
-    root = revision = create_template(data_fixture, data_fixture.create_user())
-    for index, revision_state in enumerate(revision_states):
-        if index:
-            revision = data_fixture.create_user_template_revision(root)
-        data_fixture.set_user_template_state(root, revision_state, revision)
-    return root, revision
+    root = create_template(data_fixture, data_fixture.create_user())
+    return root, data_fixture.set_user_template_revision_states(root, revision_states)
 
 
 @pytest.mark.django_db
@@ -71,7 +67,8 @@ def create_reviewable(data_fixture, revision_states):
     "action,revision_states,unlisted",
     [
         ("approve", ["in_review"], None),
-        ("approve", ["rejected", "private"], None),
+        # Approved directly, without being made public again.
+        ("approve", ["rejected"], None),
         # The edit of a listed template replaces it in the listing.
         ("approve", ["public", "in_review"], None),
         ("reject", ["public"], True),
@@ -90,17 +87,16 @@ def test_review(data_fixture, action, revision_states, unlisted):
     with patch("baserow.core.action.signals.action_done.send") as action_done:
         review(action, admin, root, latest.id)
 
-    latest = Template.objects.with_review_state().get(id=latest.id)
+    latest = Template.objects.with_template_state().get(id=latest.id)
     assert latest.reviewed_by == admin and latest.reviewed_on is not None
     listed = list(CoreHandler().list_templates(admin, listed=True))
     if action == "approve":
         assert latest.review_state == Template.ReviewState.APPROVED
-        # Kept when the template was submitted, otherwise it's now.
-        assert latest.submitted_on == (submitted_on or latest.submitted_on) is not None
+        assert latest.submitted_on == submitted_on is not None
         assert latest.get_root().public_revision_id == latest.id
         assert listed == [latest]
         # The rejection is closed: making it public again won't need a review.
-        assert latest.review_open_rejection is False
+        assert latest.has_open_rejection is False
     else:
         assert latest.review_state == Template.ReviewState.REJECTED
         assert listed == ([] if unlisted else listed_before)
@@ -120,29 +116,35 @@ def test_review(data_fixture, action, revision_states, unlisted):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "action,revision_states,case,error",
-    [
-        ("approve", ["private"], "latest", TemplateNotReviewable),
-        ("reject", ["private"], "latest", TemplateNotReviewable),
-        ("reject", ["rejected"], "latest", TemplateNotReviewable),
-        ("approve", ["blocked", "in_review"], "latest", TemplateBlocked),
-        ("approve", ["in_review", "pruned"], "latest", TemplateHasNoContent),
-        ("approve", ["in_review"], "not_staff", IsNotAdminError),
-        ("approve", ["rejected", "private"], "previous", TemplateUpdated),
-        # Reviewed by another admin, or changed, since the admin saw it.
-        ("approve", ["public"], "seen_in_review", TemplateAlreadyApproved),
-        ("reject", ["rejected"], "seen_in_review", TemplateAlreadyRejected),
-        ("reject", ["private"], "seen_public", TemplateUpdated),
-        # Taken out of the listing by another admin, while staying rejected.
-        ("approve", ["rejected"], "seen_listed", TemplateAlreadyRejected),
-    ],
+    "revision_states,case,action,error",
+    user_template_plan_rows(
+        "6",
+        [
+            (["private"], "latest", "approve", TemplateNotReviewable),
+            (["private"], "latest", "reject", TemplateNotReviewable),
+            (["rejected"], "latest", "reject", TemplateNotReviewable),
+            (["blocked", "in_review"], "latest", "approve", TemplateBlocked),
+            (["in_review", "pruned"], "latest", "approve", TemplateHasNoContent),
+            (["in_review"], "not_staff", "approve", IsNotAdminError),
+            # The author's edit since the rejection isn't submitted.
+            (["rejected", "private"], "previous", "approve", TemplateUpdated),
+            # Not the revision of its row on the admin page.
+            (["rejected", "private"], "latest", "approve", TemplateUpdated),
+            # Deleted by its owner while the admin reviews it.
+            (["marked", "in_review"], "latest", "approve", TemplateDoesNotExist),
+            # Reviewed by another admin, or changed, since the admin saw it.
+            (["public"], "seen_in_review", "approve", TemplateAlreadyApproved),
+            (["rejected"], "seen_in_review", "reject", TemplateAlreadyRejected),
+            (["private"], "seen_public", "reject", TemplateUpdated),
+            # Taken out of the listing by another admin, while staying rejected.
+            (["rejected"], "seen_listed", "approve", TemplateAlreadyRejected),
+        ],
+        key_columns=3,
+    ),
 )
 def test_refused_review(data_fixture, action, revision_states, case, error):
     admin = data_fixture.create_user(is_staff=case != "not_staff")
-    states = [state for state in revision_states if state != "pruned"]
-    root, latest = create_reviewable(data_fixture, states)
-    if "pruned" in revision_states:
-        Template.objects.filter(id=latest.id).update(pruned_at=timezone.now())
+    root, latest = create_reviewable(data_fixture, revision_states)
     revision_id = root.id if case == "previous" else latest.id
     seen_state = {
         "seen_in_review": UserTemplateState.IN_REVIEW,
@@ -188,81 +190,109 @@ def test_review_locks_the_root(data_fixture):
     selects = [
         query["sql"]
         for query in queries.captured_queries
-        if query["sql"].startswith("SELECT") and 'FROM "core_template"' in query["sql"]
+        if 'FROM "core_template"' in query["sql"]
     ]
-    assert selects[0].endswith("FOR UPDATE")
+    # Locked by its first read, so nothing is read before the lock.
+    assert "FOR UPDATE" in selects[0]
+
+
+def changes(root, before):
+    """
+    What changed of the revisions of a user template since `before`, by the
+    index of each revision, with the ids of revisions as indexes too, so that two
+    templates in the same states compare.
+
+    :param root: The template.
+    :param before: The rows of its revisions before, oldest first.
+    :return: The changed fields of each revision.
+    """
+
+    ids = [row["id"] for row in before]
+    after = Template.objects.filter_by_root(id=root.id).order_by("version").values()
+    as_index = {"public_revision_id": lambda id: id if id is None else ids.index(id)}
+    return [
+        {
+            key: as_index.get(key, lambda value: value)(value)
+            for key, value in row.items()
+            if old[key] != value
+        }
+        for old, row in zip(before, after)
+    ]
+
+
+def revision_rows(root):
+    return list(
+        Template.objects.filter_by_root(id=root.id).order_by("version").values()
+    )
 
 
 @pytest.mark.django_db
-def test_approve_waiting_revisions(data_fixture):
+@pytest.mark.parametrize(
+    "revision_states,approved",
+    user_template_plan_rows(
+        "5",
+        [
+            # Whether switching approval off approves the template like an admin.
+            (["in_review"], True),
+            (["public", "in_review"], True),
+            (["rejected", "public", "in_review"], True),
+            (["private", "in_review"], True),
+            # Rejected since it was last approved, so an admin reviews it.
+            (["rejected", "in_review"], False),
+            (["resubmitted"], False),
+            (["public", "resubmitted"], False),
+            (["in_review", "pruned"], False),
+            (["blocked", "in_review"], False),
+            (["marked", "in_review"], False),
+            (["private"], False),
+            (["public"], False),
+            (["rejected"], False),
+            (["public", "rejected"], False),
+            (["rejected", "private"], False),
+            (["withdrawn_rejected"], False),
+        ],
+    ),
+)
+def test_switching_approval_off_approves_like_an_admin(
+    data_fixture, revision_states, approved
+):
     admin = data_fixture.create_user(is_staff=True)
-    waiting = {
-        name: create_reviewable(data_fixture, states)
-        for name, states in [
-            ("never_listed", ["in_review"]),
-            ("listed_edit", ["public", "in_review"]),
-            ("resubmitted", ["rejected", "in_review"]),
-            ("blocked", ["blocked", "in_review"]),
-            ("marked", ["marked", "in_review"]),
-            ("no_content", ["in_review"]),
-            ("private", ["private"]),
-        ]
-    }
-    Template.objects.filter(id=waiting["no_content"][1].id).update(
-        pruned_at=timezone.now()
-    )
-    before = {name: get_state(root) for name, (root, _) in waiting.items()}
-    listed_root = Template.objects.filter(id=waiting["listed_edit"][0].id)
-    listed_root_review = listed_root.values("reviewed_on", "reviewed_by").get()
+    switched, reviewed = [
+        create_reviewable(data_fixture, revision_states)[0] for _ in range(2)
+    ]
+    before = {root.id: revision_rows(root) for root in [switched, reviewed]}
+    queued = Template.objects.review_queue().filter_by_root(id=reviewed.id).first()
 
     with freeze_time("2026-10-30 12:00"):
-        approved = UserTemplateHandler().approve_waiting_revisions(admin)
+        if approved:
+            review("approve", admin, reviewed, queued.id)
+        reviewed_changes = changes(reviewed, before[reviewed.id])
+        CoreHandler().update_settings(admin, user_templates_require_approval=False)
 
-    # Approved like one by one, as `test_review` tests.
-    assert approved == 2
-    for name in ["never_listed", "listed_edit"]:
-        root, revision = waiting[name]
-        revision.refresh_from_db()
-        assert Template.objects.get(id=root.id).public_revision_id == revision.id
-        assert revision.review_state == Template.ReviewState.APPROVED
-        assert revision.reviewed_by == admin
-        assert revision.reviewed_on.isoformat() == "2026-10-30T12:00:00+00:00"
-        assert get_state(root) == UserTemplateState.PUBLIC
-    # The root of the edit keeps the review of its own revision.
-    assert listed_root.values("reviewed_on", "reviewed_by").get() == listed_root_review
-    # A rejected template becomes public only through an approval.
-    for name in ["resubmitted", "blocked", "marked", "no_content", "private"]:
-        assert get_state(waiting[name][0]) == before[name]
+    switched_changes = changes(switched, before[switched.id])
+    # The same as the approval of the template by an admin.
+    assert switched_changes == reviewed_changes
+    assert any(switched_changes) is approved
+    if approved:
+        assert get_state(switched) == UserTemplateState.PUBLIC
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("stored", [True, False])
-def test_switching_approval_off_approves_the_waiting_templates(
-    data_fixture, settings, stored
-):
-    # Switched off through the handler, as the settings endpoint does. The cached
-    # settings can be stale: only switching the stored setting off approves the
-    # templates in review, with one audit entry for all of them.
-    settings.BASEROW_CACHE_TTL_SECONDS = 600
+def test_switching_approval_off_approves_the_pending_templates(data_fixture, stored):
+    # The cached settings can be stale: only switching the stored setting off
+    # approves the templates in review.
     admin = data_fixture.create_user(is_staff=True)
-    waiting = [create_reviewable(data_fixture, ["in_review"])[0] for _ in range(2)]
-    stale = data_fixture.update_settings(user_templates_require_approval=stored)
-    stale.user_templates_require_approval = not stored
-    set_cached_settings(stale)
+    pending = [create_reviewable(data_fixture, ["in_review"])[0] for _ in range(2)]
 
     with (
-        patch("baserow.core.action.signals.action_done.send") as action_done,
+        stale_cached_settings(user_templates_require_approval=stored),
         CaptureQueriesContext(connection) as queries,
     ):
         CoreHandler().update_settings(admin, user_templates_require_approval=False)
-    invalidate_cached_settings()
 
     expected = UserTemplateState.PUBLIC if stored else UserTemplateState.IN_REVIEW
-    assert [get_state(root) for root in waiting] == [expected, expected]
-    assert [
-        (call.kwargs["action_type"].type, call.kwargs["action_params"])
-        for call in action_done.call_args_list
-    ] == ([("admin_approve_waiting_user_templates", {"count": 2})] if stored else [])
+    assert [get_state(root) for root in pending] == [expected, expected]
     # Read under a row lock, so a concurrent switch waits for this one.
     sql = [query["sql"] for query in queries.captured_queries]
     read = next(
@@ -283,83 +313,6 @@ def test_switching_approval_off_approves_the_waiting_templates(
         assert update < first_lock
 
 
-@pytest.mark.django_db
-def test_approve_waiting_locks_roots_in_id_order(data_fixture):
-    admin = data_fixture.create_user(is_staff=True)
-
-    def approve(count):
-        # The revisions in review are created in the reverse order of their roots.
-        roots = [create_template(data_fixture, admin) for _ in range(count)]
-        for root in reversed(roots):
-            revision = data_fixture.create_user_template_revision(root)
-            data_fixture.set_user_template_state(root, "in_review", revision)
-        with transaction.atomic(), CaptureQueriesContext(connection) as queries:
-            UserTemplateHandler().approve_waiting_revisions(admin)
-        return [query["sql"] for query in queries.captured_queries]
-
-    queries = approve(2)
-
-    # In as many queries however many templates wait.
-    assert len(approve(5)) == len(queries)
-    locks = [query for query in queries if query.endswith("FOR UPDATE")]
-    assert len(locks) == 1
-    # Selects only the ids, so it orders by its first column.
-    assert locks[0].startswith('SELECT "core_template"."id" AS "id" FROM')
-    assert locks[0].endswith("ORDER BY 1 ASC FOR UPDATE")
-
-
-@contextmanager
-def count_template_row_updates():
-    """Counts the updates of each template row, by id, with a trigger."""
-
-    updates = Counter()
-    with connection.cursor() as cursor:
-        cursor.execute(
-            "CREATE TEMPORARY TABLE template_row_update (id int);"
-            "CREATE FUNCTION pg_temp.log_template_row_update() RETURNS trigger "
-            "LANGUAGE plpgsql AS $$ BEGIN "
-            "INSERT INTO template_row_update VALUES (NEW.id); RETURN NULL; END $$;"
-            "CREATE TRIGGER log_template_row_update AFTER UPDATE ON core_template "
-            "FOR EACH ROW EXECUTE FUNCTION pg_temp.log_template_row_update();"
-        )
-    yield updates
-    with connection.cursor() as cursor:
-        cursor.execute("SELECT id, count(*) FROM template_row_update GROUP BY id")
-        updates.update(dict(cursor.fetchall()))
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize("action", ["switch_off", "approve", "make_public", "reject"])
-def test_review_updates_each_template_row_once(data_fixture, action):
-    # Updated twice in a transaction, Postgres checks the owner at commit, which
-    # deadlocks with the deletion of the owner. The first revision is the root.
-    # Rejecting a listed template takes it out of the listing, as unlisting does.
-    data_fixture.update_settings(user_templates_require_approval=action == "approve")
-    admin = data_fixture.create_user(is_staff=True)
-    first = {"make_public": "private", "reject": "public"}.get(action, "in_review")
-    approved = [create_reviewable(data_fixture, [first])]
-    if action == "switch_off":
-        # And a revision in review that isn't the root.
-        approved.append(create_reviewable(data_fixture, ["public", "in_review"]))
-    root = approved[0][0]
-
-    with transaction.atomic(), count_template_row_updates() as updates:
-        if action == "switch_off":
-            UserTemplateHandler().approve_waiting_revisions(admin)
-        elif action == "approve":
-            UserTemplateHandler().approve_template(
-                admin, root.id, root.id, UserTemplateState.IN_REVIEW, False
-            )
-        elif action == "reject":
-            UserTemplateHandler().reject_template(
-                admin, root.id, root.id, "No", UserTemplateState.PUBLIC, True
-            )
-        else:
-            make_public(root.owner, root)
-
-    assert updates and set(updates.values()) == {1}
-
-
 @pytest.mark.parametrize("unlisted", [False, True])
 def test_reject_description(unlisted):
     params = dict(
@@ -377,13 +330,17 @@ def test_reject_description(unlisted):
 
 
 @pytest.mark.django_db
-def test_switching_approval_off_with_nothing_waiting_records_no_audit_entry(
-    data_fixture,
-):
+def test_approve_refused_after_the_review_moved_to_a_new_revision(data_fixture):
     admin = data_fixture.create_user(is_staff=True)
-    data_fixture.update_settings(user_templates_require_approval=True)
+    root, seen = create_reviewable(data_fixture, ["in_review"])
+    new = data_fixture.create_user_template_revision(root)
+    # What an edit of a template in review that isn't listed does.
+    UserTemplateHandler()._move_review(Template.objects.get(id=seen.id), new)
 
-    with patch("baserow.core.action.signals.action_done.send") as action_done:
-        CoreHandler().update_settings(admin, user_templates_require_approval=False)
+    with pytest.raises(TemplateUpdated), transaction.atomic():
+        UserTemplateHandler().approve_template(
+            admin, root.id, seen.id, UserTemplateState.IN_REVIEW, False
+        )
 
-    assert action_done.call_args_list == []
+    assert Template.objects.get(id=new.id).review_state == "pending"
+    assert Template.objects.get(id=root.id).public_revision_id is None

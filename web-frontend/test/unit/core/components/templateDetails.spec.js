@@ -98,7 +98,7 @@ describe('TemplateDetails', () => {
     const userTemplate = { ...template, type: 'user' }
     const wrapper = await mountComponent({
       template: userTemplate,
-      isOwn: true,
+      fromOwnList: true,
     })
     expect(wrapper.find('.template-install__use').exists()).toBe(true)
 
@@ -136,10 +136,15 @@ describe('TemplateDetails', () => {
   ])(
     'offers the visibility change of a %s own template',
     async (state, label, event) => {
-      const userTemplate = { ...template, type: 'user', state }
+      const userTemplate = {
+        ...template,
+        type: 'user',
+        state,
+        can_make_public: event === 'make-public',
+      }
       const wrapper = await mountComponent({
         template: userTemplate,
-        isOwn: true,
+        fromOwnList: true,
       })
 
       await wrapper
@@ -208,12 +213,13 @@ describe('TemplateDetails', () => {
         ...template,
         type: 'user',
         state: 'rejected',
+        can_make_public: true,
         make_public_needs_review: true,
         listed,
       }
       const wrapper = await mountComponent({
         template: userTemplate,
-        isOwn: true,
+        fromOwnList: true,
       })
 
       await wrapper
@@ -238,13 +244,16 @@ describe('TemplateDetails', () => {
     const other = await mountComponent({ template: userTemplate })
     expect(other.findComponent(TemplateInstall).props('latest')).toBe(false)
 
-    const own = await mountComponent({ template: userTemplate, isOwn: true })
+    const own = await mountComponent({
+      template: userTemplate,
+      fromOwnList: true,
+    })
     expect(own.findComponent(TemplateInstall).props('latest')).toBe(true)
   })
 
   test('installs the latest revision of an own template opened by its link', async () => {
     // The template page shows the detail payload, which is the latest revision
-    // for its owner, and doesn't pass `isOwn`.
+    // for its owner, and doesn't pass `fromOwnList`.
     const own = await mountComponent({
       template: { ...template, type: 'user', is_own: true, listed: true },
     })

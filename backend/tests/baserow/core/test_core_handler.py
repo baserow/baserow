@@ -23,7 +23,6 @@ from baserow.contrib.database.fields.models import (
 )
 from baserow.contrib.database.models import Database, Table
 from baserow.contrib.database.views.models import GridView, GridViewFieldOptions
-from baserow.core.cache import invalidate_cached_settings, set_cached_settings
 from baserow.core.exceptions import (
     ApplicationDoesNotExist,
     ApplicationNotInWorkspace,
@@ -58,6 +57,7 @@ from baserow.core.operations import ReadWorkspaceOperationType
 from baserow.core.registries import ImportExportConfig, plugin_registry
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_files.models import UserFile
+from baserow.test_utils.helpers import stale_cached_settings
 
 
 @pytest.mark.django_db
@@ -76,11 +76,12 @@ def test_update_settings(data_fixture):
     with pytest.raises(IsNotAdminError):
         CoreHandler().update_settings(user_2, allow_new_signups=False)
 
-    settings = CoreHandler().update_settings(
+    settings, changed = CoreHandler().update_settings(
         user_1, allow_new_signups=False, instance_id="test"
     )
     assert settings.allow_new_signups is False
     assert settings.instance_id != "test"
+    assert changed == {"allow_new_signups": False}
 
     settings = Settings.objects.all().first()
     assert settings.instance_id != "test"
@@ -88,17 +89,13 @@ def test_update_settings(data_fixture):
 
 
 @pytest.mark.django_db
-def test_update_settings_saves_only_the_received_settings(data_fixture, settings):
+def test_update_settings_saves_only_the_received_settings(data_fixture):
     # The cached settings can be stale: saving them whole would write back the
     # other settings, and returning them would show the stale values.
-    settings.BASEROW_CACHE_TTL_SECONDS = 600
     admin = data_fixture.create_user(is_staff=True)
-    stale = data_fixture.update_settings(user_templates_require_approval=True)
-    stale.user_templates_require_approval = False
-    set_cached_settings(stale)
 
-    updated = CoreHandler().update_settings(admin, allow_new_signups=False)
-    invalidate_cached_settings()
+    with stale_cached_settings(user_templates_require_approval=True):
+        updated, _ = CoreHandler().update_settings(admin, allow_new_signups=False)
 
     stored = Settings.objects.get()
     for instance in [updated, stored]:

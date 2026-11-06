@@ -8,8 +8,7 @@
 </template>
 
 <script setup>
-// The reasons are sentences, which don't fit in one line, and can hold a long
-// word, such as a link, which must wrap too.
+// Reasons are sentences and can hold a long link, so they wrap anywhere.
 const TOOLTIP_OPTIONS = {
   contentClasses: [
     'tooltip__content--expandable',

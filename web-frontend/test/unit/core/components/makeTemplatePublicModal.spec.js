@@ -81,6 +81,7 @@ describe('MakeTemplatePublicModal', () => {
         template: {
           ...template,
           state: 'rejected',
+          can_make_public: true,
           make_public_needs_review: true,
           listed,
         },

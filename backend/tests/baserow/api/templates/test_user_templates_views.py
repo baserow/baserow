@@ -93,7 +93,9 @@ def test_list_own_templates(api_client, data_fixture):
             ],
             "state": "rejected",
             "reason": "Not a template.",
+            "can_make_public": True,
             "make_public_needs_review": True,
+            "update_needs_review": False,
             "listed": False,
             "source_workspace_id": source_workspace.id,
             "source_application_ids": [3, 1],
@@ -104,6 +106,23 @@ def test_list_own_templates(api_client, data_fixture):
             "updated_on": "2026-10-02T10:00:00Z",
         }
     ]
+
+
+@pytest.mark.parametrize(
+    "state,require_approval,expected",
+    [("public", True, True), ("public", False, False), ("private", True, False)],
+)
+def test_list_own_templates_tells_whether_an_update_needs_review(
+    api_client, data_fixture, state, require_approval, expected
+):
+    # An update of a listed template is submitted, see `create_template_revision`.
+    data_fixture.update_settings(user_templates_require_approval=require_approval)
+    owner, token = data_fixture.create_user_and_token()
+    create_own_template(data_fixture, owner, state)
+
+    results = list_own_templates(api_client, token).json()["results"]
+
+    assert [row["update_needs_review"] for row in results] == [expected]
 
 
 def test_list_own_templates_shows_state_of_the_latest_revision(
@@ -186,7 +205,9 @@ def test_list_templates_hides_the_state_from_others(api_client, data_fixture):
     owner_only = (
         "state",
         "reason",
+        "can_make_public",
         "make_public_needs_review",
+        "update_needs_review",
         "listed",
         "source_workspace_id",
         "source_application_ids",
@@ -199,7 +220,7 @@ def test_list_templates_hides_the_state_from_others(api_client, data_fixture):
         results = response.json()["results"]
         assert len(results) == 2
         assert {tuple(t[key] for key in owner_only) for t in results} == {
-            (None, None, None, None, None, None, None)
+            (None,) * len(owner_only)
         }
 
     response = list_templates(api_client, owner_token, type="user")
@@ -422,9 +443,8 @@ def test_get_user_template_shows_others_its_public_revision(api_client, data_fix
             public.created_on,
         )
 
-    # The owner sees the latest revision and its state, as in "Your templates",
-    # also while the template is private or blocked. While it's listed, see
-    # `test_owner_opens_their_edit_in_review_of_a_listed_template`.
+    # The owner sees the latest revision and its state, also while the template
+    # is private or blocked.
     for changes, state in [
         ({"public_revision": None}, "private"),
         ({"blocked_at": django_timezone.now()}, "blocked"),
@@ -459,7 +479,9 @@ def test_get_user_template_shows_others_its_public_revision(api_client, data_fix
             "reason": None,
             "listed": False,
             # Approval is required by default, but not for a blocked template.
+            "can_make_public": state == "private",
             "make_public_needs_review": state == "private",
+            "update_needs_review": False,
             "source_workspace_id": None,
             "source_application_ids": [],
             "install_count": 0,
@@ -997,12 +1019,10 @@ def is_marked(template):
 def create_template_in_state(data_fixture, owner, state):
     template = create_own_template(data_fixture, owner)
     # Its public revision is not the root.
-    revision = (
-        data_fixture.create_user_template_revision(template)
-        if state == "public"
-        else None
+    data_fixture.set_user_template_revision_states(
+        template, ["private", "public"] if state == "public" else [state]
     )
-    return data_fixture.set_user_template_state(template, state, revision)
+    return template
 
 
 @pytest.mark.parametrize("state", ["private", "shared", "public", "blocked"])
@@ -1070,8 +1090,9 @@ def test_deleted_user_template_is_gone_for_everybody(
     tokens = [owner_token, other_token, staff_token]
     template = create_own_template(data_fixture, owner)
     # Revisions have no slug: the root's slug opens the public revision for others.
-    revision = data_fixture.create_user_template_revision(template)
-    data_fixture.set_user_template_state(template, "public", revision)
+    revision = data_fixture.set_user_template_revision_states(
+        template, ["private", "public"]
+    )
     root_grid = create_template_with_rows(data_fixture, template)
     revision_grid = create_template_with_rows(data_fixture, revision)
     url = reverse("api:templates:item", kwargs={"slug": template.slug})
@@ -1205,6 +1226,27 @@ def test_update_template_visibility(
         assert response.json()["make_public_needs_review"] is False
         after = data["visibility"] == "public"
     assert is_public(template) == after
+
+
+def test_template_state_is_read_once_for_the_owner_only(api_client, data_fixture):
+    owner, token = data_fixture.create_user_and_token()
+    template = create_own_template(data_fixture, owner, state="public")
+    data_fixture.create_user_template_revision(template)
+    url = reverse("api:templates:item", kwargs={"slug": template.slug})
+
+    for request, reads in (
+        (lambda: api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}"), 1),
+        (lambda: patch_template(api_client, token, template.slug, **PUBLIC), 1),
+        (lambda: api_client.get(url), 0),
+    ):
+        with CaptureQueriesContext(connection) as queries:
+            shown = request().json()["state"] is not None
+        # `state`, `reason` and `make_public_needs_review` share one read.
+        assert (
+            ['"template_state"' in query["sql"] for query in queries].count(True)
+            == reads
+            == shown
+        )
 
 
 def test_listed_templates_fields_and_paging(api_client, data_fixture):

@@ -24,7 +24,7 @@ from baserow.core.jobs.constants import JOB_CANCELLED, JOB_PENDING, JOB_STARTED
 from baserow.core.jobs.exceptions import JobNotCancellable
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.models import JOB_STATES_ENDED
-from baserow.core.models import Template, Workspace, review_state_expression
+from baserow.core.models import Template, Workspace
 from baserow.core.subjects import UserSubjectType
 from baserow.core.user.exceptions import UserNotFound
 from baserow.core.user_files.handler import UserFileHandler
@@ -457,8 +457,9 @@ def test_list_listed_templates(data_fixture):
     data_fixture.create_user_template(user=user)
     own = data_fixture.create_user_template(user=user)
     # The listed revision of the actor's own template isn't its root.
-    listed_revision = data_fixture.create_user_template_revision(own)
-    data_fixture.set_user_template_state(own, "public", revision=listed_revision)
+    listed_revision = data_fixture.set_user_template_revision_states(
+        own, ["private", "public"]
+    )
     other = data_fixture.set_user_template_state(
         data_fixture.create_user_template(), "public"
     )
@@ -578,49 +579,34 @@ def test_get_user_template_root_by_slug(data_fixture, kind):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "revision_states,state,reason,make_public_needs_review",
+    "revision_states,state,reason",
     [
-        (["private"], UserTemplateState.PRIVATE, None, False),
-        (["in_review"], UserTemplateState.IN_REVIEW, None, False),
-        (["rejected"], UserTemplateState.REJECTED, "Reason", True),
+        (["private"], UserTemplateState.PRIVATE, None),
+        (["in_review"], UserTemplateState.IN_REVIEW, None),
+        (["rejected"], UserTemplateState.REJECTED, "Reason"),
         # An edit of a rejected template is still rejected.
-        (["rejected", "private"], UserTemplateState.REJECTED, "Reason", True),
-        (["withdrawn_rejected"], UserTemplateState.PRIVATE, None, True),
-        (["private", "in_review"], UserTemplateState.IN_REVIEW, None, False),
-        (["public", "private"], UserTemplateState.PUBLIC, None, False),
-        (["rejected", "public"], UserTemplateState.PUBLIC, None, False),
+        (["rejected", "private"], UserTemplateState.REJECTED, "Reason"),
+        (["withdrawn_rejected"], UserTemplateState.PRIVATE, None),
+        (["private", "in_review"], UserTemplateState.IN_REVIEW, None),
+        (["public", "private"], UserTemplateState.PUBLIC, None),
+        (["rejected", "public"], UserTemplateState.PUBLIC, None),
         # An edit of a listed template in review or rejected shows that, while
         # the listed revision stays listed.
-        (["public", "in_review"], UserTemplateState.IN_REVIEW, None, False),
-        (["public", "rejected"], UserTemplateState.REJECTED, "Reason", True),
-        (["rejected", "blocked"], UserTemplateState.BLOCKED, "Spam", False),
-        (["public_blocked"], UserTemplateState.BLOCKED, "Spam", False),
+        (["public", "in_review"], UserTemplateState.IN_REVIEW, None),
+        (["public", "rejected"], UserTemplateState.REJECTED, "Reason"),
+        (["rejected", "blocked"], UserTemplateState.BLOCKED, "Spam"),
+        (["public_blocked"], UserTemplateState.BLOCKED, "Spam"),
     ],
 )
-def test_get_template_state(
-    data_fixture, revision_states, state, reason, make_public_needs_review
-):
+def test_get_template_state(data_fixture, revision_states, state, reason):
     handler = UserTemplateHandler()
     root = data_fixture.create_user_template(blocked_reason="Spam")
-    revision = root
-    for index, revision_state in enumerate(revision_states):
-        if index:
-            revision = data_fixture.create_user_template_revision(root)
-        data_fixture.set_user_template_state(root, revision_state, revision)
+    revision = data_fixture.set_user_template_revision_states(root, revision_states)
 
-    # The state the admin list filters and sorts on is the same, in SQL.
-    annotated = handler.list_templates_for_admin().get(id=revision.id)
-    assert annotated.admin_state == state
+    # Read from the annotations when the row has them, otherwise queried.
+    annotated = Template.objects.with_template_state().get(id=revision.id)
     for latest in [handler.get_latest_revision(root), annotated]:
         assert handler.get_template_state(latest) == (state, reason)
-        assert (
-            handler.make_public_needs_review(latest, require_approval=False)
-            is make_public_needs_review
-        )
-        # With approval on, a private template needs a review too.
-        assert handler.make_public_needs_review(latest, require_approval=True) is (
-            make_public_needs_review or state == UserTemplateState.PRIVATE
-        )
         # A blocked template isn't listed, even with a public revision.
         assert handler.is_listed(latest) is ("public" in revision_states)
 
@@ -836,25 +822,3 @@ def test_install_template_content_applies_the_content_rules(
     assert files[0][0]["visible_name"] == "notes.txt"
     # The file of the copy is stored and served like any other one.
     assert UserFileHandler().get_user_file_by_name(installed_name)
-
-
-@pytest.mark.django_db
-def test_latest_only_review_state_is_null_on_older_revisions(data_fixture):
-    # Postgres filters on the state before it drops the older revisions, so the
-    # admin list only computes it on the latest one, or it's quadratic.
-    root = data_fixture.create_user_template()
-    revision = data_fixture.create_user_template_revision(root)
-    alone = data_fixture.create_user_template()
-
-    states = dict(
-        Template.objects.filter(id__in=[root.id, revision.id, alone.id])
-        .with_review_state()
-        .annotate(state=review_state_expression(latest_only=True))
-        .values_list("id", "state")
-    )
-
-    assert states == {
-        root.id: None,
-        revision.id: UserTemplateState.PRIVATE,
-        alone.id: UserTemplateState.PRIVATE,
-    }

@@ -3,6 +3,7 @@ import { flushPromises } from '@vue/test-utils'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { heldBack } from '@baserow/test/helpers/heldBack'
+import { toastsOfType } from '@baserow/test/helpers/store'
 import UserTemplateList from '@baserow/modules/core/components/template/UserTemplateList'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
 
@@ -470,10 +471,7 @@ describe('UserTemplateList', () => {
         ...JSON.parse(request.data),
       }))
 
-  const downloadToasts = () =>
-    testApp.store.state.toast.items.filter(
-      (toast) => toast.type === 'downloadTemplate'
-    )
+  const downloadToasts = () => toastsOfType(testApp.store, 'downloadTemplate')
 
   const menuLink = (wrapper, text) =>
     wrapper
@@ -622,11 +620,21 @@ describe('UserTemplateList', () => {
       true,
     ],
     ['public', false, ['userTemplateList.makePrivate'], 'make-private'],
+    // Its unsubmitted edit is listed at once, approval being off.
+    [
+      'public',
+      false,
+      ['userTemplateList.makePublic', 'userTemplateList.makePrivate'],
+      'make-public',
+      true,
+    ],
     ['blocked', false, [], null],
   ])(
     'offers to change the visibility of a %s template (needs review: %s)',
     async (state, makePublicNeedsReview, items, event, listed = false) => {
       const template = userTemplate(1, 'Sprint Tracker', state, {
+        // The server says whether it can be made public.
+        can_make_public: event === 'make-public',
         make_public_needs_review: makePublicNeedsReview,
         listed,
       })

@@ -480,8 +480,7 @@ export default {
         this.expandedRows.clear()
       }
 
-      // The columns can change, for example per tab, so a sort on a column that
-      // isn't shown or sortable anymore is dropped instead of being sent.
+      // A sort on a column no longer shown or sortable, as per tab, is dropped.
       const sortableKeys = new Set(
         this.columns.filter((column) => column.sortable).map(({ key }) => key)
       )

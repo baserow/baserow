@@ -227,9 +227,8 @@ export default {
       return null
     },
     /**
-     * Tabs without a route have no href, so they're only reachable with the
-     * keyboard with a tabindex. Disabled ones stay out of reach, like disabled
-     * route tabs, which have no href.
+     * Gives tabs without a route a tabindex, as they have no href to reach them
+     * with the keyboard. Disabled ones get none, like disabled route tabs.
      */
     getTabindex(i) {
       return this.route || this.tabs[i].disabled ? null : 0

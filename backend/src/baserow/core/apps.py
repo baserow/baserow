@@ -349,6 +349,7 @@ class CoreConfig(AppConfig):
             OrderApplicationsActionType,
             OrderWorkspacesActionType,
             RejectWorkspaceInvitationActionType,
+            UpdateAdminSettingsActionType,
             UpdateApplicationActionType,
             UpdateWorkspaceActionType,
             UpdateWorkspaceInvitationActionType,
@@ -378,6 +379,7 @@ class CoreConfig(AppConfig):
         action_type_registry.register(CreateInitialWorkspaceActionType())
         action_type_registry.register(ExportApplicationsActionType())
         action_type_registry.register(ImportApplicationsActionType())
+        action_type_registry.register(UpdateAdminSettingsActionType())
 
         from baserow.core.snapshots.actions import (
             CreateSnapshotActionType,
@@ -391,7 +393,6 @@ class CoreConfig(AppConfig):
 
         from baserow.core.user_templates.actions import (
             ApproveUserTemplateAdminActionType,
-            ApproveWaitingUserTemplatesAdminActionType,
             CreateUserTemplateActionType,
             DeleteUserTemplateActionType,
             RejectUserTemplateAdminActionType,
@@ -405,7 +406,6 @@ class CoreConfig(AppConfig):
         action_type_registry.register(UpdateUserTemplateVisibilityActionType())
         action_type_registry.register(ApproveUserTemplateAdminActionType())
         action_type_registry.register(RejectUserTemplateAdminActionType())
-        action_type_registry.register(ApproveWaitingUserTemplatesAdminActionType())
 
         from baserow.core.trash.actions import (
             EmptyTrashActionType,

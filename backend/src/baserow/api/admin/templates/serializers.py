@@ -1,3 +1,5 @@
+from typing import Optional
+
 from django.contrib.auth import get_user_model
 
 from drf_spectacular.utils import extend_schema_field
@@ -7,6 +9,7 @@ from baserow.api.templates.serializers import (
     TemplateCategorySerializer,
     TemplateSerializer,
 )
+from baserow.core.models import Template
 from baserow.core.user_templates.constants import (
     USER_TEMPLATE_ADMIN_STATES,
     UserTemplateState,
@@ -24,10 +27,9 @@ class AdminUserTemplateAuthorSerializer(serializers.ModelSerializer):
 
 class AdminUserTemplateSerializer(TemplateSerializer):
     """
-    The latest revision of a user template in the admin templates list, see
-    `UserTemplateHandler.list_templates_for_admin`. The author, state and update
-    date are the template's. The workspace and categories are those of the
-    revision, which the admin previews before approving or rejecting it.
+    A row of the admin page, see `UserTemplateHandler.list_templates_for_admin`.
+    The author and state are the template's. The workspace and categories are
+    those of the row's revision, which the admin previews before reviewing it.
     """
 
     categories = TemplateCategorySerializer(read_only=True, many=True)
@@ -38,20 +40,40 @@ class AdminUserTemplateSerializer(TemplateSerializer):
         allow_null=True,
         help_text="The author of the template. Null if they were deleted.",
     )
-    state = serializers.SerializerMethodField(
-        help_text="The state of the template, as shown to its author."
+    state = serializers.ChoiceField(
+        source="admin_state",
+        choices=USER_TEMPLATE_ADMIN_STATES,
+        read_only=True,
+        help_text="The tab of the admin page the template is on.",
     )
     reason = serializers.SerializerMethodField(
-        help_text="Why the template was rejected or blocked, if given."
+        help_text="Why an admin rejected the template, for a rejected one."
     )
     listed = serializers.SerializerMethodField(
         help_text="Whether a revision of the template is listed for everybody, "
         "also while a later one is in review or rejected."
     )
+    can_approve = serializers.BooleanField(
+        read_only=True,
+        help_text="Whether an admin can approve the revision: in review or "
+        "rejected, with content, and not edited since it was submitted.",
+    )
+    edited_since_submitted = serializers.BooleanField(
+        read_only=True,
+        help_text="Whether the template was edited since the revision was "
+        "submitted, which is why an admin can't approve it.",
+    )
+    can_reject = serializers.SerializerMethodField(
+        help_text="Whether an admin can reject the template: in review, or listed."
+    )
+    reject_unlists = serializers.SerializerMethodField(
+        help_text="Whether rejecting the template takes it out of the listing: "
+        "when it's listed, unless only its edit is in review."
+    )
     updated_on = serializers.DateTimeField(
         source="template_updated_on",
         read_only=True,
-        help_text="When the template was last updated.",
+        help_text="When the revision was made.",
     )
 
     class Meta(TemplateSerializer.Meta):
@@ -69,28 +91,41 @@ class AdminUserTemplateSerializer(TemplateSerializer):
             "state",
             "reason",
             "listed",
+            "can_approve",
+            "edited_since_submitted",
+            "can_reject",
+            "reject_unlists",
             "updated_on",
         )
 
-    @extend_schema_field(serializers.ChoiceField(choices=UserTemplateState.choices))
-    def get_state(self, instance):
-        state, _ = UserTemplateHandler().get_template_state(instance)
-        return state
-
     @extend_schema_field(serializers.CharField(allow_null=True))
-    def get_reason(self, instance):
-        _, reason = UserTemplateHandler().get_template_state(instance)
-        return reason
+    def get_reason(self, instance: Template) -> Optional[str]:
+        # The row of a rejected template is its rejected revision.
+        if instance.admin_state == UserTemplateState.REJECTED:
+            return instance.reject_reason or None
+        return None
 
     @extend_schema_field(serializers.BooleanField())
-    def get_listed(self, instance):
+    def get_listed(self, instance: Template) -> bool:
         return UserTemplateHandler().is_listed(instance)
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_can_reject(self, instance: Template) -> bool:
+        return UserTemplateHandler().reject_applies(
+            instance.admin_state, self.get_listed(instance)
+        )
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_reject_unlists(self, instance: Template) -> bool:
+        return UserTemplateHandler().reject_unlists(
+            instance.admin_state, self.get_listed(instance)
+        )
 
 
 class AdminApproveUserTemplateSerializer(serializers.Serializer):
     revision_id = serializers.IntegerField(
         help_text="The id of the revision the admin reviewed, which must still be "
-        "the latest revision of the template."
+        "the row of the template."
     )
     state = serializers.ChoiceField(
         choices=UserTemplateState.choices,
@@ -110,10 +145,12 @@ class AdminRejectUserTemplateSerializer(AdminApproveUserTemplateSerializer):
 
 
 class AdminUserTemplatesQueryParamsSerializer(serializers.Serializer):
-    state = serializers.ChoiceField(choices=USER_TEMPLATE_ADMIN_STATES, required=False)
+    state = serializers.ChoiceField(choices=USER_TEMPLATE_ADMIN_STATES)
 
 
 class AdminUserTemplateCountsSerializer(serializers.Serializer):
     in_review = serializers.IntegerField(help_text="The templates in review.")
-    public = serializers.IntegerField(help_text="The public templates.")
+    public = serializers.IntegerField(
+        help_text="The listed templates without an edit in review or rejected."
+    )
     rejected = serializers.IntegerField(help_text="The rejected templates.")

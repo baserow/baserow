@@ -281,19 +281,15 @@ class TemplateView(APIView):
         the provided template slug.
         """
 
-        # A user template shows its public revision, the same for everyone, but its
-        # owner gets their latest revision, with the same state as in "Your
-        # templates", like a template that isn't public, which only its owner can
-        # open. Install picks the public revision for everyone else, and for the
-        # owner only with `latest=true`, which the frontend sends for their own
-        # template.
+        # The public revision; the owner gets their latest one and its state. Staff
+        # open a revision in review from the admin page, not here.
         revisions = Template.objects.openable(request.user).filter_by_root(slug=slug)
         template = revisions.public_revisions().first()
         if template is None or (
             request.user.is_authenticated
             and template.get_root().owner_id == request.user.id
         ):
-            template = revisions.latest_revisions().first()
+            template = revisions.latest_revisions().with_template_state().first()
         if template is None:
             raise TemplateDoesNotExist(f"The template with slug {slug} does not exist.")
 
@@ -318,12 +314,14 @@ class TemplateView(APIView):
             "admin approves it, it's listed, with the name of its author, for "
             "everybody on this instance, who can open it. Signed-in users can "
             "install it. It's listed right away only when approval isn't required "
-            "and no admin rejected the template. The author must agree to that "
-            "with `public_listing_consent`. The `state` of the response tells "
-            "whether it's listed or in review. Making a template in review public "
-            "changes nothing. With `visibility` `private`, it isn't listed anymore "
-            "and is withdrawn from the review, and only its owner can open and "
-            "install it. Asking for the visibility it has changes nothing."
+            "and no admin rejected the template since it was last approved. The "
+            "author must agree to that with `public_listing_consent`. The `state` "
+            "of the response tells whether it's listed or in review. With "
+            "`visibility` `private`, it isn't listed anymore, its revision in "
+            "review or rejected is withdrawn, and only its owner can open and "
+            "install it. Nothing changes when a template whose latest revision is "
+            "listed or in review is made public, or when a template that isn't "
+            "listed and has nothing in review or rejected is made private."
         ),
         request=UpdateTemplateSerializer,
         responses={
@@ -359,6 +357,11 @@ class TemplateView(APIView):
             get_template_id(slug),
             data["visibility"] == "public",
             public_listing_consent=data["public_listing_consent"],
+        )
+        revision = (
+            Template.objects.select_related("root")
+            .with_template_state()
+            .get(id=revision.id)
         )
         return Response(
             TemplateListItemSerializer(revision, context={"request": request}).data

@@ -1,15 +1,15 @@
 <template>
   <div class="templates-admin-actions">
     <Button
-      v-if="reviewable"
+      v-if="hasOpenReview"
       size="small"
       icon="iconoir-eye-empty"
-      @click.stop="emit('review', row)"
+      @click.stop="emit('open-review', row)"
     >
       {{ $t('templatesAdmin.review') }}
     </Button>
     <Button
-      v-else-if="unlists"
+      v-else-if="row.reject_unlists"
       type="secondary"
       size="small"
       icon="iconoir-eye-off"
@@ -23,14 +23,9 @@
 <script setup>
 import { computed } from 'vue'
 
-import { rejectUnlists } from '@baserow/modules/core/composables/useTemplateReview'
-
 /**
- * The review actions of a template on the admin page. A template in review or
- * rejected is reviewed in its preview, which `review` is emitted for. A
- * published one is unlisted, which asks for a reason in the modal of the table,
- * which `reject` is emitted for, so that the modals outlive the row when the
- * list is refreshed.
+ * `open-review` previews a template in review or rejected, `reject` unlists a
+ * public one. The modals are the table's, so they outlive the row.
  */
 const props = defineProps({
   row: {
@@ -39,10 +34,9 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['review', 'reject'])
+const emit = defineEmits(['open-review', 'reject'])
 
-const reviewable = computed(() =>
+const hasOpenReview = computed(() =>
   ['in_review', 'rejected'].includes(props.row.state)
 )
-const unlists = computed(() => rejectUnlists(props.row))
 </script>

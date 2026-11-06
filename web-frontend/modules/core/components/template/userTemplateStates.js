@@ -31,8 +31,8 @@ export const STATES = {
 }
 
 /**
- * A state that this version doesn't know is shown as it is, so that a list still
- * works when a new state is added.
+ * Returns the badge of a user template state. A state that this version doesn't
+ * know is shown as it is, so that a list still works when a new state is added.
  *
  * @param {string} state The state of a user template.
  * @param {function} t Translates a locale key.
@@ -47,8 +47,8 @@ export function getState(state, t) {
 }
 
 /**
- * A template in review or rejected can still be listed with an earlier approved
- * version, which its badge tells next to the state.
+ * Whether the badge of a template in review or rejected also tells that an
+ * earlier approved version is still listed.
  *
  * @param {object} template A user template with its `state` and `listed`.
  * @returns {boolean} Whether the template shows that it's still listed.

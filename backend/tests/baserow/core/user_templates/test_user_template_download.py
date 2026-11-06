@@ -1,7 +1,6 @@
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.utils import timezone
 
 import pytest
 
@@ -52,11 +51,6 @@ def fake_build(side_effect=None):
     return patch.object(
         UserTemplateHandler, "build_template_archive", autospec=True, side_effect=build
     )
-
-
-def create_public_template(data_fixture, owner):
-    template = create_template(data_fixture, owner)
-    return data_fixture.set_user_template_state(template, "public")
 
 
 def add_revision(data_fixture, root):
@@ -118,10 +112,7 @@ def lose_access(data_fixture, change, template, user):
         # The template stays public, but the user can't sign in anymore.
         User.objects.filter(id=user.id).update(is_active=False)
     else:
-        # Unlike install, which still finishes.
-        Template.objects.filter(id=template.id).update(
-            marked_for_deletion_at=timezone.now()
-        )
+        data_fixture.set_user_template_state(template, "marked")
 
 
 @pytest.mark.django_db
@@ -133,7 +124,7 @@ def test_download_job_fails_when_access_is_lost_before_it_runs(
     data_fixture, change, with_archive
 ):
     user = data_fixture.create_user()
-    template = create_public_template(data_fixture, data_fixture.create_user())
+    template = create_template(data_fixture, data_fixture.create_user(), "public")
     if with_archive:
         # The reused archive isn't handed out either.
         store_template_archive(template)

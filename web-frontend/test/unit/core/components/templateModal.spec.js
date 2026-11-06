@@ -104,7 +104,7 @@ describe('TemplateModal navigation', () => {
     Modal: ModalStub,
     TemplateDetails: defineComponent({
       name: 'TemplateDetails',
-      props: ['template', 'categories', 'workspace', 'showBack', 'isOwn'],
+      props: ['template', 'categories', 'workspace', 'showBack', 'fromOwnList'],
       emits: [
         'back',
         'installed',
@@ -432,7 +432,7 @@ describe('TemplateModal navigation', () => {
       await flushPromises()
 
       const details = wrapper.findComponent({ name: 'TemplateDetails' })
-      expect(details.props('isOwn')).toBe(false)
+      expect(details.props('fromOwnList')).toBe(false)
       expect(details.props('template').workspace_id).toBe(103)
       expect(wrapper.find('.details').text()).toBe('Sprint Tracker v2: Agile')
 
@@ -563,7 +563,7 @@ describe('TemplateModal navigation', () => {
       await flushPromises()
 
       const details = wrapper.findComponent({ name: 'TemplateDetails' })
-      expect(details.props('isOwn')).toBe(true)
+      expect(details.props('fromOwnList')).toBe(true)
 
       await wrapper.find('.details__make-private').trigger('click')
       await flushPromises()
@@ -673,7 +673,7 @@ describe('TemplateModal navigation', () => {
       await wrapper.find('.own-list__sprint-tracker').trigger('click')
       const details = wrapper.findComponent({ name: 'TemplateDetails' })
 
-      expect(details.props('isOwn')).toBe(true)
+      expect(details.props('fromOwnList')).toBe(true)
 
       await wrapper.find('.details__edit').trigger('click')
       await flushPromises()
@@ -942,7 +942,7 @@ describe('TemplateModal navigation', () => {
       await wrapper.find('.list__recipe-book').trigger('click')
 
       expect(
-        wrapper.findComponent({ name: 'TemplateDetails' }).props('isOwn')
+        wrapper.findComponent({ name: 'TemplateDetails' }).props('fromOwnList')
       ).toBe(false)
     })
 

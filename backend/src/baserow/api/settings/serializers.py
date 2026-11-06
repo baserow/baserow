@@ -58,9 +58,10 @@ class SettingsSerializer(serializers.ModelSerializer):
                 "required": False,
                 "help_text": "Whether a user template made public, and every edit "
                 "of a listed one, is listed only once an instance admin approves "
-                "it. Switching it off approves every template in review, except the "
-                "ones an admin rejected since they were last approved. Can only be "
-                "changed with the user templates feature enabled.",
+                "it. Switching it off approves the templates in review that an "
+                "admin could approve, except the ones rejected since their last "
+                "approval. Can only be changed with the user templates feature "
+                "enabled.",
             },
         }
 

@@ -69,8 +69,7 @@ const props = defineProps({
     required: false,
     default: false,
   },
-  // Whether the request can't be sent yet, for example while a required field
-  // in the slot is empty.
+  // The request can't be sent yet, e.g. a required field in the slot is empty.
   confirmDisabled: {
     type: Boolean,
     required: false,

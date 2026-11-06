@@ -38,10 +38,8 @@ import UserTemplateConfirmModal from '@baserow/modules/core/components/template/
 import { makePublicResubmits } from '@baserow/modules/core/utils/userTemplate'
 
 /**
- * Asks the author to agree that their template and their name are listed for
- * everyone on this instance, then makes the template public, which sends it to
- * review when it needs one. The button is the agreement, which the server
- * requires.
+ * Asks the author to agree to list the template and their name, then makes it
+ * public or sends it to review. The button is the agreement the server needs.
  */
 const props = defineProps({
   // The user's template as listed in their templates.
@@ -60,20 +58,17 @@ const { $client, $store } = useNuxtApp()
 
 const confirmModal = ref(null)
 
-// A listed template whose latest change was rejected is public already, so its
-// author submits the change for review again rather than making it public.
+// Listed already, with its edit rejected: the author resubmits the edit.
 const resubmits = computed(() => makePublicResubmits(props.template))
 
-// A template goes to review when approval is on or an admin rejected it, see
-// `make_public_needs_review`. Otherwise only the description says so: the
-// author still makes it public, the review is a step on the way.
+// Whether it goes to review is the server's answer, see `make_public_needs_review`.
 const description = computed(() => {
   if (!props.template.make_public_needs_review) {
     return 'makeTemplatePublicModal.description'
   }
   return props.template.listed
     ? 'makeTemplatePublicModal.resubmitListedDescription'
-    : 'makeTemplatePublicModal.resubmitDescription'
+    : 'makeTemplatePublicModal.reviewDescription'
 })
 
 // The author of the user's own templates is the user.

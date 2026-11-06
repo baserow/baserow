@@ -20,6 +20,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.job_types import InstallTemplateJobType
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.models import Application, InstallTemplateJob, Template
+from tests.baserow.core.user_templates.utils import create_template
 
 TEST_TEMPLATES_DIR = os.path.join(settings.BASE_DIR, "../../../tests/templates")
 
@@ -389,17 +390,6 @@ def test_get_template_ignores_user_templates_with_flag_off(
     assert response.json()["error"] == "ERROR_TEMPLATE_DOES_NOT_EXIST"
 
 
-def _create_installable_user_template(data_fixture, owner, state="private"):
-    """
-    Creates a user template of the owner in the given state, with a database in
-    the workspace of its only revision.
-    """
-
-    user_template = data_fixture.create_user_template(user=owner)
-    data_fixture.create_database_application(workspace=user_template.workspace)
-    return data_fixture.set_user_template_state(user_template, state)
-
-
 @pytest.mark.django_db
 @override_settings(APPLICATION_TEMPLATES_DIR=TEST_TEMPLATES_DIR)
 def test_sync_install_template_ignores_user_templates(api_client, data_fixture):
@@ -407,11 +397,9 @@ def test_sync_install_template_ignores_user_templates(api_client, data_fixture):
     staff, staff_token = data_fixture.create_user_and_token(is_staff=True)
     other, other_token = data_fixture.create_user_and_token()
     # The slug matches a template file, which the official path would install.
-    user_template = data_fixture.create_user_template(
-        user=owner, slug="example-template-2"
+    user_template = create_template(
+        data_fixture, owner, "public", slug="example-template-2"
     )
-    data_fixture.create_database_application(workspace=user_template.workspace)
-    data_fixture.set_user_template_state(user_template, "public")
     revision = data_fixture.create_user_template_revision(
         user_template, workspace=user_template.workspace
     )
@@ -463,7 +451,7 @@ def test_async_install_user_template_access(
     expected_error,
 ):
     owner, owner_token = data_fixture.create_user_and_token()
-    user_template = _create_installable_user_template(data_fixture, owner, state)
+    user_template = create_template(data_fixture, owner, state)
     if actor == "owner":
         user, token = owner, owner_token
     else:
@@ -492,7 +480,7 @@ def test_async_install_user_template_access(
 @pytest.mark.django_db
 def test_async_install_user_template_anonymous(api_client, data_fixture):
     owner = data_fixture.create_user()
-    user_template = _create_installable_user_template(data_fixture, owner, "public")
+    user_template = create_template(data_fixture, owner, "public")
     workspace = data_fixture.create_workspace(user=owner)
 
     response = api_client.post(
@@ -509,7 +497,7 @@ def test_async_install_user_template_anonymous(api_client, data_fixture):
 @pytest.mark.django_db
 def test_async_install_user_template_with_flag_off(api_client, data_fixture, settings):
     owner, token = data_fixture.create_user_and_token()
-    user_template = _create_installable_user_template(data_fixture, owner, "public")
+    user_template = create_template(data_fixture, owner, "public")
     workspace = data_fixture.create_workspace(user=owner)
     # The client still shows the template when the feature is switched off.
     settings.FEATURE_FLAGS = []
@@ -533,7 +521,7 @@ def test_async_install_user_template_checks_the_workspace_first(
 ):
     owner, token = data_fixture.create_user_and_token()
     # Blocked, so that a template check before the workspace check would show.
-    user_template = _create_installable_user_template(data_fixture, owner, "blocked")
+    user_template = create_template(data_fixture, owner, "blocked")
     workspace = data_fixture.create_workspace()
 
     response = api_client.post(
@@ -553,7 +541,7 @@ def test_async_install_user_template_checks_the_workspace_first(
 def test_generic_jobs_endpoint_install_user_template_access(api_client, data_fixture):
     owner, owner_token = data_fixture.create_user_and_token()
     other, other_token = data_fixture.create_user_and_token()
-    user_template = _create_installable_user_template(data_fixture, owner, "private")
+    user_template = create_template(data_fixture, owner, "private")
 
     other_workspace = data_fixture.create_workspace(user=other)
     response = api_client.post(
@@ -614,7 +602,7 @@ def test_async_install_user_template_revision_id(
         CoreHandler().sync_templates()
         template = Template.objects.get(slug="example-template")
     else:
-        template = _create_installable_user_template(data_fixture, owner, "public")
+        template = create_template(data_fixture, owner, "public")
 
     # The revision the user is shown: the preview, or "Your templates" for the
     # owner, who installs the latest revision from there.
@@ -637,12 +625,10 @@ def test_async_install_user_template_revision_id(
     assert shown["id"] == template.id
 
     if case != "official":
-        revision = data_fixture.create_user_template_revision(
-            template, review_state=Template.ReviewState.APPROVED
-        )
+        revision = data_fixture.create_user_template_revision(template)
         data_fixture.create_database_application(workspace=revision.workspace)
         if case == "public_changed":
-            Template.objects.filter(id=template.id).update(public_revision=revision)
+            data_fixture.set_user_template_state(template, "public", revision)
 
     response = api_client.post(
         reverse(
@@ -669,10 +655,11 @@ def test_owner_opens_their_edit_in_review_of_a_listed_template(
 ):
     owner, token = data_fixture.create_user_and_token()
     target = data_fixture.create_workspace(user=owner)
-    template = _create_installable_user_template(data_fixture, owner, "public")
-    edit = data_fixture.create_user_template_revision(template)
+    template = create_template(data_fixture, owner)
+    edit = data_fixture.set_user_template_revision_states(
+        template, ["public", "in_review"]
+    )
     data_fixture.create_database_application(workspace=edit.workspace)
-    data_fixture.set_user_template_state(template, "in_review", edit)
 
     response = api_client.get(
         reverse("api:templates:item", kwargs={"slug": template.slug}),
@@ -706,7 +693,7 @@ def test_async_install_user_template_query_count_is_constant(
     api_client, data_fixture, actor, latest
 ):
     owner, owner_token = data_fixture.create_user_and_token()
-    user_template = _create_installable_user_template(data_fixture, owner, "public")
+    user_template = create_template(data_fixture, owner, "public")
     if actor == "owner":
         user, token = owner, owner_token
     else:
@@ -732,15 +719,13 @@ def test_async_install_user_template_query_count_is_constant(
 
     revisions = [
         data_fixture.create_user_template_revision(
-            user_template,
-            workspace=user_template.workspace,
-            review_state=Template.ReviewState.APPROVED,
+            user_template, workspace=user_template.workspace
         )
         for _ in range(3)
     ]
     # The owner pins the latest revision when asked to, otherwise everyone pins
     # the public one.
-    Template.objects.filter(id=user_template.id).update(public_revision=revisions[1])
+    data_fixture.set_user_template_state(user_template, "public", revisions[1])
     expected_pin = revisions[-1] if latest else revisions[1]
 
     response_json, four_revisions = install()

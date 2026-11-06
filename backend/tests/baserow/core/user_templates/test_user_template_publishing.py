@@ -5,13 +5,16 @@ from django.test.utils import CaptureQueriesContext
 
 import pytest
 
-from baserow.core.cache import invalidate_cached_settings, set_cached_settings
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Template
 from baserow.core.user_templates.actions import (
     UpdateUserTemplateVisibilityActionType,
 )
 from baserow.core.user_templates.handler import UserTemplateHandler
+from baserow.test_utils.helpers import (
+    stale_cached_settings,
+    user_template_plan_rows,
+)
 from tests.baserow.core.user_templates.utils import (
     ICON,
     create_template,
@@ -22,6 +25,19 @@ from tests.baserow.core.user_templates.utils import (
 
 def approval_off(data_fixture):
     return data_fixture.update_settings(user_templates_require_approval=False)
+
+
+def create_revision(data_fixture, user, root, base_revision=None):
+    return UserTemplateHandler().create_template_revision(
+        user=user,
+        root=root,
+        base_revision=base_revision or root,
+        name="Next",
+        description="",
+        icon=ICON,
+        category_ids=[data_fixture.create_template_category().id],
+        workspace=root.workspace,
+    )
 
 
 @pytest.mark.django_db
@@ -51,180 +67,203 @@ def test_submit_revision_lists_and_approves(data_fixture):
 
 
 @pytest.mark.django_db
+def test_update_scheduled_while_public_isnt_listed_once_made_private(data_fixture):
+    approval_off(data_fixture)
+    user = data_fixture.create_user()
+    root = create_template(data_fixture, user, "public")
+    make_private(user, root)
+
+    create_revision(data_fixture, user, root)
+
+    assert Template.objects.get(id=root.id).public_revision_id is None
+
+
+def change_outcome(root, before):
+    """
+    What a change of a user template did: "unchanged", its latest revision
+    "listed" at once or sent to "review", or a "draft" that isn't submitted.
+    Also checks what every change keeps.
+    """
+
+    if list(Template.objects.values().order_by("id")) == before:
+        return "unchanged"
+    before = {row["id"]: row for row in before}
+    root = Template.objects.get(id=root.id)
+    latest = UserTemplateHandler().get_latest_revision(root)
+    revisions = list(Template.objects.filter_by_root(id=root.id))
+    # The admin reviews one revision per template.
+    pending = Template.ReviewState.PENDING
+    assert [r.id for r in revisions if r.review_state == pending] in ([], [latest.id])
+    for revision in revisions:
+        old = before.get(revision.id)
+        if revision.id != latest.id:
+            # An earlier revision is at most withdrawn from review.
+            withdrawn = {pending: Template.ReviewState.WITHDRAWN}
+            allowed = {old["review_state"], withdrawn.get(old["review_state"])}
+            assert revision.review_state in allowed
+        # The reasons keep a rejection open, see `with_template_state`.
+        assert revision.reject_reason == (old["reject_reason"] if old else "")
+    listed_before = before[root.id]["public_revision_id"]
+    if latest.review_state == Template.ReviewState.PENDING:
+        assert latest.submitted_on is not None
+        # The listed revision stays listed meanwhile.
+        assert root.public_revision_id == listed_before
+        return "review"
+    if root.public_revision_id == latest.id != listed_before:
+        assert latest.review_state == Template.ReviewState.APPROVED
+        return "listed"
+    assert root.public_revision_id == listed_before
+    return "draft"
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize(
-    "state,made_private_before_commit,listed",
-    [
-        ("public", False, "new"),
-        ("private", False, None),
-        ("public_blocked", False, "old"),
-        # The update was scheduled while the template was public.
-        ("public", True, None),
-    ],
+    "require_approval", [False, True], ids=["approval_off", "approval_on"]
 )
-def test_update_relists_public_template(
-    data_fixture, state, made_private_before_commit, listed
+@pytest.mark.parametrize("action", ["make_public", "update"])
+@pytest.mark.parametrize(
+    "revision_states,make_public_does,update_does",
+    user_template_plan_rows(
+        "1",
+        [
+            # What each change does, with approval off and on.
+            (["private"], ("listed", "review"), ("draft", "draft")),
+            (["shared"], ("listed", "review"), ("draft", "draft")),
+            (["in_review"], ("unchanged", "unchanged"), ("review", "review")),
+            (["resubmitted"], ("unchanged", "unchanged"), ("review", "review")),
+            (
+                ["private", "in_review"],
+                ("unchanged", "unchanged"),
+                ("review", "review"),
+            ),
+            # A rejection is reviewed again, even with approval off.
+            (["rejected"], ("review", "review"), ("draft", "draft")),
+            (["rejected", "private"], ("review", "review"), ("draft", "draft")),
+            (["withdrawn_rejected"], ("review", "review"), ("draft", "draft")),
+            (["public"], ("unchanged", "unchanged"), ("listed", "review")),
+            (["public", "private"], ("listed", "review"), ("listed", "review")),
+            (["rejected", "public"], ("unchanged", "unchanged"), ("listed", "review")),
+            (["public", "in_review"], ("unchanged", "unchanged"), ("listed", "review")),
+            (["public", "rejected"], ("review", "review"), ("review", "review")),
+            (
+                ["public", "resubmitted"],
+                ("unchanged", "unchanged"),
+                ("review", "review"),
+            ),
+            (["blocked"], ("unchanged", "unchanged"), ("draft", "draft")),
+            (["public_blocked"], ("unchanged", "unchanged"), ("draft", "draft")),
+            (["rejected", "blocked"], ("unchanged", "unchanged"), ("draft", "draft")),
+            # Still in review once unblocked.
+            (
+                ["blocked", "in_review"],
+                ("unchanged", "unchanged"),
+                ("review", "review"),
+            ),
+        ],
+    ),
+)
+def test_owner_is_told_whether_a_change_goes_to_review(
+    data_fixture,
+    require_approval,
+    action,
+    revision_states,
+    make_public_does,
+    update_does,
+):
+    data_fixture.update_settings(user_templates_require_approval=require_approval)
+    user = data_fixture.create_user()
+    root = create_template(data_fixture, user)
+    data_fixture.set_user_template_revision_states(root, revision_states)
+    handler = UserTemplateHandler()
+    latest = handler.get_latest_revision(Template.objects.get(id=root.id))
+    # Read from the annotations when the row has them, otherwise queried.
+    annotated = Template.objects.with_template_state().get(id=latest.id)
+    told = {
+        getattr(handler, f"{action}_needs_review")(row, require_approval)
+        for row in [latest, annotated]
+    }
+    before = list(Template.objects.values().order_by("id"))
+
+    if action == "make_public":
+        make_public(user, root)
+    else:
+        create_revision(data_fixture, user, root, base_revision=latest)
+
+    expected = {"make_public": make_public_does, "update": update_does}
+    outcome = expected[action][require_approval]
+    assert change_outcome(root, before) == outcome
+    assert told == {outcome == "review"}
+    if action == "make_public":
+        # Offered to the owner exactly when it changes something.
+        assert handler.make_public_submits(latest) is (outcome != "unchanged")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "revision_states,unlisted,withdrawn,recorded",
+    user_template_plan_rows(
+        "2",
+        [
+            # By revision index, None for none.
+            (["private"], None, None, None),
+            (["public"], 0, None, 0),
+            (["public", "private"], 0, None, 0),
+            (["rejected", "public"], 1, None, 1),
+            (["in_review"], None, 0, 0),
+            (["rejected"], None, 0, 0),
+            # The author's edit since the rejection was never submitted.
+            (["rejected", "private"], None, 0, 0),
+            (["withdrawn_rejected"], None, None, None),
+            # The edit of a listed template is withdrawn too.
+            (["public", "in_review"], 0, 1, 0),
+            (["public", "rejected"], 0, 1, 0),
+        ],
+    ),
+)
+def test_make_private_withdraws_from_review(
+    data_fixture, revision_states, unlisted, withdrawn, recorded
 ):
     approval_off(data_fixture)
     user = data_fixture.create_user()
-    root = data_fixture.set_user_template_state(
-        create_template(data_fixture, user), state
-    )
-    if made_private_before_commit:
-        make_private(user, root)
-
-    revision = UserTemplateHandler().create_template_revision(
-        user=user,
-        root=root,
-        base_revision=root,
-        name="Next",
-        description="",
-        icon=ICON,
-        category_ids=[data_fixture.create_template_category().id],
-        workspace=root.workspace,
-    )
-
-    expected = {"new": revision.id, "old": root.id, None: None}[listed]
-    assert Template.objects.get(id=root.id).public_revision_id == expected
-    if listed == "new":
-        assert Template.objects.get(id=revision.id).review_state == "approved"
-
-
-def create_revision(data_fixture, user, root, base_revision=None):
-    return UserTemplateHandler().create_template_revision(
-        user=user,
-        root=root,
-        base_revision=base_revision or root,
-        name="Next",
-        description="",
-        icon=ICON,
-        category_ids=[data_fixture.create_template_category().id],
-        workspace=root.workspace,
-    )
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize("change", [None, "edit", "withdraw", "listed"])
-def test_make_public_of_rejected_template_goes_to_review(data_fixture, change):
-    # Even when approval isn't required.
-    approval_off(data_fixture)
-    user = data_fixture.create_user()
-    root = rejected = create_template(data_fixture, user)
-    if change == "listed":
-        # An edit of a listed template, which stays listed meanwhile.
-        data_fixture.set_user_template_state(root, "public")
-        rejected = data_fixture.create_user_template_revision(root)
-    data_fixture.set_user_template_state(root, "rejected", rejected)
-    if change == "edit":
-        create_revision(data_fixture, user, root)
-    elif change == "withdraw":
-        make_private(user, root)
-
-    latest = make_public(user, root)
-    submitted_on = Template.objects.get(id=latest.id).submitted_on
-    make_public(user, root)
-
-    latest = Template.objects.get(id=latest.id)
-    assert latest.get_root().public_revision_id == (
-        root.id if change == "listed" else None
-    )
-    assert latest.review_state == Template.ReviewState.PENDING
-    assert latest.submitted_on == submitted_on is not None
-    assert Template.objects.get(id=rejected.id).reject_reason == "Reason"
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize(
-    "revision_states,withdrawn",
-    [
-        (["in_review"], True),
-        (["rejected"], True),
-        (["rejected", "private"], True),
-        (["withdrawn_rejected"], False),
-        # Unlisted, and an edit of it is withdrawn from review too.
-        (["public", "in_review"], True),
-        (["public", "rejected"], True),
-    ],
-)
-def test_make_private_withdraws_from_review(data_fixture, revision_states, withdrawn):
-    approval_off(data_fixture)
-    user = data_fixture.create_user()
-    root = revision = create_template(data_fixture, user)
-    for index, revision_state in enumerate(revision_states):
-        if index:
-            revision = data_fixture.create_user_template_revision(root)
-        data_fixture.set_user_template_state(root, revision_state, revision)
-    expected = (
-        Template.ReviewState.WITHDRAWN
-        if withdrawn
-        else Template.objects.get(id=revision.id).review_state
-    )
+    root = create_template(data_fixture, user)
+    data_fixture.set_user_template_revision_states(root, revision_states)
+    revisions = list(Template.objects.filter_by_root(id=root.id).order_by("version"))
+    listed_before = Template.objects.get(id=root.id).public_revision_id
+    expected = [
+        Template.ReviewState.WITHDRAWN if index == withdrawn else revision.review_state
+        for index, revision in enumerate(revisions)
+    ]
 
     with patch("baserow.core.action.signals.action_done.send") as action_done:
         make_private(user, root)
 
-    revision = Template.objects.get(id=revision.id)
-    listed = revision_states[0] == "public"
-    assert revision.review_state == expected
-    # The listed revision is recorded, otherwise the withdrawn one.
+    assert listed_before == (None if unlisted is None else revisions[unlisted].id)
+    assert Template.objects.get(id=root.id).public_revision_id is None
+    assert [
+        revision.review_state
+        for revision in Template.objects.filter_by_root(id=root.id).order_by("version")
+    ] == expected
     assert [
         call.kwargs["action_params"]["revision_id"]
         for call in action_done.call_args_list
-    ] == ([root.id if listed else revision.id] if withdrawn else [])
-
-
-@pytest.mark.django_db
-# The edit of a listed template is tested by
-# `test_newer_edit_withdraws_waiting_revision`.
-def test_approval_sends_make_public_to_review(data_fixture):
-    user = data_fixture.create_user()
-    root = create_template(data_fixture, user)
-
-    make_public(user, root)
-
-    root = Template.objects.get(id=root.id)
-    assert (root.review_state, root.public_revision_id) == ("pending", None)
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize("require_approval", [True, False])
-def test_newer_edit_withdraws_waiting_revision(data_fixture, require_approval):
-    data_fixture.update_settings(user_templates_require_approval=require_approval)
-    user = data_fixture.create_user()
-    root = data_fixture.set_user_template_state(
-        create_template(data_fixture, user), "public"
-    )
-    waiting = data_fixture.create_user_template_revision(root)
-    data_fixture.set_user_template_state(root, "in_review", waiting)
-
-    latest = create_revision(data_fixture, user, root, base_revision=waiting)
-
-    assert Template.objects.get(id=waiting.id).review_state == "withdrawn"
-    latest = Template.objects.get(id=latest.id)
-    assert latest.review_state == ("pending" if require_approval else "approved")
-    assert latest.get_root().public_revision_id == (
-        root.id if require_approval else latest.id
-    )
+    ] == ([] if recorded is None else [revisions[recorded].id])
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("caller", ["make_public", "edit_of_listed"])
-def test_approval_is_read_from_the_locked_settings_row(data_fixture, settings, caller):
-    settings.BASEROW_CACHE_TTL_SECONDS = 600
+def test_approval_is_read_from_the_locked_settings_row(data_fixture, caller):
     user = data_fixture.create_user()
-    root = create_template(data_fixture, user)
-    if caller == "edit_of_listed":
-        data_fixture.set_user_template_state(root, "public")
-    stale = approval_off(data_fixture)
-    stale.user_templates_require_approval = True
-    set_cached_settings(stale)
-    assert CoreHandler().get_settings().user_templates_require_approval is True
+    root = create_template(
+        data_fixture, user, "public" if caller == "edit_of_listed" else "private"
+    )
 
-    with CaptureQueriesContext(connection) as queries:
-        if caller == "make_public":
-            latest = make_public(user, root)
-        else:
-            latest = create_revision(data_fixture, user, root)
-    invalidate_cached_settings()
+    with stale_cached_settings(user_templates_require_approval=False):
+        assert CoreHandler().get_settings().user_templates_require_approval is True
+        with CaptureQueriesContext(connection) as queries:
+            if caller == "make_public":
+                latest = make_public(user, root)
+            else:
+                latest = create_revision(data_fixture, user, root)
 
     assert Template.objects.get(id=root.id).public_revision_id == latest.id
     sql = [query["sql"] for query in queries.captured_queries]
@@ -238,32 +277,13 @@ def test_approval_is_read_from_the_locked_settings_row(data_fixture, settings, c
 
 
 @pytest.mark.django_db
-def test_edit_of_template_in_review_moves_the_review(data_fixture):
-    user = data_fixture.create_user()
-    root = data_fixture.set_user_template_state(
-        create_template(data_fixture, user), "in_review"
-    )
-
-    revision = create_revision(data_fixture, user, root)
-
-    root = Template.objects.get(id=root.id)
-    revision = Template.objects.get(id=revision.id)
-    assert root.review_state == Template.ReviewState.WITHDRAWN
-    assert revision.review_state == Template.ReviewState.PENDING
-    assert revision.submitted_on is not None
-    assert root.public_revision_id is None
-
-
-@pytest.mark.django_db
 @pytest.mark.parametrize(
     "state,made_public", [("private", "public"), ("rejected", "in_review")]
 )
 def test_make_visibility_actions_registered(data_fixture, state, made_public):
     approval_off(data_fixture)
     user = data_fixture.create_user()
-    root = data_fixture.set_user_template_state(
-        create_template(data_fixture, user, name="Mine"), state
-    )
+    root = create_template(data_fixture, user, state, name="Mine")
 
     with patch("baserow.core.action.signals.action_done.send") as action_done:
         for action in [make_public, make_public, make_private, make_private]:
@@ -279,7 +299,7 @@ def test_make_visibility_actions_registered(data_fixture, state, made_public):
             UpdateUserTemplateVisibilityActionType.type,
             {
                 **params,
-                "listed": True,
+                "make_public": True,
                 "public_listing_consent": True,
                 "state": made_public,
             },
@@ -288,7 +308,7 @@ def test_make_visibility_actions_registered(data_fixture, state, made_public):
             UpdateUserTemplateVisibilityActionType.type,
             {
                 **params,
-                "listed": False,
+                "make_public": False,
                 "public_listing_consent": False,
                 "state": "private",
             },
@@ -305,3 +325,19 @@ def test_make_visibility_actions_registered(data_fixture, state, made_public):
         "with the consent of the author to list it and their name",
         f'Template "Mine" ({root.id}) made private',
     ]
+
+
+def test_old_visibility_audit_entry_is_described_as_made_public():
+    # Entries recorded before `listed` was renamed to `make_public`.
+    params = {
+        "template_id": 1,
+        "template_name": "T",
+        "revision_id": 1,
+        "listed": True,
+        "public_listing_consent": True,
+    }
+
+    assert UpdateUserTemplateVisibilityActionType.get_long_description(params) == (
+        'Template "T" (1) made public with revision 1, with the consent of the '
+        "author to list it and their name"
+    )
