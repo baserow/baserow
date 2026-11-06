@@ -64,6 +64,9 @@ from baserow.contrib.automation.nodes.types import (
     PendingNodeAlreadyClaimed,
     PendingNodeNotDue,
 )
+from baserow.contrib.automation.workflows.exceptions import (
+    AutomationWorkflowDoesNotExist,
+)
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.formula import BaserowFormulaException, resolve_formula
@@ -1187,9 +1190,11 @@ class AutomationNodeHandler:
                 "workflow_history__cancellation_requested_by",
             ).get(id=node_history_id)
         except AutomationNodeHistory.DoesNotExist:
-            # The node or its workflow was deleted while the node waited, e.g.
-            # the workflow was republished. The run's chain goes on and resolves
-            # the run, nothing else is left to do for this node.
+            # The clone the run executes on was deleted while the node waited:
+            # deleting the workflow deletes its latest published clone, and
+            # deleting the automation or the workspace deletes all of them. A
+            # republish keeps every clone that has history. The run's chain
+            # goes on and finds nothing left to update.
             logger.warning(
                 f"Node history with ID {node_history_id} was not found. It was "
                 "likely deleted while the node was waiting."
@@ -1347,13 +1352,19 @@ class AutomationNodeHandler:
         workflow_history = node_history.workflow_history
         resume_state = node_history.resume_state or {}
         current_iterations = resume_state.get("current_iterations")
-        dispatch_context = AutomationDispatchContext(
-            node.workflow,
-            workflow_history,
-            event_payload=workflow_history.event_payload,
-            simulate_until_node=workflow_history.simulate_until_node,
-            current_iterations=current_iterations,
-        )
+        try:
+            # The context loads the original workflow, which is not found once
+            # the workflow, its automation or its workspace is in the trash.
+            dispatch_context = AutomationDispatchContext(
+                node.workflow,
+                workflow_history,
+                event_payload=workflow_history.event_payload,
+                simulate_until_node=workflow_history.simulate_until_node,
+                current_iterations=current_iterations,
+            )
+        except AutomationWorkflowDoesNotExist:
+            self._cancel_run_of_deleted_workflow(node_history)
+            return None
         iteration_path = dispatch_context.get_iteration_path(node)
         node_type: Type[AutomationActionNodeType] = node.get_type()
 
@@ -1384,6 +1395,41 @@ class AutomationNodeHandler:
             iteration_path,
             dispatch_result,
             current_iterations,
+        )
+
+    def _cancel_run_of_deleted_workflow(
+        self, node_history: AutomationNodeHistory
+    ) -> None:
+        """
+        Ends a run whose workflow was deleted while one of its nodes waited. The
+        clone the run executes on can outlive the deletion: a test clone, or a
+        published clone kept by a republish because it has history. The node,
+        claimed by the caller, and the run are cancelled rather than resumed, and
+        restoring the workflow from the trash does not revive them. A sibling
+        node still waiting finds the run resolved at its own wake-up.
+
+        The `cancelled` signal is not sent: its broadcast is for the history
+        panel of the workflow, which nobody can open while it is in the trash.
+        """
+
+        message = "Workflow was deleted while waiting."
+        now = timezone.now()
+
+        AutomationWorkflowHistory.objects.filter(
+            id=node_history.workflow_history_id,
+            status=HistoryStatusChoices.STARTED,
+        ).update(
+            status=HistoryStatusChoices.CANCELLED,
+            message=message,
+            completed_on=now,
+        )
+
+        node_history.status = HistoryStatusChoices.CANCELLED
+        node_history.message = message
+        node_history.completed_on = now
+        node_history.resume_state = None
+        node_history.save(
+            update_fields=["status", "message", "completed_on", "resume_state"]
         )
 
     def _complete_node_dispatch(

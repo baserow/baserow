@@ -35,7 +35,10 @@ from baserow.contrib.automation.nodes.constants import (
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.tasks import resume_pending_node_celery_task
 from baserow.contrib.automation.nodes.types import PendingNodeAlreadyClaimed
+from baserow.contrib.automation.workflows.constants import WorkflowState
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.tasks import handle_workflow_dispatch_done
+from baserow.core.cache import local_cache
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
@@ -702,9 +705,11 @@ def test_resume_pending_node_task_returns_none_for_a_deleted_node_history(
 @pytest.mark.django_db
 def test_a_run_deleted_while_a_node_waited_resolves_without_an_error(data_fixture):
     """
-    The run's own history is deleted while the node waits, e.g. because the
-    workflow was deleted or republished. Both the wake-up and the tail of the
-    chain find nothing and bail out.
+    The run's own history is deleted while the node waits, because the clone
+    the run executes on was deleted: deleting the workflow deletes its latest
+    published clone, deleting the automation or the workspace deletes all of
+    them (a republish keeps the clones that have history). Both the wake-up and
+    the tail of the chain find nothing and bail out.
     """
 
     data = create_pending_workflow(data_fixture)
@@ -720,6 +725,71 @@ def test_a_run_deleted_while_a_node_waited_resolves_without_an_error(data_fixtur
     handle_workflow_dispatch_done(history_id=workflow_history.id)
 
     assert not AutomationNodeHistory.objects.filter(id=node_history.id).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("clone_state", [WorkflowState.TEST_CLONE, WorkflowState.LIVE])
+@patch(f"{NODE_HANDLER_PATH}.chain")
+@patch(f"{HTTP_NODE_TYPE_PATH}.resume_dispatch")
+def test_a_waiting_run_whose_workflow_was_deleted_is_cancelled(
+    mock_resume_dispatch, mock_chain, data_fixture, clone_state
+):
+    """
+    Runs execute on a clone of the workflow. Deleting the workflow keeps the
+    clone of a waiting run when that run is a test run, or a live run on a clone
+    that a republish replaced: the original is then in the trash, so the resume
+    cancels the run instead of failing on it at every recovery sweep.
+    """
+
+    user = data_fixture.create_user()
+    original = data_fixture.create_automation_workflow(user)
+    data = create_pending_workflow(data_fixture, user=user)
+    clone = data["workflow"]
+    clone.state = clone_state
+    clone.save(update_fields=["state"])
+    clone.automation.published_from = original
+    clone.automation.save(update_fields=["published_from"])
+    workflow_history = data["workflow_history"]
+    workflow_history.original_workflow = original
+    workflow_history.is_test_run = clone_state == WorkflowState.TEST_CLONE
+    workflow_history.save(update_fields=["original_workflow", "is_test_run"])
+    if clone_state == WorkflowState.LIVE:
+        # The latest published clone, which deleting the workflow deletes.
+        latest = data_fixture.create_automation_workflow(user, state=WorkflowState.LIVE)
+        latest.automation.published_from = original
+        latest.automation.save(update_fields=["published_from"])
+    node_history = suspend_node(data, seconds=5)
+
+    AutomationWorkflowHandler().delete_workflow(user, original)
+    # A new task starts with an empty local cache, which held the original.
+    local_cache.clear()
+
+    with freeze_time("2026-10-30 12:00:05"):
+        completed_on = timezone.now()
+        assert resume_pending_node_celery_task.run(node_history.id) is None
+
+    mock_resume_dispatch.assert_not_called()
+
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.CANCELLED
+    assert workflow_history.message == "Workflow was deleted while waiting."
+    assert workflow_history.completed_on == completed_on
+
+    node_history.refresh_from_db()
+    assert node_history.status == HistoryStatusChoices.CANCELLED
+    assert node_history.message == workflow_history.message
+    assert node_history.completed_on == completed_on
+
+    # The chain's tail keeps the cancelled outcome.
+    handle_workflow_dispatch_done(history_id=workflow_history.id)
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.CANCELLED
+
+    # Nothing is left for the recovery sweep, so restoring the workflow from the
+    # trash later cannot resume the run either.
+    with freeze_time(STALE_SWEEP):
+        assert AutomationNodeHandler().resume_stale_waiting_nodes() == 0
+    mock_chain.assert_not_called()
 
 
 @pytest.mark.django_db
