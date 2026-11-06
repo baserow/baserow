@@ -2162,10 +2162,83 @@ class DateFieldType(FieldType):
         # not a concrete value: grouped-data queries build this expression without
         # one. Date-only fields have no time component to truncate.
         if field.date_include_time:
-            return DateTrunc(
-                "minute", field_name, output_field=models.DateTimeField(null=True)
-            )
+            return self._get_truncated_utc_expression(field_name, "minute")
         return super().get_group_by_expression(field, field_name, base_queryset)
+
+    def _get_truncated_utc_expression(
+        self, field_name: str, precision: str
+    ) -> Expression:
+        """
+        Truncate UTC wall time so PostgreSQL can index the immutable expression,
+        then restore the timezone-aware type used by group keys and filter values.
+
+        :param field_name: The timestamp column to truncate.
+        :param precision: The truncation unit, such as day or minute.
+        :return: The truncated timezone-aware UTC expression.
+        """
+
+        utc_timestamp = models.Func(
+            Value("UTC"),
+            F(field_name),
+            function="timezone",
+            output_field=models.DateTimeField(null=True),
+        )
+        return models.Func(
+            Value("UTC"),
+            DateTrunc(
+                precision,
+                utc_timestamp,
+                output_field=models.DateTimeField(null=True),
+            ),
+            function="timezone",
+            output_field=models.DateTimeField(null=True),
+        )
+
+    def get_group_by_sort_order(
+        self,
+        field: Field,
+        field_name: str,
+        order_direction: str,
+        sort_type: str,
+        table_model: Optional["GeneratedTableModel"] = None,
+    ) -> OptionallyAnnotatedOrderBy:
+        """
+        Rows sort by their group key, not the raw value, so the rows of a group
+        stay together and line up with the group's row offset and count.
+        """
+
+        return self._order_by_group_key(
+            self.get_group_by_expression(field, field_name, None), order_direction
+        )
+
+    def get_group_by_order(
+        self,
+        field: Field,
+        field_name: str,
+        order_direction: str,
+        sort_type: str,
+        table_model: Optional["GeneratedTableModel"] = None,
+        group_by_expression: Optional[Expression] = None,
+    ) -> OptionallyAnnotatedOrderBy:
+        """
+        Grouped queries already hold the group key in the field column, so the
+        groups sort by that column as is.
+        """
+
+        if group_by_expression is None:
+            group_by_expression = F(field_name)
+        return self._order_by_group_key(group_by_expression, order_direction)
+
+    def _order_by_group_key(
+        self, group_key: Expression, order_direction: str
+    ) -> OptionallyAnnotatedOrderBy:
+        if order_direction == "ASC":
+            return OptionallyAnnotatedOrderBy(
+                order=group_key.asc(nulls_first=True), can_be_indexed=True
+            )
+        return OptionallyAnnotatedOrderBy(
+            order=group_key.desc(nulls_last=True), can_be_indexed=True
+        )
 
     def get_group_by_field_filters_and_annotations(
         self, field, field_name, base_queryset, value, cte, rows
@@ -2197,6 +2270,60 @@ class CreatedOnLastModifiedBaseFieldType(ReadOnlyFieldType, DateFieldType):
         kwargs["db_index"] = instance.db_index
         kwargs.update(self.model_field_kwargs)
         return self.model_field_class(**kwargs)
+
+    def get_order(
+        self,
+        field: Field,
+        field_name: str,
+        order_direction: str,
+        sort_type: str,
+        table_model: Optional["GeneratedTableModel"] = None,
+    ) -> OptionallyAnnotatedOrderBy:
+        """Ignore hidden times when sorting date-only audit values."""
+
+        if field.date_include_time:
+            return super().get_order(
+                field, field_name, order_direction, sort_type, table_model=table_model
+            )
+        return self._order_by_group_key(
+            self.get_group_by_expression(field, field_name, None), order_direction
+        )
+
+    def get_value_for_filter(self, row: "GeneratedTableModel", field: Field) -> Any:
+        """Match the SQL ordering precision while preserving full timed values."""
+
+        value = super().get_value_for_filter(row, field)
+        if field.date_include_time:
+            return value
+        return self.get_group_by_field_unique_value(field, field.db_column, value)
+
+    def get_group_by_expression(
+        self, field: Field, field_name: str, base_queryset: Optional[QuerySet]
+    ) -> Expression:
+        """
+        Date-only values are still stored as timestamps, so they group by the UTC
+        day the API and the frontend show.
+        """
+
+        if field.date_include_time:
+            return super().get_group_by_expression(field, field_name, base_queryset)
+        return self._get_truncated_utc_expression(field_name, "day")
+
+    def get_group_by_field_unique_value(
+        self, field: Field, field_name: str, value: Any
+    ) -> Any:
+        if field.date_include_time or not isinstance(value, datetime):
+            return super().get_group_by_field_unique_value(field, field_name, value)
+        return value.astimezone(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+
+    def get_group_by_label(self, value: Any, field_object: "FieldObject") -> str:
+        """Keep date-only UTC group labels independent of a retained timezone."""
+
+        if not field_object["field"].date_include_time and isinstance(value, datetime):
+            value = value.astimezone(timezone.utc).date()
+        return super().get_group_by_label(value, field_object)
 
     def after_create(self, field, model, user, connection, before, field_kwargs):
         """

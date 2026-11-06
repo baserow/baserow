@@ -16,7 +16,7 @@ from typing import (
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
-from django.db import DEFAULT_DB_ALIAS, connection
+from django.db import DEFAULT_DB_ALIAS, connection, transaction
 from django.db.models import Prefetch, QuerySet
 from django.db.utils import DatabaseError, DataError, ProgrammingError
 
@@ -498,6 +498,7 @@ class FieldHandler:
 
         return updated_fields
 
+    @transaction.atomic
     def update_field(
         self,
         user: AbstractUser,
@@ -512,6 +513,9 @@ class FieldHandler:
     ) -> Union[SpecificFieldForUpdate, Tuple[SpecificFieldForUpdate, List[Field]]]:
         """
         Updates the values and/or type of the given field.
+
+        Index cleanup and schema changes share a transaction so the table lock
+        prevents background index rebuilds until the new column type is ready.
 
         :param user: The user on whose behalf the table is updated.
         :param field: The field instance that needs to be updated.
@@ -669,6 +673,14 @@ class FieldHandler:
         to_model = field.table.get_model(field_ids=[], fields=[field])
         from_model_field = from_model._meta.get_field(field.db_column)
         to_model_field = to_model._meta.get_field(field.db_column)
+
+        if not baserow_field_type_changed and from_model_field.db_type(
+            connection
+        ) != to_model_field.db_type(connection):
+            # Settings such as a date field's Include time also change the column
+            # type. Remove expression indexes before PostgreSQL rebuilds them
+            # against a type their functions may not accept.
+            ViewHandler().before_field_type_change(old_field)
 
         update_collector = FieldUpdateCollector(field.table)
 

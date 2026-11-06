@@ -388,6 +388,59 @@ def test_get_group_by_data_resolves_datetime_parent_path_ignoring_seconds(data_f
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "create_field", ["create_created_on_field", "create_last_modified_field"]
+)
+def test_get_group_by_data_groups_date_only_timestamps_by_utc_day(
+    data_fixture, create_field
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    day_field = getattr(data_fixture, create_field)(
+        table=table, date_include_time=False
+    )
+    status = data_fixture.create_text_field(table=table, name="Status")
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=day_field)
+    data_fixture.create_view_group_by(view=grid, field=status)
+
+    model = table.get_model()
+    for value in (
+        datetime(2024, 1, 1, 0, 0, 1, tzinfo=timezone.utc),
+        datetime(2024, 1, 1, 23, 59, 59, tzinfo=timezone.utc),
+        datetime(2024, 1, 2, 9, 0, 0, tzinfo=timezone.utc),
+    ):
+        row = model.objects.create(**{status.db_column: "Open"})
+        model.objects.filter(id=row.id).update(**{day_field.db_column: value})
+
+    view_handler = ViewHandler()
+    base_queryset = view_handler.get_queryset(
+        user, grid, model=model, apply_sorts=False
+    )
+    view_group_bys = list(grid.viewgroupby_set.all())
+    days = view_handler.get_group_by_data(base_queryset, view_group_bys, limit=50)
+    first_day_children = view_handler.get_group_by_data(
+        base_queryset,
+        view_group_bys,
+        parent_path={
+            day_field.db_column: datetime(2024, 1, 1, 15, 30, tzinfo=timezone.utc)
+        },
+    )
+
+    assert [
+        (group["path"][day_field.db_column], group["row_count"])
+        for group in days["groups"]
+    ] == [
+        (datetime(2024, 1, 1, tzinfo=timezone.utc), 2),
+        (datetime(2024, 1, 2, tzinfo=timezone.utc), 1),
+    ]
+    assert [
+        (group["path"][status.db_column], group["row_count"])
+        for group in first_day_children["groups"]
+    ] == [("Open", 2)]
+
+
+@pytest.mark.django_db
 def test_get_group_by_data_for_parents_matches_per_parent_queries(data_fixture):
     """
     The batched per-level query must return, for each parent, exactly what the

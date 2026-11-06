@@ -284,39 +284,33 @@ class ViewIndexingHandler:
         return f"i{table_id}:"
 
     @classmethod
-    def before_field_type_change(cls, field: Field, model=None):
+    def before_field_type_change(
+        cls, field: Field, model: Optional[GeneratedTableModel] = None
+    ):
         """
-        Remove all the indexes for the views that have a sort on the field
-        that is being changed.
+        Remove saved view indexes before a table column changes its type.
+        The caller must retain the transaction through the schema change.
 
         :param field: The field that is being changed.
-        :param model: The model to use for the table. If not provided it will be
-            taken from the field.
+        :param model: The model to use for the table, if already generated.
         """
 
-        views = View.objects.filter(
-            id__in=ViewSort.objects.filter(field=field).values("view_id"),
-            db_index_name__isnull=False,
+        # Hold the same lock needed by ALTER TABLE before reading index metadata.
+        # Otherwise an index worker can replace an index after the snapshot and
+        # leave an incompatible expression behind during the column conversion.
+        table_name = (
+            model._meta.db_table if model else field.table.get_database_table_name()
         )
-        if not views:
-            return
-
-        if model is None:
-            model = field.table.get_model()
-
-        dropped_indexes = set()
-        for view in views:
-            if view.db_index_name in dropped_indexes:
-                continue
-
-            cls.drop_index(
-                view=view,
-                db_index=django_models.Index("id", name=view.db_index_name),
-                model=model,
+        with connection.cursor() as cursor:
+            cursor.execute(
+                sql.SQL("LOCK TABLE {} IN ACCESS EXCLUSIVE MODE").format(
+                    sql.Identifier(table_name)
+                )
             )
-            dropped_indexes.add(view.db_index_name)
 
-        View.objects.filter(id__in=[v.id for v in views]).update(db_index_name=None)
+        # Lazy indexes can still reflect deleted or changed ordering rules, so
+        # current sort/group metadata cannot identify every dependent index.
+        cls.drop_all_indexes_for_table(field.table_id)
 
     @classmethod
     def _get_index_hash(
@@ -410,7 +404,13 @@ class ViewIndexingHandler:
 
         for view_sort_or_group_by in view.get_all_ordering():
             field_object = model._field_objects[view_sort_or_group_by.field_id]
-            annotated_order_by = field_object["type"].get_order(
+            field_type = field_object["type"]
+            get_order = (
+                field_type.get_group_by_sort_order
+                if isinstance(view_sort_or_group_by, ViewGroupBy)
+                else field_type.get_order
+            )
+            annotated_order_by = get_order(
                 field_object["field"],
                 field_object["name"],
                 view_sort_or_group_by.order,
@@ -491,8 +491,9 @@ class ViewIndexingHandler:
             be dropped.
         """
 
+        # Trashed views retain their physical indexes until permanent deletion.
         views_with_index = list(
-            View.objects.filter(
+            View.objects_and_trash.filter(
                 table_id=table_id,
                 db_index_name__isnull=False,
             )
@@ -511,9 +512,9 @@ class ViewIndexingHandler:
                 cursor.execute(drop_index_sql)
 
         if views_with_index:
-            View.objects.filter(id__in=[v.id for v in views_with_index]).update(
-                db_index_name=None
-            )
+            View.objects_and_trash.filter(
+                id__in=[v.id for v in views_with_index]
+            ).update(db_index_name=None)
 
     @classmethod
     def handle_index_row_size_error(cls, table_id: int):

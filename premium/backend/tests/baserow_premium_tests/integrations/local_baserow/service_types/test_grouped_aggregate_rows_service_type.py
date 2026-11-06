@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from decimal import Decimal
 from unittest.mock import Mock
 
@@ -19,6 +20,7 @@ from baserow.contrib.builder.elements.element_types import RecordSelectorElement
 from baserow.contrib.builder.formula_property_extractor import (
     get_element_property_names,
 )
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
@@ -5360,6 +5362,56 @@ def test_grouped_datetime_sort_preserves_minute_totals(
         assert rows[-1]["id"] == "OTHER_VALUES"
     else:
         assert totals == ([3, 4, 24] if direction == "ASC" else [24, 4, 3])
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("kind", ["created_on", "last_modified"])
+def test_grouped_date_only_audit_label_ignores_retained_timezone(data_fixture, kind):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    amount = data_fixture.create_number_field(table=table, name="Amount")
+    field = getattr(data_fixture, f"create_{kind}_field")(
+        table=table,
+        name="Date",
+        date_include_time=True,
+        date_format="ISO",
+        date_force_timezone="America/New_York",
+    )
+    model = table.get_model()
+    for hour in [0, 15]:
+        row = model.objects.create(**{amount.db_column: 1})
+        timestamp = datetime(2024, 1, 8, hour, 30, tzinfo=timezone.utc)
+        model.objects.filter(pk=row.pk).update(
+            **{
+                field.db_column: timestamp,
+                field.get_type().source_field_name: timestamp,
+            }
+        )
+
+    # Turning time off hides the timezone control but preserves its setting.
+    field = FieldHandler().update_field(user, field, date_include_time=False)
+    assert field.date_force_timezone == "America/New_York"
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows,
+        table=table,
+        integration_args={"authorized_user": user},
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=amount, aggregation_type="sum", order=0
+    )
+    LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service, field=field, order=0
+    )
+
+    result = ServiceHandler().dispatch_service(service, FakeDispatchContext()).data
+
+    assert result["results"] == [
+        {
+            "id": "2024-01-08",
+            "Date": datetime(2024, 1, 8, tzinfo=timezone.utc),
+            "Amount sum": 2,
+        }
+    ]
 
 
 @pytest.mark.django_db
