@@ -59,6 +59,7 @@ from baserow.contrib.database.rows.actions import (
 from baserow.contrib.database.rows.exceptions import (
     CannotCreateRowsInTable,
     CannotDeleteRowsInTable,
+    CannotReadLinkedTable,
     RowDoesNotExist,
     RowIdsNotUnique,
 )
@@ -155,6 +156,20 @@ if TYPE_CHECKING:
 
 
 SCHEMA_CACHE_TTL = 60 * 60  # 1 hour
+
+
+def linked_table_not_readable_dispatch_exception(
+    exc: CannotReadLinkedTable,
+) -> ServiceImproperlyConfiguredDispatchException:
+    """
+    Returns the dispatch exception for a write that links rows of a table the acting
+    user can't read, so the editor can see which table needs read access.
+    """
+
+    return ServiceImproperlyConfiguredDispatchException(
+        f"The rows can't be linked because the user of this action doesn't have "
+        f"read access to the linked table {exc.table_id}."
+    )
 
 
 class LocalBaserowServiceType(ServiceType):
@@ -2555,11 +2570,14 @@ class LocalBaserowUpsertRowServiceType(
 
         # Before the values are prepared, because preparing resolves link names against
         # the linked table and its error would reveal which names exist.
-        RowHandler().check_can_read_linked_tables(
-            acting_user,
-            model,
-            [{f.db_column: value for f, (_, value) in validated_values.items()}],
-        )
+        try:
+            RowHandler().check_can_read_linked_tables(
+                acting_user,
+                model,
+                [{f.db_column: value for f, (_, value) in validated_values.items()}],
+            )
+        except CannotReadLinkedTable as exc:
+            raise linked_table_not_readable_dispatch_exception(exc) from exc
 
         for field, (field_type, resolved_value) in validated_values.items():
             # Then transform and validate the resolved value for prepare value for db.
@@ -2935,6 +2953,8 @@ class LocalBaserowCreateRowsServiceType(LocalBaserowUpsertRowsServiceType):
                 f"Cannot create rows in table {table.id} because "
                 "it violates a field constraint."
             ) from exc
+        except CannotReadLinkedTable as exc:
+            raise linked_table_not_readable_dispatch_exception(exc) from exc
 
 
 class LocalBaserowUpdateRowsServiceType(LocalBaserowUpsertRowsServiceType):
@@ -2977,6 +2997,8 @@ class LocalBaserowUpdateRowsServiceType(LocalBaserowUpsertRowsServiceType):
                 f"Cannot update rows in table {table.id} because "
                 "it violates a field constraint."
             ) from exc
+        except CannotReadLinkedTable as exc:
+            raise linked_table_not_readable_dispatch_exception(exc) from exc
 
 
 class LocalBaserowDeleteRowServiceType(

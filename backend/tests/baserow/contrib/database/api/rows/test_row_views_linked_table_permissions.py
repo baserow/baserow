@@ -117,7 +117,10 @@ def test_join_is_refused_without_read_access_to_the_linked_table(
     response = api_client.get(join_url(linked_tables), HTTP_AUTHORIZATION=auth)
 
     assert response.status_code == HTTP_401_UNAUTHORIZED
-    assert response.json()["error"] == "ERROR_NO_PERMISSION_TO_TABLE"
+    assert response.json()["error"] == "ERROR_NO_PERMISSION_TO_LINKED_TABLE"
+    assert (
+        f"linked table {linked_tables['other_table'].id}" in (response.json()["detail"])
+    )
     assert SECRET not in response.content.decode()
 
 
@@ -184,7 +187,7 @@ def test_linking_rows_is_refused_without_read_access_to_the_linked_table(
     response = write_link(api_client, linked_tables, endpoint, value, auth)
 
     assert response.status_code == HTTP_401_UNAUTHORIZED
-    assert response.json()["error"] == "ERROR_NO_PERMISSION_TO_TABLE"
+    assert response.json()["error"] == "ERROR_NO_PERMISSION_TO_LINKED_TABLE"
     assert "Other" not in response.content.decode()
 
 
@@ -298,6 +301,55 @@ def test_collaborative_view_default_link_needs_no_read_access_to_the_linked_tabl
 
 @pytest.mark.parametrize("batch", [False, True])
 @pytest.mark.django_db
+def test_collaborative_view_default_link_sent_as_a_value_needs_no_read_access(
+    api_client, linked_tables, view_with_link_default, batch
+):
+    auth = scoped_token(linked_tables, can_read_other_table=False)
+    url_name = "api:database:rows:batch" if batch else "api:database:rows:list"
+    url = reverse(url_name, kwargs={"table_id": linked_tables["table"].id})
+    row = {f"field_{linked_tables['link'].id}": [linked_tables["other_row"].id]}
+
+    response = api_client.post(
+        f"{url}?view={view_with_link_default.id}",
+        {"items": [row]} if batch else row,
+        format="json",
+        HTTP_AUTHORIZATION=auth,
+    )
+
+    assert response.status_code == HTTP_200_OK
+
+
+@pytest.mark.parametrize("batch", [False, True])
+@pytest.mark.django_db
+def test_collaborative_view_default_does_not_allow_other_links(
+    api_client, linked_tables, view_with_link_default, data_fixture, batch
+):
+    auth = scoped_token(linked_tables, can_read_other_table=False)
+    other_row = RowHandler().create_row(
+        linked_tables["user"], linked_tables["other_table"], {}
+    )
+    url_name = "api:database:rows:batch" if batch else "api:database:rows:list"
+    url = reverse(url_name, kwargs={"table_id": linked_tables["table"].id})
+    row = {
+        f"field_{linked_tables['link'].id}": [
+            linked_tables["other_row"].id,
+            other_row.id,
+        ]
+    }
+
+    response = api_client.post(
+        f"{url}?view={view_with_link_default.id}",
+        {"items": [row]} if batch else row,
+        format="json",
+        HTTP_AUTHORIZATION=auth,
+    )
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "ERROR_NO_PERMISSION_TO_LINKED_TABLE"
+
+
+@pytest.mark.parametrize("batch", [False, True])
+@pytest.mark.django_db
 def test_view_default_link_is_written_with_read_access_to_the_linked_table(
     api_client, linked_tables, view_with_link_default, batch
 ):
@@ -330,7 +382,7 @@ def test_token_table_checks_are_not_decided_by_a_single_table(
     token = token_with_read_on(user, database.workspace, [tables[readable_index]])
 
     with pytest.raises(NoPermissionToTable):
-        TokenHandler().check_tables_permissions(token, "read", tables)
+        TokenHandler().check_can_read_linked_tables(token, tables)
 
 
 @pytest.mark.django_db
@@ -342,11 +394,11 @@ def test_token_table_checks_queries_do_not_grow_with_the_number_of_tables(
     tables = [data_fixture.create_database_table(database=database) for _ in range(6)]
     token = token_with_read_on(user, database.workspace, tables)
     handler = TokenHandler()
-    handler.check_tables_permissions(token, "read", tables)
+    handler.check_can_read_linked_tables(token, tables)
 
     with CaptureQueriesContext(connection) as few_tables:
-        handler.check_tables_permissions(token, "read", tables[:2])
+        handler.check_can_read_linked_tables(token, tables[:2])
     with CaptureQueriesContext(connection) as many_tables:
-        handler.check_tables_permissions(token, "read", tables)
+        handler.check_can_read_linked_tables(token, tables)
 
     assert len(many_tables) <= len(few_tables)

@@ -25,6 +25,9 @@ from baserow.core.action.handler import ActionHandler
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import PermissionException
 from baserow.core.jobs.tasks import run_async_job
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
@@ -94,7 +97,7 @@ def test_join_is_refused_when_the_role_hides_the_linked_table(
     )
 
     assert response.status_code == HTTP_401_UNAUTHORIZED
-    assert response.json()["error"] == "PERMISSION_DENIED"
+    assert response.json()["error"] == "ERROR_CANNOT_READ_LINKED_TABLE"
     assert SECRET not in response.content.decode()
 
 
@@ -115,7 +118,7 @@ def test_linking_is_refused_when_the_role_hides_the_linked_table(
     )
 
     assert response.status_code == HTTP_401_UNAUTHORIZED
-    assert response.json()["error"] == "PERMISSION_DENIED"
+    assert response.json()["error"] == "ERROR_CANNOT_READ_LINKED_TABLE"
     assert "Other" not in response.content.decode()
 
 
@@ -177,12 +180,14 @@ def test_upsert_service_refuses_existing_and_missing_names_the_same_way(
     )
     mapping = service.field_mappings.create(field=link, value="")
 
-    with pytest.raises(PermissionException):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc_info:
         LocalBaserowUpsertRowServiceType().dispatch_data(
             service,
             {mapping.id: [name]},
             FakeDispatchContext(actor=restricted_setup["user"]),
         )
+
+    assert "read access to the linked table" in str(exc_info.value)
 
 
 @pytest.mark.parametrize("name", ["Other", "Nope"])
@@ -207,12 +212,14 @@ def test_batch_services_refuse_existing_and_missing_names_the_same_way(
     if include_id:
         row_values["id"] = restricted_setup["row"].id
 
-    with pytest.raises(PermissionException):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc_info:
         service_type().dispatch_data(
             service,
             {"rows": [row_values]},
             FakeDispatchContext(actor=restricted_setup["user"]),
         )
+
+    assert "read access to the linked table" in str(exc_info.value)
 
 
 @pytest.mark.django_db
@@ -369,8 +376,10 @@ def restricted_view_setup(data_fixture, enterprise_data_fixture):
         user, workspace, role=Role.objects.get(uid="EDITOR"), scope=view
     )
     return {
+        "admin": admin,
         "user": user,
         "table": table,
+        "primary": primary,
         "view": view,
         "link": link,
         "visible_row": visible_row,
@@ -413,8 +422,60 @@ def test_restricted_view_editor_can_not_self_link_a_row_outside_the_view(
     response = post_self_link(api_client, data_fixture, restricted_view_setup, [target])
 
     assert response.status_code == HTTP_401_UNAUTHORIZED
-    assert response.json()["error"] == "PERMISSION_DENIED"
+    assert response.json()["error"] == "ERROR_CANNOT_READ_LINKED_TABLE"
     assert "Hidden" not in response.content.decode()
+
+
+@pytest.mark.parametrize("target", ["missing", "trashed"])
+@pytest.mark.django_db
+def test_restricted_view_editor_can_not_self_link_a_row_that_does_not_exist(
+    api_client, data_fixture, restricted_view_setup, target
+):
+    hidden_row = restricted_view_setup["hidden_row"]
+    if target == "trashed":
+        RowHandler().delete_row(
+            restricted_view_setup["admin"], restricted_view_setup["table"], hidden_row
+        )
+        row_id = hidden_row.id
+    else:
+        row_id = hidden_row.id + 100
+
+    response = post_self_link(api_client, data_fixture, restricted_view_setup, [row_id])
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "ERROR_CANNOT_READ_LINKED_TABLE"
+
+
+@pytest.mark.django_db
+def test_restricted_view_self_link_writes_the_row_that_was_checked(
+    restricted_view_setup,
+):
+    table = restricted_view_setup["table"]
+    link = restricted_view_setup["link"]
+    visible_row = restricted_view_setup["visible_row"]
+    hidden_row = restricted_view_setup["hidden_row"]
+    primary = restricted_view_setup["primary"]
+    handler = RowHandler()
+    check = handler.check_can_read_linked_tables
+
+    def rename_after_check(*args, **kwargs):
+        check(*args, **kwargs)
+        # Another request renames the rows between the check and the write.
+        model = table.get_model()
+        model.objects.filter(id=visible_row.id).update(**{primary.db_column: "Gone"})
+        model.objects.filter(id=hidden_row.id).update(**{primary.db_column: "Visible"})
+
+    with patch.object(
+        handler, "check_can_read_linked_tables", side_effect=rename_after_check
+    ):
+        row = handler.create_row(
+            restricted_view_setup["user"],
+            table,
+            {link.db_column: ["Visible"]},
+            view=restricted_view_setup["view"],
+        )
+
+    assert linked_row_ids(table, row, link) == [visible_row.id]
 
 
 def add_link_default(view, setup):
@@ -462,6 +523,25 @@ def test_view_default_link_does_not_allow_choosing_a_link_when_the_table_is_hidd
         RowHandler().create_row(
             restricted_setup["user"], table, dict(values), view=view
         )
+
+
+@pytest.mark.parametrize("as_object", [False, True])
+@pytest.mark.django_db
+def test_collaborative_view_default_link_sent_as_a_value_is_applied_when_hidden(
+    enterprise_data_fixture, restricted_setup, as_object
+):
+    table = restricted_setup["table"]
+    link = restricted_setup["link"]
+    view = enterprise_data_fixture.create_grid_view(table=table)
+    add_link_default(view, restricted_setup)
+    hidden_row_id = restricted_setup["hidden_row"].id
+    value = [{"id": hidden_row_id}] if as_object else [hidden_row_id]
+
+    row = RowHandler().create_row(
+        restricted_setup["user"], table, {link.db_column: value}, view=view
+    )
+
+    assert linked_row_ids(table, row, link) == [hidden_row_id]
 
 
 @pytest.mark.django_db

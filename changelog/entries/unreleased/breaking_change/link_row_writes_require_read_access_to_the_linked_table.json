@@ -1,9 +1,13 @@
 {
     "type": "breaking_change",
-    "message": "Database tokens and restricted roles now need read access to the linked table to use `__join` or to set link row values, or to save a link row default value on a view. Requests without it return 401, and clearing a link row field stays allowed",
+    "message": "Linking rows now needs read access to the linked table",
     "issue_origin": "github",
     "issue_number": null,
     "domain": "database",
-    "bullet_points": [],
+    "bullet_points": [
+        "Database tokens and roles without read access to the linked table get a 401 when they set link row values, including resending existing links or removing one of several. Clearing the field still works.",
+        "The same applies to `__join`, file imports, Application Builder and automation actions, and default values of personal views.",
+        "Saving a link row default value on a view needs read access to the linked table. Collaborative and restricted views then apply it to every new row."
+    ],
     "created_at": "2026-11-04"
 }
