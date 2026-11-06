@@ -51,16 +51,11 @@
           v-for="workspace in rows"
           :key="workspace.id"
           class="data-table__table-row select-workspace-modal__row"
-          :class="{
-            'select-workspace-modal__row--selected':
-              !selectedOnly && selectedIds.includes(workspace.id),
-          }"
           @click="select(workspace)"
         >
           <td class="data-table__table-cell">
             <Checkbox
               :checked="selectedIds.includes(workspace.id)"
-              :disabled="!selectedOnly && selectedIds.includes(workspace.id)"
               @click.stop
               @input="select(workspace)"
               >{{ workspace.value }}</Checkbox
@@ -73,7 +68,6 @@
             <button
               type="button"
               class="select-workspace-modal__option"
-              :disabled="!selectedOnly && selectedIds.includes(workspace.id)"
               @click.stop="select(workspace)"
             >
               <span
@@ -152,11 +146,9 @@ const columns = [
 
 function select(workspace) {
   const isSelected = selectedIds.value.includes(workspace.id)
-  if (selectedOnly.value) {
-    if (!isSelected) return
+  if (isSelected) {
     emit('unselected', workspace.id)
   } else {
-    if (isSelected) return
     emit('selected', { id: workspace.id, name: workspace.value })
   }
   updatePosition()

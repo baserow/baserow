@@ -491,7 +491,7 @@ describe('AIProviderFormModal', () => {
     ).toBeGreaterThan(initialFetchCount)
     expect(
       wrapper.find('.select-workspace-modal__option').attributes('disabled')
-    ).toBeDefined()
+    ).toBeUndefined()
 
     await wrapper
       .find('.select-workspace-modal input')
@@ -546,7 +546,7 @@ describe('AIProviderFormModal', () => {
       '.select-workspace-modal input[type="checkbox"]'
     )
     expect(checkboxes[0].element.checked).toBe(true)
-    expect(checkboxes[0].element.disabled).toBe(true)
+    expect(checkboxes[0].element.disabled).toBe(false)
 
     await wrapper.findAll('.select-workspace-modal__option')[1].trigger('click')
     await flushPromises()
@@ -563,10 +563,18 @@ describe('AIProviderFormModal', () => {
     )
     expect(
       checkboxes.every(
-        (checkbox) => checkbox.element.checked && checkbox.element.disabled
+        (checkbox) => checkbox.element.checked && !checkbox.element.disabled
       )
     ).toBe(true)
     await wrapper.find('.select-workspace-modal__id').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.ai-provider-form__workspace').text()).toBe(
+      'Operations'
+    )
+    await wrapper
+      .find('.select-workspace-modal input[type="checkbox"]')
+      .setValue(true)
+    await flushPromises()
 
     await wrapper.find('.select-workspace-modal__close').trigger('click')
     await flushPromises()
@@ -576,7 +584,7 @@ describe('AIProviderFormModal', () => {
     await flushPromises()
     expect(dispatch).toHaveBeenCalledWith('aiProvider/update', {
       providerId: 1,
-      values: { extra_settings: {}, excluded_workspace_ids: [10, 20] },
+      values: { extra_settings: {}, excluded_workspace_ids: [20, 10] },
     })
   })
 
@@ -610,9 +618,17 @@ describe('AIProviderFormModal', () => {
       wrapper
         .findAll('.ai-provider-form__workspace')
         .map((workspace) => workspace.text())
-    ).toEqual(['Chosen 0', 'Chosen 1'])
+    ).toEqual(selectedWorkspaces.slice(0, 10).map(({ name }) => name))
+    expect(
+      wrapper
+        .find('.ai-provider-form__workspaces')
+        .element.firstElementChild.getAttribute('aria-label')
+    ).toBe('aiProviderAdmin.addExcludedWorkspace')
+    expect(
+      wrapper.find('.ai-provider-form__workspace > span').attributes('title')
+    ).toBe('Chosen 0 (1000)')
     const more = wrapper.find('.ai-provider-form__more-workspaces')
-    expect(more.text()).toBe('aiProviderAdmin.moreExcludedWorkspaces - 123')
+    expect(more.text()).toBe('aiProviderAdmin.moreExcludedWorkspaces - 115')
 
     await more.trigger('click')
     await flushPromises()
@@ -636,7 +652,7 @@ describe('AIProviderFormModal', () => {
     await flushPromises()
     expect(wrapper.findAll('.select-workspace-modal__option')).toHaveLength(0)
     expect(wrapper.find('.ai-provider-form__more-workspaces').text()).toBe(
-      'aiProviderAdmin.moreExcludedWorkspaces - 122'
+      'aiProviderAdmin.moreExcludedWorkspaces - 114'
     )
 
     await wrapper.find('.select-workspace-modal__close').trigger('click')

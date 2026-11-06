@@ -124,11 +124,6 @@
 
 .select-workspace-modal__row {
   cursor: pointer;
-
-  &--selected {
-    color: $palette-neutral-700;
-    cursor: default;
-  }
 }
 
 .select-workspace-modal__option {

@@ -128,27 +128,36 @@
       class="margin-bottom-2"
     >
       <div class="ai-provider-form__workspaces">
-        <span
-          v-for="workspace in visibleExcludedWorkspaces"
-          :key="workspace.id"
-          class="ai-provider-form__workspace"
-        >
-          <span :title="`${workspace.name} (#${workspace.id})`">{{
-            workspace.name
-          }}</span>
-          <button
-            type="button"
-            :aria-label="
-              $t('aiProviderAdmin.removeExcludedWorkspace', {
-                name: workspace.name,
-              })
-            "
-            @click="removeExcludedWorkspace(workspace.id)"
+        <Button
+          ref="addExcludedWorkspace"
+          type="secondary"
+          size="small"
+          icon="iconoir-plus"
+          :aria-label="$t('aiProviderAdmin.addExcludedWorkspace')"
+          :title="$t('aiProviderAdmin.addExcludedWorkspace')"
+          @click="openWorkspaceSelector(false, $event.currentTarget)"
+        />
+        <div class="ai-provider-form__workspace-list">
+          <span
+            v-for="workspace in visibleExcludedWorkspaces"
+            :key="workspace.id"
+            class="ai-provider-form__workspace"
           >
-            <i class="iconoir-cancel" />
-          </button>
-        </span>
-        <div class="ai-provider-form__workspace-controls">
+            <span :title="`${workspace.name} (${workspace.id})`">{{
+              workspace.name
+            }}</span>
+            <button
+              type="button"
+              :aria-label="
+                $t('aiProviderAdmin.removeExcludedWorkspace', {
+                  name: workspace.name,
+                })
+              "
+              @click="removeExcludedWorkspace(workspace.id)"
+            >
+              <i class="iconoir-cancel" />
+            </button>
+          </span>
           <Button
             v-if="hiddenExcludedWorkspacesCount"
             type="secondary"
@@ -161,15 +170,6 @@
               })
             }}</Button
           >
-          <Button
-            ref="addExcludedWorkspace"
-            type="secondary"
-            size="small"
-            icon="iconoir-plus"
-            :aria-label="$t('aiProviderAdmin.addExcludedWorkspace')"
-            :title="$t('aiProviderAdmin.addExcludedWorkspace')"
-            @click="openWorkspaceSelector(false, $event.currentTarget)"
-          />
         </div>
       </div>
       <template #helper>{{
@@ -255,10 +255,10 @@ export default {
   },
   computed: {
     visibleExcludedWorkspaces() {
-      return this.excludedWorkspaces.slice(0, 2)
+      return this.excludedWorkspaces.slice(0, 10)
     },
     hiddenExcludedWorkspacesCount() {
-      return Math.max(0, this.excludedWorkspaces.length - 2)
+      return Math.max(0, this.excludedWorkspaces.length - 10)
     },
     canEditExclusions() {
       return (
