@@ -16,6 +16,7 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 from pydantic_ai.models import Model
+from pydantic_ai.settings import ThinkingLevel
 from pydantic_ai.toolsets import FunctionToolset
 from pydantic_ai.usage import UsageLimits
 
@@ -33,6 +34,7 @@ from .constants import (
     REPLY_REQUEST_LIMIT,
     TOOL_RETRIES,
     UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS,
+    AgentReasoningEffort,
 )
 from .models import AgentMessage
 from .registries import agent_tool_type_registry
@@ -40,6 +42,26 @@ from .types import AgentReplyRequest, AgentReplyResult
 
 if TYPE_CHECKING:
     from baserow.core.chat_runs.journal import ChatRunJournal
+
+
+def get_thinking_level(effort: str | None, model: Model) -> ThinkingLevel | None:
+    """
+    Turn the saved reasoning effort into Pydantic AI's shared thinking setting,
+    which it maps to each provider's own parameter.
+
+    :param effort: The saved effort, or None for the model's default.
+    :param model: The model the setting is sent to.
+    :return: The thinking level, or None to keep the model's default. Unknown
+        values keep the default too.
+    """
+
+    if effort not in AgentReasoningEffort:
+        return None
+    if effort != AgentReasoningEffort.OFF:
+        return str(effort)
+    # Models that always reason ignore False and reason at their default effort,
+    # so the lowest level is the closest to off they accept.
+    return "low" if model.profile.get("thinking_always_enabled", False) else False
 
 
 def _interruption_note(reply: AgentMessage) -> str:
@@ -96,15 +118,19 @@ def create_reply_model(request: AgentReplyRequest) -> tuple[Model, dict]:
     """
 
     model_type = generative_ai_model_type_registry.get(request.provider_type)
-    model_settings = model_type.sanitize_model_settings(
-        request.model_identifier,
-        model_type.prepare_model_settings(request.model_identifier),
-    )
     settings_override = model_type.get_model_settings_override(
         request.model_identifier, request.workspace
     )
     model = model_type.get_ai_model(
         request.model_identifier, request.workspace, settings_override
+    )
+    model_settings = model_type.prepare_model_settings(request.model_identifier)
+    thinking = get_thinking_level(request.reasoning_effort, model)
+    if thinking is not None:
+        model_settings["thinking"] = thinking
+    # The provider removes what this model cannot accept, thinking included.
+    model_settings = model_type.sanitize_model_settings(
+        request.model_identifier, model_settings
     )
     return model, model_settings
 

@@ -46,6 +46,7 @@ from .types import (
 
 class AgentHandler:
     configuration_fields = ["instructions", "provider_type", "model_identifier"]
+    optional_configuration_fields = ["reasoning_effort"]
     run_as_fields = ["run_as_subject_type", "run_as_subject_id"]
 
     def get_agent(self, agent_id: int, for_update: bool = False) -> AgentApplication:
@@ -92,6 +93,7 @@ class AgentHandler:
             instructions=agent.instructions,
             provider_type=agent.provider_type,
             model_identifier=agent.model_identifier,
+            reasoning_effort=agent.reasoning_effort,
             run_as=self.resolve_run_as_subject(
                 agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
             ),
@@ -273,7 +275,11 @@ class AgentHandler:
 
         allowed_tools = values.get("allowed_tools")
         had_run_as = bool(agent.run_as_subject_type and agent.run_as_subject_id)
-        allowed_fields = [*self.configuration_fields, *self.run_as_fields]
+        allowed_fields = [
+            *self.configuration_fields,
+            *self.optional_configuration_fields,
+            *self.run_as_fields,
+        ]
         values = extract_allowed(values, allowed_fields)
         run_as = [values.get(field) for field in self.run_as_fields]
         if any(run_as) and not self.get_usable_run_as_subject(*run_as, agent.workspace):
@@ -284,7 +290,7 @@ class AgentHandler:
         }
         changed_fields = []
         for field, value in values.items():
-            if field in ("provider_type", "model_identifier"):
+            if field in ("provider_type", "model_identifier", "reasoning_effort"):
                 value = (value or "").strip() or None
             if getattr(agent, field) != value:
                 setattr(agent, field, value)
@@ -656,6 +662,7 @@ class AgentHandler:
             if acting_subject
             else [],
             timezone=conversation.owner_user.profile.timezone,
+            reasoning_effort=agent.reasoning_effort,
         )
 
     def finish_reply(

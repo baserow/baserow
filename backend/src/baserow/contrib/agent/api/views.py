@@ -199,9 +199,9 @@ class AgentConfigurationView(RealtimeRecoveryPrimaryReadMixin, APIView):
         tags=["Agent applications"],
         operation_id="get_agent_configuration",
         description=(
-            "Returns the instructions, provider, model and run-as identity of the "
-            "agent, with its readiness and the fields that are missing or no longer "
-            "available."
+            "Returns the instructions, provider, model, reasoning effort and run-as "
+            "identity of the agent, with its readiness and the fields that are "
+            "missing or no longer available."
         ),
         responses={200: AgentConfigurationSerializer, **READ_ERRORS},
     )
