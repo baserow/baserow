@@ -47,18 +47,25 @@
         @add-element="showAddElementModal(columnIndex)"
       />
     </div>
-    <AddElementModal ref="addElementModal" :page="elementPage" />
+    <AddElementModal
+      v-if="mode === 'editing'"
+      ref="addElementModal"
+      :page="elementPage"
+    />
   </div>
 </template>
 
 <script>
+import {
+  ElementPreview,
+  AddElementZone,
+  AddElementModal,
+} from '@baserow/modules/builder/components/editorRendering'
+
 import _ from 'lodash'
 
-import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone'
-import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal'
 import containerElement from '@baserow/modules/builder/mixins/containerElement'
 import PageElement from '@baserow/modules/builder/components/page/PageElement'
-import ElementPreview from '@baserow/modules/builder/components/elements/ElementPreview'
 import {
   COLUMN_STACKING,
   VERTICAL_ALIGNMENTS,

@@ -6,15 +6,9 @@ import { DatabaseApplicationType } from '@baserow/modules/database/applicationTy
 import { DATABASE_ACTION_SCOPES } from '@baserow/modules/database/utils/undoRedoConstants'
 import { generateHash } from '@baserow/modules/core/utils/hashing'
 
-export function populateTable(table) {
-  return {
-    ...table,
-    _: {
-      disabled: false,
-      selected: false,
-    },
-  }
-}
+import { populateTable } from '@baserow/modules/database/utils/populateTable'
+
+export { populateTable } from '@baserow/modules/database/utils/populateTable'
 
 export const state = () => ({
   selected: {},

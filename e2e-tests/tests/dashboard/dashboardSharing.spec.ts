@@ -186,6 +186,8 @@ test.describe("Dashboard sharing", () => {
       await expectPasswordPage(visitor.page, slug);
 
       const visitorPassword = visitor.page.getByPlaceholder("Password...");
+      // Focus is set on mount, after the SSR form has become interactive.
+      await expect(visitorPassword).toBeFocused();
       const submit = visitor.page.getByRole("button", { name: "Continue" });
       await visitorPassword.fill("wrong-password");
       await submit.click();

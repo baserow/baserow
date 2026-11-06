@@ -5,6 +5,7 @@ export const routes = [
     name: 'builder-page',
     path: '/builder/:builderId/page/:pageId',
     file: path.resolve(__dirname, 'pages/pageEditor.vue'),
+    meta: { applicationBundle: 'builder' },
   },
   {
     name: 'builder-health-check',
@@ -18,6 +19,7 @@ export const routes = [
     file: path.resolve(__dirname, 'pages/publicPage.vue'),
     meta: {
       previewBuilderRoute: true,
+      applicationShell: false,
       middleware: ['exchangePreviewToken', 'userSourceAuthProviderCallback'],
       builderPageMode: 'preview',
     },
@@ -26,7 +28,10 @@ export const routes = [
     name: 'application-builder-published',
     path: '/builder/published/:builderId/:pathMatch(.*)*',
     file: path.resolve(__dirname, 'pages/publicPage.vue'),
-    meta: { middleware: ['userSourceAuthProviderCallback'] },
+    meta: {
+      applicationShell: false,
+      middleware: ['userSourceAuthProviderCallback'],
+    },
   },
   {
     name: 'application-builder-page',
@@ -36,6 +41,7 @@ export const routes = [
     // different subdomain.
     meta: {
       publishedBuilderRoute: true,
+      applicationShell: false,
       middleware: ['userSourceAuthProviderCallback'],
     },
   },

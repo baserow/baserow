@@ -126,6 +126,12 @@ export default defineNuxtModule({
     addPlugin(resolve('plugins/filters.js'))
     addPlugin(resolve('plugins/vuexState.js'))
     addPlugin(resolve('plugin.js'))
+    addPlugin(resolve('plugins/applicationShell.js'))
+    addRouteMiddleware({
+      name: 'applicationShell',
+      path: resolve('./middleware/applicationShell.js'),
+      global: true,
+    })
     addPlugin(resolve('plugins/global.js'))
     addPlugin(resolve('plugins/i18n.js'))
     addPlugin(resolve('plugins/clientHandler.js'))
@@ -152,6 +158,12 @@ export default defineNuxtModule({
       name: 'authentication',
       path: resolve('./middleware/authentication'),
       global: true, // make sure the middleware is added to every route
+    })
+
+    addRouteMiddleware({
+      name: 'applicationBundles',
+      path: resolve('./middleware/applicationBundles.js'),
+      global: true,
     })
 
     addRouteMiddleware({

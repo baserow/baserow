@@ -1,11 +1,16 @@
 import { AGENT_APPLICATION_TYPE } from '@baserow/modules/agent/constants'
+import { getApplicationComponent } from '@baserow/modules/core/utils/applicationBundles'
 import { ApplicationType } from '@baserow/modules/core/applicationTypes'
-import AgentApplicationContext from '@baserow/modules/agent/components/AgentApplicationContext'
-import AgentApplicationForm from '@baserow/modules/agent/components/AgentApplicationForm'
-import AgentApplicationSidebar from '@baserow/modules/agent/components/AgentApplicationSidebar'
+
 import { FF_AGENT_BUILDER } from '@baserow/modules/core/plugins/featureFlags'
 
 export class AgentApplicationType extends ApplicationType {
+  /** Applications without child navigation open their page from the sidebar. */
+  async selectFromSidebar(application) {
+    await this.app.$store.dispatch('application/select', application)
+    await this.select(application, this.app)
+  }
+
   static getType() {
     return AGENT_APPLICATION_TYPE
   }
@@ -39,15 +44,15 @@ export class AgentApplicationType extends ApplicationType {
   }
 
   getApplicationContextComponent() {
-    return AgentApplicationContext
+    return getApplicationComponent(this.app, 'agent', 'AgentApplicationContext')
   }
 
   getApplicationFormComponent() {
-    return AgentApplicationForm
+    return getApplicationComponent(this.app, 'agent', 'AgentApplicationForm')
   }
 
   getSidebarComponent() {
-    return AgentApplicationSidebar
+    return getApplicationComponent(this.app, 'agent', 'AgentApplicationSidebar')
   }
 
   getOrder() {

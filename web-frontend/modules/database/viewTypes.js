@@ -1,3 +1,4 @@
+import { DATABASE_VIEW_METADATA } from '@baserow/modules/database/viewMetadata'
 import { Registerable } from '@baserow/modules/core/registry'
 import ViewForm from '@baserow/modules/database/components/view/ViewForm'
 import GridView from '@baserow/modules/database/components/view/grid/GridView'
@@ -595,7 +596,7 @@ export class GridViewType extends ViewType {
   }
 
   getIconClass() {
-    return 'iconoir-menu'
+    return DATABASE_VIEW_METADATA.grid.iconClass
   }
 
   canGroupBy() {
@@ -623,8 +624,7 @@ export class GridViewType extends ViewType {
   }
 
   getName() {
-    const { $i18n: i18n } = this.app
-    return i18n.t('viewType.grid')
+    return this.app.$i18n.t(DATABASE_VIEW_METADATA.grid.name)
   }
 
   getHeaderComponent() {
@@ -1255,16 +1255,15 @@ export class GalleryViewType extends BaseBufferedRowViewTypeMixin(ViewType) {
   }
 
   getIconClass() {
-    return 'baserow-icon-gallery'
+    return DATABASE_VIEW_METADATA.gallery.iconClass
   }
 
   getColorClass() {
-    return 'color-error'
+    return DATABASE_VIEW_METADATA.gallery.colorClass
   }
 
   getName() {
-    const { $i18n: i18n } = this.app
-    return i18n.t('viewType.gallery')
+    return this.app.$i18n.t(DATABASE_VIEW_METADATA.gallery.name)
   }
 
   getHeaderComponent() {
@@ -1350,16 +1349,15 @@ export class FormViewType extends ViewType {
   }
 
   getIconClass() {
-    return 'baserow-icon-form'
+    return DATABASE_VIEW_METADATA.form.iconClass
   }
 
   getColorClass() {
-    return 'color-warning'
+    return DATABASE_VIEW_METADATA.form.colorClass
   }
 
   getName() {
-    const { $i18n: i18n } = this.app
-    return i18n.t('viewType.form')
+    return this.app.$i18n.t(DATABASE_VIEW_METADATA.form.name)
   }
 
   canFilter() {

@@ -7,18 +7,9 @@ import { AUTOMATION_ACTION_SCOPES } from '@baserow/modules/automation/utils/undo
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
 
-export function populateAutomationWorkflow(workflow) {
-  return {
-    ...workflow,
-    nodes: [],
-    orderedNodes: [],
-    nodeMap: {},
-    selectedNodeId: null,
-    _: {
-      selected: false,
-    },
-  }
-}
+import { populateAutomationWorkflow } from '@baserow/modules/automation/utils/populateAutomationWorkflow'
+
+export { populateAutomationWorkflow } from '@baserow/modules/automation/utils/populateAutomationWorkflow'
 
 const state = () => ({
   // Holds the value of which workflow is currently selected

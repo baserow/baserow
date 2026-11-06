@@ -1,36 +1,25 @@
-import { DashboardSearchType } from '@baserow/modules/dashboard/searchTypes'
-import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
-import dashboardApplicationStore from '@baserow/modules/dashboard/store/dashboardApplication'
-import { DashboardApplicationType } from '@baserow/modules/dashboard/applicationTypes'
-import { DashboardLastViewedItemType } from '@baserow/modules/dashboard/lastViewedItemTypes'
-import { SummaryWidgetType } from '@baserow/modules/dashboard/widgetTypes'
+import { defineNuxtPlugin } from '#app'
+import { registerApplicationBundle } from '@baserow/modules/core/utils/applicationBundles'
 
 export default defineNuxtPlugin({
   name: 'dashboard',
-  dependsOn: ['core', 'store'],
+  dependsOn: ['core', 'store', 'application-shell'],
   async setup(nuxtApp) {
-    const { $store, $registry } = nuxtApp
-    const context = { app: nuxtApp }
-
-    if (!$store.hasModule('dashboardApplication')) {
-      $store.registerModuleNuxtSafe(
-        'dashboardApplication',
-        dashboardApplicationStore
-      )
-      $store.registerModuleNuxtSafe(
-        'template/dashboardApplication',
-        dashboardApplicationStore
-      )
+    if (nuxtApp.$isApplicationShell !== false) {
+      const { default: registerMetadata } =
+        await import('@baserow/modules/dashboard/pluginMetadata')
+      await registerMetadata(nuxtApp)
     }
-
-    $registry.registerNamespace('dashboardWidget')
-    $registry.register('application', new DashboardApplicationType(context))
-    $registry.register(
-      'lastViewedItem',
-      new DashboardLastViewedItemType(context)
-    )
-    $registry.register('dashboardWidget', new SummaryWidgetType(context))
-
-    searchTypeRegistry.register(new DashboardSearchType(context))
+    registerApplicationBundle(nuxtApp, 'dashboard', async (app) => {
+      if (!app.$registry.getAll('application')['dashboard']) {
+        const { default: registerMetadata } =
+          await import('@baserow/modules/dashboard/pluginMetadata')
+        await registerMetadata(app)
+      }
+      const bundle =
+        await import('@baserow/modules/dashboard/applicationBundle')
+      await bundle.default(app)
+      return bundle
+    })
   },
 })

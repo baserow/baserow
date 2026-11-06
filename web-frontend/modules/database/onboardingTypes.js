@@ -1,15 +1,14 @@
+import {
+  getFeatureComponent,
+  loadFeatureBundle,
+} from '@baserow/modules/core/utils/featureBundles'
 import { OnboardingType } from '@baserow/modules/core/onboardingTypes'
 
-import DatabaseStep from '@baserow/modules/database/components/onboarding/DatabaseStep'
-import DatabaseScratchTrackStep from '@baserow/modules/database/components/onboarding/DatabaseScratchTrackStep'
-import DatabaseImportStep from '@baserow/modules/database/components/onboarding/DatabaseImportStep'
-import DatabaseAppLayoutPreview from '@baserow/modules/database/components/onboarding/DatabaseAppLayoutPreview'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import ApplicationService from '@baserow/modules/core/services/application'
 import TableService from '@baserow/modules/database/services/table'
 import FieldService from '@baserow/modules/database/services/field'
 import RowService from '@baserow/modules/database/services/row'
-import DatabaseScratchTrackFieldsStep from '@baserow/modules/database/components/onboarding/DatabaseScratchTrackFieldsStep'
 
 const databaseTypeCondition = (data, type) => {
   const dependingType = DatabaseOnboardingType.getType()
@@ -45,7 +44,7 @@ export class DatabaseOnboardingType extends OnboardingType {
   }
 
   getFormComponent() {
-    return DatabaseStep
+    return getFeatureComponent(this.app, 'onboarding', 'DatabaseStep')
   }
 
   getPreviewComponent(data) {
@@ -57,7 +56,11 @@ export class DatabaseOnboardingType extends OnboardingType {
         return component
       }
     }
-    return DatabaseAppLayoutPreview
+    return getFeatureComponent(
+      this.app,
+      'onboarding',
+      'DatabaseAppLayoutPreview'
+    )
   }
 
   getAdditionalPreviewProps() {
@@ -144,11 +147,19 @@ export class DatabaseScratchTrackOnboardingType extends OnboardingType {
   }
 
   getFormComponent() {
-    return DatabaseScratchTrackStep
+    return getFeatureComponent(
+      this.app,
+      'onboarding',
+      'DatabaseScratchTrackStep'
+    )
   }
 
   getPreviewComponent() {
-    return DatabaseAppLayoutPreview
+    return getFeatureComponent(
+      this.app,
+      'onboarding',
+      'DatabaseAppLayoutPreview'
+    )
   }
 
   condition(data) {
@@ -185,6 +196,11 @@ export class DatabaseScratchTrackOnboardingType extends OnboardingType {
 }
 
 export class DatabaseScratchTrackFieldsOnboardingType extends OnboardingType {
+  /** These steps use Database field renderers and importers rather than metadata alone. */
+  async load() {
+    await loadFeatureBundle(this.app, 'onboarding-rendering')
+  }
+
   static getType() {
     return 'database_scratch_track_fields'
   }
@@ -194,11 +210,19 @@ export class DatabaseScratchTrackFieldsOnboardingType extends OnboardingType {
   }
 
   getFormComponent() {
-    return DatabaseScratchTrackFieldsStep
+    return getFeatureComponent(
+      this.app,
+      'onboarding-rendering',
+      'DatabaseScratchTrackFieldsStep'
+    )
   }
 
   getPreviewComponent() {
-    return DatabaseAppLayoutPreview
+    return getFeatureComponent(
+      this.app,
+      'onboarding',
+      'DatabaseAppLayoutPreview'
+    )
   }
 
   condition(data) {
@@ -259,6 +283,11 @@ export class DatabaseScratchTrackFieldsOnboardingType extends OnboardingType {
 }
 
 export class DatabaseImportOnboardingType extends OnboardingType {
+  /** These steps use Database field renderers and importers rather than metadata alone. */
+  async load() {
+    await loadFeatureBundle(this.app, 'onboarding-rendering')
+  }
+
   static getType() {
     return 'database_scratch_import'
   }
@@ -268,11 +297,19 @@ export class DatabaseImportOnboardingType extends OnboardingType {
   }
 
   getFormComponent() {
-    return DatabaseImportStep
+    return getFeatureComponent(
+      this.app,
+      'onboarding-rendering',
+      'DatabaseImportStep'
+    )
   }
 
   getPreviewComponent() {
-    return DatabaseAppLayoutPreview
+    return getFeatureComponent(
+      this.app,
+      'onboarding',
+      'DatabaseAppLayoutPreview'
+    )
   }
 
   condition(data) {

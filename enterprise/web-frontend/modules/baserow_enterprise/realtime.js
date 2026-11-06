@@ -45,6 +45,7 @@ export const registerRealtimeEvents = (realtime) => {
   realtime.registerEvent(
     'semantic_search_field_status_updated',
     ({ store }, { field_id: fieldId, semantic_search_status: status }) => {
+      if (!store.hasModule('field')) return
       store.commit('field/SET_ITEM_VALUES', {
         id: fieldId,
         values: { semantic_search_status: status },

@@ -1,5 +1,12 @@
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 import { IntegrationType } from '@baserow/modules/core/integrationTypes'
-import SMTPForm from '@baserow/modules/integrations/core/components/integrations/SMTPForm'
+
+// Editor controls load together, independently of the published runtime.
+const SMTPForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.integrationTypesSMTPForm
+  )
+)
 
 export class SMTPIntegrationType extends IntegrationType {
   static getType() {

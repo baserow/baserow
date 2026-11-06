@@ -37,8 +37,8 @@ import {
   DatabaseImportOnboardingType,
   DatabaseScratchTrackOnboardingType,
 } from '@baserow/modules/database/onboardingTypes'
-import DatabaseTablePreview from '@baserow/modules/database/components/onboarding/DatabaseTablePreview'
-import { populateTable } from '@baserow/modules/database/store/table'
+import { getFeatureComponent } from '@baserow/modules/core/utils/featureBundles'
+import { populateTable } from '@baserow/modules/database/utils/populateTable'
 import { clone } from '@baserow/modules/core/utils/object'
 import Sidebar from '@baserow/modules/core/components/sidebar/Sidebar'
 import Highlight from '@baserow/modules/core/components/Highlight'
@@ -133,7 +133,11 @@ export default {
     },
     col2Component() {
       return this.trackTableName && this.applications[0].tables.length > 0
-        ? DatabaseTablePreview
+        ? getFeatureComponent(
+            this.$nuxt,
+            'onboarding-rendering',
+            'DatabaseTablePreview'
+          )
         : null
     },
   },

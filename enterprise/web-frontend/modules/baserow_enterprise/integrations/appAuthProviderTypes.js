@@ -1,18 +1,32 @@
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 import { AppAuthProviderType } from '@baserow/modules/core/appAuthProviderTypes'
 import {
   SamlAuthProviderTypeMixin,
   OAuth2AuthProviderTypeMixin,
 } from '@baserow_enterprise/authProviderTypes'
 
-import LocalBaserowUserSourceForm from '@baserow_enterprise/integrations/localBaserow/components/appAuthProviders/LocalBaserowPasswordAppAuthProviderForm'
 import LocalBaserowAuthPassword from '@baserow_enterprise/integrations/localBaserow/components/appAuthProviders/LocalBaserowAuthPassword'
-import CommonSamlSettingForm from '@baserow_enterprise/integrations/common/components/CommonSamlSettingForm'
-import CommonOIDCSettingForm from '@baserow_enterprise/integrations/common/components/CommonOIDCSettingForm'
 import SamlAuthLink from '@baserow_enterprise/integrations/common/components/SamlAuthLink'
 import OIDCAuthLink from '@baserow_enterprise/integrations/common/components/OIDCAuthLink'
 import OpenIdIcon from '@baserow_enterprise/assets/images/providers/OpenID.svg?url'
-import { PasswordFieldType } from '@baserow/modules/database/fieldTypes'
 import EnterpriseFeatures from '@baserow_enterprise/features'
+
+// Editor controls load together, independently of the published runtime.
+const LocalBaserowUserSourceForm = lazyComponent(() =>
+  import('@baserow_enterprise/components/authoringBundle').then(
+    (bundle) => bundle.appAuthProviderTypesLocalBaserowUserSourceForm
+  )
+)
+const CommonSamlSettingForm = lazyComponent(() =>
+  import('@baserow_enterprise/components/authoringBundle').then(
+    (bundle) => bundle.appAuthProviderTypesCommonSamlSettingForm
+  )
+)
+const CommonOIDCSettingForm = lazyComponent(() =>
+  import('@baserow_enterprise/components/authoringBundle').then(
+    (bundle) => bundle.appAuthProviderTypesCommonOIDCSettingForm
+  )
+)
 
 export class LocalBaserowPasswordAppAuthProviderType extends AppAuthProviderType {
   static getType() {
@@ -36,7 +50,7 @@ export class LocalBaserowPasswordAppAuthProviderType extends AppAuthProviderType
    * It's defined here so that it can be changed by a plugin.
    */
   get allowedPasswordFieldTypes() {
-    return [PasswordFieldType.getType()]
+    return ['password']
   }
 
   getLoginOptions(authProvider) {

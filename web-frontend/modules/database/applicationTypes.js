@@ -1,11 +1,8 @@
+import { getApplicationComponent } from '@baserow/modules/core/utils/applicationBundles'
 import { ApplicationType } from '@baserow/modules/core/applicationTypes'
-import Sidebar from '@baserow/modules/database/components/sidebar/Sidebar'
-import TemplateSidebar from '@baserow/modules/database/components/sidebar/TemplateSidebar'
-import TableTemplate from '@baserow/modules/database/components/table/TableTemplate'
-import { populateTable } from '@baserow/modules/database/store/table'
-import GridViewRowExpandButton from '@baserow/modules/database/components/view/grid/GridViewRowExpandButton'
-import DatabaseForm from '@baserow/modules/database/components/form/DatabaseForm'
-import ApplicationContext from '@baserow/modules/database/components/application/ApplicationContext'
+
+import { populateTable } from '@baserow/modules/database/utils/populateTable'
+
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
 
@@ -20,7 +17,11 @@ export class DatabaseApplicationType extends ApplicationType {
    *    'edit-modal' event when clicked with the row as the event.
    */
   getRowExpandButtonComponent() {
-    return GridViewRowExpandButton
+    return getApplicationComponent(
+      this.app,
+      'database',
+      'GridViewRowExpandButton'
+    )
   }
 
   getIconClass() {
@@ -57,19 +58,19 @@ export class DatabaseApplicationType extends ApplicationType {
   }
 
   getSidebarComponent() {
-    return Sidebar
+    return getApplicationComponent(this.app, 'database', 'Sidebar')
   }
 
   getApplicationContextComponent() {
-    return ApplicationContext
+    return getApplicationComponent(this.app, 'database', 'ApplicationContext')
   }
 
   getTemplateSidebarComponent() {
-    return TemplateSidebar
+    return getApplicationComponent(this.app, 'database', 'TemplateSidebar')
   }
 
   getTemplatesPageComponent() {
-    return TableTemplate
+    return getApplicationComponent(this.app, 'database', 'TableTemplate')
   }
 
   getTemplatePage(application) {
@@ -161,7 +162,7 @@ export class DatabaseApplicationType extends ApplicationType {
   }
 
   getApplicationFormComponent() {
-    return DatabaseForm
+    return getApplicationComponent(this.app, 'database', 'DatabaseForm')
   }
 
   getOrder() {
