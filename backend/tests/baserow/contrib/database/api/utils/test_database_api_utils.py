@@ -3,6 +3,7 @@ from urllib.parse import quote
 from django.urls import reverse
 
 import pytest
+from rest_framework.request import Request
 
 from baserow.contrib.database.api.utils import (
     LinkedTargetField,
@@ -16,6 +17,12 @@ from baserow.contrib.database.fields.exceptions import (
 from baserow.contrib.database.fields.field_types import TextFieldType
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field
+
+
+def api_request(user, request):
+    api_request = Request(request)
+    api_request.user = user
+    return api_request
 
 
 @pytest.mark.django_db
@@ -32,9 +39,12 @@ def test_extract_link_row_joins_from_request(data_fixture, rf):
     valid_field_reference = (
         f"?field_{link_row_field.id}__join=field_{linked_table_text_field.id}"
     )
-    request = rf.get(
-        reverse("api:database:rows:list", kwargs={"table_id": table.id})
-        + valid_field_reference
+    request = api_request(
+        user,
+        rf.get(
+            reverse("api:database:rows:list", kwargs={"table_id": table.id})
+            + valid_field_reference
+        ),
     )
     link_row_fields = (
         Field.objects.filter(table=table)
@@ -75,10 +85,13 @@ def test_extract_link_row_joins_from_request_user_field_names(data_fixture, rf):
     valid_field_reference = (
         f"?{quote(link_row_field.name)}__join={quote(linked_table_text_field.name)}"
     )
-    request = rf.get(
-        reverse("api:database:rows:list", kwargs={"table_id": table.id})
-        + valid_field_reference
-        + "&user_field_names"
+    request = api_request(
+        user,
+        rf.get(
+            reverse("api:database:rows:list", kwargs={"table_id": table.id})
+            + valid_field_reference
+            + "&user_field_names"
+        ),
     )
     link_row_fields = (
         Field.objects.filter(table=table)
@@ -134,8 +147,12 @@ def test_extract_link_row_joins_from_request_multiple_lookups(data_fixture, rf):
         f",field_{linked_table_text_field_2.id}"
         f"&field_{link_row_field_2.id}__join=field_{linked_table_2_text_field.id}"
     )
-    request = rf.get(
-        reverse("api:database:rows:list", kwargs={"table_id": table.id}) + join_params
+    request = api_request(
+        user,
+        rf.get(
+            reverse("api:database:rows:list", kwargs={"table_id": table.id})
+            + join_params
+        ),
     )
     link_row_fields = (
         Field.objects.filter(table=table)
@@ -207,9 +224,12 @@ def test_extract_link_row_joins_from_request_invalid_reference(data_fixture, rf)
 
     # link row field doesn't exist
     invalid_field_reference = "?field_9999__join=field_99999"
-    request = rf.get(
-        reverse("api:database:rows:list", kwargs={"table_id": table.id})
-        + invalid_field_reference
+    request = api_request(
+        user,
+        rf.get(
+            reverse("api:database:rows:list", kwargs={"table_id": table.id})
+            + invalid_field_reference
+        ),
     )
     with pytest.raises(FieldDoesNotExist):
         extract_link_row_joins_from_request(request, link_row_fields)
@@ -218,18 +238,24 @@ def test_extract_link_row_joins_from_request_invalid_reference(data_fixture, rf)
     not_lookup_field_reference = (
         f"?field_{field_outside_linked_table.id}__join=field_99999"
     )
-    request = rf.get(
-        reverse("api:database:rows:list", kwargs={"table_id": table.id})
-        + not_lookup_field_reference
+    request = api_request(
+        user,
+        rf.get(
+            reverse("api:database:rows:list", kwargs={"table_id": table.id})
+            + not_lookup_field_reference
+        ),
     )
     with pytest.raises(FieldDoesNotExist):
         extract_link_row_joins_from_request(request, link_row_fields)
 
     # target field doesn't exist
     invalid_linked_field_reference = f"?field_{link_row_field.id}__join=field_99999"
-    request = rf.get(
-        reverse("api:database:rows:list", kwargs={"table_id": table.id})
-        + invalid_linked_field_reference
+    request = api_request(
+        user,
+        rf.get(
+            reverse("api:database:rows:list", kwargs={"table_id": table.id})
+            + invalid_linked_field_reference
+        ),
     )
     with pytest.raises(FieldDoesNotExist):
         extract_link_row_joins_from_request(request, link_row_fields)
@@ -238,9 +264,12 @@ def test_extract_link_row_joins_from_request_invalid_reference(data_fixture, rf)
     field_outside_linked_table_reference = (
         f"?field_{link_row_field.id}__join=field_{field_outside_linked_table.id}"
     )
-    request = rf.get(
-        reverse("api:database:rows:list", kwargs={"table_id": table.id})
-        + field_outside_linked_table_reference
+    request = api_request(
+        user,
+        rf.get(
+            reverse("api:database:rows:list", kwargs={"table_id": table.id})
+            + field_outside_linked_table_reference
+        ),
     )
     with pytest.raises(FieldDoesNotExist):
         extract_link_row_joins_from_request(request, link_row_fields)
@@ -249,9 +278,12 @@ def test_extract_link_row_joins_from_request_invalid_reference(data_fixture, rf)
     linked_table_link_row_field_reference = (
         f"?field_{link_row_field.id}__join=field_{linked_table_link_row_field.id}"
     )
-    request = rf.get(
-        reverse("api:database:rows:list", kwargs={"table_id": table.id})
-        + linked_table_link_row_field_reference
+    request = api_request(
+        user,
+        rf.get(
+            reverse("api:database:rows:list", kwargs={"table_id": table.id})
+            + linked_table_link_row_field_reference
+        ),
     )
     with pytest.raises(IncompatibleField):
         extract_link_row_joins_from_request(request, link_row_fields)
@@ -261,9 +293,12 @@ def test_extract_link_row_joins_from_request_invalid_reference(data_fixture, rf)
     trashed_field_linked_table_reference = (
         f"?field_{link_row_field.id}__join=field_{linked_table_text_field.id}"
     )
-    request = rf.get(
-        reverse("api:database:rows:list", kwargs={"table_id": table.id})
-        + trashed_field_linked_table_reference
+    request = api_request(
+        user,
+        rf.get(
+            reverse("api:database:rows:list", kwargs={"table_id": table.id})
+            + trashed_field_linked_table_reference
+        ),
     )
     with pytest.raises(FieldDoesNotExist):
         extract_link_row_joins_from_request(request, link_row_fields)
@@ -298,10 +333,13 @@ def test_extract_link_row_joins_from_request_invalid_reference_user_field_names(
     invalid_field_reference = (
         f"?DoesNotExist__join={quote(linked_table_text_field.name)}"
     )
-    request = rf.get(
-        reverse("api:database:rows:list", kwargs={"table_id": table.id})
-        + invalid_field_reference
-        + "&user_field_names"
+    request = api_request(
+        user,
+        rf.get(
+            reverse("api:database:rows:list", kwargs={"table_id": table.id})
+            + invalid_field_reference
+            + "&user_field_names"
+        ),
     )
     with pytest.raises(FieldDoesNotExist):
         extract_link_row_joins_from_request(
@@ -310,10 +348,13 @@ def test_extract_link_row_joins_from_request_invalid_reference_user_field_names(
 
     # link row field is not a link row field
     not_lookup_field_reference = f"?{quote(field_outside_linked_table.name)}__join={quote(linked_table_text_field.name)}"
-    request = rf.get(
-        reverse("api:database:rows:list", kwargs={"table_id": table.id})
-        + not_lookup_field_reference
-        + "&user_field_names"
+    request = api_request(
+        user,
+        rf.get(
+            reverse("api:database:rows:list", kwargs={"table_id": table.id})
+            + not_lookup_field_reference
+            + "&user_field_names"
+        ),
     )
     with pytest.raises(FieldDoesNotExist):
         extract_link_row_joins_from_request(
@@ -322,10 +363,13 @@ def test_extract_link_row_joins_from_request_invalid_reference_user_field_names(
 
     # target field doesn't exist
     invalid_linked_field_reference = f"?{quote(link_row_field.name)}__join=DoesNotExist"
-    request = rf.get(
-        reverse("api:database:rows:list", kwargs={"table_id": table.id})
-        + invalid_linked_field_reference
-        + "&user_field_names"
+    request = api_request(
+        user,
+        rf.get(
+            reverse("api:database:rows:list", kwargs={"table_id": table.id})
+            + invalid_linked_field_reference
+            + "&user_field_names"
+        ),
     )
     with pytest.raises(FieldDoesNotExist):
         extract_link_row_joins_from_request(
@@ -336,10 +380,13 @@ def test_extract_link_row_joins_from_request_invalid_reference_user_field_names(
     field_outside_linked_table_reference = (
         f"?{quote(link_row_field.name)}__join={quote(field_outside_linked_table.name)}"
     )
-    request = rf.get(
-        reverse("api:database:rows:list", kwargs={"table_id": table.id})
-        + field_outside_linked_table_reference
-        + "&user_field_names"
+    request = api_request(
+        user,
+        rf.get(
+            reverse("api:database:rows:list", kwargs={"table_id": table.id})
+            + field_outside_linked_table_reference
+            + "&user_field_names"
+        ),
     )
     with pytest.raises(FieldDoesNotExist):
         extract_link_row_joins_from_request(
@@ -350,10 +397,13 @@ def test_extract_link_row_joins_from_request_invalid_reference_user_field_names(
     linked_table_link_row_field_reference = (
         f"?{quote(link_row_field.name)}__join={quote(linked_table_link_row_field.name)}"
     )
-    request = rf.get(
-        reverse("api:database:rows:list", kwargs={"table_id": table.id})
-        + linked_table_link_row_field_reference
-        + "&user_field_names"
+    request = api_request(
+        user,
+        rf.get(
+            reverse("api:database:rows:list", kwargs={"table_id": table.id})
+            + linked_table_link_row_field_reference
+            + "&user_field_names"
+        ),
     )
     with pytest.raises(IncompatibleField):
         extract_link_row_joins_from_request(
@@ -365,10 +415,13 @@ def test_extract_link_row_joins_from_request_invalid_reference_user_field_names(
     trashed_field_linked_table_reference = (
         f"?{quote(link_row_field.name)}__join={quote(linked_table_text_field.name)}"
     )
-    request = rf.get(
-        reverse("api:database:rows:list", kwargs={"table_id": table.id})
-        + trashed_field_linked_table_reference
-        + "&user_field_names"
+    request = api_request(
+        user,
+        rf.get(
+            reverse("api:database:rows:list", kwargs={"table_id": table.id})
+            + trashed_field_linked_table_reference
+            + "&user_field_names"
+        ),
     )
     with pytest.raises(FieldDoesNotExist):
         extract_link_row_joins_from_request(
