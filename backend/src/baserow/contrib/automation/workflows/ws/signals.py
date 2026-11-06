@@ -9,6 +9,7 @@ from baserow.contrib.automation.api.workflows.serializers import (
 )
 from baserow.contrib.automation.models import Automation, AutomationWorkflow
 from baserow.contrib.automation.nodes.signals import (
+    automation_node_dispatch_cancelled,
     automation_node_dispatch_resumed,
     automation_node_dispatch_suspended,
 )
@@ -196,11 +197,19 @@ def workflow_dispatch_done(sender, workflow_history, **kwargs):
     )
 
 
-@receiver([automation_node_dispatch_suspended, automation_node_dispatch_resumed])
-def node_dispatch_suspended_or_resumed(sender, node, node_history, **kwargs):
+@receiver(
+    [
+        automation_node_dispatch_suspended,
+        automation_node_dispatch_resumed,
+        automation_node_dispatch_cancelled,
+    ]
+)
+def node_waiting_state_changed(sender, node, node_history, **kwargs):
     """
     A node that starts or stops waiting changes what the history of a run that
-    is still `started` shows, so the readers of the workflow refetch it.
+    is still `started` shows, so the readers of the workflow refetch it. A
+    waiting node that a cancellation stopped is a stop like any other: the run
+    can still be `started` when another branch of it is running.
     """
 
     workflow_history = node_history.workflow_history

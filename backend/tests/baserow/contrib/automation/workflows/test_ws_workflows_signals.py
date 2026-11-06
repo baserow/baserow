@@ -5,6 +5,7 @@ import pytest
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.service import AutomationHistoryService
 from baserow.contrib.automation.nodes.signals import (
+    automation_node_dispatch_cancelled,
     automation_node_dispatch_resumed,
     automation_node_dispatch_suspended,
 )
@@ -54,11 +55,15 @@ def test_workflow_dispatch_cancellation_requested(mock_broadcast, data_fixture):
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize(
     "signal",
-    [automation_node_dispatch_suspended, automation_node_dispatch_resumed],
-    ids=["suspended", "resumed"],
+    [
+        automation_node_dispatch_suspended,
+        automation_node_dispatch_resumed,
+        automation_node_dispatch_cancelled,
+    ],
+    ids=["suspended", "resumed", "cancelled"],
 )
 @patch(f"{WS_SIGNALS_PATH}.broadcast_to_permitted_users")
-def test_node_dispatch_suspended_or_resumed_refreshes_the_history(
+def test_node_waiting_state_change_refreshes_the_history(
     mock_broadcast, data_fixture, signal
 ):
     user = data_fixture.create_user()

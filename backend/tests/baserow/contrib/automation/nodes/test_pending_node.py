@@ -565,18 +565,69 @@ def test_resume_pending_node_loses_the_claim_to_a_concurrent_delivery(
 
 
 @pytest.mark.django_db
+@patch(f"{HTTP_NODE_TYPE_PATH}.resume_dispatch")
+def test_requesting_a_cancellation_stops_a_waiting_node_at_once(
+    mock_resume_dispatch, data_fixture
+):
+    """
+    A waiting node holds no worker, so the request stops it and resolves the
+    run itself instead of leaving the run `started` until the next wake-up.
+    """
+
+    user = data_fixture.create_user(first_name="Ada")
+    data = create_pending_workflow(data_fixture, user=user)
+    workflow_history = data["workflow_history"]
+    node_history = suspend_node(data, seconds=5)
+
+    with freeze_time("2026-10-30 12:00:01"):
+        requested_on = timezone.now()
+        AutomationHistoryHandler().request_workflow_history_cancellation(
+            workflow_history, user
+        )
+
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.CANCELLED
+    assert workflow_history.message == f"Cancelled by Ada ({user.id})."
+    assert workflow_history.completed_on == requested_on
+
+    node_history.refresh_from_db()
+    assert node_history.status == HistoryStatusChoices.CANCELLED
+    assert node_history.message == workflow_history.message
+    assert node_history.completed_on == requested_on
+
+    # The resume task still wakes up once, with nothing left to do.
+    with freeze_time("2026-10-30 12:00:05"):
+        assert resume_pending_node_celery_task.run(node_history.id) is None
+
+    mock_resume_dispatch.assert_not_called()
+    node_history.refresh_from_db()
+    assert node_history.completed_on == requested_on
+
+    # The chain's tail keeps the cancelled outcome.
+    handle_workflow_dispatch_done(history_id=workflow_history.id)
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.CANCELLED
+
+
+@pytest.mark.django_db
 # Noticed whether the node is due or not: nobody waits for a cancelled run.
 @pytest.mark.parametrize("wake_up", ["2026-10-30 12:00:02", "2026-10-30 12:00:05"])
 @patch(f"{HTTP_NODE_TYPE_PATH}.resume_dispatch")
 def test_resume_pending_node_task_finalizes_a_requested_cancellation(
     mock_resume_dispatch, data_fixture, wake_up
 ):
+    """
+    The fallback to the eager stop above: the request was recorded but the
+    waiting node was not stopped with it, e.g. the request handler was
+    interrupted in between. The resume task finalizes the run instead.
+    """
+
     user = data_fixture.create_user(first_name="Ada")
     data = create_pending_workflow(data_fixture, user=user)
     workflow_history = data["workflow_history"]
     node_history = suspend_node(data, seconds=5)
-    AutomationHistoryHandler().request_workflow_history_cancellation(
-        workflow_history, user
+    AutomationWorkflowHistory.objects.filter(id=workflow_history.id).update(
+        cancellation_requested_by=user, cancellation_requested_on=timezone.now()
     )
 
     with freeze_time(wake_up):
