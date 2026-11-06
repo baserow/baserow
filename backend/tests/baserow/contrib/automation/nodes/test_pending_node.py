@@ -696,6 +696,29 @@ def test_resume_pending_node_task_returns_none_for_a_deleted_node_history(
 
 
 @pytest.mark.django_db
+def test_a_run_deleted_while_a_node_waited_resolves_without_an_error(data_fixture):
+    """
+    The run's own history is deleted while the node waits, e.g. because the
+    workflow was deleted or republished. Both the wake-up and the tail of the
+    chain find nothing and bail out.
+    """
+
+    data = create_pending_workflow(data_fixture)
+    workflow_history = data["workflow_history"]
+    node_history = suspend_node(data, seconds=5)
+    # Cascades to the node histories of the run.
+    AutomationWorkflowHistory.objects.filter(id=workflow_history.id).delete()
+
+    with freeze_time("2026-10-30 12:00:05"):
+        assert resume_pending_node_celery_task.run(node_history.id) is None
+
+    # The tail of the chain runs last, and has nothing left to update.
+    handle_workflow_dispatch_done(history_id=workflow_history.id)
+
+    assert not AutomationNodeHistory.objects.filter(id=node_history.id).exists()
+
+
+@pytest.mark.django_db
 @patch(f"{NODE_HANDLER_PATH}.logger")
 @patch(f"{HTTP_NODE_TYPE_PATH}.resume_dispatch", side_effect=ValueError("Clock broken"))
 def test_resume_pending_node_marks_the_run_as_errored_when_the_resume_fails(
