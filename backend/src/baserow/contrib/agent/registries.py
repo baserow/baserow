@@ -120,11 +120,11 @@ class AgentToolType(Instance):
 
     def get_step_input(self, arguments: dict[str, Any]) -> dict[str, Any]:
         """
-        Describe a call before it runs, from its arguments alone.
+        Select input values that can be displayed to the conversation owner.
 
-        :param arguments: The tool's arguments, possibly invalid.
-        :return: Display values derived from the arguments, none by default. Never
-            copy argument values, which can hold private data.
+        :param arguments: The tool's arguments.
+        :return: Approved display values, none by default. Tools must explicitly
+            select arguments; never include credentials or execution context.
         """
 
         return {}

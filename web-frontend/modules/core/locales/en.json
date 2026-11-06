@@ -1846,6 +1846,8 @@
     "failurePermissionDenied": "Permission denied for this operation.",
     "failureInvalidInput": "The tool received invalid input.",
     "failureFailed": "This tool call failed.",
+    "input": "Input",
+    "inputTruncated": "This is a shortened preview of the input.",
     "workspaceRunning": "Looking at your workspace",
     "workspaceDone": "Looked at your workspace",
     "workspace": "Workspace activity"

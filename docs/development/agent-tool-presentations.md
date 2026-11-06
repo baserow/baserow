@@ -42,6 +42,18 @@ The backend emits `step` events and saves the same steps on the assistant messag
 
 Calls to tools the reply doesn't offer get no step.
 
+### Input previews
+
+Write tools can add `input.values`, a copy of the arguments they select in
+`DatabaseAgentToolType.step_input_arguments`. Core's `tool_input_preview` shortens
+strings to 1,000 characters and sets `input.truncated` when it does. It leaves the
+preview out when the stored JSON would exceed 16 KiB, because a partial copy could
+misstate the request. The card shows it as escaped JSON, collapsed by default. It
+describes the request, not what changed, and is stored with the step.
+
+Row tools don't select their rows: values can include passwords, which the row
+itself only stores hashed.
+
 ## Adding a tool
 
 **Backend.** An `AgentToolType` describes its calls with

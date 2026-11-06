@@ -146,6 +146,32 @@ def test_tool_presentation_contract_uses_valid_arguments_and_safe_summaries(name
     )
 
 
+@pytest.mark.parametrize("name", PRESENTATIONS)
+def test_tool_input_excludes_unapproved_arguments_without_mutating_the_call(name):
+    case = PRESENTATIONS[name]
+    arguments = {**case["arguments"], "credential": "DO_NOT_DISPLAY"}
+    original = json.dumps(arguments)
+
+    summary = agent_tool_type_registry.get(name).get_step_input(arguments)
+
+    assert summary == case["input"]
+    assert "DO_NOT_DISPLAY" not in json.dumps(summary)
+    assert json.dumps(arguments) == original
+
+    class UnrepresentedTool(AgentToolType):
+        type = "unrepresented"
+
+    assert UnrepresentedTool().get_step_input(arguments) == {}
+
+
+def test_row_writes_keep_values_out_of_the_step_input():
+    arguments = {"table_id": 1, "rows": [{"Password": "Hunter2!"}]}
+
+    for name in ("create_rows", "update_rows"):
+        summary = agent_tool_type_registry.get(name).get_step_input(arguments)
+        assert summary == {"requested_count": 1}
+
+
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "name",
@@ -373,7 +399,10 @@ def test_partial_field_creation_counts_only_created_fields(workspace_data):
 
     result = call_tool(tool_type, workspace_data.ctx, arguments)
 
-    assert tool_type.get_step_input(arguments) == {"requested_count": 2}
+    assert tool_type.get_step_input(arguments) == {
+        "requested_count": 2,
+        "values": arguments,
+    }
     assert result.metadata == {"table": "Tasks", "count": 1}
     assert len(result.return_value["formula_errors"]) == 1
 

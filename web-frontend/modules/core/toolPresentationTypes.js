@@ -51,6 +51,11 @@ export class ToolPresentationType extends Registerable {
   getActivity(step, t) {
     return t(`toolPresentation.${step.status}`)
   }
+
+  /** Opt in to the backend's curated input preview; hidden by default. */
+  getInput(step, t) {
+    return null
+  }
 }
 
 const record = (value) =>
@@ -85,6 +90,18 @@ export function stepStatusText({ status, changesData, failureHint }, t) {
     : label
 }
 
+function toolInput(presenter, step, t) {
+  try {
+    const input = presenter.getInput(step, t)
+    const values = record(input?.values)
+    return Object.keys(values).length
+      ? { values, truncated: input.truncated === true }
+      : null
+  } catch {
+    return null
+  }
+}
+
 /** Resolve a safe activity without letting an unknown or broken type break chat. */
 export function toolActivity(step, registry, t) {
   const data = record(step)
@@ -99,6 +116,7 @@ export function toolActivity(step, registry, t) {
     status,
     changesData: data.changes_data === true,
     group: null,
+    input: null,
     failureHint: failureHint(data, status, t),
   }
   try {
@@ -128,6 +146,7 @@ export function toolActivity(step, registry, t) {
       ...fallback,
       title,
       group: !data.changes_data ? presenter.group : null,
+      input: toolInput(presenter, normalized, translate),
     }
   } catch {
     return fallback

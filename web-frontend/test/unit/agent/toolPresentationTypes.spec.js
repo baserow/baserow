@@ -70,6 +70,11 @@ describe('Agent tool presentations', () => {
           t
         )
         expect(activity.title).not.toMatch(/^(agent|toolPresentation)\./)
+        expect(activity.input).toEqual(
+          step(name).changes_data && input.values
+            ? { values: input.values, truncated: false }
+            : null
+        )
       }
     }
   })
