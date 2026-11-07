@@ -3,7 +3,10 @@ from unittest.mock import patch
 
 import pytest
 
-from baserow.core.actions import JoinWorkspaceViaInvitationLinkActionType
+from baserow.core.actions import (
+    JoinWorkspaceViaInvitationLinkActionType,
+    UpdateWorkspaceInvitationLinkActionType,
+)
 from baserow.core.exceptions import (
     FeatureDisabledException,
     UserInvalidWorkspacePermissionsError,
@@ -140,6 +143,55 @@ def test_update_workspace_invitation_link(data_fixture):
     invitation_link.refresh_from_db()
     assert invitation_link.name == "Freelancers"
     assert invitation_link.permissions == "ADMIN"
+
+
+@pytest.mark.django_db
+@patch("baserow.core.action.signals.action_done.send")
+def test_update_workspace_invitation_link_action_records_password_changes(
+    action_done_mock, data_fixture
+):
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin, name="Acme")
+    invitation_link = data_fixture.create_workspace_invitation_link(
+        workspace=workspace, created_by=admin, permissions="MEMBER", name="Partners"
+    )
+
+    UpdateWorkspaceInvitationLinkActionType.do(
+        admin, invitation_link, password="correct horse battery"
+    )
+    UpdateWorkspaceInvitationLinkActionType.do(
+        admin, invitation_link, password="another long password"
+    )
+    UpdateWorkspaceInvitationLinkActionType.do(admin, invitation_link, name="Friends")
+    UpdateWorkspaceInvitationLinkActionType.do(admin, invitation_link, password="")
+    # Removing the password of a link without one changes nothing.
+    UpdateWorkspaceInvitationLinkActionType.do(admin, invitation_link, password="")
+
+    params = [call.kwargs["action_params"] for call in action_done_mock.call_args_list]
+    assert [p["password_change"] for p in params] == [
+        "added",
+        "changed",
+        "",
+        "removed",
+        "",
+    ]
+    assert all("password" not in p for p in params)
+
+    description = (
+        f'Invitation link ({invitation_link.id}) to join "Acme" ({workspace.id}) '
+        'changed from "Partners" as MEMBER to "Partners" as MEMBER.'
+    )
+    long_description = UpdateWorkspaceInvitationLinkActionType.get_long_description
+    assert long_description(params[0]) == f"{description} Password protection added."
+    assert long_description(params[1]) == f"{description} Password changed."
+    assert long_description(params[3]) == (
+        f'Invitation link ({invitation_link.id}) to join "Acme" ({workspace.id}) '
+        'changed from "Friends" as MEMBER to "Friends" as MEMBER. '
+        "Password protection removed."
+    )
+    # Entries logged before links had passwords still render.
+    legacy_params = {k: v for k, v in params[0].items() if k != "password_change"}
+    assert long_description(legacy_params) == description
 
 
 @pytest.mark.django_db

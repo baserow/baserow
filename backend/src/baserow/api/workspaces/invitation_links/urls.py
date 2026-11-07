@@ -1,6 +1,7 @@
 from django.urls import re_path
 
 from .views import (
+    InvitationLinkAuthView,
     JoinWorkspaceInvitationLinkView,
     PublicWorkspaceInvitationLinkView,
     WorkspaceInvitationLinksView,
@@ -20,6 +21,11 @@ urlpatterns = [
         r"slug/(?P<slug>[-\w]+)/$",
         PublicWorkspaceInvitationLinkView.as_view(),
         name="slug",
+    ),
+    re_path(
+        r"slug/(?P<slug>[-\w]+)/auth/$",
+        InvitationLinkAuthView.as_view(),
+        name="auth",
     ),
     re_path(
         r"slug/(?P<slug>[-\w]+)/join/$",

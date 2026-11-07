@@ -7,6 +7,9 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from baserow.api.serializers import NaturalKeyRelatedField
+from baserow.api.workspaces.invitation_links.serializers import (
+    InvitationLinkPasswordField,
+)
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.models import WorkspaceInvitationLink
 from baserow.core.registries import (
@@ -364,6 +367,7 @@ class ScopedInvitationLinkSerializer(serializers.ModelSerializer):
             "permissions",
             "scope_id",
             "scope_type",
+            "has_password",
             "created_on",
         )
         read_only_fields = fields
@@ -410,6 +414,7 @@ class CreateScopedInvitationLinkSerializer(serializers.Serializer):
 
 
 class UpdateScopedInvitationLinkSerializer(serializers.Serializer):
+    password = InvitationLinkPasswordField()
     name = serializers.CharField(
         required=False,
         allow_blank=True,

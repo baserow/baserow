@@ -211,6 +211,12 @@ class RegisterSerializer(serializers.Serializer):
         "invitation link after signing up. Can't be combined with "
         "`workspace_invitation_token`.",
     )
+    workspace_invitation_link_token = serializers.CharField(
+        required=False,
+        help_text="The access token of a password protected invitation link, "
+        "handed out by its auth endpoint. Required with "
+        "`workspace_invitation_link_slug` when the link has a password.",
+    )
     template_id = serializers.PrimaryKeyRelatedField(
         required=False,
         default=None,
