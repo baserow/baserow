@@ -178,6 +178,7 @@
     <div v-if="!small" class="row">
       <div class="col col-12">
         <Tabs>
+          <slot name="leading-tabs"></slot>
           <Tab
             v-if="showGroup"
             :title="$t('serviceRefinementForms.groupTabTitle', { count: 0 })"
