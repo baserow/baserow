@@ -5,6 +5,7 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 import LinkInvitationRoute from '@baserow/modules/core/components/invitation/LinkInvitationRoute'
 import ConfirmModal from '@baserow/modules/core/components/modals/ConfirmModal'
 import InvitationLinkDeleteModal from '@baserow/modules/core/components/invitation/InvitationLinkDeleteModal'
+import InvitationLinkPasswordModal from '@baserow/modules/core/components/invitation/InvitationLinkPasswordModal'
 import WorkspaceRoleSelector from '@baserow/modules/core/components/workspace/WorkspaceRoleSelector'
 import { copyToClipboard } from '@baserow/modules/core/utils/clipboard'
 
@@ -254,7 +255,7 @@ describe('LinkInvitationRoute', () => {
     const show = vi.spyOn(deleteModal.vm, 'show')
 
     await rows(wrapper)[0]
-      .findAll('.invitation-links__action')[1]
+      .findAll('.invitation-links__action')[2]
       .trigger('click')
     await flushPromises()
 
@@ -268,5 +269,50 @@ describe('LinkInvitationRoute', () => {
     expect(mockServer.mock.history.delete).toHaveLength(1)
     expect(rows(wrapper)).toHaveLength(1)
     expect(url(rows(wrapper)[0])).toBe('/invite/second')
+  })
+
+  test('protects a link with a password and removes it again', async () => {
+    mockLinks([
+      { id: 1, slug: 'first', permissions: 'MEMBER', has_password: false },
+    ])
+    mockServer.mock
+      .onPatch('/workspaces/invitation-links/1/')
+      .replyOnce(200, {
+        id: 1,
+        slug: 'first',
+        permissions: 'MEMBER',
+        has_password: true,
+      })
+      .onPatch('/workspaces/invitation-links/1/')
+      .replyOnce(200, {
+        id: 1,
+        slug: 'first',
+        permissions: 'MEMBER',
+        has_password: false,
+      })
+    const wrapper = await mountRoute()
+    const lock = () => rows(wrapper)[0].findAll('.invitation-links__action')[1]
+    const passwordModal = wrapper.findComponent(InvitationLinkPasswordModal)
+    const show = vi.spyOn(passwordModal.vm, 'show')
+
+    expect(lock().classes()).not.toContain('invitation-links__action--active')
+    await lock().trigger('click')
+    expect(show).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }))
+
+    await passwordModal.vm.save('correct horse battery')
+    await flushPromises()
+
+    expect(JSON.parse(mockServer.mock.history.patch[0].data)).toEqual({
+      password: 'correct horse battery',
+    })
+    expect(lock().classes()).toContain('invitation-links__action--active')
+
+    await passwordModal.vm.save('')
+    await flushPromises()
+
+    expect(JSON.parse(mockServer.mock.history.patch[1].data)).toEqual({
+      password: '',
+    })
+    expect(lock().classes()).not.toContain('invitation-links__action--active')
   })
 })

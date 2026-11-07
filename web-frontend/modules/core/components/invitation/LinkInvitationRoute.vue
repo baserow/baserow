@@ -65,6 +65,26 @@
               ></Copied>
             </a>
             <a
+              v-tooltip="
+                invitationLink.has_password
+                  ? $t('inviteModal.linkPasswordProtected')
+                  : $t('inviteModal.linkAddPassword')
+              "
+              class="invitation-links__action"
+              :class="{
+                'invitation-links__action--active': invitationLink.has_password,
+              }"
+              @click="$refs.passwordModal.show(invitationLink)"
+            >
+              <i
+                :class="
+                  invitationLink.has_password
+                    ? 'iconoir-lock'
+                    : 'iconoir-no-lock'
+                "
+              ></i>
+            </a>
+            <a
               v-tooltip="$t('inviteModal.linkDelete')"
               class="invitation-links__action"
               @click="$refs.deleteModal.show(invitationLink)"
@@ -94,6 +114,15 @@
       @hidden="pendingChange = null"
       @confirm="confirmPendingChange"
     />
+    <InvitationLinkPasswordModal
+      ref="passwordModal"
+      :workspace="workspace"
+      :target="target"
+      :target-type="targetType"
+      @updated="
+        (invitationLink, updated) => Object.assign(invitationLink, updated)
+      "
+    />
     <InvitationLinkDeleteModal
       ref="deleteModal"
       :workspace="workspace"
@@ -107,6 +136,7 @@
 <script>
 import ConfirmModal from '@baserow/modules/core/components/modals/ConfirmModal'
 import InvitationLinkDeleteModal from '@baserow/modules/core/components/invitation/InvitationLinkDeleteModal'
+import InvitationLinkPasswordModal from '@baserow/modules/core/components/invitation/InvitationLinkPasswordModal'
 import WorkspaceRoleSelector from '@baserow/modules/core/components/workspace/WorkspaceRoleSelector'
 import error from '@baserow/modules/core/mixins/error'
 import { copyToClipboard } from '@baserow/modules/core/utils/clipboard'
@@ -126,6 +156,7 @@ export default {
   components: {
     ConfirmModal,
     InvitationLinkDeleteModal,
+    InvitationLinkPasswordModal,
     WorkspaceRoleSelector,
   },
   mixins: [error],

@@ -68,6 +68,7 @@ from .exceptions import (
     WorkspaceInvitationEmailMismatch,
     WorkspaceInvitationEmailNotVerified,
     WorkspaceInvitationLinkDoesNotExist,
+    WorkspaceInvitationLinkPasswordRequired,
     WorkspaceInvitationLinkSignupsDisabled,
     WorkspaceUserAlreadyExists,
     WorkspaceUserDoesNotExist,
@@ -107,6 +108,7 @@ from .operations import (
     UpdateWorkspaceOperationType,
     UpdateWorkspaceUserOperationType,
 )
+from .public_sharing import encode_public_access_token, is_public_access_token_valid
 from .registries import (
     ImportExportConfig,
     InvitationLinkScopeType,
@@ -1705,7 +1707,10 @@ class CoreHandler:
         )
 
     def get_workspace_invitation_link_by_slug(
-        self, slug: str
+        self,
+        slug: str,
+        access_token: Optional[str] = None,
+        check_password: bool = True,
     ) -> WorkspaceInvitationLink:
         """
         Returns the workspace invitation link of the given slug, which is what the
@@ -1713,9 +1718,17 @@ class CoreHandler:
         no link can be used while the instance doesn't let anyone sign up through
         it. The links are kept, so they work again once signups are allowed.
 
+        A password protected link is only returned with the access token handed
+        out for its password, see `encode_invitation_link_access_token`.
+
         :param slug: The slug of the link.
+        :param access_token: The token handed out for the password of the link.
+        :param check_password: Whether a password protected link requires the
+            token. Only the endpoint that checks the password itself skips it.
         :raises FeatureDisabledException: If invitation links aren't enabled.
         :raises WorkspaceInvitationLinkDoesNotExist: If no usable link has the slug.
+        :raises WorkspaceInvitationLinkPasswordRequired: If the link is password
+            protected and the token is missing or invalid.
         :return: The workspace invitation link.
         """
 
@@ -1742,7 +1755,43 @@ class CoreHandler:
                     "The object of the workspace invitation link can't be joined."
                 )
 
+        if (
+            check_password
+            and invitation_link.has_password
+            and not self.is_invitation_link_access_token_valid(
+                invitation_link, access_token
+            )
+        ):
+            raise WorkspaceInvitationLinkPasswordRequired(
+                "The workspace invitation link is password protected."
+            )
+
         return invitation_link
+
+    def encode_invitation_link_access_token(
+        self, invitation_link: WorkspaceInvitationLink
+    ) -> str:
+        """
+        Returns the token that grants access to a password protected link. It is
+        tied to the slug and the password of the link, so changing the password
+        invalidates every token handed out before.
+
+        :param invitation_link: The password protected link.
+        :return: The access token.
+        """
+
+        return encode_public_access_token(
+            invitation_link.slug, invitation_link.password
+        )
+
+    def is_invitation_link_access_token_valid(
+        self, invitation_link: WorkspaceInvitationLink, access_token: Optional[str]
+    ) -> bool:
+        if not access_token:
+            return False
+        return is_public_access_token_valid(
+            invitation_link.slug, invitation_link.password, access_token
+        )
 
     def get_invitation_link_scope_type(
         self, invitation_link: WorkspaceInvitationLink
@@ -1838,16 +1887,21 @@ class CoreHandler:
         invitation_link: WorkspaceInvitationLink,
         permissions: str | None = None,
         name: str | None = None,
+        password: str | None = None,
     ) -> WorkspaceInvitationLink:
         """
-        Changes the name of the link or the permissions that people get when joining
-        through it. It doesn't change the permissions of people who already joined.
+        Changes the name of the link, the permissions that people get when joining
+        through it or its password. It doesn't change the permissions of people who
+        already joined.
 
         :param user: The user on whose behalf the link is updated.
         :param invitation_link: The link that must be updated.
         :param permissions: The new workspace permissions of the link, if they
             change.
         :param name: The new name of the link, if it changes.
+        :param password: The new password of the link, or an empty string to
+            remove it. Changing it invalidates the access tokens handed out for
+            the previous password.
         :raises PermissionException: If the user isn't allowed to update the link.
         :raises InvalidWorkspaceRole: If the provided permissions are not available.
         :return: The updated workspace invitation link.
@@ -1868,6 +1922,9 @@ class CoreHandler:
         if name is not None:
             invitation_link.name = name
             update_fields.append("name")
+        if password is not None:
+            invitation_link.set_password(password)
+            update_fields.append("password")
         invitation_link.save(update_fields=update_fields)
 
         return invitation_link
