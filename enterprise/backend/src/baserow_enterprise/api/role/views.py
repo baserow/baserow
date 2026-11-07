@@ -1082,6 +1082,7 @@ class ScopedInvitationLinkView(APIView):
             invitation_link,
             role=data.get("permissions"),
             name=data.get("name"),
+            password=data.get("password"),
         )
         return Response(ScopedInvitationLinkSerializer(invitation_link).data)
 

@@ -11,7 +11,7 @@
 .invitation-links__head,
 .invitation-links__item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 168px 200px 60px;
+  grid-template-columns: minmax(0, 1fr) 168px 200px 96px;
   align-items: center;
   gap: 12px;
 }
@@ -75,5 +75,15 @@
   &:hover {
     color: $palette-neutral-1200;
     text-decoration: none;
+  }
+}
+
+// A password protected link shows its lock in color, so it stands out from
+// the links anyone can use.
+.invitation-links__action--active {
+  color: $palette-blue-500;
+
+  &:hover {
+    color: $palette-blue-700;
   }
 }

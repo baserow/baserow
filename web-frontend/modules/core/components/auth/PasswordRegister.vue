@@ -186,6 +186,15 @@ export default {
       validator: (prop) => typeof prop === 'object' || prop === null,
       default: null,
     },
+    /**
+     * The token handed out for the password of the invitation link, when it is
+     * password protected.
+     */
+    invitationLinkToken: {
+      type: String,
+      required: false,
+      default: null,
+    },
     template: {
       required: false,
       validator: (prop) => typeof prop === 'object' || prop === null,
@@ -296,6 +305,7 @@ export default {
             this.$route.query.workspaceInvitationToken
         } else if (this.invitationLink !== null) {
           values.workspaceInvitationLinkSlug = this.invitationLink.slug
+          values.workspaceInvitationLinkToken = this.invitationLinkToken
         }
 
         // If a template is provided, we can add that id to the parameters so that the

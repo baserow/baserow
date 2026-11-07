@@ -40,6 +40,7 @@ from baserow.api.sessions import (
 from baserow.api.user.registries import user_data_registry
 from baserow.api.workspaces.invitation_links.errors import (
     ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST,
+    ERROR_WORKSPACE_INVITATION_LINK_PASSWORD_REQUIRED,
 )
 from baserow.api.workspaces.invitations.errors import (
     ERROR_GROUP_INVITATION_DOES_NOT_EXIST,
@@ -59,6 +60,7 @@ from baserow.core.exceptions import (
     WorkspaceInvitationDoesNotExist,
     WorkspaceInvitationEmailMismatch,
     WorkspaceInvitationLinkDoesNotExist,
+    WorkspaceInvitationLinkPasswordRequired,
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Settings, Template, WorkspaceInvitation
@@ -311,6 +313,9 @@ class UserView(APIView):
                     "ERROR_CAPTCHA_VERIFICATION_FAILED",
                 ]
             ),
+            401: get_error_schema(
+                ["ERROR_WORKSPACE_INVITATION_LINK_PASSWORD_REQUIRED"]
+            ),
             403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
             404: get_error_schema(
                 [
@@ -329,6 +334,9 @@ class UserView(APIView):
             BadSignature: BAD_TOKEN_SIGNATURE,
             WorkspaceInvitationDoesNotExist: ERROR_GROUP_INVITATION_DOES_NOT_EXIST,
             WorkspaceInvitationEmailMismatch: ERROR_GROUP_INVITATION_EMAIL_MISMATCH,
+            WorkspaceInvitationLinkPasswordRequired: (
+                ERROR_WORKSPACE_INVITATION_LINK_PASSWORD_REQUIRED
+            ),
             WorkspaceInvitationLinkDoesNotExist: (
                 ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST
             ),
@@ -364,6 +372,7 @@ class UserView(APIView):
             workspace_invitation_token=data.get("workspace_invitation_token"),
             template=template,
             workspace_invitation_link_slug=data.get("workspace_invitation_link_slug"),
+            workspace_invitation_link_token=data.get("workspace_invitation_link_token"),
         )
 
         response = {"user": UserSerializer(user).data}

@@ -444,6 +444,29 @@ def test_link_to_object_actions_are_recorded_with_the_object(
     )
     assert calls[1]["action_params"]["original_role_uid"] == "VIEWER"
     assert calls[1]["action_params"]["role_uid"] == "COMMENTER"
+    assert calls[1]["action_params"]["password_change"] == ""
+
+
+@pytest.mark.django_db
+@patch("baserow.core.action.signals.action_done.send")
+def test_link_to_object_password_changes_are_recorded(action_done_mock, data_fixture):
+    admin, workspace, _, table_a, _ = setup_workspace(data_fixture)
+    table_link = create_link(admin, workspace, table_a, "EDITOR")
+
+    UpdateScopedInvitationLinkActionType.do(
+        admin, table_link, password="correct horse battery"
+    )
+    UpdateScopedInvitationLinkActionType.do(admin, table_link, password="")
+
+    params = [call.kwargs["action_params"] for call in action_done_mock.call_args_list]
+    assert [p["password_change"] for p in params] == ["added", "removed"]
+    assert all("password" not in p for p in params)
+    assert UpdateScopedInvitationLinkActionType.get_long_description(
+        params[0]
+    ).endswith(" as EDITOR. Password protection added.")
+    assert UpdateScopedInvitationLinkActionType.get_long_description(
+        params[1]
+    ).endswith(" as EDITOR. Password protection removed.")
 
 
 @pytest.mark.django_db
@@ -784,3 +807,40 @@ def test_restricted_view_invitee_can_load_fields_and_filtered_rows(
     assert not can_read_table(newcomer, workspace, table_b)
     response = api_client.get(fields_url, **auth)
     assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+def test_object_admins_password_protect_links_to_the_object(api_client, data_fixture):
+    admin, workspace, _, table_a, _ = setup_workspace(data_fixture)
+    table_admin = add_member(data_fixture, workspace, NO_ROLE_LOW_PRIORITY_ROLE_UID)
+    RoleAssignmentHandler().assign_role(table_admin, workspace, role("ADMIN"), table_a)
+    invitation_link = create_link(admin, workspace, table_a, "EDITOR")
+    item_url = reverse(
+        "api:enterprise:role:scoped_invitation_link",
+        kwargs={"invitation_link_id": invitation_link.id},
+    )
+    token = data_fixture.generate_token(table_admin)
+
+    response = api_client.patch(
+        item_url,
+        {"password": "correct horse battery"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK, response.json()
+    assert response.json()["has_password"] is True
+    assert response.json()["permissions"] == "EDITOR"
+
+    # The public endpoints of the link now ask for the password.
+    response = api_client.get(
+        reverse(
+            "api:workspaces:invitation_links:slug",
+            kwargs={"slug": invitation_link.slug},
+        )
+    )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+    response = api_client.patch(
+        item_url, {"password": ""}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+    assert response.json()["has_password"] is False
