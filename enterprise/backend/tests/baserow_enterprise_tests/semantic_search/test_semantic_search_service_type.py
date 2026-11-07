@@ -10,7 +10,7 @@ from django.urls import reverse
 
 import pytest
 from rest_framework.exceptions import ValidationError
-from rest_framework.status import HTTP_200_OK
+from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
@@ -32,6 +32,7 @@ from baserow.contrib.builder.data_sources.service import DataSourceService
 from baserow.contrib.builder.domains.handler import DomainHandler
 from baserow.contrib.builder.workflow_actions.models import EventTypes
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.core.embeddings import get_embedder
 from baserow.core.graph.types import GraphPointPosition
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
@@ -150,6 +151,37 @@ def test_dispatch_data_source(api_client, data_fixture, searchable_table):
     assert all(0 < item["similarity"] <= 1 for item in result["results"])
     # The maximum number of results is the end of the results.
     assert result["has_next_page"] is False
+
+
+@pytest.mark.django_db
+def test_editor_is_told_when_the_embeddings_service_cant_be_reached(
+    api_client, data_fixture, searchable_table
+):
+    user, token, table, fields, rows = searchable_table
+    data_source = create_data_source(
+        data_fixture, user, table, search_query="'reset password'"
+    )
+
+    # Nothing listens on this port, like when the service isn't running.
+    with (
+        override_settings(BASEROW_EMBEDDINGS_API_URL="http://127.0.0.1:9"),
+        patch("baserow_enterprise.semantic_search.handler.get_embedder", get_embedder),
+    ):
+        response = api_client.post(
+            reverse(
+                "api:builder:data_source:dispatch",
+                kwargs={"data_source_id": data_source.id},
+            ),
+            {},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR",
+        "detail": "The embeddings service is unavailable.",
+    }
 
 
 def create_published_page_using_fields(
@@ -1055,6 +1087,59 @@ def test_export_import_service(data_fixture, enterprise_data_fixture, searchable
     # An unmapped field isn't kept, because it can belong to another workspace.
     assert new_service.included_field_ids == []
     assert new_service.include_all_fields is False
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_SEMANTIC_SEARCH_MAX_RESULTS=5)
+def test_imported_maximum_results_are_limited(
+    data_fixture, enterprise_data_fixture, searchable_table
+):
+    user, token, table, fields, rows = searchable_table
+    integration = create_integration(data_fixture, user, table)
+    service = enterprise_data_fixture.create_local_baserow_semantic_search_service(
+        integration=integration, table=table
+    )
+    service_type = service.get_type()
+    serialized = service_type.export_serialized(service)
+    # Like an edited export, which isn't checked by the serializer.
+    serialized["max_results"] = 1000
+
+    new_service = service_type.import_serialized(
+        integration, serialized, {}, import_formula=fake_import_formula
+    )
+
+    assert new_service.max_results == 5
+
+
+@pytest.mark.django_db
+def test_maximum_results_above_the_setting_are_limited(data_fixture, searchable_table):
+    user, token, table, fields, rows = searchable_table
+    workflow = data_fixture.create_automation_workflow(
+        user,
+        automation=data_fixture.create_automation_application(
+            user=user, workspace=table.database.workspace
+        ),
+    )
+    node = data_fixture.create_automation_node(
+        workflow=workflow,
+        type=LocalBaserowSemanticSearchActionNodeType.type,
+        service_kwargs={
+            "integration": data_fixture.create_local_baserow_integration(
+                user=user, application=workflow.automation
+            ),
+            "table": table,
+            "search_query": "'reset password'",
+            "max_results": 2,
+        },
+    )
+
+    # Like a service that was saved before the setting was lowered.
+    with override_settings(BASEROW_SEMANTIC_SEARCH_MAX_RESULTS=1):
+        result = node.get_type().dispatch(
+            node, AutomationDispatchContext(node.workflow, None)
+        )
+
+    assert len(result.data["results"]) == 1
 
 
 @pytest.mark.django_db(transaction=True)

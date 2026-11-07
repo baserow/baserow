@@ -183,10 +183,12 @@ class LocalBaserowSemanticSearchServiceType(
         )
 
     def get_max_result_limit(self, service: LocalBaserowSemanticSearch):
-        return service.max_results
+        # An imported service, or one saved before the setting was lowered, can
+        # have a higher maximum than the serializer allows.
+        return min(service.max_results, settings.BASEROW_SEMANTIC_SEARCH_MAX_RESULTS)
 
     def get_default_result_limit(self, service: LocalBaserowSemanticSearch):
-        return service.max_results
+        return self.get_max_result_limit(service)
 
     def prepare_values(
         self,
@@ -366,6 +368,11 @@ class LocalBaserowSemanticSearchServiceType(
     ):
         search_field_ids = serialized_values.pop("search_field_ids", [])
         included_field_ids = serialized_values.pop("included_field_ids", [])
+        if "max_results" in serialized_values:
+            serialized_values["max_results"] = min(
+                serialized_values["max_results"],
+                settings.BASEROW_SEMANTIC_SEARCH_MAX_RESULTS,
+            )
         service = super().create_instance_from_serialized(
             serialized_values,
             id_mapping,
@@ -561,7 +568,8 @@ class LocalBaserowSemanticSearchServiceType(
         ):
             queryset = queryset.filter(id=dispatch_context.only_record_id)
         query = resolved_values.get("search_query", "").strip()
-        limit = min(offset + count, service.max_results)
+        max_results = self.get_max_result_limit(service)
+        limit = min(offset + count, max_results)
         if not query or limit <= offset:
             matches = []
         else:
@@ -572,7 +580,7 @@ class LocalBaserowSemanticSearchServiceType(
                     fields,
                     query,
                     queryset,
-                    service.max_results,
+                    max_results,
                     service.min_similarity,
                 )
             except EmbeddingsServiceError as exc:

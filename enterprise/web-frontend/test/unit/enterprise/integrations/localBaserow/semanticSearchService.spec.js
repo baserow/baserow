@@ -18,14 +18,47 @@ describe('LocalBaserowSemanticSearchService', () => {
     await testApp.afterEach()
   })
 
-  const mountForm = (defaultValues = {}) =>
+  const mountForm = (defaultValues = {}, { small = false } = {}) =>
     testApp.mount(LocalBaserowSemanticSearchServiceForm, {
       props: {
         application: { id: 1 },
         serviceType: { supportedTables: (tables) => tables },
         defaultValues: { table_id: 1, integration_id: 1, ...defaultValues },
+        small,
       },
     })
+
+  test('the search settings are in the first tab, before the filters', async () => {
+    testApp.mockServer.createFields({ id: 1 }, { id: 1 }, [
+      { name: 'Document', type: 'long_text', semantic_search_enabled: true },
+    ])
+
+    const wrapper = await mountForm()
+    await flushPromises()
+
+    const tabTitles = wrapper.findAll('.tabs__item').map((tab) => tab.text())
+    expect(tabTitles).toHaveLength(2)
+    expect(tabTitles[0]).toContain('serviceRefinementForms.searchTabTitle')
+    expect(tabTitles[1]).toContain('serviceRefinementForms.filterTabTitle')
+    // The first tab is shown when the form opens.
+    expect(wrapper.text()).toContain(
+      'localBaserowSemanticSearchForm.searchQuery'
+    )
+  })
+
+  test('a small form shows the search settings without a tab', async () => {
+    testApp.mockServer.createFields({ id: 1 }, { id: 1 }, [
+      { name: 'Document', type: 'long_text', semantic_search_enabled: true },
+    ])
+
+    const wrapper = await mountForm({}, { small: true })
+    await flushPromises()
+
+    expect(wrapper.findAll('.tabs__item')).toHaveLength(0)
+    expect(wrapper.text()).toContain(
+      'localBaserowSemanticSearchForm.searchQuery'
+    )
+  })
 
   test('only semantic search fields can be searched in', async () => {
     testApp.mockServer.createFields({ id: 1 }, { id: 1 }, [
@@ -211,6 +244,9 @@ describe('LocalBaserowSemanticSearchService', () => {
     wrapper.vm.v$.values.max_results.$model = 3
     await flushPromises()
     expect(wrapper.text()).not.toContain('error.maxValueField')
+    expect(wrapper.text()).toContain(
+      'localBaserowSemanticSearchForm.maxResultsHelper'
+    )
   })
 
   test('explains how to enable semantic search without suitable fields', async () => {
@@ -221,7 +257,14 @@ describe('LocalBaserowSemanticSearchService', () => {
     const wrapper = await mountForm()
     await flushPromises()
 
+    expect(wrapper.text()).toContain(
+      'localBaserowSemanticSearchForm.noFieldsTitle'
+    )
     expect(wrapper.text()).toContain('localBaserowSemanticSearchForm.noFields')
+    // The notice replaces the picker, which would have nothing to choose from.
+    expect(wrapper.text()).not.toContain(
+      'localBaserowSemanticSearchForm.fieldsHelper'
+    )
   })
 
   test('is in error without a search query', () => {

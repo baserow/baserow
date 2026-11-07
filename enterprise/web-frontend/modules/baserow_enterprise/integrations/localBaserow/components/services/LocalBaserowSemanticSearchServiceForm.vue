@@ -16,121 +16,28 @@
         :table-fields="tableFields"
         show-filter
         class="margin-bottom-2"
-      />
-      <FormGroup
-        small-label
-        :label="$t('localBaserowSemanticSearchForm.fields')"
-        :error-message="
-          searchFieldsGone
-            ? $t('localBaserowSemanticSearchForm.searchFieldsGone')
-            : null
-        "
-        class="margin-bottom-2"
       >
-        <Dropdown
-          :model-value="values.search_field_ids"
-          :disabled="searchFieldOptions.length === 0"
-          :placeholder="$t('localBaserowSemanticSearchForm.fieldsPlaceholder')"
-          multiple
-          @update:model-value="
-            chooseFields('search_field_ids', 'search_all_fields', $event)
-          "
-        >
-          <DropdownItem
-            v-for="field in searchFieldOptions"
-            :key="field.id"
-            :name="field.name"
-            :value="field.id"
-          ></DropdownItem>
-        </Dropdown>
-        <template #helper>
-          {{
-            semanticSearchFields.length === 0
-              ? $t('localBaserowSemanticSearchForm.noFields')
-              : $t('localBaserowSemanticSearchForm.fieldsHelper')
-          }}
+        <template #leading-tabs>
+          <Tab
+            :title="$t('serviceRefinementForms.searchTabTitle', { count: 0 })"
+            class="padding-left-0 padding-right-0"
+          >
+            <LocalBaserowSemanticSearchSettings
+              v-bind="settingsProps"
+              @choose-fields="chooseFields"
+            />
+          </Tab>
         </template>
-      </FormGroup>
-
-      <FormGroup
-        small-label
-        :label="$t('localBaserowSemanticSearchForm.searchQuery')"
-        :helper-text="$t('localBaserowSemanticSearchForm.searchQueryHelper')"
-        required
-        class="margin-bottom-2"
-      >
-        <InjectedFormulaInput
-          v-model="values.search_query"
-          :placeholder="
-            $t('localBaserowSemanticSearchForm.searchQueryPlaceholder')
-          "
-        />
-      </FormGroup>
-
-      <FormGroup
-        small-label
-        :label="$t('localBaserowSemanticSearchForm.includedFields')"
-        :helper-text="$t('localBaserowSemanticSearchForm.includedFieldsHelper')"
-        :error-message="
-          includedFieldsGone
-            ? $t('localBaserowSemanticSearchForm.includedFieldsGone')
-            : null
-        "
-        class="margin-bottom-2"
-      >
-        <Dropdown
-          :model-value="values.included_field_ids"
-          :placeholder="
-            $t('localBaserowSemanticSearchForm.includedFieldsPlaceholder')
-          "
-          multiple
-          @update:model-value="
-            chooseFields('included_field_ids', 'include_all_fields', $event)
-          "
-        >
-          <DropdownItem
-            v-for="field in tableFields"
-            :key="field.id"
-            :name="field.name"
-            :value="field.id"
-          ></DropdownItem>
-        </Dropdown>
-      </FormGroup>
-
-      <FormGroup
-        small-label
-        :label="$t('localBaserowSemanticSearchForm.maxResults')"
-        required
-        :error-message="getFirstErrorMessage('max_results')"
-        class="margin-bottom-2"
-      >
-        <FormInput
-          v-model="v$.values.max_results.$model"
-          type="number"
-          :to-value="(value) => parseInt(value)"
-        />
-      </FormGroup>
-
-      <FormGroup
-        small-label
-        :label="$t('localBaserowSemanticSearchForm.minSimilarity')"
-        :helper-text="$t('localBaserowSemanticSearchForm.minSimilarityHelper')"
-        :error-message="getFirstErrorMessage('min_similarity')"
-        class="margin-bottom-2"
-      >
-        <FormInput
-          v-model="v$.values.min_similarity.$model"
-          type="number"
-          :placeholder="
-            $t('localBaserowSemanticSearchForm.minSimilarityPlaceholder')
-          "
-          :to-value="(value) => (value === '' ? null : parseFloat(value))"
-        />
-      </FormGroup>
+      </ServiceRefinementForms>
+      <LocalBaserowSemanticSearchSettings
+        v-if="small"
+        v-bind="settingsProps"
+        @choose-fields="chooseFields"
+      />
     </template>
     <div v-if="fieldsLoading" class="skeleton">
       <div
-        v-for="labelWidth in ['120px', '90px', '110px', '160px', '130px']"
+        v-for="labelWidth in ['90px', '120px', '110px', '130px']"
         :key="labelWidth"
         class="margin-bottom-2"
       >
@@ -154,14 +61,16 @@ import form from '@baserow/modules/core/mixins/form'
 import localBaserowService from '@baserow/modules/integrations/localBaserow/mixins/localBaserowService'
 import LocalBaserowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowServiceForm'
 import ServiceRefinementForms from '@baserow/modules/integrations/localBaserow/components/services/ServiceRefinementForms'
-import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
+import Tab from '@baserow/modules/core/components/Tab'
+import LocalBaserowSemanticSearchSettings from '@baserow_enterprise/integrations/localBaserow/components/services/LocalBaserowSemanticSearchSettings'
 
 export default {
   name: 'LocalBaserowSemanticSearchServiceForm',
   components: {
     LocalBaserowServiceForm,
     ServiceRefinementForms,
-    InjectedFormulaInput,
+    Tab,
+    LocalBaserowSemanticSearchSettings,
   },
   mixins: [form, localBaserowService],
   setup() {
@@ -203,36 +112,15 @@ export default {
     maxResults() {
       return this.$store.getters['settings/get'].semantic_search?.max_results
     },
-    semanticSearchFields() {
-      return this.tableFields.filter((field) => field.semantic_search_enabled)
-    },
-    // A chosen field of which semantic search was disabled stays chosen, so it can
-    // be deselected.
-    searchFieldOptions() {
-      return this.tableFields.filter(
-        (field) =>
-          field.semantic_search_enabled ||
-          this.values.search_field_ids.includes(field.id)
-      )
-    },
-    // The search fails, instead of searching the fields that were left out.
-    searchFieldsGone() {
-      return (
-        this.values.search_all_fields === false &&
-        !this.values.search_field_ids.some((id) =>
-          this.semanticSearchFields.some((field) => field.id === id)
-        )
-      )
-    },
-    // No values are returned, instead of the values of the fields that were left
-    // out.
-    includedFieldsGone() {
-      return (
-        this.values.include_all_fields === false &&
-        !this.values.included_field_ids.some((id) =>
-          this.tableFields.some((field) => field.id === id)
-        )
-      )
+    settingsProps() {
+      return {
+        values: this.values,
+        tableFields: this.tableFields,
+        v$: this.v$,
+        maxResults: this.maxResults || null,
+        maxResultsError: this.getFirstErrorMessage('max_results') || null,
+        minSimilarityError: this.getFirstErrorMessage('min_similarity') || null,
+      }
     },
   },
   methods: {
