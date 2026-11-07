@@ -29,6 +29,7 @@ from baserow.core.auth_provider.models import AuthProviderModel
 from baserow.core.emails import EmailPendingVerificationEmail
 from baserow.core.exceptions import (
     WorkspaceInvitationEmailMismatch,
+    WorkspaceInvitationLinkPasswordRequired,
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.models import (
@@ -201,6 +202,7 @@ class UserHandler:
         email_verified: bool = False,
         workspace_invitation_link_slug: Optional[str] = None,
         join_invitation_link_workspace: bool = True,
+        workspace_invitation_link_token: Optional[str] = None,
     ) -> AbstractUser:
         """
         Creates a new user with the provided information and creates a new workspace and
@@ -226,6 +228,8 @@ class UserHandler:
         :param join_invitation_link_workspace: Whether the user joins the workspace
             of the invitation link right away. When False, the link only allows the
             signup, and the user confirms joining on the page of the link.
+        :param workspace_invitation_link_token: The access token handed out for
+            the password of a password protected invitation link.
         :raises: UserAlreadyExist: When a user with the provided username (email)
             already exists.
         :raises WorkspaceInvitationEmailMismatch: If the workspace invitation email
@@ -233,6 +237,8 @@ class UserHandler:
         :raises SignupDisabledError: If signing up is disabled.
         :raises WorkspaceInvitationLinkDoesNotExist: If the invitation link does not
             exist.
+        :raises WorkspaceInvitationLinkPasswordRequired: If the user joins a
+            password protected invitation link right away without its token.
         :return: The user object.
         """
 
@@ -253,22 +259,40 @@ class UserHandler:
                     "user."
                 )
 
+        locked_invitation_link = False
         if workspace_invitation_link_slug:
-            workspace_invitation_link = (
-                core_handler.get_workspace_invitation_link_by_slug(
-                    workspace_invitation_link_slug
+            try:
+                workspace_invitation_link = (
+                    core_handler.get_workspace_invitation_link_by_slug(
+                        workspace_invitation_link_slug,
+                        access_token=workspace_invitation_link_token,
+                    )
                 )
-            )
+            except WorkspaceInvitationLinkPasswordRequired:
+                if join_invitation_link_workspace:
+                    raise
+                # Signing up through an identity provider can't carry the token
+                # of a password protected link. The user still signs up as
+                # someone joining through the link, and the page of the link
+                # asks for the password before they can join. Without the
+                # password, the link doesn't let them sign up on its own, so
+                # this only works while anyone can sign up.
+                locked_invitation_link = True
 
         invited_to_workspace = (
-            workspace_invitation is not None or workspace_invitation_link is not None
+            workspace_invitation is not None
+            or workspace_invitation_link is not None
+            or locked_invitation_link
         )
 
         instance_settings = core_handler.get_settings()
         allow_new_signups = instance_settings.allow_new_signups
         allow_signup_for_invited_user = (
             instance_settings.allow_signups_via_workspace_invitations
-            and invited_to_workspace
+            and (
+                workspace_invitation is not None
+                or workspace_invitation_link is not None
+            )
         )
         if not (allow_new_signups or allow_signup_for_invited_user):
             raise DisabledSignupError("Sign up is disabled.")

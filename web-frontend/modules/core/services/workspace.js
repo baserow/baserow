@@ -1,4 +1,5 @@
 import baseService from '@baserow/modules/core/crudTable/baseService'
+import { invitationLinkHeaders } from '@baserow/modules/core/utils/invitationLink'
 import { getRealtimeRecoveryRequestConfig } from '@baserow/modules/core/plugins/realtimeProtocol'
 
 export default (client) => {
@@ -93,14 +94,23 @@ export default (client) => {
           `/workspaces/invitation-links/${invitationLinkId}/`
         )
       },
-      fetchInvitationLinkBySlug(slug) {
+      fetchInvitationLinkBySlug(slug, token = null) {
         return client.get(
-          `/workspaces/invitation-links/slug/${encodeURIComponent(slug)}/`
+          `/workspaces/invitation-links/slug/${encodeURIComponent(slug)}/`,
+          { headers: invitationLinkHeaders(token) }
         )
       },
-      joinInvitationLink(slug) {
+      joinInvitationLink(slug, token = null) {
         return client.post(
-          `/workspaces/invitation-links/slug/${encodeURIComponent(slug)}/join/`
+          `/workspaces/invitation-links/slug/${encodeURIComponent(slug)}/join/`,
+          null,
+          { headers: invitationLinkHeaders(token) }
+        )
+      },
+      authInvitationLink(slug, password) {
+        return client.post(
+          `/workspaces/invitation-links/slug/${encodeURIComponent(slug)}/auth/`,
+          { password }
         )
       },
       createInitialWorkspace(values) {

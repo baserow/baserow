@@ -5,6 +5,7 @@ from functools import lru_cache
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import ArrayField
@@ -601,9 +602,36 @@ class WorkspaceInvitationLink(
         blank=True,
         help_text="The id of the object the link gives a role on.",
     )
+    password = models.CharField(
+        # Sized for the salted hash that Django generates, not for the password the
+        # admin types. The request serializer validates the raw password length.
+        max_length=128,
+        blank=True,
+        default="",
+        db_default="",
+        help_text="The hashed password that people must enter before they can see "
+        "or use the link. Empty when the link isn't password protected.",
+    )
 
     def get_parent(self):
         return self.workspace
+
+    @property
+    def has_password(self) -> bool:
+        return self.password != ""  # nosec b105
+
+    def set_password(self, raw_password: str):
+        """
+        Protects the link with the given password, or removes the protection when
+        the password is empty.
+        """
+
+        self.password = make_password(raw_password) if raw_password else ""
+
+    def check_password(self, raw_password: str) -> bool:
+        if not self.has_password:
+            return True
+        return check_password(raw_password, self.password)
 
     class Meta:
         ordering = ("id",)
