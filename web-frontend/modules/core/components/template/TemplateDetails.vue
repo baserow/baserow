@@ -83,7 +83,8 @@
             <TemplateInstall
               :template="template"
               :workspace="workspace"
-              :show-copy-link="!fromOwnList"
+              :show-copy-link="!fromOwnList && !isPrivateLink"
+              :copy-link-url="fromOwnList ? privateLinkUrl : null"
               :latest="fromOwnList || isOwner"
               @installed="emit('installed')"
               @outdated="emit('outdated')"
@@ -156,11 +157,12 @@
 
 <script setup>
 import { computed, nextTick, ref } from 'vue'
-import { useNuxtApp } from '#app'
+import { useNuxtApp, useRoute, useRuntimeConfig } from '#app'
 
 import {
   canMakePrivate,
   canMakePublic,
+  getPrivateLinkUrl,
   isOwnTemplate,
   makePublicResubmits,
 } from '@baserow/modules/core/utils/userTemplate'
@@ -217,7 +219,21 @@ const emit = defineEmits([
   'make-private',
 ])
 
-const { $registry } = useNuxtApp()
+const { $registry, $router } = useNuxtApp()
+const config = useRuntimeConfig()
+
+// The link to the template wouldn't open it for the holder of its private link.
+const isPrivateLink = useRoute().name === 'template-private-link'
+// The link of a blocked template can't be used.
+const privateLinkUrl = computed(() =>
+  props.template.state === 'blocked'
+    ? null
+    : getPrivateLinkUrl(
+        props.template,
+        $router,
+        config.public.publicWebFrontendUrl
+      )
+)
 
 function edit(mode, hideMenu) {
   hideMenu()

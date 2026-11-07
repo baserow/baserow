@@ -88,6 +88,7 @@ from baserow.core.user_templates.exceptions import (
     TemplateUpdated,
 )
 from baserow.core.user_templates.handler import UserTemplateHandler
+from baserow.core.user_templates.private_link import get_private_link_token
 from baserow.core.utils import ChildProgressBuilder, Progress
 
 
@@ -239,7 +240,10 @@ class InstallTemplateJobType(JobType):
             # The resolved revision is pinned, so that an update of the template
             # before the job runs doesn't change what's installed.
             template = UserTemplateHandler().get_installable_revision(
-                user, root, latest=values.get("latest", False)
+                user,
+                root,
+                latest=values.get("latest", False),
+                private_link_token=get_private_link_token(),
             )
             # The user installs the revision they were shown. If another one was
             # made public, or the owner updated it in another tab since, the user

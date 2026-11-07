@@ -4,6 +4,7 @@ import {
   SILENCED_API_ERRORS,
   SILENCED_ERROR_PATTERNS,
 } from './modules/core/utils/sentryErrors'
+import { redactPrivateLinkTokens } from './modules/core/utils/templatePrivateLink'
 import * as Sentry from '@sentry/nuxt'
 
 const config = useRuntimeConfig()
@@ -58,9 +59,11 @@ if (dsn && dsn !== '') {
         console.error('[Sentry captured error]', `${err}`)
         return null
       } else {
-        return event
+        return redactPrivateLinkTokens(event)
       }
     },
+    // The URL of the page of a private link carries its token.
+    beforeSendTransaction: redactPrivateLinkTokens,
   }
 
   // Merge with user-provided configuration from app config
