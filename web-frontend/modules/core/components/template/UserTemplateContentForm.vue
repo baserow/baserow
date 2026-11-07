@@ -64,9 +64,8 @@ const props = defineProps({
     type: Object,
     required: true,
   },
-  // The workspace and applications to select first, like the ones the content
-  // was copied from before: `{ workspaceId, applicationIds }`. Only used while
-  // the user can still export that workspace.
+  // The `{ workspaceId, applicationIds }` an existing template was copied from,
+  // selected first while the user can still export it, see `selectWorkspace`.
   preselect: {
     type: Object,
     required: false,
@@ -150,10 +149,17 @@ function getApplicationIds(workspaceId) {
 
 /**
  * A different workspace has different applications, so the selection starts
- * again with all of them.
+ * again: empty, so that the author picks what the template exposes, or with
+ * the ones an existing template still has in its own workspace.
  */
 function selectWorkspace(workspaceId) {
-  update({ workspaceId, applicationIds: getApplicationIds(workspaceId) })
+  const applicationIds =
+    props.preselect && workspaceId === props.preselect.workspaceId
+      ? getApplicationIds(workspaceId).filter((id) =>
+          props.preselect.applicationIds.includes(id)
+        )
+      : []
+  update({ workspaceId, applicationIds })
 }
 
 function chooseWorkspace(workspaceId) {
@@ -162,24 +168,14 @@ function chooseWorkspace(workspaceId) {
 }
 
 /**
- * Starts with the preselected workspace while the user still has it, keeping only
- * the preselected applications it still has. Otherwise with the default one.
+ * Starts with the preselected workspace while the user still has it, otherwise
+ * with the default one.
  */
 function selectFirstWorkspace() {
   const preselected =
     props.preselect &&
     workspaces.value.find(({ id }) => id === props.preselect.workspaceId)
-  if (preselected) {
-    const applicationIds = getApplicationIds(preselected.id)
-    update({
-      workspaceId: preselected.id,
-      applicationIds: applicationIds.filter((id) =>
-        props.preselect.applicationIds.includes(id)
-      ),
-    })
-    return
-  }
-  selectWorkspace(getDefaultWorkspaceId())
+  selectWorkspace(preselected ? preselected.id : getDefaultWorkspaceId())
 }
 
 /**

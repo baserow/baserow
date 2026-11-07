@@ -122,6 +122,54 @@ describe('UpdateUserTemplateModal', () => {
   const isModalOpen = (wrapper) =>
     wrapper.findComponent({ name: 'Modal' }).vm.open
 
+  const chooseVisibility = (wrapper, label) =>
+    wrapper
+      .findAll('.segment-control__button')
+      .find((button) => button.text() === label)
+      .trigger('click')
+
+  // The rows of area 1 of docs/testing/user-templates-test-plan.md, with the
+  // fields the API returns for them.
+  test.each([
+    ['1.public-update-approval_off', 'public', true, false, null],
+    ['1.public-update-approval_on', 'public', true, true, 'review'],
+    ['1.public+rejected-update', 'rejected', true, true, 'review'],
+    ['1.rejected-update', 'rejected', false, false, 'rejected'],
+    ['1.in_review-update', 'in_review', false, true, 'inReview'],
+    ['1.public+in_review-update-approval_off', 'in_review', true, false, null],
+    [
+      '1.public+in_review-update-approval_on',
+      'in_review',
+      true,
+      true,
+      'review',
+    ],
+    ['1.blocked+in_review-update', 'blocked', false, true, 'inReview'],
+    ['1.blocked-update', 'blocked', false, false, null],
+  ])(
+    '%s tells what the update does to the review',
+    async (id, state, listed, updateNeedsReview, notice) => {
+      const wrapper = await mountAndShow(
+        'details',
+        userTemplate({ state, listed, update_needs_review: updateNeedsReview })
+      )
+
+      expect(
+        wrapper.findAll('.alert p').map((text) => text.text())
+      ).toStrictEqual(notice ? [`updateUserTemplateModal.${notice}Text`] : [])
+    }
+  )
+
+  test('tells nothing of the review when the template is made private', async () => {
+    const wrapper = await mountAndShow(
+      'details',
+      userTemplate({ state: 'public', listed: true, update_needs_review: true })
+    )
+    await chooseVisibility(wrapper, 'userTemplateVisibilityForm.private')
+
+    expect(wrapper.findAll('.alert p')).toHaveLength(0)
+  })
+
   describe('details', () => {
     test('are prefilled from the template', async () => {
       const wrapper = await mountAndShow('details')
@@ -260,12 +308,6 @@ describe('UpdateUserTemplateModal', () => {
   })
 
   describe('visibility', () => {
-    const chooseVisibility = (wrapper, label) =>
-      wrapper
-        .findAll('.segment-control__button')
-        .find((button) => button.text() === label)
-        .trigger('click')
-
     test('makes the template public once agreed, without a new revision', async () => {
       const listed = userTemplate({ state: 'public' })
       testApp.mock.onPatch('/templates/sprint-tracker/').reply(200, listed)
@@ -288,6 +330,8 @@ describe('UpdateUserTemplateModal', () => {
       expect(testApp.mock.history.post).toHaveLength(0)
       expect(wrapper.emitted('visibility-changed')).toStrictEqual([[listed]])
       expect(isModalOpen(wrapper)).toBe(false)
+      // Like making it public from the menu.
+      expect(testApp.store.state.toast.items).toHaveLength(0)
     })
 
     test('makes the template public with the new details by the job', async () => {
@@ -450,6 +494,31 @@ describe('UpdateUserTemplateModal', () => {
       expect(testApp.mock.history.patch).toHaveLength(0)
     })
 
+    test.each([
+      [
+        { state: 'private', make_public_needs_review: true },
+        'publicReviewDescription',
+      ],
+      [
+        { state: 'private', make_public_needs_review: false },
+        'publicDescription',
+      ],
+      [{ state: 'public', listed: true }, 'listedDescription'],
+    ])('describes Public for a %o template', async (values, description) => {
+      const wrapper = await mountAndShow('details', userTemplate(values))
+
+      await chooseVisibility(wrapper, 'userTemplateVisibilityForm.public')
+
+      const descriptions = [
+        'publicDescription',
+        'publicReviewDescription',
+        'listedDescription',
+      ].filter((key) =>
+        wrapper.text().includes(`userTemplateVisibilityForm.${key}`)
+      )
+      expect(descriptions).toStrictEqual([description])
+    })
+
     test.each(['blocked', 'in_review'])(
       "can't be changed for a %s template",
       async (state) => {
@@ -479,6 +548,7 @@ describe('UpdateUserTemplateModal', () => {
       expect(selectedApplicationIds(wrapper)).toStrictEqual([12])
     })
 
+    // The template has none of the applications of another workspace.
     test('starts with the selected workspace without the source one', async () => {
       const wrapper = await mountAndShow(
         'content',
@@ -486,7 +556,7 @@ describe('UpdateUserTemplateModal', () => {
       )
 
       expect(selectedWorkspaceId(wrapper)).toBe(1)
-      expect(selectedApplicationIds(wrapper)).toStrictEqual([11, 12])
+      expect(selectedApplicationIds(wrapper)).toStrictEqual([])
     })
 
     test("doesn't preselect a workspace that can't be exported", async () => {
@@ -494,7 +564,24 @@ describe('UpdateUserTemplateModal', () => {
       const wrapper = await mountAndShow('content')
 
       expect(selectedWorkspaceId(wrapper)).toBe(2)
-      expect(selectedApplicationIds(wrapper)).toStrictEqual([21])
+      expect(selectedApplicationIds(wrapper)).toStrictEqual([])
+    })
+
+    test('selects only the applications the template has when switching workspaces', async () => {
+      const wrapper = await mountAndShow('content')
+      const chooseWorkspace = async (workspaceId) => {
+        wrapper
+          .findComponent({ name: 'Dropdown' })
+          .vm.$emit('update:modelValue', workspaceId)
+        await flushPromises()
+      }
+
+      await chooseWorkspace(2)
+      expect(selectedApplicationIds(wrapper)).toStrictEqual([])
+      expect(updateButton(wrapper).attributes('disabled')).toBeDefined()
+
+      await chooseWorkspace(1)
+      expect(selectedApplicationIds(wrapper)).toStrictEqual([11])
     })
 
     test('needs at least one application', async () => {

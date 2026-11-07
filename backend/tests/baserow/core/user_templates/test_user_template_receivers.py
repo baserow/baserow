@@ -9,6 +9,7 @@ import pytest
 from freezegun import freeze_time
 
 from baserow.core.admin.users.handler import UserAdminHandler
+from baserow.core.handler import CoreHandler
 from baserow.core.jobs.constants import JOB_PENDING, JOB_STARTED
 from baserow.core.models import Template, Workspace
 from baserow.core.storage import get_default_storage
@@ -210,3 +211,21 @@ def test_deleting_a_user_while_their_template_is_updated(data_fixture, state):
     purge_after_the_grace_period()
 
     assert_template_and_content_removed(template, workspace, archive)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "change",
+    [{"user_templates_require_approval": True}, {"allow_new_signups": False}],
+)
+def test_other_settings_changes_approve_nothing(data_fixture, change):
+    admin = data_fixture.create_user(is_staff=True)
+    data_fixture.update_settings(user_templates_require_approval=True)
+    root = data_fixture.set_user_template_state(
+        data_fixture.create_user_template(), "in_review"
+    )
+
+    CoreHandler().update_settings(admin, **change)
+
+    root.refresh_from_db()
+    assert root.public_revision_id is None

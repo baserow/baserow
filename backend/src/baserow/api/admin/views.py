@@ -1,8 +1,9 @@
-from typing import Dict, List
+from typing import Any, Dict, List, Optional, Type
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter
 from rest_framework.permissions import IsAdminUser
+from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
 
 from baserow.api.decorators import map_exceptions
@@ -114,11 +115,25 @@ class APIListingView(
 
     @staticmethod
     def get_extend_schema_parameters(
-        name, serializer_class, search_fields, sort_field_mapping, extra_parameters=None
-    ):
+        name: str,
+        serializer_class: Type[Serializer],
+        search_fields: List[str],
+        sort_field_mapping: Dict[str, str],
+        extra_parameters: Optional[List[OpenApiParameter]] = None,
+        extra_responses: Optional[Dict[int, Any]] = None,
+    ) -> Dict[str, Any]:
         """
         Returns the schema properties that can be used in in the @extend_schema
         decorator.
+
+        :param name: The name of the listed items, used in the descriptions.
+        :param serializer_class: The serializer of an item.
+        :param search_fields: The fields the search matches.
+        :param sort_field_mapping: The fields the items can be sorted by.
+        :param extra_parameters: More parameters of the listing.
+        :param extra_responses: More responses, by status code, which replace the
+            default ones.
+        :return: The keyword arguments of `extend_schema`.
         """
 
         parameters = []
@@ -195,6 +210,7 @@ class APIListingView(
                     ]
                 ),
                 401: None,
+                **(extra_responses or {}),
             },
         }
 

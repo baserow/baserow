@@ -38,14 +38,44 @@ class TemplateUpdated(Exception):
     """
     Raised when a user template is installed or downloaded while another revision
     than the one the user was shown is installable, because another revision was
-    made public or its owner updated it since.
+    made public or its owner updated it since. Also when an admin approves or
+    rejects a template that changed since they saw it: another revision, an edit,
+    or another state.
     """
 
 
 class TemplateBlocked(Exception):
     """
     Raised when the owner of a user template that an admin blocked tries to install
-    it.
+    it, and when an admin approves or rejects it.
+    """
+
+
+class TemplateAlreadyApproved(Exception):
+    """
+    Raised when an admin approves or rejects a user template that became public
+    since they saw it, most likely approved by another admin.
+    """
+
+
+class TemplateAlreadyRejected(Exception):
+    """
+    Raised when an admin approves or rejects a user template that was rejected
+    since they saw it, most likely by another admin.
+    """
+
+
+class TemplateNotReviewable(Exception):
+    """
+    Raised when an admin approves a user template that isn't in review or
+    rejected, or rejects one that isn't listed or in review.
+    """
+
+
+class TemplateRejectReasonRequired(Exception):
+    """
+    Raised when an admin rejects a user template without a reason, which its
+    author must see.
     """
 
 

@@ -56,7 +56,15 @@ export default {
       required: false,
       default: null,
     },
+    // Handles an error loading the content, instead of the default toast.
+    loadErrorHandler: {
+      type: Function,
+      required: false,
+      default: null,
+    },
   },
+  // `loaded` is emitted once the content of the shown revision loaded, or failed.
+  emits: ['loaded'],
   data() {
     return {
       loading: false,
@@ -163,10 +171,15 @@ export default {
         }
         this.applications = []
         this.page = null
-        notifyIf(error, 'templates')
+        if (this.loadErrorHandler) {
+          this.loadErrorHandler(error)
+        } else {
+          notifyIf(error, 'templates')
+        }
       } finally {
         if (request === this.lastRequest) {
           this.loading = false
+          this.$emit('loaded')
         }
       }
     },

@@ -3,6 +3,7 @@ import { flushPromises } from '@vue/test-utils'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { heldBack } from '@baserow/test/helpers/heldBack'
+import { toastsOfType } from '@baserow/test/helpers/store'
 import UserTemplateList from '@baserow/modules/core/components/template/UserTemplateList'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
 
@@ -135,6 +136,26 @@ describe('UserTemplateList', () => {
     ])
     expect(wrapper.find('.template-empty-state').exists()).toBe(false)
   })
+
+  test.each([
+    ['in_review', true, 'stateInReview', true],
+    ['rejected', true, 'stateRejected', true],
+    ['public', true, 'statePublic', false],
+    ['in_review', false, 'stateInReview', false],
+  ])(
+    'shows that a %s template (listed: %s) is still listed',
+    async (state, listed, label, shown) => {
+      mockPages(page([userTemplate(1, 'Sprint Tracker', state, { listed })]))
+      const wrapper = await mountComponent()
+
+      expect(
+        wrapper.findAll('.badge').map((badge) => badge.text())
+      ).toStrictEqual([
+        `userTemplateList.${label}`,
+        ...(shown ? ['userTemplateList.stateListed'] : []),
+      ])
+    }
+  )
 
   test('shows how many times each template was used', async () => {
     mockPages(
@@ -450,10 +471,7 @@ describe('UserTemplateList', () => {
         ...JSON.parse(request.data),
       }))
 
-  const downloadToasts = () =>
-    testApp.store.state.toast.items.filter(
-      (toast) => toast.type === 'downloadTemplate'
-    )
+  const downloadToasts = () => toastsOfType(testApp.store, 'downloadTemplate')
 
   const menuLink = (wrapper, text) =>
     wrapper
@@ -585,12 +603,41 @@ describe('UserTemplateList', () => {
   })
 
   test.each([
-    ['private', 'userTemplateList.makePublic', 'make-public'],
-    ['public', 'userTemplateList.makePrivate', 'make-private'],
+    ['private', false, ['userTemplateList.makePublic'], 'make-public'],
+    ['in_review', false, ['userTemplateList.makePrivate'], 'make-private'],
+    [
+      'rejected',
+      true,
+      ['userTemplateList.makePublic', 'userTemplateList.makePrivate'],
+      'make-public',
+    ],
+    // Its approved version is listed, so only its change goes to review again.
+    [
+      'rejected',
+      true,
+      ['userTemplateList.submitForReviewAgain', 'userTemplateList.makePrivate'],
+      'make-public',
+      true,
+    ],
+    ['public', false, ['userTemplateList.makePrivate'], 'make-private'],
+    // Its unsubmitted edit is listed at once, approval being off.
+    [
+      'public',
+      false,
+      ['userTemplateList.makePublic', 'userTemplateList.makePrivate'],
+      'make-public',
+      true,
+    ],
+    ['blocked', false, [], null],
   ])(
-    'offers to change the visibility of a %s template',
-    async (state, item, event) => {
-      const template = userTemplate(1, 'Sprint Tracker', state)
+    'offers to change the visibility of a %s template (needs review: %s)',
+    async (state, makePublicNeedsReview, items, event, listed = false) => {
+      const template = userTemplate(1, 'Sprint Tracker', state, {
+        // The server says whether it can be made public.
+        can_make_public: event === 'make-public',
+        make_public_needs_review: makePublicNeedsReview,
+        listed,
+      })
       mockPages(page([template]))
       const wrapper = await mountComponent()
 
@@ -602,17 +649,17 @@ describe('UserTemplateList', () => {
       expect(links.map((link) => link.text())).toStrictEqual([
         'userTemplateList.editDetails',
         'userTemplateList.updateContent',
-        item,
+        ...items,
         'userTemplateList.download',
         'userTemplateList.delete',
       ])
-
-      await links[2].trigger('click')
-      await flushPromises()
-
-      expect(wrapper.emitted(event)).toStrictEqual([[template]])
-      // The modal makes the change, not the list.
-      expect(testApp.mock.history.patch).toHaveLength(0)
+      if (event) {
+        await links[2].trigger('click')
+        await flushPromises()
+        expect(wrapper.emitted(event)).toStrictEqual([[template]])
+        // The modal makes the change, not the list.
+        expect(testApp.mock.history.patch).toHaveLength(0)
+      }
     }
   )
 

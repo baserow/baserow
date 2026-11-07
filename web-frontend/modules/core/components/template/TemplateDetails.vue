@@ -2,12 +2,15 @@
   <TemplatePreview
     :template="template"
     :sidebar-width="320"
+    :load-error-handler="loadErrorHandler"
     class="template-details"
+    @loaded="focusBackLink"
   >
     <template #sidebar="{ applications, page, selectPage, selectApplication }">
       <div class="template-details__sidebar">
         <div v-if="showBack" class="template-details__back">
           <a
+            ref="backLink"
             class="template-details__back-link"
             role="button"
             tabindex="0"
@@ -36,7 +39,7 @@
                   isOwner ? $t('templateDetails.you') : template.author_name
                 }}</span>
                 <i
-                  v-if="isOwner && template.state !== 'public'"
+                  v-if="isOwner && !template.listed"
                   v-tooltip="$t('templateDetails.private')"
                   class="template-details__private iconoir-eye-off"
                 ></i>
@@ -75,71 +78,76 @@
           </ul>
         </div>
         <div class="template-details__foot">
-          <TemplateInstall
-            :template="template"
-            :workspace="workspace"
-            :show-copy-link="!isOwn"
-            :latest="isOwn"
-            @installed="emit('installed')"
-            @outdated="emit('outdated')"
-          >
-            <template v-if="isOwn" #menu-items="{ hide }">
-              <li class="context__menu-item">
-                <a
-                  class="context__menu-item-link"
-                  @click.prevent="edit('details', hide)"
+          <!-- Replaced on the admin page by the review actions. -->
+          <slot name="foot">
+            <TemplateInstall
+              :template="template"
+              :workspace="workspace"
+              :show-copy-link="!fromOwnList"
+              :latest="fromOwnList || isOwner"
+              @installed="emit('installed')"
+              @outdated="emit('outdated')"
+            >
+              <template v-if="fromOwnList" #menu-items="{ hide }">
+                <li class="context__menu-item">
+                  <a
+                    class="context__menu-item-link"
+                    @click.prevent="edit('details', hide)"
+                  >
+                    <i class="context__menu-item-icon iconoir-edit-pencil"></i>
+                    {{ $t('templateDetails.editDetails') }}
+                  </a>
+                </li>
+                <li class="context__menu-item">
+                  <a
+                    class="context__menu-item-link"
+                    @click.prevent="edit('content', hide)"
+                  >
+                    <i
+                      class="context__menu-item-icon iconoir-refresh-double"
+                    ></i>
+                    {{ $t('templateDetails.updateContent') }}
+                  </a>
+                </li>
+                <li v-if="canMakePublic(template)" class="context__menu-item">
+                  <a
+                    class="context__menu-item-link"
+                    @click.prevent="changeVisibility('make-public', hide)"
+                  >
+                    <i class="context__menu-item-icon iconoir-eye-empty"></i>
+                    {{
+                      makePublicResubmits(template)
+                        ? $t('templateDetails.submitForReviewAgain')
+                        : $t('templateDetails.makePublic')
+                    }}
+                  </a>
+                </li>
+                <li v-if="canMakePrivate(template)" class="context__menu-item">
+                  <a
+                    class="context__menu-item-link"
+                    @click.prevent="changeVisibility('make-private', hide)"
+                  >
+                    <i class="context__menu-item-icon iconoir-eye-off"></i>
+                    {{ $t('templateDetails.makePrivate') }}
+                  </a>
+                </li>
+              </template>
+              <!-- Delete comes last, after the items of every template. -->
+              <template v-if="fromOwnList" #menu-items-end="{ hide }">
+                <li
+                  class="context__menu-item context__menu-item--with-separator"
                 >
-                  <i class="context__menu-item-icon iconoir-edit-pencil"></i>
-                  {{ $t('templateDetails.editDetails') }}
-                </a>
-              </li>
-              <li class="context__menu-item">
-                <a
-                  class="context__menu-item-link"
-                  @click.prevent="edit('content', hide)"
-                >
-                  <i class="context__menu-item-icon iconoir-refresh-double"></i>
-                  {{ $t('templateDetails.updateContent') }}
-                </a>
-              </li>
-              <li
-                v-if="visibilityAction === 'make-public'"
-                class="context__menu-item"
-              >
-                <a
-                  class="context__menu-item-link"
-                  @click.prevent="changeVisibility('make-public', hide)"
-                >
-                  <i class="context__menu-item-icon iconoir-eye-empty"></i>
-                  {{ $t('templateDetails.makePublic') }}
-                </a>
-              </li>
-              <li
-                v-else-if="visibilityAction === 'make-private'"
-                class="context__menu-item"
-              >
-                <a
-                  class="context__menu-item-link"
-                  @click.prevent="changeVisibility('make-private', hide)"
-                >
-                  <i class="context__menu-item-icon iconoir-eye-off"></i>
-                  {{ $t('templateDetails.makePrivate') }}
-                </a>
-              </li>
-            </template>
-            <!-- Delete comes last, after the items of every template. -->
-            <template v-if="isOwn" #menu-items-end="{ hide }">
-              <li class="context__menu-item context__menu-item--with-separator">
-                <a
-                  class="context__menu-item-link context__menu-item-link--delete"
-                  @click.prevent="askToDelete(hide)"
-                >
-                  <i class="context__menu-item-icon iconoir-bin"></i>
-                  {{ $t('templateDetails.delete') }}
-                </a>
-              </li>
-            </template>
-          </TemplateInstall>
+                  <a
+                    class="context__menu-item-link context__menu-item-link--delete"
+                    @click.prevent="askToDelete(hide)"
+                  >
+                    <i class="context__menu-item-icon iconoir-bin"></i>
+                    {{ $t('templateDetails.delete') }}
+                  </a>
+                </li>
+              </template>
+            </TemplateInstall>
+          </slot>
         </div>
       </div>
     </template>
@@ -147,12 +155,14 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { useNuxtApp } from '#app'
 
 import {
-  getVisibilityAction,
+  canMakePrivate,
+  canMakePublic,
   isOwnTemplate,
+  makePublicResubmits,
 } from '@baserow/modules/core/utils/userTemplate'
 import TemplatePreview from '@baserow/modules/core/components/template/TemplatePreview'
 import TemplateInstall from '@baserow/modules/core/components/template/TemplateInstall'
@@ -179,12 +189,17 @@ const props = defineProps({
     required: false,
     default: false,
   },
-  // Whether the template is one of the user's, opened from "Your templates". The
-  // user can then update it, and installs its latest revision.
-  isOwn: {
+  // Opened from "Your templates", where its owner can update it.
+  fromOwnList: {
     type: Boolean,
     required: false,
     default: false,
+  },
+  // See `TemplatePreview`.
+  loadErrorHandler: {
+    type: Function,
+    required: false,
+    default: null,
   },
 })
 
@@ -209,10 +224,9 @@ function edit(mode, hideMenu) {
   emit('edit', mode)
 }
 
-// Also when opened from the public templates.
+// Whether the user owns the template, so installs its latest revision, the one
+// shown, also when opened by its link.
 const isOwner = computed(() => isOwnTemplate(props.template))
-
-const visibilityAction = computed(() => getVisibilityAction(props.template))
 
 function changeVisibility(event, hideMenu) {
   hideMenu()
@@ -223,6 +237,26 @@ function askToDelete(hideMenu) {
   hideMenu()
   emit('delete', props.template)
 }
+
+const backLink = ref(null)
+// The back link is hidden while the content loads, so it's focused once loaded.
+let focusWanted = false
+
+// Focuses the back link, so that a modal showing the details takes the keyboard.
+function focus() {
+  focusWanted = true
+  focusBackLink()
+}
+
+async function focusBackLink() {
+  await nextTick()
+  if (focusWanted) {
+    backLink.value?.focus()
+    focusWanted = document.activeElement !== backLink.value
+  }
+}
+
+defineExpose({ focus })
 
 function sortApplications(applications) {
   return [...applications].sort((a, b) => a.order - b.order)

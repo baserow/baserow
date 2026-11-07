@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
-import { updateJob } from '@baserow/test/helpers/store'
+import { heldBack } from '@baserow/test/helpers/heldBack'
+import { toastsOfType, updateJob } from '@baserow/test/helpers/store'
 import { triggerDownload } from '@baserow/modules/core/utils/download'
 import DownloadTemplateToast from '@baserow/modules/core/components/toasts/DownloadTemplateToast'
 
@@ -46,6 +47,7 @@ describe('DownloadTemplateToast', () => {
   })
 
   afterEach(async () => {
+    vi.useRealTimers()
     vi.restoreAllMocks()
     vi.mocked(triggerDownload).mockReset()
     await testApp.afterEach()
@@ -53,11 +55,9 @@ describe('DownloadTemplateToast', () => {
 
   const jobType = () => testApp.$registry.get('job', 'download_user_template')
 
-  const downloadToasts = () =>
-    store.state.toast.items.filter((toast) => toast.type === 'downloadTemplate')
+  const downloadToasts = () => toastsOfType(store, 'downloadTemplate')
 
-  const errorToasts = () =>
-    store.state.toast.items.filter((toast) => toast.type === 'error')
+  const errorToasts = () => toastsOfType(store, 'error')
 
   // What the download endpoint answers once the job ends.
   const mockDownload = (slug = template.slug) =>
@@ -116,6 +116,7 @@ describe('DownloadTemplateToast', () => {
   })
 
   test('does not hold the polling while the archive is saved, and disables its button meanwhile', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
     const wrapper = await startDownload()
     mockDownload().replyOnce(200, archive)
     let saved = null
@@ -129,10 +130,15 @@ describe('DownloadTemplateToast', () => {
     const button = wrapper.find('.download-template-toast__download')
     expect(button.attributes('disabled')).toBeDefined()
 
+    // The ready archive closes like the other toasts, once it's saved.
+    vi.advanceTimersByTime(5000)
+    expect(downloadToasts()).toHaveLength(1)
+
     saved()
     await flushPromises()
 
     expect(button.attributes('disabled')).toBeUndefined()
+    expect(downloadToasts()).toHaveLength(0)
   })
 
   test('follows the new job when the archive has to be built again', async () => {
@@ -236,14 +242,14 @@ describe('DownloadTemplateToast', () => {
     'changes nothing when the archive answers %i after a logout',
     async (status, data) => {
       await startDownload()
-      let reply = null
-      mockDownload().reply(() => new Promise((resolve) => (reply = resolve)))
+      const { reply, send } = heldBack()
+      mockDownload().reply(reply)
 
       // Ends once the archive is answered.
       const jobEnded = updateJob(store, 10, { state: 'finished' })
       await flushPromises()
       await store.dispatch('auth/forceLogoff')
-      reply([status, data])
+      send([status, data])
       await jobEnded
 
       expect(triggerDownload).not.toHaveBeenCalled()
@@ -326,13 +332,13 @@ describe('DownloadTemplateToast', () => {
 
   test('a click while the archive is asked for after the job saves it once, in the same toast', async () => {
     await startDownload()
-    let reply = null
-    mockDownload().reply(() => new Promise((resolve) => (reply = resolve)))
+    const { reply, send } = heldBack()
+    mockDownload().reply(reply)
     const jobEnded = updateJob(store, 10, { state: 'finished' })
     await flushPromises()
 
     await click({ status: 200, data: archive })
-    reply([200, archive])
+    send([200, archive])
     await jobEnded
 
     expect(downloadToasts()).toHaveLength(1)

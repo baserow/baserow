@@ -30,9 +30,11 @@
       >
         <a
           :href="getHref(index)"
+          :tabindex="getTabindex(index)"
           class="tabs__link"
           :class="{ 'tabs__link--disabled': tab.disabled }"
           @click.prevent
+          @keydown.enter="selectWithKeyboard($event, index)"
         >
           <i v-if="tab.icon" :class="tab.icon"></i>
           {{ tab.title }}
@@ -223,6 +225,28 @@ export default {
         return !tab.disabled ? router.resolve(tab.to).path : null
       }
       return null
+    },
+    /**
+     * Gives tabs without a route a tabindex, as they have no href to reach them
+     * with the keyboard. Disabled ones get none, like disabled route tabs.
+     */
+    getTabindex(i) {
+      return this.route || this.tabs[i].disabled ? null : 0
+    },
+    /**
+     * Selects a tab without a route with Enter. A route tab is a link, which Enter
+     * already clicks.
+     */
+    selectWithKeyboard(event, i) {
+      if (this.route) {
+        return
+      }
+      event.preventDefault()
+      if (this.tabs[i].disabled) {
+        this.$emit('click-disabled', i)
+      } else {
+        this.selectTab(i)
+      }
     },
     selectTab(i) {
       if (this.route) {

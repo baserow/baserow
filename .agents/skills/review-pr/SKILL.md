@@ -83,6 +83,8 @@ Select more than one when a change crosses concerns.
   that changes Database tables, fields, rows, views, formulas, data syncs, imports,
   exports, or workflow actions: read
   [references/modules/database.md](references/modules/database.md).
+- User templates code: their publishing, review, access, install or download:
+  read [references/modules/user-templates.md](references/modules/user-templates.md).
 - Backend Python, Django models, APIs, handlers, actions, services, registries, or
   settings: read [references/backend.md](references/backend.md).
 - Vue components, stores/composables, browser behaviour, frontend services,

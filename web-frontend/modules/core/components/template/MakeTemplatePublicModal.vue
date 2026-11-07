@@ -2,14 +2,22 @@
   <UserTemplateConfirmModal
     ref="confirmModal"
     :template="template"
-    :title="$t('makeTemplatePublicModal.title', { name: template.name })"
-    :confirm-label="$t('makeTemplatePublicModal.makePublic')"
+    :title="
+      resubmits
+        ? $t('makeTemplatePublicModal.resubmitTitle', { name: template.name })
+        : $t('makeTemplatePublicModal.title', { name: template.name })
+    "
+    :confirm-label="
+      resubmits
+        ? $t('makeTemplatePublicModal.submitForReviewAgain')
+        : $t('makeTemplatePublicModal.makePublic')
+    "
     :request="makePublic"
     @done="(id, data) => emit('made-public', data)"
     @hidden="emit('hidden')"
   >
     <i18n-t
-      keypath="makeTemplatePublicModal.description"
+      :keypath="description"
       tag="p"
       class="user-template-modal__description margin-bottom-0"
     >
@@ -27,13 +35,13 @@ import { useNuxtApp } from '#app'
 
 import TemplateService from '@baserow/modules/core/services/template'
 import UserTemplateConfirmModal from '@baserow/modules/core/components/template/UserTemplateConfirmModal'
+import { makePublicResubmits } from '@baserow/modules/core/utils/userTemplate'
 
 /**
- * Asks the author to agree that their template and their name are listed for
- * everyone on this instance, then makes the template public. The button is the
- * agreement, which the server requires.
+ * Asks the author to agree to list the template and their name, then makes it
+ * public or sends it to review. The button is the agreement the server needs.
  */
-defineProps({
+const props = defineProps({
   // The user's template as listed in their templates.
   template: {
     type: Object,
@@ -49,6 +57,19 @@ const emit = defineEmits(['made-public', 'hidden'])
 const { $client, $store } = useNuxtApp()
 
 const confirmModal = ref(null)
+
+// Listed already, with its edit rejected: the author resubmits the edit.
+const resubmits = computed(() => makePublicResubmits(props.template))
+
+// Whether it goes to review is the server's answer, see `make_public_needs_review`.
+const description = computed(() => {
+  if (!props.template.make_public_needs_review) {
+    return 'makeTemplatePublicModal.description'
+  }
+  return props.template.listed
+    ? 'makeTemplatePublicModal.resubmitListedDescription'
+    : 'makeTemplatePublicModal.reviewDescription'
+})
 
 // The author of the user's own templates is the user.
 const authorName = computed(() => $store.getters['auth/getName'])

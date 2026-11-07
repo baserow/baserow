@@ -192,13 +192,25 @@ def create_template_with_content(data_fixture, user=None, **kwargs):
     return template, table, view
 
 
-def create_template(data_fixture, user, **kwargs):
-    """A user template whose content can be copied, without running a job."""
+def create_template(data_fixture, user, state="private", **kwargs):
+    """
+    A user template whose content can be copied, without running a job.
+
+    :param data_fixture: The data fixture.
+    :param user: The owner and author of the template.
+    :param state: The state to put it in, see `set_user_template_state`.
+    :return: The template.
+    """
 
     workspace = data_fixture.create_workspace(name="Content")
     data_fixture.create_database_application(workspace=workspace)
     kwargs.setdefault("icon", ICON)
-    return data_fixture.create_user_template(user=user, workspace=workspace, **kwargs)
+    template = data_fixture.create_user_template(
+        user=user, workspace=workspace, **kwargs
+    )
+    if state == "private":
+        return template
+    return data_fixture.set_user_template_state(template, state)
 
 
 def make_public(user, template):

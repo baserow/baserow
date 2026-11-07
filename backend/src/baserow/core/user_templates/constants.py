@@ -29,6 +29,14 @@ class UserTemplateState(models.TextChoices):
     PUBLIC = "public", "Public"
 
 
+# The admin page tabs, in order. Private templates are the authors' own: no tab.
+USER_TEMPLATE_ADMIN_STATES = (
+    UserTemplateState.IN_REVIEW,
+    UserTemplateState.PUBLIC,
+    UserTemplateState.REJECTED,
+)
+
+
 # The views mapping is created together with the mappings of its children, see
 # `ViewType.import_serialized`, so they're seeded together too.
 USER_TEMPLATE_SEEDED_ID_MAPPINGS = (

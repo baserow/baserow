@@ -1,5 +1,4 @@
 from django.shortcuts import reverse
-from django.utils import timezone
 
 import pytest
 from rest_framework.status import (
@@ -38,31 +37,26 @@ def request_download(api_client, token, template, revision_id="shown"):
 
 
 @pytest.mark.parametrize(
-    "actor,state,status,error",
+    "actor,revisions,status,error",
     [
-        ("owner", "private", HTTP_202_ACCEPTED, None),
-        ("other", "public", HTTP_202_ACCEPTED, None),
-        ("other", "private", HTTP_404_NOT_FOUND, "ERROR_TEMPLATE_DOES_NOT_EXIST"),
+        ("owner", ["private"], HTTP_202_ACCEPTED, None),
+        ("other", ["public"], HTTP_202_ACCEPTED, None),
+        ("other", ["private"], HTTP_404_NOT_FOUND, "ERROR_TEMPLATE_DOES_NOT_EXIST"),
         # Another revision was made public since the template was shown.
-        ("other", "updated", HTTP_400_BAD_REQUEST, "ERROR_TEMPLATE_UPDATED"),
-        ("owner", "blocked", HTTP_400_BAD_REQUEST, "ERROR_TEMPLATE_BLOCKED"),
-        ("owner", "no_content", 400, "ERROR_TEMPLATE_HAS_NO_CONTENT"),
-        ("owner", "no_revision_id", 400, "ERROR_REQUEST_BODY_VALIDATION"),
+        ("other", ["private", "public"], 400, "ERROR_TEMPLATE_UPDATED"),
+        ("owner", ["blocked"], HTTP_400_BAD_REQUEST, "ERROR_TEMPLATE_BLOCKED"),
+        ("owner", ["pruned"], 400, "ERROR_TEMPLATE_HAS_NO_CONTENT"),
+        # Without the id of the revision shown.
+        ("owner", None, 400, "ERROR_REQUEST_BODY_VALIDATION"),
     ],
 )
 def test_download_user_template_without_archive(
-    api_client, data_fixture, actor, state, status, error
+    api_client, data_fixture, actor, revisions, status, error
 ):
     owner, owner_token = data_fixture.create_user_and_token()
     template = create_template(data_fixture, owner)
-    revision_id = None if state == "no_revision_id" else "shown"
-    if state == "no_content":
-        Template.objects.filter(id=template.id).update(pruned_at=timezone.now())
-    elif state == "updated":
-        revision = data_fixture.create_user_template_revision(template)
-        data_fixture.set_user_template_state(template, "public", revision=revision)
-    elif state != "no_revision_id":
-        data_fixture.set_user_template_state(template, state)
+    data_fixture.set_user_template_revision_states(template, revisions or [])
+    revision_id = "shown" if revisions else None
     token = owner_token if actor == "owner" else data_fixture.create_user_and_token()[1]
 
     response = request_download(api_client, token, template, revision_id)
@@ -109,7 +103,6 @@ def test_download_user_template_with_archive(api_client, data_fixture, name, fil
 @pytest.mark.usefixtures("use_tmp_media_root")
 def test_download_user_template_with_archive_needs_access(api_client, data_fixture):
     template = create_template(data_fixture, data_fixture.create_user())
-    data_fixture.set_user_template_state(template, "private")
     store_template_archive(template)
     _, token = data_fixture.create_user_and_token()
 
@@ -138,8 +131,7 @@ def test_download_user_template_reuses_the_running_job(api_client, data_fixture)
 def test_download_user_template_starts_a_job_of_its_own(api_client, data_fixture):
     owner, owner_token = data_fixture.create_user_and_token()
     user, token = data_fixture.create_user_and_token()
-    template = create_template(data_fixture, owner)
-    data_fixture.set_user_template_state(template, "public")
+    template = create_template(data_fixture, owner, "public")
     owner_job = request_download(api_client, owner_token, template)
     ended = DownloadUserTemplateJob.objects.create(
         user=user, revision=template, state=JOB_FINISHED
@@ -152,8 +144,7 @@ def test_download_user_template_starts_a_job_of_its_own(api_client, data_fixture
 
 
 def test_download_user_template_signed_out(api_client, data_fixture):
-    template = create_template(data_fixture, data_fixture.create_user())
-    data_fixture.set_user_template_state(template, "public")
+    template = create_template(data_fixture, data_fixture.create_user(), "public")
 
     response = request_download(api_client, None, template)
 
@@ -164,8 +155,9 @@ def test_jobs_endpoint_refuses_a_download_of_a_revision_that_is_not_public(
     api_client, data_fixture
 ):
     template = create_template(data_fixture, data_fixture.create_user())
-    revision = data_fixture.create_user_template_revision(template)
-    data_fixture.set_user_template_state(template, "public", revision=revision)
+    revision = data_fixture.set_user_template_revision_states(
+        template, ["private", "public"]
+    )
     _, token = data_fixture.create_user_and_token()
 
     response = api_client.post(
