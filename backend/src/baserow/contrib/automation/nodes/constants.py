@@ -37,4 +37,6 @@ AUTOMATION_PENDING_NODE_COUNTDOWN_CHUNK_SECONDS = 600
 # A waiting node whose resume is overdue by more than this many seconds lost its
 # resume task (the broker lost the message): the periodic cleanup resumes it. A
 # live task is never this late: visibility timeout, plus one chunk, plus margin.
-AUTOMATION_PENDING_NODE_STALE_SECONDS = 3600 + 600 + 300
+AUTOMATION_PENDING_NODE_STALE_SECONDS = (
+    3600 + AUTOMATION_PENDING_NODE_COUNTDOWN_CHUNK_SECONDS + 300
+)
