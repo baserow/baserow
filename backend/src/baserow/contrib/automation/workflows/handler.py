@@ -168,6 +168,43 @@ class AutomationWorkflowHandler:
 
         return _get_published_workflow(workflow)
 
+    def get_published_workflow_for_update(
+        self, workflow: AutomationWorkflow
+    ) -> Optional[AutomationWorkflow]:
+        """
+        Locks the workflow, then returns its published version. Publishing holds the
+        same lock, so this waits for a publication in progress and returns what it
+        left live. Call it inside a transaction.
+
+        :param workflow: The draft workflow.
+        :return: The published workflow, if it exists.
+        """
+
+        self.get_workflow(workflow.id, for_update=True)
+        return self.get_published_workflow(workflow, with_cache=False)
+
+    def get_state(
+        self, workflow: AutomationWorkflow, with_cache: bool = True
+    ) -> WorkflowState:
+        """
+        The state of a workflow as the API reports it: the state of its published
+        version, or draft when it has none.
+
+        :param workflow: The draft workflow. One from
+            `annotate_published_workflow_data` runs no query.
+        :param with_cache: Whether a cached published workflow may be used.
+        :return: The state.
+        """
+
+        try:
+            state = workflow.published_workflow_state
+        except AttributeError:
+            published_workflow = self.get_published_workflow(
+                workflow, with_cache=with_cache
+            )
+            state = published_workflow.state if published_workflow else None
+        return WorkflowState(state if state is not None else WorkflowState.DRAFT)
+
     def annotate_published_workflow_data(
         self, queryset: QuerySet[AutomationWorkflow]
     ) -> QuerySet[AutomationWorkflow]:
@@ -305,11 +342,12 @@ class AutomationWorkflowHandler:
         # published workflow, if available.
         state = allowed_values.pop("state", None)
         if state is not None:
-            if published_workflow := self.get_published_workflow(
-                workflow, with_cache=False
-            ):
-                published_workflow.state = WorkflowState(state)
-                published_workflow.save(update_fields=["state"])
+            with transaction.atomic():
+                if published_workflow := self.get_published_workflow_for_update(
+                    workflow
+                ):
+                    published_workflow.state = WorkflowState(state)
+                    published_workflow.save(update_fields=["state"])
 
         previous_allow_test_run_until = workflow.allow_test_run_until
         for key, value in extract_allowed(allowed_values, attr_fields).items():

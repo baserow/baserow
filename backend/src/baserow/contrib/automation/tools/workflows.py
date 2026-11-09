@@ -90,17 +90,12 @@ def describe_workflow(workflow: AutomationWorkflow) -> dict[str, Any]:
         no query.
     """
 
-    try:
-        state = workflow.published_workflow_state
-    except AttributeError:
-        published = AutomationWorkflowHandler().get_published_workflow(
-            workflow, with_cache=False
-        )
-        state = published.state if published else None
     return {
         "id": workflow.id,
         "name": workflow.name,
-        "state": WorkflowState(state or WorkflowState.DRAFT).value,
+        "state": AutomationWorkflowHandler()
+        .get_state(workflow, with_cache=False)
+        .value,
     }
 
 
@@ -533,11 +528,11 @@ def pause_workflow(
         workspace=ctx.workspace,
         context=workflow,
     )
-    handler = AutomationWorkflowHandler()
     with transaction.atomic():
         # Waits for a publish in progress, so what it leaves live is what gets paused.
-        handler.get_workflow(workflow.id, for_update=True)
-        published = handler.get_published_workflow(workflow, with_cache=False)
+        published = AutomationWorkflowHandler().get_published_workflow_for_update(
+            workflow
+        )
         if published is None:
             raise ToolInputError(
                 "This workflow has never been published, so it isn't running and "
