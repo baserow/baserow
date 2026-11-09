@@ -1268,7 +1268,7 @@ def load_row_tools(
     RETURNS: Names of newly available tools.
     DO NOT USE when: Row tools for these tables are already loaded and no field has changed since — one call per table is enough.
     AFTER A SCHEMA CHANGE: create_fields, update_fields and delete_fields refresh the loaded row tools automatically, so no reload is needed. If a row tool still rejects a field you just created, call this again: reloading replaces the stale tools with ones matching the current schema.
-    DO NOT USE for builder workflow actions — if you want a button/form in an Application Builder page to create/update/delete rows, use create_actions instead. load_row_tools is for direct database manipulation, NOT for configuring app behavior.
+    DO NOT USE for builder workflow actions — if you want a button/form in an Application Builder page to create/update/delete rows, use create_element_actions instead. load_row_tools is for direct database manipulation, NOT for configuring app behavior.
     HOW: Just call this with the table ID(s) and operations you need. The loaded row tools already contain the complete field schema in their parameters — do NOT call get_tables_schema or search_user_docs before or after this tool.
 
     EXAMPLES:

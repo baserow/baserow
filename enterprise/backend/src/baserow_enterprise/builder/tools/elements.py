@@ -431,7 +431,7 @@ def edit_element(
     element's type doesn't have refuse the whole update. A button has no target of its
     own: give it a click action. A button's text is what it says before it's clicked;
     what it shows or does when clicked, like the message of a notification, is a click
-    action: find it with list_actions and change it with update_action. If a changed
+    action: find it with list_element_actions and change it with update_element_action. If a changed
     button also shows a notification when clicked, the result has a note naming that
     action, which stays as it was. A link given a page or a URL goes there, unless
     navigation_type says otherwise. A link's new page must fit the parameters it has,

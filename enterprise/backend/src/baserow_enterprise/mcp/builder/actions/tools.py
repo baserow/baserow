@@ -10,7 +10,7 @@ class ListElementActionsMcpTool(FunctionMCPTool):
     group = GROUP_BUILDER_READ
     title = "List workflow actions"
     read_only = True
-    function = actions.list_actions
+    function = actions.list_element_actions
 
 
 class CreateElementActionsMcpTool(FunctionMCPTool):
@@ -19,7 +19,7 @@ class CreateElementActionsMcpTool(FunctionMCPTool):
     title = "Create workflow actions"
     read_only = False
     destructive = False
-    function = actions.create_actions
+    function = actions.create_element_actions
 
 
 class UpdateElementActionMcpTool(FunctionMCPTool):
@@ -28,4 +28,4 @@ class UpdateElementActionMcpTool(FunctionMCPTool):
     title = "Change a workflow action"
     read_only = False
     destructive = True
-    function = actions.update_action
+    function = actions.update_element_action

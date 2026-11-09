@@ -104,7 +104,7 @@ def test_write_tools_with_builder_edit_turned_on(
     tools = {tool.name: tool for tool in listed.tools}
     assert set(WRITE_TOOLS) <= set(tools)
     # update_element_action sets one field of a row action and keeps the others.
-    assert "add_action_field_mapping" not in tools
+    assert "add_element_action_field_mapping" not in tools
     for name in WRITE_TOOLS:
         assert tools[name].annotations.readOnlyHint is False
         assert tools[name].annotations.destructiveHint is (

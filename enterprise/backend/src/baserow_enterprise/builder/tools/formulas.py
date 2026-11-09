@@ -784,7 +784,7 @@ def _write_action_formulas(
     user: AbstractUser, action: Any, item: Any, formulas: dict[str, str]
 ) -> None:
     # A row action's mappings are replaced as a whole list, so a concurrent
-    # add_action_field_mapping waits for this.
+    # add_element_action_field_mapping waits for this.
     service_id = getattr(action, "service_id", None)
     if service_id is not None:
         Service.objects.select_for_update().filter(id=service_id).first()

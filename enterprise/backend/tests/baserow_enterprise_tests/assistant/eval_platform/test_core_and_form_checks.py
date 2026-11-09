@@ -153,7 +153,7 @@ def test_changes_row_action_mapping_check(status, passes):
         ).update(value=status)
 
     checks = _run(
-        "builder/changes-row-action-mapping", _output("update_action"), prepare
+        "builder/changes-row-action-mapping", _output("update_element_action"), prepare
     )
 
     assert all(checks.values()) is passes

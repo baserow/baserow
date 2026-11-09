@@ -48,7 +48,7 @@ def row_action(builder_ctx, element, row_id="'1'", type="update_row", **kwargs):
 
 
 def create(builder_ctx, *items):
-    return actions.create_actions(
+    return actions.create_element_actions(
         builder_ctx["ctx"], builder_ctx["page"].id, list(items)
     )
 
@@ -226,7 +226,7 @@ def test_a_refused_field_value_writes_nothing_until_it_is_fixed(
     assert getattr(row, name.db_column) == "Keep"
     assert getattr(row, other.db_column) == "b"
 
-    updated = actions.update_action(
+    updated = actions.update_element_action(
         ctx["ctx"],
         action.id,
         ActionChanges(field_values=[{"field_id": str(name.id), "value": "'Fixed'"}]),
@@ -376,7 +376,7 @@ def test_an_action_on_the_shared_page_stays_with_its_element(data_fixture, build
     result = create(builder_ctx, notification(button.id))
 
     assert saved(result).page_id == shared_page.id
-    listed = actions.list_actions(builder_ctx["ctx"], builder_ctx["page"].id)
+    listed = actions.list_element_actions(builder_ctx["ctx"], builder_ctx["page"].id)
     assert saved(result).id in [a["id"] for a in listed["workflow_actions"]]
 
 
@@ -614,7 +614,7 @@ def test_update_action_refuses_a_read_only_field(
     read_only = make_field(data_fixture, table)
 
     with pytest.raises(ToolInputError, match=f"is a {field_type} field"):
-        actions.update_action(
+        actions.update_element_action(
             builder_ctx["ctx"],
             action.id,
             ActionChanges(
@@ -635,7 +635,7 @@ def test_add_action_field_mapping_refuses_a_read_only_field(
     read_only = make_field(data_fixture, table)
 
     with pytest.raises(ToolInputError, match=f"is a {field_type} field"):
-        actions.add_action_field_mapping(
+        actions.add_element_action_field_mapping(
             builder_ctx["ctx"], action.id, read_only.id, "'y'"
         )
 
@@ -644,7 +644,7 @@ def test_add_action_field_mapping_refuses_a_read_only_field(
 
 
 # ---------------------------------------------------------------------------
-# add_action_field_mapping
+# add_element_action_field_mapping
 # ---------------------------------------------------------------------------
 
 
@@ -671,7 +671,7 @@ def test_add_action_field_mapping_returns_the_action(
     action, table, field = row_action_with_mapping
     new_field = data_fixture.create_text_field(table=table, name="Other")
 
-    result = actions.add_action_field_mapping(
+    result = actions.add_element_action_field_mapping(
         builder_ctx["ctx"], action.id, new_field.id, "'y'"
     )
 
@@ -696,7 +696,9 @@ def test_add_action_field_mapping_can_be_undone(
     session_id = "session-id"
     set_untrusted_client_session_id(user, session_id)
 
-    actions.add_action_field_mapping(builder_ctx["ctx"], action.id, new_field.id, "'y'")
+    actions.add_element_action_field_mapping(
+        builder_ctx["ctx"], action.id, new_field.id, "'y'"
+    )
 
     ActionHandler.undo(
         user, [PageActionScopeType.value(builder_ctx["page"].id)], session_id
@@ -715,7 +717,9 @@ def test_add_action_field_mapping_refuses_what_is_not_a_formula(
     action, _table, field = row_action_with_mapping
 
     with pytest.raises(ToolInputError):
-        actions.add_action_field_mapping(builder_ctx["ctx"], action.id, field.id, value)
+        actions.add_element_action_field_mapping(
+            builder_ctx["ctx"], action.id, field.id, value
+        )
 
     mapping = action.service.specific.field_mappings.get()
     assert mapping.value["formula"] == "'x'"
@@ -740,7 +744,7 @@ def test_add_action_field_mapping_reads_the_row_of_a_table_button(
         )
     )
 
-    result = actions.add_action_field_mapping(
+    result = actions.add_element_action_field_mapping(
         builder_ctx["ctx"], action.id, field.id, "get('current_record.id')"
     )
 
@@ -761,13 +765,15 @@ def test_add_action_field_mapping_on_another_workspace_is_refused(
     )
 
     with pytest.raises(ToolInputError, match="not found in this workspace"):
-        actions.add_action_field_mapping(builder_ctx["ctx"], action.id, 1, "'x'")
+        actions.add_element_action_field_mapping(
+            builder_ctx["ctx"], action.id, 1, "'x'"
+        )
 
 
 @pytest.mark.django_db
 def test_add_action_field_mapping_on_a_notification_is_refused(builder_ctx):
     with pytest.raises(ToolInputError, match="Cannot add field mappings"):
-        actions.add_action_field_mapping(
+        actions.add_element_action_field_mapping(
             builder_ctx["ctx"], builder_ctx["action"].id, 1, "'x'"
         )
 
@@ -896,7 +902,7 @@ def test_refresh_data_source_needs_a_data_source(data_source):
 
 
 # ---------------------------------------------------------------------------
-# update_action
+# update_element_action
 # ---------------------------------------------------------------------------
 
 
@@ -905,7 +911,9 @@ def changes(**kwargs):
 
 
 def update(builder_ctx, action_id, **kwargs):
-    return actions.update_action(builder_ctx["ctx"], action_id, changes(**kwargs))
+    return actions.update_element_action(
+        builder_ctx["ctx"], action_id, changes(**kwargs)
+    )
 
 
 def stored(action_id):
@@ -1232,7 +1240,9 @@ def test_update_action_changes_the_fields_it_names(
 ):
     action, table, field = row_action_with_mapping
     second = data_fixture.create_text_field(table=table, name="Second")
-    actions.add_action_field_mapping(builder_ctx["ctx"], action.id, second.id, "'b'")
+    actions.add_element_action_field_mapping(
+        builder_ctx["ctx"], action.id, second.id, "'b'"
+    )
     third = data_fixture.create_text_field(table=table, name="Third")
 
     result = update(
@@ -1352,7 +1362,7 @@ def test_update_action_refuses_a_table_of_another_workspace(
 
 
 def listed(builder_ctx, action_id):
-    result = actions.list_actions(builder_ctx["ctx"], builder_ctx["page"].id)
+    result = actions.list_element_actions(builder_ctx["ctx"], builder_ctx["page"].id)
     return next(a for a in result["workflow_actions"] if a["id"] == action_id)
 
 
@@ -1768,8 +1778,8 @@ def test_table_id_says_what_moving_to_another_table_does():
     assert "cleared" in description
     assert "row_id" in description
     assert "new table" in description
-    assert "row_id" in actions.update_action.__doc__
-    assert "clears the field values" in actions.update_action.__doc__
+    assert "row_id" in actions.update_element_action.__doc__
+    assert "clears the field values" in actions.update_element_action.__doc__
 
 
 # ---------------------------------------------------------------------------
@@ -1780,7 +1790,7 @@ def test_table_id_says_what_moving_to_another_table_does():
 def _create_row_with(builder_ctx, value):
     table = builder_ctx["data_source"].service.specific.table
     field = table.field_set.first()
-    result = actions.create_actions(
+    result = actions.create_element_actions(
         builder_ctx["ctx"],
         builder_ctx["page"].id,
         [
@@ -1868,7 +1878,7 @@ def test_a_new_row_actions_literal_or_call_is_stored_as_written(builder_ctx, val
 def test_a_new_row_actions_field_id_may_have_spaces_around_it(builder_ctx):
     table = builder_ctx["data_source"].service.specific.table
     field = table.field_set.first()
-    result = actions.create_actions(
+    result = actions.create_element_actions(
         builder_ctx["ctx"],
         builder_ctx["page"].id,
         [
@@ -2093,7 +2103,9 @@ def test_a_new_action_and_its_update_read_a_title_the_same_way(builder_ctx):
         action = saved(result)
         created = action.title["formula"]
 
-        actions.update_action(builder_ctx["ctx"], action.id, ActionChanges(title=title))
+        actions.update_element_action(
+            builder_ctx["ctx"], action.id, ActionChanges(title=title)
+        )
 
         action.refresh_from_db()
         assert action.title["formula"] == created
@@ -2141,7 +2153,7 @@ def test_add_action_field_mapping_refuses_a_new_mapping_on_a_trashed_field(
     trashed = data_fixture.create_text_field(table=table, name="Old", trashed=True)
 
     with pytest.raises(ToolInputError, match="trash"):
-        actions.add_action_field_mapping(
+        actions.add_element_action_field_mapping(
             builder_ctx["ctx"], action.id, trashed.id, "'x'"
         )
 
@@ -2157,7 +2169,7 @@ def test_an_action_on_a_trashed_page_can_not_be_changed(builder_ctx):
     page.save()
 
     with pytest.raises(ToolInputError, match="not found"):
-        actions.update_action(
+        actions.update_element_action(
             builder_ctx["ctx"], action.id, ActionChanges(title="'Changed'")
         )
 

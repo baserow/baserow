@@ -521,7 +521,7 @@ def test_landing_checks_accept_interleaved_page_creation(data_fixture, navigatio
         navigate_to_url="'/contact'" if navigation_type == "custom" else "''",
     )
     # Home and its elements can be created before the Contact destination.
-    output.tool_calls += ["create_pages", "create_actions"]
+    output.tool_calls += ["create_pages", "create_element_actions"]
     checks = _check_creates_landing_page(None, scenario, output)
     assert all(check.passed for check in checks), checks
 
@@ -702,7 +702,7 @@ def test_contact_form_accepts_primitive_tools_and_requires_submit_action(data_fi
         page=page, element=form, event="submit", service=service
     )
     output = _output(
-        tool_calls=["create_pages", "create_form_elements", "create_actions"]
+        tool_calls=["create_pages", "create_form_elements", "create_element_actions"]
     )
     checks = _check_creates_contact_form(None, scenario, output)
     assert all(check.passed for check in checks), checks

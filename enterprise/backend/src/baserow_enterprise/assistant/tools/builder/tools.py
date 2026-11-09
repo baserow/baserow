@@ -232,7 +232,7 @@ def create_pages(
             "(create_data_sources). Then add elements "
             "(create_display_elements, create_layout_elements, "
             "create_form_elements, create_collection_elements), "
-            "then actions for buttons/forms (create_actions)."
+            "then actions for buttons/forms (create_element_actions)."
         )
     return result
 
@@ -529,7 +529,7 @@ def list_elements(
     List all elements on a page.
 
     WHEN to use: Check existing elements, find element IDs or container structure.
-    NOT LISTED: What a button does when clicked, like the message it shows or the page it opens. Use list_actions for that.
+    NOT LISTED: What a button does when clicked, like the message it shows or the page it opens. Use list_element_actions for that.
     WHAT it does: Lists elements with id, type, parent_element_id, is_container. Tables also show their data_source_id and table_columns in display order: uid, name, type, and value (text, boolean, rating) or label (button). value and label are formulas: fixed text is quoted, and '' or "''" is an empty cell. Menus show their items in order: uid, name, type, page_id (or url, for a link to a custom address), and a top-level link's sub-links as children.
     RETURNS: Elements array.
 
@@ -664,7 +664,7 @@ def _create_elements_internal(
     if actionable:
         next_steps.append(
             f"Elements {actionable} need workflow actions. "
-            "Call create_actions next: 'click' event for buttons, "
+            "Call create_element_actions next: 'click' event for buttons, "
             "'submit' event for form_container."
         )
     if next_steps:
@@ -702,7 +702,7 @@ def create_display_elements(
     Create display elements on a page: heading, text, button, link, image.
 
     For navigation, use a link (link_variant='button' gives a button appearance),
-    or create a button and then create_actions(type='open_page', event='click').
+    or create a button and then create_element_actions(type='open_page', event='click').
     Button elements do not accept navigation properties.
 
     PREREQUISITE: The page must already exist. Call create_pages first if it doesn't.
@@ -723,7 +723,7 @@ def create_display_elements(
       For intentional fixed-row access, supply an explicit runtime expression.
 
     ## After Creating Buttons
-    Buttons need a click action (open_page, notification, etc.) via create_actions.
+    Buttons need a click action (open_page, notification, etc.) via create_element_actions.
     Links use their navigation properties directly.
 
     ## Buttons/Links in Shared Headers
@@ -815,8 +815,8 @@ def create_form_elements(
     The form's submit action should be update_row with row_id referencing the page parameter.
 
     ## After Creating Forms
-    Form containers need a submit action (create_row, update_row) via create_actions.
-    ALWAYS call create_actions after creating form_container elements.
+    Form containers need a submit action (create_row, update_row) via create_element_actions.
+    ALWAYS call create_element_actions after creating form_container elements.
     """
 
     require_payload("create_form_elements", "elements", elements)
@@ -890,11 +890,11 @@ def update_element(
     - element_id: ID of the element to update (from list_elements).
     - Only set the properties you want to change — unset properties are left unchanged.
     - Unsupported properties reject the update without applying any changes.
-    - Button navigation belongs in create_actions(type='open_page', event='click'),
+    - Button navigation belongs in create_element_actions(type='open_page', event='click'),
       not in update_element. Links support navigation properties directly.
     - A button's text is what it says before it's clicked. What it shows or does when
       clicked, like the message of a notification, is a click action: find it with
-      list_actions and change it with update_action.
+      list_element_actions and change it with update_element_action.
 
     ## Table Columns
     - list_elements shows each table's columns with uid, name, type, and value or label.
@@ -933,7 +933,7 @@ def update_element(
     - update_menu_items renames an item or points a link to a page; the item keeps
       its type, click actions and sub-links, and a new page drops the old page's
       parameters. A button can't link to a page: give it an open_page action with
-      create_actions.
+      create_element_actions.
     - reorder_menu_items lists every top-level item that stays; sub-links can't be
       reordered.
     - Remove an item only when the user asked for it: its sub-links go with it, undo
@@ -1130,7 +1130,7 @@ def move_elements(
 # ---------------------------------------------------------------------------
 
 
-def list_actions(
+def list_element_actions(
     ctx: RunContext[AssistantDeps],
     page_id: Annotated[int, Field(description="The page ID.")],
     thought: Annotated[
@@ -1146,12 +1146,12 @@ def list_actions(
     """
 
     try:
-        return shared_actions.list_actions(ctx.deps.tool_context(), page_id)
+        return shared_actions.list_element_actions(ctx.deps.tool_context(), page_id)
     except PageDoesNotExist:
         raise _page_not_found(page_id)
 
 
-def create_actions(
+def create_element_actions(
     ctx: RunContext[AssistantDeps],
     page_id: Annotated[int, Field(description="The page ID.")],
     actions: Annotated[
@@ -1191,7 +1191,7 @@ def create_actions(
 
     tool_helpers = ctx.deps.tool_helpers
 
-    require_payload("create_actions", "actions", actions)
+    require_payload("create_element_actions", "actions", actions)
 
     page = helpers.get_page(ctx.deps.user, ctx.deps.workspace, page_id)
 
@@ -1224,7 +1224,7 @@ def create_actions(
     return result
 
 
-def add_action_field_mapping(
+def add_element_action_field_mapping(
     ctx: RunContext[AssistantDeps],
     action_id: Annotated[int, Field(description="The workflow action ID.")],
     field_id: Annotated[int, Field(description="The target table field ID.")],
@@ -1246,12 +1246,12 @@ def add_action_field_mapping(
     RETURNS: The updated action with its field mappings. A value that isn't a valid formula is refused and nothing changes.
     """
 
-    return shared_actions.add_action_field_mapping(
+    return shared_actions.add_element_action_field_mapping(
         ctx.deps.tool_context(), action_id, field_id, value_formula
     )
 
 
-def update_action(
+def update_element_action(
     ctx: RunContext[AssistantDeps],
     action_id: Annotated[int, Field(description="The workflow action ID.")],
     changes: Annotated[
@@ -1268,7 +1268,7 @@ def update_action(
     WHEN to use: A notification, open_page, row or refresh_data_source action should do something else, like a new message (a notification's title), target page or row_id.
     WHAT it does: Changes the given values. Its type, element and event stay as they are. page_parameters and query_parameters replace the whole list; field_values change the named fields only.
     RETURNS: The updated action, with errors for values that kept their previous value.
-    DO NOT USE when: The action doesn't exist yet — use create_actions instead.
+    DO NOT USE when: The action doesn't exist yet — use create_element_actions instead.
     EXAMPLE: {"action_id": 12, "changes": {"title": "'Order placed'"}, "thought": "Change the message of the Buy button's notification."}. thought is required, however small the change.
 
     ## Dynamic Values with $formula:
@@ -1599,10 +1599,10 @@ TOOL_FUNCTIONS = [
     update_element,
     update_element_style,
     move_elements,
-    list_actions,
-    create_actions,
-    add_action_field_mapping,
-    update_action,
+    list_element_actions,
+    create_element_actions,
+    add_element_action_field_mapping,
+    update_element_action,
     setup_page,
     setup_user_source,
     set_theme,

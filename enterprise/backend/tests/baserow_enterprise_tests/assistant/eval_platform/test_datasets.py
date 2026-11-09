@@ -286,14 +286,18 @@ def test_changes_notification_title_check_needs_the_same_action_updated(data_fix
     args = ("builder/changes-notification-title", "builder-changes-actions")
     unchanged = "Home page still has only the Save and Open buttons, unchanged"
 
-    assert _failed(*args, ["update_action"], updated) == set()
-    assert _failed(*args, ["create_actions"], added) == {
-        "called update_action",
+    assert _failed(*args, ["update_element_action"], updated) == set()
+    assert _failed(*args, ["create_element_actions"], added) == {
+        "called update_element_action",
         "Save button still has one action, the same one",
         "message is 'All done!'",
     }
-    assert _failed(*args, ["update_action"], updated_and_relabelled) == {unchanged}
-    assert _failed(*args, ["update_action"], updated_and_added_heading) == {unchanged}
+    assert _failed(*args, ["update_element_action"], updated_and_relabelled) == {
+        unchanged
+    }
+    assert _failed(*args, ["update_element_action"], updated_and_added_heading) == {
+        unchanged
+    }
 
 
 @pytest.mark.django_db
@@ -315,12 +319,14 @@ def test_changes_open_page_parameter_check_needs_slug_changed_and_id_kept(
 
     args = ("builder/changes-open-page-parameter", "builder-changes-actions")
 
-    assert _failed(*args, ["update_action"], set_parameters("'latest'")) == set()
-    assert _failed(*args, ["update_action"], set_parameters("'latest'", "'7'")) == {
-        "id is unchanged"
-    }
+    assert (
+        _failed(*args, ["update_element_action"], set_parameters("'latest'")) == set()
+    )
+    assert _failed(
+        *args, ["update_element_action"], set_parameters("'latest'", "'7'")
+    ) == {"id is unchanged"}
     assert _failed(*args, [], set_parameters("'first'")) == {
-        "called update_action",
+        "called update_element_action",
         "slug is 'latest'",
     }
 

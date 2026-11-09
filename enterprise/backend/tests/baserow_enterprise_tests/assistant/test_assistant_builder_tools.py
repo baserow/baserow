@@ -47,16 +47,16 @@ from baserow_enterprise.assistant.tools.builder.agents import (
     repair_builder_formula_errors,
 )
 from baserow_enterprise.assistant.tools.builder.tools import (
-    add_action_field_mapping,
-    create_actions,
+    add_element_action_field_mapping,
     create_collection_elements,
     create_data_sources,
     create_display_elements,
+    create_element_actions,
     create_form_elements,
     create_layout_elements,
     create_pages,
-    list_actions,
     list_data_sources,
+    list_element_actions,
     list_elements,
     list_pages,
     set_theme,
@@ -393,7 +393,7 @@ def test_create_pages_skips_duplicates(data_fixture):
         (create_layout_elements, {"page_id": 1, "elements": []}, "elements"),
         (create_form_elements, {"page_id": 1, "elements": []}, "elements"),
         (create_collection_elements, {"page_id": 1, "elements": []}, "elements"),
-        (create_actions, {"page_id": 1, "actions": []}, "actions"),
+        (create_element_actions, {"page_id": 1, "actions": []}, "actions"),
     ],
 )
 def test_create_tools_reject_an_empty_payload(data_fixture, tool, kwargs, arg_name):
@@ -852,7 +852,7 @@ def test_empty_container_response_directs_requested_content_completion(
     assert "parent_element" in result["next_steps"]
     assert "current_record" in result["next_steps"]
     if element_type == "form_container":
-        assert "create_actions" in result["next_steps"]
+        assert "create_element_actions" in result["next_steps"]
         assert "submit" in result["next_steps"]
 
 
@@ -966,7 +966,7 @@ def test_create_form_container_with_inputs(data_fixture):
     assert result["created_elements"][1]["type"] == "input_text"
     assert result["created_elements"][2]["type"] == "input_text"
     assert "empty_containers" not in result
-    assert "create_actions" in result["next_steps"]
+    assert "create_element_actions" in result["next_steps"]
 
 
 @pytest.mark.django_db
@@ -1309,7 +1309,7 @@ def test_table_button_actions_do_not_guess_view_or_delete(data_fixture, events):
     table = element.data_source.service.specific.table
     service_count = Service.objects.count()
 
-    result = create_actions(
+    result = create_element_actions(
         ctx,
         page_id=page.id,
         actions=[
@@ -1361,7 +1361,7 @@ def test_table_button_actions_attach_to_distinct_columns(
     )
     table = element.data_source.service.specific.table
 
-    result = create_actions(
+    result = create_element_actions(
         ctx,
         page_id=page.id,
         actions=[
@@ -1484,7 +1484,7 @@ def test_table_button_action_requires_an_unambiguous_valid_event(
     data_fixture, column_names, event
 ):
     ctx, page, element = _table_button_action_context(data_fixture, column_names)
-    result = create_actions(
+    result = create_element_actions(
         ctx,
         page_id=page.id,
         actions=[
@@ -1528,7 +1528,7 @@ def test_table_button_action_cannot_target_an_element_on_another_page(
             },
         ],
     )
-    result = create_actions(
+    result = create_element_actions(
         ctx,
         page_id=page.id,
         actions=[
@@ -1564,7 +1564,7 @@ def test_table_button_action_checks_read_access_before_event_errors(
     monkeypatch.setattr(CoreHandler, "check_permissions", deny_element_read)
 
     with pytest.raises(PermissionDenied):
-        create_actions(
+        create_element_actions(
             ctx,
             page_id=page.id,
             actions=[
@@ -1582,7 +1582,7 @@ def test_create_action_still_accepts_shared_elements_of_the_same_builder(data_fi
     button = data_fixture.create_builder_button_element(
         user=user, page=page.builder.shared_page
     )
-    result = create_actions(
+    result = create_element_actions(
         make_test_ctx(user, page.builder.workspace),
         page_id=page.id,
         actions=[ActionCreate(type="notification", element=button.id, title="'Hi'")],
@@ -1614,7 +1614,7 @@ def test_create_notification_action(data_fixture):
     )
     assert len(el_result["created_elements"]) == 1
 
-    result = create_actions(
+    result = create_element_actions(
         ctx,
         page_id=page.id,
         actions=[
@@ -1653,7 +1653,7 @@ def test_create_open_page_action(data_fixture):
         thought="test",
     )
 
-    result = create_actions(
+    result = create_element_actions(
         ctx,
         page_id=page.id,
         actions=[
@@ -1694,7 +1694,7 @@ def test_create_open_page_action_without_its_parameters_returns_to_the_model(
         thought="test",
     )
 
-    refused = create_actions(
+    refused = create_element_actions(
         ctx,
         page_id=page.id,
         actions=[
@@ -1713,7 +1713,7 @@ def test_create_open_page_action_without_its_parameters_returns_to_the_model(
         openpageworkflowaction__isnull=False
     ).exists()
 
-    retried = create_actions(
+    retried = create_element_actions(
         ctx,
         page_id=page.id,
         actions=[
@@ -1838,7 +1838,7 @@ def test_create_row_action(data_fixture):
 
     from baserow_enterprise.builder.tools.types import FieldValueMapping
 
-    result = create_actions(
+    result = create_element_actions(
         ctx,
         page_id=page.id,
         actions=[
@@ -1868,22 +1868,22 @@ def test_list_actions(data_fixture):
     page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
 
     ctx = make_test_ctx(user, workspace)
-    result = list_actions(ctx, page_id=page.id, thought="test")
+    result = list_element_actions(ctx, page_id=page.id, thought="test")
 
     assert result["workflow_actions"] == []
 
 
 # ===========================================================================
-# add_action_field_mapping tests
+# add_element_action_field_mapping tests
 # ===========================================================================
 
 
 @pytest.mark.django_db(transaction=True)
 def test_add_action_field_mapping_creates_mapping(data_fixture):
-    """add_action_field_mapping should create a field mapping on an existing action."""
+    """add_element_action_field_mapping should create a field mapping on an existing action."""
 
     from baserow_enterprise.assistant.tools.builder.tools import (
-        add_action_field_mapping,
+        add_element_action_field_mapping,
     )
 
     user = data_fixture.create_user()
@@ -1911,7 +1911,7 @@ def test_add_action_field_mapping_creates_mapping(data_fixture):
         thought="test",
     )
     input_id = form["ref_to_id_map"]["input"]
-    action_result = create_actions(
+    action_result = create_element_actions(
         ctx,
         page_id=page.id,
         actions=[
@@ -1929,8 +1929,8 @@ def test_add_action_field_mapping_creates_mapping(data_fixture):
     )
     action_id = action_result["created_actions"][0]["id"]
 
-    # Now add a second field mapping via add_action_field_mapping
-    result = add_action_field_mapping(
+    # Now add a second field mapping via add_element_action_field_mapping
+    result = add_element_action_field_mapping(
         ctx,
         action_id=action_id,
         field_id=email_field.id,
@@ -1948,10 +1948,10 @@ def test_add_action_field_mapping_creates_mapping(data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 def test_add_action_field_mapping_updates_existing(data_fixture):
-    """add_action_field_mapping should update an existing field mapping."""
+    """add_element_action_field_mapping should update an existing field mapping."""
 
     from baserow_enterprise.assistant.tools.builder.tools import (
-        add_action_field_mapping,
+        add_element_action_field_mapping,
     )
 
     user = data_fixture.create_user()
@@ -1977,7 +1977,7 @@ def test_add_action_field_mapping_updates_existing(data_fixture):
         thought="test",
     )
     input_id = form["ref_to_id_map"]["input"]
-    action_result = create_actions(
+    action_result = create_element_actions(
         ctx,
         page_id=page.id,
         actions=[
@@ -1996,7 +1996,7 @@ def test_add_action_field_mapping_updates_existing(data_fixture):
     action_id = action_result["created_actions"][0]["id"]
 
     # Update the existing mapping with a new formula
-    result = add_action_field_mapping(
+    result = add_element_action_field_mapping(
         ctx,
         action_id=action_id,
         field_id=name_field.id,
@@ -2016,7 +2016,7 @@ def test_add_action_field_mapping_goes_through_the_action_type(data_fixture):
     )
     from baserow.core.action.models import Action
     from baserow_enterprise.assistant.tools.builder.tools import (
-        add_action_field_mapping,
+        add_element_action_field_mapping,
     )
 
     user = data_fixture.create_user()
@@ -2030,7 +2030,7 @@ def test_add_action_field_mapping_goes_through_the_action_type(data_fixture):
     ctx = make_test_ctx(user, workspace)
     action = _create_row_action_on_form(ctx, page, table, name_field)
 
-    result = add_action_field_mapping(
+    result = add_element_action_field_mapping(
         ctx,
         action_id=action.id,
         field_id=email_field.id,
@@ -2054,7 +2054,7 @@ def test_add_action_field_mapping_failure_keeps_the_mappings(data_fixture, monke
         LocalBaserowTableServiceFieldMapping,
     )
     from baserow_enterprise.assistant.tools.builder.tools import (
-        add_action_field_mapping,
+        add_element_action_field_mapping,
     )
 
     user = data_fixture.create_user()
@@ -2075,7 +2075,7 @@ def test_add_action_field_mapping_failure_keeps_the_mappings(data_fixture, monke
         LocalBaserowTableServiceFieldMapping.objects, "bulk_create", fail
     )
     with pytest.raises(RuntimeError):
-        add_action_field_mapping(
+        add_element_action_field_mapping(
             ctx,
             action_id=action.id,
             field_id=email_field.id,
@@ -2093,7 +2093,7 @@ def test_add_action_field_mapping_failure_keeps_the_mappings(data_fixture, monke
 @pytest.mark.django_db
 def test_add_action_field_mapping_locks_the_service_before_reading(data_fixture):
     from baserow_enterprise.assistant.tools.builder.tools import (
-        add_action_field_mapping,
+        add_element_action_field_mapping,
     )
 
     user = data_fixture.create_user()
@@ -2108,7 +2108,7 @@ def test_add_action_field_mapping_locks_the_service_before_reading(data_fixture)
     action = _create_row_action_on_form(ctx, page, table, name_field)
 
     with CaptureQueriesContext(connection) as queries:
-        add_action_field_mapping(
+        add_element_action_field_mapping(
             ctx,
             action_id=action.id,
             field_id=email_field.id,
@@ -2139,7 +2139,7 @@ def test_add_action_field_mapping_refuses_a_value_the_page_cant_read(
     data_fixture, value_formula
 ):
     from baserow_enterprise.assistant.tools.builder.tools import (
-        add_action_field_mapping,
+        add_element_action_field_mapping,
     )
 
     user = data_fixture.create_user()
@@ -2154,7 +2154,7 @@ def test_add_action_field_mapping_refuses_a_value_the_page_cant_read(
     action = _create_row_action_on_form(ctx, page, table, name_field)
 
     with pytest.raises(ToolInputError):
-        add_action_field_mapping(
+        add_element_action_field_mapping(
             ctx,
             action_id=action.id,
             field_id=email_field.id,
@@ -2175,7 +2175,7 @@ def _create_row_action_on_form(ctx, page, table, field) -> BuilderWorkflowAction
         elements=[FormElementCreate(ref="form", type="form_container")],
         thought="test",
     )
-    result = create_actions(
+    result = create_element_actions(
         ctx,
         page_id=page.id,
         actions=[
@@ -2218,7 +2218,7 @@ def test_add_action_field_mapping_requires_update_permission(
     )
 
     with pytest.raises(PermissionDenied):
-        add_action_field_mapping(
+        add_element_action_field_mapping(
             make_test_ctx(viewer, workspace),
             action_id=action.id,
             field_id=email_field.id,
@@ -2252,7 +2252,7 @@ def test_add_action_field_mapping_rejects_fields_outside_the_action_table(
     action = _create_row_action_on_form(ctx, page, table, name_field)
 
     with pytest.raises(ToolInputError) as exc_info:
-        add_action_field_mapping(
+        add_element_action_field_mapping(
             ctx,
             action_id=action.id,
             field_id=other_field.id,
@@ -2278,7 +2278,7 @@ def test_add_action_field_mapping_updates_mapping_of_trashed_field(data_fixture)
     action = _create_row_action_on_form(ctx, page, table, name_field)
     FieldHandler().delete_field(user, name_field)
 
-    result = add_action_field_mapping(
+    result = add_element_action_field_mapping(
         ctx,
         action_id=action.id,
         field_id=name_field.id,
@@ -2304,7 +2304,7 @@ def test_add_action_field_mapping_rejects_action_without_table(data_fixture):
     )
 
     with pytest.raises(ToolInputError, match="has no table selected"):
-        add_action_field_mapping(
+        add_element_action_field_mapping(
             make_test_ctx(user, workspace),
             action_id=action.id,
             field_id=name_field.id,
@@ -2341,7 +2341,7 @@ def test_element_ref_tracking_across_calls(data_fixture):
     )
 
     # Second call: create an action referencing the button from the first call
-    result = create_actions(
+    result = create_element_actions(
         ctx,
         page_id=page.id,
         actions=[
@@ -2623,7 +2623,7 @@ def test_button_navigation_requires_a_saved_click_action(data_fixture):
         )
     assert not BuilderWorkflowAction.objects.filter(element_id=button_id).exists()
 
-    result = create_actions(
+    result = create_element_actions(
         ctx,
         page_id=page.id,
         actions=[

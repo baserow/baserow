@@ -199,7 +199,7 @@ def test_a_sentence_with_a_parenthesis_is_fixed_text_on_an_element_update(
 
 @pytest.mark.django_db
 def test_a_sentence_with_a_parenthesis_is_fixed_text_on_a_notification(builder_ctx):
-    result = actions.create_actions(
+    result = actions.create_element_actions(
         builder_ctx["ctx"],
         builder_ctx["page"].id,
         [

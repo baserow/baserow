@@ -84,7 +84,7 @@ _REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
     "refresh_data_source": ("data_source",),
 }
 
-# What ``update_action`` can change on each type of action.
+# What ``update_element_action`` can change on each type of action.
 _CHANGEABLE_FIELDS: dict[str, tuple[str, ...]] = {
     "notification": ("title", "description"),
     "open_page": (
@@ -147,7 +147,7 @@ def _is_function_call(value: str | None) -> bool:
 def is_text_formula(value: str | None) -> bool:
     """
     Whether a title, description or parameter is a formula. It also counts when the
-    whole value is a function call, since a list_actions value like ``upper('abc')``
+    whole value is a function call, since a list_element_actions value like ``upper('abc')``
     is sent back.
     """
 
@@ -930,8 +930,8 @@ class FieldMappingItem(BaseModel):
 
 class ActionItem(BaseModel):
     """
-    Existing workflow action with ID. The values are what ``create_actions`` and
-    ``update_action`` take, formulas as plain strings, and only the ones of the
+    Existing workflow action with ID. The values are what ``create_element_actions`` and
+    ``update_element_action`` take, formulas as plain strings, and only the ones of the
     action's type are set.
     """
 

@@ -3315,7 +3315,10 @@ def _check_changes_notification_title(
     actions = _actions_of(scenario.refs["save_button"])
     action = actions[0].specific if len(actions) == 1 else None
     return [
-        CheckResult("called update_action", tool_called(output, "update_action") >= 1),
+        CheckResult(
+            "called update_element_action",
+            tool_called(output, "update_element_action") >= 1,
+        ),
         CheckResult(
             "Save button still has one action, the same one",
             len(actions) == 1 and actions[0].id == scenario.refs["save_action_id"],
@@ -3346,7 +3349,10 @@ def _check_changes_open_page_parameter(
         for parameter in (getattr(action, "page_parameters", None) or [])
     }
     return [
-        CheckResult("called update_action", tool_called(output, "update_action") >= 1),
+        CheckResult(
+            "called update_element_action",
+            tool_called(output, "update_element_action") >= 1,
+        ),
         CheckResult(
             "Open button still has one action, the same one",
             len(actions) == 1 and actions[0].id == scenario.refs["open_action_id"],
@@ -3445,7 +3451,10 @@ def _check_changes_row_action_mapping(
         else {}
     )
     return [
-        CheckResult("called update_action", tool_called(output, "update_action") >= 1),
+        CheckResult(
+            "called update_element_action",
+            tool_called(output, "update_element_action") >= 1,
+        ),
         CheckResult(
             "Close button still has one action, the same one",
             len(actions) == 1 and actions[0].id == scenario.refs["action_id"],
