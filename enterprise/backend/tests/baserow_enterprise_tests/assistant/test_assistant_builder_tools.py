@@ -494,16 +494,12 @@ def test_list_data_sources(data_fixture):
     assert result["data_sources"] == []
 
 
-def test_data_source_validation_errors():
-    """get_row type requires row_id."""
-    with pytest.raises(Exception):
-        DataSourceCreate(
-            ref="ds",
-            name="Test",
-            type="get_row",
-            table_id=1,
-            # Missing row_id
-        )
+def test_a_get_row_data_source_may_leave_out_its_row_id():
+    """Without a row_id, a get_row reads the first row its view selects."""
+
+    data_source = DataSourceCreate(ref="ds", name="Test", type="get_row", table_id=1)
+
+    assert data_source.row_id is None
 
 
 @pytest.mark.parametrize("row_id", [None, "", "  "])

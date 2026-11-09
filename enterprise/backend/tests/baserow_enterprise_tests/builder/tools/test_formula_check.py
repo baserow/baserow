@@ -6,7 +6,6 @@ without evaluating it.
 import pytest
 
 from baserow.core.graph.types import GraphPointPosition
-from baserow.core.tools.errors import ToolInputError
 from baserow_enterprise.builder.tools import data_sources
 from baserow_enterprise.builder.tools.formulas import (
     current_record_of,
@@ -290,15 +289,15 @@ def test_a_collection_following_a_property_of_a_row_is_not_checked(data_fixture,
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("row_id", ["", "   "])
-def test_update_refuses_a_blank_row_id_on_a_get_row(site, row_id):
-    with pytest.raises(ToolInputError, match="row_id"):
-        data_sources.update_data_source(
-            site["ctx"], site["row"].id, DataSourceChanges(row_id=row_id)
-        )
+def test_update_with_a_blank_row_id_reads_the_first_row(site, row_id):
+    result = data_sources.update_data_source(
+        site["ctx"], site["row"].id, DataSourceChanges(row_id=row_id)
+    )
 
+    assert "formula_errors" not in result
     service = site["row"].service.specific
     service.refresh_from_db()
-    assert service.row_id["formula"] == "'1'"
+    assert service.row_id["formula"] == ""
 
 
 @pytest.mark.django_db

@@ -126,9 +126,9 @@ def create_data_sources(
     get('page_parameter.id'). A search_query in plain words is searched for as
     written. Descriptions are not turned into formulas: a search_query that is a
     formula but isn't valid is left empty and listed in formula_errors, so it can be
-    set with update_data_source. A get_row can't run without its row_id, so one that
-    isn't a number or a valid formula is listed in errors and that data source isn't
-    created.
+    set with update_data_source. A get_row without a row_id reads the first row its
+    view selects. A get_row whose row_id isn't a number or a valid formula is listed
+    in errors and that data source isn't created.
     """
 
     return create_data_sources_with_options(

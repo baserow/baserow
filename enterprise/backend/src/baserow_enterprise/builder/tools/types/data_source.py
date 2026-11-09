@@ -57,14 +57,15 @@ class DataSourceSort(BaseModel):
 
 _REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
     "list_rows": ("table_id",),
-    "get_row": ("table_id", "row_id"),
+    # Without a row_id, a get_row reads the first row its view or filters match.
+    "get_row": ("table_id",),
 }
 
 
 def _row_id_is_formula(value: str | None) -> bool:
     """A row id is a number or a formula: other text can't select a row."""
 
-    return bool(value) and not value.strip().isdigit()
+    return bool(value and value.strip()) and not value.strip().isdigit()
 
 
 # ---------------------------------------------------------------------------
@@ -120,7 +121,10 @@ class DataSourceCreate(BaseModel):
     # get_row only
     row_id: str | None = Field(
         default=None,
-        description=("(get_row) Row ID. Can be a formula: see the tool description."),
+        description=(
+            "(get_row) Row ID. Can be a formula: see the tool description. Omit it "
+            "to read the first row the view_id's filters and sortings select."
+        ),
     )
 
     # list_rows only
@@ -198,7 +202,7 @@ class DataSourceCreate(BaseModel):
             raise ToolInputError(f"Table with id {self.table_id} not found.")
         kwargs: dict[str, Any] = {"table": table}
 
-        if self.type == "get_row" and self.row_id is not None:
+        if self.type == "get_row" and self.row_id and self.row_id.strip():
             kwargs["row_id"] = formula_object(
                 EMPTY_FORMULA
                 if _row_id_is_formula(self.row_id)
@@ -317,7 +321,10 @@ class DataSourceUpdate(BaseModel):
     )
     row_id: str | None = Field(
         default=None,
-        description="(get_row) Row ID. Can be a formula: see the tool description.",
+        description=(
+            "(get_row) Row ID. Can be a formula: see the tool description. '' "
+            "removes it, so the data source reads the first row its view selects."
+        ),
     )
     search_query: str | None = Field(
         default=None,
@@ -361,7 +368,10 @@ class DataSourceUpdate(BaseModel):
 
         # A value that needs a formula is written once it's generated, so the
         # previous one stays if generation fails.
-        if self.row_id is not None and not _row_id_is_formula(self.row_id):
+        if self.row_id is not None and not self.row_id.strip():
+            # An empty formula, not '', so the data source reads the first row.
+            kwargs["row_id"] = formula_object("", mode=BASEROW_FORMULA_MODE_ADVANCED)
+        elif self.row_id is not None and not _row_id_is_formula(self.row_id):
             kwargs["row_id"] = formula_object(
                 literal_or_placeholder(self.row_id),
                 mode=BASEROW_FORMULA_MODE_ADVANCED,
