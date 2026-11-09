@@ -477,29 +477,17 @@ def _row_formula_values(
     if "row_id" in formulas:
         service_values["row_id"] = _advanced(formulas["row_id"])
 
-    mappings = []
-    for mapping in service.field_mappings.all():
-        formula = formulas.get(f"field_{mapping.field_id}")
-        mappings.append(
-            {
-                "field_id": mapping.field_id,
-                "enabled": mapping.enabled,
-                "value": mapping.value if formula is None else _advanced(formula),
-            }
-        )
     # An update can name a field the action doesn't write to yet.
-    mapped = {mapping["field_id"] for mapping in mappings}
-    for field_value in action.field_values or []:
-        field_id = int(field_value.field_id)
-        formula = formulas.get(f"field_{field_value.field_id}")
-        if formula is not None and field_id not in mapped:
-            mapped.add(field_id)
-            mappings.append(
-                {"field_id": field_id, "enabled": True, "value": _advanced(formula)}
-            )
-    # The service replaces its whole list of mappings.
-    if any(f"field_{mapping['field_id']}" in formulas for mapping in mappings):
-        service_values["field_mappings"] = mappings
+    values = {
+        int(field[len("field_") :]): _advanced(formula)
+        for field, formula in formulas.items()
+        if field.startswith("field_")
+    }
+    if values:
+        # The service replaces its whole list of mappings.
+        service_values["field_mappings"] = service.get_type().field_mappings_with(
+            service, values
+        )
     return {"service": service_values} if service_values else {}
 
 

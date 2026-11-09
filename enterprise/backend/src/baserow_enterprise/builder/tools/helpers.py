@@ -92,7 +92,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 )
 from baserow.core.action.context import without_undo_redo_registration
 from baserow.core.actions import UpdateApplicationActionType
-from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
+from baserow.core.graph.types import GraphPointPosition
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.actions import CreateIntegrationActionType
 from baserow.core.integrations.models import Integration
@@ -165,31 +165,6 @@ def forget_page_graphs(page: Page) -> None:
     for graph_page in (page, page.builder.shared_page):
         graph_page.reload_graph()
         ElementHandler().invalidate_element_cache(graph_page)
-
-
-def end_of_container(
-    page: Page, parent_id: int, place: str
-) -> tuple[int, GraphPointPositionType, str]:
-    """
-    Where an element goes to come last in a place of a container. Core puts a new
-    child first, so one call's children would come out reversed.
-
-    :param page: The page the container is on.
-    :param parent_id: The container.
-    :param place: The place inside it, "" by default.
-    :return: The reference element, the position and the place to create or move the
-        element with. Only the first child of a place names the place: the next ones
-        follow it.
-    """
-
-    graph = page.get_graph()
-    graph.lock_for_update()
-    children = (
-        graph.get_children(parent_id, place) if str(parent_id) in graph.graph else []
-    )
-    if children:
-        return children[-1].id, GraphPointPosition.SOUTH, ""
-    return parent_id, GraphPointPosition.CHILD, place
 
 
 def check_data_source_on_page(page: Page, data_source_id: int) -> None:
@@ -903,7 +878,7 @@ def create_element(
     if parent_element_id is not None and (
         before is None or before.parent_element_id != parent_element_id
     ):
-        reference_element_id, position, place = end_of_container(
+        reference_element_id, position, place = ElementHandler().get_end_position(
             target_page, parent_element_id, kwargs.pop("place_in_container", "") or ""
         )
         if place:
@@ -1024,7 +999,7 @@ def move_element(
         )
 
     if parent is not None and before is None:
-        reference_element_id, position, place = end_of_container(
+        reference_element_id, position, place = ElementHandler().get_end_position(
             parent.page, parent.id, place
         )
         # A container's own id comes back when it is empty: the move refuses that.
@@ -1046,17 +1021,12 @@ def move_element(
         place = ""
     else:
         # before_id=None means "move to end" — append after the current last element.
-        # The lock reads the latest graph, as the move does.
-        graph = element.page.get_graph()
-        graph.lock_for_update()
-        last_ref, _, _ = graph.get_last_position()
-
-        if last_ref is not None and last_ref.id == element.id:
+        reference_element_id, position, place = ElementHandler().get_end_position(
+            element.page
+        )
+        if reference_element_id == element.id:
             # Already at the end — no-op.
             return element
-
-        position = "south"
-        reference_element_id = last_ref.id if last_ref is not None else None
 
     return MoveElementActionType.do(
         user, element, element.page, place, reference_element_id, position
@@ -1597,7 +1567,6 @@ def update_workflow_action(
     from baserow.contrib.builder.workflow_actions.actions import (
         UpdateBuilderWorkflowActionActionType,
     )
-    from baserow.core.services.models import Service
 
     if item.data_source is not None:
         page = action.element.page if action.element_id else action.page
@@ -1605,11 +1574,7 @@ def update_workflow_action(
     check_open_page_parameters(action, item)
 
     with transaction.atomic():
-        # A row action's mappings are replaced as a whole list.
-        service_id = getattr(action, "service_id", None)
-        if service_id is not None:
-            Service.objects.select_for_update().filter(id=service_id).first()
-        fresh = BuilderWorkflowActionHandler().get_workflow_action(action.id)
+        fresh = BuilderWorkflowActionHandler().get_workflow_action_for_update(action.id)
         values = item.update_values(fresh, user, workspace)
         if values:
             UpdateBuilderWorkflowActionActionType.do(user, fresh, **values)
@@ -1631,7 +1596,6 @@ def add_field_mapping_to_action(
         LocalBaserowTableServiceFieldMapping,
     )
     from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
-    from baserow.core.services.models import Service
     from baserow_enterprise.tools.formula_utils import formula_object
 
     action = get_writable_action(user, workspace, action_id)
@@ -1663,39 +1627,30 @@ def add_field_mapping_to_action(
         )
     raise_if_read_only_field(field)
 
-    # The service replaces its whole list of mappings, mappings on trashed fields
-    # included. The service row lock makes a concurrent addition wait for this one,
-    # and the transaction keeps the old list if the replacement fails.
+    # The service replaces its whole list of mappings, so its lock makes a
+    # concurrent addition wait for this one, and the transaction keeps the old list
+    # if the replacement fails.
     value = formula_object(value_formula, mode=BASEROW_FORMULA_MODE_ADVANCED)
     with transaction.atomic():
-        Service.objects.select_for_update().filter(id=service.id).first()
-        field_mappings = []
-        status = "created"
-        for mapping in LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(
-            service=service
-        ):
-            if mapping.field_id == field_id:
-                status = "updated"
-                field_mappings.append(
-                    {"field_id": field_id, "enabled": True, "value": value}
-                )
-            else:
-                field_mappings.append(
-                    {
-                        "field_id": mapping.field_id,
-                        "enabled": mapping.enabled,
-                        "value": mapping.value,
-                    }
-                )
-        if status == "created":
-            if not Field.objects.filter(id=field_id).exists():
-                raise ToolInputError(
-                    f"Field {field_id} is in the trash, so it can't get a new value. "
-                    "Use another field of the table, or restore it first."
-                )
-            field_mappings.append(
-                {"field_id": field_id, "enabled": True, "value": value}
+        action = BuilderWorkflowActionHandler().get_workflow_action_for_update(
+            action.id
+        )
+        service = action.service.specific
+        status = (
+            "updated"
+            if LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(
+                service=service, field_id=field_id
+            ).exists()
+            else "created"
+        )
+        if status == "created" and not Field.objects.filter(id=field_id).exists():
+            raise ToolInputError(
+                f"Field {field_id} is in the trash, so it can't get a new value. "
+                "Use another field of the table, or restore it first."
             )
+        field_mappings = service.get_type().field_mappings_with(
+            service, {field_id: value}, enable=True
+        )
         action = UpdateBuilderWorkflowActionActionType.do(
             user, action, service={"field_mappings": field_mappings}
         )

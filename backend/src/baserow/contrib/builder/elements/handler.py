@@ -388,6 +388,40 @@ class ElementHandler:
             page.builder_id
         )
 
+    def get_end_position(
+        self,
+        page: Page,
+        parent_element_id: int | None = None,
+        place_in_container: str = "",
+    ) -> tuple[int | None, GraphPointPositionType, str]:
+        """
+        Where an element goes to come last: at the end of the page, or of a place in
+        a container. Creating with the reference returned puts it after the others,
+        where a container child is otherwise created first. Takes the page graph
+        lock, so it reads the latest graph and a concurrent create or move waits.
+
+        :param page: The page.
+        :param parent_element_id: The container, or None for the page itself.
+        :param place_in_container: The place inside the container, "" by default.
+        :return: The reference element id (None on an empty page), the position and
+            the place to create or move the element with. Only the first child of
+            a place names the place: the next ones follow it.
+        """
+
+        graph = page.get_graph()
+        graph.lock_for_update()
+        if parent_element_id is None:
+            last, _, _ = graph.get_last_position()
+            return (last.id if last else None), GraphPointPosition.SOUTH, ""
+        children = (
+            graph.get_children(parent_element_id, place_in_container)
+            if str(parent_element_id) in graph.graph
+            else []
+        )
+        if children:
+            return children[-1].id, GraphPointPosition.SOUTH, ""
+        return parent_element_id, GraphPointPosition.CHILD, place_in_container
+
     def create_element(
         self,
         element_type: ElementType,

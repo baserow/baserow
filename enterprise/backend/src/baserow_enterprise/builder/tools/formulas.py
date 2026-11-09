@@ -44,7 +44,6 @@ from baserow.core.formula.parser.formula_validation_visitor import (
 from baserow.core.formula.parser.parser import get_parse_tree_for_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
-from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import (
@@ -704,12 +703,7 @@ def _write_data_source_formulas(
 def _write_action_formulas(
     user: AbstractUser, action: Any, item: Any, formulas: dict[str, str]
 ) -> None:
-    # A row action's mappings are replaced as a whole list, so a concurrent
-    # add_element_action_field_mapping waits for this.
-    service_id = getattr(action, "service_id", None)
-    if service_id is not None:
-        Service.objects.select_for_update().filter(id=service_id).first()
-    fresh = BuilderWorkflowActionHandler().get_workflow_action(action.id)
+    fresh = BuilderWorkflowActionHandler().get_workflow_action_for_update(action.id)
     _raise_if_retargeted(action.specific, item, fresh.specific, formulas)
     values = item.formula_values(fresh, formulas)
     if values:
@@ -733,7 +727,8 @@ def write_builder_formulas(
     """
     Store formulas on an item, in ADVANCED mode, in a transaction of their own. The
     item is loaded again inside it, so a change made since it was read is kept. An
-    element or data source is locked; for an action, its service is.
+    element or data source is locked; for an action, its service is, by the
+    builder's workflow action handler.
     """
 
     with transaction.atomic():

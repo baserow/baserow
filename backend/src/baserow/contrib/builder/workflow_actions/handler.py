@@ -26,6 +26,7 @@ from baserow.contrib.builder.workflow_actions.registries import (
     builder_workflow_action_type_registry,
 )
 from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.services.models import Service
 from baserow.core.services.types import DispatchResult
 from baserow.core.telemetry.utils import baserow_trace
 from baserow.core.workflow_actions.handler import WorkflowActionHandler
@@ -42,6 +43,36 @@ tracer = trace.get_tracer(__name__)
 class BuilderWorkflowActionHandler(WorkflowActionHandler):
     model = BuilderWorkflowAction
     registry = builder_workflow_action_type_registry
+
+    def lock_service_for_update(self, workflow_action: WorkflowAction) -> None:
+        """
+        Lock the service of an action that has one. A row action's field mappings
+        are replaced as a whole list, so a concurrent change to them waits for this
+        one instead of overwriting it.
+
+        :param workflow_action: The action whose service to lock.
+        """
+
+        service_id = getattr(workflow_action, "service_id", None)
+        if service_id is not None:
+            Service.objects.select_for_update().filter(id=service_id).first()
+
+    def get_workflow_action_for_update(
+        self, workflow_action_id: int
+    ) -> BuilderWorkflowAction:
+        """
+        Get an action with its service locked, loaded after the lock so a change
+        committed meanwhile is kept.
+
+        :param workflow_action_id: The ID of the action.
+        :return: The specific action.
+        """
+
+        workflow_action = self.get_workflow_action(workflow_action_id)
+        if getattr(workflow_action, "service_id", None) is None:
+            return workflow_action
+        self.lock_service_for_update(workflow_action)
+        return self.get_workflow_action(workflow_action_id)
 
     def get_workflow_actions(
         self, page: Page, base_queryset: Optional[QuerySet] = None

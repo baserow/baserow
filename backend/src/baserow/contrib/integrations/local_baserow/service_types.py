@@ -2194,6 +2194,46 @@ class LocalBaserowUpsertRowServiceType(
                 bulk_field_mappings
             )
 
+    def field_mappings_with(
+        self,
+        instance: LocalBaserowUpsertRow,
+        values: Dict[int, Any],
+        enable: bool = False,
+    ) -> List[Dict]:
+        """
+        The service's field mappings, mappings on trashed fields included, with
+        new values for some fields, in the shape ``after_update`` takes. The update
+        replaces the whole list, so a caller should hold the service lock between
+        reading this and writing it back.
+
+        :param instance: The service.
+        :param values: The new value of each field, by field ID. A field the service
+            doesn't map yet is added at the end, enabled.
+        :param enable: Whether a field already mapped is enabled too, or keeps
+            whether it was.
+        :return: The mappings.
+        """
+
+        mappings = []
+        for mapping in LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(
+            service=instance
+        ):
+            changed = mapping.field_id in values
+            mappings.append(
+                {
+                    "field_id": mapping.field_id,
+                    "enabled": True if changed and enable else mapping.enabled,
+                    "value": values[mapping.field_id] if changed else mapping.value,
+                }
+            )
+        mapped = {mapping["field_id"] for mapping in mappings}
+        mappings.extend(
+            {"field_id": field_id, "enabled": True, "value": value}
+            for field_id, value in values.items()
+            if field_id not in mapped
+        )
+        return mappings
+
     def export_prepared_values(self, instance: Service) -> dict[str, any]:
         values = super().export_prepared_values(instance)
         # The field mappings (each row field's value/formula) live on a related model,

@@ -794,3 +794,37 @@ def test_element_refuses_a_link_to_the_shared_page(data_fixture):
             navigation_type="page",
             navigate_to_page_id=page.builder.shared_page.id,
         )
+
+
+@pytest.mark.django_db
+def test_get_end_position(data_fixture):
+    page = data_fixture.create_builder_page()
+    handler = ElementHandler()
+
+    assert handler.get_end_position(page) == (None, GraphPointPosition.SOUTH, "")
+
+    column = data_fixture.create_builder_column_element(page=page, column_amount=2)
+    first, last = [
+        data_fixture.create_builder_heading_element(
+            page=page,
+            parent_element_id=column.id,
+            reference_element=column,
+            position=GraphPointPosition.CHILD,
+            place_in_container="1",
+        )
+        for _ in range(2)
+    ]
+
+    assert handler.get_end_position(page) == (column.id, GraphPointPosition.SOUTH, "")
+    # The first child of a place names it; the next ones follow the last child.
+    assert handler.get_end_position(page, column.id, "0") == (
+        column.id,
+        GraphPointPosition.CHILD,
+        "0",
+    )
+    assert handler.get_end_position(page, column.id, "1") == (
+        last.id,
+        GraphPointPosition.SOUTH,
+        "",
+    )
+    assert first.id != last.id
