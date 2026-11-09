@@ -20,7 +20,9 @@ from weakref import WeakKeyDictionary
 
 from django.conf import settings
 
-from redis.asyncio import Redis, from_url
+from redis.asyncio import Redis
+
+from baserow.core.redis import AsyncRetryingConnectionPool, async_redis_pool_options
 
 _Pools = WeakKeyDictionary[asyncio.AbstractEventLoop, Redis]
 
@@ -47,7 +49,11 @@ async def _get_pooled_client(pools: _Pools, url: str, decode_responses: bool) ->
     loop = asyncio.get_running_loop()
     client = pools.get(loop)
     if client is None:
-        client = from_url(url, decode_responses=decode_responses)
+        client = Redis.from_pool(
+            AsyncRetryingConnectionPool.from_url(
+                url, decode_responses=decode_responses, **async_redis_pool_options()
+            )
+        )
         pools[loop] = client
     return client
 
