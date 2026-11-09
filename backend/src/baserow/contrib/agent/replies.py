@@ -1,5 +1,4 @@
 import asyncio
-from dataclasses import replace
 from functools import partial
 from typing import TYPE_CHECKING
 
@@ -38,7 +37,6 @@ from .constants import (
     INTERRUPTED_CHANGES_NOTE,
     INTERRUPTED_REPLY_NOTE,
     REPLY_REQUEST_LIMIT,
-    SEARCH_LIMIT_IN_CODE_ERROR,
     TOOL_RETRIES,
     UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS,
     WEB_SEARCH_INSTRUCTIONS,
@@ -199,7 +197,6 @@ class AgentResponder:
         self._text = ""
         self._parts: dict[int, str] = {}
         self._text_is_commentary = False
-        self._search_limit_shown = False
         self._result: str | None = None
         self._steps = ChatRunSteps(journal, self._describe_call)
 
@@ -210,8 +207,7 @@ class AgentResponder:
         :param name: The called tool's name.
         :param arguments: Its arguments.
         :return: Whether the tool changes data and its input summary, or None
-            for a tool the reply doesn't offer, which the model can still name,
-            such as code a provider runs on its own to filter search results.
+            for a tool the reply doesn't offer, which the model can still name.
         """
 
         if name == WebSearchTool.kind:
@@ -313,34 +309,18 @@ class AgentResponder:
             async for event in events:
                 self._on_event(event)
 
-    def _show_search_limit(self, part: NativeToolReturnPart) -> None:
-        """
-        Show once that the reply ran out of searches inside code the provider runs
-        to filter results, whose output is the only place that reports it.
-
-        :param part: A result of a call the provider ran.
-        """
-
-        content = part.content
-        if (
-            self._search_limit_shown
-            or part.tool_name == WebSearchTool.kind
-            or not isinstance(content, dict)
-            or SEARCH_LIMIT_IN_CODE_ERROR not in str(content.get("stderr", "")).lower()
-        ):
-            return
-        self._search_limit_shown = True
-        self._steps.add_failed(WebSearchTool.kind, {"limit_reached": True})
-
     def _offered_web_search(
         self, web_search_tool: WebSearchTool, ctx: RunContext
     ) -> WebSearchTool | None:
         """
         Offer web search to the next request while the reply has searches left.
 
+        Anthropic counts the searches of every request in the reply against the
+        tool's own cap, so this matters for the providers that don't.
+
         :param web_search_tool: The web search of this attempt.
         :param ctx: The run so far.
-        :return: The tool, capped at what is left, or None once the reply used them.
+        :return: The tool, or None once the reply used its searches.
         """
 
         searches = [
@@ -361,14 +341,9 @@ class AgentResponder:
             if isinstance(part, NativeToolReturnPart)
         }
         waiting = any(part.tool_call_id not in answered for part in searches)
-        remaining = max(WEB_SEARCH_MAX_PER_REPLY - len(searches), int(waiting))
-        if remaining <= 0:
+        if len(searches) >= WEB_SEARCH_MAX_PER_REPLY and not waiting:
             return None
-        if web_search_tool.max_uses is None:
-            return web_search_tool
-        return replace(
-            web_search_tool, max_uses=min(web_search_tool.max_uses, remaining)
-        )
+        return web_search_tool
 
     def _toolsets(self) -> list[FunctionToolset]:
         """
@@ -409,9 +384,6 @@ class AgentResponder:
             case FunctionToolCallEvent():
                 # Text before a tool call is narration; the next response is the answer.
                 self._parts = {}
-            case PartStartEvent(part=NativeToolReturnPart() as part):
-                self._show_search_limit(part)
-                return
             case PartStartEvent(part=NativeToolCallPart()):
                 # Text before a search is narration too, but only once more text
                 # follows, because Gemini reports its searches after the answer.

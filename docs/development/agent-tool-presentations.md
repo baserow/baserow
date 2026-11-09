@@ -48,8 +48,7 @@ The provider runs web search itself, so it has no `AgentToolType`. Its step uses
 `web_search` as `tool`, starts when the provider reports the call and gets its
 input once the call is complete. Unlike other tools, its `input` keeps the
 queries (`queries`) and any page the provider opened (`url`), bounded in count and
-length, because the step is the only record of what the Agent sent out. Code the
-provider runs to filter results gets no step.
+length, because the step is the only record of what the Agent sent out.
 
 ## Adding a tool
 

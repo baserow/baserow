@@ -449,7 +449,8 @@ class AnthropicGenerativeAIModelType(GenerativeAIModelType):
     ) -> WebSearchTool | None:
         from pydantic_ai import WebSearchTool
 
-        # Only Anthropic can stop within one request; other providers ignore the cap.
+        # Anthropic counts this cap across every request of a reply; other providers
+        # have no cap.
         return WebSearchTool(max_uses=WEB_SEARCH_MAX_PER_REPLY)
 
     _FILES_API_BETA = "files-api-2025-04-14"
@@ -487,13 +488,17 @@ class AnthropicGenerativeAIModelType(GenerativeAIModelType):
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> Any:
-        from pydantic_ai.models.anthropic import AnthropicModel
+        from pydantic_ai.models.anthropic import AnthropicModel, AnthropicModelProfile
 
         from .anthropic import BoundedAnthropicProvider
 
         api_key = self.get_api_key(workspace, settings_override)
         return AnthropicModel(
-            model_name, provider=BoundedAnthropicProvider(api_key=api_key)
+            model_name,
+            provider=BoundedAnthropicProvider(api_key=api_key),
+            # Searches run from filtering code escape the reply's search cap, and
+            # filtering is not eligible for zero data retention.
+            profile=AnthropicModelProfile(anthropic_supports_dynamic_filtering=False),
         )
 
     def get_known_models(self) -> list[str]:

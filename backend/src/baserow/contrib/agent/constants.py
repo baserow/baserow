@@ -66,5 +66,3 @@ TOOL_RETRIES = 3
 # readable.
 WEB_SEARCH_STEP_MAX_QUERIES = 5
 WEB_SEARCH_STEP_QUERY_MAX_LENGTH = 512
-# How Anthropic's filtering code reports that the reply's searches ran out.
-SEARCH_LIMIT_IN_CODE_ERROR = "tool use limit exceeded"

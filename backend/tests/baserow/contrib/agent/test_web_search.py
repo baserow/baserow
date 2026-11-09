@@ -86,7 +86,7 @@ def test_providers_offer_web_search_for_supported_models(
     assert (model_type.get_web_search_tool(model, False) is not None) is supported
 
 
-def test_only_anthropic_can_stop_searching_within_one_request():
+def test_only_anthropic_caps_searches_itself():
     def max_uses(provider_type, model):
         model_type = generative_ai_model_type_registry.get(provider_type)
         return model_type.get_web_search_tool(model, False).max_uses
@@ -94,6 +94,15 @@ def test_only_anthropic_can_stop_searching_within_one_request():
     assert max_uses("anthropic", "claude-sonnet-4-5") == 5
     assert max_uses("openai", "gpt-5.1") is None
     assert max_uses("google", "gemini-2.5-flash") is None
+
+
+def test_anthropic_searches_without_running_code_to_filter_results():
+    # Searches run from filtering code don't count against the reply's cap.
+    model = generative_ai_model_type_registry.get("anthropic").get_ai_model(
+        "claude-sonnet-5-5", settings_override={"api_key": "test-key"}
+    )
+
+    assert model.profile["anthropic_supports_dynamic_filtering"] is False
 
 
 def agent_with_tools(configured_agent, user, provider_type, model):
@@ -135,12 +144,13 @@ def searches(count: int, first_index: int = 0) -> dict:
 @pytest.mark.parametrize(
     "provider_type,model,first_searches,offered",
     [
-        # The cap holds across requests, which is the only boundary every
-        # provider respects.
+        # Providers without a cap of their own stop getting search once the
+        # reply used its searches.
         ("openai", "test-model", 5, None),
         ("openai", "test-model", 4, "no-cap"),
-        # Anthropic can also stop mid-request, so it gets what is left.
-        ("anthropic", "claude-sonnet-4-5", 3, 2),
+        # Anthropic counts the earlier searches of the reply against the same
+        # cap, so a smaller one would refuse searches the reply still has.
+        ("anthropic", "claude-sonnet-4-5", 3, WEB_SEARCH_MAX_PER_REPLY),
     ],
 )
 def test_searches_are_capped_across_a_whole_reply(
@@ -211,82 +221,11 @@ def test_search_left_waiting_by_a_tool_call_keeps_its_tool(
 
     assert reply.status == "completed"
     assert len(seen[1]) == 1
-    assert seen[1][0].max_uses == 1
+    assert seen[1][0].max_uses == WEB_SEARCH_MAX_PER_REPLY
 
 
 def test_the_model_is_told_how_many_searches_a_reply_may_make():
     assert f"at most {WEB_SEARCH_MAX_PER_REPLY} times" in WEB_SEARCH_INSTRUCTIONS
-
-
-LIMIT_REACHED = NativeToolReturnPart(
-    "code_execution",
-    {
-        "type": "encrypted_code_execution_result",
-        "return_code": 1,
-        "stderr": "Server tool use limit exceeded during code execution.",
-    },
-    tool_call_id="code-2",
-)
-
-
-@pytest.mark.django_db
-def test_reaching_the_limit_inside_provider_code_shows_one_failed_search(
-    mocker, data_fixture, configured_agent
-):
-    # Newer Claude models search from code they run, which reports the limit only
-    # in its output, so no search result says the search was refused.
-    user = data_fixture.create_user()
-
-    async def stream(messages, info):
-        yield {0: CALL}
-        yield {1: RESULT}
-        for index in (2, 4):
-            yield {
-                index: NativeToolCallPart(
-                    "code_execution", args={"code": "..."}, tool_call_id=f"c{index}"
-                )
-            }
-            yield {index + 1: LIMIT_REACHED}
-        yield "What I found."
-
-    use_stream(mocker, stream)
-
-    reply = answer(user, configured_agent(user=user, web_search_enabled=True))
-
-    assert reply.status == "completed"
-    assert [(step["tool"], step["status"], step["input"]) for step in reply.steps] == [
-        (WebSearchTool.kind, "done", {"queries": ["baserow"]}),
-        (WebSearchTool.kind, "failed", {"limit_reached": True}),
-    ]
-    assert reply.steps[1]["error_code"] == "failed"
-
-
-@pytest.mark.django_db
-def test_other_provider_code_failures_add_no_step(
-    mocker, data_fixture, configured_agent
-):
-    user = data_fixture.create_user()
-
-    async def stream(messages, info):
-        yield {0: NativeToolCallPart("code_execution", tool_call_id="c")}
-        yield {
-            1: NativeToolReturnPart(
-                "code_execution",
-                {
-                    "type": "code_execution_result",
-                    "return_code": 1,
-                    "stderr": "KeyError",
-                },
-                tool_call_id="c",
-            )
-        }
-        yield "Done."
-
-    use_stream(mocker, stream)
-
-    reply = answer(user, configured_agent(user=user, web_search_enabled=True))
-
-    assert not reply.steps
 
 
 def test_gemini_2_does_not_search_alongside_workspace_tools():
