@@ -552,6 +552,9 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.assistant.tools.search_user_docs.tool_types import (
             SearchDocsToolType,
         )
+        from baserow_enterprise.assistant.tools.services.tool_types import (
+            ServicesToolType,
+        )
 
         ai_provider_model_feature_type_registry.register(
             KumaAIProviderModelFeatureType()
@@ -571,6 +574,7 @@ class BaserowEnterpriseConfig(AppConfig):
         assistant_tool_registry.register(DashboardToolType())
         assistant_tool_registry.register(BuilderToolType())
         assistant_tool_registry.register(SearchDocsToolType())
+        assistant_tool_registry.register(ServicesToolType())
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.

@@ -54,6 +54,17 @@ export class BaserowPlugin extends Registerable {
   }
 
   /**
+   * Every registered plugin can display components after the "Add filter" links of
+   * a Local Baserow service's filter form. The form's host provides
+   * `serviceFilterTarget` (a computed `{ kind, id }`) identifying the data source or
+   * node, and `serviceFilters` to check for unsaved filter changes. The filter form
+   * provides `serviceFilterForm` to freeze the filters.
+   */
+  getServiceFilterFooterComponents() {
+    return []
+  }
+
+  /**
    * Every registered plugin can display an additional item in the right sidebar within
    * the workspace context.
    */

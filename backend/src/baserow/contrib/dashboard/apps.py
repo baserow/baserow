@@ -194,3 +194,13 @@ class DashboardConfig(AppConfig):
         mcp_tool_registry.register(CreateWidgetsMcpTool())
         mcp_tool_registry.register(UpdateWidgetsMcpTool())
         mcp_tool_registry.register(DeleteWidgetsMcpTool())
+        from baserow.contrib.dashboard.data_sources.service_filter_target_types import (
+            DashboardDataSourceServiceFilterTargetType,
+        )
+        from baserow.contrib.integrations.local_baserow.service_filters.registries import (
+            service_filter_target_type_registry,
+        )
+
+        service_filter_target_type_registry.register(
+            DashboardDataSourceServiceFilterTargetType()
+        )

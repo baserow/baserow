@@ -32,3 +32,7 @@ class AssistantMessageCancelled(AssistantException):
         return (
             f"Message generation for message ID {self.message_id} has been cancelled."
         )
+
+
+class ServiceFilterGenerationFailed(AssistantException):
+    """Raised when the assistant could not produce valid filter changes."""

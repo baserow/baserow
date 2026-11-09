@@ -133,6 +133,8 @@ const GROUP_LABELS = {
   dashboard_read: 'mcpToolPicker.dashboardRead',
   dashboard_edit: 'mcpToolPicker.dashboardEdit',
   dashboard_delete: 'mcpToolPicker.dashboardDelete',
+  data_sources_read: 'mcpToolPicker.dataSourcesRead',
+  data_sources_edit: 'mcpToolPicker.dataSourcesEdit',
   audit_log_read: 'mcpToolPicker.auditLogRead',
   builder_read: 'mcpToolPicker.builderRead',
   builder_edit: 'mcpToolPicker.builderEdit',
@@ -143,6 +145,7 @@ const AREA_LABELS = {
   database: 'mcpToolPicker.areaDatabase',
   automation: 'mcpToolPicker.areaAutomation',
   dashboard: 'mcpToolPicker.areaDashboard',
+  data_sources: 'mcpToolPicker.areaDataSources',
   audit_log: 'mcpToolPicker.areaAuditLog',
   builder: 'mcpToolPicker.areaBuilder',
 }

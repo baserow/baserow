@@ -216,6 +216,28 @@ export default (client) => {
       return data.suggestions
     },
 
+    /**
+     * Asks Kuma to change the filters of a data source or automation node, as
+     * the same request in a chat would. The filters are saved by the backend.
+     *
+     * @param {String} kind What owns the filters, e.g. `builder_data_source`.
+     * @param {Number} id The id of the data source or node.
+     * @param {String} prompt What to change, in the user's words.
+     * @param {Number|null} tableId The table picked in the editor when the data
+     *  source or node doesn't have one saved yet. It's saved with the filters.
+     * @returns {Promise<{changed: boolean, summary: string}>}
+     */
+    async updateServiceFilters(kind, id, prompt, tableId = null) {
+      const { data } = await client.post(
+        '/assistant/service-filters/',
+        { kind, id, prompt, ...(tableId ? { table_id: tableId } : {}) },
+        {
+          baseURL: getAssistantBaseURL(client),
+        }
+      )
+      return data
+    },
+
     async cancelMessage(chatUuid) {
       await client.delete(`/assistant/chat/${chatUuid}/cancel/`, {
         baseURL: getAssistantBaseURL(client),
