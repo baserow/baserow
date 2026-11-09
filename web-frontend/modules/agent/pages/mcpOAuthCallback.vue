@@ -41,10 +41,10 @@ onMounted(async () => {
     )
     integrationId = data.id
   } catch (e) {
-    if (!e.handler) throw e
-    e.handler.handled()
+    // Whatever failed, the opener is told, so it doesn't wait in vain.
+    e.handler?.handled()
     error.value =
-      e.handler.getMessage().message || t('agent.connectedAppSignInFailed')
+      e.handler?.getMessage().message || t('agent.connectedAppSignInFailed')
   }
   done.value = true
   if (window.opener) {
