@@ -1,4 +1,8 @@
 .html-element__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   padding: 16px;
   border: 1px dashed $palette-neutral-400;
   color: $palette-neutral-700;

@@ -31,6 +31,13 @@ describe('HTML element', () => {
     async (mode) => {
       const wrapper = await mountElement(mode, 'editing')
       expect(wrapper.text()).toContain('htmlElement.placeholder')
+      const hint = wrapper.get('button[aria-label="htmlElement.previewHint"]')
+      await hint.trigger('focus')
+      expect(document.querySelector('.tooltip').textContent).toBe(
+        'htmlElement.previewHint'
+      )
+      await hint.trigger('keydown', { key: 'Escape' })
+      expect(document.querySelector('.tooltip')).toBeNull()
       expect(wrapper.find('#anchor').exists()).toBe(false)
     }
   )
@@ -44,8 +51,20 @@ describe('HTML element', () => {
         'aria-label': 'Demo',
       })
       expect(wrapper.find('iframe').exists()).toBe(false)
+      expect(
+        wrapper.find('[aria-label="htmlElement.previewHint"]').exists()
+      ).toBe(false)
     }
   )
+  test.each([
+    ['  ', false],
+    [snippet, true],
+  ])('omits the hint for empty or untrusted HTML', async (html, untrusted) => {
+    const wrapper = await mountElement('editing', 'editing', html, untrusted)
+    expect(wrapper.text()).toContain('htmlElement.placeholder')
+    expect(wrapper.find('button').exists()).toBe(false)
+  })
+
   test('preserves form controls and relative links with spaces', async () => {
     const html =
       '<form><input name="localName"><input name="attributes"></form><a href="java script:docs">Docs</a>'

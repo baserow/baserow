@@ -65,10 +65,16 @@ for (const mode of ["preview", "published"]) {
         return route.fulfill({ status: 204 });
       });
       await builderPagePage.goto();
-      const placeholder = page.getByText(
-        "Custom HTML appears in preview and in the published application."
-      );
+      const placeholder = page.getByText("Custom HTML", { exact: true });
       await expect(placeholder).toBeVisible();
+      const hint = page.getByRole("button", {
+        name: "Open Preview to see the rendered HTML.",
+      });
+      await hint.focus();
+      await expect(page.locator(".tooltip")).toHaveText(
+        "Open Preview to see the rendered HTML."
+      );
+      await hint.press("Escape");
       await placeholder.click({ position: { x: 20, y: 8 }, timeout: 8000 });
       const field = page.getByRole("textbox", { name: "HTML source" });
       if (!(await field.isVisible()))
@@ -208,11 +214,7 @@ test("repeated HTML stays inert throughout the editor @enterprise", async ({
       return route.fulfill({ status: 204 });
     });
     await builderPagePage.goto();
-    await expect(
-      page.getByText(
-        "Custom HTML appears in preview and in the published application."
-      )
-    ).toHaveCount(2);
+    await expect(page.getByText("Custom HTML", { exact: true })).toHaveCount(2);
     await expect(page.locator("#widget")).toHaveCount(0);
     expect(requests).toBe(0);
   } finally {
