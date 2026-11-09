@@ -165,10 +165,10 @@ def test_wait_node_resumes_the_run_once_the_seconds_have_passed(data_fixture):
 
 
 @pytest.mark.django_db
-def test_wait_node_with_zero_seconds_completes_at_once_as_skipped(data_fixture):
+def test_wait_node_with_zero_seconds_completes_at_once(data_fixture):
     """
     Zero is a valid wait that has nothing to wait for: the node completes at
-    once and its history says `skipped`, so a computed zero is visibly a no-op.
+    once, without suspending, and reads as a success like any finished wait.
     """
 
     data = create_wait_workflow(data_fixture, seconds="0")
@@ -179,7 +179,7 @@ def test_wait_node_with_zero_seconds_completes_at_once_as_skipped(data_fixture):
     assert_dispatches_next_node(result, data["next_node"], data["workflow_history"])
 
     node_history = get_wait_node_history(data)
-    assert node_history.status == HistoryStatusChoices.SKIPPED
+    assert node_history.status == HistoryStatusChoices.SUCCESS
     assert node_history.resume_at is None
     assert node_history.resume_state is None
     assert AutomationNodeResult.objects.get(node_history=node_history).result == {
@@ -305,7 +305,7 @@ def test_wait_node_never_evaluates_a_stored_retry_condition(data_fixture):
 
     assert_dispatches_next_node(result, data["next_node"], data["workflow_history"])
     node_history = get_wait_node_history(data)
-    assert node_history.status == HistoryStatusChoices.SKIPPED
+    assert node_history.status == HistoryStatusChoices.SUCCESS
     assert node_history.attempt == 1
 
 

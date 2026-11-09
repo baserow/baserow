@@ -727,18 +727,6 @@ class CoreWaitActionNodeType(AutomationActionNodeType):
     # over the cap), which a retry evaluates again to the same value.
     has_error_policy = False
 
-    def get_history_status(self, dispatch_result: DispatchResult) -> str:
-        """
-        A wait of zero seconds has nothing to wait for and completes at once,
-        so its history is marked as skipped: a computed zero is visibly a no-op
-        rather than a pause. A real wait only produces its result once it is
-        over, which reads as a success.
-        """
-
-        if (dispatch_result.data or {}).get("seconds") == 0:
-            return HistoryStatusChoices.SKIPPED
-        return HistoryStatusChoices.SUCCESS
-
 
 class AutomationTriggerNodeType(AutomationNodeType):
     is_workflow_trigger = True
