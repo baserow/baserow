@@ -1158,6 +1158,60 @@ def test_update_element_style(data_fixture, builder_ctx):
 
 
 @pytest.mark.django_db
+def test_the_highest_style_values_are_stored(builder_ctx):
+    button = builder_ctx["button"]
+
+    elements.update_element_style(
+        builder_ctx["ctx"],
+        button.id,
+        ElementStyleChanges(
+            border_radius=32767,
+            background_radius=0,
+            background_color="x" * 255,
+            border_color="y" * 255,
+            padding=2147483647,
+        ),
+    )
+
+    stored = Element.objects.get(id=button.id)
+    assert stored.style_border_radius == 32767
+    assert stored.style_background_radius == 0
+    assert stored.style_background_color == "x" * 255
+    assert stored.style_border_left_color == "y" * 255
+    assert stored.style_padding_top == 2147483647
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "style",
+    [
+        {"padding": -5},
+        {"border_radius": 32768},
+        {"border_radius": -5},
+        {"background_radius": 32768},
+        {"background_radius": -5},
+        {"background_color": "x" * 256},
+        {"border_color": "x" * 256},
+        {"border_color": {"left": "x" * 256}},
+        {"padding": 2147483648},
+        {"margin": {"top": 2147483648}},
+        {"border_size": 2147483648},
+    ],
+)
+def test_a_style_the_rest_api_refuses_changes_nothing(builder_ctx, style):
+    button = builder_ctx["button"]
+    before = Element.objects.filter(id=button.id).values().get()
+
+    # The input model refuses most; the rest are refused when the style is built.
+    with pytest.raises((PydanticValidationError, ToolInputError)):
+        elements.update_element_style(
+            builder_ctx["ctx"], button.id, ElementStyleChanges(**style)
+        )
+
+    assert Element.objects.filter(id=button.id).values().get() == before
+
+
+@pytest.mark.django_db
 def test_update_element_style_with_a_bad_side_is_an_input_error(
     data_fixture, builder_ctx
 ):

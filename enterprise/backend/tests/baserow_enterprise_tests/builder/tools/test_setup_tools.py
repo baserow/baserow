@@ -1179,3 +1179,22 @@ def test_setup_page_stores_page_parameters_in_page_order(data_fixture, builder_c
     ).specific
     assert [param["name"] for param in link.page_parameters] == ["a", "b"]
     assert [param["name"] for param in action.page_parameters] == ["a", "b"]
+
+
+@pytest.mark.django_db
+def test_the_highest_values_the_rest_api_takes_are_stored(builder_ctx):
+    result = setup(
+        builder_ctx,
+        elements=[
+            ElementItemCreate(ref="h", type="heading", value="x", level=6),
+            ElementItemCreate(ref="c", type="column", column_amount=6, column_gap=2000),
+            ElementItemCreate(ref="i", type="input_text", rows=100),
+        ],
+    )
+
+    assert not result.get("errors")
+    ids = {element["ref"]: element["id"] for element in result["created_elements"]}
+    assert Element.objects.get(id=ids["h"]).specific.level == 6
+    column = Element.objects.get(id=ids["c"]).specific
+    assert (column.column_amount, column.column_gap) == (6, 2000)
+    assert Element.objects.get(id=ids["i"]).specific.rows == 100

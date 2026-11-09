@@ -27,8 +27,12 @@ from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.services.models import Service
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import ToolInputError
-from baserow_enterprise.builder.tools import BuilderWriteOptions, actions
-from baserow_enterprise.builder.tools.types import ActionChanges, ActionCreate
+from baserow_enterprise.builder.tools import BuilderWriteOptions, actions, pages
+from baserow_enterprise.builder.tools.types import (
+    ActionChanges,
+    ActionCreate,
+    ElementItemCreate,
+)
 
 
 def notification(element, title="Hi", **kwargs):
@@ -2174,3 +2178,61 @@ def test_an_action_on_a_trashed_page_can_not_be_changed(builder_ctx):
         )
 
     assert stored(action.id).title == title
+
+
+@pytest.mark.django_db
+def test_a_refused_page_parameter_is_fixed_with_update_action(builder_ctx, detail_page):
+    formula = f"get('data_source.{builder_ctx['data_source'].id}.0.id')"
+    created = create(
+        builder_ctx,
+        ActionCreate(
+            type="open_page",
+            element=builder_ctx["button"].id,
+            navigate_to_page_id=detail_page.id,
+            page_parameters=[{"name": "id", "value": "$formula: the row id"}],
+        ),
+    )
+    action_id = created["formula_errors"][0]["action_id"]
+
+    fixed = update(
+        builder_ctx, action_id, page_parameters=[{"name": "id", "value": formula}]
+    )
+
+    assert "formula_errors" not in fixed
+    assert stored(action_id).page_parameters[0]["value"]["formula"] == formula
+
+
+@pytest.mark.django_db
+def test_a_form_made_in_an_earlier_call_can_be_wired(builder_ctx):
+    table = builder_ctx["data_source"].service.specific.table
+    field = table.field_set.first()
+    made = pages.setup_page(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        data_sources=None,
+        elements=[
+            ElementItemCreate(ref="form", type="form_container"),
+            ElementItemCreate(
+                ref="name", type="input_text", label="Name", parent_element="form"
+            ),
+        ],
+        actions=None,
+    )
+    ids = {item["ref"]: item["id"] for item in made["created_elements"]}
+    value = f"get('form_data.{ids['name']}')"
+
+    result = create(
+        builder_ctx,
+        ActionCreate(
+            type="create_row",
+            element=ids["form"],
+            event="submit",
+            table_id=table.id,
+            field_values=[{"field_id": str(field.id), "value": value}],
+        ),
+    )
+
+    assert "errors" not in result
+    assert "formula_errors" not in result
+    action = stored(result["created_actions"][0]["id"])
+    assert action.service.specific.field_mappings.get().value["formula"] == value

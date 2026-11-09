@@ -8,6 +8,10 @@ from pydantic import ValidationError
 
 from baserow_enterprise.builder.tools.types import (
     DataSourceCreate,
+    DisplayElementCreate,
+    ElementEdits,
+    ElementItemCreate,
+    LayoutElementCreate,
     PageChanges,
     PageCreate,
 )
@@ -40,6 +44,44 @@ LONG = "a" * 256
 def test_too_long_or_blank_names_are_refused(make):
     with pytest.raises(ValidationError):
         make()
+
+
+@pytest.mark.parametrize(
+    "model, values",
+    [
+        (DisplayElementCreate, {"type": "heading", "value": "x", "level": 0}),
+        (DisplayElementCreate, {"type": "heading", "value": "x", "level": 99}),
+        (DisplayElementCreate, {"type": "text", "value": "x", "format": "html"}),
+        (LayoutElementCreate, {"type": "column", "column_amount": 500}),
+        (LayoutElementCreate, {"type": "column", "column_amount": 0}),
+        (ElementItemCreate, {"type": "column", "column_gap": -1}),
+        (ElementItemCreate, {"type": "column", "column_gap": 2001}),
+        (ElementItemCreate, {"type": "input_text", "rows": 0}),
+        (ElementItemCreate, {"type": "input_text", "rows": 101}),
+        (ElementItemCreate, {"type": "repeat", "items_per_page": -1}),
+        (ElementItemCreate, {"type": "repeat", "items_per_page": 0}),
+    ],
+)
+def test_an_element_value_the_rest_api_refuses_is_refused_on_create(model, values):
+    with pytest.raises(ValidationError):
+        model(ref="e", **values)
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"level": 7},
+        {"format": "html"},
+        {"column_amount": 7},
+        {"column_gap": -1},
+        {"rows": 101},
+        {"items_per_page": -1},
+        {"items_per_page": 0},
+    ],
+)
+def test_an_element_value_the_rest_api_refuses_is_refused_on_update(changes):
+    with pytest.raises(ValidationError):
+        ElementEdits(**changes)
 
 
 def test_names_within_the_bounds_are_kept():
