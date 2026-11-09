@@ -58,7 +58,6 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
     AutomationNodeError,
     AutomationNodeFirstNodeMustBeTrigger,
-    AutomationNodeMisconfiguredService,
     AutomationNodeNotDeletable,
     AutomationNodeNotInWorkflow,
     AutomationNodeNotMovable,
@@ -79,7 +78,10 @@ from baserow.contrib.automation.workflows.signals import (
     automation_workflow_loaded,
 )
 from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
-from baserow.core.services.exceptions import ServiceTypeDoesNotExist
+from baserow.core.services.exceptions import (
+    ServiceTypeDoesNotExist,
+    TriggerServiceMisconfigured,
+)
 
 AUTOMATION_NODES_TAG = "Automation nodes"
 
@@ -240,7 +242,7 @@ class AutomationNodeView(APIView):
     @map_exceptions(
         {
             AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
-            AutomationNodeMisconfiguredService: ERROR_AUTOMATION_NODE_MISCONFIGURED_SERVICE,
+            TriggerServiceMisconfigured: ERROR_AUTOMATION_NODE_MISCONFIGURED_SERVICE,
             ServiceTypeDoesNotExist: ERROR_SERVICE_INVALID_TYPE,
         }
     )

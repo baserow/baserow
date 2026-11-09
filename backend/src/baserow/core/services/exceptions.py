@@ -118,3 +118,12 @@ class ServiceSortPropertyDoesNotExist(Exception):
 
 class TriggerServiceNotDispatchable(DispatchException):
     """When the trigger can't be immediately dispatched and needs an event to happens"""
+
+
+class TriggerServiceMisconfigured(Exception):
+    """
+    Raised when the values of a trigger service cannot describe a valid event
+    source, such as a schedule below the instance minimum or an unknown timezone.
+    The message is written for whoever configures the service, so every host of
+    trigger services may show it as is.
+    """

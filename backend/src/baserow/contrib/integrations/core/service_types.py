@@ -33,9 +33,6 @@ from rest_framework import serializers
 
 from advocate.connection import UnacceptableAddressException
 from baserow.config.celery import app as celery_app
-from baserow.contrib.automation.nodes.exceptions import (
-    AutomationNodeMisconfiguredService,
-)
 from baserow.contrib.integrations.core.api.inbound_email.views import (
     CoreInboundEmailWebhookView,
 )
@@ -120,6 +117,7 @@ from baserow.core.services.exceptions import (
     RemoteRefusedDispatchException,
     RuntimeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
+    TriggerServiceMisconfigured,
     UnexpectedDispatchException,
     UnreachableAddressDispatchException,
 )
@@ -1980,14 +1978,14 @@ class CorePeriodicTriggerServiceType(TriggerServiceTypeMixin, CoreServiceType):
                 and minute is not None
                 and minute < settings.INTEGRATIONS_PERIODIC_MINUTE_MIN
             ):
-                raise AutomationNodeMisconfiguredService(
+                raise TriggerServiceMisconfigured(
                     "The `minute` value must be greater "
                     f"or equal to {settings.INTEGRATIONS_PERIODIC_MINUTE_MIN}."
                 )
 
         service_timezone = values.get("timezone", None)
         if service_timezone is not None and service_timezone not in get_timezones():
-            raise AutomationNodeMisconfiguredService(
+            raise TriggerServiceMisconfigured(
                 f"The timezone `{service_timezone}` is not a valid timezone."
             )
 

@@ -1451,3 +1451,37 @@ def test_update_node_error_policy_undo_redo(api_client, data_fixture):
     assert node.on_failure == "retry"
     assert node.max_retries == 4
     assert node.retry_condition == retry_condition
+
+
+@pytest.mark.django_db
+def test_update_periodic_trigger_with_unknown_timezone_is_a_misconfigured_service(
+    api_client, data_fixture
+):
+    """
+    The periodic service type raises the core `TriggerServiceMisconfigured`; the
+    Automation API must still answer with its own error code for it.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user, create_trigger=False)
+    node = data_fixture.create_core_periodic_trigger_node(
+        user=user, workflow=workflow, service_kwargs={"interval": None}
+    )
+
+    payload = {
+        "service": {
+            "type": "periodic",
+            "timezone": "Middle/Earth",
+        }
+    }
+    response = api_client.patch(
+        reverse(API_URL_ITEM, kwargs={"node_id": node.id}),
+        payload,
+        **get_api_kwargs(token),
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_AUTOMATION_NODE_MISCONFIGURED_SERVICE",
+        "detail": "The timezone `Middle/Earth` is not a valid timezone.",
+    }

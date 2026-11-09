@@ -12,9 +12,6 @@ from pytest_unordered import unordered
 
 from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.models import AutomationWorkflow
-from baserow.contrib.automation.nodes.exceptions import (
-    AutomationNodeMisconfiguredService,
-)
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.node_types import CorePeriodicTriggerNodeType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
@@ -34,6 +31,7 @@ from baserow.contrib.integrations.core.utils import calculate_next_periodic_run
 from baserow.core.cache import local_cache
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
+from baserow.core.services.exceptions import TriggerServiceMisconfigured
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
 
@@ -185,8 +183,9 @@ def test_periodic_service_prepare_values_validates_minute_minimum(data_fixture):
         "interval": PERIODIC_INTERVAL_MINUTE,
         "minute": 3,
     }
-    with pytest.raises(AutomationNodeMisconfiguredService) as e:
+    with pytest.raises(TriggerServiceMisconfigured) as e:
         CorePeriodicTriggerServiceType().prepare_values(values, user)
+    assert e.type is TriggerServiceMisconfigured
     assert str(e.value) == "The `minute` value must be greater or equal to 5."
 
 
@@ -218,8 +217,9 @@ def test_periodic_service_prepare_values_validates_minute_minimum_of_partial_upd
     user = data_fixture.create_user()
     service = data_fixture.create_core_periodic_service(**saved)
 
-    with pytest.raises(AutomationNodeMisconfiguredService) as e:
+    with pytest.raises(TriggerServiceMisconfigured) as e:
         CorePeriodicTriggerServiceType().prepare_values(values, user, service)
+    assert e.type is TriggerServiceMisconfigured
     assert str(e.value) == "The `minute` value must be greater or equal to 15."
 
 
@@ -278,8 +278,9 @@ def test_periodic_service_prepare_values_validates_minute_minimum_when_creating(
     service_type = CorePeriodicTriggerServiceType()
 
     # Without a minute the new service gets the model's default of 0.
-    with pytest.raises(AutomationNodeMisconfiguredService) as e:
+    with pytest.raises(TriggerServiceMisconfigured) as e:
         service_type.prepare_values({"interval": PERIODIC_INTERVAL_MINUTE}, user)
+    assert e.type is TriggerServiceMisconfigured
     assert str(e.value) == "The `minute` value must be greater or equal to 15."
 
     # A minute on its own is the minute past the hour of an unconfigured service.
@@ -905,10 +906,11 @@ def test_periodic_service_prepare_values_validates_timezone(data_fixture):
     )
     assert prepared["timezone"] == "Europe/Amsterdam"
 
-    with pytest.raises(AutomationNodeMisconfiguredService) as e:
+    with pytest.raises(TriggerServiceMisconfigured) as e:
         service_type.prepare_values(
             {"interval": PERIODIC_INTERVAL_WEEK, "timezone": "Middle/Earth"}, user
         )
+    assert e.type is TriggerServiceMisconfigured
     assert str(e.value) == "The timezone `Middle/Earth` is not a valid timezone."
 
 
