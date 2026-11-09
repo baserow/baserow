@@ -10,11 +10,7 @@ from django.utils.translation import gettext as _
 
 from pydantic import Field
 
-from baserow.contrib.builder.pages.handler import PageHandler
-from baserow.contrib.builder.pages.models import Page
-from baserow.contrib.builder.pages.operations import ReadPageOperationType
 from baserow.core.exceptions import PermissionException
-from baserow.core.handler import CoreHandler
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import (
     PERMISSION_DENIED_MESSAGE,
@@ -24,8 +20,11 @@ from baserow.core.tools.errors import (
 from baserow.core.user_sources.service import UserSourceService
 
 from . import BuilderWriteOptions, helpers
-from .applications import get_builder_in_workspace
+from .actions import create_actions_with_options
+from .data_sources import create_data_sources_with_options
+from .elements import create_elements_with_options
 from .errors import client_item_error
+from .lookups import get_builder_in_workspace, get_page_in_workspace
 from .types import (
     ActionCreate,
     DataSourceCreate,
@@ -36,24 +35,6 @@ from .types import (
     PageUpdate,
 )
 from .types.limits import MAX_ITEMS_PER_CALL
-
-
-def get_page_in_workspace(ctx: ToolContext, page_id: int) -> Page:
-    """
-    Get a page of the context's workspace the user can read.
-
-    :raises PageDoesNotExist: When the page is missing, or its application is
-        trashed or in another workspace.
-    :raises PermissionException: When the user can't read the page.
-    """
-
-    page = PageHandler().get_page(
-        page_id, base_queryset=helpers.workspace_pages(ctx.workspace)
-    )
-    CoreHandler().check_permissions(
-        ctx.user, ReadPageOperationType.type, workspace=ctx.workspace, context=page
-    )
-    return page
 
 
 def list_pages(
@@ -204,9 +185,6 @@ def setup_page_with_options(
     """
 
     # These modules read pages through this one.
-    from .actions import create_actions_with_options
-    from .data_sources import create_data_sources_with_options
-    from .elements import create_elements_with_options
 
     data_source_refs = dict(options.known_data_source_refs)
     element_refs = dict(options.known_refs)

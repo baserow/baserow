@@ -19,7 +19,7 @@ from baserow.core.user_sources.models import UserSource
 from baserow.core.user_sources.service import UserSourceService
 
 from . import helpers
-from .applications import get_builder_in_workspace
+from .lookups import get_builder_in_workspace
 from .types import PageItem
 from .types.user_source import UserSourceSetup
 

@@ -22,7 +22,7 @@ from baserow.core.tools.errors import (
 from . import BuilderWriteOptions, helpers
 from .errors import client_item_error
 from .formulas import BuilderFormulaError, apply_builder_formulas
-from .pages import get_page_in_workspace
+from .lookups import get_page_in_workspace
 from .types import (
     CollectionElementCreate,
     DisplayElementCreate,

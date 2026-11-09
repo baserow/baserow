@@ -14,6 +14,8 @@ from baserow.contrib.builder.theme.service import ThemeService
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import ToolInputError
 
+from .lookups import get_builder_in_workspace
+
 # ---------------------------------------------------------------------------
 # Theme catalog
 # ---------------------------------------------------------------------------
@@ -150,9 +152,6 @@ def set_theme(
     Themes:
     {theme_list}
     """
-
-    # applications.py applies themes to the builders it creates.
-    from .applications import get_builder_in_workspace
 
     builder = get_builder_in_workspace(ctx, builder_id)
     ctx.update_status(

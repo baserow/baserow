@@ -10,24 +10,13 @@ from django.utils.translation import gettext as _
 from pydantic import Field
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from baserow.contrib.builder.models import Builder
 from baserow.core.tools import ToolContext
 from baserow.core.tools import applications as shared_applications
 from baserow.core.tools.errors import ToolInputError, validation_messages
 
 from .helpers import create_local_baserow_integration
+from .lookups import get_builder_in_workspace
 from .themes import ThemeName, apply_theme
-
-
-def get_builder_in_workspace(ctx: ToolContext, builder_id: int) -> Builder:
-    """
-    Get an application builder of the context's workspace.
-
-    :raises ApplicationDoesNotExist: When the application is missing, trashed, not
-        a builder, in another workspace or hidden from the user.
-    """
-
-    return shared_applications.get_application_in_workspace(ctx, builder_id, Builder)
 
 
 def list_builders(

@@ -26,7 +26,7 @@ from .formulas import (
     check_formula_on_action,
     check_required_action_formulas,
 )
-from .pages import get_page_in_workspace
+from .lookups import get_page_in_workspace
 from .types import ActionChanges, ActionCreate, ActionItem
 from .types.limits import MAX_ITEMS_PER_CALL
 
