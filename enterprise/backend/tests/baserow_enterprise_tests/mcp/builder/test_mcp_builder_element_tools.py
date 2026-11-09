@@ -388,7 +388,7 @@ def test_a_new_target_that_does_not_fit_a_link_is_refused_over_mcp(
     result = _session(endpoint, call)
 
     assert result.isError
-    assert "stays on the page" in result.content[0].text
+    assert "Give link_page_parameters for that page" in result.content[0].text
     assert Element.objects.get(id=link.id).specific.navigate_to_page_id == start.id
 
 

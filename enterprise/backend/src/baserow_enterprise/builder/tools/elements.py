@@ -372,8 +372,8 @@ def update_element(
     update_element_action. If a changed
     button also shows a notification when clicked, the result has a note naming that
     action, which stays as it was. A link given a page or a URL goes there, unless
-    navigation_type says otherwise. A link's new page must fit the parameters it has,
-    or the update is refused. To move an element or change its style use move_elements
+    navigation_type says otherwise. A link's new page must fit its parameters: give
+    link_page_parameters for it in the same call, or the update is refused. To move an element or change its style use move_elements
     or update_element_style.
 
     Give dynamic values as formulas in Baserow formula syntax, like
@@ -434,8 +434,8 @@ def edit_element(
     action: find it with list_element_actions and change it with update_element_action. If a changed
     button also shows a notification when clicked, the result has a note naming that
     action, which stays as it was. A link given a page or a URL goes there, unless
-    navigation_type says otherwise. A link's new page must fit the parameters it has,
-    or the update is refused. To move an element or change its style use move_elements
+    navigation_type says otherwise. A link's new page must fit its parameters: give
+    link_page_parameters for it in the same call, or the update is refused. To move an element or change its style use move_elements
     or update_element_style.
 
     Give dynamic values as formulas in Baserow formula syntax, like
@@ -550,7 +550,8 @@ def move_elements(
     Move elements within their page: before another element, into a container, or to
     the end. An element can't move to another page, and elements on the shared page
     stay on it. A move that fails is listed in errors, as "<element id>: <message>",
-    and the others are kept.
+    and the others are kept. A move the user isn't allowed to make refuses the whole
+    call, and nothing is moved.
     """
 
     moved: list[dict] = []

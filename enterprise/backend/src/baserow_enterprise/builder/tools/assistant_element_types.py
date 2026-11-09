@@ -223,9 +223,8 @@ class LinkAssistantElementType(AssistantElementType):
             )
             if problem:
                 raise ToolInputError(
-                    f"{problem} {NO_CHANGES} To link to that page, create a new link "
-                    "with link_page_parameters. This one stays on the page until "
-                    "someone deletes it in the editor."
+                    f"{problem} {NO_CHANGES} Give link_page_parameters for that "
+                    "page in the same update_element call."
                 )
             kwargs["page_parameters"] = parameters_in_page_order(
                 element.page.builder_id,

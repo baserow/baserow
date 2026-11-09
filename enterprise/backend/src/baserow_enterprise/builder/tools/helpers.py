@@ -36,6 +36,7 @@ from baserow.contrib.builder.elements.actions import (
 from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import (
+    CollectionField,
     Element,
     LinkElement,
     MenuElement,
@@ -579,7 +580,7 @@ def update_page(
 
 def navigations_out_of_step(page: Page) -> list[dict[str, Any]]:
     """
-    The links, menu items and open page actions that go to a page with parameter
+    The links, table link columns, menu items and open page actions that go to a page with parameter
     names other than the page's, in its order. The frontend shows them as errors and
     a publish hides them.
 
@@ -617,6 +618,35 @@ def navigations_out_of_step(page: Page) -> list[dict[str, Any]]:
                     f"{', '.join(expected) or 'none'}.",
                 }
             )
+    # Table link columns keep their navigation in the column's config. The tools
+    # can't make or change them, so the fix is in the editor.
+    for column in CollectionField.objects.filter(
+        type="link",
+        config__navigation_type="page",
+        config__navigate_to_page_id=page.id,
+    ).prefetch_related("tableelement_set__page"):
+        if [param["name"] for param in column.config.get("page_parameters") or []] == (
+            expected
+        ):
+            continue
+        tables = [
+            table for table in column.tableelement_set.all() if not table.page.trashed
+        ]
+        if not tables:
+            continue
+        found.append(
+            {
+                "type": "table link column",
+                "element_id": tables[0].id,
+                "column_name": column.name,
+                "page_parameters": [
+                    param["name"]
+                    for param in column.config.get("page_parameters") or []
+                ],
+                "fix": "Change the page parameters of this table column in the "
+                f"editor to {', '.join(expected) or 'none'}; the tools can't.",
+            }
+        )
     if expected:
         # A menu item can't give path parameters at all.
         for item in MenuItemElement.objects.filter(**on_page).prefetch_related(

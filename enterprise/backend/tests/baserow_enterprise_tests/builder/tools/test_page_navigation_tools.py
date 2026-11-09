@@ -128,3 +128,36 @@ def test_update_element_refuses_link_parameters_the_page_does_not_take(
         )
 
     assert _stored(link) == [("id", "'1'")]
+
+
+@pytest.mark.django_db
+def test_update_page_lists_a_table_link_column_its_new_parameters_break(
+    data_fixture, builder_ctx, product_page
+):
+    page, _link, _action = product_page
+    table = data_fixture.create_builder_table_element(
+        page=builder_ctx["page"],
+        fields=[
+            {
+                "name": "Open",
+                "type": "link",
+                "config": {
+                    "link_name": "'Open'",
+                    "navigation_type": "page",
+                    "navigate_to_page_id": page.id,
+                    "page_parameters": [{"name": "id", "value": "'1'"}],
+                },
+            }
+        ],
+    )
+
+    result = pages.update_page(
+        builder_ctx["ctx"], page.id, PageChanges(path="/products/:slug")
+    )
+
+    (column,) = [
+        n for n in result["navigations_to_fix"] if n["type"] == "table link column"
+    ]
+    assert column["element_id"] == table.id
+    assert column["column_name"] == "Open"
+    assert column["page_parameters"] == ["id"]
