@@ -259,13 +259,40 @@ def _row_action_table(action: "ActionCreate", user, workspace) -> Any:
         raise ToolInputError(f"Table with id {action.table_id} not found.")
 
     field_ids = {fv.field_id for fv in action.field_values or []}
-    in_table = {str(id) for id in table.field_set.values_list("id", flat=True)}
-    if field_ids - in_table:
+    if not field_ids:
+        return table
+    fields = {
+        str(field.id): field
+        for field in table.field_set.select_related("content_type").all()
+    }
+    if field_ids - fields.keys():
         raise ToolInputError(
-            f"Field {sorted(field_ids - in_table)[0]} is not in the table this action "
-            "writes to. Use the IDs of that table's fields."
+            f"Field {sorted(field_ids - fields.keys())[0]} is not in the table this "
+            "action writes to. Use the IDs of that table's fields."
         )
+    for field_id in sorted(field_ids, key=int):
+        raise_if_read_only_field(fields[field_id])
     return table
+
+
+def raise_if_read_only_field(field) -> None:
+    """
+    Refuses a field that a row action can't write to. The action would list the
+    mapping, but skip it when it runs.
+
+    :param field: The field the action maps a value to.
+    :raises ToolInputError: When the field is read-only, like a formula, created on
+        or UUID field.
+    """
+
+    from baserow.contrib.database.fields.registries import field_type_registry
+
+    field_type = field_type_registry.get_by_model(field.specific_class)
+    if field_type.read_only:
+        raise ToolInputError(
+            f"Field {field.id} ('{field.name}') is a {field_type.type} field, which "
+            "is read-only, so an action can't write to it. Leave it out."
+        )
 
 
 def _row_service_kwargs(action: "ActionCreate", user, workspace) -> dict:

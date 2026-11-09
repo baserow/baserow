@@ -573,6 +573,76 @@ def test_a_field_of_another_table_is_refused(data_fixture, builder_ctx, elsewher
     assert f"Field {field.id} is not in the table" in result["errors"][0]
 
 
+READ_ONLY_FIELDS = [
+    ("formula", lambda f, table: f.create_formula_field(table=table, formula="'a'")),
+    ("created_on", lambda f, table: f.create_created_on_field(table=table)),
+    ("uuid", lambda f, table: f.create_uuid_field(table=table)),
+]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("field_type,make_field", READ_ONLY_FIELDS)
+def test_a_new_row_action_refuses_a_read_only_field(
+    data_fixture, builder_ctx, field_type, make_field
+):
+    table = builder_ctx["data_source"].service.specific.table
+    field = make_field(data_fixture, table)
+
+    result = create(
+        builder_ctx,
+        ActionCreate(
+            type="create_row",
+            element=builder_ctx["button"].id,
+            table_id=table.id,
+            field_values=[{"field_id": str(field.id), "value": "'x'"}],
+        ),
+    )
+
+    assert result["created_actions"] == []
+    assert (
+        f"Field {field.id} ('{field.name}') is a {field_type} field"
+        in (result["errors"][0])
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("field_type,make_field", READ_ONLY_FIELDS)
+def test_update_action_refuses_a_read_only_field(
+    data_fixture, builder_ctx, row_action_with_mapping, field_type, make_field
+):
+    action, table, field = row_action_with_mapping
+    read_only = make_field(data_fixture, table)
+
+    with pytest.raises(ToolInputError, match=f"is a {field_type} field"):
+        actions.update_action(
+            builder_ctx["ctx"],
+            action.id,
+            ActionChanges(
+                field_values=[{"field_id": str(read_only.id), "value": "'y'"}]
+            ),
+        )
+
+    mappings = action.service.specific.field_mappings
+    assert list(mappings.values_list("field_id", flat=True)) == [field.id]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("field_type,make_field", READ_ONLY_FIELDS)
+def test_add_action_field_mapping_refuses_a_read_only_field(
+    data_fixture, builder_ctx, row_action_with_mapping, field_type, make_field
+):
+    action, table, field = row_action_with_mapping
+    read_only = make_field(data_fixture, table)
+
+    with pytest.raises(ToolInputError, match=f"is a {field_type} field"):
+        actions.add_action_field_mapping(
+            builder_ctx["ctx"], action.id, read_only.id, "'y'"
+        )
+
+    mappings = action.service.specific.field_mappings
+    assert list(mappings.values_list("field_id", flat=True)) == [field.id]
+
+
 # ---------------------------------------------------------------------------
 # add_action_field_mapping
 # ---------------------------------------------------------------------------

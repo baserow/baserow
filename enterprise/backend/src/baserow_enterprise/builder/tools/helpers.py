@@ -119,6 +119,7 @@ from .types import (
     PageUpdate,
 )
 from .types.page import PagePathParam, with_path_parameters
+from .types.workflow_action import raise_if_read_only_field
 
 # ---------------------------------------------------------------------------
 # Accessors
@@ -1623,13 +1624,17 @@ def add_field_mapping_to_action(
             "This tool cannot select a table. Until one is selected, the action will fail."
         )
 
-    if not Field.objects_and_trash.filter(
-        id=field_id, table_id=service.table_id
-    ).exists():
+    field = (
+        Field.objects_and_trash.select_related("content_type")
+        .filter(id=field_id, table_id=service.table_id)
+        .first()
+    )
+    if field is None:
         raise ToolInputError(
             f"Field {field_id} is not in the table this action writes to. "
             "Use the IDs of that table's fields."
         )
+    raise_if_read_only_field(field)
 
     # The service replaces its whole list of mappings, mappings on trashed fields
     # included. The service row lock makes a concurrent addition wait for this one,
