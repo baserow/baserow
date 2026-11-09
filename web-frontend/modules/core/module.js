@@ -75,6 +75,7 @@ export default defineNuxtModule({
         baserowMaxSnapshotsPerGroup: -1,
         baserowFrontendSameSiteCookie: 'lax',
         baserowFrontendCookiePrefix: '',
+        baserowFrontendLazyFeatures: false,
         baserowFrontendJobsPollingTimeoutMs: 2000,
         baserowDashboardDataSourceDispatchConcurrency: 5,
         posthogProjectApiKey: '',
@@ -128,6 +129,7 @@ export default defineNuxtModule({
     addPlugin(resolve('plugins/vuexState.js'))
     addPlugin(resolve('plugin.js'))
     addPlugin(resolve('plugins/applicationShell.js'))
+    addPlugin(resolve('plugins/featureBundles.js'))
     addRouteMiddleware({
       name: 'applicationShell',
       path: resolve('./middleware/applicationShell.js'),
