@@ -1,4 +1,4 @@
-"""Turn Kuma's table column changes into the full column list core saves."""
+"""Turn table column changes into the full column list core saves."""
 
 from collections import Counter
 from copy import deepcopy

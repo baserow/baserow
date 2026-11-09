@@ -1,4 +1,4 @@
-"""What Kuma's changes to uid-keyed lists share: table columns and menu items."""
+"""What changes to uid-keyed lists share: table columns and menu items."""
 
 import uuid
 from collections.abc import Iterable

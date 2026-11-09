@@ -65,11 +65,12 @@ def validation_messages(exc: DRFValidationError) -> str:
 
 def raise_if_permission_denied(error: Exception) -> None:
     """
-    Let the mode router explain permission failures.
+    Re-raise a permission failure caught by a handler that reports item errors, so
+    the whole call is refused and the caller explains it.
 
     :param error: The caught exception to inspect.
-    :raises PermissionException: When the given error is one, so it reaches
-        the mode router instead of being swallowed by a containment handler.
+    :raises PermissionException: When the given error is one, so it reaches the
+        caller instead of being reported as one failed item.
     """
 
     if isinstance(error, PermissionException):

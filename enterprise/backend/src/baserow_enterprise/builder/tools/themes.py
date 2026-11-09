@@ -70,7 +70,7 @@ def _load_theme_data(theme_name: str) -> dict | None:
             template = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         logger.warning(
-            "[assistant] Theme template '{}' not found at {}", filename, path
+            "[builder tools] Theme template '{}' not found at {}", filename, path
         )
         return None
 

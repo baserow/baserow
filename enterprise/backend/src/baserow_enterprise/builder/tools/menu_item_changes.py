@@ -1,4 +1,4 @@
-"""Turn Kuma's menu item changes into the full item list core saves."""
+"""Turn menu item changes into the full item list core saves."""
 
 from collections import Counter, defaultdict
 from collections.abc import Iterable

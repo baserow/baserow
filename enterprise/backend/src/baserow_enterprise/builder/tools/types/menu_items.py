@@ -1,4 +1,4 @@
-"""Menu items as Kuma reads and changes them."""
+"""Menu items as the builder tools read and change them."""
 
 import uuid
 from collections import defaultdict
@@ -156,7 +156,7 @@ def _listed(item: "MenuItemElement") -> ListedMenuItem:
 
 def listed_menu_items(menu: "MenuElement") -> list[ListedTopLevelMenuItem]:
     """
-    Describe a menu's items with the uids Kuma changes them by.
+    Describe a menu's items with the uids the tools change them by.
 
     :param menu: The menu element.
     :return: The top-level items in order, each with its sub-links as children.

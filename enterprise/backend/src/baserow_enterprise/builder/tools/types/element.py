@@ -28,7 +28,7 @@ from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.graph.types import GraphPointPosition
 from baserow.core.tools.errors import ToolInputError
 from baserow_enterprise.builder.tools.registries import (
-    assistant_element_type_registry,
+    element_tool_type_registry,
 )
 from baserow_enterprise.tools.formula_utils import (
     EMPTY_FORMULA,
@@ -2017,7 +2017,7 @@ class ElementItem(BaseModel):
         element_type = element.get_type().type
         page = element.page
         page_name = "[shared]" if page.shared else page.name
-        hooks = assistant_element_type_registry.get_for(element_type)
+        hooks = element_tool_type_registry.get_for(element_type)
         return cls(
             id=element.id,
             type=element_type,

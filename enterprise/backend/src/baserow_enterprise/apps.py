@@ -600,17 +600,17 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.assistant.tools.search_user_docs.tool_types import (
             SearchDocsToolType,
         )
-        from baserow_enterprise.builder.tools.assistant_element_types import (
-            ButtonAssistantElementType,
-            ColumnAssistantElementType,
-            FooterAssistantElementType,
-            HeaderAssistantElementType,
-            LinkAssistantElementType,
-            MenuAssistantElementType,
-            TableAssistantElementType,
+        from baserow_enterprise.builder.tools.element_tool_types import (
+            ButtonElementToolType,
+            ColumnElementToolType,
+            FooterElementToolType,
+            HeaderElementToolType,
+            LinkElementToolType,
+            MenuElementToolType,
+            TableElementToolType,
         )
         from baserow_enterprise.builder.tools.registries import (
-            assistant_element_type_registry,
+            element_tool_type_registry,
         )
 
         ai_provider_model_feature_type_registry.register(
@@ -631,13 +631,13 @@ class BaserowEnterpriseConfig(AppConfig):
         assistant_tool_registry.register(DashboardToolType())
         assistant_tool_registry.register(BuilderToolType())
         assistant_tool_registry.register(SearchDocsToolType())
-        assistant_element_type_registry.register(TableAssistantElementType())
-        assistant_element_type_registry.register(ButtonAssistantElementType())
-        assistant_element_type_registry.register(LinkAssistantElementType())
-        assistant_element_type_registry.register(ColumnAssistantElementType())
-        assistant_element_type_registry.register(MenuAssistantElementType())
-        assistant_element_type_registry.register(HeaderAssistantElementType())
-        assistant_element_type_registry.register(FooterAssistantElementType())
+        element_tool_type_registry.register(TableElementToolType())
+        element_tool_type_registry.register(ButtonElementToolType())
+        element_tool_type_registry.register(LinkElementToolType())
+        element_tool_type_registry.register(ColumnElementToolType())
+        element_tool_type_registry.register(MenuElementToolType())
+        element_tool_type_registry.register(HeaderElementToolType())
+        element_tool_type_registry.register(FooterElementToolType())
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.

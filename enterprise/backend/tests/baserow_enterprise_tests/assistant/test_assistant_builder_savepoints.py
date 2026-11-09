@@ -23,11 +23,11 @@ from baserow_enterprise.assistant.tools.builder.tools import (
     create_element_actions,
     create_layout_elements,
     create_pages,
+    item_error,
     setup_page,
     update_page,
 )
 from baserow_enterprise.assistant.tools.shared import ToolInputError
-from baserow_enterprise.builder.tools.errors import item_error
 from baserow_enterprise.builder.tools.types import (
     ActionCreate,
     DataSourceCreate,

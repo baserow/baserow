@@ -1,5 +1,5 @@
 """
-Shared helpers for the builder assistant tools.
+Shared helpers for the builder tools that Kuma and MCP call.
 
 Contains permission-checked accessors, listing functions, and the element/data
 source/action creation orchestrators used by ``tools.py`` and ``agents.py``.
@@ -111,7 +111,7 @@ from baserow.core.tools.errors import (
 from baserow.core.user_sources.actions import CreateUserSourceActionType
 
 from .errors import UnknownRefError
-from .registries import assistant_element_type_registry
+from .registries import element_tool_type_registry
 from .types import (
     ActionCreate,
     ActionItem,
@@ -1178,7 +1178,7 @@ def update_element(
         )
 
         element_type = element.get_type().type
-        hooks = assistant_element_type_registry.get_for(element_type)
+        hooks = element_tool_type_registry.get_for(element_type)
         kwargs = element_update.to_update_kwargs(element_type)
         allowed = _accepted_update_keys(element)
         kwargs = {name: value for name, value in kwargs.items() if name in allowed}

@@ -11,6 +11,7 @@ from django.utils.translation import gettext as _
 
 from pydantic import Field
 from pydantic_ai import ModelRetry, RunContext
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
@@ -19,6 +20,7 @@ from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
 from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
+from baserow.core.tools.errors import validation_messages
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.tools.shared import (
     ToolInputError,
@@ -35,9 +37,13 @@ from baserow_enterprise.builder.tools import elements as shared_elements
 from baserow_enterprise.builder.tools import pages as shared_pages
 from baserow_enterprise.builder.tools import themes as shared_themes
 from baserow_enterprise.builder.tools import user_sources as shared_user_sources
-from baserow_enterprise.builder.tools.errors import is_input_error, item_error
+from baserow_enterprise.builder.tools.errors import (
+    UnknownRefError,
+    is_input_error,
+    user_error_message,
+)
 from baserow_enterprise.builder.tools.formulas import BuilderFormulaError
-from baserow_enterprise.builder.tools.registries import assistant_element_type_registry
+from baserow_enterprise.builder.tools.registries import element_tool_type_registry
 from baserow_enterprise.builder.tools.themes import THEME_CATALOG, ThemeName
 from baserow_enterprise.builder.tools.types import (
     ActionChanges,
@@ -109,6 +115,19 @@ def _page_not_found(page_id: int) -> ToolInputError:
         f"Page with ID {page_id} not found or not accessible. "
         "Use list_pages to find valid page IDs."
     )
+
+
+def item_error(exc: Exception) -> str:
+    """
+    The message Kuma gets for one item of a batch that failed with ``exc``. Kuma
+    keeps refs across calls, so an unknown ref gets the message for that.
+    """
+
+    if isinstance(exc, UnknownRefError):
+        return exc.message_with_known_refs
+    if isinstance(exc, DRFValidationError):
+        return validation_messages(exc)
+    return user_error_message(exc) or str(exc)
 
 
 def _input_item_error(exc: Exception) -> str:
@@ -977,9 +996,7 @@ def update_element(
     applied_formulas = [field for field in formulas if field not in not_applied]
 
     dependent_fields = element.get_formula_dependent_fields(element_type)
-    property_aliases = assistant_element_type_registry.get_for(
-        element_type
-    ).property_aliases
+    property_aliases = element_tool_type_registry.get_for(element_type).property_aliases
     updated_fields = []
     for field in element.get_updated_field_names():
         formula_field = property_aliases.get(field, field)

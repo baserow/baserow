@@ -1,4 +1,4 @@
-"""The hooks Kuma's builder tools call for each element type."""
+"""The hooks the builder tools call for each element type."""
 
 from typing import TYPE_CHECKING, Any, NamedTuple
 
@@ -21,9 +21,9 @@ class PreparedElementUpdate(NamedTuple):
     result: dict[str, Any]
 
 
-class AssistantElementType(Instance):
+class ElementToolType(Instance):
     """
-    How Kuma's builder tools treat one element type. The default hooks treat it like
+    How the builder tools treat one element type. The default hooks treat it like
     any other element type.
     """
 
@@ -134,14 +134,14 @@ class AssistantElementType(Instance):
         return {}
 
 
-class AssistantElementTypeRegistry(Registry[AssistantElementType]):
-    """The element types whose hooks change how Kuma's builder tools treat them."""
+class ElementToolTypeRegistry(Registry[ElementToolType]):
+    """The element types whose hooks change how the builder tools treat them."""
 
-    name = "assistant_element"
+    name = "element_tool"
 
-    def get_for(self, element_type: str) -> AssistantElementType:
+    def get_for(self, element_type: str) -> ElementToolType:
         """
-        Find the hooks Kuma's builder tools call for an element type.
+        Find the hooks the builder tools call for an element type.
 
         :param element_type: The element's type, such as "table".
         :return: The registered type, or, for element types without hooks, one
@@ -151,7 +151,7 @@ class AssistantElementTypeRegistry(Registry[AssistantElementType]):
         try:
             return self.get(element_type)
         except self.does_not_exist_exception_class:
-            return AssistantElementType(element_type)
+            return ElementToolType(element_type)
 
 
-assistant_element_type_registry = AssistantElementTypeRegistry()
+element_tool_type_registry = ElementToolTypeRegistry()
