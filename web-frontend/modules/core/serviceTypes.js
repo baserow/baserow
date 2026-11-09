@@ -408,6 +408,9 @@ export const DataSourceServiceTypeMixin = (Base) =>
       return this.returnsList(service)
     }
 
+    /** Initialize optional formatting dependencies before exposing result data. */
+    async prepareResult() {}
+
     /**
      * This method can be used to process service data
      * in the frontend when displaying raw data

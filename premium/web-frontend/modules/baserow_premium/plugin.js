@@ -19,7 +19,7 @@ export default defineNuxtPlugin({
     registerApplicationBundle(nuxtApp, 'database', async (app) => {
       const bundle = await import('@baserow_premium/databaseBundle')
       await bundle.default(app)
-      return bundle
+      return bundle.getComponents()
     })
     registerApplicationBundle(nuxtApp, 'dashboard', async (app) => {
       const bundle = await import('@baserow_premium/dashboardBundle')

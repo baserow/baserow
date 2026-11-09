@@ -106,8 +106,6 @@ async function mountComponent(defaultValues = { workflow_id: 201 }) {
           getters: {
             'workspace/getSelected': workspace,
             'application/getAllOfWorkspace': () => automations,
-            'automationWorkflow/getOrderedWorkflows': (automation) =>
-              [...automation.workflows].sort((a, b) => a.order - b.order),
           },
         },
       },
@@ -130,7 +128,7 @@ describe('CoreStartWorkflowServiceForm', () => {
     expect(wrapper.vm.values.workflow_id).toBe(null)
   })
 
-  test('groups workflows by automation', async () => {
+  test('groups workflows without loading the Automation store', async () => {
     const wrapper = await mountComponent()
     await flushPromises()
 
