@@ -91,6 +91,57 @@ def test_create_page_is_undoable(site):
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
+def test_create_page_with_visibility_is_undone_in_one_step(site):
+    page = helpers.create_page(
+        site["user"],
+        site["builder"],
+        PageCreate(
+            name="Members",
+            path="/members",
+            visibility="logged-in",
+            role_type="disallow_all_except",
+            roles=["Admin"],
+        ),
+    )
+
+    assert (page.visibility, page.role_type, page.roles) == (
+        "logged-in",
+        "disallow_all_except",
+        ["Admin"],
+    )
+    assert Action.objects.filter(user=site["user"]).count() == 1
+
+    undo(site)
+
+    assert not Page.objects.filter(id=page.id).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("path", ["products", "/my products", ""])
+def test_create_page_refuses_an_invalid_path(site, path):
+    with pytest.raises(ToolInputError, match="not valid"):
+        helpers.create_page(
+            site["user"], site["builder"], PageCreate(name="Products", path=path)
+        )
+
+    assert not Page.objects.filter(builder=site["builder"], name="Products").exists()
+
+
+@pytest.mark.django_db
+def test_update_page_refuses_an_invalid_path(site):
+    with pytest.raises(ToolInputError, match="not valid"):
+        helpers.update_page(
+            site["user"],
+            site["workspace"],
+            PageUpdate(page_id=site["page"].id, path="products"),
+        )
+
+    site["page"].refresh_from_db()
+    assert site["page"].path == "/home"
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
 def test_update_page_is_undoable_and_derives_path_params(site):
     original_params = site["page"].path_params
     page = helpers.update_page(

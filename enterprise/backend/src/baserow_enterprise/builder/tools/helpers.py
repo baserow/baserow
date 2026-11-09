@@ -51,6 +51,7 @@ from baserow.contrib.builder.pages.actions import (
 from baserow.contrib.builder.pages.exceptions import (
     DuplicatePageParams,
     DuplicatePathParamsInPath,
+    InvalidPagePath,
     InvalidPagePathParamType,
     InvalidQueryParamName,
     PagePathNotUnique,
@@ -453,6 +454,7 @@ def ensure_distinct_paths(pages: list[PageCreate]) -> None:
 
 # Raised for a page's path or parameters.
 _PAGE_PARAM_ERRORS = (
+    InvalidPagePath,
     PathParamNotInPath,
     PathParamNotDefined,
     DuplicatePathParamsInPath,
@@ -471,13 +473,18 @@ def create_page(user: AbstractUser, builder: Builder, page_create: PageCreate) -
     """
 
     try:
-        page = CreatePageActionType.do(
+        # Visibility and roles are part of the creation, so one undo removes the
+        # page instead of leaving it visible to everyone.
+        return CreatePageActionType.do(
             user,
             builder,
             page_create.name,
             page_create.path,
             path_params=[p.model_dump() for p in page_create.path_params],
             query_params=[p.model_dump() for p in page_create.query_params],
+            visibility=page_create.visibility,
+            role_type=page_create.role_type,
+            roles=page_create.roles,
         )
     except PagePathNotUnique:
         # create_pages saves the other pages of the call.
@@ -486,20 +493,6 @@ def create_page(user: AbstractUser, builder: Builder, page_create: PageCreate) -
         )
     except _PAGE_PARAM_ERRORS as exc:
         raise ToolInputError(f"{exc}. This page was not created.")
-
-    # Page creation doesn't accept visibility/role kwargs, so they are set with
-    # an update if non-default.
-    update_kwargs: dict = {}
-    if page_create.visibility != "all":
-        update_kwargs["visibility"] = page_create.visibility
-    if page_create.role_type != "allow_all":
-        update_kwargs["role_type"] = page_create.role_type
-    if page_create.roles:
-        update_kwargs["roles"] = page_create.roles
-    if update_kwargs:
-        page = UpdatePageActionType.do(user, page, **update_kwargs)
-
-    return page
 
 
 # ---------------------------------------------------------------------------
