@@ -8,6 +8,15 @@ from django.utils.translation import gettext as _
 
 from rest_framework import serializers
 
+from baserow.contrib.builder.data_providers.path_context import (
+    FormulaPathNotReadable,
+    data_source_path_problem,
+    listed,
+    listed_fields,
+    matches_schema,
+    path_context_of,
+    raise_if_unreadable,
+)
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
 )
@@ -55,6 +64,10 @@ _visibility_check_in_progress: ContextVar[frozenset[int]] = ContextVar(
 )
 
 
+def _full_path(provider: str, path: List[str]) -> str:
+    return ".".join([provider, *path])
+
+
 class BuilderDataProviderType(DataProviderType):
     def get_request_serializer(self):
         """
@@ -73,6 +86,23 @@ class PageParameterDataProviderType(BuilderDataProviderType):
     """
 
     type = "page_parameter"
+
+    def is_valid(
+        self, path: List[str], validation_context: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """
+        Refuses a parameter the page doesn't have, when the page is known.
+
+        :raises FormulaPathNotReadable: When the path names no parameter of it.
+        """
+
+        context = path_context_of(validation_context)
+        if context is not None and (not path or path[0] not in context.page_parameters):
+            raise FormulaPathNotReadable(
+                f"'{_full_path(self.type, path)}' doesn't name a page parameter of "
+                f"this page. Its page parameters: {listed(context.page_parameters)}."
+            )
+        return True
 
     def get_data_chunk(
         self, dispatch_context: BuilderDispatchContext, path: List[str]
@@ -94,6 +124,32 @@ class PageParameterDataProviderType(BuilderDataProviderType):
 
 class FormDataProviderType(BuilderDataProviderType):
     type = "form_data"
+
+    def is_valid(
+        self, path: List[str], validation_context: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """
+        Refuses a form input the page doesn't have, and any on the shared page,
+        when the page is known.
+
+        :raises FormulaPathNotReadable: When the input can't be read there.
+        """
+
+        context = path_context_of(validation_context)
+        if context is None:
+            return True
+        full = _full_path(self.type, path)
+        if context.page_shared:
+            raise FormulaPathNotReadable(
+                f"'{full}' can't be read: items on the shared page, like a form in a "
+                "header, can't read form inputs."
+            )
+        if not path or path[0] not in context.form_inputs:
+            raise FormulaPathNotReadable(
+                f"'{full}' doesn't name a form element of this page. "
+                f"Its form elements: {listed(context.form_inputs)}."
+            )
+        return True
 
     def validate_data_chunk(
         self, element_id: str, data_chunk: Any, dispatch_context: DispatchContext
@@ -226,6 +282,21 @@ class DataSourceDataProviderType(BuilderDataProviderType):
 
     type = "data_source"
 
+    def is_valid(
+        self, path: List[str], validation_context: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """
+        Refuses a data source the page doesn't have, or a value it doesn't return,
+        when the page is known.
+
+        :raises FormulaPathNotReadable: When the path can't be read there.
+        """
+
+        context = path_context_of(validation_context)
+        if context is not None:
+            raise_if_unreadable(data_source_path_problem(self.type, path, context))
+        return True
+
     def get_request_serializer(self):
         from baserow.contrib.builder.api.data_providers.serializers import (
             DispatchDataSourceDataSourceContextSerializer,
@@ -347,6 +418,22 @@ class DataSourceContextDataProviderType(BuilderDataProviderType):
 
     type = "data_source_context"
 
+    def is_valid(
+        self, path: List[str], validation_context: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """
+        Refuses a data source the page doesn't have, when the page is known.
+
+        :raises FormulaPathNotReadable: When the path can't be read there.
+        """
+
+        context = path_context_of(validation_context)
+        if context is not None:
+            raise_if_unreadable(
+                data_source_path_problem(self.type, path, context, check_schema=False)
+            )
+        return True
+
     def get_data_chunk(self, dispatch_context: BuilderDispatchContext, path: List[str]):
         """Load a data chunk from a datasource of the page in context."""
 
@@ -431,6 +518,41 @@ class CurrentRecordDataProviderType(BuilderDataProviderType):
     """
 
     type = "current_record"
+
+    def is_valid(
+        self, path: List[str], validation_context: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """
+        Refuses a read outside a repeat or table with a data source, or of a value
+        its rows don't have, when the place of the formula is known.
+
+        :raises FormulaPathNotReadable: When the path can't be read there.
+        """
+
+        context = path_context_of(validation_context)
+        if context is None:
+            return True
+        full = _full_path(self.type, path)
+        if not context.in_collection:
+            raise FormulaPathNotReadable(
+                f"'{full}' can only be read inside a repeat or a table."
+            )
+        if context.in_unbound_collection:
+            raise FormulaPathNotReadable(
+                f"'{full}' can't be read: the repeat or table around it has no "
+                "data source."
+            )
+        if not context.current_record_is_row or path == ["__idx__"]:
+            return True
+        data_source = context.data_sources.get(context.current_record)
+        schema = data_source["schema"] if data_source else None
+        if schema is None or matches_schema(path, schema.get("items", schema)):
+            return True
+        raise FormulaPathNotReadable(
+            f"'{full}' is not something a row of data source "
+            f"{context.current_record} ('{data_source['name']}') has. Its fields: "
+            f"{listed_fields(schema)}."
+        )
 
     def get_data_chunk(self, dispatch_context: BuilderDispatchContext, path: List[str]):
         """
@@ -603,6 +725,24 @@ class PreviousActionProviderType(BuilderDataProviderType):
     """
 
     type = "previous_action"
+
+    def is_valid(
+        self, path: List[str], validation_context: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """
+        Refuses a read outside a workflow action, when the place of the formula is
+        known.
+
+        :raises FormulaPathNotReadable: When the formula isn't in an action.
+        """
+
+        context = path_context_of(validation_context)
+        if context is not None and not context.allow_previous_action:
+            raise FormulaPathNotReadable(
+                f"'{_full_path(self.type, path)}' can only be read in a workflow "
+                "action."
+            )
+        return True
 
     def get_dispatch_action_cache_key(self, dispatch_id: str, action_id: int) -> str:
         """
@@ -812,7 +952,9 @@ class UserDataProviderType(BuilderDataProviderType):
 
         return get_value_at_path({"is_authenticated": is_authenticated, **user}, path)
 
-    def is_valid(self, path: List[str]) -> bool:
+    def is_valid(
+        self, path: List[str], validation_context: Optional[Dict[str, Any]] = None
+    ) -> bool:
         """
         Refuses a property the user doesn't have, which would always render empty.
 

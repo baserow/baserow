@@ -12,6 +12,11 @@ from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 
+from baserow.contrib.builder.data_providers.path_context import (
+    PATH_CONTEXT_KEY,
+    FormulaPathContext,
+    FormulaPathNotReadable,
+)
 from baserow.contrib.builder.data_providers.registries import (
     builder_data_provider_type_registry,
 )
@@ -59,9 +64,6 @@ from .types import DataSourceCreate, DataSourceUpdate, ElementUpdate
 from .types.workflow_action import raise_unless_same_target, with_parameter_formulas
 
 BuilderFormulaKind = Literal["element", "data_source", "action"]
-
-# The most names an error lists.
-MAX_LISTED_NAMES = 30
 
 
 class BuilderFormulaContext:
@@ -285,6 +287,27 @@ class BuilderFormulaContext:
             if key != f"data_source.{self._row_scoped_data_source}"
         }
 
+    def path_context(self, allow_previous_action: bool = False) -> FormulaPathContext:
+        """
+        What a formula at the current place on the page can read, for the data
+        providers to check its paths against.
+
+        :param allow_previous_action: Whether it can read earlier workflow actions.
+        """
+
+        in_collection = bool(self._current_record_stack)
+        return FormulaPathContext(
+            page_shared=self.page.shared,
+            data_sources=self.data_sources,
+            page_parameters=list(self.context.get("page_parameter", {})),
+            form_inputs=list(self.context.get("form_data", {})),
+            current_record=self._current_record_stack[-1] if in_collection else None,
+            in_collection=in_collection,
+            in_unbound_collection=self.in_unbound_collection,
+            current_record_is_row=self.current_record_is_row,
+            allow_previous_action=allow_previous_action,
+        )
+
     @contextmanager
     def scope_to_current_record(self):
         """Use the collection row for implicit formulas, keeping other sources."""
@@ -444,14 +467,19 @@ class BuilderFormulaError(dict):
 
 
 class _GetPathsVisitor(BaserowFormulaValidationVisitor):
-    """Checks a formula's functions and collects the paths its ``get`` calls read."""
+    """
+    Checks a formula's functions and the paths its ``get`` calls read. Each data
+    provider checks its paths against what the page has, from the path context.
+    """
 
-    def __init__(self):
+    def __init__(self, path_context: FormulaPathContext | None = None):
         super().__init__(
             formula_runtime_function_registry,
             data_provider_type_registry=builder_data_provider_type_registry,
+            validation_context=(
+                {PATH_CONTEXT_KEY: path_context} if path_context is not None else None
+            ),
         )
-        self.paths: list[str] = []
 
     def _parse_args_for_validation(self, formula_function_type, accepted_args):
         # A path built by another function is only known when the page runs.
@@ -459,151 +487,25 @@ class _GetPathsVisitor(BaserowFormulaValidationVisitor):
             formula_function_type.type == "get"
             and accepted_args
             and isinstance(accepted_args[0], str)
+            and not to_path(accepted_args[0])
         ):
-            if not to_path(accepted_args[0]):
-                raise InvalidRuntimeFormula(
-                    f"'{accepted_args[0]}' doesn't name anything to read."
-                )
-            self.paths.append(accepted_args[0])
-        return super()._parse_args_for_validation(formula_function_type, accepted_args)
-
-
-def _matches_schema(segments: list[str], schema: dict[str, Any]) -> bool:
-    """
-    Whether a path reads something a JSON schema describes. A field must be named by
-    its key: a published page only loads the fields its formulas name as field_<id>.
-    """
-
-    if not segments:
-        return True
-    if schema.get("type") == "array":
-        if not (segments[0].isdigit() or segments[0] == "*"):
-            return False
-        items = schema.get("items")
-        return _matches_schema(segments[1:], items) if items else True
-    properties = schema.get("properties")
-    if not properties:
-        # An object of unknown shape can hold anything; a plain value holds nothing.
-        return schema.get("type") == "object"
-    prop = properties.get(segments[0])
-    if prop is None:
-        # The schema of a file leaves out its thumbnails, which pages can read.
-        return segments[0] == "thumbnails" and "is_image" in properties
-    return _matches_schema(segments[1:], prop)
-
-
-def _listed(names: list[str]) -> str:
-    if len(names) > MAX_LISTED_NAMES:
-        names = [*names[:MAX_LISTED_NAMES], "..."]
-    return ", ".join(names) or "none"
-
-
-def _listed_fields(schema: dict[str, Any]) -> str:
-    properties = schema.get("items", schema).get("properties", {})
-    return _listed([f"{key} ({prop.get('title')})" for key, prop in properties.items()])
-
-
-def _data_source_path_problem(
-    path: str,
-    rest: list[str],
-    context: BuilderFormulaContext,
-    check_schema: bool = True,
-) -> str | None:
-    data_source_id = rest[0] if rest else ""
-    data_source = (
-        context.data_sources.get(int(data_source_id))
-        if data_source_id.isdigit()
-        else None
-    )
-    if data_source is None:
-        names = [f"{key} ({ds['name']})" for key, ds in context.data_sources.items()]
-        return (
-            f"'{path}' reads data source '{data_source_id}', which isn't on this "
-            f"page. Its data sources: {_listed(names)}."
-        )
-    schema = data_source["schema"]
-    if not check_schema or schema is None or _matches_schema(rest[1:], schema):
-        return None
-    if schema.get("type") == "array" and not (rest[1].isdigit() or rest[1] == "*"):
-        return (
-            f"'{path}' needs a row index after the data source, because it returns "
-            f"a list, like data_source.{data_source_id}.0.id."
-        )
-    return (
-        f"'{path}' is not something data source {data_source_id} "
-        f"('{data_source['name']}') has. Its fields: {_listed_fields(schema)}."
-    )
-
-
-def _current_record_path_problem(
-    path: str, rest: list[str], context: BuilderFormulaContext
-) -> str | None:
-    if not context.current_record_is_row or rest == ["__idx__"]:
-        return None
-    data_source_id = context._current_record_stack[-1]
-    data_source = context.data_sources.get(data_source_id)
-    schema = data_source["schema"] if data_source else None
-    if schema is None:
-        return None
-    if _matches_schema(rest, schema.get("items", schema)):
-        return None
-    return (
-        f"'{path}' is not something a row of data source {data_source_id} "
-        f"('{data_source['name']}') has. Its fields: {_listed_fields(schema)}."
-    )
-
-
-def _get_path_problem(
-    path: str, context: BuilderFormulaContext, allow_previous_action: bool
-) -> str | None:
-    """Why a path of a ``get`` call can't be read in this context, if so."""
-
-    parts = to_path(path)
-    if not parts:
-        return f"'{path}' doesn't name anything to read."
-    root, *rest = parts
-    if root == "data_source":
-        return _data_source_path_problem(path, rest, context)
-    if root == "data_source_context":
-        return _data_source_path_problem(path, rest, context, check_schema=False)
-    if root == "form_data" and context.page.shared:
-        return (
-            f"'{path}' can't be read: items on the shared page, like a form in a "
-            "header, can't read form inputs."
-        )
-    if root in ("page_parameter", "form_data"):
-        known = context.context.get(root, {})
-        what = "page parameter" if root == "page_parameter" else "form element"
-        if not rest or rest[0] not in known:
-            return (
-                f"'{path}' doesn't name a {what} of this page. "
-                f"Its {what}s: {_listed(list(known))}."
+            raise InvalidRuntimeFormula(
+                f"'{accepted_args[0]}' doesn't name anything to read."
             )
-    if root == "current_record" and not context._current_record_stack:
-        return f"'{path}' can only be read inside a repeat or a table."
-    if root == "current_record" and context.in_unbound_collection:
-        return (
-            f"'{path}' can't be read: the repeat or table around it has no data source."
-        )
-    if root == "current_record":
-        return _current_record_path_problem(path, rest, context)
-    if root == "previous_action" and not allow_previous_action:
-        return f"'{path}' can only be read in a workflow action."
-    return None
+        return super()._parse_args_for_validation(formula_function_type, accepted_args)
 
 
 def formula_problem(
     field: str,
     formula: str,
-    context: BuilderFormulaContext,
+    context: BuilderFormulaContext | None,
     allow_previous_action: bool = False,
 ) -> str | None:
     """
     Why a value can't be stored as a formula. The formula isn't evaluated, so the
     type of the values its functions get isn't checked. It must parse, call functions
-    that exist and read paths this context has: for ``data_source``,
-    ``current_record``, ``page_parameter`` and ``form_data`` the thing named must
-    exist, and for the other providers the provider must be available.
+    that exist and read paths this context has: each data provider refuses a path
+    naming something the page doesn't have.
 
     :param allow_previous_action: Whether the value can read earlier workflow actions.
     :return: The problem, or None when the formula is valid.
@@ -620,9 +522,13 @@ def formula_problem(
     except (BaserowFormulaException, RecursionError):
         return description
 
-    visitor = _GetPathsVisitor()
+    visitor = _GetPathsVisitor(
+        context.path_context(allow_previous_action) if context is not None else None
+    )
     try:
         visitor.visit(tree)
+    except FormulaPathNotReadable as exc:
+        return f"'{field}' can't be read on this page: {exc}"
     except DjangoValidationError as exc:
         return f"'{field}' is not a valid formula: {' '.join(exc.messages)}"
     except (
@@ -634,11 +540,6 @@ def formula_problem(
         OverflowError,
     ) as exc:
         return f"'{field}' is not a valid formula: {exc}"
-
-    for path in visitor.paths:
-        problem = _get_path_problem(path, context, allow_previous_action)
-        if problem:
-            return f"'{field}' can't be read on this page: {problem}"
     return None
 
 
