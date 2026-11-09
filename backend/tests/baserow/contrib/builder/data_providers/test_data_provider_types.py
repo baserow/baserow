@@ -1446,6 +1446,18 @@ def test_user_data_provider_get_data_chunk(data_fixture):
     )
 
 
+def test_user_data_provider_refuses_a_property_the_user_does_not_have():
+    from baserow.core.formula.parser.exceptions import BaserowFormulaSyntaxError
+
+    provider = UserDataProviderType()
+    for name in UserDataProviderType.PROPERTIES:
+        assert provider.is_valid([name])
+    assert provider.is_valid([])
+
+    with pytest.raises(BaserowFormulaSyntaxError, match="'first_name'"):
+        provider.is_valid(["first_name"])
+
+
 @pytest.mark.django_db
 def test_translate_default_user_role_returns_same_role(data_fixture):
     """

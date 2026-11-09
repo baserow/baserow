@@ -92,7 +92,6 @@ def test_paths_the_page_has_are_accepted(site):
     for formula in [
         "add(get('page_parameter.id'), 1)",
         "get('page_parameter.q')",
-        "get('user.first_name')",
         "get('user.email')",
         f"get('form_data.{site['form_field'].id}')",
         f"get('data_source.{rows}')",
@@ -150,6 +149,7 @@ def test_a_data_source_without_a_table_reads_anything(data_fixture, site):
         ("to_duration(99999999999999999999)", "not a valid formula"),
         ("duration_format(99999999999999999999,'a')", "not a valid formula"),
         ("get('[')", "doesn't name anything"),
+        ("get('user.first_name')", "has no 'first_name'"),
     ],
 )
 def test_refused_with_a_useful_message(site, formula, expected):
