@@ -18,7 +18,8 @@ def test_html_element_round_trip(
     url = reverse("api:builder:element:list", args=[page.id])
     html = (
         '  <section id="anchor" class="widget" data-lang="en" aria-label="Demo">'
-        '<a href="java script:docs">Docs</a><form><input name="attributes"></form>'
+        '<a href="java script:docs" ping="/log&#160;javascript:example">Docs</a>'
+        '<form><input name="attributes"></form>'
         '<div srcdoc="metadata"></div><iframe srcdoc="&lt;p&gt;Static&lt;/p&gt;"></iframe>'
         '<svg><set attributeName="href" to="#target"/></svg>'
         "{{ widget }}<textarea><script>literal text</script></textarea></section>  "
@@ -47,6 +48,7 @@ INVALID_HTML = [
     '<svg><a xlink:href="javascript:alert(1)">open</a></svg>',
     '<select><option><img src=x onerror="alert(1)"></select>',
     '<template><tr><td onclick="alert(1)">Click</td></tr></template>',
+    '<template><tr><td background="javascript:alert(1)" background="/">Cell</td></tr></template>',
     '<meta http-equiv="refresh" content="0; URL=java&#9;script:alert(1)">',
     '<img srcset="photo.jpg 1x, javascript:alert(1) 2x">',
     '<a ping="/log javascript:alert(1)">Open</a>',

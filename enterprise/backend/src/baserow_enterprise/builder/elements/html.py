@@ -49,7 +49,7 @@ def _urls(tag: str, attrs: dict[str, str]) -> Iterator[str]:
         elif name in {"srcset", "imagesrcset"}:
             yield from _srcset_urls(value)
         elif name == "ping":
-            yield from value.split()
+            yield from re.split(r"[\t\n\f\r ]+", value)
     if tag == "meta" and attrs.get("http-equiv", "").lower() == "refresh":
         yield _REFRESH_PREFIX.sub("", attrs.get("content", ""), count=1)
     if tag in {"animate", "set"}:
@@ -69,10 +69,11 @@ class _StaticTags(HTMLParser):
         self.valid = True
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        attributes = {
-            key.replace("{http://www.w3.org/1999/xlink}", "xlink:").lower(): value or ""
-            for key, value in attrs
-        }
+        # HTML keeps the first occurrence when an attribute is repeated.
+        attributes: dict[str, str] = {}
+        for key, value in attrs:
+            name = key.replace("{http://www.w3.org/1999/xlink}", "xlink:").lower()
+            attributes.setdefault(name, value or "")
         if tag == "script" or any(key.startswith("on") for key in attributes):
             self.valid = False
         if tag == "iframe" and "srcdoc" in attributes:

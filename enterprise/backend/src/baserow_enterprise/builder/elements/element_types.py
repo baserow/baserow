@@ -1,7 +1,9 @@
 import mimetypes
 import uuid
 from typing import Any, Dict, List, Optional
+from zipfile import ZipFile
 
+from django.core.files.storage import Storage
 from django.utils.translation import gettext_lazy as _
 
 from rest_framework import serializers
@@ -25,6 +27,7 @@ from baserow.core.formula.types import (
 )
 from baserow.core.import_export.exceptions import ImportExportResourceInvalidFile
 from baserow.core.import_export.untrusted_content import UntrustedContentTypeMixin
+from baserow.core.models import Workspace
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.user_sources.handler import UserSourceHandler
 from baserow_enterprise.builder.elements.html import HTML_ERROR, is_static_html
@@ -54,14 +57,16 @@ class HTMLElementType(UntrustedContentTypeMixin, ElementType):
         html: str
 
     @property
-    def serializer_field_overrides(self):
+    def serializer_field_overrides(self) -> dict[str, serializers.CharField]:
         return {
             "html": serializers.CharField(
                 allow_blank=True, required=False, trim_whitespace=False
             ),
         }
 
-    def prepare_value_for_db(self, values: dict, instance: Element | None = None):
+    def prepare_value_for_db(
+        self, values: dict[str, Any], instance: Element | None = None
+    ) -> dict[str, Any]:
         if "html" in values and not is_static_html(values["html"]):
             raise RequestBodyValidationException(
                 {"html": [{"error": HTML_ERROR, "code": "invalid_html"}]}
@@ -72,11 +77,11 @@ class HTMLElementType(UntrustedContentTypeMixin, ElementType):
         self,
         prop_name: str,
         value: Any,
-        id_mapping: dict,
-        files_zip=None,
-        storage=None,
-        cache=None,
-        **kwargs,
+        id_mapping: dict[str, Any],
+        files_zip: ZipFile | None = None,
+        storage: Storage | None = None,
+        cache: dict[str, Any] | None = None,
+        **kwargs: Any,
     ) -> Any:
         if prop_name == "html" and not is_static_html(value):
             raise ImportExportResourceInvalidFile(HTML_ERROR)
@@ -84,7 +89,9 @@ class HTMLElementType(UntrustedContentTypeMixin, ElementType):
             prop_name, value, id_mapping, files_zip, storage, cache, **kwargs
         )
 
-    def get_import_report_entry(self, instance: HTMLElement):
+    def get_import_report_entry(
+        self, instance: HTMLElement
+    ) -> dict[str, str | int] | None:
         if not instance.html.strip():
             return None
         return {
@@ -94,10 +101,10 @@ class HTMLElementType(UntrustedContentTypeMixin, ElementType):
             "page_name": instance.page.name,
         }
 
-    def is_deactivated(self, workspace):
+    def is_deactivated(self, workspace: Workspace) -> bool:
         return not LicenseHandler.workspace_has_feature(BUILDER_HTML_ELEMENT, workspace)
 
-    def get_pytest_params(self, pytest_data_fixture):
+    def get_pytest_params(self, pytest_data_fixture: Any) -> dict[str, str]:
         return {"html": '<div id="widget"></div>'}
 
 
