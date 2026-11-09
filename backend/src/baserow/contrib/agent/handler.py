@@ -6,6 +6,11 @@ from django.db import DEFAULT_DB_ALIAS, IntegrityError, transaction
 from django.db.models import Prefetch, QuerySet
 from django.utils.dateparse import parse_datetime
 
+from baserow.contrib.integrations.mcp.models import (
+    MCPServerIntegration,
+    MCPServerTool,
+)
+from baserow.contrib.integrations.mcp.toolset import MCPServerSnapshot
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
 from baserow.core.ai_provider.resolution import ScopedAIProviderState
 from baserow.core.chat_runs.constants import ChatRunErrorCode
@@ -727,6 +732,31 @@ class AgentHandler:
             if acting_subject
             else [],
             timezone=conversation.owner_user.profile.timezone,
+            mcp_servers=self.get_mcp_servers(agent),
+        )
+
+    def get_mcp_servers(self, agent: AgentApplication) -> tuple[MCPServerSnapshot, ...]:
+        """
+        Read the Agent's MCP servers that have tools turned on. They don't depend
+        on the Agent's workspace identity: their tools act with the server's own
+        credential, not in the workspace.
+
+        :param agent: The Agent.
+        :return: One snapshot per server, in the integrations' order.
+        """
+
+        enabled_tools = Prefetch(
+            "tools",
+            queryset=MCPServerTool.objects.filter(enabled=True, removed=False),
+            to_attr="enabled_tools",
+        )
+        servers = MCPServerIntegration.objects.filter(
+            application_id=agent.id, trashed=False
+        ).prefetch_related(enabled_tools)
+        return tuple(
+            MCPServerSnapshot.from_integration(server, server.enabled_tools)
+            for server in servers
+            if server.enabled_tools
         )
 
     def finish_reply(

@@ -29,6 +29,7 @@ class AgentApplicationType(ApplicationType):
     serializer_mixins = [AgentApplicationSerializer]
     request_serializer_field_names = ["name"]
     request_serializer_mixins = []
+    supports_integrations = True
 
     @staticmethod
     def _includes_conversations(import_export_config: ImportExportConfig) -> bool:
@@ -77,8 +78,12 @@ class AgentApplicationType(ApplicationType):
 
     def get_api_urls(self) -> list[URLResolver]:
         from baserow.contrib.agent.api import urls as api_urls
+        from baserow.contrib.integrations.mcp.api import urls as mcp_urls
 
-        return [path("agent/", include(api_urls, namespace=self.type))]
+        return [
+            path("agent/", include(api_urls, namespace=self.type)),
+            path("integrations/mcp/", include(mcp_urls, namespace="mcp_server")),
+        ]
 
     def export_safe_transaction_context(self, application: AgentApplication) -> Atomic:
         return transaction.atomic()

@@ -1,5 +1,6 @@
 from baserow.contrib.integrations.core.models import SMTPIntegration
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowIntegration
+from baserow.contrib.integrations.mcp.models import MCPServerIntegration
 from baserow.contrib.integrations.slack.models import SlackBotIntegration
 from baserow.core.integrations.registries import integration_type_registry
 
@@ -40,6 +41,15 @@ class IntegrationFixtures:
 
         integration = self.create_integration(SlackBotIntegration, **kwargs)
         return integration
+
+    def create_mcp_server_integration(self, **kwargs):
+        kwargs.setdefault("name", "Docs")
+        kwargs.setdefault("url", "https://mcp.example.com/mcp")
+        if "application" not in kwargs:
+            kwargs["application"] = self.create_agent_application(
+                user=kwargs.pop("user", None)
+            )
+        return self.create_integration(MCPServerIntegration, **kwargs)
 
     def create_integration_with_first_type(self, **kwargs):
         first_type = list(integration_type_registry.get_all())[0]

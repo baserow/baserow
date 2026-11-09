@@ -84,6 +84,18 @@ class IntegrationType(
     integration may authenticate anonymously.
     """
 
+    def supports_application_type(self, application_type) -> bool:
+        """
+        Whether this integration can be created on applications of the given type.
+        Every type accepts every application that holds integrations, unless it is
+        only useful to some of them.
+
+        :param application_type: The application type in question.
+        :return: True when it may be created on such an application.
+        """
+
+        return True
+
     def enhance_queryset(self, queryset):
         """
         Allow to enhance the queryset when querying the integration mainly to improve

@@ -374,7 +374,10 @@ class ApplicationType(
         :return: True when it may be created on this application.
         """
 
-        return self.supports_integrations
+        return (
+            self.supports_integrations
+            and integration_type.supports_application_type(self)
+        )
 
     def prepare_value_for_db(self, values: dict, instance: "Application | None" = None):
         """

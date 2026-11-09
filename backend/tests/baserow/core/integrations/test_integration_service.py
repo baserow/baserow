@@ -13,13 +13,19 @@ from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
+from baserow.core.registries import application_type_registry
 
 
 def pytest_generate_tests(metafunc):
     if "integration_type" in metafunc.fixturenames:
         metafunc.parametrize(
             "integration_type",
-            [pytest.param(e, id=e.type) for e in integration_type_registry.get_all()],
+            [
+                pytest.param(e, id=e.type)
+                for e in integration_type_registry.get_all()
+                # The tests create them on an application builder.
+                if e.supports_application_type(application_type_registry.get("builder"))
+            ],
         )
 
 

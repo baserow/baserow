@@ -16,9 +16,10 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 from pydantic_ai.models import Model
-from pydantic_ai.toolsets import FunctionToolset
+from pydantic_ai.toolsets import AbstractToolset, FunctionToolset
 from pydantic_ai.usage import UsageLimits
 
+from baserow.contrib.integrations.mcp.toolset import MCPServerToolset
 from baserow.core.chat_runs.constants import ChatRunErrorCode, ChatRunStopReason
 from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.chat_runs.steps import ChatRunSteps
@@ -146,6 +147,9 @@ class AgentResponder:
         self._text = ""
         self._parts: dict[int, str] = {}
         self._result: str | None = None
+        self._mcp_toolsets = [
+            MCPServerToolset(server) for server in request.mcp_servers
+        ]
         self._steps = ChatRunSteps(journal, self._describe_call)
 
     def _describe_call(self, name: str, arguments: dict) -> dict | None:
@@ -158,6 +162,10 @@ class AgentResponder:
             for a tool the reply doesn't offer, which the model can still name.
         """
 
+        for toolset in self._mcp_toolsets:
+            if snapshot := toolset.get_tool_snapshot(name):
+                # Arguments of external tools may hold anything; none are shown.
+                return {"changes_data": snapshot.changes_data, "input": {}}
         if name not in self._request.allowed_tool_names:
             return None
         tool = agent_tool_type_registry.get(name)
@@ -214,29 +222,31 @@ class AgentResponder:
                 async for event in events:
                     self._on_event(event)
 
-    def _toolsets(self) -> list[FunctionToolset]:
+    def _toolsets(self) -> list[AbstractToolset]:
         """
-        The tools the reply may call, acting as the Agent's identity.
+        The tools the reply may call: Baserow's, acting as the Agent's identity,
+        and those turned on for its MCP servers.
 
-        :return: One toolset, or none when the reply may call no tool.
+        :return: The toolsets, none when the reply may call no tool.
         """
 
         request = self._request
-        if not request.allowed_tool_names:
-            return []
-        ctx = ToolContext(
-            user=request.acting_subject,
-            workspace=request.workspace,
-            timezone=request.timezone,
-        )
-        return [
-            FunctionToolset(
-                [
-                    agent_tool_type_registry.get(name).get_tool(ctx)
-                    for name in request.allowed_tool_names
-                ]
+        toolsets: list[AbstractToolset] = []
+        if request.allowed_tool_names:
+            ctx = ToolContext(
+                user=request.acting_subject,
+                workspace=request.workspace,
+                timezone=request.timezone,
             )
-        ]
+            toolsets.append(
+                FunctionToolset(
+                    [
+                        agent_tool_type_registry.get(name).get_tool(ctx)
+                        for name in request.allowed_tool_names
+                    ]
+                )
+            )
+        return [*toolsets, *self._mcp_toolsets]
 
     def _on_event(self, event: AgentStreamEvent | AgentRunResultEvent) -> None:
         """

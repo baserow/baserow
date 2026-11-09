@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from uuid import UUID
 
+from baserow.contrib.integrations.mcp.toolset import MCPServerSnapshot
 from baserow.core.chat_runs.types import ChatRunStep
 from baserow.core.models import Workspace
 from baserow.core.types import Subject
@@ -77,6 +78,8 @@ class AgentReplyRequest:
     """The tools the reply may call, none without an identity to act as."""
     timezone: str | None = None
     """The timezone of the owner, for the dates the tools read and write."""
+    mcp_servers: tuple[MCPServerSnapshot, ...] = ()
+    """The MCP servers with tools turned on, as reviewed when the reply started."""
 
 
 @dataclass(frozen=True)
