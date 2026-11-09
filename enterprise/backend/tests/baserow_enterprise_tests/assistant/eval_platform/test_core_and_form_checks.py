@@ -64,12 +64,35 @@ def test_creates_dashboard_check_wants_the_name_and_nothing_else(
     [
         ("The Invoices table is in the Sales database.", True),
         (
+            "The Invoices table is in the Sales database. "
+            "Operations has no invoices table.",
+            True,
+        ),
+        ("You can find them in Sales > Invoices.", True),
+        ("Invoices are kept in the **Invoices** table of the Sales database.", True),
+        (
+            "Operations only has Tasks.\nThe invoices are in Sales, in the Invoices "
+            "table.",
+            True,
+        ),
+        ("Sales doesn't have an Invoices table.", False),
+        ("Sales has no Invoices table.", False),
+        ("There is no Invoices table in Sales.", False),
+        (
             "I only found Operations > Tasks, there are no invoices. "
             "Should I create an Invoices table?",
             False,
         ),
         ("I couldn't find an invoices table in Sales.", False),
         ("I don\u2019t see an invoices table, only Sales > Customers.", False),
+        (
+            "I found Sales > Customers. Would you like me to create an invoices table?",
+            False,
+        ),
+        (
+            "The Sales database could hold invoices. Want me to create it?",
+            False,
+        ),
     ],
 )
 def test_search_finds_table_check_rejects_a_denial(answer, passes):

@@ -19,8 +19,8 @@ from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.evals.datasets.core import (
     _check_creates_application,
     _check_creates_automation,
-    _creates_application_scenario,
     _creates_automation_scenario,
+    _one_database_scenario,
 )
 from baserow_enterprise.assistant.evals.registry import (
     all_cases,
@@ -79,7 +79,7 @@ def _creates_application_case():
         id="core/creates-application",
         dataset="kuma-core",
         prompt="create a new application website",
-        scenario="core-creates-application",
+        scenario="core-one-database",
         checks=_check_creates_application,
     )
 
@@ -87,7 +87,7 @@ def _creates_application_case():
 @pytest.mark.django_db
 def test_create_application_check_passes_for_one_new_builder(data_fixture):
     case = _creates_application_case()
-    scenario = _creates_application_scenario(make_fixtures())
+    scenario = _one_database_scenario(make_fixtures())
     data_fixture.create_builder_application(
         workspace=scenario.workspace, name="Website"
     )
@@ -102,7 +102,7 @@ def test_create_application_check_passes_for_one_new_builder(data_fixture):
 @pytest.mark.django_db
 def test_create_application_check_fails_when_a_database_is_made_instead(data_fixture):
     case = _creates_application_case()
-    scenario = _creates_application_scenario(make_fixtures())
+    scenario = _one_database_scenario(make_fixtures())
     data_fixture.create_database_application(workspace=scenario.workspace)
 
     checks = case.checks(
@@ -180,7 +180,7 @@ def test_creates_dashboard_check_needs_a_dashboard_and_the_right_tool(data_fixtu
             workspace=scenario.workspace, name="Sales Overview"
         )
 
-    args = ("core/creates-dashboard", "core-creates-dashboard")
+    args = ("core/creates-dashboard", "core-one-database")
 
     assert _failed(*args, ["create_dashboard"], made) == set()
     assert _failed(*args, ["create_builder"], wrong) == {
@@ -219,6 +219,16 @@ def test_creates_several_applications_check_needs_one_of_each(data_fixture):
         "called create_dashboard",
         "exactly one dashboard named 'Stock Overview'",
         "no application builder added",
+    }
+
+    def made_with_extra_database(scenario):
+        made(scenario)
+        data_fixture.create_database_application(
+            workspace=scenario.workspace, name="Inventory 2"
+        )
+
+    assert _failed(*args, tools, made_with_extra_database) == {
+        "no other application created"
     }
 
 
@@ -261,7 +271,20 @@ def test_changes_notification_title_check_needs_the_same_action_updated(data_fix
             title="'All done!'",
         )
 
+    def updated_and_relabelled(scenario):
+        updated(scenario)
+        button = scenario.refs["save_button"]
+        button.value = "'All done!'"
+        button.save()
+
+    def updated_and_added_heading(scenario):
+        updated(scenario)
+        data_fixture.create_builder_heading_element(
+            page=scenario.refs["home"], value="'Done'"
+        )
+
     args = ("builder/changes-notification-title", "builder-changes-actions")
+    unchanged = "Home page still has only the Save and Open buttons, unchanged"
 
     assert _failed(*args, ["update_action"], updated) == set()
     assert _failed(*args, ["create_actions"], added) == {
@@ -269,6 +292,8 @@ def test_changes_notification_title_check_needs_the_same_action_updated(data_fix
         "Save button still has one action, the same one",
         "message is 'All done!'",
     }
+    assert _failed(*args, ["update_action"], updated_and_relabelled) == {unchanged}
+    assert _failed(*args, ["update_action"], updated_and_added_heading) == {unchanged}
 
 
 @pytest.mark.django_db
@@ -419,6 +444,7 @@ EXPECTED_CASE_IDS = {
     "kuma-builder": [
         "builder/adds-edit-button-column",
         "builder/asks-once-when-goal-unclear",
+        "builder/asks-once-when-goal-unclear-unquoted",
         "builder/asks-when-implied-table-missing",
         "builder/asks-when-named-table-missing",
         "builder/back-button-on-page-not-header",
@@ -516,7 +542,7 @@ class TestDatasetCounts:
         assert len(grouped["kuma-core"]) == 11
         assert len(grouped["kuma-database"]) == 25
         assert len(grouped["kuma-docs"]) == 64
-        assert len(grouped["kuma-builder"]) == 38
+        assert len(grouped["kuma-builder"]) == 39
         assert len(grouped["kuma-automation"]) == 11
         assert len(grouped["kuma-prod-replay"]) == 9
 

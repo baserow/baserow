@@ -2372,6 +2372,10 @@ PROMPT_DEMO_PAGE = (
 
 PROMPT_TEAM_APP = "Create an app for my team."
 
+# Same request in wording that no prompt or tool description quotes, so the case
+# can't pass by matching an example.
+PROMPT_VOLUNTEERS_TOOL = "Put together a tool our volunteers can use."
+
 
 def _check_asks_when_named_table_missing(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
@@ -2549,6 +2553,18 @@ register_case(
         dataset="kuma-builder",
         # Nothing pins what the app is for: one question first, not a guess.
         prompt=PROMPT_TEAM_APP,
+        scenario="builder-blank-app",
+        checks=_check_asks_once_when_goal_unclear,
+        mode=AgentMode.APPLICATION,
+        max_iters=15,
+    )
+)
+
+register_case(
+    EvalCase(
+        id="builder/asks-once-when-goal-unclear-unquoted",
+        dataset="kuma-builder",
+        prompt=PROMPT_VOLUNTEERS_TOOL,
         scenario="builder-blank-app",
         checks=_check_asks_once_when_goal_unclear,
         mode=AgentMode.APPLICATION,
@@ -3265,6 +3281,7 @@ def _changes_actions_scenario(fx: Fixtures) -> EvalScenario:
         ui_context=build_builder_ui_context(user, workspace, builder),
         refs={
             "builder": builder,
+            "home": home,
             "save_button": save_button,
             "open_button": open_button,
             "save_action_id": save_action.id,
@@ -3275,6 +3292,21 @@ def _changes_actions_scenario(fx: Fixtures) -> EvalScenario:
 
 def _actions_of(button) -> list[BuilderWorkflowAction]:
     return list(BuilderWorkflowAction.objects.filter(element_id=button.id))
+
+
+def _home_buttons_unchanged(scenario: EvalScenario) -> CheckResult:
+    """The Home page still holds only the Save and Open buttons, with their text."""
+
+    refs = scenario.refs
+    buttons = [
+        (element.id, _render_saved_formula(getattr(element.specific, "value", None)))
+        for element in Element.objects.filter(page=refs["home"]).order_by("id")
+    ]
+    return CheckResult(
+        "Home page still has only the Save and Open buttons, unchanged",
+        buttons == [(refs["save_button"].id, "Save"), (refs["open_button"].id, "Open")],
+        hint=f"buttons: {buttons}",
+    )
 
 
 def _check_changes_notification_title(
@@ -3300,6 +3332,7 @@ def _check_changes_notification_title(
             [a.id for a in _actions_of(scenario.refs["open_button"])]
             == [scenario.refs["open_action_id"]],
         ),
+        _home_buttons_unchanged(scenario),
     ]
 
 
