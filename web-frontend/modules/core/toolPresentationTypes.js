@@ -39,6 +39,15 @@ export class ToolPresentationType extends Registerable {
     return null
   }
 
+  /**
+   * Whether this type presents a tool registered under another name. Tools
+   * named at runtime, like those of an MCP server, can't be registered one by
+   * one, so their type claims them by name instead.
+   */
+  matchesTool(name) {
+    return false
+  }
+
   getLabel(t) {
     return t('toolPresentation.tool')
   }
@@ -51,6 +60,19 @@ export class ToolPresentationType extends Registerable {
   getActivity(step, t) {
     return t(`toolPresentation.${step.status}`)
   }
+}
+
+/** The type registered under the tool's name, or one that claims the name. */
+function findPresenter(registry, name) {
+  if (registry.exists('toolPresentation', name)) {
+    return registry.get('toolPresentation', name)
+  }
+  if (typeof name !== 'string') return null
+  return (
+    registry
+      .getList('toolPresentation')
+      .find((presenter) => presenter.matchesTool(name)) ?? null
+  )
 }
 
 const record = (value) =>
@@ -102,8 +124,8 @@ export function toolActivity(step, registry, t) {
     failureHint: failureHint(data, status, t),
   }
   try {
-    if (!registry.exists('toolPresentation', data.tool)) return fallback
-    const presenter = registry.get('toolPresentation', data.tool)
+    const presenter = findPresenter(registry, data.tool)
+    if (!presenter) return fallback
     const translate = (key, values, count) => {
       const text = t(key, values, count)
       const exists = presenter.app?.$i18n?.te?.(key)

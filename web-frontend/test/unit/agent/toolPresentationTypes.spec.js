@@ -53,10 +53,12 @@ describe('Agent tool presentations', () => {
           .failureHint
       ).toBeTruthy()
     }
+    // Connected app tools are named at runtime and claimed by prefix.
     expect(
       registry
         .getList('toolPresentation')
         .map((presenter) => presenter.getType())
+        .filter((type) => type !== 'mcp_server_tool')
         .sort()
     ).toEqual(cases.tools.map(({ name }) => name).sort())
     for (const { name, input, facts } of cases.tools) {
@@ -321,4 +323,33 @@ describe('Agent tool presentations', () => {
       })
     }
   )
+
+  test('connected app calls name the tool and the app, never the arguments', () => {
+    const call = (status, input) =>
+      toolActivity(
+        {
+          id: '1',
+          tool: 'mcp12_create_issue',
+          status,
+          changes_data: true,
+          input,
+          facts: {},
+        },
+        registry,
+        t
+      )
+    const input = { server: 'Linear', tool: 'Create issue' }
+    expect(call('running', input).title).toBe('Using Create issue in Linear')
+    expect(call('done', input).title).toBe('Used Create issue in Linear')
+    expect(call('failed', input)).toMatchObject({
+      title: 'Create issue in Linear',
+      changesData: true,
+      group: null,
+    })
+    expect(call('done', {}).title).toBe('Connected app tool')
+    // A built-in tool that only looks similar is not claimed.
+    expect(toolActivity(step('mcp_tables', 'done'), registry, t).title).toBe(
+      'Tool completed'
+    )
+  })
 })

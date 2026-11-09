@@ -138,6 +138,15 @@ class MCPServerToolset(AbstractToolset[Any]):
     def get_tool_snapshot(self, model_name: str) -> MCPToolSnapshot | None:
         return self._tools.get(model_name)
 
+    def get_step_input(self, model_name: str) -> dict[str, str]:
+        """
+        Name the server and tool in the reply's steps. Both were reviewed by an
+        editor; the call's arguments may hold anything and are never shown.
+        """
+
+        tool = self._tools[model_name]
+        return {"server": self._server.name, "tool": tool.title or tool.name}
+
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
         tools = {}
         for model_name, tool in self._tools.items():

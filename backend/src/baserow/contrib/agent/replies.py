@@ -164,8 +164,10 @@ class AgentResponder:
 
         for toolset in self._mcp_toolsets:
             if snapshot := toolset.get_tool_snapshot(name):
-                # Arguments of external tools may hold anything; none are shown.
-                return {"changes_data": snapshot.changes_data, "input": {}}
+                return {
+                    "changes_data": snapshot.changes_data,
+                    "input": toolset.get_step_input(name),
+                }
         if name not in self._request.allowed_tool_names:
             return None
         tool = agent_tool_type_registry.get(name)

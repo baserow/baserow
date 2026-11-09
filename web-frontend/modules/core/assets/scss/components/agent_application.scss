@@ -654,3 +654,108 @@
   gap: 8px;
   margin-top: 20px;
 }
+
+.agent-connected-apps__description {
+  margin-bottom: 16px;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-900;
+}
+
+.agent-connected-apps__server {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border: 1px solid $palette-neutral-200;
+  border-radius: 6px;
+}
+
+.agent-connected-apps__server-icon {
+  color: $palette-neutral-900;
+}
+
+.agent-connected-apps__server-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-connected-apps__server-name {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-connected-apps__server-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: $palette-neutral-900;
+}
+
+.agent-connected-apps__add {
+  margin-top: 4px;
+}
+
+.agent-connected-apps__modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.agent-connected-apps__modal-spacer {
+  flex: 1;
+}
+
+.agent-mcp-tools__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.agent-mcp-tools__empty {
+  font-size: 13px;
+  color: $palette-neutral-900;
+}
+
+.agent-mcp-tools__columns {
+  display: flex;
+  flex-shrink: 0;
+  gap: 24px;
+
+  > * {
+    display: flex;
+    justify-content: center;
+    width: 80px;
+  }
+}
+
+.agent-mcp-tools__tool-content {
+  min-width: 0;
+
+  .agent-tool-permissions__tool-name {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+}
+
+.agent-mcp-tools__tool-description {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.agent-mcp-tools__tool--removed {
+  opacity: 0.6;
+}

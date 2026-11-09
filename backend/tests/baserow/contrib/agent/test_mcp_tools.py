@@ -88,7 +88,7 @@ def test_a_reply_calls_turned_on_mcp_tools(data_fixture, configured_agent, mocke
             "tool": add,
             "status": "done",
             "changes_data": True,
-            "input": {},
+            "input": {"server": "Docs", "tool": "Add numbers"},
             "facts": {"server": "Docs"},
         }
     ]
