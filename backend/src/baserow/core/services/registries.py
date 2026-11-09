@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import fields
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, TypeVar
 
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
@@ -845,11 +845,21 @@ class ListServiceTypeMixin:
 
 
 class TriggerServiceTypeMixin(ABC):
-    # The callable function which should be called when the event occurs.
-    on_event: Callable = lambda *args: None
-
     # The service is always dispatched by an event.
     dispatch_types = [DispatchTypes.EVENT]
+
+    @property
+    def listeners(self) -> List[Callable]:
+        """
+        The callables notified when this trigger type's event occurs, in
+        subscription order. One list per service type instance.
+
+        :return: The listeners subscribed through `start_listening`.
+        """
+
+        if not hasattr(self, "_listeners"):
+            self._listeners: List[Callable] = []
+        return self._listeners
 
     def can_be_immediately_dispatched(self, service: Service):
         """
@@ -880,23 +890,79 @@ class TriggerServiceTypeMixin(ABC):
 
     def start_listening(self, on_event: Callable) -> None:
         """
-        Triggers, a type of service which respond to internal and external events and
-        trigger their own dispatch, need the ability to "start" listening to their
-        events. This method ensure that we only begin listening when we need to.
+        Subscribes a listener to this trigger type's events. The type connects to
+        its event source (a Django signal, the Celery beat, ...) only when the
+        first listener subscribes, so nothing is received while nobody consumes.
 
-        :param on_event: A callable function which should be called when
-            the internal or external event occurs.
+        :param on_event: Called as `on_event(services, event_payload, user=...,
+            isolate_failures=...)` when the event occurs. It may return a list of
+            results, which `on_event` concatenates across listeners.
         """
 
-        self.on_event = on_event
+        if on_event in self.listeners:
+            return
 
-    def stop_listening(self) -> None:
+        self.listeners.append(on_event)
+        if len(self.listeners) == 1:
+            self.connect()
+
+    def stop_listening(self, on_event: Callable) -> None:
         """
-        Triggers, a type of service which respond to internal and external events and
-        trigger their own dispatch, need the ability to "stop" listening to their
-        events. This method ensure that we can stop listening when we need to.
-        :return:
+        Unsubscribes a listener. The type disconnects from its event source when
+        the last listener leaves. Unknown listeners are ignored.
+
+        :param on_event: The callable given to `start_listening`.
         """
+
+        if on_event not in self.listeners:
+            return
+
+        self.listeners.remove(on_event)
+        if not self.listeners:
+            self.disconnect()
+
+    def connect(self) -> None:
+        """
+        Starts receiving the events this trigger type reacts to. Called when the
+        first listener subscribes. Types without an event source of their own
+        (e.g. the HTTP trigger, called by its view) keep this no-op.
+        """
+
+    def disconnect(self) -> None:
+        """
+        Stops receiving events. Called when the last listener unsubscribes.
+        """
+
+    def on_event(
+        self,
+        services: Iterable[Service],
+        event_payload: Dict | Callable | None = None,
+        user: Optional[AbstractUser] = None,
+        isolate_failures: bool = False,
+    ) -> List:
+        """
+        Notifies every listener that an event occurred for the given services.
+
+        :param services: The services the event applies to. Iterated once, so a
+            queryset or iterator is safe to pass.
+        :param event_payload: The event payload, or a callable returning the
+            payload for a given service.
+        :param user: The user who caused the event, if any.
+        :param isolate_failures: Whether a listener should roll back and skip a
+            consumer that fails to start instead of raising.
+        :return: The concatenated results of every listener; `[]` when none has
+            anything to report.
+        """
+
+        services = list(services)
+        results: List = []
+        for listener in self.listeners:
+            result = listener(
+                services, event_payload, user=user, isolate_failures=isolate_failures
+            )
+            if result is not None:
+                results.extend(result)
+        return results
 
 
 class ServiceTypeRegistry(

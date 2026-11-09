@@ -2054,13 +2054,21 @@ class CorePeriodicTriggerServiceType(TriggerServiceTypeMixin, CoreServiceType):
             "periodic-service-type-task", terminate=True
         )
 
-    def start_listening(self, on_event: Callable):
-        super().start_listening(on_event)
+    def connect(self) -> None:
+        """
+        Schedules the beat task once Celery finalizes.
+        """
+
         celery_app.on_after_finalize.connect(self._setup_periodic_task)
 
-    def stop_listening(self):
-        super().stop_listening()
+    def disconnect(self) -> None:
+        """
+        Stops scheduling the beat task and cancels it if it was scheduled.
+        """
+
+        celery_app.on_after_finalize.disconnect(self._setup_periodic_task)
         self._cancel_periodic_task()
+        self._cancel_periodic_task = lambda: None
 
     def _localize(
         self, service: CorePeriodicService, value: Optional[datetime]

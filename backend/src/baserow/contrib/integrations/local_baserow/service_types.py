@@ -1,7 +1,6 @@
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Dict,
     Generator,
     List,
@@ -3159,15 +3158,22 @@ class LocalBaserowRowsSignalTriggerServiceType(
     # the `type` is set to `array` instead of `object`.
     returns_list = True
 
-    def start_listening(self, on_event: Callable):
-        super().start_listening(on_event)
+    def connect(self) -> None:
+        """
+        Receives the Django signal this type reacts to.
+        """
+
         self.signal.connect(self._signal_receiver)
 
-    def stop_listening(self):
+    def disconnect(self) -> None:
+        """
+        Stops receiving the Django signal.
+        """
+
         self.signal.disconnect(self._signal_receiver)
 
     def _process_event(self, *args, **kwargs):
-        return self.on_event(*args, **kwargs) if callable(self.on_event) else None
+        return self.on_event(*args, **kwargs)
 
     def _handle_signal(
         self,
