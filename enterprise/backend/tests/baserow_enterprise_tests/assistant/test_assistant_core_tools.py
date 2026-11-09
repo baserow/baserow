@@ -514,8 +514,9 @@ def test_redo_of_a_message_that_created_an_automation_restores_it(data_fixture):
     with transaction.atomic():
         redone = ActionHandler.redo(user, scopes, session_id)
 
-    # The two applications and the automation's integration.
-    assert [action.error for action in redone] == [None, None, None]
+    # The two applications. The integration stays out of undo and comes back with
+    # its automation.
+    assert [action.error for action in redone] == [None, None]
     assert Application.objects.filter(id__in=ids).count() == 2
     assert Automation.objects.filter(id=created["id"]).exists()
     assert Integration.objects.filter(application_id=created["id"]).exists()
