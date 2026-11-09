@@ -506,3 +506,44 @@ def test_0133_adds_template_metadata_and_lets_revisions_share_a_workspace(
 
     NewTemplate.objects.update(public_revision=None)
     NewTemplate.objects.all().delete()
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0136_renames_create_dashboards_in_stored_allow_lists(
+    migrator, teardown_table_metadata
+):
+    old_state = migrator.migrate([("core", "0135_workspaceinvitationlink_scope")])
+    User = old_state.apps.get_model("auth", "User")
+    Workspace = old_state.apps.get_model("core", "Workspace")
+    MCPEndpoint = old_state.apps.get_model("core", "MCPEndpoint")
+    user = User.objects.create(username="mcp-rename-dashboards")
+    workspace = Workspace.objects.create(name="ws")
+
+    def endpoint(key, allowed_tools):
+        return MCPEndpoint.objects.create(
+            name=key,
+            key=key * 32,
+            user=user,
+            workspace=workspace,
+            allowed_tools=allowed_tools,
+        )
+
+    granted = endpoint("a", ["list_dashboards", "create_dashboards", "list_tables"])
+    both = endpoint("b", ["create_dashboard", "create_dashboards"])
+    other = endpoint("c", ["list_dashboards"])
+    legacy = endpoint("d", None)
+
+    new_state = migrator.migrate(
+        [("core", "0136_mcpendpoint_rename_create_dashboards")]
+    )
+    NewMCPEndpoint = new_state.apps.get_model("core", "MCPEndpoint")
+
+    def allowed(e):
+        return NewMCPEndpoint.objects.get(id=e.id).allowed_tools
+
+    assert allowed(granted) == ["list_dashboards", "create_dashboard", "list_tables"]
+    assert allowed(both) == ["create_dashboard"]
+    assert allowed(other) == ["list_dashboards"]
+    assert allowed(legacy) is None
+
+    NewMCPEndpoint.objects.all().delete()
