@@ -228,8 +228,18 @@ class MCPServerHandler:
                     self.refresh_oauth_token(integration)
                 elif integration.oauth_expires_at <= timezone.now():
                     # Nothing to refresh with: an editor has to sign in again,
-                    # which the server's status now says.
-                    self.disconnect_oauth(integration)
+                    # which the server's status now says. Only this token is
+                    # cleared, not one from a sign-in that just finished.
+                    expired = integration.oauth_access_token
+                    integration.clear_oauth_tokens()
+                    MCPServerIntegration.objects.filter(
+                        id=integration.id, oauth_access_token=expired
+                    ).update(
+                        **{
+                            name: getattr(integration, name)
+                            for name in OAUTH_TOKEN_FIELDS
+                        }
+                    )
                     raise MCPServerNotConnected()
         return MCPServerConnection.from_integration(integration)
 

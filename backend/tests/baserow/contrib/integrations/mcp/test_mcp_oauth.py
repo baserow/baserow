@@ -506,3 +506,24 @@ def test_a_server_moved_during_the_token_exchange_gets_no_tokens(
     assert response.status_code == 400
     integration.refresh_from_db()
     assert integration.oauth_access_token == ""
+
+
+@pytest.mark.django_db
+def test_an_expired_token_is_cleared_without_undoing_a_new_sign_in(data_fixture):
+    integration = oauth_server(
+        data_fixture,
+        data_fixture.create_user(),
+        oauth_access_token="access-1",
+        oauth_expires_at=timezone.now() - timedelta(seconds=1),
+    )
+    # An editor signs in again after the reply read the server.
+    MCPServerIntegration.objects.filter(id=integration.id).update(
+        oauth_access_token="access-2",
+        oauth_expires_at=timezone.now() + timedelta(hours=1),
+    )
+
+    with pytest.raises(MCPServerNotConnected):
+        MCPServerHandler().get_connection(integration)
+
+    integration.refresh_from_db()
+    assert integration.oauth_access_token == "access-2"
