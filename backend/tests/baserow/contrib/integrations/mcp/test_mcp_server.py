@@ -9,6 +9,7 @@ from asgiref.sync import async_to_sync
 
 from baserow.contrib.integrations.mcp.client import (
     MAX_TOOL_PAGES,
+    MCPServerConnection,
     MCPToolDefinition,
     fetch_tools,
     list_tools,
@@ -399,3 +400,13 @@ def test_tools_of_a_server_moved_during_the_refresh_are_not_stored(
     MCPServerService().refresh_tools(user, integration.id)
 
     assert not MCPServerTool.objects.filter(integration=integration).exists()
+
+
+def test_a_connection_never_shows_its_credential():
+    connection = MCPServerConnection(
+        url="https://mcp.example.com/mcp",
+        headers={"Authorization": "Bearer s3cr3t-value"},
+    )
+
+    # Error reports and logs print objects that hold the connection.
+    assert "s3cr3t-value" not in repr(connection)

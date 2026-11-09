@@ -33,7 +33,8 @@ class MCPServerConnection:
     """Where an MCP server is and how to authenticate, without any model."""
 
     url: str
-    headers: dict[str, str] = field(default_factory=dict)
+    # Holds the credential: kept out of reprs, which error reports and logs print.
+    headers: dict[str, str] = field(default_factory=dict, repr=False)
 
     @classmethod
     def from_integration(cls, integration) -> "MCPServerConnection":
