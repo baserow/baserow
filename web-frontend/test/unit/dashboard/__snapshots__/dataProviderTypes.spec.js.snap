@@ -1,5 +1,57 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`dropdown options expose source metadata in the selected dashboard 1`] = `
+{
+  "icon": "iconoir-question-mark",
+  "identifier": "data_source_context",
+  "name": "dataProviderType.dataSourceContext",
+  "nodes": [
+    {
+      "icon": "iconoir-question-mark",
+      "identifier": "2",
+      "name": "Sales orders",
+      "nodes": [
+        {
+          "icon": "iconoir-list",
+          "identifier": "field_10",
+          "name": "Region",
+          "node_type": "object",
+          "nodes": [
+            {
+              "icon": "baserow-icon-hashtag",
+              "identifier": "id",
+              "name": "id",
+              "order": null,
+              "type": "number",
+            },
+            {
+              "icon": "iconoir-text",
+              "identifier": "value",
+              "name": "value",
+              "order": null,
+              "type": "string",
+            },
+            {
+              "icon": "iconoir-text",
+              "identifier": "color",
+              "name": "color",
+              "order": null,
+              "type": "string",
+            },
+          ],
+          "order": null,
+          "type": "array",
+        },
+      ],
+      "order": 0,
+      "type": "object",
+    },
+  ],
+  "order": null,
+  "type": "object",
+}
+`;
+
 exports[`filter picker exposes titled strings from the selected dashboard store 1`] = `
 {
   "icon": "iconoir-question-mark",

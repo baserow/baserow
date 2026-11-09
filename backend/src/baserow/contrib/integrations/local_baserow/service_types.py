@@ -947,7 +947,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
         return {
             "type": "object",
-            "title": self.get_schema_name(service),
+            "title": service.table.name,
             "properties": properties,
         }
 

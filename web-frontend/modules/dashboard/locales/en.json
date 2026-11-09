@@ -114,7 +114,7 @@
     "singleValue": "Single value",
     "multipleValues": "Multiple values",
     "filterValues": "Filter values",
-    "filterValuesHelp": "Choose a data source field or enter values separated by commas.",
+    "filterValuesHelp": "Choose data source context data or enter values separated by commas.",
     "optionsError": "Could not load filter values. Check the source or formula.",
     "clear": "Clear selection",
     "placeholder": "Placeholder",

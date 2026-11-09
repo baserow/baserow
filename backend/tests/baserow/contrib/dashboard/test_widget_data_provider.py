@@ -1076,18 +1076,33 @@ def test_runtime_filter_is_complete_and_namespaces_nested_group_ids(
     }
 
 
-@pytest.mark.django_db
-@pytest.mark.parametrize("public", [False, True])
-def test_dropdown_options_from_saved_table_formula(
-    api_client, filter_dashboard, public
-):
-    user, token, dashboard, source, widget, condition = filter_dashboard
-    table = source.service.specific.table
+@pytest.fixture
+def context_options(data_fixture, filter_dashboard):
+    """Configured options exist without any row using them."""
+    _, _, _, source, widget, _ = filter_dashboard
+    field = data_fixture.create_single_select_field(table=source.service.specific.table)
+    data_fixture.create_select_option(field=field, value="Europe", color="blue")
+    data_fixture.create_select_option(field=field, value="Americas", color="red")
+    source.service = data_fixture.create_local_baserow_list_rows_service(
+        table=source.service.specific.table,
+        integration=source.service.specific.integration,
+    )
+    source.save()
     widget.mode = "dropdown"
     widget.options = BaserowFormulaObject.create(
-        f"get('table.{table.id}.*.field_{condition['field']}')"
+        f"get('data_source_context.{source.id}.field_{field.id}.*.value')"
     )
     widget.save()
+    return field
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("public", [False, True])
+def test_dropdown_options_from_source_metadata(
+    api_client, filter_dashboard, context_options, public
+):
+    """Private and public dropdowns use configured metadata, never row values."""
+    _, token, dashboard, source, widget, _ = filter_dashboard
     url = reverse(
         "api:dashboard:public:widget_options"
         if public
@@ -1099,11 +1114,7 @@ def test_dropdown_options_from_saved_table_formula(
     headers = {} if public else {"HTTP_AUTHORIZATION": f"JWT {token}"}
     response = api_client.get(url, **headers)
     assert response.status_code == 200
-    assert response.json() == {"results": ["Alpha", "Beta"]}
-    RowHandler().create_rows(user, table, [{f"field_{condition['field']}": " Alpha "}])
-    assert api_client.get(url, **headers).json() == {
-        "results": ["Alpha", "Beta", " Alpha "]
-    }
+    assert response.json() == {"results": ["Europe", "Americas"]}
     widget.options = BaserowFormulaObject.create(
         "France, Belgium, France, , Morocco", mode="raw"
     )
@@ -1115,11 +1126,10 @@ def test_dropdown_options_from_saved_table_formula(
 
 @pytest.mark.django_db
 def test_dropdown_options_access_and_formula_scope(
-    api_client, filter_dashboard, data_fixture
+    api_client, filter_dashboard, data_fixture, context_options
 ):
+    """Reject row providers and sources outside the widget's dashboard."""
     _, token, dashboard, source, widget, condition = filter_dashboard
-    widget.mode = "dropdown"
-    widget.save()
     options_url = reverse(
         "api:dashboard:widgets:options", kwargs={"widget_id": widget.id}
     )
@@ -1133,33 +1143,39 @@ def test_dropdown_options_access_and_formula_scope(
     )
     headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
     detail_url = reverse("api:dashboard:widgets:item", kwargs={"widget_id": widget.id})
-    table = source.service.specific.table
-    formula = BaserowFormulaObject.create(
-        f"get('table.{table.id}.*.field_{condition['field']}')"
-    )
     assert (
         api_client.patch(
-            detail_url, {"options": formula}, format="json", **headers
+            detail_url, {"options": widget.options}, format="json", **headers
         ).status_code
         == 200
     )
-    assert (
-        api_client.patch(
-            detail_url,
-            {"options": BaserowFormulaObject.create(f"get('widget_data.{widget.id}')")},
-            format="json",
-            **headers,
-        ).status_code
-        == 400
-    )
-    unrelated = data_fixture.create_database_table(database=table.database)
-    field = data_fixture.create_text_field(table=unrelated)
+    for path in [
+        f"widget_data.{widget.id}",
+        f"table.{source.service.specific.table_id}.*.field_{condition['field']}",
+        "data_source_context.invalid.field_1",
+    ]:
+        assert (
+            api_client.patch(
+                detail_url,
+                {"options": BaserowFormulaObject.create(f"get('{path}')")},
+                format="json",
+                **headers,
+            ).status_code
+            == 400
+        )
+    unrelated = data_fixture.create_dashboard_local_baserow_aggregate_rows_data_source()
     widget.options = BaserowFormulaObject.create(
-        f"get('table.{unrelated.id}.*.field_{field.id}')"
+        f"get('data_source_context.{unrelated.id}.field_{context_options.id}.*.value')"
     )
     widget.save()
     assert api_client.get(options_url, **headers).status_code == 400
-    # Public access still requires the password and membership in the named dashboard.
+    widget.options = BaserowFormulaObject.create(
+        f"get('data_source_context.{source.id}.field_{context_options.id}.*.value')"
+    )
+    widget.save()
+    source.trashed = True
+    source.save()
+    assert api_client.get(options_url, **headers).status_code == 400
     dashboard.set_password("test-password")
     dashboard.save()
     public_url = reverse(
@@ -1176,38 +1192,43 @@ def test_dropdown_options_access_and_formula_scope(
 
 
 @pytest.mark.django_db
-def test_dropdown_options_schema_limits_and_import(
-    api_client, filter_dashboard, monkeypatch
+def test_dropdown_context_schema_limits_and_import(
+    api_client, filter_dashboard, context_options, monkeypatch, data_fixture
 ):
+    """Expose metadata schemas and remap both source and field IDs on import."""
     from baserow.contrib.dashboard.formula_importer import import_formula
     from baserow.contrib.dashboard.widgets.options import (
         DashboardOptionsContext,
         dashboard_options_data_provider_registry,
     )
 
-    _, token, dashboard, source, widget, condition = filter_dashboard
+    _, token, dashboard, source, widget, _ = filter_dashboard
     headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
-    table = source.service.specific.table
-    field_name = f"field_{condition['field']}"
     url = reverse(
         "api:dashboard:data_sources:list", kwargs={"dashboard_id": dashboard.id}
     )
     response = api_client.get(url, **headers)
     assert response.status_code == 200
-    assert field_name in response.json()[0]["table_schema"]["items"]["properties"]
-    formula = BaserowFormulaObject.create(f"get('table.{table.id}.*.{field_name}')")
+    field_name = f"field_{context_options.id}"
+    assert field_name in response.json()[0]["context_data_schema"]["properties"]
+    assert [
+        option["value"] for option in response.json()[0]["context_data"][field_name]
+    ] == ["Europe", "Americas"]
+    imported_source = data_fixture.create_dashboard_local_baserow_list_rows_data_source(
+        dashboard=dashboard, table=source.service.specific.table
+    )
     imported = import_formula(
-        formula,
+        widget.options,
         {
-            "database_tables": {table.id: 1234},
-            "database_fields": {condition["field"]: 5678},
+            "dashboard_data_sources": {source.id: imported_source.id},
+            "database_fields": {context_options.id: 5678},
         },
         data_provider_type_registry=dashboard_options_data_provider_registry,
     )
-    assert imported["formula"] == "get('table.1234.*.field_5678')"
-    widget.mode = "dropdown"
-    widget.options = formula
-    widget.save()
+    assert (
+        imported["formula"]
+        == f"get('data_source_context.{imported_source.id}.field_5678.*.value')"
+    )
     monkeypatch.setattr(DashboardOptionsContext, "max_values", 1)
     options_url = reverse(
         "api:dashboard:widgets:options", kwargs={"widget_id": widget.id}
@@ -1237,3 +1258,21 @@ def test_filter_status_tracks_source_conditions_and_empty_groups(
     }
     stored_filter.delete()
     assert handler.dispatch_data_source(source, context) == {"result": "70"}
+
+
+@pytest.mark.django_db
+def test_summary_filter_options_expose_declared_context(data_fixture, filter_dashboard):
+    """Read the existing summary source context without changing its structure."""
+    from baserow.contrib.dashboard.widgets.options import DashboardWidgetOptionsService
+
+    _, _, _, source, widget, _ = filter_dashboard
+    service = source.service.specific
+    field = data_fixture.create_single_select_field(table=service.table)
+    data_fixture.create_select_option(field=field, value="Unused region", color="blue")
+    service.field = field
+    service.save()
+    widget.mode = "dropdown"
+    widget.options = BaserowFormulaObject.create(
+        f"get('data_source_context.{source.id}.field.select_options.*.value')"
+    )
+    assert DashboardWidgetOptionsService().get_options(widget) == ["Unused region"]

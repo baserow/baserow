@@ -113,36 +113,84 @@ test('new filter types supply their own formula schema', () => {
   }
 })
 
-test('dropdown option picker exposes each used table once in the selected dashboard', async () => {
-  const { DashboardTableDataProviderType } =
+test('dropdown options expose source metadata in the selected dashboard', async () => {
+  const { DashboardDataSourceContextDataProviderType } =
     await import('@baserow/modules/dashboard/dataProviderTypes')
   const store = testApp.store
-  const prefix = 'template/dashboardApplication/'
-  const tableSchema = {
-    title: 'Orders',
-    type: 'array',
-    items: {
-      type: 'object',
-      properties: { field_10: { type: 'string', title: 'Country' } },
+  const contextSchema = {
+    type: 'object',
+    title: 'Sales orders',
+    properties: {
+      field_10: {
+        type: 'array',
+        title: 'Region',
+        items: {
+          type: 'object',
+          properties: {
+            id: { type: 'number' },
+            value: { type: 'string' },
+            color: { type: 'string' },
+          },
+        },
+      },
     },
   }
-  store.commit(prefix + 'SET_WIDGETS', [
-    { id: 1, data_source_id: 2 },
-    { id: 2, data_source_id: 3 },
-    { id: 3, type: 'text_filter' },
+  store.commit('template/dashboardApplication/SET_DATA_SOURCES', [
+    {
+      id: 2,
+      table_id: 114,
+      type: 'local_baserow_list_rows',
+      name: 'Orders',
+      context_data_schema: contextSchema,
+      context_data: { field_10: [{ value: 'Europe' }, { value: 'Americas' }] },
+    },
+    {
+      id: 3,
+      table_id: 114,
+      type: 'local_baserow_list_rows',
+      name: 'Revenue',
+      context_data_schema: contextSchema,
+    },
+    {
+      id: 4,
+      type: 'local_baserow_aggregate_rows',
+      name: 'Summary context',
+      context_data_schema: null,
+      context_data: {
+        field: { id: 10, name: 'Revenue', number_decimal_places: 2 },
+      },
+    },
+    {
+      id: 5,
+      name: 'Empty source',
+      context_data: {},
+      context_data_schema: null,
+    },
+    {
+      id: 6,
+      name: 'Chart context',
+      context_data_schema: null,
+      context_data: {
+        fields: {
+          field_10: { name: 'Region', select_options: [{ value: 'Europe' }] },
+        },
+      },
+    },
   ])
-  store.commit(prefix + 'SET_DATA_SOURCES', [
-    { id: 2, table_id: 5, table_schema: tableSchema },
-    { id: 3, table_id: 5, table_schema: tableSchema },
-    { id: 4, table_id: 6, table_schema: tableSchema },
-  ])
-  const provider = new DashboardTableDataProviderType({
-    app: { $store: store },
+  const provider = new DashboardDataSourceContextDataProviderType({
+    app: {
+      $store: store,
+      $registry: store.$registry,
+      $i18n: { t: (key) => key },
+    },
   })
-  expect(provider.getDataSchema({ storePrefix: 'template/' })).toEqual({
-    type: 'object',
-    properties: { 5: { ...tableSchema, order: 0 } },
-  })
-  expect(provider.isValid(['5', '*', 'field_10'])).toBe(true)
-  expect(provider.isValid(['5'])).toBe(false)
+  const context = { storePrefix: 'template/' }
+  expect(provider.getNodes(context)).toMatchSnapshot()
+  expect(
+    provider.getDataChunk(context, ['2', 'field_10', '*', 'value'])
+  ).toEqual(['Europe', 'Americas'])
+  expect(provider.getDataSchema({})).toEqual({ type: 'object', properties: {} })
+  expect(provider.isValid(['2', 'field_10', '*', 'value'])).toBe(true)
+  expect(provider.isValid(['2'])).toBe(false)
+  expect(provider.isValid(['invalid', 'field_10'])).toBe(false)
 })

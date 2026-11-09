@@ -98,7 +98,10 @@ describe('TextFilterWidgetSettings', () => {
       mode: 'dropdown',
       multiple: false,
       default_value: '',
-      options: { formula: "get('table.1.Country')", mode: 'formula' },
+      options: {
+        formula: "get('data_source_context.1.field_10.*.value')",
+        mode: 'formula',
+      },
     }
     const store = testApp.store
     store.commit('dashboardApplication/SET_WIDGETS', [widget])

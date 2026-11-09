@@ -180,3 +180,42 @@ def test_chart_target_import_and_restore(chart_filter_dashboard):
     assert {row["Name"]: row["Amount sum"] for row in result["results"]} == {
         "Alpha": 10
     }
+
+
+@pytest.mark.django_db
+def test_chart_filter_options_metadata_and_import(
+    premium_data_fixture, chart_filter_dashboard
+):
+    """Chart options use grouped-field metadata and retain it after source remapping."""
+    from baserow.contrib.dashboard.formula_importer import import_formula
+    from baserow.contrib.dashboard.widgets.options import (
+        DashboardWidgetOptionsService,
+        dashboard_options_data_provider_registry,
+    )
+
+    user, token, dashboard, source, target, owner = chart_filter_dashboard
+    service = source.service.specific
+    field = premium_data_fixture.create_single_select_field(table=service.table)
+    premium_data_fixture.create_select_option(field=field, value="Europe", color="blue")
+    LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service, field=field, order=2
+    )
+    owner.mode = "dropdown"
+    owner.options = BaserowFormulaObject.create(
+        f"get('data_source_context.{source.id}.fields.field_{field.id}.select_options.*.value')"
+    )
+    assert DashboardWidgetOptionsService().get_options(owner) == ["Europe"]
+    copied_source = premium_data_fixture.create_dashboard_local_baserow_grouped_aggregate_rows_data_source(
+        dashboard=dashboard, table=service.table
+    )
+    imported = import_formula(
+        owner.options,
+        {
+            "dashboard_data_sources": {source.id: copied_source.id},
+            "database_fields": {field.id: 9876},
+        },
+        data_provider_type_registry=dashboard_options_data_provider_registry,
+    )
+    assert imported["formula"] == (
+        f"get('data_source_context.{copied_source.id}.fields.field_9876.select_options.*.value')"
+    )

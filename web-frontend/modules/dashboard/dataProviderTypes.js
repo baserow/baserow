@@ -63,48 +63,47 @@ export class WidgetDataProviderType extends DataProviderType {
   }
 }
 
-export class DashboardTableDataProviderType extends DataProviderType {
+export class DashboardDataSourceContextDataProviderType extends DataProviderType {
   static getType() {
-    return 'table'
-  }
-
-  isValid(path) {
-    return (
-      path.length >= 3 &&
-      /^[1-9][0-9]{0,18}$/.test(path[0]) &&
-      (path[1] === '*' || /^[0-9]{1,9}$/.test(path[1])) &&
-      (path[2] === 'id' || /^field_[1-9][0-9]{0,18}$/.test(path[2]))
-    )
+    return 'data_source_context'
   }
 
   get name() {
-    return this.app.$i18n.t('dataProviderType.dataSource')
+    return this.app.$i18n.t('dataProviderType.dataSourceContext')
   }
 
-  getDataContent() {
-    // Table values are resolved by the backend when loading filter options.
-    return {}
+  isValid(path) {
+    return path.length >= 2 && /^[1-9][0-9]{0,18}$/.test(path[0])
+  }
+
+  getDataSources({ storePrefix = '' }) {
+    return this.app.$store.getters[
+      `${storePrefix}dashboardApplication/getDataSources`
+    ]
+  }
+
+  getDataContent(context) {
+    return Object.fromEntries(
+      this.getDataSources(context).map((source) => [
+        source.id,
+        source.context_data,
+      ])
+    )
   }
 
   getDataChunk(context, path) {
     return getValueAtPath(this.getDataContent(context), path)
   }
 
-  getDataSchema({ storePrefix = '' }) {
-    const getters = this.app.$store.getters
-    const prefix = `${storePrefix}dashboardApplication/`
-    const sourceIds = new Set(
-      getters[prefix + 'getWidgets'].map((widget) => widget.data_source_id)
-    )
+  /** Group declared context fields by table, keeping one source per table. */
+  getDataSchema(context) {
+    const tables = new Set()
     const properties = {}
-    for (const sourceId of sourceIds) {
-      const source = getters[prefix + 'getDataSourceById'](sourceId)
-      if (source?.table_schema && !Object.hasOwn(properties, source.table_id)) {
-        properties[source.table_id] = {
-          ...source.table_schema,
-          order: Object.keys(properties).length,
-        }
-      }
+    for (const source of this.getDataSources(context)) {
+      const schema = source.context_data_schema
+      if (!schema || tables.has(source.table_id ?? source.id)) continue
+      tables.add(source.table_id ?? source.id)
+      properties[source.id] = { ...schema, order: tables.size - 1 }
     }
     return { type: 'object', properties }
   }
