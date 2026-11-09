@@ -350,20 +350,42 @@ def test_update_tool_renames_its_type(data_fixture, tool, id_argument, make):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "tool,id_argument,make",
+    "tool,id_argument,make,hint",
     [
-        (update_database, "database_id", "create_automation_application"),
-        (update_automation, "automation_id", "create_dashboard_application"),
-        (update_dashboard, "dashboard_id", "create_builder_application"),
-        (update_builder, "builder_id", "create_database_application"),
+        (
+            update_database,
+            "database_id",
+            "create_automation_application",
+            "as automation. Use update_automation",
+        ),
+        (
+            update_automation,
+            "automation_id",
+            "create_dashboard_application",
+            "as dashboard. Use update_dashboard",
+        ),
+        (
+            update_dashboard,
+            "dashboard_id",
+            "create_builder_application",
+            "as application. Use update_builder",
+        ),
+        (
+            update_builder,
+            "builder_id",
+            "create_database_application",
+            "as database. Use update_database",
+        ),
     ],
 )
-def test_update_tool_refuses_another_type(data_fixture, tool, id_argument, make):
+def test_update_tool_refuses_another_type(data_fixture, tool, id_argument, make, hint):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     other = getattr(data_fixture, make)(workspace=workspace, name="Other")
 
-    with pytest.raises(ToolInputError, match=f"with ID {other.id} not found"):
+    with pytest.raises(
+        ToolInputError, match=f"with ID {other.id} is not of this type.*{hint}"
+    ):
         tool(
             make_test_ctx(user, workspace),
             **{id_argument: other.id},
@@ -432,6 +454,21 @@ def test_update_builder_sets_the_login_page(data_fixture):
     assert result["login_page_id"] == page.id
     builder.refresh_from_db()
     assert builder.login_page_id == page.id
+
+
+@pytest.mark.django_db
+def test_an_unknown_application_id_is_not_found(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    other_workspace_database = data_fixture.create_database_application()
+
+    with pytest.raises(ToolInputError, match="not found in this workspace"):
+        update_database(
+            make_test_ctx(user, workspace),
+            database_id=other_workspace_database.id,
+            name="New",
+            thought="t",
+        )
 
 
 @pytest.mark.django_db
