@@ -13,6 +13,7 @@ const tool = (name, extra = {}) => ({
   changes_data: true,
   changed_since_review: false,
   removed: false,
+  definition_hash: `${name}-hash`,
   ...extra,
 })
 
@@ -132,8 +133,18 @@ describe('Agent connected apps', () => {
 
     expect(body(testApp.mock.history.patch[0])).toEqual({
       tools: [
-        { name: 'search', enabled: true, changes_data: false },
-        { name: 'delete', enabled: false, changes_data: true },
+        {
+          name: 'search',
+          definition_hash: 'search-hash',
+          enabled: true,
+          changes_data: false,
+        },
+        {
+          name: 'delete',
+          definition_hash: 'delete-hash',
+          enabled: false,
+          changes_data: true,
+        },
       ],
     })
     expect(wrapper.text()).toContain('agent.toolsOn')

@@ -198,7 +198,12 @@ async function done() {
       server.value,
       tools.value
         .filter((tool) => !tool.removed)
-        .map((tool) => ({ name: tool.name, ...picked.value[tool.name] }))
+        .map((tool) => ({
+          name: tool.name,
+          // A tool that changed since this list was loaded stays as it is.
+          definition_hash: tool.definition_hash,
+          ...picked.value[tool.name],
+        }))
     )
     modal.value.hide()
   } catch (e) {

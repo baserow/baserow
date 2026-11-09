@@ -28,6 +28,7 @@ class MCPServerToolSerializer(serializers.ModelSerializer):
             "changes_data",
             "changed_since_review",
             "removed",
+            "definition_hash",
         )
         read_only_fields = fields
 

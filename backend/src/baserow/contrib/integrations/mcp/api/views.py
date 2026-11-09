@@ -66,6 +66,12 @@ class MCPToolSettingsSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=128)
     enabled = serializers.BooleanField(required=False)
     changes_data = serializers.BooleanField(required=False)
+    definition_hash = serializers.CharField(
+        max_length=64,
+        required=False,
+        help_text="The definition reviewed. A tool that changed since is left "
+        "unchanged.",
+    )
 
 
 class MCPToolsUpdateSerializer(serializers.Serializer):

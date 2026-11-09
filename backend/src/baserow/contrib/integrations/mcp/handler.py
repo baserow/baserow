@@ -53,6 +53,8 @@ class MCPToolSettings:
     name: str
     enabled: bool | None = None
     changes_data: bool | None = None
+    # The definition the editor reviewed. A tool changed since keeps waiting.
+    definition_hash: str | None = None
 
 
 class MCPServerHandler:
@@ -180,7 +182,8 @@ class MCPServerHandler:
 
         :param integration: The server.
         :param settings: Per tool, the values to change. Unknown names are
-            ignored, and a removed tool can't be turned on.
+            ignored, a removed tool can't be turned on, and a tool whose
+            definition changed since the editor saw it is left as it is.
         :return: The stored tools.
         """
 
@@ -191,6 +194,11 @@ class MCPServerHandler:
                     integration=integration, name__in=by_name.keys()
                 )
             )
+            tools = [
+                tool
+                for tool in tools
+                if by_name[tool.name].definition_hash in (None, tool.definition_hash)
+            ]
             for tool in tools:
                 setting = by_name[tool.name]
                 if setting.enabled is not None:
