@@ -72,6 +72,8 @@ class FakeAuthorizationServer:
         self.refresh_token = "refresh-1"
         # Registers a client with a secret, without saying how to send it.
         self.confidential = False
+        # Named in the 401 but can't be reached; discovery has other candidates.
+        self.unreachable_metadata_url = None
 
     def authorize(self, authorization_url: str) -> str:
         """Approve like the user would, and return the code."""
@@ -110,13 +112,15 @@ class FakeAuthorizationServer:
         self.requests.append(request)
         url = str(request.url)
         if url == self.SERVER_URL:
-            return httpx.Response(
-                401,
-                headers={
-                    "WWW-Authenticate": 'Bearer resource_metadata="https://mcp.'
-                    'example.com/.well-known/oauth-protected-resource/mcp"'
-                },
+            hint = (
+                self.unreachable_metadata_url
+                or "https://mcp.example.com/.well-known/oauth-protected-resource/mcp"
             )
+            return httpx.Response(
+                401, headers={"WWW-Authenticate": f'Bearer resource_metadata="{hint}"'}
+            )
+        if url == self.unreachable_metadata_url:
+            raise httpx.ConnectError("unreachable", request=request)
         if url == "https://mcp.example.com/.well-known/oauth-protected-resource/mcp":
             return httpx.Response(
                 200,

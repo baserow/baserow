@@ -544,3 +544,17 @@ def test_a_registered_secret_is_sent_when_the_server_doesnt_say_how(
 
     # RFC 7591: without a method, a client with a secret uses Basic auth.
     assert fake.requests[-1].headers["Authorization"].startswith("Basic ")
+
+
+@pytest.mark.django_db
+def test_an_unreachable_metadata_url_falls_back_to_the_next(
+    data_fixture, api_client, mocker
+):
+    fake = serve_oauth(mocker, FakeAuthorizationServer())
+    fake.unreachable_metadata_url = "https://down.example.com/metadata"
+    user, token = data_fixture.create_user_and_token()
+    integration = oauth_server(data_fixture, user)
+
+    response = start(api_client, token, integration)
+
+    assert response.status_code == 200, response.json()

@@ -135,11 +135,16 @@ def _origin(url: str) -> str:
     return str(AnyHttpUrl(f"{parsed.scheme}://{parsed.netloc}"))
 
 
-async def _send_metadata_request(client: httpx.AsyncClient, url: str):
+async def _send_metadata_request(
+    client: httpx.AsyncClient, url: str
+) -> httpx.Response | None:
+    """One candidate metadata URL; None when it can't be reached, so the next
+    candidate is tried."""
+
     try:
         return await client.send(create_oauth_metadata_request(url))
-    except httpx.HTTPError as exc:
-        raise MCPOAuthFailed("The server's OAuth metadata could not be read.") from exc
+    except httpx.HTTPError:
+        return None
 
 
 async def discover(server_url: str) -> OAuthServer:
@@ -187,9 +192,10 @@ async def _discover(server_url: str) -> OAuthServer:
         for url in build_protected_resource_metadata_discovery_urls(
             extract_resource_metadata_from_www_auth(probe), server_url
         ):
-            resource_metadata = await handle_protected_resource_response(
-                await _send_metadata_request(client, url)
-            )
+            response = await _send_metadata_request(client, url)
+            if response is None:
+                continue
+            resource_metadata = await handle_protected_resource_response(response)
             if resource_metadata:
                 break
 
@@ -213,9 +219,10 @@ async def _discover(server_url: str) -> OAuthServer:
         for url in build_oauth_authorization_server_metadata_discovery_urls(
             authorization_server, server_url
         ):
-            ok, metadata = await handle_auth_metadata_response(
-                await _send_metadata_request(client, url)
-            )
+            response = await _send_metadata_request(client, url)
+            if response is None:
+                continue
+            ok, metadata = await handle_auth_metadata_response(response)
             if metadata or not ok:
                 break
         if metadata is None:
