@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "MCP clients can build application builders (pages, elements, data sources, actions, themes and login), publish and pause workflows, and create and update each type of application",
+    "issue_origin": "github",
+    "issue_number": 6345,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-11-09"
+}
