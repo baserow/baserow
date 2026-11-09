@@ -10,6 +10,7 @@ as the MCP connection itself, so discovery can't be pointed at private
 addresses either.
 """
 
+import asyncio
 import base64
 import hashlib
 import secrets
@@ -49,6 +50,9 @@ CLIENT_NAME = "Baserow"
 # Refresh a token this many seconds before it expires, so a reply that starts
 # just before expiry doesn't fail halfway.
 REFRESH_MARGIN_SECONDS = 300
+# Longest discovery, registration or a token request may take, in seconds. The
+# token refresh holds a row lock meanwhile.
+OAUTH_REQUEST_DEADLINE = 30
 
 
 # The frontend page the provider sends the editor back to. It hands the code to
@@ -145,9 +149,20 @@ async def discover(server_url: str) -> OAuthServer:
     and the authorization server's metadata.
 
     :param server_url: The MCP server's URL.
-    :raises MCPOAuthFailed: When the server doesn't support OAuth.
+    :raises MCPOAuthFailed: When the server doesn't support OAuth or doesn't
+        answer in time.
     :return: The authorization server's endpoints.
     """
+
+    try:
+        async with asyncio.timeout(OAUTH_REQUEST_DEADLINE):
+            return await _discover(server_url)
+    except TimeoutError as exc:
+        raise MCPOAuthFailed("The MCP server took too long to answer.") from exc
+
+
+async def _discover(server_url: str) -> OAuthServer:
+    """The steps of `discover`, without the deadline."""
 
     async with create_mcp_http_client() as client:
         try:
@@ -236,12 +251,21 @@ async def discover(server_url: str) -> OAuthServer:
 
 async def register(server: OAuthServer) -> OAuthClient:
     """
-    Get a client id without an editor registering Baserow by hand: Baserow's
-    client metadata document where the server accepts one, otherwise dynamic
-    client registration.
+    Get a client id without an editor registering Baserow by hand.
 
-    :raises MCPOAuthFailed: When the server supports neither.
+    :raises MCPOAuthFailed: When the server supports neither way, or doesn't
+        answer in time.
     """
+
+    try:
+        async with asyncio.timeout(OAUTH_REQUEST_DEADLINE):
+            return await _register(server)
+    except TimeoutError as exc:
+        raise MCPOAuthFailed("Registering Baserow took too long.") from exc
+
+
+async def _register(server: OAuthServer) -> OAuthClient:
+    """The steps of `register`, without the deadline."""
 
     metadata_url = get_client_metadata_url()
     if metadata_url and server.supports_client_metadata_document:
@@ -351,15 +375,16 @@ async def _request_token(
     elif client.auth_method == "client_secret_post" and client.client_secret:
         data["client_secret"] = client.client_secret
 
-    async with create_mcp_http_client() as http:
-        try:
-            response = await http.post(
-                server.token_endpoint, data=data, headers=headers
-            )
-        except httpx.HTTPError as exc:
-            raise MCPOAuthFailed(
-                "The authorization server could not be reached.", retryable=True
-            ) from exc
+    try:
+        async with asyncio.timeout(OAUTH_REQUEST_DEADLINE):
+            async with create_mcp_http_client() as http:
+                response = await http.post(
+                    server.token_endpoint, data=data, headers=headers
+                )
+    except (httpx.HTTPError, TimeoutError) as exc:
+        raise MCPOAuthFailed(
+            "The authorization server could not be reached.", retryable=True
+        ) from exc
     if response.status_code != 200:
         logger.info(
             "MCP OAuth token request failed with status {}", response.status_code

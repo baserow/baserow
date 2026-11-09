@@ -1,3 +1,4 @@
+import asyncio
 from datetime import timedelta
 from urllib.parse import parse_qs, urlparse
 
@@ -6,9 +7,14 @@ from django.urls import reverse
 from django.utils import timezone
 
 import pytest
+from asgiref.sync import async_to_sync
 from freezegun import freeze_time
 
-from baserow.contrib.integrations.mcp.exceptions import MCPServerNotConnected
+from baserow.contrib.integrations.mcp import oauth
+from baserow.contrib.integrations.mcp.exceptions import (
+    MCPOAuthFailed,
+    MCPServerNotConnected,
+)
 from baserow.contrib.integrations.mcp.handler import MCPServerHandler
 from baserow.contrib.integrations.mcp.models import MCPServerIntegration
 from baserow.core.integrations.service import IntegrationService
@@ -375,3 +381,47 @@ def test_a_token_without_a_lifetime_is_still_refreshed(
 
     # Providers may leave the lifetime out; the token is refreshed anyway.
     assert connection.headers == {"Authorization": "Bearer access-2"}
+
+
+@pytest.mark.django_db
+def test_a_token_without_a_refresh_token_is_used_until_it_expires(data_fixture):
+    user = data_fixture.create_user()
+    integration = oauth_server(
+        data_fixture,
+        user,
+        oauth_access_token="access-1",
+        oauth_expires_at=timezone.now() + timedelta(seconds=60),
+    )
+
+    connection = MCPServerHandler().get_connection(integration)
+
+    assert connection.headers == {"Authorization": "Bearer access-1"}
+    integration.oauth_expires_at = timezone.now() - timedelta(seconds=1)
+    with pytest.raises(MCPServerNotConnected):
+        MCPServerHandler().get_connection(integration)
+    integration.refresh_from_db()
+    # Shown as not connected, so editors are asked to sign in again.
+    assert not integration.oauth_connected
+
+
+def test_a_token_endpoint_that_never_answers_times_out(mocker):
+    async def forever(*args, **kwargs):
+        await asyncio.sleep(3600)
+
+    client = mocker.MagicMock()
+    client.__aenter__.return_value.post = forever
+    mocker.patch(
+        "baserow.contrib.integrations.mcp.oauth.create_mcp_http_client",
+        return_value=client,
+    )
+    mocker.patch("baserow.contrib.integrations.mcp.oauth.OAUTH_REQUEST_DEADLINE", 0.05)
+    server = oauth.OAuthServer(
+        issuer="https://auth.example.com",
+        authorization_endpoint="https://auth.example.com/authorize",
+        token_endpoint="https://auth.example.com/token",
+    )
+    client_info = oauth.OAuthClient("id", "", "dynamic", "none")
+
+    with pytest.raises(MCPOAuthFailed) as error:
+        async_to_sync(oauth.refresh)(server, client_info, "refresh-1")
+    assert error.value.retryable
