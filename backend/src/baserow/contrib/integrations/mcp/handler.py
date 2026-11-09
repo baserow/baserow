@@ -401,13 +401,18 @@ class MCPServerHandler:
         integration.save(update_fields=OAUTH_TOKEN_FIELDS)
 
     def _oauth_client(self, integration: MCPServerIntegration) -> oauth.OAuthClient:
+        server = integration.oauth_server or {}
+        auth_method = server.get("client_auth_method", "none")
+        if integration.oauth_client_source == MCPOAuthClientSource.MANUAL and server:
+            # The editor may change their client's secret at any time.
+            auth_method = oauth.manual_client_auth_method(
+                oauth.OAuthServer.from_dict(server), integration.oauth_client_secret
+            )
         return oauth.OAuthClient(
             client_id=integration.oauth_client_id,
             client_secret=integration.oauth_client_secret,
             source=integration.oauth_client_source,
-            auth_method=(integration.oauth_server or {}).get(
-                "client_auth_method", "none"
-            ),
+            auth_method=auth_method,
         )
 
     def _store_token(self, integration: MCPServerIntegration, token: OAuthToken):

@@ -448,3 +448,34 @@ def test_a_new_sign_in_never_keeps_the_previous_accounts_refresh_token(
     integration.refresh_from_db()
     assert integration.oauth_access_token == "access-1"
     assert integration.oauth_refresh_token == ""
+
+
+@pytest.mark.django_db
+def test_a_secret_added_to_your_own_client_is_used_from_the_next_refresh(
+    data_fixture, api_client, mocker
+):
+    fake = serve_oauth(mocker, FakeAuthorizationServer(registration=False))
+    user, token = data_fixture.create_user_and_token()
+    integration = oauth_server(data_fixture, user)
+    service = IntegrationService()
+    integration = service.update_integration(
+        user, integration, oauth_client_id="my-client"
+    ).integration
+    url = start(api_client, token, integration).json()["authorization_url"]
+    state = parse_qs(urlparse(url).query)["state"][0]
+    complete(api_client, token, state=state, code=fake.authorize(url))
+    integration.refresh_from_db()
+
+    # The provider now wants a secret, and the editor adds it.
+    integration = service.update_integration(
+        user, integration, oauth_client_secret="shh"
+    ).integration
+    MCPServerIntegration.objects.filter(id=integration.id).update(
+        oauth_expires_at=timezone.now()
+    )
+    integration.refresh_from_db()
+    MCPServerHandler().get_connection(integration)
+
+    form = parse_qs(fake.requests[-1].content.decode())
+    assert form["grant_type"] == ["refresh_token"]
+    assert form["client_secret"] == ["shh"]
