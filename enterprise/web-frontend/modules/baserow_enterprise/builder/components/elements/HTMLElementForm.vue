@@ -10,8 +10,15 @@
         :rows="8"
         :error="invalidHTML"
         :aria-invalid="invalidHTML"
-        :aria-describedby="invalidHTML ? sourceId + '-error' : undefined"
+        :aria-describedby="
+          invalidHTML
+            ? sourceId + '-error ' + sourceId + '-help'
+            : sourceId + '-help'
+        "
       />
+      <template #helper>
+        <span :id="sourceId + '-help'">{{ $t('htmlElement.sourceHelp') }}</span>
+      </template>
       <template #error
         ><span :id="sourceId + '-error'" role="alert">{{
           $t('htmlElement.invalid')
