@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { useNuxtApp } from '#app'
 import IntegrationService from '@baserow/modules/core/services/integration'
 import MCPServerService from '@baserow/modules/agent/services/mcpServer'
@@ -168,17 +168,10 @@ export function useAgentMCPServers(agent) {
     return replace(data)
   }
 
-  const needsReview = computed(() =>
-    servers.value.some((server) =>
-      server.tools.some((tool) => tool.changed_since_review)
-    )
-  )
-
   return {
     servers,
     loading,
     loadError,
-    needsReview,
     load,
     create,
     update,
