@@ -933,6 +933,16 @@ class TriggerServiceTypeMixin(ABC):
         Stops receiving events. Called when the last listener unsubscribes.
         """
 
+    def arm(self, service: Service) -> None:
+        """
+        Makes the service receive real events from now on. Automation calls it
+        when publishing a workflow, agent triggers when a trigger is created,
+        reconfigured or enabled. Types whose services are always live keep this
+        no-op.
+
+        :param service: The specific trigger service to arm.
+        """
+
     def on_event(
         self,
         services: Iterable[Service],
