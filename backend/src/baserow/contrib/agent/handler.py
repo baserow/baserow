@@ -6,12 +6,15 @@ from django.db import DEFAULT_DB_ALIAS, IntegrityError, transaction
 from django.db.models import Prefetch, QuerySet
 from django.utils.dateparse import parse_datetime
 
+from pydantic_ai import WebSearchTool
+
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
 from baserow.core.ai_provider.resolution import ScopedAIProviderState
 from baserow.core.chat_runs.constants import ChatRunErrorCode
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ACTIVE_CHAT_RUN_STATUSES, ChatRunStatus
 from baserow.core.exceptions import SubjectTypeNotExist
+from baserow.core.generative_ai.exceptions import GenerativeAITypeDoesNotExist
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
@@ -58,6 +61,7 @@ class AgentHandler:
     configuration_fields = ["instructions", "provider_type", "model_identifier"]
     conversation_fields = ["title"]
     run_as_fields = ["run_as_subject_type", "run_as_subject_id"]
+    option_fields = ["web_search_enabled"]
 
     def get_agent(self, agent_id: int, for_update: bool = False) -> AgentApplication:
         """
@@ -98,16 +102,46 @@ class AgentHandler:
         """
 
         readiness, errors = self.get_configuration_readiness(agent, provider_state)
+        run_as = self.resolve_run_as_subject(
+            agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
+        )
+        allowed_tools = self.get_allowed_tool_names(agent)
+        with_tools = run_as.status == AgentRunAsState.ACTIVE and bool(allowed_tools)
+        web_search_tool = self._get_web_search_tool(agent, with_tools)
         return AgentConfiguration(
             readiness=readiness,
             instructions=agent.instructions,
             provider_type=agent.provider_type,
             model_identifier=agent.model_identifier,
-            run_as=self.resolve_run_as_subject(
-                agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
-            ),
-            allowed_tools=self.get_allowed_tool_names(agent),
+            run_as=run_as,
+            allowed_tools=allowed_tools,
+            web_search_enabled=agent.web_search_enabled,
+            web_search_available=web_search_tool is not None,
+            web_search_blocked_by_tools=web_search_tool is None
+            and with_tools
+            and self._get_web_search_tool(agent, False) is not None,
             errors=errors,
+        )
+
+    def _get_web_search_tool(
+        self, agent: AgentApplication, with_function_tools: bool
+    ) -> WebSearchTool | None:
+        """
+        Find the web search of the Agent's model, whether or not it's turned on.
+
+        :param agent: The Agent.
+        :param with_function_tools: Whether the reply also offers workspace tools.
+        :return: The tool, or None when the model can't search the web.
+        """
+
+        if not agent.provider_type or not agent.model_identifier:
+            return None
+        try:
+            model_type = generative_ai_model_type_registry.get(agent.provider_type)
+        except GenerativeAITypeDoesNotExist:
+            return None
+        return model_type.get_web_search_tool(
+            agent.model_identifier, with_function_tools
         )
 
     def get_configuration_readiness(
@@ -284,7 +318,11 @@ class AgentHandler:
 
         allowed_tools = values.get("allowed_tools")
         had_run_as = bool(agent.run_as_subject_type and agent.run_as_subject_id)
-        allowed_fields = [*self.configuration_fields, *self.run_as_fields]
+        allowed_fields = [
+            *self.configuration_fields,
+            *self.run_as_fields,
+            *self.option_fields,
+        ]
         values = extract_allowed(values, allowed_fields)
         run_as = [values.get(field) for field in self.run_as_fields]
         if any(run_as) and not self.get_usable_run_as_subject(*run_as, agent.workspace):
@@ -712,6 +750,14 @@ class AgentHandler:
         )
         # A generation keeps its selected identity and tools until it ends or is
         # stopped. Configuration edits apply when the next generation is prepared.
+        allowed_tool_names = (
+            self.get_allowed_tool_names(agent) if acting_subject else []
+        )
+        web_search_tool = (
+            self._get_web_search_tool(agent, bool(allowed_tool_names))
+            if agent.web_search_enabled
+            else None
+        )
         return AgentReplyRequest(
             reply_id=reply.id,
             workspace=agent.workspace,
@@ -723,10 +769,10 @@ class AgentHandler:
             run_as_unavailable=run_as.status
             in {AgentRunAsState.TRASHED, AgentRunAsState.MISSING},
             acting_subject=acting_subject,
-            allowed_tool_names=self.get_allowed_tool_names(agent)
-            if acting_subject
-            else [],
+            allowed_tool_names=allowed_tool_names,
             timezone=conversation.owner_user.profile.timezone,
+            web_search_tool=web_search_tool,
+            web_search_enabled=agent.web_search_enabled,
         )
 
     def finish_reply(
