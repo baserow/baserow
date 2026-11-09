@@ -182,7 +182,8 @@ def add_action_field_mapping(
     """
     Set the value a create_row or update_row action writes to one field, replacing
     the value that field has. The action's other fields stay as they are. A value that
-    isn't a valid formula is refused and nothing changes.
+    isn't a valid formula is refused and nothing changes. status is "created" for a
+    field that had no value, else "updated".
     """
 
     action = helpers.get_writable_action(ctx.user, ctx.workspace, action_id)
@@ -194,11 +195,14 @@ def add_action_field_mapping(
     if problem:
         raise ToolInputError(problem)
 
-    helpers.add_field_mapping_to_action(
+    added = helpers.add_field_mapping_to_action(
         ctx.user, ctx.workspace, action_id, field_id, value_formula
     )
     updated = BuilderWorkflowActionHandler().get_workflow_action(action_id)
-    return {"updated_action": ActionItem.from_orm(updated).model_dump()}
+    return {
+        "status": added["status"],
+        "updated_action": ActionItem.from_orm(updated).model_dump(),
+    }
 
 
 def update_action_values(

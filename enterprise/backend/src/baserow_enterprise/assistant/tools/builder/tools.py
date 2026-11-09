@@ -7,7 +7,6 @@ Page-scoped ref tracking helpers are defined at the top of this module.
 
 from typing import Annotated, Any
 
-from django.db import transaction
 from django.utils.translation import gettext as _
 
 from pydantic import Field
@@ -49,6 +48,7 @@ from baserow_enterprise.builder.tools.types import (
     DisplayElementCreate,
     ElementItemCreate,
     ElementMove,
+    ElementStyleChanges,
     ElementStyleUpdate,
     ElementUpdate,
     FormElementCreate,
@@ -1052,19 +1052,14 @@ def update_element_style(
     You can combine reset with new values to reset-then-apply.
     """
 
-    user = ctx.deps.user
-    tool_helpers = ctx.deps.tool_helpers
-
-    page = helpers.get_page(user, ctx.deps.workspace, page_id)
-    tool_helpers.update_status(
-        _("Styling element %(id)d...") % {"id": style.element_id}
+    helpers.get_page(ctx.deps.user, ctx.deps.workspace, page_id)
+    shared = shared_elements.update_element_style(
+        ctx.deps.tool_context(),
+        style.element_id,
+        ElementStyleChanges(**style.model_dump(exclude={"element_id"})),
     )
-
-    with transaction.atomic():
-        element, element_type = helpers.update_element_style(user, page, style)
-
-    # Report which fields were explicitly set (not inherited from existing styles)
-    updated_fields = list(style.to_update_kwargs(element_type, {}).keys())
+    element_type = shared["updated_element"]["type"]
+    updated_fields = shared["updated_fields"]
     if not updated_fields:
         return {
             "status": "warning",
@@ -1116,49 +1111,15 @@ def move_elements(
     - place_in_container: Slot inside parent_element_id (e.g. "0", "1" for columns). Only valid together with parent_element_id; null = default. When moving to the root level leave it null.
     """
 
-    user = ctx.deps.user
-    tool_helpers = ctx.deps.tool_helpers
-
     if not moves:
         return {"moved_elements": []}
 
-    page = helpers.get_page(user, ctx.deps.workspace, page_id)
-    tool_helpers.update_status(
+    page = helpers.get_page(ctx.deps.user, ctx.deps.workspace, page_id)
+    ctx.deps.tool_helpers.update_status(
         _("Moving %(count)d elements on %(name)s...")
         % {"count": len(moves), "name": page.name}
     )
-
-    moved: list[dict] = []
-    errors: list[str] = []
-
-    for element_move in moves:
-        tool_helpers.raise_if_cancelled()
-        try:
-            with transaction.atomic():
-                element = helpers.move_element(user, page, element_move)
-            moved.append(
-                {
-                    "element_id": element.id,
-                    "parent_element_id": element.parent_element_id,
-                    "place_in_container": element.place_in_container,
-                }
-            )
-        except PermissionException:
-            errors.append(
-                f"Permission denied for element {element_move.element_id}; it was not moved. "
-                "Do not retry the denied operation."
-            )
-        except Exception as exc:
-            errors.append(f"element {element_move.element_id}: {exc}")
-        finally:
-            # Each move commits on its own and releases the graph lock, so the next
-            # one reads the graph again and takes the lock again.
-            helpers.forget_page_graphs(page)
-
-    result: dict[str, Any] = {"moved_elements": moved}
-    if errors:
-        result["errors"] = errors
-    return result
+    return shared_elements.move_elements(ctx.deps.tool_context(), moves)
 
 
 # ---------------------------------------------------------------------------
@@ -1279,16 +1240,11 @@ def add_action_field_mapping(
 
     WHEN to use: Adding a new form input to an existing form that already has a row action.
     WHAT it does: Maps a table field to a formula value without recreating the action.
-    RETURNS: Updated field mappings list.
+    RETURNS: The updated action with its field mappings. A value that isn't a valid formula is refused and nothing changes.
     """
 
-    tool_helpers = ctx.deps.tool_helpers
-    tool_helpers.update_status(
-        _("Adding field mapping to action %(id)d...") % {"id": action_id}
-    )
-
-    return helpers.add_field_mapping_to_action(
-        ctx.deps.user, ctx.deps.workspace, action_id, field_id, value_formula
+    return shared_actions.add_action_field_mapping(
+        ctx.deps.tool_context(), action_id, field_id, value_formula
     )
 
 

@@ -1905,12 +1905,16 @@ def test_add_action_field_mapping_creates_mapping(data_fixture):
     # Create a form and create_row action with one field mapping
     from baserow_enterprise.builder.tools.types import FieldValueMapping
 
-    create_form_elements(
+    form = create_form_elements(
         ctx,
         page_id=page.id,
-        elements=[FormElementCreate(ref="form", type="form_container")],
+        elements=[
+            FormElementCreate(ref="form", type="form_container"),
+            FormElementCreate(ref="input", type="input_text", parent_element="form"),
+        ],
         thought="test",
     )
+    input_id = form["ref_to_id_map"]["input"]
     action_result = create_actions(
         ctx,
         page_id=page.id,
@@ -1934,13 +1938,14 @@ def test_add_action_field_mapping_creates_mapping(data_fixture):
         ctx,
         action_id=action_id,
         field_id=email_field.id,
-        value_formula="get('form_data.123')",
+        value_formula=f"get('form_data.{input_id}')",
         thought="test",
     )
 
     assert result["status"] == "created"
-    assert len(result["field_mappings"]) == 2
-    mapped_field_ids = {m["field_id"] for m in result["field_mappings"]}
+    mappings = result["updated_action"]["field_mappings"]
+    assert len(mappings) == 2
+    mapped_field_ids = {m["field_id"] for m in mappings}
     assert name_field.id in mapped_field_ids
     assert email_field.id in mapped_field_ids
 
@@ -1966,12 +1971,16 @@ def test_add_action_field_mapping_updates_existing(data_fixture):
 
     from baserow_enterprise.builder.tools.types import FieldValueMapping
 
-    create_form_elements(
+    form = create_form_elements(
         ctx,
         page_id=page.id,
-        elements=[FormElementCreate(ref="form", type="form_container")],
+        elements=[
+            FormElementCreate(ref="form", type="form_container"),
+            FormElementCreate(ref="input", type="input_text", parent_element="form"),
+        ],
         thought="test",
     )
+    input_id = form["ref_to_id_map"]["input"]
     action_result = create_actions(
         ctx,
         page_id=page.id,
@@ -1995,13 +2004,13 @@ def test_add_action_field_mapping_updates_existing(data_fixture):
         ctx,
         action_id=action_id,
         field_id=name_field.id,
-        value_formula="get('form_data.456')",
+        value_formula=f"get('form_data.{input_id}')",
         thought="test",
     )
 
     assert result["status"] == "updated"
-    assert len(result["field_mappings"]) == 1
-    assert result["field_mappings"][0]["field_id"] == name_field.id
+    mappings = result["updated_action"]["field_mappings"]
+    assert [m["field_id"] for m in mappings] == [name_field.id]
 
 
 @pytest.mark.django_db
@@ -2034,7 +2043,8 @@ def test_add_action_field_mapping_goes_through_the_action_type(data_fixture):
     )
 
     assert result["status"] == "created"
-    assert sorted(m["field_id"] for m in result["field_mappings"]) == sorted(
+    mappings = result["updated_action"]["field_mappings"]
+    assert sorted(m["field_id"] for m in mappings) == sorted(
         [name_field.id, email_field.id]
     )
     assert Action.objects.filter(
@@ -2122,6 +2132,42 @@ def test_add_action_field_mapping_locks_the_service_before_reading(data_fixture)
         if sql.startswith("SELECT") and "localbaserowtableservicefieldmapping" in sql
     )
     assert lock < read
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "value_formula",
+    ["get('form_data.999999')", "get('page_parameter.nope')", "$formula: the name"],
+)
+def test_add_action_field_mapping_refuses_a_value_the_page_cant_read(
+    data_fixture, value_formula
+):
+    from baserow_enterprise.assistant.tools.builder.tools import (
+        add_action_field_mapping,
+    )
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Form", path="/form")
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    email_field = data_fixture.create_text_field(table=table, name="Email")
+    ctx = make_test_ctx(user, workspace)
+    action = _create_row_action_on_form(ctx, page, table, name_field)
+
+    with pytest.raises(ToolInputError):
+        add_action_field_mapping(
+            ctx,
+            action_id=action.id,
+            field_id=email_field.id,
+            value_formula=value_formula,
+            thought="test",
+        )
+
+    mappings = action.service.specific.field_mappings.all()
+    assert [m.field_id for m in mappings] == [name_field.id]
 
 
 def _create_row_action_on_form(ctx, page, table, field) -> BuilderWorkflowAction:
