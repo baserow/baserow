@@ -325,3 +325,31 @@ def test_exports_leave_out_tokens_and_registered_clients(data_fixture):
     assert exported["auth_type"] == "oauth"
     assert exported["oauth_client_id"] == ""
     assert "access-1" not in str(exported) and "refresh-1" not in str(exported)
+
+
+@pytest.mark.django_db
+def test_a_sign_in_started_before_the_server_moved_cant_finish(
+    data_fixture, api_client, mocker
+):
+    fake = serve_oauth(mocker, FakeAuthorizationServer(registration=False))
+    user, token = data_fixture.create_user_and_token()
+    integration = oauth_server(
+        data_fixture,
+        user,
+        oauth_client_id="my-client",
+        oauth_client_source="manual",
+        oauth_client_secret="shh",
+    )
+    url = start(api_client, token, integration).json()["authorization_url"]
+    state = parse_qs(urlparse(url).query)["state"][0]
+    IntegrationService().update_integration(
+        user,
+        integration,
+        url="https://other.example.com/mcp",
+        oauth_client_secret="shh",
+    )
+
+    response = complete(api_client, token, state=state, code=fake.authorize(url))
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_MCP_OAUTH_STATE_INVALID"

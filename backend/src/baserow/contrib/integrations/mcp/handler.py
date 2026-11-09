@@ -320,6 +320,7 @@ class MCPServerHandler:
                 "user_id": user.id,
                 "code_verifier": pending.code_verifier,
                 "client_id": client.client_id,
+                "url": integration.url,
             },
             OAUTH_STATE_TIMEOUT_SECONDS,
         )
@@ -349,12 +350,17 @@ class MCPServerHandler:
         """
         Exchange the authorization code for tokens and store them.
 
-        :raises MCPOAuthStateInvalid: When the server's client changed since
-            the authorization started.
+        :raises MCPOAuthStateInvalid: When the server, its sign-in method or
+            its client changed since the authorization started.
         :raises MCPOAuthFailed: When the exchange fails.
         """
 
-        if integration.oauth_client_id != pending["client_id"]:
+        if (
+            integration.auth_type != MCPAuthType.OAUTH
+            or not integration.oauth_server
+            or integration.url != pending.get("url")
+            or integration.oauth_client_id != pending["client_id"]
+        ):
             raise MCPOAuthStateInvalid()
         token = async_to_sync(oauth.exchange_code)(
             oauth.OAuthServer.from_dict(integration.oauth_server),
