@@ -68,6 +68,7 @@ EXPECTED = {
     "create_form_elements": (False, False),
     "create_collection_elements": (False, False),
     "update_element": (False, True),
+    "delete_element_items": (False, True),
     "update_element_style": (False, True),
     "move_elements": (False, True),
     "list_element_actions": (True, False),
