@@ -17,9 +17,12 @@ from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.handler import IntegrationHandler
+from baserow.core.integrations.models import Integration
+from baserow.core.integrations.operations import ReadIntegrationOperationType
 from baserow.core.models import Workspace
 from baserow.core.registries import ApplicationType, ImportExportConfig
 from baserow.core.storage import ExportZipFile
+from baserow.core.types import PermissionCheck
 from baserow.core.utils import ChildProgressBuilder
 
 
@@ -121,6 +124,31 @@ class AgentApplicationType(ApplicationType):
             user, workspace, init_with_data=init_with_data, **kwargs
         )
 
+    def _integrations_to_export(
+        self, application: AgentApplication, import_export_config: ImportExportConfig
+    ) -> list[Integration]:
+        """
+        The connected apps a copy carries. A duplicate keeps their credentials,
+        so it only carries the ones the person copying may read.
+        """
+
+        integrations = list(IntegrationHandler().get_integrations(application))
+        copied_by = import_export_config.copied_by
+        if copied_by is None or import_export_config.exclude_sensitive_data:
+            return integrations
+        checks = [
+            PermissionCheck(copied_by, ReadIntegrationOperationType.type, integration)
+            for integration in integrations
+        ]
+        allowed = CoreHandler().check_multiple_permissions(
+            checks, workspace=application.workspace
+        )
+        return [
+            integration
+            for check, integration in zip(checks, integrations)
+            if allowed.get(check, False) is True
+        ]
+
     def export_serialized(
         self,
         application: AgentApplication,
@@ -153,7 +181,9 @@ class AgentApplicationType(ApplicationType):
                     files_zip=files_zip,
                     storage=storage,
                 )
-                for integration in IntegrationHandler().get_integrations(application)
+                for integration in self._integrations_to_export(
+                    application, import_export_config
+                )
             ],
         )
         # Identity ids are local references, not portable configuration.

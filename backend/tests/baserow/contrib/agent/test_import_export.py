@@ -14,6 +14,7 @@ from baserow.contrib.agent.models import (
 from baserow.contrib.integrations.mcp.models import MCPServerIntegration, MCPServerTool
 from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.operations import ReadIntegrationOperationType
 from baserow.core.job_types import DuplicateApplicationJobType
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.models import Agent
@@ -518,3 +519,30 @@ def test_an_imported_tool_is_hashed_from_what_is_imported(data_fixture):
 
     tool = MCPServerTool.objects.get(integration__application=imported)
     assert tool.definition_hash != "a" * 64
+
+
+@pytest.mark.django_db
+def test_a_duplicate_leaves_out_apps_the_copier_cant_read(data_fixture, mocker):
+    user = data_fixture.create_user()
+    server = data_fixture.create_mcp_server_integration(
+        user=user, auth_header_name="Authorization", auth_header_value="Bearer s3cr3t"
+    )
+    # As under a role that may duplicate the Agent but not read this app.
+    original = CoreHandler.check_multiple_permissions
+
+    def deny_reading_integrations(self, checks, *args, **kwargs):
+        result = original(self, checks, *args, **kwargs)
+        return {
+            check: False
+            if check.operation_name == ReadIntegrationOperationType.type
+            else allowed
+            for check, allowed in result.items()
+        }
+
+    mocker.patch.object(
+        CoreHandler, "check_multiple_permissions", deny_reading_integrations
+    )
+
+    duplicate = CoreHandler().duplicate_application(user, server.application)
+
+    assert not MCPServerIntegration.objects.filter(application=duplicate).exists()
