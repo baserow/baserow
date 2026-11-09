@@ -176,6 +176,7 @@
     "connectedAppHeaderValueHelper": "Sent with every request to the server. It's never shown again.",
     "connectedAppHeaderValueKept": "Leave empty to keep the stored value.",
     "connectedAppHeaderValueRequired": "Enter the value again when the URL or header changes.",
+    "connectedAppClientSecretRequired": "Enter the client secret again when the URL or client ID changes.",
     "connectedAppConnect": "Connect",
     "connectedAppRemove": "Remove",
     "connectedAppRemoveConfirm": "Click to remove",

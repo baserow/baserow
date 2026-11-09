@@ -297,7 +297,7 @@ const errors = computed(() => {
     auth_header_value: headerValueError(),
     oauth_client_secret:
       clientSecretRequired.value && !values.oauth_client_secret
-        ? t('agent.connectedAppHeaderValueRequired')
+        ? t('agent.connectedAppClientSecretRequired')
         : '',
   }
 })
