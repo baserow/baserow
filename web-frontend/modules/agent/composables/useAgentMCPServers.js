@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import { useNuxtApp, useRuntimeConfig } from '#app'
+import { useNuxtApp } from '#app'
 import IntegrationService from '@baserow/modules/core/services/integration'
 import MCPServerService from '@baserow/modules/agent/services/mcpServer'
 import {
@@ -37,8 +37,6 @@ export function openSignInPopup() {
  */
 export function useAgentMCPServers(agent) {
   const { $client } = useNuxtApp()
-  const backendOrigin = new URL(useRuntimeConfig().public.publicBackendUrl)
-    .origin
   const integrations = IntegrationService($client)
   const mcp = MCPServerService($client)
 
@@ -110,7 +108,7 @@ export function useAgentMCPServers(agent) {
       }
       const onMessage = (event) => {
         if (
-          event.origin === backendOrigin &&
+          event.origin === window.location.origin &&
           event.data?.type === MCP_OAUTH_MESSAGE_TYPE
         ) {
           finish(event.data)

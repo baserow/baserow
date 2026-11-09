@@ -6,6 +6,9 @@ export default (client) => ({
   startOAuth(integrationId) {
     return client.post(`/integrations/mcp/${integrationId}/oauth/start/`)
   },
+  completeOAuth(state, code) {
+    return client.post('/integrations/mcp/oauth/complete/', { state, code })
+  },
   disconnectOAuth(integrationId) {
     return client.post(`/integrations/mcp/${integrationId}/oauth/disconnect/`)
   },

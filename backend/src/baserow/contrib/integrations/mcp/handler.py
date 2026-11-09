@@ -35,6 +35,15 @@ from .models import (
 # How long an editor has to finish signing in with the MCP server's provider.
 OAUTH_STATE_TIMEOUT_SECONDS = 600
 OAUTH_STATE_CACHE_KEY = "mcp_oauth_state:{}"
+OAUTH_TOKEN_FIELDS = [
+    "oauth_access_token",
+    "oauth_refresh_token",
+    "oauth_expires_at",
+    "oauth_connected_at",
+    "oauth_connected_by",
+]
+# Matches `MCPServerTool.name`. Longer names can't be stored.
+MAX_TOOL_NAME_LENGTH = 128
 
 
 @dataclass(frozen=True)
@@ -98,6 +107,16 @@ class MCPServerHandler:
             listed = set()
             to_create, to_update = [], []
             for order, definition in enumerate(definitions):
+                if (
+                    len(definition.name) > MAX_TOOL_NAME_LENGTH
+                    or definition.name in listed
+                ):
+                    logger.info(
+                        "MCP server {} listed a tool with a duplicate or too long "
+                        "name, left out",
+                        integration.id,
+                    )
+                    continue
                 listed.add(definition.name)
                 values = {
                     "title": definition.title[:255],
@@ -126,6 +145,8 @@ class MCPServerHandler:
                 if name not in listed:
                     tool.removed = True
                     tool.enabled = False
+                    # A removed tool can't be reviewed, so it doesn't ask for it.
+                    tool.changed_since_review = False
                     to_update.append(tool)
 
             MCPServerTool.objects.bulk_create(to_create)
@@ -180,11 +201,6 @@ class MCPServerHandler:
             )
         return list(integration.tools.all())
 
-    def get_enabled_tools(
-        self, integration: MCPServerIntegration
-    ) -> list[MCPServerTool]:
-        return list(integration.tools.filter(enabled=True, removed=False))
-
     def get_connection(self, integration: MCPServerIntegration) -> MCPServerConnection:
         """
         The connection with a valid credential, refreshing an OAuth token that
@@ -234,12 +250,15 @@ class MCPServerHandler:
                 logger.info(
                     "MCP server {} token refresh failed: {}", locked.id, exc.message
                 )
+                if exc.retryable:
+                    # The provider is down: the refresh token may still be good.
+                    raise MCPServerNotConnected() from exc
                 # Committed, not rolled back: the account must be connected again.
                 locked.clear_oauth_tokens()
                 failure = exc
             else:
                 self._store_token(locked, token)
-            locked.save()
+            locked.save(update_fields=OAUTH_TOKEN_FIELDS)
         self._copy_tokens(locked, integration)
         if failure:
             raise MCPServerNotConnected() from failure
@@ -346,12 +365,12 @@ class MCPServerHandler:
         self._store_token(integration, token)
         integration.oauth_connected_at = timezone.now()
         integration.oauth_connected_by = user
-        integration.save()
+        integration.save(update_fields=OAUTH_TOKEN_FIELDS)
         return integration
 
     def disconnect_oauth(self, integration: MCPServerIntegration) -> None:
         integration.clear_oauth_tokens()
-        integration.save()
+        integration.save(update_fields=OAUTH_TOKEN_FIELDS)
 
     def _oauth_client(self, integration: MCPServerIntegration) -> oauth.OAuthClient:
         return oauth.OAuthClient(

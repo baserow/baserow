@@ -28,9 +28,14 @@ def start(api_client, token, integration):
     )
 
 
-def callback(api_client, **params):
-    # The provider redirects the browser: no Baserow credentials are sent.
-    return api_client.get(reverse("api:mcp_server:oauth_callback"), params)
+def complete(api_client, token, state, code=""):
+    # Sent by the frontend page the provider redirects the editor back to.
+    return api_client.post(
+        reverse("api:mcp_server:oauth_complete"),
+        {"state": state, "code": code},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
 
 
 @pytest.mark.django_db
@@ -52,15 +57,14 @@ def test_connecting_registers_baserow_and_stores_the_tokens(
     assert params["code_challenge_method"] == ["S256"]
     assert params["resource"] == [FakeAuthorizationServer.SERVER_URL]
     assert params["scope"] == ["read write"]
-    assert params["redirect_uri"][0].endswith("/api/integrations/mcp/oauth/callback/")
+    assert params["redirect_uri"][0].endswith("/agent/mcp-oauth-callback")
 
-    response = callback(api_client, state=params["state"][0], code=fake.authorize(url))
+    response = complete(
+        api_client, token, state=params["state"][0], code=fake.authorize(url)
+    )
 
-    assert response.status_code == 200
-    assert b'"type": "baserow-mcp-oauth"' in response.content
-    # Otherwise the page is cut off from the Baserow page that opened it.
-    assert response["Cross-Origin-Opener-Policy"] == "unsafe-none"
-    assert f'"integrationId": {integration.id}'.encode() in response.content
+    assert response.status_code == 200, response.json()
+    assert response.json()["oauth_connected"] is True
     integration.refresh_from_db()
     assert integration.oauth_access_token == "access-1"
     assert integration.oauth_connected_by_id == user.id
@@ -88,16 +92,40 @@ def test_a_callback_state_works_once_and_only_for_its_authorization(
     url = start(api_client, token, integration).json()["authorization_url"]
     state = parse_qs(urlparse(url).query)["state"][0]
 
-    assert callback(api_client, state="forged", code="x").status_code == 400
+    assert complete(api_client, token, state="forged", code="x").status_code == 400
     assert (
-        callback(api_client, state=state, code=fake.authorize(url)).status_code == 200
+        complete(api_client, token, state=state, code=fake.authorize(url)).status_code
+        == 200
     )
     # Replaying the redirect doesn't connect again.
     assert (
-        callback(api_client, state=state, code=fake.authorize(url)).status_code == 400
+        complete(api_client, token, state=state, code=fake.authorize(url)).status_code
+        == 400
     )
     integration.refresh_from_db()
     assert integration.oauth_access_token == "access-1"
+
+
+@pytest.mark.django_db
+def test_only_the_editor_who_started_a_sign_in_can_finish_it(
+    data_fixture, api_client, mocker
+):
+    fake = serve_oauth(mocker, FakeAuthorizationServer())
+    user, token = data_fixture.create_user_and_token()
+    integration = oauth_server(data_fixture, user)
+    # Someone else, even in the same workspace, opens the editor's sign-in link.
+    other, other_token = data_fixture.create_user_and_token(
+        workspace=integration.application.workspace
+    )
+    url = start(api_client, token, integration).json()["authorization_url"]
+    state = parse_qs(urlparse(url).query)["state"][0]
+
+    response = complete(api_client, other_token, state=state, code=fake.authorize(url))
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_MCP_OAUTH_STATE_INVALID"
+    integration.refresh_from_db()
+    assert not integration.oauth_connected
 
 
 @pytest.mark.django_db
@@ -108,10 +136,10 @@ def test_a_cancelled_sign_in_stores_nothing(data_fixture, api_client, mocker):
     url = start(api_client, token, integration).json()["authorization_url"]
     state = parse_qs(urlparse(url).query)["state"][0]
 
-    response = callback(api_client, state=state, error="access_denied")
+    response = complete(api_client, token, state=state)
 
     assert response.status_code == 400
-    assert b"cancelled" in response.content
+    assert "cancelled" in response.json()["detail"]
     integration.refresh_from_db()
     assert not integration.oauth_connected
 
@@ -132,7 +160,7 @@ def test_an_editor_can_enter_their_own_client(data_fixture, api_client, mocker):
 
     url = start(api_client, token, integration).json()["authorization_url"]
     state = parse_qs(urlparse(url).query)["state"][0]
-    callback(api_client, state=state, code=fake.authorize(url))
+    complete(api_client, token, state=state, code=fake.authorize(url))
 
     token_request = fake.requests[-1]
     form = parse_qs(token_request.content.decode())
@@ -157,7 +185,10 @@ def test_a_server_without_registration_asks_for_a_client(
 
 
 @pytest.mark.django_db
-@override_settings(PUBLIC_BACKEND_URL="https://baserow.example.com")
+@override_settings(
+    PUBLIC_BACKEND_URL="https://api.baserow.example.com",
+    PUBLIC_WEB_FRONTEND_URL="https://baserow.example.com",
+)
 def test_https_instances_use_their_client_metadata_document(
     data_fixture, api_client, mocker
 ):
@@ -168,14 +199,15 @@ def test_https_instances_use_their_client_metadata_document(
     url = start(api_client, token, integration).json()["authorization_url"]
 
     metadata_url = (
-        "https://baserow.example.com/api/integrations/mcp/oauth/client-metadata.json"
+        "https://api.baserow.example.com/api/integrations/mcp/oauth/"
+        "client-metadata.json"
     )
     assert parse_qs(urlparse(url).query)["client_id"] == [metadata_url]
     assert not any(str(r.url).endswith("/register") for r in fake.requests)
     document = api_client.get(reverse("api:mcp_server:oauth_client_metadata")).json()
     assert document["client_id"] == metadata_url
     assert document["redirect_uris"] == [
-        "https://baserow.example.com/api/integrations/mcp/oauth/callback/"
+        "https://baserow.example.com/agent/mcp-oauth-callback"
     ]
 
 
@@ -188,7 +220,7 @@ def test_an_expiring_token_is_refreshed_and_a_refused_one_disconnects(
     integration = oauth_server(data_fixture, user)
     url = start(api_client, token, integration).json()["authorization_url"]
     state = parse_qs(urlparse(url).query)["state"][0]
-    callback(api_client, state=state, code=fake.authorize(url))
+    complete(api_client, token, state=state, code=fake.authorize(url))
     integration.refresh_from_db()
     MCPServerIntegration.objects.filter(id=integration.id).update(
         oauth_expires_at=timezone.now() + timedelta(seconds=30)
@@ -210,6 +242,32 @@ def test_an_expiring_token_is_refreshed_and_a_refused_one_disconnects(
         MCPServerHandler().get_connection(integration)
     integration.refresh_from_db()
     assert not integration.oauth_connected
+
+
+@pytest.mark.django_db
+def test_an_unavailable_authorization_server_keeps_the_account(
+    data_fixture, api_client, mocker
+):
+    fake = serve_oauth(mocker, FakeAuthorizationServer())
+    user, token = data_fixture.create_user_and_token()
+    integration = oauth_server(data_fixture, user)
+    url = start(api_client, token, integration).json()["authorization_url"]
+    state = parse_qs(urlparse(url).query)["state"][0]
+    complete(api_client, token, state=state, code=fake.authorize(url))
+    MCPServerIntegration.objects.filter(id=integration.id).update(
+        oauth_expires_at=timezone.now()
+    )
+    integration.refresh_from_db()
+    fake.refresh_unavailable = True
+
+    with pytest.raises(MCPServerNotConnected):
+        MCPServerHandler().get_connection(integration)
+
+    integration.refresh_from_db()
+    assert integration.oauth_refresh_token == "refresh-1"
+    fake.refresh_unavailable = False
+    connection = MCPServerHandler().get_connection(integration)
+    assert connection.headers == {"Authorization": "Bearer access-2"}
 
 
 @pytest.mark.django_db

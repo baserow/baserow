@@ -76,6 +76,18 @@ class AgentApplicationType(ApplicationType):
             return run_as
         return None, None
 
+    def supports_integration_type(self, integration_type) -> bool:
+        """Only MCP servers: an Agent uses no other integration."""
+
+        from baserow.contrib.integrations.mcp.integration_types import (
+            MCPServerIntegrationType,
+        )
+
+        return (
+            super().supports_integration_type(integration_type)
+            and integration_type.type == MCPServerIntegrationType.type
+        )
+
     def get_api_urls(self) -> list[URLResolver]:
         from baserow.contrib.agent.api import urls as api_urls
         from baserow.contrib.integrations.mcp.api import urls as mcp_urls

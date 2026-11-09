@@ -1,4 +1,3 @@
-from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 
@@ -7,7 +6,7 @@ from baserow.core.integrations.exceptions import IntegrationDoesNotExist
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.operations import UpdateIntegrationOperationType
 
-from .exceptions import MCPOAuthStateInvalid
+from .exceptions import MCPOAuthFailed, MCPOAuthStateInvalid
 from .handler import MCPServerHandler, MCPToolSettings
 from .models import MCPAuthType, MCPServerIntegration
 
@@ -79,22 +78,29 @@ class MCPServerService:
             raise IntegrationDoesNotExist()
         return MCPServerHandler().start_oauth(integration, user)
 
-    def complete_oauth(self, state: str, code: str) -> MCPServerIntegration:
+    def complete_oauth(
+        self, user: AbstractUser, state: str, code: str
+    ) -> MCPServerIntegration:
         """
-        Finish an authorization when the provider redirects back. The request
-        carries no Baserow session, so the editor is the one who started it, and
-        they must still be allowed to change the server.
+        Finish an authorization when the provider redirects back. Only the
+        editor who started it can finish it, so an authorization URL sent to
+        someone else can't connect their account to this server.
 
-        :raises MCPOAuthStateInvalid: When the state is unknown or expired.
-        :raises MCPOAuthFailed: When the token exchange fails.
+        :param code: Empty when the editor cancelled or the provider refused.
+        :raises MCPOAuthStateInvalid: When the state is unknown, expired or
+            started by someone else.
+        :raises MCPOAuthFailed: When the sign-in was cancelled or the token
+            exchange fails.
         """
 
         pending = MCPServerHandler().pop_oauth_state(state)
-        user = get_user_model().objects.filter(id=pending["user_id"]).first()
-        if user is None or not code:
+        if pending["user_id"] != user.id:
             raise MCPOAuthStateInvalid()
+        if not code:
+            raise MCPOAuthFailed("The sign-in was cancelled or refused.")
         integration = self.get_server_for_update(user, pending["integration_id"])
-        return MCPServerHandler().complete_oauth(integration, user, pending, code)
+        MCPServerHandler().complete_oauth(integration, user, pending, code)
+        return self._reload(integration.id)
 
     def disconnect_oauth(
         self, user: AbstractUser, integration_id: int

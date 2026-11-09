@@ -2,7 +2,7 @@ from django.urls import path
 
 from .views import (
     MCPClientMetadataView,
-    MCPServerOAuthCallbackView,
+    MCPServerOAuthCompleteView,
     MCPServerOAuthDisconnectView,
     MCPServerOAuthStartView,
     MCPServerRefreshToolsView,
@@ -29,7 +29,7 @@ urlpatterns = [
         name="oauth_disconnect",
     ),
     path(
-        "oauth/callback/", MCPServerOAuthCallbackView.as_view(), name="oauth_callback"
+        "oauth/complete/", MCPServerOAuthCompleteView.as_view(), name="oauth_complete"
     ),
     path(
         "oauth/client-metadata.json",

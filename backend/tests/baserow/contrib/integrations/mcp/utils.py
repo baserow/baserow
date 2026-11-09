@@ -64,6 +64,7 @@ class FakeAuthorizationServer:
         self.requests: list[httpx.Request] = []
         self.challenges: dict[str, str] = {}
         self.refresh_fails = False
+        self.refresh_unavailable = False
         self.issued = 0
 
     def authorize(self, authorization_url: str) -> str:
@@ -84,6 +85,8 @@ class FakeAuthorizationServer:
             )
             if self.challenges.pop(form["code"], None) != challenge:
                 return httpx.Response(400, json={"error": "invalid_grant"})
+        elif self.refresh_unavailable:
+            return httpx.Response(503)
         elif self.refresh_fails or form["refresh_token"] != "refresh-1":
             return httpx.Response(400, json={"error": "invalid_grant"})
         self.issued += 1

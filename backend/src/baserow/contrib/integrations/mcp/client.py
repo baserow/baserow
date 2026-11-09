@@ -15,6 +15,9 @@ CLIENT_INFO = types.Implementation(name="Baserow", version="1")
 MAX_RESULT_CHARACTERS = 50_000
 # Longest tool description shown to the model.
 MAX_DESCRIPTION_CHARACTERS = 2_000
+# Most pages of tools read from one server, so one that always returns a next
+# cursor can't keep a request or a reply busy forever.
+MAX_TOOL_PAGES = 20
 
 
 @dataclass(frozen=True)
@@ -118,17 +121,19 @@ async def list_tools(session: ClientSession) -> list[MCPToolDefinition]:
     List every tool, following pagination.
 
     :param session: An initialized session.
+    :raises ValueError: When the server lists more than ``MAX_TOOL_PAGES``.
     :return: The tools in the order the server lists them.
     """
 
     tools: list[MCPToolDefinition] = []
     cursor = None
-    while True:
+    for _ in range(MAX_TOOL_PAGES):
         page = await session.list_tools(cursor=cursor)
         tools.extend(MCPToolDefinition.from_mcp(tool) for tool in page.tools)
         cursor = page.nextCursor
         if not cursor:
             return tools
+    raise ValueError(f"The MCP server lists more than {MAX_TOOL_PAGES} pages.")
 
 
 async def fetch_tools(connection: MCPServerConnection) -> list[MCPToolDefinition]:

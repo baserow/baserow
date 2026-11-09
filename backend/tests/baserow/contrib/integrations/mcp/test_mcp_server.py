@@ -4,6 +4,11 @@ import httpx
 import pytest
 from asgiref.sync import async_to_sync
 
+from baserow.contrib.integrations.mcp.client import (
+    MAX_TOOL_PAGES,
+    MCPToolDefinition,
+    list_tools,
+)
 from baserow.contrib.integrations.mcp.handler import MCPServerHandler, MCPToolSettings
 from baserow.contrib.integrations.mcp.http import (
     UnsafeMCPAddress,
@@ -83,6 +88,49 @@ def test_a_tool_the_server_stopped_listing_is_kept_turned_off(data_fixture, mock
 
 
 @pytest.mark.django_db
+def test_a_removed_tool_no_longer_asks_for_review(data_fixture, mocker):
+    server = make_server()
+    serve(mocker, server)
+    integration = data_fixture.create_mcp_server_integration()
+    handler = MCPServerHandler()
+    handler.refresh_tools(integration)
+    MCPServerTool.objects.filter(name="fail").update(changed_since_review=True)
+    server.remove_tool("fail")
+
+    handler.refresh_tools(integration)
+
+    fail = integration.tools.get(name="fail")
+    assert (fail.removed, fail.changed_since_review) == (True, False)
+
+
+@pytest.mark.django_db
+def test_tools_with_unstorable_names_are_left_out(data_fixture):
+    integration = data_fixture.create_mcp_server_integration()
+
+    def definition(name):
+        return MCPToolDefinition(
+            name=name, title="", description="", input_schema={}, annotations=None
+        )
+
+    MCPServerHandler().store_tools(
+        integration, [definition("a"), definition("a"), definition("x" * 129)]
+    )
+
+    assert tool_names(integration) == [("a", False, False)]
+
+
+def test_a_server_with_endless_pages_fails_to_list(mocker):
+    session = mocker.Mock()
+    session.list_tools = mocker.AsyncMock(
+        return_value=mocker.Mock(tools=[], nextCursor="next")
+    )
+
+    with pytest.raises(ValueError):
+        async_to_sync(list_tools)(session)
+    assert session.list_tools.await_count == MAX_TOOL_PAGES
+
+
+@pytest.mark.django_db
 def test_a_new_url_drops_the_tools_of_the_old_server(data_fixture, mocker):
     serve(mocker, make_server())
     user = data_fixture.create_user()
@@ -111,6 +159,11 @@ def test_mcp_servers_can_only_be_added_to_agents(data_fixture):
         integration_type, agent, url="https://mcp.example.com/mcp"
     )
     assert created.application_id == agent.id
+    # And an Agent holds nothing but MCP servers.
+    with pytest.raises(ApplicationOperationNotSupported):
+        IntegrationHandler().create_integration(
+            integration_type_registry.get("local_baserow"), agent
+        )
 
 
 @pytest.mark.django_db

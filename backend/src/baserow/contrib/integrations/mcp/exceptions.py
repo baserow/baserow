@@ -13,9 +13,11 @@ class MCPServerNotConnected(Exception):
 class MCPOAuthFailed(Exception):
     """An OAuth step with the MCP server's authorization server failed."""
 
-    def __init__(self, message: str):
+    def __init__(self, message: str, retryable: bool = False):
         super().__init__(message)
         self.message = message
+        # The server was down or overloaded: the same request may work later.
+        self.retryable = retryable
 
 
 class MCPOAuthStateInvalid(Exception):

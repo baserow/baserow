@@ -51,10 +51,13 @@ CLIENT_NAME = "Baserow"
 REFRESH_MARGIN_SECONDS = 300
 
 
+# The frontend page the provider sends the editor back to. It hands the code to
+# Baserow with the editor's own session, so only they can finish their sign-in.
+REDIRECT_PATH = "/agent/mcp-oauth-callback"
+
+
 def get_redirect_uri() -> str:
-    return settings.PUBLIC_BACKEND_URL.rstrip("/") + reverse(
-        "api:mcp_server:oauth_callback"
-    )
+    return settings.PUBLIC_WEB_FRONTEND_URL.rstrip("/") + REDIRECT_PATH
 
 
 def get_client_metadata_url() -> str | None:
@@ -128,6 +131,13 @@ def _origin(url: str) -> str:
     return str(AnyHttpUrl(f"{parsed.scheme}://{parsed.netloc}"))
 
 
+async def _send_metadata_request(client: httpx.AsyncClient, url: str):
+    try:
+        return await client.send(create_oauth_metadata_request(url))
+    except httpx.HTTPError as exc:
+        raise MCPOAuthFailed("The server's OAuth metadata could not be read.") from exc
+
+
 async def discover(server_url: str) -> OAuthServer:
     """
     Find the authorization server of an MCP server: ask the server, which should
@@ -163,7 +173,7 @@ async def discover(server_url: str) -> OAuthServer:
             extract_resource_metadata_from_www_auth(probe), server_url
         ):
             resource_metadata = await handle_protected_resource_response(
-                await client.send(create_oauth_metadata_request(url))
+                await _send_metadata_request(client, url)
             )
             if resource_metadata:
                 break
@@ -189,7 +199,7 @@ async def discover(server_url: str) -> OAuthServer:
             authorization_server, server_url
         ):
             ok, metadata = await handle_auth_metadata_response(
-                await client.send(create_oauth_metadata_request(url))
+                await _send_metadata_request(client, url)
             )
             if metadata or not ok:
                 break
@@ -348,14 +358,15 @@ async def _request_token(
             )
         except httpx.HTTPError as exc:
             raise MCPOAuthFailed(
-                "The authorization server could not be reached."
+                "The authorization server could not be reached.", retryable=True
             ) from exc
     if response.status_code != 200:
         logger.info(
             "MCP OAuth token request failed with status {}", response.status_code
         )
         raise MCPOAuthFailed(
-            f"The authorization server refused the request ({response.status_code})."
+            f"The authorization server refused the request ({response.status_code}).",
+            retryable=response.status_code == 429 or response.status_code >= 500,
         )
     try:
         return OAuthToken.model_validate_json(response.content)
