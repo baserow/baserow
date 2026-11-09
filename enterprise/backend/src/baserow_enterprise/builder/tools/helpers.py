@@ -367,13 +367,19 @@ def list_elements(user: AbstractUser, page: Page) -> list[ElementItem]:
     List all elements on a page, including shared elements visible on it.
     Elements are listed in page order, with a container's children right after it.
     """
-    elements = _in_page_order(page, list(ElementService().get_elements(user, page)))
+
+    def page_elements(listed_page: Page) -> list:
+        listed = list(ElementService().get_elements(user, listed_page))
+        # The items name the page, which is loaded already.
+        for element in listed:
+            element.page = listed_page
+        return _in_page_order(listed_page, listed)
+
+    elements = page_elements(page)
 
     # Also include shared elements (headers/footers) visible on this page
     if not page.shared:
-        shared_page = page.builder.shared_page
-        shared_elements = ElementService().get_elements(user, shared_page)
-        elements = _in_page_order(shared_page, list(shared_elements)) + elements
+        elements = page_elements(page.builder.shared_page) + elements
 
     return [ElementItem.from_orm(el) for el in elements]
 

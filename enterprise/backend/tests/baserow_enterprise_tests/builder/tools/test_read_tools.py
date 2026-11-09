@@ -1,3 +1,6 @@
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+
 import pytest
 
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
@@ -84,6 +87,28 @@ def test_list_elements_includes_shared_elements(builder_ctx):
     assert builder_ctx["footer"].id in ids
     assert builder_ctx["button"].id in ids
     assert ids.index(builder_ctx["footer"].id) < ids.index(builder_ctx["button"].id)
+
+
+@pytest.mark.django_db
+def test_list_elements_query_count_does_not_grow_with_the_elements(
+    data_fixture, builder_ctx
+):
+    def count_queries():
+        # The first call after a change fills the caches.
+        elements.list_elements(builder_ctx["ctx"], builder_ctx["page"].id)
+        with CaptureQueriesContext(connection) as queries:
+            elements.list_elements(builder_ctx["ctx"], builder_ctx["page"].id)
+        return len(queries)
+
+    data_fixture.create_builder_heading_element(page=builder_ctx["page"])
+    few = count_queries()
+    for _ in range(20):
+        data_fixture.create_builder_heading_element(page=builder_ctx["page"])
+        data_fixture.create_builder_heading_element(
+            page=builder_ctx["builder"].shared_page
+        )
+
+    assert count_queries() == few
 
 
 @pytest.mark.django_db
