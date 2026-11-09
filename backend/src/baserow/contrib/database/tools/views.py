@@ -50,6 +50,14 @@ from baserow.contrib.database.views.registries import (
 from baserow.core.exceptions import PermissionException
 from baserow.core.handler import CoreHandler
 from baserow.core.tools import ToolContext
+from baserow.core.tools.errors import (
+    ToolError,
+    ToolErrorCode,
+    ToolInputError,
+    classify_item_error,
+    finish_batch,
+    item_error,
+)
 
 
 class FormFieldOption(BaseModel):
@@ -942,20 +950,21 @@ def resolve_view_filter(
     :param table_fields: Mapping of field ID → field instance for the table.
     :param view_filter_item: The filter definition.
     :param timezone: The timezone of a date filter's value, UTC when None.
-    :raises ValueError: If the field is not found or its type doesn't match.
+    :raises ToolInputError: If the field is not found or its type doesn't match.
     """
 
     field = table_fields.get(view_filter_item.field_id)
     if field is None:
-        raise ValueError(
-            f"Field {view_filter_item.field_id} not found for filter. "
-            f"Available field IDs: {sorted(table_fields.keys())}"
+        raise ToolInputError(
+            f"Field {view_filter_item.field_id} is not in this view's table.",
+            f"Available field IDs: {sorted(table_fields.keys())}",
         )
     field_type = field_type_registry.get_by_model(field.specific_class)
     if field_type.type != view_filter_item.type:
-        raise ValueError(
-            f"Field '{field.name}' (id={field.id}) is type '{field_type.type}', "
-            f"but filter declared type '{view_filter_item.type}'"
+        raise ToolInputError(
+            f"Field '{field.name}' is a {field_type.type} field, not "
+            f"{view_filter_item.type}.",
+            f"Use type '{field_type.type}' for field {field.id}.",
         )
 
     return (
@@ -980,7 +989,7 @@ def create_view_filter(
     :param table_fields: Mapping of field ID → field instance for the table.
     :param view_filter_item: The filter definition to create.
     :param timezone: The timezone of a date filter's value, UTC when None.
-    :raises ValueError: If the field is not found or its type doesn't match.
+    :raises ToolInputError: If the field is not found or its type doesn't match.
     """
 
     field, filter_type, filter_value = resolve_view_filter(
@@ -1019,7 +1028,7 @@ def create_views(
     """
     Create views in a table. A new table already has a grid view. A view whose
     name is already used in the table, or earlier in the call, is not created and
-    is listed in skipped_views. Each type needs its fields: a kanban view a single
+    is returned in errors. Each type needs its fields: a kanban view a single
     select field for its columns, a calendar view a date field, a timeline view a
     start and an end date field with the same include time setting, and a gallery
     view a file field for its covers. A form view shows only the fields listed in
@@ -1042,11 +1051,19 @@ def create_views(
     used_names = {view.name for view in view_list}
 
     created_views = []
-    skipped_views = []
+    errors: list[dict[str, Any]] = []
     with transaction.atomic():
         for view in views:
             if view.name in used_names:
-                skipped_views.append(view.name)
+                errors.append(
+                    item_error(
+                        view.name,
+                        ToolError(
+                            ToolErrorCode.CONFLICT,
+                            f"A view named '{view.name}' already exists in this table.",
+                        ),
+                    )
+                )
                 continue
             used_names.add(view.name)
             ctx.update_status(
@@ -1057,9 +1074,9 @@ def create_views(
             try:
                 orm_kwargs = view.to_django_orm_kwargs(table)
             except (ValueError, TypeError) as exc:
-                raise DjangoValidationError(
-                    f"Cannot create the '{view.name}' {view.type} view: {exc} "
-                    f"Fields in table '{table.name}': {_describe_fields(table)}"
+                raise ToolInputError(
+                    f"Cannot create the '{view.name}' {view.type} view: {exc}",
+                    hint=f"Fields in table '{table.name}': {_describe_fields(table)}",
                 ) from exc
 
             orm_view = CreateViewActionType.do(ctx.user, table, view.type, **orm_kwargs)
@@ -1081,7 +1098,7 @@ def create_views(
                 )
             if field_options:
                 try:
-                    # A savepoint, so the error message can still query the table.
+                    # A savepoint, so the hint can still query the table.
                     with transaction.atomic():
                         UpdateViewFieldOptionsActionType.do(
                             ctx.user, orm_view, field_options
@@ -1089,11 +1106,11 @@ def create_views(
                 except PermissionException:
                     raise
                 except Exception as exc:
-                    raise DjangoValidationError(
+                    raise ToolInputError(
                         f"The field_options of the '{view.name}' {view.type} view "
-                        f"were rejected and no views were created: {exc} Retry "
-                        f"without the rejected fields. Fields in table "
-                        f"'{table.name}': {_describe_fields(table)}"
+                        f"were rejected and no views were created: {exc}",
+                        hint="Retry without the rejected fields. Fields in table "
+                        f"'{table.name}': {_describe_fields(table)}",
                     ) from exc
 
             created = {"id": orm_view.id, **view.model_dump()}
@@ -1108,10 +1125,12 @@ def create_views(
                 )
             created_views.append(created)
 
-    result: dict[str, Any] = {"created_views": created_views}
-    if skipped_views:
-        result["skipped_views"] = skipped_views
-    return result
+    return finish_batch(
+        {"created_views": created_views},
+        bool(created_views),
+        errors,
+        "No view was created.",
+    )
 
 
 def create_view_filters(
@@ -1130,7 +1149,7 @@ def create_view_filters(
     operator and a value. A filter whose field is missing from the view's table,
     has another type, has a value of the wrong format, has a label that matches no
     select option, or that the view refuses (a form view takes no filters) is not
-    created and is returned in skipped_filters with the reason. When a view is not
+    created and is returned in errors with the reason. When a view is not
     found, nothing is created.
 
     Value formats by type:
@@ -1148,7 +1167,7 @@ def create_view_filters(
     # Every view is checked before anything is written, so a missing view fails
     # the call without leaving the filters of the other views behind.
     orm_views = [get_view(ctx, view_filter.view_id) for view_filter in view_filters]
-    # Before reading the fields, as a skipped filter's error names them.
+    # Before reading the fields, as a failed filter's error names them.
     for orm_view in orm_views:
         CoreHandler().check_permissions(
             ctx.user,
@@ -1158,6 +1177,7 @@ def create_view_filters(
         )
 
     created_view_filters = []
+    errors: list[dict[str, Any]] = []
     # One transaction for every view, so an error on a later view doesn't leave
     # the filters of the earlier ones behind for a retry to duplicate.
     with transaction.atomic():
@@ -1168,27 +1188,32 @@ def create_view_filters(
 
             fields = {f.id: f for f in orm_view.table.field_set.all()}
             created_filters = []
-            skipped_filters = []
-            for item in view_filter.filters:
+            for index, item in enumerate(view_filter.filters):
                 try:
                     orm_filter = create_view_filter(
                         ctx.user, orm_view, fields, item, ctx.timezone
                     )
                 # The handler raises ViewFilterNotSupported before it writes.
-                except (ValueError, ViewFilterNotSupported) as exc:
-                    skipped_filters.append({**item.model_dump(), "error": str(exc)})
+                except (ToolInputError, ValueError, ViewFilterNotSupported) as exc:
+                    errors.append(
+                        item_error(
+                            orm_view.name,
+                            classify_item_error(exc),
+                            view_id=view_filter.view_id,
+                            index=index,
+                            **item.model_dump(),
+                        )
+                    )
                     continue
                 created_filters.append(_created_filter(orm_filter, item))
 
-            entry: dict[str, Any] = {
-                "view_id": view_filter.view_id,
-                "filters": created_filters,
-            }
-            if skipped_filters:
-                entry["skipped_filters"] = skipped_filters
-            created_view_filters.append(entry)
+            created_view_filters.append(
+                {"view_id": view_filter.view_id, "filters": created_filters}
+            )
 
-    return {
-        "created_view_filters": created_view_filters,
-        "changed": any(item["filters"] for item in created_view_filters),
-    }
+    return finish_batch(
+        {"created_view_filters": created_view_filters},
+        any(item["filters"] for item in created_view_filters),
+        errors,
+        "No filter was added.",
+    )

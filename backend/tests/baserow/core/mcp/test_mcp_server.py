@@ -474,7 +474,7 @@ def test_call_tool_exception_returns_is_error_true(data_fixture):
         async def inner():
             async with client_session(mcp._mcp_server) as client:
                 result = await client.call_tool(
-                    "update_rows", {"table_id": 999999, "rows": []}
+                    "update_rows", {"table_id": 999999, "rows": [{"id": 1}]}
                 )
                 assert result.isError is True
                 assert result.content[0].text == "Not found in this workspace."
@@ -498,7 +498,7 @@ def test_call_tool_captures_analytics_event(mock_capture, data_fixture):
         async def inner():
             async with client_session(mcp._mcp_server) as client:
                 await client.call_tool("list_databases", {})
-                await client.call_tool("update_rows", {"table_id": 999999, "rows": []})
+                await client.call_tool("update_rows", {"table_id": 999999, "rows": [{"id": 1}]})
                 await client.call_tool("nonexistent_tool", {})
 
         with transaction.atomic():

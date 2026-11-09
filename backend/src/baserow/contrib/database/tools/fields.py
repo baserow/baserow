@@ -8,18 +8,14 @@ import json
 from typing import Annotated, Any, Literal, get_args
 
 from django.conf import settings
-from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import DatabaseError, transaction
 from django.db.models import Q
 from django.utils.translation import gettext as _
 
-from loguru import logger
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import ConfigDict, Field, model_serializer, model_validator
-from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from baserow.api.exceptions import RequestBodyValidationException
 from baserow.contrib.database.fields.actions import (
     CreateFieldActionType,
     DeleteFieldActionType,
@@ -38,12 +34,18 @@ from baserow.contrib.database.fields.models import (
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import Table
-from baserow.contrib.database.tools.errors import user_error_message
+from baserow.contrib.database.tools.errors import conflict_errors, user_error_message
 from baserow.core.cache import local_cache
-from baserow.core.exceptions import InstanceTypeDoesNotExist, PermissionException
+from baserow.core.exceptions import PermissionException
 from baserow.core.formula.parser.exceptions import BaserowFormulaException
 from baserow.core.tools import ToolContext
-from baserow.core.tools.errors import INTERNAL_ERROR_MESSAGE, tool_error_message
+from baserow.core.tools.errors import (
+    ToolError,
+    ToolErrorCode,
+    classify_item_error,
+    finish_batch,
+    item_error,
+)
 
 
 class BaseModel(PydanticBaseModel):
@@ -947,51 +949,46 @@ class FieldItemUpdate(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def _formula_error(exc: InvalidFormulaFieldError) -> dict[str, Any]:
-    return {
-        "table_id": exc.table.id,
-        "field_name": exc.field_name,
-        "formula": exc.formula,
-        "error": exc.error,
-    }
-
-
-# Errors tool_error_message turns into a readable message.
-_FORMATTED_ERRORS = (
-    DjangoValidationError,
-    DRFValidationError,
-    RequestBodyValidationException,
-    InstanceTypeDoesNotExist,
-)
-
-
-def _item_error_message(exc: Exception) -> str:
+def _formula_error(
+    exc: InvalidFormulaFieldError, item: str | int, **details: Any
+) -> dict[str, Any]:
     """
-    The message for one field that failed while the others go on. Call it from
-    the ``except`` block, so an unexpected error is logged with its traceback.
+    The item error of an invalid formula, with what a client needs to repair it.
+
+    :param exc: The formula error.
+    :param item: The field's name, or its ID for an update.
+    :param details: More keys the client needs, like the update's index.
+    :return: The item error.
+    """
+
+    return item_error(
+        item,
+        ToolError(ToolErrorCode.INVALID_FORMULA, exc.error.rstrip(".") + "."),
+        table_id=exc.table.id,
+        field_name=exc.field_name,
+        formula=exc.formula,
+        **details,
+    )
+
+
+def _field_item_error(exc: Exception) -> ToolError:
+    """
+    Classify one field that failed while the others go on. Call it from the
+    ``except`` block, so an unexpected error is logged with its traceback.
 
     :param exc: The exception the item raised.
-    :returns: The exception's own message when it is a Baserow or validation
-        error the caller can act on, or a generic message for anything else.
+    :return: The code and the message for people.
     """
 
-    if isinstance(exc, _FORMATTED_ERRORS):
-        # None for an InstanceTypeDoesNotExist without a type name: a server bug.
-        message = tool_error_message(exc)
-    elif not isinstance(exc, AttributeError) and (
-        isinstance(exc, (ValueError, ObjectDoesNotExist))
-        or type(exc).__module__.startswith("baserow")
-    ):
-        # Baserow's own errors (FieldWithSameNameAlreadyExists, FieldDoesNotExist,
-        # ...) say what the caller did wrong. Django's RelatedObjectDoesNotExist is
-        # also an AttributeError, and a server bug.
-        message = str(exc) or user_error_message(exc) or type(exc).__name__
-    else:
-        message = None
-    if message is None:
-        logger.exception("Unexpected error in a field tool item: {}", exc)
-        return INTERNAL_ERROR_MESSAGE
-    return message
+    message = user_error_message(exc)
+    if message is not None:
+        code = (
+            ToolErrorCode.CONFLICT
+            if isinstance(exc, conflict_errors())
+            else ToolErrorCode.INVALID_INPUT
+        )
+        return ToolError(code, message)
+    return classify_item_error(exc, conflict_errors())
 
 
 def forget_cached_table_models() -> None:
@@ -1020,7 +1017,7 @@ def _get_field(ctx: ToolContext, field_id: int) -> BaserowField:
 
 def create_fields_in_table(
     ctx: ToolContext, table: Table, field_items: list[FieldItemCreate]
-) -> tuple[list[FieldItem], list[str], list[dict[str, Any]]]:
+) -> tuple[list[FieldItem], list[dict[str, Any]]]:
     """
     Create fields in a table, in an order that lets later fields refer to earlier
     ones: regular fields first, then link_row, lookup and formula.
@@ -1028,14 +1025,13 @@ def create_fields_in_table(
     :param ctx: Who acts and where status goes.
     :param table: The table to add the fields to.
     :param field_items: The fields to create.
-    :returns: The created fields, the error messages of the fields that could not
-        be created, and the invalid formulas with their parser message.
+    :returns: The created fields, and an item error per field that could not be
+        created; an invalid formula has the code ``invalid_formula`` and its formula.
     :raises PermissionException: When the user may not create a field.
     """
 
     created_fields: list[FieldItem] = []
-    field_errors: list[str] = []
-    formula_errors: list[dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
 
     for field_item in sorted(field_items, key=lambda f: FIELD_ORDER.get(f.type, 0)):
         ctx.update_status(
@@ -1055,18 +1051,15 @@ def create_fields_in_table(
                 created_fields.append(FieldItem.from_django_orm(link_field))
             created_fields.append(FieldItem.from_django_orm(new_field))
         except InvalidFormulaFieldError as exc:
-            formula_errors.append(_formula_error(exc))
+            errors.append(_formula_error(exc, field_item.name))
         except PermissionException:
             raise
         except Exception as error:
             forget_cached_table_models()
-            message = _item_error_message(error).rstrip(".")
-            field_errors.append(
-                f"Error creating field {field_item.name} in table_{table.id}: "
-                f"{message}.\n"
-                f"Please retry recreating this field later, if important."
+            errors.append(
+                item_error(field_item.name, _field_item_error(error), table_id=table.id)
             )
-    return created_fields, field_errors, formula_errors
+    return created_fields, errors
 
 
 def update_field(
@@ -1132,24 +1125,21 @@ def create_fields(
     link_row field named in through_field, or else the first one to linked_table;
     when there is none, one is created and returned in created_fields too. A
     formula is stored as written. An invalid formula is not created: it is
-    returned in formula_errors with the parser's message, to correct and send
-    again.
+    returned in errors with the code invalid_formula and the parser's message, to
+    correct and send again.
     """
 
     table = (
         TableHandler().list_workspace_tables(ctx.user, ctx.workspace).get(id=table_id)
     )
     with transaction.atomic():
-        created, field_errors, formula_errors = create_fields_in_table(
-            ctx, table, fields
-        )
-
-    result: dict[str, Any] = {"created_fields": [f.model_dump() for f in created]}
-    if field_errors:
-        result["field_errors"] = field_errors
-    if formula_errors:
-        result["formula_errors"] = formula_errors
-    return result
+        created, errors = create_fields_in_table(ctx, table, fields)
+    return finish_batch(
+        {"created_fields": [f.model_dump() for f in created]},
+        bool(created),
+        errors,
+        "No field was created.",
+    )
 
 
 def _fields_to_lock(ctx: ToolContext, field_ids: list[int]):
@@ -1203,12 +1193,12 @@ def update_fields(
     Update fields: rename them or change their settings and select options. A
     field's type and link_row target cannot change. Select options not listed stay
     as they are. A field with an invalid formula is left unchanged and returned in
-    formula_errors with the parser's message and the index of its update in fields.
+    errors with the code invalid_formula, the parser's message and the index of its
+    update in fields.
     """
 
     updated = []
-    errors = []
-    formula_errors = []
+    errors: list[dict[str, Any]] = []
     changed = False
 
     with transaction.atomic():
@@ -1226,28 +1216,24 @@ def update_fields(
                 updated.append(field_item.model_dump())
                 changed = changed or field_changed
             except InvalidFormulaFieldError as exc:
-                formula_errors.append(
-                    {
-                        "field_id": field_update.field_id,
-                        "index": index,
-                        **_formula_error(exc),
-                    }
+                errors.append(
+                    _formula_error(
+                        exc,
+                        field_update.field_id,
+                        field_id=field_update.field_id,
+                        index=index,
+                    )
                 )
             except PermissionException:
                 raise
             except Exception as error:
                 forget_cached_table_models()
                 errors.append(
-                    f"Error updating field {field_update.field_id}: "
-                    f"{_item_error_message(error)}"
+                    item_error(field_update.field_id, _field_item_error(error))
                 )
-
-    result: dict[str, Any] = {"updated_fields": updated, "changed": changed}
-    if errors:
-        result["errors"] = errors
-    if formula_errors:
-        result["formula_errors"] = formula_errors
-    return result
+    return finish_batch(
+        {"updated_fields": updated}, changed, errors, "No field was updated."
+    )
 
 
 def delete_fields(
@@ -1262,7 +1248,7 @@ def delete_fields(
     """
 
     deleted = []
-    errors = []
+    errors: list[dict[str, Any]] = []
 
     with transaction.atomic():
         for field_id in field_ids:
@@ -1277,11 +1263,7 @@ def delete_fields(
                 raise
             except Exception as error:
                 forget_cached_table_models()
-                errors.append(
-                    f"Error deleting field {field_id}: {_item_error_message(error)}"
-                )
-
-    result: dict[str, Any] = {"deleted_field_ids": deleted}
-    if errors:
-        result["errors"] = errors
-    return result
+                errors.append(item_error(field_id, _field_item_error(error)))
+    return finish_batch(
+        {"deleted_field_ids": deleted}, bool(deleted), errors, "No field was deleted."
+    )

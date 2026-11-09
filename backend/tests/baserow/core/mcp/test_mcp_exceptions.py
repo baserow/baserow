@@ -1,6 +1,6 @@
 from rest_framework.exceptions import APIException
 
-from baserow.core.mcp.exceptions import to_mcp_error
+from baserow.core.mcp.exceptions import ToolInputError, to_mcp_error
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
@@ -36,3 +36,10 @@ def test_to_mcp_error_reports_improperly_configured_service():
     assert to_mcp_error(ServiceImproperlyConfiguredDispatchException("No field.")) == (
         "Invalid value. No field."
     )
+
+
+def test_to_mcp_error_gives_the_model_the_hint_after_the_message():
+    error = ToolInputError("Field 9 isn't in this table.", hint="Use 3, 7.")
+
+    assert to_mcp_error(error) == "Field 9 isn't in this table. Use 3, 7."
+    assert to_mcp_error(ToolInputError("No hint.")) == "No hint."

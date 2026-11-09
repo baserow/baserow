@@ -4,7 +4,6 @@ import json
 import logging
 from unittest.mock import patch
 
-from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import connection, transaction
 
 import pytest
@@ -27,6 +26,7 @@ from baserow.core.exceptions import PermissionException
 from baserow.core.mcp import BaserowMCPServer, current_key
 from baserow.core.models import Agent
 from baserow.core.tools import ToolContext
+from baserow.core.tools.errors import ToolInputError
 
 VIEW_TOOLS = ["create_views", "create_view_filters"]
 
@@ -62,7 +62,7 @@ def _call(endpoint, name, arguments):
 
 
 @pytest.mark.django_db
-def test_create_views_skips_names_already_used(data_fixture, table_ctx):
+def test_create_views_reports_names_already_used(data_fixture, table_ctx):
     ctx, table = table_ctx
     data_fixture.create_grid_view(table=table, name="Grid")
 
@@ -77,7 +77,11 @@ def test_create_views_skips_names_already_used(data_fixture, table_ctx):
     )
 
     assert [view["name"] for view in result["created_views"]] == ["Open"]
-    assert result["skipped_views"] == ["Grid", "Open"]
+    assert [(e["item"], e["code"]) for e in result["errors"]] == [
+        ("Grid", "conflict"),
+        ("Open", "conflict"),
+    ]
+    assert result["changed"] is True and "error" not in result
     assert sorted(View.objects.filter(table=table).values_list("name", flat=True)) == [
         "Grid",
         "Open",
@@ -85,16 +89,16 @@ def test_create_views_skips_names_already_used(data_fixture, table_ctx):
 
 
 @pytest.mark.django_db
-def test_create_views_without_duplicates_lists_no_skipped_views(table_ctx):
+def test_create_views_without_duplicates_lists_no_errors(table_ctx):
     ctx, table = table_ctx
 
     result = create_views(ctx, table.id, [ViewItemCreate(name="All", type="grid")])
 
-    assert "skipped_views" not in result
+    assert "errors" not in result and "error" not in result
 
 
 @pytest.mark.django_db
-def test_create_view_filters_returns_the_skipped_filters(data_fixture, table_ctx):
+def test_create_view_filters_returns_the_failed_filters(data_fixture, table_ctx):
     ctx, table = table_ctx
     number = data_fixture.create_number_field(table=table, name="Amount")
     view = data_fixture.create_grid_view(table=table)
@@ -121,10 +125,12 @@ def test_create_view_filters_returns_the_skipped_filters(data_fixture, table_ctx
 
     (entry,) = result["created_view_filters"]
     assert [f["field_id"] for f in entry["filters"]] == [number.id]
-    (skipped,) = entry["skipped_filters"]
-    assert skipped["field_id"] == number.id
-    assert skipped["type"] == "text"
-    assert "is type 'number'" in skipped["error"]
+    (failed,) = result["errors"]
+    assert failed["field_id"] == number.id
+    assert failed["type"] == "text"
+    assert failed["message"] == "Field 'Amount' is a number field, not text."
+    assert failed["code"] == "invalid_input"
+    assert failed["view_id"] == view.id and failed["index"] == 1
     assert result["changed"] is True
     assert ViewFilter.objects.filter(view=view).count() == 1
 
@@ -324,7 +330,7 @@ def test_create_view_filters_over_mcp_rejects_a_select_value_that_is_not_a_list(
 
 
 @pytest.mark.django_db
-def test_create_view_filters_over_mcp_skips_labels_that_match_no_option(
+def test_create_view_filters_over_mcp_reports_labels_that_match_no_option(
     select_view, caplog, error_records
 ):
     endpoint, field, view = select_view
@@ -334,11 +340,12 @@ def test_create_view_filters_over_mcp_skips_labels_that_match_no_option(
     )
 
     assert result.isError is False
-    (entry,) = json.loads(result.content[0].text)["created_view_filters"]
+    payload = json.loads(result.content[0].text)
+    (entry,) = payload["created_view_filters"]
     assert entry["filters"] == []
-    (skipped,) = entry["skipped_filters"]
-    assert "are not options of field 'Status'" in skipped["error"]
-    assert "Active" in skipped["error"]
+    (failed,) = payload["errors"]
+    assert "are not options of field 'Status'" in failed["message"]
+    assert "Active" in failed["message"]
     assert [r for r in caplog.records if r.levelno >= logging.ERROR] == []
     assert error_records == []
     assert not ViewFilter.objects.filter(view=view).exists()
@@ -363,7 +370,7 @@ def test_create_view_filters_over_mcp_writes_nothing_when_a_view_is_not_found(
 
 
 @pytest.mark.django_db
-def test_create_view_filters_over_mcp_skips_the_filters_of_a_form_view(data_fixture):
+def test_create_view_filters_over_mcp_reports_the_filters_of_a_form_view(data_fixture):
     endpoint = data_fixture.create_mcp_endpoint(allowed_tools=VIEW_TOOLS)
     database = data_fixture.create_database_application(workspace=endpoint.workspace)
     table = data_fixture.create_database_table(database=database)
@@ -387,8 +394,8 @@ def test_create_view_filters_over_mcp_skips_the_filters_of_a_form_view(data_fixt
     grid_entry, form_entry = json.loads(result.content[0].text)["created_view_filters"]
     assert len(grid_entry["filters"]) == 1
     assert form_entry["filters"] == []
-    (skipped,) = form_entry["skipped_filters"]
-    assert skipped["error"] == "Filtering is not supported for form views."
+    (failed,) = json.loads(result.content[0].text)["errors"]
+    assert failed["message"] == "Filtering is not supported for form views."
     assert ViewFilter.objects.filter(view=grid).count() == 1
     assert not ViewFilter.objects.filter(view=form).exists()
 
@@ -446,7 +453,7 @@ def _filter_view(data_fixture, table_ctx, field):
                 )
             ],
         )
-        return result["created_view_filters"][0]
+        return {**result["created_view_filters"][0], "errors": result.get("errors", [])}
 
     return view, create
 
@@ -472,7 +479,7 @@ def test_create_view_filters_reads_the_date_value_by_mode(
 
     entry = create(type="date", operator="equal", mode=mode, value=value)
 
-    assert "skipped_filters" not in entry
+    assert entry["errors"] == []
     assert ViewFilter.objects.get(view=view).value == stored
 
 
@@ -481,7 +488,7 @@ def test_create_view_filters_reads_the_date_value_by_mode(
     "mode,value",
     [("nr_days_ago", "a week"), ("nr_days_ago", -3), ("exact_date", 5)],
 )
-def test_create_view_filters_skips_a_date_value_the_mode_cannot_use(
+def test_create_view_filters_reports_a_date_value_the_mode_cannot_use(
     data_fixture, table_ctx, mode, value
 ):
     field = data_fixture.create_date_field(table=table_ctx[1], name="Due")
@@ -489,8 +496,8 @@ def test_create_view_filters_skips_a_date_value_the_mode_cannot_use(
 
     entry = create(type="date", operator="equal", mode=mode, value=value)
 
-    (skipped,) = entry["skipped_filters"]
-    assert f"'{mode}' needs" in skipped["error"]
+    (failed,) = entry["errors"]
+    assert f"'{mode}' needs" in failed["message"]
     assert not ViewFilter.objects.filter(view=view).exists()
 
 
@@ -522,7 +529,7 @@ def test_create_view_filters_reads_a_boolean_value(
 
 
 @pytest.mark.django_db
-def test_create_view_filters_skips_a_boolean_value_that_is_not_true_or_false(
+def test_create_view_filters_reports_a_boolean_value_that_is_not_true_or_false(
     data_fixture, table_ctx
 ):
     field = data_fixture.create_boolean_field(table=table_ctx[1], name="Done")
@@ -530,8 +537,8 @@ def test_create_view_filters_skips_a_boolean_value_that_is_not_true_or_false(
 
     entry = create(type="boolean", operator="equal", value="maybe")
 
-    (skipped,) = entry["skipped_filters"]
-    assert skipped["error"] == "A boolean filter needs true or false, not 'maybe'."
+    (failed,) = entry["errors"]
+    assert failed["message"] == "A boolean filter needs true or false, not 'maybe'."
     assert not ViewFilter.objects.filter(view=view).exists()
 
 
@@ -548,12 +555,12 @@ def test_create_view_filters_matches_labels_ignoring_case_and_outer_spaces(
         type="single_select", operator="is_any_of", value=["active", " Done "]
     )
 
-    assert "skipped_filters" not in entry
+    assert entry["errors"] == []
     assert ViewFilter.objects.get(view=view).value == f"{active.id},{done.id}"
 
 
 @pytest.mark.django_db
-def test_create_view_filters_skips_a_select_filter_with_an_unknown_label(
+def test_create_view_filters_reports_a_select_filter_with_an_unknown_label(
     data_fixture, table_ctx
 ):
     field = data_fixture.create_single_select_field(table=table_ctx[1], name="Status")
@@ -563,8 +570,8 @@ def test_create_view_filters_skips_a_select_filter_with_an_unknown_label(
     entry = create(type="single_select", operator="is_any_of", value=["Active", "Nope"])
 
     assert entry["filters"] == []
-    (skipped,) = entry["skipped_filters"]
-    assert skipped["error"] == (
+    (failed,) = entry["errors"]
+    assert failed["message"] == (
         "['Nope'] are not options of field 'Status'. Options: Active."
     )
     assert not ViewFilter.objects.filter(view=view).exists()
@@ -617,7 +624,7 @@ def test_create_views_reports_a_database_error_in_the_field_options(table_ctx):
 
     with (
         patch.object(views_module.UpdateViewFieldOptionsActionType, "do", fail),
-        pytest.raises(DjangoValidationError) as exc_info,
+        pytest.raises(ToolInputError) as exc_info,
     ):
         create_views(
             ctx,
@@ -639,8 +646,9 @@ def test_create_views_reports_a_database_error_in_the_field_options(table_ctx):
             ],
         )
 
-    assert "were rejected and no views were created" in exc_info.value.messages[0]
-    assert f"{name.id} (Name, text)" in exc_info.value.messages[0]
+    assert "were rejected and no views were created" in str(exc_info.value)
+    assert "Fields in table" not in str(exc_info.value)
+    assert f"{name.id} (Name, text)" in exc_info.value.hint
 
 
 def _form_view_arguments(table, name, **settings):
@@ -758,7 +766,7 @@ def test_create_view_filters_reads_gte_and_lte_as_inclusive(
 @pytest.mark.django_db
 @pytest.mark.parametrize("operator", ["has", "has_not"])
 @pytest.mark.parametrize("value", [None, "", "row 5", "1.5", True])
-def test_create_view_filters_skips_a_link_row_value_that_is_not_a_row_id(
+def test_create_view_filters_reports_a_link_row_value_that_is_not_a_row_id(
     data_fixture, table_ctx, operator, value
 ):
     other = data_fixture.create_database_table(database=table_ctx[1].database)
@@ -770,8 +778,8 @@ def test_create_view_filters_skips_a_link_row_value_that_is_not_a_row_id(
 
     entry = create(type="link_row", operator=operator, value=value)
 
-    (skipped,) = entry["skipped_filters"]
-    assert "needs a row id" in skipped["error"]
+    (failed,) = entry["errors"]
+    assert "needs a row id" in failed["message"]
     assert not ViewFilter.objects.filter(view=view).exists()
 
 
@@ -793,7 +801,7 @@ def test_create_view_filters_stores_a_link_row_id(data_fixture, table_ctx, value
 @pytest.mark.django_db
 @pytest.mark.parametrize("operator", ["equal", "not_equal", "gt", "lte"])
 @pytest.mark.parametrize("value", [None, "", "many", "nan", True])
-def test_create_view_filters_skips_a_number_value_that_is_not_a_number(
+def test_create_view_filters_reports_a_number_value_that_is_not_a_number(
     data_fixture, table_ctx, operator, value
 ):
     field = data_fixture.create_number_field(table=table_ctx[1], name="Price")
@@ -801,8 +809,8 @@ def test_create_view_filters_skips_a_number_value_that_is_not_a_number(
 
     entry = create(type="number", operator=operator, value=value)
 
-    (skipped,) = entry["skipped_filters"]
-    assert "needs a number" in skipped["error"]
+    (failed,) = entry["errors"]
+    assert "needs a number" in failed["message"]
     assert not ViewFilter.objects.filter(view=view).exists()
 
 
@@ -819,7 +827,7 @@ def test_create_view_filters_stores_a_number_value(
 
     entry = create(type="number", operator=operator, value=value)
 
-    assert "skipped_filters" not in entry
+    assert entry["errors"] == []
     assert ViewFilter.objects.get(view=view).value == stored
 
 
@@ -833,7 +841,7 @@ def test_create_view_filters_takes_no_number_for_empty(
 
     entry = create(type="number", operator=operator)
 
-    assert "skipped_filters" not in entry
+    assert entry["errors"] == []
     view_filter = ViewFilter.objects.get(view=view)
     assert (view_filter.type, view_filter.value) == (operator, "")
 
@@ -873,7 +881,7 @@ def test_create_view_filters_works_for_an_actor_without_a_profile(
 
     entry = create(type="text", operator="equal", value="x")
 
-    assert "skipped_filters" not in entry
+    assert entry["errors"] == []
     assert ViewFilter.objects.get(view=view).value == "x"
 
 
@@ -927,3 +935,48 @@ def test_create_view_filters_over_mcp_uses_the_user_timezone(data_fixture):
 
     assert result.isError is False
     assert ViewFilter.objects.get(view=view).value == "Europe/Amsterdam??today"
+
+
+@pytest.mark.django_db
+def test_create_views_with_only_used_names_answers_a_conflict(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_grid_view(table=table, name="Grid")
+    ctx = ToolContext(user=user, workspace=table.database.workspace)
+
+    result = create_views(ctx, table.id, [ViewItemCreate(name="Grid", type="grid")])
+
+    assert result["created_views"] == [] and result["changed"] is False
+    assert result["error"] == {
+        "code": "conflict",
+        "message": "A view named 'Grid' already exists in this table.",
+    }
+
+
+@pytest.mark.django_db
+def test_refused_filters_are_item_errors_with_a_model_hint(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table, name="Hours")
+    view = data_fixture.create_grid_view(table=table, name="All")
+    ctx = ToolContext(user=user, workspace=table.database.workspace)
+
+    result = create_view_filters(
+        ctx,
+        [
+            ViewFiltersArgs(
+                view_id=view.id,
+                filters=[
+                    ViewFilterItemCreate(
+                        field_id=999999, type="number", operator="equal", value=1
+                    )
+                ],
+            )
+        ],
+    )
+
+    (error,) = result["errors"]
+    assert (error["item"], error["code"], error["index"]) == ("All", "invalid_input", 0)
+    assert error["message"] == "Field 999999 is not in this view's table."
+    assert str(field.id) in error["hint"]
+    assert result["error"]["message"] == error["message"]
