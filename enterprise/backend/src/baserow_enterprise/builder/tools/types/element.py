@@ -1951,6 +1951,14 @@ class ElementUpdate(BaseModel):
 
 ElementChanges = without_field(ElementUpdate, "ElementChanges", "element_id")
 
+# The changes of an MCP update_element, which deletes nothing: removing table columns
+# or menu items is a tool of its own, in the builder_delete group.
+ElementEdits = without_field(
+    without_field(ElementChanges, "ElementEdits", "remove_table_columns"),
+    "ElementEdits",
+    "remove_menu_items",
+)
+
 
 class ElementItem(BaseModel):
     """Existing element with ID."""

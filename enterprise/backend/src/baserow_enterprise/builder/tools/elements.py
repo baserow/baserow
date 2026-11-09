@@ -27,6 +27,7 @@ from .types import (
     CollectionElementCreate,
     DisplayElementCreate,
     ElementChanges,
+    ElementEdits,
     ElementItem,
     ElementItemCreate,
     ElementMove,
@@ -36,7 +37,7 @@ from .types import (
     FormElementCreate,
     LayoutElementCreate,
 )
-from .types.limits import MAX_ITEMS_PER_CALL
+from .types.limits import MAX_ITEMS_PER_CALL, MAX_NESTED_ITEMS
 
 
 def list_elements(
@@ -393,12 +394,18 @@ def update_element(
     button's click actions are gone for good.
     """
 
+    return _update_element(
+        ctx, element_id, _full_update(ElementUpdate, element_id, element)
+    )
+
+
+def _update_element(
+    ctx: ToolContext, element_id: int, element: ElementUpdate
+) -> dict[str, Any]:
     page = get_page_in_workspace(ctx, _element_in_workspace(ctx, element_id).page_id)
     ctx.update_status(_("Updating element %(id)d...") % {"id": element_id})
 
-    outcome, formula_errors = update_element_on_page(
-        ctx, page, _full_update(ElementUpdate, element_id, element)
-    )
+    outcome, formula_errors = update_element_on_page(ctx, page, element)
 
     updated = ElementHandler().get_element(element_id)
     result: dict[str, Any] = {
@@ -408,6 +415,95 @@ def update_element(
     if formula_errors:
         result["formula_errors"] = formula_errors
     return result
+
+
+def edit_element(
+    ctx: ToolContext,
+    element_id: Annotated[
+        int, Field(description="The ID of the element, from list_elements.")
+    ],
+    element: Annotated[
+        ElementEdits, Field(description="The changes. Set only what should change.")
+    ],
+) -> dict[str, Any]:
+    """
+    Update an element: its text, settings, table columns or menu items. Properties the
+    element's type doesn't have refuse the whole update. A button has no target of its
+    own: give it a click action. A button's text is what it says before it's clicked;
+    what it shows or does when clicked, like the message of a notification, is a click
+    action: find it with list_actions and change it with update_action. If a changed
+    button also shows a notification when clicked, the result has a note naming that
+    action, which stays as it was. A link given a page or a URL goes there, unless
+    navigation_type says otherwise. A link's new page must fit the parameters it has,
+    or the update is refused. To move an element or change its style use move_elements
+    or update_element_style.
+
+    Give dynamic values as formulas in Baserow formula syntax, like
+    get('page_parameter.id'). A value that isn't a valid formula keeps its previous
+    value and is listed in formula_errors.
+
+    Table columns: list_elements shows each column's uid. Change them with
+    add_table_columns, update_table_columns and reorder_table_columns; columns you
+    don't list stay as they are. Only text and button columns can be created. A new or
+    changed column's formula must parse and read what the page has, or the whole
+    update is refused and nothing is listed in formula_errors.
+
+    Menu items: list_elements shows each item's uid. Change them with add_menu_items,
+    update_menu_items and reorder_menu_items; items you don't list stay as they are.
+    On a header or footer they change the menu inside it. An item can't give path
+    parameters, so it can't link to a page that has them.
+
+    This tool deletes nothing: delete columns or menu items with
+    delete_element_items.
+    """
+
+    return _update_element(
+        ctx, element_id, _full_update(ElementUpdate, element_id, element)
+    )
+
+
+def delete_element_items(
+    ctx: ToolContext,
+    element_id: Annotated[
+        int, Field(description="The ID of the table or menu, from list_elements.")
+    ],
+    table_columns: Annotated[
+        list[str] | None,
+        Field(
+            max_length=MAX_NESTED_ITEMS,
+            description="(table) Uids of the columns to delete, from list_elements.",
+        ),
+    ] = None,
+    menu_items: Annotated[
+        list[str] | None,
+        Field(
+            max_length=MAX_NESTED_ITEMS,
+            description=(
+                "(menu, header, footer) Uids of the items to delete, from "
+                "list_elements. A removed item's sub-links go with it."
+            ),
+        ),
+    ] = None,
+) -> dict[str, Any]:
+    """
+    Delete table columns or menu items of an element, with the click actions of a
+    deleted button. Only delete what the user asked to delete. Undo doesn't restore
+    them or their click actions. Columns and items you don't list stay as they are.
+    """
+
+    if not table_columns and not menu_items:
+        raise ToolInputError("Give table_columns or menu_items to delete.")
+    return _update_element(
+        ctx,
+        element_id,
+        _full_update(
+            ElementUpdate,
+            element_id,
+            ElementChanges(
+                remove_table_columns=table_columns, remove_menu_items=menu_items
+            ),
+        ),
+    )
 
 
 def update_element_style(
