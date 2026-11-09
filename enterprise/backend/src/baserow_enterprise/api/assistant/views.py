@@ -30,6 +30,13 @@ from baserow.api.sessions import (
     set_untrusted_client_session_id_from_request_or_raise_if_invalid,
 )
 from baserow.config.db_routers import set_db_alias
+from baserow.contrib.integrations.local_baserow.service_filters.exceptions import (
+    ServiceFilterTargetDoesNotExist,
+    ServiceFilterTargetNotSupported,
+)
+from baserow.contrib.integrations.local_baserow.service_filters.handler import (
+    get_target_type,
+)
 from baserow.core.chat_runs.exceptions import (
     ChatRunAlreadyActive,
     ChatRunLimitReached,
@@ -39,12 +46,14 @@ from baserow.core.chat_runs.models import ChatRun
 from baserow.core.chat_runs.service import ChatRunService, serialize_run
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
 from baserow.core.handler import CoreHandler
+from baserow.core.tools import ToolContext
 from baserow_enterprise.assistant.exceptions import (
     AssistantChatDoesNotExist,
     AssistantChatMessagePredictionDoesNotExist,
     AssistantConfiguredModelNotAvailableError,
     AssistantModelDisabledError,
     AssistantModelNotSupportedError,
+    ServiceFilterGenerationFailed,
 )
 from baserow_enterprise.assistant.handler import AssistantHandler
 from baserow_enterprise.assistant.model_profiles import (
@@ -57,6 +66,7 @@ from baserow_enterprise.assistant.onboarding import (
 )
 from baserow_enterprise.assistant.operations import ChatAssistantChatOperationType
 from baserow_enterprise.assistant.runs import ASSISTANT_RUN_TYPE
+from baserow_enterprise.assistant.service_filters import run_service_filter_request
 from baserow_enterprise.assistant.stream import stream_run_messages
 from baserow_enterprise.assistant.types import UIContext
 
@@ -65,6 +75,9 @@ from .errors import (
     ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE,
     ERROR_ASSISTANT_MODEL_DISABLED,
     ERROR_ASSISTANT_MODEL_NOT_SUPPORTED,
+    ERROR_ASSISTANT_SERVICE_FILTER_GENERATION_FAILED,
+    ERROR_ASSISTANT_SERVICE_FILTER_TARGET_DOES_NOT_EXIST,
+    ERROR_ASSISTANT_SERVICE_FILTER_TARGET_NOT_SUPPORTED,
     ERROR_CANNOT_SUBMIT_MESSAGE_FEEDBACK,
 )
 from .serializers import (
@@ -75,6 +88,8 @@ from .serializers import (
     AssistantRateChatMessageSerializer,
     OnboardingPromptSuggestionsRequestSerializer,
     OnboardingPromptSuggestionsSerializer,
+    ServiceFiltersRequestSerializer,
+    ServiceFiltersResponseSerializer,
 )
 
 
@@ -442,5 +457,102 @@ class AssistantOnboardingPromptSuggestionsView(APIView):
 
         serializer = OnboardingPromptSuggestionsSerializer(
             {"suggestions": [s.model_dump() for s in suggestions]}
+        )
+        return Response(serializer.data)
+
+
+class AssistantServiceFiltersView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        tags=["AI Assistant"],
+        operation_id="update_service_filters_with_assistant",
+        description=(
+            "Asks Kuma to add, update or delete the filters of a data source or "
+            "automation node reading rows from a Baserow table, as described by the "
+            "prompt. The changes are saved, exactly like when the same request is "
+            "made in a chat with Kuma.\n\n"
+        ),
+        request=ServiceFiltersRequestSerializer,
+        responses={
+            200: ServiceFiltersResponseSerializer,
+            400: get_error_schema(
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_ASSISTANT_MODEL_DISABLED",
+                    "ERROR_ASSISTANT_MODEL_NOT_SUPPORTED",
+                    "ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE",
+                    "ERROR_ASSISTANT_SERVICE_FILTER_TARGET_NOT_SUPPORTED",
+                    "ERROR_ASSISTANT_SERVICE_FILTER_GENERATION_FAILED",
+                ]
+            ),
+            404: get_error_schema(
+                ["ERROR_ASSISTANT_SERVICE_FILTER_TARGET_DOES_NOT_EXIST"]
+            ),
+        },
+    )
+    @validate_body(ServiceFiltersRequestSerializer, return_validated=True)
+    @map_exceptions(
+        {
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            AssistantModelDisabledError: ERROR_ASSISTANT_MODEL_DISABLED,
+            AssistantConfiguredModelNotAvailableError: (
+                ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE
+            ),
+            AssistantModelNotSupportedError: ERROR_ASSISTANT_MODEL_NOT_SUPPORTED,
+            ServiceFilterTargetDoesNotExist: (
+                ERROR_ASSISTANT_SERVICE_FILTER_TARGET_DOES_NOT_EXIST
+            ),
+            ServiceFilterTargetNotSupported: (
+                ERROR_ASSISTANT_SERVICE_FILTER_TARGET_NOT_SUPPORTED
+            ),
+            ServiceFilterGenerationFailed: (
+                ERROR_ASSISTANT_SERVICE_FILTER_GENERATION_FAILED
+            ),
+        }
+    )
+    def post(self, request: Request, data) -> Response:
+        """
+        Run a filter request for a data source or node, as the chat would.
+
+        :param request: The authenticated API request.
+        :param data: The validated target and prompt.
+        :return: Whether the filters changed, and a summary of the change.
+        """
+
+        # Same as the chat: never resolve the model from a lagging replica.
+        set_db_alias(DEFAULT_DB_ALIAS)
+
+        target_type = get_target_type(data["kind"])
+        workspace = target_type.get_workspace(target_type.get_owner(data["id"]))
+        CoreHandler().check_permissions(
+            request.user,
+            ChatAssistantChatOperationType.type,
+            workspace=workspace,
+            context=workspace,
+        )
+
+        model_profile = resolve_assistant_model(workspace=workspace)
+        check_lm_ready_or_raise(model_profile=model_profile)
+
+        # Like the chat, let the realtime update reach the requesting tab too, so
+        # every open editor of the data source or node picks up the new filters.
+        request.user.web_socket_id = None
+
+        result = run_service_filter_request(
+            ToolContext(
+                user=request.user,
+                workspace=workspace,
+                timezone=request.user.profile.timezone,
+            ),
+            data["kind"],
+            data["id"],
+            data["prompt"],
+            model_profile=model_profile,
+            table_id=data.get("table_id"),
+        )
+
+        serializer = ServiceFiltersResponseSerializer(
+            {"changed": result.changed, "summary": result.summary}
         )
         return Response(serializer.data)

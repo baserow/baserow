@@ -20,3 +20,7 @@ class AssistantConfiguredModelNotAvailableError(AssistantModelNotSupportedError)
 
 class AssistantChatMessagePredictionDoesNotExist(AssistantException):
     pass
+
+
+class ServiceFilterGenerationFailed(AssistantException):
+    """Raised when the assistant could not produce valid filter changes."""

@@ -83,7 +83,7 @@
 
 <script>
 import _ from 'lodash'
-import { getCurrentInstance } from 'vue'
+import { computed, getCurrentInstance } from 'vue'
 import { useVuelidate } from '@vuelidate/core'
 import { useDataSourceTest } from '@baserow/modules/builder/composables/useDataSourceTest'
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
@@ -105,6 +105,11 @@ export default {
       // Shared by the service form, which can have a Test button of its own,
       // and the test form showing the result.
       dataSourceTest: this.dataSourceTest,
+      // Identifies the data source to the filter form, e.g. for Kuma.
+      serviceFilterTarget: computed(() => ({
+        kind: 'builder_data_source',
+        id: this.dataSource?.id,
+      })),
     }
   },
   props: {
