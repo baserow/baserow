@@ -208,7 +208,9 @@
     "connectedAppClientSecret": "Client secret",
     "connectedAppClientSecretHelper": "Only if the app gave you one.",
     "connectedAppSignInFailedTitle": "Sign-in failed",
-    "connectedAppSignInFailed": "The app wasn't connected. Try signing in again."
+    "connectedAppSignInFailed": "The app wasn't connected. Try signing in again.",
+    "connectedAppRefusedTitle": "Key not accepted",
+    "connectedAppRefused": "The server refused the API key or the signed-in account. Check the key, or sign in again."
   },
   "trashType": {
     "agent_conversation": "conversation"

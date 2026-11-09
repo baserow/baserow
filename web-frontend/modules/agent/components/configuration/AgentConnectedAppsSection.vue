@@ -73,6 +73,7 @@
       :remove="remove"
       :connect="connect"
       :disconnect="disconnect"
+      :refresh="refreshTools"
       @created="toolsModal.show($event)"
     />
     <AgentMCPToolsModal
@@ -145,20 +146,8 @@ function summary(server) {
   })
 }
 
-/**
- * Creating a server lists its tools straight away, so they can be reviewed. A
- * server using OAuth lists them once an account is connected.
- */
 async function saveServer(server, values) {
-  if (server) return await update(server, values)
-  const created = await create(values)
-  if (created.auth_type === MCP_AUTH_TYPE.OAUTH) return created
-  try {
-    return await refreshTools(created)
-  } catch {
-    // The tools modal shows the error and can try again.
-    return created
-  }
+  return server ? await update(server, values) : await create(values)
 }
 
 async function connectServer(server) {

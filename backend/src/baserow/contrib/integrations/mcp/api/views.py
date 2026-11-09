@@ -23,6 +23,7 @@ from ..exceptions import (
     MCPOAuthFailed,
     MCPOAuthStateInvalid,
     MCPServerNotConnected,
+    MCPServerRefusedCredential,
     MCPServerUnreachable,
 )
 from ..service import MCPServerService
@@ -33,6 +34,11 @@ ERROR_MCP_SERVER_UNREACHABLE = (
     "The MCP server could not be reached or failed to list its tools.",
 )
 
+ERROR_MCP_SERVER_REFUSED_CREDENTIAL = (
+    "ERROR_MCP_SERVER_REFUSED_CREDENTIAL",
+    400,
+    "The MCP server refused the API key or the connected account.",
+)
 ERROR_MCP_SERVER_NOT_CONNECTED = (
     "ERROR_MCP_SERVER_NOT_CONNECTED",
     400,
@@ -49,6 +55,7 @@ INTEGRATION_ID_PARAMETER = OpenApiParameter(
 
 EXCEPTIONS = {
     IntegrationDoesNotExist: ERROR_INTEGRATION_DOES_NOT_EXIST,
+    MCPServerRefusedCredential: ERROR_MCP_SERVER_REFUSED_CREDENTIAL,
     MCPServerUnreachable: ERROR_MCP_SERVER_UNREACHABLE,
     MCPServerNotConnected: ERROR_MCP_SERVER_NOT_CONNECTED,
     MCPOAuthFailed: ERROR_MCP_OAUTH_FAILED,
@@ -86,7 +93,11 @@ class MCPServerRefreshToolsView(APIView):
         responses={
             200: IntegrationSerializer,
             400: get_error_schema(
-                ["ERROR_MCP_SERVER_UNREACHABLE", "ERROR_MCP_SERVER_NOT_CONNECTED"]
+                [
+                    "ERROR_MCP_SERVER_UNREACHABLE",
+                    "ERROR_MCP_SERVER_REFUSED_CREDENTIAL",
+                    "ERROR_MCP_SERVER_NOT_CONNECTED",
+                ]
             ),
             404: get_error_schema(["ERROR_INTEGRATION_DOES_NOT_EXIST"]),
         },

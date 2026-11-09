@@ -221,3 +221,30 @@ def test_model_tool_names_are_valid_and_unique():
 
     assert list(names) == ["mcp7_search_docs", "mcp7_" + "x" * 59, "mcp7_get"]
     assert names["mcp7_search_docs"].name == "search.docs"
+
+
+@pytest.mark.django_db
+def test_a_refused_key_answers_its_own_error(data_fixture, api_client, mocker):
+    import httpx
+
+    from baserow.contrib.integrations.mcp import handler
+
+    request = httpx.Request("POST", "https://mcp.example.com/mcp")
+    refused = httpx.HTTPStatusError(
+        "401", request=request, response=httpx.Response(401, request=request)
+    )
+    mocker.patch.object(
+        handler,
+        "fetch_tools",
+        side_effect=ExceptionGroup("unhandled errors in a TaskGroup", [refused]),
+    )
+    user, token = data_fixture.create_user_and_token()
+    integration = data_fixture.create_mcp_server_integration(user=user)
+
+    response = api_client.post(
+        reverse("api:mcp_server:refresh_tools", args=[integration.id]),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_MCP_SERVER_REFUSED_CREDENTIAL"

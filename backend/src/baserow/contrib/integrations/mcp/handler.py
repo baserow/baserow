@@ -12,11 +12,17 @@ from loguru import logger
 from mcp.shared.auth import OAuthToken
 
 from . import oauth
-from .client import MCPServerConnection, MCPToolDefinition, fetch_tools
+from .client import (
+    MCPServerConnection,
+    MCPToolDefinition,
+    fetch_tools,
+    refused_credential,
+)
 from .exceptions import (
     MCPOAuthFailed,
     MCPOAuthStateInvalid,
     MCPServerNotConnected,
+    MCPServerRefusedCredential,
     MCPServerUnreachable,
 )
 from .models import (
@@ -61,6 +67,8 @@ class MCPServerHandler:
                 integration.id,
                 type(exc).__name__,
             )
+            if refused_credential(exc):
+                raise MCPServerRefusedCredential() from exc
             raise MCPServerUnreachable() from exc
 
     def store_tools(

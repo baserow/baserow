@@ -2,6 +2,10 @@ class MCPServerUnreachable(Exception):
     """The MCP server could not be reached, or failed while listing its tools."""
 
 
+class MCPServerRefusedCredential(MCPServerUnreachable):
+    """The MCP server answered 401 or 403: the key or account isn't accepted."""
+
+
 class MCPServerNotConnected(Exception):
     """The MCP server uses OAuth and no account is connected, or it expired."""
 

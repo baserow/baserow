@@ -163,6 +163,12 @@ function set(name, key, value) {
 function readError(e) {
   if (!e.handler) throw e
   e.handler.handled()
+  if (e.handler.code === API_ERROR_CODE.MCP_SERVER_REFUSED_CREDENTIAL) {
+    return {
+      title: t('agent.connectedAppRefusedTitle'),
+      message: t('agent.connectedAppRefused'),
+    }
+  }
   if (e.handler.code === API_ERROR_CODE.MCP_SERVER_UNREACHABLE) {
     return {
       title: t('agent.connectedAppUnreachableTitle'),

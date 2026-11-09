@@ -136,6 +136,16 @@ async def fetch_tools(connection: MCPServerConnection) -> list[MCPToolDefinition
         return await list_tools(session)
 
 
+def refused_credential(exc: BaseException) -> bool:
+    """Whether the server answered 401 or 403 somewhere in the failure."""
+
+    response = getattr(exc, "response", None)
+    if getattr(response, "status_code", None) in (401, 403):
+        return True
+    nested = list(getattr(exc, "exceptions", [])) + [exc.__cause__]
+    return any(refused_credential(inner) for inner in nested if inner)
+
+
 def result_to_text(result: types.CallToolResult) -> str:
     """
     Turn a tool result into text for the model. Images, audio and embedded

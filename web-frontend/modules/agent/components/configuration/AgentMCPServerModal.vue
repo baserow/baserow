@@ -119,7 +119,10 @@
           <FormGroup
             class="margin-top-2"
             :label="$t('agent.connectedAppHeaderName')"
+            :error="Boolean(errors.auth_header_name)"
+            :error-message="errors.auth_header_name"
             small-label
+            required
           >
             <FormInput
               v-model="values.auth_header_name"
@@ -134,6 +137,7 @@
             :error="Boolean(errors.auth_header_value)"
             :error-message="errors.auth_header_value"
             small-label
+            required
           >
             <FormInput
               v-model="values.auth_header_value"
@@ -210,6 +214,7 @@ const props = defineProps({
   remove: { type: Function, required: true },
   connect: { type: Function, required: true },
   disconnect: { type: Function, required: true },
+  refresh: { type: Function, required: true },
 })
 const emit = defineEmits(['created'])
 const { t } = useI18n()
@@ -275,16 +280,29 @@ const errors = computed(() => {
   return {
     name: values.name.trim() ? '' : t('error.requiredField'),
     url: validUrl.value ? '' : t('agent.connectedAppUrlInvalid'),
-    auth_header_value:
-      headerSecretRequired.value && !values.auth_header_value
-        ? t('agent.connectedAppHeaderValueRequired')
+    auth_header_name:
+      values.auth_type === MCP_AUTH_TYPE.HEADER &&
+      !values.auth_header_name.trim()
+        ? t('error.requiredField')
         : '',
+    auth_header_value: headerValueError(),
     oauth_client_secret:
       clientSecretRequired.value && !values.oauth_client_secret
         ? t('agent.connectedAppHeaderValueRequired')
         : '',
   }
 })
+function headerValueError() {
+  if (values.auth_type !== MCP_AUTH_TYPE.HEADER || values.auth_header_value) {
+    return ''
+  }
+  if (headerSecretRequired.value) {
+    return t('agent.connectedAppHeaderValueRequired')
+  }
+  // A new key is needed unless one is stored already.
+  return server.value?.has_auth_header_value ? '' : t('error.requiredField')
+}
+
 const headerValueHelper = computed(() => {
   if (headerSecretRequired.value)
     return t('agent.connectedAppHeaderValueRequired')
@@ -383,6 +401,12 @@ function readError(e) {
       message: e.handler.detail,
     }
   }
+  if (e.handler.code === API_ERROR_CODE.MCP_SERVER_REFUSED_CREDENTIAL) {
+    return {
+      title: t('agent.connectedAppRefusedTitle'),
+      message: t('agent.connectedAppRefused'),
+    }
+  }
   if (e.handler.code === API_ERROR_CODE.MCP_SERVER_UNREACHABLE) {
     return {
       title: t('agent.connectedAppUnreachableTitle'),
@@ -401,12 +425,18 @@ async function submit() {
   saving.value = true
   error.value = null
   try {
+    // A server whose tools were never listed, e.g. after a refused key, lists
+    // them on save too.
+    const listed = !isNew && !popup && !server.value.tools.length
     let saved = await props.save(server.value, changedValues())
     // A failed sign-in keeps the modal open on the server that now exists.
     server.value = saved
+    // A new server lists its tools straight away, so they can be reviewed,
+    // and a wrong key shows here rather than as an empty list.
     if (popup) saved = await props.connect(saved, popup)
+    else if (isNew || !saved.tools.length) saved = await props.refresh(saved)
     modal.value.hide()
-    if (isNew || popup) emit('created', saved)
+    if (isNew || popup || listed) emit('created', saved)
   } catch (e) {
     popup?.close()
     error.value = readError(e)
