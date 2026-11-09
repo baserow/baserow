@@ -9,7 +9,7 @@ from django.conf import settings
 from baserow.core.ai_provider.resolution import ScopedAIProviderState
 from baserow.core.models import Workspace
 
-from .constants import WEB_SEARCH_MAX_PER_REPLY
+from .constants import WEB_SEARCH_MAX_PER_REPLY, ReasoningEffort
 from .registries import (
     EmbedKindLimit,
     FileHandler,
@@ -19,6 +19,7 @@ from .registries import (
 
 if TYPE_CHECKING:
     from pydantic_ai import WebSearchTool
+    from pydantic_ai.models import Model
 
     from baserow_premium.fields.ai_file import AIFile
 
@@ -73,6 +74,14 @@ _BEDROCK_DISCOVERY_EXCLUDED_MODELS = {
     "cohere.command-r-plus-v1:0",
     "cohere.command-r-v1:0",
     "cohere.command-text-v14",
+}
+# OpenAI's Pro models reason at fewer efforts than Pydantic AI's profiles allow.
+# Most specific prefix first, from each model's page on developers.openai.com.
+_OPENAI_REASONING_EFFORTS_BY_PREFIX = {
+    "gpt-5.2-pro": (ReasoningEffort.MEDIUM, ReasoningEffort.HIGH),
+    "gpt-5.4-pro": (ReasoningEffort.MEDIUM, ReasoningEffort.HIGH),
+    "gpt-5.5-pro": (ReasoningEffort.MEDIUM, ReasoningEffort.HIGH),
+    "gpt-5-pro": (ReasoningEffort.HIGH,),
 }
 # Only grok-4.<n>: most older slugs are retired and silently redirect to grok-4.3.
 _XAI_DISCOVERY_MODEL_PATTERN = re.compile(r"^grok-4\.\d+")
@@ -440,6 +449,14 @@ class OpenAIGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
         )
         return value if configured else settings.BASEROW_OPENAI_BASE_URL
 
+    def get_reasoning_efforts(
+        self, model_name: str, model: "Model"
+    ) -> tuple[ReasoningEffort, ...]:
+        for prefix, efforts in _OPENAI_REASONING_EFFORTS_BY_PREFIX.items():
+            if model_name.startswith(prefix):
+                return efforts
+        return super().get_reasoning_efforts(model_name, model)
+
 
 class AnthropicGenerativeAIModelType(GenerativeAIModelType):
     type = "anthropic"
@@ -757,6 +774,18 @@ class GroqGenerativeAIModelType(GenerativeAIModelType):
         if not api_key:
             raise ValueError("A Groq API key is required.")
         return GroqModel(model_name, provider=GroqProvider(api_key=api_key))
+
+    def get_reasoning_efforts(
+        self, model_name: str, model: "Model"
+    ) -> tuple[ReasoningEffort, ...]:
+        # Pydantic AI can only turn reasoning off on these models, and sends no
+        # effort for the other levels.
+        profile = model.profile
+        if profile.get("groq_supports_reasoning_disable", False) and not profile.get(
+            "groq_supports_graded_reasoning_effort", False
+        ):
+            return (ReasoningEffort.OFF,)
+        return super().get_reasoning_efforts(model_name, model)
 
     def get_known_models(self) -> list[str]:
         from pydantic_ai.models.groq import ProductionGroqModelNames

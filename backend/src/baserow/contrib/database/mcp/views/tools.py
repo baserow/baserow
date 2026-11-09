@@ -21,6 +21,9 @@ class CreateViewsMcpTool(FunctionMCPTool):
     title = "Create views"
     read_only = False
     destructive = False
+    # A public view is reachable by anyone with the link, and a form view can email
+    # on submit and redirect to an external URL.
+    open_world = True
     function = views.create_views
 
 

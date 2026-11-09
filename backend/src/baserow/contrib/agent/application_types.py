@@ -14,6 +14,7 @@ from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
 from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
 from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
+from baserow.core.generative_ai.constants import ReasoningEffort
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
@@ -127,6 +128,7 @@ class AgentApplicationType(ApplicationType):
             instructions=application.instructions,
             provider_type=application.provider_type,
             model_identifier=application.model_identifier,
+            reasoning_effort=application.reasoning_effort,
             allowed_tools=AgentHandler().get_allowed_tool_names(application),
             web_search_enabled=application.web_search_enabled,
         )
@@ -170,6 +172,10 @@ class AgentApplicationType(ApplicationType):
         application.instructions = serialized_values.get("instructions", "")
         application.provider_type = serialized_values.get("provider_type") or None
         application.model_identifier = serialized_values.get("model_identifier") or None
+        reasoning_effort = serialized_values.get("reasoning_effort")
+        application.reasoning_effort = (
+            reasoning_effort if reasoning_effort in ReasoningEffort else None
+        )
         application.run_as_subject_type, application.run_as_subject_id = (
             self._imported_run_as(workspace, serialized_values, import_export_config)
         )

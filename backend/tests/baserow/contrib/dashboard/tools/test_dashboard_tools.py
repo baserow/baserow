@@ -1,19 +1,19 @@
 """Tests for the dashboard tools, shared by MCP and Kuma."""
 
-from django.core.exceptions import ValidationError as DjangoValidationError
-
-import pydantic
 import pytest
 
 from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.dashboard.tools.dashboards import (
-    create_dashboards,
+    create_dashboard,
     get_dashboard_in_workspace,
     list_dashboards,
+    update_dashboard,
 )
 from baserow.core.action.models import Action
 from baserow.core.actions import CreateApplicationActionType
-from baserow.core.exceptions import ApplicationDoesNotExist
+from baserow.core.exceptions import ApplicationDoesNotExist, UserNotInWorkspace
+from baserow.core.integrations.handler import IntegrationHandler
+from baserow.core.tools import ToolContext
 
 
 @pytest.mark.django_db
@@ -75,12 +75,12 @@ def test_get_dashboard_in_workspace_hides_other_application_types(
 
 
 @pytest.mark.django_db
-def test_create_dashboards_registers_undoable_action(dashboard_ctx):
+def test_create_dashboard_registers_undoable_action(dashboard_ctx):
     ctx, _ = dashboard_ctx
 
-    result = create_dashboards(ctx, ["Ops"])
+    result = create_dashboard(ctx, "Ops")
 
-    (created,) = result["created"]
+    created = result["created_dashboard"]
     assert created["name"] == "Ops"
     assert Dashboard.objects.get(id=created["id"]).workspace_id == ctx.workspace.id
     assert (
@@ -104,7 +104,7 @@ def test_created_dashboard_can_show_widget_data(dashboard_ctx, data_fixture):
     amount = data_fixture.create_number_field(table=table, name="Amount")
     table.get_model().objects.create(**{f"field_{amount.id}": 4})
 
-    dashboard_id = create_dashboards(ctx, ["Ops"])["created"][0]["id"]
+    dashboard_id = create_dashboard(ctx, "Ops")["created_dashboard"]["id"]
     widget = create_widgets(
         ctx,
         dashboard_id,
@@ -125,18 +125,57 @@ def test_created_dashboard_can_show_widget_data(dashboard_ctx, data_fixture):
 
 
 @pytest.mark.django_db
-def test_create_dashboards_rejects_empty_list(dashboard_ctx):
-    ctx, _ = dashboard_ctx
+def test_create_dashboard_keeps_nothing_when_denied(data_fixture):
+    ctx = ToolContext(
+        user=data_fixture.create_user(), workspace=data_fixture.create_workspace()
+    )
 
-    with pytest.raises(DjangoValidationError):
-        create_dashboards(ctx, [])
+    with pytest.raises(UserNotInWorkspace):
+        create_dashboard(ctx, "Ops")
+    assert not Dashboard.objects.exists()
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("name", ["", "x" * 161])
-def test_create_dashboards_rejects_invalid_names(dashboard_ctx, name):
+def test_create_dashboard_keeps_nothing_when_its_integration_fails(
+    dashboard_ctx, monkeypatch
+):
     ctx, _ = dashboard_ctx
 
-    with pytest.raises(pydantic.ValidationError):
-        create_dashboards(ctx, ["Fine", name])
-    assert not Dashboard.objects.filter(name="Fine").exists()
+    def fail(*args, **kwargs):
+        raise RuntimeError("write failed")
+
+    monkeypatch.setattr(IntegrationHandler, "create_integration", fail)
+
+    with pytest.raises(RuntimeError):
+        create_dashboard(ctx, "Ops")
+    assert not Dashboard.objects.filter(name="Ops").exists()
+
+
+@pytest.mark.django_db
+def test_update_dashboard_renames_it(dashboard_ctx, data_fixture):
+    ctx, _ = dashboard_ctx
+    dashboard = data_fixture.create_dashboard_application(
+        workspace=ctx.workspace, name="Old"
+    )
+
+    result = update_dashboard(ctx, dashboard.id, "New")
+
+    assert result == {
+        "updated_dashboard": {"id": dashboard.id, "name": "New"},
+        "changed": True,
+    }
+    dashboard.refresh_from_db()
+    assert dashboard.name == "New"
+
+
+@pytest.mark.django_db
+def test_update_dashboard_refuses_another_application_type(dashboard_ctx, data_fixture):
+    ctx, _ = dashboard_ctx
+    database = data_fixture.create_database_application(
+        workspace=ctx.workspace, name="Sales"
+    )
+
+    with pytest.raises(ApplicationDoesNotExist):
+        update_dashboard(ctx, database.id, "New")
+    database.refresh_from_db()
+    assert database.name == "Sales"

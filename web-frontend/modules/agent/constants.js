@@ -15,6 +15,8 @@ export const CONFIGURATION_FIELD = Object.freeze({
   INSTRUCTIONS: 'instructions',
   PROVIDER_TYPE: 'provider_type',
   MODEL_IDENTIFIER: 'model_identifier',
+  REASONING_EFFORT: 'reasoning_effort',
+  APPLIED_REASONING_EFFORT: 'applied_reasoning_effort',
   RUN_AS: 'run_as',
   ALLOWED_TOOLS: 'allowed_tools',
   AVAILABLE_TOOLS: 'available_tools',
@@ -22,6 +24,14 @@ export const CONFIGURATION_FIELD = Object.freeze({
   WEB_SEARCH_AVAILABLE: 'web_search_available',
   WEB_SEARCH_BLOCKED_BY_TOOLS: 'web_search_blocked_by_tools',
 })
+
+// Null keeps the model's default reasoning.
+export const REASONING_EFFORTS = Object.freeze([
+  { value: 'off', label: 'agent.reasoningEffortOff' },
+  { value: 'low', label: 'agent.reasoningEffortLow' },
+  { value: 'medium', label: 'agent.reasoningEffortMedium' },
+  { value: 'high', label: 'agent.reasoningEffortHigh' },
+])
 
 export const CONFIGURATION_SAVE_RESULT = Object.freeze({
   REJECTED_IDENTITY: 'rejected_identity',

@@ -74,7 +74,8 @@ def test_core_database_tool_groups():
     assert groups["delete_views"] == GROUP_DATABASE_DELETE
     assert groups["delete_view_filters"] == GROUP_DATABASE_DELETE
     assert groups["delete_row_colours"] == GROUP_DATABASE_DELETE
-    assert "create_database" not in groups
+    assert groups["create_database"] == GROUP_DATABASE_EDIT
+    assert groups["update_database"] == GROUP_DATABASE_EDIT
     assert "create_table" not in groups
 
 
@@ -82,7 +83,11 @@ def test_core_automation_tool_groups():
     groups = {tool.name: tool.group for tool in mcp_tool_registry.get_all()}
     assert groups["list_workflows"] == GROUP_AUTOMATION_READ
     assert groups["list_nodes"] == GROUP_AUTOMATION_READ
+    assert groups["create_automation"] == GROUP_AUTOMATION_EDIT
+    assert groups["update_automation"] == GROUP_AUTOMATION_EDIT
     assert groups["create_workflows"] == GROUP_AUTOMATION_EDIT
+    assert groups["publish_workflow"] == GROUP_AUTOMATION_EDIT
+    assert groups["pause_workflow"] == GROUP_AUTOMATION_EDIT
     assert groups["add_nodes"] == GROUP_AUTOMATION_EDIT
     assert groups["update_nodes"] == GROUP_AUTOMATION_EDIT
     assert groups["delete_nodes"] == GROUP_AUTOMATION_DELETE
@@ -99,7 +104,8 @@ def test_core_dashboard_tool_groups():
     assert groups["list_dashboards"] == GROUP_DASHBOARD_READ
     assert groups["list_widgets"] == GROUP_DASHBOARD_READ
     assert groups["get_widget_data"] == GROUP_DASHBOARD_READ
-    assert groups["create_dashboards"] == GROUP_DASHBOARD_EDIT
+    assert groups["create_dashboard"] == GROUP_DASHBOARD_EDIT
+    assert groups["update_dashboard"] == GROUP_DASHBOARD_EDIT
     assert groups["create_widgets"] == GROUP_DASHBOARD_EDIT
     assert groups["update_widgets"] == GROUP_DASHBOARD_EDIT
     assert groups["delete_widgets"] == GROUP_DASHBOARD_DELETE

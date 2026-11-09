@@ -60,7 +60,17 @@ from baserow_enterprise.assistant.tools.builder.tools import (
     list_elements,
     setup_page,
 )
-from baserow_enterprise.assistant.tools.builder.types import (
+from baserow_enterprise.assistant.tools.core.tools import (
+    create_automation,
+    create_builder,
+)
+from baserow_enterprise.assistant.tools.database.tools import create_tables
+from baserow_enterprise.assistant.tools.database.types import (
+    FieldItemCreate,
+    SelectOptionCreate,
+    TableItemCreate,
+)
+from baserow_enterprise.builder.tools.types import (
     ActionCreate,
     CollectionElementCreate,
     DataSourceCreate,
@@ -70,14 +80,6 @@ from baserow_enterprise.assistant.tools.builder.types import (
     LayoutElementCreate,
     PageCreate,
     TableFieldConfig,
-)
-from baserow_enterprise.assistant.tools.core.tools import create_builders
-from baserow_enterprise.assistant.tools.core.types import BuilderItemCreate
-from baserow_enterprise.assistant.tools.database.tools import create_tables
-from baserow_enterprise.assistant.tools.database.types import (
-    FieldItemCreate,
-    SelectOptionCreate,
-    TableItemCreate,
 )
 
 from .utils import create_fake_tool_helpers, make_test_ctx
@@ -213,14 +215,14 @@ def _seed_table(data_fixture: Any) -> SeededTable:
 def _create_builder_app(ctx: Any, name: str) -> int:
     """Create a builder application through the tool and return its id."""
 
-    created = create_builders(
+    created = create_builder(
         ctx,
-        builders=[BuilderItemCreate(name=name, type="application")],
+        name=name,
         thought="chain: the application the page lives in",
     )["created_builders"]
 
     assert len(created) == 1 and "id" in created[0], (
-        f"create_builders no longer returns [{{'id': ...}}] (got {created}). "
+        f"create_builder no longer returns [{{'id': ...}}] (got {created}). "
         f"create_pages, setup_page and list_pages all take that id as their "
         f"application_id."
     )
@@ -738,13 +740,13 @@ def test_chain_builds_an_automation_workflow(data_fixture):
     seed = _seed_table(data_fixture)
     ctx = seed.ctx
 
-    created_builders = create_builders(
+    created_builders = create_automation(
         ctx,
-        builders=[BuilderItemCreate(name="Project Ops", type="automation")],
+        name="Project Ops",
         thought="chain: the automation the workflow lives in",
     )["created_builders"]
     assert len(created_builders) == 1 and "id" in created_builders[0], (
-        f"create_builders no longer returns [{{'id': ...}}] for automations "
+        f"create_automation no longer returns [{{'id': ...}}] "
         f"(got {created_builders}); create_workflows takes that id."
     )
     automation_id = created_builders[0]["id"]
@@ -880,7 +882,7 @@ def test_chain_builds_an_automation_workflow(data_fixture):
         {"id": workflow_id, "name": "On new project", "state": "draft"}
     ], (
         f"list_workflows returned {workflows} for the automation "
-        f"create_builders returned; create_workflows reported id {workflow_id}."
+        f"create_automation returned; create_workflows reported id {workflow_id}."
     )
 
     # --- final database state ---------------------------------------------
@@ -903,9 +905,9 @@ def test_add_nodes_persists_literal_field_values_like_create_workflows(data_fixt
 
     seed = _seed_table(data_fixture)
     ctx = seed.ctx
-    automation_id = create_builders(
+    automation_id = create_automation(
         ctx,
-        builders=[BuilderItemCreate(name="Parity", type="automation")],
+        name="Parity",
         thought="chain: compare the two node creation paths",
     )["created_builders"][0]["id"]
 

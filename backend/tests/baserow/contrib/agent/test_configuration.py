@@ -22,6 +22,7 @@ from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.types import AgentConfiguration
 from baserow.core.action.registries import action_type_registry
 from baserow.core.agents.subjects import AgentSubjectType
+from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 from baserow.core.ai_provider.resolution import (
     clear_ai_provider_state_cache,
     load_ai_provider_state,
@@ -141,6 +142,7 @@ def test_configuration_update_records_full_snapshots_and_ignores_noop_drafts(
         "instructions": "",
         "provider_type": None,
         "model_identifier": None,
+        "reasoning_effort": None,
         "run_as_subject_type": None,
         "run_as_subject_id": None,
         "allowed_tools": [],
@@ -175,6 +177,7 @@ def test_configuration_audit_snapshots_record_normalized_values(
         "instructions": agent.instructions,
         "provider_type": agent.provider_type,
         "model_identifier": agent.model_identifier,
+        "reasoning_effort": None,
         "run_as_subject_type": None,
         "run_as_subject_id": None,
         "allowed_tools": [],
@@ -237,6 +240,7 @@ def test_configuration_audit_snapshots_record_identity_assignment_replacement_an
             "instructions": agent.instructions,
             "provider_type": agent.provider_type,
             "model_identifier": agent.model_identifier,
+            "reasoning_effort": None,
             "run_as_subject_type": None,
             "run_as_subject_id": None,
             "allowed_tools": [],
@@ -399,6 +403,12 @@ def test_tool_configuration_updates_the_timestamp_only_when_values_change(
             "instructions",
             "null",
             id="instructions-null",
+        ),
+        pytest.param(
+            {"reasoning_effort": "max"},
+            "reasoning_effort",
+            "invalid_choice",
+            id="reasoning-effort-unknown",
         ),
         pytest.param(
             {"unknown": "value"},
@@ -870,6 +880,8 @@ def test_configuration_is_served_only_by_the_agent_endpoints(
         "instructions": "PRIVATE",
         "provider_type": "openai",
         "model_identifier": "test-model",
+        "reasoning_effort": None,
+        "applied_reasoning_effort": None,
         "run_as": None,
         "allowed_tools": [],
         "available_tools": ANY,
@@ -886,3 +898,91 @@ def test_configuration_is_served_only_by_the_agent_endpoints(
     assert "PRIVATE" not in str(broadcast.call_args)
     assert "PRIVATE" not in api_client.get(application_url).content.decode()
     assert api_client.get(agent_url(database, "configuration")).status_code == 404
+
+
+@pytest.mark.django_db
+def test_reasoning_effort_is_saved_reported_and_cleared(
+    configured_agent, api_client, api_user
+):
+    agent = configured_agent(user=api_user)
+    url = agent_url(agent, "configuration")
+
+    assert api_client.get(url).json()["reasoning_effort"] is None
+
+    response = api_client.patch(url, {"reasoning_effort": "high"})
+    assert response.status_code == 200
+    assert response.json()["reasoning_effort"] == "high"
+    # Reasoning is optional, so it never affects readiness.
+    assert response.json()["readiness"] == "ready"
+    agent.refresh_from_db()
+    assert agent.reasoning_effort == "high"
+
+    response = api_client.patch(url, {"reasoning_effort": None})
+    assert response.status_code == 200
+    assert response.json()["reasoning_effort"] is None
+    agent.refresh_from_db()
+    assert agent.reasoning_effort is None
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "model_identifier,effort,applied",
+    [
+        ("gpt-5.1", "off", "off"),
+        # Off becomes the lowest effort on a model that can't stop reasoning.
+        ("o3", "off", "low"),
+        # The next higher effort the model accepts.
+        ("gpt-5-pro", "low", "high"),
+        # A model without reasoning uses its default.
+        ("gpt-4.1", "high", None),
+        ("gpt-5.1", None, None),
+    ],
+)
+def test_configuration_reports_the_reasoning_effort_replies_use(
+    configured_agent, api_client, api_user, model_identifier, effort, applied
+):
+    agent = configured_agent(
+        user=api_user, model_identifier=model_identifier, reasoning_effort=effort
+    )
+    AIProviderModel.objects.create(
+        provider_config=AIProviderConfig.objects.get(workspace=agent.workspace),
+        model_identifier=model_identifier,
+    )
+
+    response = api_client.get(agent_url(agent, "configuration"))
+
+    assert response.json()["reasoning_effort"] == effort
+    assert response.json()["applied_reasoning_effort"] == applied
+
+
+@pytest.mark.django_db
+def test_configuration_reports_no_applied_effort_for_an_unavailable_model(
+    configured_agent, api_client, api_user
+):
+    agent = configured_agent(
+        user=api_user, model_identifier="gpt-5-pro", reasoning_effort="low"
+    )
+
+    response = api_client.get(agent_url(agent, "configuration"))
+
+    assert response.json()["errors"] == {"model_identifier": "unavailable"}
+    assert response.json()["applied_reasoning_effort"] is None
+
+
+@pytest.mark.django_db
+def test_reasoning_effort_change_is_recorded(data_fixture, mocker):
+    user = data_fixture.create_user()
+    agent = data_fixture.create_agent_application(user=user)
+    registered = mocker.spy(
+        UpdateAgentConfigurationActionType, "send_action_done_signal"
+    )
+
+    UpdateAgentConfigurationActionType.do(user, agent.id, reasoning_effort="low")
+
+    params = registered.call_args.args[1]
+    assert params["original_values"]["reasoning_effort"] is None
+    assert params["new_values"]["reasoning_effort"] == "low"
+    assert UpdateAgentConfigurationActionType.get_analytics_properties(params) == {
+        "agent_id": agent.id,
+        "changed_fields": ["reasoning_effort"],
+    }

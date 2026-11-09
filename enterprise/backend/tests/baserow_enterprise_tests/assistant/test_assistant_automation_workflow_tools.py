@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock
 
+from django.db import transaction
+
 import pytest
 from pydantic_ai import ModelRetry
 
@@ -7,12 +9,14 @@ from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandl
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
+from baserow_enterprise.assistant.prompts import AGENT_SYSTEM_PROMPT
 from baserow_enterprise.assistant.tools.automation import agents as automation_agents
 from baserow_enterprise.assistant.tools.automation.agents import AssistantFormulaContext
 from baserow_enterprise.assistant.tools.automation.reconciliation import (
     plan_workflow_creation,
 )
 from baserow_enterprise.assistant.tools.automation.tools import (
+    TOOL_FUNCTIONS,
     create_workflows,
     list_workflows,
     update_nodes,
@@ -1099,3 +1103,58 @@ def test_check_formula_with_basic_formulas():
         assert False, "Should have raised ValueError"
     except ValueError as e:
         assert "Generated formula is invalid" in str(e)
+
+
+@pytest.mark.django_db
+def test_kuma_reports_a_published_workflow_as_live(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(
+        user=user, workspace=workspace
+    )
+    workflow = data_fixture.create_automation_workflow(
+        user=user, automation=automation, name="Flow"
+    )
+    with transaction.atomic():
+        AutomationWorkflowHandler().publish(workflow)
+    ctx = make_test_ctx(user, workspace)
+
+    result = list_workflows(ctx, automation_id=automation.id, thought="test")
+
+    assert result == {
+        "workflows": [{"id": workflow.id, "name": "Flow", "state": "live"}]
+    }
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(workspace=workspace)
+    )
+    spec = WorkflowCreate(
+        name="Flow",
+        trigger=TriggerNodeCreate(
+            ref="trigger",
+            label="Periodic Trigger",
+            type="periodic",
+            periodic_interval={"interval": "DAY"},
+        ),
+        nodes=[
+            ActionNodeCreate(
+                ref="action",
+                label="Create row",
+                previous_node_ref="trigger",
+                type="create_row",
+                table_id=table.id,
+                values=[],
+            )
+        ],
+    )
+    reused = create_workflows(
+        ctx, automation_id=automation.id, workflows=[spec], thought="test"
+    )
+    assert reused["reused_workflows"][0]["state"] == "live"
+
+
+def test_kuma_is_not_offered_publishing():
+    assert "publish_workflow" not in create_workflows.__doc__
+    assert "publish_workflow" not in AGENT_SYSTEM_PROMPT
+    assert "publish_workflow" not in {tool.__name__ for tool in TOOL_FUNCTIONS}
+    assert "pause_workflow" not in AGENT_SYSTEM_PROMPT
+    assert "pause_workflow" not in {tool.__name__ for tool in TOOL_FUNCTIONS}

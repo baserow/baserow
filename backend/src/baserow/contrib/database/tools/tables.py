@@ -50,8 +50,8 @@ from baserow.contrib.database.tools.fields import (
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import PermissionException
 from baserow.core.handler import CoreHandler
-from baserow.core.service import CoreService
 from baserow.core.tools import ToolContext
+from baserow.core.tools.applications import get_application_in_workspace
 from baserow.core.tools.errors import ToolErrorCode, ToolInputError, finish_batch
 from baserow.core.types import PermissionCheck
 
@@ -647,15 +647,11 @@ def get_database(ctx: ToolContext, database_id: int) -> Database:
     """
     Get a database of the context's workspace.
 
-    :raises ApplicationDoesNotExist: When the database is not in the workspace.
+    :raises ApplicationDoesNotExist: When the database is not in the workspace or
+        is hidden from the user.
     """
 
-    return CoreService().get_application(
-        ctx.user,
-        database_id,
-        specific=False,
-        base_queryset=Database.objects.filter(workspace=ctx.workspace),
-    )
+    return get_application_in_workspace(ctx, database_id, Database, specific=False)
 
 
 def get_table(ctx: ToolContext, table_id: int, operation_name: str) -> Table:
@@ -996,7 +992,11 @@ def get_table_schema(
 def create_tables(
     ctx: ToolContext,
     database_id: Annotated[
-        int, Field(description="The ID of the database to create the tables in.")
+        int,
+        Field(
+            description="The ID of the database to create the tables in. "
+            "create_database returns the ID of a new one."
+        ),
     ],
     tables: Annotated[
         list[TableItemCreate],

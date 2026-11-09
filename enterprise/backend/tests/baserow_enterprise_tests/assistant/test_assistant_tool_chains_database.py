@@ -22,8 +22,7 @@ from baserow.contrib.database.fields.models import Field as BaserowField
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.models import View, ViewFilter
 from baserow_enterprise.assistant.agents import dynamic_toolset
-from baserow_enterprise.assistant.tools.core.tools import create_builders
-from baserow_enterprise.assistant.tools.core.types import BuilderItemCreate
+from baserow_enterprise.assistant.tools.core.tools import create_database
 from baserow_enterprise.assistant.tools.database.tools import (
     create_fields,
     create_tables,
@@ -133,12 +132,8 @@ def test_chain_build_a_database_from_nothing(data_fixture):
     workspace = data_fixture.create_workspace(user=user)
     ctx = make_test_ctx(user, workspace)
 
-    # --- create_builders -> database id -----------------------------------
-    builders = create_builders(
-        ctx,
-        builders=[BuilderItemCreate(name="Sales", type="database")],
-        thought="chain",
-    )["created_builders"]
+    # --- create_database -> database id -----------------------------------
+    builders = create_database(ctx, name="Sales", thought="chain")["created_builders"]
     assert len(builders) == 1
     database_id = builders[0]["id"]
 

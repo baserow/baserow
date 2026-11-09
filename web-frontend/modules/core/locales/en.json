@@ -73,7 +73,10 @@
     "dashboardEdit": "Create and change",
     "dashboardDelete": "Delete",
     "areaAuditLog": "Audit log",
-    "auditLogRead": "Read the audit log"
+    "auditLogRead": "Read the audit log",
+    "areaBuilder": "Application builder",
+    "builderRead": "Read application builders",
+    "builderEdit": "Create and change"
   },
   "paginator": {
     "page": "Page",

@@ -313,14 +313,19 @@ class AutomationWorkflowService:
         return job
 
     def publish(
-        self, user: AbstractUser, workflow: AutomationWorkflow, progress: Progress
-    ) -> None:
+        self,
+        user: AbstractUser,
+        workflow: AutomationWorkflow,
+        progress: Progress | None = None,
+    ) -> AutomationWorkflow:
         """
         Publish the automation for the given automation workflow if the
         user has the right permission.
 
         :param user: The user publishing the workflow.
         :param workflow: The workflow the user wants to publish.
+        :param progress: An object to track the publishing progress.
+        :return: The published workflow.
         """
 
         CoreHandler().check_permissions(

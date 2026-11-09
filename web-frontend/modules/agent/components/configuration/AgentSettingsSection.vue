@@ -77,6 +77,30 @@
       />
     </Dropdown>
   </FormGroup>
+  <FormGroup
+    class="margin-top-2"
+    :label="$t('agent.reasoningEffort')"
+    :helper-text="$t('agent.reasoningEffortDescription')"
+    small-label
+  >
+    <template v-if="reasoningEffortNote" #warning>
+      {{ reasoningEffortNote }}
+    </template>
+    <Dropdown
+      :model-value="selectedReasoningEffort"
+      :disabled="!editable"
+      :show-search="false"
+      fixed-items
+      @update:model-value="changeReasoningEffort"
+    >
+      <DropdownItem
+        v-for="effort in reasoningEfforts"
+        :key="effort.value ?? 'default'"
+        :value="effort.value"
+        :name="effort.name"
+      />
+    </Dropdown>
+  </FormGroup>
   <AgentWebSearchSetting
     class="margin-top-3"
     :configuration="configuration"
@@ -87,6 +111,8 @@
 
 <script setup>
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { REASONING_EFFORTS } from '@baserow/modules/agent/constants'
 import AgentWebSearchSetting from '@baserow/modules/agent/components/configuration/AgentWebSearchSetting'
 
 const props = defineProps({
@@ -100,6 +126,42 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:name', 'rename', 'change', 'flush'])
 const { $registry } = useNuxtApp()
+const { t } = useI18n()
+const reasoningEfforts = computed(() => [
+  { value: null, name: t('agent.reasoningEffortDefault') },
+  ...REASONING_EFFORTS.map(({ value, label }) => ({ value, name: t(label) })),
+])
+const effortName = (effort) =>
+  reasoningEfforts.value.find(({ value }) => value === effort)?.name
+// Replies use the model's default for a value this version doesn't know.
+const selectedReasoningEffort = computed(() =>
+  effortName(props.configuration.reasoning_effort)
+    ? props.configuration.reasoning_effort
+    : null
+)
+// Explains when the model can't use the chosen effort. The applied effort is
+// undefined until the server has resolved the latest choice.
+const reasoningEffortNote = computed(() => {
+  const effort = selectedReasoningEffort.value
+  const applied = props.configuration.applied_reasoning_effort
+  if (
+    effort === null ||
+    applied === undefined ||
+    applied === effort ||
+    props.errors.provider_type ||
+    props.errors.model_identifier
+  )
+    return ''
+  const values = {
+    model: props.configuration.model_identifier,
+    effort: effortName(effort),
+  }
+  if (applied === null) return t('agent.reasoningEffortNotSupported', values)
+  return t('agent.reasoningEffortAdjusted', {
+    ...values,
+    applied: effortName(applied),
+  })
+})
 const providerInput = ref(null)
 const modelInput = ref(null)
 const providers = computed(() => {
@@ -134,6 +196,12 @@ function changeProvider(providerType) {
 
 function changeModel(model) {
   emit('change', { model_identifier: model })
+  emit('flush')
+}
+
+function changeReasoningEffort(effort) {
+  if (effort === props.configuration.reasoning_effort) return
+  emit('change', { reasoning_effort: effort })
   emit('flush')
 }
 

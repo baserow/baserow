@@ -10,7 +10,12 @@ from baserow.contrib.builder.elements.operations import UpdateElementOperationTy
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.exceptions import PermissionDenied
 from baserow.test_utils.fixtures import Fixtures
-from baserow_enterprise.assistant.tools.builder.assistant_element_types import (
+from baserow_enterprise.assistant.tools.builder.tools import (
+    create_layout_elements,
+    update_element,
+)
+from baserow_enterprise.assistant.tools.shared import ToolInputError
+from baserow_enterprise.builder.tools.assistant_element_types import (
     ButtonAssistantElementType,
     ColumnAssistantElementType,
     FooterAssistantElementType,
@@ -19,26 +24,21 @@ from baserow_enterprise.assistant.tools.builder.assistant_element_types import (
     MenuAssistantElementType,
     TableAssistantElementType,
 )
-from baserow_enterprise.assistant.tools.builder.registries import (
+from baserow_enterprise.builder.tools.registries import (
     AssistantElementType,
     PreparedElementUpdate,
     assistant_element_type_registry,
 )
-from baserow_enterprise.assistant.tools.builder.tools import (
-    create_layout_elements,
-    update_element,
-)
-from baserow_enterprise.assistant.tools.builder.types import (
+from baserow_enterprise.builder.tools.types import (
     ElementUpdate,
     LayoutElementCreate,
     MenuItemAdd,
     MenuItemCreate,
 )
-from baserow_enterprise.assistant.tools.builder.types.element import (
+from baserow_enterprise.builder.tools.types.element import (
     BUTTON_NAVIGATION_GUIDANCE,
     MENU_ITEM_PROPERTIES,
 )
-from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 

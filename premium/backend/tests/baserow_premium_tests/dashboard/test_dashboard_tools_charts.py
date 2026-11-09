@@ -199,7 +199,8 @@ def test_create_chart_widget_without_licence_reports_feature_error(
 
     assert result["created"] == []
     assert result["errors"][0]["error"] == (
-        "The related user does not have access to these features."
+        "This needs a licence that this user doesn't have: a premium, advanced or "
+        "enterprise plan, depending on the feature."
     )
     assert Widget.objects.filter(dashboard=dashboard).count() == 0
 

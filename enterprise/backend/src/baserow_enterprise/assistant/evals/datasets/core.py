@@ -7,15 +7,22 @@ from datetime import timedelta
 from django.utils import timezone
 
 from baserow.contrib.automation.models import Automation
+from baserow.contrib.builder.models import Builder
+from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.search.handler import SearchHandler
+from baserow.core.models import Application
 from baserow.test_utils.fixtures import Fixtures
+from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.evals.harness import tool_called
 from baserow_enterprise.assistant.evals.registry import (
     register_case,
     register_scenario,
 )
-from baserow_enterprise.assistant.evals.scenarios import build_database_ui_context
+from baserow_enterprise.assistant.evals.scenarios import (
+    build_builder_ui_context,
+    build_database_ui_context,
+)
 from baserow_enterprise.assistant.evals.types import (
     CheckResult,
     EvalCase,
@@ -28,6 +35,17 @@ PROMPT_LISTS_DATABASES = "What databases do I have in this workspace?"
 PROMPT_CREATES_DATABASE = "Create a new database called 'Customer Portal'"
 
 PROMPT_CREATES_AUTOMATION = "Create an empty automation called 'Overdue Task Reminder'."
+
+PROMPT_CREATES_APPLICATION = "create a new application website"
+
+PROMPT_CREATES_DASHBOARD = "Create a dashboard called 'Sales Overview'."
+
+PROMPT_CREATES_SEVERAL_APPLICATIONS = (
+    "Create a database called 'Inventory', an automation called 'Stock Alerts' "
+    "and a dashboard called 'Stock Overview'."
+)
+
+PROMPT_RENAMES_AUTOMATION = "Rename the automation 'Order Flow' to 'Order Pipeline'."
 
 
 PROMPT_SEARCH_FINDS_ROW = "Find the customer called Acme."
@@ -76,9 +94,29 @@ def _check_search_finds_row(
     ]
 
 
+_DENIALS = (
+    "no table",
+    "no invoices table",
+    "not find",
+    "couldn't find",
+    "could not find",
+    "didn't find",
+    "don't see",
+    "doesn't exist",
+    "does not exist",
+    "isn't one",
+    "create it",
+    "create one",
+    "create an invoices",
+    "create a new",
+)
+
+
 def _check_search_finds_table(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
+    # Models often write a typographic apostrophe.
+    answer = output.answer.lower().replace("\u2019", "'")
     return [
         CheckResult(
             "called search_workspace or list_tables",
@@ -86,8 +124,13 @@ def _check_search_finds_table(
             >= 1,
         ),
         CheckResult(
-            "answer mentions Invoices",
-            "invoices" in output.answer.lower(),
+            "answer names the Sales/Invoices table",
+            "invoices" in answer and "sales" in answer,
+            hint=output.answer[:200],
+        ),
+        CheckResult(
+            "answer doesn't deny it or offer to create it",
+            not any(marker in answer for marker in _DENIALS),
             hint=output.answer[:200],
         ),
     ]
@@ -299,7 +342,7 @@ def _check_creates_database(
     )
     return [
         CheckResult(
-            "called create_builders", tool_called(output, "create_builders") >= 1
+            "called create_database", tool_called(output, "create_database") >= 1
         ),
         CheckResult(
             "database 'Customer Portal' exists",
@@ -344,7 +387,7 @@ def _check_creates_automation(
     automation = created[0] if created else None
     return [
         CheckResult(
-            "called create_builders", tool_called(output, "create_builders") >= 1
+            "called create_automation", tool_called(output, "create_automation") >= 1
         ),
         CheckResult(
             "exactly 1 automation created",
@@ -379,6 +422,258 @@ register_case(
         prompt=PROMPT_CREATES_AUTOMATION,
         scenario="core-creates-automation",
         checks=_check_creates_automation,
+        max_iters=15,
+        max_tool_errors=1,
+    )
+)
+
+
+@register_scenario("core-creates-application")
+def _creates_application_scenario(fx: Fixtures) -> EvalScenario:
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    database = fx.create_database_application(workspace=workspace)
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_database_ui_context(user, workspace, database),
+        refs={"database": database},
+    )
+
+
+def _check_creates_application(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    workspace = scenario.workspace
+    builders = list(Builder.objects.filter(workspace=workspace))
+    # The scenario starts with one database and nothing else.
+    databases = Database.objects.filter(workspace=workspace).count()
+    automations = Automation.objects.filter(workspace=workspace).count()
+    dashboards = Dashboard.objects.filter(workspace=workspace).count()
+    return [
+        CheckResult(
+            "called create_builder", tool_called(output, "create_builder") >= 1
+        ),
+        CheckResult(
+            "a new application builder exists",
+            len(builders) == 1,
+            hint=f"found {len(builders)}: {[b.name for b in builders]}",
+        ),
+        CheckResult(
+            "no database, automation or dashboard created",
+            databases == 1 and automations == 0 and dashboards == 0,
+            hint=(
+                f"databases={databases}, automations={automations}, "
+                f"dashboards={dashboards}; tools called: {output.tool_calls}"
+            ),
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="core/creates-application",
+        dataset="kuma-core",
+        # A bare request for an application is a builder, made without asking.
+        prompt=PROMPT_CREATES_APPLICATION,
+        scenario="core-creates-application",
+        checks=_check_creates_application,
+        max_iters=15,
+    )
+)
+
+
+def _named(model, workspace, name: str) -> list:
+    return [
+        application
+        for application in model.objects.filter(workspace=workspace)
+        if application.name.strip().casefold() == name.casefold()
+    ]
+
+
+@register_scenario("core-creates-dashboard")
+def _creates_dashboard_scenario(fx: Fixtures) -> EvalScenario:
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    database = fx.create_database_application(workspace=workspace)
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_database_ui_context(user, workspace, database),
+        refs={"database": database},
+    )
+
+
+def _check_creates_dashboard(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    workspace = scenario.workspace
+    dashboards = list(Dashboard.objects.filter(workspace=workspace))
+    applications = [
+        application.name
+        for application in Application.objects.filter(workspace=workspace)
+    ]
+    return [
+        CheckResult(
+            "called create_dashboard", tool_called(output, "create_dashboard") >= 1
+        ),
+        CheckResult(
+            "exactly one dashboard, named Sales Overview",
+            len(dashboards) == 1
+            and len(_named(Dashboard, workspace, "Sales Overview")) == 1,
+            hint=f"found {len(dashboards)}: {[d.name for d in dashboards]}",
+        ),
+        CheckResult(
+            "no application builder created",
+            not Builder.objects.filter(workspace=workspace).exists(),
+            hint=f"tools called: {output.tool_calls}",
+        ),
+        CheckResult(
+            "databases unchanged",
+            Database.objects.filter(workspace=workspace).count() == 1,
+        ),
+        CheckResult(
+            "no other application created",
+            len(applications) == 2,
+            hint=f"applications: {applications}",
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="core/creates-dashboard",
+        dataset="kuma-core",
+        prompt=PROMPT_CREATES_DASHBOARD,
+        scenario="core-creates-dashboard",
+        checks=_check_creates_dashboard,
+        max_iters=15,
+    )
+)
+
+
+@register_scenario("core-creates-several-applications")
+def _creates_several_applications_scenario(fx: Fixtures) -> EvalScenario:
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    builder = fx.create_builder_application(user=user, workspace=workspace, name="Shop")
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_builder_ui_context(user, workspace, builder),
+        refs={"builder": builder},
+    )
+
+
+def _check_creates_several_applications(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    workspace = scenario.workspace
+    wanted = (
+        ("create_database", Database, "Inventory"),
+        ("create_automation", Automation, "Stock Alerts"),
+        ("create_dashboard", Dashboard, "Stock Overview"),
+    )
+    checks = []
+    for tool, model, name in wanted:
+        checks.append(
+            CheckResult(
+                f"called {tool}",
+                tool_called(output, tool) >= 1,
+                hint=f"tools called: {output.tool_calls}",
+            )
+        )
+        checks.append(
+            CheckResult(
+                f"exactly one {model.__name__.lower()} named '{name}'",
+                len(_named(model, workspace, name)) == 1,
+                hint=(
+                    "found "
+                    f"{[a.name for a in model.objects.filter(workspace=workspace)]}"
+                ),
+            )
+        )
+    builders = list(Builder.objects.filter(workspace=workspace))
+    checks.append(
+        CheckResult(
+            "no application builder added",
+            len(builders) == 1,
+            hint=f"builders: {[b.name for b in builders]}",
+        )
+    )
+    return checks
+
+
+register_case(
+    EvalCase(
+        id="core/creates-several-applications",
+        dataset="kuma-core",
+        prompt=PROMPT_CREATES_SEVERAL_APPLICATIONS,
+        scenario="core-creates-several-applications",
+        checks=_check_creates_several_applications,
+        mode=AgentMode.APPLICATION,
+        max_iters=20,
+        max_tool_errors=1,
+    )
+)
+
+
+@register_scenario("core-renames-automation")
+def _renames_automation_scenario(fx: Fixtures) -> EvalScenario:
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    database = fx.create_database_application(workspace=workspace, name="Sales")
+    automation = fx.create_automation_application(
+        user=user, workspace=workspace, name="Order Flow"
+    )
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_database_ui_context(user, workspace, database),
+        refs={"database": database, "automation": automation},
+        pre_state={
+            "applications": Application.objects.filter(workspace=workspace).count()
+        },
+    )
+
+
+def _check_renames_automation(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    automation = scenario.refs["automation"]
+    automation.refresh_from_db()
+    database = scenario.refs["database"]
+    database.refresh_from_db()
+    return [
+        CheckResult(
+            "called update_automation", tool_called(output, "update_automation") >= 1
+        ),
+        CheckResult(
+            "automation renamed to Order Pipeline",
+            automation.name.strip().casefold() == "order pipeline",
+            hint=f"name: '{automation.name}'",
+        ),
+        CheckResult(
+            "database name unchanged",
+            database.name == "Sales",
+            hint=f"name: '{database.name}'",
+        ),
+        CheckResult(
+            "no new application",
+            Application.objects.filter(workspace=scenario.workspace).count()
+            == scenario.pre_state["applications"],
+            hint=f"tools called: {output.tool_calls}",
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="core/renames-automation",
+        dataset="kuma-core",
+        prompt=PROMPT_RENAMES_AUTOMATION,
+        scenario="core-renames-automation",
+        checks=_check_renames_automation,
         max_iters=15,
         max_tool_errors=1,
     )

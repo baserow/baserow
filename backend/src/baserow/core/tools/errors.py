@@ -28,6 +28,10 @@ from baserow.core.services.exceptions import (
 PERMISSION_DENIED_MESSAGE = "You don't have permission to do this in this workspace."
 NOT_FOUND_MESSAGE = "Not found in this workspace."
 INTERNAL_ERROR_MESSAGE = "Internal error."
+LICENCE_REQUIRED_MESSAGE = (
+    "This needs a licence that this user doesn't have: a premium, advanced or "
+    "enterprise plan, depending on the feature."
+)
 
 
 class ToolInputError(Exception):
@@ -41,6 +45,35 @@ class ToolInputError(Exception):
 
         super().__init__(message)
         self.hint = hint
+
+
+def _detail_messages(detail) -> str:
+    if isinstance(detail, dict):
+        return " ".join(
+            f"{field}: {_detail_messages(value)}" for field, value in detail.items()
+        )
+    if isinstance(detail, (list, tuple)):
+        return " ".join(_detail_messages(value) for value in detail)
+    return str(detail)
+
+
+def validation_messages(exc: DRFValidationError) -> str:
+    """The messages of a DRF ``ValidationError``, with the field they're on."""
+
+    return _detail_messages(exc.detail)
+
+
+def raise_if_permission_denied(error: Exception) -> None:
+    """
+    Let the mode router explain permission failures.
+
+    :param error: The caught exception to inspect.
+    :raises PermissionException: When the given error is one, so it reaches
+        the mode router instead of being swallowed by a containment handler.
+    """
+
+    if isinstance(error, PermissionException):
+        raise error
 
 
 class ToolErrorCode(StrEnum):
@@ -163,11 +196,13 @@ def classify_tool_error(exc: Exception) -> ToolError:
             ToolErrorCode.INVALID_INPUT,
             "Invalid value. " + "; ".join(flatten_error_detail(exc.detail)),
         )
-    # Any other client error, like a feature that needs a licence (402). Those
-    # come as an error code and a message.
+    # Any other client error. Those come as an error code and a message.
     if isinstance(exc, APIException) and exc.status_code < 500:
         detail = exc.detail
         if isinstance(detail, dict) and "detail" in detail:
+            # The REST message doesn't say a licence is what's missing.
+            if detail.get("error") == "ERROR_FEATURE_NOT_AVAILABLE":
+                return ToolError(ToolErrorCode.FAILED, LICENCE_REQUIRED_MESSAGE)
             detail = detail["detail"]
         return ToolError(ToolErrorCode.FAILED, "; ".join(flatten_error_detail(detail)))
     if isinstance(exc, ServiceImproperlyConfiguredDispatchException):
