@@ -334,24 +334,8 @@ def _in_page_order(page: Page, elements: list) -> list:
     right after it. Elements the graph doesn't reach go last.
     """
 
-    graph = page.get_graph().graph
-    position: dict[int, int] = {}
-    stack = [graph["0"]] if graph.get("0") is not None else []
-    while stack:
-        current = int(stack.pop())
-        if current in position:
-            continue
-        position[current] = len(position)
-        info = graph.get(str(current))
-        if not isinstance(info, dict):
-            continue
-        children = info.get("children") or {}
-        if isinstance(children, list):
-            children = {"": children}
-        following = [*info.get("next", {}).get("", [])]
-        for place in reversed(sorted(children, key=_place_order)):
-            following = [*children[place], *following]
-        stack.extend(reversed(following))
+    ordered = page.get_graph().get_ordered_point_ids(edge_order=_place_order)
+    position = {point_id: index for index, point_id in enumerate(ordered)}
     return sorted(elements, key=lambda el: position.get(el.id, len(position)))
 
 

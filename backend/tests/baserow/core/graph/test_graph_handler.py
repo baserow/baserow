@@ -1203,6 +1203,36 @@ def test_collect_descendant_ids():
     assert graph.collect_descendant_ids(99) == set()
 
 
+def test_get_ordered_point_ids():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"": [2]}},
+            "2": {"next": {"": [6]}, "children": {"1": [5], "0": [3]}},
+            "3": {"next": {"": [4]}, "children": {"": [7]}},
+            "4": {},
+            "5": {},
+            "6": {"next": {"": [2]}},
+            "7": {},
+        }
+    )
+    graph = model.get_graph()
+
+    # Children come right after their container, edge by edge, and a loop back
+    # to an earlier point ends the walk.
+    assert graph.get_ordered_point_ids() == [1, 2, 3, 7, 4, 5, 6]
+    assert graph.get_ordered_point_ids(edge_order=lambda edge: -int(edge or 0)) == [
+        1,
+        2,
+        5,
+        3,
+        7,
+        4,
+        6,
+    ]
+    assert make_graph_model({}).get_graph().get_ordered_point_ids() == []
+
+
 def test_find_unreachable_point_ids():
     graph = {
         "0": 1,

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Type
 
 from django.db import models, transaction
 
@@ -734,6 +734,40 @@ class BaseGraphHandler(ABC):
                 stack.extend(int(child_id) for child_id in child_ids)
 
         return result
+
+    def get_ordered_point_ids(
+        self, edge_order: Optional[Callable[[str], Any]] = None
+    ) -> List[int]:
+        """
+        Returns the ids of the points the root reaches, depth first: each point,
+        then its children edge by edge, then the points after it. A pure walk of
+        the serialized graph with a seen set, so it terminates on a corrupted graph.
+
+        :param edge_order: Sort key for a point's children edges. Defaults to the
+            edge key itself.
+        :return: The point ids in order.
+        """
+
+        graph = self.graph
+        root = graph.get(self.GRAPH_ROOT_KEY)
+        stack: List[str | int] = [root] if root is not None else []
+        ordered: List[int] = []
+        seen: set[int] = set()
+        while stack:
+            current = int(stack.pop())
+            if current in seen:
+                continue
+            seen.add(current)
+            ordered.append(current)
+            info = graph.get(str(current))
+            if not isinstance(info, dict):
+                continue
+            children = self._get_children_dict_from_info(info)
+            following = [*info.get("next", {}).get("", [])]
+            for edge in reversed(sorted(children, key=edge_order)):
+                following = [*children[edge], *following]
+            stack.extend(reversed(following))
+        return ordered
 
     def _has_incoming_references(self, point_id: int) -> bool:
         """
