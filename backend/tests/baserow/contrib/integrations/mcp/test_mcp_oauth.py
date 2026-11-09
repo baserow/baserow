@@ -527,3 +527,20 @@ def test_an_expired_token_is_cleared_without_undoing_a_new_sign_in(data_fixture)
 
     integration.refresh_from_db()
     assert integration.oauth_access_token == "access-2"
+
+
+@pytest.mark.django_db
+def test_a_registered_secret_is_sent_when_the_server_doesnt_say_how(
+    data_fixture, api_client, mocker
+):
+    fake = serve_oauth(mocker, FakeAuthorizationServer())
+    fake.confidential = True
+    user, token = data_fixture.create_user_and_token()
+    integration = oauth_server(data_fixture, user)
+    url = start(api_client, token, integration).json()["authorization_url"]
+    state = parse_qs(urlparse(url).query)["state"][0]
+
+    complete(api_client, token, state=state, code=fake.authorize(url))
+
+    # RFC 7591: without a method, a client with a secret uses Basic auth.
+    assert fake.requests[-1].headers["Authorization"].startswith("Basic ")

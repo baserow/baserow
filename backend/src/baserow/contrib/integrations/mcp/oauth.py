@@ -309,7 +309,9 @@ async def _register(server: OAuthServer) -> OAuthClient:
         client_id=info.client_id,
         client_secret=info.client_secret or "",
         source=MCPOAuthClientSource.DYNAMIC,
-        auth_method=info.token_endpoint_auth_method or "none",
+        # RFC 7591's default, for a reply that leaves the method out.
+        auth_method=info.token_endpoint_auth_method
+        or ("client_secret_basic" if info.client_secret else "none"),
     )
 
 

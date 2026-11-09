@@ -70,6 +70,8 @@ class FakeAuthorizationServer:
         self.expires_in = 3600
         # None leaves `refresh_token` out of the token response.
         self.refresh_token = "refresh-1"
+        # Registers a client with a secret, without saying how to send it.
+        self.confidential = False
 
     def authorize(self, authorization_url: str) -> str:
         """Approve like the user would, and return the code."""
@@ -146,14 +148,16 @@ class FakeAuthorizationServer:
                 },
             )
         if url == f"{self.ISSUER}/register":
-            return httpx.Response(
-                201,
-                json={
-                    **json.loads(request.content),
-                    "client_id": "registered-client",
-                    "token_endpoint_auth_method": "none",
-                },
-            )
+            registered = {
+                **json.loads(request.content),
+                "client_id": "registered-client",
+                "token_endpoint_auth_method": "none",
+            }
+            if self.confidential:
+                # Ignores the requested method and leaves it out of the reply.
+                registered.pop("token_endpoint_auth_method")
+                registered["client_secret"] = "registered-secret"
+            return httpx.Response(201, json=registered)
         if url == f"{self.ISSUER}/token":
             return self._token(
                 {
