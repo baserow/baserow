@@ -498,7 +498,9 @@ def test_call_tool_captures_analytics_event(mock_capture, data_fixture):
         async def inner():
             async with client_session(mcp._mcp_server) as client:
                 await client.call_tool("list_databases", {})
-                await client.call_tool("update_rows", {"table_id": 999999, "rows": [{"id": 1}]})
+                await client.call_tool(
+                    "update_rows", {"table_id": 999999, "rows": [{"id": 1}]}
+                )
                 await client.call_tool("nonexistent_tool", {})
 
         with transaction.atomic():
