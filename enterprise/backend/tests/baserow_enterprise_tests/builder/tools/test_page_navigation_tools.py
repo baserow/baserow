@@ -8,7 +8,7 @@ import pytest
 from baserow.contrib.builder.elements.models import LinkElement, MenuItemElement
 from baserow.core.tools.errors import ToolInputError
 from baserow_enterprise.builder.tools import elements, pages
-from baserow_enterprise.builder.tools.types import ElementChanges, PageChanges
+from baserow_enterprise.builder.tools.types import ElementEdits, PageChanges
 
 
 @pytest.fixture
@@ -78,7 +78,7 @@ def test_update_element_gives_a_link_the_new_parameters(builder_ctx, product_pag
     result = elements.update_element(
         builder_ctx["ctx"],
         link.id,
-        ElementChanges(link_page_parameters=[{"name": "slug", "value": "shoes"}]),
+        ElementEdits(link_page_parameters=[{"name": "slug", "value": "shoes"}]),
     )
 
     assert "formula_errors" not in result
@@ -94,7 +94,7 @@ def test_update_element_stores_a_link_parameter_formula(builder_ctx, product_pag
     elements.update_element(
         builder_ctx["ctx"],
         link.id,
-        ElementChanges(
+        ElementEdits(
             link_page_parameters=[{"name": "id", "value": "get('page_parameter.x')"}]
         ),
     )
@@ -106,7 +106,7 @@ def test_update_element_stores_a_link_parameter_formula(builder_ctx, product_pag
     elements.update_element(
         builder_ctx["ctx"],
         link.id,
-        ElementChanges(
+        ElementEdits(
             link_page_parameters=[{"name": "id", "value": "concat('4', '2')"}]
         ),
     )
@@ -124,7 +124,7 @@ def test_update_element_refuses_link_parameters_the_page_does_not_take(
         elements.update_element(
             builder_ctx["ctx"],
             link.id,
-            ElementChanges(link_page_parameters=[{"name": "slug", "value": "x"}]),
+            ElementEdits(link_page_parameters=[{"name": "slug", "value": "x"}]),
         )
 
     assert _stored(link) == [("id", "'1'")]

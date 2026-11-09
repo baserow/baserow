@@ -354,52 +354,6 @@ def update_element_on_page(
     return outcome, formula_errors
 
 
-def update_element(
-    ctx: ToolContext,
-    element_id: Annotated[
-        int, Field(description="The ID of the element, from list_elements.")
-    ],
-    element: Annotated[
-        ElementChanges, Field(description="The changes. Set only what should change.")
-    ],
-) -> dict[str, Any]:
-    """
-    Update an element: its text, settings, table columns or menu items. Properties the
-    element's type doesn't have refuse the whole update. A button has no target of its
-    own: give it a click action. A button's text is what it says before it's clicked;
-    what it shows or does when clicked, like the message of a notification, is a click
-    action: find it with list_element_actions and change it with
-    update_element_action. If a changed
-    button also shows a notification when clicked, the result has a note naming that
-    action, which stays as it was. A link given a page or a URL goes there, unless
-    navigation_type says otherwise. A link's new page must fit its parameters: give
-    link_page_parameters for it in the same call, or the update is refused. To move an element or change its style use move_elements
-    or update_element_style.
-
-    Give dynamic values as formulas in Baserow formula syntax, like
-    get('page_parameter.id'). A value that isn't a valid formula keeps its previous
-    value and is listed in formula_errors.
-
-    Table columns: list_elements shows each column's uid. Change them with
-    add_table_columns, update_table_columns, reorder_table_columns and
-    remove_table_columns; columns you don't list stay as they are. Only text and
-    button columns can be created. A removed column and its click actions are gone for
-    good. A new or changed column's formula must parse and read what the page has, or
-    the whole update is refused and nothing is listed in formula_errors.
-
-    Menu items: list_elements shows each item's uid. Change them with add_menu_items,
-    update_menu_items, reorder_menu_items and remove_menu_items; items you don't list
-    stay as they are. On a header or footer they change the menu inside it. These
-    tools can't give an item path parameters, so one can't link to a page that has
-    them; the editor can set them. A removed
-    button's click actions are gone for good.
-    """
-
-    return _update_element(
-        ctx, element_id, _full_update(ElementUpdate, element_id, element)
-    )
-
-
 def _update_element(
     ctx: ToolContext, element_id: int, element: ElementUpdate
 ) -> dict[str, Any]:
@@ -418,7 +372,7 @@ def _update_element(
     return result
 
 
-def edit_element(
+def update_element(
     ctx: ToolContext,
     element_id: Annotated[
         int, Field(description="The ID of the element, from list_elements.")
@@ -432,12 +386,13 @@ def edit_element(
     element's type doesn't have refuse the whole update. A button has no target of its
     own: give it a click action. A button's text is what it says before it's clicked;
     what it shows or does when clicked, like the message of a notification, is a click
-    action: find it with list_element_actions and change it with update_element_action. If a changed
-    button also shows a notification when clicked, the result has a note naming that
-    action, which stays as it was. A link given a page or a URL goes there, unless
-    navigation_type says otherwise. A link's new page must fit its parameters: give
-    link_page_parameters for it in the same call, or the update is refused. To move an element or change its style use move_elements
-    or update_element_style.
+    action: find it with list_element_actions and change it with
+    update_element_action. If a changed button also shows a notification when
+    clicked, the result has a note naming that action, which stays as it was. A link
+    given a page or a URL goes there, unless navigation_type says otherwise. A link's
+    new page must fit its parameters: give link_page_parameters for it in the same
+    call, or the update is refused. To move an element or change its style use
+    move_elements or update_element_style.
 
     Give dynamic values as formulas in Baserow formula syntax, like
     get('page_parameter.id'). A value that isn't a valid formula keeps its previous

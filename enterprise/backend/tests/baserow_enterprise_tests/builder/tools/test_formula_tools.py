@@ -13,7 +13,7 @@ from baserow_enterprise.builder.tools.types import (
     ActionCreate,
     DataSourceCreate,
     DisplayElementCreate,
-    ElementChanges,
+    ElementEdits,
     ElementItemCreate,
 )
 from baserow_enterprise.tools.formula_utils import needs_formula
@@ -190,7 +190,7 @@ def test_a_sentence_with_a_parenthesis_is_fixed_text_on_an_element_update(
     )
 
     result = elements.update_element(
-        builder_ctx["ctx"], heading.id, ElementChanges(value=SENTENCE)
+        builder_ctx["ctx"], heading.id, ElementEdits(value=SENTENCE)
     )
 
     assert "formula_errors" not in result

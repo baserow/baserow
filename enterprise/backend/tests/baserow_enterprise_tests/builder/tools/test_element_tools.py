@@ -25,7 +25,7 @@ from baserow_enterprise.builder.tools.formulas import (
 from baserow_enterprise.builder.tools.types import (
     CollectionElementCreate,
     DisplayElementCreate,
-    ElementChanges,
+    ElementEdits,
     ElementItemCreate,
     ElementMove,
     ElementStyleChanges,
@@ -783,7 +783,7 @@ def test_nested_page_ids_must_be_of_this_builder(builder_ctx, elsewhere, target)
 @pytest.mark.django_db
 def test_update_scopes_the_element_to_the_workspace(builder_ctx, elsewhere):
     ctx = builder_ctx["ctx"]
-    changes = ElementChanges(column_amount=3)
+    changes = ElementEdits(column_amount=3)
 
     with pytest.raises(ElementDoesNotExist):
         elements.update_element(ctx, elsewhere["other_box"].id, changes)
@@ -810,13 +810,13 @@ def test_update_refuses_a_link_or_menu_item_to_another_builder(builder_ctx, else
         elements.update_element(
             ctx,
             created["link"],
-            ElementChanges(navigate_to_page_id=away),
+            ElementEdits(navigate_to_page_id=away),
         )
     with pytest.raises(ToolInputError):
         elements.update_element(
             ctx,
             created["menu"],
-            ElementChanges(add_menu_items=[MenuItemAdd(name="Away", page_id=away)]),
+            ElementEdits(add_menu_items=[MenuItemAdd(name="Away", page_id=away)]),
         )
 
 
@@ -936,7 +936,7 @@ def test_update_stores_a_formula_and_returns_the_element(data_fixture, builder_c
     result = elements.update_element(
         builder_ctx["ctx"],
         element.id,
-        ElementChanges(value="get('page_parameter.id')", level=2),
+        ElementEdits(value="get('page_parameter.id')", level=2),
     )
 
     assert result["updated_element"]["id"] == element.id
@@ -956,7 +956,7 @@ def test_update_keeps_the_old_value_for_a_description(data_fixture, builder_ctx)
     result = elements.update_element(
         builder_ctx["ctx"],
         element.id,
-        ElementChanges(value="$formula: a new title", level=3),
+        ElementEdits(value="$formula: a new title", level=3),
     )
 
     assert result["formula_errors"][0]["element_id"] == element.id
@@ -978,7 +978,7 @@ def test_update_a_link_url_formula_switches_its_type_only_when_stored(
     described = elements.update_element(
         ctx,
         element.id,
-        ElementChanges(navigation_type="custom", navigate_to_url="$formula: a url"),
+        ElementEdits(navigation_type="custom", navigate_to_url="$formula: a url"),
     )
     assert described["formula_errors"][0]["field"] == "navigate_to_url"
     assert saved(element.id).navigation_type == "page"
@@ -986,7 +986,7 @@ def test_update_a_link_url_formula_switches_its_type_only_when_stored(
     stored = elements.update_element(
         ctx,
         element.id,
-        ElementChanges(navigation_type="custom", navigate_to_url="get('user.email')"),
+        ElementEdits(navigation_type="custom", navigate_to_url="get('user.email')"),
     )
     assert "formula_errors" not in stored
     element = saved(element.id)
@@ -1014,7 +1014,7 @@ def test_update_changes_table_columns_and_menu_items(data_fixture, builder_ctx):
     table = elements.update_element(
         ctx,
         created["t"],
-        ElementChanges(
+        ElementEdits(
             add_table_columns=[
                 TableColumnAdd(name="Id", value="get('current_record.id')")
             ]
@@ -1024,14 +1024,12 @@ def test_update_changes_table_columns_and_menu_items(data_fixture, builder_ctx):
     renamed = elements.update_element(
         ctx,
         created["t"],
-        ElementChanges(
-            update_table_columns=[TableColumnUpdate(uid=uid, name="Renamed")]
-        ),
+        ElementEdits(update_table_columns=[TableColumnUpdate(uid=uid, name="Renamed")]),
     )
     menu = elements.update_element(
         ctx,
         created["menu"],
-        ElementChanges(add_menu_items=[MenuItemAdd(name="Home", page_id=page.id)]),
+        ElementEdits(add_menu_items=[MenuItemAdd(name="Home", page_id=page.id)]),
     )
 
     assert [c["name"] for c in table["updated_element"]["table_columns"]] == [
@@ -1052,7 +1050,7 @@ def test_update_a_header_changes_its_menu_and_returns_it(data_fixture, builder_c
     result = elements.update_element(
         ctx,
         header,
-        ElementChanges(add_menu_items=[MenuItemAdd(name="Home", page_id=page.id)]),
+        ElementEdits(add_menu_items=[MenuItemAdd(name="Home", page_id=page.id)]),
     )
 
     assert result["updated_element"]["page_name"] == "[shared]"
@@ -1069,7 +1067,7 @@ def test_update_of_an_unknown_property_changes_nothing(data_fixture, builder_ctx
         elements.update_element(
             builder_ctx["ctx"],
             element.id,
-            ElementChanges(column_amount=3, value="New"),
+            ElementEdits(column_amount=3, value="New"),
         )
 
     assert saved(element.id).value["formula"] == "'Old'"
@@ -1200,7 +1198,7 @@ def test_changing_a_button_text_points_to_its_notification(
     )
 
     result = elements.update_element(
-        builder_ctx["ctx"], save_button.id, ElementChanges(label="All done!")
+        builder_ctx["ctx"], save_button.id, ElementEdits(label="All done!")
     )
 
     save_button.refresh_from_db()
@@ -1221,7 +1219,7 @@ def test_changing_the_text_of_a_button_without_a_notification_adds_no_note(
     )
 
     result = elements.update_element(
-        builder_ctx["ctx"], save_button.id, ElementChanges(value="Store")
+        builder_ctx["ctx"], save_button.id, ElementEdits(value="Store")
     )
 
     assert "note" not in result
@@ -1236,7 +1234,7 @@ def test_changing_a_button_without_touching_its_text_adds_no_note(
     )
 
     result = elements.update_element(
-        builder_ctx["ctx"], save_button.id, ElementChanges(visibility="logged-in")
+        builder_ctx["ctx"], save_button.id, ElementEdits(visibility="logged-in")
     )
 
     assert "note" not in result
@@ -1289,7 +1287,7 @@ def test_a_new_column_reading_what_the_page_lacks_is_refused(
         elements.update_element(
             builder_ctx["ctx"],
             table.id,
-            ElementChanges(add_table_columns=[TableColumnAdd(name="Bad", value=value)]),
+            ElementEdits(add_table_columns=[TableColumnAdd(name="Bad", value=value)]),
         )
 
     assert [column.name for column in saved(table.id).fields.all()] == ["Stale"]
@@ -1307,13 +1305,13 @@ def test_a_changed_column_reading_a_field_by_name_is_refused(
     elements.update_element(
         ctx,
         table.id,
-        ElementChanges(update_table_columns=[TableColumnUpdate(uid=uid, value=good)]),
+        ElementEdits(update_table_columns=[TableColumnUpdate(uid=uid, value=good)]),
     )
     with pytest.raises(ToolInputError, match="current_record.Name"):
         elements.update_element(
             ctx,
             table.id,
-            ElementChanges(
+            ElementEdits(
                 update_table_columns=[
                     TableColumnUpdate(uid=uid, value="get('current_record.Name')")
                 ]
@@ -1331,7 +1329,7 @@ def test_a_new_button_column_label_reading_a_field_by_name_is_refused(
         elements.update_element(
             builder_ctx["ctx"],
             table_with_stale_column.id,
-            ElementChanges(
+            ElementEdits(
                 add_table_columns=[
                     TableColumnAdd(
                         name="Go", type="button", label="get('current_record.Name')"
@@ -1352,12 +1350,12 @@ def test_a_stored_column_does_not_block_an_unrelated_change(
     elements.update_element(
         ctx,
         table.id,
-        ElementChanges(update_table_columns=[TableColumnUpdate(uid=uid, name="Old")]),
+        ElementEdits(update_table_columns=[TableColumnUpdate(uid=uid, name="Old")]),
     )
     result = elements.update_element(
         ctx,
         table.id,
-        ElementChanges(
+        ElementEdits(
             add_table_columns=[
                 TableColumnAdd(
                     name="Good", value=f"get('current_record.field_{table_field.id}')"
@@ -1426,7 +1424,7 @@ def test_a_default_value_reads_the_row_of_the_repeat_around_it(
     formula = f"get('current_record.field_{table_field.id}')"
 
     result = elements.update_element(
-        builder_ctx["ctx"], selector.id, ElementChanges(default_value=formula)
+        builder_ctx["ctx"], selector.id, ElementEdits(default_value=formula)
     )
 
     assert "formula_errors" not in result
@@ -1442,7 +1440,7 @@ def test_a_default_value_can_not_read_the_selectors_own_rows(
     result = elements.update_element(
         builder_ctx["ctx"],
         selector.id,
-        ElementChanges(default_value=f"get('current_record.field_{own_field.id}')"),
+        ElementEdits(default_value=f"get('current_record.field_{own_field.id}')"),
     )
 
     assert [e["field"] for e in result["formula_errors"]] == ["default_value"]
@@ -2024,7 +2022,7 @@ def test_a_new_target_that_does_not_fit_a_link_is_refused(
         elements.update_element(
             builder_ctx["ctx"],
             link.id,
-            ElementChanges(navigate_to_page_id=link_pages[target].id, value="New"),
+            ElementEdits(navigate_to_page_id=link_pages[target].id, value="New"),
         )
 
     assert all(part in str(error.value) for part in named)
@@ -2048,7 +2046,7 @@ def test_a_new_target_that_fits_a_link_is_stored(
     elements.update_element(
         builder_ctx["ctx"],
         link.id,
-        ElementChanges(navigate_to_page_id=link_pages[target].id),
+        ElementEdits(navigate_to_page_id=link_pages[target].id),
     )
 
     stored = saved(link.id)
@@ -2065,7 +2063,7 @@ def test_a_link_that_keeps_its_target_is_not_checked(
     elements.update_element(
         builder_ctx["ctx"],
         link.id,
-        ElementChanges(navigate_to_page_id=link_pages["by_id"].id, value="New"),
+        ElementEdits(navigate_to_page_id=link_pages["by_id"].id, value="New"),
     )
 
     assert saved(link.id).value["formula"] == "'New'"
@@ -2139,7 +2137,7 @@ def test_two_changed_columns_of_one_name_are_both_checked(data_fixture, builder_
         elements.update_element(
             builder_ctx["ctx"],
             table.id,
-            ElementChanges(
+            ElementEdits(
                 update_table_columns=[
                     TableColumnUpdate(uid=first, value="get('page_parameter.nope')"),
                     TableColumnUpdate(uid=second, value="get('current_record.id')"),
@@ -2284,7 +2282,7 @@ def test_a_link_given_a_new_page_keeps_its_parameters_in_that_page_order(
     )["ref_to_id_map"]["l"]
 
     elements.update_element(
-        builder_ctx["ctx"], link_id, ElementChanges(navigate_to_page_id=second.id)
+        builder_ctx["ctx"], link_id, ElementEdits(navigate_to_page_id=second.id)
     )
 
     assert _link_parameters(link_id) == [("b", "2"), ("a", "1")]
@@ -2318,7 +2316,7 @@ def test_giving_a_custom_link_a_page_makes_it_go_to_the_page(builder_ctx, links)
     elements.update_element(
         builder_ctx["ctx"],
         links["custom"],
-        ElementChanges(navigate_to_page_id=links["target"].id),
+        ElementEdits(navigate_to_page_id=links["target"].id),
     )
 
     link = saved(links["custom"])
@@ -2331,7 +2329,7 @@ def test_giving_a_page_link_a_url_makes_it_go_to_the_url(builder_ctx, links):
     elements.update_element(
         builder_ctx["ctx"],
         links["page"],
-        ElementChanges(navigate_to_url="https://example.org"),
+        ElementEdits(navigate_to_url="https://example.org"),
     )
 
     link = saved(links["page"])
@@ -2344,7 +2342,7 @@ def test_a_page_link_given_a_formula_url_switches_with_the_formula(builder_ctx, 
     elements.update_element(
         builder_ctx["ctx"],
         links["page"],
-        ElementChanges(navigate_to_url="concat('https://', 'example.org')"),
+        ElementEdits(navigate_to_url="concat('https://', 'example.org')"),
     )
 
     link = saved(links["page"])
@@ -2357,7 +2355,7 @@ def test_a_page_link_given_a_bad_formula_url_stays_on_its_page(builder_ctx, link
     result = elements.update_element(
         builder_ctx["ctx"],
         links["page"],
-        ElementChanges(navigate_to_url="$formula: the shop's address"),
+        ElementEdits(navigate_to_url="$formula: the shop's address"),
     )
 
     assert result["formula_errors"][0]["field"] == "navigate_to_url"
@@ -2369,9 +2367,7 @@ def test_an_explicit_navigation_type_is_kept(builder_ctx, links):
     elements.update_element(
         builder_ctx["ctx"],
         links["custom"],
-        ElementChanges(
-            navigation_type="custom", navigate_to_page_id=links["target"].id
-        ),
+        ElementEdits(navigation_type="custom", navigate_to_page_id=links["target"].id),
     )
 
     assert saved(links["custom"]).navigation_type == "custom"
@@ -2393,7 +2389,7 @@ def test_a_custom_link_back_to_its_stored_page_needs_parameters_that_fit(
         elements.update_element(
             builder_ctx["ctx"],
             links["custom"],
-            ElementChanges(navigate_to_page_id=target.id),
+            ElementEdits(navigate_to_page_id=target.id),
         )
 
     assert saved(links["custom"]).navigation_type == "custom"
@@ -2453,7 +2449,7 @@ def test_add_menu_items_can_not_link_to_a_page_with_path_parameters(
         elements.update_element(
             builder_ctx["ctx"],
             menu_id,
-            ElementChanges(
+            ElementEdits(
                 add_menu_items=[MenuItemAdd(name="Item", page_id=item_page.id)]
             ),
         )
@@ -2471,7 +2467,7 @@ def test_update_menu_items_can_not_link_to_a_page_with_path_parameters(
         elements.update_element(
             builder_ctx["ctx"],
             menu_id,
-            ElementChanges(
+            ElementEdits(
                 update_menu_items=[MenuItemUpdate(uid=uid, page_id=item_page.id)]
             ),
         )
@@ -2491,7 +2487,7 @@ def test_a_menu_item_set_up_with_parameters_in_the_editor_can_be_renamed(
     elements.update_element(
         builder_ctx["ctx"],
         menu_id,
-        ElementChanges(
+        ElementEdits(
             update_menu_items=[
                 MenuItemUpdate(uid=str(item.uid), name="New", page_id=item_page.id)
             ]
@@ -2594,7 +2590,7 @@ def test_update_header_can_not_show_on_only_no_pages(builder_ctx):
 
     with pytest.raises(ToolInputError, match="page_ids"):
         elements.update_element(
-            builder_ctx["ctx"], header_id, ElementChanges(share_type="only")
+            builder_ctx["ctx"], header_id, ElementEdits(share_type="only")
         )
 
     assert saved(header_id).share_type == "all"
@@ -2607,7 +2603,7 @@ def test_update_header_can_go_back_to_the_pages_it_has(builder_ctx):
     )
 
     elements.update_element(
-        builder_ctx["ctx"], header_id, ElementChanges(share_type="only")
+        builder_ctx["ctx"], header_id, ElementEdits(share_type="only")
     )
 
     assert saved(header_id).share_type == "only"
@@ -2653,7 +2649,7 @@ def test_a_formula_from_list_elements_can_be_sent_back(data_fixture, builder_ctx
     )
 
     result = elements.update_element(
-        builder_ctx["ctx"], heading_element.id, ElementChanges(value=label)
+        builder_ctx["ctx"], heading_element.id, ElementEdits(value=label)
     )
 
     assert "formula_errors" not in result
@@ -2697,7 +2693,7 @@ def test_a_whole_function_call_on_a_table_column_is_a_formula(
     elements.update_element(
         builder_ctx["ctx"],
         table.id,
-        ElementChanges(
+        ElementEdits(
             update_table_columns=[
                 TableColumnUpdate(uid=str(column.uid), value="upper('a')")
             ]
