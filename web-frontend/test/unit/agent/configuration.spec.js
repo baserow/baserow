@@ -1257,6 +1257,9 @@ describe('Agent configuration', () => {
         expect(
           setting(wrapper).find('.agent-web-search__unavailable').exists()
         ).toBe(false)
+        expect(setting(wrapper).findComponent({ name: 'Badge' }).exists()).toBe(
+          false
+        )
       }
     )
 
@@ -1274,6 +1277,13 @@ describe('Agent configuration', () => {
 
       const input = setting(wrapper).findComponent({ name: 'SwitchInput' })
       expect(input.props('disabled')).toBe(false)
+      // The saved choice stays on, but it shows at a glance that it can't run.
+      expect(setting(wrapper).findComponent({ name: 'Badge' }).text()).toBe(
+        'agent.webSearchUnavailableBadge'
+      )
+      expect(
+        setting(wrapper).get('.agent-web-search__unavailable').classes()
+      ).toContain('alert--warning')
       expect(
         setting(wrapper).get('.agent-web-search__unavailable').text()
       ).toBe('agent.webSearchUnavailableWhileOn')
@@ -1285,6 +1295,9 @@ describe('Agent configuration', () => {
       expect(savedValues(testApp)).toEqual([{ web_search_enabled: false }])
       expect(input.props('modelValue')).toBe(false)
       expect(input.props('disabled')).toBe(true)
+      expect(setting(wrapper).findComponent({ name: 'Badge' }).exists()).toBe(
+        false
+      )
     })
 
     test.each([

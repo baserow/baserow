@@ -505,6 +505,13 @@
   gap: 12px;
 }
 
+.agent-web-search__controls {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
 .agent-web-search__title {
   font-size: 13px;
   font-weight: 500;

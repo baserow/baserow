@@ -7,23 +7,32 @@
           {{ $t('agent.webSearchDescription') }}
         </div>
       </div>
-      <SwitchInput
-        class="agent-web-search__switch"
-        small
-        :model-value="configuration.web_search_enabled"
-        :disabled="!canChange"
-        :aria-label="$t('agent.webSearch')"
-        @update:model-value="$emit('change', $event)"
-      />
+      <div class="agent-web-search__controls">
+        <Badge v-if="inactive" color="yellow" size="small" indicator>
+          {{ $t('agent.webSearchUnavailableBadge') }}
+        </Badge>
+        <SwitchInput
+          class="agent-web-search__switch"
+          small
+          :model-value="configuration.web_search_enabled"
+          :disabled="!canChange"
+          :aria-label="$t('agent.webSearch')"
+          @update:model-value="$emit('change', $event)"
+        />
+      </div>
     </div>
-    <div v-if="!available && modelChosen" class="agent-web-search__unavailable">
-      {{
-        configuration.web_search_blocked_by_tools
-          ? $t('agent.webSearchBlockedByTools')
-          : configuration.web_search_enabled
-            ? $t('agent.webSearchUnavailableWhileOn')
-            : $t('agent.webSearchUnavailable')
-      }}
+    <Alert
+      v-if="inactive"
+      type="warning"
+      class="agent-web-search__unavailable margin-top-1"
+    >
+      {{ unavailableMessage }}
+    </Alert>
+    <div
+      v-else-if="!available && modelChosen"
+      class="agent-web-search__unavailable"
+    >
+      {{ unavailableMessage }}
     </div>
     <Alert v-else-if="reachesWorkspace" type="warning" class="margin-top-1">
       {{ $t('agent.webSearchWorkspaceWarning') }}
@@ -33,6 +42,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps({
   configuration: { type: Object, required: true },
@@ -46,6 +56,21 @@ const modelChosen = computed(() =>
     props.configuration.provider_type && props.configuration.model_identifier
   )
 )
+// Turned on, but the chosen model can't search, so replies run without it.
+const inactive = computed(
+  () =>
+    !available.value &&
+    modelChosen.value &&
+    props.configuration.web_search_enabled
+)
+const { t } = useI18n()
+const unavailableMessage = computed(() => {
+  if (props.configuration.web_search_blocked_by_tools)
+    return t('agent.webSearchBlockedByTools')
+  return inactive.value
+    ? t('agent.webSearchUnavailableWhileOn')
+    : t('agent.webSearchUnavailable')
+})
 // A setting saved on an unsupported model can still be turned off.
 const canChange = computed(
   () =>
