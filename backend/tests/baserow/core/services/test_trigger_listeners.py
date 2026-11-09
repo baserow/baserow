@@ -1,6 +1,9 @@
+from typing import Any, Callable, Iterable
 from unittest.mock import Mock, patch
 
 from django.dispatch import Signal
+
+import pytest
 
 from baserow.contrib.automation.nodes.node_types import CorePeriodicTriggerNodeType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
@@ -10,7 +13,10 @@ from baserow.contrib.integrations.core.service_types import (
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowRowsCreatedTriggerServiceType,
 )
+from baserow.core.services.models import Service
 from baserow.core.services.registries import (
+    ServiceType,
+    ServiceTypeRegistry,
     TriggerServiceTypeMixin,
     service_type_registry,
 )
@@ -147,3 +153,144 @@ def test_unregistering_a_trigger_node_type_removes_only_its_own_listener():
         service_type.stop_listening(other_listener)
 
     assert set(service_type.listeners) == set(before)
+
+
+class RegistryFakeTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
+    type = "registry_fake_trigger"
+    model_class = Service
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.connect_calls = 0
+
+    def connect(self) -> None:
+        self.connect_calls += 1
+
+
+def recording_listener(received: list) -> Callable:
+    """
+    Builds a registry listener with the `on_event` call shape that appends
+    `(services, event_payload)` to `received` and reports no histories.
+
+    :param received: The list the listener appends to.
+    :return: The listener.
+    """
+
+    def listener(
+        services: Iterable[Service],
+        event_payload: Any = None,
+        user: Any = None,
+        isolate_failures: bool = False,
+    ) -> list:
+        received.append((list(services), event_payload))
+        return []
+
+    return listener
+
+
+@pytest.fixture
+def registry_trigger_listeners(
+    mutable_service_type_registry: ServiceTypeRegistry,
+) -> Iterable[ServiceTypeRegistry]:
+    """
+    Yields the service type registry with every pre-existing registry listener
+    detached (the agent dispatcher on the stacked branch), so a test only fans
+    out to its own listeners, then removes the test's listeners and restores the
+    detached ones so nothing leaks into the process-wide trigger types.
+
+    :param mutable_service_type_registry: The registry fixture that restores
+        the registered types afterwards.
+    :return: The registry to add listeners to.
+    """
+
+    registry = mutable_service_type_registry
+    before = list(registry.trigger_listeners)
+    for on_event in before:
+        registry.remove_trigger_listener(on_event)
+    yield registry
+    for on_event in list(registry.trigger_listeners):
+        registry.remove_trigger_listener(on_event)
+    for on_event in before:
+        registry.add_trigger_listener(on_event)
+
+
+def registered_trigger_types(
+    registry: ServiceTypeRegistry,
+) -> list[TriggerServiceTypeMixin]:
+    """
+    :param registry: The service type registry to read.
+    :return: The registered types that respond to events.
+    """
+
+    return [
+        service_type
+        for service_type in registry.get_all()
+        if isinstance(service_type, TriggerServiceTypeMixin)
+    ]
+
+
+def test_registry_add_trigger_listener_subscribes_every_trigger_type(
+    registry_trigger_listeners,
+):
+    registry = registry_trigger_listeners
+    listener = recording_listener([])
+
+    registry.add_trigger_listener(listener)
+    registry.add_trigger_listener(listener)
+
+    trigger_types = registered_trigger_types(registry)
+    assert trigger_types
+    assert all(
+        service_type.listeners.count(listener) == 1 for service_type in trigger_types
+    )
+    assert registry.trigger_listeners.count(listener) == 1
+
+
+def test_registry_after_register_subscribes_a_trigger_type_registered_later(
+    registry_trigger_listeners,
+):
+    registry = registry_trigger_listeners
+    listener = recording_listener([])
+    registry.add_trigger_listener(listener)
+
+    service_type = RegistryFakeTriggerServiceType()
+    registry.register(service_type)
+
+    assert service_type.listeners == [listener]
+    assert service_type.connect_calls == 1
+
+
+def test_registry_listener_receives_the_events_of_a_trigger_type(
+    registry_trigger_listeners,
+):
+    registry = registry_trigger_listeners
+    received = []
+    registry.add_trigger_listener(recording_listener(received))
+    service_type = RegistryFakeTriggerServiceType()
+    registry.register(service_type)
+    service = Mock(spec=Service)
+
+    histories = service_type.on_event([service], event_payload={"a": 1})
+
+    assert received == [([service], {"a": 1})]
+    assert histories == []
+
+
+def test_registry_remove_trigger_listener_unsubscribes_now_and_later(
+    registry_trigger_listeners,
+):
+    registry = registry_trigger_listeners
+    listener = recording_listener([])
+    registry.add_trigger_listener(listener)
+
+    registry.remove_trigger_listener(listener)
+    registry.remove_trigger_listener(listener)
+    service_type = RegistryFakeTriggerServiceType()
+    registry.register(service_type)
+
+    assert listener not in registry.trigger_listeners
+    assert all(
+        listener not in service_type.listeners
+        for service_type in registered_trigger_types(registry)
+    )
+    assert service_type.listeners == []

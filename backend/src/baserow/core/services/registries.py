@@ -964,6 +964,18 @@ class TriggerServiceTypeMixin(ABC):
                 results.extend(result)
         return results
 
+    def after_register(self) -> None:
+        """
+        Subscribes the listeners already added to `service_type_registry`, so a
+        trigger type registered after a consumer (a plugin, a later app) still
+        notifies it. `Registry.register` calls this hook, which is the one place
+        every registration passes through.
+        """
+
+        super().after_register()
+        for on_event in service_type_registry.trigger_listeners:
+            self.start_listening(on_event)
+
 
 class ServiceTypeRegistry(
     APIUrlsRegistryMixin,
@@ -977,6 +989,49 @@ class ServiceTypeRegistry(
 
     name = "integration_service"
     does_not_exist_exception_class = ServiceTypeDoesNotExist
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.trigger_listeners: list[Callable] = []
+
+    def _trigger_service_types(self) -> list[TriggerServiceTypeMixin]:
+        """
+        :return: The registered service types that respond to events.
+        """
+
+        return [
+            service_type
+            for service_type in self.get_all()
+            if isinstance(service_type, TriggerServiceTypeMixin)
+        ]
+
+    def add_trigger_listener(self, on_event: Callable) -> None:
+        """
+        Subscribes `on_event` to every trigger service type, the ones registered
+        now and the ones registered later, so a consumer without node types can
+        react to every trigger event.
+
+        :param on_event: Called like `TriggerServiceTypeMixin.on_event` with the
+            services an event applies to; must return a list.
+        """
+
+        if on_event not in self.trigger_listeners:
+            self.trigger_listeners.append(on_event)
+        for service_type in self._trigger_service_types():
+            service_type.start_listening(on_event)
+
+    def remove_trigger_listener(self, on_event: Callable) -> None:
+        """
+        Unsubscribes `on_event` from every trigger service type and stops
+        subscribing it to the ones registered later.
+
+        :param on_event: The listener given to `add_trigger_listener`.
+        """
+
+        if on_event in self.trigger_listeners:
+            self.trigger_listeners.remove(on_event)
+        for service_type in self._trigger_service_types():
+            service_type.stop_listening(on_event)
 
 
 service_type_registry: ServiceTypeRegistry = ServiceTypeRegistry()
