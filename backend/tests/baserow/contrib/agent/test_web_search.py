@@ -14,6 +14,7 @@ from pydantic_ai.messages import (
     TextPartDelta,
 )
 from pydantic_ai.models.function import DeltaToolCall, FunctionModel
+from pydantic_ai.profiles import ModelProfile
 
 from baserow.contrib.agent.actions import (
     CreateAgentConversationActionType,
@@ -21,6 +22,7 @@ from baserow.contrib.agent.actions import (
 )
 from baserow.contrib.agent.application_types import AgentApplicationType
 from baserow.contrib.agent.constants import (
+    WEB_SEARCH_FAILED_INSTRUCTIONS,
     WEB_SEARCH_INSTRUCTIONS,
     WEB_SEARCH_UNAVAILABLE_INSTRUCTIONS,
 )
@@ -663,8 +665,46 @@ def test_rejected_search_retries_once_without_it_and_says_so(
     assert (reply.status, reply.content) == ("completed", "Without search.")
     assert len(seen) == 2
     assert seen[1][0] == []
-    assert WEB_SEARCH_UNAVAILABLE_INSTRUCTIONS in seen[1][1]
+    # A 400 doesn't prove the model can't search, so the model isn't told it
+    # can't, and the reply shows that search was unavailable.
+    assert WEB_SEARCH_FAILED_INSTRUCTIONS in seen[1][1]
+    assert WEB_SEARCH_UNAVAILABLE_INSTRUCTIONS not in seen[1][1]
     assert WEB_SEARCH_INSTRUCTIONS not in seen[1][1]
+    assert [(step["tool"], step["status"], step["input"]) for step in reply.steps] == [
+        (WebSearchTool.kind, "failed", {"unavailable": True})
+    ]
+
+
+@pytest.mark.django_db
+def test_model_whose_sdk_excludes_search_answers_without_it(
+    mocker, data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    seen = []
+
+    async def stream(messages, info):
+        seen.append((info.model_request_parameters.native_tools, info.instructions))
+        yield "Without search."
+
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(
+            FunctionModel(
+                stream_function=stream,
+                profile=ModelProfile(supported_native_tools=frozenset()),
+            ),
+            {},
+        ),
+    )
+
+    reply = answer(user, configured_agent(user=user, web_search_enabled=True))
+
+    assert (reply.status, reply.content) == ("completed", "Without search.")
+    native_tools, instructions = seen[0]
+    assert native_tools == []
+    assert WEB_SEARCH_FAILED_INSTRUCTIONS in instructions
+    assert WEB_SEARCH_INSTRUCTIONS not in instructions
+    assert reply.steps[0]["input"] == {"unavailable": True}
 
 
 @pytest.mark.django_db

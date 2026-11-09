@@ -232,8 +232,7 @@ export class WebSearchToolPresentationType extends ToolPresentationType {
   }
 
   getActivity({ status, input }, t) {
-    if (input?.limit_reached === true)
-      return t('agent.toolWebSearchLimitReached')
+    if (input?.unavailable === true) return t('agent.toolWebSearchUnavailable')
     // A step without queries but with a page is the provider opening that page.
     const key =
       this.getQueries({ input }).length === 0 && this.getUrl({ input })

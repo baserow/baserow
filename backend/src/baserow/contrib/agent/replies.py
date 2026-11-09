@@ -39,6 +39,7 @@ from .constants import (
     REPLY_REQUEST_LIMIT,
     TOOL_RETRIES,
     UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS,
+    WEB_SEARCH_FAILED_INSTRUCTIONS,
     WEB_SEARCH_INSTRUCTIONS,
     WEB_SEARCH_STEP_MAX_QUERIES,
     WEB_SEARCH_STEP_QUERY_MAX_LENGTH,
@@ -255,12 +256,28 @@ class AgentResponder:
             instructions += f"\n\n{UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS}"
         if web_search_tool is not None:
             instructions += f"\n\n{WEB_SEARCH_INSTRUCTIONS}"
+        elif self._request.web_search_tool is not None:
+            instructions += f"\n\n{WEB_SEARCH_FAILED_INSTRUCTIONS}"
         elif self._request.web_search_enabled:
             instructions += f"\n\n{WEB_SEARCH_UNAVAILABLE_INSTRUCTIONS}"
         return instructions
 
+    def _search_unavailable(self) -> None:
+        """
+        Show that this reply couldn't offer the web search it was meant to, so the
+        user learns it from the reply itself rather than from the model.
+        """
+
+        self._steps.add_failed(WebSearchTool.kind, {"unavailable": True})
+
     async def _stream(self) -> None:
         web_search_tool = self._request.web_search_tool
+        if web_search_tool is not None and WebSearchTool not in self._model.profile.get(
+            "supported_native_tools", frozenset()
+        ):
+            # The SDK would refuse the whole request rather than leave search out.
+            web_search_tool = None
+            self._search_unavailable()
         async with self._model:
             try:
                 await self._run_model(web_search_tool)
@@ -278,6 +295,7 @@ class AgentResponder:
                     "Agent reply {} got a 400 with web search, retrying without it",
                     self._request.reply_id,
                 )
+                self._search_unavailable()
                 await self._run_model(None)
 
     async def _run_model(self, web_search_tool: WebSearchTool | None) -> None:

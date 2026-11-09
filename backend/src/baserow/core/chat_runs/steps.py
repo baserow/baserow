@@ -227,7 +227,7 @@ class ChatRunSteps:
 
     def add_failed(self, tool: str, step_input: dict[str, Any]) -> None:
         """Add a failed step that no call of its own reports, such as a search the
-        provider refused inside code it ran.
+        reply could not offer.
 
         :param tool: The tool the step is about.
         :param step_input: Its safe display input.

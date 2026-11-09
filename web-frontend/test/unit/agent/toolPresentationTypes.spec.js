@@ -360,13 +360,13 @@ describe('Agent tool presentations', () => {
     expect(activity.title).toBe('Searched the web: a, b')
   })
 
-  test('shows that a reply reached its search limit', () => {
+  test('shows that a reply could not search', () => {
     const activity = toolActivity(
-      step('web_search', 'failed', { input: { limit_reached: true } }),
+      step('web_search', 'failed', { input: { unavailable: true } }),
       registry,
       t
     )
-    expect(activity.title).toBe('Reached the search limit for this reply')
+    expect(activity.title).toBe('Web search was unavailable for this reply')
   })
 
   test.each([

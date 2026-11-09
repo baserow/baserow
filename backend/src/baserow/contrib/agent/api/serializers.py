@@ -102,7 +102,8 @@ class AgentConfigurationSerializer(serializers.Serializer):
         help_text="Whether the agent may search the web through its AI provider."
     )
     web_search_available = serializers.BooleanField(
-        help_text="Whether the agent's model can search the web."
+        help_text="Whether the agent's model may try to search the web. Its provider "
+        "can still refuse a search, which the reply then shows."
     )
     web_search_blocked_by_tools = serializers.BooleanField(
         help_text="Whether the agent's model can search the web, but not while the "

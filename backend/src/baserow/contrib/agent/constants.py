@@ -61,6 +61,12 @@ WEB_SEARCH_UNAVAILABLE_INSTRUCTIONS = (
     "explain that web search isn't available with this model, and don't present "
     "what you remember as up to date."
 )
+# A provider can refuse search for reasons other than the model, such as an
+# organization that turned it off, so this doesn't blame the model.
+WEB_SEARCH_FAILED_INSTRUCTIONS = (
+    "Web search is turned on for you, but it isn't available for this reply, so you "
+    "cannot search the web. Don't present what you remember as up to date."
+)
 TOOL_RETRIES = 3
 # Queries one web search step shows, and the length of each, which keeps a step
 # readable.
