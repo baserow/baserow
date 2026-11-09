@@ -301,3 +301,22 @@ def test_a_refused_key_answers_its_own_error(data_fixture, api_client, mocker):
 
     assert response.status_code == 400
     assert response.json()["error"] == "ERROR_MCP_SERVER_REFUSED_CREDENTIAL"
+
+
+@pytest.mark.django_db
+def test_switching_away_from_a_key_forgets_it(data_fixture):
+    user = data_fixture.create_user()
+    integration = data_fixture.create_mcp_server_integration(
+        user=user, auth_header_name="Authorization", auth_header_value="Bearer s3cr3t"
+    )
+    service = IntegrationService()
+
+    service.update_integration(user, integration, auth_type="none")
+    # A key no longer used can't block moving the server.
+    integration = service.update_integration(
+        user, integration, url="https://other.example.com/mcp"
+    ).integration
+
+    integration.refresh_from_db()
+    assert integration.url == "https://other.example.com/mcp"
+    assert integration.auth_header_value == ""

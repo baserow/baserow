@@ -160,6 +160,34 @@ describe('Agent connected apps', () => {
     ).toBeTruthy()
   })
 
+  test('a key the server no longer uses is cleared, so the URL can change', async () => {
+    testApp.mock.onGet(/application\/10\/integrations/).reply(200, [server()])
+    testApp.mock
+      .onPatch('/integrations/integration/5/')
+      .reply(200, server({ auth_type: 'none', has_auth_header_value: false }))
+    testApp.mock
+      .onPost('/integrations/mcp/5/refresh-tools/')
+      .reply(200, server())
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await wrapper
+      .get('button[aria-label="agent.connectedAppEdit"]')
+      .trigger('click')
+    await flushPromises()
+    buttonInBody('agent.connectedAppAuthNone').click()
+    await flushPromises()
+    type(inputInModal('agent.connectedAppUrl'), 'https://other.example.com/mcp')
+    buttonInBody('action.save').click()
+    await flushPromises()
+
+    expect(body(testApp.mock.history.patch[0])).toEqual({
+      url: 'https://other.example.com/mcp',
+      auth_type: 'none',
+      auth_header_value: '',
+    })
+  })
+
   test('an unreachable server is explained in the tools modal', async () => {
     testApp.mock
       .onGet(/application\/10\/integrations/)
@@ -298,6 +326,47 @@ describe('Agent connected apps', () => {
         'agent.connectedAppEditTitle'
       )
       vi.useRealTimers()
+    })
+
+    test('a new URL replaces a client Baserow registered without asking for its secret', async () => {
+      const registered = server({
+        auth_type: 'oauth',
+        oauth_connected: true,
+        oauth_client_source: 'dynamic',
+        has_auth_header_value: false,
+        has_oauth_client_secret: true,
+      })
+      testApp.mock
+        .onGet(/application\/10\/integrations/)
+        .reply(200, [registered])
+      testApp.mock
+        .onPatch('/integrations/integration/5/')
+        .reply(200, { ...registered, oauth_connected: false })
+      testApp.mock
+        .onPost('/integrations/mcp/5/oauth/start/')
+        .reply(200, { authorization_url: 'https://auth.example.com/authorize' })
+      const wrapper = await mountSection()
+      await flushPromises()
+
+      await wrapper
+        .get('button[aria-label="agent.connectedAppEdit"]')
+        .trigger('click')
+      await flushPromises()
+      type(
+        inputInModal('agent.connectedAppUrl'),
+        'https://other.example.com/mcp'
+      )
+      document.body
+        .querySelector(
+          '.agent-connected-apps__modal-actions .button--primary, .agent-connected-apps__modal-actions button:last-child'
+        )
+        .click()
+      await flushPromises()
+
+      expect(body(testApp.mock.history.patch[0])).toEqual({
+        url: 'https://other.example.com/mcp',
+        oauth_client_secret: '',
+      })
     })
 
     test('a server that does not support OAuth says why', async () => {

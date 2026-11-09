@@ -268,12 +268,19 @@ const headerSecretRequired = computed(
     (urlChanged.value ||
       values.auth_header_name.trim() !== server.value.auth_header_name)
 )
+const clientChanged = computed(
+  () =>
+    Boolean(server.value) &&
+    values.oauth_client_id.trim() !== ownClientId(server.value)
+)
+// Only a secret the editor entered is asked for again; one Baserow got by
+// registering itself is replaced on the next sign-in.
 const clientSecretRequired = computed(
   () =>
     values.auth_type === MCP_AUTH_TYPE.OAUTH &&
     Boolean(server.value?.has_oauth_client_secret) &&
-    (urlChanged.value ||
-      values.oauth_client_id.trim() !== ownClientId(server.value))
+    Boolean(ownClientId(server.value)) &&
+    (urlChanged.value || clientChanged.value)
 )
 const errors = computed(() => {
   if (!touched.value) return {}
@@ -368,9 +375,28 @@ function changedValues() {
     }
   } else if (values.auth_type === MCP_AUTH_TYPE.OAUTH) {
     next.oauth_client_id = values.oauth_client_id.trim()
-    if (values.oauth_client_secret || !server.value) {
+    if (
+      values.oauth_client_secret ||
+      !server.value ||
+      // Clears a secret Baserow registered when its client is replaced.
+      (!ownClientId(server.value) && (urlChanged.value || clientChanged.value))
+    ) {
       next.oauth_client_secret = values.oauth_client_secret
     }
+  }
+  // A credential the new sign-in method doesn't use is cleared, so it doesn't
+  // have to be entered again to change the URL.
+  if (
+    values.auth_type !== MCP_AUTH_TYPE.HEADER &&
+    server.value?.has_auth_header_value
+  ) {
+    next.auth_header_value = ''
+  }
+  if (
+    values.auth_type !== MCP_AUTH_TYPE.OAUTH &&
+    server.value?.has_oauth_client_secret
+  ) {
+    next.oauth_client_secret = ''
   }
   if (!server.value) return next
   const current = {

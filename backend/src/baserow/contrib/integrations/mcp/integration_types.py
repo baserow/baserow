@@ -167,6 +167,15 @@ class MCPServerIntegrationType(IntegrationType):
                 values.setdefault("oauth_client_id", "")
                 values.setdefault("oauth_client_secret", "")
                 values.setdefault("oauth_client_source", "")
+        if auth_changed:
+            # A credential the server no longer uses is forgotten, so it can't
+            # be sent by mistake later or block moving the server.
+            if values["auth_type"] != MCPAuthType.HEADER:
+                values["auth_header_value"] = ""
+            if values["auth_type"] != MCPAuthType.OAUTH:
+                values.update(
+                    oauth_client_id="", oauth_client_secret="", oauth_client_source=""
+                )
         if url_changed or client_changed or auth_changed:
             instance.clear_oauth_tokens()
             instance.oauth_server = {}
