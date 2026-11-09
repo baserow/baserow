@@ -10,16 +10,20 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from baserow.core.formula.exceptions import InvalidRuntimeFormula
+from baserow.core.formula.literals import MAX_LISTED_NAMES
 
 # The key of the path context in a formula ``validation_context``.
 PATH_CONTEXT_KEY = "builder_path_context"
 
-# The most names an error lists.
-MAX_LISTED_NAMES = 30
-
 
 class FormulaPathNotReadable(InvalidRuntimeFormula):
     """A path a formula reads that its page, or the place on it, doesn't have."""
+
+
+def full_path(provider: str, path: list[str]) -> str:
+    """The path a formula reads, with its data provider: ``provider.a.b``."""
+
+    return ".".join([provider, *path])
 
 
 @dataclass
@@ -109,7 +113,7 @@ def data_source_path_problem(
     :param check_schema: Whether what it reads must be in the data source's schema.
     """
 
-    full = ".".join([provider, *path])
+    full = full_path(provider, path)
     data_source_id = path[0] if path else ""
     data_source = (
         context.data_sources.get(int(data_source_id))

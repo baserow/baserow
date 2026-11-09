@@ -1574,7 +1574,7 @@ def update_workflow_action(
     check_open_page_parameters(action, item)
 
     with transaction.atomic():
-        fresh = BuilderWorkflowActionHandler().get_workflow_action_for_update(action.id)
+        fresh = BuilderWorkflowActionHandler().get_workflow_action_for_update(action)
         values = item.update_values(fresh, user, workspace)
         if values:
             UpdateBuilderWorkflowActionActionType.do(user, fresh, **values)
@@ -1632,9 +1632,7 @@ def add_field_mapping_to_action(
     # if the replacement fails.
     value = formula_object(value_formula, mode=BASEROW_FORMULA_MODE_ADVANCED)
     with transaction.atomic():
-        action = BuilderWorkflowActionHandler().get_workflow_action_for_update(
-            action.id
-        )
+        action = BuilderWorkflowActionHandler().get_workflow_action_for_update(action)
         service = action.service.specific
         status = (
             "updated"

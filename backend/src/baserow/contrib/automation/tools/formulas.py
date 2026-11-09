@@ -10,6 +10,7 @@ from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.formula.exceptions import InvalidRuntimeFormula
 from baserow.core.formula.literals import (
     FORMULA_PREFIX,
+    MAX_LISTED_NAMES,
     STRING_LITERAL_RE,
 )
 from baserow.core.formula.parser.exceptions import BaserowFormulaException
@@ -23,9 +24,6 @@ from baserow.core.formula.types import (
     BaserowFormulaMode,
     BaserowFormulaObject,
 )
-
-# The most output paths an error lists.
-MAX_LISTED_PATHS = 30
 
 # A get( right before a string literal, the path it reads.
 GET_OPEN_RE = re.compile(r"\bget\(\s*$")
@@ -198,8 +196,8 @@ def _listed_paths(output: dict[str, Any]) -> str:
         f"{output['formula_path']}.{key} ({prop['title']})"
         for key, prop in output["properties"].items()
     ]
-    if len(paths) > MAX_LISTED_PATHS:
-        paths = paths[:MAX_LISTED_PATHS] + ["..."]
+    if len(paths) > MAX_LISTED_NAMES:
+        paths = paths[:MAX_LISTED_NAMES] + ["..."]
     return ", ".join(paths)
 
 

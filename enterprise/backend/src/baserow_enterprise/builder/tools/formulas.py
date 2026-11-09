@@ -497,7 +497,7 @@ class _GetPathsVisitor(BaserowFormulaValidationVisitor):
 def formula_problem(
     field: str,
     formula: str,
-    context: BuilderFormulaContext | None,
+    context: BuilderFormulaContext,
     allow_previous_action: bool = False,
 ) -> str | None:
     """
@@ -521,9 +521,7 @@ def formula_problem(
     except (BaserowFormulaException, RecursionError):
         return description
 
-    visitor = _GetPathsVisitor(
-        context.path_context(allow_previous_action) if context is not None else None
-    )
+    visitor = _GetPathsVisitor(context.path_context(allow_previous_action))
     try:
         visitor.visit(tree)
     except FormulaPathNotReadable as exc:
@@ -703,7 +701,7 @@ def _write_data_source_formulas(
 def _write_action_formulas(
     user: AbstractUser, action: Any, item: Any, formulas: dict[str, str]
 ) -> None:
-    fresh = BuilderWorkflowActionHandler().get_workflow_action_for_update(action.id)
+    fresh = BuilderWorkflowActionHandler().get_workflow_action_for_update(action)
     _raise_if_retargeted(action.specific, item, fresh.specific, formulas)
     values = item.formula_values(fresh, formulas)
     if values:

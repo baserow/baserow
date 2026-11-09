@@ -16,6 +16,9 @@ FORMULA_PREFIX = "$formula:"
 # An empty string literal, stored for a value that is missing or could not be set.
 EMPTY_FORMULA = "''"
 
+# The most names or paths a formula error lists.
+MAX_LISTED_NAMES = 30
+
 # Formula syntax written as a value: get('...'), concat(...), comparison
 # functions, if(...), today(), now(). ``{{ ... }}`` is checked separately in
 # ``needs_formula``, because a regex for it backtracks quadratically on a long

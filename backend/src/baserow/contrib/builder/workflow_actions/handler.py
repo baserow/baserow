@@ -58,21 +58,18 @@ class BuilderWorkflowActionHandler(WorkflowActionHandler):
             Service.objects.select_for_update().filter(id=service_id).first()
 
     def get_workflow_action_for_update(
-        self, workflow_action_id: int
+        self, workflow_action: WorkflowAction
     ) -> BuilderWorkflowAction:
         """
-        Get an action with its service locked, loaded after the lock so a change
-        committed meanwhile is kept.
+        Get an action again with its service locked, loaded after the lock so a
+        change committed meanwhile is kept.
 
-        :param workflow_action_id: The ID of the action.
+        :param workflow_action: The action, as the caller has it.
         :return: The specific action.
         """
 
-        workflow_action = self.get_workflow_action(workflow_action_id)
-        if getattr(workflow_action, "service_id", None) is None:
-            return workflow_action
         self.lock_service_for_update(workflow_action)
-        return self.get_workflow_action(workflow_action_id)
+        return self.get_workflow_action(workflow_action.id)
 
     def get_workflow_actions(
         self, page: Page, base_queryset: Optional[QuerySet] = None

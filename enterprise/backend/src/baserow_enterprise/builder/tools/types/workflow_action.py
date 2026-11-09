@@ -759,12 +759,12 @@ def _parameters_update_values(
 def _open_page_update_values(
     action: "ActionUpdate", orm_action: "BuilderWorkflowAction"
 ) -> dict[str, Any]:
-    builder_id = orm_action.page.builder_id
-    page_id = action.navigate_to_page_id or orm_action.navigate_to_page_id
-    # In place: a formula's field names its parameter by position in this list.
-    action.page_parameters = parameters_in_page_order(
-        builder_id, page_id, action.page_parameters
-    )
+    if action.page_parameters:
+        page_id = action.navigate_to_page_id or orm_action.navigate_to_page_id
+        # In place: a formula's field names its parameter by position in this list.
+        action.page_parameters = parameters_in_page_order(
+            orm_action.page.builder_id, page_id, action.page_parameters
+        )
     values: dict[str, Any] = {}
     if action.navigate_to_page_id is not None:
         values["navigation_type"] = "page"
@@ -780,7 +780,7 @@ def _open_page_update_values(
     if "page_parameters" not in values and action.navigate_to_page_id is not None:
         # The stored parameters follow the new page's order.
         values["page_parameters"] = parameters_in_page_order(
-            builder_id,
+            orm_action.page.builder_id,
             action.navigate_to_page_id,
             orm_action.page_parameters,
             itemgetter("name"),

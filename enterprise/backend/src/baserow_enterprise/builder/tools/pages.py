@@ -184,8 +184,6 @@ def setup_page_with_options(
         don't run, and ``permission_denied`` holds the refusal.
     """
 
-    # These modules read pages through this one.
-
     data_source_refs = dict(options.known_data_source_refs)
     element_refs = dict(options.known_refs)
     result: dict[str, Any] = {

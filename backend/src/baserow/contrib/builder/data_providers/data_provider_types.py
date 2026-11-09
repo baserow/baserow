@@ -11,6 +11,7 @@ from rest_framework import serializers
 from baserow.contrib.builder.data_providers.path_context import (
     FormulaPathNotReadable,
     data_source_path_problem,
+    full_path,
     listed,
     listed_fields,
     matches_schema,
@@ -64,10 +65,6 @@ _visibility_check_in_progress: ContextVar[frozenset[int]] = ContextVar(
 )
 
 
-def _full_path(provider: str, path: List[str]) -> str:
-    return ".".join([provider, *path])
-
-
 class BuilderDataProviderType(DataProviderType):
     def get_request_serializer(self):
         """
@@ -99,7 +96,7 @@ class PageParameterDataProviderType(BuilderDataProviderType):
         context = path_context_of(validation_context)
         if context is not None and (not path or path[0] not in context.page_parameters):
             raise FormulaPathNotReadable(
-                f"'{_full_path(self.type, path)}' doesn't name a page parameter of "
+                f"'{full_path(self.type, path)}' doesn't name a page parameter of "
                 f"this page. Its page parameters: {listed(context.page_parameters)}."
             )
         return True
@@ -138,7 +135,7 @@ class FormDataProviderType(BuilderDataProviderType):
         context = path_context_of(validation_context)
         if context is None:
             return True
-        full = _full_path(self.type, path)
+        full = full_path(self.type, path)
         if context.page_shared:
             raise FormulaPathNotReadable(
                 f"'{full}' can't be read: items on the shared page, like a form in a "
@@ -532,7 +529,7 @@ class CurrentRecordDataProviderType(BuilderDataProviderType):
         context = path_context_of(validation_context)
         if context is None:
             return True
-        full = _full_path(self.type, path)
+        full = full_path(self.type, path)
         if not context.in_collection:
             raise FormulaPathNotReadable(
                 f"'{full}' can only be read inside a repeat or a table."
@@ -739,8 +736,7 @@ class PreviousActionProviderType(BuilderDataProviderType):
         context = path_context_of(validation_context)
         if context is not None and not context.allow_previous_action:
             raise FormulaPathNotReadable(
-                f"'{_full_path(self.type, path)}' can only be read in a workflow "
-                "action."
+                f"'{full_path(self.type, path)}' can only be read in a workflow action."
             )
         return True
 

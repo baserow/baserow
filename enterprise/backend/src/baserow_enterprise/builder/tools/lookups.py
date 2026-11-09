@@ -1,6 +1,7 @@
 """
 Look up the builders and pages a tool works on. Every builder tool module imports
-these, so this module imports none of them.
+these, so this module imports only `helpers`, which imports no tool module and must
+not import this one.
 """
 
 from baserow.contrib.builder.models import Builder
