@@ -2568,8 +2568,7 @@ class LocalBaserowUpsertRowServiceType(
 
         model = table.get_model()
 
-        # Before the values are prepared, because preparing resolves link names against
-        # the linked table and its error would reveal which names exist.
+        # Checked first, because preparing errors reveal which link names exist.
         try:
             RowHandler().check_can_read_linked_tables(
                 acting_user,

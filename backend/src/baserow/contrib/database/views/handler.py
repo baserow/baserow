@@ -1441,6 +1441,8 @@ class ViewHandler:
                 raise PermissionDenied()
 
             view = ownership_type.change_ownership_type(user, view)
+            if ownership_type.default_values_authorized_when_configured:
+                self._check_can_read_linked_tables_of_default_values(user, view)
 
             # Add the change of ownership type to the tracked changes for undo/redo
             original_view_values[ownership_type_key] = original_ownership_type
@@ -5514,11 +5516,36 @@ class ViewHandler:
 
         return ViewDefaultValue.objects.filter(view_id=view.id)
 
+    def _check_can_read_linked_tables_of_default_values(self, user, view):
+        """
+        Verifies that the user can read the tables that the view's default values link
+        rows from, because a view whose defaults are trusted applies them for people
+        who can't.
+
+        :param user: The user that makes the view's defaults trusted.
+        :param view: The view whose default values are checked.
+        :raises CannotReadLinkedTable: If the user can't read a linked table.
+        """
+
+        default_values = {
+            f"field_{field_id}": value
+            for field_id, value in ViewDefaultValue.objects.filter(
+                view_id=view.id, value__isnull=False
+            ).values_list("field_id", "value")
+        }
+        if default_values:
+            model = view.table.get_model()
+            RowHandler().check_can_read_linked_tables(
+                user, model, [default_values], view=view
+            )
+
     def update_view_default_values(self, user, view, items, model=None):
         """
         Updates the default values for the given view from a list of item
         dicts. Each item should contain ``field`` (field ID) and optionally
-        ``enabled``, ``value``, ``function``.
+        ``enabled``, ``value``, ``function``. Defaults are applied for people who
+        can't read the linked table, so whoever sets a new link default must be able
+        to read it.
 
         :param user: The user performing the update.
         :param view: The view to update default values for.
@@ -5565,9 +5592,7 @@ class ViewHandler:
         }
 
         if raw_values:
-            # A default is applied for people who can't read the linked table, so
-            # whoever sets a new one must be able to. Before preparing the values,
-            # because that resolves link names and its error reveals which names exist.
+            # Checked first, because preparing errors reveal which link names exist.
             new_values = {
                 f"field_{item['field']}": item["value"]
                 for item in items

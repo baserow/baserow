@@ -8,6 +8,8 @@ import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_401_UNAUTHORIZED
 
 from baserow.contrib.database.action.scopes import TableActionScopeType
+from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.actions import (
     UpdateRowActionType,
     UpdateRowsActionType,
@@ -422,7 +424,7 @@ def test_restricted_view_editor_can_not_self_link_a_row_outside_the_view(
     response = post_self_link(api_client, data_fixture, restricted_view_setup, [target])
 
     assert response.status_code == HTTP_401_UNAUTHORIZED
-    assert response.json()["error"] == "ERROR_CANNOT_READ_LINKED_TABLE"
+    assert response.json()["error"] == "ERROR_LINKED_ROWS_NOT_VISIBLE_IN_VIEW"
     assert "Hidden" not in response.content.decode()
 
 
@@ -443,12 +445,32 @@ def test_restricted_view_editor_can_not_self_link_a_row_that_does_not_exist(
     response = post_self_link(api_client, data_fixture, restricted_view_setup, [row_id])
 
     assert response.status_code == HTTP_401_UNAUTHORIZED
-    assert response.json()["error"] == "ERROR_CANNOT_READ_LINKED_TABLE"
+    assert response.json()["error"] == "ERROR_LINKED_ROWS_NOT_VISIBLE_IN_VIEW"
 
 
+def write_self_link(handler, setup, path, value):
+    user = setup["user"]
+    table = setup["table"]
+    view = setup["view"]
+    row_id = setup["visible_row"].id
+    values = {setup["link"].db_column: value}
+    if path == "create_row":
+        return handler.create_row(user, table, values, view=view)
+    if path == "create_rows":
+        return handler.create_rows(user, table, [values], view=view).created_rows[0]
+    if path == "update_row":
+        return handler.update_row_by_id(user, table, row_id, values, view=view)
+    return handler.update_rows(
+        user, table, [{"id": row_id, **values}], view=view
+    ).updated_rows[0]
+
+
+@pytest.mark.parametrize(
+    "path", ["create_row", "create_rows", "update_row", "update_rows"]
+)
 @pytest.mark.django_db
 def test_restricted_view_self_link_writes_the_row_that_was_checked(
-    restricted_view_setup,
+    restricted_view_setup, path
 ):
     table = restricted_view_setup["table"]
     link = restricted_view_setup["link"]
@@ -468,14 +490,52 @@ def test_restricted_view_self_link_writes_the_row_that_was_checked(
     with patch.object(
         handler, "check_can_read_linked_tables", side_effect=rename_after_check
     ):
-        row = handler.create_row(
-            restricted_view_setup["user"],
-            table,
-            {link.db_column: ["Visible"]},
-            view=restricted_view_setup["view"],
-        )
+        row = write_self_link(handler, restricted_view_setup, path, ["Visible"])
 
     assert linked_row_ids(table, row, link) == [visible_row.id]
+
+
+@pytest.mark.parametrize("path", ["create_rows", "update_rows"])
+@pytest.mark.django_db
+def test_restricted_view_self_link_names_do_not_add_queries_per_row(
+    data_fixture, restricted_view_setup, path
+):
+    user = restricted_view_setup["user"]
+    table = restricted_view_setup["table"]
+    view = restricted_view_setup["view"]
+    link = restricted_view_setup["link"]
+    primary = restricted_view_setup["primary"]
+    handler = RowHandler()
+    rows = [
+        handler.create_row(
+            restricted_view_setup["admin"], table, {primary.db_column: f"Row {i}"}
+        )
+        for i in range(23)
+    ]
+
+    def count_queries(rows_to_write):
+        # Every row gets new links, so each run inserts the same kind of relations.
+        rows_values = [
+            {link.db_column: [f"Row {(i + 1) % 23}", "Visible"]}
+            for i in range(len(rows_to_write))
+        ]
+        with CaptureQueriesContext(connection) as queries:
+            if path == "create_rows":
+                handler.create_rows(user, table, rows_values, view=view)
+            else:
+                handler.update_rows(
+                    user,
+                    table,
+                    [
+                        {"id": row.id, **values}
+                        for row, values in zip(rows_to_write, rows_values)
+                    ],
+                    view=view,
+                )
+        return len(queries)
+
+    count_queries(rows[:1])
+    assert count_queries(rows[3:]) == count_queries(rows[1:3])
 
 
 def add_link_default(view, setup):
@@ -638,6 +698,56 @@ def test_saving_view_defaults_allows_an_unchanged_or_empty_link_when_the_table_i
 
     handler.update_view_default_values(user, view, [{"field": link.id, "value": []}])
     assert ViewDefaultValue.objects.get(view=view).value == []
+
+
+@pytest.mark.parametrize("change", ["link_row_table", "field_type"])
+@pytest.mark.django_db
+def test_view_defaults_are_dropped_when_the_link_field_target_changes(
+    data_fixture, enterprise_data_fixture, restricted_setup, change
+):
+    admin = restricted_setup["admin"]
+    table = restricted_setup["table"]
+    view = enterprise_data_fixture.create_grid_view(table=table)
+    if change == "link_row_table":
+        field = restricted_setup["link"]
+        other_table = data_fixture.create_database_table(database=table.database)
+        data_fixture.create_text_field(table=other_table, primary=True)
+        new_values = {"link_row_table": other_table}
+    else:
+        field = data_fixture.create_multiple_select_field(table=table)
+        new_values = {"link_row_table": restricted_setup["secret"].table}
+    ViewDefaultValue.objects.create(
+        view=view, field=field, value=[1], field_type=field_type_name(field)
+    )
+
+    FieldHandler().update_field(admin, field, "link_row", **new_values)
+
+    assert not ViewDefaultValue.objects.filter(view=view).exists()
+
+
+def field_type_name(field):
+    return field_type_registry.get_by_model(field.specific).type
+
+
+@pytest.mark.django_db
+def test_promoting_a_personal_view_rechecks_its_link_defaults(
+    enterprise_data_fixture, restricted_setup
+):
+    user = restricted_setup["user"]
+    workspace = restricted_setup["workspace"]
+    view = enterprise_data_fixture.create_grid_view(
+        table=restricted_setup["table"], ownership_type="personal", owned_by=user
+    )
+    add_link_default(view, restricted_setup)
+    RoleAssignmentHandler().assign_role(
+        user, workspace, role=Role.objects.get(uid="BUILDER"), scope=workspace
+    )
+
+    with pytest.raises(PermissionException):
+        ViewHandler().update_view(user, view, ownership_type="collaborative")
+
+    view.refresh_from_db()
+    assert view.ownership_type == "personal"
 
 
 @pytest.mark.django_db

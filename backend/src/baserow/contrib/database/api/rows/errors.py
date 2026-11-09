@@ -37,3 +37,8 @@ ERROR_CANNOT_READ_LINKED_TABLE = (
     "You don't have read access to the linked table {e.table_id}. Linking rows "
     "needs read access to the table they are in.",
 )
+ERROR_LINKED_ROWS_NOT_VISIBLE_IN_VIEW = (
+    "ERROR_LINKED_ROWS_NOT_VISIBLE_IN_VIEW",
+    HTTP_401_UNAUTHORIZED,
+    "Some of the linked rows don't exist or aren't visible in the view.",
+)

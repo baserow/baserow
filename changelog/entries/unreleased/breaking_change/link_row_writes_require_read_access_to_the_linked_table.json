@@ -7,7 +7,7 @@
     "bullet_points": [
         "Database tokens and roles without read access to the linked table get a 401 when they set link row values, including resending existing links or removing one of several. Clearing the field still works.",
         "The same applies to `__join`, file imports, Application Builder and automation actions, and default values of personal views.",
-        "Saving a link row default value on a view needs read access to the linked table. Collaborative and restricted views then apply it to every new row."
+        "Saving a link row default value on a view, or making a personal view with one collaborative, needs read access to the linked table. Collaborative and restricted views then apply it to every new row. Link row defaults saved before this release are not re-checked, and are removed when the field links to another table."
     ],
     "created_at": "2026-11-04"
 }

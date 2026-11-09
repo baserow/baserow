@@ -815,8 +815,11 @@ class FieldHandler:
                 using=DEFAULT_DB_ALIAS
             )
 
-        # Write-only fields can't have view default values.
-        if baserow_field_type_changed and to_field_type.write_only:
+        # Write-only fields have no defaults; link defaults were checked per table.
+        if (baserow_field_type_changed and to_field_type.write_only) or (
+            hasattr(field, "link_row_table_id")
+            and getattr(old_field, "link_row_table_id", None) != field.link_row_table_id
+        ):
             ViewDefaultValue.objects.filter(field_id=field.id).delete()
 
         to_field_type.after_update(

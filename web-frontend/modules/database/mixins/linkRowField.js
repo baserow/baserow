@@ -41,8 +41,7 @@ export default {
         return false
       }
 
-      // Linking rows needs to list the rows of the linked table. A restricted view
-      // editor can read the table, but can't list its rows.
+      // Restricted view editors can read the table but not list its rows.
       return (
         this.$hasPermission(
           'database.table.read',

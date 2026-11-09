@@ -498,6 +498,7 @@
     "cannotCreateRowsInTableDescription": "It's not possible to create rows in this table.",
     "cannotReadLinkedTableTitle": "Can't link these rows",
     "cannotReadLinkedTableDescription": "Linking rows needs read access to the table they are in, and you don't have it. Ask a workspace admin for access to the linked table.",
+    "linkedRowsNotVisibleInViewDescription": "Some of the rows you linked don't exist or aren't visible in this view.",
     "databaseDeadlockTitle": "Action failed",
     "databaseDeadlockDescription": "The action couldn't be completed due to multiple conflicting operations on the data at the same time. Please try again.",
     "databaseUniquePrimaryPropertyNotFoundTitle": "No unique primary property found",

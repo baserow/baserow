@@ -99,6 +99,7 @@ from .exceptions import (
     CannotReadLinkedTable,
     FieldsNotWritable,
     InvalidRowLength,
+    LinkedRowsNotVisibleInView,
     RowDoesNotExist,
     RowIdsNotUnique,
 )
@@ -2470,7 +2471,7 @@ class RowHandler:
         :param model: The model of the table that the values are written to.
         :param rows_values: The rows values to check.
         :param view: The view the row is written in.
-        :raises CannotReadLinkedTable: If the user can't read the linked rows.
+        :raises LinkedRowsNotVisibleInView: If a linked row isn't visible in the view.
         """
 
         table = model.baserow_table
@@ -2488,31 +2489,33 @@ class RowHandler:
             for field_id, field_object in model._field_objects.items()
             if getattr(field_object["field"], "link_row_table_id", None) == table.id
         }
-        row_ids = set()
-        for row_values in rows_values:
-            for key, value in list(row_values.items()):
+        values_by_field_id = defaultdict(dict)
+        for row_index, row_values in enumerate(rows_values):
+            for key, value in row_values.items():
                 field_ids = self.extract_field_ids_from_keys([key])
-                if not value or not field_ids:
-                    continue
-                field_object = self_link_field_objects.get(field_ids[0])
-                if field_object is None:
-                    continue
-                try:
-                    value_row_ids = field_object["type"].prepare_value_for_db(
-                        field_object["field"], value
-                    )
-                except ValidationError as exc:
-                    raise CannotReadLinkedTable(table.id, actor=user) from exc
-                # Write the checked ids, so a rename before the write can't make
-                # the names resolve to other rows.
-                row_values[key] = value_row_ids
-                row_ids.update(value_row_ids)
+                if value and field_ids and field_ids[0] in self_link_field_objects:
+                    values_by_field_id[field_ids[0]][row_index] = (key, value)
+
+        row_ids = set()
+        for field_id, values_by_row in values_by_field_id.items():
+            field_object = self_link_field_objects[field_id]
+            try:
+                row_ids_by_row = field_object["type"].prepare_value_for_db_in_bulk(
+                    field_object["field"],
+                    {index: value for index, (_, value) in values_by_row.items()},
+                )
+            except ValidationError as exc:
+                raise LinkedRowsNotVisibleInView(table.id, actor=user) from exc
+            for row_index, (key, _) in values_by_row.items():
+                # Write the checked ids, so a rename can't change the linked rows.
+                rows_values[row_index][key] = row_ids_by_row[row_index]
+                row_ids.update(row_ids_by_row[row_index])
 
         if not row_ids:
             return
 
         if model.objects.filter(id__in=row_ids).count() != len(row_ids):
-            raise CannotReadLinkedTable(table.id, actor=user)
+            raise LinkedRowsNotVisibleInView(table.id, actor=user)
 
         try:
             self._check_permissions_with_view_fallback(
@@ -2524,7 +2527,7 @@ class RowHandler:
                 list(row_ids),
             )
         except PermissionDenied as exc:
-            raise CannotReadLinkedTable(table.id, actor=user) from exc
+            raise LinkedRowsNotVisibleInView(table.id, actor=user) from exc
 
     def _get_unwritable_fields(
         self,
