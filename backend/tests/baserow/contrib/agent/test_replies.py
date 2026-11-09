@@ -1536,9 +1536,42 @@ def test_a_held_write_is_waiting_while_a_sibling_read_still_runs(
         entry.args[2]["status"]
         for entry in emitted.call_args_list
         if entry.args[1] == "step" and entry.args[2]["tool"] == "create_rows"
-    ] == ["waiting"]
+    ] == ["waiting", "waiting"]
     assert reply.status == "waiting"
     assert row_names(table) == []
+
+
+@pytest.mark.django_db
+def test_a_held_call_waits_with_its_named_request(ask_first_agent, mocker):
+    user, agent, table = ask_first_agent
+    respond(mocker, ({0: add_row(table)},))
+
+    reply = pause(user, agent)
+
+    [step] = reply.steps
+    assert step["status"] == "waiting"
+    assert step["input"] == {
+        "requested_count": 1,
+        "values": {"table": table.name, "rows": [{"Name": "Plan"}]},
+    }
+
+
+@pytest.mark.django_db
+def test_a_held_call_that_names_a_hidden_table_waits_unnamed(
+    ask_first_agent, mocker, data_fixture
+):
+    user, agent, _ = ask_first_agent
+    other = data_fixture.create_database_table()
+    data_fixture.create_text_field(table=other, name="Name", primary=True)
+    respond(mocker, ({0: add_row(other)},))
+
+    reply = pause(user, agent)
+
+    assert [(step["status"], step["input"]) for step in reply.steps] == [
+        ("waiting", {"requested_count": 1})
+    ]
+    assert reply.approvals.exists()
+    assert row_names(other) == []
 
 
 @pytest.mark.django_db

@@ -7,6 +7,7 @@ from typing import Any, Callable, get_type_hints
 from asgiref.sync import async_to_sync, sync_to_async
 from loguru import logger
 from pydantic_ai import RunContext, Tool, ToolReturn
+from pydantic_ai.exceptions import ApprovalRequired
 
 from baserow.core.cache import local_cache
 from baserow.core.chat_runs.steps import ToolCallInputEvent
@@ -119,6 +120,49 @@ def _call_tool(
         return failed_call(tool_type, exc)
 
 
+def input_shower(run_ctx: RunContext) -> Callable[[dict[str, Any]], None]:
+    """
+    :param run_ctx: The model run of a call.
+    :return: A function for the tool's thread that adds the call's readable
+        request to its step.
+    """
+
+    def show_input(step_input: dict[str, Any]) -> None:
+        async_to_sync(run_ctx.emit)(ToolCallInputEvent(input=step_input))
+
+    return show_input
+
+
+@with_usable_db_connection
+def hold_call(
+    tool_type: "AgentToolType",
+    ctx: ToolContext,
+    arguments: dict[str, Any],
+    show_input: Callable[[dict[str, Any]], None],
+) -> ToolReturn:
+    """
+    Hold a call for the owner's approval with its request named as the Agent
+    identity, so the owner decides on names, not IDs.
+
+    :param tool_type: The held tool.
+    :param ctx: Who the call acts for.
+    :param arguments: The validated arguments.
+    :param show_input: Adds the readable request to the call's step.
+    :return: The failure when the identity can no longer act: the call then never
+        waits nor runs.
+    :raises ApprovalRequired: Otherwise.
+    """
+
+    try:
+        with local_cache.context():
+            ctx = act_as_identity(ctx)
+            if preview := tool_type.get_step_preview_input(ctx, arguments):
+                show_input(preview)
+    except Exception as exc:
+        return failed_call(tool_type, exc)
+    raise ApprovalRequired()
+
+
 async def _run_tool(
     tool_type: "AgentToolType",
     ctx: ToolContext,
@@ -137,12 +181,9 @@ async def _run_tool(
     :return: What ``_call_tool`` returns.
     """
 
-    def show_input(step_input: dict[str, Any]) -> None:
-        async_to_sync(run_ctx.emit)(ToolCallInputEvent(input=step_input))
-
     # On the worker's own thread, so tools share its connection and never leak one.
     running = asyncio.ensure_future(
-        sync_to_async(_call_tool)(tool_type, ctx, arguments, show_input)
+        sync_to_async(_call_tool)(tool_type, ctx, arguments, input_shower(run_ctx))
     )
     try:
         return await asyncio.shield(running)

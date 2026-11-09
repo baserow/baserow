@@ -37,7 +37,8 @@ The backend emits `step` events and saves the same steps on the assistant messag
   did not run. `stopped` means the reply ended before the call's result: a change
   may already have completed, and the card says so. `skipped` means the call
   changed nothing and failed nothing; it has no card. A held call is never
-  `skipped`, as the owner already saw it.
+  `skipped`, as the owner already saw it. A held call gets its readable request
+  when it is held, so the owner decides on names, not IDs.
 - `input` is what the call asked for. `requested_count` is known when the call
   starts. `values`, the request with names instead of IDs, follows while it
   runs, before the tool changes anything; see

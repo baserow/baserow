@@ -1,10 +1,12 @@
 import asyncio
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 
+from asgiref.sync import sync_to_async
 from loguru import logger
 from pydantic_ai import (
     Agent,
@@ -12,7 +14,6 @@ from pydantic_ai import (
     ConversationTypeAdapter,
     DeferredToolRequests,
     RunContext,
-    ToolDefinition,
     WebSearchTool,
 )
 from pydantic_ai.capabilities import WebSearch
@@ -36,7 +37,8 @@ from pydantic_ai.messages import (
 )
 from pydantic_ai.models import Model
 from pydantic_ai.run import AgentRunResult
-from pydantic_ai.toolsets import AbstractToolset, FunctionToolset
+from pydantic_ai.toolsets import AbstractToolset, FunctionToolset, WrapperToolset
+from pydantic_ai.toolsets.abstract import ToolsetTool
 from pydantic_ai.usage import UsageLimits
 from pydantic_core import to_jsonable_python
 
@@ -63,7 +65,7 @@ from .constants import (
     WEB_SEARCH_UNAVAILABLE_INSTRUCTIONS,
 )
 from .models import AgentMessage
-from .registries import agent_tool_type_registry
+from .registries import agent_tool_type_registry, hold_call, input_shower
 from .types import AgentReplyRequest, AgentReplyResult
 
 if TYPE_CHECKING:
@@ -196,6 +198,30 @@ def _web_search_step_input(arguments: dict) -> dict:
     if url is not None:
         step_input["url"] = url
     return step_input
+
+
+@dataclass
+class _HeldCallsToolset(WrapperToolset[None]):
+    """Holds the calls a reply waits on for approval, with their readable request."""
+
+    is_held: Callable[[RunContext[None]], bool]
+    tool_ctx: ToolContext
+
+    async def call_tool(
+        self,
+        name: str,
+        tool_args: dict[str, Any],
+        ctx: RunContext[None],
+        tool: ToolsetTool[None],
+    ) -> Any:
+        if not ctx.tool_call_approved and self.is_held(ctx):
+            return await sync_to_async(hold_call)(
+                agent_tool_type_registry.get(name),
+                self.tool_ctx,
+                tool_args,
+                input_shower(ctx),
+            )
+        return await super().call_tool(name, tool_args, ctx, tool)
 
 
 class AgentResponder:
@@ -427,23 +453,23 @@ class AgentResponder:
             timezone=request.timezone,
         )
         return [
-            FunctionToolset(
-                [
-                    agent_tool_type_registry.get(name).get_tool(ctx)
-                    for name in request.allowed_tool_names
-                ]
-            ).approval_required(self._requires_approval)
+            _HeldCallsToolset(
+                FunctionToolset(
+                    [
+                        agent_tool_type_registry.get(name).get_tool(ctx)
+                        for name in request.allowed_tool_names
+                    ]
+                ),
+                self._is_held,
+                ctx,
+            )
         ]
 
-    def _requires_approval(
-        self, ctx: RunContext[None], tool_def: ToolDefinition, arguments: dict[str, Any]
-    ) -> bool:
+    def _is_held(self, ctx: RunContext[None]) -> bool:
         """
         Decide whether a call waits for the owner's approval.
 
         :param ctx: The run, with the response that made the call.
-        :param tool_def: The called tool.
-        :param arguments: Its validated arguments.
         :return: Whether the call is held.
         """
 
