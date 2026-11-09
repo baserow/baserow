@@ -138,31 +138,33 @@ class ChatRunSteps:
         :param event: One event from the model run.
         """
 
-        if isinstance(event, FunctionToolCallEvent):
-            if self._batch_ended:
-                self._retryable, self._retrying = self._retrying, defaultdict(deque)
-                self._batch_ended = False
-            self._start(
-                event.tool_call_id,
-                event.part,
-                invalid=event.args_valid is False,
-                retryable=True,
-            )
-        elif isinstance(event, FunctionToolResultEvent):
-            self._batch_ended = True
-            ended = self._end(event.tool_call_id, event.part)
-            if ended is not None and isinstance(event.part, RetryPromptPart):
-                self._retrying[ended["tool"]].append(ended["id"])
-        # The provider runs these itself, so they only appear as parts of its response.
-        elif isinstance(event, PartStartEvent):
-            if isinstance(event.part, NativeToolCallPart):
-                self._start(event.part.tool_call_id, event.part)
-            elif isinstance(event.part, NativeToolReturnPart):
-                self._end(event.part.tool_call_id, event.part)
-        elif isinstance(event, PartEndEvent) and isinstance(
-            event.part, NativeToolCallPart
-        ):
-            self._describe_native_call(event.part)
+        match event:
+            case FunctionToolCallEvent(tool_call_id=tool_call_id, part=part):
+                if self._batch_ended:
+                    self._retryable, self._retrying = (
+                        self._retrying,
+                        defaultdict(deque),
+                    )
+                    self._batch_ended = False
+                self._start(
+                    tool_call_id,
+                    part,
+                    invalid=event.args_valid is False,
+                    retryable=True,
+                )
+            case FunctionToolResultEvent(tool_call_id=tool_call_id, part=part):
+                self._batch_ended = True
+                ended = self._end(tool_call_id, part)
+                if ended is not None and isinstance(part, RetryPromptPart):
+                    self._retrying[ended["tool"]].append(ended["id"])
+            # The provider runs these itself, so they only appear as parts of its
+            # response.
+            case PartStartEvent(part=NativeToolCallPart() as part):
+                self._start(part.tool_call_id, part)
+            case PartStartEvent(part=NativeToolReturnPart() as part):
+                self._end(part.tool_call_id, part)
+            case PartEndEvent(part=NativeToolCallPart() as part):
+                self._describe_native_call(part)
 
     @property
     def started(self) -> bool:
