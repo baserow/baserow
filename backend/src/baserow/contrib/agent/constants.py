@@ -18,15 +18,6 @@ class AgentConfigurationErrorCode(StrEnum):
     UNAVAILABLE = "unavailable"
 
 
-class AgentReasoningEffort(StrEnum):
-    """How much the model reasons before it replies. Unset uses its default."""
-
-    OFF = "off"
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-
-
 class AgentRunAsState(StrEnum):
     """Availability of an Agent's configured workspace identity."""
 

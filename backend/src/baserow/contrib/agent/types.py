@@ -29,6 +29,7 @@ class AgentConfiguration:
     provider_type: str | None
     model_identifier: str | None
     reasoning_effort: str | None
+    applied_reasoning_effort: str | None
     run_as: AgentRunAsResolution
     allowed_tools: list[str]
     errors: dict[str, AgentConfigurationErrorCode]

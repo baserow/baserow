@@ -21,6 +21,7 @@ from baserow.contrib.agent.constants import (
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.types import AgentConfiguration
 from baserow.core.agents.subjects import AgentSubjectType
+from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 from baserow.core.ai_provider.resolution import (
     clear_ai_provider_state_cache,
     load_ai_provider_state,
@@ -868,6 +869,7 @@ def test_configuration_is_served_only_by_the_agent_endpoints(
         "provider_type": "openai",
         "model_identifier": "test-model",
         "reasoning_effort": None,
+        "applied_reasoning_effort": None,
         "run_as": None,
         "allowed_tools": [],
         "available_tools": ANY,
@@ -905,6 +907,51 @@ def test_reasoning_effort_is_saved_reported_and_cleared(
     assert response.json()["reasoning_effort"] is None
     agent.refresh_from_db()
     assert agent.reasoning_effort is None
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "model_identifier,effort,applied",
+    [
+        ("gpt-5.1", "off", "off"),
+        # Off becomes the lowest effort on a model that can't stop reasoning.
+        ("o3", "off", "low"),
+        # The next higher effort the model accepts.
+        ("gpt-5-pro", "low", "high"),
+        # A model without reasoning uses its default.
+        ("gpt-4.1", "high", None),
+        ("gpt-5.1", None, None),
+    ],
+)
+def test_configuration_reports_the_reasoning_effort_replies_use(
+    configured_agent, api_client, api_user, model_identifier, effort, applied
+):
+    agent = configured_agent(
+        user=api_user, model_identifier=model_identifier, reasoning_effort=effort
+    )
+    AIProviderModel.objects.create(
+        provider_config=AIProviderConfig.objects.get(workspace=agent.workspace),
+        model_identifier=model_identifier,
+    )
+
+    response = api_client.get(agent_url(agent, "configuration"))
+
+    assert response.json()["reasoning_effort"] == effort
+    assert response.json()["applied_reasoning_effort"] == applied
+
+
+@pytest.mark.django_db
+def test_configuration_reports_no_applied_effort_for_an_unavailable_model(
+    configured_agent, api_client, api_user
+):
+    agent = configured_agent(
+        user=api_user, model_identifier="gpt-5-pro", reasoning_effort="low"
+    )
+
+    response = api_client.get(agent_url(agent, "configuration"))
+
+    assert response.json()["errors"] == {"model_identifier": "unavailable"}
+    assert response.json()["applied_reasoning_effort"] is None
 
 
 @pytest.mark.django_db

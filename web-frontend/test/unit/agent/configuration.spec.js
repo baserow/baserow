@@ -22,6 +22,7 @@ import {
   page,
   providerDropdown,
   reasoningEffortDropdown,
+  reasoningEffortWarning,
   savedValues,
   saving,
   unavailableModel,
@@ -1613,6 +1614,48 @@ describe('Agent configuration', () => {
       { reasoning_effort: 'high' },
       { reasoning_effort: null },
     ])
+  })
+
+  test.each([
+    ['low', 'high', 'agent.reasoningEffortAdjusted'],
+    ['high', null, 'agent.reasoningEffortNotSupported'],
+    ['high', 'high', null],
+  ])(
+    'explains when the model replies with another effort than %s',
+    async (effort, applied, note) => {
+      mockConfiguration(
+        testApp,
+        completeConfiguration({
+          reasoning_effort: effort,
+          applied_reasoning_effort: applied,
+        })
+      )
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.agentSettings')
+
+      const warning = reasoningEffortWarning(wrapper)
+      if (note) expect(warning.text()).toBe(note)
+      else expect(warning.exists()).toBe(false)
+    }
+  )
+
+  test('explains the effort the saved choice replies with', async () => {
+    mockSaves(
+      testApp,
+      completeConfiguration({
+        reasoning_effort: 'off',
+        applied_reasoning_effort: 'low',
+      })
+    )
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.agentSettings')
+    const warning = () => reasoningEffortWarning(wrapper)
+
+    await choose(reasoningEffortDropdown(wrapper), 'agent.reasoningEffortOff')
+    expect(warning().exists()).toBe(false)
+    await flushPromises()
+
+    expect(warning().text()).toBe('agent.reasoningEffortAdjusted')
   })
 
   test('renames the Agent through the application with the trimmed name', async () => {

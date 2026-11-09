@@ -23,12 +23,15 @@ from baserow.core.ai_provider.resolution import (
 from baserow.core.models import Workspace
 from baserow.core.registry import Instance, Registry
 
+from .constants import REASONING_EFFORTS, ReasoningEffort
 from .exceptions import GenerativeAITypeDoesNotExist, get_user_friendly_error_message
 from .lifecycle import run_agent_sync_with_model
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
     from pydantic_ai.messages import UserContent
+    from pydantic_ai.models import Model
+    from pydantic_ai.settings import ThinkingLevel
 
     from baserow_premium.fields.ai_file import AIFile
 
@@ -876,6 +879,71 @@ class GenerativeAIModelType(Instance):
         """Remove settings a concrete provider/model cannot accept."""
 
         return model_settings
+
+    def get_reasoning_efforts(
+        self, model_name: str, model: "Model"
+    ) -> tuple[ReasoningEffort, ...]:
+        """
+        List the reasoning efforts the model accepts, from what Pydantic AI knows
+        about it. Override for models whose provider documents a narrower range.
+
+        :param model_name: The model's name.
+        :param model: The built model, whose profile says how it reasons.
+        :return: The accepted efforts, lowest first. Empty when the effort can't
+            be chosen for this model.
+        """
+
+        profile = model.profile
+        if profile.get("thinking_always_enabled", False):
+            return REASONING_EFFORTS[1:]
+        if profile.get("supports_thinking", False):
+            return REASONING_EFFORTS
+        return ()
+
+    def get_reasoning_effort(
+        self, model_name: str, model: "Model", effort: str | None
+    ) -> ReasoningEffort | None:
+        """
+        Pick the reasoning effort a reply uses: the chosen one, or the next higher
+        one the model accepts. Off becomes the lowest effort on models that can't
+        stop reasoning.
+
+        :param model_name: The model's name.
+        :param model: The built model.
+        :param effort: The chosen effort, or None for the model's default.
+        :return: The effort to send, or None to keep the model's default, also
+            when the model accepts no effort at or above the chosen one.
+        """
+
+        if effort not in REASONING_EFFORTS:
+            return None
+        rank = REASONING_EFFORTS.index(effort)
+        return next(
+            (
+                accepted
+                for accepted in self.get_reasoning_efforts(model_name, model)
+                if REASONING_EFFORTS.index(accepted) >= rank
+            ),
+            None,
+        )
+
+    def get_thinking_level(
+        self, model_name: str, model: "Model", effort: str | None
+    ) -> "ThinkingLevel | None":
+        """
+        Turn the chosen reasoning effort into Pydantic AI's shared thinking
+        setting, which it maps to each provider's own parameter.
+
+        :param model_name: The model's name.
+        :param model: The built model.
+        :param effort: The chosen effort, or None for the model's default.
+        :return: The thinking level, or None to leave the setting out.
+        """
+
+        applied = self.get_reasoning_effort(model_name, model, effort)
+        if applied is None:
+            return None
+        return False if applied == ReasoningEffort.OFF else str(applied)
 
     def _is_choices(self, output_type: Any) -> bool:
         """

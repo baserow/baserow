@@ -14,6 +14,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelHTTPError
+from pydantic_ai.messages import ModelRequest
 from pydantic_ai.models import ModelRequestParameters
 from pydantic_ai.models.function import DeltaToolCall, FunctionModel
 from pydantic_ai.models.instrumented import InstrumentationSettings
@@ -1027,23 +1028,18 @@ def test_failed_tool_calls_keep_their_category_in_the_api(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "model_identifier,effort,thinking",
+    "model_identifier,effort,sent_effort",
     [
         ("gpt-5.1", None, None),
-        ("gpt-5.1", "off", False),
-        ("gpt-5.1", "low", "low"),
+        ("gpt-5.1", "off", "none"),
         ("gpt-5.1", "high", "high"),
-        # o3 always reasons and ignores False, so off sends its lowest level.
-        ("o3", "off", "low"),
-        ("o3", "medium", "medium"),
-        # Models that cannot reason never receive the setting.
+        # GPT-5 Pro only accepts high.
+        ("gpt-5-pro", "low", "high"),
         ("gpt-4.1", "high", None),
-        # A value this version doesn't know keeps the model's default.
-        ("gpt-5.1", "xhigh", None),
     ],
 )
 def test_reply_requests_carry_the_reasoning_effort(
-    configured_agent, model_identifier, effort, thinking
+    configured_agent, model_identifier, effort, sent_effort
 ):
     agent = configured_agent()
     request = AgentReplyRequest(
@@ -1056,8 +1052,27 @@ def test_reply_requests_carry_the_reasoning_effort(
         history=[],
         reasoning_effort=effort,
     )
-
     model, model_settings = create_reply_model(request)
-    _, params = model.prepare_request(model_settings, ModelRequestParameters())
+    sent = {}
 
-    assert params.thinking == thinking
+    class RequestSent(Exception):
+        pass
+
+    async def create(**kwargs):
+        sent.update(kwargs)
+        raise RequestSent()
+
+    model.client.responses.create = create
+    with pytest.raises(RequestSent):
+        asyncio.run(
+            model.request(
+                [ModelRequest.user_text_prompt("Hi")],
+                model_settings,
+                model.customize_request_parameters(ModelRequestParameters()),
+            )
+        )
+
+    reasoning = sent.get("reasoning")
+    assert (
+        reasoning.get("effort") if isinstance(reasoning, dict) else None
+    ) == sent_effort

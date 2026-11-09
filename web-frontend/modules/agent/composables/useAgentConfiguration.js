@@ -21,10 +21,17 @@ const REQUIRED_FIELDS = [
   CONFIGURATION_FIELD.PROVIDER_TYPE,
   CONFIGURATION_FIELD.MODEL_IDENTIFIER,
 ]
+// What replies send depends on these, so it is unknown until they are saved.
+const APPLIED_REASONING_EFFORT_INPUTS = [
+  CONFIGURATION_FIELD.PROVIDER_TYPE,
+  CONFIGURATION_FIELD.MODEL_IDENTIFIER,
+  CONFIGURATION_FIELD.REASONING_EFFORT,
+]
 // The tools an Agent can be allowed to call are listed with its configuration.
 const CONFIGURATION_FIELDS = [
   ...REQUIRED_FIELDS,
   CONFIGURATION_FIELD.REASONING_EFFORT,
+  CONFIGURATION_FIELD.APPLIED_REASONING_EFFORT,
   CONFIGURATION_FIELD.RUN_AS,
   CONFIGURATION_FIELD.ALLOWED_TOOLS,
   CONFIGURATION_FIELD.AVAILABLE_TOOLS,
@@ -35,6 +42,7 @@ const emptyConfiguration = () => ({
   provider_type: null,
   model_identifier: null,
   reasoning_effort: null,
+  applied_reasoning_effort: null,
   run_as: null,
   allowed_tools: [],
   available_tools: [],
@@ -284,6 +292,13 @@ export function useAgentConfiguration(agent) {
         delete pendingConfiguration[field]
       }
     }
+    if (
+      APPLIED_REASONING_EFFORT_INPUTS.some(
+        (field) => field in pendingConfiguration
+      )
+    ) {
+      configuration.applied_reasoning_effort = undefined
+    }
     configurationErrors.value = data.errors || {}
     ++readinessRequest
     readinessError.value = false
@@ -334,6 +349,12 @@ export function useAgentConfiguration(agent) {
         ].includes(field) && !value
           ? null
           : value
+      if (
+        APPLIED_REASONING_EFFORT_INPUTS.includes(field) &&
+        configuration[field] !== normalized
+      ) {
+        configuration.applied_reasoning_effort = undefined
+      }
       configuration[field] = normalized
       if (
         isSameValue(field, savedConfiguration.value?.[field], normalized) &&

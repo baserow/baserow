@@ -9,7 +9,6 @@ from baserow.contrib.agent.constants import (
     RUN_AS_SUBJECT_TYPES,
     AgentConfigurationErrorCode,
     AgentReadinessState,
-    AgentReasoningEffort,
     AgentRunAsState,
 )
 from baserow.contrib.agent.handler import AgentHandler
@@ -22,10 +21,11 @@ from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.contrib.agent.types import AgentConfiguration
 from baserow.contrib.agent.validators import AGENT_TEXT_MAX_LENGTH
 from baserow.core.chat_runs.constants import ChatRunStepStatus
+from baserow.core.generative_ai.constants import ReasoningEffort
 from baserow.core.tools.errors import ToolErrorCode
 
 READINESS_CHOICES = [state.value for state in AgentReadinessState]
-REASONING_EFFORT_CHOICES = [effort.value for effort in AgentReasoningEffort]
+REASONING_EFFORT_CHOICES = [effort.value for effort in ReasoningEffort]
 
 
 class AgentApplicationSerializer(serializers.ModelSerializer):
@@ -93,6 +93,14 @@ class AgentConfigurationSerializer(serializers.Serializer):
         help_text="How much the model reasons before it replies. Null uses the "
         "model's default.",
     )
+    applied_reasoning_effort = serializers.ChoiceField(
+        choices=REASONING_EFFORT_CHOICES,
+        allow_null=True,
+        help_text="The reasoning effort replies use with the selected model: the "
+        "chosen one, or the next higher one the model accepts. Null means replies "
+        "use the model's default, because none is chosen, the model doesn't accept "
+        "one, or the model isn't available.",
+    )
     run_as = serializers.SerializerMethodField(
         help_text="The configured identity and its active, trashed or missing status. "
         "Null means no workspace access was selected."
@@ -159,7 +167,8 @@ class AgentConfigurationUpdateSerializer(
         allow_null=True,
         required=False,
         help_text="How much the model reasons before it replies. Null uses the "
-        "model's default. Models without reasoning ignore it.",
+        "model's default. A model that doesn't accept it uses the next higher "
+        "effort it accepts, or its default.",
     )
     run_as_subject_type = serializers.ChoiceField(
         choices=RUN_AS_SUBJECT_TYPES,

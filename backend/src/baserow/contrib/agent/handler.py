@@ -6,6 +6,8 @@ from django.db import DEFAULT_DB_ALIAS, IntegrityError, transaction
 from django.db.models import Prefetch, QuerySet
 from django.utils.dateparse import parse_datetime
 
+from loguru import logger
+
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
 from baserow.core.ai_provider.resolution import ScopedAIProviderState
 from baserow.core.chat_runs.constants import ChatRunErrorCode
@@ -94,11 +96,44 @@ class AgentHandler:
             provider_type=agent.provider_type,
             model_identifier=agent.model_identifier,
             reasoning_effort=agent.reasoning_effort,
+            applied_reasoning_effort=(
+                None if errors else self.get_applied_reasoning_effort(agent)
+            ),
             run_as=self.resolve_run_as_subject(
                 agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
             ),
             allowed_tools=self.get_allowed_tool_names(agent),
             errors=errors,
+        )
+
+    def get_applied_reasoning_effort(self, agent: AgentApplication) -> str | None:
+        """
+        Find the reasoning effort replies use with the Agent's model, which can
+        differ from the chosen one when the model doesn't accept it.
+
+        :param agent: An Agent with an available provider and model.
+        :return: The effort replies send, or None when they use the model's
+            default.
+        """
+
+        if not agent.reasoning_effort:
+            return None
+        model_type = generative_ai_model_type_registry.get(agent.provider_type)
+        try:
+            settings_override = model_type.get_model_settings_override(
+                agent.model_identifier, agent.workspace
+            )
+            model = model_type.get_ai_model(
+                agent.model_identifier, agent.workspace, settings_override
+            )
+        except Exception as exc:
+            # Each provider raises its own error for incomplete settings.
+            logger.warning(
+                "Agent {} model could not be built ({})", agent.id, type(exc).__name__
+            )
+            return None
+        return model_type.get_reasoning_effort(
+            agent.model_identifier, model, agent.reasoning_effort
         )
 
     def get_configuration_readiness(
