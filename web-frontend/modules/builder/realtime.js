@@ -28,6 +28,16 @@ const getApplicationContext = (store, applicationId) => {
   return { application }
 }
 
+/**
+ * Integration events are sent for every application type, but only the ones
+ * that keep their integrations in the store have a list to update. An Agent
+ * loads its MCP servers itself.
+ */
+const getIntegrationContext = (store, applicationId) => {
+  const ctx = getApplicationContext(store, applicationId)
+  return Array.isArray(ctx?.application.integrations) ? ctx : null
+}
+
 const redispatchForAuthorizedAgent = (store, { workspaceId, agentId }) => {
   store.getters['application/getAll']
     .filter(
@@ -331,7 +341,7 @@ export const registerRealtimeEvents = (realtime) => {
 
   // Integration events
   realtime.registerEvent('integration_created', ({ store }, data) => {
-    const ctx = getApplicationContext(store, data.integration.application_id)
+    const ctx = getIntegrationContext(store, data.integration.application_id)
     if (!ctx) return
 
     store.dispatch('integration/forceCreate', {
@@ -350,7 +360,7 @@ export const registerRealtimeEvents = (realtime) => {
   })
 
   realtime.registerEvent('integration_updated', ({ store }, data) => {
-    const ctx = getApplicationContext(store, data.integration.application_id)
+    const ctx = getIntegrationContext(store, data.integration.application_id)
     if (!ctx) return
 
     const integration = store.getters['integration/getIntegrationById'](
@@ -367,7 +377,7 @@ export const registerRealtimeEvents = (realtime) => {
   })
 
   realtime.registerEvent('integration_deleted', ({ store }, data) => {
-    const ctx = getApplicationContext(store, data.application_id)
+    const ctx = getIntegrationContext(store, data.application_id)
     if (!ctx) return
 
     store.dispatch('integration/forceDelete', {
