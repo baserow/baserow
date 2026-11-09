@@ -249,4 +249,33 @@ describe('ChatStepGroup', () => {
     expect(wrapper.text()).toContain(label)
     expect(wrapper.attributes('aria-busy')).toBe(String(status === 'running'))
   })
+
+  test('a done call with failed items warns and lists them in the details', async () => {
+    const wrapper = mount(ChatStepGroup, {
+      props: {
+        title: 'Created 1 field',
+        status: 'done',
+        itemErrors: [
+          { item: 'Total', message: "The formula isn't valid." },
+          { item: '', message: 'Unnamed item failed.' },
+        ],
+      },
+      global: { directives: { tooltip }, mocks: { $t: (key) => key } },
+    })
+
+    expect(wrapper.find('button .iconoir-warning-circle').exists()).toBe(true)
+    expect(wrapper.find('button .iconoir-check-circle').exists()).toBe(false)
+    expect(wrapper.find('.chat-step-group__status').text()).toBe(
+      'toolPresentation.statusPartial'
+    )
+    await wrapper.get('button').trigger('click')
+    const errors = wrapper.findAll('.chat-step-group__item-error')
+    expect(errors.map((error) => error.text())).toEqual([
+      "Total The formula isn't valid.",
+      'Unnamed item failed.',
+    ])
+    expect(wrapper.find('.chat-step-group__item-error-name').text()).toBe(
+      'Total'
+    )
+  })
 })

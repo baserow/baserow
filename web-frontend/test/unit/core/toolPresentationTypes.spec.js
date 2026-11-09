@@ -2,6 +2,7 @@ import { describe, expect, test, vi } from 'vitest'
 import { Registry } from '@baserow/modules/core/registry'
 import {
   groupToolSteps,
+  stepStatusText,
   toolActivity,
   ToolPresentationType,
 } from '@baserow/modules/core/toolPresentationTypes'
@@ -61,6 +62,8 @@ describe('shared tool presentations', () => {
       group: null,
       input: null,
       failureHint: '',
+      itemErrors: [],
+      partial: false,
     })
     expect(groupToolSteps([step], registry, t)).toEqual([
       expect.objectContaining({ title: 'Sending an email', lines: [] }),
@@ -177,6 +180,11 @@ describe('shared tool presentations', () => {
       'Permission denied for this operation.',
     ],
     [STEP_ERROR_CODE.INVALID_INPUT, 'The tool received invalid input.'],
+    [STEP_ERROR_CODE.INVALID_FORMULA, "The formula isn't valid."],
+    [
+      STEP_ERROR_CODE.CONFLICT,
+      'It clashes with something that already exists.',
+    ],
     [STEP_ERROR_CODE.FAILED, 'This tool call failed.'],
   ])(
     'translates the shared failure code %s even for an unknown presenter',
@@ -241,5 +249,70 @@ describe('shared tool presentations', () => {
         (key) => key
       ).failureHint
     ).toBe('This tool call failed.')
+  })
+
+  test('a failed step shows its message instead of the code label', () => {
+    const activity = toolActivity(
+      {
+        id: 's',
+        tool: 'unknown_tool',
+        status: 'failed',
+        error_code: 'invalid_input',
+        error_message: 'Link to table must be in the same database.',
+      },
+      registryWith(EmailPresentation),
+      t
+    )
+    expect(activity.failureHint).toBe(
+      'Link to table must be in the same database.'
+    )
+  })
+
+  test('a long failure message is shortened, not dropped', () => {
+    const activity = toolActivity(
+      {
+        id: 's',
+        tool: 'unknown_tool',
+        status: 'failed',
+        error_message: `${'x'.repeat(999)}…`,
+        item_errors: [{ item: 'A', message: 'y'.repeat(1500) }],
+      },
+      registryWith(EmailPresentation),
+      t
+    )
+    expect(activity.failureHint).toBe(`${'x'.repeat(999)}…`)
+    expect(activity.itemErrors[0].message).toBe('y'.repeat(1000))
+  })
+
+  test('skipped steps are not shown', () => {
+    const groups = groupToolSteps(
+      [
+        { id: 'a', tool: 'unknown_tool', status: 'skipped' },
+        { id: 'b', tool: 'unknown_tool', status: 'done' },
+      ],
+      registryWith(EmailPresentation),
+      t
+    )
+    expect(groups.map((group) => group.id)).toEqual(['b'])
+  })
+
+  test('a done step keeps its failed items for the details', () => {
+    const activity = toolActivity(
+      {
+        id: 's',
+        tool: 'unknown_tool',
+        status: 'done',
+        item_errors: [
+          { item: 'Total', code: 'invalid_formula', message: 'Bad formula.' },
+          'broken',
+        ],
+      },
+      registryWith(EmailPresentation),
+      t
+    )
+    expect(activity.itemErrors).toEqual([
+      { item: 'Total', message: 'Bad formula.' },
+    ])
+    expect(stepStatusText(activity, t)).toBe('Completed with errors')
   })
 })

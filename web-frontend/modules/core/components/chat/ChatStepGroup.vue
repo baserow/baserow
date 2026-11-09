@@ -21,7 +21,9 @@
         :class="
           status === STEP_STATUS.RUNNING
             ? 'chat-step-group__spinner'
-            : statusIcons[status]
+            : partial
+              ? 'iconoir-warning-circle chat-step-group__icon--partial'
+              : statusIcons[status]
         "
         class="chat-step-group__icon"
         tooltip-position="bottom-right"
@@ -29,7 +31,7 @@
       />
       <span class="chat-step-group__title">{{ title }}</span>
       <span class="chat-step-group__status" :class="statusClass">
-        {{ stepStatusText({ status, changesData, failureHint }, $t) }}
+        {{ stepStatusText({ status, changesData, failureHint, partial }, $t) }}
       </span>
       <i
         class="chat-step-group__chevron"
@@ -47,7 +49,9 @@
         :class="
           status === STEP_STATUS.RUNNING
             ? 'chat-step-group__spinner'
-            : statusIcons[status]
+            : partial
+              ? 'iconoir-warning-circle chat-step-group__icon--partial'
+              : statusIcons[status]
         "
         class="chat-step-group__icon"
         tooltip-position="bottom-right"
@@ -55,7 +59,7 @@
       />
       <span class="chat-step-group__title">{{ title }}</span>
       <span class="chat-step-group__status" :class="statusClass">
-        {{ stepStatusText({ status, changesData, failureHint }, $t) }}
+        {{ stepStatusText({ status, changesData, failureHint, partial }, $t) }}
       </span>
     </div>
     <div v-if="hasDetails && expanded" :id="detailsId">
@@ -82,6 +86,23 @@
           </span>
         </li>
       </ul>
+      <div v-if="itemErrors.length" class="chat-step-group__item-errors">
+        <div class="chat-step-group__input-label">
+          {{ $t('toolPresentation.itemErrors') }}
+        </div>
+        <ul class="chat-step-group__item-error-list">
+          <li
+            v-for="(error, index) in itemErrors"
+            :key="index"
+            class="chat-step-group__item-error"
+          >
+            <span v-if="error.item" class="chat-step-group__item-error-name">{{
+              error.item
+            }}</span>
+            {{ error.message }}
+          </li>
+        </ul>
+      </div>
       <div v-if="input" class="chat-step-group__input">
         <div class="chat-step-group__input-label">
           {{ $t('toolPresentation.input') }}
@@ -111,6 +132,7 @@ const props = defineProps({
   lines: { type: Array, default: () => [] },
   input: { type: Object, default: null },
   failureHint: { type: String, default: '' },
+  itemErrors: { type: Array, default: () => [] },
 })
 
 const failureTooltipOptions = {
@@ -125,7 +147,12 @@ const expanded = ref(props.lines.length > 0)
 const inputText = computed(() =>
   props.input ? JSON.stringify(props.input.values, null, 2) : ''
 )
-const hasDetails = computed(() => props.lines.length > 0 || !!props.input)
+const hasDetails = computed(
+  () => props.lines.length > 0 || !!props.input || props.itemErrors.length > 0
+)
+const partial = computed(
+  () => props.status === STEP_STATUS.DONE && props.itemErrors.length > 0
+)
 const statusClass = computed(() => ({
   'chat-step-group__status--visible':
     props.status === STEP_STATUS.STOPPED && props.changesData,

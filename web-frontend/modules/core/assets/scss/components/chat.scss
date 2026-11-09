@@ -300,6 +300,10 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   color: $palette-yellow-600;
 }
 
+.chat-step-group__icon--partial {
+  color: $palette-yellow-600;
+}
+
 .chat-step-group__icon--stopped,
 .chat-step-group__chevron {
   color: $palette-neutral-600;
@@ -356,6 +360,22 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
 .chat-step-group__input {
   margin: 6px 8px 8px 32px;
+}
+
+.chat-step-group__item-errors {
+  margin: 0 8px 8px;
+}
+
+.chat-step-group__item-error-list {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  color: $palette-neutral-900;
+}
+
+.chat-step-group__item-error-name {
+  font-weight: 500;
+  margin-right: 4px;
 }
 
 .chat-step-group__input-label {

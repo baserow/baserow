@@ -9,6 +9,7 @@
       :failure-hint="group.failureHint"
       :lines="group.lines"
       :input="group.input"
+      :item-errors="group.itemErrors || []"
     />
     <div v-if="own" class="chat-message__bubble">{{ message.content }}</div>
     <div

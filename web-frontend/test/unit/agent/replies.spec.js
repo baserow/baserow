@@ -304,6 +304,15 @@ describe('Agent replies', () => {
     expect(announcement(wrapper)).toBe('agent.replyStopped')
   })
 
+  test('a call that changed nothing shows no card and is not announced', async () => {
+    const wrapper = await startReply()
+
+    await receive('run-1', 'step', toolStep('a', 'create_rows', 'skipped'))
+
+    expect(wrapper.find('.chat-step-group').exists()).toBe(false)
+    expect(announcement(wrapper)).toBe('agent.replying')
+  })
+
   test('reopening a running reply announces it without repeating its old steps', async () => {
     mockConversations(
       testApp,

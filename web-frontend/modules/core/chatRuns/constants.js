@@ -16,12 +16,15 @@ export const STEP_STATUS = Object.freeze({
   DONE: 'done',
   FAILED: 'failed',
   STOPPED: 'stopped',
+  SKIPPED: 'skipped',
 })
 
 export const STEP_ERROR_CODE = Object.freeze({
   NOT_FOUND: 'not_found',
   PERMISSION_DENIED: 'permission_denied',
   INVALID_INPUT: 'invalid_input',
+  INVALID_FORMULA: 'invalid_formula',
+  CONFLICT: 'conflict',
   FAILED: 'failed',
 })
 
