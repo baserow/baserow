@@ -17,6 +17,8 @@ CLIENT_INFO = types.Implementation(name="Baserow", version="1")
 MAX_RESULT_CHARACTERS = 50_000
 # Longest tool description shown to the model.
 MAX_DESCRIPTION_CHARACTERS = 2_000
+# Matches `MCPServerTool.title`.
+MAX_TITLE_CHARACTERS = 255
 # Most pages of tools read from one server, so one that always returns a next
 # cursor can't keep a request or a reply busy forever.
 MAX_TOOL_PAGES = 20
@@ -90,11 +92,14 @@ class MCPToolDefinition:
         annotations = (
             tool.annotations.model_dump(exclude_none=True) if tool.annotations else None
         )
+        title = (
+            tool.title or (tool.annotations.title if tool.annotations else None) or ""
+        )
         return cls(
             name=tool.name,
-            title=tool.title
-            or (tool.annotations.title if tool.annotations else None)
-            or "",
+            # Cut to what is stored, so a definition hashed again from the
+            # stored tool, as on import, matches the server's.
+            title=title[:MAX_TITLE_CHARACTERS],
             description=tool.description or "",
             input_schema=tool.inputSchema or {"type": "object"},
             annotations=annotations or None,

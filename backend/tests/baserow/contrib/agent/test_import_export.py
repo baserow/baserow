@@ -2,6 +2,7 @@ import json
 
 import pytest
 from freezegun import freeze_time
+from mcp.server.fastmcp import FastMCP
 
 from baserow.contrib.agent.application_types import AgentApplicationType
 from baserow.contrib.agent.constants import AgentRunAsState
@@ -11,6 +12,7 @@ from baserow.contrib.agent.models import (
     AgentConversation,
     AgentMessage,
 )
+from baserow.contrib.integrations.mcp.handler import MCPServerHandler
 from baserow.contrib.integrations.mcp.models import MCPServerIntegration, MCPServerTool
 from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.handler import CoreHandler
@@ -21,6 +23,8 @@ from baserow.core.models import Agent
 from baserow.core.registries import ImportExportConfig
 from baserow.core.snapshots.handler import SnapshotHandler
 from baserow.core.utils import Progress
+
+from ..integrations.mcp.utils import serve
 
 INTERNAL_COPY = {"is_duplicate": True, "exclude_sensitive_data": False}
 INTERNAL_CONFIG = ImportExportConfig(include_permission_data=False, **INTERNAL_COPY)
@@ -546,3 +550,24 @@ def test_a_duplicate_leaves_out_apps_the_copier_cant_read(data_fixture, mocker):
     duplicate = CoreHandler().duplicate_application(user, server.application)
 
     assert not MCPServerIntegration.objects.filter(application=duplicate).exists()
+
+
+@pytest.mark.django_db
+def test_a_copied_tool_with_a_long_title_still_matches_its_server(data_fixture, mocker):
+    server = FastMCP("test")
+
+    @server.tool(title="Search " * 50)
+    def search() -> str:
+        """Search."""
+
+        return ""
+
+    serve(mocker, server)
+    user = data_fixture.create_user()
+    integration = data_fixture.create_mcp_server_integration(user=user)
+    MCPServerHandler().refresh_tools(integration)
+
+    duplicate = CoreHandler().duplicate_application(user, integration.application)
+
+    copied = MCPServerTool.objects.get(integration__application=duplicate)
+    assert copied.definition_hash == integration.tools.get().definition_hash

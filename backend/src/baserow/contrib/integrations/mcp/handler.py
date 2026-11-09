@@ -123,7 +123,7 @@ class MCPServerHandler:
                     continue
                 listed.add(definition.name)
                 values = {
-                    "title": definition.title[:255],
+                    "title": definition.title,
                     "description": definition.description,
                     "input_schema": definition.input_schema,
                     "annotations": definition.annotations,
