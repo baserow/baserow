@@ -7,7 +7,7 @@ export class PublishedBuilder {
     // Path of the first non-shared page, e.g. "/page".
     public pagePath: string,
     // The published copy of the user source (its id differs from the editor's).
-    public userSourceId: number,
+    public userSourceId?: number,
   ) {}
 
   // URL path that renders the published, visibility-filtered page by ID without
@@ -61,5 +61,5 @@ export async function publishBuilder(
   const page = published.data.pages.find((p: any) => p.path !== "__shared__");
   const userSource = published.data.user_sources[0];
 
-  return new PublishedBuilder(published.data.id, page.path, userSource.id);
+  return new PublishedBuilder(published.data.id, page.path, userSource?.id);
 }

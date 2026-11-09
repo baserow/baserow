@@ -23,16 +23,69 @@ from baserow.core.formula.types import (
     BaserowFormula,
     BaserowFormulaObject,
 )
+from baserow.core.import_export.exceptions import ImportExportResourceInvalidFile
+from baserow.core.import_export.untrusted_content import UntrustedContentTypeMixin
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.user_sources.handler import UserSourceHandler
+from baserow_enterprise.builder.elements.html import HTML_ERROR, is_static_html
 from baserow_enterprise.builder.elements.models import (
     AuthFormElement,
     FileInputElement,
     GraphElement,
+    HTMLElement,
 )
-from baserow_enterprise.features import BUILDER_FILE_INPUT, BUILDER_GRAPH_ELEMENT
+from baserow_enterprise.features import (
+    BUILDER_FILE_INPUT,
+    BUILDER_GRAPH_ELEMENT,
+    BUILDER_HTML_ELEMENT,
+)
 from baserow_premium.charts import ChartSeriesChartType
 from baserow_premium.license.handler import LicenseHandler
+
+
+class HTMLElementType(UntrustedContentTypeMixin, ElementType):
+    display_name = _("HTML")
+    type = "html"
+    model_class = HTMLElement
+    allowed_fields = ["html"]
+    serializer_field_names = ["html"]
+
+    class SerializedDict(ElementDict):
+        html: str
+
+    @property
+    def serializer_field_overrides(self):
+        return {
+            "html": serializers.CharField(
+                allow_blank=True, required=False, trim_whitespace=False
+            ),
+        }
+
+    def prepare_value_for_db(self, values, instance=None):
+        if "html" in values and not is_static_html(values["html"]):
+            raise RequestBodyValidationException(
+                {"html": [{"error": HTML_ERROR, "code": "invalid_html"}]}
+            )
+        return super().prepare_value_for_db(values, instance)
+
+    def deserialize_property(self, prop_name, value, id_mapping, **kwargs):
+        if prop_name == "html" and not is_static_html(value):
+            raise ImportExportResourceInvalidFile(HTML_ERROR)
+        return super().deserialize_property(prop_name, value, id_mapping, **kwargs)
+
+    def get_import_report_entry(self, instance):
+        return {
+            "type": self.type,
+            "id": instance.id,
+            "page_id": instance.page_id,
+            "page_name": instance.page.name,
+        }
+
+    def is_deactivated(self, workspace):
+        return not LicenseHandler.workspace_has_feature(BUILDER_HTML_ELEMENT, workspace)
+
+    def get_pytest_params(self, pytest_data_fixture):
+        return {"html": '<div id="widget"></div>'}
 
 
 class GraphElementSeriesSerializer(serializers.Serializer):

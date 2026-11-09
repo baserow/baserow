@@ -80,6 +80,7 @@ export default {
       delete differences.place_in_container
 
       if (Object.keys(differences).length > 0) {
+        const form = this.$refs.panelForm
         try {
           await this.actionDebouncedUpdateElement({
             builder: this.builder,
@@ -90,6 +91,13 @@ export default {
             values: clone(differences),
           })
         } catch (error) {
+          // Keep a rejected draft available for correction in its own form.
+          if (
+            form === this.$refs.panelForm &&
+            form?.handleErrorByForm?.(error)
+          ) {
+            return
+          }
           // Restore the previous saved values from the store
           this.$refs.panelForm?.reset(true)
           notifyIf(error)

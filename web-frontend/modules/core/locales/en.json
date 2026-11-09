@@ -4,6 +4,8 @@
     "publishBlocked": "Review and trust the imported content before publishing.",
     "description": "Imported content is blocked to protect your data and visitors. Only enable it if you trust its source and have reviewed what it does.",
     "contents": "Content found during import",
+    "typeHtml": "HTML element",
+    "riskHtml": "Inserts markup directly into the page. It may load external resources or collect information from visitors.",
     "riskIframe": "Embeds another page or HTML that may display misleading content or collect information entered by visitors.",
     "riskCode": "Runs code that may read, change, or send data to external services using the workflow’s configured access.",
     "riskScript": "Runs JavaScript in visitors’ browsers that may access page data or send information to external services.",

@@ -877,7 +877,14 @@
     "crossoriginTypeAnonymous": "Anonymous",
     "crossoriginTypeCredentials": "Use credentials"
   },
+  "htmlElement": {
+    "source": "HTML source",
+    "placeholder": "Custom HTML appears in preview and in the published application.",
+    "invalid": "Enter static HTML only. Add JavaScript in the application's Custom code settings."
+  },
   "elementType": {
+    "html": "HTML",
+    "htmlDescription": "Place static HTML directly on the page for custom layouts and widget integrations.",
     "graph": "Graph",
     "graphDescription": "Display formula-driven data as a graph.",
     "errorUserSourceHasNoLoginOption": "The selected user source has no login option",

@@ -147,6 +147,8 @@ test.describe("Builder element visibility on published pages", () => {
     );
 
     // --- Authenticate each user source user against the published user source.
+    if (!published.userSourceId)
+      throw new Error("Missing published user source");
     const blankAuth = await userSourceTokenAuth(
       published.userSourceId,
       "blank@example.com",

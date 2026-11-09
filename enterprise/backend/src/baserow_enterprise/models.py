@@ -9,6 +9,7 @@ from baserow_enterprise.builder.custom_code.models import (
 from baserow_enterprise.builder.elements.models import (
     AuthFormElement,
     GraphElement,
+    HTMLElement,
 )
 from baserow_enterprise.builder.workflow_actions.models import CoreCodeWorkflowAction
 from baserow_enterprise.data_sync.models import LocalBaserowTableDataSync
@@ -47,6 +48,7 @@ __all__ = [
     "LocalBaserowUserSource",
     "AuthFormElement",
     "GraphElement",
+    "HTMLElement",
     "LocalBaserowTableDataSync",
     "LocalBaserowPasswordAppAuthProvider",
     "SamlAppAuthProviderModel",

@@ -441,3 +441,29 @@ export class DateDependencyPaidFeature extends PaidFeature {
     return this.app.$i18n.t('enterpriseFeatures.dateDependencyContent')
   }
 }
+
+export class BuilderHTMLElementPaidFeature extends PaidFeature {
+  static getType() {
+    return 'builder_html_element'
+  }
+
+  getPlan() {
+    return 'Enterprise'
+  }
+
+  getIconClass() {
+    return 'iconoir-code-brackets'
+  }
+
+  getName() {
+    return this.app.$i18n.t('elementType.html')
+  }
+
+  getImage() {
+    return null
+  }
+
+  getContent() {
+    return this.app.$i18n.t('elementType.htmlDescription')
+  }
+}

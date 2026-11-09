@@ -6,6 +6,9 @@ import AuthFormElement from '@baserow_enterprise/builder/components/elements/Aut
 import AuthFormElementForm from '@baserow_enterprise/builder/components/elements/AuthFormElementForm'
 import FileInputElement from '@baserow_enterprise/builder/components/elements/FileInputElement'
 import FileInputElementForm from '@baserow_enterprise/builder/components/elements/FileInputElementForm'
+import HTMLElementComponent from '@baserow_enterprise/builder/components/elements/HTMLElement'
+import HTMLElementForm from '@baserow_enterprise/builder/components/elements/HTMLElementForm'
+import htmlElementImage from '@baserow_enterprise/assets/images/builder/element-html.svg?url'
 import GraphElement from '@baserow_enterprise/builder/components/elements/GraphElement'
 import GraphElementForm from '@baserow_enterprise/builder/components/elements/GraphElementForm'
 import { uuid } from '@baserow/modules/core/utils/string'
@@ -17,6 +20,7 @@ import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import {
   BuilderFileInputElementPaidFeature,
   BuilderGraphElementPaidFeature,
+  BuilderHTMLElementPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
 
 import { AfterLoginEvent } from '@baserow/modules/builder/eventTypes'
@@ -365,6 +369,69 @@ export class GraphElementType extends ElementType {
         PaidFeaturesModal,
         {
           'initial-selected-type': BuilderGraphElementPaidFeature.getType(),
+        },
+      ]
+    }
+    return null
+  }
+}
+
+export class HTMLElementType extends ElementType {
+  static getType() {
+    return 'html'
+  }
+
+  get name() {
+    return this.app.$i18n.t('elementType.html')
+  }
+
+  get description() {
+    return this.app.$i18n.t('elementType.htmlDescription')
+  }
+
+  get iconClass() {
+    return 'iconoir-code-brackets'
+  }
+
+  get image() {
+    return htmlElementImage
+  }
+
+  get component() {
+    return HTMLElementComponent
+  }
+
+  get generalFormComponent() {
+    return HTMLElementForm
+  }
+
+  isDeactivatedReason({ workspace }) {
+    if (!workspace) {
+      return null
+    }
+    if (
+      !this.app.$hasFeature(
+        EnterpriseFeaturesObject.BUILDER_HTML_ELEMENT,
+        workspace.id
+      )
+    ) {
+      return this.app.$i18n.t('enterprise.deactivated')
+    }
+    return super.isDeactivatedReason({ workspace })
+  }
+
+  getDeactivatedClickModal({ workspace }) {
+    if (
+      workspace &&
+      !this.app.$hasFeature(
+        EnterpriseFeaturesObject.BUILDER_HTML_ELEMENT,
+        workspace.id
+      )
+    ) {
+      return [
+        PaidFeaturesModal,
+        {
+          'initial-selected-type': BuilderHTMLElementPaidFeature.getType(),
         },
       ]
     }
