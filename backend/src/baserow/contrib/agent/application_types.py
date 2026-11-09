@@ -16,6 +16,7 @@ from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
 from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.models import Workspace
 from baserow.core.registries import ApplicationType, ImportExportConfig
 from baserow.core.storage import ExportZipFile
@@ -145,6 +146,15 @@ class AgentApplicationType(ApplicationType):
             provider_type=application.provider_type,
             model_identifier=application.model_identifier,
             allowed_tools=AgentHandler().get_allowed_tool_names(application),
+            integrations=[
+                IntegrationHandler().export_integration(
+                    integration,
+                    import_export_config=import_export_config,
+                    files_zip=files_zip,
+                    storage=storage,
+                )
+                for integration in IntegrationHandler().get_integrations(application)
+            ],
         )
         # Identity ids are local references, not portable configuration.
         if (
@@ -174,6 +184,8 @@ class AgentApplicationType(ApplicationType):
     ) -> AgentApplication:
         """Import the configuration and any copied conversations as one new Agent."""
 
+        serialized_integrations = serialized_values.pop("integrations", [])
+        id_mapping.setdefault("integrations", {})
         application = super().import_serialized(
             workspace,
             serialized_values,
@@ -201,6 +213,15 @@ class AgentApplicationType(ApplicationType):
             if application.run_as_subject_type and application.run_as_subject_id
             else [],
         )
+        for serialized_integration in serialized_integrations:
+            IntegrationHandler().import_integration(
+                application,
+                serialized_integration,
+                id_mapping,
+                files_zip=files_zip,
+                storage=storage,
+                import_export_config=import_export_config,
+            )
         if self._includes_conversations(import_export_config):
             AgentHandler().import_conversations(
                 application, serialized_values.get("conversations", [])

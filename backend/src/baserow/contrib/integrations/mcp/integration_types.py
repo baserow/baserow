@@ -31,6 +31,23 @@ class MCPServerToolSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+# The stored tools with the editor's choices, so a copied Agent keeps them. A
+# tool the server changed since is still turned off on its first use.
+EXPORTED_TOOL_FIELDS = (
+    "name",
+    "title",
+    "description",
+    "input_schema",
+    "annotations",
+    "definition_hash",
+    "enabled",
+    "changes_data",
+    "changed_since_review",
+    "removed",
+    "order",
+)
+
+
 class MCPServerIntegrationType(IntegrationType):
     type = "mcp_server"
     model_class = MCPServerIntegration
@@ -44,6 +61,7 @@ class MCPServerIntegrationType(IntegrationType):
         oauth_client_id: str
         oauth_client_secret: str
         oauth_client_source: str
+        tools: list[dict]
 
     serializer_field_names = [
         "url",
@@ -170,6 +188,11 @@ class MCPServerIntegrationType(IntegrationType):
             return ""
         if prop_name == "oauth_client_secret" and not manual:
             return ""
+        if prop_name == "tools":
+            return [
+                {name: getattr(tool, name) for name in EXPORTED_TOOL_FIELDS}
+                for tool in integration.tools.all()
+            ]
         return super().serialize_property(
             integration,
             prop_name,
@@ -196,7 +219,8 @@ class MCPServerIntegrationType(IntegrationType):
         serialized_values.setdefault("auth_type", MCPAuthType.HEADER)
         serialized_values.setdefault("oauth_client_id", "")
         serialized_values.setdefault("oauth_client_source", "")
-        return super().import_serialized(
+        tools = serialized_values.pop("tools", None) or []
+        integration = super().import_serialized(
             application,
             serialized_values,
             id_mapping,
@@ -205,3 +229,11 @@ class MCPServerIntegrationType(IntegrationType):
             storage=storage,
             cache=cache,
         )
+        MCPServerTool.objects.bulk_create(
+            MCPServerTool(
+                integration=integration,
+                **{name: tool[name] for name in EXPORTED_TOOL_FIELDS if name in tool},
+            )
+            for tool in tools
+        )
+        return integration

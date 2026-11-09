@@ -11,6 +11,7 @@ from baserow.contrib.agent.models import (
     AgentConversation,
     AgentMessage,
 )
+from baserow.contrib.integrations.mcp.models import MCPServerIntegration, MCPServerTool
 from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.handler import CoreHandler
 from baserow.core.job_types import DuplicateApplicationJobType
@@ -417,3 +418,67 @@ def test_old_conversation_payloads_without_steps_still_import(
     )
 
     assert AgentMessage.objects.get(conversation__agent=copied).steps is None
+
+
+@pytest.mark.django_db
+def test_copies_keep_mcp_servers_and_their_tool_choices(data_fixture):
+    user = data_fixture.create_user()
+    server = data_fixture.create_mcp_server_integration(
+        user=user,
+        auth_header_name="Authorization",
+        auth_header_value="Bearer s3cr3t-value",
+    )
+    agent = server.application.specific
+    MCPServerTool.objects.bulk_create(
+        [
+            MCPServerTool(
+                integration=server,
+                name="search",
+                definition_hash="a" * 64,
+                enabled=True,
+                changes_data=False,
+                order=0,
+            ),
+            MCPServerTool(
+                integration=server, name="delete", definition_hash="b" * 64, order=1
+            ),
+        ]
+    )
+
+    duplicate = CoreHandler().duplicate_application(user, agent).specific
+    portable = AgentApplicationType().export_serialized(
+        agent, ImportExportConfig(include_permission_data=False)
+    )
+    imported = AgentApplicationType().import_serialized(
+        data_fixture.create_workspace(user=user),
+        json.loads(json.dumps(portable)),
+        ImportExportConfig(include_permission_data=False),
+        {},
+    )
+
+    # A duplicate keeps the key; a portable export leaves it out.
+    for copy, key in ((duplicate, "Bearer s3cr3t-value"), (imported, "")):
+        copied = MCPServerIntegration.objects.get(application=copy)
+        assert copied.url == server.url
+        assert copied.auth_header_value == key
+        assert list(
+            copied.tools.values_list(
+                "name", "enabled", "changes_data", "definition_hash"
+            )
+        ) == [("search", True, False, "a" * 64), ("delete", False, True, "b" * 64)]
+    assert MCPServerTool.objects.filter(integration=server).count() == 2
+
+
+@pytest.mark.django_db
+def test_exports_without_sensitive_data_leave_out_the_mcp_key(data_fixture):
+    server = data_fixture.create_mcp_server_integration(
+        auth_header_name="Authorization", auth_header_value="Bearer s3cr3t-value"
+    )
+
+    exported = AgentApplicationType().export_serialized(
+        server.application.specific,
+        ImportExportConfig(include_permission_data=False, exclude_sensitive_data=True),
+    )
+
+    assert exported["integrations"][0]["url"] == server.url
+    assert "s3cr3t-value" not in json.dumps(exported)
