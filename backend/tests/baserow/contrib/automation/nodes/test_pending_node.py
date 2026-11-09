@@ -794,6 +794,90 @@ def test_a_waiting_run_whose_workflow_was_deleted_is_cancelled(
     mock_chain.assert_not_called()
 
 
+def _pause_from_the_live_switch(data_fixture, user, original, clone):
+    AutomationWorkflowHandler().update_workflow(original, state=WorkflowState.PAUSED)
+    return WorkflowState.PAUSED
+
+
+def _disable_after_too_many_errors(data_fixture, user, original, clone):
+    AutomationWorkflowHandler().disable_workflow(clone)
+    return WorkflowState.DISABLED
+
+
+def _replace_by_a_republish(data_fixture, user, original, clone):
+    # The new version's clone; the cleanup keeps the old one (it has history)
+    # and disables it.
+    latest = data_fixture.create_automation_workflow(user, state=WorkflowState.LIVE)
+    latest.automation.published_from = original
+    latest.automation.save(update_fields=["published_from"])
+    AutomationWorkflowHandler().clean_up_previously_published_automations(original)
+    return WorkflowState.DISABLED
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "switch_off",
+    [
+        _pause_from_the_live_switch,
+        _disable_after_too_many_errors,
+        _replace_by_a_republish,
+    ],
+    ids=["paused", "disabled", "republished"],
+)
+@patch(f"{HTTP_NODE_TYPE_PATH}.resume_dispatch")
+def test_a_waiting_run_finishes_after_its_workflow_is_switched_off(
+    mock_resume_dispatch, data_fixture, switch_off
+):
+    """
+    Pausing, disabling and republishing a workflow only stop new runs: a run that
+    already started finishes, whether its current node is working or waiting
+    (decided in review, R8). The Live switch is therefore not an emergency stop;
+    "Stop run" on the waiting run is.
+    """
+
+    user = data_fixture.create_user()
+    original = data_fixture.create_automation_workflow(user)
+    data = create_pending_workflow(data_fixture, user=user)
+    clone = data["workflow"]
+    clone.state = WorkflowState.LIVE
+    clone.save(update_fields=["state"])
+    clone.automation.published_from = original
+    clone.automation.save(update_fields=["published_from"])
+    workflow_history = data["workflow_history"]
+    workflow_history.original_workflow = original
+    workflow_history.save(update_fields=["original_workflow"])
+    node_history = suspend_node(data, seconds=5)
+    # The switch is a new request: nothing cached by the dispatch above.
+    local_cache.clear()
+
+    expected_state = switch_off(data_fixture, user, original, clone)
+    # A new task starts with an empty local cache.
+    local_cache.clear()
+
+    clone.refresh_from_db()
+    assert clone.state == expected_state
+
+    mock_resume_dispatch.return_value = DispatchResult(
+        data={"seconds": 5, "resumed_at": "2026-10-30T12:00:05+00:00"}
+    )
+    with (
+        freeze_time("2026-10-30 12:00:05"),
+        patch.object(
+            resume_pending_node_celery_task, "replace", side_effect=lambda sig: sig
+        ),
+    ):
+        result = resume_pending_node_celery_task.run(node_history.id)
+
+    # The node resumes and the run goes on to the next node.
+    mock_resume_dispatch.assert_called_once()
+    assert_dispatches_next_node(result, data["next_node"], workflow_history)
+
+    node_history.refresh_from_db()
+    assert node_history.status == HistoryStatusChoices.SUCCESS
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.STARTED
+
+
 @pytest.mark.django_db
 @patch(f"{NODE_HANDLER_PATH}.logger")
 @patch(f"{HTTP_NODE_TYPE_PATH}.resume_dispatch", side_effect=ValueError("Clock broken"))
