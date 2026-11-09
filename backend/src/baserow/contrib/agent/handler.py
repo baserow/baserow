@@ -6,6 +6,7 @@ from django.db import DEFAULT_DB_ALIAS, IntegrityError, transaction
 from django.db.models import Prefetch, QuerySet
 from django.utils.dateparse import parse_datetime
 
+from loguru import logger
 from pydantic_ai import WebSearchTool
 
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
@@ -61,7 +62,7 @@ class AgentHandler:
     configuration_fields = ["instructions", "provider_type", "model_identifier"]
     conversation_fields = ["title"]
     run_as_fields = ["run_as_subject_type", "run_as_subject_id"]
-    option_fields = ["web_search_enabled"]
+    option_fields = ["web_search_enabled", "reasoning_effort"]
 
     def get_agent(self, agent_id: int, for_update: bool = False) -> AgentApplication:
         """
@@ -113,6 +114,10 @@ class AgentHandler:
             instructions=agent.instructions,
             provider_type=agent.provider_type,
             model_identifier=agent.model_identifier,
+            reasoning_effort=agent.reasoning_effort,
+            applied_reasoning_effort=(
+                None if errors else self.get_applied_reasoning_effort(agent)
+            ),
             run_as=run_as,
             allowed_tools=allowed_tools,
             web_search_enabled=agent.web_search_enabled,
@@ -121,6 +126,36 @@ class AgentHandler:
             and with_tools
             and self._get_web_search_tool(agent, False) is not None,
             errors=errors,
+        )
+
+    def get_applied_reasoning_effort(self, agent: AgentApplication) -> str | None:
+        """
+        Find the reasoning effort replies use with the Agent's model, which can
+        differ from the chosen one when the model doesn't accept it.
+
+        :param agent: An Agent with an available provider and model.
+        :return: The effort replies send, or None when they use the model's
+            default.
+        """
+
+        if not agent.reasoning_effort:
+            return None
+        model_type = generative_ai_model_type_registry.get(agent.provider_type)
+        try:
+            settings_override = model_type.get_model_settings_override(
+                agent.model_identifier, agent.workspace
+            )
+            model = model_type.get_ai_model(
+                agent.model_identifier, agent.workspace, settings_override
+            )
+        except Exception as exc:
+            # Each provider raises its own error for incomplete settings.
+            logger.warning(
+                "Agent {} model could not be built ({})", agent.id, type(exc).__name__
+            )
+            return None
+        return model_type.get_reasoning_effort(
+            agent.model_identifier, model, agent.reasoning_effort
         )
 
     def _get_web_search_tool(
@@ -333,7 +368,7 @@ class AgentHandler:
         }
         changed_fields = []
         for field, value in values.items():
-            if field in ("provider_type", "model_identifier"):
+            if field in ("provider_type", "model_identifier", "reasoning_effort"):
                 value = (value or "").strip() or None
             if getattr(agent, field) != value:
                 setattr(agent, field, value)
@@ -771,6 +806,7 @@ class AgentHandler:
             acting_subject=acting_subject,
             allowed_tool_names=allowed_tool_names,
             timezone=conversation.owner_user.profile.timezone,
+            reasoning_effort=agent.reasoning_effort,
             web_search_tool=web_search_tool,
             web_search_enabled=agent.web_search_enabled,
         )

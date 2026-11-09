@@ -30,6 +30,8 @@ class AgentConfiguration:
     instructions: str
     provider_type: str | None
     model_identifier: str | None
+    reasoning_effort: str | None
+    applied_reasoning_effort: str | None
     run_as: AgentRunAsResolution
     allowed_tools: list[str]
     web_search_enabled: bool
@@ -82,6 +84,8 @@ class AgentReplyRequest:
     """The tools the reply may call, none without an identity to act as."""
     timezone: str | None = None
     """The timezone of the owner, for the dates the tools read and write."""
+    reasoning_effort: str | None = None
+    """How much the model reasons, or None for its default."""
     web_search_tool: WebSearchTool | None = None
     """The provider's web search, when it's turned on and the model has one."""
     web_search_enabled: bool = False

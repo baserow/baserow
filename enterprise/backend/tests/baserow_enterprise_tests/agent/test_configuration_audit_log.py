@@ -29,6 +29,7 @@ def test_configuration_audit_log_persists_full_before_and_after_snapshots(
         "instructions": agent.instructions,
         "provider_type": agent.provider_type,
         "model_identifier": agent.model_identifier,
+        "reasoning_effort": agent.reasoning_effort,
         "run_as_subject_type": None,
         "run_as_subject_id": None,
         "allowed_tools": [],

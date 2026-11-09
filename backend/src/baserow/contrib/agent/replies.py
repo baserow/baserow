@@ -107,15 +107,21 @@ def create_reply_model(request: AgentReplyRequest) -> tuple[Model, dict]:
     """
 
     model_type = generative_ai_model_type_registry.get(request.provider_type)
-    model_settings = model_type.sanitize_model_settings(
-        request.model_identifier,
-        model_type.prepare_model_settings(request.model_identifier),
-    )
     settings_override = model_type.get_model_settings_override(
         request.model_identifier, request.workspace
     )
     model = model_type.get_ai_model(
         request.model_identifier, request.workspace, settings_override
+    )
+    model_settings = model_type.prepare_model_settings(request.model_identifier)
+    thinking = model_type.get_thinking_level(
+        request.model_identifier, model, request.reasoning_effort
+    )
+    if thinking is not None:
+        model_settings["thinking"] = thinking
+    # The provider removes what this model cannot accept, thinking included.
+    model_settings = model_type.sanitize_model_settings(
+        request.model_identifier, model_settings
     )
     return model, model_settings
 
