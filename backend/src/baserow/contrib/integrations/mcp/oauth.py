@@ -171,7 +171,10 @@ async def _discover(server_url: str) -> OAuthServer:
 
     async with create_mcp_http_client() as client:
         try:
-            probe = await client.post(
+            # Only the status and headers are read: a server that lets anyone
+            # initialize may answer with an event stream that stays open.
+            async with client.stream(
+                "POST",
                 server_url,
                 json={
                     "jsonrpc": "2.0",
@@ -184,7 +187,8 @@ async def _discover(server_url: str) -> OAuthServer:
                     },
                 },
                 headers={"Accept": "application/json, text/event-stream"},
-            )
+            ) as probe:
+                pass
         except httpx.HTTPError as exc:
             raise MCPOAuthFailed("The MCP server could not be reached.") from exc
 

@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import hashlib
 import json
@@ -49,6 +50,12 @@ def serve(mocker, server: FastMCP) -> list:
     return opened
 
 
+class _EndlessEvents(httpx.AsyncByteStream):
+    async def __aiter__(self):
+        yield b"event: message\ndata: {}\n\n"
+        await asyncio.sleep(3600)
+
+
 class FakeAuthorizationServer:
     """
     An MCP server that asks for OAuth, its resource metadata, and the
@@ -74,6 +81,8 @@ class FakeAuthorizationServer:
         self.confidential = False
         # Named in the 401 but can't be reached; discovery has other candidates.
         self.unreachable_metadata_url = None
+        # Answers `initialize` without sign-in, with a stream that stays open.
+        self.anonymous_initialize = False
 
     def authorize(self, authorization_url: str) -> str:
         """Approve like the user would, and return the code."""
@@ -111,6 +120,12 @@ class FakeAuthorizationServer:
     def handle(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
         url = str(request.url)
+        if url == self.SERVER_URL and self.anonymous_initialize:
+            return httpx.Response(
+                200,
+                headers={"Content-Type": "text/event-stream"},
+                stream=_EndlessEvents(),
+            )
         if url == self.SERVER_URL:
             hint = (
                 self.unreachable_metadata_url

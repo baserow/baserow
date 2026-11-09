@@ -558,3 +558,18 @@ def test_an_unreachable_metadata_url_falls_back_to_the_next(
     response = start(api_client, token, integration)
 
     assert response.status_code == 200, response.json()
+
+
+@pytest.mark.django_db
+def test_a_server_that_streams_its_initialize_answer_is_still_discovered(
+    data_fixture, api_client, mocker
+):
+    fake = serve_oauth(mocker, FakeAuthorizationServer())
+    fake.anonymous_initialize = True
+    mocker.patch("baserow.contrib.integrations.mcp.oauth.OAUTH_REQUEST_DEADLINE", 2)
+    user, token = data_fixture.create_user_and_token()
+    integration = oauth_server(data_fixture, user)
+
+    response = start(api_client, token, integration)
+
+    assert response.status_code == 200, response.json()
