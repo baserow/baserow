@@ -41,9 +41,20 @@ export const API_ERROR_CODE = Object.freeze({
   AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST:
     'ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST',
   MCP_SERVER_UNREACHABLE: 'ERROR_MCP_SERVER_UNREACHABLE',
+  MCP_SERVER_NOT_CONNECTED: 'ERROR_MCP_SERVER_NOT_CONNECTED',
+  MCP_OAUTH_FAILED: 'ERROR_MCP_OAUTH_FAILED',
 })
 
 export const MCP_SERVER_INTEGRATION_TYPE = 'mcp_server'
+
+export const MCP_AUTH_TYPE = Object.freeze({
+  NONE: 'none',
+  HEADER: 'header',
+  OAUTH: 'oauth',
+})
+
+// The message the OAuth callback page sends to the window that opened it.
+export const MCP_OAUTH_MESSAGE_TYPE = 'baserow-mcp-oauth'
 
 export const AGENT_REPLY_ERROR_CODE = Object.freeze({
   NOT_READY: 'not_ready',

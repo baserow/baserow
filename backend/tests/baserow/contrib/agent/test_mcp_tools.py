@@ -177,3 +177,24 @@ def test_an_unreachable_server_fails_the_call_not_the_reply(
     reply = AgentMessage.objects.get(id=created.reply.id)
     assert (reply.status, reply.content) == ("completed", "Done.")
     assert "could not be reached" in returned[0]["error"]
+
+
+@pytest.mark.django_db
+def test_a_server_without_a_connected_account_offers_no_tools(
+    data_fixture, configured_agent, mocker
+):
+    opened = serve(mocker, make_server())
+    user, agent, integration = agent_with_server(
+        data_fixture, configured_agent, ["add"]
+    )
+    # Switched to OAuth: tools stay reviewed, but nobody connected an account.
+    integration.auth_type = "oauth"
+    integration.save()
+    opened.clear()
+    offered, _ = reply_with(mocker, lambda info: [])
+
+    created = start(user, agent)
+    run_reply(ChatRun.objects.get(chat_id=created.conversation.id))
+
+    assert offered and all(tools == [] for tools in offered)
+    assert opened == []

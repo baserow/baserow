@@ -6,6 +6,8 @@ from django.db import DEFAULT_DB_ALIAS, IntegrityError, transaction
 from django.db.models import Prefetch, QuerySet
 from django.utils.dateparse import parse_datetime
 
+from baserow.contrib.integrations.mcp.exceptions import MCPServerNotConnected
+from baserow.contrib.integrations.mcp.handler import MCPServerHandler
 from baserow.contrib.integrations.mcp.models import (
     MCPServerIntegration,
     MCPServerTool,
@@ -753,11 +755,21 @@ class AgentHandler:
         servers = MCPServerIntegration.objects.filter(
             application_id=agent.id, trashed=False
         ).prefetch_related(enabled_tools)
-        return tuple(
-            MCPServerSnapshot.from_integration(server, server.enabled_tools)
-            for server in servers
-            if server.enabled_tools
-        )
+        snapshots = []
+        for server in servers:
+            if not server.enabled_tools:
+                continue
+            try:
+                # Refreshes an OAuth token that expires soon, before the reply
+                # starts, so the reply itself never writes to the database.
+                MCPServerHandler().get_connection(server)
+            except MCPServerNotConnected:
+                # Its tools can't be called until an editor connects again.
+                continue
+            snapshots.append(
+                MCPServerSnapshot.from_integration(server, server.enabled_tools)
+            )
+        return tuple(snapshots)
 
     def finish_reply(
         self,

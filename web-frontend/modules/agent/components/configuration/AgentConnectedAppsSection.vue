@@ -25,7 +25,7 @@
           <div class="agent-connected-apps__server-name">{{ server.name }}</div>
           <div class="agent-connected-apps__server-meta">
             <Icon
-              v-if="changedCount(server)"
+              v-if="changedCount(server) || needsAccount(server)"
               icon="iconoir-warning-triangle"
               type="warning"
               size="small"
@@ -34,6 +34,15 @@
           </div>
         </div>
         <ButtonText
+          v-if="needsAccount(server) && editable"
+          size="small"
+          :loading="connecting === server.id"
+          @click="connectServer(server)"
+        >
+          {{ $t('agent.connectedAppSignIn') }}
+        </ButtonText>
+        <ButtonText
+          v-else
           type="secondary"
           size="small"
           @click="toolsModal.show(server)"
@@ -62,6 +71,8 @@
       ref="serverModal"
       :save="saveServer"
       :remove="remove"
+      :connect="connect"
+      :disconnect="disconnect"
       @created="toolsModal.show($event)"
     />
     <AgentMCPToolsModal
@@ -77,10 +88,16 @@
 <script setup>
 import { inject, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useStore } from 'vuex'
 import ButtonText from '@baserow/modules/core/components/ButtonText'
 import ButtonIcon from '@baserow/modules/core/components/ButtonIcon'
 import Icon from '@baserow/modules/core/components/Icon'
-import { useAgentMCPServers } from '@baserow/modules/agent/composables/useAgentMCPServers'
+import {
+  MCPSignInError,
+  openSignInPopup,
+  useAgentMCPServers,
+} from '@baserow/modules/agent/composables/useAgentMCPServers'
+import { MCP_AUTH_TYPE } from '@baserow/modules/agent/constants'
 import AgentMCPServerModal from '@baserow/modules/agent/components/configuration/AgentMCPServerModal'
 import AgentMCPToolsModal from '@baserow/modules/agent/components/configuration/AgentMCPToolsModal'
 
@@ -88,7 +105,9 @@ import AgentMCPToolsModal from '@baserow/modules/agent/components/configuration/
 defineOptions({ inheritAttrs: false })
 defineProps({ editable: Boolean })
 const { t } = useI18n()
+const store = useStore()
 const agent = inject('agentApplication')
+const connecting = ref(null)
 const serverModal = ref(null)
 const toolsModal = ref(null)
 const {
@@ -101,6 +120,8 @@ const {
   remove,
   refreshTools,
   updateTools,
+  connect,
+  disconnect,
 } = useAgentMCPServers(agent)
 
 onMounted(load)
@@ -108,7 +129,11 @@ onMounted(load)
 const changedCount = (server) =>
   server.tools.filter((tool) => tool.changed_since_review).length
 
+const needsAccount = (server) =>
+  server.auth_type === MCP_AUTH_TYPE.OAUTH && !server.oauth_connected
+
 function summary(server) {
+  if (needsAccount(server)) return t('agent.connectedAppNotConnected')
   const changed = changedCount(server)
   if (changed)
     return t('agent.connectedAppChanged', { count: changed }, changed)
@@ -120,15 +145,40 @@ function summary(server) {
   })
 }
 
-/** Creating a server lists its tools straight away, so they can be reviewed. */
+/**
+ * Creating a server lists its tools straight away, so they can be reviewed. A
+ * server using OAuth lists them once an account is connected.
+ */
 async function saveServer(server, values) {
   if (server) return await update(server, values)
   const created = await create(values)
+  if (created.auth_type === MCP_AUTH_TYPE.OAUTH) return created
   try {
     return await refreshTools(created)
   } catch {
     // The tools modal shows the error and can try again.
     return created
+  }
+}
+
+async function connectServer(server) {
+  const popup = openSignInPopup()
+  connecting.value = server.id
+  try {
+    toolsModal.value.show(await connect(server, popup))
+  } catch (error) {
+    popup?.close()
+    if (error instanceof MCPSignInError) {
+      store.dispatch('toast/error', {
+        title: t('agent.connectedAppSignInFailedTitle'),
+        message: error.reason || t('agent.connectedAppSignInFailed'),
+      })
+    } else {
+      error.handler?.notifyIf()
+      if (!error.handler) throw error
+    }
+  } finally {
+    connecting.value = null
   }
 }
 </script>

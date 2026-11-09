@@ -120,7 +120,7 @@ def test_refresh_and_review_tools_through_the_api(data_fixture, api_client, mock
     integration = data_fixture.create_mcp_server_integration(
         user=user,
         auth_header_name="Authorization",
-        auth_header_value="Bearer secret",
+        auth_header_value="Bearer s3cr3t-value",
     )
     headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
 
@@ -130,7 +130,7 @@ def test_refresh_and_review_tools_through_the_api(data_fixture, api_client, mock
 
     assert response.status_code == 200, response.json()
     body = response.json()
-    assert "secret" not in str(body)
+    assert "s3cr3t-value" not in str(body)
     assert body["has_auth_header_value"] is True
     assert [tool["name"] for tool in body["tools"]] == ["add", "fail"]
 

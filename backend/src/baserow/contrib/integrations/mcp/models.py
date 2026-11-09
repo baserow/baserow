@@ -1,10 +1,30 @@
+from django.conf import settings
 from django.db import models
 
 from baserow.core.integrations.models import Integration
 
 
+class MCPAuthType(models.TextChoices):
+    NONE = "none"
+    HEADER = "header"
+    OAUTH = "oauth"
+
+
+class MCPOAuthClientSource(models.TextChoices):
+    # The editor registered Baserow with the authorization server themselves.
+    MANUAL = "manual"
+    # Baserow registered itself through dynamic client registration.
+    DYNAMIC = "dynamic"
+    # The client id is Baserow's client metadata document URL.
+    METADATA_DOCUMENT = "metadata_document"
+
+
 class MCPServerIntegration(Integration):
-    """A remote MCP server reached over Streamable HTTP."""
+    """
+    A remote MCP server reached over Streamable HTTP. It authenticates with a
+    static header, or with OAuth: one account connected by an editor and used by
+    every conversation with the Agent.
+    """
 
     url = models.URLField(
         max_length=2000,
@@ -23,6 +43,54 @@ class MCPServerIntegration(Integration):
         db_default="",
         help_text="The credential sent in the auth header, e.g. Bearer <token>.",
     )
+    auth_type = models.CharField(
+        max_length=16,
+        choices=MCPAuthType.choices,
+        default=MCPAuthType.HEADER,
+        db_default=MCPAuthType.HEADER,
+    )
+    oauth_client_id = models.CharField(
+        max_length=2000,
+        blank=True,
+        default="",
+        db_default="",
+        help_text="The OAuth client id, entered by an editor or registered by Baserow.",
+    )
+    oauth_client_secret = models.TextField(
+        blank=True, default="", db_default="", help_text="The OAuth client secret."
+    )
+    oauth_client_source = models.CharField(
+        max_length=32,
+        choices=MCPOAuthClientSource.choices,
+        blank=True,
+        default="",
+        db_default="",
+    )
+    # What discovery found: issuer, token endpoint, how to authenticate to it,
+    # the resource indicator and the scope. Kept to refresh tokens later.
+    oauth_server = models.JSONField(default=dict, db_default={})
+    oauth_access_token = models.TextField(blank=True, default="", db_default="")
+    oauth_refresh_token = models.TextField(blank=True, default="", db_default="")
+    oauth_expires_at = models.DateTimeField(null=True, blank=True)
+    oauth_connected_at = models.DateTimeField(null=True, blank=True)
+    oauth_connected_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+
+    @property
+    def oauth_connected(self) -> bool:
+        return bool(self.oauth_access_token)
+
+    def clear_oauth_tokens(self):
+        self.oauth_access_token = ""
+        self.oauth_refresh_token = ""
+        self.oauth_expires_at = None
+        self.oauth_connected_at = None
+        self.oauth_connected_by = None
 
 
 class MCPServerTool(models.Model):

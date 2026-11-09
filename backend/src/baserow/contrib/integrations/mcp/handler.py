@@ -1,13 +1,34 @@
+import secrets
 from dataclasses import dataclass
+from datetime import timedelta
 
+from django.contrib.auth.models import AbstractUser
+from django.core.cache import cache
 from django.db import transaction
+from django.utils import timezone
 
 from asgiref.sync import async_to_sync
 from loguru import logger
+from mcp.shared.auth import OAuthToken
 
+from . import oauth
 from .client import MCPServerConnection, MCPToolDefinition, fetch_tools
-from .exceptions import MCPServerUnreachable
-from .models import MCPServerIntegration, MCPServerTool
+from .exceptions import (
+    MCPOAuthFailed,
+    MCPOAuthStateInvalid,
+    MCPServerNotConnected,
+    MCPServerUnreachable,
+)
+from .models import (
+    MCPAuthType,
+    MCPOAuthClientSource,
+    MCPServerIntegration,
+    MCPServerTool,
+)
+
+# How long an editor has to finish signing in with the MCP server's provider.
+OAUTH_STATE_TIMEOUT_SECONDS = 600
+OAUTH_STATE_CACHE_KEY = "mcp_oauth_state:{}"
 
 
 @dataclass(frozen=True)
@@ -26,14 +47,14 @@ class MCPServerHandler:
         server may take a while to answer.
 
         :param integration: The server.
+        :raises MCPServerNotConnected: When it uses OAuth and isn't connected.
         :raises MCPServerUnreachable: When the server can't be reached or fails.
         :return: The tools the server lists.
         """
 
+        connection = self.get_connection(integration)
         try:
-            return async_to_sync(fetch_tools)(
-                MCPServerConnection.from_integration(integration)
-            )
+            return async_to_sync(fetch_tools)(connection)
         except Exception as exc:
             logger.info(
                 "MCP server {} tools could not be listed ({})",
@@ -155,3 +176,202 @@ class MCPServerHandler:
         self, integration: MCPServerIntegration
     ) -> list[MCPServerTool]:
         return list(integration.tools.filter(enabled=True, removed=False))
+
+    def get_connection(self, integration: MCPServerIntegration) -> MCPServerConnection:
+        """
+        The connection with a valid credential, refreshing an OAuth token that
+        expires soon.
+
+        :raises MCPServerNotConnected: When it uses OAuth and no account is
+            connected, or the token can't be refreshed.
+        """
+
+        if integration.auth_type == MCPAuthType.OAUTH:
+            if not integration.oauth_connected:
+                raise MCPServerNotConnected()
+            if oauth.expires_soon(integration.oauth_expires_at):
+                self.refresh_oauth_token(integration)
+        return MCPServerConnection.from_integration(integration)
+
+    def refresh_oauth_token(self, integration: MCPServerIntegration) -> None:
+        """
+        Refresh the access token, once even when replies start at the same
+        time: providers that rotate refresh tokens accept each one only once.
+        The integration is updated in place.
+
+        :raises MCPServerNotConnected: When the provider refuses, so an editor
+            has to connect again.
+        """
+
+        failure = None
+        with transaction.atomic():
+            locked = MCPServerIntegration.objects.select_for_update().get(
+                id=integration.id
+            )
+            if locked.oauth_connected and not oauth.expires_soon(
+                locked.oauth_expires_at
+            ):
+                # Another reply refreshed it while this one waited for the lock.
+                self._copy_tokens(locked, integration)
+                return
+            if not locked.oauth_refresh_token:
+                raise MCPServerNotConnected()
+            try:
+                token = async_to_sync(oauth.refresh)(
+                    oauth.OAuthServer.from_dict(locked.oauth_server),
+                    self._oauth_client(locked),
+                    locked.oauth_refresh_token,
+                )
+            except MCPOAuthFailed as exc:
+                logger.info(
+                    "MCP server {} token refresh failed: {}", locked.id, exc.message
+                )
+                # Committed, not rolled back: the account must be connected again.
+                locked.clear_oauth_tokens()
+                failure = exc
+            else:
+                self._store_token(locked, token)
+            locked.save()
+        self._copy_tokens(locked, integration)
+        if failure:
+            raise MCPServerNotConnected() from failure
+
+    def start_oauth(self, integration: MCPServerIntegration, user: AbstractUser) -> str:
+        """
+        Find the server's authorization server, get Baserow a client id there,
+        and return where to send the editor to sign in. Never call this inside
+        a transaction: it talks to the server.
+
+        :raises MCPOAuthFailed: When the server doesn't support OAuth sign-in or
+            Baserow can't register.
+        :return: The authorization URL.
+        """
+
+        server = async_to_sync(oauth.discover)(integration.url)
+        stored = integration.oauth_server or {}
+        if integration.oauth_client_source == MCPOAuthClientSource.MANUAL:
+            client = oauth.OAuthClient(
+                client_id=integration.oauth_client_id,
+                client_secret=integration.oauth_client_secret,
+                source=MCPOAuthClientSource.MANUAL,
+                auth_method=oauth.manual_client_auth_method(
+                    server, integration.oauth_client_secret
+                ),
+            )
+        elif (
+            integration.oauth_client_id
+            and stored.get("issuer") == server.issuer
+            and stored.get("client_auth_method")
+        ):
+            # Registered earlier with the same authorization server.
+            client = self._oauth_client(integration)
+        else:
+            client = async_to_sync(oauth.register)(server)
+
+        integration.oauth_server = {
+            **server.to_dict(),
+            "client_auth_method": client.auth_method,
+        }
+        integration.oauth_client_id = client.client_id
+        integration.oauth_client_secret = client.client_secret
+        integration.oauth_client_source = client.source
+        integration.save(
+            update_fields=[
+                "oauth_server",
+                "oauth_client_id",
+                "oauth_client_secret",
+                "oauth_client_source",
+            ]
+        )
+
+        state = secrets.token_urlsafe(32)
+        pending = oauth.build_authorization(server, client, state)
+        cache.set(
+            OAUTH_STATE_CACHE_KEY.format(state),
+            {
+                "integration_id": integration.id,
+                "user_id": user.id,
+                "code_verifier": pending.code_verifier,
+                "client_id": client.client_id,
+            },
+            OAUTH_STATE_TIMEOUT_SECONDS,
+        )
+        return pending.authorization_url
+
+    def pop_oauth_state(self, state: str) -> dict:
+        """
+        The authorization a callback belongs to. Each one can be used once.
+
+        :raises MCPOAuthStateInvalid: When it's unknown, used or expired.
+        """
+
+        key = OAUTH_STATE_CACHE_KEY.format(state)
+        pending = cache.get(key) if state else None
+        if not pending:
+            raise MCPOAuthStateInvalid()
+        cache.delete(key)
+        return pending
+
+    def complete_oauth(
+        self,
+        integration: MCPServerIntegration,
+        user: AbstractUser,
+        pending: dict,
+        code: str,
+    ) -> MCPServerIntegration:
+        """
+        Exchange the authorization code for tokens and store them.
+
+        :raises MCPOAuthStateInvalid: When the server's client changed since
+            the authorization started.
+        :raises MCPOAuthFailed: When the exchange fails.
+        """
+
+        if integration.oauth_client_id != pending["client_id"]:
+            raise MCPOAuthStateInvalid()
+        token = async_to_sync(oauth.exchange_code)(
+            oauth.OAuthServer.from_dict(integration.oauth_server),
+            self._oauth_client(integration),
+            code,
+            pending["code_verifier"],
+        )
+        self._store_token(integration, token)
+        integration.oauth_connected_at = timezone.now()
+        integration.oauth_connected_by = user
+        integration.save()
+        return integration
+
+    def disconnect_oauth(self, integration: MCPServerIntegration) -> None:
+        integration.clear_oauth_tokens()
+        integration.save()
+
+    def _oauth_client(self, integration: MCPServerIntegration) -> oauth.OAuthClient:
+        return oauth.OAuthClient(
+            client_id=integration.oauth_client_id,
+            client_secret=integration.oauth_client_secret,
+            source=integration.oauth_client_source,
+            auth_method=(integration.oauth_server or {}).get(
+                "client_auth_method", "none"
+            ),
+        )
+
+    def _store_token(self, integration: MCPServerIntegration, token: OAuthToken):
+        integration.oauth_access_token = token.access_token
+        # A refresh may not return a new refresh token; the old one stays valid.
+        if token.refresh_token:
+            integration.oauth_refresh_token = token.refresh_token
+        integration.oauth_expires_at = (
+            timezone.now() + timedelta(seconds=token.expires_in)
+            if token.expires_in
+            else None
+        )
+
+    def _copy_tokens(self, source, target):
+        for name in (
+            "oauth_access_token",
+            "oauth_refresh_token",
+            "oauth_expires_at",
+            "oauth_connected_at",
+            "oauth_connected_by_id",
+        ):
+            setattr(target, name, getattr(source, name))

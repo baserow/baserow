@@ -1,6 +1,13 @@
+import json
+
+from django.conf import settings
+from django.http import HttpResponse
+from django.utils.html import escape
+
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import serializers
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -11,7 +18,13 @@ from baserow.api.schemas import get_error_schema
 from baserow.core.integrations.exceptions import IntegrationDoesNotExist
 from baserow.core.integrations.registries import integration_type_registry
 
-from ..exceptions import MCPServerUnreachable
+from .. import oauth
+from ..exceptions import (
+    MCPOAuthFailed,
+    MCPOAuthStateInvalid,
+    MCPServerNotConnected,
+    MCPServerUnreachable,
+)
 from ..service import MCPServerService
 
 ERROR_MCP_SERVER_UNREACHABLE = (
@@ -19,6 +32,13 @@ ERROR_MCP_SERVER_UNREACHABLE = (
     400,
     "The MCP server could not be reached or failed to list its tools.",
 )
+
+ERROR_MCP_SERVER_NOT_CONNECTED = (
+    "ERROR_MCP_SERVER_NOT_CONNECTED",
+    400,
+    "The MCP server uses OAuth and no account is connected.",
+)
+ERROR_MCP_OAUTH_FAILED = ("ERROR_MCP_OAUTH_FAILED", 400, "{e.message}")
 
 INTEGRATION_ID_PARAMETER = OpenApiParameter(
     name="integration_id",
@@ -30,6 +50,8 @@ INTEGRATION_ID_PARAMETER = OpenApiParameter(
 EXCEPTIONS = {
     IntegrationDoesNotExist: ERROR_INTEGRATION_DOES_NOT_EXIST,
     MCPServerUnreachable: ERROR_MCP_SERVER_UNREACHABLE,
+    MCPServerNotConnected: ERROR_MCP_SERVER_NOT_CONNECTED,
+    MCPOAuthFailed: ERROR_MCP_OAUTH_FAILED,
 }
 
 
@@ -63,7 +85,9 @@ class MCPServerRefreshToolsView(APIView):
         request=None,
         responses={
             200: IntegrationSerializer,
-            400: get_error_schema(["ERROR_MCP_SERVER_UNREACHABLE"]),
+            400: get_error_schema(
+                ["ERROR_MCP_SERVER_UNREACHABLE", "ERROR_MCP_SERVER_NOT_CONNECTED"]
+            ),
             404: get_error_schema(["ERROR_INTEGRATION_DOES_NOT_EXIST"]),
         },
     )
@@ -95,3 +119,120 @@ class MCPServerToolsView(APIView):
         return _respond(
             MCPServerService().update_tools(request.user, integration_id, data["tools"])
         )
+
+
+class MCPServerOAuthStartSerializer(serializers.Serializer):
+    authorization_url = serializers.URLField()
+
+
+class MCPServerOAuthStartView(APIView):
+    @extend_schema(
+        parameters=[INTEGRATION_ID_PARAMETER],
+        tags=["Integrations"],
+        operation_id="start_mcp_server_oauth",
+        description=(
+            "Starts connecting an account to an MCP server that uses OAuth. Open "
+            "the returned URL in a popup: the provider redirects back to Baserow, "
+            "which stores the tokens and tells the opener with a message."
+        ),
+        request=None,
+        responses={
+            200: MCPServerOAuthStartSerializer,
+            400: get_error_schema(["ERROR_MCP_OAUTH_FAILED"]),
+            404: get_error_schema(["ERROR_INTEGRATION_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(EXCEPTIONS)
+    def post(self, request, integration_id: int):
+        url = MCPServerService().start_oauth(request.user, integration_id)
+        return Response({"authorization_url": url})
+
+
+class MCPServerOAuthDisconnectView(APIView):
+    @extend_schema(
+        parameters=[INTEGRATION_ID_PARAMETER],
+        tags=["Integrations"],
+        operation_id="disconnect_mcp_server_oauth",
+        description="Forgets the account connected to an MCP server.",
+        request=None,
+        responses={
+            200: IntegrationSerializer,
+            404: get_error_schema(["ERROR_INTEGRATION_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(EXCEPTIONS)
+    def post(self, request, integration_id: int):
+        return _respond(
+            MCPServerService().disconnect_oauth(request.user, integration_id)
+        )
+
+
+# Shown in the sign-in popup. It tells the Baserow page that opened it, and only
+# that origin, how the sign-in went, then closes.
+CALLBACK_PAGE = """<!doctype html>
+<html><head><meta charset="utf-8"><title>Baserow</title></head>
+<body style="font-family: sans-serif; padding: 24px">
+<p>{message}</p>
+<script>
+  if (window.opener) {{
+    window.opener.postMessage({payload}, {origin});
+    window.close();
+  }}
+</script>
+</body></html>"""
+
+
+class MCPServerOAuthCallbackView(APIView):
+    authentication_classes = []
+    permission_classes = (AllowAny,)
+
+    @extend_schema(exclude=True)
+    def get(self, request):
+        integration_id, error = None, None
+        if request.GET.get("error"):
+            error = "The sign-in was cancelled or refused."
+            # Still use up the state, so it can't be replayed.
+            try:
+                MCPServerService().complete_oauth(request.GET.get("state", ""), "")
+            except Exception:
+                pass
+        else:
+            try:
+                integration = MCPServerService().complete_oauth(
+                    request.GET.get("state", ""), request.GET.get("code", "")
+                )
+                integration_id = integration.id
+            except MCPOAuthFailed as exc:
+                error = exc.message
+            except (MCPOAuthStateInvalid, IntegrationDoesNotExist):
+                error = "This sign-in link has expired. Try connecting again."
+            except Exception:
+                error = "Connecting failed. Try again."
+
+        payload = {
+            "type": "baserow-mcp-oauth",
+            "integrationId": integration_id,
+            "error": error,
+        }
+        message = error or "Connected. You can close this window."
+        response = HttpResponse(
+            CALLBACK_PAGE.format(
+                message=escape(message),
+                payload=json.dumps(payload).replace("<", "\\u003c"),
+                origin=json.dumps(settings.PUBLIC_WEB_FRONTEND_URL.rstrip("/")),
+            ),
+            status=200 if not error else 400,
+        )
+        # Django's default same-origin policy would cut this page off from the
+        # Baserow page that opened it, so it couldn't send the result.
+        response["Cross-Origin-Opener-Policy"] = "unsafe-none"
+        return response
+
+
+class MCPClientMetadataView(APIView):
+    authentication_classes = []
+    permission_classes = (AllowAny,)
+
+    @extend_schema(exclude=True)
+    def get(self, request):
+        return Response(oauth.get_client_metadata())

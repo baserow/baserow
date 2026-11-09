@@ -26,8 +26,22 @@ class MCPServerConnection:
 
     @classmethod
     def from_integration(cls, integration) -> "MCPServerConnection":
+        """
+        The connection with the integration's credential. An OAuth token must
+        be refreshed first if needed, see `MCPServerHandler.get_connection`.
+        """
+
+        from .models import MCPAuthType
+
         headers = {}
-        if integration.auth_header_name and integration.auth_header_value:
+        if integration.auth_type == MCPAuthType.OAUTH:
+            if integration.oauth_access_token:
+                headers["Authorization"] = f"Bearer {integration.oauth_access_token}"
+        elif (
+            integration.auth_type == MCPAuthType.HEADER
+            and integration.auth_header_name
+            and integration.auth_header_value
+        ):
             headers[integration.auth_header_name] = integration.auth_header_value
         return cls(url=integration.url, headers=headers)
 

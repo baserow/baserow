@@ -39,33 +39,117 @@
         </FormGroup>
         <FormGroup
           class="margin-top-2"
-          :label="$t('agent.connectedAppHeaderName')"
-          :helper-text="$t('agent.connectedAppHeaderNameHelper')"
+          :label="$t('agent.connectedAppAuth')"
           small-label
+          required
         >
-          <FormInput
-            v-model="values.auth_header_name"
-            :maxlength="255"
-            placeholder="Authorization"
+          <SegmentControl
+            class="agent-connected-apps__auth"
+            :segments="authSegments"
+            :active-index="authIndex"
+            size="small"
+            @update:active-index="values.auth_type = AUTH_TYPES[$event]"
           />
         </FormGroup>
-        <FormGroup
-          class="margin-top-2"
-          :label="$t('agent.connectedAppHeaderValue')"
-          :helper-text="headerValueHelper"
-          :error="Boolean(errors.auth_header_value)"
-          :error-message="errors.auth_header_value"
-          small-label
-        >
-          <FormInput
-            v-model="values.auth_header_value"
-            type="password"
-            autocomplete="off"
-            :placeholder="
-              server?.has_auth_header_value ? '••••••••' : 'Bearer …'
-            "
-          />
-        </FormGroup>
+
+        <template v-if="values.auth_type === MCP_AUTH_TYPE.OAUTH">
+          <p class="agent-connected-apps__auth-help">
+            {{ $t('agent.connectedAppOAuthHelper') }}
+          </p>
+          <div v-if="server" class="agent-connected-apps__oauth-status">
+            <Badge
+              :color="server.oauth_connected ? 'green' : 'yellow'"
+              size="small"
+              indicator
+            >
+              {{
+                server.oauth_connected
+                  ? $t('agent.connectedAppConnected')
+                  : $t('agent.connectedAppNotConnected')
+              }}
+            </Badge>
+            <ButtonText
+              v-if="server.oauth_connected"
+              type="secondary"
+              size="small"
+              button-type="button"
+              :loading="disconnecting"
+              @click="disconnectAccount"
+            >
+              {{ $t('agent.connectedAppDisconnect') }}
+            </ButtonText>
+          </div>
+          <ButtonText
+            v-if="!showOwnClient"
+            class="margin-top-1"
+            size="small"
+            button-type="button"
+            @click="showOwnClient = true"
+          >
+            {{ $t('agent.connectedAppOwnClient') }}
+          </ButtonText>
+          <template v-else>
+            <FormGroup
+              class="margin-top-2"
+              :label="$t('agent.connectedAppClientId')"
+              :helper-text="$t('agent.connectedAppClientIdHelper')"
+              small-label
+            >
+              <FormInput v-model="values.oauth_client_id" :maxlength="2000" />
+            </FormGroup>
+            <FormGroup
+              class="margin-top-2"
+              :label="$t('agent.connectedAppClientSecret')"
+              :helper-text="clientSecretHelper"
+              :error="Boolean(errors.oauth_client_secret)"
+              :error-message="errors.oauth_client_secret"
+              small-label
+            >
+              <FormInput
+                v-model="values.oauth_client_secret"
+                type="password"
+                autocomplete="off"
+                :placeholder="server?.has_oauth_client_secret ? '••••••••' : ''"
+              />
+            </FormGroup>
+          </template>
+        </template>
+
+        <template v-else-if="values.auth_type === MCP_AUTH_TYPE.HEADER">
+          <FormGroup
+            class="margin-top-2"
+            :label="$t('agent.connectedAppHeaderName')"
+            small-label
+          >
+            <FormInput
+              v-model="values.auth_header_name"
+              :maxlength="255"
+              placeholder="Authorization"
+            />
+          </FormGroup>
+          <FormGroup
+            class="margin-top-2"
+            :label="$t('agent.connectedAppHeaderValue')"
+            :helper-text="headerValueHelper"
+            :error="Boolean(errors.auth_header_value)"
+            :error-message="errors.auth_header_value"
+            small-label
+          >
+            <FormInput
+              v-model="values.auth_header_value"
+              type="password"
+              autocomplete="off"
+              :placeholder="
+                server?.has_auth_header_value ? '••••••••' : 'Bearer …'
+              "
+            />
+          </FormGroup>
+        </template>
+
+        <p v-else class="agent-connected-apps__auth-help">
+          {{ $t('agent.connectedAppNoAuthHelper') }}
+        </p>
+
         <Alert v-if="error" class="margin-top-2" type="error">
           <template #title>{{ error.title }}</template>
           {{ error.message }}
@@ -96,7 +180,7 @@
             {{ $t('action.cancel') }}
           </Button>
           <Button type="primary" button-type="submit" :loading="saving">
-            {{ server ? $t('action.save') : $t('agent.connectedAppConnect') }}
+            {{ submitLabel }}
           </Button>
         </div>
       </form>
@@ -107,32 +191,60 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import SegmentControl from '@baserow/modules/core/components/SegmentControl'
+import ButtonText from '@baserow/modules/core/components/ButtonText'
+import { API_ERROR_CODE, MCP_AUTH_TYPE } from '@baserow/modules/agent/constants'
+import {
+  MCPSignInError,
+  openSignInPopup,
+} from '@baserow/modules/agent/composables/useAgentMCPServers'
 
 /**
- * Adds or edits an MCP server. The credential is write-only: an empty field
- * keeps the stored one, unless the URL or header changes, which the backend
- * only allows with the credential supplied again.
+ * Adds or edits an MCP server and how it authenticates: OAuth sign-in, a
+ * static header, or nothing. Credentials are write-only: an empty field keeps
+ * the stored one, unless the URL or the header or client it belongs to
+ * changes, which the backend only allows with the credential entered again.
  */
 const props = defineProps({
   save: { type: Function, required: true },
   remove: { type: Function, required: true },
+  connect: { type: Function, required: true },
+  disconnect: { type: Function, required: true },
 })
 const emit = defineEmits(['created'])
 const { t } = useI18n()
+
+const AUTH_TYPES = [
+  MCP_AUTH_TYPE.OAUTH,
+  MCP_AUTH_TYPE.HEADER,
+  MCP_AUTH_TYPE.NONE,
+]
 
 const modal = ref(null)
 const server = ref(null)
 const touched = ref(false)
 const saving = ref(false)
 const removing = ref(false)
+const disconnecting = ref(false)
 const confirmingRemove = ref(false)
+const showOwnClient = ref(false)
 const error = ref(null)
 const values = reactive({
   name: '',
   url: '',
+  auth_type: MCP_AUTH_TYPE.OAUTH,
   auth_header_name: '',
   auth_header_value: '',
+  oauth_client_id: '',
+  oauth_client_secret: '',
 })
+
+const authSegments = computed(() => [
+  { label: t('agent.connectedAppAuthOAuth') },
+  { label: t('agent.connectedAppAuthHeader') },
+  { label: t('agent.connectedAppAuthNone') },
+])
+const authIndex = computed(() => AUTH_TYPES.indexOf(values.auth_type))
 
 const validUrl = computed(() => {
   try {
@@ -141,11 +253,22 @@ const validUrl = computed(() => {
     return false
   }
 })
-const secretRequired = computed(
+const urlChanged = computed(
+  () => Boolean(server.value) && values.url.trim() !== server.value.url
+)
+const headerSecretRequired = computed(
   () =>
+    values.auth_type === MCP_AUTH_TYPE.HEADER &&
     Boolean(server.value?.has_auth_header_value) &&
-    (values.url.trim() !== server.value.url ||
+    (urlChanged.value ||
       values.auth_header_name.trim() !== server.value.auth_header_name)
+)
+const clientSecretRequired = computed(
+  () =>
+    values.auth_type === MCP_AUTH_TYPE.OAUTH &&
+    Boolean(server.value?.has_oauth_client_secret) &&
+    (urlChanged.value ||
+      values.oauth_client_id.trim() !== ownClientId(server.value))
 )
 const errors = computed(() => {
   if (!touched.value) return {}
@@ -153,26 +276,61 @@ const errors = computed(() => {
     name: values.name.trim() ? '' : t('error.requiredField'),
     url: validUrl.value ? '' : t('agent.connectedAppUrlInvalid'),
     auth_header_value:
-      secretRequired.value && !values.auth_header_value
+      headerSecretRequired.value && !values.auth_header_value
+        ? t('agent.connectedAppHeaderValueRequired')
+        : '',
+    oauth_client_secret:
+      clientSecretRequired.value && !values.oauth_client_secret
         ? t('agent.connectedAppHeaderValueRequired')
         : '',
   }
 })
 const headerValueHelper = computed(() => {
-  if (secretRequired.value) return t('agent.connectedAppHeaderValueRequired')
+  if (headerSecretRequired.value)
+    return t('agent.connectedAppHeaderValueRequired')
   return server.value?.has_auth_header_value
     ? t('agent.connectedAppHeaderValueKept')
     : t('agent.connectedAppHeaderValueHelper')
 })
+const clientSecretHelper = computed(() =>
+  server.value?.has_oauth_client_secret
+    ? t('agent.connectedAppHeaderValueKept')
+    : t('agent.connectedAppClientSecretHelper')
+)
+// Saving signs in when the server uses OAuth and its account would be missing.
+const needsSignIn = computed(
+  () =>
+    values.auth_type === MCP_AUTH_TYPE.OAUTH &&
+    (!server.value ||
+      !server.value.oauth_connected ||
+      server.value.auth_type !== MCP_AUTH_TYPE.OAUTH ||
+      urlChanged.value ||
+      values.oauth_client_id.trim() !== ownClientId(server.value))
+)
+const submitLabel = computed(() => {
+  if (needsSignIn.value) return t('agent.connectedAppSignIn')
+  return server.value ? t('action.save') : t('agent.connectedAppConnect')
+})
+
+/** The client id the editor entered; ids Baserow registered aren't shown. */
+function ownClientId(existing) {
+  return existing?.oauth_client_source === 'manual'
+    ? existing.oauth_client_id
+    : ''
+}
 
 function show(existing = null) {
   server.value = existing
   Object.assign(values, {
     name: existing?.name ?? '',
     url: existing?.url ?? '',
-    auth_header_name: existing?.auth_header_name ?? 'Authorization',
+    auth_type: existing?.auth_type ?? MCP_AUTH_TYPE.OAUTH,
+    auth_header_name: existing?.auth_header_name || 'Authorization',
     auth_header_value: '',
+    oauth_client_id: ownClientId(existing),
+    oauth_client_secret: '',
   })
+  showOwnClient.value = Boolean(values.oauth_client_id)
   touched.value = false
   error.value = null
   confirmingRemove.value = false
@@ -183,38 +341,89 @@ function changedValues() {
   const next = {
     name: values.name.trim(),
     url: values.url.trim(),
-    auth_header_name: values.auth_header_name.trim(),
+    auth_type: values.auth_type,
   }
-  if (values.auth_header_value) {
-    next.auth_header_value = values.auth_header_value
-  } else if (!server.value) {
-    next.auth_header_value = ''
+  if (values.auth_type === MCP_AUTH_TYPE.HEADER) {
+    next.auth_header_name = values.auth_header_name.trim()
+    if (values.auth_header_value || !server.value) {
+      next.auth_header_value = values.auth_header_value
+    }
+  } else if (values.auth_type === MCP_AUTH_TYPE.OAUTH) {
+    next.oauth_client_id = values.oauth_client_id.trim()
+    if (values.oauth_client_secret || !server.value) {
+      next.oauth_client_secret = values.oauth_client_secret
+    }
   }
   if (!server.value) return next
+  const current = {
+    ...server.value,
+    oauth_client_id: ownClientId(server.value),
+  }
   return Object.fromEntries(
     Object.entries(next).filter(
       ([key, value]) =>
-        key === 'auth_header_value' || value !== server.value[key]
+        ['auth_header_value', 'oauth_client_secret'].includes(key) ||
+        value !== current[key]
     )
   )
+}
+
+function readError(e) {
+  if (e instanceof MCPSignInError) {
+    return {
+      title: t('agent.connectedAppSignInFailedTitle'),
+      message: e.reason || t('agent.connectedAppSignInFailed'),
+    }
+  }
+  if (!e.handler) throw e
+  e.handler.handled()
+  if (e.handler.code === API_ERROR_CODE.MCP_OAUTH_FAILED) {
+    return {
+      title: t('agent.connectedAppSignInFailedTitle'),
+      message: e.handler.detail,
+    }
+  }
+  if (e.handler.code === API_ERROR_CODE.MCP_SERVER_UNREACHABLE) {
+    return {
+      title: t('agent.connectedAppUnreachableTitle'),
+      message: t('agent.connectedAppUnreachable'),
+    }
+  }
+  return e.handler.getMessage()
 }
 
 async function submit() {
   touched.value = true
   if (Object.values(errors.value).some(Boolean)) return
+  // Opened before any request, or the browser blocks the popup.
+  const popup = needsSignIn.value ? openSignInPopup() : null
+  const isNew = !server.value
   saving.value = true
   error.value = null
   try {
-    const isNew = !server.value
-    const saved = await props.save(server.value, changedValues())
+    let saved = await props.save(server.value, changedValues())
+    // A failed sign-in keeps the modal open on the server that now exists.
+    server.value = saved
+    if (popup) saved = await props.connect(saved, popup)
     modal.value.hide()
-    if (isNew) emit('created', saved)
+    if (isNew || popup) emit('created', saved)
   } catch (e) {
-    error.value = e.handler ? e.handler.getMessage() : null
-    e.handler?.handled()
-    if (!error.value) throw e
+    popup?.close()
+    error.value = readError(e)
   } finally {
     saving.value = false
+  }
+}
+
+async function disconnectAccount() {
+  disconnecting.value = true
+  error.value = null
+  try {
+    server.value = await props.disconnect(server.value)
+  } catch (e) {
+    error.value = readError(e)
+  } finally {
+    disconnecting.value = false
   }
 }
 
@@ -225,9 +434,7 @@ async function confirmRemove() {
     await props.remove(server.value)
     modal.value.hide()
   } catch (e) {
-    error.value = e.handler ? e.handler.getMessage() : null
-    e.handler?.handled()
-    if (!error.value) throw e
+    error.value = readError(e)
   } finally {
     removing.value = false
   }

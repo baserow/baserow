@@ -759,3 +759,23 @@
 .agent-mcp-tools__tool--removed {
   opacity: 0.6;
 }
+
+.agent-connected-apps__auth {
+  .segment-control__button {
+    flex: 1;
+  }
+}
+
+.agent-connected-apps__auth-help {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-900;
+}
+
+.agent-connected-apps__oauth-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
