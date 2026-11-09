@@ -473,6 +473,10 @@ def move_elements(
                     element = helpers.move_element(ctx.user, page, element_move)
             except Exception as exc:
                 raise_if_permission_denied(exc)
+                # The savepoint rolled back, so the cached graph is stale. A
+                # successful move leaves it right, as the create loop does.
+                if page is not None:
+                    helpers.forget_page_graphs(page)
                 errors.append(f"{element_move.element_id}: {client_item_error(exc)}")
             else:
                 moved.append(
@@ -482,9 +486,6 @@ def move_elements(
                         "place_in_container": element.place_in_container,
                     }
                 )
-            finally:
-                if page is not None:
-                    helpers.forget_page_graphs(page)
 
     result: dict[str, Any] = {"moved_elements": moved}
     if errors:
