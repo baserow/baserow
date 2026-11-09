@@ -246,3 +246,131 @@ def test_success_or_stop_clears_earlier_validation_error(outcome, status):
     step = steps.finish()[0]
     assert step["status"] == status
     assert "error_code" not in step
+
+
+def test_an_error_object_fails_the_step_with_its_message_and_items():
+    journal = Mock()
+    steps = ChatRunSteps(journal, describe)
+    steps.on_event(call("one", arguments={"rows": [{}]}))
+    steps.on_event(
+        result(
+            "one",
+            content={
+                "changed": False,
+                "error": {"code": "conflict", "message": "A exists."},
+                "errors": [
+                    {
+                        "item": "A",
+                        "code": "conflict",
+                        "message": "A exists.",
+                        "hint": "x",
+                    }
+                ],
+            },
+        )
+    )
+
+    (step,) = steps.finish()
+    assert (step["status"], step["error_code"], step["error_message"]) == (
+        "failed",
+        "conflict",
+        "A exists.",
+    )
+    assert step["item_errors"] == [
+        {"item": "A", "code": "conflict", "message": "A exists."}
+    ]
+
+
+def test_a_call_that_changed_nothing_without_errors_is_skipped():
+    steps = ChatRunSteps(Mock(), describe)
+    steps.on_event(call("one", arguments={"rows": [{}]}))
+    steps.on_event(result("one", content={"changed": False}, facts={"count": 0}))
+
+    assert [step["status"] for step in steps.finish()] == ["skipped"]
+
+
+def test_a_partial_batch_is_done_with_its_displayable_failed_items():
+    steps = ChatRunSteps(Mock(), describe)
+    steps.on_event(call("one", arguments={"rows": [{}, {}]}))
+    unusable = [{"item": "x", "code": "failed"}, {"item": "y", "message": " "}]
+    errors = unusable + [
+        {"item": i, "code": "invalid_input", "message": "Bad."} for i in range(25)
+    ]
+    steps.on_event(
+        result("one", content={"changed": True, "errors": errors}, facts={"count": 1})
+    )
+
+    (step,) = steps.finish()
+    assert step["status"] == "done" and len(step["item_errors"]) == 20
+    assert step["item_errors"][0]["item"] == 0
+
+
+def test_a_retry_after_a_failed_result_continues_the_failed_step():
+    steps = ChatRunSteps(Mock(), describe)
+    steps.on_event(call("one", arguments={"rows": [{}]}))
+    steps.on_event(
+        result("one", content={"error": {"code": "failed", "message": "No."}})
+    )
+    steps.on_event(call("two", arguments={"rows": [{}]}))
+    steps.on_event(result("two", content={"changed": True}, facts={"count": 1}))
+
+    (step,) = steps.finish()
+    assert step["status"] == "done" and "error_message" not in step
+
+
+@pytest.mark.parametrize("error", ["Not allowed.", ["Not allowed."]])
+def test_errors_that_are_not_objects_fail_the_step_without_a_message(error):
+    steps = ChatRunSteps(Mock(), describe)
+    steps.on_event(call("one"))
+    steps.on_event(result("one", content={"error": error}))
+
+    (step,) = steps.finish()
+    assert step["status"] == "failed" and "error_message" not in step
+
+
+def test_a_retry_that_changes_nothing_keeps_the_earlier_failure():
+    steps = ChatRunSteps(Mock(), describe)
+    steps.on_event(call("one", arguments={"rows": [{}]}))
+    failure = {"error": {"code": "conflict", "message": "A exists."}}
+    steps.on_event(result("one", content=failure))
+    steps.on_event(call("two", arguments={"rows": [{}]}))
+    steps.on_event(result("two", content={"changed": False}))
+
+    (step,) = steps.finish()
+    assert (step["status"], step["error_code"], step["error_message"]) == (
+        "failed",
+        "conflict",
+        "A exists.",
+    )
+
+
+def test_a_denied_call_is_not_continued_by_the_next_call():
+    steps = ChatRunSteps(Mock(), describe)
+    steps.on_event(call("one", arguments={"rows": [{}]}))
+    steps.on_event(result("one", outcome="denied"))
+    steps.on_event(call("two", arguments={"rows": [{}]}))
+    steps.on_event(result("two", facts={"count": 1}))
+
+    assert [step["status"] for step in steps.finish()] == ["failed", "done"]
+
+
+def test_messages_for_people_are_shortened_and_hints_left_out():
+    steps = ChatRunSteps(Mock(), describe)
+    steps.on_event(call("one", arguments={"rows": [{}]}))
+    long_message = "x" * 1500
+    error = {"code": "invalid_input", "message": long_message, "hint": "HINT_CANARY"}
+    steps.on_event(
+        result(
+            "one",
+            content={
+                "changed": False,
+                "error": error,
+                "errors": [{"item": 0, **error}],
+            },
+        )
+    )
+
+    (step,) = steps.finish()
+    assert step["error_message"] == "x" * 999 + "…"
+    assert step["item_errors"][0]["message"] == "x" * 999 + "…"
+    assert "HINT_CANARY" not in str(step)

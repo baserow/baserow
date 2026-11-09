@@ -23,22 +23,31 @@ The backend emits `step` events and saves the same steps on the assistant messag
 
 - `tool` is the tool's name. Frontend presenters are registered under it. They
   only describe calls and never select what runs or what is allowed.
-- `status` is `running`, `done`, `failed` or `stopped`, see `STEP_STATUS` in
-  `modules/core/chatRuns/constants.js`. A call is `running` from the moment the
-  model makes it, so a change waiting behind another change in the same response
-  is `running` too. `stopped` means the reply ended before the call's result: a
-  change may already have completed, and the card says so.
+- `status` is `running`, `done`, `failed`, `stopped` or `skipped`, see
+  `STEP_STATUS` in `modules/core/chatRuns/constants.js`. A call is `running` from
+  the moment the model makes it, so a change waiting behind another change in the
+  same response is `running` too. `stopped` means the reply ended before the
+  call's result: a change may already have completed, and the card says so.
+  `skipped` means the call changed nothing and failed nothing; it has no card.
 - `input` is derived from the arguments before the call runs, such as a requested
   count. It never copies argument values.
 - `facts` are confirmed after an authorized success, such as a count and a table
   name. A requested count doesn't prove how many items changed. A batch that
   partly fails is `done` with the count the tool reports.
 - `error_code` is set on failed steps: `not_found`, `permission_denied`,
-  `invalid_input` or `failed`. For an exception the tool raises, it comes from
-  `classify_tool_error` in `baserow/core/tools/errors.py`, which also writes the
-  message the model gets. Arguments that fail validation are `invalid_input`.
-  `not_found` covers missing and inaccessible resources alike. Error messages
-  never reach the step.
+  `invalid_input`, `invalid_formula`, `conflict` or `failed`. For an exception
+  the tool raises, it comes from `classify_tool_error` in
+  `baserow/core/tools/errors.py`. Arguments that fail validation are
+  `invalid_input`. `not_found` covers missing and inaccessible resources alike.
+- `error_message` is the tool error's message, written for people and at most
+  1,000 characters. The card shows it instead of the code's generic label.
+- `item_errors` lists up to 20 failed items, each with `item`, `code` and
+  `message`. On a `done` step they make the call partial: some items changed,
+  these didn't. An error's `hint` is advice for the model and is never stored.
+
+When a call fails and the model calls the same tool again, the retry continues
+the failed card instead of adding one. A retry that is `skipped` keeps the
+failure. A call the run denied is not continued, as other arguments can't fix it.
 
 Calls to tools the reply doesn't offer get no step.
 

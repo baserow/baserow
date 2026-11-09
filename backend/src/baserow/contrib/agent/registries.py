@@ -14,7 +14,7 @@ from baserow.core.exceptions import PermissionDenied
 from baserow.core.registries import subject_type_registry
 from baserow.core.registry import Instance, Registry
 from baserow.core.tools import ToolContext
-from baserow.core.tools.errors import INTERNAL_ERROR_MESSAGE, classify_tool_error
+from baserow.core.tools.errors import classify_tool_error
 
 
 @with_usable_db_connection
@@ -70,7 +70,7 @@ def _call_tool(
                 "Agent tool {} failed ({})", tool_type.type, type(exc).__name__
             )
         return ToolReturn(
-            return_value={"error": error.message or INTERNAL_ERROR_MESSAGE},
+            return_value={"error": error.to_dict()},
             metadata={"error_code": error.code},
         )
 

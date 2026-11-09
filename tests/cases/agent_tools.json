@@ -3,6 +3,8 @@
     "not_found",
     "permission_denied",
     "invalid_input",
+    "invalid_formula",
+    "conflict",
     "failed"
   ],
   "tools": [

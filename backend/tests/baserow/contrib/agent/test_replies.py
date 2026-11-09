@@ -49,6 +49,7 @@ from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Agent as Identity
 from baserow.core.models import WorkspaceUser
+from baserow.core.tools.errors import ToolInputError
 from baserow.core.trash.handler import TrashHandler
 
 from .utils import agent_url, new_conversation, run_reply
@@ -987,7 +988,7 @@ def test_a_reply_cannot_keep_writing_after_its_identity_is_trashed(
 
 
 @pytest.mark.django_db
-def test_failed_tool_calls_keep_their_category_in_the_api(
+def test_a_failed_tool_call_and_its_retry_are_one_step_in_the_api(
     data_fixture, configured_agent, mocker, api_client
 ):
     user = data_fixture.create_user()
@@ -1017,10 +1018,8 @@ def test_failed_tool_calls_keep_their_category_in_the_api(
     run_reply(run_of(created.conversation))
 
     steps = AgentMessage.objects.get(id=created.reply.id).steps
-    assert [step["status"] for step in steps] == ["failed", "done"]
-    assert steps[0]["error_code"] == "not_found"
-    assert "error_code" not in steps[1]
-    assert "Not found in this workspace." not in json.dumps(steps)
+    assert [step["status"] for step in steps] == ["done"]
+    assert "error_code" not in steps[0] and "error_message" not in steps[0]
     api_client.force_authenticate(user)
     response = api_client.get(
         agent_url(agent, "messages", conversation_uuid=created.conversation.uuid)
@@ -1032,3 +1031,78 @@ def test_failed_tool_calls_keep_their_category_in_the_api(
         if message["role"] == "assistant"
     )
     assert saved_reply["steps"] == steps
+
+
+@pytest.mark.django_db
+def test_a_failed_tool_call_shows_its_message_but_never_its_hint(
+    data_fixture, configured_agent, mocker, api_client
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    table = allow_create_rows(data_fixture, agent)
+    calls = iter([table.id])
+
+    async def stream(messages, info):
+        target = next(calls, None)
+        if target is None:
+            yield "Done."
+        else:
+            yield {
+                0: DeltaToolCall(
+                    name="create_rows",
+                    json_args=json.dumps(
+                        {"table_id": target, "rows": [{"Name": "Plan"}]}
+                    ),
+                )
+            }
+
+    mocker.patch(
+        "baserow.contrib.database.tools.rows._validate_rows",
+        side_effect=ToolInputError("The rows don't fit.", hint="HINT_CANARY"),
+    )
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(FunctionModel(stream_function=stream), {}),
+    )
+    created = start(user, agent)
+    run_reply(run_of(created.conversation))
+
+    api_client.force_authenticate(user)
+    response = api_client.get(
+        agent_url(agent, "messages", conversation_uuid=created.conversation.uuid)
+    )
+    reply = next(m for m in response.json()["results"] if m["role"] == "assistant")
+    (step,) = reply["steps"]
+    assert (step["status"], step["error_code"], step["error_message"]) == (
+        "failed",
+        "invalid_input",
+        "The rows don't fit.",
+    )
+    assert "HINT_CANARY" not in json.dumps(response.json())
+
+
+@pytest.mark.django_db
+def test_saved_steps_keep_why_they_failed(data_fixture, configured_agent, api_client):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    created = start(user, agent)
+    step = {
+        "id": "call_1",
+        "tool": "create_tables",
+        "status": "failed",
+        "error_code": "conflict",
+        "error_message": "Tasks exists.",
+        "item_errors": [{"item": "Tasks", "code": "conflict", "message": "Exists."}],
+        "changes_data": True,
+        "input": {},
+        "facts": {},
+    }
+    AgentMessage.objects.filter(id=created.reply.id).update(steps=[step])
+
+    api_client.force_authenticate(user)
+    response = api_client.get(
+        agent_url(agent, "messages", conversation_uuid=created.conversation.uuid)
+    )
+
+    reply = next(m for m in response.json()["results"] if m["role"] == "assistant")
+    assert reply["steps"] == [step]

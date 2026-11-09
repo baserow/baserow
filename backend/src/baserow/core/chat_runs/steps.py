@@ -1,6 +1,7 @@
 import json
 from collections import defaultdict, deque
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
@@ -15,7 +16,13 @@ from pydantic_ai.messages import (
 
 from baserow.core.tools.errors import ToolErrorCode
 
-from .constants import ChatRunEventKind, ChatRunStepStatus
+from .constants import (
+    MAX_STEP_ITEM_ERRORS,
+    MAX_STEP_MESSAGE_LENGTH,
+    ChatRunEventKind,
+    ChatRunStepStatus,
+)
+from .tool_input import shorten_text
 from .types import ChatRunStep
 
 if TYPE_CHECKING:
@@ -55,31 +62,104 @@ def _display_data(value: Any) -> dict[str, Any]:
         return {}
 
 
-def _ended(
-    part: ToolReturnPart | RetryPromptPart,
-) -> tuple[ChatRunStepStatus, dict[str, Any], ToolErrorCode | None]:
-    """Read a tool outcome without confusing domain errors with success.
+@dataclass(frozen=True)
+class _Ending:
+    """How a tool call ended, as its step shows it."""
+
+    status: ChatRunStepStatus
+    facts: dict[str, Any] = field(default_factory=dict)
+    error_code: ToolErrorCode | None = None
+    error_message: str = ""
+    item_errors: list[dict[str, Any]] = field(default_factory=list)
+
+
+def _error_code(value: Any) -> ToolErrorCode:
+    """
+    Keep only error codes that are safe to show.
+
+    :param value: The code a tool or its metadata reported.
+    :return: The code, or ``failed`` when it is not a known one.
+    """
+
+    if isinstance(value, str) and value in ToolErrorCode:
+        return ToolErrorCode(value)
+    return ToolErrorCode.FAILED
+
+
+def _message(value: Any) -> str:
+    """
+    Bound a message written for people.
+
+    :param value: The message a tool reported.
+    :return: The message, shortened when long, or empty when it isn't text.
+    """
+
+    if not isinstance(value, str):
+        return ""
+    return shorten_text(value, MAX_STEP_MESSAGE_LENGTH)
+
+
+def _item_errors(content: dict[str, Any]) -> list[dict[str, Any]]:
+    """
+    Copy what people may see of the failed items: never the model's hints.
+
+    :param content: The tool result.
+    :return: The first failed items that have a message, with their name or ID,
+        code and message.
+    """
+
+    errors = content.get("errors")
+    if not isinstance(errors, list):
+        return []
+    displayable = [
+        error
+        for error in errors
+        if isinstance(error, dict) and _message(error.get("message")).strip()
+    ]
+    return [
+        {
+            "item": error.get("item"),
+            "code": _error_code(error.get("code")).value,
+            "message": _message(error.get("message")),
+        }
+        for error in displayable[:MAX_STEP_ITEM_ERRORS]
+    ]
+
+
+def _ended(part: ToolReturnPart | RetryPromptPart) -> _Ending:
+    """
+    Read a tool outcome without confusing domain errors with success.
 
     :param part: The tool result or validation retry.
-    :return: Its status, successful outcome facts and safe failure category.
+    :return: Its status, facts, and what people may see of its failures.
     """
 
     if isinstance(part, RetryPromptPart):
-        return ChatRunStepStatus.FAILED, {}, ToolErrorCode.INVALID_INPUT
+        return _Ending(ChatRunStepStatus.FAILED, error_code=ToolErrorCode.INVALID_INPUT)
     if part.outcome == "interrupted":
-        return ChatRunStepStatus.STOPPED, {}, None
+        return _Ending(ChatRunStepStatus.STOPPED)
     if part.outcome == "denied":
-        return ChatRunStepStatus.FAILED, {}, ToolErrorCode.PERMISSION_DENIED
-    if part.outcome != "success" or (
-        isinstance(part.content, dict) and "error" in part.content
-    ):
-        code = (
-            part.metadata.get("error_code") if isinstance(part.metadata, dict) else None
+        return _Ending(
+            ChatRunStepStatus.FAILED, error_code=ToolErrorCode.PERMISSION_DENIED
         )
-        if not isinstance(code, str) or code not in ToolErrorCode:
-            code = ToolErrorCode.FAILED
-        return ChatRunStepStatus.FAILED, {}, ToolErrorCode(code)
-    return ChatRunStepStatus.DONE, _display_data(part.metadata), None
+    content = part.content if isinstance(part.content, dict) else {}
+    metadata = part.metadata if isinstance(part.metadata, dict) else {}
+    error = content.get("error")
+    if part.outcome != "success" or error is not None:
+        error = error if isinstance(error, dict) else {}
+        return _Ending(
+            ChatRunStepStatus.FAILED,
+            error_code=_error_code(error.get("code") or metadata.get("error_code")),
+            error_message=_message(error.get("message")),
+            item_errors=_item_errors(content),
+        )
+    if content.get("changed") is False:
+        return _Ending(ChatRunStepStatus.SKIPPED)
+    return _Ending(
+        ChatRunStepStatus.DONE,
+        facts=_display_data(metadata),
+        item_errors=_item_errors(content),
+    )
 
 
 class ChatRunSteps:
@@ -102,6 +182,7 @@ class ChatRunSteps:
         self._pending: dict[str, deque[str]] = defaultdict(deque)
         self._retrying: dict[str, deque[str]] = defaultdict(deque)
         self._retryable: dict[str, deque[str]] = defaultdict(deque)
+        self._failures: dict[str, _Ending] = {}
         self._batch_ended = False
 
     def on_event(self, event: AgentStreamEvent | AgentRunResultEvent) -> None:
@@ -147,13 +228,24 @@ class ChatRunSteps:
                 step = self._steps[pending.popleft()]
                 if not pending:
                     del self._pending[event.tool_call_id]
-                status, facts, error_code = _ended(event.part)
-                updated = {**step, "status": status, "facts": facts}
-                updated.pop("error_code", None)
-                if error_code is not None:
-                    updated["error_code"] = error_code
+                ending = _ended(event.part)
+                if ending.status == ChatRunStepStatus.SKIPPED:
+                    ending = self._failures.get(step["id"], ending)
+                if ending.status == ChatRunStepStatus.FAILED:
+                    self._failures[step["id"]] = ending
+                updated = {**step, "status": ending.status, "facts": ending.facts}
+                for key in ("error_code", "error_message", "item_errors"):
+                    updated.pop(key, None)
+                if ending.error_code is not None:
+                    updated["error_code"] = ending.error_code
+                if ending.error_message:
+                    updated["error_message"] = ending.error_message
+                if ending.item_errors:
+                    updated["item_errors"] = ending.item_errors
                 self._update(updated)
-                if isinstance(event.part, RetryPromptPart):
+                # The run refused the call itself, so other arguments can't fix it.
+                denied = getattr(event.part, "outcome", None) == "denied"
+                if updated["status"] == ChatRunStepStatus.FAILED and not denied:
                     self._retrying[updated["tool"]].append(updated["id"])
 
     def finish(self) -> list[ChatRunStep]:

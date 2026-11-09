@@ -28,7 +28,7 @@ def test_input_preview_shortens_long_strings_and_keeps_every_other_value():
     assert preview["values"]["id"] == 123456789012345
     assert preview["values"]["fields"][0]["number"] == 7
     name = preview["values"]["fields"][0]["name"]
-    assert name == "a" * MAX_INPUT_PREVIEW_STRING_LENGTH + "…"
+    assert name == "a" * (MAX_INPUT_PREVIEW_STRING_LENGTH - 1) + "…"
 
 
 @pytest.mark.parametrize(
