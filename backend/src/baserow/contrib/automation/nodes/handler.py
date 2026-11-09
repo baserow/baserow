@@ -829,13 +829,6 @@ class AutomationNodeHandler:
                 # the simulated node.
                 return None
 
-        node_history = history_handler.create_node_history(
-            workflow_history=workflow_history,
-            node=node,
-            started_on=timezone.now(),
-            attempt=attempt,
-        )
-
         dispatch_context = AutomationDispatchContext(
             node.workflow,
             workflow_history,
@@ -844,6 +837,18 @@ class AutomationNodeHandler:
             current_iterations=current_iterations,
         )
         iteration_path = dispatch_context.get_iteration_path(node)
+
+        # The iteration path is stored on the entry itself, so a node that has no
+        # result yet (waiting, or cancelled while waiting) is still shown under
+        # its iteration in the history panel.
+        node_history = history_handler.create_node_history(
+            workflow_history=workflow_history,
+            node=node,
+            started_on=timezone.now(),
+            attempt=attempt,
+            iteration_path=iteration_path,
+        )
+
         node_type: Type[AutomationActionNodeType] = node.get_type()
 
         try:
