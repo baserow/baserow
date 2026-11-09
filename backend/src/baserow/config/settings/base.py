@@ -274,7 +274,9 @@ CELERY_RESULT_EXPIRES = int(
 CHANNELS_REDIS_SOCKET_TIMEOUT = 10
 CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        # Retries what is safe to retry and detects pooled connections Redis
+        # already closed, see `RetryingRedisChannelLayer`.
+        "BACKEND": "baserow.ws.channel_layer.RetryingRedisChannelLayer",
         "CONFIG": {
             "hosts": [
                 {

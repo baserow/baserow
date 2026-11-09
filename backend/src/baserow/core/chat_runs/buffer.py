@@ -18,6 +18,8 @@ from django.conf import settings
 
 from redis.asyncio import BlockingConnectionPool, Redis, from_url
 
+from baserow.core.redis import ASYNC_REDIS_PROTOCOL
+
 ACTIVE_TTL_SECONDS = 3600
 MAX_BUFFER_BYTES = 8 * 1024 * 1024
 MAX_BUFFER_EVENTS = 10000
@@ -141,6 +143,9 @@ async def get_buffer_redis(*, blocking: bool = False) -> Redis:
     loop = asyncio.get_running_loop()
     if loop not in pools:
         options = {
+            # Keeps pooled connections the server closed from being handed out.
+            # Retries are left to this module's own recovery.
+            "protocol": ASYNC_REDIS_PROTOCOL,
             "decode_responses": True,
             "socket_connect_timeout": OPERATION_TIMEOUT_SECONDS,
             "socket_timeout": (
