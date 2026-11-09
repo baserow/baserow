@@ -14,7 +14,13 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelHTTPError
-from pydantic_ai.messages import ModelRequest
+from pydantic_ai.messages import (
+    FunctionToolCallEvent,
+    FunctionToolResultEvent,
+    ModelRequest,
+    ToolCallPart,
+    ToolReturnPart,
+)
 from pydantic_ai.models import ModelRequestParameters
 from pydantic_ai.models.function import DeltaToolCall, FunctionModel
 from pydantic_ai.models.instrumented import InstrumentationSettings
@@ -41,12 +47,17 @@ from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.contrib.agent.replies import AgentResponder, create_reply_model
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.signals import agent_conversation_activity
-from baserow.contrib.agent.types import AgentMessageCreated, AgentReplyRequest
+from baserow.contrib.agent.types import (
+    AgentMessageCreated,
+    AgentReplyRequest,
+    AgentReplyResult,
+)
 from baserow.contrib.database.table.models import Table
 from baserow.core.action.registries import action_type_registry
 from baserow.core.agents.service import AgentService as IdentityService
 from baserow.core.chat_runs.journal import ChatRunJournal
 from baserow.core.chat_runs.models import ChatRun
+from baserow.core.chat_runs.steps import ChatRunSteps
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Agent as Identity
@@ -140,8 +151,9 @@ def test_failed_input_summary_keeps_the_call_without_logging_payloads(
         ("Hello\x00 from the agent", ("completed", "", "Hello from the agent")),
         ("\n\n", ("failed", "failed", "")),
         ("\x00 \n\x00", ("failed", "failed", "")),
+        ("Hello\ud800 from the agent", ("completed", "", "Hello from the agent")),
     ],
-    ids=["null-characters", "blank", "blank-after-cleaning"],
+    ids=["null-characters", "blank", "blank-after-cleaning", "lone-surrogate"],
 )
 def test_a_message_is_answered_privately_and_saved_clean(
     reply_run, reply_model, output, saved
@@ -161,6 +173,36 @@ def test_a_message_is_answered_privately_and_saved_clean(
     reply = AgentMessage.objects.get(role="assistant")
     assert reply_state(reply.id) == saved
     assert exporter.get_finished_spans() == ()
+
+
+@pytest.mark.django_db
+def test_a_step_with_text_postgresql_cannot_store_is_sent_and_saved_clean(
+    reply_run, mocker
+):
+    journal = mocker.Mock()
+    steps = ChatRunSteps(journal, lambda tool, arguments: {"input": {}})
+    steps.on_event(FunctionToolCallEvent(ToolCallPart("create_fields", {}, "one")))
+    error = {"code": "conflict", "message": "'a\ud800b' exists.\x00"}
+    content = {
+        "changed": False,
+        "error": error,
+        "errors": [{"item": "a\ud800b", **error}],
+    }
+    steps.on_event(
+        FunctionToolResultEvent(ToolReturnPart("create_fields", content, "one"))
+    )
+    reply_id = reply_run.context["reply_id"]
+
+    AgentHandler().finish_reply(
+        reply_id, "completed", "", AgentReplyResult("Done", steps.finish())
+    )
+
+    (step,) = AgentMessage.objects.get(id=reply_id).steps
+    assert step["error_message"] == "'ab' exists."
+    assert step["item_errors"] == [
+        {"item": "ab", "code": "conflict", "message": "'ab' exists."}
+    ]
+    assert journal.emit.call_args.args[1] == step
 
 
 @pytest.mark.django_db
@@ -843,7 +885,10 @@ def test_a_reply_recovers_from_invalid_tool_calls(
     assert reply_state(created.reply.id) == ("completed", "", "Done.")
     rows = [row.name for row in table.get_model(attribute_names=True).objects.all()]
     assert rows == ["Plan"]
-    [step] = AgentMessage.objects.get(id=created.reply.id).steps
+    *invalid_steps, step = AgentMessage.objects.get(id=created.reply.id).steps
+    assert [(s["status"], s["error_code"]) for s in invalid_steps] == [
+        ("failed", "invalid_input")
+    ] * TOOL_RETRIES
     assert step["status"] == "done"
     assert step["input"] == {"requested_count": 1}
     assert "error_code" not in step
@@ -990,7 +1035,7 @@ def test_a_reply_cannot_keep_writing_after_its_identity_is_trashed(
 
 
 @pytest.mark.django_db
-def test_a_failed_tool_call_and_its_retry_are_one_step_in_the_api(
+def test_a_failed_tool_call_and_its_retry_are_two_steps_in_the_api(
     data_fixture, configured_agent, mocker, api_client
 ):
     user = data_fixture.create_user()
@@ -1020,8 +1065,10 @@ def test_a_failed_tool_call_and_its_retry_are_one_step_in_the_api(
     run_reply(run_of(created.conversation))
 
     steps = AgentMessage.objects.get(id=created.reply.id).steps
-    assert [step["status"] for step in steps] == ["done"]
-    assert "error_code" not in steps[0] and "error_message" not in steps[0]
+    assert [(step["status"], step.get("error_code")) for step in steps] == [
+        ("failed", "not_found"),
+        ("done", None),
+    ]
     api_client.force_authenticate(user)
     response = api_client.get(
         agent_url(agent, "messages", conversation_uuid=created.conversation.uuid)

@@ -265,7 +265,7 @@ describe('ChatStepGroup', () => {
 
     expect(wrapper.find('button .iconoir-warning-circle').exists()).toBe(true)
     expect(wrapper.find('button .iconoir-check-circle').exists()).toBe(false)
-    expect(wrapper.find('.chat-step-group__status').text()).toBe(
+    expect(wrapper.get('.chat-step-group__status--visible').text()).toBe(
       'toolPresentation.statusPartial'
     )
     await wrapper.get('button').trigger('click')

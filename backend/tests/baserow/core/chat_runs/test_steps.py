@@ -121,51 +121,32 @@ def retry(call_id):
     return FunctionToolResultEvent(RetryPromptPart("Fix it", tool_call_id=call_id))
 
 
-def test_a_retry_continues_the_step_of_its_invalid_attempt_but_not_of_siblings():
-    journal = Mock()
-    steps = ChatRunSteps(journal, describe)
-    steps.on_event(call("invalid", valid=False))
-    steps.on_event(call("sibling", arguments={"rows": [1]}))
-    steps.on_event(retry("invalid"))
-    steps.on_event(result("sibling", facts={"count": 1}))
-    steps.on_event(call("retry", arguments={"rows": [1, 2]}))
-    steps.on_event(result("retry", facts={"count": 2}))
+@pytest.mark.parametrize(
+    "first,first_result,first_ending",
+    [
+        (call("one", arguments={"rows": [{}]}), result("one"), ("done", None)),
+        (
+            call("one", arguments={"rows": [{}]}),
+            result("one", content={"error": {"code": "conflict", "message": "No."}}),
+            ("failed", "conflict"),
+        ),
+        (call("one", valid=False), retry("one"), ("failed", "invalid_input")),
+    ],
+    ids=["two-calls", "failed-then-done", "invalid-then-valid"],
+)
+def test_every_call_has_its_own_step(first, first_result, first_ending):
+    steps = ChatRunSteps(Mock(), describe)
+    steps.on_event(first)
+    steps.on_event(first_result)
+    steps.on_event(call("two", arguments={"rows": [{}]}))
+    steps.on_event(result("two", facts={"count": 1}))
 
     saved = steps.finish()
-    first = journal.emit.call_args_list[0].args[1]
-    assert [(step["status"], step["facts"]) for step in saved] == [
-        ("done", {"count": 1}),
-        ("done", {"count": 2}),
+    assert [(step["status"], step.get("error_code")) for step in saved] == [
+        first_ending,
+        ("done", None),
     ]
-    assert saved[1]["id"] == first["id"]
-    assert "error_code" not in saved[1]
-
-
-def test_only_the_next_response_can_retry_an_invalid_call():
-    steps = ChatRunSteps(Mock(), describe)
-    steps.on_event(call("invalid", valid=False))
-    steps.on_event(retry("invalid"))
-    steps.on_event(call("read", name="list_tables"))
-    steps.on_event(result("read"))
-    steps.on_event(call("later", arguments={"rows": [1]}))
-
-    assert [step["status"] for step in steps.finish()] == [
-        "failed",
-        "done",
-        "stopped",
-    ]
-
-
-def test_a_call_that_runs_out_of_retries_leaves_one_failed_step():
-    steps = ChatRunSteps(Mock(), describe)
-    steps.on_event(call("one", valid=False))
-    steps.on_event(retry("one"))
-    steps.on_event(call("two", valid=False))
-
-    saved = steps.finish()
-    assert [(step["status"], step["error_code"]) for step in saved] == [
-        ("failed", "invalid_input")
-    ]
+    assert saved[0]["id"] != saved[1]["id"]
 
 
 def test_unknown_tools_and_presentation_errors_do_not_fail_the_run(logs):
@@ -305,19 +286,6 @@ def test_a_partial_batch_is_done_with_its_displayable_failed_items():
     assert step["item_errors"][0]["item"] == 0
 
 
-def test_a_retry_after_a_failed_result_continues_the_failed_step():
-    steps = ChatRunSteps(Mock(), describe)
-    steps.on_event(call("one", arguments={"rows": [{}]}))
-    steps.on_event(
-        result("one", content={"error": {"code": "failed", "message": "No."}})
-    )
-    steps.on_event(call("two", arguments={"rows": [{}]}))
-    steps.on_event(result("two", content={"changed": True}, facts={"count": 1}))
-
-    (step,) = steps.finish()
-    assert step["status"] == "done" and "error_message" not in step
-
-
 @pytest.mark.parametrize("error", ["Not allowed.", ["Not allowed."]])
 def test_errors_that_are_not_objects_fail_the_step_without_a_message(error):
     steps = ChatRunSteps(Mock(), describe)
@@ -326,32 +294,6 @@ def test_errors_that_are_not_objects_fail_the_step_without_a_message(error):
 
     (step,) = steps.finish()
     assert step["status"] == "failed" and "error_message" not in step
-
-
-def test_a_retry_that_changes_nothing_keeps_the_earlier_failure():
-    steps = ChatRunSteps(Mock(), describe)
-    steps.on_event(call("one", arguments={"rows": [{}]}))
-    failure = {"error": {"code": "conflict", "message": "A exists."}}
-    steps.on_event(result("one", content=failure))
-    steps.on_event(call("two", arguments={"rows": [{}]}))
-    steps.on_event(result("two", content={"changed": False}))
-
-    (step,) = steps.finish()
-    assert (step["status"], step["error_code"], step["error_message"]) == (
-        "failed",
-        "conflict",
-        "A exists.",
-    )
-
-
-def test_a_denied_call_is_not_continued_by_the_next_call():
-    steps = ChatRunSteps(Mock(), describe)
-    steps.on_event(call("one", arguments={"rows": [{}]}))
-    steps.on_event(result("one", outcome="denied"))
-    steps.on_event(call("two", arguments={"rows": [{}]}))
-    steps.on_event(result("two", facts={"count": 1}))
-
-    assert [step["status"] for step in steps.finish()] == ["failed", "done"]
 
 
 def test_messages_for_people_are_shortened_and_hints_left_out():

@@ -1,8 +1,6 @@
 import json
 from typing import Any
 
-from baserow.core.utils import remove_invalid_surrogate_characters
-
 MAX_INPUT_PREVIEW_SIZE = 16_384
 MAX_INPUT_PREVIEW_STRING_LENGTH = 1000
 
@@ -39,20 +37,18 @@ def tool_input_preview(values: dict[str, Any]) -> dict[str, Any]:
     select them first; credentials and other execution context must stay out.
 
     :param values: The tool's approved display values, never modified.
-    :return: The values with long strings shortened and text PostgreSQL can't
-        store removed, and ``truncated`` when anything changed. Nothing when the
-        stored JSON would exceed ``MAX_INPUT_PREVIEW_SIZE`` characters, because a
-        partial copy could misstate the request.
+    :return: The values with long strings shortened, and ``truncated`` when any
+        was. Nothing when the stored JSON would exceed ``MAX_INPUT_PREVIEW_SIZE``
+        characters, because a partial copy could misstate the request.
     """
 
     try:
         dumped = json.dumps(_shorten_strings(values), allow_nan=False)
     except (TypeError, ValueError, RecursionError):
         return {}
-    stored = remove_invalid_surrogate_characters(dumped.encode("utf-8"), "utf-8")
-    if len(stored) > MAX_INPUT_PREVIEW_SIZE:
+    if len(dumped) > MAX_INPUT_PREVIEW_SIZE:
         return {}
-    preview = json.loads(stored)
+    preview = json.loads(dumped)
     if preview != values:
         return {"values": preview, "truncated": True}
     return {"values": preview}

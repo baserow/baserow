@@ -45,9 +45,7 @@ The backend emits `step` events and saves the same steps on the assistant messag
   `message`. On a `done` step they make the call partial: some items changed,
   these didn't. An error's `hint` is advice for the model and is never stored.
 
-When a call fails and the model calls the same tool again, the retry continues
-the failed card instead of adding one. A retry that is `skipped` keeps the
-failure. A call the run denied is not continued, as other arguments can't fix it.
+Every call has its own step, so a retry after a failure is a new step.
 
 Calls to tools the reply doesn't offer get no step.
 

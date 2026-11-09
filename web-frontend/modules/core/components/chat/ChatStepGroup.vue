@@ -155,7 +155,8 @@ const partial = computed(
 )
 const statusClass = computed(() => ({
   'chat-step-group__status--visible':
-    props.status === STEP_STATUS.STOPPED && props.changesData,
+    (props.status === STEP_STATUS.STOPPED && props.changesData) ||
+    partial.value,
 }))
 const statusIcons = {
   [STEP_STATUS.DONE]: 'iconoir-check-circle chat-step-group__icon--done',

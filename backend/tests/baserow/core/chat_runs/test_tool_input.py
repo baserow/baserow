@@ -61,10 +61,3 @@ def test_input_preview_is_left_out_for_circular_data():
     nested["self"] = nested
 
     assert tool_input_preview(nested) == {}
-
-
-def test_input_preview_removes_text_that_cannot_be_stored_in_jsonb():
-    assert tool_input_preview({"name": "a\x00b\ud800c😀"}) == {
-        "values": {"name": "abc😀"},
-        "truncated": True,
-    }

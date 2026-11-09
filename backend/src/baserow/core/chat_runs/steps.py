@@ -20,6 +20,7 @@ from pydantic_ai.messages import (
 )
 
 from baserow.core.tools.errors import ToolErrorCode
+from baserow.core.utils import remove_unstorable_characters
 
 from .constants import (
     MAX_STEP_ITEM_ERRORS,
@@ -215,10 +216,6 @@ class ChatRunSteps:
         self._describe_call = describe_call
         self._steps: dict[str, ChatRunStep] = {}
         self._pending: dict[str, deque[str]] = defaultdict(deque)
-        self._retrying: dict[str, deque[str]] = defaultdict(deque)
-        self._retryable: dict[str, deque[str]] = defaultdict(deque)
-        self._failures: dict[str, _Ending] = {}
-        self._batch_ended = False
         self._hidden_call_started = False
 
     def on_event(self, event: AgentStreamEvent | AgentRunResultEvent) -> None:
@@ -229,29 +226,9 @@ class ChatRunSteps:
 
         match event:
             case FunctionToolCallEvent(tool_call_id=tool_call_id, part=part):
-                if self._batch_ended:
-                    self._retryable, self._retrying = (
-                        self._retrying,
-                        defaultdict(deque),
-                    )
-                    self._batch_ended = False
-                self._start(
-                    tool_call_id,
-                    part,
-                    invalid=event.args_valid is False,
-                    retryable=True,
-                )
+                self._start(tool_call_id, part, invalid=event.args_valid is False)
             case FunctionToolResultEvent(tool_call_id=tool_call_id, part=part):
-                self._batch_ended = True
-                ended = self._end(tool_call_id, part)
-                # The run refused the call itself, so other arguments can't fix it.
-                denied = getattr(part, "outcome", None) == "denied"
-                if (
-                    ended is not None
-                    and ended["status"] == ChatRunStepStatus.FAILED
-                    and not denied
-                ):
-                    self._retrying[ended["tool"]].append(ended["id"])
+                self._end(tool_call_id, part)
             # The provider runs these itself, so they only appear as parts of its
             # response.
             case PartStartEvent(part=NativeToolCallPart() as part):
@@ -285,19 +262,13 @@ class ChatRunSteps:
             return {}
 
     def _start(
-        self,
-        tool_call_id: str,
-        part: BaseToolCallPart,
-        invalid: bool = False,
-        retryable: bool = False,
+        self, tool_call_id: str, part: BaseToolCallPart, invalid: bool = False
     ) -> None:
         """Add the step of a call the model made, unless it has none.
 
         :param tool_call_id: The call's id, which its result refers to.
         :param part: The tool call.
         :param invalid: Whether its arguments failed validation.
-        :param retryable: Whether the call can continue the step of an earlier
-            attempt that was sent back for a retry.
         """
 
         description = self._describe(part, invalid)
@@ -305,9 +276,8 @@ class ChatRunSteps:
             # A hidden call still ran, so a retry could repeat it.
             self._hidden_call_started = True
             return
-        retried = self._retryable[part.tool_name] if retryable else None
         step: ChatRunStep = {
-            "id": retried.popleft() if retried else str(uuid4()),
+            "id": str(uuid4()),
             "tool": part.tool_name,
             "status": ChatRunStepStatus.FAILED
             if invalid
@@ -319,7 +289,6 @@ class ChatRunSteps:
         if invalid:
             step["error_code"] = ToolErrorCode.INVALID_INPUT
         self._pending[tool_call_id].append(step["id"])
-        self._steps.pop(step["id"], None)
         self._update(step)
 
     def add_failed(self, tool: str, step_input: dict[str, Any]) -> None:
@@ -359,36 +328,30 @@ class ChatRunSteps:
         self,
         tool_call_id: str,
         part: ToolReturnPart | NativeToolReturnPart | RetryPromptPart,
-    ) -> ChatRunStep | None:
+    ) -> None:
         """Complete the oldest open step of a call, when it has one.
 
         :param tool_call_id: The call's id.
         :param part: How the call ended.
-        :return: The completed step, or None when the call has no step.
         """
 
         pending = self._pending.get(tool_call_id)
-        if pending:
-            step = self._steps[pending.popleft()]
-            if not pending:
-                del self._pending[tool_call_id]
-            ending = _ended(part)
-            if ending.status == ChatRunStepStatus.SKIPPED:
-                ending = self._failures.get(step["id"], ending)
-            if ending.status == ChatRunStepStatus.FAILED:
-                self._failures[step["id"]] = ending
-            updated = {**step, "status": ending.status, "facts": ending.facts}
-            for key in ("error_code", "error_message", "item_errors"):
-                updated.pop(key, None)
-            if ending.error_code is not None:
-                updated["error_code"] = ending.error_code
-            if ending.error_message:
-                updated["error_message"] = ending.error_message
-            if ending.item_errors:
-                updated["item_errors"] = ending.item_errors
-            self._update(updated)
-            return updated
-        return None
+        if not pending:
+            return
+        step = self._steps[pending.popleft()]
+        if not pending:
+            del self._pending[tool_call_id]
+        ending = _ended(part)
+        updated = {**step, "status": ending.status, "facts": ending.facts}
+        # An invalid call starts failed, and a result can still end it otherwise.
+        updated.pop("error_code", None)
+        if ending.error_code is not None:
+            updated["error_code"] = ending.error_code
+        if ending.error_message:
+            updated["error_message"] = ending.error_message
+        if ending.item_errors:
+            updated["item_errors"] = ending.item_errors
+        self._update(updated)
 
     def finish(self) -> list[ChatRunStep]:
         """Finish activity once the model run ends.
@@ -399,5 +362,13 @@ class ChatRunSteps:
         return stop_running_steps(list(self._steps.values()))
 
     def _update(self, step: ChatRunStep) -> None:
+        """
+        Keep and send a step, without text PostgreSQL can't store, so the live
+        and the saved step match.
+
+        :param step: The step's new state.
+        """
+
+        step = remove_unstorable_characters(step)
         self._steps[step["id"]] = step
         self._journal.emit(ChatRunEventKind.STEP, step)

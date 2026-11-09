@@ -23,7 +23,7 @@ from baserow.core.pagination import KeysetCursor
 from baserow.core.registries import subject_type_registry
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import Subject
-from baserow.core.utils import extract_allowed, remove_null_characters
+from baserow.core.utils import extract_allowed, remove_unstorable_characters
 
 from .constants import (
     AGENT_RUN_TYPE,
@@ -820,8 +820,8 @@ class AgentHandler:
     ) -> AgentMessage | None:
         """
         Save how a reply ended, with its text and activity, unless the reply no longer
-        exists. NUL characters are dropped because PostgreSQL can't store them, and
-        blank text is saved empty.
+        exists. Characters PostgreSQL can't store are dropped from the text, and
+        blank text is saved empty. Steps come clean from ``ChatRunSteps``.
 
         :param reply_id: The id of the reply.
         :param status: The final status: completed, cancelled or failed.
@@ -841,9 +841,9 @@ class AgentHandler:
             return None
         reply.status = status
         reply.error_code = error_code
-        content = remove_null_characters(result.text if result else "")
+        content = remove_unstorable_characters(result.text if result else "")
         reply.content = content if content.strip() else ""
-        reply.steps = remove_null_characters(result.steps) if result else None
+        reply.steps = result.steps if result else None
         reply.save(
             update_fields=["status", "error_code", "content", "steps", "updated_on"]
         )
