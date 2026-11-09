@@ -14,6 +14,7 @@ from baserow.core.tools.errors import ToolErrorCode
 
 from .client import (
     MAX_DESCRIPTION_CHARACTERS,
+    MCP_REQUEST_DEADLINE,
     MCPServerConnection,
     list_tools,
     open_session,
@@ -197,11 +198,12 @@ class MCPServerToolset(AbstractToolset[Any]):
     ) -> ToolReturn:
         snapshot = self._tools[name]
         try:
-            async with open_session(self._server.connection) as session:
-                verified = await self._verify(session)
-                if not verified.get(snapshot.name):
-                    return _error(CHANGED_MESSAGE, ToolErrorCode.PERMISSION_DENIED)
-                result = await session.call_tool(snapshot.name, tool_args)
+            async with asyncio.timeout(MCP_REQUEST_DEADLINE):
+                async with open_session(self._server.connection) as session:
+                    verified = await self._verify(session)
+                    if not verified.get(snapshot.name):
+                        return _error(CHANGED_MESSAGE, ToolErrorCode.PERMISSION_DENIED)
+                    result = await session.call_tool(snapshot.name, tool_args)
         except asyncio.CancelledError:
             raise
         except Exception as exc:

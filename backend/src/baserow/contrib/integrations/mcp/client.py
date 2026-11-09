@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import json
 from contextlib import asynccontextmanager
@@ -18,6 +19,10 @@ MAX_DESCRIPTION_CHARACTERS = 2_000
 # Most pages of tools read from one server, so one that always returns a next
 # cursor can't keep a request or a reply busy forever.
 MAX_TOOL_PAGES = 20
+# Longest a whole exchange with a server may take, in seconds: listing tools or
+# calling one. Each read already has its own timeout, but a server that keeps
+# sending a little at a time would otherwise hold a worker forever.
+MCP_REQUEST_DEADLINE = 120
 
 
 @dataclass(frozen=True)
@@ -137,8 +142,11 @@ async def list_tools(session: ClientSession) -> list[MCPToolDefinition]:
 
 
 async def fetch_tools(connection: MCPServerConnection) -> list[MCPToolDefinition]:
-    async with open_session(connection) as session:
-        return await list_tools(session)
+    """:raises TimeoutError: When it takes longer than the deadline."""
+
+    async with asyncio.timeout(MCP_REQUEST_DEADLINE):
+        async with open_session(connection) as session:
+            return await list_tools(session)
 
 
 def refused_credential(exc: BaseException) -> bool:

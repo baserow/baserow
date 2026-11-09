@@ -1,3 +1,6 @@
+import asyncio
+from contextlib import asynccontextmanager
+
 from django.urls import reverse
 
 import httpx
@@ -7,6 +10,7 @@ from asgiref.sync import async_to_sync
 from baserow.contrib.integrations.mcp.client import (
     MAX_TOOL_PAGES,
     MCPToolDefinition,
+    fetch_tools,
     list_tools,
 )
 from baserow.contrib.integrations.mcp.handler import MCPServerHandler, MCPToolSettings
@@ -320,3 +324,20 @@ def test_switching_away_from_a_key_forgets_it(data_fixture):
     integration.refresh_from_db()
     assert integration.url == "https://other.example.com/mcp"
     assert integration.auth_header_value == ""
+
+
+def test_a_server_that_never_finishes_listing_times_out(mocker):
+    async def forever(cursor=None):
+        await asyncio.sleep(3600)
+
+    @asynccontextmanager
+    async def hanging_session(connection):
+        yield mocker.Mock(list_tools=forever)
+
+    mocker.patch(
+        "baserow.contrib.integrations.mcp.client.open_session", hanging_session
+    )
+    mocker.patch("baserow.contrib.integrations.mcp.client.MCP_REQUEST_DEADLINE", 0.05)
+
+    with pytest.raises(TimeoutError):
+        async_to_sync(fetch_tools)(mocker.Mock())
