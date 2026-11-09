@@ -110,7 +110,8 @@ const shown = computed(() => {
 })
 
 function approvalItem(step, approval) {
-  const { title, input, failureHint, status } = toolActivity(step, $registry, t)
+  const { title, input, failureHint, status, partial, itemErrors } =
+    toolActivity(step, $registry, t)
   return {
     id: approval.id,
     status: approval.status,
@@ -119,6 +120,8 @@ function approvalItem(step, approval) {
     title,
     input,
     failureHint,
+    partial,
+    itemErrors,
   }
 }
 

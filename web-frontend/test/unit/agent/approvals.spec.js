@@ -434,6 +434,26 @@ describe('Agent tool approvals', () => {
     expect(decisions(wrapper)).toEqual(['agent.approved'])
   })
 
+  test('an approved step that partly failed lists the items it missed', async () => {
+    const partlyDone = {
+      ...heldStep(1, 'done'),
+      item_errors: [{ item: 'Company 1', code: 'conflict', message: 'Taken.' }],
+    }
+    const wrapper = await openReply(
+      reply('completed', [approval(1, 'approved')], {
+        steps: [read, partlyDone],
+      })
+    )
+
+    const item = items(wrapper)[0]
+    const status = item.get('.agent-approval__step-status')
+    expect(status.text()).toBe('toolPresentation.statusPartial')
+    expect(status.find('.iconoir-warning-circle').exists()).toBe(true)
+    expect(item.get('.agent-approval__item-note').text()).toBe(
+      'Company 1: Taken.'
+    )
+  })
+
   test('approving all steps follows the resumed reply', async () => {
     const decision = deferredReply()
     mockApprovals(testApp, chat.uuid, decision.reply)

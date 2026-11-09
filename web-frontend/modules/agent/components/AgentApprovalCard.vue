@@ -57,6 +57,10 @@
               <i class="iconoir-minus-circle" aria-hidden="true" />
               {{ $t('toolPresentation.statusStopped') }}
             </span>
+            <span v-else-if="item.partial" class="agent-approval__step-status">
+              <i class="iconoir-warning-circle" aria-hidden="true" />
+              {{ $t('toolPresentation.statusPartial') }}
+            </span>
             <span
               class="agent-approval__decision agent-approval__decision--approved"
             >
@@ -98,6 +102,13 @@
         </div>
         <p v-if="item.failureHint" class="agent-approval__item-note">
           {{ item.failureHint }}
+        </p>
+        <p
+          v-for="(error, index) in item.itemErrors"
+          :key="index"
+          class="agent-approval__item-note"
+        >
+          {{ error.item ? `${error.item}: ${error.message}` : error.message }}
         </p>
         <div class="agent-approval__item-meta">
           <button
