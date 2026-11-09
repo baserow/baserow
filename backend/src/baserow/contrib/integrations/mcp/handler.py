@@ -342,18 +342,22 @@ class MCPServerHandler:
         )
         return pending.authorization_url
 
-    def pop_oauth_state(self, state: str) -> dict:
+    def pop_oauth_state(self, state: str, user: AbstractUser) -> dict:
         """
-        The authorization a callback belongs to. Each one can be used once.
+        The authorization a callback belongs to. Each one can be used once, and
+        only by the user who started it; anyone else's attempt leaves it be.
 
-        :raises MCPOAuthStateInvalid: When it's unknown, used or expired.
+        :raises MCPOAuthStateInvalid: When it's unknown, used, expired or
+            someone else's.
         """
 
         key = OAUTH_STATE_CACHE_KEY.format(state)
         pending = cache.get(key) if state else None
-        if not pending:
+        if not pending or pending["user_id"] != user.id:
             raise MCPOAuthStateInvalid()
-        cache.delete(key)
+        # Only the request that deletes it may go on, if two arrive at once.
+        if not cache.delete(key):
+            raise MCPOAuthStateInvalid()
         return pending
 
     def complete_oauth(

@@ -133,6 +133,9 @@ def test_only_the_editor_who_started_a_sign_in_can_finish_it(
     assert response.json()["error"] == "ERROR_MCP_OAUTH_STATE_INVALID"
     integration.refresh_from_db()
     assert not integration.oauth_connected
+    # Their attempt doesn't use up the editor's sign-in.
+    response = complete(api_client, token, state=state, code=fake.authorize(url))
+    assert response.status_code == 200, response.json()
 
 
 @pytest.mark.django_db

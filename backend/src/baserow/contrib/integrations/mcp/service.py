@@ -6,7 +6,7 @@ from baserow.core.integrations.exceptions import IntegrationDoesNotExist
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.operations import UpdateIntegrationOperationType
 
-from .exceptions import MCPOAuthFailed, MCPOAuthStateInvalid
+from .exceptions import MCPOAuthFailed
 from .handler import MCPServerHandler, MCPToolSettings
 from .models import MCPAuthType, MCPServerIntegration
 
@@ -96,9 +96,7 @@ class MCPServerService:
             exchange fails.
         """
 
-        pending = MCPServerHandler().pop_oauth_state(state)
-        if pending["user_id"] != user.id:
-            raise MCPOAuthStateInvalid()
+        pending = MCPServerHandler().pop_oauth_state(state, user)
         if not code:
             raise MCPOAuthFailed("The sign-in was cancelled or refused.")
         integration = self.get_server_for_update(user, pending["integration_id"])
