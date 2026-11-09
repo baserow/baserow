@@ -392,13 +392,15 @@ class ElementHandler:
             page.builder_id
         )
 
-    def _add_to_element_cache(self, page: Page, element: Element) -> None:
+    def put_in_element_cache(self, page: Page, element: Element) -> None:
         """
-        Invalidates the caches a new element changes, and adds it to the page's map
-        of elements by ID when that is loaded, instead of loading the page again.
+        Invalidates the caches a new or moved element changes, and puts it in the
+        page's map of elements by ID when that is loaded, instead of loading the
+        page again. A move can save the element itself, so the map takes the
+        instance given.
 
-        :param page: The page the element was created on.
-        :param element: The new element.
+        :param page: The page the element is on.
+        :param element: The element created or moved within the page.
         """
 
         self.invalidate_element_cache(page, keep_point_map=True)
@@ -481,7 +483,7 @@ class ElementHandler:
 
         element_type.after_create(element, kwargs)
 
-        self._add_to_element_cache(page, element)
+        self.put_in_element_cache(page, element)
 
         return element
 

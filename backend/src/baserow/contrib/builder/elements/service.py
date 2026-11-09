@@ -448,11 +448,12 @@ class ElementService:
             source_graph.remove_isolated_point(element)
             self.handler.invalidate_element_cache(source_page)
 
-        # A move within the page keeps its elements: their parent and place are read
-        # from the graph, so the page's map of elements stays valid.
-        self.handler.invalidate_element_cache(
-            element.page, keep_point_map=not is_cross_page_move
-        )
+        if is_cross_page_move:
+            self.handler.invalidate_element_cache(element.page)
+        else:
+            # A move within the page keeps the other elements valid: their parent and
+            # place are read from the graph. The moved one can have been saved.
+            self.handler.put_in_element_cache(element.page, element)
 
         element_moved.send(
             self,
