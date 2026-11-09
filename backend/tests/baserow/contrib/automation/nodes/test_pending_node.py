@@ -245,10 +245,7 @@ def test_dispatch_node_refuses_a_pending_node_without_a_resume_time(
     )
 
     assert result is None
-    error = (
-        "The node is misconfigured and cannot be dispatched. The node suspended "
-        "itself without a time to resume at."
-    )
+    error = "The node cannot wait without knowing when to resume."
     workflow_history.refresh_from_db()
     assert workflow_history.status == HistoryStatusChoices.ERROR
     assert workflow_history.message == error

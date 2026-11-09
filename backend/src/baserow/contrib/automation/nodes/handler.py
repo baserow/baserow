@@ -1090,10 +1090,7 @@ class AutomationNodeHandler:
 
         if pending.resume_at is None:
             # Only time-based resumes are supported for now.
-            error = (
-                "The node is misconfigured and cannot be dispatched. The node "
-                "suspended itself without a time to resume at."
-            )
+            error = "The node cannot wait without knowing when to resume."
             self._handle_workflow_error(node_history, iteration_path, error)
             return None
 
