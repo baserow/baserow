@@ -1359,3 +1359,19 @@ def test_migrate_graph_preserves_outputs_when_they_have_no_id_mapping():
         "41": {"next": {"0": [42]}},
         "42": {},
     }
+
+
+def test_get_ordered_point_ids_follows_every_output():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"b-uid": [4], "": [2], "a-uid": [3]}},
+            "2": {},
+            "3": {},
+            "4": {"next": {"": [5]}},
+            "5": {},
+        }
+    )
+
+    # The default output first, then the other outputs in key order.
+    assert model.get_graph().get_ordered_point_ids() == [1, 2, 3, 4, 5]
