@@ -9,6 +9,7 @@ from baserow.contrib.database.formula.registries import formula_function_registr
 from baserow.contrib.database.table.models import Table
 from baserow.test_utils.helpers import AnyInt
 from baserow_enterprise.assistant.model_profiles import UTILITY
+from baserow_enterprise.assistant.tools.database import helpers
 from baserow_enterprise.assistant.tools.database.agents import FormulaGenerationResult
 from baserow_enterprise.assistant.tools.database.reconciliation import (
     plan_table_creation,
@@ -1532,7 +1533,7 @@ def test_create_fields_tool_with_invalid_formula_auto_fixes(data_fixture, formul
     # The text field should be created successfully
     assert len(result["created_fields"]) == 2
     # No formula errors since auto-fix succeeded
-    assert "formula_errors" not in result
+    assert "errors" not in result
 
     # Verify the formula field was created with the original name and fixed formula
     formula_field = table.field_set.filter(name="Bad Formula").first()
@@ -1583,18 +1584,21 @@ def test_create_fields_tool_reports_error_when_auto_fix_fails(data_fixture):
     assert result["created_fields"][0]["name"] == "Description"
 
     # Formula errors should be reported
-    assert len(result["formula_errors"]) == 1
-    assert result["formula_errors"][0]["field_name"] == "Bad Formula"
-    assert "hint" in result["formula_errors"][0]
+    assert result["changed"] is True
+    assert "error" not in result
+    (error,) = result["errors"]
+    assert (error["item"], error["code"]) == ("Bad Formula", "invalid_formula")
+    assert error["field_name"] == "Bad Formula"
+    assert "hint" in error
 
 
 @pytest.mark.django_db
 def test_create_fields_reports_the_error_when_the_fixed_field_cannot_be_created(
-    data_fixture,
+    data_fixture, monkeypatch
 ):
     """
     Regression: the fixer returned a formula but creating the field failed on a
-    duplicate name; the handler must record the formula error, not raise
+    duplicate name; the handler must record the error, not raise
     UnboundLocalError from except-as shadowing.
     """
 
@@ -1604,33 +1608,66 @@ def test_create_fields_reports_the_error_when_the_fixed_field_cannot_be_created(
     table = data_fixture.create_database_table(database=database, name="Test")
     data_fixture.create_text_field(table=table, name="Name", primary=True)
     data_fixture.create_text_field(table=table, name="Collides")
-
-    mock_result = _make_mock_formula_result(
-        table_id=table.id,
-        field_name="Collides",
-        formula="field('Name')",
-        formula_type="text",
+    monkeypatch.setattr(
+        "baserow_enterprise.assistant.tools.database.tools.make_formula_fixer",
+        lambda user, workspace, tool_helpers: (
+            lambda table, name, formula: "field('Name')"
+        ),
     )
 
-    with patch(
-        "baserow_enterprise.assistant.tools.database.agents.formula_generation_agent.run_sync"
-    ) as mock_agent:
-        mock_agent.return_value = mock_result
-
-        ctx = make_test_ctx(user, workspace)
-        result = create_fields(
-            ctx,
-            thought="test",
-            table_id=table.id,
-            fields=[
-                FieldItemCreate(
-                    name="Collides", type="formula", formula="invalid_stuff!!!"
-                )
-            ],
-        )
+    result = create_fields(
+        make_test_ctx(user, workspace),
+        thought="test",
+        table_id=table.id,
+        fields=[
+            FieldItemCreate(name="Collides", type="formula", formula="invalid_stuff!!!")
+        ],
+    )
 
     assert result["created_fields"] == []
-    assert result["formula_errors"][0]["field_name"] == "Collides"
+    (error,) = result["errors"]
+    assert (error["code"], error["field_name"]) == ("conflict", "Collides")
+    assert "hint" not in error
+    assert result["error"]["code"] == "conflict"
+
+
+@pytest.mark.django_db
+def test_create_tables_notes_a_repair_that_fails_for_another_reason(
+    data_fixture, monkeypatch
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    monkeypatch.setattr(
+        "baserow_enterprise.assistant.tools.database.tools.make_formula_fixer",
+        lambda user, workspace, tool_helpers: lambda table, name, formula: "'fixed'",
+    )
+    create_action = MagicMock()
+    create_action.do.side_effect = RuntimeError("boom")
+    monkeypatch.setattr(helpers, "CreateFieldActionType", create_action)
+
+    result = create_tables(
+        make_test_ctx(user, workspace),
+        thought="test",
+        database_id=database.id,
+        tables=[
+            TableItemCreate(
+                name="Test Table",
+                primary_field_name="Name",
+                fields=[
+                    FieldItemCreate(
+                        name="My Formula", type="formula", formula="bad formula!!!"
+                    )
+                ],
+            )
+        ],
+        add_sample_rows=False,
+    )
+
+    assert len(result["created_tables"]) == 1
+    (note,) = result["notes"]
+    assert "'My Formula'" in note and "not created" in note
+    assert "generate_formula" not in note
 
 
 @pytest.mark.django_db
@@ -1728,7 +1765,7 @@ def test_create_tables_repairs_formulas_after_the_transaction_commits(data_fixtu
 
     assert calls == [False]
     assert result["notes"] == []
-    assert "formula_errors" not in result
+    assert "errors" not in result
     total = FormulaField.objects.get(table__database=database, name="Total")
     assert total.formula == "'fixed'"
 

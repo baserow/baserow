@@ -52,6 +52,7 @@ from baserow.core.exceptions import PermissionException
 from baserow.core.handler import CoreHandler
 from baserow.core.tools import ToolContext
 from baserow.core.tools.applications import get_application_in_workspace
+from baserow.core.tools.errors import ToolErrorCode, ToolInputError, finish_batch
 from baserow.core.types import PermissionCheck
 
 # ---------------------------------------------------------------------------
@@ -617,6 +618,7 @@ class TableCreation:
     created_tables: list[Table]
     table_ids: dict[str, int]
     notes: list[str] = field(default_factory=list)
+    errors: list[dict[str, Any]] = field(default_factory=list)
     formula_errors: list[dict[str, Any]] = field(default_factory=list)
     permission_denied: bool = False
 
@@ -630,12 +632,15 @@ class TableCreation:
             "reused_tables": [table.model_dump() for table in reused_items],
             "notes": self.notes,
         }
-        if self.formula_errors:
-            response["formula_errors"] = self.formula_errors
         response.update(
             reused_table_report(self.plan.requested, reused_items, self.table_ids)
         )
-        return response
+        return finish_batch(
+            response,
+            bool(self.created_tables),
+            [*self.errors, *self.formula_errors],
+            "No table was created.",
+        )
 
 
 def get_database(ctx: ToolContext, database_id: int) -> Database:
@@ -743,9 +748,7 @@ def _add_table_fields(
             try:
                 # A savepoint, so a denied field keeps the tables created so far.
                 with transaction.atomic():
-                    _, field_errors, formula_errors = create_fields_in_table(
-                        ctx, created_table, field_items
-                    )
+                    _, errors = create_fields_in_table(ctx, created_table, field_items)
             except PermissionException:
                 forget_cached_table_models()
                 creation.notes.append(
@@ -756,8 +759,11 @@ def _add_table_fields(
                 )
                 creation.permission_denied = True
                 return
-            creation.notes.extend(field_errors)
-            creation.formula_errors.extend(formula_errors)
+            for error in errors:
+                if error["code"] == ToolErrorCode.INVALID_FORMULA:
+                    creation.formula_errors.append(error)
+                else:
+                    creation.errors.append(error)
 
 
 def create_tables_in_database(
@@ -773,6 +779,8 @@ def create_tables_in_database(
     :returns: The created tables, the reused ones, notes and invalid formulas.
     :raises ValidationError: When two requests use one name with different
         definitions. Nothing is created then.
+    :raises ToolInputError: When a requested name is shared by several existing
+        tables. Nothing is created then.
     """
 
     # Only tables the user can see may be reused.
@@ -792,10 +800,11 @@ def create_tables_in_database(
     # Which of the tables sharing a name to reuse would be a guess.
     if shared := [t.name for t in plan.requested if name_counts[t.name] > 1]:
         names = ", ".join(f"'{name}'" for name in shared)
-        raise DjangoValidationError(
-            f"Several tables in this database are named {names}. Give the "
-            "requested table another name, or use create_fields with the ID of "
-            "the table to add fields to. No tables were created."
+        raise ToolInputError(
+            f"Several tables in this database are named {names}. No tables were "
+            "created.",
+            hint="Give the requested table another name, or use create_fields "
+            "with the ID of the table to add fields to.",
         )
 
     with transaction.atomic():
@@ -1005,7 +1014,7 @@ def create_tables(
     a text field. A table with the same name as an existing one is reused as is
     and returned with its actual schema, plus the differences when it lacks what
     was requested. A formula is stored as written. An invalid formula is not
-    created: it is returned in formula_errors with the parser's message, to
+    created: it is returned in errors with the code invalid_formula, to
     correct and add with create_fields. A lookup whose target is a formula or
     lookup of a table listed after it fails, as that target doesn't exist yet: list
     that table first, or add the lookup with create_fields after this call.

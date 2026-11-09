@@ -36,7 +36,10 @@ def test_tool_calls_recheck_the_identity_role(
 
     refused = create("After downgrade")
     assert refused.return_value == {
-        "error": "You don't have permission to do this in this workspace."
+        "error": {
+            "code": "permission_denied",
+            "message": "You don't have permission to do this in this workspace.",
+        }
     }
     assert refused.metadata == {"error_code": "permission_denied"}
     assert list(

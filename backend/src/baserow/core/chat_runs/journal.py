@@ -8,6 +8,8 @@ from django.db import connections
 from asgiref.sync import sync_to_async
 from loguru import logger
 
+from baserow.core.utils import remove_unstorable_characters
+
 from .buffer import ChatRunBuffer
 from .constants import (
     FLUSH_INTERVAL_SECONDS,
@@ -129,9 +131,8 @@ class ChatRunJournal:
         )
 
     def emit_text(self, text: str, variant: str | None = None) -> None:
-        self._on_loop(
-            self._add_text, text.replace("\x00", ""), variant, size=len(text.encode())
-        )
+        text = remove_unstorable_characters(text)
+        self._on_loop(self._add_text, text, variant, size=len(text.encode()))
 
     def request_stop(self, reason: ChatRunStopReason) -> None:
         if self._stop_reason is None:

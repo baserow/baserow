@@ -14,6 +14,8 @@ class ChatRunStep(TypedDict):
     tool: str
     status: ChatRunStepStatus
     error_code: NotRequired[ToolErrorCode]
+    error_message: NotRequired[str]
+    item_errors: NotRequired[list[dict[str, Any]]]
     changes_data: bool
     input: dict[str, Any]
     facts: dict[str, Any]

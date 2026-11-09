@@ -66,3 +66,20 @@ def user_error_message(exc: Exception) -> str | None:
     if error is None:
         return None
     return detail or str(exc) or error.removeprefix("ERROR_").replace("_", " ").lower()
+
+
+def conflict_errors() -> tuple[type[Exception], ...]:
+    """
+    Database exceptions meaning an item clashes with existing data.
+
+    :return: The exception classes.
+    """
+
+    from baserow.contrib.database.fields import exceptions as f
+
+    return (
+        f.FieldWithSameNameAlreadyExists,
+        f.FailedToLockFieldDueToConflict,
+        f.PrimaryFieldAlreadyExists,
+        f.FieldIsAlreadyPrimary,
+    )

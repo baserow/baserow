@@ -57,8 +57,8 @@ def _assert_readable_error(result, caplog, error_records, *expected):
 def _assert_field_error(result, caplog, error_records, expected):
     # create_fields reports a field it could not create and goes on with the rest.
     assert result.isError is False
-    (error,) = json.loads(result.content[0].text)["field_errors"]
-    assert expected in error.lower(), error
+    (error,) = json.loads(result.content[0].text)["errors"]
+    assert expected in error["message"].lower(), error
     assert [r for r in caplog.records if r.levelno >= logging.ERROR] == []
     assert error_records == []
 
@@ -117,7 +117,7 @@ def test_duplicate_field_name(table_setup, caplog, error_records):
         {"table_id": table.id, "fields": [{"name": "Name", "type": "text"}]},
     )
 
-    _assert_field_error(result, caplog, error_records, "already exists")
+    _assert_field_error(result, caplog, error_records, "same name")
 
 
 @pytest.mark.django_db

@@ -1027,7 +1027,16 @@ def test_create_views_with_only_used_names_skips_them_without_navigating(
         views=[ViewItemCreate(name="Grid", type="grid")],
     )
 
-    assert response == {"created_views": [], "skipped_views": ["Grid"]}
+    conflict = {
+        "code": "conflict",
+        "message": "A view named 'Grid' already exists in this table.",
+    }
+    assert response == {
+        "created_views": [],
+        "changed": False,
+        "errors": [{"item": "Grid", **conflict}],
+        "error": conflict,
+    }
     assert View.objects.filter(table=table).count() == 1
     tool_helpers.navigate_to.assert_not_called()
 

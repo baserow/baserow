@@ -4,6 +4,7 @@ Errors of the shared tools, as the messages their clients get.
 
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Any
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -24,9 +25,26 @@ from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
 
+PERMISSION_DENIED_MESSAGE = "You don't have permission to do this in this workspace."
+NOT_FOUND_MESSAGE = "Not found in this workspace."
+INTERNAL_ERROR_MESSAGE = "Internal error."
+LICENCE_REQUIRED_MESSAGE = (
+    "This needs a licence that this user doesn't have: a premium, advanced or "
+    "enterprise plan, depending on the feature."
+)
+
 
 class ToolInputError(Exception):
     """A call the client can fix by changing its arguments."""
+
+    def __init__(self, message: str, hint: str | None = None) -> None:
+        """
+        :param message: What is wrong, written for people.
+        :param hint: Advice for the model only, never shown to people.
+        """
+
+        super().__init__(message)
+        self.hint = hint
 
 
 def _detail_messages(detail) -> str:
@@ -59,11 +77,13 @@ def raise_if_permission_denied(error: Exception) -> None:
 
 
 class ToolErrorCode(StrEnum):
-    """Why a tool call failed, safe to show to users unlike the message."""
+    """Why a tool call or item failed, safe to show to users."""
 
     NOT_FOUND = "not_found"
     PERMISSION_DENIED = "permission_denied"
     INVALID_INPUT = "invalid_input"
+    INVALID_FORMULA = "invalid_formula"
+    CONFLICT = "conflict"
     FAILED = "failed"
 
 
@@ -71,17 +91,25 @@ class ToolErrorCode(StrEnum):
 class ToolError:
     code: ToolErrorCode
     message: str | None
-    """The message for the client, or None when the error is unexpected and must be
+    """The message for people, or None when the error is unexpected and must be
     logged and hidden behind a generic message."""
+    hint: str | None = None
+    """Advice for the model only, never shown to people."""
 
+    def to_dict(self) -> dict[str, str]:
+        """
+        The error as tools return it.
 
-PERMISSION_DENIED_MESSAGE = "You don't have permission to do this in this workspace."
-NOT_FOUND_MESSAGE = "Not found in this workspace."
-INTERNAL_ERROR_MESSAGE = "Internal error."
-LICENCE_REQUIRED_MESSAGE = (
-    "This needs a licence that this user doesn't have: a premium, advanced or "
-    "enterprise plan, depending on the feature."
-)
+        :return: The code, the message or the generic one, and the hint if any.
+        """
+
+        error = {
+            "code": self.code.value,
+            "message": self.message or INTERNAL_ERROR_MESSAGE,
+        }
+        if self.hint:
+            error["hint"] = self.hint
+        return error
 
 
 def _is_does_not_exist(exc: Exception) -> bool:
@@ -144,7 +172,7 @@ def classify_tool_error(exc: Exception) -> ToolError:
     """
 
     if isinstance(exc, ToolInputError):
-        return ToolError(ToolErrorCode.INVALID_INPUT, str(exc))
+        return ToolError(ToolErrorCode.INVALID_INPUT, str(exc), exc.hint)
     # UserNotInWorkspace is a PermissionException, but the user must not learn
     # whether the object exists in another workspace.
     if isinstance(exc, UserNotInWorkspace):
@@ -200,29 +228,97 @@ def tool_error_message(exc: Exception) -> str | None:
     Turns an exception raised by a tool into the message for the client calling the tool.
 
     :param exc: The exception raised while calling the tool.
-    :return: The message for the client, or None when the exception is unexpected
-        and must be logged and hidden behind a generic message.
+    :return: The message for the client followed by its hint, or None when the
+        exception is unexpected and must be logged and hidden behind a generic
+        message.
     """
 
-    return classify_tool_error(exc).message
+    error = classify_tool_error(exc)
+    if error.message is None or not error.hint:
+        return error.message
+    return f"{error.message} {error.hint}"
+
+
+def classify_item_error(
+    exc: Exception, conflicts: tuple[type[Exception], ...] = ()
+) -> ToolError:
+    """
+    Classify the error of one item that failed while the others go on. Call it from
+    the ``except`` block, so an unexpected error is logged with its traceback.
+
+    :param exc: The exception the item raised.
+    :param conflicts: The tool's exceptions meaning the item clashes with existing
+        data, like a name already in use.
+    :return: The code and the message for people. The message is None for an
+        unexpected error.
+    """
+
+    if isinstance(exc, conflicts):
+        return ToolError(ToolErrorCode.CONFLICT, str(exc) or type(exc).__name__)
+    error = classify_tool_error(exc)
+    if error.message is not None:
+        return error
+    # Baserow's own errors say what the caller did; a bare type lookup is a server bug.
+    if not isinstance(exc, (AttributeError, InstanceTypeDoesNotExist)) and type(
+        exc
+    ).__module__.startswith("baserow"):
+        return ToolError(ToolErrorCode.INVALID_INPUT, str(exc) or type(exc).__name__)
+    logger.exception("Unexpected error in a tool item: {}", exc)
+    return ToolError(ToolErrorCode.FAILED, None)
 
 
 def item_error_message(exc: Exception) -> str:
     """
     The message for one item that failed while the others go on. Call it from the
     ``except`` block, so an unexpected error is logged with its traceback.
+
+    :param exc: The exception the item raised.
+    :return: The message for the client.
     """
 
-    message = tool_error_message(exc)
-    if (
-        message is None
-        and not isinstance(exc, AttributeError)
-        and type(exc).__module__.startswith("baserow")
-    ):
-        # Baserow's own errors (AutomationNodeNotDeletable, ...) say what the
-        # caller did wrong.
-        message = str(exc) or type(exc).__name__
-    if message is None:
-        logger.exception("Unexpected error in a tool item: {}", exc)
-        return INTERNAL_ERROR_MESSAGE
-    return message
+    return classify_item_error(exc).message or INTERNAL_ERROR_MESSAGE
+
+
+def item_error(item: str | int, error: ToolError, **details: Any) -> dict[str, Any]:
+    """
+    One failed item of a batch tool.
+
+    :param item: Which item failed, as the caller named it: a name, or an ID.
+    :param error: Why it failed.
+    :param details: What the tool's clients need to act on it, like a formula.
+    :return: The item error as tools return it.
+    """
+
+    return {"item": item, **error.to_dict(), **details}
+
+
+def finish_batch(
+    result: dict[str, Any],
+    changed: bool,
+    errors: list[dict[str, Any]],
+    nothing_done: str,
+) -> dict[str, Any]:
+    """
+    Complete a batch tool's result so every client reads its outcome the same way:
+    ``changed``, the failed items in ``errors``, and ``error`` only when nothing
+    changed because items failed. Safe to call again after a client fixes items.
+
+    :param result: The tool's result, changed in place.
+    :param changed: Whether the call changed anything.
+    :param errors: The failed items, from ``item_error``.
+    :param nothing_done: The message when several items failed and none worked.
+    :return: The result.
+    """
+
+    result.pop("error", None)
+    result.pop("errors", None)
+    result["changed"] = changed
+    if errors:
+        result["errors"] = errors
+    if not changed and errors:
+        codes = {error["code"] for error in errors}
+        result["error"] = {
+            "code": codes.pop() if len(codes) == 1 else ToolErrorCode.FAILED.value,
+            "message": errors[0]["message"] if len(errors) == 1 else nothing_done,
+        }
+    return result

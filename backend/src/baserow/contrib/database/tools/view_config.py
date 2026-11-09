@@ -339,23 +339,20 @@ def _colour_conf(ctx: ToolContext, view: View, colour: RowColour) -> dict[str, A
             raise ToolInputError(f"The field '{field.name}' isn't a single select.")
         return {"field_id": field.id}
 
-    try:
-        return {
-            "colors": [
-                {
-                    "id": uuid4().hex,
-                    "color": item.color,
-                    "operator": item.operator,
-                    "filters": [
-                        _colour_filter(view_filter, fields, ctx.timezone)
-                        for view_filter in item.filters
-                    ],
-                }
-                for item in colour.colours
-            ]
-        }
-    except ValueError as exc:
-        raise ToolInputError(str(exc)) from exc
+    return {
+        "colors": [
+            {
+                "id": uuid4().hex,
+                "color": item.color,
+                "operator": item.operator,
+                "filters": [
+                    _colour_filter(view_filter, fields, ctx.timezone)
+                    for view_filter in item.filters
+                ],
+            }
+            for item in colour.colours
+        ]
+    }
 
 
 def add_row_colours(
