@@ -7,6 +7,7 @@ from typing import Any, AsyncIterator
 
 from mcp import ClientSession, types
 from mcp.client.streamable_http import streamable_http_client
+from mcp.shared.exceptions import McpError
 
 from .http import create_mcp_http_client
 
@@ -157,6 +158,21 @@ def refused_credential(exc: BaseException) -> bool:
         return True
     nested = list(getattr(exc, "exceptions", [])) + [exc.__cause__]
     return any(refused_credential(inner) for inner in nested if inner)
+
+
+def protocol_error(exc: BaseException) -> McpError | None:
+    """
+    The error the server answered with somewhere in the failure, such as invalid
+    arguments, as opposed to the server not answering.
+    """
+
+    if isinstance(exc, McpError):
+        return exc
+    nested = list(getattr(exc, "exceptions", [])) + [exc.__cause__]
+    for inner in nested:
+        if inner and (found := protocol_error(inner)):
+            return found
+    return None
 
 
 def result_to_text(result: types.CallToolResult) -> str:

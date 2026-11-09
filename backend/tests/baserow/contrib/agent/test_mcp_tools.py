@@ -2,7 +2,10 @@ import json
 from unittest.mock import ANY
 from uuid import uuid4
 
+import httpx
 import pytest
+from mcp.shared.exceptions import McpError
+from mcp.types import INVALID_PARAMS, ErrorData
 from pydantic_ai.messages import ToolReturnPart
 from pydantic_ai.models.function import DeltaToolCall, FunctionModel
 
@@ -198,3 +201,52 @@ def test_a_server_without_a_connected_account_offers_no_tools(
 
     assert offered and all(tools == [] for tools in offered)
     assert opened == []
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "error,expected",
+    [
+        (
+            McpError(ErrorData(code=INVALID_PARAMS, message="Use an ISO date.")),
+            "Use an ISO date.",
+        ),
+        (
+            httpx.HTTPStatusError(
+                "Unauthorized",
+                request=httpx.Request("POST", "https://mcp.example.com/mcp"),
+                response=httpx.Response(401),
+            ),
+            "refused the Agent's credential",
+        ),
+    ],
+)
+def test_a_server_error_is_answered_to_the_model(
+    data_fixture, configured_agent, mocker, error, expected
+):
+    server = make_server()
+
+    @server.tool()
+    def strict(when: str) -> str:
+        """Takes a date."""
+
+        return when
+
+    # Servers built on the low-level SDK answer with a JSON-RPC error instead.
+    mocker.patch(
+        "mcp.ClientSession.call_tool",
+        side_effect=error,
+    )
+    serve(mocker, server)
+    user, agent, integration = agent_with_server(
+        data_fixture, configured_agent, ["strict"]
+    )
+    _, returned = reply_with(
+        mocker, lambda info: [(f"mcp{integration.id}_strict", {"when": "soon"})]
+    )
+
+    created = start(user, agent)
+    run_reply(ChatRun.objects.get(chat_id=created.conversation.id))
+
+    # The server answered: the model can fix its arguments or explain the key.
+    assert expected in returned[0]["error"]

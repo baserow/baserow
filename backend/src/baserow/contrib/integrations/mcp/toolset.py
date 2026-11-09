@@ -18,6 +18,8 @@ from .client import (
     MCPServerConnection,
     list_tools,
     open_session,
+    protocol_error,
+    refused_credential,
     result_to_text,
 )
 
@@ -32,6 +34,11 @@ _ARGUMENTS_VALIDATOR = SchemaValidator(
 )
 
 UNREACHABLE_MESSAGE = "The MCP server could not be reached. Try again later."
+REFUSED_MESSAGE = (
+    "The MCP server refused the Agent's credential. An editor of the Agent has to "
+    "update it."
+)
+MAX_ERROR_CHARACTERS = 2_000
 CHANGED_MESSAGE = (
     "The MCP server changed this tool since it was turned on. An editor of the "
     "Agent has to review it before it can be used."
@@ -212,6 +219,14 @@ class MCPServerToolset(AbstractToolset[Any]):
                 self._server.integration_id,
                 type(exc).__name__,
             )
+            if refused_credential(exc):
+                return _error(REFUSED_MESSAGE, ToolErrorCode.FAILED)
+            # The server answered: its message may tell the model what to fix.
+            if error := protocol_error(exc):
+                return _error(
+                    error.error.message[:MAX_ERROR_CHARACTERS] or "The tool failed.",
+                    ToolErrorCode.FAILED,
+                )
             return _error(UNREACHABLE_MESSAGE, ToolErrorCode.FAILED)
 
         text = result_to_text(result)
