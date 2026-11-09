@@ -7,6 +7,7 @@ from baserow.core.integrations.types import IntegrationDict
 from baserow.core.models import Application
 from baserow.core.registries import ImportExportConfig
 
+from .client import MCPToolDefinition
 from .models import (
     MCPAuthType,
     MCPOAuthClientSource,
@@ -211,6 +212,23 @@ class MCPServerIntegrationType(IntegrationType):
             cache=cache,
         )
 
+    def _import_tool(
+        self, integration: MCPServerIntegration, tool: dict, keep_choices: bool
+    ) -> MCPServerTool:
+        values = {name: tool[name] for name in EXPORTED_TOOL_FIELDS if name in tool}
+        if not keep_choices:
+            values.update(enabled=False, changed_since_review=False)
+        # Hashed again from what is imported: the call-time check compares the
+        # server's definition with this, and a file can't vouch for itself.
+        values["definition_hash"] = MCPToolDefinition(
+            name=values["name"],
+            title=values.get("title", ""),
+            description=values.get("description", ""),
+            input_schema=values.get("input_schema", {}),
+            annotations=values.get("annotations"),
+        ).definition_hash
+        return MCPServerTool(integration=integration, **values)
+
     def import_serialized(
         self,
         application: Application,
@@ -246,17 +264,6 @@ class MCPServerIntegrationType(IntegrationType):
             and not import_export_config.is_template
         )
         MCPServerTool.objects.bulk_create(
-            MCPServerTool(
-                integration=integration,
-                **{
-                    name: tool[name]
-                    for name in EXPORTED_TOOL_FIELDS
-                    if name in tool
-                    and (
-                        keep_choices or name not in ("enabled", "changed_since_review")
-                    )
-                },
-            )
-            for tool in tools
+            self._import_tool(integration, tool, keep_choices) for tool in tools
         )
         return integration
