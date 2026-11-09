@@ -23,6 +23,8 @@ EXPECTED = {
     "list_workflows": (True, False),
     "list_nodes": (True, False),
     "create_workflows": (False, False),
+    "publish_workflow": (False, True),
+    "pause_workflow": (False, True),
     "add_nodes": (False, False),
     "update_nodes": (False, True),
     "delete_nodes": (False, True),
@@ -39,13 +41,52 @@ EXPECTED = {
     "list_dashboards": (True, False),
     "list_widgets": (True, False),
     "get_widget_data": (True, False),
-    "create_dashboards": (False, False),
+    "create_dashboard": (False, False),
+    "update_dashboard": (False, True),
+    "create_database": (False, False),
+    "update_database": (False, True),
+    "create_automation": (False, False),
+    "update_automation": (False, True),
     "create_widgets": (False, False),
     "update_widgets": (False, True),
     "delete_widgets": (False, True),
+    "list_builders": (True, False),
+    "create_builder": (False, False),
+    "update_builder": (False, True),
+    "list_pages": (True, False),
+    "create_pages": (False, False),
+    "update_page": (False, True),
+    "setup_page": (False, False),
+    "setup_user_source": (False, False),
+    "set_theme": (False, True),
+    "list_data_sources": (True, False),
+    "create_data_sources": (False, False),
+    "update_data_source": (False, True),
+    "list_elements": (True, False),
+    "create_display_elements": (False, False),
+    "create_layout_elements": (False, False),
+    "create_form_elements": (False, False),
+    "create_collection_elements": (False, False),
+    "update_element": (False, True),
+    "update_element_style": (False, True),
+    "move_elements": (False, True),
+    "list_actions": (True, False),
+    "create_actions": (False, False),
+    "add_action_field_mapping": (False, True),
+    "update_action": (False, True),
     # Disabled tools, annotated so they are ready when enabled.
     "update_table": (False, True),
     "delete_table": (False, True),
+}
+
+# Tools that can reach outside the workspace: a public view link, or workflow nodes
+# that send email and Slack messages, call an AI model or expose a webhook.
+OPEN_WORLD = {
+    "create_views",
+    "create_workflows",
+    "add_nodes",
+    "update_nodes",
+    "publish_workflow",
 }
 
 
@@ -62,7 +103,7 @@ def test_enabled_tools_have_annotations(data_fixture):
         assert annotations.title
         assert annotations.readOnlyHint is read_only
         assert annotations.destructiveHint is destructive
-        assert annotations.openWorldHint is False
+        assert annotations.openWorldHint is (name in OPEN_WORLD)
 
 
 @pytest.mark.django_db
@@ -75,4 +116,4 @@ def test_all_registered_tools_are_annotated(data_fixture):
         assert mcp_tool_registry.get(name).title == tool.annotations.title
         assert tool.annotations.readOnlyHint is read_only
         assert tool.annotations.destructiveHint is destructive
-        assert tool.annotations.openWorldHint is False
+        assert tool.annotations.openWorldHint is (name in OPEN_WORLD)

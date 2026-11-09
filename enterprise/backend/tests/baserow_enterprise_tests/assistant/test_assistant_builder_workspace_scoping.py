@@ -17,8 +17,10 @@ from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.trash.handler import TrashHandler
-from baserow_enterprise.assistant.tools.builder import helpers
-from baserow_enterprise.assistant.tools.builder.types import (
+from baserow_enterprise.assistant.tools.core.tools import update_builder
+from baserow_enterprise.assistant.tools.shared import ToolInputError
+from baserow_enterprise.builder.tools import helpers
+from baserow_enterprise.builder.tools.types import (
     ActionCreate,
     DataSourceCreate,
     DataSourceSort,
@@ -30,9 +32,6 @@ from baserow_enterprise.assistant.tools.builder.types import (
     MenuItemCreate,
     PageUpdate,
 )
-from baserow_enterprise.assistant.tools.core.tools import update_builder
-from baserow_enterprise.assistant.tools.core.types import BuilderUpdate
-from baserow_enterprise.assistant.tools.shared import ToolInputError
 
 from .utils import make_test_ctx
 
@@ -349,7 +348,7 @@ def test_update_builder_from_other_workspace_is_not_found(two_workspaces):
         update_builder(
             ctx,
             builder_id=builder.id,
-            update=BuilderUpdate(name="Changed"),
+            name="Changed",
             thought="rename",
         )
 
@@ -377,7 +376,7 @@ def test_update_builder_refuses_a_login_page_outside_the_builder(
             update_builder(
                 ctx,
                 builder_id=builder.id,
-                update=BuilderUpdate(login_page_id=page_id),
+                login_page_id=page_id,
                 thought="login page",
             )
 
@@ -427,7 +426,7 @@ def test_header_keeps_pages_of_its_builder(data_fixture):
         builder=data_fixture.create_builder_application(workspace=workspace)
     )
 
-    header, _, _ = helpers.create_element(
+    header, _ = helpers.create_element(
         user,
         page,
         ElementItemCreate(
@@ -474,7 +473,7 @@ def test_data_source_refuses_a_sort_field_of_another_table(two_tables):
 
     with pytest.raises(
         ToolInputError,
-        match=f"field with id {t['other_field'].id} .* Use get_tables_schema ",
+        match=f"field with id {t['other_field'].id} .* Use a field of the data source's ",
     ):
         helpers.create_data_source(
             t["user"],
@@ -567,7 +566,7 @@ def test_update_builder_returns_a_field_validation_message(
         update_builder(
             make_test_ctx(w["user"], w["here"]),
             builder_id=page.builder.id,
-            update=BuilderUpdate(login_page_id=page.id),
+            login_page_id=page.id,
             thought="login page",
         )
 

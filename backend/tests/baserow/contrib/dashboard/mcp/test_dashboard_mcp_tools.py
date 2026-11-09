@@ -16,7 +16,12 @@ from baserow.core.mcp.constants import LEGACY_DEFAULT_TOOLS
 from baserow.core.mcp.registries import mcp_tool_registry
 
 READ_TOOLS = ["list_dashboards", "list_widgets", "get_widget_data"]
-EDIT_TOOLS = ["create_dashboards", "create_widgets", "update_widgets"]
+EDIT_TOOLS = [
+    "create_dashboard",
+    "update_dashboard",
+    "create_widgets",
+    "update_widgets",
+]
 DELETE_TOOLS = ["delete_widgets"]
 ALL_TOOLS = [*READ_TOOLS, *EDIT_TOOLS, *DELETE_TOOLS]
 KUMA_ONLY = ("ask_user", "navigate", "switch_mode", "load_row_tools", "$formula:")
@@ -82,8 +87,8 @@ def test_dashboard_tools_over_mcp(data_fixture, amount_table):
     async def callback(client):
         listed = await client.list_tools()
         dashboard = _json(
-            await client.call_tool("create_dashboards", {"names": ["Sales"]})
-        )["created"][0]
+            await client.call_tool("create_dashboard", {"name": "Sales"})
+        )["created_dashboard"]
         created = _json(
             await client.call_tool(
                 "create_widgets",

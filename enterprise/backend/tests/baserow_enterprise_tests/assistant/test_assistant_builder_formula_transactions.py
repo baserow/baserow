@@ -26,14 +26,14 @@ from baserow_enterprise.assistant.tools.builder.tools import (
     update_data_source,
     update_element,
 )
-from baserow_enterprise.assistant.tools.builder.types import (
+from baserow_enterprise.builder.tools.types import (
     ActionCreate,
     DataSourceCreate,
     DataSourceUpdate,
     DisplayElementCreate,
     ElementUpdate,
 )
-from baserow_enterprise.assistant.tools.builder.types.workflow_action import (
+from baserow_enterprise.builder.tools.types.workflow_action import (
     FieldValueMapping,
     ParameterMapping,
 )
@@ -422,10 +422,10 @@ def test_generated_table_column_formulas_are_saved_through_the_action_type(
     from baserow_enterprise.assistant.tools.builder.tools import (
         create_collection_elements,
     )
-    from baserow_enterprise.assistant.tools.builder.types import (
+    from baserow_enterprise.builder.tools.types import (
         CollectionElementCreate,
     )
-    from baserow_enterprise.assistant.tools.builder.types.element import (
+    from baserow_enterprise.builder.tools.types.element import (
         TableFieldConfig,
     )
 
@@ -470,7 +470,7 @@ def test_generated_row_formulas_are_written_under_the_service_lock(
     from django.db import OperationalError, transaction
 
     from baserow.core.services.models import Service
-    from baserow_enterprise.assistant.tools.builder.types.workflow_action import (
+    from baserow_enterprise.builder.tools.types.workflow_action import (
         ActionCreate as RowActionCreate,
     )
 

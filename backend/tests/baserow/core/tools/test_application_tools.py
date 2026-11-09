@@ -9,11 +9,20 @@ from asgiref.sync import async_to_sync
 from mcp.shared.memory import (
     create_connected_server_and_client_session as client_session,
 )
+from pydantic import ValidationError
 
-from baserow.core.exceptions import InstanceTypeDoesNotExist
+from baserow.contrib.automation.tools.workflows import get_automation_in_workspace
+from baserow.contrib.dashboard.tools.dashboards import get_dashboard_in_workspace
+from baserow.contrib.database.tools.tables import get_database
+from baserow.core.exceptions import (
+    ApplicationDoesNotExist,
+    InstanceTypeDoesNotExist,
+    PermissionException,
+)
 from baserow.core.mcp import BaserowMCPServer, current_key
+from baserow.core.service import CoreService
 from baserow.core.tools import ToolContext
-from baserow.core.tools.applications import list_applications
+from baserow.core.tools.applications import create_application, list_applications
 
 
 def _call(endpoint, name, arguments):
@@ -146,3 +155,39 @@ def test_list_databases_still_answers_with_its_old_shape(data_fixture):
     ]
     assert refused.isError is True
     assert refused.content[0].text == "Tool 'list_applications' not found."
+
+
+@pytest.mark.django_db
+def test_create_application_trims_the_name_and_refuses_a_blank_one(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    ctx = ToolContext(user=user, workspace=workspace)
+
+    created = create_application(ctx, "database", "  Sales  ")
+
+    assert created.name == "Sales"
+    with pytest.raises(ValidationError):
+        create_application(ctx, "database", "   ")
+
+
+@pytest.mark.django_db
+def test_update_tools_report_a_hidden_application_as_not_found(
+    data_fixture, monkeypatch
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    ctx = ToolContext(user=user, workspace=workspace)
+    database = data_fixture.create_database_application(workspace=workspace)
+
+    def deny(*args, **kwargs):
+        raise PermissionException()
+
+    monkeypatch.setattr(CoreService, "get_application", deny)
+
+    for getter in (
+        get_database,
+        get_automation_in_workspace,
+        get_dashboard_in_workspace,
+    ):
+        with pytest.raises(ApplicationDoesNotExist):
+            getter(ctx, database.id)

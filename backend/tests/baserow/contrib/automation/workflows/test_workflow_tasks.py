@@ -8,7 +8,11 @@ from baserow.contrib.automation.workflows.constants import (
     WORKFLOW_DIRTY_CACHE_KEY,
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
-from baserow.contrib.automation.workflows.tasks import automation_periodic_cleanup
+from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.contrib.automation.workflows.tasks import (
+    automation_periodic_cleanup,
+    delete_superseded_published_automations,
+)
 from baserow.core.cache import global_cache
 
 
@@ -353,3 +357,20 @@ def test_automation_periodic_cleanup_old_entries_beyond_count_are_deleted(data_f
     assert not workflow.workflow_histories.filter(id=history_1.id).exists()
     assert workflow.workflow_histories.filter(id=history_2.id).exists()
     assert workflow.workflow_histories.filter(id=history_3.id).exists()
+
+
+@pytest.mark.django_db
+def test_delete_superseded_published_automations_task(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    handler = AutomationWorkflowHandler()
+    published_1 = handler.publish(workflow)
+    published_2 = handler.publish(workflow)
+
+    delete_superseded_published_automations(workflow.id)
+
+    assert not AutomationWorkflow.objects.filter(id=published_1.id).exists()
+    assert handler.get_published_workflow(workflow, with_cache=False) == published_2
+
+
+def test_delete_superseded_published_automations_task_runs_on_the_export_queue():
+    assert delete_superseded_published_automations.queue == "export"

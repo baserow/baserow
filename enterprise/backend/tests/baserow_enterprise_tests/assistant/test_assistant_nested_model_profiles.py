@@ -8,6 +8,7 @@ from baserow_enterprise.assistant.tools.shared.agents import (
     FormulaGeneratorOutput,
     get_formula_generator,
 )
+from baserow_enterprise.builder.tools.formulas import BuilderFormulaError
 
 
 def test_formula_generator_uses_request_model_profile():
@@ -49,26 +50,24 @@ def test_builder_formula_orchestrator_forwards_request_model_profile():
     """Builder formula generation must reuse the enclosing request profile."""
 
     model_profile = MagicMock()
-    tool_helpers = SimpleNamespace(model_profile=model_profile)
+    tool_helpers = SimpleNamespace(
+        model_profile=model_profile, update_status=lambda message: None
+    )
     context = MagicMock()
 
+    entry = BuilderFormulaError(
+        "data_source", SimpleNamespace(id=1), MagicMock(), "row_id", "the id", "refused"
+    )
+
     with (
-        patch.object(
-            builder_agents,
-            "BuilderFormulaContext",
-            return_value=context,
-        ),
+        patch.object(builder_agents, "page_formula_context", return_value=context),
+        patch.object(builder_agents, "write_builder_formulas"),
         patch.object(builder_agents, "get_formula_generator") as factory,
     ):
-        result = builder_agents.update_element_formulas(
-            MagicMock(),
-            MagicMock(),
-            [],
-            {},
-            tool_helpers,
+        builder_agents.repair_builder_formula_errors(
+            MagicMock(), tool_helpers, MagicMock(), [entry]
         )
 
-    assert result == []
     factory.assert_called_once_with(
         builder_agents.BUILDER_FORMULA_PROMPT,
         model_profile,
