@@ -1,19 +1,12 @@
-"""Resolve saved dropdown formulas against tables used by this dashboard."""
+"""Resolve dropdown formulas against dashboard data source metadata."""
 
 import json
 import re
-from contextlib import closing
 from decimal import Decimal
 
 from rest_framework.exceptions import ValidationError
 
-from baserow.contrib.dashboard.data_sources.records import DashboardTableRecordsHandler
-from baserow.contrib.dashboard.widgets.handler import WidgetHandler
-from baserow.contrib.database.table.operations import ListRowsDatabaseTableOperationType
-from baserow.contrib.database.table.service import TableService
-from baserow.contrib.integrations.local_baserow.service_types import (
-    LocalBaserowTableServiceType,
-)
+from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
 from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.formula import BaserowFormulaException, resolve_formula
 from baserow.core.formula.exceptions import InvalidRuntimeFormula
@@ -24,75 +17,61 @@ from baserow.core.formula.registries import (
     formula_runtime_function_registry,
 )
 from baserow.core.formula.runtime_formula_context import RuntimeFormulaContext
-from baserow.core.handler import CoreHandler
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
 from baserow.core.utils import get_value_at_path
 
 
-class DashboardTableDataProviderType(DataProviderType):
-    type = "table"
+class DashboardDataSourceContextDataProviderType(DataProviderType):
+    type = "data_source_context"
 
     def is_valid(self, path):
-        if not (
-            len(path) >= 3
-            and re.fullmatch(r"[1-9][0-9]{0,18}", path[0])
-            and (path[1] == "*" or re.fullmatch(r"[0-9]{1,9}", path[1]))
-            and (path[2] == "id" or re.fullmatch(r"field_[1-9][0-9]{0,18}", path[2]))
-        ):
-            raise BaserowFormulaSyntaxError("Choose a field from a dashboard table.")
+        if len(path) < 2 or not re.fullmatch(r"[1-9][0-9]{0,18}", path[0]):
+            raise BaserowFormulaSyntaxError(
+                "Choose dashboard data source context data."
+            )
         return True
 
     def get_data_chunk(self, context, path):
+        """Resolve server-owned metadata only for sources in this dashboard."""
         self.is_valid(path)
-        table_id, selector, field_name, *rest = path
-        key = tuple(path)
-        if key in context.cache:
-            return context.cache[key]
-        table = context.get_table(int(table_id))
-        handler = DashboardTableRecordsHandler()
-        scalar_values = (
-            handler.iter_scalar_field_values(table, field_name)
-            if selector == "*" and not rest
-            else None
-        )
-        values = []
-        if scalar_values is not None:
-            with closing(scalar_values) as iterator:
-                for value in iterator:
-                    context.consume(value)
-                    values.append(value)
-        else:
-            with closing(
-                handler.iter_records(
-                    table,
-                    field_name,
-                    row_index=int(selector) if selector != "*" else None,
+        source_id, *rest = path
+        if source_id not in context.cache:
+            source = (
+                DashboardDataSource.objects.filter(
+                    id=int(source_id),
+                    dashboard=context.dashboard,
+                    trashed=False,
+                    service__isnull=False,
                 )
-            ) as iterator:
-                for record in iterator:
-                    context.consume(record)
-                    values.append(get_value_at_path(record, [field_name, *rest]))
-        result = values if selector == "*" else next(iter(values), None)
-        context.cache[key] = result
-        return result
+                .select_related("service")
+                .first()
+            )
+            if source is None:
+                raise InvalidRuntimeFormula("The dashboard data source does not exist.")
+            service = source.service.specific
+            context.cache[source_id] = service.get_type().get_context_data(service)
+        return get_value_at_path(context.cache[source_id], rest)
 
     def import_path(self, path, id_mapping, **kwargs):
-        from baserow.contrib.integrations.local_baserow.service_types import (
-            LocalBaserowListRowsUserServiceType,
-        )
-
+        """Remap the source and let its service remap metadata properties."""
         self.is_valid(path)
-        table_id, *rest = path
-        return [
-            str(id_mapping.get("database_tables", {}).get(int(table_id), table_id)),
-            *LocalBaserowListRowsUserServiceType().import_path(rest, id_mapping),
-        ]
+        source_id, *rest = path
+        mapped_id = id_mapping.get("dashboard_data_sources", {}).get(int(source_id))
+        if mapped_id is not None:
+            source_id = mapped_id
+            source = DashboardDataSource.objects.filter(id=source_id).first()
+            if source and source.service_id:
+                service = source.service.specific
+                rest = service.get_type().import_context_path(rest, id_mapping)
+        return [str(source_id), *rest]
 
 
 dashboard_options_data_provider_registry = DataProviderTypeRegistry()
-dashboard_options_data_provider_registry.register(DashboardTableDataProviderType())
+dashboard_options_data_provider_registry.register(
+    DashboardDataSourceContextDataProviderType()
+)
 
 
 class DashboardOptionsContext(RuntimeFormulaContext):
@@ -113,35 +92,6 @@ class DashboardOptionsContext(RuntimeFormulaContext):
             raise InvalidRuntimeFormula(
                 "The filter options are too large. Choose a smaller source."
             )
-
-    def get_table(self, table_id):
-        # The integration grants access, just as it does for widget dispatch.
-        # A saved formula cannot read arbitrary tables or supply an actor.
-        for widget in WidgetHandler().get_widgets(self.dashboard):
-            widget_type = widget.get_type()
-            if not widget_type.is_display_widget:
-                continue
-            source = widget_type.get_data_source(widget)
-            if not source or not source.service_id or source.trashed:
-                continue
-            service = source.service.specific
-            if (
-                not isinstance(service.get_type(), LocalBaserowTableServiceType)
-                or service.table_id != table_id
-            ):
-                continue
-            if not service.integration_id:
-                continue
-            user = service.get_type().get_acting_user(service, self)
-            table = TableService().get_table(user, table_id)
-            CoreHandler().check_permissions(
-                user,
-                ListRowsDatabaseTableOperationType.type,
-                workspace=table.database.workspace,
-                context=table,
-            )
-            return table
-        raise InvalidRuntimeFormula("The table is not used by this dashboard.")
 
 
 class DashboardWidgetOptionsService:
@@ -175,8 +125,7 @@ class DashboardWidgetOptionsService:
                 value = str(value)
                 if value.strip():
                     values.setdefault(value, None)
-            # Check resolved output as well as records read during evaluation.
-            context.count = context.size = 0
+            # Bound the resolved option list.
             for value in values:
                 context.consume(value)
             return list(values)

@@ -850,12 +850,6 @@ export const actions = {
     }
   },
   async handleDataSourceUpdated({ state, commit, dispatch }, dataSource) {
-    // Realtime payloads cannot include a table schema checked against this viewer's
-    // permissions. Fetch the private representation before replacing the source.
-    if ('table_schema' in dataSource && dataSource.table_schema === null) {
-      await dispatch('fetchNewDataSources', state.dashboardId)
-      return
-    }
     commit('INVALIDATE_DATA_SOURCE_COLLECTION_FETCH')
     commit('INVALIDATE_DATA_SOURCE_MUTATION', dataSource.id)
     commit('UPDATE_DATA_SOURCE', {
@@ -1271,6 +1265,7 @@ export const getters = {
   getSelectedWidget(state) {
     return state.widgets.find((widget) => widget.id === state.selectedWidgetId)
   },
+  getDataSources: (state) => state.dataSources,
   getDataSourceById: (state, getters) => (dataSourceId) => {
     return state.dataSources.find(
       (dataSource) => dataSource.id === dataSourceId

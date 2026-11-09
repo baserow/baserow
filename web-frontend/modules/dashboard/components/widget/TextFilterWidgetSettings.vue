@@ -56,7 +56,7 @@
         allow-node-selection="value"
         placeholder=""
         :model-value="widget.options || {}"
-        :data-providers-allowed="['table']"
+        :data-providers-allowed="['data_source_context']"
         @input="updateSetting('options', $event)"
       />
     </FormGroup>

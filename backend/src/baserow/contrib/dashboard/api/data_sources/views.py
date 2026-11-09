@@ -104,7 +104,7 @@ class DashboardDataSourcesView(APIView):
                 service_type_registry.get_serializer(
                     data_source.service,
                     DashboardDataSourceSerializer,
-                    context={"data_source": data_source, "request": request},
+                    context={"data_source": data_source},
                 ).data
             )
             for data_source in data_sources
@@ -197,7 +197,7 @@ class DashboardDataSourceView(APIView):
         serializer = service_type_registry.get_serializer(
             data_source_updated.service,
             DashboardDataSourceSerializer,
-            context={"data_source": data_source_updated, "request": request},
+            context={"data_source": data_source_updated},
         )
         return Response(serializer.data)
 

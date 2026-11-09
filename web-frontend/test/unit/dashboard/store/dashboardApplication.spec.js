@@ -1442,15 +1442,3 @@ test('public dropdown options use the dashboard token and can retry a failure', 
     values: ['France'],
   })
 })
-
-test('realtime source updates reload the viewer-specific table schema', async () => {
-  const dashboardState = createDashboardState()
-  const commit = applyCommit(dashboardState)
-  const dispatch = vi.fn().mockResolvedValue([])
-  await actions.handleDataSourceUpdated(
-    { state: dashboardState, commit, dispatch },
-    { id: 1, table_id: 2, table_schema: null }
-  )
-  expect(dispatch).toHaveBeenCalledExactlyOnceWith('fetchNewDataSources', 42)
-  expect(commit).not.toHaveBeenCalled()
-})
