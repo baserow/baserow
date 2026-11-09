@@ -439,6 +439,17 @@ class AutomationNodeType(
         :raises ServiceImproperlyConfiguredDispatchException: When it cannot run.
         """
 
+    def get_publish_notices(self, automation_node: AutomationNode) -> list[str]:
+        """
+        Things worth telling the user about a node that can run, such as a
+        setting that makes it do nothing. None by default.
+
+        :param automation_node: The node to check.
+        :return: One sentence per notice.
+        """
+
+        return []
+
     def dispatch(
         self,
         automation_node: AutomationNode,

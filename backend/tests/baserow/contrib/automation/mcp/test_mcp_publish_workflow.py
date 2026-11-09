@@ -555,15 +555,15 @@ def test_publish_warns_about_a_row_trigger_and_action_with_no_table(data_fixture
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize(
-    "node_type,warned",
+    "node_type,warning",
     [
-        ("update_row", True),
+        ("update_row", "A row ID is required to update a row. Every run fails here."),
         # A delete with no row ID deletes nothing, it doesn't fail.
-        ("delete_row", False),
+        ("delete_row", "No row ID is set, so every run deletes nothing."),
     ],
 )
 def test_publish_warns_about_a_row_id_left_empty_by_a_bad_formula(
-    data_fixture, node_type, warned
+    data_fixture, node_type, warning
 ):
     endpoint, orders, log, _ = _build_workflow_over_mcp(data_fixture)
     automation = Automation.objects.filter(workspace=endpoint.workspace).get()
@@ -609,11 +609,7 @@ def test_publish_warns_about_a_row_id_left_empty_by_a_bad_formula(
 
     result = _json(_call(endpoint, "publish_workflow", {"workflow_id": workflow["id"]}))
 
-    expected = [
-        f"Node {node.id} (Change it): A row ID is required to update a row. "
-        "Every run fails here."
-    ]
-    assert result.get("warnings", []) == (expected if warned else [])
+    assert result["warnings"] == [f"Node {node.id} (Change it): {warning}"]
 
 
 @pytest.mark.django_db(transaction=True)

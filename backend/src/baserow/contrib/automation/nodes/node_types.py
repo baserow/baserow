@@ -228,6 +228,13 @@ class LocalBaserowUpdateRowActionNodeType(
     compat_type = "update_row"
     model_class = LocalBaserowUpdateRowActionNode
 
+    def get_publish_notices(self, automation_node: AutomationNode) -> list[str]:
+        # An empty string literal passes the row ID check but fails every run.
+        formula = automation_node.service.specific.row_id["formula"].strip()
+        if formula in ("''", '""'):
+            return ["No row ID is set, so every run fails here."]
+        return []
+
 
 class LocalBaserowUpdateRowsActionNodeType(
     LocalBaserowTableNodeTypeMixin, AutomationActionNodeType
@@ -249,6 +256,12 @@ class LocalBaserowDeleteRowActionNodeType(
     compat_type = "delete_row"
     model_class = LocalBaserowDeleteRowActionNode
     service_type = LocalBaserowDeleteRowServiceType.type
+
+    def get_publish_notices(self, automation_node: AutomationNode) -> list[str]:
+        formula = automation_node.service.specific.row_id["formula"].strip()
+        if formula in ("", "''", '""'):
+            return ["No row ID is set, so every run deletes nothing."]
+        return []
 
 
 class LocalBaserowGetRowActionNodeType(

@@ -823,7 +823,9 @@ class AutomationWorkflowHandler:
             workflow, WorkflowState.LIVE, progress
         )
 
-        self._invalidate_workflow_caches(workflow)
+        # After the commit: a publication rolled back must keep the draft's dirty
+        # flag, or the next test run reuses a stale clone.
+        transaction.on_commit(lambda: self._invalidate_workflow_caches(workflow))
 
         published_workflow = cloned_automation.workflows.first()
         published_workflow.draft_node_ids = {

@@ -389,6 +389,32 @@ def create_workflows(
     )
 
 
+def _nodes_in_order(ctx: ToolContext, workflow: AutomationWorkflow) -> list:
+    from baserow.contrib.automation.tools.nodes import nodes_in_order
+
+    return [
+        node
+        for node, *_ in nodes_in_order(
+            ctx.user,
+            workflow,
+            AutomationNodeHandler().get_nodes(workflow, with_cache=False),
+        )
+    ]
+
+
+def _raise_if_never_runs(nodes: list) -> None:
+    if not nodes or not nodes[0].get_type().is_workflow_trigger:
+        raise ToolInputError(
+            "This workflow has no trigger, so it would never run. Nothing was "
+            "published."
+        )
+    if not any(node.get_type().is_workflow_action for node in nodes[1:]):
+        raise ToolInputError(
+            "This workflow has no action after its trigger, so it would do nothing. "
+            "Nothing was published."
+        )
+
+
 def check_workflow_can_run(
     ctx: ToolContext, published_workflow: AutomationWorkflow
 ) -> list[str]:
@@ -402,31 +428,14 @@ def check_workflow_can_run(
     :return: A warning for each node its type finds misconfigured.
     """
 
-    from baserow.contrib.automation.tools.nodes import nodes_in_order
-
-    nodes = [
-        node
-        for node, *_ in nodes_in_order(
-            ctx.user,
-            published_workflow,
-            AutomationNodeHandler().get_nodes(published_workflow, with_cache=False),
-        )
-    ]
-    if not nodes or not nodes[0].get_type().is_workflow_trigger:
-        raise ToolInputError(
-            "This workflow has no trigger, so it would never run. Nothing was "
-            "published."
-        )
-    if not any(node.get_type().is_workflow_action for node in nodes[1:]):
-        raise ToolInputError(
-            "This workflow has no action after its trigger, so it would do nothing. "
-            "Nothing was published."
-        )
+    nodes = _nodes_in_order(ctx, published_workflow)
+    _raise_if_never_runs(nodes)
 
     draft_node_ids = getattr(published_workflow, "draft_node_ids", {})
     warnings = []
     for node in nodes:
         node_type = node.get_type()
+        node_id = draft_node_ids.get(node.id, node.id)
         try:
             node_type.raise_if_misconfigured(node)
         except ServiceImproperlyConfiguredDispatchException as exc:
@@ -435,8 +444,10 @@ def check_workflow_can_run(
                 if node_type.is_workflow_trigger
                 else "Every run fails here."
             )
-            node_id = draft_node_ids.get(node.id, node.id)
             warnings.append(f"Node {node_id} ({node.label}): {exc} {consequence}")
+            continue
+        for notice in node_type.get_publish_notices(node):
+            warnings.append(f"Node {node_id} ({node.label}): {notice}")
     return warnings
 
 
@@ -473,6 +484,9 @@ def publish_workflow(
         workspace=ctx.workspace,
         context=workflow.automation,
     )
+    # Refuse an empty draft before paying for a copy. The copy is checked again,
+    # since the draft can change while it is made.
+    _raise_if_never_runs(_nodes_in_order(ctx, workflow))
     try:
         with transaction.atomic():
             published = AutomationWorkflowService().publish(ctx.user, workflow)

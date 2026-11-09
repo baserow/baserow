@@ -2599,3 +2599,24 @@ def test_undoing_an_unrelated_update_keeps_the_test_run_starter(data_fixture):
     workflow.refresh_from_db()
     assert workflow.name != "Renamed"
     assert workflow.test_run_triggered_by_id == first.id
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_rolled_back_publish_keeps_the_draft_dirty(data_fixture):
+    from django.db import transaction
+
+    workflow = data_fixture.create_automation_workflow()
+    dirty_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
+    global_cache.update(dirty_key, lambda _: True)
+
+    with pytest.raises(RuntimeError):
+        with transaction.atomic():
+            AutomationWorkflowHandler().publish(workflow)
+            raise RuntimeError("refused")
+
+    assert global_cache.get(dirty_key, default=False) is True
+
+    with transaction.atomic():
+        AutomationWorkflowHandler().publish(workflow)
+
+    assert global_cache.get(dirty_key, default=False) is False
