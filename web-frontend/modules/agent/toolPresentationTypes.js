@@ -42,7 +42,10 @@ class DatabaseToolPresentationType extends ToolPresentationType {
     if (this.constructor.definition.counted !== true || !countIsKnown(count)) {
       return this.getLabel(t)
     }
-    return t(`${this.labelKey}HeldCount`, { count }, count)
+    const table = this.constructor.definition.table ? requestedTable(input) : ''
+    return table
+      ? t(`${this.labelKey}HeldCountTable`, { count, table }, count)
+      : t(`${this.labelKey}HeldCount`, { count }, count)
   }
 
   getActivity({ status, input, facts }, t) {

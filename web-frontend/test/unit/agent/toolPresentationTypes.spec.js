@@ -135,6 +135,20 @@ describe('Agent tool presentations', () => {
     expect(toolActivity(held, registry, t).title).toMatch(/2/)
   })
 
+  test('a held change is titled with the table its request names', () => {
+    const data = step('create_rows', 'waiting', {
+      input: { requested_count: 2, values: { table: 'Accounts', rows: [] } },
+    })
+
+    expect(toolActivity(data, registry, t).title).toBe(
+      'Create 2 rows in Accounts'
+    )
+    expect(
+      toolActivity({ ...data, input: { requested_count: 2 } }, registry, t)
+        .title
+    ).toBe('Create 2 rows')
+  })
+
   test('completed changes use confirmed counts and missing counts keep action labels', () => {
     const data = step('create_rows', 'done', {
       input: { requested_count: 9 },
