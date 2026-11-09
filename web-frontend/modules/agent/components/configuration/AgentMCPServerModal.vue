@@ -280,6 +280,8 @@ const clientSecretRequired = computed(
     values.auth_type === MCP_AUTH_TYPE.OAUTH &&
     Boolean(server.value?.has_oauth_client_secret) &&
     Boolean(ownClientId(server.value)) &&
+    // Clearing the client id goes back to Baserow registering itself.
+    Boolean(values.oauth_client_id.trim()) &&
     (urlChanged.value || clientChanged.value)
 )
 const errors = computed(() => {
@@ -378,8 +380,10 @@ function changedValues() {
     if (
       values.oauth_client_secret ||
       !server.value ||
-      // Clears a secret Baserow registered when its client is replaced.
-      (!ownClientId(server.value) && (urlChanged.value || clientChanged.value))
+      // Clears a secret Baserow registered when its client is replaced, and
+      // the editor's own one when they clear its client id.
+      ((!ownClientId(server.value) || !next.oauth_client_id) &&
+        (urlChanged.value || clientChanged.value))
     ) {
       next.oauth_client_secret = values.oauth_client_secret
     }
@@ -452,20 +456,18 @@ async function submit() {
   saving.value = true
   error.value = null
   try {
-    // A server whose tools were never listed, e.g. after a refused key, lists
-    // them on save too.
-    const listed = !isNew && !signIn && !server.value.tools.length
     let saved = await props.save(server.value, changedValues())
     // A failed sign-in keeps the modal open on the server that now exists.
     server.value = saved
-    // A new server lists its tools straight away, so they can be reviewed,
-    // and a wrong key shows here rather than as an empty list.
     if (signIn && !popup) {
       throw new MCPSignInError(t('agent.connectedAppPopupBlocked'))
     } else if (signIn) saved = await props.connect(saved, popup)
-    else if (isNew || !saved.tools.length) saved = await props.refresh(saved)
+    // A server without tools, being new, moved, or after a refused key, lists
+    // them on save, so they can be reviewed and a wrong key shows here.
+    const listing = !signIn && (isNew || !saved.tools.length)
+    if (listing) saved = await props.refresh(saved)
     modal.value.hide()
-    if (isNew || signIn || listed) emit('created', saved)
+    if (signIn || listing) emit('created', saved)
   } catch (e) {
     popup?.close()
     error.value = readError(e)

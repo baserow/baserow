@@ -174,7 +174,7 @@ describe('Agent connected apps', () => {
   test('a key the server no longer uses is cleared, so the URL can change', async () => {
     testApp.mock.onGet(/application\/10\/integrations/).reply(200, [server()])
     testApp.mock
-      .onPatch('/integrations/integration/5/')
+      .onPatch('integration/5/')
       .reply(200, server({ auth_type: 'none', has_auth_header_value: false }))
     testApp.mock
       .onPost('/integrations/mcp/5/refresh-tools/')
@@ -197,6 +197,31 @@ describe('Agent connected apps', () => {
       auth_type: 'none',
       auth_header_value: '',
     })
+  })
+
+  test("a new URL lists the new server's tools for review", async () => {
+    testApp.mock
+      .onGet(/application\/10\/integrations/)
+      .reply(200, [server({ tools: [tool('old', { enabled: true })] })])
+    testApp.mock
+      .onPatch('integration/5/')
+      .reply(200, server({ url: 'https://other.example.com/mcp' }))
+    testApp.mock
+      .onPost('/integrations/mcp/5/refresh-tools/')
+      .reply(200, server({ tools: [tool('search')] }))
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await wrapper
+      .get('button[aria-label="agent.connectedAppEdit"]')
+      .trigger('click')
+    await flushPromises()
+    type(inputInModal('agent.connectedAppUrl'), 'https://other.example.com/mcp')
+    type(inputInModal('agent.connectedAppHeaderValue'), 'Bearer new')
+    buttonInBody('action.save').click()
+    await flushPromises()
+
+    expect(inBody('.modal__box .agent-tool-permissions__tool')).toHaveLength(1)
   })
 
   test('an unreachable server is explained in the tools modal', async () => {
@@ -351,7 +376,7 @@ describe('Agent connected apps', () => {
         .onGet(/application\/10\/integrations/)
         .reply(200, [registered])
       testApp.mock
-        .onPatch('/integrations/integration/5/')
+        .onPatch('integration/5/')
         .reply(200, { ...registered, oauth_connected: false })
       testApp.mock
         .onPost('/integrations/mcp/5/oauth/start/')
@@ -398,6 +423,38 @@ describe('Agent connected apps', () => {
       expect(testApp.mock.history.post.map(({ url }) => url)).not.toContain(
         '/integrations/mcp/5/refresh-tools/'
       )
+    })
+
+    test('clearing your own client id needs no secret', async () => {
+      const own = oauthServer({
+        oauth_connected: true,
+        oauth_client_source: 'manual',
+        oauth_client_id: 'my-client',
+        has_oauth_client_secret: true,
+      })
+      testApp.mock.onGet(/application\/10\/integrations/).reply(200, [own])
+      testApp.mock
+        .onPatch('integration/5/')
+        .reply(200, { ...own, oauth_connected: false })
+      testApp.mock
+        .onPost('/integrations/mcp/5/oauth/start/')
+        .reply(200, { authorization_url: 'https://auth.example.com/authorize' })
+      const wrapper = await mountSection()
+      await flushPromises()
+
+      await wrapper
+        .get('button[aria-label="agent.connectedAppEdit"]')
+        .trigger('click')
+      await flushPromises()
+      type(inputInModal('agent.connectedAppClientId'), '')
+      await flushPromises()
+      buttonInBody('agent.connectedAppSignIn').click()
+      await flushPromises()
+
+      expect(body(testApp.mock.history.patch[0])).toEqual({
+        oauth_client_id: '',
+        oauth_client_secret: '',
+      })
     })
 
     test('a server that does not support OAuth says why', async () => {
