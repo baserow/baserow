@@ -112,6 +112,9 @@ from baserow.core.utils import exception_capturer
 
 class AutomationActionNodeType(AutomationNodeType):
     is_workflow_action = True
+    # Action nodes carry an error policy, unless their dispatch can only fail
+    # the same way again, in which case a retry cannot help.
+    has_error_policy = True
 
     # The retry condition is a formula on the node itself, not on its service,
     # so the node type's own `import_formulas()` pass remaps it on import.
@@ -119,8 +122,10 @@ class AutomationActionNodeType(AutomationNodeType):
 
     @property
     def allowed_fields(self):
-        # Every action node carries an error policy. Trigger types keep the
-        # base list, so these fields are dropped when sent to a trigger.
+        # Trigger types, and action types without an error policy, keep the
+        # base list, so these fields are dropped when sent to them.
+        if not self.has_error_policy:
+            return super().allowed_fields
         return super().allowed_fields + ERROR_POLICY_FIELDS
 
     def before_create(self, workflow, reference_node, position, output):
@@ -260,6 +265,9 @@ class CoreIteratorActionNodeType(ContainerNodeTypeMixin, AutomationActionNodeTyp
     type = "iterator"
     model_class = CoreIteratorActionNode
     service_type = CoreIteratorServiceType.type
+    # It only fails when its source is not a list, which a retry evaluates
+    # again from the same data.
+    has_error_policy = False
 
 
 class CoreCSVFileReaderActionNodeType(AutomationActionNodeType):
@@ -304,6 +312,9 @@ class CoreResponseActionNodeType(AutomationActionNodeType):
     type = "response"
     model_class = CoreResponseActionNode
     service_type = CoreResponseServiceType.type
+    # It only fails on its formulas, which a retry evaluates again from the
+    # same data, and once a response is written a retry is ignored anyway.
+    has_error_policy = False
 
     def prepare_values(
         self,
@@ -339,6 +350,9 @@ class CoreRouterActionNodeType(AutomationActionNodeType):
     type = "router"
     model_class = CoreRouterActionNode
     service_type = CoreRouterServiceType.type
+    # Its branch conditions are evaluated from the data of the earlier nodes,
+    # which a retry sees unchanged.
+    has_error_policy = False
 
     def has_node_on_edge(self, node: CoreRouterActionNode) -> bool:
         """
@@ -447,6 +461,9 @@ class CoreGotoActionNodeType(AutomationActionNodeType):
     type = "goto"
     model_class = CoreGotoActionNode
     service_type = CoreGotoServiceType.type
+    # Its condition is evaluated from the data of the earlier nodes, which a
+    # retry sees unchanged, and a missing destination stays missing.
+    has_error_policy = False
 
     def get_history_status(self, dispatch_result: DispatchResult) -> str:
         """
@@ -706,6 +723,9 @@ class CoreWaitActionNodeType(AutomationActionNodeType):
     type = "wait"
     model_class = CoreWaitActionNode
     service_type = CoreWaitServiceType.type
+    # A wait only fails on its duration (not a whole non-negative number, or
+    # over the cap), which a retry evaluates again to the same value.
+    has_error_policy = False
 
     def get_history_status(self, dispatch_result: DispatchResult) -> str:
         """

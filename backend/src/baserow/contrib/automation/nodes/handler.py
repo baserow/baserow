@@ -512,11 +512,13 @@ class AutomationNodeHandler:
         Whether the node's error policy allows another attempt after `attempt`
         failed. Test runs retry like live runs, so the editor shows what the
         published workflow will do. Simulations never retry: they run up to a
-        node to fetch its sample data.
+        node to fetch its sample data. A node type without an error policy never
+        retries, whatever an import stored on the node.
         """
 
         return (
-            node.on_failure == AutomationNodeOnFailure.RETRY
+            node.get_type().has_error_policy
+            and node.on_failure == AutomationNodeOnFailure.RETRY
             and attempt <= node.max_retries
             and workflow_history.simulate_until_node_id is None
         )
@@ -597,12 +599,14 @@ class AutomationNodeHandler:
         """
         Whether a successful attempt must still be checked against the node's
         retry condition. An empty condition means there is none. Simulations
-        never evaluate it; test runs do, like live runs.
+        never evaluate it; test runs do, like live runs. A node type without an
+        error policy has none.
         """
 
         formula = (node.retry_condition or {}).get("formula") or ""
         return (
-            node.on_failure == AutomationNodeOnFailure.RETRY
+            node.get_type().has_error_policy
+            and node.on_failure == AutomationNodeOnFailure.RETRY
             and bool(formula.strip())
             and workflow_history.simulate_until_node_id is None
         )

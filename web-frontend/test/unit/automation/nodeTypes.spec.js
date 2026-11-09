@@ -227,6 +227,29 @@ describe('Automation node types', () => {
     expect(slack.iconColor).toBe('darker-pink')
     expect(slack.image).toBeUndefined()
   })
+
+  test('only action nodes that can benefit from a retry have an error policy', () => {
+    const withoutErrorPolicy = testApp
+      .getRegistry()
+      .getOrderedList('node')
+      .filter((nodeType) => !nodeType.hasErrorPolicy)
+      .map((nodeType) => nodeType.getType())
+
+    // Triggers never fail during a run. The other nodes only fail on values
+    // computed from earlier nodes' data, which a retry evaluates the same way.
+    expect(withoutErrorPolicy).toEqual(
+      expect.arrayContaining([
+        'http_trigger',
+        'wait',
+        'iterator',
+        'router',
+        'goto',
+        'response',
+      ])
+    )
+    expect(withoutErrorPolicy).not.toContain('http_request')
+    expect(withoutErrorPolicy).not.toContain('local_baserow_create_row')
+  })
 })
 
 describe('NodeType.isEnabled', () => {

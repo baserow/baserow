@@ -963,6 +963,9 @@ export class CoreHTTPRequestActionNodeType extends ActionNodeTypeMixin(
 }
 
 export class CoreResponseActionNodeType extends ActionNodeTypeMixin(NodeType) {
+  // It only fails on its formulas, which a retry evaluates the same way.
+  hasErrorPolicy = false
+
   static getType() {
     return 'response'
   }
@@ -983,6 +986,10 @@ export class CoreResponseActionNodeType extends ActionNodeTypeMixin(NodeType) {
 export class CoreIteratorActionNodeType extends ContainerNodeTypeMixin(
   ActionNodeTypeMixin(UtilityNodeTypeMixin(NodeType))
 ) {
+  // It only fails when its source is not a list, which a retry evaluates the
+  // same way.
+  hasErrorPolicy = false
+
   static getType() {
     return 'iterator'
   }
@@ -1152,6 +1159,9 @@ export class CoreSMTPEmailActionNodeType extends ActionNodeTypeMixin(NodeType) {
 export class CoreRouterActionNodeType extends ActionNodeTypeMixin(
   UtilityNodeTypeMixin(NodeType)
 ) {
+  // Its conditions only read earlier nodes' data, which a retry sees unchanged.
+  hasErrorPolicy = false
+
   static getType() {
     return 'router'
   }
@@ -1303,6 +1313,9 @@ export class CoreRouterActionNodeType extends ActionNodeTypeMixin(
 export class CoreGotoActionNodeType extends ActionNodeTypeMixin(
   UtilityNodeTypeMixin(NodeType)
 ) {
+  // Its condition only reads earlier nodes' data, which a retry sees unchanged.
+  hasErrorPolicy = false
+
   static getType() {
     return 'goto'
   }
@@ -1505,6 +1518,9 @@ export class CoreGotoActionNodeType extends ActionNodeTypeMixin(
 }
 
 export class CoreWaitActionNodeType extends ActionNodeTypeMixin(NodeType) {
+  // A wait only fails on its duration, which a retry evaluates the same way.
+  hasErrorPolicy = false
+
   static getType() {
     return 'wait'
   }

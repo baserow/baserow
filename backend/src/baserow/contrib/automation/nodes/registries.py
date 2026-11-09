@@ -64,6 +64,11 @@ class AutomationNodeType(
 
     is_container = False
 
+    # Whether the node carries an error policy (`ERROR_POLICY_FIELDS`): what the
+    # runner does when a dispatch fails, and the retry condition. Without one
+    # the fields are not accepted and the node is never retried.
+    has_error_policy = False
+
     class SerializedDict(AutomationNodeDict): ...
 
     def is_deactivated(self, workspace: Workspace) -> bool:

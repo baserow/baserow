@@ -238,6 +238,78 @@ def test_wait_node_fails_when_the_wait_exceeds_the_maximum(data_fixture):
 
 
 @pytest.mark.django_db
+def test_wait_node_has_no_error_policy(data_fixture):
+    """
+    A wait only fails on its duration, which a retry would evaluate to the same
+    value, so the node type does not accept the error policy fields.
+    """
+
+    data = create_wait_workflow(data_fixture)
+    wait_node = data["wait_node"]
+
+    assert not wait_node.get_type().has_error_policy
+
+    AutomationNodeHandler().update_node(
+        wait_node, label="Pause", on_failure="retry", max_retries=5
+    )
+
+    wait_node.refresh_from_db()
+    assert wait_node.label == "Pause"
+    assert wait_node.on_failure == "stop"
+    assert wait_node.max_retries == 2
+
+
+@pytest.mark.django_db
+def test_wait_node_never_retries_a_stored_retry_policy(data_fixture):
+    """
+    An import can still store a retry policy on a Wait node: the runner ignores
+    it, so an invalid wait fails at once rather than after pointless retries.
+    """
+
+    data = create_wait_workflow(data_fixture, seconds="'abc'")
+    type(data["wait_node"]).objects.filter(id=data["wait_node"].id).update(
+        on_failure="retry", max_retries=3
+    )
+    workflow_history = data["workflow_history"]
+
+    result = dispatch_wait_node(data)
+
+    assert result is None
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.ERROR
+    node_history = get_wait_node_history(data)
+    assert node_history.status == HistoryStatusChoices.ERROR
+    assert node_history.attempt == 1
+
+
+@pytest.mark.django_db
+def test_wait_node_never_evaluates_a_stored_retry_condition(data_fixture):
+    """
+    The same holds for the retry condition: a completed wait moves on to the
+    next node even when a stored condition would match its result.
+    """
+
+    data = create_wait_workflow(data_fixture, seconds="0")
+    type(data["wait_node"]).objects.filter(id=data["wait_node"].id).update(
+        on_failure="retry",
+        max_retries=3,
+        retry_condition={
+            "formula": "get('current_node.seconds') = 0",
+            "mode": "advanced",
+            "version": "0.1",
+        },
+    )
+
+    with freeze_time(NOW):
+        result = dispatch_wait_node(data)
+
+    assert_dispatches_next_node(result, data["next_node"], data["workflow_history"])
+    node_history = get_wait_node_history(data)
+    assert node_history.status == HistoryStatusChoices.SKIPPED
+    assert node_history.attempt == 1
+
+
+@pytest.mark.django_db
 @patch(f"{NODE_HANDLER_PATH}.automation_node_updated")
 def test_wait_node_never_waits_while_simulating(mock_node_updated, data_fixture):
     """
