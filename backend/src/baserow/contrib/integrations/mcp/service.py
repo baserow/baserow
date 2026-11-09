@@ -54,7 +54,14 @@ class MCPServerService:
             # Checked again: access may have changed while the server answered.
             integration = self.get_server_for_update(user, integration_id)
             # Tools of a server the integration no longer points to are dropped.
-            if integration.url == fetched_from:
+            # Locked first, so a URL change still being saved is waited for.
+            current_url = (
+                MCPServerIntegration.objects.select_for_update()
+                .filter(id=integration_id)
+                .values_list("url", flat=True)
+                .first()
+            )
+            if current_url == fetched_from:
                 MCPServerHandler().store_tools(integration, definitions)
         return self._reload(integration_id)
 
