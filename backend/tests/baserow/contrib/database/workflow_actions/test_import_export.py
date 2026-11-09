@@ -927,7 +927,7 @@ def test_button_export_uses_shared_sample_sanitization(data_fixture, is_user_tem
     if is_user_template:
         assert exported_service["sample_data"] == {
             "data": {"body": {"secret": "Example"}},
-            "status": 0,
+            "status": 200,
         }
     else:
         assert exported_service["sample_data"] == service.sample_data
