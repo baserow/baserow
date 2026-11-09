@@ -741,6 +741,16 @@ def _write_element_formulas(
         for field, formula in formulas.items()
         if "." not in field and hasattr(element, field)
     }
+    # A link's page parameters are replaced as a whole list.
+    params = [dict(param) for param in getattr(fresh, "page_parameters", None) or []]
+    changed_params = False
+    for i, param in enumerate(params):
+        formula = formulas.get(f"page_param_{i}")
+        if formula is not None:
+            param["value"] = formula_object(formula, mode=BASEROW_FORMULA_MODE_ADVANCED)
+            changed_params = True
+    if changed_params:
+        values["page_parameters"] = params
     dependent = item.get_formula_dependent_fields(element.get_type().type)
     for dependent_field, formula_field in dependent.items():
         if formula_field in values:

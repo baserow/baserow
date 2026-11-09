@@ -35,7 +35,12 @@ from baserow.contrib.builder.elements.actions import (
 )
 from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
 from baserow.contrib.builder.elements.handler import ElementHandler
-from baserow.contrib.builder.elements.models import Element, MenuElement
+from baserow.contrib.builder.elements.models import (
+    Element,
+    LinkElement,
+    MenuElement,
+    MenuItemElement,
+)
 from baserow.contrib.builder.elements.operations import (
     ReadElementOperationType,
     UpdateElementOperationType,
@@ -68,7 +73,10 @@ from baserow.contrib.builder.workflow_actions.actions import (
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
-from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.contrib.builder.workflow_actions.models import (
+    BuilderWorkflowAction,
+    OpenPageWorkflowAction,
+)
 from baserow.contrib.builder.workflow_actions.operations import (
     ReadBuilderWorkflowActionOperationType,
     UpdateBuilderWorkflowActionOperationType,
@@ -567,6 +575,69 @@ def update_page(
             raise ToolInputError(f"{exc}. Nothing was changed in this call.")
         page.refresh_from_db()
     return page
+
+
+def navigations_out_of_step(page: Page) -> list[dict[str, Any]]:
+    """
+    The links, menu items and open page actions that go to a page with parameter
+    names other than the page's, in its order. The frontend shows them as errors and
+    a publish hides them.
+
+    :param page: The page they open.
+    :return: Each one, with what it gives and how to fix it.
+    """
+
+    expected = [param["name"] for param in page.path_params or []]
+
+    def names(navigation) -> list[str]:
+        return [param["name"] for param in navigation.page_parameters or []]
+
+    on_page = {"navigate_to_page": page, "navigation_type": "page"}
+    found: list[dict[str, Any]] = []
+    for link in LinkElement.objects.filter(**on_page, page__trashed=False):
+        if names(link) != expected:
+            found.append(
+                {
+                    "type": "link",
+                    "element_id": link.id,
+                    "page_parameters": names(link),
+                    "fix": "Give the link link_page_parameters named "
+                    f"{', '.join(expected) or 'nothing'} with update_element.",
+                }
+            )
+    for action in OpenPageWorkflowAction.objects.filter(**on_page, page__trashed=False):
+        if names(action) != expected:
+            found.append(
+                {
+                    "type": "open_page action",
+                    "action_id": action.id,
+                    "element_id": action.element_id,
+                    "page_parameters": names(action),
+                    "fix": "Change the page_parameters of this click action to "
+                    f"{', '.join(expected) or 'none'}.",
+                }
+            )
+    if expected:
+        # A menu item can't give path parameters at all.
+        for item in MenuItemElement.objects.filter(**on_page).prefetch_related(
+            "menuelement_set__page"
+        ):
+            menus = [
+                menu for menu in item.menuelement_set.all() if not menu.page.trashed
+            ]
+            if not menus:
+                continue
+            found.append(
+                {
+                    "type": "menu item",
+                    "element_id": menus[0].id,
+                    "uid": str(item.uid),
+                    "page_parameters": names(item),
+                    "fix": "A menu item can't give path parameters: point it to a "
+                    "page without them with update_element.",
+                }
+            )
+    return found
 
 
 # ---------------------------------------------------------------------------

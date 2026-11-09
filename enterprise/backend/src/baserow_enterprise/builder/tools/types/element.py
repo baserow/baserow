@@ -1637,6 +1637,10 @@ def _update_link_formulas(el: "ElementUpdate", orm_element, context) -> dict[str
         formulas["value"] = formula_desc(el.value)
     if el.navigate_to_url and is_text_formula(el.navigate_to_url):
         formulas["navigate_to_url"] = formula_desc(el.navigate_to_url)
+    # The link's update puts the parameters in the page's order first.
+    for i, param in enumerate(el.link_page_parameters or []):
+        if mapping_value_is_formula(param.value):
+            formulas[f"page_param_{i}"] = formula_desc(param.value)
     return formulas
 
 
@@ -1722,6 +1726,15 @@ class ElementUpdate(BaseModel):
     )
     link_target: Literal["self", "blank"] | None = Field(
         default=None, description="(link) Navigation target."
+    )
+    link_page_parameters: list[ParameterMapping] | None = Field(
+        default=None,
+        max_length=MAX_NESTED_ITEMS,
+        description=(
+            "(link) The page parameters, replacing the whole list. Name exactly the "
+            "path parameters of the page the link opens. A value is fixed text or a "
+            "formula, like get('page_parameter.id')."
+        ),
     )
 
     # -- Image fields ---------------------------------------------------------

@@ -1,0 +1,130 @@
+"""
+A page's parameters and the links and click actions that open it: update_page lists
+the ones a change breaks, and update_element can give a link new parameters.
+"""
+
+import pytest
+
+from baserow.contrib.builder.elements.models import LinkElement
+from baserow.core.tools.errors import ToolInputError
+from baserow_enterprise.builder.tools import elements, pages
+from baserow_enterprise.builder.tools.types import ElementChanges, PageChanges
+
+
+@pytest.fixture
+def product_page(data_fixture, builder_ctx):
+    page = data_fixture.create_builder_page(
+        builder=builder_ctx["builder"],
+        name="Product",
+        path="/products/:id",
+        path_params=[{"name": "id", "type": "numeric"}],
+    )
+    link = data_fixture.create_builder_link_element(
+        page=builder_ctx["page"],
+        navigation_type="page",
+        navigate_to_page_id=page.id,
+        page_parameters=[{"name": "id", "value": "'1'"}],
+    )
+    action = data_fixture.create_open_page_workflow_action(
+        page=builder_ctx["page"],
+        element=builder_ctx["button"],
+        event="click",
+        navigation_type="page",
+        navigate_to_page_id=page.id,
+        page_parameters=[{"name": "id", "value": "'1'"}],
+    )
+    return page, link, action
+
+
+def _stored(link):
+    saved = LinkElement.objects.get(id=link.id)
+    return [(p["name"], p["value"]["formula"]) for p in saved.page_parameters]
+
+
+@pytest.mark.django_db
+def test_update_page_lists_the_navigations_its_new_parameters_break(
+    builder_ctx, product_page
+):
+    page, link, action = product_page
+
+    result = pages.update_page(
+        builder_ctx["ctx"], page.id, PageChanges(path="/products/:slug")
+    )
+
+    to_fix = result["navigations_to_fix"]
+    assert {(n["type"], n["element_id"]) for n in to_fix} == {
+        ("link", link.id),
+        ("open_page action", builder_ctx["button"].id),
+    }
+    assert all("slug" in n["fix"] for n in to_fix)
+
+
+@pytest.mark.django_db
+def test_update_page_lists_nothing_when_the_parameters_stay(builder_ctx, product_page):
+    page, _link, _action = product_page
+
+    result = pages.update_page(
+        builder_ctx["ctx"], page.id, PageChanges(path="/items/:id")
+    )
+
+    assert "navigations_to_fix" not in result
+
+
+@pytest.mark.django_db
+def test_update_element_gives_a_link_the_new_parameters(builder_ctx, product_page):
+    page, link, _action = product_page
+    pages.update_page(builder_ctx["ctx"], page.id, PageChanges(path="/products/:slug"))
+
+    result = elements.update_element(
+        builder_ctx["ctx"],
+        link.id,
+        ElementChanges(link_page_parameters=[{"name": "slug", "value": "shoes"}]),
+    )
+
+    assert "formula_errors" not in result
+    assert _stored(link) == [("slug", "'shoes'")]
+    after = pages.update_page(builder_ctx["ctx"], page.id, PageChanges(name="Item"))
+    assert "navigations_to_fix" not in after
+
+
+@pytest.mark.django_db
+def test_update_element_stores_a_link_parameter_formula(builder_ctx, product_page):
+    _page, link, _action = product_page
+
+    elements.update_element(
+        builder_ctx["ctx"],
+        link.id,
+        ElementChanges(
+            link_page_parameters=[{"name": "id", "value": "get('page_parameter.x')"}]
+        ),
+    )
+
+    # The home page has no parameter x, so the formula is refused and the previous
+    # value stays.
+    assert _stored(link) == [("id", "'1'")]
+
+    elements.update_element(
+        builder_ctx["ctx"],
+        link.id,
+        ElementChanges(
+            link_page_parameters=[{"name": "id", "value": "concat('4', '2')"}]
+        ),
+    )
+
+    assert _stored(link) == [("id", "concat('4', '2')")]
+
+
+@pytest.mark.django_db
+def test_update_element_refuses_link_parameters_the_page_does_not_take(
+    builder_ctx, product_page
+):
+    _page, link, _action = product_page
+
+    with pytest.raises(ToolInputError, match="unknown: slug"):
+        elements.update_element(
+            builder_ctx["ctx"],
+            link.id,
+            ElementChanges(link_page_parameters=[{"name": "slug", "value": "x"}]),
+        )
+
+    assert _stored(link) == [("id", "'1'")]

@@ -268,11 +268,14 @@ def update_page(
     except PageDoesNotExist:
         raise _page_not_found(page.page_id)
 
-    return {
+    response = {
         "status": "ok",
         "page": result["updated_page"],
         "updated_fields": page.get_updated_field_names(),
     }
+    if "navigations_to_fix" in result:
+        response["navigations_to_fix"] = result["navigations_to_fix"]
+    return response
 
 
 # ---------------------------------------------------------------------------
