@@ -54,6 +54,10 @@ import {
   TextAIFieldOutputType,
 } from '@baserow_premium/aiFieldOutputTypes'
 
+import GridViewRowExpandButtonWithCommentCount from '@baserow_premium/components/row_comments/GridViewRowExpandButtonWithCommentCount'
+import PremiumViewOptions from '@baserow_premium/components/views/PremiumViewOptions'
+import PublicViewExportMenuItem from '@baserow_premium/components/views/PublicViewExportMenuItem'
+
 /** Register this feature only when its application is used. */
 export default async function register(nuxtApp) {
   const { $registry, $store, $clientErrorMap, $i18n } = nuxtApp
@@ -178,6 +182,11 @@ export default async function register(nuxtApp) {
   )
 }
 
-export { default as GridViewRowExpandButtonWithCommentCount } from '@baserow_premium/components/row_comments/GridViewRowExpandButtonWithCommentCount'
-export { default as PremiumViewOptions } from '@baserow_premium/components/views/PremiumViewOptions'
-export { default as PublicViewExportMenuItem } from '@baserow_premium/components/views/PublicViewExportMenuItem'
+/** Read component bindings after Nitro has initialized the combined server chunk. */
+export function getComponents() {
+  return {
+    GridViewRowExpandButtonWithCommentCount,
+    PremiumViewOptions,
+    PublicViewExportMenuItem,
+  }
+}

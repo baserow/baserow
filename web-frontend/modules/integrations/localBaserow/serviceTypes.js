@@ -1,3 +1,4 @@
+import { loadApplicationBundle } from '@baserow/modules/core/utils/applicationBundles'
 import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 import {
   ServiceType,
@@ -439,6 +440,11 @@ export class LocalBaserowAggregateRowsServiceType extends DataSourceLocalBaserow
    */
   get unsupportedAggregationTypes() {
     return ['distribution']
+  }
+
+  /** Aggregation formatting uses Database field and aggregation registrations. */
+  async prepareResult() {
+    await loadApplicationBundle(this.app, 'database')
   }
 
   getResult(service, data) {

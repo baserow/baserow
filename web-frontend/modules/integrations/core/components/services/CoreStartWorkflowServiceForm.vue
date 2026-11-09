@@ -74,9 +74,7 @@ export default {
   },
   methods: {
     getWorkflows(automation) {
-      return this.$store.getters['automationWorkflow/getOrderedWorkflows'](
-        automation
-      )
+      return [...(automation.workflows || [])].sort((a, b) => a.order - b.order)
     },
   },
   validations() {
