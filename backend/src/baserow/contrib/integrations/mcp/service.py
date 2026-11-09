@@ -48,11 +48,14 @@ class MCPServerService:
         """
 
         integration = self.get_server_for_update(user, integration_id)
+        fetched_from = integration.url
         definitions = MCPServerHandler().fetch_remote_tools(integration)
         with transaction.atomic():
             # Checked again: access may have changed while the server answered.
             integration = self.get_server_for_update(user, integration_id)
-            MCPServerHandler().store_tools(integration, definitions)
+            # Tools of a server the integration no longer points to are dropped.
+            if integration.url == fetched_from:
+                MCPServerHandler().store_tools(integration, definitions)
         return self._reload(integration_id)
 
     def update_tools(

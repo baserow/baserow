@@ -18,7 +18,8 @@ from baserow.contrib.integrations.mcp.http import (
     UnsafeMCPAddress,
     create_mcp_http_client,
 )
-from baserow.contrib.integrations.mcp.models import MCPServerTool
+from baserow.contrib.integrations.mcp.models import MCPServerIntegration, MCPServerTool
+from baserow.contrib.integrations.mcp.service import MCPServerService
 from baserow.contrib.integrations.mcp.toolset import (
     MCPServerSnapshot,
     MCPToolSnapshot,
@@ -370,3 +371,31 @@ def test_a_review_of_an_older_definition_does_not_approve_the_new_one(
 
     add = integration.tools.get(name="add")
     assert add.enabled is False
+
+
+@pytest.mark.django_db
+def test_tools_of_a_server_moved_during_the_refresh_are_not_stored(
+    data_fixture, mocker
+):
+    user = data_fixture.create_user()
+    integration = data_fixture.create_mcp_server_integration(user=user)
+    definitions = [
+        MCPToolDefinition(
+            name="old", title="", description="", input_schema={}, annotations=None
+        )
+    ]
+
+    def answer_while_moved(server):
+        # Another editor moves the server while this one waits for the answer.
+        MCPServerIntegration.objects.filter(id=server.id).update(
+            url="https://other.example.com/mcp"
+        )
+        return definitions
+
+    mocker.patch.object(
+        MCPServerHandler, "fetch_remote_tools", side_effect=answer_while_moved
+    )
+
+    MCPServerService().refresh_tools(user, integration.id)
+
+    assert not MCPServerTool.objects.filter(integration=integration).exists()
