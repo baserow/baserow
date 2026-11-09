@@ -2,12 +2,25 @@ from enum import Enum
 
 
 def sanitize_sample_data(value):
+    """Sanitize captured values while preserving workflow dispatch metadata."""
+
+    if isinstance(value, dict):
+        return {
+            key: item
+            if key in {"output_uid", "status", "destination_service_id"}
+            else _sanitize_sample_value(item)
+            for key, item in value.items()
+        }
+    return _sanitize_sample_value(value)
+
+
+def _sanitize_sample_value(value):
     """Replace JSON values with placeholders, preserving keys, types and shape."""
 
     if isinstance(value, dict):
-        return {key: sanitize_sample_data(item) for key, item in value.items()}
+        return {key: _sanitize_sample_value(item) for key, item in value.items()}
     if isinstance(value, list):
-        return [sanitize_sample_data(item) for item in value]
+        return [_sanitize_sample_value(item) for item in value]
     if isinstance(value, str):
         return "Example"
     if isinstance(value, bool):

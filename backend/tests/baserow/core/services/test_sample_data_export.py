@@ -9,6 +9,7 @@ from baserow.core.registries import ImportExportConfig
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
 from baserow.core.services.utils import sanitize_sample_data
+from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 SAMPLE = {
     "data": {
@@ -21,9 +22,13 @@ SAMPLE = {
             "empty_list": [],
         },
         "headers": {"authorization": "Bearer secret"},
+        "output_uid": "private payload value",
+        "status": 418,
+        "destination_service_id": 123,
     },
     "status": 201,
     "output_uid": "private-id",
+    "destination_service_id": 456,
 }
 CLEAN_SAMPLE = {
     "data": {
@@ -36,13 +41,18 @@ CLEAN_SAMPLE = {
             "empty_list": [],
         },
         "headers": {"authorization": "Example"},
+        "output_uid": "Example",
+        "status": 0,
+        "destination_service_id": 0,
     },
-    "status": 0,
-    "output_uid": "Example",
+    "status": 201,
+    "output_uid": "private-id",
+    "destination_service_id": 456,
 }
 
 
 def test_sanitize_sample_data_preserves_shape_without_mutating_input():
+    """Preserve dispatch metadata without exempting same-name payload values."""
     original = deepcopy(SAMPLE)
     sanitized = sanitize_sample_data(original)
 
@@ -52,6 +62,36 @@ def test_sanitize_sample_data_preserves_shape_without_mutating_input():
     original_schema.add_object(original)
     sanitized_schema.add_object(sanitized)
     assert original_schema.to_schema() == sanitized_schema.to_schema()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("is_user_template", [True, False])
+def test_exported_samples_preserve_workflow_dispatch_metadata(
+    data_fixture, is_user_template
+):
+    """Replaying exported samples retains routing, jumps and response status."""
+
+    service = data_fixture.create_core_http_request_service(
+        sample_data=deepcopy(SAMPLE)
+    )
+    exported = ServiceHandler().export_service(
+        service,
+        ImportExportConfig(
+            include_permission_data=False,
+            is_user_template=is_user_template,
+            exclude_sensitive_data=not is_user_template,
+        ),
+    )
+    service.sample_data = exported["sample_data"]
+
+    result = service.get_type().dispatch(
+        service, FakeDispatchContext(use_sample_data=True)
+    )
+
+    assert result.output_uid == "private-id"
+    assert result.destination_service_id == 456
+    assert result.status == 201
+    assert result.data == CLEAN_SAMPLE["data"]
 
 
 @pytest.mark.django_db
