@@ -91,6 +91,19 @@ from baserow.core.services.exceptions import (
 )
 from baserow.core.services.registries import service_type_registry
 
+# The errors a data source dispatch can raise, shared by the views which
+# dispatch a data source.
+DATA_SOURCE_DISPATCH_EXCEPTIONS = {
+    DataSourceDoesNotExist: ERROR_DATA_SOURCE_DOES_NOT_EXIST,
+    ServiceImproperlyConfiguredDispatchException: ERROR_SERVICE_IMPROPERLY_CONFIGURED,
+    InvalidContextDispatchException: ERROR_SERVICE_INVALID_DISPATCH_CONTEXT,
+    InvalidContextContentDispatchException: ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT,
+    UnexpectedDispatchException: ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR,
+    ServiceSortPropertyDoesNotExist: ERROR_SERVICE_SORT_PROPERTY_DOES_NOT_EXIST,
+    ServiceFilterPropertyDoesNotExist: ERROR_SERVICE_FILTER_PROPERTY_DOES_NOT_EXIST,
+    DoesNotExist: ERROR_DATA_DOES_NOT_EXIST,
+}
+
 
 class DataSourcesView(APIView):
     permission_classes = (IsAuthenticated,)
@@ -508,16 +521,9 @@ class DispatchDataSourceView(APIView):
     @transaction.atomic
     @map_exceptions(
         {
-            DataSourceDoesNotExist: ERROR_DATA_SOURCE_DOES_NOT_EXIST,
+            **DATA_SOURCE_DISPATCH_EXCEPTIONS,
             ElementDoesNotExist: ERROR_ELEMENT_DOES_NOT_EXIST,
             DataSourceRefinementForbidden: ERROR_DATA_SOURCE_REFINEMENT_FORBIDDEN,
-            ServiceImproperlyConfiguredDispatchException: ERROR_SERVICE_IMPROPERLY_CONFIGURED,
-            InvalidContextDispatchException: ERROR_SERVICE_INVALID_DISPATCH_CONTEXT,
-            InvalidContextContentDispatchException: ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT,
-            UnexpectedDispatchException: ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR,
-            ServiceSortPropertyDoesNotExist: ERROR_SERVICE_SORT_PROPERTY_DOES_NOT_EXIST,
-            ServiceFilterPropertyDoesNotExist: ERROR_SERVICE_FILTER_PROPERTY_DOES_NOT_EXIST,
-            DoesNotExist: ERROR_DATA_DOES_NOT_EXIST,
         }
     )
     def post(self, request, data_source_id: int):
@@ -572,6 +578,8 @@ class SimulateDispatchDataSourceView(APIView):
                     "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT",
                     "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT",
                     "ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR",
+                    "ERROR_SERVICE_SORT_PROPERTY_DOES_NOT_EXIST",
+                    "ERROR_SERVICE_FILTER_PROPERTY_DOES_NOT_EXIST",
                 ]
             ),
             404: get_error_schema(
@@ -583,16 +591,7 @@ class SimulateDispatchDataSourceView(APIView):
         },
     )
     @transaction.atomic
-    @map_exceptions(
-        {
-            DataSourceDoesNotExist: ERROR_DATA_SOURCE_DOES_NOT_EXIST,
-            ServiceImproperlyConfiguredDispatchException: ERROR_SERVICE_IMPROPERLY_CONFIGURED,
-            InvalidContextDispatchException: ERROR_SERVICE_INVALID_DISPATCH_CONTEXT,
-            InvalidContextContentDispatchException: ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT,
-            UnexpectedDispatchException: ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR,
-            DoesNotExist: ERROR_DATA_DOES_NOT_EXIST,
-        }
-    )
+    @map_exceptions(DATA_SOURCE_DISPATCH_EXCEPTIONS)
     def post(self, request, data_source_id: int):
         """
         Test the given data_source and store the result as its sample data.
@@ -676,12 +675,7 @@ class DispatchDataSourcesView(APIView):
             if isinstance(content, Exception):
                 _, error, detail = apply_exception_mapping(
                     {
-                        DataSourceDoesNotExist: ERROR_DATA_SOURCE_DOES_NOT_EXIST,
-                        ServiceImproperlyConfiguredDispatchException: ERROR_SERVICE_IMPROPERLY_CONFIGURED,
-                        InvalidContextDispatchException: ERROR_SERVICE_INVALID_DISPATCH_CONTEXT,
-                        InvalidContextContentDispatchException: ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT,
-                        UnexpectedDispatchException: ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR,
-                        DoesNotExist: ERROR_DATA_DOES_NOT_EXIST,
+                        **DATA_SOURCE_DISPATCH_EXCEPTIONS,
                         PermissionException: ERROR_PERMISSION_DENIED,
                     },
                     content,

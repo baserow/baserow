@@ -1245,8 +1245,9 @@ def test_simulate_dispatch_data_source(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("url_name", ["dispatch", "simulate-dispatch"])
 def test_dispatch_data_source_with_refinements_referencing_trashed_field(
-    api_client, data_fixture
+    api_client, data_fixture, url_name
 ):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
@@ -1269,7 +1270,8 @@ def test_dispatch_data_source_with_refinements_referencing_trashed_field(
     )
 
     url = reverse(
-        "api:builder:data_source:dispatch", kwargs={"data_source_id": data_source.id}
+        f"api:builder:data_source:{url_name}",
+        kwargs={"data_source_id": data_source.id},
     )
     response = api_client.post(url, HTTP_AUTHORIZATION=f"JWT {token}")
 
