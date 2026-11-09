@@ -6,9 +6,10 @@
           getCollaboratorName(value)
         }}</span>
       </div>
-      <div class="field-last-modified-by__initials">
-        {{ getCollaboratorNameInitials(value) }}
-      </div>
+      <CollaboratorAvatar
+        class="field-last-modified-by__avatar"
+        :subject="value"
+      />
     </div>
   </div>
 </template>

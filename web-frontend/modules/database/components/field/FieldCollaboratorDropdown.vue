@@ -74,6 +74,12 @@
       <div v-if="isNotFound" class="select__description">
         {{ $t('fieldmultipleCollaboratorsDropdown.notFound') }}
       </div>
+      <div
+        v-else-if="collaborators.length === 0 && !showEmptyValue"
+        class="select__description"
+      >
+        {{ $t('fieldmultipleCollaboratorsDropdown.noneAvailable') }}
+      </div>
     </div>
   </div>
 </template>

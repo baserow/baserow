@@ -295,7 +295,8 @@
     "notFound": "Option not found"
   },
   "fieldmultipleCollaboratorsDropdown": {
-    "notFound": "Collaborator not found"
+    "notFound": "Collaborator not found",
+    "noneAvailable": "No more collaborators available"
   },
   "fieldDateSubForm": {
     "dateFormatLabel": "Date format",

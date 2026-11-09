@@ -11,9 +11,11 @@
             class="field-multiple-collaborators__name background-color--light-gray"
             >{{ getCollaboratorName(item, $store) }}</span
           >
-          <div v-if="value" class="field-multiple-collaborators__initials">
-            {{ getCollaboratorNameInitials(item, $store) }}
-          </div>
+          <CollaboratorAvatar
+            v-if="value"
+            class="field-multiple-collaborators__avatar"
+            :subject="item"
+          />
         </template>
       </div>
     </div>

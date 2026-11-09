@@ -14,9 +14,10 @@
               getCollaboratorName(item, $store)
             }}</span>
           </div>
-          <div class="field-multiple-collaborators__initials">
-            {{ getCollaboratorNameInitials(item, $store) }}
-          </div>
+          <CollaboratorAvatar
+            class="field-multiple-collaborators__avatar"
+            :subject="item"
+          />
         </template>
       </div>
     </div>

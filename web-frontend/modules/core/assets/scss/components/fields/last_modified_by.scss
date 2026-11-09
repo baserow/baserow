@@ -35,15 +35,9 @@
   @extend %ellipsis;
 }
 
-.field-last-modified-by__initials {
+.field-last-modified-by__avatar {
   flex: 0 0 24px;
-  font-weight: bold;
-  color: $white;
-  background-color: $color-primary-500;
-  border-radius: 100%;
   margin-left: 0;
   margin-right: -14px;
   z-index: 1;
-
-  @include center-text(24px, 12px);
 }

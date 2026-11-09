@@ -1,0 +1,34 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Read-only field Subject avatars > renders an Agent avatar in author cells 1`] = `
+"<div class="grid-view__cell">
+  <div class="field-last-modified-by">
+    <div class="field-last-modified-by__name background-color--light-gray"><span class="field-last-modified-by__name-text">Review Agent</span></div>
+    <div class="avatar avatar--medium avatar--purple agent-avatar field-last-modified-by__avatar"><i class="iconoir-lock avatar__icon"></i>
+      <!--v-if-->
+      <!--v-if-->
+    </div>
+  </div>
+</div>"
+`;
+
+exports[`Read-only field Subject avatars > renders human initials and the Agent icon in collaborator cells 1`] = `
+"<div class="grid-view__cell grid-field-many-to-many__cell">
+  <div class="grid-field-many-to-many__list">
+    <div class="field-multiple-collaborators__item">
+      <div class="field-multiple-collaborators__name background-color--light-gray"><span class="field-multiple-collaborators__name-text">Alice Demo</span></div>
+      <div class="avatar avatar--rounded avatar--medium avatar--blue field-multiple-collaborators__avatar">
+        <!--v-if-->
+        <!--v-if--><span class="avatar__initials">AD</span>
+      </div>
+    </div>
+    <div class="field-multiple-collaborators__item">
+      <div class="field-multiple-collaborators__name background-color--light-gray"><span class="field-multiple-collaborators__name-text">Research Agent</span></div>
+      <div class="avatar avatar--medium avatar--purple agent-avatar field-multiple-collaborators__avatar"><i class="iconoir-lock avatar__icon"></i>
+        <!--v-if-->
+        <!--v-if-->
+      </div>
+    </div>
+  </div>
+</div>"
+`;

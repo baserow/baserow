@@ -8,9 +8,11 @@
         getCollaboratorName(value, $store)
       }}</span>
     </div>
-    <div v-if="value" class="field-last-modified-by__initials">
-      {{ getCollaboratorNameInitials(value, $store) }}
-    </div>
+    <CollaboratorAvatar
+      v-if="value"
+      class="field-last-modified-by__avatar"
+      :subject="value"
+    />
   </div>
 </template>
 

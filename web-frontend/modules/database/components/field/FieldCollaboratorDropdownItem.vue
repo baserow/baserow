@@ -13,13 +13,12 @@
       @click="select(value, disabled)"
       @mousemove="hover(value, disabled)"
     >
-      <div class="select-collaborators__initials">
-        <component
-          :is="collaboratorType.avatarComponent"
-          :subject="{ id: value, name, type: subjectType }"
-          size="small"
-        />
-      </div>
+      <component
+        :is="collaboratorType.avatarComponent"
+        class="select-collaborators__avatar"
+        :subject="{ id: value, name, type: subjectType }"
+        size="medium"
+      />
       <div class="select-collaborators__dropdown-option">
         {{ name }}
       </div>

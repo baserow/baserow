@@ -32,17 +32,11 @@
   @extend %ellipsis;
 }
 
-.field-multiple-collaborators__initials {
+.field-multiple-collaborators__avatar {
   flex: 0 0 24px;
-  font-weight: bold;
-  color: $white;
-  background-color: $color-primary-500;
-  border-radius: 100%;
   margin-left: 0;
   margin-right: -14px;
   z-index: 1;
-
-  @include center-text(24px, 12px);
 }
 
 .field-multiple-collaborators__remove {

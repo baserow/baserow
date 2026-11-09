@@ -4,7 +4,39 @@ import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST
 
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.core.agents.handler import AgentHandler
+from baserow.core.models import SubjectRollout
 from baserow.test_utils.helpers import is_dict_subset
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("agents_enabled", [False, True])
+def test_list_fields_includes_named_subject_collaborators(
+    api_client, data_fixture, agents_enabled
+):
+    """The list endpoint exposes selectable Subjects, including activated Agents."""
+    user, token = data_fixture.create_user_and_token(first_name="Alice")
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(database=database)
+    field = data_fixture.create_multiple_collaborators_field(table=table)
+    agent = AgentHandler().create_agent(database.workspace, name="Research Agent")
+    other_workspace = data_fixture.create_workspace()
+    AgentHandler().create_agent(other_workspace, name="Foreign Agent")
+    SubjectRollout.objects.create(pk=1, agent_references_enabled=agents_enabled)
+
+    response = api_client.get(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    serialized = next(item for item in response.json() if item["id"] == field.id)
+    expected = [{"id": user.id, "name": "Alice", "type": "auth.User"}]
+    if agents_enabled:
+        expected.append(
+            {"id": agent.subject_id, "name": "Research Agent", "type": "core.Agent"}
+        )
+    assert serialized["available_collaborators"] == expected
 
 
 @pytest.mark.field_multiple_collaborators
