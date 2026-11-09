@@ -1599,72 +1599,70 @@ def test_elements_moved_into_a_container_keep_their_order(data_fixture, builder_
     ]
 
 
-@pytest.mark.django_db
-def test_moving_the_last_child_into_its_container_changes_nothing(builder_ctx):
-    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+@pytest.fixture
+def box(data_fixture, builder_ctx):
+    """
+    A container holding First and Second, a Middle heading outside it, and the
+    page's button, by name.
+    """
+
     ids = elements.create_elements(
-        ctx,
-        page.id,
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
         [
             ElementItemCreate(ref="box", type="simple_container"),
             text("a", "First", parent_element="box"),
             text("b", "Second", parent_element="box"),
         ],
     )["ref_to_id_map"]
+    middle = data_fixture.create_builder_heading_element(
+        page=builder_ctx["page"], value="'Middle'"
+    )
+    return {**ids, "middle": middle.id, "button": builder_ctx["button"].id}
 
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "move, children, error",
+    [
+        pytest.param(
+            {"element_id": "b", "parent_element_id": "box"},
+            ["'First'", "'Second'"],
+            None,
+            id="the last child into its container changes nothing",
+        ),
+        pytest.param(
+            {"element_id": "a", "parent_element_id": "box"},
+            ["'Second'", "'First'"],
+            None,
+            id="a child to the end of its container",
+        ),
+        pytest.param(
+            {"element_id": "middle", "parent_element_id": "box", "before_id": "b"},
+            ["'First'", "'Middle'", "'Second'"],
+            None,
+            id="into a container before one of its children",
+        ),
+        pytest.param(
+            {"element_id": "middle", "parent_element_id": "box", "before_id": "button"},
+            ["'First'", "'Second'"],
+            "isn't in",
+            id="before an element outside the parent is refused",
+        ),
+    ],
+)
+def test_move_in_a_container(builder_ctx, box, move, children, error):
     result = elements.move_elements(
-        ctx, [ElementMove(element_id=ids["b"], parent_element_id=ids["box"])]
+        builder_ctx["ctx"],
+        [ElementMove(**{key: box[name] for key, name in move.items()})],
     )
 
-    assert not result.get("errors")
-    assert children_of(ids["box"]) == ["'First'", "'Second'"]
-
-
-@pytest.mark.django_db
-def test_moving_a_child_to_the_end_of_its_container(builder_ctx):
-    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
-    ids = elements.create_elements(
-        ctx,
-        page.id,
-        [
-            ElementItemCreate(ref="box", type="simple_container"),
-            text("a", "First", parent_element="box"),
-            text("b", "Second", parent_element="box"),
-        ],
-    )["ref_to_id_map"]
-
-    elements.move_elements(
-        ctx, [ElementMove(element_id=ids["a"], parent_element_id=ids["box"])]
-    )
-
-    assert children_of(ids["box"]) == ["'Second'", "'First'"]
-
-
-@pytest.mark.django_db
-def test_moving_into_a_container_before_one_of_its_children(data_fixture, builder_ctx):
-    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
-    ids = elements.create_elements(
-        ctx,
-        page.id,
-        [
-            ElementItemCreate(ref="box", type="simple_container"),
-            text("a", "First", parent_element="box"),
-            text("b", "Second", parent_element="box"),
-        ],
-    )["ref_to_id_map"]
-    middle = data_fixture.create_builder_heading_element(page=page, value="'Middle'")
-
-    result = elements.move_elements(
-        ctx,
-        [
-            ElementMove(
-                element_id=middle.id, parent_element_id=ids["box"], before_id=ids["b"]
-            )
-        ],
-    )
-
-    assert not result.get("errors")
-    assert children_of(ids["box"]) == ["'First'", "'Middle'", "'Second'"]
+    if error:
+        assert error in result["errors"][0]
+        assert str(box[move["before_id"]]) in result["errors"][0]
+    else:
+        assert not result.get("errors")
+    assert children_of(box["box"]) == children
 
 
 @pytest.mark.django_db
@@ -1695,9 +1693,14 @@ def test_elements_are_listed_in_page_order_with_children_after_their_container(
 
 
 @pytest.mark.django_db
-def test_move_before_a_child_with_an_empty_place_uses_the_childs_place(
-    data_fixture, builder_ctx
-):
+@pytest.mark.parametrize(
+    "place, error",
+    [
+        pytest.param("", None, id="an empty place uses the child's place"),
+        pytest.param("1", "not '1'", id="another place is refused"),
+    ],
+)
+def test_move_before_a_child_of_a_column(data_fixture, builder_ctx, place, error):
     ctx, page = builder_ctx["ctx"], builder_ctx["page"]
     ids = elements.create_elements(
         ctx,
@@ -1716,41 +1719,17 @@ def test_move_before_a_child_with_an_empty_place_uses_the_childs_place(
                 element_id=moved.id,
                 parent_element_id=ids["cols"],
                 before_id=ids["a"],
-                place_in_container="",
+                place_in_container=place,
             )
         ],
     )
 
-    assert not result.get("errors")
-    assert children_of(ids["cols"]) == ["'M'", "'A'"]
-
-
-@pytest.mark.django_db
-def test_move_before_a_child_in_another_place_is_refused(data_fixture, builder_ctx):
-    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
-    ids = elements.create_elements(
-        ctx,
-        page.id,
-        [
-            ElementItemCreate(ref="cols", type="column"),
-            text("a", "A", parent_element="cols"),
-        ],
-    )["ref_to_id_map"]
-    moved = data_fixture.create_builder_heading_element(page=page, value="'M'")
-
-    result = elements.move_elements(
-        ctx,
-        [
-            ElementMove(
-                element_id=moved.id,
-                parent_element_id=ids["cols"],
-                before_id=ids["a"],
-                place_in_container="1",
-            )
-        ],
-    )
-
-    assert "not '1'" in str(result["errors"])
+    if error:
+        assert error in str(result["errors"])
+        assert children_of(ids["cols"]) == ["'A'"]
+    else:
+        assert not result.get("errors")
+        assert children_of(ids["cols"]) == ["'M'", "'A'"]
 
 
 @pytest.mark.django_db
@@ -2299,65 +2278,71 @@ def links(data_fixture, builder_ctx):
 
 
 @pytest.mark.django_db
-def test_giving_a_custom_link_a_page_makes_it_go_to_the_page(builder_ctx, links):
-    elements.update_element(
-        builder_ctx["ctx"],
-        links["custom"],
-        ElementEdits(navigate_to_page_id=links["target"].id),
-    )
+@pytest.mark.parametrize(
+    "link, edits, navigation_type, url_formula, url_error",
+    [
+        pytest.param(
+            "custom",
+            {"navigate_to_page_id": "target"},
+            "page",
+            None,
+            False,
+            id="a custom link given a page goes to the page",
+        ),
+        pytest.param(
+            "page",
+            {"navigate_to_url": "https://example.org"},
+            "custom",
+            "'https://example.org'",
+            False,
+            id="a page link given a url goes to the url",
+        ),
+        pytest.param(
+            "page",
+            {"navigate_to_url": "concat('https://', 'example.org')"},
+            "custom",
+            "concat('https://', 'example.org')",
+            False,
+            id="a page link given a formula url switches with the formula",
+        ),
+        pytest.param(
+            "page",
+            {"navigate_to_url": "$formula: the shop's address"},
+            "page",
+            None,
+            True,
+            id="a page link given a bad formula url stays on its page",
+        ),
+        pytest.param(
+            "custom",
+            {"navigation_type": "custom", "navigate_to_page_id": "target"},
+            "custom",
+            None,
+            False,
+            id="an explicit navigation type is kept",
+        ),
+    ],
+)
+def test_a_link_given_a_new_target(
+    builder_ctx, links, link, edits, navigation_type, url_formula, url_error
+):
+    values = {
+        key: links["target"].id if value == "target" else value
+        for key, value in edits.items()
+    }
 
-    link = saved(links["custom"])
-    assert link.navigation_type == "page"
-    assert link.navigate_to_page_id == links["target"].id
-
-
-@pytest.mark.django_db
-def test_giving_a_page_link_a_url_makes_it_go_to_the_url(builder_ctx, links):
-    elements.update_element(
-        builder_ctx["ctx"],
-        links["page"],
-        ElementEdits(navigate_to_url="https://example.org"),
-    )
-
-    link = saved(links["page"])
-    assert link.navigation_type == "custom"
-    assert link.navigate_to_url["formula"] == "'https://example.org'"
-
-
-@pytest.mark.django_db
-def test_a_page_link_given_a_formula_url_switches_with_the_formula(builder_ctx, links):
-    elements.update_element(
-        builder_ctx["ctx"],
-        links["page"],
-        ElementEdits(navigate_to_url="concat('https://', 'example.org')"),
-    )
-
-    link = saved(links["page"])
-    assert link.navigation_type == "custom"
-    assert link.navigate_to_url["formula"] == "concat('https://', 'example.org')"
-
-
-@pytest.mark.django_db
-def test_a_page_link_given_a_bad_formula_url_stays_on_its_page(builder_ctx, links):
     result = elements.update_element(
-        builder_ctx["ctx"],
-        links["page"],
-        ElementEdits(navigate_to_url="$formula: the shop's address"),
+        builder_ctx["ctx"], links[link], ElementEdits(**values)
     )
 
-    assert result["formula_errors"][0]["field"] == "navigate_to_url"
-    assert saved(links["page"]).navigation_type == "page"
-
-
-@pytest.mark.django_db
-def test_an_explicit_navigation_type_is_kept(builder_ctx, links):
-    elements.update_element(
-        builder_ctx["ctx"],
-        links["custom"],
-        ElementEdits(navigation_type="custom", navigate_to_page_id=links["target"].id),
-    )
-
-    assert saved(links["custom"]).navigation_type == "custom"
+    stored = saved(links[link])
+    assert stored.navigation_type == navigation_type
+    if navigation_type == "page" and "navigate_to_page_id" in values:
+        assert stored.navigate_to_page_id == links["target"].id
+    if url_formula is not None:
+        assert stored.navigate_to_url["formula"] == url_formula
+    if url_error:
+        assert result["formula_errors"][0]["field"] == "navigate_to_url"
 
 
 @pytest.mark.django_db
@@ -2484,37 +2469,6 @@ def test_a_menu_item_set_up_with_parameters_in_the_editor_can_be_renamed(
     item = saved(menu_id).menu_items.get()
     assert item.name == "New"
     assert [param["name"] for param in item.page_parameters] == ["id"]
-
-
-@pytest.mark.django_db
-def test_move_before_an_element_outside_the_parent_is_refused(
-    data_fixture, builder_ctx
-):
-    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
-    ids = elements.create_elements(
-        ctx,
-        page.id,
-        [
-            ElementItemCreate(ref="box", type="simple_container"),
-            text("a", "First", parent_element="box"),
-        ],
-    )["ref_to_id_map"]
-    moved = data_fixture.create_builder_heading_element(page=page, value="'Moved'")
-
-    result = elements.move_elements(
-        ctx,
-        [
-            ElementMove(
-                element_id=moved.id,
-                parent_element_id=ids["box"],
-                before_id=builder_ctx["button"].id,
-            )
-        ],
-    )
-
-    assert str(builder_ctx["button"].id) in result["errors"][0]
-    assert "isn't in" in result["errors"][0]
-    assert children_of(ids["box"]) == ["'First'"]
 
 
 @pytest.mark.django_db
