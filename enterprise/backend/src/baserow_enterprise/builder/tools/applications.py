@@ -11,12 +11,11 @@ from pydantic import Field
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.builder.models import Builder
-from baserow.core.integrations.registries import integration_type_registry
-from baserow.core.integrations.service import IntegrationService
 from baserow.core.tools import ToolContext
 from baserow.core.tools import applications as shared_applications
 from baserow.core.tools.errors import ToolInputError, validation_messages
 
+from .helpers import create_local_baserow_integration
 from .themes import ThemeName, apply_theme
 
 
@@ -75,12 +74,7 @@ def create_builder(
     ctx.update_status(_("Creating application %(name)s...") % {"name": name})
     with transaction.atomic():
         builder = shared_applications.create_application(ctx, "builder", name)
-        IntegrationService().create_integration(
-            ctx.user,
-            integration_type_registry.get("local_baserow"),
-            builder,
-            name="Local Baserow",
-        )
+        create_local_baserow_integration(ctx.user, builder)
         apply_theme(builder, theme or "baserow", ctx.user)
     return {"created_builder": {"id": builder.id, "name": builder.name}}
 

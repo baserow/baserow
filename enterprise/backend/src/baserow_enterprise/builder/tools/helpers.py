@@ -62,7 +62,6 @@ from baserow.contrib.builder.pages.exceptions import (
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.pages.operations import ReadPageOperationType
-from baserow.contrib.builder.pages.service import PageService
 from baserow.contrib.builder.workflow_actions.actions import (
     CreateBuilderWorkflowActionActionType,
 )
@@ -84,9 +83,11 @@ from baserow.contrib.database.fields.models import Field
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowViewServiceType,
 )
+from baserow.core.action.context import without_undo_redo_registration
 from baserow.core.actions import UpdateApplicationActionType
 from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.actions import CreateIntegrationActionType
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
@@ -288,11 +289,25 @@ def get_local_baserow_integration(user: AbstractUser, builder: Builder) -> Integ
         if integration.get_type().type == "local_baserow":
             return integration.specific
 
-    local_baserow_type = integration_type_registry.get("local_baserow")
-    # An action would let undo trash it under data sources that still use it.
-    return IntegrationService().create_integration(
-        user, local_baserow_type, builder, name="Local Baserow"
-    )
+    return create_local_baserow_integration(user, builder)
+
+
+def create_local_baserow_integration(
+    user: AbstractUser, builder: Builder
+) -> Integration:
+    """
+    Connect a builder to the workspace's data. The audit log records it, but it stays
+    out of the undo stack: undoing it would trash the connection under the data
+    sources and actions that use it.
+    """
+
+    with without_undo_redo_registration(user):
+        return CreateIntegrationActionType.do(
+            user,
+            integration_type_registry.get("local_baserow"),
+            builder,
+            name="Local Baserow",
+        ).specific
 
 
 # ---------------------------------------------------------------------------
@@ -1935,8 +1950,10 @@ def create_login_page(
         while not PageHandler().is_page_path_unique(builder, path):
             suffix += 1
             path = f"/login-{suffix}"
-        # Builders skip update actions, so undo would orphan login_page_id.
-        page = PageService().create_page(user, builder, "Login", path)
+        # Builders skip update actions, so undo would orphan login_page_id. The
+        # audit log still records the page.
+        with without_undo_redo_registration(user):
+            page = CreatePageActionType.do(user, builder, "Login", path)
 
     add_auth_form(user, page, user_source_id)
     UpdateApplicationActionType.do(user, builder, login_page_id=page.id)

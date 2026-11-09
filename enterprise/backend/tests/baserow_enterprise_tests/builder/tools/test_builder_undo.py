@@ -21,6 +21,7 @@ from baserow.core.action.handler import ActionHandler
 from baserow.core.action.models import Action
 from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.services.models import Service
+from baserow.core.tools import ToolContext
 from baserow.core.user_sources.models import UserSource
 from baserow_enterprise.assistant.tools.builder.tools import (
     create_pages,
@@ -346,6 +347,50 @@ def test_undo_of_create_login_page_removes_the_form_and_keeps_the_page(
     undo(site, page)
     assert not Element.objects.filter(page=page).exists()
     assert Page.objects.filter(id=page.id).exists()
+    # The audit log still sees the page, outside the undo stack.
+    assert Action.objects.filter(
+        type="create_page", params__page_id=page.id, session__isnull=True
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_create_builder_records_its_integration_outside_the_undo_stack(site):
+    from baserow_enterprise.builder.tools import applications
+
+    result = applications.create_builder(
+        ToolContext(user=site["user"], workspace=site["workspace"]), "Shop"
+    )
+
+    builder_id = result["created_builder"]["id"]
+    assert Action.objects.filter(
+        type="create_integration",
+        params__application_id=builder_id,
+        session__isnull=True,
+    ).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_a_new_local_baserow_integration_is_recorded_and_not_undone(data_fixture, site):
+    builder = data_fixture.create_builder_application(
+        user=site["user"], workspace=site["workspace"]
+    )
+
+    integration = helpers.get_local_baserow_integration(site["user"], builder)
+
+    assert Action.objects.filter(
+        type="create_integration",
+        params__integration_id=integration.id,
+        session__isnull=True,
+    ).exists()
+    with transaction.atomic():
+        ActionHandler.undo(
+            site["user"],
+            [ApplicationActionScopeType.value(builder.id)],
+            site["session_id"],
+        )
+    integration.refresh_from_db()
+    assert not integration.trashed
 
 
 @pytest.mark.django_db
