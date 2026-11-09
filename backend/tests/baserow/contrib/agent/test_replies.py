@@ -454,7 +454,7 @@ def test_unfinished_replies_persist_partial_text_without_private_error_details(
     assert reply_state(reply_id) == (status, error_code, "Hel")
     steps = AgentMessage.objects.get(id=reply_id).steps
     assert [(step["status"], step["facts"]) for step in steps] == [
-        ("done", {"table": table.name, "count": 1})
+        ("done", {"count": 1})
     ]
     assert [log.record["message"] for log in logs] == (
         [f"Agent reply {reply_id} could not be written (ModelHTTPError, status 429)"]
@@ -791,8 +791,11 @@ def test_a_reply_calls_the_allowed_tools_as_the_agent_identity(
                 "tool": "create_rows",
                 "status": "done",
                 "changes_data": True,
-                "input": {"requested_count": 1},
-                "facts": {"table": table.name, "count": 1} if valid_facts else {},
+                "input": {
+                    "requested_count": 1,
+                    "values": {"table": table.name, "rows": [{"Name": "Plan"}]},
+                },
+                "facts": {"count": 1} if valid_facts else {},
             }
         ]
         streamed = [
@@ -890,7 +893,10 @@ def test_a_reply_recovers_from_invalid_tool_calls(
         ("failed", "invalid_input")
     ] * TOOL_RETRIES
     assert step["status"] == "done"
-    assert step["input"] == {"requested_count": 1}
+    assert step["input"] == {
+        "requested_count": 1,
+        "values": {"table": table.name, "rows": [{"Name": "Plan"}]},
+    }
     assert "error_code" not in step
 
 

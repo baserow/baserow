@@ -6,6 +6,10 @@ import {
 
 const countIsKnown = (count) => Number.isSafeInteger(count) && count >= 0
 
+/** The table a call's request names, or '' when it names none. */
+const requestedTable = (input) =>
+  typeof input?.values?.table === 'string' ? input.values.table.trim() : ''
+
 /** Database presenters share count/table formatting; Core knows neither field. */
 class DatabaseToolPresentationType extends ToolPresentationType {
   static getType() {
@@ -49,17 +53,17 @@ class DatabaseToolPresentationType extends ToolPresentationType {
     }
     const hasCount =
       (counted === true || counted === status) && countIsKnown(count)
-    const hasTable =
-      status === STEP_STATUS.DONE &&
-      table &&
-      typeof facts.table === 'string' &&
-      facts.table.trim()
+    // Facts name tables that were created or read; other calls name the table asked for.
+    const tableName =
+      (typeof facts.table === 'string' && facts.table.trim()) ||
+      requestedTable(input)
+    const hasTable = status === STEP_STATUS.DONE && table && tableName
     const key = `${this.labelKey}${status === STEP_STATUS.RUNNING ? 'Running' : 'Done'}${hasCount ? 'Count' : ''}${hasTable ? 'Table' : ''}`
     return t(
       key,
       {
         ...(hasCount ? { count } : {}),
-        ...(hasTable ? { table: facts.table } : {}),
+        ...(hasTable ? { table: tableName } : {}),
       },
       hasCount ? count : undefined
     )

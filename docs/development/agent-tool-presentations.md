@@ -16,8 +16,14 @@ The backend emits `step` events and saves the same steps on the assistant messag
     "tool": "create_rows",
     "status": "done",
     "changes_data": true,
-    "input": { "requested_count": 2 },
-    "facts": { "count": 2, "table": "Tasks" }
+    "input": {
+        "requested_count": 2,
+        "values": {
+            "table": "Tasks",
+            "rows": [{ "Name": "Acme" }, { "Name": "Beta" }]
+        }
+    },
+    "facts": { "count": 2 }
 }
 ```
 
@@ -29,11 +35,12 @@ The backend emits `step` events and saves the same steps on the assistant messag
   same response is `running` too. `stopped` means the reply ended before the
   call's result: a change may already have completed, and the card says so.
   `skipped` means the call changed nothing and failed nothing; it has no card.
-- `input` is derived from the arguments before the call runs, such as a requested
-  count. It never copies argument values.
-- `facts` are confirmed after an authorized success, such as a count and a table
-  name. A requested count doesn't prove how many items changed. A batch that
-  partly fails is `done` with the count the tool reports.
+- `input` is what the call asked for. `requested_count` is known when the call
+  starts. When it ends, `values` holds the request with names instead of IDs; see
+  [Readable requests](#readable-requests).
+- `facts` are confirmed after an authorized success: a count, and the names of
+  created or read tables. A requested count doesn't prove how many items
+  changed. A batch that partly fails is `done` with the count the tool reports.
 - `error_code` is set on failed steps: `not_found`, `permission_denied`,
   `invalid_input`, `invalid_formula`, `conflict` or `failed`. For an exception
   the tool raises, it comes from `classify_tool_error` in
@@ -49,17 +56,31 @@ Every call has its own step, so a retry after a failure is a new step.
 
 Calls to tools the reply doesn't offer get no step.
 
-### Input previews
+### Readable requests
 
-Write tools can add `input.values`, a copy of the arguments they select in
-`DatabaseAgentToolType.step_input_arguments`. Core's `tool_input_preview` shortens
-strings to 1,000 characters and sets `input.truncated` when it does. It leaves the
-preview out when the stored JSON would exceed 16 KiB, because a partial copy could
-misstate the request. The card shows it as escaped JSON, collapsed by default. It
-describes the request, not what changed, and is stored with the step.
+`AgentToolType.get_step_preview(ctx, arguments)` names a database tool's request
+as the Agent identity, before the tool runs, and stores it in `input.values`.
 
-Row tools don't select their rows: values can include passwords, which the row
-itself only stores hashed.
+- A name the identity can't resolve fails the call, so nothing changes.
+- A failed call keeps the request it named.
+- Only values of known, readable fields are shown; everything else, such as a
+  password or a misspelled field, is masked as `"••••"`.
+- Every list keeps 10 items and every object 10 keys, at any depth;
+  `requested_count` keeps the requested number.
+- Strings keep 1,000 characters.
+- Over 16 KiB of JSON, trailing items are left out until it fits.
+- `input.truncated` marks any of these cuts; the card says the preview is
+  shortened.
+- Each ID is resolved on its own: two fields named "Name" stay two entries.
+- Rows are named by their primary field value, or `unnamed row <id>`.
+- Field IDs in views and filters become names when the identity may list the
+  table's fields; others stay as written.
+- An integer `linked_table` in `create_fields` the identity can't see stays as
+  written.
+- Reads of one table name only the table, for the title; clients never show a
+  read's input.
+
+The card shows `values` as indented JSON, collapsed by default.
 
 ## Web search
 
@@ -74,9 +95,11 @@ failed step whose `input` is `{"unavailable": true}`.
 ## Adding a tool
 
 **Backend.** An `AgentToolType` describes its calls with
-`get_step_input(arguments)` and `get_step_facts(ctx, arguments, result)`. Both
-default to `{}`. A failure in either is logged without values and doesn't change
-the tool's result.
+`get_step_input(arguments)`, `get_step_preview(ctx, arguments)` and
+`get_step_facts(ctx, arguments, result)`. `get_step_input` and `get_step_facts`
+default to `{}`; a failure in either is logged without values and doesn't change
+the tool's result. `get_step_preview` defaults to `None`; build it with the helpers
+in `contrib/agent/previews.py`. When it raises, the call fails before it runs.
 
 **Frontend.** Extend `ToolPresentationType` from
 `modules/core/toolPresentationTypes.js` and implement `getLabel(t)`,
@@ -91,7 +114,8 @@ forms such as `"Creating {count} row | Creating {count} rows"`, called with
 `t(key, { count }, count)`.
 
 **Coverage.** Add each tool to `tests/cases/agent_tools.json` with valid
-arguments, the expected `input` and representative `facts`. Backend tests check
+arguments, the expected `input`, the `preview` a call on the test table produces,
+and representative `facts`. Backend tests check
 the examples against the tool registry and argument schemas. Frontend tests check
 that every tool has a registered presenter with translated titles for each status.
 The fixture's `step_error_codes` keeps the backend and frontend codes in sync.

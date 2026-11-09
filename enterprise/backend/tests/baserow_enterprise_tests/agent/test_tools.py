@@ -41,7 +41,12 @@ def test_tool_calls_recheck_the_identity_role(
             "message": "You don't have permission to do this in this workspace.",
         }
     }
-    assert refused.metadata == {"error_code": "permission_denied"}
+    assert refused.metadata == {
+        "error_code": "permission_denied",
+        "input": {
+            "values": {"table": table.name, "rows": [{"Name": "After downgrade"}]}
+        },
+    }
     assert list(
         table.get_model(attribute_names=True).objects.values_list("name", flat=True)
     ) == ["Before downgrade"]
