@@ -59,6 +59,7 @@ from baserow_enterprise.assistant.tools.builder.tools import (
     list_element_actions,
     list_elements,
     list_pages,
+    move_elements,
     set_theme,
     setup_page,
     update_data_source,
@@ -78,6 +79,7 @@ from baserow_enterprise.builder.tools.types import (
     DataSourceUpdate,
     DisplayElementCreate,
     ElementItemCreate,
+    ElementMove,
     ElementStyleUpdate,
     ElementUpdate,
     FormElementCreate,
@@ -4444,7 +4446,7 @@ def test_update_element_refuses_a_new_target_that_does_not_fit_a_link(data_fixtu
         page_parameters=[{"name": "id", "value": "'1'"}],
     )
 
-    with pytest.raises(ToolInputError, match="stays on the page"):
+    with pytest.raises(ToolInputError, match="Give link_page_parameters for that page"):
         update_element(
             make_test_ctx(user, workspace),
             page_id=page.id,
@@ -4484,3 +4486,34 @@ def test_create_display_elements_refuses_a_link_without_the_parameters_of_its_pa
 
     assert "missing: id" in result["errors"][0]
     assert not LinkElement.objects.filter(page=page).exists()
+
+
+@pytest.mark.django_db
+def test_style_and_move_refuse_an_element_of_another_page(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    home = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+    other = data_fixture.create_builder_page(builder=builder, name="Other", path="/o")
+    heading = data_fixture.create_builder_heading_element(page=other)
+    ctx = make_test_ctx(user, workspace, create_fake_tool_helpers())
+
+    with pytest.raises(ToolInputError, match=f"Element with ID {heading.id} not"):
+        update_element_style(
+            ctx,
+            page_id=home.id,
+            style=ElementStyleUpdate(element_id=heading.id, padding=30),
+            thought="test",
+        )
+
+    result = move_elements(
+        ctx,
+        page_id=home.id,
+        moves=[ElementMove(element_id=heading.id)],
+        thought="test",
+    )
+    assert result["moved_elements"] == []
+    assert result["errors"] == [
+        f"{heading.id}: Element not found on page {home.id}. Use list_elements to "
+        "find valid element IDs."
+    ]

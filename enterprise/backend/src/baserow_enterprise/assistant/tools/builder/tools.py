@@ -12,6 +12,7 @@ from django.utils.translation import gettext as _
 from pydantic import Field
 from pydantic_ai import ModelRetry, RunContext
 
+from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.workflow_actions.handler import (
@@ -90,6 +91,17 @@ def _track_data_source_refs(tool_helpers, page_id: int, refs: dict[str, int]) ->
 
 def _get_data_source_refs(tool_helpers, page_id: int) -> dict[str, int]:
     return _get_page_context(tool_helpers, page_id)["data_source_refs"].copy()
+
+
+def _not_on_page(page, element_ids) -> list[int]:
+    """The IDs of ``element_ids`` that this page's tools can't reach."""
+
+    reachable = set(
+        Element.objects.filter(helpers.on_page(page), id__in=element_ids).values_list(
+            "id", flat=True
+        )
+    )
+    return [element_id for element_id in element_ids if element_id not in reachable]
 
 
 def _page_not_found(page_id: int) -> ToolInputError:
@@ -1055,7 +1067,12 @@ def update_element_style(
     You can combine reset with new values to reset-then-apply.
     """
 
-    helpers.get_page(ctx.deps.user, ctx.deps.workspace, page_id)
+    page = helpers.get_page(ctx.deps.user, ctx.deps.workspace, page_id)
+    if _not_on_page(page, [style.element_id]):
+        raise ToolInputError(
+            f"Element with ID {style.element_id} not found. "
+            "Use list_elements to find valid element IDs."
+        )
     shared = shared_elements.update_element_style(
         ctx.deps.tool_context(),
         style.element_id,
@@ -1122,7 +1139,18 @@ def move_elements(
         _("Moving %(count)d elements on %(name)s...")
         % {"count": len(moves), "name": page.name}
     )
-    return shared_elements.move_elements(ctx.deps.tool_context(), moves)
+    elsewhere = set(_not_on_page(page, [move.element_id for move in moves]))
+    result = shared_elements.move_elements(
+        ctx.deps.tool_context(),
+        [move for move in moves if move.element_id not in elsewhere],
+    )
+    if elsewhere:
+        result.setdefault("errors", []).extend(
+            f"{element_id}: Element not found on page {page.id}. Use list_elements "
+            "to find valid element IDs."
+            for element_id in sorted(elsewhere)
+        )
+    return result
 
 
 # ---------------------------------------------------------------------------
