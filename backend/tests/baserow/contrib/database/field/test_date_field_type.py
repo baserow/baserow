@@ -2,6 +2,7 @@ from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo
 
 from django.core.exceptions import ValidationError
+from django.db.models import Subquery
 
 import pytest
 from pytest_unordered import unordered
@@ -18,6 +19,45 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.psycopg import is_psycopg3
 from baserow.core.registries import ImportExportConfig
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "kind,include_time",
+    [("date", True), ("created_on", False), ("last_modified", False)],
+)
+def test_date_group_expression_relabels_columns_in_subqueries(
+    data_fixture, kind, include_time
+):
+    table = data_fixture.create_database_table()
+    field = getattr(data_fixture, f"create_{kind}_field")(
+        table=table, date_include_time=include_time
+    )
+    model = table.get_model()
+    for day in [9, 8]:
+        row = model.objects.create()
+        model.objects.filter(pk=row.pk).update(
+            **{field.db_column: datetime(2024, 1, day, 9, 5, 15, tzinfo=timezone.utc)}
+        )
+
+    expression = field.get_type().get_group_by_expression(field, field.db_column, None)
+    first_group = (
+        model.objects.annotate(group_key=expression)
+        .order_by("group_key", "id")
+        .values("group_key")[:1]
+    )
+    queryset = model.objects.annotate(first_group=Subquery(first_group))
+
+    expected = datetime(
+        2024,
+        1,
+        8,
+        9 if include_time else 0,
+        5 if include_time else 0,
+        tzinfo=timezone.utc,
+    )
+    # The subquery must use its own column alias, not each outer row's date.
+    assert list(queryset.values_list("first_group", flat=True)) == [expected, expected]
 
 
 @pytest.mark.django_db

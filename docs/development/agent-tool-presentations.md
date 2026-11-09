@@ -63,6 +63,16 @@ describes the request, not what changed, and is stored with the step.
 Row tools don't select their rows: values can include passwords, which the row
 itself only stores hashed.
 
+## Web search
+
+The provider runs web search itself, so it has no `AgentToolType`. Its step uses
+`web_search` as `tool`, starts when the provider reports the call and gets its
+input once the call is complete. Unlike other tools, its `input` keeps the
+queries (`queries`) and any page the provider opened (`url`), bounded in count and
+length, because the step is the only record of what the Agent sent out. A reply that
+was meant to search but couldn't, because the provider refused the tool, gets one
+failed step whose `input` is `{"unavailable": true}`.
+
 ## Adding a tool
 
 **Backend.** An `AgentToolType` describes its calls with

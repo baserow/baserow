@@ -4391,7 +4391,7 @@ def test_get_group_by_on_all_fields_in_interesting_table(data_fixture):
         "last_modified_date_us": [
             {
                 "field_last_modified_date_us": datetime(
-                    2021, 1, 2, 12, 0, tzinfo=timezone.utc
+                    2021, 1, 2, tzinfo=timezone.utc
                 ),
                 "count": 2,
             }
@@ -4407,7 +4407,7 @@ def test_get_group_by_on_all_fields_in_interesting_table(data_fixture):
         "last_modified_date_eu": [
             {
                 "field_last_modified_date_eu": datetime(
-                    2021, 1, 2, 12, 0, tzinfo=timezone.utc
+                    2021, 1, 2, tzinfo=timezone.utc
                 ),
                 "count": 2,
             }
@@ -4430,9 +4430,7 @@ def test_get_group_by_on_all_fields_in_interesting_table(data_fixture):
         ],
         "created_on_date_us": [
             {
-                "field_created_on_date_us": datetime(
-                    2021, 1, 2, 12, 0, tzinfo=timezone.utc
-                ),
+                "field_created_on_date_us": datetime(2021, 1, 2, tzinfo=timezone.utc),
                 "count": 2,
             }
         ],
@@ -4446,9 +4444,7 @@ def test_get_group_by_on_all_fields_in_interesting_table(data_fixture):
         ],
         "created_on_date_eu": [
             {
-                "field_created_on_date_eu": datetime(
-                    2021, 1, 2, 12, 0, tzinfo=timezone.utc
-                ),
+                "field_created_on_date_eu": datetime(2021, 1, 2, tzinfo=timezone.utc),
                 "count": 2,
             }
         ],

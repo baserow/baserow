@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix grouping and sorting of date-only created and modified fields, and row placement in timed date groups",
+    "issue_origin": "github",
+    "issue_number": 6616,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-11-04"
+}

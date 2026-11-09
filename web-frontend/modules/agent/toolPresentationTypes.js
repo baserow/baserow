@@ -177,7 +177,54 @@ export class DeleteRowsToolPresentationType extends DatabaseToolPresentationType
   }
 }
 
+/** A search the AI provider runs itself, so it has no tool to allow or configure. */
+export class WebSearchToolPresentationType extends ToolPresentationType {
+  static getType() {
+    return 'web_search'
+  }
+
+  getLabel(t) {
+    return t('agent.toolWebSearch')
+  }
+
+  getQueries({ input }) {
+    if (!Array.isArray(input?.queries)) return []
+    return input.queries
+      .filter((query) => typeof query === 'string')
+      .map((query) => query.trim())
+      .filter(Boolean)
+  }
+
+  getUrl({ input }) {
+    return typeof input?.url === 'string' ? input.url.trim() : ''
+  }
+
+  getTarget({ input }) {
+    return this.getQueries({ input }).join(', ') || this.getUrl({ input })
+  }
+
+  getActivity({ status, input }, t) {
+    if (input?.unavailable === true) return t('agent.toolWebSearchUnavailable')
+    // A step without queries but with a page is the provider opening that page.
+    const key =
+      this.getQueries({ input }).length === 0 && this.getUrl({ input })
+        ? 'agent.toolWebSearchOpenPage'
+        : 'agent.toolWebSearch'
+    const activity =
+      status === STEP_STATUS.RUNNING
+        ? t(`${key}Running`)
+        : status === STEP_STATUS.DONE
+          ? t(`${key}Done`)
+          : t(key)
+    const target = this.getTarget({ input })
+    return target
+      ? t('agent.toolWebSearchTarget', { activity, target })
+      : activity
+  }
+}
+
 export const agentToolPresentationTypes = [
+  WebSearchToolPresentationType,
   ListTablesToolPresentationType,
   GetTableSchemaToolPresentationType,
   ListTableRowsToolPresentationType,

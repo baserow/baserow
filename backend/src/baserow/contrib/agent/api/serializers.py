@@ -98,6 +98,17 @@ class AgentConfigurationSerializer(serializers.Serializer):
         help_text="Every tool an agent can be allowed to call, with its group and "
         "whether it changes data."
     )
+    web_search_enabled = serializers.BooleanField(
+        help_text="Whether the agent may search the web through its AI provider."
+    )
+    web_search_available = serializers.BooleanField(
+        help_text="Whether the agent's model may try to search the web. Its provider "
+        "can still refuse a search, which the reply then shows."
+    )
+    web_search_blocked_by_tools = serializers.BooleanField(
+        help_text="Whether the agent's model can search the web, but not while the "
+        "agent uses workspace tools."
+    )
     errors = serializers.DictField(
         child=serializers.ChoiceField(
             choices=[error.value for error in AgentConfigurationErrorCode]
@@ -175,6 +186,7 @@ class AgentConfigurationUpdateSerializer(
             "run_as_subject_type",
             "run_as_subject_id",
             "allowed_tools",
+            "web_search_enabled",
         )
         extra_kwargs = {
             "instructions": {

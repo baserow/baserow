@@ -77,10 +77,17 @@
       />
     </Dropdown>
   </FormGroup>
+  <AgentWebSearchSetting
+    class="margin-top-3"
+    :configuration="configuration"
+    :editable="editable"
+    @change="changeWebSearch"
+  />
 </template>
 
 <script setup>
 import { computed, ref } from 'vue'
+import AgentWebSearchSetting from '@baserow/modules/agent/components/configuration/AgentWebSearchSetting'
 
 const props = defineProps({
   name: { type: String, required: true },
@@ -127,6 +134,11 @@ function changeProvider(providerType) {
 
 function changeModel(model) {
   emit('change', { model_identifier: model })
+  emit('flush')
+}
+
+function changeWebSearch(enabled) {
+  emit('change', { web_search_enabled: enabled })
   emit('flush')
 }
 
