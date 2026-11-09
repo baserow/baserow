@@ -573,3 +573,26 @@ def test_a_server_that_streams_its_initialize_answer_is_still_discovered(
     response = start(api_client, token, integration)
 
     assert response.status_code == 200, response.json()
+
+
+@pytest.mark.django_db
+def test_sending_back_the_registered_client_id_keeps_it_registered(data_fixture):
+    user = data_fixture.create_user()
+    integration = oauth_server(
+        data_fixture,
+        user,
+        oauth_client_id="registered-client",
+        oauth_client_source="dynamic",
+        oauth_access_token="access-1",
+    )
+
+    # An API client reads the integration and writes it back unchanged.
+    integration = (
+        IntegrationService()
+        .update_integration(user, integration, oauth_client_id="registered-client")
+        .integration
+    )
+
+    integration.refresh_from_db()
+    assert integration.oauth_client_source == "dynamic"
+    assert integration.oauth_connected

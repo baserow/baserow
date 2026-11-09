@@ -148,7 +148,12 @@ class MCPServerIntegrationType(IntegrationType):
         """
 
         values = dict(values)
-        if "oauth_client_id" in values:
+        # Sending back the client id Baserow registered changes nothing.
+        unchanged_client = (
+            instance is not None
+            and values.get("oauth_client_id") == instance.oauth_client_id
+        )
+        if "oauth_client_id" in values and not unchanged_client:
             values["oauth_client_source"] = (
                 MCPOAuthClientSource.MANUAL if values["oauth_client_id"] else ""
             )
