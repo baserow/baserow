@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import re
 from dataclasses import dataclass
 from typing import Any
@@ -92,8 +93,9 @@ class MCPServerSnapshot:
         """
         Name each tool for the model, unique across servers and the built-in
         tools: ``mcp<integration id>_<tool name>``, invalid characters replaced
-        and cut to the providers' limit. A tool whose name would clash after
-        that is left out.
+        and cut to the providers' limit. A name that would clash after that ends
+        in a short hash of the tool's own name instead, so it stays the same
+        from one reply to the next.
 
         :return: The tools by the name the model calls them with.
         """
@@ -104,6 +106,9 @@ class MCPServerSnapshot:
             name = (prefix + _INVALID_NAME_CHARACTERS.sub("_", tool.name))[
                 :MODEL_TOOL_NAME_MAX_LENGTH
             ]
+            if name in names:
+                suffix = "_" + hashlib.sha256(tool.name.encode()).hexdigest()[:8]
+                name = name[: MODEL_TOOL_NAME_MAX_LENGTH - len(suffix)] + suffix
             if name in names:
                 logger.info(
                     "MCP server {} tool name clash, tool left out",

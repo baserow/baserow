@@ -1,4 +1,5 @@
 import asyncio
+import re
 from contextlib import asynccontextmanager
 
 from django.urls import reverse
@@ -278,8 +279,13 @@ def test_model_tool_names_are_valid_and_unique():
 
     names = server.model_tool_names()
 
-    assert list(names) == ["mcp7_search_docs", "mcp7_" + "x" * 59, "mcp7_get"]
+    # Every tool gets a name, a clash a short suffix from its own name.
+    assert len(names) == 4
+    assert all(re.fullmatch(r"mcp7_[a-zA-Z0-9_-]{1,59}", name) for name in names)
     assert names["mcp7_search_docs"].name == "search.docs"
+    assert names["mcp7_" + "x" * 59].name == "x" * 100
+    assert "search docs" in [tool.name for tool in names.values()]
+    assert server.model_tool_names() == names
 
 
 @pytest.mark.django_db
