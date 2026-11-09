@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db import transaction
-from django.db.models import OuterRef, Q, QuerySet, Subquery
+from django.db.models import Exists, OuterRef, Q, QuerySet, Subquery
 from django.utils import timezone
 
 from celery.canvas import Signature, chain
@@ -1265,6 +1265,11 @@ class AutomationWorkflowHandler:
         smaller window is evaluated in Python to avoid issuing one COUNT query per
         configured rate limit.
 
+        A run counts in a window when it started inside it, or when it is still
+        unfinished. A run whose node is waiting (a Wait node) is unfinished for as
+        long as the wait lasts, but it is not using a worker, so it only counts by
+        its start time: otherwise ten waiting runs would refuse every new event.
+
         Raises AutomationWorkflowRateLimited when the workflow exceeds one of the
         configured rate limits.
         """
@@ -1284,16 +1289,25 @@ class AutomationWorkflowHandler:
                 Q(started_on__gte=oldest_start_window)
                 | Q(status=HistoryStatusChoices.STARTED)
             )
+            .annotate(
+                is_waiting=Exists(
+                    AutomationNodeHistory.objects.filter(
+                        workflow_history=OuterRef("pk"),
+                        status=HistoryStatusChoices.WAITING,
+                    )
+                )
+            )
             .order_by()
-            .values_list("started_on", "status")
+            .values_list("started_on", "status", "is_waiting")
         )
 
         for max_runs, window_seconds in rate_limits:
             start_window = now - timedelta(seconds=window_seconds)
             if (
                 sum(
-                    started_on >= start_window or status == HistoryStatusChoices.STARTED
-                    for started_on, status in history_windows
+                    started_on >= start_window
+                    or (status == HistoryStatusChoices.STARTED and not is_waiting)
+                    for started_on, status, is_waiting in history_windows
                 )
                 >= max_runs
             ):
