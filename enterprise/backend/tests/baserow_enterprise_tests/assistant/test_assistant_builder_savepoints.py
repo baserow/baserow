@@ -417,7 +417,12 @@ def test_item_error_gives_the_messages_of_a_validation_error():
     assert item_error(DRFValidationError("Pick a container.")) == "Pick a container."
     assert (
         item_error(DRFValidationError({"place_in_container": ["Bad.", "Worse."]}))
-        == "place_in_container: Bad. Worse."
+        == "place_in_container: Bad. place_in_container: Worse."
+    )
+    # A nested error keeps the index of the item it's on.
+    assert (
+        item_error(DRFValidationError({"fields": [{}, {"name": ["Too long."]}]}))
+        == "fields.1.name: Too long."
     )
 
 
