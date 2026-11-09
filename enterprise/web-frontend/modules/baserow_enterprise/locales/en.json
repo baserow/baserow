@@ -880,7 +880,7 @@
   "htmlElement": {
     "source": "HTML source",
     "placeholder": "Custom HTML appears in preview and in the published application.",
-    "invalid": "Enter static HTML only. Add JavaScript in the application's Custom code settings."
+    "invalid": "Enter static HTML only. Add JavaScript in the application's Custom code settings. Use srcdoc or an external URL for embedded documents."
   },
   "elementType": {
     "html": "HTML",

@@ -46,10 +46,32 @@ describe('HTML element', () => {
       expect(wrapper.find('iframe').exists()).toBe(false)
     }
   )
+  test('preserves form controls and relative links with spaces', async () => {
+    const html =
+      '<form><input name="localName"><input name="attributes"></form><a href="java script:docs">Docs</a>'
+    const wrapper = await mountElement('public', 'public', html)
+    expect(
+      wrapper.findAll('input').map((input) => input.attributes('name'))
+    ).toEqual(['localName', 'attributes'])
+    expect(wrapper.get('a').attributes('href')).toBe('java script:docs')
+  })
+
+  test('waits for an explicit visitor context before inserting markup', async () => {
+    const wrapper = await mountElement('public', '')
+    expect(wrapper.find('#anchor').exists()).toBe(false)
+  })
+
   test.each([
     ['', false],
     [snippet, true],
     ['<img id="anchor" onerror="alert(1)">', false],
+    ['<a id="anchor" href="java&#9;script:alert(1)">Open</a>', false],
+    ['<img id="anchor" srcset="/pic.png 1x, javascript:alert(1) 2x">', false],
+    ['<iframe id="anchor" srcdoc="&lt;body onload=alert(1)>"></iframe>', false],
+    [
+      '<svg id="anchor"><set attributeName="href" to="javascript:alert(1)" /></svg>',
+      false,
+    ],
   ])(
     'withholds empty, untrusted or invalid content',
     async (html, untrusted) => {

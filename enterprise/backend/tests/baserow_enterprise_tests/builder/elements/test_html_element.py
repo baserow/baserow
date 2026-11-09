@@ -2,6 +2,7 @@ from django.urls import reverse
 
 import pytest
 
+from baserow.contrib.builder.domains.handler import DomainHandler
 from baserow.core.import_export.exceptions import ImportExportResourceInvalidFile
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow_enterprise.builder.elements.element_types import HTMLElementType
@@ -17,6 +18,9 @@ def test_html_element_round_trip(
     url = reverse("api:builder:element:list", args=[page.id])
     html = (
         '  <section id="anchor" class="widget" data-lang="en" aria-label="Demo">'
+        '<a href="java script:docs">Docs</a><form><input name="attributes"></form>'
+        '<div srcdoc="metadata"></div><iframe srcdoc="&lt;p&gt;Static&lt;/p&gt;"></iframe>'
+        '<svg><set attributeName="href" to="#target"/></svg>'
         "{{ widget }}<textarea><script>literal text</script></textarea></section>  "
     )
     response = api_client.post(
@@ -43,6 +47,11 @@ INVALID_HTML = [
     '<svg><a xlink:href="javascript:alert(1)">open</a></svg>',
     '<select><option><img src=x onerror="alert(1)"></select>',
     '<template><tr><td onclick="alert(1)">Click</td></tr></template>',
+    '<meta http-equiv="refresh" content="0; URL=java&#9;script:alert(1)">',
+    '<img srcset="photo.jpg 1x, javascript:alert(1) 2x">',
+    '<a ping="/log javascript:alert(1)">Open</a>',
+    '<svg><set attributeName="href" to="javascript:alert(1)"/></svg>',
+    '<iframe srcdoc="&lt;body onload=alert(1)>"></iframe>',
     '<iframe srcdoc="&lt;script>alert(1)&lt;/script>"></iframe>',
 ]
 
@@ -135,6 +144,12 @@ def test_html_import_requires_trust_before_publication(
         ).json()["untrusted_content"]
         is False
     )
+    published = DomainHandler().publish(domain).published_to
+    assert not published.untrusted_content
+    public_elements = reverse(
+        "api:builder:domains:list_elements", args=[published.visible_pages.get().id]
+    )
+    assert api_client.get(public_elements).json()[0]["html"] == html
 
 
 @pytest.mark.django_db
@@ -175,3 +190,21 @@ def test_internal_html_copies_preserve_trust(
     copy.refresh_from_db()
     assert not copy.untrusted_content
     assert copy.import_report[0]["type"] == "html"
+
+
+@pytest.mark.django_db
+def test_empty_html_import_does_not_require_trust(
+    enterprise_data_fixture, enable_enterprise
+):
+    builder = enterprise_data_fixture.create_builder_application()
+    page = enterprise_data_fixture.create_builder_page(builder=builder)
+    enterprise_data_fixture.create_builder_element(
+        HTMLElementType, page=page, html="  "
+    )
+    config = ImportExportConfig(include_permission_data=False)
+    app_type = application_type_registry.get("builder")
+    imported = app_type.import_serialized(
+        builder.workspace, app_type.export_serialized(builder, config), config, {}
+    )
+    assert not imported.untrusted_content
+    assert imported.import_report == []

@@ -6,7 +6,11 @@
     {{ $t('htmlElement.placeholder') }}
   </div>
   <div
-    v-else-if="!builder.untrusted_content && element.html"
+    v-else-if="
+      ['preview', 'public'].includes(applicationContext.mode) &&
+      !builder.untrusted_content &&
+      element.html
+    "
     v-static-html="element.html"
   ></div>
 </template>

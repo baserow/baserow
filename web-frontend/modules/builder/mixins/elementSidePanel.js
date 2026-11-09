@@ -99,7 +99,7 @@ export default {
             return
           }
           // Restore the previous saved values from the store
-          this.$refs.panelForm?.reset(true)
+          if (form === this.$refs.panelForm) form?.reset(true)
           notifyIf(error)
         }
       }

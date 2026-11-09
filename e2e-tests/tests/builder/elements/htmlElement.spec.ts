@@ -9,9 +9,14 @@ import {
   ENTERPRISE_LICENSE,
 } from "../../../fixtures/licence";
 import { baserowConfig } from "../../../playwright.config";
+import { createDatabase } from "../../../fixtures/database/database";
+import { createTable } from "../../../fixtures/database/table";
+import { createLocalBaserowIntegration } from "../../../fixtures/builder/integration";
+
+test.describe.configure({ mode: "default" });
 
 const html =
-  '<section id="widget" class="widget" aria-label="Widget" data-widget="map" style="height:48px"><img src="/html-widget-probe.png" alt=""></section>';
+  '<section id="widget" class="widget" aria-label="Widget" data-widget="map"><div style="height:48px"><strong>Widget status</strong><div data-status></div></div><img src="/html-widget-probe.png" alt="" hidden></section>';
 const script = `
   (() => {
     window.loaderRuns = (window.loaderRuns || 0) + 1;
@@ -19,6 +24,7 @@ const script = `
       for (const node of document.querySelectorAll('[data-widget]:not([data-initialized])')) {
         window.initializations = (window.initializations || 0) + 1;
         node.dataset.initialized = String(window.initializations);
+        node.querySelector("[data-status]").textContent = "Ready";
       }
     };
     initializeWidgets();
@@ -73,6 +79,9 @@ for (const mode of ["preview", "published"]) {
         page.getByText("Enter static HTML only.", { exact: false })
       ).toBeVisible();
       await field.fill(html);
+      await expect(
+        page.getByText("Enter static HTML only.", { exact: false })
+      ).toBeHidden();
       await expect(page.locator("#widget")).toHaveCount(0);
       expect(probeRequests).toBe(0);
       await page.screenshot({ path: testInfo.outputPath("editor.png") });
@@ -126,7 +135,12 @@ for (const mode of ["preview", "published"]) {
       const height = () =>
         host.evaluate((el) => el.getBoundingClientRect().height);
       await expect.poll(height).toBe(48);
-      await anchor.evaluate((el) => (el.style.height = "144px"));
+      await anchor.evaluate((el) => {
+        const details = document.createElement("div");
+        details.textContent = "Additional widget content";
+        details.style.height = "96px";
+        el.append(details);
+      });
       await expect.poll(height).toBe(144);
       await visitor.screenshot({ path: testInfo.outputPath(mode + ".png") });
       await testInfo.attach(mode, {
@@ -150,3 +164,58 @@ for (const mode of ["preview", "published"]) {
     }
   });
 }
+
+test("repeated HTML stays inert throughout the editor @enterprise", async ({
+  page,
+  context,
+  builderPagePage,
+  workspacePage,
+}) => {
+  const license = await createLicense(ENTERPRISE_LICENSE);
+  try {
+    const { builder, builderPage } = builderPagePage;
+    const { user, workspace } = workspacePage;
+    const database = await createDatabase(user, "Widget rows", workspace);
+    const table = await createTable(user, "Widgets", database, [
+      ["Name"],
+      ["First"],
+      ["Second"],
+    ]);
+    const integration = await createLocalBaserowIntegration(
+      builder,
+      "Widget rows"
+    );
+    const { data: source } = await getClient(user).post(
+      `builder/page/${builderPage.id}/data-sources/`,
+      {
+        type: "local_baserow_list_rows",
+        name: "Widgets",
+        integration_id: integration.id,
+        table_id: table.id,
+      }
+    );
+    const repeat = await createBuilderElement(builderPage, "repeat", {
+      data_source_id: source.id,
+    });
+    await createBuilderElement(builderPage, "html", {
+      html,
+      reference_element_id: repeat.id,
+      position: "child",
+    });
+    let requests = 0;
+    await context.route("**/html-widget-probe.png", (route) => {
+      requests++;
+      return route.fulfill({ status: 204 });
+    });
+    await builderPagePage.goto();
+    await expect(
+      page.getByText(
+        "Custom HTML appears in preview and in the published application."
+      )
+    ).toHaveCount(2);
+    await expect(page.locator("#widget")).toHaveCount(0);
+    expect(requests).toBe(0);
+  } finally {
+    await deleteLicense(license);
+  }
+});

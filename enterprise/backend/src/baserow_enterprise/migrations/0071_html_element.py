@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("baserow_enterprise", "0070_semantic_search"),
         ("builder", "0082_builder_untrusted_content"),

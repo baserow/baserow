@@ -61,19 +61,32 @@ class HTMLElementType(UntrustedContentTypeMixin, ElementType):
             ),
         }
 
-    def prepare_value_for_db(self, values, instance=None):
+    def prepare_value_for_db(self, values: dict, instance: Element | None = None):
         if "html" in values and not is_static_html(values["html"]):
             raise RequestBodyValidationException(
                 {"html": [{"error": HTML_ERROR, "code": "invalid_html"}]}
             )
         return super().prepare_value_for_db(values, instance)
 
-    def deserialize_property(self, prop_name, value, id_mapping, **kwargs):
+    def deserialize_property(
+        self,
+        prop_name: str,
+        value: Any,
+        id_mapping: dict,
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ) -> Any:
         if prop_name == "html" and not is_static_html(value):
             raise ImportExportResourceInvalidFile(HTML_ERROR)
-        return super().deserialize_property(prop_name, value, id_mapping, **kwargs)
+        return super().deserialize_property(
+            prop_name, value, id_mapping, files_zip, storage, cache, **kwargs
+        )
 
-    def get_import_report_entry(self, instance):
+    def get_import_report_entry(self, instance: HTMLElement):
+        if not instance.html.strip():
+            return None
         return {
             "type": self.type,
             "id": instance.id,

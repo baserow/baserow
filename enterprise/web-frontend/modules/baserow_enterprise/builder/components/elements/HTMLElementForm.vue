@@ -9,8 +9,14 @@
         v-model="values.html"
         :rows="8"
         :error="invalidHTML"
+        :aria-invalid="invalidHTML"
+        :aria-describedby="invalidHTML ? sourceId + '-error' : undefined"
       />
-      <template #error>{{ $t('htmlElement.invalid') }}</template>
+      <template #error
+        ><span :id="sourceId + '-error'" role="alert">{{
+          $t('htmlElement.invalid')
+        }}</span></template
+      >
     </FormGroup>
   </form>
 </template>
