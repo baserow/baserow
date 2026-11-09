@@ -10,8 +10,8 @@ from django.utils.translation import gettext as _
 from pydantic import Field
 
 from baserow.contrib.automation.tools.workflows import get_automation_in_workspace
+from baserow.core.integrations.actions import CreateIntegrationActionType
 from baserow.core.integrations.registries import integration_type_registry
-from baserow.core.integrations.service import IntegrationService
 from baserow.core.tools import ToolContext
 from baserow.core.tools.applications import (
     ApplicationName,
@@ -36,8 +36,8 @@ def create_automation(
     with transaction.atomic():
         automation = create_application(ctx, "automation", name)
         # Row actions read and write tables through it, so workflows can't run
-        # without one.
-        IntegrationService().create_integration(
+        # without one. The action puts it in the audit log, as the editor does.
+        CreateIntegrationActionType.do(
             ctx.user,
             integration_type_registry.get("local_baserow"),
             automation,
