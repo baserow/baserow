@@ -16,68 +16,117 @@ from baserow.core.registry import Instance, Registry
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import classify_tool_error
 
+from .previews import StepPreview, as_requested
+
+
+def act_as_identity(ctx: ToolContext) -> ToolContext:
+    """
+    Refresh the Agent identity's authority for one call, so role changes and trash
+    apply at once, and record that the identity acted. Which identity and tools a
+    reply uses stays fixed for its generation.
+
+    :param ctx: The context the reply started with.
+    :return: The context, acting as the refreshed identity.
+    :raises PermissionDenied: When the identity is gone or left the workspace.
+    """
+
+    subject_type = subject_type_registry.get_by_model(ctx.user)
+    subject = subject_type_registry.get_subject(subject_type.type, ctx.user.pk)
+    if subject is None or not subject_type.is_in_workspace(subject, ctx.workspace):
+        raise PermissionDenied()
+    subject_type.track_usage(subject)
+    return replace(ctx, user=subject)
+
+
+def failed_call(
+    tool_type: "AgentToolType",
+    exc: Exception,
+    preview: dict[str, Any] | None = None,
+) -> ToolReturn:
+    """
+    Answer an exception with an error the model can explain.
+
+    :param tool_type: The tool that failed.
+    :param exc: What it raised.
+    :param preview: The call's readable request, when it was named.
+    :return: The ``error``, with its code and the request as metadata.
+    """
+
+    error = classify_tool_error(exc)
+    if error.message is None:
+        logger.error("Agent tool {} failed ({})", tool_type.type, type(exc).__name__)
+    return ToolReturn(
+        return_value={"error": error.to_dict()},
+        metadata={"error_code": error.code, "input": preview or {}},
+    )
+
+
+def _step_facts(
+    tool_type: "AgentToolType", ctx: ToolContext, arguments: dict[str, Any], result: Any
+) -> dict[str, Any]:
+    """
+    Describe a successful call without letting a broken description fail it.
+
+    :param tool_type: The tool that ran.
+    :param ctx: Who acted and where.
+    :param arguments: The validated arguments.
+    :param result: The tool's result.
+    :return: The facts as JSON, or nothing when they can't be built.
+    """
+
+    try:
+        facts = tool_type.get_step_facts(ctx, arguments, result)
+        if not isinstance(facts, dict):
+            raise TypeError("Step facts must be a dictionary")
+        # The facts stay in the model messages, which must serialize as JSON.
+        return json.loads(json.dumps(facts, allow_nan=False))
+    except Exception as exc:
+        logger.error(
+            "Agent tool {} step facts failed ({})", tool_type.type, type(exc).__name__
+        )
+        return {}
+
 
 @with_usable_db_connection
 def _call_tool(
     tool_type: "AgentToolType", ctx: ToolContext, arguments: dict[str, Any]
-) -> ToolReturn | dict[str, Any]:
+) -> ToolReturn:
     """
-    Run a shared tool, answering an error the model can explain instead of failing
-    the reply.
+    Name the call's request, run the shared tool, and answer an error the model
+    can explain instead of failing the reply.
 
     :param tool_type: The shared tool and how its calls are described.
     :param ctx: Who the tool acts for.
     :param arguments: The validated arguments.
-    :return: The result with the call's facts as metadata, the ``error`` the tool
-        returned, or an ``error`` for an exception with its code as metadata.
+    :return: The result with ``facts`` and ``input``, the readable request, as
+        metadata; the ``error`` the tool returned with ``input``; or an ``error``
+        for an exception with ``error_code`` and ``input``.
     """
 
     function = type(tool_type).function
+    preview: dict[str, Any] = {}
     try:
-        # Identity and tool selection belong to the generation: settings edits
-        # apply to the next one, and Stop ends the current one. Refresh only the
-        # selected identity's authority, so role changes and trash still apply.
         with local_cache.context():
-            subject_type = subject_type_registry.get_by_model(ctx.user)
-            subject = subject_type_registry.get_subject(subject_type.type, ctx.user.pk)
-            if subject is None or not subject_type.is_in_workspace(
-                subject, ctx.workspace
-            ):
-                raise PermissionDenied()
-            subject_type.track_usage(subject)
-            ctx = replace(ctx, user=subject)
+            ctx = act_as_identity(ctx)
+            # A name the identity can't resolve stops the call before it changes data.
+            preview = tool_type.get_step_preview_input(ctx, arguments)
             result = function(ctx, **arguments)
             if isinstance(result, dict) and "error" in result:
-                return result
-            try:
-                facts = tool_type.get_step_facts(ctx, arguments, result)
-                if not isinstance(facts, dict):
-                    raise TypeError("Step facts must be a dictionary")
-                # The facts stay in the model messages, which must serialize as JSON.
-                facts = json.loads(json.dumps(facts, allow_nan=False))
-            except Exception as exc:
-                logger.error(
-                    "Agent tool {} step facts failed ({})",
-                    tool_type.type,
-                    type(exc).__name__,
-                )
-                facts = {}
-            return ToolReturn(return_value=result, metadata=facts)
-    except Exception as exc:
-        error = classify_tool_error(exc)
-        if error.message is None:
-            logger.error(
-                "Agent tool {} failed ({})", tool_type.type, type(exc).__name__
+                return ToolReturn(return_value=result, metadata={"input": preview})
+            return ToolReturn(
+                return_value=result,
+                metadata={
+                    "facts": _step_facts(tool_type, ctx, arguments, result),
+                    "input": preview,
+                },
             )
-        return ToolReturn(
-            return_value={"error": error.to_dict()},
-            metadata={"error_code": error.code},
-        )
+    except Exception as exc:
+        return failed_call(tool_type, exc, preview)
 
 
 async def _run_tool(
     tool_type: "AgentToolType", ctx: ToolContext, arguments: dict[str, Any]
-) -> ToolReturn | dict[str, Any]:
+) -> ToolReturn:
     """
     Run a shared tool without blocking the reply's event loop. A stop waits for the
     running tool, so a reply never ends while its tool still changes data.
@@ -128,6 +177,36 @@ class AgentToolType(Instance):
         """
 
         return {}
+
+    def get_step_preview(
+        self, ctx: ToolContext, arguments: dict[str, Any]
+    ) -> StepPreview | None:
+        """
+        Describe the request with names instead of IDs, as the Agent identity,
+        before the call runs. Raise when a name can't be resolved: the call then
+        fails and nothing runs.
+
+        :param ctx: Who the call acts for, already refreshed.
+        :param arguments: The arguments as the model sent them, as JSON values.
+        :return: The readable request, or None for a tool without one.
+        """
+
+        return None
+
+    def get_step_preview_input(
+        self, ctx: ToolContext, arguments: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        The readable request as the step's input stores it.
+
+        :param ctx: Who the call acts for, already refreshed.
+        :param arguments: The validated arguments.
+        :return: ``values`` and, when part of the request was left out,
+            ``truncated``; nothing for a tool without a preview.
+        """
+
+        preview = self.get_step_preview(ctx, as_requested(arguments))
+        return {} if preview is None else preview.to_input()
 
     def get_step_facts(
         self, ctx: ToolContext, arguments: dict[str, Any], result: Any

@@ -77,6 +77,8 @@ class _Ending:
     error_code: ToolErrorCode | None = None
     error_message: str = ""
     item_errors: list[dict[str, Any]] = field(default_factory=list)
+    preview: dict[str, Any] = field(default_factory=dict)
+    """The call's readable request, joined to the step's input."""
 
 
 def _error_code(value: Any) -> ToolErrorCode:
@@ -186,13 +188,15 @@ def _ended(
             error_code=_error_code(error.get("code") or metadata.get("error_code")),
             error_message=_message(error.get("message")),
             item_errors=_item_errors(content),
+            preview=_display_data(metadata.get("input")),
         )
     if content.get("changed") is False:
         return _Ending(ChatRunStepStatus.SKIPPED)
     return _Ending(
         ChatRunStepStatus.DONE,
-        facts=_display_data(metadata),
+        facts=_display_data(metadata.get("facts")),
         item_errors=_item_errors(content),
+        preview=_display_data(metadata.get("input")),
     )
 
 
@@ -342,7 +346,12 @@ class ChatRunSteps:
         if not pending:
             del self._pending[tool_call_id]
         ending = _ended(part)
-        updated = {**step, "status": ending.status, "facts": ending.facts}
+        updated = {
+            **step,
+            "status": ending.status,
+            "facts": ending.facts,
+            "input": {**step["input"], **ending.preview},
+        }
         # An invalid call starts failed, and a result can still end it otherwise.
         updated.pop("error_code", None)
         if ending.error_code is not None:

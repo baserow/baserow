@@ -25,6 +25,7 @@ from baserow.core.tools.errors import (
     ToolError,
     ToolErrorCode,
     ToolInputError,
+    ToolNotFoundError,
     classify_item_error,
     classify_tool_error,
     finish_batch,
@@ -183,3 +184,11 @@ def test_a_batch_without_failures_or_with_changes_has_no_error():
         "created": [],
         "changed": False,
     }
+
+
+def test_missing_ids_are_named_only_to_the_model():
+    error = classify_tool_error(ToolNotFoundError("Fields [3] were not found."))
+
+    assert error == ToolError(
+        ToolErrorCode.NOT_FOUND, NOT_FOUND_MESSAGE, "Fields [3] were not found."
+    )

@@ -31,15 +31,12 @@ def _shorten_strings(value: Any) -> Any:
 
 def tool_input_preview(values: dict[str, Any]) -> dict[str, Any]:
     """
-    Copy explicitly approved input values into a bounded display preview.
+    Copy display values into a bounded preview.
 
-    This does not choose which arguments are safe to display. Each tool must
-    select them first; credentials and other execution context must stay out.
-
-    :param values: The tool's approved display values, never modified.
-    :return: The values with long strings shortened, and ``truncated`` when any
-        was. Nothing when the stored JSON would exceed ``MAX_INPUT_PREVIEW_SIZE``
-        characters, because a partial copy could misstate the request.
+    :param values: The values to display, never modified.
+    :return: The bounded copy, with long strings shortened and ``truncated`` when
+        any was; or nothing when the stored JSON doesn't fit in
+        ``MAX_INPUT_PREVIEW_SIZE`` characters. The caller decides what to drop.
     """
 
     try:
