@@ -388,6 +388,8 @@ class MCPServerHandler:
             code,
             pending["code_verifier"],
         )
+        # A new sign-in may be another account: nothing of the old one stays.
+        integration.oauth_refresh_token = ""
         self._store_token(integration, token)
         integration.oauth_connected_at = timezone.now()
         integration.oauth_connected_by = user

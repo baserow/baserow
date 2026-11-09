@@ -428,3 +428,23 @@ def test_a_token_endpoint_that_never_answers_times_out(mocker):
     with pytest.raises(MCPOAuthFailed) as error:
         async_to_sync(oauth.refresh)(server, client_info, "refresh-1")
     assert error.value.retryable
+
+
+@pytest.mark.django_db
+def test_a_new_sign_in_never_keeps_the_previous_accounts_refresh_token(
+    data_fixture, api_client, mocker
+):
+    fake = serve_oauth(mocker, FakeAuthorizationServer())
+    fake.refresh_token = None
+    user, token = data_fixture.create_user_and_token()
+    integration = oauth_server(
+        data_fixture, user, oauth_access_token="a", oauth_refresh_token="previous"
+    )
+    url = start(api_client, token, integration).json()["authorization_url"]
+    state = parse_qs(urlparse(url).query)["state"][0]
+
+    complete(api_client, token, state=state, code=fake.authorize(url))
+
+    integration.refresh_from_db()
+    assert integration.oauth_access_token == "access-1"
+    assert integration.oauth_refresh_token == ""

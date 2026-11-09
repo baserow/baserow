@@ -68,6 +68,8 @@ class FakeAuthorizationServer:
         self.issued = 0
         # None leaves `expires_in` out of the token response.
         self.expires_in = 3600
+        # None leaves `refresh_token` out of the token response.
+        self.refresh_token = "refresh-1"
 
     def authorize(self, authorization_url: str) -> str:
         """Approve like the user would, and return the code."""
@@ -96,7 +98,7 @@ class FakeAuthorizationServer:
             "access_token": f"access-{self.issued}",
             "token_type": "Bearer",
             "expires_in": self.expires_in,
-            "refresh_token": "refresh-1",
+            "refresh_token": self.refresh_token,
         }
         return httpx.Response(
             200, json={k: v for k, v in token.items() if v is not None}
