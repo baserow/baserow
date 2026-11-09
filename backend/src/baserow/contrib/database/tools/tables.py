@@ -984,10 +984,7 @@ def create_tables(
     ctx: ToolContext,
     database_id: Annotated[
         int,
-        Field(
-            description="The ID of the database to create the tables in. "
-            "create_database returns the ID of a new one."
-        ),
+        Field(description="The ID of the database to create the tables in."),
     ],
     tables: Annotated[
         list[TableItemCreate],
