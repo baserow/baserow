@@ -446,23 +446,26 @@ async function submit() {
   touched.value = true
   if (Object.values(errors.value).some(Boolean)) return
   // Opened before any request, or the browser blocks the popup.
-  const popup = needsSignIn.value ? openSignInPopup() : null
+  const signIn = needsSignIn.value
+  const popup = signIn ? openSignInPopup() : null
   const isNew = !server.value
   saving.value = true
   error.value = null
   try {
     // A server whose tools were never listed, e.g. after a refused key, lists
     // them on save too.
-    const listed = !isNew && !popup && !server.value.tools.length
+    const listed = !isNew && !signIn && !server.value.tools.length
     let saved = await props.save(server.value, changedValues())
     // A failed sign-in keeps the modal open on the server that now exists.
     server.value = saved
     // A new server lists its tools straight away, so they can be reviewed,
     // and a wrong key shows here rather than as an empty list.
-    if (popup) saved = await props.connect(saved, popup)
+    if (signIn && !popup) {
+      throw new MCPSignInError(t('agent.connectedAppPopupBlocked'))
+    } else if (signIn) saved = await props.connect(saved, popup)
     else if (isNew || !saved.tools.length) saved = await props.refresh(saved)
     modal.value.hide()
-    if (isNew || popup || listed) emit('created', saved)
+    if (isNew || signIn || listed) emit('created', saved)
   } catch (e) {
     popup?.close()
     error.value = readError(e)

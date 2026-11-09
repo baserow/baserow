@@ -152,6 +152,13 @@ async function saveServer(server, values) {
 
 async function connectServer(server) {
   const popup = openSignInPopup()
+  if (!popup) {
+    store.dispatch('toast/error', {
+      title: t('agent.connectedAppSignInFailedTitle'),
+      message: t('agent.connectedAppPopupBlocked'),
+    })
+    return
+  }
   connecting.value = server.id
   try {
     toolsModal.value.show(await connect(server, popup))

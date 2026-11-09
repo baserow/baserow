@@ -380,6 +380,26 @@ describe('Agent connected apps', () => {
       })
     })
 
+    test('a blocked popup is explained', async () => {
+      window.open.mockReturnValue(null)
+      testApp.mock.onGet(/application\/10\/integrations/).reply(200, [])
+      testApp.mock
+        .onPost(/application\/10\/integrations/)
+        .reply(200, oauthServer())
+      const wrapper = await mountSection()
+      await flushPromises()
+
+      await createWithOAuth(wrapper)
+      await flushPromises()
+
+      expect(
+        document.body.querySelector('.modal__box .alert')?.textContent
+      ).toContain('agent.connectedAppPopupBlocked')
+      expect(testApp.mock.history.post.map(({ url }) => url)).not.toContain(
+        '/integrations/mcp/5/refresh-tools/'
+      )
+    })
+
     test('a server that does not support OAuth says why', async () => {
       testApp.mock.onGet(/application\/10\/integrations/).reply(200, [])
       testApp.mock

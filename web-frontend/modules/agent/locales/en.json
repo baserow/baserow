@@ -208,6 +208,7 @@
     "connectedAppClientSecret": "Client secret",
     "connectedAppClientSecretHelper": "Only if the app gave you one.",
     "connectedAppSignInFailedTitle": "Sign-in failed",
+    "connectedAppPopupBlocked": "Your browser blocked the sign-in window. Allow pop-ups for Baserow and try again.",
     "mcpOAuthCallbackConnecting": "Connecting the app…",
     "mcpOAuthCallbackConnected": "Connected. You can close this window.",
     "connectedAppSignInFailed": "The app wasn't connected. Try signing in again.",
