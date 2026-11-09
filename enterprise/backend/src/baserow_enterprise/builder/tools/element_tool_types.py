@@ -12,13 +12,10 @@ from baserow.contrib.builder.elements.models import (
     TableElement,
 )
 from baserow.contrib.builder.workflow_actions.models import NotificationWorkflowAction
+from baserow.core.formula.literals import EMPTY_FORMULA, wrap_static_string
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.tools.errors import ToolInputError
-from baserow_enterprise.tools.formula_utils import (
-    EMPTY_FORMULA,
-    formula_object,
-    wrap_static_string,
-)
+from baserow_enterprise.tools.formula_utils import formula_object
 
 from .formulas import current_record_of, formula_problem, page_formula_context
 from .helpers import (

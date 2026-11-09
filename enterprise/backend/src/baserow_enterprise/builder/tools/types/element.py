@@ -24,6 +24,11 @@ from typing import TYPE_CHECKING, Any, Literal
 from pydantic import Field, PrivateAttr, field_validator, model_validator
 
 from baserow.contrib.builder.constants import COLOR_FIELD_MAX_LENGTH
+from baserow.core.formula.literals import (
+    EMPTY_FORMULA,
+    FORMULA_PREFIX,
+    wrap_static_string,
+)
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.graph.types import GraphPointPosition
 from baserow.core.tools.errors import ToolInputError
@@ -31,12 +36,9 @@ from baserow_enterprise.builder.tools.registries import (
     element_tool_type_registry,
 )
 from baserow_enterprise.tools.formula_utils import (
-    EMPTY_FORMULA,
-    FORMULA_PREFIX,
     FormulaDescription,
     formula_desc,
     formula_object,
-    wrap_static_string,
 )
 from baserow_enterprise.tools.types import BaseModel, without_field
 

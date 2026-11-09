@@ -8,14 +8,10 @@ from baserow.contrib.builder.elements.models import TableElement
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.table.models import Table
+from baserow.core.formula.literals import is_valid_formula, wrap_static_string
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.tools.errors import ToolInputError
-from baserow_enterprise.tools.formula_utils import (
-    formula_desc,
-    formula_object,
-    is_valid_formula,
-    wrap_static_string,
-)
+from baserow_enterprise.tools.formula_utils import formula_desc, formula_object
 
 from .types.changes import NO_CHANGES, canonical_uid, name_key, unique_in_order
 from .types.table_columns import (

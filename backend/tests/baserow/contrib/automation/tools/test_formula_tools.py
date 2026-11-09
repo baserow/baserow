@@ -8,10 +8,9 @@ from baserow.contrib.automation.tools.formulas import (
     InvalidAutomationFormula,
     check_automation_formula,
     check_output_paths,
-    needs_formula,
     resolve_node_refs,
-    wrap_static_string,
 )
+from baserow.core.formula.literals import needs_formula, wrap_static_string
 
 
 def test_a_valid_formula_passes():

@@ -4,11 +4,9 @@ from typing import Any
 
 from loguru import logger
 
-from baserow.contrib.automation.tools.formulas import (  # noqa: F401
+from baserow.core.formula.literals import (
     EMPTY_FORMULA,
     FORMULA_PREFIX,
-    RAW_FORMULA_RE,
-    is_string_literal,
     is_valid_formula,
     needs_formula,
     wrap_static_string,

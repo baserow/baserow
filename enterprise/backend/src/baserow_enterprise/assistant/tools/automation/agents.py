@@ -19,11 +19,11 @@ from loguru import logger
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.tools import nodes as shared_nodes
 from baserow.contrib.automation.tools.formulas import formula_error
+from baserow.core.formula.literals import FORMULA_PREFIX
 from baserow.core.tools import ToolContext
 from baserow_enterprise.assistant.tools.shared import raise_if_permission_denied
 from baserow_enterprise.assistant.tools.shared.agents import get_formula_generator
-from baserow_enterprise.assistant.tools.shared.formula_utils import (
-    FORMULA_PREFIX,
+from baserow_enterprise.tools.formula_utils import (
     BaseFormulaContext,
     create_example_from_json_schema,
     formula_desc,

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import Field, field_validator, model_validator
 
+from baserow.core.formula.literals import EMPTY_FORMULA, needs_formula
 from baserow.core.formula.parser.exceptions import BaserowFormulaException
 from baserow.core.formula.parser.generated.BaserowFormula import BaserowFormula
 from baserow.core.formula.parser.parser import get_parse_tree_for_formula
@@ -17,12 +18,10 @@ from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.tools.errors import ToolInputError
 from baserow_enterprise.tools.formula_utils import (
-    EMPTY_FORMULA,
     formula_desc,
     formula_object,
     formula_text,
     literal_or_placeholder,
-    needs_formula,
 )
 from baserow_enterprise.tools.types import BaseModel
 

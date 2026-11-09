@@ -5,11 +5,11 @@ without a model. The conftest of this folder fails any model call.
 
 import pytest
 
-from baserow.contrib.automation.tools.formulas import wrap_static_string
 from baserow.contrib.builder.data_sources.exceptions import DataSourceDoesNotExist
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.core.exceptions import PermissionException
+from baserow.core.formula.literals import wrap_static_string
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.tools.errors import ToolInputError, tool_error_message
 from baserow_enterprise.builder.tools import (

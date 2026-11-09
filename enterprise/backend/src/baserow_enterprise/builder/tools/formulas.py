@@ -12,7 +12,6 @@ from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 
-from baserow.contrib.automation.tools.formulas import MAX_LISTED_PATHS
 from baserow.contrib.builder.data_providers.registries import (
     builder_data_provider_type_registry,
 )
@@ -60,6 +59,9 @@ from .types import DataSourceCreate, DataSourceUpdate, ElementUpdate
 from .types.workflow_action import raise_unless_same_target, with_parameter_formulas
 
 BuilderFormulaKind = Literal["element", "data_source", "action"]
+
+# The most names an error lists.
+MAX_LISTED_NAMES = 30
 
 
 class BuilderFormulaContext:
@@ -491,8 +493,8 @@ def _matches_schema(segments: list[str], schema: dict[str, Any]) -> bool:
 
 
 def _listed(names: list[str]) -> str:
-    if len(names) > MAX_LISTED_PATHS:
-        names = [*names[:MAX_LISTED_PATHS], "..."]
+    if len(names) > MAX_LISTED_NAMES:
+        names = [*names[:MAX_LISTED_NAMES], "..."]
     return ", ".join(names) or "none"
 
 

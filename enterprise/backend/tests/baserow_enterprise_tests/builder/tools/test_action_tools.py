@@ -16,13 +16,13 @@ from baserow.api.sessions import (
     set_client_undo_redo_action_group_id,
     set_untrusted_client_session_id,
 )
-from baserow.contrib.automation.tools.formulas import wrap_static_string
 from baserow.contrib.builder.action_scopes import PageActionScopeType
 from baserow.contrib.builder.workflow_actions.models import (
     BuilderWorkflowAction,
     NotificationWorkflowAction,
 )
 from baserow.core.action.handler import ActionHandler
+from baserow.core.formula.literals import wrap_static_string
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.services.models import Service
 from baserow.core.tools import ToolContext

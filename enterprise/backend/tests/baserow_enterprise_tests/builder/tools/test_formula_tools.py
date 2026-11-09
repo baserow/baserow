@@ -7,6 +7,7 @@ from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.exceptions import PermissionException
+from baserow.core.formula.literals import needs_formula
 from baserow_enterprise.builder.tools import actions, data_sources, elements, formulas
 from baserow_enterprise.builder.tools.formulas import apply_builder_formulas
 from baserow_enterprise.builder.tools.types import (
@@ -16,7 +17,6 @@ from baserow_enterprise.builder.tools.types import (
     ElementEdits,
     ElementItemCreate,
 )
-from baserow_enterprise.tools.formula_utils import needs_formula
 
 
 def stored(element_id, field):
