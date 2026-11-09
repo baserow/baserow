@@ -70,6 +70,12 @@ class AdminUserTemplateSerializer(TemplateSerializer):
         read_only=True,
         help_text="When the revision was made.",
     )
+    reviewed_on = serializers.DateTimeField(
+        read_only=True,
+        allow_null=True,
+        help_text="When an admin, or a submit without review, last reviewed the "
+        "revision. Null if never.",
+    )
 
     class Meta(TemplateSerializer.Meta):
         fields = (
@@ -91,6 +97,7 @@ class AdminUserTemplateSerializer(TemplateSerializer):
             "can_reject",
             "reject_unlists",
             "updated_on",
+            "reviewed_on",
         )
 
     @extend_schema_field(serializers.CharField(allow_null=True))
@@ -129,6 +136,11 @@ class AdminApproveUserTemplateSerializer(serializers.Serializer):
     listed = serializers.BooleanField(
         help_text="Whether the template the admin reviewed was listed, which must "
         "still be so."
+    )
+    reviewed_on = serializers.DateTimeField(
+        allow_null=True,
+        help_text="The `reviewed_on` of the revision the admin reviewed, which must "
+        "still be its value.",
     )
 
 

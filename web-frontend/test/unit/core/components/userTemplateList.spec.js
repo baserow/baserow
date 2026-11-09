@@ -602,12 +602,15 @@ describe('UserTemplateList', () => {
   })
 
   test.each([
-    [false, 'userTemplateList.makePublic'],
-    // Its approved version is listed, so only its change goes to review again.
-    [true, 'userTemplateList.submitForReviewAgain'],
+    [false, ['userTemplateList.makePublic'], ['make-public']],
+    [
+      true,
+      ['userTemplateList.submitForReviewAgain', 'userTemplateList.makePrivate'],
+      ['make-public', 'make-private'],
+    ],
   ])(
     'offers to make a rejected template (listed: %s) public or private',
-    async (listed, makePublicLabel) => {
+    async (listed, visibilityLabels, events) => {
       const template = userTemplate(1, 'Sprint Tracker', 'rejected', {
         can_make_public: true,
         make_public_needs_review: true,
@@ -626,17 +629,21 @@ describe('UserTemplateList', () => {
       expect(links.map((link) => link.text())).toStrictEqual([
         'userTemplateList.editDetails',
         'userTemplateList.updateContent',
-        makePublicLabel,
-        'userTemplateList.makePrivate',
+        ...visibilityLabels,
         'userTemplateList.download',
         'userTemplateList.delete',
       ])
       await links[2].trigger('click')
-      await (await openMenu())[3].trigger('click')
+      if (listed) {
+        await (await openMenu())[3].trigger('click')
+      }
       await flushPromises()
 
-      expect(wrapper.emitted('make-public')).toStrictEqual([[template]])
-      expect(wrapper.emitted('make-private')).toStrictEqual([[template]])
+      for (const event of ['make-public', 'make-private']) {
+        expect(wrapper.emitted(event)).toStrictEqual(
+          events.includes(event) ? [[template]] : undefined
+        )
+      }
       // The modal makes the change, not the list.
       expect(testApp.mock.history.patch).toHaveLength(0)
     }

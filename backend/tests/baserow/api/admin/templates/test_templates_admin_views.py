@@ -35,18 +35,6 @@ def list_admin_templates(api_client, token, url=LIST_URL, **params):
 
 
 def admin_rows(api_client, token, state, *fields, **params):
-    """
-    Lists a tab of the admin page.
-
-    :param api_client: The API client.
-    :param token: The token of a staff user.
-    :param state: The state the tab lists.
-    :param fields: The fields to keep of each row, all of them by default.
-    :param params: The other query parameters.
-    :return: The rows: the value of the only field, a tuple of `fields`, or the
-        whole row without `fields`.
-    """
-
     response = list_admin_templates(api_client, token, state=state, **params)
     assert response.status_code == HTTP_200_OK
     rows = response.json()["results"]
@@ -71,12 +59,10 @@ def test_list_rows(api_client, data_fixture):
     author = data_fixture.create_user(first_name="Ann", email="ann@example.com")
     with freeze_time("2026-09-30 12:00"):
         edited = create_template(data_fixture, author, "public", name="First")
-    # Dated by its latest revision.
     category = data_fixture.create_template_category(name="Planning")
     latest = data_fixture.create_user_template_revision(
         edited, name="Latest", description="Text", category=category
     )
-    # Stays listed while its edit is in review.
     data_fixture.set_user_template_state(edited, "in_review", latest)
     without_author = create_template(data_fixture, None, "in_review", author=None)
     data_fixture.create_template()
@@ -103,12 +89,11 @@ def test_list_rows(api_client, data_fixture):
         "can_approve": True,
         "edited_since_submitted": False,
         "can_reject": True,
-        # Only the edit is rejected.
         "reject_unlists": False,
         "updated_on": "2026-10-01T12:00:00Z",
+        "reviewed_on": None,
     }
     assert rows[without_author.id]["author"] is None
-    # The ids are of the templates, not of their latest revisions.
     assert admin_rows(
         api_client, token, "in_review", "revision_id", ids=str(edited.id)
     ) == [latest.id]
@@ -135,7 +120,12 @@ def test_permissions(api_client, data_fixture, method, endpoint, user, status):
         url = reverse(
             f"api:admin:templates:{endpoint}", kwargs={"template_id": template.id}
         )
-        body = {"revision_id": template.id, "state": "in_review", "listed": False}
+        body = {
+            "revision_id": template.id,
+            "state": "in_review",
+            "listed": False,
+            "reviewed_on": None,
+        }
         response = api_client.post(
             url, {**body, "reason": "Spam"}, format="json", **headers
         )
@@ -155,23 +145,19 @@ def test_list_filter_by_invalid_state(api_client, data_fixture, state):
     assert response.json()["error"] == "ERROR_QUERY_PARAMETER_VALIDATION"
 
 
-# The authors of the templates "a", "b" and "c", and the day each was updated on.
 AUTHORS = [("Zoe", "z@x.com", 3), ("Ann", "a@x.com", 1), ("Bob", "b@x.com", 2)]
 
 
 @pytest.mark.parametrize(
     "authors,sorts,expected",
     [
-        # Newest first.
         (AUTHORS, None, "acb"),
         (AUTHORS, "+name", "abc"),
-        # Named by email without a first name on the page, and sorted as named.
         (
             [("zoe", "z@x.com", 1), ("", "b@x.com", 1), ("ann", "a@x.com", 1)],
             "+author",
             "cba",
         ),
-        # Updated together, the newest first.
         ([(name, email, 1) for name, email, _ in AUTHORS], None, "cba"),
     ],
 )
@@ -217,15 +203,6 @@ def test_list_query_count(api_client, data_fixture, state):
 
 
 def admin_page(api_client, token):
-    """
-    The rows of every tab of the admin page, checked against the counts of the
-    tabs.
-
-    :param api_client: The API client.
-    :param token: The token of a staff user.
-    :return: The rows by tab.
-    """
-
     tabs = {state: admin_rows(api_client, token, state) for state in LISTED_STATES}
     counts = list_admin_templates(api_client, token, COUNTS_URL).json()
     assert counts == {state: len(rows) for state, rows in tabs.items()}
@@ -233,23 +210,10 @@ def admin_page(api_client, token):
 
 
 def review_outcome(root, revision_id, before, admin):
-    """
-    What a review of a user template did: "refused", its revision "listed",
-    "rejected" while the listed one stays, or "unlisted". Also checks what every
-    review keeps.
-
-    :param root: The template.
-    :param revision_id: The id of the reviewed revision.
-    :param before: The rows of the templates before the review.
-    :param admin: The admin who reviewed it.
-    :return: The outcome.
-    """
-
     after = {row["id"]: row for row in Template.objects.values()}
     changed = {row["id"] for row in before if after[row["id"]] != row}
     if not changed:
         return "refused"
-    # Only the reviewed revision and the listing of its template change.
     assert changed <= {root.id, revision_id}
     reviewed = after[revision_id]
     assert reviewed["reviewed_by_id"] == admin.id
@@ -267,15 +231,9 @@ def review_outcome(root, revision_id, before, admin):
 
 
 def per_review_action(rows):
-    """
-    Runs each row once per review action, and once without a review when the
-    template isn't on the admin page.
-    """
-
     return [
         pytest.param(*row.values, action, id=f"{row.id}-{action}" if action else row.id)
         for row in rows
-        # The tab is the second column.
         for action in (["approve", "reject"] if row.values[1] else [None])
     ]
 
@@ -286,8 +244,6 @@ def per_review_action(rows):
         user_template_plan_rows(
             "4",
             [
-                # The tab and the row of the template on the admin page, by the index of
-                # its revision, and what reviewing that row does.
                 (["private"], None, None, None, None),
                 (["shared"], None, None, None, None),
                 (["in_review"], "in_review", 0, "listed", "rejected"),
@@ -295,12 +251,10 @@ def per_review_action(rows):
                 (["in_review", "pruned"], "in_review", 0, "refused", "rejected"),
                 (["rejected"], "rejected", 0, "listed", "refused"),
                 (["withdrawn_rejected"], None, None, None, None),
-                # Edited since it was rejected, so it's not approved as reviewed.
                 (["rejected", "private"], "rejected", 0, "refused", "refused"),
                 (["rejected", "in_review"], "in_review", 1, "listed", "rejected"),
                 (["public"], "public", 0, "refused", "unlisted"),
                 (["public", "private"], "public", 0, "refused", "unlisted"),
-                # Only the edit is rejected, the approved revision stays listed.
                 (["public", "in_review"], "in_review", 1, "listed", "rejected"),
                 (["public", "resubmitted"], "in_review", 1, "listed", "rejected"),
                 (["public", "rejected"], "rejected", 1, "listed", "unlisted"),
@@ -343,12 +297,13 @@ def test_admin_is_shown_what_a_review_does(
     expected = [] if tab is None else [(tab, root.id, revisions[row])]
     rows = [(state, r) for state, rows in tabs.items() for r in rows]
     assert [(state, r["id"], r["revision_id"]) for state, r in rows] == expected
-    # The admin opens what the page shows: its row and the listed revision.
     root = Template.objects.get(id=root.id)
     hidden = root.blocked_at or root.marked_for_deletion_at
     listed = None if hidden else root.public_revision_id
     opens = {
-        id for id in revisions if Template.objects.get(id=id).is_openable_by(admin)
+        id
+        for id in revisions
+        if Template.objects.get(id=id).workspace.has_openable_template(admin)
     }
     assert opens == {id for id in [listed, *(r["revision_id"] for _, r in rows)] if id}
     if tab is None:
@@ -366,6 +321,7 @@ def test_admin_is_shown_what_a_review_does(
         revision_id=shown["revision_id"],
         state=shown["state"],
         listed=shown["listed"],
+        reviewed_on=shown["reviewed_on"],
         reason="Spam",
     )
 
@@ -373,7 +329,6 @@ def test_admin_is_shown_what_a_review_does(
     assert outcome == {"approve": approve_does, "reject": reject_does}[action]
     if action == "approve":
         assert shown["can_approve"] is (outcome == "listed")
-        # The admin is told when it's not approved because it was edited.
         edited = response.json().get("error") == "ERROR_TEMPLATE_UPDATED"
         assert shown["edited_since_submitted"] is edited
     else:
@@ -388,7 +343,6 @@ def test_admin_is_shown_what_a_review_does(
 @pytest.mark.parametrize(
     "action,revision_states,revision,seen,reason,error",
     [
-        # Both views map the same errors, each code is checked once.
         (
             "reject",
             ["public"],
@@ -472,6 +426,7 @@ def test_review_errors(
         revision_id=revision_id,
         state=seen[0],
         listed=seen[1],
+        reviewed_on=Template.objects.get(id=revision_id).reviewed_on,
         reason=reason,
     )
 

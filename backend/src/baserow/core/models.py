@@ -394,9 +394,10 @@ class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOn
 
     def has_openable_template(self, actor) -> bool:
         """
-        Whether the actor can open this workspace as a template, see
-        `Template.is_openable_by`. Prefetch `template_set__root` to check many
-        workspaces without a query each.
+        Whether the actor can open this workspace as a template: official, own,
+        public or, for an instance admin, in the review queue. Prefetch
+        `template_set__root` to check many workspaces without a query each, except
+        the review queue query for an instance admin.
         """
 
         template_types = self.get_template_types()
@@ -411,7 +412,12 @@ class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOn
         templates = self.template_set.all()
         if "template_set" not in getattr(self, "_prefetched_objects_cache", {}):
             templates = templates.select_related("root")
-        return any(template.is_openable_by(actor) for template in templates)
+        if any(template.is_openable_outside_review_by(actor) for template in templates):
+            return True
+        return (
+            is_instance_admin(actor)
+            and Template.objects.review_queue().filter(workspace=self).exists()
+        )
 
     def get_workspace_user(
         self, user: User, include_trash: bool = False
@@ -1280,13 +1286,13 @@ class Template(models.Model):
 
         return self.workspace_id is not None and not self.pruned_at
 
-    def is_openable_by(self, actor: Any) -> bool:
+    def is_openable_outside_review_by(self, actor: Any) -> bool:
         """
-        Whether the actor can open this template: official, own, public or, for
-        an instance admin, in the review queue.
+        Whether the actor can open this template, official, own or public,
+        without a query.
 
         :param actor: The user or anonymous user.
-        :return: True if the actor can open it.
+        :return: True if the actor can open it without the review queue.
         """
 
         if self.type in (None, Template.Type.OFFICIAL):
@@ -1299,12 +1305,7 @@ class Template(models.Model):
         if root.public_revision_id == self.id and root.blocked_at is None:
             return True
         user_id = _get_user_id(actor)
-        if user_id is not None and root.owner_id == user_id:
-            return True
-        return (
-            is_instance_admin(actor)
-            and Template.objects.review_queue().filter(id=self.id).exists()
-        )
+        return user_id is not None and root.owner_id == user_id
 
     def clean(self):
         """

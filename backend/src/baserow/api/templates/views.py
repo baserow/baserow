@@ -255,7 +255,9 @@ class TemplatesView(APIView, SearchableViewMixin):
         page = paginator.paginate_queryset(templates, request, self)
         return paginator.get_paginated_response(
             TemplateListItemSerializer(
-                page, many=True, context={"request": request}
+                page,
+                many=True,
+                context={"request": request, "listed": query_params["listed"]},
             ).data
         )
 

@@ -1,5 +1,4 @@
 <template>
-  <!-- Keyed by phase: each phase restarts the auto-close timer. -->
   <Toast
     v-if="!hiddenBySidebar"
     :key="phase"

@@ -152,7 +152,6 @@ def test_create_user_template_job(data_fixture):
     action_kwargs = action_done.call_args.kwargs
     assert action_kwargs["action_type"].type == "create_user_template"
     assert action_kwargs["workspace"] == workspace
-    # The applications share their order, so their ids come in any order.
     assert {
         **action_kwargs["action_params"],
         "application_ids": sorted(action_kwargs["action_params"]["application_ids"]),

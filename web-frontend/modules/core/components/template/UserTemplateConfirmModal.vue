@@ -47,10 +47,6 @@ import { computed, reactive, ref } from 'vue'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
-/**
- * Asks to confirm a change of a template, then sends its request, once per
- * template.
- */
 const props = defineProps({
   template: {
     type: Object,

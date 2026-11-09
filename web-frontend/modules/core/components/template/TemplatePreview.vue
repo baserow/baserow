@@ -131,6 +131,7 @@ export default {
     async fetchApplications(template) {
       const request = ++this.lastRequest
       this.loading = true
+      let loaded = false
 
       try {
         const { data } = await ApplicationService(this.$client).fetchAll(
@@ -163,6 +164,7 @@ export default {
             }
           }
         }
+        loaded = true
       } catch (error) {
         if (request !== this.lastRequest) {
           return
@@ -177,7 +179,7 @@ export default {
       } finally {
         if (request === this.lastRequest) {
           this.loading = false
-          this.$emit('loaded')
+          this.$emit('loaded', loaded)
         }
       }
     },

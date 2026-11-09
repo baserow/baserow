@@ -1,4 +1,5 @@
 import dataclasses
+from datetime import datetime
 from typing import Any, Callable, Dict, Iterable, List, Optional
 
 from django.contrib.auth.models import AbstractUser
@@ -445,6 +446,7 @@ class ApproveUserTemplateAdminActionType(ActionType):
         revision_id: int,
         seen_state: UserTemplateState,
         seen_listed: bool,
+        seen_reviewed_on: Optional[datetime],
     ) -> Template:
         """
         Approves the template. Not undoable.
@@ -454,12 +456,19 @@ class ApproveUserTemplateAdminActionType(ActionType):
         :param revision_id: The id of the revision the admin reviewed.
         :param seen_state: The state of the template the admin reviewed.
         :param seen_listed: Whether the template the admin reviewed was listed.
+        :param seen_reviewed_on: When the revision the admin reviewed was last
+            reviewed, None if never.
         :return: The approved revision.
         """
 
         with transaction.atomic():
             revision = UserTemplateHandler().approve_template(
-                user, template_id, revision_id, seen_state, seen_listed
+                user,
+                template_id,
+                revision_id,
+                seen_state,
+                seen_listed,
+                seen_reviewed_on,
             )
             cls._register(user, revision)
 
@@ -523,6 +532,7 @@ class RejectUserTemplateAdminActionType(ActionType):
         reason: str,
         seen_state: UserTemplateState,
         seen_listed: bool,
+        seen_reviewed_on: Optional[datetime],
     ) -> Template:
         """
         Rejects the template. Not undoable.
@@ -533,12 +543,20 @@ class RejectUserTemplateAdminActionType(ActionType):
         :param reason: Why the template is rejected.
         :param seen_state: The state of the template the admin reviewed.
         :param seen_listed: Whether the template the admin reviewed was listed.
+        :param seen_reviewed_on: When the revision the admin reviewed was last
+            reviewed, None if never.
         :return: The rejected revision.
         """
 
         with transaction.atomic():
             revision, unlisted = UserTemplateHandler().reject_template(
-                user, template_id, revision_id, reason, seen_state, seen_listed
+                user,
+                template_id,
+                revision_id,
+                reason,
+                seen_state,
+                seen_listed,
+                seen_reviewed_on,
             )
             params = cls.Params(
                 template_id=template_id,

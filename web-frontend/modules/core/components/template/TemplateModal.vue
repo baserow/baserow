@@ -186,8 +186,6 @@ export default {
       loading: true,
       categories: [],
       selectedTemplate: null,
-      // Whether the owner's actions are shown for the selected template, also
-      // when their own template is opened from the public list.
       selectedOwnerActions: false,
       tab: 'official',
       // The list of the user's templates is loaded when its tab is opened first.

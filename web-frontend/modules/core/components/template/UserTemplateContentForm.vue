@@ -64,7 +64,6 @@ const props = defineProps({
     type: Object,
     required: true,
   },
-  // `{ workspaceId, applicationIds }` to select first.
   preselect: {
     type: Object,
     required: false,

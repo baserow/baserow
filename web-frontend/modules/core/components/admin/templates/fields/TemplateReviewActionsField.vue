@@ -1,5 +1,5 @@
 <template>
-  <div class="templates-admin-actions">
+  <div class="templates-admin-actions" :data-template-id="row.id">
     <Button
       v-if="hasOpenReview"
       size="small"

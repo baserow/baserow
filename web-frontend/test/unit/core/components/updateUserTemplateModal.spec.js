@@ -123,13 +123,13 @@ describe('UpdateUserTemplateModal', () => {
   const isModalOpen = (wrapper) =>
     wrapper.findComponent({ name: 'Modal' }).vm.open
 
-  // The states of a template, with the fields the API returns for them.
   test.each([
     ['1.public-update-approval_off', 'public', true, false, null],
     ['1.public-update-approval_on', 'public', true, true, 'review'],
     ['1.public+rejected-update', 'rejected', true, true, 'review'],
     ['1.rejected-update', 'rejected', false, false, 'rejected'],
     ['1.in_review-update', 'in_review', false, true, 'inReview'],
+    ['1.public+in_review-update', 'in_review', true, true, 'inReview'],
   ])(
     '%s tells what the update does to the review',
     async (id, state, listed, updateNeedsReview, notice) => {
@@ -531,7 +531,6 @@ describe('UpdateUserTemplateModal', () => {
       expect(selectedApplicationIds(wrapper)).toStrictEqual([12])
     })
 
-    // The template has none of the applications of another workspace.
     test('starts with the selected workspace without the source one', async () => {
       const wrapper = await mountAndShow(
         'content',

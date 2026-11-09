@@ -5,16 +5,10 @@ export function isOwnTemplate(template) {
   return template.is_own === true
 }
 
-/**
- * Whether Make public is offered, also when it sends the template to review.
- */
 export function canMakePublic(template) {
   return Boolean(template?.can_make_public)
 }
 
-/**
- * Whether making the template public submits its listed edit for review.
- */
 export function makePublicResubmits(template) {
   return (
     canMakePublic(template) &&
@@ -23,11 +17,11 @@ export function makePublicResubmits(template) {
   )
 }
 
-/**
- * Whether the owner can make the template private, or withdraw its review.
- */
 export function canMakePrivate(template) {
-  return ['public', 'in_review', 'rejected'].includes(template?.state)
+  if (template?.state === 'rejected') {
+    return Boolean(template.listed)
+  }
+  return ['public', 'in_review'].includes(template?.state)
 }
 
 export function canChangeVisibilityInDetails(template) {

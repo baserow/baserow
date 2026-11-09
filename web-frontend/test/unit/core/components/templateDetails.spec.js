@@ -177,7 +177,6 @@ describe('TemplateDetails', () => {
 
   test.each([
     ['in_review', false, true],
-    // Everyone sees the listed version while a later one is in review.
     ['in_review', true, false],
   ])(
     'tells the owner of a %s template (listed: %s) that only they see it: %s',
@@ -197,7 +196,6 @@ describe('TemplateDetails', () => {
     }
   )
 
-  // Its approved version is listed, so only its change goes to review again.
   test('offers to submit a listed rejected own template for review again', async () => {
     const userTemplate = {
       ...template,

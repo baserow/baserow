@@ -10,8 +10,6 @@ import TemplateNameField from '@baserow/modules/core/components/admin/templates/
 import TemplateAuthorField from '@baserow/modules/core/components/admin/templates/fields/TemplateAuthorField'
 import TemplatesAdminTable from '@baserow/modules/core/components/admin/templates/TemplatesAdminTable'
 
-// The review fields the server sends for a row, by its state and whether it's
-// listed.
 const REVIEW_FIELDS = {
   'in_review:false': { can_reject: true, reject_unlists: false },
   'in_review:true': { can_reject: true, reject_unlists: false },
@@ -30,6 +28,7 @@ const row = (state, listed = false, canApprove = true) => ({
   ...REVIEW_FIELDS[`${state}:${listed}`],
   workspace_id: 9,
   author: { first_name: '', email: 'ada@example.com' },
+  reviewed_on: '2026-11-02T10:00:00Z',
 })
 
 let testApp = null
@@ -68,7 +67,6 @@ describe('TemplatesAdminTable', () => {
   ) => {
     testApp.mock.onGet('/admin/templates/').reply(200, { count, results: rows })
     testApp.mock.onGet('/admin/templates/counts/').reply(200, counts)
-    // The applications of the revision that the preview shows.
     testApp.mock.onGet('/applications/workspace/9/').reply(200, [])
     const wrapper = await testApp.mount(TemplatesAdminTable)
     await flushPromises()
@@ -148,6 +146,29 @@ describe('TemplatesAdminTable', () => {
     expect(headers()).not.toContain('templatesAdmin.updatedOn')
   })
 
+  test('shows the counts of the latest request only', async () => {
+    const wrapper = await mountTable([])
+    const older = heldBack()
+    const newer = heldBack()
+    const chooseTab = async (index, reply) => {
+      testApp.mock.onGet('/admin/templates/counts/').reply(reply)
+      await wrapper.findAll('.tabs__item').at(index).trigger('click')
+      await flushPromises()
+    }
+
+    await chooseTab(1, older.reply)
+    await chooseTab(2, newer.reply)
+    newer.send([200, { in_review: 0, public: 0, rejected: 3 }])
+    older.send([200, { in_review: 1, public: 1, rejected: 0 }])
+    await flushPromises()
+
+    expect(wrapper.findAll('.tabs__item').map((tab) => tab.text())).toEqual([
+      'templatesAdmin.tabCount - 0',
+      'templatesAdmin.tabCount - 0',
+      'templatesAdmin.tabCount - 3',
+    ])
+  })
+
   test('tells when the tab has no templates', async () => {
     const wrapper = await mountTable([], {
       counts: { in_review: 0, public: 0, rejected: 0 },
@@ -158,8 +179,6 @@ describe('TemplatesAdminTable', () => {
     )
   })
 
-  // Clicks the action of the template: in its preview when it's in review or
-  // rejected, in its row when it's public.
   const clickAction = async (wrapper, template, action) => {
     if (template.state === 'public') {
       await rowButton(wrapper, `templatesAdmin.${action}`).trigger('click')
@@ -174,7 +193,6 @@ describe('TemplatesAdminTable', () => {
   test.each([
     ['in_review', false, ['templatesAdmin.reject', 'templatesAdmin.approve']],
     ['rejected', false, ['templatesAdmin.approve']],
-    // Only its latest change was rejected, so it can still be unlisted.
     ['rejected', true, ['templatesAdmin.unlist', 'templatesAdmin.approve']],
   ])(
     'reviews a %s template (listed: %s) in its preview',
@@ -198,7 +216,6 @@ describe('TemplatesAdminTable', () => {
       .reply(200, row('public', true))
     const wrapper = await mountTable([row('in_review')], { count: 150 })
 
-    // The counts don't change with the page of the list.
     await wrapper.find('.paginator__button:last-child').trigger('click')
     await flushPromises()
     expect(testApp.mock.history.get.at(-1).params.page).toBe(2)
@@ -213,8 +230,8 @@ describe('TemplatesAdminTable', () => {
       revision_id: 7,
       state: 'in_review',
       listed: false,
+      reviewed_on: '2026-11-02T10:00:00Z',
     })
-    // The list shows that it worked, so only an error has a toast.
     expect(testApp.store.state.toast.items).toEqual([])
     await expectRefreshed({ lists: 3 })
   })
@@ -240,7 +257,6 @@ describe('TemplatesAdminTable', () => {
   test.each([
     ['in_review', false, 'reject', 'title', 'description'],
     ['in_review', true, 'reject', 'title', 'editDescription'],
-    // Unlisting is a reject of a listed template.
     ['public', true, 'unlist', 'unlistTitle', 'unlistDescription'],
     ['rejected', true, 'unlist', 'unlistTitle', 'unlistDescription'],
   ])(
@@ -273,10 +289,9 @@ describe('TemplatesAdminTable', () => {
         reason: 'Spam',
         state,
         listed,
+        reviewed_on: '2026-11-02T10:00:00Z',
       })
       expect(testApp.store.state.toast.items).toEqual([])
-      // The refresh unmounts the rows, while the modals are the table's, so
-      // they still hide and let the page scroll again.
       await expectRefreshed()
     }
   )
@@ -356,6 +371,7 @@ describe('TemplatesAdminTable', () => {
       'templatesAdmin.approve',
     ])
     expect(bodyButton('templatesAdmin.approve').closest('[inert]')).toBeNull()
+    expect(document.activeElement).toBe(bodyButton('templatesAdmin.reject'))
   })
 
   test('focuses the preview once loaded, and gives the focus back on close', async () => {
@@ -373,13 +389,84 @@ describe('TemplatesAdminTable', () => {
     expect(document.activeElement).toBe(review)
   })
 
+  test.each([
+    ['its row', [row('in_review')], '.templates-admin-actions button'],
+    ['the table once its row left the tab', [], '.data-table__table'],
+  ])(
+    'gives the focus to %s after the review',
+    async (name, rowsAfter, focused) => {
+      testApp.mock
+        .onPost('/admin/templates/3/approve/')
+        .reply(200, row('public', true))
+      const wrapper = await mountTable([row('in_review')])
+      const review = rowButton(wrapper, 'templatesAdmin.review').element
+      review.focus()
+      review.click()
+      await flushPromises()
+      testApp.mock
+        .onGet('/admin/templates/')
+        .reply(200, { count: rowsAfter.length, results: rowsAfter })
+
+      bodyButton('templatesAdmin.approve').click()
+      await flushPromises()
+      await new Promise((resolve) => setTimeout(resolve))
+
+      expect(document.activeElement).toBe(wrapper.find(focused).element)
+    }
+  )
+
+  test.each([
+    ['until the content is loaded', 200, false, 0],
+    ['when the content fails to load', 500, true, 0],
+    ['for the next template until its content is loaded', 200, false, 1],
+  ])(
+    'keeps the review actions disabled %s, and tells when it fails',
+    async (name, status, stays, opened) => {
+      const next = {
+        ...row('in_review'),
+        id: 4,
+        revision_id: 8,
+        workspace_id: 10,
+      }
+      const wrapper = await mountTable([row('in_review'), next])
+      const { reply, send } = heldBack()
+      testApp.mock
+        .onGet(`/applications/workspace/${[9, 10][opened]}/`)
+        .reply(reply)
+      const disabled = () =>
+        ['templatesAdmin.reject', 'templatesAdmin.approve'].map(
+          (label) => bodyButton(label).disabled
+        )
+      const reviewButtons = wrapper
+        .findAll('button')
+        .filter((button) => button.text() === 'templatesAdmin.review')
+
+      if (opened) {
+        await reviewButtons[0].trigger('click')
+        await flushPromises()
+        expect(disabled()).toEqual([false, false])
+        await escape()
+      }
+      await reviewButtons[opened].trigger('click')
+      await flushPromises()
+      expect(disabled()).toEqual([true, true])
+
+      send([status, status === 200 ? [] : {}])
+      await flushPromises()
+
+      expect(disabled()).toEqual([stays, stays])
+      expect(
+        testApp.store.state.toast.items.map((toast) => toast.title)
+      ).toEqual(stays ? ['clientHandler.notCompletedTitle'] : [])
+    }
+  )
+
   test("doesn't swap the template while its reject modal is open", async () => {
     const listed = { ...row('public', true), id: 4 }
     testApp.mock.onPost('/admin/templates/4/reject/').reply(200, listed)
     const wrapper = await mountTable([listed, row('in_review')])
     await clickAction(wrapper, listed, 'unlist')
 
-    // The other row's preview, reached by the keyboard behind the modal.
     await rowButton(wrapper, 'templatesAdmin.review').trigger('click')
     await submitReject('unlist')
 
@@ -458,7 +545,6 @@ describe('TemplateReviewActionsField', () => {
   test.each([
     ['public', true, ['templatesAdmin.unlist']],
     ['in_review', false, ['templatesAdmin.review']],
-    // Reviewed in its preview, which offers to unlist it.
     ['rejected', true, ['templatesAdmin.review']],
   ])(
     'shows the actions of a %s template (listed: %s)',

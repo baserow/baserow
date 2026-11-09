@@ -69,8 +69,6 @@ describe('MakeTemplatePublicModal', () => {
 
   test.each([
     [false, 'once an instance admin approves it', 'title', 'makePublic'],
-    // An earlier version is listed until this one is approved, so the template
-    // is public already and its change is submitted again.
     [true, 'stays listed', 'resubmitTitle', 'submitForReviewAgain'],
   ])(
     'asks to make public a template that needs review, with the review copy (listed: %s)',
@@ -100,7 +98,6 @@ describe('MakeTemplatePublicModal', () => {
       await flushPromises()
 
       expect(wrapper.emitted('made-public')).toStrictEqual([[row]])
-      // Sent to review, not made public yet, so there is no toast.
       expect(testApp.store.state.toast.items).toHaveLength(0)
     }
   )

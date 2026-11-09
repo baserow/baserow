@@ -4,7 +4,7 @@
     :sidebar-width="320"
     :load-error-handler="loadErrorHandler"
     class="template-details"
-    @loaded="focusBackLink"
+    @loaded="loaded"
   >
     <template #sidebar="{ applications, page, selectPage, selectApplication }">
       <div class="template-details__sidebar">
@@ -199,11 +199,8 @@ const props = defineProps({
   },
 })
 
-// `edit` asks to update the details or the content of the user's template,
-// `delete` to delete it, and `make-public` or `make-private` to change whether
-// it's listed. `outdated` tells that the template was updated since it was shown,
-// and must be loaded again.
 const emit = defineEmits([
+  'loaded',
   'back',
   'installed',
   'outdated',
@@ -233,11 +230,15 @@ function askToDelete(hideMenu) {
 }
 
 const backLink = ref(null)
-// The back link is hidden while the content loads, so it's focused once loaded.
 let focusWanted = false
 
 function focus() {
   focusWanted = true
+  focusBackLink()
+}
+
+function loaded(succeeded) {
+  emit('loaded', succeeded)
   focusBackLink()
 }
 

@@ -46,7 +46,6 @@ def request_download(api_client, token, template, revision_id="shown"):
         ("other", ["private", "public"], 400, "ERROR_TEMPLATE_UPDATED"),
         ("owner", ["blocked"], HTTP_400_BAD_REQUEST, "ERROR_TEMPLATE_BLOCKED"),
         ("owner", ["pruned"], 400, "ERROR_TEMPLATE_HAS_NO_CONTENT"),
-        # Without the id of the revision shown.
         ("owner", None, 400, "ERROR_REQUEST_BODY_VALIDATION"),
     ],
 )

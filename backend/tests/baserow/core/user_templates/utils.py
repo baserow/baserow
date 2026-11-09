@@ -194,15 +194,6 @@ def create_template_with_content(data_fixture, user=None, **kwargs):
 
 
 def create_template(data_fixture, user, state="private", **kwargs):
-    """
-    A user template whose content can be copied, without running a job.
-
-    :param data_fixture: The data fixture.
-    :param user: The owner and author of the template.
-    :param state: The state to put it in, see `set_user_template_state`.
-    :return: The template.
-    """
-
     workspace = data_fixture.create_workspace(name="Content")
     data_fixture.create_database_application(workspace=workspace)
     kwargs.setdefault("icon", ICON)
@@ -215,8 +206,6 @@ def create_template(data_fixture, user, state="private", **kwargs):
 
 
 def revision_ids(root):
-    """The ids of the revisions of the template, oldest first."""
-
     return list(
         Template.objects.filter_by_root(id=root.id)
         .order_by("version")
@@ -226,8 +215,6 @@ def revision_ids(root):
 
 @contextmanager
 def recorded_actions():
-    """Records the actions done meanwhile, as a list of (type, params)."""
-
     actions = []
 
     def record(*args, action_type, action_params, **kwargs):

@@ -198,12 +198,12 @@ class TemplateListItemSerializer(TemplateDetailSerializer):
     can_make_public = serializers.SerializerMethodField(
         help_text="Whether making the template public lists it or sends it to "
         "review: it's not blocked, in review, or listed as it is. Only shown to its "
-        "owner."
+        "owner, null on listed rows."
     )
     make_public_needs_review = serializers.SerializerMethodField(
         help_text="Whether making the template public sends it to the review of "
         "an instance admin, because approval is required or an admin rejected it "
-        "since it was last approved. Only shown to its owner."
+        "since it was last approved. Only shown to its owner, null on listed rows."
     )
     update_needs_review = serializers.SerializerMethodField(
         help_text="Whether an update of the template sends it to the review of an "
@@ -261,6 +261,17 @@ class TemplateListItemSerializer(TemplateDetailSerializer):
             return None
         return UserTemplateHandler().get_template_metadata(instance)
 
+    def _describes_latest_revision_to_owner(self, instance: Template) -> bool:
+        """
+        Whether the row is shown to its owner and isn't a listed row, which is the
+        listed revision rather than the latest one that making public submits.
+
+        :param instance: The template revision.
+        :return: True if the fields about making it public apply to the row.
+        """
+
+        return self._is_owner(instance) and not self.context.get("listed")
+
     def _require_approval(self) -> bool:
         """
         Whether user templates need approval, read once per response.
@@ -288,13 +299,13 @@ class TemplateListItemSerializer(TemplateDetailSerializer):
 
     @extend_schema_field(serializers.BooleanField(allow_null=True))
     def get_can_make_public(self, instance: Template) -> Optional[bool]:
-        if not self._is_owner(instance):
+        if not self._describes_latest_revision_to_owner(instance):
             return None
         return UserTemplateHandler().make_public_submits(instance)
 
     @extend_schema_field(serializers.BooleanField(allow_null=True))
     def get_make_public_needs_review(self, instance: Template) -> Optional[bool]:
-        if not self._is_owner(instance):
+        if not self._describes_latest_revision_to_owner(instance):
             return None
         return UserTemplateHandler().make_public_needs_review(
             instance, self._require_approval()

@@ -42,13 +42,6 @@ export function useTemplateReview() {
   const { $client, $i18n } = useNuxtApp()
   const service = TemplatesAdminService($client)
 
-  /**
-   * Tells the admin that the template changed since the list was loaded.
-   *
-   * @param {object} error The error of the request, with its handler.
-   * @param {object} toast The locale keys of the title and message.
-   * @param {string} name The name of the template.
-   */
   function notifyChanged(error, toast, name) {
     error.handler.notifyIf('template', {
       title: $i18n.t(toast.title, { name }),
@@ -56,23 +49,23 @@ export function useTemplateReview() {
     })
   }
 
-  /**
-   * Approves, rejects or unlists the template as the admin saw it. If it changed
-   * since, tells the admin and resolves; other errors are thrown.
-   *
-   * @param {object} template The row of the template, as the admin sees it.
-   * @param {string} action `approve`, `reject` or `unlist`.
-   * @param {...any} args The arguments of the action, like the reason.
-   */
   async function decide(template, action, ...args) {
-    const { id, revision_id: revisionId, name, state, listed } = template
+    const {
+      id,
+      revision_id: revisionId,
+      name,
+      state,
+      listed,
+      reviewed_on: reviewedOn,
+    } = template
     try {
       await service[SERVICE_METHODS[action]](
         id,
         revisionId,
         ...args,
         state,
-        listed
+        listed,
+        reviewedOn
       )
     } catch (error) {
       const code = error.handler?.code
@@ -86,14 +79,6 @@ export function useTemplateReview() {
     }
   }
 
-  /**
-   * Tells the admin if an error loading the preview means the template changed
-   * since.
-   *
-   * @param {object} template The row of the template.
-   * @param {object} error The error of the request.
-   * @returns {boolean} Whether it changed, which the admin was told.
-   */
   function contentFailed(template, error) {
     if (!CONTENT_CHANGED_ERRORS.includes(error.handler?.code)) {
       return false

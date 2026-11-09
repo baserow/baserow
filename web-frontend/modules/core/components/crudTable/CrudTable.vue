@@ -35,6 +35,7 @@
       }"
     >
       <table
+        ref="table"
         class="data-table__table"
         :class="{ 'data-table__table--fixed': fixedLayout }"
         :style="{ minWidth: minTableWidth || undefined }"
@@ -398,6 +399,10 @@ export default {
     await this.fetch()
   },
   methods: {
+    focus() {
+      this.$refs.table.setAttribute('tabindex', '-1')
+      this.$refs.table.focus()
+    },
     canExpandRow(row) {
       return (
         !!this.$slots['expanded-row'] &&
@@ -467,10 +472,6 @@ export default {
     /**
      * Fetches the rows of a given page and adds them to the state.
      */
-    /**
-     * Fetches the rows of a page. A `silent` fetch keeps showing the current
-     * rows until the new ones arrive.
-     */
     async fetch(page = null, { silent = false } = {}) {
       if (page == null && this.service.options.isPaginated) {
         page = 1
@@ -480,8 +481,6 @@ export default {
         this.expandedRows.clear()
       }
 
-      // The columns can change between fetches, so sorts on ones no longer
-      // sortable are dropped.
       const sortableKeys = new Set(
         this.columns.filter((column) => column.sortable).map(({ key }) => key)
       )

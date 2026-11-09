@@ -515,8 +515,6 @@ def test_deleted_template_refuses_a_requested_install(data_fixture):
 
     _delete(owner, root)
 
-    # A new install is refused, and so is the requested one once it runs. The
-    # template waits for it in the queue.
     with pytest.raises(TemplateDoesNotExist):
         request_install(viewer, target, root)
     purge()

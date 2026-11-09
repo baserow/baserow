@@ -90,8 +90,6 @@ def test_update_settings(data_fixture):
 
 @pytest.mark.django_db
 def test_update_settings_saves_only_the_received_settings(data_fixture):
-    # The cached settings can be stale: saving them whole would write back the
-    # other settings, and returning them would show the stale values.
     admin = data_fixture.create_user(is_staff=True)
 
     with stale_cached_settings(user_templates_require_approval=True):

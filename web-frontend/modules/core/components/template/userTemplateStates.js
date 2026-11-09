@@ -26,14 +26,6 @@ export const STATES = {
   },
 }
 
-/**
- * Returns the badge of a user template state; an unknown one is shown as is.
- *
- * @param {string} state The state of a user template.
- * @param {function} t Translates a locale key.
- * @returns {{color: string, icon: string|null, label: string}} The badge of the
- *   state.
- */
 export function getState(state, t) {
   const known = STATES[state]
   return known
@@ -41,12 +33,6 @@ export function getState(state, t) {
     : { color: 'neutral', icon: null, label: state }
 }
 
-/**
- * Whether a template in review or rejected still lists an approved version.
- *
- * @param {object} template A user template with its `state` and `listed`.
- * @returns {boolean} Whether the template shows that it's still listed.
- */
 export function showsListed(template) {
   return Boolean(
     template.listed && ['in_review', 'rejected'].includes(template.state)

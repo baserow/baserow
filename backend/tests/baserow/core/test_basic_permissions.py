@@ -1511,7 +1511,6 @@ def create_templates_of_each_state(data_fixture, owner):
         # A revision is opened like its root.
         (revision, False, True, False),
         (latest_revision, False, True, False),
-        # An admin opens the revision they review.
         (pending, False, True, True),
         (rejected, False, True, True),
         (withdrawn, False, True, False),
@@ -1586,8 +1585,6 @@ def test_allow_if_template_permission_manager_allows_openable_templates(
                         check.actor, operation, queryset, [workspace]
                     )
                 ) is allowed, reason
-                assert template.is_openable_by(check.actor) is allowed, reason
-                # Leaves out the revisions an admin reviews.
                 assert (
                     Template.objects.openable(check.actor)
                     .filter(id=template.id)
@@ -1634,7 +1631,6 @@ def test_allow_if_template_permissions_object_lists_official_and_own_templates(
     for actor, role in get_template_actors(data_fixture, owner):
         permissions = manager.get_permissions_object(actor)
 
-        # Not the ones an admin reviews, which are checked one by one.
         assert set(permissions["workspace_template_ids"]) == {
             template.workspace_id
             for template, for_others, for_owner, for_admin in templates
@@ -1738,6 +1734,27 @@ def test_openable_template_check_selects_the_root_of_a_revision(
 
     with django_assert_num_queries(1):
         assert workspace.has_openable_template(owner)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "latest_state,openable", [("private", False), ("in_review", True)]
+)
+def test_openable_template_check_queries_the_review_queue_once_for_an_admin(
+    data_fixture, django_assert_num_queries, latest_state, openable
+):
+    admin = data_fixture.create_user(is_staff=True)
+    user_template = data_fixture.create_user_template()
+    for _ in range(2):
+        revision = data_fixture.create_user_template_revision(
+            user_template, workspace=user_template.workspace
+        )
+    data_fixture.set_user_template_state(user_template, latest_state, revision)
+    workspace = Workspace.objects.get(id=user_template.workspace_id)
+    workspace.get_template_types()
+
+    with django_assert_num_queries(2):
+        assert workspace.has_openable_template(admin) is openable
 
 
 @pytest.mark.django_db

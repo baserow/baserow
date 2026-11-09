@@ -255,14 +255,14 @@ export default {
         this.template.update_needs_review &&
         (!this.showVisibility || this.values.makePublic)
       ) {
-        return this.template.listed
+        return this.template.state === 'in_review'
           ? {
-              title: 'updateUserTemplateModal.reviewTitle',
-              text: 'updateUserTemplateModal.reviewText',
-            }
-          : {
               title: 'updateUserTemplateModal.inReviewTitle',
               text: 'updateUserTemplateModal.inReviewText',
+            }
+          : {
+              title: 'updateUserTemplateModal.reviewTitle',
+              text: 'updateUserTemplateModal.reviewText',
             }
       }
       if (this.template.state === 'rejected') {

@@ -79,12 +79,6 @@ def test_update_scheduled_while_public_isnt_listed_once_made_private(data_fixtur
 
 
 def change_outcome(root, before):
-    """
-    What a change of a user template did: "unchanged", its latest revision
-    "listed" at once or sent to "review", or a "draft" that isn't submitted.
-    Also checks what every change keeps.
-    """
-
     if list(Template.objects.values().order_by("id")) == before:
         return "unchanged"
     before = {row["id"]: row for row in before}
@@ -96,21 +90,25 @@ def change_outcome(root, before):
     for revision in revisions:
         old = before.get(revision.id)
         if revision.id != latest.id:
-            # An earlier revision is at most withdrawn from review.
             withdrawn = {pending: Template.ReviewState.WITHDRAWN}
             allowed = {old["review_state"], withdrawn.get(old["review_state"])}
             assert revision.review_state in allowed
-        # The reasons keep a rejection open.
-        assert revision.reject_reason == (old["reject_reason"] if old else "")
+    reasons = {revision.id: revision.reject_reason for revision in revisions}
+    kept_reasons = {
+        id: before[id]["reject_reason"] if id in before else "" for id in reasons
+    }
     listed_before = before[root.id]["public_revision_id"]
     if latest.review_state == Template.ReviewState.PENDING:
         assert latest.submitted_on is not None
         assert root.public_revision_id == listed_before
+        assert reasons == kept_reasons
         return "review"
     if root.public_revision_id == latest.id != listed_before:
         assert latest.review_state == Template.ReviewState.APPROVED
+        assert set(reasons.values()) == {""}
         return "listed"
     assert root.public_revision_id == listed_before
+    assert reasons == kept_reasons
     return "draft"
 
 
@@ -124,7 +122,6 @@ def change_outcome(root, before):
     user_template_plan_rows(
         "1",
         [
-            # What each change does, with approval off and on.
             (["private"], ("listed", "review"), ("draft", "draft")),
             (["shared"], ("listed", "review"), ("draft", "draft")),
             (["in_review"], ("unchanged", "unchanged"), ("review", "review")),
@@ -134,7 +131,6 @@ def change_outcome(root, before):
                 ("unchanged", "unchanged"),
                 ("review", "review"),
             ),
-            # A rejection is reviewed again, even with approval off.
             (["rejected"], ("review", "review"), ("draft", "draft")),
             (["rejected", "private"], ("review", "review"), ("draft", "draft")),
             (["withdrawn_rejected"], ("review", "review"), ("draft", "draft")),
@@ -151,7 +147,6 @@ def change_outcome(root, before):
             (["blocked"], ("unchanged", "unchanged"), ("draft", "draft")),
             (["public_blocked"], ("unchanged", "unchanged"), ("draft", "draft")),
             (["rejected", "blocked"], ("unchanged", "unchanged"), ("draft", "draft")),
-            # Still in review once unblocked.
             (
                 ["blocked", "in_review"],
                 ("unchanged", "unchanged"),
@@ -174,7 +169,6 @@ def test_owner_is_told_whether_a_change_goes_to_review(
     data_fixture.set_user_template_revision_states(root, revision_states)
     handler = UserTemplateHandler()
     latest = handler.get_latest_revision(Template.objects.get(id=root.id))
-    # Read from the annotations when the row has them, otherwise queried.
     annotated = Template.objects.with_template_state().get(id=latest.id)
     told = {
         getattr(handler, f"{action}_needs_review")(row, require_approval)
@@ -192,7 +186,6 @@ def test_owner_is_told_whether_a_change_goes_to_review(
     assert change_outcome(root, before) == outcome
     assert told == {outcome == "review"}
     if action == "make_public":
-        # Offered to the owner exactly when it changes something.
         assert handler.make_public_submits(latest) is (outcome != "unchanged")
 
 
@@ -202,17 +195,14 @@ def test_owner_is_told_whether_a_change_goes_to_review(
     user_template_plan_rows(
         "2",
         [
-            # By revision index, None for none.
             (["private"], None, None, None),
             (["public"], 0, None, 0),
             (["public", "private"], 0, None, 0),
             (["rejected", "public"], 1, None, 1),
             (["in_review"], None, 0, 0),
             (["rejected"], None, 0, 0),
-            # The author's edit since the rejection was never submitted.
             (["rejected", "private"], None, 0, 0),
             (["withdrawn_rejected"], None, None, None),
-            # The edit of a listed template is withdrawn too.
             (["public", "in_review"], 0, 1, 0),
             (["public", "rejected"], 0, 1, 0),
         ],
@@ -321,7 +311,6 @@ def test_make_visibility_actions_registered(data_fixture, state, made_public):
 
 
 def test_old_visibility_audit_entry_is_described_as_made_public():
-    # Older entries carry `listed` instead of `make_public`.
     params = {
         "template_id": 1,
         "template_name": "T",

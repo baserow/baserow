@@ -224,15 +224,15 @@ class AdminApproveUserTemplateView(APIView):
         description="Approves a user template in review or rejected, if the "
         "requesting user is staff: the revision they reviewed is listed for "
         "everybody on this instance in place of the one listed until then. It must "
-        "still be the revision under review, have content, and not be edited since "
-        "it was submitted, and the state they saw, and whether it was listed, must "
-        "still be the template's.",
+        "still be the revision under review, not reviewed since, have content, and "
+        "not be edited since it was submitted, and the state they saw, and whether "
+        "it was listed, must still be the template's.",
         parameters=[TEMPLATE_ID_PATH_PARAMETER],
         request=AdminApproveUserTemplateSerializer,
         responses=REVIEW_RESPONSES,
     )
     @map_exceptions(REVIEW_EXCEPTIONS)
-    @validate_body(AdminApproveUserTemplateSerializer)
+    @validate_body(AdminApproveUserTemplateSerializer, return_validated=True)
     # Built under the root's lock, so a deletion can't commit before the response.
     @transaction.atomic
     def post(
@@ -248,6 +248,7 @@ class AdminApproveUserTemplateView(APIView):
             data["revision_id"],
             data["state"],
             data["listed"],
+            data["reviewed_on"],
         )
         return Response(serialize_admin_row(revision))
 
@@ -261,15 +262,16 @@ class AdminRejectUserTemplateView(APIView):
         description="Rejects a user template in review, or a listed one, if the "
         "requesting user is staff. A listed template is taken out of the listing, "
         "unless only its edit is in review: then only the edit is rejected. The "
-        "revision they reviewed must still be the template's row, and the state "
-        "they saw, and whether it was listed, must still be the template's. Its "
-        "author sees the reason, and its next submit goes to review.",
+        "revision they reviewed must still be the template's row, not reviewed "
+        "since, and the state they saw, and whether it was listed, must still be "
+        "the template's. Its author sees the reason, and its next submit goes to "
+        "review.",
         parameters=[TEMPLATE_ID_PATH_PARAMETER],
         request=AdminRejectUserTemplateSerializer,
         responses=REVIEW_RESPONSES,
     )
     @map_exceptions(REVIEW_EXCEPTIONS)
-    @validate_body(AdminRejectUserTemplateSerializer)
+    @validate_body(AdminRejectUserTemplateSerializer, return_validated=True)
     # Built under the root's lock, so a deletion can't commit before the response.
     @transaction.atomic
     def post(
@@ -286,5 +288,6 @@ class AdminRejectUserTemplateView(APIView):
             data["reason"],
             data["state"],
             data["listed"],
+            data["reviewed_on"],
         )
         return Response(serialize_admin_row(revision))

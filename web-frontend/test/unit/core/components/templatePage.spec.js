@@ -174,7 +174,6 @@ describe('TemplatePage', () => {
     })
     expect(wrapper.find('.details').text()).toBe('CRM: Sales')
 
-    // The owner made a new revision public meanwhile.
     await wrapper.find('.details__back').trigger('click')
     await wrapper.findAll('.segment-control__button')[1].trigger('click')
     await wrapper.find('.public-list__crm').trigger('click')

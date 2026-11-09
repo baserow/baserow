@@ -2,7 +2,10 @@ import dataclasses
 from typing import Any, Dict, List, Optional
 
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import FieldDoesNotExist
+from django.utils.text import capfirst
 from django.utils.translation import gettext_lazy as _
+from django.utils.translation import pgettext_lazy
 
 from baserow.core.action.models import Action
 from baserow.core.action.registries import (
@@ -1466,9 +1469,41 @@ class UpdateAdminSettingsActionType(ActionType):
     @classmethod
     def get_long_description(cls, params_dict: Dict[str, Any], *args, **kwargs) -> str:
         settings = ", ".join(
-            f"{name}: {value}" for name, value in params_dict["settings"].items()
+            f"{cls._get_setting_label(name)}: {cls._get_setting_value_label(value)}"
+            for name, value in params_dict["settings"].items()
         )
         return render_action_type_description(cls.description, {"settings": settings})
+
+    @classmethod
+    def _get_setting_label(cls, name: str) -> str:
+        """
+        The readable name of a setting.
+
+        :param name: The name of the `Settings` field.
+        :return: Its verbose name, capitalized, or the name of a removed field.
+        """
+
+        try:
+            return capfirst(Settings._meta.get_field(name).verbose_name)
+        except FieldDoesNotExist:
+            return name
+
+    @classmethod
+    def _get_setting_value_label(cls, value: Any) -> str:
+        """
+        The readable value of a setting.
+
+        :param value: The value as recorded.
+        :return: On or off for a boolean, none for no value, or the value.
+        """
+
+        if value is True:
+            return pgettext_lazy("setting value", "on")
+        if value is False:
+            return pgettext_lazy("setting value", "off")
+        if value is None:
+            return pgettext_lazy("setting value", "none")
+        return str(value)
 
     @classmethod
     def scope(cls) -> ActionScopeStr:

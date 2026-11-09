@@ -581,14 +581,11 @@ def test_get_user_template_root_by_slug(data_fixture, kind):
         (["private"], UserTemplateState.PRIVATE, None),
         (["in_review"], UserTemplateState.IN_REVIEW, None),
         (["rejected"], UserTemplateState.REJECTED, "Reason"),
-        # An edit of a rejected template is still rejected.
         (["rejected", "private"], UserTemplateState.REJECTED, "Reason"),
         (["withdrawn_rejected"], UserTemplateState.PRIVATE, None),
         (["private", "in_review"], UserTemplateState.IN_REVIEW, None),
         (["public", "private"], UserTemplateState.PUBLIC, None),
         (["rejected", "public"], UserTemplateState.PUBLIC, None),
-        # An edit of a listed template in review or rejected shows that, while
-        # the listed revision stays listed.
         (["public", "in_review"], UserTemplateState.IN_REVIEW, None),
         (["public", "rejected"], UserTemplateState.REJECTED, "Reason"),
         (["rejected", "blocked"], UserTemplateState.BLOCKED, "Spam"),
@@ -600,11 +597,9 @@ def test_get_template_state(data_fixture, revision_states, state, reason):
     root = data_fixture.create_user_template(blocked_reason="Spam")
     revision = data_fixture.set_user_template_revision_states(root, revision_states)
 
-    # Read from the annotations when the row has them, otherwise queried.
     annotated = Template.objects.with_template_state().get(id=revision.id)
     for latest in [handler.get_latest_revision(root), annotated]:
         assert handler.get_template_state(latest) == (state, reason)
-        # A blocked template isn't listed, even with a public revision.
         assert handler.is_listed(latest) is ("public" in revision_states)
 
 

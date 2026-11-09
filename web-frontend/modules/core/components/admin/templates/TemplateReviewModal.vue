@@ -5,7 +5,7 @@
     :full-screen="true"
     :can-close="canClose"
     :inert="!canClose"
-    @hidden="restoreFocus"
+    @hidden="hidden"
   >
     <TemplateDetails
       ref="details"
@@ -14,17 +14,19 @@
       :load-error-handler="contentFailed"
       show-back
       class="templates__body"
+      @loaded="(succeeded) => (loaded = succeeded)"
       @back="hide()"
     >
       <template #foot>
         <div class="templates-admin-review-actions">
           <Button
             v-if="rejectLabel"
+            ref="rejectButton"
             type="secondary"
             :icon="
               template.reject_unlists ? 'iconoir-eye-off' : 'iconoir-cancel'
             "
-            :disabled="approving"
+            :disabled="approving || !loaded"
             full-width
             @click="emit('reject', template)"
           >
@@ -33,7 +35,7 @@
           <Button
             icon="iconoir-check"
             :loading="approving"
-            :disabled="approving || !template.can_approve"
+            :disabled="approving || !loaded || !template.can_approve"
             full-width
             @click="approve"
           >
@@ -62,7 +64,6 @@ const props = defineProps({
     type: Object,
     required: true,
   },
-  // False while the reject modal is on top, so only it gets the keyboard.
   canClose: {
     type: Boolean,
     required: false,
@@ -70,16 +71,18 @@ const props = defineProps({
   },
 })
 
-// `reviewed(id)`: the template was approved, or changed since.
 const emit = defineEmits(['reject', 'reviewed'])
 
-const { $i18n } = useNuxtApp()
+const { $i18n, $store } = useNuxtApp()
 const { decide, contentFailed: notifyContentChanged } = useTemplateReview()
 const { remember: rememberFocus, restore: restoreFocus } = useReturnFocus()
 
 const modal = ref(null)
 const details = ref(null)
+const rejectButton = ref(null)
+const shown = ref(false)
 const approvingIds = reactive(new Set())
+const loaded = ref(false)
 
 const approving = computed(() => approvingIds.has(props.template.id))
 
@@ -128,10 +131,18 @@ function contentFailed(error) {
     emit('reviewed', template.id)
   } else {
     notifyIf(error, 'templates')
+    if (!error.handler.isHandled) {
+      $store.dispatch('toast/error', {
+        title: $i18n.t('clientHandler.notCompletedTitle'),
+        message: $i18n.t('clientHandler.notCompletedDescription'),
+      })
+    }
   }
 }
 
 async function show(...args) {
+  loaded.value = false
+  shown.value = true
   rememberFocus()
   modal.value.show(...args)
   await nextTick()
@@ -142,5 +153,16 @@ function hide(...args) {
   modal.value.hide(...args)
 }
 
-defineExpose({ show, hide })
+function hidden() {
+  shown.value = false
+  restoreFocus()
+}
+
+function focusReject() {
+  if (shown.value) {
+    rejectButton.value?.$el.focus()
+  }
+}
+
+defineExpose({ show, hide, focusReject })
 </script>

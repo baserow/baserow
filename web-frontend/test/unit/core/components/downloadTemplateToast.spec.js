@@ -130,7 +130,6 @@ describe('DownloadTemplateToast', () => {
     const button = wrapper.find('.download-template-toast__download')
     expect(button.attributes('disabled')).toBeDefined()
 
-    // The ready archive closes once it's saved.
     vi.advanceTimersByTime(5000)
     expect(downloadToasts()).toHaveLength(1)
 
@@ -303,7 +302,8 @@ describe('DownloadTemplateToast', () => {
     expect(shown()).toStrictEqual(expected)
   })
 
-  test('only shows the button for a download started before the page was loaded', async () => {
+  test('only shows the button for a download started before the page was loaded, and stays until it is saved', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
     // The pending jobs are fetched when the page loads, without their toast.
     await store.dispatch('job/forceCreate', runningJob({ revision_id: 4 }))
     mockDownload().replyOnce(200, archive)
@@ -324,10 +324,14 @@ describe('DownloadTemplateToast', () => {
       name: template.name,
     })
 
+    vi.advanceTimersByTime(5000)
+    expect(downloadToasts()).toHaveLength(1)
+
     await wrapper.find('.download-template-toast__download').trigger('click')
     await flushPromises()
 
     expect(triggerDownload).toHaveBeenCalledTimes(1)
+    expect(downloadToasts()).toHaveLength(0)
   })
 
   test('a click while the archive is asked for after the job saves it once, in the same toast', async () => {

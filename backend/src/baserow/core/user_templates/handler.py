@@ -1,7 +1,7 @@
 import dataclasses
 import secrets
 import string
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from django.conf import settings
@@ -967,24 +967,33 @@ class UserTemplateHandler:
         self,
         revisions: List[Tuple[int, Optional[int]]],
         reviewer: Optional[AbstractUser],
+        rejected_template_ids: Optional[List[int]] = None,
         **fields: Any,
-    ) -> Dict[str, Any]:
+    ) -> None:
         """
-        Approves and lists revisions, at most one per template, in bulk. The
-        caller holds the locks of the roots.
+        Approves and lists revisions, at most one per template, in bulk, and
+        closes the rejections of those templates. The caller holds the locks of
+        the roots.
 
         :param revisions: The id and the root id of each revision, the root id
             None for revision 1, which is the root.
         :param reviewer: The admin who approves them, None when they need no
-            review.
+            review. A revision approved already, listed again, keeps its review.
+        :param rejected_template_ids: The root ids of the templates with a reject
+            reason to clear, all of them when None.
         :param fields: Other values to write to the revisions, by field name.
-        :return: The values written to the revisions, by field name.
         """
 
+        approved = Q(review_state=Template.ReviewState.APPROVED)
         values = {
             "review_state": Template.ReviewState.APPROVED,
-            "reviewed_on": timezone.now(),
-            "reviewed_by": reviewer,
+            "reviewed_on": Case(
+                When(approved, then=F("reviewed_on")), default=Value(timezone.now())
+            ),
+            "reviewed_by_id": Case(
+                When(approved, then=F("reviewed_by_id")),
+                default=Value(reviewer.id if reviewer else None),
+            ),
             **fields,
         }
         first_ids = [revision_id for revision_id, root_id in revisions if not root_id]
@@ -997,12 +1006,19 @@ class UserTemplateHandler:
             id__in=[root_id for _, root_id in revisions if root_id]
         ).update(
             public_revision_id=Subquery(
-                Template.objects.filter(root_id=OuterRef("id"), id__in=edit_ids).values(
-                    "id"
-                )[:1]
+                Template.objects.filter(root_id=OuterRef("id"), id__in=edit_ids)
+                .order_by()
+                .values("id")[:1]
             )
         )
-        return values
+        if rejected_template_ids is None:
+            rejected_template_ids = [
+                root_id or revision_id for revision_id, root_id in revisions
+            ]
+        if rejected_template_ids:
+            Template.objects.filter(
+                Q(id__in=rejected_template_ids) | Q(root_id__in=rejected_template_ids)
+            ).exclude(reject_reason="").update(reject_reason="")
 
     def _get_revision_for_review(
         self,
@@ -1011,6 +1027,7 @@ class UserTemplateHandler:
         revision_id: int,
         seen_state: UserTemplateState,
         seen_listed: bool,
+        seen_reviewed_on: Optional[datetime],
         can_review: Callable[[UserTemplateState, bool], bool],
     ) -> Template:
         """
@@ -1022,6 +1039,8 @@ class UserTemplateHandler:
         :param revision_id: The id of the revision the admin reviewed.
         :param seen_state: The state of the template the admin reviewed.
         :param seen_listed: Whether the template the admin reviewed was listed.
+        :param seen_reviewed_on: When the revision the admin reviewed was last
+            reviewed, None if never.
         :param can_review: Whether the review applies to a template in a state,
             listed or not.
         :raises IsNotAdminError: If the admin isn't an instance admin.
@@ -1032,7 +1051,8 @@ class UserTemplateHandler:
         :raises TemplateAlreadyRejected: If the template was rejected, or taken
             out of the listing, since.
         :raises TemplateUpdated: If the template isn't in `seen_state` or
-            `seen_listed` anymore, or its row is another revision now.
+            `seen_listed` anymore, its row is another revision now, or the
+            revision was reviewed since.
         :raises TemplateNotReviewable: If the review doesn't apply to the template.
         :return: The revision, annotated with `edited_since_submitted` and
             `can_approve`.
@@ -1074,6 +1094,11 @@ class UserTemplateHandler:
                 f"The revision {revision_id} isn't the one in review of the template "
                 f"{template_id}."
             )
+        if revision.reviewed_on != seen_reviewed_on:
+            raise TemplateUpdated(
+                f"The revision {revision_id} of the template {template_id} was "
+                "reviewed since."
+            )
         if revision.id != root.id:
             revision.root = root
         return revision
@@ -1085,6 +1110,7 @@ class UserTemplateHandler:
         revision_id: int,
         seen_state: UserTemplateState,
         seen_listed: bool,
+        seen_reviewed_on: Optional[datetime],
     ) -> Template:
         """
         Approves and lists the reviewed revision. Must run in a transaction.
@@ -1094,6 +1120,8 @@ class UserTemplateHandler:
         :param revision_id: The id of the revision the admin reviewed.
         :param seen_state: The state of the template the admin reviewed.
         :param seen_listed: Whether the template the admin reviewed was listed.
+        :param seen_reviewed_on: When the revision the admin reviewed was last
+            reviewed, None if never.
         :raises TemplateHasNoContent: If the revision has no content.
         :raises TemplateUpdated: If the template was edited since the revision was
             submitted, see `TemplateQuerySet.with_can_approve`.
@@ -1107,6 +1135,7 @@ class UserTemplateHandler:
             revision_id,
             seen_state,
             seen_listed,
+            seen_reviewed_on,
             lambda state, listed: self.approve_applies(state),
         )
         if revision.edited_since_submitted:
@@ -1128,6 +1157,7 @@ class UserTemplateHandler:
         reason: str,
         seen_state: UserTemplateState,
         seen_listed: bool,
+        seen_reviewed_on: Optional[datetime],
     ) -> tuple[Template, bool]:
         """
         Rejects a user template. Must run in a transaction.
@@ -1138,6 +1168,8 @@ class UserTemplateHandler:
         :param reason: Why the template is rejected.
         :param seen_state: The state of the template the admin reviewed.
         :param seen_listed: Whether the template the admin reviewed was listed.
+        :param seen_reviewed_on: When the revision the admin reviewed was last
+            reviewed, None if never.
         :raises TemplateRejectReasonRequired: If the reason is blank.
         :raises: See `_get_revision_for_review`.
         :return: The rejected revision, and whether the template was taken out of
@@ -1153,6 +1185,7 @@ class UserTemplateHandler:
             revision_id,
             seen_state,
             seen_listed,
+            seen_reviewed_on,
             self.reject_applies,
         )
         unlisted = self.reject_unlists(seen_state, seen_listed)
@@ -1191,22 +1224,39 @@ class UserTemplateHandler:
             .with_template_state()
             .filter(has_open_rejection=False)
         )
-        root_ids = {
-            root_id or revision_id
-            for revision_id, root_id in pending.values_list("id", "root_id")
-        }
-        # Locked, then read again, so they can't change until approved.
+        # Locked before the pending revisions are read, so they can't change until
+        # approved. None joins the queue meanwhile: submits hold the settings row
+        # FOR SHARE, which this transaction updated.
         list(
-            Template.objects.filter(id__in=root_ids)
+            Template.objects.filter(
+                id__in=pending.annotate(
+                    pending_root_id=Coalesce("root_id", "id")
+                ).values("pending_root_id")
+            )
             .order_by("id")
             .select_for_update()
             .values_list("id", flat=True)
         )
-        revisions = list(
-            pending.filter_by_root(id__in=root_ids).values_list("id", "root_id")
+        has_reject_reason = Exists(
+            Template.objects.filter(
+                Q(id=OuterRef("family_id")) | Q(root_id=OuterRef("family_id"))
+            ).exclude(reject_reason="")
         )
-        self._approve_revisions(revisions, admin)
-        return len(revisions)
+        rows = list(
+            pending.annotate(has_reject_reason=has_reject_reason).values_list(
+                "id", "root_id", "has_reject_reason"
+            )
+        )
+        self._approve_revisions(
+            [(revision_id, root_id) for revision_id, root_id, _ in rows],
+            admin,
+            rejected_template_ids=[
+                root_id or revision_id
+                for revision_id, root_id, rejected in rows
+                if rejected
+            ],
+        )
+        return len(rows)
 
     def withdraw_review(self, root: Template) -> Optional[Template]:
         """

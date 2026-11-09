@@ -14,6 +14,7 @@ from rest_framework.status import (
 )
 
 from baserow.api.settings.registries import SettingsDataRegistry, SettingsDataType
+from baserow.core.actions import UpdateAdminSettingsActionType
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Settings, Template
 from baserow.core.user_templates.handler import UserTemplateHandler
@@ -455,6 +456,9 @@ def test_user_templates_require_approval_setting(
                 {"settings": {"user_templates_require_approval": False}},
             )
         ]
+        assert UpdateAdminSettingsActionType.get_long_description(actions[0][1]) == (
+            "Settings updated: User templates require approval: off"
+        )
     else:
         assert response.status_code == HTTP_403_FORBIDDEN
         assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
@@ -487,7 +491,6 @@ def test_switching_approval_off_is_retried_after_a_deadlock(
     approve = UserTemplateHandler.approve_pending_revisions
     attempts = []
 
-    # Postgres cancels the switch-off when it deadlocks with a user deletion.
     def deadlock(handler, admin):
         attempts.append(admin)
         if len(attempts) <= deadlocks:

@@ -1,5 +1,4 @@
 <template>
-  <!-- Keyed by phase: each phase restarts the auto-close timer. -->
   <Toast
     :key="phase"
     class="download-template-toast"
@@ -39,10 +38,6 @@ import { useNuxtApp } from '#app'
 import Toast from '@baserow/modules/core/components/toasts/Toast'
 
 const props = defineProps({
-  // A toast of the `downloadTemplate` type. Its data holds the `jobId` of the
-  // build, the name and `revision_id` of the downloaded revision, the `state`
-  // once the build ended, the error of a failed build, the `url` and
-  // `file_name` of the archive, and whether it's being saved.
   toast: {
     type: Object,
     required: true,
@@ -52,13 +47,10 @@ const props = defineProps({
 const store = useStore()
 const { $i18n: i18n, $registry } = useNuxtApp()
 
-// The job while it's in the job store, then the fields written into the toast
-// when the job ended.
 const job = computed(
   () => store.getters['job/get'](props.toast.data.jobId) ?? props.toast.data
 )
 
-// A finished build is still running until the archive is handed out.
 const phase = computed(() => {
   if (props.toast.data.url) {
     return 'finished'
@@ -69,8 +61,6 @@ const phase = computed(() => {
   return 'running'
 })
 
-// A download started before the page was loaded is named after its job, which is
-// unnamed once its template was deleted.
 const name = computed(
   () => props.toast.data.template_name ?? props.toast.data.file_name ?? ''
 )
@@ -113,9 +103,6 @@ function remove() {
   store.dispatch('toast/remove', props.toast)
 }
 
-// The job can leave the store without ending, when the jobs are fetched again
-// after it ended out of sight for instance. The archive is asked for then, like
-// at the end of the job, which shows it or follows the job that builds it anew.
 watch(
   () => store.getters['job/get'](props.toast.data.jobId),
   (current, previous) => {
@@ -135,9 +122,9 @@ watch(
 
 const closeWhenSaved = ref(false)
 watch(
-  () => props.toast.data.downloading,
-  (downloading) => {
-    if (closeWhenSaved.value && !downloading) {
+  () => props.toast.data.saved,
+  (saved) => {
+    if (closeWhenSaved.value && saved) {
       remove()
     }
   }
@@ -147,7 +134,7 @@ function autoClose() {
   if (phase.value === 'running') {
     return
   }
-  if (props.toast.data.downloading) {
+  if (phase.value === 'finished' && !props.toast.data.saved) {
     closeWhenSaved.value = true
   } else {
     remove()

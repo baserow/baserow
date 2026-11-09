@@ -1,5 +1,6 @@
 <template>
   <CrudTable
+    ref="crudTable"
     :columns="columns"
     :service="service"
     row-id-key="id"
@@ -38,14 +39,14 @@
         :template="rejectRow"
         :request="reject"
         @done="(id) => reviewed(slotProps.refresh, id)"
-        @hidden="rejecting = false"
+        @hidden="rejectHidden"
       ></RejectTemplateModal>
     </template>
   </CrudTable>
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useNuxtApp } from '#app'
 
 import CrudTable from '@baserow/modules/core/components/crudTable/CrudTable'
@@ -83,9 +84,10 @@ const { $client, $i18n } = useNuxtApp()
 
 const service = TemplatesAdminService($client)
 const { decide } = useTemplateReview()
+const crudTable = ref(null)
 const tabIndex = ref(0)
 const counts = ref(null)
-// Kept here, not in the row field: the refresh after a review unmounts the rows.
+let lastCountsRequest = 0
 const reviewRow = ref({})
 const reviewModal = ref(null)
 const rejectRow = ref({})
@@ -107,14 +109,13 @@ const tabs = computed(() =>
   }))
 )
 
-/**
- * Fetches the tab counts. Not on page or sort changes, which don't move
- * templates between tabs.
- */
 async function fetchCounts() {
+  const request = ++lastCountsRequest
   try {
     const { data } = await service.counts()
-    counts.value = data
+    if (request === lastCountsRequest) {
+      counts.value = data
+    }
   } catch (error) {
     notifyIf(error, 'template')
   }
@@ -123,8 +124,6 @@ async function fetchCounts() {
 onMounted(fetchCounts)
 watch(tabIndex, fetchCounts)
 
-// Rows behind the reject modal stay keyboard-reachable, so they can't open the
-// preview or change the reject modal's template.
 function showReviewModal(row) {
   if (rejecting.value) {
     return
@@ -146,20 +145,35 @@ function showRejectModal(row) {
   rejectModal.value.show()
 }
 
-/**
- * Refreshes the list and counts after a review. Closes the preview only if it
- * still shows that template: the admin can open another one while a request
- * runs.
- *
- * @param {Function} refresh Refreshes the list of the table.
- * @param {number} id The id of the reviewed template.
- */
-function reviewed(refresh, id) {
+async function rejectHidden() {
+  rejecting.value = false
+  await nextTick()
+  reviewModal.value.focusReject()
+}
+
+async function reviewed(refresh, id) {
   if (reviewRow.value.id === id) {
     reviewModal.value.hide()
   }
-  refresh()
+  const refreshed = refresh()
   fetchCounts()
+  await refreshed
+  await focusRow(id)
+}
+
+async function focusRow(id) {
+  await nextTick()
+  if (document.activeElement && document.activeElement !== document.body) {
+    return
+  }
+  const button = crudTable.value?.$el.querySelector(
+    `[data-template-id="${id}"] button`
+  )
+  if (button) {
+    button.focus()
+  } else {
+    crudTable.value?.focus()
+  }
 }
 
 const columns = computed(() => [

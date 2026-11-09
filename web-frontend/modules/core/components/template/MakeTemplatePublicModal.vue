@@ -37,10 +37,6 @@ import TemplateService from '@baserow/modules/core/services/template'
 import UserTemplateConfirmModal from '@baserow/modules/core/components/template/UserTemplateConfirmModal'
 import { makePublicResubmits } from '@baserow/modules/core/utils/userTemplate'
 
-/**
- * Asks the author to agree to list the template and their name, then makes it
- * public or sends it to review.
- */
 const props = defineProps({
   // The user's template as listed in their templates.
   template: {
