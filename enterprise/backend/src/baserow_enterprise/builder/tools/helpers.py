@@ -136,36 +136,6 @@ from .types.workflow_action import raise_if_read_only_field
 # ---------------------------------------------------------------------------
 
 
-def get_builder(
-    user: AbstractUser, workspace: Workspace, application_id: int
-) -> Builder:
-    """
-    Get a builder application scoped to the user's workspace.
-
-    :param user: The acting user.
-    :param workspace: The workspace the application must belong to.
-    :param application_id: The ID of the application to fetch.
-    :returns: The matching builder application.
-    :raises ToolInputError: When the application is not visible in the
-        workspace.
-    """
-
-    from baserow.core.service import CoreService
-
-    try:
-        return CoreService().get_application(
-            user,
-            application_id,
-            base_queryset=Builder.objects.filter(workspace=workspace),
-        )
-    except Exception as exc:
-        raise_if_permission_denied(exc)
-        raise ToolInputError(
-            f"Application with ID {application_id} not found in this workspace. "
-            "Use list_builders to find valid application IDs."
-        )
-
-
 def workspace_pages(workspace: Workspace) -> QuerySet:
     """
     The pages of the workspace's builders that aren't trashed. Looking pages up

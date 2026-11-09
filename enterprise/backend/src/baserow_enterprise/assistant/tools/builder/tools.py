@@ -32,6 +32,7 @@ from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 from baserow_enterprise.assistant.types import BuilderPageNavigationType
 from baserow_enterprise.builder.tools import BuilderWriteOptions, helpers
 from baserow_enterprise.builder.tools import actions as shared_actions
+from baserow_enterprise.builder.tools import applications as shared_applications
 from baserow_enterprise.builder.tools import data_sources as shared_data_sources
 from baserow_enterprise.builder.tools import elements as shared_elements
 from baserow_enterprise.builder.tools import pages as shared_pages
@@ -108,6 +109,23 @@ def _not_on_page(page, element_ids) -> list[int]:
         )
     )
     return [element_id for element_id in element_ids if element_id not in reachable]
+
+
+def _get_builder(ctx: RunContext[AssistantDeps], application_id: int):
+    """
+    The application builder ``application_id`` of the workspace, through the getter
+    MCP uses, so both answer alike: one the user can't see is not found.
+    """
+
+    try:
+        return shared_applications.get_builder_in_workspace(
+            ctx.deps.tool_context(), application_id
+        )
+    except ApplicationDoesNotExist:
+        raise ToolInputError(
+            f"Application with ID {application_id} not found in this workspace. "
+            "Use list_builders to find valid application IDs."
+        )
 
 
 def _page_not_found(page_id: int) -> ToolInputError:
@@ -213,12 +231,11 @@ def create_pages(
     """
 
     user = ctx.deps.user
-    workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
     require_payload("create_pages", "pages", pages)
 
-    builder = helpers.get_builder(user, workspace, application_id)
+    builder = _get_builder(ctx, application_id)
 
     # Skip duplicates
     existing = {p.name.lower(): p for p in helpers.list_pages(user, builder)}
@@ -1544,11 +1561,8 @@ def setup_user_source(
     HOW: If user mentions a specific table, use table_id. Otherwise use database_id to create a new users table.
     """
 
-    user = ctx.deps.user
-    workspace = ctx.deps.workspace
-
     try:
-        helpers.get_builder(user, workspace, application_id)
+        _get_builder(ctx, application_id)
     except Exception as exc:
         raise_if_permission_denied(exc)
         return {"error": f"Could not find application: {exc}"}
@@ -1598,7 +1612,7 @@ def set_theme(
     {theme_list}
     """
 
-    helpers.get_builder(ctx.deps.user, ctx.deps.workspace, application_id)
+    _get_builder(ctx, application_id)
 
     try:
         shared_themes.set_theme(ctx.deps.tool_context(), application_id, theme_name)
