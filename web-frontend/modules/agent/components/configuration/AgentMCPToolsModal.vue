@@ -38,7 +38,7 @@
           <div
             v-for="tool in tools"
             :key="tool.name"
-            class="agent-tool-permissions__tool"
+            class="agent-tool-permissions__tool agent-mcp-tools__tool"
             :class="{ 'agent-mcp-tools__tool--removed': tool.removed }"
           >
             <div class="agent-mcp-tools__tool-content">
