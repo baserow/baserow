@@ -807,7 +807,8 @@ class AutomationWorkflowHandler:
 
         :param workflow: The workflow to be published.
         :param progress: An object to track the publishing progress.
-        :return: The published workflow.
+        :return: The published workflow. Its `draft_node_ids` maps the id of each
+            of its nodes to the id of the draft node it was copied from.
         """
 
         # Make sure we are the only process to update the automation workflow
@@ -824,7 +825,14 @@ class AutomationWorkflowHandler:
 
         self._invalidate_workflow_caches(workflow)
 
-        return cloned_automation.workflows.first()
+        published_workflow = cloned_automation.workflows.first()
+        published_workflow.draft_node_ids = {
+            published_id: draft_id
+            for draft_id, published_id in id_mapping.get(
+                "automation_workflow_nodes", {}
+            ).items()
+        }
+        return published_workflow
 
     def disable_workflow(self, workflow: AutomationWorkflow) -> None:
         """
