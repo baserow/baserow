@@ -94,6 +94,8 @@ def sentry_events():
         default_integrations=False,
         integrations=[LoguruIntegration()],
         before_send=collect_event,
+        # Dropped events are otherwise reported to the DSN when the client closes.
+        send_client_reports=False,
     )
     try:
         yield events
@@ -105,17 +107,51 @@ def sentry_events():
 @pytest.mark.django_db(transaction=True)
 def test_task_left_in_open_transaction_sends_one_sentry_event(sentry_events):
     _leak_atomic_block()
+    _leak_atomic_block()
 
     _send_task_postrun(FakeTask())
 
     assert len(sentry_events) == 1
     event = sentry_events[0]
     assert event["level"] == "error"
-    assert event["fingerprint"] == ["celery-task-open-database-transaction"]
+    assert event["fingerprint"] == [
+        "celery-task-open-database-transaction",
+        "baserow.example.leaky_task",
+    ]
     assert event["tags"] == {
         "task_name": "baserow.example.leaky_task",
         "queue": "export",
     }
+    # The open atomic blocks are described before the connection is reset.
+    assert event["contexts"]["open_database_transaction"]["transactions"] == {
+        "default": {
+            "autocommit": False,
+            "atomic_block_depth": 2,
+            "atomic_blocks": [
+                {"savepoint": True, "durable": False},
+                {"savepoint": True, "durable": False},
+            ],
+            "needs_rollback": False,
+            "rollback_exception": None,
+            "closed_in_transaction": False,
+        }
+    }
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.core.telemetry.celery.task_open_transaction_counter")
+@patch("sentry_sdk.capture_message")
+def test_task_left_with_autocommit_off_is_reported(mock_capture_message, mock_counter):
+    connection.set_autocommit(False)
+    with connection.cursor() as cursor:
+        cursor.execute("CREATE TABLE uncommitted_table (id integer)")
+
+    _send_task_postrun(FakeTask())
+
+    assert "uncommitted_table" not in connection.introspection.table_names()
+    assert connection.get_autocommit()
+    mock_capture_message.assert_called_once()
+    mock_counter.add.assert_called_once()
 
 
 @pytest.mark.django_db(transaction=True)
@@ -140,6 +176,10 @@ def test_task_connection_closed_in_open_transaction_is_recovered(
 def test_task_without_open_transaction_is_not_reported(mock_capture_message):
     with transaction.atomic():
         pass
+    # A closed connection keeps the autocommit flag of its last session until it
+    # reconnects, which doesn't mean a transaction is open.
+    connection.set_autocommit(False)
+    connection.close()
 
     recover_from_open_db_transaction(sender=FakeTask(is_eager=False))
 
