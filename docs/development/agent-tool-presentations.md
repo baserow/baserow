@@ -99,7 +99,8 @@ input once the call is complete. Unlike other tools, its `input` keeps the
 queries (`queries`) and any page the provider opened (`url`), bounded in count and
 length, because the step is the only record of what the Agent sent out. A reply that
 was meant to search but couldn't, because the provider refused the tool, gets one
-failed step whose `input` is `{"unavailable": true}`.
+failed step whose `input` is `{"unavailable": true}`. A search is never held for
+approval, even next to a held call, and a resumed reply offers search again.
 
 ## Adding a tool
 

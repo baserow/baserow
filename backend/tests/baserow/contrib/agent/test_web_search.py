@@ -29,6 +29,7 @@ from baserow.contrib.agent.constants import (
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentMessage
 from baserow.contrib.agent.replies import AgentResponder, _web_search_step_input
+from baserow.contrib.agent.service import AgentService
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.generative_ai.constants import WEB_SEARCH_MAX_PER_REPLY
@@ -224,6 +225,57 @@ def test_search_left_waiting_by_a_tool_call_keeps_its_tool(
     assert reply.status == "completed"
     assert len(seen[1]) == 1
     assert seen[1][0].max_uses == WEB_SEARCH_MAX_PER_REPLY
+
+
+@pytest.mark.django_db
+def test_a_search_next_to_a_held_call_is_never_held_and_search_stays_on_resume(
+    mocker, data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    agent = agent_with_tools(configured_agent, user, "openai", "test-model")
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(workspace=agent.workspace)
+    )
+    AgentHandler().update_configuration(
+        agent, allowed_tools=["create_rows"], ask_first_tools=["create_rows"]
+    )
+    seen = []
+
+    async def stream(messages, info):
+        seen.append(info.model_request_parameters.native_tools)
+        if len(seen) == 1:
+            yield searches(1)
+            yield {
+                2: DeltaToolCall(
+                    name="create_rows",
+                    json_args=f'{{"table_id": {table.id}, "rows": [{{}}]}}',
+                )
+            }
+        else:
+            yield "Done."
+
+    use_stream(mocker, stream)
+
+    reply = answer(user, agent)
+
+    assert reply.status == "waiting"
+    assert [(step["tool"], step["status"]) for step in reply.steps] == [
+        (WebSearchTool.kind, "done"),
+        ("create_rows", "waiting"),
+    ]
+    (approval,) = reply.approvals.all()
+    _, run_id = AgentService().decide_approvals(
+        user,
+        agent.id,
+        reply.conversation.uuid,
+        [{"id": approval.id, "approved": True}],
+    )
+    run_reply(ChatRun.objects.get(id=run_id))
+
+    reply.refresh_from_db()
+    assert reply.status == "completed"
+    assert [step["status"] for step in reply.steps] == ["done", "done"]
+    assert [len(tools) for tools in seen] == [1, 1]
 
 
 def test_the_model_is_told_how_many_searches_a_reply_may_make():

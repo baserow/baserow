@@ -471,3 +471,14 @@ def test_resumed_siblings_keep_each_invalid_attempts_retry_slot():
     ]
     assert all("error_code" not in step for step in finished)
     assert resumed.retry_slots() == {}
+
+
+def test_only_calls_of_this_run_count_as_started():
+    paused = paused_run()
+    saved = paused.finish(paused=True)
+    held = {call_id: step_id for call_id, step_id, _ in paused.waiting_calls()}
+    resumed = ChatRunSteps(Mock(), describe, saved_steps=saved, held_step_ids=held)
+
+    assert resumed.started is False
+    resumed.on_event(call("rejected", valid=None))
+    assert resumed.started is True
