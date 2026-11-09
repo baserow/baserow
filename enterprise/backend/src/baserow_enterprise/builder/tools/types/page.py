@@ -4,9 +4,9 @@ Builder page type models.
 Defines ``PageCreate`` for creating pages and ``PageItem`` for reading them back.
 """
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, StringConstraints, model_validator
 
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow_enterprise.tools.types import BaseModel, without_field
@@ -14,6 +14,12 @@ from baserow_enterprise.tools.types import BaseModel, without_field
 from .limits import MAX_NESTED_ITEMS
 
 RoleType = Literal["allow_all", "allow_all_except", "disallow_all_except"]
+
+# The columns of the page model are 255 characters long.
+PageName = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)
+]
+PagePath = Annotated[str, StringConstraints(max_length=255)]
 
 
 class PagePathParam(BaseModel):
@@ -61,8 +67,8 @@ def with_path_parameters(
 class PageCreate(BaseModel):
     """Page creation payload."""
 
-    name: str = Field(..., description="Page name (unique in app).")
-    path: str = Field(..., description="URL path, e.g. '/products/:id'.")
+    name: PageName = Field(..., description="Page name (unique in app).")
+    path: PagePath = Field(..., description="URL path, e.g. '/products/:id'.")
     path_params: list[PagePathParam] = Field(
         max_length=MAX_NESTED_ITEMS,
         default_factory=list,
@@ -103,8 +109,8 @@ class PageUpdate(BaseModel):
     """
 
     page_id: int = Field(..., description="ID of the page to update.")
-    name: str | None = Field(default=None, description="New page name.")
-    path: str | None = Field(default=None, description="New URL path.")
+    name: PageName | None = Field(default=None, description="New page name.")
+    path: PagePath | None = Field(default=None, description="New URL path.")
     path_params: list[PagePathParam] | None = Field(
         max_length=MAX_NESTED_ITEMS, default=None, description="New path parameters."
     )

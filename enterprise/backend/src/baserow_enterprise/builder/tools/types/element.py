@@ -42,12 +42,14 @@ from baserow_enterprise.tools.types import BaseModel, without_field
 from .changes import name_key
 from .limits import MAX_NESTED_ITEMS
 from .menu_items import (
+    MENU_ITEM_NAME_MAX_LENGTH,
     ListedTopLevelMenuItem,
     MenuItemAdd,
     MenuItemUpdate,
     new_menu_link,
 )
 from .table_columns import (
+    COLUMN_NAME_MAX_LENGTH,
     TableColumnAdd,
     TableColumnItem,
     TableColumnUpdate,
@@ -160,8 +162,17 @@ class ItemsPerRow(BaseModel):
 class MenuItemCreate(BaseModel):
     """A menu item linking to an internal page."""
 
-    name: str = Field(..., description="Display text.")
+    name: str = Field(
+        ..., max_length=MENU_ITEM_NAME_MAX_LENGTH, description="Display text."
+    )
     page_id: int = Field(..., description="Target page ID.")
+
+    @field_validator("name")
+    @classmethod
+    def _name_is_not_blank(cls, name: str) -> str:
+        if not name.strip():
+            raise ValueError("A menu item name can't be blank.")
+        return name
 
 
 class TableFieldConfig(BaseModel):
@@ -179,7 +190,9 @@ class TableFieldConfig(BaseModel):
     Column keys are not interchangeable with element keys.
     """
 
-    name: str = Field(..., description="Column header name.")
+    name: str = Field(
+        ..., max_length=COLUMN_NAME_MAX_LENGTH, description="Column header name."
+    )
     type: Literal["text", "button"] = Field(
         default="text", description="Column type: 'text' (default) or 'button'."
     )

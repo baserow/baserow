@@ -113,7 +113,7 @@ class DataSourceCreate(BaseModel):
         return data
 
     ref: str = Field(..., description="Reference ID for this data source.")
-    name: str = Field(..., description="Human-readable name.")
+    name: str = Field(..., max_length=255, description="Human-readable name.")
     type: DataSourceType = Field(..., description="'list_rows' or 'get_row'.")
     table_id: int = Field(..., description="ID of the table to fetch from.")
 
@@ -311,7 +311,7 @@ class DataSourceUpdate(BaseModel):
     """
 
     data_source_id: int = Field(..., description="ID of the data source to update.")
-    name: str | None = Field(default=None, description="New name.")
+    name: str | None = Field(default=None, max_length=255, description="New name.")
     table_id: int | None = Field(
         default=None, description="New table ID to fetch from."
     )
