@@ -7,8 +7,6 @@ source/action creation orchestrators used by ``tools.py`` and ``agents.py``.
 
 import re
 from collections import Counter
-from collections.abc import Callable
-from operator import attrgetter, itemgetter
 from typing import Any, NamedTuple
 
 from django.contrib.auth.models import AbstractUser
@@ -111,6 +109,7 @@ from baserow.core.tools.errors import (
 from baserow.core.user_sources.actions import CreateUserSourceActionType
 
 from .errors import UnknownRefError
+from .page_parameters import parameters_in_page_order
 from .registries import element_tool_type_registry
 from .types import (
     ActionCreate,
@@ -1547,33 +1546,6 @@ def menu_links_problem(builder_id: int, page_ids: list[int]) -> str | None:
     return None
 
 
-def parameters_in_page_order(
-    builder_id: int,
-    page_id: int | None,
-    parameters: list | None,
-    name_of: Callable[[Any], str] = attrgetter("name"),
-) -> list | None:
-    """
-    Sort page parameters like the path parameters of the page they open, because the
-    frontend hides a link or button whose names are in another order.
-
-    :param builder_id: The application the page must be in.
-    :param page_id: The page they open.
-    :param parameters: The parameters.
-    :param name_of: Reads a parameter's name.
-    :return: The sorted parameters, the ones the page doesn't have last. They come
-        back as given when there's no such page in the application.
-    """
-
-    if not parameters:
-        return parameters
-    page = Page.objects.filter(id=page_id, builder_id=builder_id).first()
-    if page is None:
-        return parameters
-    order = {param["name"]: i for i, param in enumerate(page.path_params or [])}
-    return sorted(parameters, key=lambda param: order.get(name_of(param), len(order)))
-
-
 def check_open_page_parameters(
     action: BuilderWorkflowAction, item: ActionCreate | ActionUpdate
 ) -> None:
@@ -1638,21 +1610,7 @@ def update_workflow_action(
         if service_id is not None:
             Service.objects.select_for_update().filter(id=service_id).first()
         fresh = BuilderWorkflowActionHandler().get_workflow_action(action.id)
-        if item.type == "open_page":
-            page_id = item.navigate_to_page_id or fresh.navigate_to_page_id
-            # In place: a formula's field names its parameter by position in this list.
-            item.page_parameters = parameters_in_page_order(
-                action.page.builder_id, page_id, item.page_parameters
-            )
         values = item.update_values(fresh, user, workspace)
-        if item.type == "open_page" and "page_parameters" not in values:
-            if item.navigate_to_page_id is not None:
-                values["page_parameters"] = parameters_in_page_order(
-                    action.page.builder_id,
-                    item.navigate_to_page_id,
-                    fresh.page_parameters,
-                    itemgetter("name"),
-                )
         if values:
             UpdateBuilderWorkflowActionActionType.do(user, fresh, **values)
 
