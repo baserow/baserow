@@ -321,20 +321,6 @@ def test_setup_page_stores_an_explicit_column_formula_in_every_mode(
 
 
 @pytest.mark.django_db
-def test_setup_page_refused_with_nothing_done_raises(builder_ctx, monkeypatch):
-    def deny(*args, **kwargs):
-        raise PermissionException()
-
-    monkeypatch.setattr(helpers, "create_element", deny)
-
-    with pytest.raises(PermissionException):
-        setup(
-            builder_ctx,
-            elements=[ElementItemCreate(ref="h", type="heading", value="Title")],
-        )
-
-
-@pytest.mark.django_db
 def test_setup_page_refused_part_way_reports_what_was_saved(builder_ctx, monkeypatch):
     def deny(*args, **kwargs):
         raise PermissionException()

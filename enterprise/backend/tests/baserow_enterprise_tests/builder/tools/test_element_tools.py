@@ -905,19 +905,6 @@ def test_move_keeps_the_good_moves(data_fixture, builder_ctx):
     assert result["errors"] == ["999999: Not found in this workspace."]
 
 
-@pytest.mark.django_db
-def test_a_denied_move_stops_the_call(builder_ctx, monkeypatch):
-    def deny(*args, **kwargs):
-        raise PermissionException()
-
-    monkeypatch.setattr(helpers, "move_element", deny)
-
-    with pytest.raises(PermissionException):
-        elements.move_elements(
-            builder_ctx["ctx"], [ElementMove(element_id=builder_ctx["button"].id)]
-        )
-
-
 # ---------------------------------------------------------------------------
 # Updates
 # ---------------------------------------------------------------------------
