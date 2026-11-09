@@ -2604,7 +2604,7 @@ def test_button_navigation_requires_a_saved_click_action(data_fixture):
         thought="Add navigation.",
     )
     assert invalid["created_elements"] == []
-    assert "create_actions" in invalid["errors"][0]
+    assert "open_page action" in invalid["errors"][0]
     assert not ButtonElement.objects.filter(page=page).exists()
 
     created = create_display_elements(
@@ -2614,7 +2614,7 @@ def test_button_navigation_requires_a_saved_click_action(data_fixture):
         thought="Create the button before its action.",
     )
     button_id = created["created_elements"][0]["id"]
-    with pytest.raises(ToolInputError, match="create_actions"):
+    with pytest.raises(ToolInputError, match="open_page action"):
         update_element(
             ctx,
             page_id=page.id,

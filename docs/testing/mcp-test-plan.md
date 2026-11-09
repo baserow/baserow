@@ -159,7 +159,7 @@ The following tools are currently enabled:
 | `list_pages` | List the pages of an application builder |
 | `list_data_sources` | List the data sources of a page |
 | `list_elements` | List the elements of a page |
-| `list_actions` | List the workflow actions of a page |
+| `list_element_actions` | List the workflow actions of a page |
 | `create_builder` | Create one application builder |
 | `update_builder` | Rename an application builder or set its login page |
 | `create_pages` | Create pages |
@@ -173,9 +173,8 @@ The following tools are currently enabled:
 | `update_element` | Change an element's text, settings, columns or menu items |
 | `update_element_style` | Change how an element looks |
 | `move_elements` | Move elements within a page |
-| `create_actions` | Add workflow actions to elements |
-| `add_action_field_mapping` | Set the value a row action writes to a field |
-| `update_action` | Change a workflow action |
+| `create_element_actions` | Add workflow actions to elements |
+| `update_element_action` | Change a workflow action, like the value a row action writes to a field |
 | `setup_page` | Add data sources, elements and actions to a page in one call |
 | `setup_user_source` | Set up password login and a login page |
 | `set_theme` | Replace the theme of an application builder |
@@ -185,10 +184,10 @@ The automation and audit log tools are off in the "Read only" preset. Turn them
 on at consent or under **Settings > Connected apps**. The "Read only" preset
 includes reading dashboards and application builders, not changing them. The
 application builder tools are enterprise: a `BASEROW_OSS_ONLY` instance doesn't
-list them. `publish_workflow`, `pause_workflow`, `set_theme`, `update_database`, `update_automation`,
-`update_dashboard`, `update_builder`, `update_page`, `update_data_source`,
-`update_element`, `update_element_style`, `move_elements`, `update_action` and
-`add_action_field_mapping` are marked destructive, so clients ask before running them.
+list them. `publish_workflow`, `pause_workflow`, `set_theme`, `update_database`,
+`update_automation`, `update_dashboard`, `update_builder`, `update_page`,
+`update_data_source`, `update_element`, `update_element_style`, `move_elements` and
+`update_element_action` are marked destructive, so clients ask before running them.
 
 ## 4. Test scenarios
 
@@ -373,7 +372,7 @@ ask Claude, one request at a time:
    data source, its search query stays as it was (empty), and the value is
    listed in `formula_errors`. No model is called by Baserow.
 4. *"Add a button on Home that opens Products."* Expected: `create_display_elements`,
-   then `create_actions`.
+   then `create_element_actions`.
 5. *"Let people log in with the [users table]."* Expected: `setup_user_source`
    adds a `/login` page with a login form.
 6. *"Change the title on Home to 'Welcome'"* and *"Move the button above it"*.

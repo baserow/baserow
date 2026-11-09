@@ -1415,7 +1415,7 @@ def get_writable_action(
     except BuilderWorkflowAction.DoesNotExist:
         raise ToolInputError(
             f"Action with ID {action_id} not found in this workspace. "
-            "Use list_actions to find valid action IDs."
+            "List the page's actions to find valid action IDs."
         )
     for operation_type in (
         ReadBuilderWorkflowActionOperationType,

@@ -29,7 +29,7 @@ READ_TOOLS = [
     "list_pages",
     "list_data_sources",
     "list_elements",
-    "list_actions",
+    "list_element_actions",
 ]
 
 

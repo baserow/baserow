@@ -52,7 +52,7 @@ def list_elements(
     empty cell. Menus show their items in order: uid, name, type, page_id (or
     url, for a link to a custom address), and the sub-links of a top-level link
     as children.
-    What a button does when clicked isn't listed here: use list_actions.
+    What a button does when clicked isn't listed here: use list_element_actions.
 
     Elements with page_name "[shared]" are headers and footers shown on every
     page. They belong to the shared page, not to this one.
@@ -365,7 +365,8 @@ def update_element(
     element's type doesn't have refuse the whole update. A button has no target of its
     own: give it a click action. A button's text is what it says before it's clicked;
     what it shows or does when clicked, like the message of a notification, is a click
-    action: find it with list_actions and change it with update_action. If a changed
+    action: find it with list_element_actions and change it with
+    update_element_action. If a changed
     button also shows a notification when clicked, the result has a note naming that
     action, which stays as it was. A link given a page or a URL goes there, unless
     navigation_type says otherwise. A link's new page must fit the parameters it has,

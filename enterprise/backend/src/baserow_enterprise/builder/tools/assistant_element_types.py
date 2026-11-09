@@ -158,7 +158,7 @@ class ButtonAssistantElementType(AssistantElementType):
             "note": (
                 "This changed only the text on the button. Clicking it also shows a "
                 f"notification ({'; '.join(notifications)}), which stays as it was. "
-                "If that message is what should change, use update_action."
+                "If that message is what should change, change that action."
             )
         }
 

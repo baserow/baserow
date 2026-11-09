@@ -1205,7 +1205,7 @@ def test_changing_a_button_text_points_to_its_notification(
     action.refresh_from_db()
     assert save_button.value["formula"] == "'All done!'"
     assert action.title["formula"] == "'Saved'"
-    assert "update_action" in result["note"]
+    assert "change that action" in result["note"]
     assert str(action.id) in result["note"]
     assert "'Saved'" in result["note"]
 

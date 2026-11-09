@@ -131,8 +131,8 @@ MENU_ITEM_PROPERTIES = (
 
 BUTTON_NAVIGATION_GUIDANCE = (
     "Buttons do not store navigation properties. Create the button with its value, "
-    "then call create_actions with type='open_page', event='click', and the button "
-    "ID/ref plus the navigation target. Alternatively create a link element with "
+    "then give it an open_page action with event='click' and the navigation "
+    "target. Alternatively create a link element with "
     "link_variant='button' and navigation properties."
 )
 
@@ -172,7 +172,7 @@ class TableFieldConfig(BaseModel):
       formula (see the tool description). Omit ``value`` to show the data source field
       whose name matches ``name``.
     - type="button": ``label`` is the button caption. Its click actions attach
-      to the table element (see create_actions).
+      to the table element.
 
     These are the only column types you can create, and ``name``, ``type``,
     ``value``, ``label`` are the only accepted keys; any other key is rejected.

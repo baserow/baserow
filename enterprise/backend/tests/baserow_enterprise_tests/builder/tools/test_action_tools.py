@@ -612,7 +612,8 @@ def test_add_action_field_mapping_returns_the_action(
         field.id,
         new_field.id,
     }
-    assert set(result) == {"updated_action"}
+    assert result["status"] == "created"
+    assert set(result) == {"status", "updated_action"}
 
 
 @pytest.mark.django_db
