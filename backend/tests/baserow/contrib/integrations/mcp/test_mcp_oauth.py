@@ -479,3 +479,30 @@ def test_a_secret_added_to_your_own_client_is_used_from_the_next_refresh(
     form = parse_qs(fake.requests[-1].content.decode())
     assert form["grant_type"] == ["refresh_token"]
     assert form["client_secret"] == ["shh"]
+
+
+@pytest.mark.django_db
+def test_a_server_moved_during_the_token_exchange_gets_no_tokens(
+    data_fixture, api_client, mocker
+):
+    fake = serve_oauth(mocker, FakeAuthorizationServer())
+    user, token = data_fixture.create_user_and_token()
+    integration = oauth_server(data_fixture, user)
+    url = start(api_client, token, integration).json()["authorization_url"]
+    state = parse_qs(urlparse(url).query)["state"][0]
+    exchange = oauth.exchange_code
+
+    async def exchange_while_moved(*args, **kwargs):
+        # Another editor saves a new URL while the provider answers.
+        await MCPServerIntegration.objects.filter(id=integration.id).aupdate(
+            url="https://other.example.com/mcp"
+        )
+        return await exchange(*args, **kwargs)
+
+    mocker.patch.object(oauth, "exchange_code", exchange_while_moved)
+
+    response = complete(api_client, token, state=state, code=fake.authorize(url))
+
+    assert response.status_code == 400
+    integration.refresh_from_db()
+    assert integration.oauth_access_token == ""

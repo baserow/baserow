@@ -375,12 +375,15 @@ class MCPServerHandler:
         :raises MCPOAuthFailed: When the exchange fails.
         """
 
-        if (
-            integration.auth_type != MCPAuthType.OAUTH
-            or not integration.oauth_server
-            or integration.url != pending.get("url")
-            or integration.oauth_client_id != pending["client_id"]
-        ):
+        def still_pending(server: MCPServerIntegration) -> bool:
+            return (
+                server.auth_type == MCPAuthType.OAUTH
+                and bool(server.oauth_server)
+                and server.url == pending.get("url")
+                and server.oauth_client_id == pending["client_id"]
+            )
+
+        if not still_pending(integration):
             raise MCPOAuthStateInvalid()
         token = async_to_sync(oauth.exchange_code)(
             oauth.OAuthServer.from_dict(integration.oauth_server),
@@ -388,12 +391,21 @@ class MCPServerHandler:
             code,
             pending["code_verifier"],
         )
-        # A new sign-in may be another account: nothing of the old one stays.
-        integration.oauth_refresh_token = ""
-        self._store_token(integration, token)
-        integration.oauth_connected_at = timezone.now()
-        integration.oauth_connected_by = user
-        integration.save(update_fields=OAUTH_TOKEN_FIELDS)
+        with transaction.atomic():
+            # Checked again: the server may have been moved while the provider
+            # answered, and its tokens must not go to the new one.
+            locked = MCPServerIntegration.objects.select_for_update().get(
+                id=integration.id
+            )
+            if not still_pending(locked):
+                raise MCPOAuthStateInvalid()
+            # A new sign-in may be another account: nothing of the old one stays.
+            locked.oauth_refresh_token = ""
+            self._store_token(locked, token)
+            locked.oauth_connected_at = timezone.now()
+            locked.oauth_connected_by = user
+            locked.save(update_fields=OAUTH_TOKEN_FIELDS)
+        self._copy_tokens(locked, integration)
         return integration
 
     def disconnect_oauth(self, integration: MCPServerIntegration) -> None:
