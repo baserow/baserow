@@ -1,7 +1,8 @@
 import tableFields from '@baserow/modules/database/mixins/tableFields'
+import serviceFiltersSync from '@baserow/modules/integrations/localBaserow/mixins/serviceFiltersSync'
 
 export default {
-  mixins: [tableFields],
+  mixins: [tableFields, serviceFiltersSync],
   props: {
     application: {
       type: Object,

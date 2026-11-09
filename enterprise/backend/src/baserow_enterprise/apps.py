@@ -577,6 +577,9 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.assistant.tools.search_user_docs.tool_types import (
             SearchDocsToolType,
         )
+        from baserow_enterprise.assistant.tools.services.tool_types import (
+            ServicesToolType,
+        )
 
         ai_provider_model_feature_type_registry.register(
             KumaAIProviderModelFeatureType()
@@ -597,6 +600,7 @@ class BaserowEnterpriseConfig(AppConfig):
         assistant_tool_registry.register(DashboardToolType())
         assistant_tool_registry.register(BuilderToolType())
         assistant_tool_registry.register(SearchDocsToolType())
+        assistant_tool_registry.register(ServicesToolType())
 
         from baserow.core.chat_runs.registries import chat_run_type_registry
         from baserow_enterprise.assistant.chat_run_type import AssistantChatRunType
