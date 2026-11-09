@@ -254,3 +254,50 @@ def test_a_sentence_with_a_parenthesis_is_fixed_text_as_a_search(builder_ctx):
 )
 def test_needs_formula_leaves_a_sentence_as_text(value):
     assert not needs_formula(value)
+
+
+@pytest.mark.parametrize(
+    "value,text_formula,mapping_formula",
+    [
+        # Plain text is fixed text everywhere.
+        ("Hello", False, False),
+        ("Order now (today only)", False, False),
+        ("", False, False),
+        # Formula syntax, a description or a template goes through the formula step.
+        ("get('page_parameter.id')", True, True),
+        ("concat ('a', 'b')", True, True),
+        ("$formula: the product name", True, True),
+        ("Hi {{ name }}", True, True),
+        # A whole value that is one call to a known function, as listing sends back.
+        ("upper('abc')", True, True),
+        ("frobnicate(1)", False, False),
+        # A number or boolean is a formula only as a field value or link parameter,
+        # unless a formula would show it differently.
+        ("42", False, True),
+        ("-3.5", False, True),
+        ("TRUE", False, True),
+        ("007", False, False),
+        ("3.50", False, False),
+        ("3/4", False, False),
+    ],
+)
+def test_literal_or_formula(value, text_formula, mapping_formula):
+    """
+    The rule elements, data sources and actions all use: is_text_formula for text
+    values like a heading, a search query or a notification title, and
+    mapping_value_is_formula for row field values and link parameters.
+    """
+
+    from baserow_enterprise.builder.tools.types.workflow_action import (
+        is_text_formula,
+        mapping_value_is_formula,
+    )
+
+    assert is_text_formula(value) is text_formula
+    assert mapping_value_is_formula(value) is mapping_formula
+
+
+def test_a_missing_text_value_is_not_a_formula():
+    from baserow_enterprise.builder.tools.types.workflow_action import is_text_formula
+
+    assert is_text_formula(None) is False
