@@ -368,25 +368,45 @@ class ElementHandler:
 
         return _get_elements()
 
-    def invalidate_element_cache(self, page: Page):
+    def invalidate_element_cache(self, page: Page, keep_point_map: bool = False):
         """
         Invalidates the element, graph parent and visibility cache. To be used when we
         add or remove an element from the page (and from the graph).
 
         :param page: The target page cache.
+        :param keep_point_map: Keep the page's map of elements by ID, for a change
+            that leaves every element it holds valid, such as a move within the
+            page. Rebuilding it loads every element of the page.
         """
 
         local_cache.delete(self._get_elements_cache_key(page, True))
         local_cache.delete(self._get_elements_cache_key(page, False))
         local_cache.delete(self._get_builder_elements_cache_key(page.builder_id, True))
         local_cache.delete(self._get_builder_elements_cache_key(page.builder_id, False))
-        local_cache.delete(BaseGraphHandler.generate_point_map_cache_key(page))
+        if not keep_point_map:
+            local_cache.delete(BaseGraphHandler.generate_point_map_cache_key(page))
         local_cache.delete(
             BaseGraphHandler.generate_previous_position_map_cache_key(page)
         )
         ElementVisibilityPermissionManager.invalidate_builder_element_visibility_cache(
             page.builder_id
         )
+
+    def _add_to_element_cache(self, page: Page, element: Element) -> None:
+        """
+        Invalidates the caches a new element changes, and adds it to the page's map
+        of elements by ID when that is loaded, instead of loading the page again.
+
+        :param page: The page the element was created on.
+        :param element: The new element.
+        """
+
+        self.invalidate_element_cache(page, keep_point_map=True)
+        point_map = local_cache.get_if_cached(
+            BaseGraphHandler.generate_point_map_cache_key(page)
+        )
+        if point_map is not None:
+            point_map[element.id] = element
 
     def get_end_position(
         self,
@@ -461,7 +481,7 @@ class ElementHandler:
 
         element_type.after_create(element, kwargs)
 
-        self.invalidate_element_cache(page)
+        self._add_to_element_cache(page, element)
 
         return element
 
