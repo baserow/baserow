@@ -697,6 +697,30 @@ def test_kuma_column_named_like_a_field_shows_that_field(listed, monkeypatch):
 
 
 @pytest.mark.django_db
+def test_kuma_column_named_like_a_field_keeps_its_explicit_formula(listed, monkeypatch):
+    use_generator(monkeypatch, lambda formulas, context: {})
+
+    result = create_collection_elements(
+        listed["ctx"],
+        page_id=listed["page"].id,
+        elements=[
+            CollectionElementCreate(
+                ref="t",
+                type="table",
+                data_source=listed["data_source"].id,
+                fields=[
+                    TableFieldConfig(name="Name", value="get('current_record.id')")
+                ],
+            )
+        ],
+        thought="test",
+    )
+
+    table = ElementHandler().get_element(result["ref_to_id_map"]["t"])
+    assert table.fields.get().config["value"]["formula"] == "get('current_record.id')"
+
+
+@pytest.mark.django_db
 def test_kuma_table_columns_are_repaired_by_their_path(listed, monkeypatch):
     asked = use_generator(
         monkeypatch,

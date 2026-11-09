@@ -112,7 +112,9 @@ def create_elements_with_options(
     with transaction.atomic():
         for el_create in elements:
             ctx.update_status(status)
-            el_create._column_name_beats_formula = options.column_name_beats_formula
+            el_create._column_name_beats_description = (
+                options.column_name_beats_description
+            )
             try:
                 with transaction.atomic():
                     element, el_id = helpers.create_element(

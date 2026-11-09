@@ -25,9 +25,9 @@ class BuilderWriteOptions:
     """Which of ``known_refs`` are on the shared page. The call adds the refs of the
     shared page elements it creates."""
 
-    column_name_beats_formula: bool = False
-    """A new table column named like a field shows that field, even when it has a
-    formula or description of its own."""
+    column_name_beats_description: bool = False
+    """A new table column named like a field shows that field when its value is only
+    a ``$formula:`` description. An explicit formula always wins."""
 
     defer_required_formulas: bool = False
     """Create an item whose value to run isn't a usable formula, with a placeholder,

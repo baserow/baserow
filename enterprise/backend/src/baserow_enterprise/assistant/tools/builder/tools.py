@@ -609,7 +609,7 @@ def _create_elements_internal(
             known_refs=known_refs,
             known_data_source_refs=_get_data_source_refs(tool_helpers, page_id),
             known_shared_page_refs=shared_page_refs,
-            column_name_beats_formula=True,
+            column_name_beats_description=True,
             item_error=item_error,
         ),
     )
@@ -1424,7 +1424,7 @@ def setup_page(
             known_refs=_get_element_refs(tool_helpers, page_id),
             known_data_source_refs=_get_data_source_refs(tool_helpers, page_id),
             known_shared_page_refs=shared_page_refs,
-            column_name_beats_formula=True,
+            column_name_beats_description=True,
             defer_required_formulas=True,
             item_error=item_error,
             after_phase=after_phase,

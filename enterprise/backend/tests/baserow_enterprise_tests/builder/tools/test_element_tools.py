@@ -491,6 +491,12 @@ def test_a_column_named_like_a_field_keeps_its_own_formula(builder_ctx):
     ]
 
 
+def test_a_column_named_like_a_field_does_not_beat_a_description_by_default():
+    assert ElementItemCreate(ref="t", type="table")._column_name_beats_description is (
+        False
+    )
+
+
 @pytest.mark.django_db
 def test_a_column_named_like_a_field_without_a_value_shows_that_field(
     builder_ctx, table_field
@@ -1067,10 +1073,6 @@ def test_update_of_an_unknown_property_changes_nothing(data_fixture, builder_ctx
         )
 
     assert saved(element.id).value["formula"] == "'Old'"
-
-
-def test_a_column_named_like_a_field_does_not_beat_a_formula_by_default():
-    assert ElementItemCreate(ref="t", type="table")._column_name_beats_formula is False
 
 
 @pytest.mark.django_db
