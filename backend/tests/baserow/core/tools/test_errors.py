@@ -13,6 +13,7 @@ from baserow.core.exceptions import (
     PermissionDenied,
     UserNotInWorkspace,
     WorkspaceDoesNotExist,
+    WorkspaceUserIsLastAdmin,
 )
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
@@ -28,6 +29,7 @@ from baserow.core.tools.errors import (
     classify_tool_error,
     finish_batch,
     item_error,
+    item_error_message,
 )
 
 
@@ -124,11 +126,35 @@ def test_item_errors_are_classified_with_tool_conflicts():
         ToolErrorCode.CONFLICT, "Name used."
     )
     assert classify_item_error(ObjectDoesNotExist("x")).code == "not_found"
-    assert classify_item_error(ValueError("Bad value.")) == ToolError(
-        ToolErrorCode.INVALID_INPUT, "Bad value."
+    assert classify_item_error(WorkspaceUserIsLastAdmin("Not empty.")) == ToolError(
+        ToolErrorCode.INVALID_INPUT, "Not empty."
     )
-    assert classify_item_error(KeyError("private")) == ToolError(
-        ToolErrorCode.FAILED, None
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        KeyError("private"),
+        ValueError("invalid literal for int() with base 10: 'abc'"),
+        TypeError("private"),
+        ValidationError.from_exception_data(
+            "Model", [{"type": "int_parsing", "loc": ("id",), "input": "x"}]
+        ),
+        InstanceTypeDoesNotExist("model not registered"),
+    ],
+    ids=["key", "value", "type", "pydantic", "unregistered-model"],
+)
+def test_unexpected_item_errors_are_logged_and_get_no_message(error, mocker):
+    log = mocker.patch("baserow.core.tools.errors.logger.exception")
+
+    assert classify_item_error(error) == ToolError(ToolErrorCode.FAILED, None)
+    assert item_error_message(error) == INTERNAL_ERROR_MESSAGE
+    assert log.call_count == 2
+
+
+def test_baserow_item_errors_without_a_message_name_their_class():
+    assert classify_item_error(WorkspaceUserIsLastAdmin()) == ToolError(
+        ToolErrorCode.INVALID_INPUT, "WorkspaceUserIsLastAdmin"
     )
 
 

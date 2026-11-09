@@ -258,11 +258,10 @@ def classify_item_error(
     error = classify_tool_error(exc)
     if error.message is not None:
         return error
-    if isinstance(exc, ValueError) or (
-        not isinstance(exc, AttributeError)
-        and type(exc).__module__.startswith("baserow")
-    ):
-        # Baserow's own errors say what the caller did wrong.
+    # Baserow's own errors say what the caller did; a bare type lookup is a server bug.
+    if not isinstance(exc, (AttributeError, InstanceTypeDoesNotExist)) and type(
+        exc
+    ).__module__.startswith("baserow"):
         return ToolError(ToolErrorCode.INVALID_INPUT, str(exc) or type(exc).__name__)
     logger.exception("Unexpected error in a tool item: {}", exc)
     return ToolError(ToolErrorCode.FAILED, None)

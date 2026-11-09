@@ -245,7 +245,7 @@ def test_update_select_options_rejects_adding_a_value_that_exists(
         in message
     )
     assert "case and surrounding spaces are ignored" in message
-    assert "Leave out options that already exist" in message
+    assert "Leave out options that already exist" in error["hint"]
     assert _options(status) == [
         (status.open.id, "Open", "light-red"),
         (status.closed.id, "Closed", "blue"),

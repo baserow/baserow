@@ -30,6 +30,7 @@ from baserow.contrib.database.fields.models import (
     FileField,
     SingleSelectField,
 )
+from baserow.contrib.database.fields.models import Field as BaserowField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import Table
@@ -359,19 +360,33 @@ def _grid_to_orm(v, table):
     return {"row_height_size": v.row_height}
 
 
+def _table_field(table: Table, field_id: int) -> BaserowField:
+    """
+    A field of the table a view is created in.
+
+    :param table: The table.
+    :param field_id: The ID of the field.
+    :return: The specific field.
+    :raises ToolInputError: When the table has no such field.
+    """
+
+    try:
+        return table.get_model().get_field_object_by_id(field_id)["field"]
+    except ValueError:
+        raise ToolInputError(f"Field {field_id} is not in this table.") from None
+
+
 def _kanban_to_orm(v, table):
-    model = table.get_model()
-    column_field = model.get_field_object_by_id(v.column_field_id)["field"]
+    column_field = _table_field(table, v.column_field_id)
     if not isinstance(column_field, SingleSelectField):
-        raise ValueError("The column_field_id must be a Single Select field.")
+        raise ToolInputError("The column_field_id must be a Single Select field.")
     return {"single_select_field": column_field}
 
 
 def _calendar_to_orm(v, table):
-    model = table.get_model()
-    date_field = model.get_field_object_by_id(v.date_field_id)["field"]
+    date_field = _table_field(table, v.date_field_id)
     if not isinstance(date_field, DateField):
-        raise ValueError("The date_field_id must be a Date field.")
+        raise ToolInputError("The date_field_id must be a Date field.")
     return {"date_field": date_field}
 
 
@@ -379,30 +394,27 @@ def _gallery_to_orm(v, table):
     """
     Build gallery view ORM kwargs.
 
-    :raises ValueError: When cover_field_id is not a File field.
+    :raises ToolInputError: When cover_field_id is not a File field.
     """
 
-    model = table.get_model()
-    cover_field = model.get_field_object_by_id(v.cover_field_id)["field"]
+    cover_field = _table_field(table, v.cover_field_id)
     if not isinstance(cover_field, FileField):
-        raise ValueError("The cover_field_id must be a File field.")
+        raise ToolInputError("The cover_field_id must be a File field.")
     return {"card_cover_image_field": cover_field}
 
 
 def _timeline_to_orm(v, table):
-    model = table.get_model()
-    start_field = model.get_field_object_by_id(v.start_date_field_id)["field"]
-    end_field = model.get_field_object_by_id(v.end_date_field_id)["field"]
+    start_field = _table_field(table, v.start_date_field_id)
+    end_field = _table_field(table, v.end_date_field_id)
     if (
         not isinstance(start_field, DateField)
         or not isinstance(end_field, DateField)
         or start_field.id == end_field.id
         or start_field.date_include_time != end_field.date_include_time
     ):
-        raise ValueError(
-            "Invalid timeline configuration: both start and end fields must be Date "
-            "fields and they must have the same include_time setting (either both "
-            "include time or both are date-only). "
+        raise ToolInputError(
+            "A timeline view needs two different date fields that both include "
+            "the time, or both don't."
         )
     return {"start_date_field": start_field, "end_date_field": end_field}
 
@@ -691,15 +703,21 @@ def _parse_date(value: str) -> date:
     try:
         return date.fromisoformat(value.replace("/", "-").strip())
     except ValueError:
+        pass
+    try:
         return dateutil_parser.parse(value).date()
+    except (ValueError, OverflowError):
+        raise ToolInputError(
+            f"'{value}' is not a date.", hint="Use an ISO date, like 2024-01-31."
+        ) from None
 
 
 def _select_orm_value(f, field, **kwargs):
     """
     Match the labels to the field's options, ignoring case and outer spaces.
 
-    :raises ValueError: When a label matches no option, as the filter would then
-        match other rows than asked.
+    :raises ToolInputError: When a label matches no option, as the filter would
+        then match other rows than asked.
     """
 
     options = list(field.select_options.all())
@@ -711,7 +729,7 @@ def _select_orm_value(f, field, **kwargs):
     ]
     if unmatched:
         labels = ", ".join(option.value for option in options) or "none"
-        raise ValueError(
+        raise ToolInputError(
             f"{unmatched} are not options of field '{field.name}'. Options: {labels}."
         )
     option_ids = dict.fromkeys(ids_by_key[option_value_key(v)] for v in f.value)
@@ -726,7 +744,9 @@ def _date_count(f) -> str:
         return str(int(value))
     if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
         return str(value)
-    raise ValueError(f"Mode '{f.mode}' needs a whole number as value, not {value!r}.")
+    raise ToolInputError(
+        f"Mode '{f.mode}' needs a whole number as value, not {value!r}."
+    )
 
 
 def _date_mode_takes_value(mode: str) -> bool:
@@ -748,8 +768,8 @@ def _created_filter(orm_filter: ViewFilter, item: "ViewFilterItemCreate") -> dic
 
 def _date_orm_value(f, field, **kwargs):
     """
-    :raises ValueError: When an exact date can't be parsed, or an ``nr_*`` mode
-        has no whole number.
+    :raises ToolInputError: When an exact date can't be parsed, or an ``nr_*``
+        mode has no whole number.
     """
 
     # A profile can have no timezone.
@@ -758,7 +778,7 @@ def _date_orm_value(f, field, **kwargs):
         return f"{timezone}??{f.mode}"
     if f.mode == "exact_date":
         if not isinstance(f.value, str):
-            raise ValueError("Mode 'exact_date' needs a date string as value.")
+            raise ToolInputError("Mode 'exact_date' needs a date string as value.")
         value = _parse_date(f.value).isoformat()
     else:
         value = _date_count(f)
@@ -777,7 +797,7 @@ _BOOLEAN_VALUES = {
 
 
 def _boolean_orm_value(f, field, **kwargs):
-    """:raises ValueError: When the value is not a known true or false."""
+    """:raises ToolInputError: When the value is not a known true or false."""
 
     if isinstance(f.value, bool):
         return "1" if f.value else "0"
@@ -785,12 +805,12 @@ def _boolean_orm_value(f, field, **kwargs):
         value = _BOOLEAN_VALUES.get(str(f.value).strip().lower())
         if value is not None:
             return value
-    raise ValueError(f"A boolean filter needs true or false, not {f.value!r}.")
+    raise ToolInputError(f"A boolean filter needs true or false, not {f.value!r}.")
 
 
 def _number_orm_value(f, field, **kwargs):
     """
-    :raises ValueError: When an operator that compares has no number, as the
+    :raises ToolInputError: When an operator that compares has no number, as the
         filter would then match no rows.
     """
 
@@ -803,20 +823,20 @@ def _number_orm_value(f, field, **kwargs):
                 return value
         except InvalidOperation:
             pass
-    raise ValueError(f"A number filter needs a number, not {f.value!r}.")
+    raise ToolInputError(f"A number filter needs a number, not {f.value!r}.")
 
 
 def _link_row_orm_value(f, field, **kwargs):
     """
-    :raises ValueError: When the value is not a row id, as the filter would then
-        match every row.
+    :raises ToolInputError: When the value is not a row id, as the filter would
+        then match every row.
     """
 
     if isinstance(f.value, str) and f.value.strip().isdigit():
         return str(int(f.value))
     if isinstance(f.value, int) and not isinstance(f.value, bool) and f.value >= 0:
         return str(f.value)
-    raise ValueError(f"A link_row filter needs a row id, not {f.value!r}.")
+    raise ToolInputError(f"A link_row filter needs a row id, not {f.value!r}.")
 
 
 _GET_ORM_VALUE = {
@@ -1073,7 +1093,7 @@ def create_views(
 
             try:
                 orm_kwargs = view.to_django_orm_kwargs(table)
-            except (ValueError, TypeError) as exc:
+            except ToolInputError as exc:
                 raise ToolInputError(
                     f"Cannot create the '{view.name}' {view.type} view: {exc}",
                     hint=f"Fields in table '{table.name}': {_describe_fields(table)}",
@@ -1106,9 +1126,12 @@ def create_views(
                 except PermissionException:
                     raise
                 except Exception as exc:
+                    error = classify_item_error(exc)
+                    if error.message is None:
+                        raise
                     raise ToolInputError(
                         f"The field_options of the '{view.name}' {view.type} view "
-                        f"were rejected and no views were created: {exc}",
+                        f"were rejected and no views were created: {error.message}",
                         hint="Retry without the rejected fields. Fields in table "
                         f"'{table.name}': {_describe_fields(table)}",
                     ) from exc
@@ -1194,7 +1217,7 @@ def create_view_filters(
                         ctx.user, orm_view, fields, item, ctx.timezone
                     )
                 # The handler raises ViewFilterNotSupported before it writes.
-                except (ToolInputError, ValueError, ViewFilterNotSupported) as exc:
+                except (ToolInputError, ViewFilterNotSupported) as exc:
                     errors.append(
                         item_error(
                             orm_view.name,

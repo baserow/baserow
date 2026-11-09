@@ -4,7 +4,8 @@ import json
 import logging
 from unittest.mock import patch
 
-from django.db import connection, transaction
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import DataError, connection, transaction
 
 import pytest
 from asgiref.sync import async_to_sync
@@ -26,7 +27,11 @@ from baserow.core.exceptions import PermissionException
 from baserow.core.mcp import BaserowMCPServer, current_key
 from baserow.core.models import Agent
 from baserow.core.tools import ToolContext
-from baserow.core.tools.errors import ToolInputError
+from baserow.core.tools.errors import (
+    INTERNAL_ERROR_MESSAGE,
+    ToolInputError,
+    classify_tool_error,
+)
 
 VIEW_TOOLS = ["create_views", "create_view_filters"]
 
@@ -485,11 +490,16 @@ def test_create_view_filters_reads_the_date_value_by_mode(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "mode,value",
-    [("nr_days_ago", "a week"), ("nr_days_ago", -3), ("exact_date", 5)],
+    "mode,value,message",
+    [
+        ("nr_days_ago", "a week", "'nr_days_ago' needs"),
+        ("nr_days_ago", -3, "'nr_days_ago' needs"),
+        ("exact_date", 5, "'exact_date' needs"),
+        ("exact_date", "someday", "'someday' is not a date."),
+    ],
 )
 def test_create_view_filters_reports_a_date_value_the_mode_cannot_use(
-    data_fixture, table_ctx, mode, value
+    data_fixture, table_ctx, mode, value, message
 ):
     field = data_fixture.create_date_field(table=table_ctx[1], name="Due")
     view, create = _filter_view(data_fixture, table_ctx, field)
@@ -497,7 +507,7 @@ def test_create_view_filters_reports_a_date_value_the_mode_cannot_use(
     entry = create(type="date", operator="equal", mode=mode, value=value)
 
     (failed,) = entry["errors"]
-    assert f"'{mode}' needs" in failed["message"]
+    assert message in failed["message"]
     assert not ViewFilter.objects.filter(view=view).exists()
 
 
@@ -613,10 +623,47 @@ def test_create_views_over_mcp_rejects_a_form_field_order_out_of_range(data_fixt
     assert not FormView.objects.filter(table=table).exists()
 
 
+def _create_contact_form(ctx, table):
+    name = table.field_set.get(name="Name")
+    option = {
+        "field_id": name.id,
+        "name": "Name",
+        "description": "",
+        "required": True,
+        "order": 1,
+    }
+    create_views(
+        ctx,
+        table.id,
+        [ViewItemCreate(name="Contact", type="form", field_options=[option])],
+    )
+
+
 @pytest.mark.django_db
-def test_create_views_reports_a_database_error_in_the_field_options(table_ctx):
+def test_create_views_reports_a_rejected_field_option(table_ctx):
     ctx, table = table_ctx
     name = table.field_set.get(name="Name")
+
+    with (
+        patch.object(
+            views_module.UpdateViewFieldOptionsActionType,
+            "do",
+            side_effect=DjangoValidationError("Bad option."),
+        ),
+        pytest.raises(ToolInputError) as exc_info,
+    ):
+        _create_contact_form(ctx, table)
+
+    assert str(exc_info.value).endswith(
+        "were rejected and no views were created: Invalid value. Bad option."
+    )
+    assert f"{name.id} (Name, text)" in exc_info.value.hint
+
+
+@pytest.mark.django_db
+def test_create_views_logs_a_database_error_in_the_field_options(table_ctx, mocker):
+    ctx, table = table_ctx
+    log = mocker.patch("baserow.core.tools.errors.logger.exception")
 
     def fail(*args, **kwargs):
         with connection.cursor() as cursor:
@@ -624,31 +671,16 @@ def test_create_views_reports_a_database_error_in_the_field_options(table_ctx):
 
     with (
         patch.object(views_module.UpdateViewFieldOptionsActionType, "do", fail),
-        pytest.raises(ToolInputError) as exc_info,
+        pytest.raises(DataError) as exc_info,
     ):
-        create_views(
-            ctx,
-            table.id,
-            [
-                ViewItemCreate(
-                    name="Contact",
-                    type="form",
-                    field_options=[
-                        {
-                            "field_id": name.id,
-                            "name": "Name",
-                            "description": "",
-                            "required": True,
-                            "order": 1,
-                        }
-                    ],
-                )
-            ],
-        )
+        _create_contact_form(ctx, table)
 
-    assert "were rejected and no views were created" in str(exc_info.value)
-    assert "Fields in table" not in str(exc_info.value)
-    assert f"{name.id} (Name, text)" in exc_info.value.hint
+    assert classify_tool_error(exc_info.value).to_dict() == {
+        "code": "failed",
+        "message": INTERNAL_ERROR_MESSAGE,
+    }
+    log.assert_called_once()
+    assert not View.objects.filter(table=table, name="Contact").exists()
 
 
 def _form_view_arguments(table, name, **settings):

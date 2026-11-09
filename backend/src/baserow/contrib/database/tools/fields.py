@@ -42,6 +42,7 @@ from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import (
     ToolError,
     ToolErrorCode,
+    ToolInputError,
     classify_item_error,
     finish_batch,
     item_error,
@@ -225,20 +226,26 @@ def _resolve_linked_table(linked_table_ref, table, user):
     """
 
     if isinstance(linked_table_ref, str):
-        q = Q(name=linked_table_ref, database=table.database)
+        q = Q(name=linked_table_ref)
     else:
-        q = Q(id=linked_table_ref, database=table.database)
+        q = Q(id=linked_table_ref)
     tables = TableHandler().list_workspace_tables(user, table.database.workspace)
-    matches = list(tables.filter(q).order_by("id")[:2])
+    matches = list(tables.filter(q, database=table.database).order_by("id")[:2])
+    if not matches and tables.filter(q).exists():
+        raise ToolInputError(
+            f"Table '{linked_table_ref}' is in another database, and a link can only "
+            "point to a table of the same database.",
+            hint="Link to a table of this database, by name or ID.",
+        )
     if not matches:
-        raise ValueError(
-            f"Table '{linked_table_ref}' not found in the database. "
-            f"Ensure you provide a valid table name or ID."
+        raise ToolInputError(
+            f"Table '{linked_table_ref}' is not in this database.",
+            hint="Use the name or ID of a table in this database.",
         )
     if len(matches) > 1:
-        raise ValueError(
-            f"Several tables in this database are named '{linked_table_ref}'. "
-            "Use the table ID instead."
+        raise ToolInputError(
+            f"Several tables in this database are named '{linked_table_ref}'.",
+            hint="Use the table ID instead.",
         )
     return matches[0]
 
@@ -331,8 +338,8 @@ def _named_link_field(f, table, user) -> LinkRowField:
     """
     The link_row field of the table a lookup names in ``through_field``.
 
-    :raises ValueError: When the table has no such link_row field, or it links to
-        another table than ``linked_table``.
+    :raises ToolInputError: When the table has no such link_row field, or it links
+        to another table than ``linked_table``.
     """
 
     links = list(LinkRowField.objects.filter(table=table).order_by("id"))
@@ -346,14 +353,14 @@ def _named_link_field(f, table, user) -> LinkRowField:
     else:
         through = next((x for x in links if x.id == f.through_field), None)
     if through is None:
-        raise ValueError(
+        raise ToolInputError(
             f"Table '{table.name}' has no link_row field '{f.through_field}' for "
             f"lookup '{f.name}'."
         )
     if f.linked_table is not None:
         linked = _resolve_linked_table(f.linked_table, table, user)
         if linked.id != through.link_row_table_id:
-            raise ValueError(
+            raise ToolInputError(
                 f"Link field '{through.name}' links to table "
                 f"{through.link_row_table_id}, not to '{f.linked_table}'."
             )
@@ -365,7 +372,7 @@ def _only_link_field(f, table) -> LinkRowField:
     The table's link_row field, for a lookup that names neither ``linked_table``
     nor ``through_field``.
 
-    :raises ValueError: When the table has no link_row field or several.
+    :raises ToolInputError: When the table has no link_row field or several.
     """
 
     links = list(LinkRowField.objects.filter(table=table).order_by("id"))
@@ -376,9 +383,10 @@ def _only_link_field(f, table) -> LinkRowField:
         if links
         else "has no link_row field"
     )
-    raise ValueError(
-        f"Table '{table.name}' {found}. Set linked_table or through_field for "
-        f"lookup '{f.name}'."
+    raise ToolInputError(
+        f"Lookup '{f.name}' doesn't say which link to use: table '{table.name}' "
+        f"{found}.",
+        hint="Set linked_table or through_field.",
     )
 
 
@@ -418,9 +426,9 @@ def create_missing_link_field(
 def _lookup_to_orm(f, table, user):
     through = _lookup_link_field(f, table, user)
     if not through:
-        raise ValueError(
-            f"No link_row field to '{f.linked_table}' exists on this table. "
-            f"Create a link_row field first."
+        raise ToolInputError(
+            f"No link_row field to '{f.linked_table}' exists on this table.",
+            hint="Create a link_row field first.",
         )
 
     data: dict[str, Any] = {"name": f.name, "through_field_id": through.id}
@@ -693,23 +701,23 @@ def _check_option_ids(
     :param existing_ids: The ids of the field's options.
     :param update: The options to change.
     :param remove_ids: The ids of the options to delete.
-    :raises ValueError: If an id is not an option of the field, is changed twice, or
-        is both changed and removed.
+    :raises ToolInputError: If an id is not an option of the field, is changed
+        twice, or is both changed and removed.
     """
 
     update_ids = [option.id for option in update]
     unknown = sorted(set(update_ids + remove_ids) - existing_ids)
     if unknown:
-        raise ValueError(
-            f"Options {unknown} are not options of this field. Use the option ids "
-            "from the table schema."
+        raise ToolInputError(
+            f"Options {unknown} are not options of this field.",
+            hint="Use the option ids from the table schema.",
         )
     repeated = sorted({i for i in update_ids if update_ids.count(i) > 1})
     if repeated:
-        raise ValueError(f"Options {repeated} are changed more than once.")
+        raise ToolInputError(f"Options {repeated} are changed more than once.")
     conflicting = sorted(set(update_ids) & set(remove_ids))
     if conflicting:
-        raise ValueError(f"Options {conflicting} cannot be changed and removed.")
+        raise ToolInputError(f"Options {conflicting} cannot be changed and removed.")
 
 
 def _apply_update(
@@ -796,8 +804,9 @@ def _check_unique_values(
     :param kept: The field's remaining options, with the updates applied.
     :param added: The options to add.
     :param renamed_ids: The ids of the kept options whose value changes.
-    :param hint: How to fix a clash, added to the error.
-    :raises ValueError: If an added or renamed value repeats another option's value.
+    :param hint: How to fix a clash, for the model.
+    :raises ToolInputError: If an added or renamed value repeats another option's
+        value.
     """
 
     groups: dict[str, list[dict[str, Any]]] = {}
@@ -810,9 +819,10 @@ def _check_unique_values(
         and any("id" not in entry or entry["id"] in renamed_ids for entry in group)
     ]
     if clashes:
-        raise ValueError(
+        raise ToolInputError(
             "These options would share a value (case and surrounding spaces are "
-            f"ignored): {'; '.join(clashes)}. {hint}"
+            f"ignored): {'; '.join(clashes)}.",
+            hint=hint,
         )
 
 

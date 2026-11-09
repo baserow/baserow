@@ -844,7 +844,7 @@ def test_create_fields_needs_the_link_when_the_table_has_not_exactly_one(
 
     assert result["created_fields"] == []
     (error,) = result["errors"]
-    assert "Set linked_table or through_field" in error["message"]
+    assert error["hint"] == "Set linked_table or through_field."
     if links:
         assert "'First', 'Second'" in error["message"]
     assert not table.field_set.filter(name="Titles").exists()
@@ -868,6 +868,28 @@ def test_create_fields_answers_an_error_when_no_field_was_created(data_fixture):
     assert error["item"] == "Link" and error["code"] == "invalid_input"
     assert result["error"] == {"code": "invalid_input", "message": error["message"]}
     assert "table_" not in error["message"]
+
+
+@pytest.mark.django_db
+def test_a_link_to_a_table_of_another_database_says_so(data_fixture, table_ctx):
+    ctx, table = table_ctx
+    data_fixture.create_database_table(
+        database=data_fixture.create_database_application(workspace=ctx.workspace),
+        name="Activity QA",
+    )
+
+    result = create_fields(
+        ctx,
+        table.id,
+        [FieldItemCreate(name="Act", type="link_row", linked_table="Activity QA")],
+    )
+
+    (error,) = result["errors"]
+    assert error["message"] == (
+        "Table 'Activity QA' is in another database, and a link can only point to "
+        "a table of the same database."
+    )
+    assert error["hint"] == "Link to a table of this database, by name or ID."
 
 
 @pytest.mark.django_db
