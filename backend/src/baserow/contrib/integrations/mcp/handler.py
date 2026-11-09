@@ -35,6 +35,8 @@ from .models import (
 # How long an editor has to finish signing in with the MCP server's provider.
 OAUTH_STATE_TIMEOUT_SECONDS = 600
 OAUTH_STATE_CACHE_KEY = "mcp_oauth_state:{}"
+# Assumed for an access token the provider gives no lifetime for.
+DEFAULT_TOKEN_LIFETIME_SECONDS = 3600
 OAUTH_TOKEN_FIELDS = [
     "oauth_access_token",
     "oauth_refresh_token",
@@ -393,10 +395,12 @@ class MCPServerHandler:
         # A refresh may not return a new refresh token; the old one stays valid.
         if token.refresh_token:
             integration.oauth_refresh_token = token.refresh_token
+        lifetime = token.expires_in
+        if not lifetime and integration.oauth_refresh_token:
+            # The provider didn't say; refresh regularly rather than never.
+            lifetime = DEFAULT_TOKEN_LIFETIME_SECONDS
         integration.oauth_expires_at = (
-            timezone.now() + timedelta(seconds=token.expires_in)
-            if token.expires_in
-            else None
+            timezone.now() + timedelta(seconds=lifetime) if lifetime else None
         )
 
     def _copy_tokens(self, source, target):

@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 import pytest
+from freezegun import freeze_time
 
 from baserow.contrib.integrations.mcp.exceptions import MCPServerNotConnected
 from baserow.contrib.integrations.mcp.handler import MCPServerHandler
@@ -353,3 +354,24 @@ def test_a_sign_in_started_before_the_server_moved_cant_finish(
 
     assert response.status_code == 400
     assert response.json()["error"] == "ERROR_MCP_OAUTH_STATE_INVALID"
+
+
+@pytest.mark.django_db
+def test_a_token_without_a_lifetime_is_still_refreshed(
+    data_fixture, api_client, mocker
+):
+    fake = serve_oauth(mocker, FakeAuthorizationServer())
+    fake.expires_in = None
+    user, token = data_fixture.create_user_and_token()
+    integration = oauth_server(data_fixture, user)
+    url = start(api_client, token, integration).json()["authorization_url"]
+    state = parse_qs(urlparse(url).query)["state"][0]
+    complete(api_client, token, state=state, code=fake.authorize(url))
+
+    with freeze_time(timezone.now() + timedelta(days=1)):
+        connection = MCPServerHandler().get_connection(
+            MCPServerIntegration.objects.get(id=integration.id)
+        )
+
+    # Providers may leave the lifetime out; the token is refreshed anyway.
+    assert connection.headers == {"Authorization": "Bearer access-2"}
