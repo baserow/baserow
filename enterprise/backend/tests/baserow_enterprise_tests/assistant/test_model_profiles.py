@@ -225,10 +225,17 @@ def test_database_and_legacy_groq_profiles_use_the_shared_adapter(
         model=provider.models.get(),
     )
 
-    database_model = resolve_assistant_model(workspace=workspace).create_model().wrapped
+    # Without usage reporting, the wrapped model is the provider's adapter.
+    database_model = (
+        resolve_assistant_model(workspace=workspace)
+        .create_model(report_usage=False)
+        .wrapped
+    )
     monkeypatch.setenv("GROQ_API_KEY", "legacy-key")
     legacy_model = (
-        resolve_assistant_model(model=f"groq:{model_name}").create_model().wrapped
+        resolve_assistant_model(model=f"groq:{model_name}")
+        .create_model(report_usage=False)
+        .wrapped
     )
 
     assert type(database_model) is type(legacy_model) is GroqGPTOSSModel

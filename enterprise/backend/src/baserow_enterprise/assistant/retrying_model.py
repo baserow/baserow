@@ -709,8 +709,7 @@ class _PreFetchedResponse(StreamedResponse):
     ):
         super().__init__(model_request_parameters=model_request_parameters)
         self._response = response
-        self._usage.input_tokens = response.usage.input_tokens
-        self._usage.output_tokens = response.usage.output_tokens
+        self._usage = replace(response.usage)
 
     async def _get_event_iterator(
         self,

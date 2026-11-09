@@ -27,6 +27,8 @@ const FAILED_REPLY_NOTICES = {
   [AGENT_REPLY_ERROR_CODE.TRIGGER_MESSAGE_FAILED]:
     'agent.replyTriggerMessageFailed',
   [AGENT_REPLY_ERROR_CODE.TRIGGER_OFF]: 'agent.replyTriggerOff',
+  [AGENT_REPLY_ERROR_CODE.USAGE_LIMIT_EXCEEDED]:
+    'agent.replyUsageLimitExceeded',
 }
 
 /**

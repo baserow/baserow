@@ -1,11 +1,14 @@
 import json
 from io import StringIO
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.core.management import call_command
 from django.http import HttpRequest
 
 import pytest
+from pydantic_ai.messages import ModelResponse, TextPart
+from pydantic_ai.models.function import FunctionModel
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
@@ -33,6 +36,13 @@ from baserow.core.generative_ai.exceptions import GenerativeAIPromptError
 from baserow.core.generative_ai.registries import (
     GenerativeAIModelType,
     generative_ai_model_type_registry,
+)
+from baserow.core.generative_ai.usage import (
+    AI_USAGE_FEATURE_AI_NODE,
+    AI_USAGE_FEATURE_BUILDER_AI_ACTION,
+    AI_USAGE_KEY_SCOPE_ENVIRONMENT,
+    AI_USAGE_KEY_SCOPE_INTEGRATION,
+    ai_request_starting,
 )
 from baserow.core.integrations.service import IntegrationService
 from baserow.core.services.exceptions import (
@@ -1596,7 +1606,8 @@ def test_partial_override_narrows_complete_legacy_workspace_models(data_fixture)
     with (
         patch(
             "baserow.core.generative_ai.generative_ai_model_types."
-            "OpenAIGenerativeAIModelType.get_ai_model"
+            "OpenAIGenerativeAIModelType.get_ai_model",
+            return_value=_function_model(),
         ) as get_model,
         patch(
             "baserow.core.generative_ai.registries.run_agent_sync_with_model"
@@ -2194,3 +2205,124 @@ def test_dispatch_preserves_custom_provider_integration_override(
         assert prompt.call_args.kwargs["settings_override"] == integration_settings
     finally:
         generative_ai_model_type_registry.unregister(model_type)
+
+
+def _record_ai_usage_scopes():
+    """Returns the scopes sent with `ai_request_starting`, and the receiver."""
+
+    scopes = []
+
+    def receiver(sender, scope, **kwargs):
+        scopes.append(scope)
+
+    ai_request_starting.connect(receiver, weak=False)
+    return scopes, receiver
+
+
+def _function_model():
+    return FunctionModel(
+        lambda messages, info: ModelResponse(parts=[TextPart(content="Hi")])
+    )
+
+
+@pytest.mark.django_db
+def test_ai_agent_service_dispatch_reports_an_ai_node_with_shared_credentials(
+    data_fixture, settings
+):
+    settings.BASEROW_OPENAI_API_KEY = "sk-test"
+    settings.BASEROW_OPENAI_MODELS = ["gpt-4"]
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    integration = (
+        IntegrationService()
+        .create_integration(user, AIIntegrationType(), application=application)
+        .specific
+    )
+    service = ServiceHandler().create_service(
+        AIAgentServiceType(),
+        integration_id=integration.id,
+        ai_generative_ai_type="openai",
+        ai_generative_ai_model="gpt-4",
+        ai_output_type="text",
+        ai_prompt="'Tell me a joke'",
+    )
+    scopes, receiver = _record_ai_usage_scopes()
+
+    try:
+        with patch(
+            "baserow.core.generative_ai.generative_ai_model_types."
+            "OpenAIGenerativeAIModelType.get_ai_model",
+            return_value=_function_model(),
+        ):
+            service.get_type().dispatch(service, FakeDispatchContext())
+    finally:
+        ai_request_starting.disconnect(receiver)
+
+    (scope,) = scopes
+    assert scope.feature == AI_USAGE_FEATURE_AI_NODE
+    assert scope.key_scope == AI_USAGE_KEY_SCOPE_ENVIRONMENT
+    assert scope.uses_shared_key is True
+
+
+@pytest.mark.django_db
+def test_ai_agent_service_dispatch_reports_integration_credentials(
+    data_fixture, settings
+):
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    integration = (
+        IntegrationService()
+        .create_integration(
+            user,
+            AIIntegrationType(),
+            application=application,
+            ai_settings={"openai": {"api_key": "own-key", "models": ["gpt-4"]}},
+        )
+        .specific
+    )
+    service = ServiceHandler().create_service(
+        AIAgentServiceType(),
+        integration_id=integration.id,
+        ai_generative_ai_type="openai",
+        ai_generative_ai_model="gpt-4",
+        ai_output_type="text",
+        ai_prompt="'Tell me a joke'",
+    )
+    scopes, receiver = _record_ai_usage_scopes()
+
+    try:
+        with patch(
+            "baserow.core.generative_ai.generative_ai_model_types."
+            "OpenAIGenerativeAIModelType.get_ai_model",
+            return_value=_function_model(),
+        ):
+            service.get_type().dispatch(service, FakeDispatchContext())
+    finally:
+        ai_request_starting.disconnect(receiver)
+
+    (scope,) = scopes
+    assert scope.key_scope == AI_USAGE_KEY_SCOPE_INTEGRATION
+    assert scope.uses_shared_key is False
+
+
+def test_ai_agent_service_usage_is_attributed_to_the_builder_page_or_the_run():
+    page = SimpleNamespace(id=4)
+    history = SimpleNamespace(id=9)
+
+    assert AIAgentServiceType._get_ai_usage_context(SimpleNamespace(page=page)) == {
+        "feature": AI_USAGE_FEATURE_BUILDER_AI_ACTION,
+        "reference_type": "builder_page",
+        "reference_id": 4,
+    }
+    assert AIAgentServiceType._get_ai_usage_context(
+        SimpleNamespace(history=history)
+    ) == {
+        "feature": AI_USAGE_FEATURE_AI_NODE,
+        "reference_type": "automation_workflow_history",
+        "reference_id": 9,
+    }
+    assert AIAgentServiceType._get_ai_usage_context(SimpleNamespace()) == {
+        "feature": AI_USAGE_FEATURE_AI_NODE,
+        "reference_type": None,
+        "reference_id": None,
+    }

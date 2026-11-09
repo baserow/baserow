@@ -15,3 +15,9 @@ ERROR_GENERATIVE_AI_PROMPT = (
     HTTP_400_BAD_REQUEST,
     "Something went wrong prompting the model",
 )
+# The message of the plugin that refused the request is meant for the user.
+ERROR_AI_USAGE_LIMIT_EXCEEDED = (
+    "ERROR_AI_USAGE_LIMIT_EXCEEDED",
+    HTTP_400_BAD_REQUEST,
+    "{e}",
+)

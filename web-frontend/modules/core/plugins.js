@@ -193,6 +193,15 @@ export class BaserowPlugin extends Registerable {
 
   /**
    * Every registered plugin can display multiple additional context items in the
+   * context menu of a workspace. They receive the workspace as `workspace` prop.
+   * @returns {*[]}
+   */
+  getAdditionalWorkspaceContextComponents(workspace) {
+    return []
+  }
+
+  /**
+   * Every registered plugin can display multiple additional context items in the
    * application context displayed by the sidebar when opening the context menu of
    * an application.
    * @returns {*[]}
@@ -235,6 +244,16 @@ export class BaserowPlugin extends Registerable {
    * @returns {*[]}
    */
   getWorkflowHistoryComponents(workflowHistory) {
+    return []
+  }
+
+  /**
+   * Components showing the AI usage (e.g. cost) of an agent reply, an AI
+   * assistant answer or a job that generated AI field values. They receive the
+   * item's `plugin_data` as `pluginData` prop.
+   * @returns {*[]}
+   */
+  getAIUsageComponents() {
     return []
   }
 

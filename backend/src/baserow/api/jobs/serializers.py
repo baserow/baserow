@@ -1,3 +1,6 @@
+from collections import defaultdict
+from typing import Any, Iterable
+
 from django.utils.functional import lazy
 
 from drf_spectacular.extensions import OpenApiSerializerExtension
@@ -6,6 +9,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import PolymorphicProxySerializer, extend_schema_field
 from rest_framework import serializers
 
+from baserow.core.generative_ai.usage import get_ai_usage_plugin_data
 from baserow.core.jobs.constants import (
     JOB_CANCELLED,
     JOB_FAILED,
@@ -21,6 +25,52 @@ VALID_JOB_STATES = [
     JOB_FAILED,
     JOB_CANCELLED,
 ]
+
+
+def get_jobs_plugin_data(jobs: Iterable[Job]) -> dict[str, dict[str, Any]]:
+    """
+    Collects the data plugins provide about the AI usage of the jobs, with one
+    call per job type that sets an `ai_usage_reference_type`.
+
+    :param jobs: The specific jobs.
+    :return: The data by job id and then by plugin type.
+    """
+
+    job_ids_by_reference_type = defaultdict(list)
+    for job in jobs:
+        reference_type = job_type_registry.get_by_model(job).ai_usage_reference_type
+        if reference_type is not None:
+            job_ids_by_reference_type[reference_type].append(job.id)
+
+    plugin_data = {}
+    for reference_type, job_ids in job_ids_by_reference_type.items():
+        plugin_data.update(get_ai_usage_plugin_data(reference_type, job_ids))
+    return plugin_data
+
+
+class JobPluginDataSerializerMixin(serializers.Serializer):
+    """
+    Adds the data plugins provide about the AI usage of a job, keyed by plugin
+    type. A job type that sets an `ai_usage_reference_type` uses it by adding it
+    to its `serializer_mixins`, and adding `plugin_data` to its
+    `serializer_field_names` with `plugin_data_field()` as override.
+
+    A view serializing many jobs passes the result of `get_jobs_plugin_data` as
+    `plugin_data` in the context.
+    """
+
+    @staticmethod
+    def plugin_data_field() -> serializers.SerializerMethodField:
+        return serializers.SerializerMethodField(
+            help_text="Data that plugins provide for this job, keyed by plugin type."
+        )
+
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_plugin_data(self, job: Job) -> dict:
+        plugin_data = self.context.get("plugin_data")
+        if plugin_data is None:
+            plugin_data = get_jobs_plugin_data([job])
+        return plugin_data.get(str(job.id), {})
 
 
 class JobSerializer(serializers.ModelSerializer):

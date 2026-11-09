@@ -71,6 +71,15 @@ from baserow.core.generative_ai.model_profiles import (
     get_model_settings as get_shared_model_settings,
 )
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+from baserow.core.generative_ai.usage import (
+    AI_USAGE_FEATURE_ASSISTANT,
+    AI_USAGE_KEY_SCOPE_ENVIRONMENT,
+    AI_USAGE_KEY_SCOPE_EXPLICIT,
+    AI_USAGE_KEY_SCOPE_INSTANCE,
+    AI_USAGE_KEY_SCOPE_WORKSPACE,
+    AIUsageScope,
+    UsageReportingModel,
+)
 from baserow.core.models import Workspace
 from baserow_enterprise.assistant.exceptions import (
     AssistantConfiguredModelNotAvailableError,
@@ -229,14 +238,17 @@ class ResolvedAssistantModelProfile:
     workspace: Workspace | None
     database_model: AIProviderModel | None
 
-    def create_model(self) -> Model:
+    def create_model(self, report_usage: bool = True) -> Model:
         """Create the retrying model represented by this snapshot.
 
+        :param report_usage: Whether to report the usage of every request, see
+            `UsageReportingModel`. The readiness probe doesn't, because it isn't
+            made on behalf of a workspace and must not be refused.
         :return: A retrying Pydantic AI model using the resolved credentials.
         """
 
         if self.database_model is None:
-            return RetryingModel(self.model_string)
+            return self._report_usage(RetryingModel(self.model_string), report_usage)
 
         provider = self.database_model.provider_config
         model_type = generative_ai_model_type_registry.get(provider.provider_type)
@@ -255,7 +267,38 @@ class ResolvedAssistantModelProfile:
             workspace=self.workspace,
             settings_override=settings_override,
         )
-        return RetryingModel(resolved)
+        return self._report_usage(RetryingModel(resolved), report_usage)
+
+    def _report_usage(self, model: RetryingModel, report_usage: bool) -> Model:
+        # Wrapped from the outside, so failed attempts and the fallback request of
+        # a failed stream aren't reported as separate requests.
+        return UsageReportingModel(model, self.usage_scope) if report_usage else model
+
+    @property
+    def usage_scope(self) -> AIUsageScope:
+        """Describes whose credentials the assistant uses, to report its usage."""
+
+        provider_type, _, model = self.model_string.partition(":")
+        if self.database_model is not None:
+            key_scope = (
+                AI_USAGE_KEY_SCOPE_INSTANCE
+                if self.database_model.provider_config.workspace_id is None
+                else AI_USAGE_KEY_SCOPE_WORKSPACE
+            )
+            provider_type = self.database_model.provider_config.provider_type
+            model = self.database_model.model_identifier
+        elif self.source == "legacy":
+            # Configured with environment variables.
+            key_scope = AI_USAGE_KEY_SCOPE_ENVIRONMENT
+        else:
+            key_scope = AI_USAGE_KEY_SCOPE_EXPLICIT
+        return AIUsageScope(
+            provider_type=provider_type,
+            model=model or self.model_string,
+            key_scope=key_scope,
+            feature=AI_USAGE_FEATURE_ASSISTANT,
+            workspace=self.workspace,
+        )
 
     def get_settings(self, role: str) -> ModelSettings:
         """Return settings for this resolved model and agent role.
@@ -394,7 +437,7 @@ def _check_process_local_model_ready(
             raise RuntimeError("The model compatibility check recently failed.")
 
         try:
-            model = model_profile.create_model()
+            model = model_profile.create_model(report_usage=False)
             test_model_text_and_tool_calling(
                 model, max_tokens=AI_PROVIDER_TEST_MAX_TOKENS
             )
@@ -459,7 +502,7 @@ def check_lm_ready_or_raise(
                 """
 
                 try:
-                    model = model_profile.create_model()
+                    model = model_profile.create_model(report_usage=False)
                     test_model_text_and_tool_calling(
                         model, max_tokens=AI_PROVIDER_TEST_MAX_TOKENS
                     )

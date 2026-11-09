@@ -300,6 +300,23 @@ class Plugin(APIUrlsInstanceMixin, Instance):
 
         return {}
 
+    def get_ai_usage_plugin_data(
+        self, reference_type: str, reference_ids: list[str]
+    ) -> dict[str, Any]:
+        """
+        Provides plugin-specific data about the AI usage reported with the
+        reference type and ids, like what an agent reply, an AI assistant answer
+        or a job that generated AI field values cost. Called once for all the
+        objects that are serialized together.
+
+        :param reference_type: The reference type of the `AIUsageScope`, like
+            `agent_message`.
+        :param reference_ids: The reference ids of the `AIUsageScope`.
+        :return: The data, keyed by reference id. Ids without data can be left out.
+        """
+
+        return {}
+
 
 class PluginRegistry(APIUrlsRegistryMixin, Registry[Plugin]):
     """
@@ -1041,6 +1058,18 @@ class PermissionManagerType(abc.ABC, Instance):
                 )
 
         return decisions or None
+
+    def prefetch_for_workspaces(self, actor: Actor, workspaces: List["Workspace"]):
+        """
+        Optionally loads, in a number of queries independent of the number of
+        workspaces, the data this manager needs to check the permissions of the actor
+        in each of the given workspaces, and caches it for the rest of the request.
+        This lets a caller that checks permissions in a loop over many workspaces
+        avoid queries per workspace.
+
+        :param actor: The actor whose permissions will be checked.
+        :param workspaces: The workspaces the permissions will be checked in.
+        """
 
     def get_workspace_user_role_uid(
         self, workspace_user: "WorkspaceUser"

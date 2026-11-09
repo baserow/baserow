@@ -167,6 +167,7 @@ class AssistantChatRunType(ChatRunType):
                 restored.human_message.content,
                 restored.ui_context,
                 run.context["generate_title"],
+                restored.human_message.id,
             )
 
     def _restore(self, run: ChatRun) -> RestoredRun:

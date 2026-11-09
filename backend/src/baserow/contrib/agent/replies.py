@@ -63,12 +63,20 @@ from baserow.core.generative_ai.constants import WEB_SEARCH_MAX_PER_REPLY
 from baserow.core.generative_ai.model_profiles import AGENT
 from baserow.core.generative_ai.output_validation import ModelOutputValidator
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+from baserow.core.generative_ai.usage import (
+    AI_USAGE_FEATURE_AGENT,
+    AIUsageLimitExceeded,
+    AIUsageScope,
+    UsageReportingModel,
+)
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import ToolErrorCode
 from baserow.core.utils import remove_null_characters
 
 from .action_tools.tools import BoundActionTool
 from .constants import (
+    AGENT_MESSAGE_USAGE_REFERENCE,
+    AGENT_USAGE_LIMIT_EXCEEDED,
     ASK_FIRST_INSTRUCTIONS,
     INTERRUPTED_CHANGES_NOTE,
     INTERRUPTED_REPLY_NOTE,
@@ -146,15 +154,16 @@ def create_reply_model(request: AgentReplyRequest) -> tuple[Model, dict]:
     Build the configured model and its request settings, outside the event loop.
 
     :param request: What the run answers.
-    :return: The model, whose client opens when it is entered, and its settings.
+    :return: The model, whose client opens when it is entered and which reports
+        the usage of every request, and its settings.
     """
 
     model_type = generative_ai_model_type_registry.get(request.provider_type)
-    settings_override = model_type.get_model_settings_override(
+    resolved = model_type.resolve_model_settings(
         request.model_identifier, request.workspace
     )
     model = model_type.get_ai_model(
-        request.model_identifier, request.workspace, settings_override
+        request.model_identifier, request.workspace, resolved.settings
     )
     model_settings = model_type.get_model_settings(request.model_identifier, AGENT)
     model_settings.update(
@@ -171,7 +180,16 @@ def create_reply_model(request: AgentReplyRequest) -> tuple[Model, dict]:
     model_settings = model_type.sanitize_model_settings(
         request.model_identifier, model_settings
     )
-    return model, model_settings
+    usage_scope = AIUsageScope(
+        provider_type=model_type.type,
+        model=request.model_identifier,
+        key_scope=resolved.key_scope,
+        feature=AI_USAGE_FEATURE_AGENT,
+        workspace=request.workspace,
+        reference_type=AGENT_MESSAGE_USAGE_REFERENCE,
+        reference_id=str(request.reply_id),
+    )
+    return UsageReportingModel(model, usage_scope), model_settings
 
 
 def _describe_failure(error: BaseException) -> str:
@@ -698,6 +716,10 @@ class AgentResponder:
         if self._journal.stop_reason == ChatRunStopReason.TIMEOUT:
             return ChatRunOutcome(
                 ChatRunStatus.FAILED, ChatRunErrorCode.TIMEOUT, result
+            )
+        if not work.cancelled() and isinstance(work.exception(), AIUsageLimitExceeded):
+            return ChatRunOutcome(
+                ChatRunStatus.FAILED, AGENT_USAGE_LIMIT_EXCEEDED, result
             )
         if not work.cancelled() and work.exception() is not None:
             logger.error(

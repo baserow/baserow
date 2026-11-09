@@ -613,7 +613,8 @@
     "runErrorFailed": "Something went wrong while Kuma was working. Some changes may already have been made.",
     "runErrorPersistFailed": "Kuma finished, but its answer couldn't be saved. The changes it made are kept.",
     "runErrorModelUnavailable": "Kuma's AI model isn't available right now, so nothing was changed.",
-    "runErrorAccessLost": "You lost access to Kuma before it started on this message, so nothing was changed."
+    "runErrorAccessLost": "You lost access to Kuma before it started on this message, so nothing was changed.",
+    "runErrorUsageLimitExceeded": "This workspace has reached its AI usage limit, so Kuma stopped. Some changes may already have been made."
   },
   "assistantChatHistoryContext": {
     "empty": "No chat history available",
