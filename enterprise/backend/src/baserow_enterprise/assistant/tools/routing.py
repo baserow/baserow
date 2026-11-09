@@ -18,7 +18,7 @@ from typing_extensions import Self
 
 from baserow.core.exceptions import PermissionException, UserNotInWorkspace
 from baserow.core.tools.errors import ToolInputError as SharedToolInputError
-from baserow.core.tools.errors import tool_error_message
+from baserow.core.tools.errors import classify_tool_error
 from baserow_enterprise.assistant.deps import AgentMode
 
 from .shared.errors import (
@@ -344,10 +344,12 @@ class ModeAwareToolset(AbstractToolset[AgentDepsT]):
         except (SharedToolInputError, DjangoValidationError, APIException) as exc:
             # What the shared tools raise for the model to act on, like a feature
             # that needs a licence. A server error has no message and is raised.
-            message = tool_error_message(exc)
-            if message is None:
+            error = classify_tool_error(exc)
+            if error.message is None:
                 raise
-            return {"error": message}
+            if error.hint:
+                return {"error": error.message, "next_steps": error.hint}
+            return {"error": error.message}
         except Exception as exc:
             if not type(exc).__name__.endswith("DoesNotExist"):
                 raise

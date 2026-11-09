@@ -199,7 +199,7 @@ def test_chain_build_a_database_from_nothing(data_fixture):
         ],
         thought="chain",
     )
-    assert "field_errors" not in result and "formula_errors" not in result, (
+    assert "errors" not in result, (
         f"create_fields could not add fields to the table create_tables built: {result}"
     )
     cover_id = next(f for f in result["created_fields"] if f["name"] == "Cover")["id"]

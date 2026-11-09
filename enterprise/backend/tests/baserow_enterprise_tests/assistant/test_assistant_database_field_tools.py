@@ -6,6 +6,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import IntegrityError
 
 import pytest
+from loguru import logger
 from pydantic import ValidationError
 
 from baserow.contrib.database.fields.actions import (
@@ -16,8 +17,11 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field, SelectOption
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.tools import fields as shared_fields
 from baserow.core.action.handler import ActionHandler
 from baserow.core.exceptions import PermissionException
+from baserow.core.tools.errors import INTERNAL_ERROR_MESSAGE
+from baserow_enterprise.assistant.tools.database import helpers
 from baserow_enterprise.assistant.tools.database.tools import (
     create_fields,
     create_tables,
@@ -234,11 +238,14 @@ def test_update_select_options_rejects_adding_a_value_that_exists(
 
     (error,) = result["errors"]
     existing = status.open if value == "Open" else status.closed
+    assert (error["item"], error["code"]) == (status.field.id, "invalid_input")
+    message = error["message"]
     assert (
-        f"option {existing.id} '{existing.value}' and the new option '{value}'" in error
+        f"option {existing.id} '{existing.value}' and the new option '{value}'"
+        in message
     )
-    assert "case and surrounding spaces are ignored" in error
-    assert "Leave out options that already exist" in error
+    assert "case and surrounding spaces are ignored" in message
+    assert "Leave out options that already exist" in message
     assert _options(status) == [
         (status.open.id, "Open", "light-red"),
         (status.closed.id, "Closed", "blue"),
@@ -279,7 +286,8 @@ def test_update_select_options_rejects_values_that_would_repeat(data_fixture, ca
     )
 
     (error,) = result["errors"]
-    assert message in error
+    assert (error["item"], error["code"]) == (status.field.id, "invalid_input")
+    assert message in error["message"]
     assert _options(status) == [
         (status.open.id, "Open", "light-red"),
         (status.closed.id, "Closed", "blue"),
@@ -474,7 +482,8 @@ def test_update_select_options_rejects_invalid_ids(
     result = update_fields(status.ctx, fields=[update], thought="invalid ids")
 
     (error,) = result["errors"]
-    assert message in error
+    assert (error["item"], error["code"]) == (status.field.id, "invalid_input")
+    assert message in error["message"]
     assert _options(status) == [
         (status.open.id, "Open", "light-red"),
         (status.closed.id, "Closed", "blue"),
@@ -611,8 +620,63 @@ def test_create_fields_repairs_a_formula_description(data_fixture, monkeypatch):
 
     assert calls == [(table.id, "Loud", "$formula: the name")]
     assert [field["name"] for field in result["created_fields"]] == ["Loud"]
-    assert "formula_errors" not in result
+    assert result["changed"] is True
+    assert "error" not in result and "errors" not in result
     assert table.field_set.get(name="Loud").specific.formula == "upper(field('Name'))"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("action", ["create", "update"])
+def test_formula_repair_reports_an_unexpected_failure_as_failed(
+    data_fixture, monkeypatch, action
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    field = data_fixture.create_formula_field(table=table, name="F", formula="'x'")
+    _fake_fixer(monkeypatch, "'fixed'")
+    messages = []
+    sink_id = logger.add(
+        lambda message: messages.append(message.record["message"]), level="ERROR"
+    )
+    real_update_field = shared_fields.update_field
+
+    def update_field(tool_context, update):
+        if update.formula == "'fixed'":
+            raise RuntimeError("model down")
+        return real_update_field(tool_context, update)
+
+    create_action = MagicMock()
+    create_action.do.side_effect = RuntimeError("model down")
+    monkeypatch.setattr(helpers, "CreateFieldActionType", create_action)
+    monkeypatch.setattr(helpers.shared_fields, "update_field", update_field)
+    ctx = make_test_ctx(user, workspace)
+
+    try:
+        if action == "create":
+            result = create_fields(
+                ctx,
+                table_id=table.id,
+                fields=[FieldItemCreate(name="G", type="formula", formula="concat(")],
+                thought="add formula",
+            )
+        else:
+            result = update_fields(
+                ctx,
+                fields=[FieldItemUpdate(field_id=field.id, formula="concat(")],
+                thought="fix formula",
+            )
+    finally:
+        logger.remove(sink_id)
+
+    (error,) = result["errors"]
+    assert error["code"] == "failed"
+    assert error["message"] == INTERNAL_ERROR_MESSAGE
+    assert error["item"] == (field.id if action == "update" else "G")
+    assert error["formula"] == "concat("
+    assert "hint" not in error
+    assert any("model down" in message for message in messages)
 
 
 @pytest.mark.django_db
@@ -644,9 +708,11 @@ def test_update_fields_repairs_an_invalid_formula(
         assert result["changed"] is False
         assert result["updated_fields"] == []
         (error,) = result["errors"]
-        assert error.startswith(
-            f"Error updating field {field.id}: Invalid formula for field 'G': "
-        )
+        assert (error["item"], error["code"]) == (field.id, "invalid_formula")
+        assert (error["field_name"], error["formula"]) == ("G", "concat(")
+        assert error["message"].startswith("Invalid syntax")
+        assert "generate_formula" in error["hint"]
+        assert result["error"]["code"] == "invalid_formula"
         assert (field.name, field.formula) == ("F", "'x'")
 
 
@@ -687,8 +753,12 @@ def test_create_fields_does_not_ask_the_fixer_to_invent_a_formula(
 
     assert calls == []
     assert result["created_fields"] == []
-    (error,) = result["formula_errors"]
-    assert (error["field_name"], error["error"]) == ("F", "'F' needs a formula.")
+    (error,) = result["errors"]
+    assert (error["code"], error["field_name"], error["message"]) == (
+        "invalid_formula",
+        "F",
+        "'F' needs a formula.",
+    )
     assert not table.field_set.filter(name="F").exists()
 
 
@@ -710,9 +780,12 @@ def test_update_fields_does_not_ask_the_fixer_to_invent_a_formula(
     )
 
     assert calls == []
-    assert result["errors"] == [
-        f"Error updating field {field.id}: 'F' needs a formula."
-    ]
+    (error,) = result["errors"]
+    assert (error["item"], error["code"], error["message"]) == (
+        field.id,
+        "invalid_formula",
+        "'F' needs a formula.",
+    )
     field.refresh_from_db()
     assert field.formula == "'x'"
 

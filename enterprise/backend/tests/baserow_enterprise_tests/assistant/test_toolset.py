@@ -263,6 +263,30 @@ async def test_complete_deferred_tool_preserves_domain_errors(error, expected):
 
 
 @pytest.mark.asyncio
+async def test_a_shared_input_error_keeps_its_hint_for_the_model():
+    deps = SimpleNamespace(mode=AgentMode.AUTOMATION)
+
+    def create_workflows(name: str):
+        raise SharedToolInputError("Invalid workflow.", hint="Use list_workflows.")
+
+    model = TestModel()
+    toolset = ModeAwareToolset(
+        InlineRefsToolset(
+            FunctionToolset([create_workflows]), model=model, model_profile=MagicMock()
+        ),
+        deps,
+    )
+    ctx = RunContext(deps=deps, model=model, usage=RunUsage(), prompt="Create")
+    tools = await toolset.get_tools(ctx)
+
+    result = await toolset.call_tool(
+        "create_workflows", {"name": "Orders"}, ctx, tools["create_workflows"]
+    )
+
+    assert result == {"error": "Invalid workflow.", "next_steps": "Use list_workflows."}
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "mode", [AgentMode.DATABASE, AgentMode.APPLICATION, AgentMode.AUTOMATION]
 )
