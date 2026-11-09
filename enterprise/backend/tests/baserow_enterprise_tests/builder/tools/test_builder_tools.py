@@ -1,6 +1,7 @@
 """The shared tools that create and update application builders (B18)."""
 
 import pytest
+from pydantic import ValidationError
 
 from baserow.contrib.builder.models import Builder
 from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
@@ -68,6 +69,30 @@ def test_update_builder_with_nothing_to_change_reports_no_change(builder_ctx):
     )
 
     assert result["changed"] is False
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("name", ["   ", "a" * 161])
+def test_update_builder_validates_the_name_like_the_other_applications(
+    builder_ctx, name
+):
+    builder = builder_ctx["builder"]
+    original = builder.name
+
+    with pytest.raises(ValidationError):
+        applications.update_builder(builder_ctx["ctx"], builder.id, name=name)
+
+    builder.refresh_from_db()
+    assert builder.name == original
+
+
+@pytest.mark.django_db
+def test_update_builder_strips_the_name(builder_ctx):
+    result = applications.update_builder(
+        builder_ctx["ctx"], builder_ctx["builder"].id, name="  Shop  "
+    )
+
+    assert result["updated_builder"]["name"] == "Shop"
 
 
 @pytest.mark.django_db
