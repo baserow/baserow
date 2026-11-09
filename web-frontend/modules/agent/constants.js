@@ -20,6 +20,9 @@ export const CONFIGURATION_FIELD = Object.freeze({
   RUN_AS: 'run_as',
   ALLOWED_TOOLS: 'allowed_tools',
   AVAILABLE_TOOLS: 'available_tools',
+  WEB_SEARCH_ENABLED: 'web_search_enabled',
+  WEB_SEARCH_AVAILABLE: 'web_search_available',
+  WEB_SEARCH_BLOCKED_BY_TOOLS: 'web_search_blocked_by_tools',
 })
 
 // Null keeps the model's default reasoning.
@@ -47,6 +50,7 @@ export const API_ERROR_CODE = Object.freeze({
   CHAT_RUN_IN_PROGRESS: 'ERROR_CHAT_RUN_IN_PROGRESS',
   AGENT_BUSY: 'ERROR_AGENT_BUSY',
   AGENT_MESSAGE_CONFLICT: 'ERROR_AGENT_MESSAGE_CONFLICT',
+  AGENT_CONVERSATION_DOES_NOT_EXIST: 'ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST',
   AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST:
     'ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST',
 })

@@ -91,10 +91,13 @@ def test_duplicate_copies_conversations_with_new_identifiers(
             ],
         )
 
+    data_fixture.create_agent_conversation(user=owner, agent=agent, trashed=True)
+
     copied = CoreHandler().duplicate_application(copier, agent).specific
 
     assert conversation_values(copied) == conversation_values(agent)
     assert uuids(copied).isdisjoint(uuids(agent))
+    assert AgentConversation.objects_and_trash.filter(agent=copied).count() == 1
 
 
 @pytest.mark.django_db

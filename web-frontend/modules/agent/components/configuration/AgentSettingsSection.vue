@@ -101,12 +101,19 @@
       />
     </Dropdown>
   </FormGroup>
+  <AgentWebSearchSetting
+    class="margin-top-3"
+    :configuration="configuration"
+    :editable="editable"
+    @change="changeWebSearch"
+  />
 </template>
 
 <script setup>
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { REASONING_EFFORTS } from '@baserow/modules/agent/constants'
+import AgentWebSearchSetting from '@baserow/modules/agent/components/configuration/AgentWebSearchSetting'
 
 const props = defineProps({
   name: { type: String, required: true },
@@ -195,6 +202,11 @@ function changeModel(model) {
 function changeReasoningEffort(effort) {
   if (effort === props.configuration.reasoning_effort) return
   emit('change', { reasoning_effort: effort })
+  emit('flush')
+}
+
+function changeWebSearch(enabled) {
+  emit('change', { web_search_enabled: enabled })
   emit('flush')
 }
 

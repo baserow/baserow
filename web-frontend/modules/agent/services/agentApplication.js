@@ -30,14 +30,23 @@ export default (client) => ({
     }
     return client.patch(`/agent/${agentId}/configuration/`, values)
   },
-  getConversations(agentId, page = 1, realtimeRecovery = false) {
+  getConversations(agentId, cursor = null, realtimeRecovery = false) {
     return client.get(`/agent/${agentId}/conversations/`, {
-      params: { page, size: CONVERSATION_PAGE_SIZE },
+      params: { cursor, limit: CONVERSATION_PAGE_SIZE },
       ...(realtimeRecovery ? getRealtimeRecoveryRequestConfig() : {}),
     })
   },
   createConversation(agentId, values) {
     return client.post(`/agent/${agentId}/conversations/`, values)
+  },
+  updateConversation(agentId, conversationUuid, values) {
+    return client.patch(
+      `/agent/${agentId}/conversations/${conversationUuid}/`,
+      values
+    )
+  },
+  deleteConversation(agentId, conversationUuid) {
+    return client.delete(`/agent/${agentId}/conversations/${conversationUuid}/`)
   },
   getMessages(agentId, conversationUuid, page = 1, realtimeRecovery = false) {
     return client.get(

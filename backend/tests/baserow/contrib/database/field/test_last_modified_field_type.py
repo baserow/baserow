@@ -234,11 +234,14 @@ def test_import_export_last_modified_field(data_fixture):
 
 
 @pytest.mark.django_db
-def test_last_modified_field_adjacent_row(data_fixture):
+@pytest.mark.parametrize("include_time", [False, True])
+def test_last_modified_field_adjacent_row(data_fixture, include_time):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(name="Car", user=user)
     grid_view = data_fixture.create_grid_view(user=user, table=table, name="Test")
-    last_modified_field = data_fixture.create_last_modified_field(table=table)
+    last_modified_field = data_fixture.create_last_modified_field(
+        table=table, date_include_time=include_time
+    )
 
     data_fixture.create_view_sort(
         view=grid_view, field=last_modified_field, order="DESC"
@@ -257,13 +260,22 @@ def test_last_modified_field_adjacent_row(data_fixture):
         model=table_model,
     ).created_rows
 
+    for second, row in enumerate([row_a, row_b, row_c], start=1):
+        table_model.objects.filter(id=row.id).update(
+            **{
+                last_modified_field.db_column: datetime(
+                    2024, 1, 8, 9, 0, second, tzinfo=timezone.utc
+                )
+            }
+        )
+
     previous_row = handler.get_adjacent_row(
         table_model, row_b.id, previous=True, view=grid_view
     )
     next_row = handler.get_adjacent_row(table_model, row_b.id, view=grid_view)
 
-    assert previous_row.id == row_c.id
-    assert next_row.id == row_a.id
+    assert previous_row.id == (row_c.id if include_time else row_a.id)
+    assert next_row.id == (row_a.id if include_time else row_c.id)
 
 
 @pytest.mark.django_db

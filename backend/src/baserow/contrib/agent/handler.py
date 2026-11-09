@@ -7,6 +7,7 @@ from django.db.models import Prefetch, QuerySet
 from django.utils.dateparse import parse_datetime
 
 from loguru import logger
+from pydantic_ai import WebSearchTool
 
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
 from baserow.core.ai_provider.resolution import ScopedAIProviderState
@@ -14,10 +15,13 @@ from baserow.core.chat_runs.constants import ChatRunErrorCode
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ACTIVE_CHAT_RUN_STATUSES, ChatRunStatus
 from baserow.core.exceptions import SubjectTypeNotExist
+from baserow.core.generative_ai.exceptions import GenerativeAITypeDoesNotExist
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
+from baserow.core.pagination import KeysetCursor
 from baserow.core.registries import subject_type_registry
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import Subject
 from baserow.core.utils import extract_allowed, remove_null_characters
 
@@ -39,6 +43,7 @@ from .registries import agent_tool_type_registry
 from .types import (
     AgentConfiguration,
     AgentConfigurationUpdated,
+    AgentConversationUpdated,
     AgentMessageCreated,
     AgentReplyRequest,
     AgentReplyResult,
@@ -46,10 +51,18 @@ from .types import (
 )
 
 
+def normalize_title(text: str) -> str:
+    """Collapse whitespace so a title fits on one line, cut to the stored length."""
+
+    max_length = AgentConversation._meta.get_field("title").max_length
+    return " ".join(text.split())[:max_length]
+
+
 class AgentHandler:
     configuration_fields = ["instructions", "provider_type", "model_identifier"]
-    optional_configuration_fields = ["reasoning_effort"]
+    conversation_fields = ["title"]
     run_as_fields = ["run_as_subject_type", "run_as_subject_id"]
+    option_fields = ["web_search_enabled", "reasoning_effort"]
 
     def get_agent(self, agent_id: int, for_update: bool = False) -> AgentApplication:
         """
@@ -90,6 +103,12 @@ class AgentHandler:
         """
 
         readiness, errors = self.get_configuration_readiness(agent, provider_state)
+        run_as = self.resolve_run_as_subject(
+            agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
+        )
+        allowed_tools = self.get_allowed_tool_names(agent)
+        with_tools = run_as.status == AgentRunAsState.ACTIVE and bool(allowed_tools)
+        web_search_tool = self._get_web_search_tool(agent, with_tools)
         return AgentConfiguration(
             readiness=readiness,
             instructions=agent.instructions,
@@ -99,10 +118,13 @@ class AgentHandler:
             applied_reasoning_effort=(
                 None if errors else self.get_applied_reasoning_effort(agent)
             ),
-            run_as=self.resolve_run_as_subject(
-                agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
-            ),
-            allowed_tools=self.get_allowed_tool_names(agent),
+            run_as=run_as,
+            allowed_tools=allowed_tools,
+            web_search_enabled=agent.web_search_enabled,
+            web_search_available=web_search_tool is not None,
+            web_search_blocked_by_tools=web_search_tool is None
+            and with_tools
+            and self._get_web_search_tool(agent, False) is not None,
             errors=errors,
         )
 
@@ -134,6 +156,27 @@ class AgentHandler:
             return None
         return model_type.get_reasoning_effort(
             agent.model_identifier, model, agent.reasoning_effort
+        )
+
+    def _get_web_search_tool(
+        self, agent: AgentApplication, with_function_tools: bool
+    ) -> WebSearchTool | None:
+        """
+        Find the web search of the Agent's model, whether or not it's turned on.
+
+        :param agent: The Agent.
+        :param with_function_tools: Whether the reply also offers workspace tools.
+        :return: The tool, or None when the model can't search the web.
+        """
+
+        if not agent.provider_type or not agent.model_identifier:
+            return None
+        try:
+            model_type = generative_ai_model_type_registry.get(agent.provider_type)
+        except GenerativeAITypeDoesNotExist:
+            return None
+        return model_type.get_web_search_tool(
+            agent.model_identifier, with_function_tools
         )
 
     def get_configuration_readiness(
@@ -312,8 +355,8 @@ class AgentHandler:
         had_run_as = bool(agent.run_as_subject_type and agent.run_as_subject_id)
         allowed_fields = [
             *self.configuration_fields,
-            *self.optional_configuration_fields,
             *self.run_as_fields,
+            *self.option_fields,
         ]
         values = extract_allowed(values, allowed_fields)
         run_as = [values.get(field) for field in self.run_as_fields]
@@ -354,17 +397,24 @@ class AgentHandler:
         )
 
     def list_conversations(
-        self, agent: AgentApplication, owner: AbstractUser
+        self,
+        agent: AgentApplication,
+        owner: AbstractUser,
+        cursor: KeysetCursor | None = None,
     ) -> QuerySet[AgentConversation]:
         """
         Return the owner's conversations with the agent.
 
         :param agent: The agent the conversations belong to.
         :param owner: The user whose conversations are returned.
+        :param cursor: The last conversation of the previous page, to continue after.
         :return: The owner's conversations, most recently updated first.
         """
 
-        return AgentConversation.objects.filter(agent=agent, owner_user=owner)
+        conversations = AgentConversation.objects.filter(agent=agent, owner_user=owner)
+        if cursor is not None:
+            conversations = conversations.filter(cursor.get_filter("updated_on"))
+        return conversations
 
     def get_conversation(
         self,
@@ -395,6 +445,54 @@ class AgentHandler:
         conversation.agent, conversation.owner_user = agent, owner
         return conversation
 
+    def update_conversation(
+        self, conversation: AgentConversation, **values: str
+    ) -> AgentConversationUpdated:
+        """
+        Update a conversation's own values without moving it in the list, which is
+        ordered by activity.
+
+        :param conversation: The conversation to update.
+        :param values: The values to set, by field name. A title is normalized like
+            a first message's. Unknown field names are ignored.
+        :return: The conversation with the original and new values of the fields
+            that changed.
+        """
+
+        values = extract_allowed(values, self.conversation_fields)
+        if "title" in values:
+            values["title"] = normalize_title(values["title"])
+        new_values = {
+            field: value
+            for field, value in values.items()
+            if value != getattr(conversation, field)
+        }
+        original_values = {field: getattr(conversation, field) for field in new_values}
+        for field, value in new_values.items():
+            setattr(conversation, field, value)
+        if new_values:
+            conversation.save(update_fields=list(new_values))
+        return AgentConversationUpdated(conversation, original_values, new_values)
+
+    def delete_conversation(
+        self, user: AbstractUser, conversation: AgentConversation
+    ) -> None:
+        """
+        Trash a conversation and stop the reply still being written in it.
+
+        :param user: The user deleting the conversation.
+        :param conversation: The conversation, locked so no new reply can start.
+        """
+
+        agent = conversation.agent
+        TrashHandler.trash(user, agent.workspace, agent, conversation)
+        run = ChatRunHandler().get_active_run(AGENT_RUN_TYPE, conversation.id)
+        if run is not None:
+            # Runs are locked before their conversation, so stop it after commit.
+            transaction.on_commit(
+                lambda: ChatRunHandler().request_cancel(run.id), robust=True
+            )
+
     def get_creation_retry(
         self,
         agent: AgentApplication,
@@ -412,14 +510,14 @@ class AgentHandler:
         :param message_uuid: The uuid of the first message.
         :param content: The content of the first message.
         :raises AgentConversationDoesNotExist: When the uuid belongs to another
-            owner's or agent's conversation.
+            owner's or agent's conversation, or to a deleted one.
         :raises AgentMessageConflict: When the conversation was created with another
             first message.
         :return: The conversation, its first message, its reply and the run writing
             it, or None when nothing was accepted with this uuid before.
         """
 
-        conversation = AgentConversation.objects.filter(uuid=uuid).first()
+        conversation = AgentConversation.objects_and_trash.filter(uuid=uuid).first()
         if conversation is None:
             return None
         return self._get_first_message_retry(
@@ -436,7 +534,11 @@ class AgentHandler:
     ) -> AgentMessageCreated:
         """Validate an existing identifier, also one a racing request just created."""
 
-        if conversation.agent_id != agent.id or conversation.owner_user_id != owner.id:
+        if (
+            conversation.trashed
+            or conversation.agent_id != agent.id
+            or conversation.owner_user_id != owner.id
+        ):
             raise AgentConversationDoesNotExist
         message = conversation.messages.order_by("id").first()
         if (
@@ -506,12 +608,12 @@ class AgentHandler:
                     uuid=uuid,
                     agent=agent,
                     owner_user=user,
-                    title=" ".join(content.split())[:250],
+                    title=normalize_title(content),
                 )
         except IntegrityError:
             # A concurrent request created this uuid after the retry check.
             return self._get_first_message_retry(
-                AgentConversation.objects.get(uuid=uuid),
+                AgentConversation.objects_and_trash.get(uuid=uuid),
                 agent,
                 user,
                 message_uuid,
@@ -645,7 +747,8 @@ class AgentHandler:
         Fetch a reply with its conversation, the conversation's owner and its agent.
 
         :param reply_id: The id of the reply.
-        :raises AgentConversationDoesNotExist: When the reply no longer exists.
+        :raises AgentConversationDoesNotExist: When the reply no longer exists or its
+            conversation is in the trash.
         :return: The reply.
         """
 
@@ -653,7 +756,7 @@ class AgentHandler:
             AgentMessage.objects.select_related(
                 "conversation__agent__workspace", "conversation__owner_user"
             )
-            .filter(id=reply_id)
+            .filter(id=reply_id, conversation__trashed=False)
             .first()
         )
         if reply is None:
@@ -682,6 +785,14 @@ class AgentHandler:
         )
         # A generation keeps its selected identity and tools until it ends or is
         # stopped. Configuration edits apply when the next generation is prepared.
+        allowed_tool_names = (
+            self.get_allowed_tool_names(agent) if acting_subject else []
+        )
+        web_search_tool = (
+            self._get_web_search_tool(agent, bool(allowed_tool_names))
+            if agent.web_search_enabled
+            else None
+        )
         return AgentReplyRequest(
             reply_id=reply.id,
             workspace=agent.workspace,
@@ -693,11 +804,11 @@ class AgentHandler:
             run_as_unavailable=run_as.status
             in {AgentRunAsState.TRASHED, AgentRunAsState.MISSING},
             acting_subject=acting_subject,
-            allowed_tool_names=self.get_allowed_tool_names(agent)
-            if acting_subject
-            else [],
+            allowed_tool_names=allowed_tool_names,
             timezone=conversation.owner_user.profile.timezone,
             reasoning_effort=agent.reasoning_effort,
+            web_search_tool=web_search_tool,
+            web_search_enabled=agent.web_search_enabled,
         )
 
     def finish_reply(

@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, patch
 
 from django.core.exceptions import ValidationError
@@ -1130,6 +1131,63 @@ def test_field_types_with_get_value_for_filter_have_get_order():
                 field_type.__class__.get_order.__code__
                 is not FieldType.get_order.__code__
             )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("kind", ["created_on", "last_modified"])
+@pytest.mark.parametrize("include_time", [False, True])
+def test_audit_date_filter_value_matches_ordering_expression(
+    data_fixture, kind, include_time
+):
+    table = data_fixture.create_database_table()
+    field = getattr(data_fixture, f"create_{kind}_field")(
+        table=table, date_include_time=include_time
+    )
+    field_type = field_type_registry.get_by_model(field)
+    model = table.get_model()
+    values = [
+        datetime(2024, 1, 8, 9, 0, 1, 123456, tzinfo=timezone.utc),
+        datetime(2024, 1, 7, 23, 30, 2, 987654, tzinfo=timezone(-timedelta(hours=1))),
+        datetime(2024, 1, 8, 23, 30, 3, 222333, tzinfo=timezone(-timedelta(hours=1))),
+        None,
+    ]
+    rows = []
+    for value in values:
+        row = model.objects.create()
+        model.objects.filter(pk=row.pk).update(**{field.db_column: value})
+        # Keep the original offset on the Python value; PostgreSQL reads in UTC.
+        setattr(row, field.db_column, value)
+        rows.append(row)
+
+    order = field_type.get_order(field, field.db_column, "ASC", "default", model)
+    queryset = model.objects.all()
+    if order.annotation:
+        queryset = queryset.annotate(**order.annotation)
+    queryset = queryset.annotate(ordering_value=order.order_bys[0].expression)
+    days = [
+        datetime(2024, 1, 8, tzinfo=timezone.utc),
+        datetime(2024, 1, 8, tzinfo=timezone.utc),
+        datetime(2024, 1, 9, tzinfo=timezone.utc),
+        None,
+    ]
+    expected_values = values if include_time else days
+    for row, expected_value in zip(rows, expected_values):
+        filter_value = field_type.get_value_for_filter(row, field)
+        assert filter_value == expected_value
+        assert queryset.values_list("ordering_value", flat=True).get(pk=row.pk) == (
+            expected_value
+        )
+        expected_ids = [
+            candidate.pk
+            for candidate, candidate_value in zip(rows, expected_values)
+            if candidate_value == expected_value
+        ]
+        matching_ids = list(
+            queryset.filter(ordering_value=filter_value)
+            .order_by("id")
+            .values_list("id", flat=True)
+        )
+        assert matching_ids == expected_ids
 
 
 @pytest.mark.django_db

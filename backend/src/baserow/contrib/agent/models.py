@@ -2,7 +2,11 @@ from django.conf import settings
 from django.db import models
 
 from baserow.core.chat_runs.models import ChatRunStatus
-from baserow.core.mixins import BigAutoFieldMixin, CreatedAndUpdatedOnMixin
+from baserow.core.mixins import (
+    BigAutoFieldMixin,
+    CreatedAndUpdatedOnMixin,
+    TrashableModelMixin,
+)
 from baserow.core.models import Application
 
 
@@ -25,6 +29,8 @@ class AgentApplication(Application):
         max_length=255, null=True, blank=True, db_default=None
     )
     run_as_subject_id = models.BigIntegerField(null=True, blank=True, db_default=None)
+    # Searches run at the AI provider, which charges for them.
+    web_search_enabled = models.BooleanField(default=False, db_default=False)
 
 
 class AgentAllowedTool(models.Model):
@@ -43,7 +49,9 @@ class AgentAllowedTool(models.Model):
         ]
 
 
-class AgentConversation(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
+class AgentConversation(
+    TrashableModelMixin, BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model
+):
     """A conversation with an agent, private to the user who started it."""
 
     agent = models.ForeignKey(
@@ -56,12 +64,14 @@ class AgentConversation(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Mode
         on_delete=models.CASCADE,
         related_name="agent_conversations",
     )
+    # Reads are already narrowed to one owner's conversations by the index below.
+    trashed = models.BooleanField(default=False, db_default=False)
 
     class Meta:
-        ordering = ("-updated_on", "id")
+        ordering = ("-updated_on", "-id")
         indexes = [
             models.Index(
-                fields=["agent", "owner_user", "-updated_on", "id"],
+                fields=["agent", "owner_user", "-updated_on", "-id"],
                 name="agent_conversation_owner_idx",
             ),
         ]

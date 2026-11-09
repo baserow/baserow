@@ -35,6 +35,9 @@ const CONFIGURATION_FIELDS = [
   CONFIGURATION_FIELD.RUN_AS,
   CONFIGURATION_FIELD.ALLOWED_TOOLS,
   CONFIGURATION_FIELD.AVAILABLE_TOOLS,
+  CONFIGURATION_FIELD.WEB_SEARCH_ENABLED,
+  CONFIGURATION_FIELD.WEB_SEARCH_AVAILABLE,
+  CONFIGURATION_FIELD.WEB_SEARCH_BLOCKED_BY_TOOLS,
 ]
 
 const emptyConfiguration = () => ({
@@ -46,6 +49,9 @@ const emptyConfiguration = () => ({
   run_as: null,
   allowed_tools: [],
   available_tools: [],
+  web_search_enabled: false,
+  web_search_available: false,
+  web_search_blocked_by_tools: false,
 })
 
 /** Identities match by type and id, and tool lists by their names. */

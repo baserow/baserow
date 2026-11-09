@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agent', '0007_agent_message_steps'),
+        ('agent', '0009_agent_web_search'),
     ]
 
     operations = [

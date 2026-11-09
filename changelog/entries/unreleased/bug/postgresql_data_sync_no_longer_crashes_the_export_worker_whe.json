@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "PostgreSQL data sync no longer crashes the export worker when the remote server returns a malformed array value",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-11-09"
+}

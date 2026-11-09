@@ -4,7 +4,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from baserow.api.mixins import UnknownFieldRaisesExceptionSerializerMixin
-from baserow.api.pagination import PageNumberPagination
+from baserow.api.pagination import KeysetCursorField, PageNumberPagination
 from baserow.contrib.agent.constants import (
     RUN_AS_SUBJECT_TYPES,
     AgentConfigurationErrorCode,
@@ -114,6 +114,17 @@ class AgentConfigurationSerializer(serializers.Serializer):
         help_text="Every tool an agent can be allowed to call, with its group and "
         "whether it changes data."
     )
+    web_search_enabled = serializers.BooleanField(
+        help_text="Whether the agent may search the web through its AI provider."
+    )
+    web_search_available = serializers.BooleanField(
+        help_text="Whether the agent's model may try to search the web. Its provider "
+        "can still refuse a search, which the reply then shows."
+    )
+    web_search_blocked_by_tools = serializers.BooleanField(
+        help_text="Whether the agent's model can search the web, but not while the "
+        "agent uses workspace tools."
+    )
     errors = serializers.DictField(
         child=serializers.ChoiceField(
             choices=[error.value for error in AgentConfigurationErrorCode]
@@ -200,6 +211,7 @@ class AgentConfigurationUpdateSerializer(
             "run_as_subject_type",
             "run_as_subject_id",
             "allowed_tools",
+            "web_search_enabled",
         )
         extra_kwargs = {
             "instructions": {
@@ -258,6 +270,15 @@ class AgentConversationSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.UUIDField(allow_null=True))
     def get_run_id(self, conversation: AgentConversation) -> UUID | None:
         return self.context.get("conversation_runs", {}).get(conversation.id)
+
+
+class AgentConversationUpdateSerializer(
+    UnknownFieldRaisesExceptionSerializerMixin, serializers.Serializer
+):
+    title = serializers.CharField(
+        required=False,
+        max_length=AgentConversation._meta.get_field("title").max_length,
+    )
 
 
 class AgentMessageStepSerializer(serializers.Serializer):
@@ -329,8 +350,26 @@ class AgentMessageCreatedSerializer(serializers.Serializer):
     reply = AgentMessageSerializer(allow_null=True)
 
 
-class AgentConversationPagination(PageNumberPagination):
-    page_size = 20
+class AgentConversationsQuerySerializer(serializers.Serializer):
+    limit = serializers.IntegerField(
+        default=20,
+        min_value=1,
+        max_value=100,
+        help_text="Maximum number of conversations to return.",
+    )
+    cursor = KeysetCursorField(
+        required=False,
+        help_text="The `next_cursor` of the previous page, omitted for the first page.",
+    )
+
+
+class AgentConversationsResponseSerializer(serializers.Serializer):
+    results = AgentConversationSerializer(many=True)
+    next_cursor = serializers.CharField(
+        allow_null=True,
+        help_text="Pass as `cursor` to get the next page, `null` when no more "
+        "conversations follow.",
+    )
 
 
 class AgentMessagePagination(PageNumberPagination):

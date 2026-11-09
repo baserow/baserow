@@ -9,7 +9,7 @@ from django.conf import settings
 from baserow.core.ai_provider.resolution import ScopedAIProviderState
 from baserow.core.models import Workspace
 
-from .constants import ReasoningEffort
+from .constants import WEB_SEARCH_MAX_PER_REPLY, ReasoningEffort
 from .registries import (
     EmbedKindLimit,
     FileHandler,
@@ -18,6 +18,7 @@ from .registries import (
 )
 
 if TYPE_CHECKING:
+    from pydantic_ai import WebSearchTool
     from pydantic_ai.models import Model
 
     from baserow_premium.fields.ai_file import AIFile
@@ -417,6 +418,13 @@ class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
 class OpenAIGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
     type = "openai"
 
+    def get_web_search_tool(
+        self, model_name: str, with_function_tools: bool
+    ) -> WebSearchTool | None:
+        from pydantic_ai import WebSearchTool
+
+        return WebSearchTool()
+
     def get_known_models(self) -> list[str]:
         from pydantic_ai.models.openai import OpenAIModelName
 
@@ -453,6 +461,15 @@ class OpenAIGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
 class AnthropicGenerativeAIModelType(GenerativeAIModelType):
     type = "anthropic"
 
+    def get_web_search_tool(
+        self, model_name: str, with_function_tools: bool
+    ) -> WebSearchTool | None:
+        from pydantic_ai import WebSearchTool
+
+        # Anthropic counts this cap across every request of a reply; other providers
+        # have no cap.
+        return WebSearchTool(max_uses=WEB_SEARCH_MAX_PER_REPLY)
+
     _FILES_API_BETA = "files-api-2025-04-14"
 
     @cached_property
@@ -488,13 +505,17 @@ class AnthropicGenerativeAIModelType(GenerativeAIModelType):
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> Any:
-        from pydantic_ai.models.anthropic import AnthropicModel
+        from pydantic_ai.models.anthropic import AnthropicModel, AnthropicModelProfile
 
         from .anthropic import BoundedAnthropicProvider
 
         api_key = self.get_api_key(workspace, settings_override)
         return AnthropicModel(
-            model_name, provider=BoundedAnthropicProvider(api_key=api_key)
+            model_name,
+            provider=BoundedAnthropicProvider(api_key=api_key),
+            # Searches run from filtering code escape the reply's search cap, and
+            # filtering is not eligible for zero data retention.
+            profile=AnthropicModelProfile(anthropic_supports_dynamic_filtering=False),
         )
 
     def get_known_models(self) -> list[str]:
@@ -628,6 +649,19 @@ class BedrockGenerativeAIModelType(GenerativeAIModelType):
 class GoogleGenerativeAIModelType(GenerativeAIModelType):
     type = "google"
     supports_legacy_workspace_settings = False
+
+    def get_web_search_tool(
+        self, model_name: str, with_function_tools: bool
+    ) -> WebSearchTool | None:
+        from pydantic_ai import WebSearchTool
+        from pydantic_ai.profiles.google import google_model_profile
+
+        # Gemini before version 3 refuses web search next to function tools.
+        if with_function_tools and not google_model_profile(model_name).get(
+            "google_supports_tool_combination"
+        ):
+            return None
+        return WebSearchTool()
 
     @cached_property
     def file_handler(self) -> GoogleFileHandler:
