@@ -421,7 +421,7 @@ def test_old_conversation_payloads_without_steps_still_import(
 
 
 @pytest.mark.django_db
-def test_copies_keep_mcp_servers_and_their_tool_choices(data_fixture):
+def test_copies_keep_mcp_servers_and_only_duplicates_keep_tool_choices(data_fixture):
     user = data_fixture.create_user()
     server = data_fixture.create_mcp_server_integration(
         user=user,
@@ -456,16 +456,30 @@ def test_copies_keep_mcp_servers_and_their_tool_choices(data_fixture):
         {},
     )
 
-    # A duplicate keeps the key; a portable export leaves it out.
-    for copy, key in ((duplicate, "Bearer s3cr3t-value"), (imported, "")):
+    # A duplicate keeps the key and the choices. An import may come from
+    # anyone, so it has no key and its tools start off until reviewed.
+    expected = {
+        duplicate: (
+            "Bearer s3cr3t-value",
+            [("search", True, False, "a" * 64), ("delete", False, True, "b" * 64)],
+        ),
+        imported: (
+            "",
+            [("search", False, False, "a" * 64), ("delete", False, True, "b" * 64)],
+        ),
+    }
+    for copy, (key, tools) in expected.items():
         copied = MCPServerIntegration.objects.get(application=copy)
         assert copied.url == server.url
         assert copied.auth_header_value == key
-        assert list(
-            copied.tools.values_list(
-                "name", "enabled", "changes_data", "definition_hash"
+        assert (
+            list(
+                copied.tools.values_list(
+                    "name", "enabled", "changes_data", "definition_hash"
+                )
             )
-        ) == [("search", True, False, "a" * 64), ("delete", False, True, "b" * 64)]
+            == tools
+        )
     assert MCPServerTool.objects.filter(integration=server).count() == 2
 
 

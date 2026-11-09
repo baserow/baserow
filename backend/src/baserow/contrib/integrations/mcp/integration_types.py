@@ -31,8 +31,8 @@ class MCPServerToolSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-# The stored tools with the editor's choices, so a copied Agent keeps them. A
-# tool the server changed since is still turned off on its first use.
+# The stored tools with the editor's choices. A tool the server changed since is
+# still refused on its first use.
 EXPORTED_TOOL_FIELDS = (
     "name",
     "title",
@@ -238,10 +238,24 @@ class MCPServerIntegrationType(IntegrationType):
             storage=storage,
             cache=cache,
         )
+        # Only an internal copy keeps which tools are on. An export file or a
+        # template may come from anyone, so its tools wait for a review here.
+        keep_choices = bool(
+            import_export_config
+            and import_export_config.is_duplicate
+            and not import_export_config.is_template
+        )
         MCPServerTool.objects.bulk_create(
             MCPServerTool(
                 integration=integration,
-                **{name: tool[name] for name in EXPORTED_TOOL_FIELDS if name in tool},
+                **{
+                    name: tool[name]
+                    for name in EXPORTED_TOOL_FIELDS
+                    if name in tool
+                    and (
+                        keep_choices or name not in ("enabled", "changed_since_review")
+                    )
+                },
             )
             for tool in tools
         )
