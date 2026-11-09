@@ -323,9 +323,8 @@ def list_data_sources_on_page(user: AbstractUser, page: Page) -> list[DataSource
     """List the data sources of a page and of its builder's shared page."""
 
     return [
-        item
-        for listed_page in dict.fromkeys((page.builder.shared_page, page))
-        for item in list_data_sources(user, listed_page)
+        DataSourceItem.from_orm(ds)
+        for ds in DataSourceService().get_data_sources(user, page, with_shared=True)
     ]
 
 
