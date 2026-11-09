@@ -47,6 +47,7 @@ from baserow_enterprise.assistant.exceptions import (
     AssistantModelNotSupportedError,
 )
 from baserow_enterprise.assistant.handler import AssistantHandler
+from baserow_enterprise.assistant.messages import add_ai_usage
 from baserow_enterprise.assistant.model_profiles import (
     check_lm_ready_or_raise,
     resolve_assistant_model,
@@ -287,6 +288,7 @@ class AssistantChatView(APIView):
         )
 
         snapshot = handler.get_chat_snapshot(chat)
+        add_ai_usage(snapshot.messages)
         serializer = AssistantChatMessagesSerializer(
             {
                 "chat_id": chat.id,
@@ -404,6 +406,7 @@ class AssistantOnboardingPromptSuggestionsView(APIView):
                     "ERROR_ASSISTANT_MODEL_NOT_SUPPORTED",
                     "ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE",
                     "ERROR_ASSISTANT_MODEL_DISABLED",
+                    "ERROR_AI_USAGE_LIMIT_EXCEEDED",
                 ]
             ),
         },

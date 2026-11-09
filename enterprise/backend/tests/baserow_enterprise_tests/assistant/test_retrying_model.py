@@ -599,7 +599,15 @@ async def test_request_stream_retry_fallback_closes_nested_model_scopes(retry_lo
         )
         yield  # pragma: no cover
 
-    response = ModelResponse(parts=[TextPart(content="fallback")])
+    response = ModelResponse(
+        parts=[TextPart(content="fallback")],
+        usage=RequestUsage(
+            input_tokens=100,
+            output_tokens=10,
+            cache_read_tokens=60,
+            cache_write_tokens=20,
+        ),
+    )
     inner.request_stream = failing_request_stream
     inner.request = AsyncMock(return_value=response)
     model = _make_retrying(inner)
@@ -613,6 +621,8 @@ async def test_request_stream_retry_fallback_closes_nested_model_scopes(retry_lo
 
     start_events = [event for event in events if isinstance(event, PartStartEvent)]
     assert [event.part.content for event in start_events] == ["fallback"]
+    # Including the cache tokens, so that their usage is reported too.
+    assert stream.usage == response.usage
     assert inner.request.await_count == 1
     # request_stream owns the outer scope and request() owns its nested scope.
     _assert_balanced_model_scope(inner, expected_count=2)

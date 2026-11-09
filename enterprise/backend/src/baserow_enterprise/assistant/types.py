@@ -133,6 +133,11 @@ class AiReasoningChunk(BaseModel):
     content: str = Field(description="The reasoning content of the AI message chunk")
 
 
+# The AI usage of a run is reported with this reference type and the id of the
+# human message that started it.
+ASSISTANT_MESSAGE_USAGE_REFERENCE = "assistant_chat_message"
+
+
 class AiMessage(AiMessageChunk):
     onboarding_target: dict[str, Any] | None = Field(
         default=None,
@@ -141,6 +146,15 @@ class AiMessage(AiMessageChunk):
     id: int | None = Field(
         default=None,
         description="The unique UUID of the message",
+    )
+    human_message_id: int | None = Field(
+        default=None,
+        exclude=True,
+        description="The id of the human message this message answers.",
+    )
+    plugin_data: dict = Field(
+        default_factory=dict,
+        description="Data that plugins provide for this message, by plugin type.",
     )
     timestamp: datetime | None = Field(default=None)
     can_submit_feedback: bool = Field(

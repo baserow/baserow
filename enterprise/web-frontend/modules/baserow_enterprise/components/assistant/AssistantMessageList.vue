@@ -89,6 +89,12 @@
               v-if="message.can_submit_feedback"
               :message="message"
             />
+            <component
+              :is="component"
+              v-for="(component, componentIndex) in aiUsageComponents"
+              :key="componentIndex"
+              :plugin-data="message.plugin_data || {}"
+            />
           </ChatMessageFooter>
         </template>
       </ChatMessage>
@@ -134,6 +140,13 @@ export default {
       expandedSources: {},
       expandedReasoning: {},
     }
+  },
+  computed: {
+    aiUsageComponents() {
+      return Object.values(this.$registry.getAll('plugin')).flatMap((plugin) =>
+        plugin.getAIUsageComponents()
+      )
+    },
   },
   methods: {
     isBusy(message, index) {

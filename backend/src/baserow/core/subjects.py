@@ -245,15 +245,39 @@ class UserSubjectType(SubjectType):
     ) -> dict[int, str]:
         """Return workspace membership permissions keyed by User ID."""
 
-        memberships = _memberships(include_trash)
-        if not include_trash:
-            memberships = memberships.filter(user__profile__trashed=False)
-        return dict(
-            memberships.filter(
-                workspace=workspace,
-                user_id__in=[subject.id for subject in subjects],
-            ).values_list("user_id", "permissions")
-        )
+        role_uids = {}
+        prefetched = getattr(workspace, "_prefetched_objects_cache", {})
+        if not include_trash and "workspaceuser_set" in prefetched:
+            # The prefetch holds the human memberships of the untrashed workspace.
+            permissions = {
+                membership.user_id: membership.permissions
+                for membership in workspace.workspaceuser_set.all()
+            }
+            # Only of subjects with a loaded profile, which would otherwise be
+            # queried per subject.
+            role_uids = {
+                subject.id: permissions[subject.id]
+                for subject in subjects
+                if subject.id in permissions
+                and "profile" in subject._state.fields_cache
+                and not subject.profile.trashed
+            }
+
+        # The prefetch may be filtered, and doesn't hold identities, so a subject
+        # missing from it can still be a member.
+        missing_ids = [
+            subject.id for subject in subjects if subject.id not in role_uids
+        ]
+        if missing_ids:
+            memberships = _memberships(include_trash)
+            if not include_trash:
+                memberships = memberships.filter(user__profile__trashed=False)
+            role_uids.update(
+                memberships.filter(
+                    workspace=workspace, user_id__in=missing_ids
+                ).values_list("user_id", "permissions")
+            )
+        return role_uids
 
     def is_workspace_role_fallback(self, role_uid: str) -> bool:
         return role_uid == getattr(

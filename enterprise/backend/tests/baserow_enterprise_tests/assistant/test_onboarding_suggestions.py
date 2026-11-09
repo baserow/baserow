@@ -13,6 +13,7 @@ from baserow.core.ai_provider.constants import (
     AI_PROVIDER_FEATURE_MODE_DISABLED,
 )
 from baserow.core.ai_provider.handler import AIProviderHandler
+from baserow.core.generative_ai.usage import AIUsageLimitExceeded
 from baserow_enterprise.assistant.exceptions import (
     AssistantConfiguredModelNotAvailableError,
     AssistantModelNotSupportedError,
@@ -174,6 +175,28 @@ def test_suggestions_reports_that_kuma_is_disabled(api_client, data_fixture):
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_ASSISTANT_MODEL_DISABLED"
+
+
+@pytest.mark.django_db
+def test_suggestions_reports_that_a_plugin_refused_the_request(
+    api_client, data_fixture, mocker
+):
+    _, token = data_fixture.create_user_and_token()
+    mocker.patch(
+        "baserow_enterprise.api.assistant.views.check_lm_ready_or_raise",
+        return_value=None,
+    )
+    make_run_sync_mock(mocker).side_effect = AIUsageLimitExceeded("No AI credits left.")
+
+    response = api_client.post(
+        URL, {}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_AI_USAGE_LIMIT_EXCEEDED",
+        "detail": "No AI credits left.",
+    }
 
 
 @pytest.mark.django_db

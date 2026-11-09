@@ -15,6 +15,14 @@
     ></div>
     <ul v-else class="context__menu">
       <li
+        v-for="(component, index) in additionalContextComponents"
+        :key="index"
+        class="context__menu-item"
+        @click="$refs.context.hide()"
+      >
+        <component :is="component" :workspace="workspace"></component>
+      </li>
+      <li
         v-if="$hasPermission('workspace.export', workspace, workspace.id)"
         class="context__menu-item"
       >
@@ -170,6 +178,13 @@ export default {
     return {
       loading: false,
     }
+  },
+  computed: {
+    additionalContextComponents() {
+      return Object.values(this.$registry.getAll('plugin')).flatMap((plugin) =>
+        plugin.getAdditionalWorkspaceContextComponents(this.workspace)
+      )
+    },
   },
   methods: {
     async fetchRolesAndPermissions() {

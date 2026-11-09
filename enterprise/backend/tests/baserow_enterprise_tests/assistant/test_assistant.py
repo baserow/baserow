@@ -1705,7 +1705,7 @@ class TestResolveAssistantModel:
                 check_lm_ready_or_raise()
                 check_lm_ready_or_raise()
 
-            create_model.assert_called_once_with()
+            create_model.assert_called_once_with(report_usage=False)
             assert test_model.call_count == 1
             global_cache_get.assert_not_called()
         finally:
@@ -1732,7 +1732,7 @@ class TestResolveAssistantModel:
                     ):
                         check_lm_ready_or_raise()
 
-            create_model.assert_called_once_with()
+            create_model.assert_called_once_with(report_usage=False)
             test_model.assert_called_once()
         finally:
             _clear_process_local_model_readiness_cache()

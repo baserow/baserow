@@ -134,6 +134,7 @@ export const AGENT_REPLY_ERROR_CODE = Object.freeze({
   RUN_LIMIT_REACHED: 'chat_run_limit_reached',
   TRIGGER_MESSAGE_FAILED: 'trigger_message_failed',
   TRIGGER_OFF: 'trigger_off',
+  USAGE_LIMIT_EXCEEDED: 'usage_limit_exceeded',
 })
 
 export const RUN_AS_STATUS = Object.freeze({

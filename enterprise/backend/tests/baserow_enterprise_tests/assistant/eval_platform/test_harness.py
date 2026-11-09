@@ -33,6 +33,7 @@ from baserow.core.ai_provider.constants import (
 )
 from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.generative_ai.lifecycle import run_agent_sync_with_model
+from baserow.core.generative_ai.usage import UsageReportingModel
 from baserow_enterprise.assistant.agents import main_agent
 from baserow_enterprise.assistant.assistant import build_agent_run_context
 from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps, ToolHelpers
@@ -274,7 +275,8 @@ class TestBuildAgentRunContext:
             model_profile=helpers.model_profile,
             deps=ctx.deps,
         )
-        assert isinstance(ctx.model, RetryingModel)
+        assert isinstance(ctx.model, UsageReportingModel)
+        assert isinstance(ctx.model.wrapped, RetryingModel)
 
     def test_tool_arg_repair_owns_the_concrete_model_lifecycle(self, data_fixture):
         """Preserve the concrete-model regression from the retired eval utilities."""
@@ -571,7 +573,7 @@ class TestRunCase:
             output, _ = run_case(case, model)
 
         assert output.answer == "hello"
-        assert isinstance(run.call_args.kwargs["model"], RetryingModel)
+        assert isinstance(run.call_args.kwargs["model"].wrapped, RetryingModel)
         assert run.call_args.kwargs["model_settings"] == get_model_settings(
             model, ORCHESTRATOR
         )

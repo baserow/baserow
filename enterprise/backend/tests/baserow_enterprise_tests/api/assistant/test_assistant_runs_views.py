@@ -316,6 +316,7 @@ def test_a_reloaded_chat_shows_how_each_answer_ended(api_client, member):
         "run_status": "failed",
         "error_code": "interrupted",
         "onboarding_target": None,
+        "plugin_data": {},
     }
     assert (messages[2]["run_status"], messages[2]["error_code"]) == (None, None)
 

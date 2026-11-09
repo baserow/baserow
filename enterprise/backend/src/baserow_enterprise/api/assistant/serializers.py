@@ -195,8 +195,13 @@ class AiMessageSerializer(serializers.Serializer):
         allow_blank=True,
         help_text=(
             "Why that run failed or stopped: `interrupted`, `not_started`, "
-            "`timeout`, `failed`, `model_unavailable` or `access_lost`."
+            "`timeout`, `failed`, `model_unavailable`, `access_lost` or "
+            "`usage_limit_exceeded`."
         ),
+    )
+    plugin_data = serializers.DictField(
+        required=False,
+        help_text="Data that plugins provide for this message, by plugin type.",
     )
 
 

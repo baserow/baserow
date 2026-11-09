@@ -20,6 +20,7 @@ from baserow.core.formula.types import (
     BaserowFormulaObject,
 )
 from baserow.core.generative_ai.lifecycle import run_agent_sync_with_model
+from baserow.core.generative_ai.usage import AIUsageLimitExceeded
 from baserow.core.tools.formula_utils import BaseFormulaContext
 from baserow_enterprise.assistant.model_profiles import UTILITY
 
@@ -142,6 +143,9 @@ def get_formula_generator(
                     model=model,
                     model_settings=model_profile.get_settings(UTILITY),
                 )
+            except AIUsageLimitExceeded:
+                # Trying again would be refused again.
+                raise
             except Exception as exc:
                 feedback += f"Formula agent error: {str(exc)}\n"
                 continue
