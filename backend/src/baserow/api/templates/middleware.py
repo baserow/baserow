@@ -3,7 +3,7 @@ from typing import Callable
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse
 
-from baserow.core.user_templates.private_link import private_link_token
+from baserow.core.context import private_link_token
 
 
 class TemplatePrivateLinkMiddleware:
@@ -18,6 +18,6 @@ class TemplatePrivateLinkMiddleware:
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
         with private_link_token(
-            request.headers.get(settings.TEMPLATE_PRIVATE_LINK_HEADER)
+            request.headers.get(settings.TEMPLATE_PRIVATE_LINK_TOKEN_HEADER)
         ):
             return self.get_response(request)

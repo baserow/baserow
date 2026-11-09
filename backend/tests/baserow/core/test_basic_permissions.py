@@ -14,6 +14,7 @@ import pytest
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.operations import ListTablesDatabaseTableOperationType
 from baserow.core.cache import local_cache
+from baserow.core.context import private_link_token
 from baserow.core.exceptions import (
     PermissionDenied,
     UserInvalidWorkspacePermissionsError,
@@ -57,7 +58,6 @@ from baserow.core.user_sources.operations import (
     LoginUserSourceOperationType,
     UpdateUserSourceOperationType,
 )
-from baserow.core.user_templates.private_link import private_link_token
 
 
 @pytest.mark.parametrize("actor", [None, AnonymousUser(), Agent(id=1)])
@@ -1471,16 +1471,18 @@ def test_all_scope_types_query_methods():
             assert isinstance(scope_type.get_filter_for_scope_type(parent, []), Q)
 
 
-# The columns of `create_templates_of_each_state` and `get_template_actors`.
 OTHERS, HOLDER, OWNER, ADMIN = 1, 2, 3, 4
 
 
 def create_templates_of_each_state(data_fixture, owner, with_links=False):
     """
     Returns templates with who can open them while user templates are enabled:
-    anyone but the owner, anyone with the token of the private link of the
-    template, see `get_link_token`, the owner, and an instance admin who isn't the
-    owner. Only the official ones open while user templates are disabled.
+    the others (not the owner, a link holder or an admin), anyone with the token of
+    the private link of the template, see `get_link_token`, the owner, and an
+    instance admin who isn't the owner. Only the official ones open while user
+    templates are disabled.
+
+    :param with_links: Whether the templates that can have a private link get one.
     """
 
     official = data_fixture.create_template()
@@ -1534,15 +1536,12 @@ def create_templates_of_each_state(data_fixture, owner, with_links=False):
         (official, True, True, True, True),
         (legacy, True, True, True, True),
         (private, False, False, True, False),
-        # A revision is opened like its root. The holder only opens the latest one
-        # of a private template.
         (revision, False, False, True, False),
         (latest_revision, False, True, True, False),
         (pending, False, True, True, True),
         (rejected, False, True, True, True),
         (withdrawn, False, True, True, False),
         (public, True, True, True, True),
-        # Others only open the public revision.
         (public_revision, False, False, True, False),
         (blocked, False, False, True, False),
         (blocked_private, False, False, True, False),
@@ -1594,9 +1593,7 @@ def test_allow_if_template_permission_manager_allows_openable_templates(
             token = get_link_token(template) if has_link else None
             enabled = user_templates_enabled or template.type != Template.Type.USER
             allowed = row[column] and enabled
-            # The lists don't show what was opened through a private link.
             listed = row[OTHERS if column == HOLDER else column] and enabled
-            # Nor the revisions an admin reviews.
             in_lists = column != ADMIN or row[OTHERS]
             for operation in manager.OPERATION_ALLOWED_ON_TEMPLATES:
                 check = PermissionCheck(actor, operation, workspace)
@@ -1667,7 +1664,6 @@ def test_allow_if_template_permissions_object_lists_official_and_own_templates(
     data_fixture.set_user_template_state(others_public, "public")
     manager = AllowIfTemplatePermissionManagerType()
 
-    # A private template with revisions, of which the holder only gets the latest.
     linked = templates[2][0]
 
     for actor, column, has_link in get_template_actors(data_fixture, owner):

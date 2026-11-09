@@ -593,7 +593,6 @@ class UpdateUserTemplatePrivateLinkActionType(ActionType):
     class Params:
         template_id: int
         template_name: str
-        # Whether the link was created or turned off. The token is never recorded.
         enabled: bool
 
     @classmethod

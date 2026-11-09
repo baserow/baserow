@@ -29,7 +29,8 @@ export function canChangeVisibilityInDetails(template) {
 }
 
 /**
- * The private link of the user's template, or null without one.
+ * The private link of the user's template, or null without one. The link of a
+ * blocked template can't be used.
  *
  * @param {object} template The template as listed in the user's templates, whose
  *   `private_link_token` is only shown to them.
@@ -37,7 +38,7 @@ export function canChangeVisibilityInDetails(template) {
  * @param {string} baseUrl The URL of the web frontend.
  */
 export function getPrivateLinkUrl(template, router, baseUrl) {
-  if (!template.private_link_token) {
+  if (!template.private_link_token || template.state === 'blocked') {
     return null
   }
   const { href } = router.resolve({

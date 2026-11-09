@@ -31,7 +31,7 @@ class UpdateTemplateSerializer(serializers.Serializer):
         required=False,
         help_text="`public` lists the template, with the name of its author, for "
         "everybody on this instance. `private` takes it out of that listing, so "
-        "that only its owner can open it.",
+        "that only its owner and anyone with its private link can open it.",
     )
     public_listing_consent = serializers.BooleanField(
         required=False,
@@ -42,9 +42,10 @@ class UpdateTemplateSerializer(serializers.Serializer):
     )
     private_link = serializers.BooleanField(
         required=False,
-        help_text="`true` creates the private link of the template, which anyone "
-        "who has it can open and install it with. `false` turns it off, which "
-        "takes the access away from everybody who has it.",
+        help_text="`true` creates the private link of the template. Anyone with "
+        "the link can preview the template, also signed out, and install or "
+        "download it once signed in. `false` turns the link off, so that it stops "
+        "working. A public template stays public.",
     )
 
     def validate(self, data):
@@ -63,8 +64,9 @@ class InstallTemplateQueryParamSerializer(serializers.Serializer):
 class DownloadTemplateSerializer(serializers.Serializer):
     revision_id = serializers.IntegerField(
         help_text="The id of the revision of the user template that the user was "
-        "shown. Its owner may download any revision, anyone else only the public "
-        "one."
+        "shown. Its owner may download any revision. Anyone else downloads the "
+        "public revision, or the latest one of a template that isn't public with "
+        "the token of its private link."
     )
 
 
@@ -193,10 +195,8 @@ class TemplateDetailSerializer(TemplateSerializer):
 
 class TemplateListItemSerializer(TemplateDetailSerializer):
     """
-    A revision of a template in the flat list, or opened by its slug. `state`,
-    `reason`, `can_make_public`, `make_public_needs_review`, `update_needs_review`,
-    `listed`, the source, `install_count` and `private_link_token` are only shown
-    to the owner of a user template, and are null otherwise.
+    A revision of a template in the flat list, or opened by its slug. The fields
+    marked as only shown to the owner of a user template are null for anyone else.
     """
 
     created_on = serializers.DateTimeField(source="get_root.created_on", read_only=True)

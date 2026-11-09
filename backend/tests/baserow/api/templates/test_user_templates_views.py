@@ -502,8 +502,6 @@ def test_template_detail_for_link_holder(api_client, data_fixture):
         "api:applications:list", kwargs={"workspace_id": latest.workspace_id}
     )
 
-    # The token of the private link shows the latest revision and its content,
-    # like to the owner, also signed out.
     for user_token in [holder_token, None]:
         response = get_with_link(api_client, url, user_token, link_token)
         assert response.status_code == HTTP_200_OK
@@ -518,7 +516,6 @@ def test_template_detail_for_link_holder(api_client, data_fixture):
         HTTP_400_BAD_REQUEST
     )
 
-    # The public revision once it's public, like everybody.
     data_fixture.set_user_template_state(template, "public", public)
     response = get_with_link(api_client, url, holder_token, link_token)
     assert response.json()["revision_id"] == public.id
@@ -1447,16 +1444,3 @@ def test_private_link_only_opens_its_template(api_client, data_fixture):
         "error": "ERROR_TEMPLATE_DOES_NOT_EXIST",
         "detail": "The requested template does not exist.",
     }
-
-
-def test_private_link_flag_off(api_client, data_fixture, settings):
-    settings.FEATURE_FLAGS = []
-    owner, token = data_fixture.create_user_and_token()
-    template = create_own_template(data_fixture, owner, "private")
-
-    response = change_private_link(api_client, token, template.slug, "on")
-
-    assert response.status_code == HTTP_403_FORBIDDEN
-    assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
-    after = Template.objects.get(id=template.id)
-    assert after.private_link_token == template.private_link_token

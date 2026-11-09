@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import subprocess
@@ -8,6 +9,7 @@ import pytest
 from sentry_sdk.envelope import Envelope
 
 from baserow.core.sentry import (
+    before_send,
     drop_expected_asyncio_disconnect_events,
     log_sentry_event_to_console,
 )
@@ -216,3 +218,29 @@ def test_console_sentry_transport_logs_envelope_payload(mock_logger):
     mock_logger.error.assert_called_once_with(
         "[SENTRY] [ERROR] [event-123] Envelope event"
     )
+
+
+def test_sentry_hooks_redact_private_link_tokens():
+    token = "0123456789abcdef" * 4
+    encoded = "%30%2531" + token[2:]
+    link = f"http://localhost:3000/template/slug/private-link/{encoded}"
+    event = {
+        "request": {
+            "url": f"http://localhost:8000/api/private-link/{token}/",
+            "query_string": f"original=%2Ftemplate%2Fslug%2Fprivate-link%2F{token}",
+            "headers": {
+                "Referer": link,
+                "X-Link": f"next=%2Flogin%3Foriginal%3D%252Fprivate-link%252F{token}",
+            },
+        },
+        "breadcrumbs": {"values": [{"data": {"url": link}}]},
+    }
+
+    redacted = before_send(event, {})
+    sent = json.dumps(redacted)
+
+    assert token[2:] not in sent
+    assert redacted["request"]["headers"] == {
+        "Referer": "http://localhost:3000/template/slug/private-link/[Filtered]",
+        "X-Link": "next=%2Flogin%3Foriginal%3D%252Fprivate-link%252F[Filtered]",
+    }

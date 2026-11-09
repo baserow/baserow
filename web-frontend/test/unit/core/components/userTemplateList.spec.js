@@ -675,7 +675,6 @@ describe('UserTemplateList', () => {
     const wrapper = await mountComponent()
     const linkButtons = wrapper.findAll('.user-template-list__link')
 
-    // The link of a blocked template can't be managed.
     expect(linkButtons).toHaveLength(1)
     expect(linkButtons[0].classes()).not.toContain(
       'user-template-list__link--shared'

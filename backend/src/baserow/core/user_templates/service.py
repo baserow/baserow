@@ -3,7 +3,6 @@ from typing import Callable, List, Optional, Tuple
 from django.contrib.auth.models import AbstractUser
 
 from baserow.core.exceptions import PermissionDenied
-from baserow.core.feature_flags import FF_USER_TEMPLATES, feature_flag_is_enabled
 from baserow.core.job_types import ExportApplicationsJobType
 from baserow.core.jobs.registries import job_type_registry
 from baserow.core.models import Application, Template, UserTemplateState, Workspace
@@ -138,8 +137,8 @@ class UserTemplateService:
 
     def _get_latest_revision_of_locked_root(self, root: Template) -> Template:
         """
-        Returns the latest revision of a template, which reads the state of the
-        template from the locked root.
+        Returns the latest revision of a template, with the locked `root` set as
+        its root, so that the state read through it is the locked one.
         """
 
         revision = UserTemplateHandler().get_latest_revision(root)
@@ -227,7 +226,6 @@ class UserTemplateService:
         :param user: The owner of the template.
         :param template_id: The id of the template, which is its root.
         :param enabled: Whether the template must have a private link.
-        :raises FeatureDisabledException: If user templates are switched off.
         :raises TemplateDoesNotExist: If the user doesn't own the template.
         :raises TemplateBlocked: If the template is blocked.
         :return: The latest revision, and whether the link changed.
@@ -247,7 +245,6 @@ class UserTemplateService:
 
         :param user: The owner of the template.
         :param template_id: The id of the template, which is its root.
-        :raises FeatureDisabledException: If user templates are switched off.
         :raises TemplateDoesNotExist: If the user doesn't own the template.
         :raises TemplateBlocked: If the template is blocked.
         :return: The latest revision, and whether the token was replaced.
@@ -261,11 +258,10 @@ class UserTemplateService:
         self, user: AbstractUser, template_id: int
     ) -> Template:
         """
-        Locks the root of a template owned by the user whose private link can be
-        changed, which isn't the case while it's blocked.
+        Locks the root of a template owned by the user, if its private link can be
+        changed: the template isn't blocked.
         """
 
-        feature_flag_is_enabled(FF_USER_TEMPLATES, raise_if_disabled=True)
         root = UserTemplateHandler().get_own_template(
             user, template_id, for_update=True
         )

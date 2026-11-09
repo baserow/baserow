@@ -100,8 +100,6 @@ def started(job):
         "3",
         [
             (["private"], False, "0:0:0", "-:-:-", "-:-", "-:-:-"),
-            # Opened with the token of its private link only, see
-            # `test_user_template_private_link`.
             (["shared"], False, "0:0:0", "-:-:-", "-:-", "-:-:-"),
             (["public"], True, "0:0:0", "0:0:0", "0:0", "0:0:0"),
             (["in_review"], False, "0:0:0", "-:-:-", "-:-", "0:-:-"),
@@ -169,7 +167,5 @@ def test_actor_gets_what_it_is_shown(
     assert gets == expected[actor]
     browser = CoreHandler().list_templates(AnonymousUser(), listed=True)
     assert browser.filter_by_root(id=root.id).exists() is listed
-    # The job doesn't keep the token of the private link, so the link being on is
-    # enough when it starts.
     shared = revision_states == ["shared"]
     assert starts == [shared or not gets.endswith(":-")] * len(jobs)

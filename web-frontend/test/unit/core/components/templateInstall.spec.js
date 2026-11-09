@@ -59,7 +59,6 @@ describe('TemplateInstall', () => {
 
   test.each([
     '/template/project-tracker',
-    // The link is needed to open the template again.
     `/template/project-tracker/private-link/${'a'.repeat(64)}`,
   ])(
     'sends an anonymous visitor from %s to the login page and back',
@@ -67,10 +66,7 @@ describe('TemplateInstall', () => {
       const wrapper = await testApp.mount(TemplateInstall, {
         props: { template },
       })
-      // The spy stands in for `push`, which `replace` uses too.
-      push.mockRestore()
       await testApp.nuxtApp.$router.replace(path)
-      push = vi.spyOn(testApp.nuxtApp.$router, 'push').mockResolvedValue()
 
       expect(wrapper.find('.template-install__workspace').exists()).toBe(false)
 

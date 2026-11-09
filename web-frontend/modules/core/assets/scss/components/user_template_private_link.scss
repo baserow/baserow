@@ -1,5 +1,6 @@
 .user-template-private-link {
   width: 390px;
+  max-width: calc(100vw - 20px);
 }
 
 .user-template-private-link__empty {
@@ -61,7 +62,6 @@
   @include rounded($rounded-md);
 }
 
-// The confirmation that the link was copied is shown over the button.
 .user-template-private-link__action {
   position: relative;
   flex: 0 0 auto;

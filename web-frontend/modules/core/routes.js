@@ -175,7 +175,7 @@ export const routes = [
   },
   {
     name: 'template-private-link',
-    path: '/template/:slug/private-link/:token',
+    path: '/template/:slug/private-link/:token([0-9a-f]{64})',
     file: path.resolve(__dirname, 'pages/templatePrivateLink.vue'),
     meta: { preventPageViewTracking: true },
   },

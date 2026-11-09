@@ -151,7 +151,6 @@
   gap: 8px;
 }
 
-// Flat, like in the design, unlike the other icon buttons.
 .user-template-list__link,
 .user-template-list__more {
   border-color: transparent;
@@ -164,7 +163,6 @@
   }
 }
 
-// Also while its link is shown.
 .user-template-list__link--shared {
   &,
   &.active,

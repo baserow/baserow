@@ -1376,18 +1376,27 @@ class UserTemplateHandler:
             return "owner"
         if self.is_listed(root):
             return "listed"
-        # The blocked check of the caller only applies to the owner.
-        if (
-            root.blocked_at is None
-            and root.private_link_token is not None
-            and private_link_token is not None
-            # Compared as bytes, so that a non-ASCII token is a mismatch too.
-            and secrets.compare_digest(
-                private_link_token.encode(), root.private_link_token.encode()
-            )
+        if root.blocked_at is None and self._private_link_matches(
+            root, private_link_token
         ):
             return "link"
         return None
+
+    def _private_link_matches(self, root: Template, token: Optional[str]) -> bool:
+        """
+        Whether the token is the one of the private link of a user template.
+
+        :param root: The root of the template.
+        :param token: The token sent with the request, if any.
+        :return: False if the template has no private link or there's no token.
+        """
+
+        return (
+            root.private_link_token is not None
+            and token is not None
+            # Compared as bytes, so that a non-ASCII token is a mismatch too.
+            and secrets.compare_digest(token.encode(), root.private_link_token.encode())
+        )
 
     def _check_install_access(
         self,
@@ -1397,9 +1406,9 @@ class UserTemplateHandler:
         private_link_token: Optional[str] = None,
     ) -> str:
         """
-        Raises if the user may not install the template, in the order of the error
-        codes: no access before a blocked owner. Only the owner has access to the
-        latest revision.
+        Raises if the user may not install the template: TemplateDoesNotExist
+        without access, or when asking for the `latest` revision without owning
+        it, before TemplateBlocked for a blocked owner.
 
         :return: The access of the user, see `_get_install_access`.
         """
@@ -1423,8 +1432,7 @@ class UserTemplateHandler:
         latest one when asked for, which only its owner may, as from "Your
         templates". Otherwise the public revision, the same for everyone, or the
         latest one while it isn't public, for its owner and the users with the
-        token of its private link. The installed revision is pinned, so that an
-        update of the template in the meantime doesn't change what's installed.
+        token of its private link.
 
         :param user: The user who installs the template.
         :param root: The root of a user template that isn't marked for deletion.
@@ -1503,10 +1511,12 @@ class UserTemplateHandler:
         access = self._check_install_access(
             user, root, private_link_token=private_link_token
         )
+        revision = None
         if access == "listed":
             shown_revision_id = root.public_revision_id
         elif access == "link":
-            shown_revision_id = self.get_latest_revision(root).id
+            revision = self.get_latest_revision(root)
+            shown_revision_id = revision.id
         else:
             shown_revision_id = revision_id
         if revision_id != shown_revision_id:
@@ -1514,11 +1524,12 @@ class UserTemplateHandler:
                 f"The template {root.id} was updated after revision {revision_id} "
                 "was shown."
             )
-        revision = (
-            Template.objects.filter(Q(id=root.id) | Q(root=root), id=revision_id)
-            .select_related("root")
-            .first()
-        )
+        if revision is None:
+            revision = (
+                Template.objects.filter(Q(id=root.id) | Q(root=root), id=revision_id)
+                .select_related("root")
+                .first()
+            )
         if revision is None:
             raise TemplateDoesNotExist(
                 f"The revision {revision_id} of the template {root.id} does not exist."
@@ -1526,12 +1537,15 @@ class UserTemplateHandler:
         self._check_has_content(revision)
         return revision
 
-    def check_install_access(self, user: AbstractUser, revision: Template) -> None:
+    def recheck_admitted_install_access(
+        self, user: AbstractUser, revision: Template
+    ) -> None:
         """
-        Checks again, when an install or download job runs, that the user may
-        install the pinned revision. The job doesn't keep the token of the private
-        link, so while the template is private, its link being on is enough:
-        regenerating the link doesn't refuse the users who don't own it.
+        Checks again, when an install or download job admitted earlier runs, that
+        the user may still install the pinned revision. How the user was admitted
+        isn't kept, so it's checked as if through the current private link:
+        rotating the link doesn't stop the job; removing it does, unless the user
+        has access otherwise.
 
         :param user: The user who installs the template.
         :param revision: The pinned revision, with its root selected.

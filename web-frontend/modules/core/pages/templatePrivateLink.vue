@@ -14,6 +14,12 @@ import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
 
 const { $featureFlagIsEnabled, $store } = useNuxtApp()
 
+// Must precede the stylesheets and scripts, or they send the token as Referer.
+// A number does that; aliases like 'critical' don't.
+useHead({
+  meta: [{ name: 'referrer', content: 'no-referrer', tagPriority: 0 }],
+})
+
 if (!$featureFlagIsEnabled(FF_USER_TEMPLATES)) {
   throw createError({
     statusCode: 404,
@@ -23,9 +29,7 @@ if (!$featureFlagIsEnabled(FF_USER_TEMPLATES)) {
   })
 }
 
-// The workspaces of the template can only be previewed by a signed-in user once
-// the `workspace_template_ids` of the permissions are refreshed with the token,
-// which the middlewares before the page didn't send.
+// The middlewares refreshed the permissions without the token.
 if ($store.getters['auth/isAuthenticated']) {
   await $store.dispatch('auth/refresh').catch(() => {})
 }

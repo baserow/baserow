@@ -161,7 +161,6 @@
                 </i18n-t>
               </div>
               <div class="user-template-list__cell user-template-list__actions">
-                <!-- The link of a blocked template can't be managed. -->
                 <ButtonIcon
                   v-if="template.state !== 'blocked'"
                   type="secondary"
@@ -352,9 +351,8 @@ const searchInput = ref(null)
 const actionsContext = ref(null)
 // The template whose actions are shown.
 const focusedTemplate = ref(null)
-// The link of a blocked template can't be used.
 const focusedPrivateLinkUrl = computed(() =>
-  focusedTemplate.value && focusedTemplate.value.state !== 'blocked'
+  focusedTemplate.value
     ? getPrivateLinkUrl(
         focusedTemplate.value,
         $router,
@@ -364,9 +362,7 @@ const focusedPrivateLinkUrl = computed(() =>
 )
 const copied = ref(null)
 const privateLinkContext = ref(null)
-// The template whose private link is or was last shown.
 const privateLinkTemplate = ref(null)
-// The id of the template whose private link is shown, if any.
 const privateLinkOpenId = ref(null)
 const { isDownloading, download } = useUserTemplateDownload()
 const search = ref('')
@@ -494,9 +490,14 @@ function togglePrivateLink(event, template) {
   )
 }
 
-function copyLink() {
-  copyToClipboard(focusedPrivateLinkUrl.value)
-  copied.value.show()
+async function copyLink() {
+  try {
+    await copyToClipboard(focusedPrivateLinkUrl.value)
+  } catch {
+    $store.dispatch('toast/error', { title: $i18n.t('copied.linkFailed') })
+    return
+  }
+  copied.value?.show()
 }
 
 function edit(mode) {
@@ -533,8 +534,7 @@ function changeVisibility(event) {
 
 /**
  * Shows the changed state of a loaded template in its row and its private link.
- * Its position doesn't change, because the visibility doesn't change when the
- * template was updated.
+ * It keeps its row, the order is refreshed when the list is loaded again.
  *
  * @param {object} template The template as listed in the user's templates.
  */

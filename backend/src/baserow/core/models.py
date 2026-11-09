@@ -29,6 +29,7 @@ from django.db.models.functions import Coalesce
 from django.db.models.manager import BaseManager
 from django.utils.crypto import get_random_string
 
+from baserow.core.context import PRIVATE_LINK_TOKEN_PATTERN
 from baserow.core.feature_flags import FF_USER_TEMPLATES, feature_flag_is_enabled
 from baserow.core.jobs.mixins import (
     JobWithUndoRedoIds,
@@ -939,7 +940,9 @@ class TemplateQuerySet(QuerySet):
 
         return self.with_can_approve().filter(can_approve=True)
 
-    def official_or_owned(self, actor: Any, private_link_token: str | None = None):
+    def official_owned_or_linked(
+        self, actor: Any, private_link_token: str | None = None
+    ):
         """
         The official templates and every revision of the user templates owned by
         the actor or of the one whose private link has the token.
@@ -965,7 +968,8 @@ class TemplateQuerySet(QuerySet):
         The templates the actor can open, except the admin review queue. With the
         token of a private link, any actor, also a signed out one, opens the latest
         revision of the private template whose link has the token, unless it's
-        blocked. Lists pass no token, so that this template isn't listed.
+        blocked or marked for deletion. Lists pass no token, so that this template
+        isn't listed.
 
         :param actor: The user or anonymous user.
         :param private_link_token: The token of the private link of the request.
@@ -983,22 +987,16 @@ class TemplateQuerySet(QuerySet):
         )
         if (user_id := _get_user_id(actor)) is not None:
             visible |= _root_q(owner_id=user_id, marked_for_deletion_at__isnull=True)
+        queryset = self
         if private_link_token is not None:
-            # A public template shows its public revision, like to everybody. Over
-            # all the rows, so that the latest revision is the same whatever else
-            # the queryset filters.
-            family_id = Coalesce(OuterRef("root_id"), OuterRef("id"))
-            newer_revision = Template.objects.filter(
-                Q(id=family_id) | Q(root_id=family_id),
-                version__gt=OuterRef("version"),
-            )
+            queryset = queryset.alias(family_id=Coalesce("root_id", "id"))
             visible |= _root_q(
                 private_link_token=private_link_token,
                 public_revision__isnull=True,
                 blocked_at__isnull=True,
                 marked_for_deletion_at__isnull=True,
-            ) & ~Q(Exists(newer_revision))
-        return self.filter(official | Q(type=Template.Type.USER) & visible)
+            ) & ~Q(Exists(_later_revisions()))
+        return queryset.filter(official | Q(type=Template.Type.USER) & visible)
 
 
 class Template(models.Model):
@@ -1135,7 +1133,7 @@ class Template(models.Model):
         null=True,
         blank=True,
         unique=True,
-        validators=[RegexValidator(r"\A[0-9a-f]{64}\Z")],
+        validators=[RegexValidator(PRIVATE_LINK_TOKEN_PATTERN)],
         help_text="The secret token of the private link. Null disables the link. "
         "Only set on user roots and never returned in ordinary responses.",
     )

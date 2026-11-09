@@ -164,6 +164,7 @@ import {
   isOwnTemplate,
   makePublicResubmits,
 } from '@baserow/modules/core/utils/userTemplate'
+import { isPrivateLinkPage } from '@baserow/modules/core/utils/templatePrivateLink'
 import TemplatePreview from '@baserow/modules/core/components/template/TemplatePreview'
 import TemplateInstall from '@baserow/modules/core/components/template/TemplateInstall'
 
@@ -215,17 +216,9 @@ const emit = defineEmits([
 const { $registry, $router } = useNuxtApp()
 const config = useRuntimeConfig()
 
-// The link to the template wouldn't open it for the holder of its private link.
-const isPrivateLink = useRoute().name === 'template-private-link'
-// The link of a blocked template can't be used.
+const isPrivateLink = isPrivateLinkPage(useRoute())
 const privateLinkUrl = computed(() =>
-  props.template.state === 'blocked'
-    ? null
-    : getPrivateLinkUrl(
-        props.template,
-        $router,
-        config.public.publicWebFrontendUrl
-      )
+  getPrivateLinkUrl(props.template, $router, config.public.publicWebFrontendUrl)
 )
 
 function edit(mode, hideMenu) {

@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 
 from baserow.contrib.database.field_rules.operations import ReadFieldRuleOperationType
 from baserow.core.cache import local_cache
+from baserow.core.context import get_private_link_token
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.operations import (
     ListIntegrationsApplicationOperationType,
@@ -20,7 +21,6 @@ from baserow.core.user_sources.operations import (
     LoginUserSourceOperationType,
     ReadUserSourceOperationType,
 )
-from baserow.core.user_templates.private_link import get_private_link_token
 
 from .agents.operations import (
     CreateAgentOperationType,
@@ -201,12 +201,12 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
 
     def get_permissions_object(self, actor, workspace=None):
         # Not every template the actor can open, so that the list doesn't grow with
-        # the public templates of other users, only the one of the private link of
-        # the request. Revisions can share a workspace, so it's listed once. The
-        # ordering is cleared, because it would otherwise be part of the distinct.
+        # the public templates of other users. Revisions can share a workspace, so
+        # it's listed once. The ordering is cleared, because it would otherwise be
+        # part of the distinct.
         token = get_private_link_token()
         workspace_template_ids = (
-            Template.objects.official_or_owned(actor, private_link_token=token)
+            Template.objects.official_owned_or_linked(actor, private_link_token=token)
             .openable(actor, private_link_token=token)
             .order_by()
             .values_list("workspace_id", flat=True)

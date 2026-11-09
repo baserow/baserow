@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 import pytest
 
 from baserow.api.jobs.serializers import JobSerializer
+from baserow.core.context import private_link_token
 from baserow.core.exceptions import TemplateDoesNotExist
 from baserow.core.jobs.constants import JOB_FAILED, JOB_FINISHED
 from baserow.core.jobs.registries import job_type_registry
@@ -142,6 +143,25 @@ def test_download_job_fails_when_access_is_lost_before_it_runs(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
+    "change,state", [("rotate", JOB_FINISHED), ("remove", JOB_FAILED)]
+)
+def test_download_admitted_through_private_link_when_the_link_changes(
+    data_fixture, change, state
+):
+    template = create_template(data_fixture, data_fixture.create_user(), "shared")
+    with private_link_token(template.private_link_token):
+        job = request_download(data_fixture.create_user(), template)
+    if change == "rotate":
+        UserTemplateHandler().rotate_private_link(template)
+    else:
+        UserTemplateHandler().set_private_link(template, False)
+
+    with fake_build():
+        assert run_job(job).state == state
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
     "actor,shown,error",
     [
         # The owner may download a revision that isn't the public one.
@@ -176,17 +196,18 @@ def test_get_downloadable_revision(data_fixture, actor, shown, error):
 
 
 @pytest.mark.django_db
-def test_get_downloadable_revision_through_private_link(data_fixture):
+def test_get_downloadable_revision_through_private_link(
+    data_fixture, django_assert_num_queries
+):
     template = data_fixture.set_user_template_state(
         create_template(data_fixture, data_fixture.create_user()), "shared"
     )
     latest = add_revision(data_fixture, template)
+    user = data_fixture.create_user()
 
-    revision = UserTemplateHandler().get_downloadable_revision(
-        data_fixture.create_user(),
-        template.slug,
-        latest.id,
-        template.private_link_token,
-    )
+    with django_assert_num_queries(3):
+        revision = UserTemplateHandler().get_downloadable_revision(
+            user, template.slug, latest.id, template.private_link_token
+        )
 
     assert revision.id == latest.id

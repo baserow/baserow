@@ -6,7 +6,7 @@ import { triggerDownload } from '@baserow/modules/core/utils/download'
 import { signedInUserCheck } from '@baserow/modules/core/utils/auth'
 import TemplateService from '@baserow/modules/core/services/template'
 import { FINISHED_STATES } from '@baserow/modules/core/store/job'
-import { getOpenPrivateLinkToken } from '@baserow/modules/core/utils/templatePrivateLink'
+import { PRIVATE_LINK_TOKEN_HEADER } from '@baserow/modules/core/utils/templatePrivateLink'
 
 /**
  * The job type base class that can be extended when creating a plugin
@@ -353,14 +353,16 @@ export class DownloadUserTemplateJobType extends JobType {
    * saved at once, or the job that builds it, which the toast follows. A click
    * while the archive of the same revision is being saved does nothing.
    */
-  async startDownload({ status, data }, template) {
+  async startDownload({ status, data, config }, template) {
     const store = this.app.$store
     if (status === 202) {
       // A repeated click gets the job that runs already, with its toast.
       if (!this.findDownloadToast(data.id)) {
+        const privateLinkToken = config?.headers?.[PRIVATE_LINK_TOKEN_HEADER]
         await this.addDownloadToast(template, {
           jobId: data.id,
           autoDownload: true,
+          ...(privateLinkToken && { privateLinkToken }),
         })
       }
       await this.followJob(data)
@@ -426,11 +428,6 @@ export class DownloadUserTemplateJobType extends JobType {
     await this.app.$store.dispatch('job/forceDelete', job)
   }
 
-  /**
-   * Follows the job of a download. A job that ended before the answer came isn't
-   * polled anymore, so its end is handled at once. A job already in the store, from
-   * an earlier click, is updated with the answer, which can be ahead of it.
-   */
   async followJob(data) {
     const store = this.app.$store
     const known = store.getters['job/get'](data.id)
@@ -478,15 +475,11 @@ export class DownloadUserTemplateJobType extends JobType {
     for (const toast of ended) {
       await store.dispatch('toast/remove', toast)
     }
-    // Kept to ask for the archive once the job is finished, even if the page of
-    // the private link was left since.
-    const privateLinkToken = getOpenPrivateLinkToken(this.app)
     await store.dispatch('toast/add', {
       type: 'downloadTemplate',
       data: {
         template_name: template.name,
         revision_id: template.revision_id,
-        ...(privateLinkToken && { privateLinkToken }),
         ...data,
       },
     })
@@ -553,7 +546,6 @@ export class DownloadUserTemplateJobType extends JobType {
       }
       return
     }
-    // The user logged out while asking.
     if (!isSameUser()) {
       return
     }

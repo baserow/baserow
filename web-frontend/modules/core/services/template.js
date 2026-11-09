@@ -1,4 +1,4 @@
-import { PRIVATE_LINK_HEADER } from '@baserow/modules/core/utils/templatePrivateLink'
+import { PRIVATE_LINK_TOKEN_HEADER } from '@baserow/modules/core/utils/templatePrivateLink'
 
 export default (client) => {
   return {
@@ -66,8 +66,7 @@ export default (client) => {
     /**
      * Responds with the archive of a user template (200), or with the job that
      * builds it (202), after which the archive is asked for again.
-     */
-    /**
+     *
      * @param {string} [privateLinkToken] The token of the private link the
      *   template was opened through, sent even once its page is left.
      */
@@ -76,7 +75,7 @@ export default (client) => {
         `/templates/${slug}/download/`,
         { revision_id: revisionId },
         privateLinkToken
-          ? { headers: { [PRIVATE_LINK_HEADER]: privateLinkToken } }
+          ? { headers: { [PRIVATE_LINK_TOKEN_HEADER]: privateLinkToken } }
           : {}
       )
     },

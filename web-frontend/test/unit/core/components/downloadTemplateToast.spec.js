@@ -5,7 +5,7 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 import { heldBack } from '@baserow/test/helpers/heldBack'
 import { toastsOfType, updateJob } from '@baserow/test/helpers/store'
 import { triggerDownload } from '@baserow/modules/core/utils/download'
-import { getOpenPrivateLinkToken } from '@baserow/modules/core/utils/templatePrivateLink'
+import TemplateService from '@baserow/modules/core/services/template'
 import DownloadTemplateToast from '@baserow/modules/core/components/toasts/DownloadTemplateToast'
 
 // Saving the file is replaced, so that nothing navigates.
@@ -13,15 +13,6 @@ vi.mock('@baserow/modules/core/utils/download', async (importOriginal) => {
   const original = await importOriginal()
   return { ...original, triggerDownload: vi.fn() }
 })
-
-// The page of a private link is open only where a test says so.
-vi.mock(
-  '@baserow/modules/core/utils/templatePrivateLink',
-  async (importOriginal) => {
-    const original = await importOriginal()
-    return { ...original, getOpenPrivateLinkToken: vi.fn(() => null) }
-  }
-)
 
 const template = {
   name: 'Project Tracker',
@@ -125,16 +116,26 @@ describe('DownloadTemplateToast', () => {
     expect(downloadToasts()).toHaveLength(0)
   })
 
-  test('asks for the archive with the token of the private link it was started from', async () => {
+  test('asks for the archive with the token of the private link it was started from, also once left', async () => {
     const token = 'a'.repeat(64)
-    vi.mocked(getOpenPrivateLinkToken).mockReturnValueOnce(token)
-    await startDownload()
+    const { $client, $router } = testApp.nuxtApp
+    await $router.replace(`/template/${template.slug}/private-link/${token}`)
+    const { reply, send } = heldBack()
+    mockDownload().replyOnce(reply)
+    const clicked = TemplateService($client).download(
+      template.slug,
+      template.revision_id
+    )
+    await flushPromises()
+    await $router.replace('/')
+    send([202, runningJob()])
+    await click(await clicked)
     mockDownload().replyOnce(200, archive)
 
     await updateJob(store, 10, { state: 'finished' })
 
-    const [request] = testApp.mock.history.post
-    expect(request.headers['Baserow-Template-Authorization']).toBe(token)
+    const [, archiveRequest] = testApp.mock.history.post
+    expect(archiveRequest.headers['Baserow-Template-Authorization']).toBe(token)
     expect(triggerDownload).toHaveBeenCalledTimes(1)
   })
 
@@ -187,7 +188,6 @@ describe('DownloadTemplateToast', () => {
     )
   })
 
-  // The job finished between the request and its answer.
   const finishedJob = () => runningJob({ id: 11, state: 'finished' })
 
   test('saves the archive when a click gets a job that already finished', async () => {

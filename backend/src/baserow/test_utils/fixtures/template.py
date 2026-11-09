@@ -80,11 +80,13 @@ class TemplateFixtures:
     ) -> Template:
         """
         Puts a user template in `state`, like "public", "in_review" or
-        "resubmitted" (in review again after a rejection).
+        "resubmitted" (in review again after a rejection). "shared" turns its
+        private link on.
 
         :param template: The user template.
         :param state: The state to put it in.
-        :param revision: The revision the state applies to.
+        :param revision: The revision made public or reviewed, the template itself
+            by default.
         :return: The template, refreshed.
         """
 
@@ -92,10 +94,7 @@ class TemplateFixtures:
         now = timezone.now()
         changes = {
             "private": {},
-            "shared": {
-                "shared_revision": revision,
-                "private_link_token": secrets.token_hex(32),
-            },
+            "shared": {"private_link_token": secrets.token_hex(32)},
             "public": {"public_revision": revision},
             "blocked": {"blocked_at": now},
             "public_blocked": {"public_revision": revision, "blocked_at": now},

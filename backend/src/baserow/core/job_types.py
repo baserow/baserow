@@ -43,6 +43,7 @@ from baserow.core.actions import (
     ImportApplicationsActionType,
     InstallTemplateActionType,
 )
+from baserow.core.context import get_private_link_token
 from baserow.core.exceptions import (
     ApplicationDoesNotExist,
     DuplicateApplicationMaxLocksExceededException,
@@ -88,7 +89,6 @@ from baserow.core.user_templates.exceptions import (
     TemplateUpdated,
 )
 from baserow.core.user_templates.handler import UserTemplateHandler
-from baserow.core.user_templates.private_link import get_private_link_token
 from baserow.core.utils import ChildProgressBuilder, Progress
 
 
@@ -318,7 +318,7 @@ class InstallTemplateJobType(JobType):
             context=job.workspace,
         )
         user_template_handler = UserTemplateHandler()
-        user_template_handler.check_install_access(job.user, job.template)
+        user_template_handler.recheck_admitted_install_access(job.user, job.template)
 
         progress = ChildProgressBuilder.build(progress_builder, child_total=100)
         try:

@@ -117,6 +117,8 @@ import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
 import { useUserTemplateDownload } from '@baserow/modules/core/composables/useUserTemplateDownload'
 import { fetchPermissionsOfWorkspaces } from '@baserow/modules/core/utils/workspace'
 import TemplateService from '@baserow/modules/core/services/template'
+import { copyToClipboard } from '@baserow/modules/core/utils/clipboard'
+import { isPrivateLinkPage } from '@baserow/modules/core/utils/templatePrivateLink'
 import CreateWorkspaceModal from '@baserow/modules/core/components/workspace/CreateWorkspaceModal'
 
 const props = defineProps({
@@ -136,8 +138,6 @@ const props = defineProps({
     required: false,
     default: true,
   },
-  // Copied instead of the link to the page of the template, like its private
-  // link, also when `showCopyLink` is false.
   copyLinkUrl: {
     type: String,
     required: false,
@@ -161,7 +161,7 @@ const slots = useSlots()
 const store = useStore()
 const router = useRouter()
 const config = useRuntimeConfig()
-const { $client, $hasPermission } = useNuxtApp()
+const { $client, $hasPermission, $i18n } = useNuxtApp()
 
 const moreButton = ref(null)
 const contextRef = ref(null)
@@ -242,12 +242,11 @@ async function loadPermissions() {
 
 onMounted(loadPermissions)
 
-// Sends the user back to this template's page after logging in, or to the page of
-// its private link, which is needed to open it again.
 async function goToLogin() {
   const current = router.currentRoute.value
-  const { fullPath: original } =
-    current.name === 'template-private-link' ? current : templateRoute()
+  const { fullPath: original } = isPrivateLinkPage(current)
+    ? current
+    : templateRoute()
   await router.push({ name: 'login', query: { original } })
 }
 
@@ -329,10 +328,15 @@ function templateRoute() {
 
 async function copyLink() {
   const { href } = templateRoute()
-  await navigator.clipboard.writeText(
-    props.copyLinkUrl ??
-      new URL(href, config.public.publicWebFrontendUrl).toString()
-  )
+  try {
+    await copyToClipboard(
+      props.copyLinkUrl ??
+        new URL(href, config.public.publicWebFrontendUrl).toString()
+    )
+  } catch {
+    store.dispatch('toast/error', { title: $i18n.t('copied.linkFailed') })
+    return
+  }
   copiedRef.value.show()
 }
 </script>

@@ -13,6 +13,7 @@ import pytest
 from baserow.contrib.database.fields.rich_text_utils import extract_user_file_names
 from baserow.contrib.database.search.handler import SearchHandler
 from baserow.core.action.models import Action
+from baserow.core.context import private_link_token
 from baserow.core.exceptions import TemplateDoesNotExist
 from baserow.core.handler import CoreHandler
 from baserow.core.job_types import InstallTemplateJobType
@@ -31,7 +32,6 @@ from baserow.core.models import (
 from baserow.core.storage import get_default_storage
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_templates.actions import DeleteUserTemplateActionType
-from baserow.core.user_templates.private_link import private_link_token
 from tests.baserow.core.user_templates.utils import (
     add_password_data,
     assert_password_data_left_out,
@@ -95,21 +95,21 @@ def test_install_user_template_pins_revision(data_fixture):
 
     # Everyone installs the public revision, the owner too, while a newer revision
     # exists. Only the owner can ask for the latest one, as from "Your templates".
+    wrong_token = "b" * 64
     for user in [owner, staff, viewer, holder]:
-        installed = _start_install(user, root, link_token=tokens.get(user))
+        installed = _start_install(user, root, link_token=tokens.get(user, wrong_token))
         assert installed.template_id == revision_2.id
-    assert _start_install(owner, root, latest=True).template_id == revision_3.id
+    latest = _start_install(owner, root, latest=True, link_token=wrong_token)
+    assert latest.template_id == revision_3.id
     for user in [staff, viewer, holder]:
         with pytest.raises(TemplateDoesNotExist):
             _start_install(user, root, latest=True, link_token=tokens.get(user))
 
-    # The owner, and who has the private link, install the latest revision while
-    # the template isn't public.
     Template.objects.filter(id=root.id).update(public_revision=None)
     for user in [owner, holder]:
         installed = _start_install(user, root, link_token=tokens.get(user))
         assert installed.template_id == revision_3.id
-    for link_token in [None, "b" * 64]:
+    for link_token in [None, wrong_token]:
         with pytest.raises(TemplateDoesNotExist):
             _start_install(holder, root, link_token=link_token)
 

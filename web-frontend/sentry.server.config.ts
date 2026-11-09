@@ -3,6 +3,7 @@ import * as Sentry from '@sentry/nuxt'
 import { makeFakeTransport } from './modules/core/utils/sentryFakeTransport'
 import { SILENCED_API_ERRORS } from './modules/core/utils/sentryErrors'
 import { redactPrivateLinkTokens } from './modules/core/utils/templatePrivateLink'
+import { dropRouteParams } from './modules/core/utils/sentryTransactions'
 
 const config = useRuntimeConfig()
 const dsn =
@@ -41,7 +42,7 @@ if (dsn && dsn !== '') {
         return redactPrivateLinkTokens(event)
       }
     },
-    // The URL of the page of a private link carries its token.
-    beforeSendTransaction: redactPrivateLinkTokens,
+    beforeSendTransaction: (event) =>
+      redactPrivateLinkTokens(dropRouteParams(event)),
   })
 }

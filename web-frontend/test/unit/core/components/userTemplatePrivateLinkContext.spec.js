@@ -2,6 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
+import { heldBack } from '@baserow/test/helpers/heldBack'
 import UserTemplatePrivateLinkContext from '@baserow/modules/core/components/template/UserTemplatePrivateLinkContext'
 
 const TOKEN = 'a'.repeat(64)
@@ -30,7 +31,6 @@ describe('UserTemplatePrivateLinkContext', () => {
     await testApp.afterEach()
   })
 
-  // Like the list, which replaces the template once it changed.
   const mountAndOpen = async (template) => {
     const wrapper = await testApp.mount(UserTemplatePrivateLinkContext, {
       props: {
@@ -84,6 +84,15 @@ describe('UserTemplatePrivateLinkContext', () => {
 
   const ROTATE_URL = '/templates/sprint-tracker/rotate-private-link-token/'
 
+  test('closes once its template is blocked', async () => {
+    const shared = userTemplate({ private_link_token: TOKEN })
+    const wrapper = await mountAndOpen(shared)
+
+    await wrapper.setProps({ template: { ...shared, state: 'blocked' } })
+
+    expect(wrapper.vm.isOpen()).toBe(false)
+  })
+
   test.each([
     [
       'regenerate',
@@ -118,8 +127,42 @@ describe('UserTemplatePrivateLinkContext', () => {
         type: 'success',
         title: `userTemplatePrivateLink.${toastTitle}`,
       })
-      // It stays open, also to create a new link after turning it off.
       expect(wrapper.vm.isOpen()).toBe(true)
     }
   )
+
+  test('shows an error instead of copied when the link cannot be copied', async () => {
+    navigator.clipboard.writeText.mockRejectedValueOnce(new Error('denied'))
+    const wrapper = await mountAndOpen(
+      userTemplate({ private_link_token: TOKEN })
+    )
+
+    await wrapper.find('.user-template-private-link__action').trigger('click')
+    await flushPromises()
+
+    expect(testApp.store.state.toast.items[0]).toMatchObject({
+      type: 'error',
+      title: 'copied.linkFailed',
+    })
+    expect(wrapper.find('.copied--show').exists()).toBe(false)
+  })
+
+  test('a late answer for a template leaves the one shown since alone', async () => {
+    const { reply, send } = heldBack()
+    testApp.mock.onPatch('/templates/sprint-tracker/').reply(reply)
+    const wrapper = await mountAndOpen(userTemplate())
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+
+    await wrapper.setProps({
+      template: userTemplate({ id: 4, slug: 'roadmap', name: 'Roadmap' }),
+    })
+
+    expect(wrapper.find('button').attributes('disabled')).toBeUndefined()
+
+    send([400, { error: 'ERROR_TEMPLATE_BLOCKED', detail: 'Blocked.' }])
+    await flushPromises()
+
+    expect(wrapper.vm.isOpen()).toBe(true)
+  })
 })
