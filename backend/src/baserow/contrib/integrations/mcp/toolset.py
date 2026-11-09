@@ -211,8 +211,6 @@ class MCPServerToolset(AbstractToolset[Any]):
                     if not verified.get(snapshot.name):
                         return _error(CHANGED_MESSAGE, ToolErrorCode.PERMISSION_DENIED)
                     result = await session.call_tool(snapshot.name, tool_args)
-        except asyncio.CancelledError:
-            raise
         except Exception as exc:
             logger.info(
                 "MCP server {} tool call failed ({})",
