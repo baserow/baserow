@@ -232,7 +232,6 @@ class ChatRunSteps:
         saved_steps: Iterable[ChatRunStep] = (),
         held_step_ids: Mapping[str, str] = MappingProxyType({}),
         approved_ids: Iterable[str] = (),
-        retry_slots: Mapping[str, Iterable[str]] = MappingProxyType({}),
     ) -> None:
         """
         :param journal: Receives a complete step whenever its state changes.
@@ -243,8 +242,6 @@ class ChatRunSteps:
         :param saved_steps: The saved steps of a paused reply, in call order.
         :param held_step_ids: The step id of each held call, by its tool call id.
         :param approved_ids: The tool call ids the user approved.
-        :param retry_slots: Failed steps from the paused response, by tool, which
-            only its next response may retry.
         """
 
         self._journal = journal
@@ -302,16 +299,6 @@ class ChatRunSteps:
                         step = self._steps[pending[-1]]
                         if step["status"] != ChatRunStepStatus.WAITING:
                             self._update({**step, "status": ChatRunStepStatus.WAITING})
-
-    def retry_slots(self) -> dict[str, list[str]]:
-        """Return this response's failed steps for a durable pause.
-
-        Unused slots from an earlier response expire, so they must not be saved.
-
-        :return: The pending retry step ids, in call order within each tool.
-        """
-
-        return {name: list(ids) for name, ids in self._retrying.items() if ids}
 
     @property
     def started(self) -> bool:

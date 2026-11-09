@@ -235,7 +235,6 @@ class AgentResponder:
                 resume.saved_steps,
                 resume.held_step_ids,
                 resume.approved_ids,
-                resume.step_retry_slots,
             )
         )
 
@@ -573,7 +572,6 @@ class AgentResponder:
             usage=to_jsonable_python(self._result.usage),
             steps=steps,
             waiting_calls=self._steps.waiting_calls() if paused else [],
-            step_retry_slots=self._steps.retry_slots() if paused else None,
             paused_conversation=ConversationTypeAdapter.dump_python(
                 self._result.conversation, mode="json"
             )

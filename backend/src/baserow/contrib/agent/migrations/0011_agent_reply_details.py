@@ -35,7 +35,6 @@ class Migration(migrations.Migration):
                 ("model_messages", models.JSONField(null=True)),
                 ("usage", models.JSONField(null=True)),
                 ("paused_conversation", models.JSONField(null=True)),
-                ("step_retry_slots", models.JSONField(null=True)),
                 (
                     "reply",
                     models.OneToOneField(

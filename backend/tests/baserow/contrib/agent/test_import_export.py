@@ -434,7 +434,6 @@ def test_a_copy_never_carries_a_reply_in_progress(
     AgentReplyTranscript.objects.create(
         reply=reply,
         paused_conversation={"messages": []},
-        step_retry_slots={"create_rows": ["invalid-step"]},
     )
 
     copied = CoreHandler().duplicate_application(owner, agent).specific
@@ -444,7 +443,6 @@ def test_a_copy_never_carries_a_reply_in_progress(
     assert reply.steps == [{"id": "call_1", "status": "stopped"}]
     assert not reply.approvals.exists()
     assert reply.transcript.paused_conversation is None
-    assert reply.transcript.step_retry_slots is None
 
 
 @pytest.mark.django_db
