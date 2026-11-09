@@ -50,6 +50,7 @@ from baserow.core.tools.errors import (
 )
 from baserow.core.utils import to_path
 from baserow_enterprise.tools.formula_utils import (
+    client_value_of,
     create_example_from_json_schema,
     formula_object,
     minimize_json_schema,
@@ -405,6 +406,8 @@ class BuilderFormulaError(dict):
     :param kind: The kind of the item.
     :param source: The element, data source or workflow action.
     :param item: The input it was created or updated with.
+    :param formula: The value to store. Its ``formula`` on the entry is what the
+        client sent, and ``description`` is what a formula generator should resolve.
     :param can_repair: False when the value is fine and something else failed, so
         asking for another formula wouldn't help.
     :param permission_denied: Whether the user may not write the value.
@@ -425,10 +428,11 @@ class BuilderFormulaError(dict):
             {
                 f"{kind}_id": source.id,
                 "field": field,
-                "formula": formula,
+                "formula": client_value_of(formula),
                 "error": error,
             }
         )
+        self.description = str(formula)
         self.kind = kind
         self.source = source
         self.item = item

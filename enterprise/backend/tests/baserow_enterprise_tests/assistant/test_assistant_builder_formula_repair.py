@@ -460,6 +460,43 @@ def heading(ref="h", value="Hi", **kwargs):
 
 
 @pytest.mark.django_db
+def test_the_model_gets_a_description_of_text_mixed_with_a_marker(site, monkeypatch):
+    asked = use_generator(monkeypatch, lambda formulas, context: {})
+
+    create_display_elements(
+        site["ctx"],
+        page_id=site["page"].id,
+        elements=[heading(value="New deal: $formula: the deal name")],
+        thought="test",
+    )
+
+    [formulas] = asked
+    assert formulas["value"].startswith("Text mixing static parts")
+    assert formulas["value"].endswith("New deal: $formula: the deal name")
+
+
+@pytest.mark.django_db
+def test_the_model_gets_a_description_of_an_empty_table_column(listed, monkeypatch):
+    asked = use_generator(monkeypatch, lambda formulas, context: {})
+
+    create_collection_elements(
+        listed["ctx"],
+        page_id=listed["page"].id,
+        elements=[
+            CollectionElementCreate(
+                ref="t",
+                type="table",
+                data_source=listed["data_source"].id,
+                fields=[TableFieldConfig(name="Total")],
+            )
+        ],
+        thought="test",
+    )
+
+    assert asked == [{"fields.0.value": "the Total value from the current record"}]
+
+
+@pytest.mark.django_db
 def test_an_explicit_element_formula_needs_no_model(site, monkeypatch):
     asked = use_generator(monkeypatch, lambda formulas, context: {})
 

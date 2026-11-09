@@ -103,7 +103,7 @@ def repair_builder_formula_errors(
     contexts: dict[int, BuilderFormulaContext] = {}
     for entries in by_item.values():
         first = entries[0]
-        formulas = {entry["field"]: entry["formula"] for entry in entries}
+        formulas = {entry["field"]: entry.description for entry in entries}
         tool_helpers.update_status(_repair_status(first))
         denied = False
         try:

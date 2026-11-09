@@ -87,7 +87,7 @@ def test_a_description_on_a_notification_is_left_empty_and_listed(builder_ctx):
     entry = result["formula_errors"][0]
     assert entry["action_id"] == action.id
     assert entry["field"] == "title"
-    assert entry["formula"] == "the product name"
+    assert entry["formula"] == "$formula: the product name"
     assert "needs a formula" in entry["error"]
     assert "errors" not in result
 
@@ -391,7 +391,7 @@ def test_a_deferred_row_id_is_created_and_reported(builder_ctx):
 
     assert "errors" not in result
     assert result["formula_errors"][0]["field"] == "row_id"
-    assert result["formula_errors"][0]["formula"] == "the id"
+    assert result["formula_errors"][0]["formula"] == "$formula: the id"
 
 
 # ---------------------------------------------------------------------------
@@ -886,7 +886,7 @@ def test_update_action_keeps_the_old_title_when_the_new_one_is_refused(
     entry = result["formula_errors"][0]
     assert entry["action_id"] == titled.id
     assert entry["field"] == "title"
-    assert entry["formula"] == "the product name"
+    assert entry["formula"] == "$formula: the product name"
     assert "needs a formula" in entry["error"]
 
 

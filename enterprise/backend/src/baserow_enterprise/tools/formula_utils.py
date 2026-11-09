@@ -1,7 +1,8 @@
-import logging
 from abc import ABC, abstractmethod
 from datetime import date, datetime
 from typing import Any
+
+from loguru import logger
 
 from baserow.contrib.automation.tools.formulas import (  # noqa: F401
     EMPTY_FORMULA,
@@ -20,10 +21,31 @@ from baserow.core.formula.types import (
 )
 from baserow.core.utils import to_path
 
-logger = logging.getLogger(__name__)
+
+class FormulaDescription(str):
+    """
+    What a formula generator should resolve, remembering the value the client sent,
+    so an error can report that value instead of the description.
+    """
+
+    client_value: str
+
+    def __new__(cls, description: str, client_value: str):
+        instance = super().__new__(cls, description)
+        instance.client_value = client_value
+        return instance
+
+    def __getnewargs__(self):
+        return (str(self), self.client_value)
 
 
-def formula_desc(value: str) -> str:
+def client_value_of(formula: str) -> str:
+    """The value the client sent for a formula, or the formula itself."""
+
+    return getattr(formula, "client_value", formula)
+
+
+def formula_desc(value: str) -> FormulaDescription:
     """
     Extract the formula description from a value.
 
@@ -35,21 +57,24 @@ def formula_desc(value: str) -> str:
     formula generator can convert it to a proper formula.
 
     :param value: A string containing a formula description or raw formula.
-    :return: The description text or raw formula expression.
+    :return: The description text or raw formula expression, which still knows
+        ``value`` as its ``client_value``.
     """
 
     stripped = value.strip()
     if stripped.lower().startswith(FORMULA_PREFIX):
-        return stripped[len(FORMULA_PREFIX) :].strip()
-    if FORMULA_PREFIX in stripped.lower():
-        return (
+        description = stripped[len(FORMULA_PREFIX) :].strip()
+    elif FORMULA_PREFIX in stripped.lower():
+        description = (
             "Text mixing static parts and dynamic values. Keep the static text "
             f"as written and replace each '{FORMULA_PREFIX} <description>' part "
             "(up to the end of its line) with the value it describes: "
             f"{stripped}"
         )
-    # Raw formula expression — pass through for the generator to fix up
-    return stripped
+    else:
+        # Raw formula expression — pass through for the generator to fix up
+        description = stripped
+    return FormulaDescription(description, client_value_of(value))
 
 
 def literal_or_placeholder(value: str | None) -> str:
@@ -107,9 +132,7 @@ def ensure_valid_formula(formula: str) -> str:
 
     fallback = wrap_static_string(formula)
     logger.warning(
-        "The assistant produced an invalid formula, storing it as a static "
-        "string literal instead: %s",
-        formula,
+        "Invalid formula stored as a static string literal instead: {}", formula
     )
     return fallback
 

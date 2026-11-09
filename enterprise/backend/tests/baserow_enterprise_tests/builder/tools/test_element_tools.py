@@ -259,7 +259,7 @@ def test_a_description_inside_a_repeat_is_reported(builder_ctx, repeat):
         {
             "element_id": child,
             "field": "value",
-            "formula": "the name of the product",
+            "formula": "$formula: the name of the product",
             "error": (
                 "'value' needs a formula, not a description. Write it in Baserow "
                 "formula syntax, like get('page_parameter.id')."
@@ -416,9 +416,45 @@ def test_table_columns_store_formulas_and_report_descriptions(builder_ctx):
         (entry["element_id"], entry["field"], entry["formula"])
         for entry in result["formula_errors"]
     ] == [
-        (table.id, "fields.1.value", "the price"),
-        (table.id, "fields.2.label", "the action"),
+        (table.id, "fields.1.value", "$formula: the price"),
+        (table.id, "fields.2.label", "$formula: the action"),
     ]
+
+
+@pytest.mark.django_db
+def test_a_formula_error_reports_the_value_the_client_sent(builder_ctx):
+    result = elements.create_display_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            DisplayElementCreate(
+                ref="h", type="heading", value="New deal: $formula: the deal name"
+            )
+        ],
+    )
+
+    [entry] = result["formula_errors"]
+    assert entry["formula"] == "New deal: $formula: the deal name"
+
+
+@pytest.mark.django_db
+def test_an_empty_table_column_reports_an_empty_formula(builder_ctx):
+    result = elements.create_collection_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            CollectionElementCreate(
+                ref="t",
+                type="table",
+                data_source=builder_ctx["data_source"].id,
+                fields=[TableFieldConfig(name="Not a field")],
+            )
+        ],
+    )
+
+    [entry] = result["formula_errors"]
+    assert entry["field"] == "fields.0.value"
+    assert entry["formula"] == ""
 
 
 @pytest.mark.django_db

@@ -76,7 +76,7 @@ def test_create_stores_explicit_formulas_and_reports_descriptions(site):
     assert set(entry) == {"data_source_id", "field", "formula", "error"}
     assert entry["data_source_id"] == ids["described"]
     assert entry["field"] == "search_query"
-    assert entry["formula"] == "the text of the search box"
+    assert entry["formula"] == "$formula: the text of the search box"
     assert "errors" not in result
 
 
@@ -259,7 +259,7 @@ def test_defer_creates_the_get_row_with_the_placeholder_and_reports_the_value(si
         {
             "data_source_id": data_source_id,
             "field": "row_id",
-            "formula": "the id page parameter",
+            "formula": "$formula: the id page parameter",
             "error": result["formula_errors"][0]["error"],
         }
     ]

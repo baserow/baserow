@@ -32,6 +32,7 @@ from baserow_enterprise.builder.tools.registries import (
 )
 from baserow_enterprise.tools.formula_utils import (
     EMPTY_FORMULA,
+    FormulaDescription,
     formula_desc,
     formula_object,
     wrap_static_string,
@@ -626,8 +627,8 @@ def _table_formulas(el: "ElementItemCreate", orm_element, context) -> dict[str, 
                     formulas[f"fields.{i}.value"] = formula_desc(value)
             elif not value and el.data_source:
                 if not existing or existing == "''":
-                    formulas[f"fields.{i}.value"] = (
-                        f"the {field_cfg.name} value from the current record"
+                    formulas[f"fields.{i}.value"] = FormulaDescription(
+                        f"the {field_cfg.name} value from the current record", ""
                     )
 
         elif field_cfg.type == "button" and field_cfg.label:
