@@ -441,7 +441,6 @@ class AgentService:
         :raises AgentToolApprovalNotPending: When an approval is decided already or
             isn't held by the reply waiting in the conversation.
         :raises AgentNotReady: When the agent isn't ready to continue the reply.
-        :raises ChatRunAlreadyActive: When the agent is replying in the conversation.
         :raises ChatRunLimitReached: When the workspace has its maximum of replies
             running.
         :return: The reply with its approvals, and the run continuing it, or None

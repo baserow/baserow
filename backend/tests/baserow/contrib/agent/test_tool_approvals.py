@@ -1,5 +1,7 @@
 from uuid import uuid4
 
+from django.test import override_settings
+
 import pytest
 from rest_framework.response import Response
 from rest_framework.test import APIClient
@@ -10,11 +12,9 @@ from baserow.contrib.agent.models import (
     AgentReplyStatus,
     AgentToolApproval,
 )
-from baserow.core.chat_runs.exceptions import ChatRunAlreadyActive, ChatRunLimitReached
-from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
 
-from .utils import agent_url
+from .utils import agent_url, new_conversation
 
 
 def test_reply_statuses_are_run_statuses_plus_waiting():
@@ -186,25 +186,32 @@ def test_decisions_are_validated(api_client, held_reply, decisions):
     assert statuses(held_reply) == ("waiting", ["pending", "pending"])
 
 
+def fill_the_workspace(api_client: APIClient, reply: AgentMessage) -> None:
+    api_client.post(
+        agent_url(reply.conversation.agent, "conversations"), new_conversation()
+    )
+
+
+def unready_the_agent(api_client: APIClient, reply: AgentMessage) -> None:
+    agent = reply.conversation.agent
+    agent.instructions = ""
+    agent.save()
+
+
 @pytest.mark.django_db
+@override_settings(BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE=1)
 @pytest.mark.parametrize(
-    "refusal,status_code,error",
+    "refuse,status_code,error",
     [
-        (ChatRunLimitReached(), 429, "ERROR_AGENT_BUSY"),
-        (ChatRunAlreadyActive(uuid4()), 409, "ERROR_CHAT_RUN_IN_PROGRESS"),
-        (None, 400, "ERROR_AGENT_NOT_READY"),
+        (fill_the_workspace, 429, "ERROR_AGENT_BUSY"),
+        (unready_the_agent, 400, "ERROR_AGENT_NOT_READY"),
     ],
-    ids=["busy-workspace", "active-run", "not-ready"],
+    ids=["busy-workspace", "not-ready"],
 )
 def test_a_refused_resume_keeps_every_held_call_pending(
-    api_client, held_reply, mocker, refusal, status_code, error
+    api_client, held_reply, refuse, status_code, error
 ):
-    if refusal is None:
-        agent = held_reply.conversation.agent
-        agent.instructions = ""
-        agent.save()
-    else:
-        mocker.patch.object(ChatRunHandler, "start_run", side_effect=refusal)
+    refuse(api_client, held_reply)
 
     response = decide(
         api_client,

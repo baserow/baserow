@@ -196,14 +196,14 @@ class AgentApplicationType(ApplicationType):
             if application.run_as_subject_type and application.run_as_subject_id
             else []
         )
-        # Exports made before tools could ask first get the default rule.
-        ask_first_tools = serialized_values.get("ask_first_tools")
         AgentHandler().set_allowed_tools(
             application,
             allowed_tools,
-            None
-            if ask_first_tools is None
-            else [name for name in ask_first_tools if name in allowed_tools],
+            [
+                name
+                for name in serialized_values.get("ask_first_tools", [])
+                if name in allowed_tools
+            ],
         )
         if self._includes_conversations(import_export_config):
             AgentHandler().import_conversations(

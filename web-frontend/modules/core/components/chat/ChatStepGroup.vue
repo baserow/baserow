@@ -103,7 +103,7 @@
           </li>
         </ul>
       </div>
-      <div v-if="hasInput" class="chat-step-group__input">
+      <div v-if="input" class="chat-step-group__input">
         <div class="chat-step-group__input-label">
           {{ $t('toolPresentation.input') }}
         </div>
@@ -117,9 +117,7 @@
 import { computed, ref, useId } from 'vue'
 import { STEP_STATUS } from '@baserow/modules/core/chatRuns/constants'
 import { stepStatusText } from '@baserow/modules/core/toolPresentationTypes'
-import ChatToolInput, {
-  toolInputText,
-} from '@baserow/modules/core/components/chat/ChatToolInput'
+import ChatToolInput from '@baserow/modules/core/components/chat/ChatToolInput'
 
 const props = defineProps({
   title: { type: String, required: true },
@@ -140,9 +138,8 @@ const failureTooltipOptions = {
 const detailsId = useId()
 // Workspace activity starts open; action inputs are available on demand.
 const expanded = ref(props.lines.length > 0)
-const hasInput = computed(() => !!toolInputText(props.input))
 const hasDetails = computed(
-  () => props.lines.length > 0 || hasInput.value || props.itemErrors.length > 0
+  () => props.lines.length > 0 || !!props.input || props.itemErrors.length > 0
 )
 const partial = computed(
   () => props.status === STEP_STATUS.DONE && props.itemErrors.length > 0

@@ -11,27 +11,16 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import { computed } from 'vue'
 
-/**
- * Formats a normalized tool input preview, so callers can tell whether there is
- * anything to show.
- *
- * @param {{values: object, truncated: boolean}|null} input The input preview.
- * @returns {string} The values as indented JSON, or '' when none can be shown.
- */
-export function toolInputText(input) {
-  return input ? JSON.stringify(input.values, null, 2) : ''
-}
-</script>
-
-<script setup>
 /** A tool's input preview, with a note when the backend shortened it. */
 const props = defineProps({
   /** `{values, truncated}`, as `toolActivity` resolves it. */
   input: { type: Object, default: null },
 })
 
-const text = computed(() => toolInputText(props.input))
+const text = computed(() =>
+  props.input ? JSON.stringify(props.input.values, null, 2) : ''
+)
 </script>

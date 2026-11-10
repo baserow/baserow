@@ -112,7 +112,7 @@
         </p>
         <div class="agent-approval__item-meta">
           <button
-            v-if="withInput.has(item.id)"
+            v-if="item.input"
             type="button"
             class="agent-approval__details-toggle"
             :aria-expanded="expanded.has(item.id)"
@@ -138,7 +138,7 @@
           <code class="agent-approval__tool">{{ item.tool }}</code>
         </div>
         <ChatToolInput
-          v-if="expanded.has(item.id) && withInput.has(item.id)"
+          v-if="item.input && expanded.has(item.id)"
           :id="detailsId(item)"
           class="agent-approval__input"
           :input="item.input"
@@ -157,9 +157,7 @@
 <script setup>
 import { computed, inject, reactive, ref, useId, watch } from 'vue'
 import AgentRejectModal from '@baserow/modules/agent/components/AgentRejectModal'
-import ChatToolInput, {
-  toolInputText,
-} from '@baserow/modules/core/components/chat/ChatToolInput'
+import ChatToolInput from '@baserow/modules/core/components/chat/ChatToolInput'
 import { STEP_STATUS } from '@baserow/modules/core/chatRuns/constants'
 import { APPROVAL_STATUS } from '@baserow/modules/agent/utils/replies'
 
@@ -193,14 +191,6 @@ const countOf = (status) =>
   props.items.filter((item) => item.status === status).length
 const approvedCount = computed(() => countOf(APPROVAL_STATUS.APPROVED))
 const rejectedCount = computed(() => countOf(APPROVAL_STATUS.REJECTED))
-const withInput = computed(
-  () =>
-    new Set(
-      props.items
-        .filter((item) => toolInputText(item.input))
-        .map((item) => item.id)
-    )
-)
 const itemTitleId = (item) => `${titleId}-${item.id}-title`
 const detailsId = (item) => `${titleId}-${item.id}-details`
 

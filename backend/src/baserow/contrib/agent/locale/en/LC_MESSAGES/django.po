@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-10 11:53+0000\n"
+"POT-Creation-Date: 2026-11-10 17:15+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -37,28 +37,37 @@ msgid "Message (%(message_id)s) created in agent (%(agent_id)s)."
 msgstr ""
 
 #: src/baserow/contrib/agent/actions.py:131
-msgid "Update agent conversation"
+msgid "Decide agent tool approvals"
 msgstr ""
 
 #: src/baserow/contrib/agent/actions.py:132
 #, python-format
+msgid "Held steps of reply (%(reply_id)s) decided in agent (%(agent_id)s)."
+msgstr ""
+
+#: src/baserow/contrib/agent/actions.py:203
+msgid "Update agent conversation"
+msgstr ""
+
+#: src/baserow/contrib/agent/actions.py:204
+#, python-format
 msgid "Conversation (%(conversation_id)s) updated in agent (%(agent_id)s)."
 msgstr ""
 
-#: src/baserow/contrib/agent/actions.py:201
+#: src/baserow/contrib/agent/actions.py:273
 msgid "Delete agent conversation"
 msgstr ""
 
-#: src/baserow/contrib/agent/actions.py:202
+#: src/baserow/contrib/agent/actions.py:274
 #, python-format
 msgid "Conversation (%(conversation_id)s) deleted in agent (%(agent_id)s)."
 msgstr ""
 
-#: src/baserow/contrib/agent/actions.py:256
+#: src/baserow/contrib/agent/actions.py:328
 msgid "Update agent configuration"
 msgstr ""
 
-#: src/baserow/contrib/agent/actions.py:257
+#: src/baserow/contrib/agent/actions.py:329
 #, python-format
 msgid "Configuration updated for agent (%(agent_id)s)."
 msgstr ""

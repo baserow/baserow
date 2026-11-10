@@ -849,7 +849,6 @@ class AgentHandler:
         leaves the decisions pending.
 
         :param reply: The waiting reply, with its conversation, agent and owner.
-        :raises ChatRunAlreadyActive: When the conversation already has a run.
         :raises ChatRunLimitReached: When the workspace has its maximum of replies
             running.
         :return: The run continuing the reply.

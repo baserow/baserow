@@ -135,18 +135,11 @@ def test_only_copies_that_keep_run_as_keep_the_tools(
         agent, ["list_tables", "create_rows"], ask_first_names=["list_tables"]
     )
     workspace = data_fixture.create_workspace(user=user)
-    exported = export_internal(agent)
-    legacy_export = {
-        key: value for key, value in exported.items() if key != "ask_first_tools"
-    }
 
     duplicate = CoreHandler().duplicate_application(user, agent).specific
-    imported, legacy = [
-        AgentApplicationType().import_serialized(
-            workspace, serialized, INTERNAL_CONFIG, {}
-        )
-        for serialized in (exported, legacy_export)
-    ]
+    imported = AgentApplicationType().import_serialized(
+        workspace, export_internal(agent), INTERNAL_CONFIG, {}
+    )
 
     assert duplicate.run_as_subject_id == identity.id
     assert (imported.run_as_subject_type, imported.run_as_subject_id) == (None, None)
@@ -162,12 +155,11 @@ def test_only_copies_that_keep_run_as_keep_the_tools(
         "allowed_tools": ["list_tables", "create_rows"],
         "ask_first_tools": ["list_tables"],
     }
-    for copy in (imported, legacy):
-        assert AgentHandler().get_tool_configuration(copy) == {
-            "allowed_tools": [],
-            "ask_first_tools": [],
-        }
-        assert not copy.allowed_tools.exists()
+    assert AgentHandler().get_tool_configuration(imported) == {
+        "allowed_tools": [],
+        "ask_first_tools": [],
+    }
+    assert not imported.allowed_tools.exists()
 
 
 @pytest.mark.django_db
