@@ -97,7 +97,24 @@ def _check_search_finds_row(
 
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 
-_NEGATION = re.compile(r"\b(?:no|not|none|never|without|cannot)\b|n't\b")
+# Clauses are judged apart, so "in Sales, not Operations" doesn't deny the table.
+_CLAUSE_END = re.compile(r"[,;()—–]|\s-\s|\bbut\b")
+
+_NEGATION = re.compile(
+    r"\b(?:no|not|none|never|nothing|nowhere|without|cannot)\b|n't\b"
+)
+
+# Said after the table is named: "the Invoices table is missing".
+_ABSENT = re.compile(r"\b(?:missing|absent|not found)\b")
+
+_BULLET = re.compile(r"^\s*(?:[-*+•]|\d+[.)])\s+")
+
+# The other database of the scenario. "Not in Operations" contrasts, it doesn't deny.
+_OTHER_DATABASES = ("operations",)
+_CONTRAST = re.compile(
+    r"\bnot\s+(?:in\s+|from\s+|under\s+)?(?:the\s+)?(?:%s)\b"
+    % "|".join(_OTHER_DATABASES)
+)
 
 _CREATE_OFFERS = (
     "create it",
@@ -110,22 +127,73 @@ _CREATE_OFFERS = (
 )
 
 
-def _sentences_naming_sales_invoices(answer: str) -> list[str]:
+def _normalized(answer: str) -> str:
+    # Models often write a typographic apostrophe, and markdown around names.
+    text = answer.lower().replace("’", "'")
+    return re.sub(r"\*\*|__|`", "", text)
+
+
+def _denies_invoices(clause: str) -> bool:
+    """
+    Whether a clause says the Invoices table isn't there: a negation before the
+    name, or one or an absence word after it. A clause about another database only
+    ("Operations has no invoices table") doesn't count.
+    """
+
+    clause = _CONTRAST.sub("", clause)
+    at = clause.find("invoice")
+    if at == -1:
+        return False
+    if any(name in clause for name in _OTHER_DATABASES) and "sales" not in clause:
+        return False
+    before, after = clause[:at], clause[at:]
+    return bool(
+        _NEGATION.search(before) or _NEGATION.search(after) or _ABSENT.search(after)
+    )
+
+
+def _clauses(text: str) -> list[str]:
     return [
-        sentence
-        for sentence in _SENTENCE_END.split(answer)
-        if "sales" in sentence and "invoices" in sentence
+        clause
+        for sentence in _SENTENCE_END.split(text)
+        for clause in _CLAUSE_END.split(sentence)
     ]
+
+
+def _listed_under_sales(text: str) -> bool:
+    """Whether a line naming Sales is followed by a list with Invoices in it."""
+
+    lines = text.split("\n")
+    for index, line in enumerate(lines):
+        if "sales" not in line or _BULLET.match(line):
+            continue
+        for item in lines[index + 1 :]:
+            if not item.strip():
+                continue
+            if not _BULLET.match(item):
+                break
+            if "invoice" in item and not _denies_invoices(item):
+                return True
+    return False
+
+
+def _places_invoices_in_sales(text: str) -> bool:
+    """
+    Whether a sentence names Sales and Invoices without denying the table, or a
+    list of Sales has it.
+    """
+
+    for sentence in _SENTENCE_END.split(text):
+        if "sales" in sentence and "invoices" in sentence:
+            if not any(_denies_invoices(c) for c in _CLAUSE_END.split(sentence)):
+                return True
+    return _listed_under_sales(text)
 
 
 def _check_search_finds_table(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
-    # Models often write a typographic apostrophe.
-    answer = output.answer.lower().replace("\u2019", "'")
-    # Only the sentence that names the table is judged, so a remark about another
-    # database ("Operations has no invoices table") doesn't turn it into a denial.
-    naming = _sentences_naming_sales_invoices(answer)
+    text = _normalized(output.answer)
     return [
         CheckResult(
             "called search_workspace or list_tables",
@@ -133,13 +201,18 @@ def _check_search_finds_table(
             >= 1,
         ),
         CheckResult(
-            "a sentence places the Invoices table in Sales without denying it",
-            any(not _NEGATION.search(sentence) for sentence in naming),
+            "the answer places the Invoices table in Sales",
+            _places_invoices_in_sales(text),
+            hint=output.answer[:200],
+        ),
+        CheckResult(
+            "no part of the answer denies the Invoices table",
+            not any(_denies_invoices(clause) for clause in _clauses(text)),
             hint=output.answer[:200],
         ),
         CheckResult(
             "answer doesn't offer to create it",
-            not any(offer in answer for offer in _CREATE_OFFERS),
+            not any(offer in text for offer in _CREATE_OFFERS),
             hint=output.answer[:200],
         ),
     ]

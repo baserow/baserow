@@ -75,7 +75,10 @@ def test_creates_dashboard_check_wants_the_name_and_nothing_else(
             "table.",
             True,
         ),
+        ("I found the Invoices table in Sales, not Operations.", True),
+        ("Sales database:\n- Customers\n- Invoices", True),
         ("Sales doesn't have an Invoices table.", False),
+        ("Sales has Customers; the Invoices table is missing.", False),
         ("Sales has no Invoices table.", False),
         ("There is no Invoices table in Sales.", False),
         (
@@ -93,9 +96,44 @@ def test_creates_dashboard_check_wants_the_name_and_nothing_else(
             "The Sales database could hold invoices. Want me to create it?",
             False,
         ),
+        # Formatting: a heading with a list, markdown, a path.
+        ("**Sales**\n* Customers\n* Invoices\n\n**Operations**\n* Tasks", True),
+        ("Found it: `Sales / Invoices`.", True),
+        ("Operations:\n- Tasks\nSales:\n- Customers", False),
+        # Negation scoped to something else than the Invoices table.
+        ("The Invoices table is in Sales and not in Operations.", True),
+        ("No need to create anything, the Invoices table is in Sales.", True),
+        # Contradictions and absence.
+        ("The Invoices table is in Sales. Actually, there's no invoices table.", False),
+        ("Sales > Invoices doesn't exist.", False),
+        ("Invoices: not found in Sales.", False),
     ],
 )
 def test_search_finds_table_check_rejects_a_denial(answer, passes):
+    checks = _run("core/search-finds-table", _output("search_workspace", answer=answer))
+
+    assert all(checks.values()) is passes
+
+
+# Held out: written before the check was tuned on the cases above, and not used to
+# tune it, so a fix for one phrase that breaks another shows up here.
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "answer,passes",
+    [
+        ("Your invoices live in the Sales database, table Invoices.", True),
+        ("In Sales there are two tables: Customers and Invoices.", True),
+        ("Sales\n  1. Customers\n  2. Invoices", True),
+        ("It's not in Operations; Sales has the Invoices table.", True),
+        ("| Database | Table |\n| Sales | Invoices |", True),
+        ("Sales only has Customers, invoices aren't there.", False),
+        ("Sales has Customers. I can't see Invoices anywhere.", False),
+        ("Invoices isn't a table in Sales.", False),
+        ("Nothing called Invoices exists in Sales.", False),
+        ("Sales > Invoices is absent.", False),
+    ],
+)
+def test_search_finds_table_check_on_held_out_answers(answer, passes):
     checks = _run("core/search-finds-table", _output("search_workspace", answer=answer))
 
     assert all(checks.values()) is passes
