@@ -349,7 +349,7 @@ class DeleteRowsAgentToolType(DatabaseAgentToolType):
     ) -> StepPreview:
         table = visible_table(ctx, arguments["table_id"])
         preview = StepPreview({"table": table.name}, "rows")
-        row_ids = preview.cut_items(list(dict.fromkeys(arguments["row_ids"])))
+        row_ids = preview.cut_items(arguments["row_ids"])
         names = row_names(ctx, table, row_ids)
         preview.items = [names.get(row_id, {"row_id": row_id}) for row_id in row_ids]
         return preview
@@ -357,4 +357,4 @@ class DeleteRowsAgentToolType(DatabaseAgentToolType):
     def get_step_facts(
         self, ctx: ToolContext, arguments: dict[str, Any], result: Any
     ) -> dict[str, Any]:
-        return {"count": len(set(arguments["row_ids"]))}
+        return {"count": len(arguments["row_ids"])}

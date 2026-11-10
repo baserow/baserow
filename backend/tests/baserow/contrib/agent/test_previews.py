@@ -48,6 +48,14 @@ def test_a_request_too_large_to_store_keeps_its_names_and_the_items_that_fit():
     assert len(json.dumps(stored["values"])) <= MAX_INPUT_PREVIEW_SIZE
 
 
+def test_a_single_item_too_large_to_store_is_left_out_not_shown_empty():
+    table = {f"F{index}": [{"x": "y" * 1000}] * 10 for index in range(10)}
+
+    stored = StepPreview({"database": "Work"}, "tables", [table]).to_input()
+
+    assert stored == {"values": {"database": "Work"}, "truncated": True}
+
+
 def test_only_values_of_readable_fields_are_shown():
     values = {"Name": "Acme", "Secret": "a", "secret": "b", " Name": "c", "X": "d"}
 

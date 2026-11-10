@@ -46,7 +46,8 @@ class StepPreview:
         ``MAX_PREVIEW_ITEMS`` items and every object its first ``MAX_PREVIEW_KEYS``
         keys, at any depth, and ``tool_input_preview`` shortens long strings. When
         the JSON is still too large to store, trailing items are left out until it
-        fits, so the names always stay.
+        fits, so the names always stay. When no item fits, the items are left out
+        entirely rather than shown as an empty list.
 
         :return: ``values``, and ``truncated`` when anything was left out.
         """
@@ -55,7 +56,7 @@ class StepPreview:
         truncated = self.truncated or items != self.items
         while True:
             values: dict[str, Any] = dict(self.names)
-            if self.items_key is not None:
+            if self.items_key is not None and (items or not self.items):
                 values[self.items_key] = items
             bounded = tool_input_preview(values)
             if bounded or not items:

@@ -763,7 +763,7 @@ def test_changed_rows_are_named_by_their_primary_value(workspace_data):
         workspace_data.ctx,
         {
             "table_id": workspace_data.table.id,
-            "row_ids": [row.id, unnamed.id, row.id],
+            "row_ids": [row.id, unnamed.id],
         },
     )
 

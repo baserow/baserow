@@ -70,7 +70,8 @@ as the Agent identity, before the tool runs, and stores it in `input.values`.
 - Every list keeps 10 items and every object 10 keys, at any depth;
   `requested_count` keeps the requested number.
 - Strings keep 1,000 characters.
-- Over 16 KiB of JSON, trailing items are left out until it fits.
+- Over 16 KiB of JSON, trailing items are left out until it fits; when none
+  fits, the list is left out, never shown empty.
 - `input.truncated` marks any of these cuts; the card says the preview is
   shortened.
 - Each ID is resolved on its own: two fields named "Name" stay two entries.
