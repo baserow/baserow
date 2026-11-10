@@ -628,3 +628,25 @@ def test_sending_back_the_registered_client_id_keeps_it_registered(data_fixture)
     integration.refresh_from_db()
     assert integration.oauth_client_source == "dynamic"
     assert integration.oauth_connected
+
+
+@pytest.mark.parametrize(
+    "methods,secret,expected",
+    [
+        ([], "s", "client_secret_basic"),
+        (["client_secret_basic", "client_secret_post"], "s", "client_secret_basic"),
+        (["none", "client_secret_post"], "s", "client_secret_post"),
+        (["client_secret_post"], "", "none"),
+    ],
+)
+def test_an_editors_client_uses_basic_auth_unless_the_server_lacks_it(
+    methods, secret, expected
+):
+    server = oauth.OAuthServer(
+        issuer="https://auth.example.com",
+        authorization_endpoint="https://auth.example.com/authorize",
+        token_endpoint="https://auth.example.com/token",
+        token_endpoint_auth_methods=methods,
+    )
+
+    assert oauth.manual_client_auth_method(server, secret) == expected

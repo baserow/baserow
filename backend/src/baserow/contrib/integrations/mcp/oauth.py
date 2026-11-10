@@ -349,12 +349,22 @@ async def _register(server: OAuthServer) -> OAuthClient:
 
 
 def manual_client_auth_method(server: OAuthServer, client_secret: str) -> str:
-    """How an editor-registered client authenticates at the token endpoint."""
+    """
+    How an editor-registered client authenticates at the token endpoint. Basic
+    is the method RFC 6749 §2.3.1 makes every server support, so it's used
+    unless the server lists methods without it.
 
+    :param server: The authorization server.
+    :param client_secret: The editor's client secret, if any.
+    :return: The token endpoint auth method.
+    """
+
+    methods = server.token_endpoint_auth_methods
     if not client_secret:
         return "none"
-    if "client_secret_post" in server.token_endpoint_auth_methods:
-        return "client_secret_post"
+    if methods and "client_secret_basic" not in methods:
+        if "client_secret_post" in methods:
+            return "client_secret_post"
     return "client_secret_basic"
 
 
