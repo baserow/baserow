@@ -113,6 +113,35 @@ describe('DataSourceTestForm', () => {
     expect(wrapper.text()).toContain('dataSourceTestForm.failed')
   })
 
+  test('shows the error a test stored with what it received', async () => {
+    const page = createPage(null)
+    page.dataSources[0] = {
+      ...page.dataSources[0],
+      type: 'http_get',
+      returns_list: true,
+    }
+    mock.onPost('builder/data-source/7/simulate-dispatch/').replyOnce(200, {
+      ...page.dataSources[0],
+      sample_data: {
+        data: {
+          results: [],
+          has_next_page: false,
+          response: { id: 1 },
+          error: 'Expected a list as the response, got dict.',
+        },
+      },
+    })
+
+    const wrapper = await mountComponent(page)
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+
+    const code = wrapper.find('.data-source-test-form__code')
+    expect(code.text()).toBe('Expected a list as the response, got dict.')
+    expect(code.classes()).toContain('data-source-test-form__code--error')
+    expect(wrapper.text()).toContain('dataSourceTestForm.failed')
+  })
+
   test('runs beforeTest first, and skips the test when it says so', async () => {
     const page = createPage(null)
     const calls = []

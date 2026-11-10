@@ -60,11 +60,15 @@ export function useDataSourceTest({
       if (beforeTest && (await beforeTest()) === false) {
         return
       }
-      await store.dispatch('dataSource/simulateDispatch', {
-        page: page(),
-        dataSourceId: dataSource().id,
-        dispatchContext,
-      })
+      const testedDataSource = await store.dispatch(
+        'dataSource/simulateDispatch',
+        {
+          page: page(),
+          dataSourceId: dataSource().id,
+          dispatchContext,
+        }
+      )
+      error.value = serviceType.value.getTestError(testedDataSource)
     } catch (err) {
       error.value =
         err.response?.data?.detail ||

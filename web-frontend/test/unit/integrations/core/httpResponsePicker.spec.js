@@ -19,22 +19,25 @@ const findRow = (wrapper, label) => findRows(wrapper, label)[0]
 
 const rowTag = (row) => row.find('.http-response-picker__tag').text()
 
+const isChosen = (row) =>
+  row.find('.http-response-picker__tag--selected').exists()
+
 const body = {
   data: { items: [{ id: 1, name: 'Lamp' }], total: 1 },
   meta: { 'page.size': 20 },
 }
 
 describe('HTTPResponsePicker', () => {
-  test('the whole response is one record, and its only list is suggested', async () => {
+  test('the whole response is one record, and its only list is shown', async () => {
     const wrapper = await mountComponent({ response: body })
+    const root = findRow(wrapper, 'httpResponsePicker.response')
 
-    expect(rowTag(findRow(wrapper, 'httpResponsePicker.response'))).toBe(
-      'httpResponsePicker.oneRecord'
-    )
-    // The list is shown: the rows above it are open.
-    expect(rowTag(findRow(wrapper, 'items'))).toBe(
-      'httpResponsePicker.suggested'
-    )
+    expect(rowTag(root)).toBe('httpResponsePicker.oneRecord')
+    expect(isChosen(root)).toBe(true)
+    // The list is shown, with what choosing it does: the rows above it are
+    // open.
+    expect(rowTag(findRow(wrapper, 'items'))).toBe('httpResponsePicker.aList')
+    expect(isChosen(findRow(wrapper, 'items'))).toBe(false)
     expect(
       findRow(wrapper, 'total').find('.http-response-picker__value').text()
     ).toBe('1')
@@ -65,10 +68,11 @@ describe('HTTPResponsePicker', () => {
       listPath: 'data.items',
     })
 
-    expect(rowTag(findRow(wrapper, 'items'))).toBe('httpResponsePicker.records')
-    expect(rowTag(findRow(wrapper, 'httpResponsePicker.response'))).toBe(
-      'httpResponsePicker.select'
-    )
+    expect(rowTag(findRow(wrapper, 'items'))).toBe('httpResponsePicker.aList')
+    expect(isChosen(findRow(wrapper, 'items'))).toBe(true)
+    const root = findRow(wrapper, 'httpResponsePicker.response')
+    expect(rowTag(root)).toBe('httpResponsePicker.oneRecord')
+    expect(isChosen(root)).toBe(false)
 
     await findRow(wrapper, 'httpResponsePicker.response').trigger('click')
     expect(wrapper.emitted('select')).toEqual([
@@ -76,11 +80,12 @@ describe('HTTPResponsePicker', () => {
     ])
   })
 
-  test('a response which is a list is suggested as the records', async () => {
+  test('a response which is a list can be chosen as a list', async () => {
     const wrapper = await mountComponent({ response: [{ id: 1 }, { id: 2 }] })
     const root = findRow(wrapper, 'httpResponsePicker.response')
 
-    expect(rowTag(root)).toBe('httpResponsePicker.suggested')
+    expect(rowTag(root)).toBe('httpResponsePicker.aList')
+    expect(isChosen(root)).toBe(false)
 
     await root.trigger('click')
     expect(wrapper.emitted('select')).toEqual([

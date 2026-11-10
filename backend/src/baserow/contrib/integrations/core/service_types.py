@@ -1106,6 +1106,21 @@ class CoreHTTPDataSourceServiceType(ListServiceTypeMixin, CoreHTTPRequestService
         schema_builder.add_object(sample_data["data"])
         schema = schema_builder.to_schema()
         schema.pop("$schema", None)
+        return self._with_titles(schema)
+
+    def _with_titles(self, schema: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Gives each property of the schema its key as a title, which is what the
+        editor shows to choose it.
+        """
+
+        if "properties" in schema:
+            schema["properties"] = {
+                key: {**self._with_titles(value), "title": key}
+                for key, value in schema["properties"].items()
+            }
+        if isinstance(schema.get("items"), dict):
+            schema["items"] = self._with_titles(schema["items"])
         return schema
 
     def _filter_properties(
@@ -1157,7 +1172,7 @@ class CoreHTTPDataSourceServiceType(ListServiceTypeMixin, CoreHTTPRequestService
 
         schema_builder = SchemaBuilder()
         schema_builder.add_object(sample_data["data"]["results"])
-        schema = schema_builder.to_schema()
+        schema = self._with_titles(schema_builder.to_schema())
         schema.pop("$schema", None)
 
         if "items" not in schema:
@@ -1275,13 +1290,27 @@ class CoreHTTPDataSourceServiceType(ListServiceTypeMixin, CoreHTTPRequestService
         if not service.returns_list:
             return body
 
-        records = self._to_records(self._get_list(body, service.list_path))
         # A test stores the result as the sample data, which then also keeps the
         # response the records were read from, to choose another list in it.
         is_test = dispatch_context.use_sample_data and (
             dispatch_context.update_sample_data_for is None
             or service in dispatch_context.update_sample_data_for
         )
+
+        try:
+            records = self._to_records(self._get_list(body, service.list_path))
+        except ServiceImproperlyConfiguredDispatchException as e:
+            if not is_test:
+                raise
+            # The response has changed since the list was chosen in it. The test
+            # keeps the new response, with why it has no records, so the
+            # records can be chosen in it again.
+            return {
+                "results": [],
+                "has_next_page": False,
+                "response": self._sample_response(body),
+                "error": str(e),
+            }
 
         if (
             dispatch_context.only_record_id is not None
@@ -1315,6 +1344,14 @@ class CoreHTTPDataSourceServiceType(ListServiceTypeMixin, CoreHTTPRequestService
         # showing `user.name` must not make the rest of the user public. The
         # path is stored as JSON, as a key of the response can have a dot.
         return [json.dumps([str(part) for part in path])]
+
+    def extract_collection_properties(
+        self, service: CoreHTTPDataSourceService, schema_property: str
+    ) -> List[str]:
+        # The formulas of the collection's elements say which values of its
+        # items they show. Of the items themselves, only what identifies them is
+        # needed, not the whole list.
+        return self.extract_properties(service, [schema_property, "*", "id"])
 
     def _to_used_path(self, property_name: str) -> List[str]:
         """

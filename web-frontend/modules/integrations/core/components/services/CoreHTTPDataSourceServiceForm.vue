@@ -67,6 +67,9 @@
         "
       >
         <template v-if="response !== undefined">
+          <Alert v-if="testError" type="warning" class="margin-bottom-2">
+            <p>{{ $t('coreHTTPDataSourceServiceForm.listNotInResponse') }}</p>
+          </Alert>
           <p
             class="http-data-source-form__help http-data-source-form__help--above"
           >
@@ -241,6 +244,18 @@ export default {
         .get('service', this.service.type)
         .getSampleResponse(this.service)
     },
+    /**
+     * Why the last test found no records, when the list isn't in the response
+     * anymore. The records are then chosen again in the response.
+     */
+    testError() {
+      if (this.service?.type !== HTTP_DATA_SOURCE_TYPE) {
+        return null
+      }
+      return this.$registry
+        .get('service', this.service.type)
+        .getTestError(this.service)
+    },
     returnsList: {
       get() {
         return this.values.returns_list
@@ -273,6 +288,14 @@ export default {
       handler(value) {
         if (value !== undefined) {
           this.response = value
+        }
+      },
+      immediate: true,
+    },
+    testError: {
+      handler(value) {
+        if (value) {
+          this.selectedTab = TABS.RESPONSE
         }
       },
       immediate: true,

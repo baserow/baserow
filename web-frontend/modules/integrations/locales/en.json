@@ -264,14 +264,13 @@
     "listPathPlaceholder": "data.items",
     "listPathHelper": "Where the list is in the response, with dots between keys. Leave it empty when the response itself is the list.",
     "responseHelp": "Choose the records in the response of the last test: the whole response is one record, a list in it is a list of records.",
-    "testToChoose": "Test the request to choose the records in its response, or describe them here."
+    "testToChoose": "Test the request to choose the records in its response, or set them here without testing.",
+    "listNotInResponse": "The list of records isn't in the response of the last test anymore. Choose where the records are in it below."
   },
   "httpResponsePicker": {
     "response": "Response",
     "oneRecord": "One record",
-    "records": "Records",
-    "suggested": "Suggested",
-    "select": "Select",
+    "aList": "A list",
     "expand": "Expand",
     "collapse": "Collapse"
   },

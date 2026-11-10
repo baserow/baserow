@@ -65,27 +65,31 @@
   @extend %ellipsis;
 }
 
+// Every row which can be chosen says what choosing it reads the records as.
 .http-response-picker__tag {
   display: flex;
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
+  padding: 0 6px;
+  border: 1px solid $palette-neutral-200;
   font-size: 12px;
-  color: $palette-neutral-900;
-}
+  line-height: 20px;
+  color: $palette-neutral-600;
 
-.http-response-picker__tag--selected {
-  font-weight: 500;
-  color: $palette-blue-800;
-}
-
-// Only the row under the pointer, or with the focus, offers to be chosen.
-.http-response-picker__tag--select {
-  visibility: hidden;
-  color: $palette-blue-800;
+  @include rounded($rounded);
 
   .http-response-picker__row:hover &,
   .http-response-picker__row:focus-visible & {
-    visibility: visible;
+    border-color: $palette-blue-500;
+    color: $palette-blue-800;
   }
+}
+
+.http-response-picker__tag--selected,
+.http-response-picker__row:hover .http-response-picker__tag--selected {
+  border-color: $palette-blue-500;
+  background-color: $palette-blue-500;
+  font-weight: 500;
+  color: $white;
 }

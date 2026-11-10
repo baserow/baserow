@@ -658,7 +658,12 @@ class CollectionElementTypeMixin:
                 data_source = None
 
         if (schema_property := instance.schema_property) and data_source:
-            properties[data_source.service_id] = [schema_property]
+            service = data_source.service.specific
+            properties[data_source.service_id] = (
+                service.get_type().extract_collection_properties(
+                    service, schema_property
+                )
+            )
 
         property_options = [
             field_name

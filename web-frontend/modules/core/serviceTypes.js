@@ -253,6 +253,14 @@ export const DataSourceServiceTypeMixin = (Base) =>
     }
 
     /**
+     * Why the last test of the data source found no data, when the test still
+     * stored what it received: an error the test shows although it succeeded.
+     */
+    getTestError(service) {
+      return null
+    }
+
+    /**
      * In a service which returns a list, this method is used to
      * return the name of the given record.
      */

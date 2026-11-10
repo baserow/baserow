@@ -238,6 +238,21 @@ class ServiceType(
         # Sane default
         return "id"
 
+    def extract_collection_properties(
+        self, service: Service, schema_property: str
+    ) -> List[str]:
+        """
+        Returns the properties of the service's result that a collection element
+        repeating over the items of `schema_property` needs, besides the ones its
+        formulas use.
+
+        :param service: the instance of the service.
+        :param schema_property: the property holding the items.
+        :return: the property names.
+        """
+
+        return [schema_property]
+
     def get_name_property(self, service: Service) -> Optional[str]:
         """
         We need the name of the records for some elements (like the record selector).

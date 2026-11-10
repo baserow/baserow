@@ -42,24 +42,16 @@
       <span class="http-response-picker__key">{{ row.label }}</span>
       <span class="http-response-picker__value">{{ row.preview }}</span>
       <span
-        v-if="row.selected"
-        class="http-response-picker__tag http-response-picker__tag--selected"
+        v-if="row.selectable"
+        class="http-response-picker__tag"
+        :class="{ 'http-response-picker__tag--selected': row.selected }"
       >
-        <i class="iconoir-check" />
+        <i v-if="row.selected" class="iconoir-check" />
         {{
           row.isList
-            ? $t('httpResponsePicker.records')
+            ? $t('httpResponsePicker.aList')
             : $t('httpResponsePicker.oneRecord')
         }}
-      </span>
-      <span v-else-if="row.suggested" class="http-response-picker__tag">
-        {{ $t('httpResponsePicker.suggested') }}
-      </span>
-      <span
-        v-else-if="row.selectable"
-        class="http-response-picker__tag http-response-picker__tag--select"
-      >
-        {{ $t('httpResponsePicker.select') }}
       </span>
     </div>
   </div>
@@ -126,10 +118,11 @@ const preview = (value) => {
 }
 
 /**
- * The list to suggest while the response is read as one record: the response
- * itself when it is a list, or else the only list in it outside other lists.
+ * The list which is opened in the tree while the response is read as one
+ * record, to show it can be chosen: the response itself when it is a list, or
+ * else the only list in it outside other lists.
  */
-const suggestedSegments = computed(() => {
+const onlyListSegments = computed(() => {
   if (Array.isArray(props.response)) {
     return []
   }
@@ -164,7 +157,7 @@ const initialOpenIds = () =>
   new Set([
     rowId([]),
     ...ancestorIds(selectedSegments.value || []),
-    ...ancestorIds(suggestedSegments.value || []),
+    ...ancestorIds(onlyListSegments.value || []),
   ])
 
 const openIds = ref(initialOpenIds())
@@ -181,10 +174,6 @@ const rows = computed(() => {
   const selectedId = selectedSegments.value
     ? rowId(selectedSegments.value)
     : null
-  const suggestedId =
-    !props.returnsList && suggestedSegments.value
-      ? rowId(suggestedSegments.value)
-      : null
 
   const addRows = (value, segments, label) => {
     const id = rowId(segments)
@@ -202,8 +191,8 @@ const rows = computed(() => {
       expandable: items.length > 0 && !isRoot,
       open,
       selectable: isRoot || (isList && canBeInPath(segments)),
-      selected: id === selectedId && (isList || isRoot),
-      suggested: id === suggestedId,
+      // The records of a list data source are only the list at its path.
+      selected: id === selectedId && (!props.returnsList || isList),
     })
     if (open) {
       items.forEach(([key, item]) =>

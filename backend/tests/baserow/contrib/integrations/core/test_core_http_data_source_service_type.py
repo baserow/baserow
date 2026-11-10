@@ -27,6 +27,7 @@ from baserow.contrib.integrations.core.models import (
 from baserow.contrib.integrations.core.service_types import (
     CoreHTTPDataSourceServiceType,
 )
+from baserow.core.graph.types import GraphPointPosition
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import (
     AddressNotAllowedDispatchException,
@@ -37,7 +38,7 @@ from baserow.core.services.exceptions import (
     UnexpectedDispatchException,
 )
 from baserow.core.services.registries import service_type_registry
-from baserow.core.services.utils import sample_data_skeleton
+from baserow.core.services.utils import sample_data_skeleton, sanitize_sample_data
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 
@@ -509,6 +510,38 @@ def test_public_dispatch_http_list_data_source_only_sends_the_used_values(
 
 
 @pytest.mark.django_db
+def test_public_dispatch_http_data_source_repeat_over_a_property_only_sends_the_used_values(
+    api_client, data_fixture
+):
+    page = create_public_page(data_fixture)
+    data_source = data_fixture.create_builder_data_source(
+        page=page, service=create_http_get_service(data_fixture)
+    )
+    repeat = data_fixture.create_builder_repeat_element(
+        page=page, data_source=data_source, schema_property="users"
+    )
+    data_fixture.create_builder_heading_element(
+        page=page,
+        value="get('current_record.name')",
+        reference_element=repeat,
+        position=GraphPointPosition.CHILD,
+    )
+    body = {
+        "users": [
+            {"id": 1, "name": "Ada", "password": "a"},
+            {"name": "Bob", "password": "b"},
+        ],
+        "token": "x",
+    }
+
+    assert public_dispatch(api_client, page, body) == {
+        str(data_source.id): {
+            "users": [{"id": 1, "name": "Ada"}, {"name": "Bob"}],
+        }
+    }
+
+
+@pytest.mark.django_db
 def test_http_data_source_generate_schema(data_fixture):
     service = create_http_get_service(data_fixture)
     service_type = service.get_type()
@@ -524,9 +557,9 @@ def test_http_data_source_generate_schema(data_fixture):
         "title": f"HTTPDataSource{service.id}Schema",
         "type": "object",
         "properties": {
-            "name": {"type": "string"},
-            "age": {"type": "integer"},
-            "tags": {"type": "array", "items": {"type": "string"}},
+            "name": {"type": "string", "title": "name"},
+            "age": {"type": "integer", "title": "age"},
+            "tags": {"type": "array", "items": {"type": "string"}, "title": "tags"},
         },
         "required": ["age", "name", "tags"],
     }
@@ -567,6 +600,21 @@ def test_http_list_data_source_generate_schema(data_fixture):
     assert schema["title"] == f"HTTPDataSource{service.id}Schema"
     assert schema["type"] == "array"
     assert set(schema["items"]["properties"]) == {"name", "extra", "_id"}
+    # The editor shows a property by its title.
+    assert schema["items"]["properties"]["name"]["title"] == "name"
+
+    service.sample_data = {
+        "data": {
+            "results": [{"user": {"tags": [{"label": "a"}]}, "_id": 0}],
+            "has_next_page": False,
+        }
+    }
+    user_schema = service_type.generate_schema(service)["items"]["properties"]["user"]
+    assert user_schema["title"] == "user"
+    assert user_schema["properties"]["tags"]["items"]["properties"]["label"] == {
+        "type": "string",
+        "title": "label",
+    }
 
 
 @pytest.mark.django_db
@@ -736,9 +784,9 @@ def test_public_dispatch_sends_http_requests_outside_a_transaction(
 
 
 @pytest.mark.django_db
-def test_only_sensitive_sample_data_is_emptied_on_export(data_fixture):
-    # The sample data of an automation's nodes is what simulates them, which
-    # its templates rely on.
+def test_other_sample_data_is_replaced_by_placeholders_on_export(data_fixture):
+    # Only the sample data of an HTTP data source is cut down to its shape. The
+    # sample data of other services keeps its lists, with placeholder values.
     action = data_fixture.create_service(
         CoreHTTPRequestService,
         url="'https://example.notexist'",
@@ -754,7 +802,7 @@ def test_only_sensitive_sample_data_is_emptied_on_export(data_fixture):
         exported = service.get_type().export_serialized(
             service, import_export_config=config
         )
-        assert exported["sample_data"] == service.sample_data
+        assert exported["sample_data"] == sanitize_sample_data(service.sample_data)
 
 
 @pytest.mark.django_db
@@ -876,6 +924,53 @@ def test_simulate_dispatch_http_list_data_source_keeps_response(
     with mock_http_get(body):
         result = service.get_type().dispatch(service, FakeDispatchContext())
     assert "response" not in result.data
+
+
+@pytest.mark.django_db
+def test_simulate_dispatch_http_list_data_source_keeps_a_response_without_the_list(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    data_source = DataSourceService().create_data_source(
+        user,
+        page=page,
+        service_type=service_type_registry.get("http_get"),
+        url={"formula": "'https://example.notexist/items'"},
+        returns_list=True,
+    )
+    url = reverse(
+        "api:builder:data_source:simulate-dispatch",
+        kwargs={"data_source_id": data_source.id},
+    )
+
+    # The URL now answers with one record rather than a list.
+    with mock_http_get({"id": 1, "name": "Ada"}):
+        response = api_client.post(
+            url, {}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+        )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    sample = response.json()["sample_data"]["data"]
+    assert sample["results"] == []
+    assert sample["response"] == {"id": 1, "name": "Ada"}
+    assert "Expected a list as the response" in sample["error"]
+
+    # The record can then be chosen in the new response without testing again.
+    updated = DataSourceService().update_data_source(
+        user,
+        DataSourceHandler().get_data_source(data_source.id),
+        service_type=service_type_registry.get("http_get"),
+        returns_list=False,
+    )
+    service = updated.data_source.service.specific
+    assert service.sample_data["data"] == {"id": 1, "name": "Ada"}
+
+    # A dispatch other than a test still fails.
+    service.returns_list = True
+    with mock_http_get({"id": 1, "name": "Ada"}):
+        with pytest.raises(ServiceImproperlyConfiguredDispatchException):
+            service.get_type().dispatch(service, FakeDispatchContext())
 
 
 @pytest.mark.django_db

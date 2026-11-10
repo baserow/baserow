@@ -201,7 +201,7 @@ describe('CoreHTTPDataSourceServiceForm', () => {
     expect(wrapper.find('.http-response-picker').exists()).toBe(true)
     expect(
       wrapper.find('.http-response-picker__row--selected').text()
-    ).toContain('httpResponsePicker.records')
+    ).toContain('httpResponsePicker.aList')
   })
 
   test('a list data source chooses in the response its test kept', async () => {
@@ -228,6 +228,40 @@ describe('CoreHTTPDataSourceServiceForm', () => {
     expect(wrapper.find('.http-response-picker__row--selected').text()).toMatch(
       /^items/
     )
+  })
+
+  test('opens the response when the list is not in the tested response anymore', async () => {
+    const wrapper = await mountComponent(
+      { type: 'http_get', returns_list: true, list_path: '' },
+      null,
+      {
+        id: 1,
+        type: 'http_get',
+        returns_list: true,
+        sample_data: {
+          data: {
+            results: [],
+            has_next_page: false,
+            response: { id: 1, name: 'Ada' },
+            error: 'Expected a list as the response, got dict.',
+          },
+        },
+      }
+    )
+    await flushPromises()
+
+    expect(wrapper.find('.alert').text()).toContain(
+      'coreHTTPDataSourceServiceForm.listNotInResponse'
+    )
+    // Nothing in the new response is chosen, so the records can be.
+    expect(wrapper.find('.http-response-picker__row--selected').exists()).toBe(
+      false
+    )
+    await wrapper.find('.http-response-picker__row').trigger('click')
+    expect(wrapper.emitted('values-changed').at(-1)[0]).toMatchObject({
+      returns_list: false,
+    })
+    expect(wrapper.find('.alert').exists()).toBe(true)
   })
 
   test('another type of data source can be switched to an HTTP request', async () => {

@@ -128,7 +128,7 @@ class BuilderFormulaContext:
             self.context[key] = example
             self.context_metadata[key] = {
                 "name": ds.name,
-                "returns_list": service_type.returns_list,
+                "returns_list": service_type.returns_list(service),
                 "fields": fields,
             }
 

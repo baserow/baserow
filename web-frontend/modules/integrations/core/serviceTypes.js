@@ -630,6 +630,17 @@ export class CoreHTTPDataSourceServiceType extends DataSourceServiceTypeMixin(
     return this.returnsList(service) ? sample.data?.response : sample.data
   }
 
+  /**
+   * A test of a list keeps the response when the list isn't in it anymore, so
+   * the records can be chosen in it again, with why it has no records.
+   */
+  getTestError(service) {
+    if (!this.returnsList(service)) {
+      return null
+    }
+    return this.getSampleData(service)?.data?.error || null
+  }
+
   returnsList(service) {
     return Boolean(service?.returns_list)
   }
