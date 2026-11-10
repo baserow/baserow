@@ -203,6 +203,9 @@ create_secret_env_if_missing .secret SECRET_KEY
 file_env BASEROW_JWT_SIGNING_KEY
 create_secret_env_if_missing .jwt_signing_key BASEROW_JWT_SIGNING_KEY
 
+file_env BASEROW_ENCRYPTION_KEY
+create_secret_env_if_missing .encryption_key BASEROW_ENCRYPTION_KEY
+
 if [[ -z "${DATABASE_URL:-}" && -z "${DISABLE_EMBEDDED_SQL:-}" ]]; then
   file_env DATABASE_PASSWORD
   create_secret_env_if_missing .pgpass DATABASE_PASSWORD

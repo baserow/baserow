@@ -338,3 +338,62 @@ class MultipleFlagField(models.CharField):
         name, path, args, kwargs = super().deconstruct()
         kwargs["num_flags"] = self.num_flags  # Add num_flags explicitly
         return name, path, args, kwargs
+
+
+class EncryptedTextField(models.TextField):
+    """
+    Text encrypted at rest, for secrets Baserow sends to other services, never
+    for values it looks up: each write uses a fresh nonce, so equal values are
+    stored differently. Empty values stay empty, and plain text written before
+    the field was encrypted is still read as is.
+    """
+
+    def _context(self) -> str:
+        return f"{self.model._meta.label_lower}.{self.name}"
+
+    def check(self, **kwargs):
+        errors = super().check(**kwargs)
+        if self.unique or self.db_index:
+            errors.append(
+                checks.Error(
+                    "EncryptedTextField can't be unique or indexed.",
+                    obj=self,
+                    id="baserow.E001",
+                )
+            )
+        return errors
+
+    def get_lookup(self, lookup_name):
+        # Comparing ciphertexts never matches, so only `isnull` is allowed and
+        # anything else fails loudly instead of returning nothing.
+        if lookup_name != "isnull":
+            return None
+        return super().get_lookup(lookup_name)
+
+    def get_transform(self, lookup_name):
+        return None
+
+    def get_prep_value(self, value):
+        from baserow.core.encryption import encrypt
+
+        value = super().get_prep_value(value)
+        if value is None or value == "":
+            return value
+        return encrypt(value, self._context())
+
+    def _decrypt(self, value):
+        from baserow.core.encryption import decrypt, is_encrypted
+
+        if isinstance(value, str) and is_encrypted(value):
+            return decrypt(value, self._context())
+        return value
+
+    def from_db_value(self, value, expression, connection):
+        return self._decrypt(value)
+
+    def to_python(self, value):
+        return self._decrypt(super().to_python(value))
+
+    def value_to_string(self, obj):
+        # Serialized dumps keep the secret encrypted.
+        return self.get_prep_value(self.value_from_object(obj))

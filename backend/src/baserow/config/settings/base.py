@@ -664,6 +664,16 @@ SIMPLE_JWT = {
     "USER_AUTHENTICATION_RULE": lambda user: user is not None,
 }
 
+# Encrypts the secrets Baserow stores to send to other services, such as the
+# tokens of MCP servers. Independent from SECRET_KEY, which only derives the key
+# while this isn't set. Old keys stay in the fallbacks until no secret uses them.
+BASEROW_ENCRYPTION_KEY = os.getenv("BASEROW_ENCRYPTION_KEY") or ""
+BASEROW_ENCRYPTION_KEY_FALLBACKS = [
+    key.strip()
+    for key in (os.getenv("BASEROW_ENCRYPTION_KEY_FALLBACKS") or "").split(",")
+    if key.strip()
+]
+
 SPECTACULAR_SETTINGS = {
     "TITLE": "Baserow API spec",
     "DESCRIPTION": "For more information about our REST API, please visit "
