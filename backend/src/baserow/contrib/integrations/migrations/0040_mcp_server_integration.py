@@ -30,6 +30,7 @@ class Migration(migrations.Migration):
                 ('oauth_refresh_token', models.TextField(blank=True, db_default='', default='')),
                 ('oauth_expires_at', models.DateTimeField(blank=True, null=True)),
                 ('oauth_connected_at', models.DateTimeField(blank=True, null=True)),
+                ('oauth_generation', models.PositiveIntegerField(db_default=0, default=0, help_text='Changes when the server is set up differently or signed out, so a sign-in started before can tell.')),
                 ('oauth_connected_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL)),
             ],
             options={

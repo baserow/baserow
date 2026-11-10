@@ -36,7 +36,9 @@ class MCPServerService:
         )
         return integration
 
-    def refresh_tools(self, user: AbstractUser, integration_id: int):
+    def refresh_tools(
+        self, user: AbstractUser, integration_id: int
+    ) -> MCPServerIntegration:
         """
         List the server's tools and store them. The permission check and the
         network call happen outside a transaction, the store inside one.
@@ -68,6 +70,16 @@ class MCPServerService:
     def update_tools(
         self, user: AbstractUser, integration_id: int, tools: list[dict]
     ) -> MCPServerIntegration:
+        """
+        Turn tools on or off and say whether they change data.
+
+        :param user: Who asks.
+        :param integration_id: The integration.
+        :param tools: Per tool, its name and the values to change, see
+            `MCPToolSettings`.
+        :return: The server, with its stored tools.
+        """
+
         with transaction.atomic():
             integration = self.get_server_for_update(user, integration_id)
             MCPServerHandler().update_tools(
@@ -79,6 +91,8 @@ class MCPServerService:
         """
         Start connecting an account to a server that uses OAuth.
 
+        :param user: Who signs in.
+        :param integration_id: The integration.
         :raises MCPServerDoesNotUseOAuth: When the server isn't set to use
             OAuth.
         :raises MCPOAuthFailed: When the server doesn't support OAuth sign-in.
@@ -98,6 +112,8 @@ class MCPServerService:
         editor who started it can finish it, so an authorization URL sent to
         someone else can't connect their account to this server.
 
+        :param user: Who finishes the sign-in.
+        :param state: The state the provider redirected back with.
         :param code: Empty when the editor cancelled or the provider refused.
         :raises MCPOAuthStateInvalid: When the state is unknown, expired or
             started by someone else.
@@ -108,13 +124,21 @@ class MCPServerService:
         pending = MCPServerHandler().pop_oauth_state(state, user)
         if not code:
             raise MCPOAuthFailed("The sign-in was cancelled or refused.")
-        integration = self.get_server_for_update(user, pending["integration_id"])
+        integration = self.get_server_for_update(user, pending.integration_id)
         MCPServerHandler().complete_oauth(integration, user, pending, code)
         return self._reload(integration.id)
 
     def disconnect_oauth(
         self, user: AbstractUser, integration_id: int
     ) -> MCPServerIntegration:
+        """
+        Forget the account connected to a server.
+
+        :param user: Who asks.
+        :param integration_id: The integration.
+        :return: The server.
+        """
+
         with transaction.atomic():
             integration = self.get_server_for_update(user, integration_id)
             MCPServerHandler().disconnect_oauth(integration)

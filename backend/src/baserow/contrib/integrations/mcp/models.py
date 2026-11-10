@@ -73,6 +73,12 @@ class MCPServerIntegration(Integration):
     oauth_refresh_token = models.TextField(blank=True, default="", db_default="")
     oauth_expires_at = models.DateTimeField(null=True, blank=True)
     oauth_connected_at = models.DateTimeField(null=True, blank=True)
+    oauth_generation = models.PositiveIntegerField(
+        default=0,
+        db_default=0,
+        help_text="Changes when the server is set up differently or signed out, "
+        "so a sign-in started before can tell.",
+    )
     oauth_connected_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,

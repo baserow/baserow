@@ -400,6 +400,7 @@ def test_a_token_without_a_refresh_token_is_used_until_it_expires(data_fixture):
 
     assert connection.headers == {"Authorization": "Bearer access-1"}
     integration.oauth_expires_at = timezone.now() - timedelta(seconds=1)
+    integration.save(update_fields=["oauth_expires_at"])
     with pytest.raises(MCPServerNotConnected):
         MCPServerHandler().get_connection(integration)
     integration.refresh_from_db()
@@ -509,7 +510,7 @@ def test_a_server_moved_during_the_token_exchange_gets_no_tokens(
 
 
 @pytest.mark.django_db
-def test_an_expired_token_is_cleared_without_undoing_a_new_sign_in(data_fixture):
+def test_an_expired_token_read_before_a_new_sign_in_uses_the_new_one(data_fixture):
     integration = oauth_server(
         data_fixture,
         data_fixture.create_user(),
@@ -522,9 +523,9 @@ def test_an_expired_token_is_cleared_without_undoing_a_new_sign_in(data_fixture)
         oauth_expires_at=timezone.now() + timedelta(hours=1),
     )
 
-    with pytest.raises(MCPServerNotConnected):
-        MCPServerHandler().get_connection(integration)
+    connection = MCPServerHandler().get_connection(integration)
 
+    assert connection.headers == {"Authorization": "Bearer access-2"}
     integration.refresh_from_db()
     assert integration.oauth_access_token == "access-2"
 
@@ -665,3 +666,84 @@ def test_starting_a_sign_in_for_a_server_without_oauth_says_so(
 
     assert response.status_code == 400
     assert response.json()["error"] == "ERROR_MCP_SERVER_DOES_NOT_USE_OAUTH"
+
+
+def sign_in(api_client, token, fake, integration) -> None:
+    url = start(api_client, token, integration).json()["authorization_url"]
+    state = parse_qs(urlparse(url).query)["state"][0]
+    response = complete(api_client, token, state=state, code=fake.authorize(url))
+    assert response.status_code == 200, response.json()
+
+
+@pytest.mark.django_db
+def test_a_sign_in_cant_store_a_server_found_before_it_moved(
+    data_fixture, api_client, mocker
+):
+    serve_oauth(mocker, FakeAuthorizationServer())
+    user, token = data_fixture.create_user_and_token()
+    integration = oauth_server(data_fixture, user)
+    discover = oauth.discover
+
+    async def discover_while_moved(url):
+        found = await discover(url)
+        # Another editor moves the server while this one is discovered.
+        await MCPServerIntegration.objects.filter(id=integration.id).aupdate(
+            url="https://other.example.com/mcp", oauth_generation=1
+        )
+        return found
+
+    mocker.patch.object(oauth, "discover", discover_while_moved)
+
+    response = start(api_client, token, integration)
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_MCP_OAUTH_FAILED"
+    integration.refresh_from_db()
+    assert integration.oauth_server == {}
+    assert integration.oauth_client_id == ""
+
+
+@pytest.mark.django_db
+def test_disconnecting_cancels_a_sign_in_started_before(
+    data_fixture, api_client, mocker
+):
+    fake = serve_oauth(mocker, FakeAuthorizationServer())
+    user, token = data_fixture.create_user_and_token()
+    integration = oauth_server(data_fixture, user)
+    url = start(api_client, token, integration).json()["authorization_url"]
+    state = parse_qs(urlparse(url).query)["state"][0]
+
+    api_client.post(
+        reverse("api:mcp_server:oauth_disconnect", args=[integration.id]),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response = complete(api_client, token, state=state, code=fake.authorize(url))
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_MCP_OAUTH_STATE_INVALID"
+    integration.refresh_from_db()
+    assert not integration.oauth_connected
+
+
+@pytest.mark.django_db
+def test_a_refresh_never_sends_tokens_of_a_server_it_moved_to(
+    data_fixture, api_client, mocker
+):
+    fake = serve_oauth(mocker, FakeAuthorizationServer())
+    user, token = data_fixture.create_user_and_token()
+    integration = oauth_server(data_fixture, user)
+    sign_in(api_client, token, fake, integration)
+    MCPServerIntegration.objects.filter(id=integration.id).update(
+        oauth_expires_at=timezone.now()
+    )
+    read = MCPServerIntegration.objects.get(id=integration.id)
+    # Another editor moves the server and signs in there before the refresh.
+    MCPServerIntegration.objects.filter(id=integration.id).update(
+        url="https://other.example.com/mcp",
+        oauth_generation=read.oauth_generation + 1,
+        oauth_access_token="other-access",
+        oauth_expires_at=timezone.now() + timedelta(hours=1),
+    )
+
+    with pytest.raises(MCPServerNotConnected):
+        MCPServerHandler().get_connection(read)

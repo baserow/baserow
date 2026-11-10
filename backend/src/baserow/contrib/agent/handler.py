@@ -875,12 +875,14 @@ class AgentHandler:
             try:
                 # Refreshes an OAuth token that expires soon, before the reply
                 # starts, so the reply itself never writes to the database.
-                MCPServerHandler().get_connection(server)
+                connection = MCPServerHandler().get_connection(server)
             except MCPServerNotConnected:
                 # Its tools can't be called until an editor connects again.
                 continue
             snapshots.append(
-                MCPServerSnapshot.from_integration(server, server.enabled_tools)
+                MCPServerSnapshot.from_integration(
+                    server, server.enabled_tools, connection
+                )
             )
         return tuple(snapshots)
 

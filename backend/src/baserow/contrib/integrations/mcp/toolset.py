@@ -2,7 +2,7 @@ import asyncio
 import hashlib
 import re
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any, Iterable
 
 from loguru import logger
 from pydantic_ai import RunContext, ToolReturn
@@ -23,6 +23,9 @@ from .client import (
     refused_credential,
     result_to_text,
 )
+
+if TYPE_CHECKING:
+    from .models import MCPServerIntegration, MCPServerTool
 
 # Providers accept tool names matching ^[a-zA-Z0-9_-]{1,64}$.
 MODEL_TOOL_NAME_MAX_LENGTH = 64
@@ -71,11 +74,23 @@ class MCPServerSnapshot:
     tools: tuple[MCPToolSnapshot, ...]
 
     @classmethod
-    def from_integration(cls, integration, tools) -> "MCPServerSnapshot":
+    def from_integration(
+        cls,
+        integration: "MCPServerIntegration",
+        tools: Iterable["MCPServerTool"],
+        connection: MCPServerConnection,
+    ) -> "MCPServerSnapshot":
+        """
+        :param integration: The server.
+        :param tools: Its tools an editor turned on.
+        :param connection: From `MCPServerHandler.get_connection`.
+        :return: The snapshot.
+        """
+
         return cls(
             integration_id=integration.id,
             name=integration.name,
-            connection=MCPServerConnection.from_integration(integration),
+            connection=connection,
             tools=tuple(
                 MCPToolSnapshot(
                     name=tool.name,

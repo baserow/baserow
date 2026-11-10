@@ -186,6 +186,8 @@ class MCPServerIntegrationType(IntegrationType):
         if url_changed or client_changed or auth_changed:
             instance.clear_oauth_tokens()
             instance.oauth_server = {}
+            # A sign-in started for the server as it was can't finish.
+            instance.oauth_generation += 1
         return super().prepare_values(values, user, application, instance)
 
     def serialize_property(

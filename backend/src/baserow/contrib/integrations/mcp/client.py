@@ -30,32 +30,14 @@ MCP_REQUEST_DEADLINE = 120
 
 @dataclass(frozen=True)
 class MCPServerConnection:
-    """Where an MCP server is and how to authenticate, without any model."""
+    """
+    Where an MCP server is and how to authenticate, without any model. Built by
+    `MCPServerHandler.get_connection`, which refreshes an OAuth token first.
+    """
 
     url: str
     # Holds the credential: kept out of reprs, which error reports and logs print.
     headers: dict[str, str] = field(default_factory=dict, repr=False)
-
-    @classmethod
-    def from_integration(cls, integration) -> "MCPServerConnection":
-        """
-        The connection with the integration's credential. An OAuth token must
-        be refreshed first if needed, see `MCPServerHandler.get_connection`.
-        """
-
-        from .models import MCPAuthType
-
-        headers = {}
-        if integration.auth_type == MCPAuthType.OAUTH:
-            if integration.oauth_access_token:
-                headers["Authorization"] = f"Bearer {integration.oauth_access_token}"
-        elif (
-            integration.auth_type == MCPAuthType.HEADER
-            and integration.auth_header_name
-            and integration.auth_header_value
-        ):
-            headers[integration.auth_header_name] = integration.auth_header_value
-        return cls(url=integration.url, headers=headers)
 
 
 @dataclass(frozen=True)

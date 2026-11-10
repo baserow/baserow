@@ -1,5 +1,5 @@
 import secrets
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, fields
 from datetime import timedelta
 
 from django.contrib.auth.models import AbstractUser
@@ -55,6 +55,46 @@ class MCPToolSettings:
     changes_data: bool | None = None
     # The definition the editor reviewed. A tool changed since keeps waiting.
     definition_hash: str | None = None
+
+
+@dataclass(frozen=True)
+class PendingSignIn:
+    """A sign-in an editor started, kept until the provider redirects back."""
+
+    integration_id: int
+    user_id: int
+    code_verifier: str
+    client_id: str
+    # The connection it was started for: the server's URL and its OAuth
+    # generation, which changes when it's set up differently or signed out.
+    url: str
+    generation: int
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "PendingSignIn | None":
+        """
+        :param data: What was cached.
+        :return: The sign-in, or None when it was cached by another version.
+        """
+
+        names = {field.name for field in fields(cls)}
+        if not names <= data.keys():
+            return None
+        return cls(**{name: data[name] for name in names})
+
+    def still_matches(self, integration: MCPServerIntegration) -> bool:
+        """
+        :param integration: The server as stored now.
+        :return: Whether it's still the connection this sign-in was for.
+        """
+
+        return (
+            integration.auth_type == MCPAuthType.OAUTH
+            and bool(integration.oauth_server)
+            and integration.url == self.url
+            and integration.oauth_client_id == self.client_id
+            and integration.oauth_generation == self.generation
+        )
 
 
 class MCPServerHandler:
@@ -171,6 +211,16 @@ class MCPServerHandler:
         return list(integration.tools.all())
 
     def refresh_tools(self, integration: MCPServerIntegration) -> list[MCPServerTool]:
+        """
+        List the server's tools and store them. Never call this inside a
+        transaction: the server may take a while to answer.
+
+        :param integration: The server.
+        :raises MCPServerNotConnected: When it uses OAuth and isn't connected.
+        :raises MCPServerUnreachable: When the server can't be reached or fails.
+        :return: The stored tools.
+        """
+
         return self.store_tools(integration, self.fetch_remote_tools(integration))
 
     def update_tools(
@@ -213,44 +263,58 @@ class MCPServerHandler:
 
     def get_connection(self, integration: MCPServerIntegration) -> MCPServerConnection:
         """
-        The connection with a valid credential, refreshing an OAuth token that
-        expires soon.
+        The connection to use for the server, with a valid credential: an OAuth
+        token that expires soon is refreshed first. Built from the stored row,
+        so its URL and token always belong together.
 
+        :param integration: The server, as the caller read it.
         :raises MCPServerNotConnected: When it uses OAuth and no account is
-            connected, or the token can't be refreshed.
+            connected, the token can't be refreshed, or the server was moved or
+            signed out since the caller read it.
+        :return: The connection.
         """
 
         if integration.auth_type == MCPAuthType.OAUTH:
             if not integration.oauth_connected:
                 raise MCPServerNotConnected()
             if oauth.expires_soon(integration.oauth_expires_at):
-                if integration.oauth_refresh_token:
-                    self.refresh_oauth_token(integration)
-                elif integration.oauth_expires_at <= timezone.now():
-                    # Nothing to refresh with: an editor has to sign in again,
-                    # which the server's status now says. Only this token is
-                    # cleared, not one from a sign-in that just finished.
-                    expired = integration.oauth_access_token
-                    integration.clear_oauth_tokens()
-                    MCPServerIntegration.objects.filter(
-                        id=integration.id, oauth_access_token=expired
-                    ).update(
-                        **{
-                            name: getattr(integration, name)
-                            for name in OAUTH_TOKEN_FIELDS
-                        }
-                    )
-                    raise MCPServerNotConnected()
-        return MCPServerConnection.from_integration(integration)
+                integration = self.refresh_oauth_token(integration)
+        return self._build_connection(integration)
 
-    def refresh_oauth_token(self, integration: MCPServerIntegration) -> None:
+    def _build_connection(
+        self, integration: MCPServerIntegration
+    ) -> MCPServerConnection:
+        """
+        :param integration: The server, with a current credential.
+        :return: Its URL and the headers that carry its credential.
+        """
+
+        headers = {}
+        if integration.auth_type == MCPAuthType.OAUTH:
+            if integration.oauth_access_token:
+                headers["Authorization"] = f"Bearer {integration.oauth_access_token}"
+        elif (
+            integration.auth_type == MCPAuthType.HEADER
+            and integration.auth_header_name
+            and integration.auth_header_value
+        ):
+            headers[integration.auth_header_name] = integration.auth_header_value
+        return MCPServerConnection(url=integration.url, headers=headers)
+
+    def refresh_oauth_token(
+        self, integration: MCPServerIntegration
+    ) -> MCPServerIntegration:
         """
         Refresh the access token, once even when replies start at the same
         time: providers that rotate refresh tokens accept each one only once.
-        The integration is updated in place.
+        A token that can't be refreshed and expired is cleared, so the server
+        shows as not connected.
 
+        :param integration: The server, as the caller read it.
         :raises MCPServerNotConnected: When the provider refuses, so an editor
-            has to connect again.
+            has to connect again, or the server was moved or signed out since
+            the caller read it.
+        :return: The stored server, with a current token.
         """
 
         failure = None
@@ -258,36 +322,59 @@ class MCPServerHandler:
             locked = MCPServerIntegration.objects.select_for_update().get(
                 id=integration.id
             )
-            if locked.oauth_connected and not oauth.expires_soon(
-                locked.oauth_expires_at
-            ):
-                # Another reply refreshed it while this one waited for the lock.
-                self._copy_tokens(locked, integration)
-                return
-            if not locked.oauth_refresh_token:
+            if not self._same_connection(locked, integration):
+                # Its tokens belong to another server or sign-in than the one
+                # the caller is about to use.
                 raise MCPServerNotConnected()
-            try:
-                token = async_to_sync(oauth.refresh)(
-                    oauth.OAuthServer.from_dict(locked.oauth_server),
-                    self._oauth_client(locked),
-                    locked.oauth_refresh_token,
-                )
-            except MCPOAuthFailed as exc:
-                logger.info(
-                    "MCP server {} token refresh failed: {}", locked.id, exc.message
-                )
-                if exc.retryable:
-                    # The provider is down: the refresh token may still be good.
-                    raise MCPServerNotConnected() from exc
-                # Committed, not rolled back: the account must be connected again.
+            if not oauth.expires_soon(locked.oauth_expires_at):
+                # Refreshed, or signed in again, while this waited for the lock.
+                return locked
+            if not locked.oauth_refresh_token:
+                if locked.oauth_expires_at > timezone.now():
+                    return locked
+                # Nothing to refresh with: an editor has to sign in again.
                 locked.clear_oauth_tokens()
-                failure = exc
+                failure = MCPServerNotConnected()
             else:
-                self._store_token(locked, token)
+                try:
+                    token = async_to_sync(oauth.refresh)(
+                        oauth.OAuthServer.from_dict(locked.oauth_server),
+                        self._oauth_client(locked),
+                        locked.oauth_refresh_token,
+                    )
+                except MCPOAuthFailed as exc:
+                    logger.info(
+                        "MCP server {} token refresh failed: {}", locked.id, exc.message
+                    )
+                    if exc.retryable:
+                        # The provider is down: the refresh token may still be good.
+                        raise MCPServerNotConnected() from exc
+                    # Committed, not rolled back: the account must be connected
+                    # again.
+                    locked.clear_oauth_tokens()
+                    failure = exc
+                else:
+                    self._store_token(locked, token)
             locked.save(update_fields=OAUTH_TOKEN_FIELDS)
-        self._copy_tokens(locked, integration)
         if failure:
             raise MCPServerNotConnected() from failure
+        return locked
+
+    def _same_connection(
+        self, stored: MCPServerIntegration, read: MCPServerIntegration
+    ) -> bool:
+        """
+        :param stored: The server as stored now.
+        :param read: The server as read earlier.
+        :return: Whether both are the same OAuth connection: not moved, signed
+            out or set up differently in between.
+        """
+
+        return (
+            stored.auth_type == MCPAuthType.OAUTH
+            and stored.url == read.url
+            and stored.oauth_generation == read.oauth_generation
+        )
 
     def start_oauth(self, integration: MCPServerIntegration, user: AbstractUser) -> str:
         """
@@ -295,8 +382,10 @@ class MCPServerHandler:
         and return where to send the editor to sign in. Never call this inside
         a transaction: it talks to the server.
 
-        :raises MCPOAuthFailed: When the server doesn't support OAuth sign-in or
-            Baserow can't register.
+        :param integration: The server, using OAuth.
+        :param user: The editor signing in. Only they can finish it.
+        :raises MCPOAuthFailed: When the server doesn't support OAuth sign-in,
+            Baserow can't register, or the server was changed meanwhile.
         :return: The authorization URL.
         """
 
@@ -321,49 +410,64 @@ class MCPServerHandler:
         else:
             client = async_to_sync(oauth.register)(server)
 
-        integration.oauth_server = {
-            **server.to_dict(),
-            "client_auth_method": client.auth_method,
-        }
-        integration.oauth_client_id = client.client_id
-        integration.oauth_client_secret = client.client_secret
-        integration.oauth_client_source = client.source
-        integration.save(
-            update_fields=[
-                "oauth_server",
-                "oauth_client_id",
-                "oauth_client_secret",
-                "oauth_client_source",
-            ]
-        )
+        with transaction.atomic():
+            locked = MCPServerIntegration.objects.select_for_update().get(
+                id=integration.id
+            )
+            # What was discovered belongs to the server as it was read.
+            if not self._same_connection(locked, integration):
+                raise MCPOAuthFailed(
+                    "The server was changed while signing in. Try again."
+                )
+            locked.oauth_server = {
+                **server.to_dict(),
+                "client_auth_method": client.auth_method,
+            }
+            locked.oauth_client_id = client.client_id
+            locked.oauth_client_secret = client.client_secret
+            locked.oauth_client_source = client.source
+            locked.save(
+                update_fields=[
+                    "oauth_server",
+                    "oauth_client_id",
+                    "oauth_client_secret",
+                    "oauth_client_source",
+                ]
+            )
 
         state = secrets.token_urlsafe(32)
-        pending = oauth.build_authorization(server, client, state)
+        authorization = oauth.build_authorization(server, client, state)
+        pending = PendingSignIn(
+            integration_id=integration.id,
+            user_id=user.id,
+            code_verifier=authorization.code_verifier,
+            client_id=client.client_id,
+            url=integration.url,
+            generation=integration.oauth_generation,
+        )
         cache.set(
             OAUTH_STATE_CACHE_KEY.format(state),
-            {
-                "integration_id": integration.id,
-                "user_id": user.id,
-                "code_verifier": pending.code_verifier,
-                "client_id": client.client_id,
-                "url": integration.url,
-            },
+            asdict(pending),
             OAUTH_STATE_TIMEOUT_SECONDS,
         )
-        return pending.authorization_url
+        return authorization.authorization_url
 
-    def pop_oauth_state(self, state: str, user: AbstractUser) -> dict:
+    def pop_oauth_state(self, state: str, user: AbstractUser) -> "PendingSignIn":
         """
-        The authorization a callback belongs to. Each one can be used once, and
-        only by the user who started it; anyone else's attempt leaves it be.
+        The sign-in a callback belongs to. Each one can be used once, and only
+        by the user who started it; anyone else's attempt leaves it be.
 
+        :param state: The state the provider redirected back with.
+        :param user: Who finishes the sign-in.
         :raises MCPOAuthStateInvalid: When it's unknown, used, expired or
             someone else's.
+        :return: The pending sign-in.
         """
 
         key = OAUTH_STATE_CACHE_KEY.format(state)
-        pending = cache.get(key) if state else None
-        if not pending or pending["user_id"] != user.id:
+        stored = cache.get(key) if state else None
+        pending = PendingSignIn.from_dict(stored) if stored else None
+        if pending is None or pending.user_id != user.id:
             raise MCPOAuthStateInvalid()
         # Only the request that deletes it may go on, if two arrive at once.
         if not cache.delete(key):
@@ -374,32 +478,28 @@ class MCPServerHandler:
         self,
         integration: MCPServerIntegration,
         user: AbstractUser,
-        pending: dict,
+        pending: "PendingSignIn",
         code: str,
-    ) -> MCPServerIntegration:
+    ) -> None:
         """
         Exchange the authorization code for tokens and store them.
 
+        :param integration: The server the sign-in was started for.
+        :param user: The editor who signed in.
+        :param pending: The sign-in, from `pop_oauth_state`.
+        :param code: The authorization code.
         :raises MCPOAuthStateInvalid: When the server, its sign-in method or
-            its client changed since the authorization started.
+            its client changed, or it was signed out, since the sign-in started.
         :raises MCPOAuthFailed: When the exchange fails.
         """
 
-        def still_pending(server: MCPServerIntegration) -> bool:
-            return (
-                server.auth_type == MCPAuthType.OAUTH
-                and bool(server.oauth_server)
-                and server.url == pending.get("url")
-                and server.oauth_client_id == pending["client_id"]
-            )
-
-        if not still_pending(integration):
+        if not pending.still_matches(integration):
             raise MCPOAuthStateInvalid()
         token = async_to_sync(oauth.exchange_code)(
             oauth.OAuthServer.from_dict(integration.oauth_server),
             self._oauth_client(integration),
             code,
-            pending["code_verifier"],
+            pending.code_verifier,
         )
         with transaction.atomic():
             # Checked again: the server may have been moved while the provider
@@ -407,7 +507,7 @@ class MCPServerHandler:
             locked = MCPServerIntegration.objects.select_for_update().get(
                 id=integration.id
             )
-            if not still_pending(locked):
+            if not pending.still_matches(locked):
                 raise MCPOAuthStateInvalid()
             # A new sign-in may be another account: nothing of the old one stays.
             locked.oauth_refresh_token = ""
@@ -415,14 +515,28 @@ class MCPServerHandler:
             locked.oauth_connected_at = timezone.now()
             locked.oauth_connected_by = user
             locked.save(update_fields=OAUTH_TOKEN_FIELDS)
-        self._copy_tokens(locked, integration)
-        return integration
 
     def disconnect_oauth(self, integration: MCPServerIntegration) -> None:
-        integration.clear_oauth_tokens()
-        integration.save(update_fields=OAUTH_TOKEN_FIELDS)
+        """
+        Forget the connected account. A sign-in started before can't finish.
+
+        :param integration: The server.
+        """
+
+        with transaction.atomic():
+            locked = MCPServerIntegration.objects.select_for_update().get(
+                id=integration.id
+            )
+            locked.clear_oauth_tokens()
+            locked.oauth_generation += 1
+            locked.save(update_fields=[*OAUTH_TOKEN_FIELDS, "oauth_generation"])
 
     def _oauth_client(self, integration: MCPServerIntegration) -> oauth.OAuthClient:
+        """
+        :param integration: The server, with its stored client.
+        :return: How Baserow authenticates at its token endpoint.
+        """
+
         server = integration.oauth_server or {}
         auth_method = server.get("client_auth_method", "none")
         if integration.oauth_client_source == MCPOAuthClientSource.MANUAL and server:
@@ -437,7 +551,16 @@ class MCPServerHandler:
             auth_method=auth_method,
         )
 
-    def _store_token(self, integration: MCPServerIntegration, token: OAuthToken):
+    def _store_token(
+        self, integration: MCPServerIntegration, token: OAuthToken
+    ) -> None:
+        """
+        Set a token the provider issued on the server, without saving.
+
+        :param integration: The server.
+        :param token: The provider's answer.
+        """
+
         integration.oauth_access_token = token.access_token
         # A refresh may not return a new refresh token; the old one stays valid.
         if token.refresh_token:
@@ -449,13 +572,3 @@ class MCPServerHandler:
         integration.oauth_expires_at = (
             timezone.now() + timedelta(seconds=lifetime) if lifetime else None
         )
-
-    def _copy_tokens(self, source, target):
-        for name in (
-            "oauth_access_token",
-            "oauth_refresh_token",
-            "oauth_expires_at",
-            "oauth_connected_at",
-            "oauth_connected_by_id",
-        ):
-            setattr(target, name, getattr(source, name))
