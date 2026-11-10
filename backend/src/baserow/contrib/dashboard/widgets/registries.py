@@ -85,6 +85,10 @@ class WidgetType(
 
         return updated_widget
 
+    def restore_data_source_filter_links(self, instance, original_links):
+        """Restore widget-specific links saved before a data source update."""
+        pass
+
     def prepare_value_for_db(self, values: dict, instance: Widget | None = None):
         """
         This function allows you to hook into the moment a widget is created or

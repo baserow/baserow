@@ -1,7 +1,9 @@
 from typing import TYPE_CHECKING, Optional
+from uuid import uuid4
 
 from django.http import HttpRequest
 
+from baserow.core.cache import local_cache
 from baserow.core.services.dispatch_context import DispatchContext
 
 if TYPE_CHECKING:
@@ -44,12 +46,19 @@ class DashboardDispatchContext(DispatchContext):
         self.data_provider_registry = dashboard_data_provider_type_registry
         self.request = request
         self.widget = widget
-        self.filtered_services = {}
+        self._runtime_filter_cache_id = uuid4().hex
 
         super().__init__(workspace)
 
     def get_runtime_filter(self, service):
         """Return the complete configured filter for this display widget."""
+        return local_cache.get(
+            f"dashboard_runtime_filter_{self._runtime_filter_cache_id}_{service.id}",
+            lambda: self._get_runtime_filter(service),
+        )
+
+    def _get_runtime_filter(self, service):
+        """Build the filter tree for this context's selected widget values."""
         from baserow.contrib.dashboard.widgets.handler import WidgetHandler
 
         widgets = [
@@ -80,12 +89,4 @@ class DashboardDispatchContext(DispatchContext):
             is not None
         ]
         runtime_filter = build_runtime_filter(service, groups)
-        # Keep only a boolean alongside the result, including on public dashboards.
-        self.filtered_services[service.id] = bool(
-            runtime_filter["filters"]
-            or (
-                getattr(service, "view_id", None)
-                and service.view.viewfilter_set.exists()
-            )
-        )
         return runtime_filter

@@ -1,3 +1,6 @@
+from copy import deepcopy
+
+
 class DisplayWidgetTypeMixin:
     """Identify widgets whose data source can receive contributed filter groups."""
 
@@ -5,6 +8,55 @@ class DisplayWidgetTypeMixin:
 
     def get_data_source(self, widget):
         return widget.data_source
+
+    def after_data_source_update(
+        self, instance, updated_data_source, original_table_id
+    ):
+        """
+        Clear conditions targeting this display when its source changes table.
+        Keep links, but remove old-table conditions and alternative conditions.
+        Collect original links for undo and changed filter widgets for notification.
+        """
+        from baserow.contrib.dashboard.widgets.handler import WidgetHandler
+        from baserow.contrib.dashboard.widgets.models import Widget
+
+        source = updated_data_source.data_source
+        if original_table_id == getattr(source.service.specific, "table_id", None):
+            return
+
+        for widget in WidgetHandler().get_widgets_for_update(
+            instance.dashboard, base_queryset=Widget.objects_and_trash.all()
+        ):
+            widget = widget.specific
+            filter_type = widget.get_type()
+            if not filter_type.is_filter_widget:
+                continue
+            links = filter_type.get_target_filters(widget)
+            updated = deepcopy(links)
+            originals = []
+            for link, replacement in zip(links, updated):
+                if link["target_widget_id"] != instance.id:
+                    continue
+                replacement["group"] = {
+                    "filter_type": "AND",
+                    "filters": [],
+                    "filter_groups": [],
+                }
+                replacement["empty_behavior"] = "apply_nothing"
+                replacement.pop("alternative_group", None)
+                if link != replacement:
+                    originals.append(link)
+            if originals:
+                updated_data_source.original_filter_links.setdefault(
+                    str(widget.id), []
+                ).extend(originals)
+                filter_type.set_target_filters(widget, updated)
+                # A filter can target several displays sharing the same source.
+                changed = updated_data_source.updated_filter_widgets
+                changed[:] = [
+                    existing for existing in changed if existing.id != widget.id
+                ]
+                changed.append(widget)
 
     def after_import(self, widget, id_mapping, **kwargs):
         """Finalize the display's source once, even when widgets share that source."""
@@ -192,6 +244,18 @@ class FilterWidgetTypeMixin:
                 instance.dashboard_id if instance else values["dashboard"].id,
             )
         return super().prepare_value_for_db(values, instance)
+
+    def restore_data_source_filter_links(self, instance, original_links):
+        """Restore affected target links while preserving other current conditions."""
+        super().restore_data_source_filter_links(instance, original_links)
+        replacements = {link["target_widget_id"]: link for link in original_links}
+        self.set_target_filters(
+            instance,
+            [
+                replacements.get(link["target_widget_id"], link)
+                for link in self.get_target_filters(instance)
+            ],
+        )
 
     def get_target_filters(self, widget):
         return widget.target_filters
