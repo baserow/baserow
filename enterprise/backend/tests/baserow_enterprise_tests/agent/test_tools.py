@@ -1,3 +1,5 @@
+from unittest.mock import AsyncMock, Mock
+
 import pytest
 from asgiref.sync import async_to_sync
 
@@ -25,11 +27,13 @@ def test_tool_calls_recheck_the_identity_role(
         ToolContext(user=identity, workspace=workspace)
     )
 
+    run = Mock(emit=AsyncMock())
+
     def create(name):
         arguments = tool.function_schema.validator.validate_python(
             {"table_id": table.id, "rows": [{"Name": name}]}
         )
-        return async_to_sync(tool.function)(**arguments)
+        return async_to_sync(tool.function)(run, **arguments)
 
     assert create("Before downgrade").return_value[0]["Name"] == "Before downgrade"
     service.update_agent(admin, identity, role_uid="VIEWER")
@@ -42,6 +46,9 @@ def test_tool_calls_recheck_the_identity_role(
         }
     }
     assert refused.metadata == {"error_code": "permission_denied"}
+    assert run.emit.await_args.args[0].input == {
+        "values": {"table": table.name, "rows": [{"Name": "After downgrade"}]}
+    }
     assert list(
         table.get_model(attribute_names=True).objects.values_list("name", flat=True)
     ) == ["Before downgrade"]

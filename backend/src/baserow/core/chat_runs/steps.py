@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from loguru import logger
-from pydantic_ai import AgentRunResultEvent, AgentStreamEvent
+from pydantic_ai import AgentRunResultEvent, AgentStreamEvent, CustomEvent
 from pydantic_ai.messages import (
     BaseToolCallPart,
     FunctionToolCallEvent,
@@ -33,6 +33,16 @@ from .types import ChatRunStep
 
 if TYPE_CHECKING:
     from .journal import ChatRunJournal
+
+
+@dataclass(kw_only=True)
+class ToolCallInputEvent(CustomEvent, ui=False):
+    """
+    More of a running call's display input, sent by the tool before it changes
+    anything, so a stopped call still shows what it asked for.
+    """
+
+    input: dict[str, Any]
 
 
 def stop_running_steps(steps: list[ChatRunStep]) -> list[ChatRunStep]:
@@ -191,7 +201,7 @@ def _ended(
         return _Ending(ChatRunStepStatus.SKIPPED)
     return _Ending(
         ChatRunStepStatus.DONE,
-        facts=_display_data(metadata),
+        facts=_display_data(metadata.get("facts")),
         item_errors=_item_errors(content),
     )
 
@@ -227,6 +237,8 @@ class ChatRunSteps:
         match event:
             case FunctionToolCallEvent(tool_call_id=tool_call_id, part=part):
                 self._start(tool_call_id, part, invalid=event.args_valid is False)
+            case ToolCallInputEvent(tool_call_id=str() as tool_call_id):
+                self._add_input(tool_call_id, event.input)
             case FunctionToolResultEvent(tool_call_id=tool_call_id, part=part):
                 self._end(tool_call_id, part)
             # The provider runs these itself, so they only appear as parts of its
@@ -323,6 +335,20 @@ class ChatRunSteps:
             step_input = _display_data((self._describe(part) or {}).get("input"))
             if step_input != step["input"]:
                 self._update({**step, "input": step_input})
+
+    def _add_input(self, tool_call_id: str, step_input: dict[str, Any]) -> None:
+        """Add to the input of a call's open step, when it has one.
+
+        :param tool_call_id: The call's id.
+        :param step_input: The display input its tool sent.
+        """
+
+        pending = self._pending.get(tool_call_id)
+        if pending:
+            step = self._steps[pending[0]]
+            self._update(
+                {**step, "input": {**step["input"], **_display_data(step_input)}}
+            )
 
     def _end(
         self,

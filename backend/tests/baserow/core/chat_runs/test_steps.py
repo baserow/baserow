@@ -9,7 +9,7 @@ from pydantic_ai.messages import (
     ToolReturnPart,
 )
 
-from baserow.core.chat_runs.steps import ChatRunSteps
+from baserow.core.chat_runs.steps import ChatRunSteps, ToolCallInputEvent
 
 
 def call(call_id, name="create_rows", arguments=None, valid=True):
@@ -18,9 +18,11 @@ def call(call_id, name="create_rows", arguments=None, valid=True):
     )
 
 
-def result(call_id, content=None, facts=None, **kwargs):
+def result(call_id, content=None, facts=None, metadata=None, **kwargs):
+    if metadata is None and facts is not None:
+        metadata = {"facts": facts}
     return FunctionToolResultEvent(
-        ToolReturnPart("create_rows", content, call_id, metadata=facts, **kwargs)
+        ToolReturnPart("create_rows", content, call_id, metadata=metadata, **kwargs)
     )
 
 
@@ -205,7 +207,7 @@ def test_failed_steps_only_copy_allowlisted_error_codes(code, expected):
         result(
             "one",
             content={"error": "PRIVATE_ERROR_MESSAGE"},
-            facts={"error_code": code, "traceback": "PRIVATE_TRACEBACK"},
+            metadata={"error_code": code, "traceback": "PRIVATE_TRACEBACK"},
         )
     )
 
@@ -214,6 +216,38 @@ def test_failed_steps_only_copy_allowlisted_error_codes(code, expected):
     assert step["facts"] == {}
     assert "PRIVATE" not in str(step)
     assert journal.emit.call_args.args[1] == step
+
+
+def test_the_request_a_running_tool_sends_stays_on_its_step():
+    journal = Mock()
+    steps = ChatRunSteps(journal, describe)
+    request = {"values": {"table": "Tasks"}, "truncated": True}
+    steps.on_event(call("done", arguments={"rows": [{}]}))
+    steps.on_event(ToolCallInputEvent(input=request, tool_call_id="done"))
+    running = journal.emit.call_args.args[1]
+    steps.on_event(result("done", content={"changed": True}, facts={"count": 1}))
+    steps.on_event(call("failed", arguments={"rows": [{}, {}]}))
+    steps.on_event(ToolCallInputEvent(input=request, tool_call_id="failed"))
+    steps.on_event(
+        result(
+            "failed",
+            content={"error": {"code": "conflict", "message": "Taken."}},
+            metadata={"error_code": "conflict"},
+        )
+    )
+    steps.on_event(call("stopped", arguments={"rows": [{}]}))
+    steps.on_event(ToolCallInputEvent(input=request, tool_call_id="stopped"))
+    steps.on_event(ToolCallInputEvent(input=request, tool_call_id="unknown"))
+
+    done, failed, stopped = steps.finish()
+    assert running["status"] == "running"
+    assert running["input"] == done["input"] == {"requested_count": 1, **request}
+    assert done["facts"] == {"count": 1}
+    assert failed["input"] == {"requested_count": 2, **request}
+    assert (stopped["status"], stopped["input"]) == (
+        "stopped",
+        {"requested_count": 1, **request},
+    )
 
 
 @pytest.mark.parametrize(
