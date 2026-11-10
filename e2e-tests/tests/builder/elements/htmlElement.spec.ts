@@ -65,17 +65,22 @@ for (const mode of ["preview", "published"]) {
         return route.fulfill({ status: 204 });
       });
       await builderPagePage.goto();
-      const placeholder = page.getByText("Custom HTML", { exact: true });
-      await expect(placeholder).toBeVisible();
+      const editorFrame = page.locator('iframe[title="HTML preview"]');
+      await expect(editorFrame).toBeVisible();
+      await expect(
+        page.frameLocator('iframe[title="HTML preview"]').locator("#widget")
+      ).toBeVisible();
       const hint = page.getByRole("button", {
-        name: "Open Preview to see the rendered HTML.",
+        name: "Some embeds only display fully in Preview.",
       });
       await hint.focus();
       await expect(page.locator(".tooltip")).toHaveText(
-        "Open Preview to see the rendered HTML."
+        "Some embeds only display fully in Preview."
       );
       await hint.press("Escape");
-      await placeholder.click({ position: { x: 20, y: 8 }, timeout: 8000 });
+      await page
+        .locator(".html-element__editor")
+        .click({ position: { x: 20, y: 8 } });
       const field = page.getByRole("textbox", { name: "HTML source" });
       if (!(await field.isVisible()))
         await builderPagePage.getElementGeneralTab();
@@ -89,7 +94,7 @@ for (const mode of ["preview", "published"]) {
         page.getByText("Enter static HTML only.", { exact: false })
       ).toBeHidden();
       await expect(page.locator("#widget")).toHaveCount(0);
-      expect(probeRequests).toBe(0);
+      expect(probeRequests).toBeGreaterThan(0);
       await page.screenshot({ path: testInfo.outputPath("editor.png") });
       await testInfo.attach("editor", {
         path: testInfo.outputPath("editor.png"),
@@ -171,7 +176,7 @@ for (const mode of ["preview", "published"]) {
   });
 }
 
-test("repeated HTML stays inert throughout the editor @enterprise", async ({
+test("repeated HTML is sandboxed throughout the editor @enterprise", async ({
   page,
   context,
   builderPagePage,
@@ -214,9 +219,76 @@ test("repeated HTML stays inert throughout the editor @enterprise", async ({
       return route.fulfill({ status: 204 });
     });
     await builderPagePage.goto();
-    await expect(page.getByText("Custom HTML", { exact: true })).toHaveCount(2);
+    const frames = page.locator('iframe[title="HTML preview"]');
+    await expect(frames).toHaveCount(2);
+    for (const frame of await frames.all()) {
+      await expect(frame).toHaveAttribute("sandbox", "allow-same-origin");
+      await expect(frame.contentFrame().locator("#widget")).toBeVisible();
+    }
     await expect(page.locator("#widget")).toHaveCount(0);
-    expect(requests).toBe(0);
+    await expect.poll(() => requests).toBeGreaterThanOrEqual(2);
+  } finally {
+    await deleteLicense(license);
+  }
+});
+
+test("editor HTML isolates styles, blocks nested scripts and adapts its height @enterprise", async ({
+  page,
+  context,
+  builderPagePage,
+}) => {
+  const license = await createLicense(ENTERPRISE_LICENSE);
+  try {
+    await context.route("**/html-editor-child.html", (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        body: '<p id="child-status">Scripts blocked</p><script>document.querySelector("#child-status").textContent = "Script executed"</script>',
+      })
+    );
+    const source =
+      "<style>body { background: rgb(17, 34, 51); }</style>" +
+      '<div id="editor-card" style="height:80px;color:white">Static HTML</div>' +
+      '<iframe title="Child document" src="/html-editor-child.html" style="display:block;height:40px;border:0"></iframe>';
+    await createBuilderElement(builderPagePage.builderPage, "html", {
+      html: source,
+    });
+    await builderPagePage.goto();
+    const frame = page.locator('iframe[title="HTML preview"]');
+    const document = frame.contentFrame();
+    await expect(document.locator("#editor-card")).toHaveText("Static HTML");
+    await expect(document.locator("body")).toHaveCSS(
+      "background-color",
+      "rgb(17, 34, 51)"
+    );
+    await expect(page.locator("body")).not.toHaveCSS(
+      "background-color",
+      "rgb(17, 34, 51)"
+    );
+    await expect(
+      document
+        .frameLocator('iframe[title="Child document"]')
+        .locator("#child-status")
+    ).toHaveText("Scripts blocked");
+    await expect(frame).toHaveAttribute("sandbox", "allow-same-origin");
+    await expect.poll(() => frame.evaluate((el) => el.clientHeight)).toBe(120);
+
+    // Pointer events belong to the editor, so clicking the preview selects it.
+    await page
+      .locator(".html-element__editor")
+      .click({ position: { x: 20, y: 8 } });
+    const field = page.getByRole("textbox", { name: "HTML source" });
+    await expect(field).toHaveValue(source);
+    await field.fill(
+      '<div id="editor-card" style="height:240px">Updated HTML</div>'
+    );
+    await expect(document.locator("#editor-card")).toHaveText("Updated HTML");
+    await expect.poll(() => frame.evaluate((el) => el.clientHeight)).toBe(240);
+    await field.fill(
+      '<div id="editor-card" style="height:64px">Short HTML</div>'
+    );
+    await expect.poll(() => frame.evaluate((el) => el.clientHeight)).toBe(64);
+    await field.fill('<div style="height:900px">Tall HTML</div>');
+    await expect.poll(() => frame.evaluate((el) => el.clientHeight)).toBe(600);
   } finally {
     await deleteLicense(license);
   }

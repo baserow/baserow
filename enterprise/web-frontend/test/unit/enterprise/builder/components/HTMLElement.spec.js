@@ -27,14 +27,19 @@ function mountElement(
 
 describe('HTML element', () => {
   test.each(['editing', 'public'])(
-    'shows a placeholder in the editor with local mode %s',
+    'isolates editor HTML in a script-disabled iframe with local mode %s',
     async (mode) => {
       const wrapper = await mountElement(mode, 'editing')
-      expect(wrapper.text()).toContain('htmlElement.placeholder')
-      const hint = wrapper.get('button[aria-label="htmlElement.previewHint"]')
+      const frame = wrapper.get('iframe')
+      expect(frame.attributes('srcdoc')).toBe(snippet)
+      expect(frame.attributes('sandbox')).toBe('allow-same-origin')
+      expect(frame.attributes('tabindex')).toBe('-1')
+      const hint = wrapper.get(
+        'button[aria-label="iframeElementForm.editorEmbedHint"]'
+      )
       await hint.trigger('focus')
       expect(document.querySelector('.tooltip').textContent).toBe(
-        'htmlElement.previewHint'
+        'iframeElementForm.editorEmbedHint'
       )
       await hint.trigger('keydown', { key: 'Escape' })
       expect(document.querySelector('.tooltip')).toBeNull()
@@ -52,7 +57,9 @@ describe('HTML element', () => {
       })
       expect(wrapper.find('iframe').exists()).toBe(false)
       expect(
-        wrapper.find('[aria-label="htmlElement.previewHint"]').exists()
+        wrapper
+          .find('[aria-label="iframeElementForm.editorEmbedHint"]')
+          .exists()
       ).toBe(false)
     }
   )
@@ -61,7 +68,12 @@ describe('HTML element', () => {
     [snippet, true],
   ])('omits the hint for empty or untrusted HTML', async (html, untrusted) => {
     const wrapper = await mountElement('editing', 'editing', html, untrusted)
-    expect(wrapper.text()).toContain('htmlElement.placeholder')
+    expect(wrapper.text()).toContain(
+      untrusted
+        ? 'iframeElementForm.untrustedContent'
+        : 'htmlElement.placeholder'
+    )
+    expect(wrapper.find('iframe').exists()).toBe(false)
     expect(wrapper.find('button').exists()).toBe(false)
   })
 

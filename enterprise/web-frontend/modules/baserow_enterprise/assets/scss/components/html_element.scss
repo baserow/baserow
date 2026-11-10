@@ -7,3 +7,21 @@
   border: 1px dashed $palette-neutral-400;
   color: $palette-neutral-700;
 }
+
+.html-element__editor {
+  position: relative;
+}
+
+.html-element__preview {
+  display: block;
+  width: 100%;
+  border: none;
+  margin-bottom: 32px;
+  pointer-events: none;
+}
+
+.html-element__hint {
+  position: absolute;
+  right: 8px;
+  bottom: 4px;
+}

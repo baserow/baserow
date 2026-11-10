@@ -881,7 +881,7 @@
     "source": "HTML source",
     "sourceHelp": "Paste only the widget’s HTML here. In application settings → Custom CSS/JS, choose “Add an external script” and enter the URL from the script’s src attribute. If the widget also needs initialization code, paste it in Custom JavaScript without script tags.",
     "placeholder": "Custom HTML",
-    "previewHint": "Open Preview to see the rendered HTML.",
+    "previewTitle": "HTML preview",
     "invalid": "Enter static HTML only. Add JavaScript in the application's Custom code settings. Use srcdoc or an external URL for embedded documents."
   },
   "elementType": {

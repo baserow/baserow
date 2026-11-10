@@ -1,13 +1,27 @@
 <template>
   <div
     v-if="isEditMode || applicationContext.mode === 'editing'"
-    class="html-element__placeholder"
+    class="html-element__editor"
   >
-    <span>{{ $t('htmlElement.placeholder') }}</span>
-    <ElementPreviewHint
-      v-if="element.html?.trim() && !builder.untrusted_content"
-      :message="$t('htmlElement.previewHint')"
-    />
+    <div
+      v-if="builder.untrusted_content || !element.html?.trim()"
+      class="html-element__placeholder"
+    >
+      {{
+        builder.untrusted_content
+          ? $t('iframeElementForm.untrustedContent')
+          : $t('htmlElement.placeholder')
+      }}
+    </div>
+    <template v-else>
+      <ClientOnly>
+        <HTMLElementPreview :html="element.html" />
+      </ClientOnly>
+      <ElementPreviewHint
+        class="html-element__hint"
+        :message="$t('iframeElementForm.editorEmbedHint')"
+      />
+    </template>
   </div>
   <div
     v-else-if="
@@ -23,10 +37,11 @@
 import ElementPreviewHint from '@baserow/modules/builder/components/elements/ElementPreviewHint'
 import element from '@baserow/modules/builder/mixins/element'
 import { parseStaticHTML } from '@baserow_enterprise/builder/staticHtml'
+import HTMLElementPreview from '@baserow_enterprise/builder/components/elements/HTMLElementPreview'
 
 export default {
   name: 'BuilderHTMLElement',
-  components: { ElementPreviewHint },
+  components: { ElementPreviewHint, HTMLElementPreview },
   mixins: [element],
   directives: {
     staticHtml(host, { value, oldValue }) {
