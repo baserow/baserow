@@ -154,6 +154,34 @@ def api_request_factory():
     return APIRequestFactory()
 
 
+@pytest.fixture
+def fake_async_redis():
+    """
+    Inject a FakeRedis async client sharing the same FakeServer as
+    django-redis (sync) so both sync assertions and async production
+    code hit the same in-memory store.
+    """
+
+    from fakeredis.aioredis import FakeRedis
+
+    from baserow.config.settings.test import _fake_redis_server
+    from baserow.core.async_redis import (
+        get_cache_redis_url,
+        set_async_cache_redis,
+        set_async_redis,
+    )
+
+    client = FakeRedis(server=_fake_redis_server, decode_responses=True)
+    set_async_redis(client)
+    cache_db = int(get_cache_redis_url().rpartition("/")[2] or 0)
+    set_async_cache_redis(
+        FakeRedis(server=_fake_redis_server, decode_responses=False, db=cache_db)
+    )
+    yield
+    set_async_redis(None)
+    set_async_cache_redis(None)
+
+
 @pytest.fixture(autouse=True)
 def clear_cache():
     """Automatically clear all caches before each test."""

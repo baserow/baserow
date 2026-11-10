@@ -213,6 +213,28 @@ export const DataSourceServiceTypeMixin = (Base) =>
   class extends Base {
     isDataSource = true
 
+    /** Return optional metadata available alongside the source records. */
+    getContextDataSchema(service) {
+      return service.context_data_schema || null
+    }
+
+    /**
+     * Whether this data source type is left out of the builder's data source
+     * type picker, for types that can be dispatched as data but aren't offered
+     * as builder data sources.
+     */
+    get hiddenInDataSourcePicker() {
+      return false
+    }
+
+    /**
+     * Whether a data source of this type can be tested from its form, to fill
+     * the sample data its schema is built from.
+     */
+    get canBeTested() {
+      return false
+    }
+
     /**
      * In a service which returns a list, this method is used to
      * return the name of the given record.

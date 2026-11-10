@@ -57,7 +57,7 @@ _REPORTED_ERROR_RESULT_PREFIXES = (
     "reused_",
     "setup_",
 )
-_RESULT_ERROR_KEYS = ("errors", "field_errors", "formula_errors", "notes")
+_RESULT_ERROR_KEYS = ("error", "errors", "formula_errors", "notes")
 _ROW_WRITE_TOOL = re.compile(r"^(?:create|update)_rows_in_table_\d+$")
 
 

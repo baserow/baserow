@@ -17,7 +17,6 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from typing_extensions import Self
 
 from baserow.core.exceptions import PermissionException, UserNotInWorkspace
-from baserow.core.tools.errors import ToolInputError as SharedToolInputError
 from baserow.core.tools.errors import tool_error_message
 from baserow_enterprise.assistant.deps import AgentMode
 
@@ -85,12 +84,18 @@ def _tool_routes() -> dict[str, _ToolRoute]:
     from .builder.tools import TOOL_FUNCTIONS as application_tools
     from .core.tools import (
         ask_user,
-        create_builders,
+        create_automation,
+        create_builder,
+        create_dashboard,
+        create_database,
         list_audit_log,
         list_builders,
         search_workspace,
         switch_mode,
+        update_automation,
         update_builder,
+        update_dashboard,
+        update_database,
     )
     from .dashboard.tools import TOOL_FUNCTIONS as dashboard_tools
     from .database.tools import TOOL_FUNCTIONS as database_tools
@@ -98,7 +103,6 @@ def _tool_routes() -> dict[str, _ToolRoute]:
     from .search_user_docs.tools import search_user_docs
 
     all_modes = frozenset(AgentMode)
-    domain_modes = all_modes - {AgentMode.EXPLAIN}
     database_mode = frozenset({AgentMode.DATABASE})
     application_mode = frozenset({AgentMode.APPLICATION})
     automation_mode = frozenset({AgentMode.AUTOMATION})
@@ -152,7 +156,18 @@ def _tool_routes() -> dict[str, _ToolRoute]:
             all_modes,
         ),
         **_routes_for(
-            (create_builders, update_builder), AgentMode.DATABASE, domain_modes
+            (create_database, update_database), AgentMode.DATABASE, database_mode
+        ),
+        **_routes_for(
+            (create_builder, update_builder), AgentMode.APPLICATION, application_mode
+        ),
+        **_routes_for(
+            (create_automation, update_automation),
+            AgentMode.AUTOMATION,
+            automation_mode,
+        ),
+        **_routes_for(
+            (create_dashboard, update_dashboard), AgentMode.DASHBOARD, dashboard_mode
         ),
         # Docs questions arrive in any mode; a deferred tool needs a tool search first.
         **_routes_for((search_user_docs,), AgentMode.EXPLAIN, all_modes),
@@ -327,6 +342,8 @@ class ModeAwareToolset(AbstractToolset[AgentDepsT]):
         try:
             return await self._inner.call_tool(name, tool_args, ctx, tool)
         except ToolInputError as exc:
+            if exc.hint:
+                return {"error": str(exc), "next_steps": exc.hint}
             return {"error": str(exc)}
         except DRFValidationError as exc:
             # A module refused the values the tool was called with.
@@ -341,7 +358,7 @@ class ModeAwareToolset(AbstractToolset[AgentDepsT]):
             }
         except PermissionException:
             return permission_denied_result(name)
-        except (SharedToolInputError, DjangoValidationError, APIException) as exc:
+        except (DjangoValidationError, APIException) as exc:
             # What the shared tools raise for the model to act on, like a feature
             # that needs a licence. A server error has no message and is raised.
             message = tool_error_message(exc)

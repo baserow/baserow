@@ -20,11 +20,17 @@ class AgentApplication(Application):
     model_identifier = models.CharField(
         max_length=255, null=True, blank=True, db_default=None
     )
+    # Empty uses the model's default; models without reasoning ignore it.
+    reasoning_effort = models.CharField(
+        max_length=32, null=True, blank=True, db_default=None
+    )
     # The subject the Agent's tools act as; empty means no workspace access.
     run_as_subject_type = models.CharField(
         max_length=255, null=True, blank=True, db_default=None
     )
     run_as_subject_id = models.BigIntegerField(null=True, blank=True, db_default=None)
+    # Searches run at the AI provider, which charges for them.
+    web_search_enabled = models.BooleanField(default=False, db_default=False)
 
 
 class AgentAllowedTool(models.Model):

@@ -26,8 +26,11 @@ const FAILURE_LABELS = new Map([
     'toolPresentation.failurePermissionDenied',
   ],
   [STEP_ERROR_CODE.INVALID_INPUT, 'toolPresentation.failureInvalidInput'],
+  [STEP_ERROR_CODE.INVALID_FORMULA, 'toolPresentation.failureInvalidFormula'],
+  [STEP_ERROR_CODE.CONFLICT, 'toolPresentation.failureConflict'],
   [STEP_ERROR_CODE.FAILED, 'toolPresentation.failureFailed'],
 ])
+const MAX_MESSAGE_LENGTH = 1000
 
 /**
  * How a tool's calls look in chat, registered under the tool's name in Core's
@@ -60,6 +63,11 @@ export class ToolPresentationType extends Registerable {
   getActivity(step, t) {
     return t(`toolPresentation.${step.status}`)
   }
+
+  /** Opt in to the backend's curated input preview; hidden by default. */
+  getInput(step, t) {
+    return null
+  }
 }
 
 /** The type registered under the tool's name, or one that claims the name. */
@@ -89,17 +97,38 @@ function genericText(t, key, fallback, values) {
   }
 }
 
+const text = (value) =>
+  typeof value === 'string' ? value.trim().slice(0, MAX_MESSAGE_LENGTH) : ''
+
 function failureHint(data, status, t) {
   if (status !== STEP_STATUS.FAILED) return ''
+  const message = text(data.error_message)
+  if (message) return message
   const key =
     FAILURE_LABELS.get(data.error_code) || 'toolPresentation.failureFailed'
   return genericText(t, key, 'This tool call failed.')
 }
 
+/** The items a partly successful call couldn't change, as people-facing text. */
+function itemErrors(data) {
+  return (Array.isArray(data.item_errors) ? data.item_errors : [])
+    .filter((error) => record(error) === error && text(error.message))
+    .map((error) => ({
+      item: String(error.item ?? ''),
+      message: text(error.message),
+    }))
+}
+
 /** Describe a step's status in words; an interrupted change may have completed. */
-export function stepStatusText({ status, changesData, failureHint }, t) {
+export function stepStatusText(
+  { status, changesData, failureHint, partial },
+  t
+) {
   if (status === STEP_STATUS.STOPPED && changesData) {
     return t('toolPresentation.statusStopped')
+  }
+  if (status === STEP_STATUS.DONE && partial) {
+    return t('toolPresentation.statusPartial')
   }
   const label = t(STATUS_LABELS[status])
   return status === STEP_STATUS.FAILED
@@ -107,10 +136,23 @@ export function stepStatusText({ status, changesData, failureHint }, t) {
     : label
 }
 
+function toolInput(presenter, step, t) {
+  try {
+    const input = presenter.getInput(step, t)
+    const values = record(input?.values)
+    return Object.keys(values).length
+      ? { values, truncated: input.truncated === true }
+      : null
+  } catch {
+    return null
+  }
+}
+
 /** Resolve a safe activity without letting an unknown or broken type break chat. */
 export function toolActivity(step, registry, t) {
   const data = record(step)
   const status = STATUSES.has(data.status) ? data.status : STEP_STATUS.STOPPED
+  const failedItems = itemErrors(data)
   const fallback = {
     id: data.id,
     title: genericText(
@@ -121,7 +163,10 @@ export function toolActivity(step, registry, t) {
     status,
     changesData: data.changes_data === true,
     group: null,
+    input: null,
     failureHint: failureHint(data, status, t),
+    itemErrors: failedItems,
+    partial: status === STEP_STATUS.DONE && failedItems.length > 0,
   }
   try {
     const presenter = findPresenter(registry, data.tool)
@@ -150,6 +195,7 @@ export function toolActivity(step, registry, t) {
       ...fallback,
       title,
       group: !data.changes_data ? presenter.group : null,
+      input: toolInput(presenter, normalized, translate),
     }
   } catch {
     return fallback
@@ -160,6 +206,7 @@ export function toolActivity(step, registry, t) {
 export function groupToolSteps(steps, registry, t) {
   const groups = []
   for (const step of Array.isArray(steps) ? steps : []) {
+    if (step?.status === STEP_STATUS.SKIPPED) continue
     const activity = toolActivity(step, registry, t)
     if (activity.group !== WORKSPACE_TOOL_GROUP) {
       groups.push({ ...activity, lines: [] })

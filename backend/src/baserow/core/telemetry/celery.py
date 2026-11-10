@@ -28,6 +28,13 @@ task_duration_histogram = meter.create_histogram(
     description="The duration of completed Baserow Celery tasks",
     unit="s",
 )
+task_open_transaction_counter = meter.create_counter(
+    name="baserow.celery.task.open_transaction",
+    description=(
+        "Baserow Celery tasks that finished with a database transaction still open"
+    ),
+    unit="1",
+)
 
 
 def _get_task_queue(task) -> str:

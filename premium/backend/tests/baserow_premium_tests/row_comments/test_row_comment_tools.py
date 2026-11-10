@@ -357,7 +357,8 @@ def test_row_comments_over_mcp_tell_the_client_about_the_licence(premium_data_fi
 
     assert result.isError
     assert result.content[0].text == (
-        "The related user does not have access to these features."
+        "This needs a licence that this user doesn't have: a premium, advanced or "
+        "enterprise plan, depending on the feature."
     )
     assert RowComment.objects.count() == 0
 

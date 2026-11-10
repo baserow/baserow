@@ -21,9 +21,11 @@ from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.contrib.agent.types import AgentConfiguration
 from baserow.contrib.agent.validators import AGENT_TEXT_MAX_LENGTH
 from baserow.core.chat_runs.constants import ChatRunStepStatus
+from baserow.core.generative_ai.constants import ReasoningEffort
 from baserow.core.tools.errors import ToolErrorCode
 
 READINESS_CHOICES = [state.value for state in AgentReadinessState]
+REASONING_EFFORT_CHOICES = [effort.value for effort in ReasoningEffort]
 
 
 class AgentApplicationSerializer(serializers.ModelSerializer):
@@ -85,6 +87,20 @@ class AgentConfigurationSerializer(serializers.Serializer):
     instructions = serializers.CharField(allow_blank=True, trim_whitespace=False)
     provider_type = serializers.CharField(allow_null=True)
     model_identifier = serializers.CharField(allow_null=True)
+    reasoning_effort = serializers.ChoiceField(
+        choices=REASONING_EFFORT_CHOICES,
+        allow_null=True,
+        help_text="How much the model reasons before it replies. Null uses the "
+        "model's default.",
+    )
+    applied_reasoning_effort = serializers.ChoiceField(
+        choices=REASONING_EFFORT_CHOICES,
+        allow_null=True,
+        help_text="The reasoning effort replies use with the selected model: the "
+        "chosen one, or the next higher one the model accepts. Null means replies "
+        "use the model's default, because none is chosen, the model doesn't accept "
+        "one, or the model isn't available.",
+    )
     run_as = serializers.SerializerMethodField(
         help_text="The configured identity and its active, trashed or missing status. "
         "Null means no workspace access was selected."
@@ -97,6 +113,17 @@ class AgentConfigurationSerializer(serializers.Serializer):
     available_tools = serializers.SerializerMethodField(
         help_text="Every tool an agent can be allowed to call, with its group and "
         "whether it changes data."
+    )
+    web_search_enabled = serializers.BooleanField(
+        help_text="Whether the agent may search the web through its AI provider."
+    )
+    web_search_available = serializers.BooleanField(
+        help_text="Whether the agent's model may try to search the web. Its provider "
+        "can still refuse a search, which the reply then shows."
+    )
+    web_search_blocked_by_tools = serializers.BooleanField(
+        help_text="Whether the agent's model can search the web, but not while the "
+        "agent uses workspace tools."
     )
     errors = serializers.DictField(
         child=serializers.ChoiceField(
@@ -146,6 +173,14 @@ class AgentConfigurationSerializer(serializers.Serializer):
 class AgentConfigurationUpdateSerializer(
     UnknownFieldRaisesExceptionSerializerMixin, serializers.ModelSerializer
 ):
+    reasoning_effort = serializers.ChoiceField(
+        choices=REASONING_EFFORT_CHOICES,
+        allow_null=True,
+        required=False,
+        help_text="How much the model reasons before it replies. Null uses the "
+        "model's default. A model that doesn't accept it uses the next higher "
+        "effort it accepts, or its default.",
+    )
     run_as_subject_type = serializers.ChoiceField(
         choices=RUN_AS_SUBJECT_TYPES,
         allow_null=True,
@@ -172,9 +207,11 @@ class AgentConfigurationUpdateSerializer(
             "instructions",
             "provider_type",
             "model_identifier",
+            "reasoning_effort",
             "run_as_subject_type",
             "run_as_subject_id",
             "allowed_tools",
+            "web_search_enabled",
         )
         extra_kwargs = {
             "instructions": {
@@ -244,11 +281,19 @@ class AgentConversationUpdateSerializer(
     )
 
 
+class AgentMessageStepItemErrorSerializer(serializers.Serializer):
+    item = serializers.JSONField(help_text="The failed item's name or ID.")
+    code = serializers.ChoiceField(choices=list(ToolErrorCode))
+    message = serializers.CharField()
+
+
 class AgentMessageStepSerializer(serializers.Serializer):
     id = serializers.CharField()
     tool = serializers.CharField()
     status = serializers.ChoiceField(choices=list(ChatRunStepStatus))
     error_code = serializers.ChoiceField(choices=list(ToolErrorCode), required=False)
+    error_message = serializers.CharField(required=False)
+    item_errors = AgentMessageStepItemErrorSerializer(many=True, required=False)
     changes_data = serializers.BooleanField()
     input = serializers.DictField()
     facts = serializers.DictField()

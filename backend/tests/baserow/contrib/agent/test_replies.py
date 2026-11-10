@@ -14,6 +14,14 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelHTTPError
+from pydantic_ai.messages import (
+    FunctionToolCallEvent,
+    FunctionToolResultEvent,
+    ModelRequest,
+    ToolCallPart,
+    ToolReturnPart,
+)
+from pydantic_ai.models import ModelRequestParameters
 from pydantic_ai.models.function import DeltaToolCall, FunctionModel
 from pydantic_ai.models.instrumented import InstrumentationSettings
 from pydantic_ai.models.openai import OpenAIResponsesModel
@@ -39,16 +47,22 @@ from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.contrib.agent.replies import AgentResponder, create_reply_model
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.signals import agent_conversation_activity
-from baserow.contrib.agent.types import AgentMessageCreated
+from baserow.contrib.agent.types import (
+    AgentMessageCreated,
+    AgentReplyRequest,
+    AgentReplyResult,
+)
 from baserow.contrib.database.table.models import Table
 from baserow.core.action.registries import action_type_registry
 from baserow.core.agents.service import AgentService as IdentityService
 from baserow.core.chat_runs.journal import ChatRunJournal
 from baserow.core.chat_runs.models import ChatRun
+from baserow.core.chat_runs.steps import ChatRunSteps
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Agent as Identity
 from baserow.core.models import WorkspaceUser
+from baserow.core.tools.errors import ToolInputError
 from baserow.core.trash.handler import TrashHandler
 
 from .utils import agent_url, new_conversation, run_reply
@@ -137,8 +151,9 @@ def test_failed_input_summary_keeps_the_call_without_logging_payloads(
         ("Hello\x00 from the agent", ("completed", "", "Hello from the agent")),
         ("\n\n", ("failed", "failed", "")),
         ("\x00 \n\x00", ("failed", "failed", "")),
+        ("Hello\ud800 from the agent", ("completed", "", "Hello from the agent")),
     ],
-    ids=["null-characters", "blank", "blank-after-cleaning"],
+    ids=["null-characters", "blank", "blank-after-cleaning", "lone-surrogate"],
 )
 def test_a_message_is_answered_privately_and_saved_clean(
     reply_run, reply_model, output, saved
@@ -158,6 +173,36 @@ def test_a_message_is_answered_privately_and_saved_clean(
     reply = AgentMessage.objects.get(role="assistant")
     assert reply_state(reply.id) == saved
     assert exporter.get_finished_spans() == ()
+
+
+@pytest.mark.django_db
+def test_a_step_with_text_postgresql_cannot_store_is_sent_and_saved_clean(
+    reply_run, mocker
+):
+    journal = mocker.Mock()
+    steps = ChatRunSteps(journal, lambda tool, arguments: {"input": {}})
+    steps.on_event(FunctionToolCallEvent(ToolCallPart("create_fields", {}, "one")))
+    error = {"code": "conflict", "message": "'a\ud800b' exists.\x00"}
+    content = {
+        "changed": False,
+        "error": error,
+        "errors": [{"item": "a\ud800b", **error}],
+    }
+    steps.on_event(
+        FunctionToolResultEvent(ToolReturnPart("create_fields", content, "one"))
+    )
+    reply_id = reply_run.context["reply_id"]
+
+    AgentHandler().finish_reply(
+        reply_id, "completed", "", AgentReplyResult("Done", steps.finish())
+    )
+
+    (step,) = AgentMessage.objects.get(id=reply_id).steps
+    assert step["error_message"] == "'ab' exists."
+    assert step["item_errors"] == [
+        {"item": "ab", "code": "conflict", "message": "'ab' exists."}
+    ]
+    assert journal.emit.call_args.args[1] == step
 
 
 @pytest.mark.django_db
@@ -840,7 +885,10 @@ def test_a_reply_recovers_from_invalid_tool_calls(
     assert reply_state(created.reply.id) == ("completed", "", "Done.")
     rows = [row.name for row in table.get_model(attribute_names=True).objects.all()]
     assert rows == ["Plan"]
-    [step] = AgentMessage.objects.get(id=created.reply.id).steps
+    *invalid_steps, step = AgentMessage.objects.get(id=created.reply.id).steps
+    assert [(s["status"], s["error_code"]) for s in invalid_steps] == [
+        ("failed", "invalid_input")
+    ] * TOOL_RETRIES
     assert step["status"] == "done"
     assert step["input"] == {"requested_count": 1}
     assert "error_code" not in step
@@ -987,7 +1035,7 @@ def test_a_reply_cannot_keep_writing_after_its_identity_is_trashed(
 
 
 @pytest.mark.django_db
-def test_failed_tool_calls_keep_their_category_in_the_api(
+def test_a_failed_tool_call_and_its_retry_are_two_steps_in_the_api(
     data_fixture, configured_agent, mocker, api_client
 ):
     user = data_fixture.create_user()
@@ -1017,10 +1065,10 @@ def test_failed_tool_calls_keep_their_category_in_the_api(
     run_reply(run_of(created.conversation))
 
     steps = AgentMessage.objects.get(id=created.reply.id).steps
-    assert [step["status"] for step in steps] == ["failed", "done"]
-    assert steps[0]["error_code"] == "not_found"
-    assert "error_code" not in steps[1]
-    assert "Not found in this workspace." not in json.dumps(steps)
+    assert [(step["status"], step.get("error_code")) for step in steps] == [
+        ("failed", "not_found"),
+        ("done", None),
+    ]
     api_client.force_authenticate(user)
     response = api_client.get(
         agent_url(agent, "messages", conversation_uuid=created.conversation.uuid)
@@ -1032,3 +1080,130 @@ def test_failed_tool_calls_keep_their_category_in_the_api(
         if message["role"] == "assistant"
     )
     assert saved_reply["steps"] == steps
+
+
+@pytest.mark.django_db
+def test_a_failed_tool_call_shows_its_message_but_never_its_hint(
+    data_fixture, configured_agent, mocker, api_client
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    table = allow_create_rows(data_fixture, agent)
+    calls = iter([table.id])
+
+    async def stream(messages, info):
+        target = next(calls, None)
+        if target is None:
+            yield "Done."
+        else:
+            yield {
+                0: DeltaToolCall(
+                    name="create_rows",
+                    json_args=json.dumps(
+                        {"table_id": target, "rows": [{"Name": "Plan"}]}
+                    ),
+                )
+            }
+
+    mocker.patch(
+        "baserow.contrib.database.tools.rows._validate_rows",
+        side_effect=ToolInputError("The rows don't fit.", hint="HINT_CANARY"),
+    )
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(FunctionModel(stream_function=stream), {}),
+    )
+    created = start(user, agent)
+    run_reply(run_of(created.conversation))
+
+    api_client.force_authenticate(user)
+    response = api_client.get(
+        agent_url(agent, "messages", conversation_uuid=created.conversation.uuid)
+    )
+    reply = next(m for m in response.json()["results"] if m["role"] == "assistant")
+    (step,) = reply["steps"]
+    assert (step["status"], step["error_code"], step["error_message"]) == (
+        "failed",
+        "invalid_input",
+        "The rows don't fit.",
+    )
+    assert "HINT_CANARY" not in json.dumps(response.json())
+
+
+@pytest.mark.django_db
+def test_saved_steps_keep_why_they_failed(data_fixture, configured_agent, api_client):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    created = start(user, agent)
+    step = {
+        "id": "call_1",
+        "tool": "create_tables",
+        "status": "failed",
+        "error_code": "conflict",
+        "error_message": "Tasks exists.",
+        "item_errors": [{"item": "Tasks", "code": "conflict", "message": "Exists."}],
+        "changes_data": True,
+        "input": {},
+        "facts": {},
+    }
+    AgentMessage.objects.filter(id=created.reply.id).update(steps=[step])
+
+    api_client.force_authenticate(user)
+    response = api_client.get(
+        agent_url(agent, "messages", conversation_uuid=created.conversation.uuid)
+    )
+
+    reply = next(m for m in response.json()["results"] if m["role"] == "assistant")
+    assert reply["steps"] == [step]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "model_identifier,effort,sent_effort",
+    [
+        ("gpt-5.1", None, None),
+        ("gpt-5.1", "off", "none"),
+        ("gpt-5.1", "high", "high"),
+        # GPT-5 Pro only accepts high.
+        ("gpt-5-pro", "low", "high"),
+        ("gpt-4.1", "high", None),
+    ],
+)
+def test_reply_requests_carry_the_reasoning_effort(
+    configured_agent, model_identifier, effort, sent_effort
+):
+    agent = configured_agent()
+    request = AgentReplyRequest(
+        reply_id=1,
+        workspace=agent.workspace,
+        instructions="",
+        provider_type="openai",
+        model_identifier=model_identifier,
+        prompt="Hi",
+        history=[],
+        reasoning_effort=effort,
+    )
+    model, model_settings = create_reply_model(request)
+    sent = {}
+
+    class RequestSent(Exception):
+        pass
+
+    async def create(**kwargs):
+        sent.update(kwargs)
+        raise RequestSent()
+
+    model.client.responses.create = create
+    with pytest.raises(RequestSent):
+        asyncio.run(
+            model.request(
+                [ModelRequest.user_text_prompt("Hi")],
+                model_settings,
+                model.customize_request_parameters(ModelRequestParameters()),
+            )
+        )
+
+    reasoning = sent.get("reasoning")
+    assert (
+        reasoning.get("effort") if isinstance(reasoning, dict) else None
+    ) == sent_effort

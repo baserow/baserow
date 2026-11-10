@@ -100,6 +100,35 @@ describe('dataSource store', () => {
     expect(store.getters['dataSource/getFetched'](page)).toBe(true)
   })
 
+  test('simulateDispatch stores the tested data source', async () => {
+    const page = {
+      id: 42,
+      dataSources: [{ id: 7, name: 'Products', sample_data: null }],
+      _: {},
+    }
+    const testedDataSource = {
+      id: 7,
+      name: 'Products',
+      sample_data: { data: { name: 'Lamp' }, status: 200 },
+      schema: { type: 'object', properties: { name: { type: 'string' } } },
+    }
+    mock
+      .onPost('builder/data-source/7/simulate-dispatch/', {
+        metadata: { page_parameter: { id: 1 } },
+      })
+      .replyOnce(200, testedDataSource)
+
+    await store.dispatch('dataSource/simulateDispatch', {
+      page,
+      dataSourceId: 7,
+      dispatchContext: { page_parameter: { id: 1 } },
+    })
+
+    expect(store.getters['dataSource/getPageDataSourceById'](page, 7)).toEqual(
+      testedDataSource
+    )
+  })
+
   test('fetchPublished uses the selected builder in preview mode', async () => {
     const builder = { id: 123, _: { selected: false } }
     const page = { id: 42, dataSources: [], _: {} }

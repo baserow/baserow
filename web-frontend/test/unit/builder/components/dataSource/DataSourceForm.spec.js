@@ -120,7 +120,52 @@ const serviceType = {
   isDeactivatedReason: () => null,
 }
 
-async function mountComponent() {
+const httpGroup = {
+  id: 'http',
+  label: 'HTTP',
+  icon: 'iconoir-globe',
+  iconColor: 'muted-cyan',
+}
+
+const ServiceFormStub = defineComponent({
+  name: 'ServiceForm',
+  template: '<div class="service-form-stub" />',
+})
+
+const httpServiceType = {
+  name: 'HTTP request',
+  icon: 'iconoir-globe',
+  iconColor: 'muted-cyan',
+  description: 'Fetches data from a URL.',
+  integrationType: null,
+  group: httpGroup,
+  isDataSource: true,
+  canBeTested: true,
+  formComponent: ServiceFormStub,
+  getType: () => 'http_get',
+  isDeactivatedReason: () => null,
+}
+
+const hiddenServiceType = {
+  name: 'Read a CSV file',
+  icon: 'iconoir-page',
+  iconColor: 'muted-yellow',
+  description: 'Reads rows from a CSV file.',
+  integrationType: null,
+  group: { id: 'files', label: 'Files' },
+  isDataSource: true,
+  hiddenInDataSourcePicker: true,
+  formComponent: null,
+  getType: () => 'csv_file_reader',
+  isDeactivatedReason: () => null,
+}
+
+async function mountComponent({
+  serviceTypes = [serviceType],
+  create = true,
+  dataSource = {},
+  defaultValues = {},
+} = {}) {
   const integrations = [
     { id: 1, type: 'local_baserow' },
     { id: 2, type: 'other' },
@@ -128,12 +173,12 @@ async function mountComponent() {
   const registry = {
     getOrderedList(namespace) {
       return namespace === 'service'
-        ? [serviceType]
+        ? serviceTypes
         : [localBaserowIntegrationType, otherIntegrationType]
     },
     get(namespace, type) {
-      if (namespace === 'service' && type === serviceType.getType()) {
-        return serviceType
+      if (namespace === 'service') {
+        return serviceTypes.find((s) => s.getType() === type) || null
       }
       return null
     },
@@ -144,7 +189,9 @@ async function mountComponent() {
       builder: { id: 1, workspace: { id: 1 } },
       page: { id: 1 },
       integrations,
-      create: true,
+      create,
+      dataSource,
+      defaultValues,
     },
     global: {
       provide: {
@@ -155,6 +202,10 @@ async function mountComponent() {
         FormInput: FormInputStub,
         IntegrationDropdown: IntegrationDropdownStub,
         GroupedDropdown: GroupedDropdownStub,
+        DataSourceTestForm: {
+          name: 'DataSourceTestForm',
+          template: '<div class="data-source-test-form-stub" />',
+        },
       },
       mocks: {
         $registry: registry,
@@ -211,5 +262,69 @@ describe('DataSourceForm', () => {
       { id: 1, type: 'local_baserow' },
     ])
     expect(connectionDropdown.props('modelValue')).toBe(1)
+  })
+
+  test('groups service types without an integration under their own group', async () => {
+    const wrapper = await mountComponent({
+      serviceTypes: [serviceType, httpServiceType, hiddenServiceType],
+    })
+    const items = wrapper.findComponent(GroupedDropdownStub).props('items')
+
+    expect(items.map(({ id }) => id)).toEqual([
+      'integration-local_baserow',
+      'http',
+    ])
+    expect(items[1]).toEqual({
+      id: 'http',
+      label: 'HTTP',
+      image: undefined,
+      icon: 'iconoir-globe',
+      iconColor: 'muted-cyan',
+      children: [
+        {
+          id: 'service-http_get',
+          label: 'HTTP request',
+          value: 'http_get',
+          icon: 'iconoir-globe',
+          iconColor: 'muted-cyan',
+          description: 'Fetches data from a URL.',
+          disabled: false,
+          disabledReason: null,
+        },
+      ],
+    })
+  })
+
+  test('hides the connection dropdown for a service without an integration', async () => {
+    const wrapper = await mountComponent({
+      serviceTypes: [serviceType, httpServiceType],
+    })
+    expect(wrapper.findComponent(IntegrationDropdownStub).exists()).toBe(true)
+
+    wrapper
+      .findComponent(GroupedDropdownStub)
+      .vm.$emit('update:modelValue', httpServiceType.getType())
+    await nextTick()
+
+    expect(wrapper.findComponent(IntegrationDropdownStub).exists()).toBe(false)
+  })
+
+  test('shows the service and test forms of a data source without an integration', async () => {
+    const dataSource = {
+      id: 3,
+      name: 'Products',
+      type: 'http_get',
+      integration_id: null,
+    }
+    const wrapper = await mountComponent({
+      serviceTypes: [serviceType, httpServiceType],
+      create: false,
+      dataSource,
+      defaultValues: dataSource,
+    })
+    await nextTick()
+
+    expect(wrapper.find('.service-form-stub').exists()).toBe(true)
+    expect(wrapper.find('.data-source-test-form-stub').exists()).toBe(true)
   })
 })

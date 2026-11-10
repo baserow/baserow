@@ -52,15 +52,18 @@ from baserow.contrib.automation.workflows.signals import (
     automation_workflow_updated,
 )
 from baserow.contrib.automation.workflows.tasks import (
+    delete_superseded_published_automations,
     handle_workflow_dispatch_done,
     start_workflow_celery_task,
 )
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
 from baserow.core.cache import global_cache, local_cache
+from baserow.core.db import atomic_with_retry_on_deadlock
 from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.exceptions import IdDoesNotExist, UntrustedContentCannotBePublished
 from baserow.core.import_export.untrusted_content import defer_untrusted_content_update
 from baserow.core.registries import ImportExportConfig, subject_type_registry
+from baserow.core.services.deferred_deletion import deferred_service_deletion_context
 from baserow.core.storage import ExportZipFile, get_default_storage
 from baserow.core.subjects import UserSubjectType
 from baserow.core.telemetry.utils import baserow_trace, baserow_trace_handler
@@ -299,7 +302,9 @@ class AutomationWorkflowHandler:
         # published workflow, if available.
         state = allowed_values.pop("state", None)
         if state is not None:
-            if published_workflow := self.get_published_workflow(workflow):
+            if published_workflow := self.get_published_workflow(
+                workflow, with_cache=False
+            ):
                 published_workflow.state = WorkflowState(state)
                 published_workflow.save(update_fields=["state"])
 
@@ -717,29 +722,72 @@ class AutomationWorkflowHandler:
     def clean_up_previously_published_automations(
         self, workflow: AutomationWorkflow
     ) -> None:
-        published_automations = list(
-            Automation.objects.filter(published_from=workflow).order_by("id")
-        )
-        if not published_automations:
-            return
+        """
+        Disables the live versions of the workflow, and removes the versions it
+        replaces once the publish is committed. Deleting them can take many seconds
+        for a large workflow, so it doesn't happen in the transaction.
 
-        if len(published_automations) > 1:
-            # Delete all but the last published automation
-            if ids_to_delete := [
-                a.id
-                for a in published_automations[:-1]
-                # Exclude any automations that have any history entries
-                if not AutomationWorkflowHistory.objects.filter(
-                    workflow__automation=a
-                ).exists()
-            ]:
-                Automation.objects.filter(id__in=ids_to_delete).delete()
+        :param workflow: The workflow being published.
+        """
+
+        if not Automation.objects.filter(published_from=workflow).exists():
+            return
 
         # Disable any live workflows
         AutomationWorkflow.objects.filter(
             automation__published_from=workflow,
             state=WorkflowState.LIVE,
         ).update(state=WorkflowState.DISABLED)
+
+        workflow_id = workflow.id
+        transaction.on_commit(
+            lambda: delete_superseded_published_automations.apply_async(
+                args=[workflow_id], countdown=60
+            )
+        )
+
+    @baserow_trace(tracer)
+    @atomic_with_retry_on_deadlock()
+    def delete_superseded_published_automations(self, workflow_id: int) -> None:
+        """
+        Deletes the published automations older than the current published version of
+        the workflow, except those with history entries. What is safe is decided here,
+        when the deletion runs, as runs and publishes may have happened since it was
+        scheduled. Test clones are left to `clear_old_history`, as a test run can have
+        just picked one up and not written its history entry yet.
+
+        :param workflow_id: The id of the workflow that was published.
+        """
+
+        current_automation_id = (
+            self._get_published_workflows_queryset()
+            .filter(automation__published_from_id=workflow_id)
+            .order_by("-automation__id")
+            .values_list("automation_id", flat=True)
+            .first()
+        )
+        if current_automation_id is None:
+            return
+
+        # A row locked by another task running at the same time is left to that task.
+        ids_to_delete = list(
+            Automation.objects.select_for_update(of=("self",), skip_locked=True)
+            .filter(
+                published_from_id=workflow_id,
+                id__lt=current_automation_id,
+            )
+            .exclude(workflows__state=WorkflowState.TEST_CLONE)
+            .exclude(
+                id__in=AutomationWorkflowHistory.objects.filter(
+                    workflow__automation__published_from_id=workflow_id
+                ).values("workflow__automation_id")
+            )
+            .order_by("id")
+            .values_list("id", flat=True)
+        )
+        if ids_to_delete:
+            with deferred_service_deletion_context():
+                Automation.objects.filter(id__in=ids_to_delete).delete()
 
     def _clone_workflow(
         self,
@@ -1079,11 +1127,16 @@ class AutomationWorkflowHandler:
             )
         )
 
-        # Exclude any automation that is currently the active published workflow
+        # Keep the newest published copy of each workflow whatever its state, so a
+        # paused or disabled workflow keeps the version it was paused or disabled with.
         active_published_ids = list(
             AutomationWorkflow.objects.filter(
-                state=WorkflowState.LIVE,
-            ).values_list("automation_id", flat=True)
+                automation__published_from__isnull=False,
+            )
+            .exclude(state=WorkflowState.TEST_CLONE)
+            .order_by("automation__published_from_id", "-automation_id")
+            .distinct("automation__published_from_id")
+            .values_list("automation_id", flat=True)
         )
         if active_published_ids:
             empty_published = empty_published.exclude(id__in=active_published_ids)

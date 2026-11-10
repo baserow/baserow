@@ -33,9 +33,6 @@ from baserow_enterprise.assistant.tools.automation.types.node import (
     ActionNodeCreate,
     TriggerNodeCreate,
 )
-from baserow_enterprise.assistant.tools.builder.types.data_source import (
-    DataSourceCreate,
-)
 from baserow_enterprise.assistant.tools.database.tools import (
     create_fields,
     create_tables,
@@ -55,6 +52,9 @@ from baserow_enterprise.assistant.tools.toolset import (
     move_thought_to_top_level,
 )
 from baserow_enterprise.assistant.types import BaseModel as AssistantBaseModel
+from baserow_enterprise.builder.tools.types.data_source import (
+    DataSourceCreate,
+)
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
 
 from .utils import make_test_ctx
@@ -226,7 +226,7 @@ async def test_deferred_tool_switches_modes_then_executes_once(initial_args):
         (ToolInputError("Invalid workflow"), "Invalid workflow"),
         (SharedToolInputError("Invalid workflow"), "Invalid workflow"),
         (DjangoValidationError("Invalid range"), "Invalid value. Invalid range"),
-        (FeaturesNotAvailableError(), "does not have access to these features"),
+        (FeaturesNotAvailableError(), "This needs a licence"),
         (
             DRFValidationError("The page with id 7 doesn't exist."),
             "The page with id 7 doesn't exist.",
@@ -260,6 +260,30 @@ async def test_complete_deferred_tool_preserves_domain_errors(error, expected):
         )
         assert expected in result["error"]
     assert deps.mode == AgentMode.AUTOMATION
+
+
+@pytest.mark.asyncio
+async def test_a_shared_input_error_keeps_its_hint_for_the_model():
+    deps = SimpleNamespace(mode=AgentMode.AUTOMATION)
+
+    def create_workflows(name: str):
+        raise SharedToolInputError("Invalid workflow.", hint="Use list_workflows.")
+
+    model = TestModel()
+    toolset = ModeAwareToolset(
+        InlineRefsToolset(
+            FunctionToolset([create_workflows]), model=model, model_profile=MagicMock()
+        ),
+        deps,
+    )
+    ctx = RunContext(deps=deps, model=model, usage=RunUsage(), prompt="Create")
+    tools = await toolset.get_tools(ctx)
+
+    result = await toolset.call_tool(
+        "create_workflows", {"name": "Orders"}, ctx, tools["create_workflows"]
+    )
+
+    assert result == {"error": "Invalid workflow.", "next_steps": "Use list_workflows."}
 
 
 @pytest.mark.asyncio

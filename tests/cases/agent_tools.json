@@ -3,6 +3,8 @@
     "not_found",
     "permission_denied",
     "invalid_input",
+    "invalid_formula",
+    "conflict",
     "failed"
   ],
   "tools": [
@@ -38,7 +40,15 @@
           { "name": "Projects", "primary_field_name": "Title", "fields": [] }
         ]
       },
-      "input": { "requested_count": 1 },
+      "input": {
+        "requested_count": 1,
+        "values": {
+          "database_id": 1,
+          "tables": [
+            { "name": "Projects", "primary_field_name": "Title", "fields": [] }
+          ]
+        }
+      },
       "facts": { "table": "Projects", "count": 1 }
     },
     {
@@ -47,19 +57,28 @@
         "table_id": 1,
         "fields": [{ "name": "Notes", "type": "text" }]
       },
-      "input": { "requested_count": 1 },
+      "input": {
+        "requested_count": 1,
+        "values": {
+          "table_id": 1,
+          "fields": [{ "name": "Notes", "type": "text" }]
+        }
+      },
       "facts": { "table": "Tasks", "count": 1 }
     },
     {
       "name": "update_fields",
       "arguments": { "fields": [{ "field_id": 1, "name": "Effort" }] },
-      "input": { "requested_count": 1 },
+      "input": {
+        "requested_count": 1,
+        "values": { "fields": [{ "field_id": 1, "name": "Effort" }] }
+      },
       "facts": { "count": 1 }
     },
     {
       "name": "delete_fields",
       "arguments": { "field_ids": [1] },
-      "input": { "requested_count": 1 },
+      "input": { "requested_count": 1, "values": { "field_ids": [1] } },
       "facts": { "count": 1 }
     },
     {
@@ -68,7 +87,13 @@
         "table_id": 1,
         "views": [{ "name": "Board", "type": "grid" }]
       },
-      "input": { "requested_count": 1 },
+      "input": {
+        "requested_count": 1,
+        "values": {
+          "table_id": 1,
+          "views": [{ "name": "Board", "type": "grid" }]
+        }
+      },
       "facts": { "table": "Tasks", "count": 1 }
     },
     {
@@ -88,7 +113,24 @@
           }
         ]
       },
-      "input": { "requested_count": 1 },
+      "input": {
+        "requested_count": 1,
+        "values": {
+          "view_filters": [
+            {
+              "view_id": 1,
+              "filters": [
+                {
+                  "field_id": 1,
+                  "type": "number",
+                  "operator": "higher_than",
+                  "value": 1
+                }
+              ]
+            }
+          ]
+        }
+      },
       "facts": { "count": 1 }
     },
     {

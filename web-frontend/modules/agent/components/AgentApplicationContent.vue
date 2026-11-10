@@ -321,6 +321,7 @@ watch(
   () => state.replyFollower?.view.steps,
   (steps) => {
     for (const step of steps ?? []) {
+      if (step.status === STEP_STATUS.SKIPPED) continue
       if (announcedSteps.get(step.id) === step.status) continue
       announcedSteps.set(step.id, step.status)
       const activity = toolActivity(step, $registry, t)

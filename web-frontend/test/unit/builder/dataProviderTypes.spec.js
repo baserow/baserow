@@ -23,6 +23,18 @@ describe('Builder data provider types', () => {
     await testApp.afterEach()
   })
 
+  test('formula context explorer supports CSV sources without context metadata', () => {
+    const page = {
+      id: 1,
+      dataSources: [{ id: 1, type: 'csv_file_reader', schema: null }],
+    }
+    const builder = { pages: [page, { id: 2, shared: true, dataSources: [] }] }
+    const provider = testApp
+      .getRegistry()
+      .get('builderDataProvider', 'data_source_context')
+    expect(provider.getNodes({ builder, page })).toMatchSnapshot()
+  })
+
   test('previous action provider resolves list workflow action results', () => {
     const dataProvider = testApp
       .getRegistry()

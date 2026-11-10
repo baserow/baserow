@@ -58,7 +58,8 @@ describe('Agent tool presentations', () => {
       registry
         .getList('toolPresentation')
         .map((presenter) => presenter.getType())
-        .filter((type) => type !== 'mcp_server_tool')
+        // The provider runs web search, so the backend has no agent tool for it.
+        .filter((type) => !['mcp_server_tool', 'web_search'].includes(type))
         .sort()
     ).toEqual(cases.tools.map(({ name }) => name).sort())
     for (const { name, input, facts } of cases.tools) {
@@ -72,6 +73,11 @@ describe('Agent tool presentations', () => {
           t
         )
         expect(activity.title).not.toMatch(/^(agent|toolPresentation)\./)
+        expect(activity.input).toEqual(
+          step(name).changes_data && input.values
+            ? { values: input.values, truncated: false }
+            : null
+        )
       }
     }
   })
@@ -144,56 +150,6 @@ describe('Agent tool presentations', () => {
       ).title
     ).toBe('Created 1 table: Projects')
   })
-
-  test.each([
-    [
-      { count: 0, existing_count: 1, existing_table: 'Tasks' },
-      'create_tables',
-      'Used the existing table Tasks',
-    ],
-    [
-      { count: 0, existing_count: 2, existing_table: 'Tasks, Notes' },
-      'create_tables',
-      'Used 2 existing tables: Tasks, Notes',
-    ],
-    [
-      {
-        count: 1,
-        table: 'Projects',
-        existing_count: 1,
-        existing_table: 'Tasks',
-      },
-      'create_tables',
-      'Created 1 table: Projects',
-    ],
-    [
-      { count: 0, table: 'Tasks', existing_count: 1 },
-      'create_views',
-      'Skipped 1 view in Tasks: name already exists',
-    ],
-    [
-      { count: 0, table: 'Tasks', existing_count: 2 },
-      'create_views',
-      'Skipped 2 views in Tasks: names already exist',
-    ],
-    [
-      { count: 0, existing_count: 1 },
-      'create_views',
-      'Skipped 1 view: name already exists',
-    ],
-    [
-      { count: 0, existing_count: 2 },
-      'create_views',
-      'Skipped 2 views: names already exist',
-    ],
-  ])(
-    'reports reused tables and skipped views accurately: %j',
-    (facts, tool, title) => {
-      expect(
-        toolActivity(step(tool, 'done', { facts }), registry, t).title
-      ).toBe(title)
-    }
-  )
 
   test.each([null, [], { requested_count: -1 }, { requested_count: '3' }])(
     'malformed summaries retain a tool-specific action label: %j',
@@ -351,5 +307,63 @@ describe('Agent tool presentations', () => {
     expect(toolActivity(step('mcp_tables', 'done'), registry, t).title).toBe(
       'Tool completed'
     )
+  })
+
+  test.each([
+    ['running', 'Searching the web: baserow'],
+    ['done', 'Searched the web: baserow'],
+    ['failed', 'Search the web: baserow'],
+    ['stopped', 'Search the web: baserow'],
+  ])('shows a %s web search with its query', (status, title) => {
+    const activity = toolActivity(
+      step('web_search', status, { input: { queries: [' baserow '] } }),
+      registry,
+      t
+    )
+    expect(activity.title).toBe(title)
+    expect(activity.group).toBeNull()
+  })
+
+  test.each([undefined, 42, '  ', [], ['  '], [42]])(
+    'shows a web search without a usable query: %j',
+    (queries) => {
+      const activity = toolActivity(
+        step('web_search', 'done', { input: { queries } }),
+        registry,
+        t
+      )
+      expect(activity.title).toBe('Searched the web')
+    }
+  )
+
+  test('shows every query of a web search', () => {
+    const activity = toolActivity(
+      step('web_search', 'done', { input: { queries: ['a', 'b'] } }),
+      registry,
+      t
+    )
+    expect(activity.title).toBe('Searched the web: a, b')
+  })
+
+  test('shows that a reply could not search', () => {
+    const activity = toolActivity(
+      step('web_search', 'failed', { input: { unavailable: true } }),
+      registry,
+      t
+    )
+    expect(activity.title).toBe('Web search was unavailable for this reply')
+  })
+
+  test.each([
+    ['running', 'Opening a web page: https://x.test'],
+    ['done', 'Opened a web page: https://x.test'],
+    ['failed', 'Open a web page: https://x.test'],
+  ])('shows a %s page the provider opened', (status, title) => {
+    const activity = toolActivity(
+      step('web_search', status, { input: { url: 'https://x.test' } }),
+      registry,
+      t
+    )
+    expect(activity.title).toBe(title)
   })
 })

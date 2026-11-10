@@ -131,7 +131,11 @@ def add_nodes(
 def create_workflows(
     ctx: RunContext[AssistantDeps],
     automation_id: Annotated[
-        int, Field(description="The ID of the automation to create workflows in.")
+        int,
+        Field(
+            description="The ID of the automation to create workflows in. "
+            "create_automation returns the ID of a new one."
+        ),
     ],
     workflows: Annotated[
         list[WorkflowCreate],

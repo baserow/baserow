@@ -1,21 +1,34 @@
 import json
 from collections import defaultdict, deque
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from loguru import logger
 from pydantic_ai import AgentRunResultEvent, AgentStreamEvent
 from pydantic_ai.messages import (
+    BaseToolCallPart,
     FunctionToolCallEvent,
     FunctionToolResultEvent,
+    NativeToolCallPart,
+    NativeToolReturnPart,
+    PartEndEvent,
+    PartStartEvent,
     RetryPromptPart,
     ToolReturnPart,
 )
 
 from baserow.core.tools.errors import ToolErrorCode
+from baserow.core.utils import remove_unstorable_characters
 
-from .constants import ChatRunEventKind, ChatRunStepStatus
+from .constants import (
+    MAX_STEP_ITEM_ERRORS,
+    MAX_STEP_MESSAGE_LENGTH,
+    ChatRunEventKind,
+    ChatRunStepStatus,
+)
+from .tool_input import shorten_text
 from .types import ChatRunStep
 
 if TYPE_CHECKING:
@@ -55,31 +68,132 @@ def _display_data(value: Any) -> dict[str, Any]:
         return {}
 
 
+@dataclass(frozen=True)
+class _Ending:
+    """How a tool call ended, as its step shows it."""
+
+    status: ChatRunStepStatus
+    facts: dict[str, Any] = field(default_factory=dict)
+    error_code: ToolErrorCode | None = None
+    error_message: str = ""
+    item_errors: list[dict[str, Any]] = field(default_factory=list)
+
+
+def _error_code(value: Any) -> ToolErrorCode:
+    """
+    Keep only error codes that are safe to show.
+
+    :param value: The code a tool or its metadata reported.
+    :return: The code, or ``failed`` when it is not a known one.
+    """
+
+    if isinstance(value, str) and value in ToolErrorCode:
+        return ToolErrorCode(value)
+    return ToolErrorCode.FAILED
+
+
+def _message(value: Any) -> str:
+    """
+    Bound a message written for people.
+
+    :param value: The message a tool reported.
+    :return: The message, shortened when long, or empty when it isn't text.
+    """
+
+    if not isinstance(value, str):
+        return ""
+    return shorten_text(value, MAX_STEP_MESSAGE_LENGTH)
+
+
+def _item_errors(content: dict[str, Any]) -> list[dict[str, Any]]:
+    """
+    Copy what people may see of the failed items: never the model's hints.
+
+    :param content: The tool result.
+    :return: The first failed items that have a message, with their name or ID,
+        code and message.
+    """
+
+    errors = content.get("errors")
+    if not isinstance(errors, list):
+        return []
+    displayable = [
+        error
+        for error in errors
+        if isinstance(error, dict) and _message(error.get("message")).strip()
+    ]
+    return [
+        {
+            "item": error.get("item"),
+            "code": _error_code(error.get("code")).value,
+            "message": _message(error.get("message")),
+        }
+        for error in displayable[:MAX_STEP_ITEM_ERRORS]
+    ]
+
+
+def _reports_native_failure(content: Any) -> bool:
+    """Tell whether a provider-run tool failed while reporting the call itself as
+    successful, as Anthropic does with error results and OpenAI with its status.
+
+    :param content: The result the provider reported.
+    :return: Whether it describes a failure.
+    """
+
+    if not isinstance(content, dict):
+        return False
+    result_type = content.get("type")
+    return (
+        "error_code" in content
+        or (isinstance(result_type, str) and result_type.endswith("_error"))
+        or content.get("status") == "failed"
+    )
+
+
 def _ended(
-    part: ToolReturnPart | RetryPromptPart,
-) -> tuple[ChatRunStepStatus, dict[str, Any], ToolErrorCode | None]:
-    """Read a tool outcome without confusing domain errors with success.
+    part: ToolReturnPart | NativeToolReturnPart | RetryPromptPart,
+) -> _Ending:
+    """
+    Read a tool outcome without confusing domain errors with success.
 
     :param part: The tool result or validation retry.
-    :return: Its status, successful outcome facts and safe failure category.
+    :return: Its status, facts, and what people may see of its failures.
     """
 
     if isinstance(part, RetryPromptPart):
-        return ChatRunStepStatus.FAILED, {}, ToolErrorCode.INVALID_INPUT
+        return _Ending(ChatRunStepStatus.FAILED, error_code=ToolErrorCode.INVALID_INPUT)
     if part.outcome == "interrupted":
-        return ChatRunStepStatus.STOPPED, {}, None
+        return _Ending(ChatRunStepStatus.STOPPED)
     if part.outcome == "denied":
-        return ChatRunStepStatus.FAILED, {}, ToolErrorCode.PERMISSION_DENIED
-    if part.outcome != "success" or (
-        isinstance(part.content, dict) and "error" in part.content
-    ):
-        code = (
-            part.metadata.get("error_code") if isinstance(part.metadata, dict) else None
+        return _Ending(
+            ChatRunStepStatus.FAILED, error_code=ToolErrorCode.PERMISSION_DENIED
         )
-        if not isinstance(code, str) or code not in ToolErrorCode:
-            code = ToolErrorCode.FAILED
-        return ChatRunStepStatus.FAILED, {}, ToolErrorCode(code)
-    return ChatRunStepStatus.DONE, _display_data(part.metadata), None
+    if isinstance(part, NativeToolReturnPart):
+        if (
+            _reports_native_failure(part.content)
+            or part.outcome != "success"
+            or (isinstance(part.content, dict) and "error" in part.content)
+        ):
+            return _Ending(ChatRunStepStatus.FAILED, error_code=ToolErrorCode.FAILED)
+        return _Ending(ChatRunStepStatus.DONE, facts=_display_data(part.metadata))
+    content = part.content if isinstance(part.content, dict) else {}
+    metadata = part.metadata if isinstance(part.metadata, dict) else {}
+    error = content.get("error")
+    if part.outcome != "success" or error is not None:
+        error = error if isinstance(error, dict) else {}
+        return _Ending(
+            ChatRunStepStatus.FAILED,
+            error_code=_error_code(error.get("code") or metadata.get("error_code")),
+            error_message=_message(error.get("message")),
+            item_errors=_item_errors(content),
+        )
+    if content.get("changed") is False:
+        return _Ending(ChatRunStepStatus.SKIPPED)
+    return _Ending(
+        ChatRunStepStatus.DONE,
+        facts=_display_data(metadata),
+        item_errors=_item_errors(content),
+    )
 
 
 class ChatRunSteps:
@@ -93,16 +207,16 @@ class ChatRunSteps:
         """
         :param journal: Receives a complete step whenever its state changes.
         :param describe_call: Maps a tool and arguments to safe presentation data, or
-            to None for a call the run never offered, which then has no step.
+            to None for a call the run never offered, which then has no step. Calls
+            the provider runs itself, such as web searches, are described the same
+            way.
         """
 
         self._journal = journal
         self._describe_call = describe_call
         self._steps: dict[str, ChatRunStep] = {}
         self._pending: dict[str, deque[str]] = defaultdict(deque)
-        self._retrying: dict[str, deque[str]] = defaultdict(deque)
-        self._retryable: dict[str, deque[str]] = defaultdict(deque)
-        self._batch_ended = False
+        self._hidden_call_started = False
 
     def on_event(self, event: AgentStreamEvent | AgentRunResultEvent) -> None:
         """Start and complete steps, ignoring unrelated model events.
@@ -110,51 +224,134 @@ class ChatRunSteps:
         :param event: One event from the model run.
         """
 
-        if isinstance(event, FunctionToolCallEvent):
-            if self._batch_ended:
-                self._retryable, self._retrying = self._retrying, defaultdict(deque)
-                self._batch_ended = False
-            name = event.part.tool_name
-            invalid = event.args_valid is False
-            description = {}
-            try:
-                arguments = {} if invalid else event.part.args_as_dict()
-                description = self._describe_call(name, arguments)
-            except Exception as exc:
-                logger.error("Could not describe tool call ({})", type(exc).__name__)
-            if description is None:
-                return
-            retried = self._retryable[name]
-            step: ChatRunStep = {
-                "id": retried.popleft() if retried else str(uuid4()),
-                "tool": name,
-                "status": ChatRunStepStatus.FAILED
-                if invalid
-                else ChatRunStepStatus.RUNNING,
-                "changes_data": description.get("changes_data") is True,
-                "input": _display_data(description.get("input")) if not invalid else {},
+        match event:
+            case FunctionToolCallEvent(tool_call_id=tool_call_id, part=part):
+                self._start(tool_call_id, part, invalid=event.args_valid is False)
+            case FunctionToolResultEvent(tool_call_id=tool_call_id, part=part):
+                self._end(tool_call_id, part)
+            # The provider runs these itself, so they only appear as parts of its
+            # response.
+            case PartStartEvent(part=NativeToolCallPart() as part):
+                self._start(part.tool_call_id, part)
+            case PartStartEvent(part=NativeToolReturnPart() as part):
+                self._end(part.tool_call_id, part)
+            case PartEndEvent(part=NativeToolCallPart() as part):
+                self._describe_native_call(part)
+
+    @property
+    def started(self) -> bool:
+        """Whether the run has called a tool, which a retry could then repeat."""
+
+        return bool(self._steps) or self._hidden_call_started
+
+    def _describe(
+        self, part: BaseToolCallPart, invalid: bool = False
+    ) -> dict[str, Any] | None:
+        """Describe a call without letting a broken description break the reply.
+
+        :param part: The tool call.
+        :param invalid: Whether its arguments failed validation.
+        :return: The safe presentation data, or None when the call has no step.
+        """
+
+        try:
+            arguments = {} if invalid else part.args_as_dict()
+            return self._describe_call(part.tool_name, arguments)
+        except Exception as exc:
+            logger.error("Could not describe tool call ({})", type(exc).__name__)
+            return {}
+
+    def _start(
+        self, tool_call_id: str, part: BaseToolCallPart, invalid: bool = False
+    ) -> None:
+        """Add the step of a call the model made, unless it has none.
+
+        :param tool_call_id: The call's id, which its result refers to.
+        :param part: The tool call.
+        :param invalid: Whether its arguments failed validation.
+        """
+
+        description = self._describe(part, invalid)
+        if description is None:
+            # A hidden call still ran, so a retry could repeat it.
+            self._hidden_call_started = True
+            return
+        step: ChatRunStep = {
+            "id": str(uuid4()),
+            "tool": part.tool_name,
+            "status": ChatRunStepStatus.FAILED
+            if invalid
+            else ChatRunStepStatus.RUNNING,
+            "changes_data": description.get("changes_data") is True,
+            "input": _display_data(description.get("input")) if not invalid else {},
+            "facts": {},
+        }
+        if invalid:
+            step["error_code"] = ToolErrorCode.INVALID_INPUT
+        self._pending[tool_call_id].append(step["id"])
+        self._update(step)
+
+    def add_failed(self, tool: str, step_input: dict[str, Any]) -> None:
+        """Add a failed step that no call of its own reports, such as a search the
+        reply could not offer.
+
+        :param tool: The tool the step is about.
+        :param step_input: Its safe display input.
+        """
+
+        self._update(
+            {
+                "id": str(uuid4()),
+                "tool": tool,
+                "status": ChatRunStepStatus.FAILED,
+                "changes_data": False,
+                "input": _display_data(step_input),
                 "facts": {},
+                "error_code": ToolErrorCode.FAILED,
             }
-            if invalid:
-                step["error_code"] = ToolErrorCode.INVALID_INPUT
-            self._pending[event.tool_call_id].append(step["id"])
-            self._steps.pop(step["id"], None)
-            self._update(step)
-        elif isinstance(event, FunctionToolResultEvent):
-            self._batch_ended = True
-            pending = self._pending.get(event.tool_call_id)
-            if pending:
-                step = self._steps[pending.popleft()]
-                if not pending:
-                    del self._pending[event.tool_call_id]
-                status, facts, error_code = _ended(event.part)
-                updated = {**step, "status": status, "facts": facts}
-                updated.pop("error_code", None)
-                if error_code is not None:
-                    updated["error_code"] = error_code
-                self._update(updated)
-                if isinstance(event.part, RetryPromptPart):
-                    self._retrying[updated["tool"]].append(updated["id"])
+        )
+
+    def _describe_native_call(self, part: NativeToolCallPart) -> None:
+        """Add what a search looks for, which only arrives after the step started.
+
+        :param part: The complete call.
+        """
+
+        pending = self._pending.get(part.tool_call_id)
+        if pending:
+            step = self._steps[pending[0]]
+            step_input = _display_data((self._describe(part) or {}).get("input"))
+            if step_input != step["input"]:
+                self._update({**step, "input": step_input})
+
+    def _end(
+        self,
+        tool_call_id: str,
+        part: ToolReturnPart | NativeToolReturnPart | RetryPromptPart,
+    ) -> None:
+        """Complete the oldest open step of a call, when it has one.
+
+        :param tool_call_id: The call's id.
+        :param part: How the call ended.
+        """
+
+        pending = self._pending.get(tool_call_id)
+        if not pending:
+            return
+        step = self._steps[pending.popleft()]
+        if not pending:
+            del self._pending[tool_call_id]
+        ending = _ended(part)
+        updated = {**step, "status": ending.status, "facts": ending.facts}
+        # An invalid call starts failed, and a result can still end it otherwise.
+        updated.pop("error_code", None)
+        if ending.error_code is not None:
+            updated["error_code"] = ending.error_code
+        if ending.error_message:
+            updated["error_message"] = ending.error_message
+        if ending.item_errors:
+            updated["item_errors"] = ending.item_errors
+        self._update(updated)
 
     def finish(self) -> list[ChatRunStep]:
         """Finish activity once the model run ends.
@@ -165,5 +362,13 @@ class ChatRunSteps:
         return stop_running_steps(list(self._steps.values()))
 
     def _update(self, step: ChatRunStep) -> None:
+        """
+        Keep and send a step, without text PostgreSQL can't store, so the live
+        and the saved step match.
+
+        :param step: The step's new state.
+        """
+
+        step = remove_unstorable_characters(step)
         self._steps[step["id"]] = step
         self._journal.emit(ChatRunEventKind.STEP, step)

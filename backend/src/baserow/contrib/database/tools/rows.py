@@ -132,8 +132,9 @@ def create_rows(
     rows: Annotated[
         list[dict],
         Field(
+            min_length=1,
             description="List of rows to create. Each row is an object mapping "
-            "field name to value."
+            "field name to value.",
         ),
     ],
 ) -> list[dict[str, Any]]:
@@ -159,8 +160,9 @@ def update_rows(
     rows: Annotated[
         list[RowUpdate],
         Field(
+            min_length=1,
             description="List of rows to update. Each row must have 'id' plus the "
-            "field names and their new values."
+            "field names and their new values.",
         ),
     ],
 ) -> list[dict[str, Any]]:
@@ -188,6 +190,7 @@ def delete_rows(
     row_ids: Annotated[
         list[int],
         Field(
+            min_length=1,
             max_length=settings.BATCH_ROWS_SIZE_LIMIT,
             description="List of row IDs to delete.",
         ),

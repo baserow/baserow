@@ -2,8 +2,77 @@ import json
 from collections import defaultdict
 from typing import Any, Optional
 
+from redis.asyncio import ConnectionPool as AsyncConnectionPool
+from redis.asyncio.retry import Retry as AsyncRetry
+from redis.backoff import EqualJitterBackoff
 from redis.client import Redis
 from redis.connection import ConnectionPool
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import ReadOnlyError as RedisReadOnlyError
+
+# redis-py 8 defaults to RESP3, which turns on maintenance notifications. While
+# they're on, redis-py 8.1 hands out pooled asyncio connections without checking
+# whether the server already closed them (an idle timeout, an HAProxy restart, a
+# failover), so the next command fails with "Connection closed by server". RESP2
+# restores the check. Fixed upstream in redis-py 8.2.0, after which this can go.
+ASYNC_REDIS_PROTOCOL = 2
+
+
+def async_redis_retry(*errors: type[Exception]) -> AsyncRetry:
+    """
+    The asyncio counterpart of the retries the Django cache uses: 3 retries
+    waiting 2.5 to 5 seconds in total, enough to bridge a Redis restart or
+    Sentinel failover without stalling callers long while Redis is down.
+
+    :param errors: The exceptions that may be retried.
+    :return: A retry policy for an asyncio pool or connection.
+    """
+
+    return AsyncRetry(EqualJitterBackoff(base=0.5, cap=2), 3, supported_errors=errors)
+
+
+def async_redis_pool_options() -> dict[str, Any]:
+    """
+    Options for an `AsyncRetryingConnectionPool`, shared by the asyncio clients.
+
+    Taking a connection from the pool is retried on connection errors, which is
+    safe because no command has been sent yet. Commands are only retried when
+    Redis rejected them as read-only, which happens for a moment when HAProxy
+    still routes to a primary that Sentinel just demoted. A connection that drops
+    after a command was sent leaves it unknown whether Redis already ran it, so
+    those aren't retried.
+
+    :return: Keyword arguments for `AsyncRetryingConnectionPool`.
+    """
+
+    return {
+        "protocol": ASYNC_REDIS_PROTOCOL,
+        "checkout_retry": async_redis_retry(RedisConnectionError),
+        "retry": async_redis_retry(RedisReadOnlyError),
+    }
+
+
+class AsyncRetryingConnectionPool(AsyncConnectionPool):
+    """
+    The asyncio counterpart of `RetryingConnectionPool`: retries taking a
+    connection from the pool, which is where a dropped connection reconnects.
+    """
+
+    def __init__(self, *args, checkout_retry: AsyncRetry | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.checkout_retry = checkout_retry
+
+    async def get_connection(self, *args, **kwargs):
+        get_connection = super().get_connection
+        if self.checkout_retry is None:
+            return await get_connection(*args, **kwargs)
+
+        async def ignore_failure(error):
+            pass
+
+        return await self.checkout_retry.call_with_retry(
+            lambda: get_connection(*args, **kwargs), ignore_failure
+        )
 
 
 class RetryingConnectionPool(ConnectionPool):

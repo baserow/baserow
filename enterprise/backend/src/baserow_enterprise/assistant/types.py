@@ -4,15 +4,9 @@ from typing import Annotated, Literal, Optional
 
 from django.utils.translation import gettext as _
 
-from pydantic import BaseModel as PydanticBaseModel
-from pydantic import ConfigDict, Field
+from pydantic import Field
 
-
-class BaseModel(PydanticBaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-        coerce_numbers_to_str=True,
-    )
+from baserow_enterprise.tools.types import BaseModel
 
 
 class WorkspaceUIContext(BaseModel):

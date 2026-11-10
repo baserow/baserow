@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from uuid import UUID
 
+from pydantic_ai import WebSearchTool
+
 from baserow.contrib.integrations.mcp.toolset import MCPServerSnapshot
 from baserow.core.chat_runs.types import ChatRunStep
 from baserow.core.models import Workspace
@@ -29,8 +31,13 @@ class AgentConfiguration:
     instructions: str
     provider_type: str | None
     model_identifier: str | None
+    reasoning_effort: str | None
+    applied_reasoning_effort: str | None
     run_as: AgentRunAsResolution
     allowed_tools: list[str]
+    web_search_enabled: bool
+    web_search_available: bool
+    web_search_blocked_by_tools: bool
     errors: dict[str, AgentConfigurationErrorCode]
 
 
@@ -80,6 +87,12 @@ class AgentReplyRequest:
     """The timezone of the owner, for the dates the tools read and write."""
     mcp_servers: tuple[MCPServerSnapshot, ...] = ()
     """The MCP servers with tools turned on, as reviewed when the reply started."""
+    reasoning_effort: str | None = None
+    """How much the model reasons, or None for its default."""
+    web_search_tool: WebSearchTool | None = None
+    """The provider's web search, when it's turned on and the model has one."""
+    web_search_enabled: bool = False
+    """Whether web search is turned on, even when the model can't use it."""
 
 
 @dataclass(frozen=True)

@@ -24,14 +24,14 @@ from baserow.core.exceptions import PermissionDenied
 from baserow.core.formula.types import BaserowFormulaObject
 from baserow.test_utils.fixtures import Fixtures
 from baserow_enterprise.assistant.tools.builder.tools import update_element
-from baserow_enterprise.assistant.tools.builder.types import (
+from baserow_enterprise.assistant.tools.shared import ToolInputError
+from baserow_enterprise.builder.tools.types import (
     ElementUpdate,
     TableColumnUpdate,
 )
-from baserow_enterprise.assistant.tools.builder.types.table_columns import (
+from baserow_enterprise.builder.tools.types.table_columns import (
     data_source_fields,
 )
-from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 
@@ -257,7 +257,7 @@ def test_renaming_a_button_column_keeps_its_click_actions(
     "value,stored",
     [
         ("new text", "'new text'"),
-        ("get('current_record.field_9')", "get('current_record.field_9')"),
+        ("get('current_record.id')", "get('current_record.id')"),
         ("", "''"),
         ("'quoted'", "'quoted'"),
     ],
@@ -281,7 +281,7 @@ def test_a_column_update_changes_only_the_keys_sent(seeded: SeededTable) -> None
     _update(
         seeded,
         update_table_columns=[
-            {"uid": uids["Stars"], "value": "get('current_record.field_7')"},
+            {"uid": uids["Stars"], "value": "get('current_record.id')"},
             {"uid": uids["Site"], "name": "Website"},
         ],
     )
@@ -290,9 +290,20 @@ def test_a_column_update_changes_only_the_keys_sent(seeded: SeededTable) -> None
     stars_config = before[uids["Stars"]][3]
     assert after[uids["Stars"]][3] == {
         **stars_config,
-        "value": _advanced("get('current_record.field_7')"),
+        "value": _advanced("get('current_record.id')"),
     }
     assert after[uids["Site"]] == (uids["Site"], "Website", *before[uids["Site"]][2:])
+
+
+@pytest.mark.django_db
+def test_a_column_reading_a_field_by_name_is_refused(seeded: SeededTable) -> None:
+    with pytest.raises(ToolInputError, match="No changes were applied"):
+        _update(
+            seeded,
+            add_table_columns=[{"name": "Bad", "value": "get('current_record.Email')"}],
+        )
+
+    assert "Bad" not in [column[1] for column in _columns(seeded.table)]
 
 
 @pytest.mark.django_db
@@ -1431,7 +1442,7 @@ def test_a_field_id_of_another_table_is_refused(
         seeded,
         f"Fields [{elsewhere.id}, {missing_id}] are not fields of table "
         f"{seeded.people.id} 'People', which the data source of table element "
-        f"{seeded.table.id} reads. Use field ids of that table from get_tables_schema. "
+        f"{seeded.table.id} reads. Use field ids of that table. "
         "No changes were applied.",
         update_table_columns=[{"uid": seeded.uids["Note"], "field_id": elsewhere.id}],
         add_table_columns=[
@@ -1448,7 +1459,7 @@ def test_a_new_text_column_without_a_field_named_like_it_is_refused(
     _assert_refused(
         seeded,
         f"The new column 'Phone' would be empty: table {seeded.people.id} 'People' "
-        "has no field named 'Phone'. Set field_id (from get_tables_schema) or value; "
+        "has no field named 'Phone'. Set field_id (a field of that table) or value; "
         "value '' keeps it empty on purpose. No changes were applied.",
         add_table_columns=[{"name": "Phone"}],
     )
@@ -1464,7 +1475,7 @@ def test_every_new_text_column_without_a_field_named_like_it_is_named(
         seeded,
         f"The new column 'Phone' would be empty: {people} has no field named "
         f"'Phone'. The new column 'Fax' would be empty: {people} has no field named "
-        "'Fax'. Set field_id (from get_tables_schema) or value; value '' keeps it "
+        "'Fax'. Set field_id (a field of that table) or value; value '' keeps it "
         "empty on purpose. No changes were applied.",
         add_table_columns=[{"name": "Phone"}, {"name": "Email"}, {"name": "Fax"}],
     )

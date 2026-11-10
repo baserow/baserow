@@ -146,6 +146,32 @@ def test_tool_presentation_contract_uses_valid_arguments_and_safe_summaries(name
     )
 
 
+@pytest.mark.parametrize("name", PRESENTATIONS)
+def test_tool_input_excludes_unapproved_arguments_without_mutating_the_call(name):
+    case = PRESENTATIONS[name]
+    arguments = {**case["arguments"], "credential": "DO_NOT_DISPLAY"}
+    original = json.dumps(arguments)
+
+    summary = agent_tool_type_registry.get(name).get_step_input(arguments)
+
+    assert summary == case["input"]
+    assert "DO_NOT_DISPLAY" not in json.dumps(summary)
+    assert json.dumps(arguments) == original
+
+    class UnrepresentedTool(AgentToolType):
+        type = "unrepresented"
+
+    assert UnrepresentedTool().get_step_input(arguments) == {}
+
+
+def test_row_writes_keep_values_out_of_the_step_input():
+    arguments = {"table_id": 1, "rows": [{"Password": "Hunter2!"}]}
+
+    for name in ("create_rows", "update_rows"):
+        summary = agent_tool_type_registry.get(name).get_step_input(arguments)
+        assert summary == {"requested_count": 1}
+
+
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "name",
@@ -197,7 +223,10 @@ def test_successful_field_deletion_reports_its_confirmed_count(
     )
 
     assert result.metadata == PRESENTATIONS["delete_fields"]["facts"]
-    assert result.return_value == {"deleted_field_ids": [workspace_data.hours.id]}
+    assert result.return_value == {
+        "changed": True,
+        "deleted_field_ids": [workspace_data.hours.id],
+    }
 
 
 @pytest.mark.django_db
@@ -266,10 +295,14 @@ def test_tool_errors_are_answered_to_the_model(workspace_data, data_fixture):
         workspace_data.ctx,
         {"table_id": other_table.id},
     )
-    assert missing.return_value == {"error": "Not found in this workspace."}
+    assert missing.return_value == {
+        "error": {"code": "not_found", "message": "Not found in this workspace."}
+    }
     assert missing.metadata == {"error_code": "not_found"}
     unexpected = call_tool(BrokenAgentToolType(), workspace_data.ctx, {})
-    assert unexpected.return_value == {"error": "Internal error."}
+    assert unexpected.return_value == {
+        "error": {"code": "failed", "message": "Internal error."}
+    }
     assert unexpected.metadata == {"error_code": "failed"}
     hidden_schema = call_tool(
         agent_tool_type_registry.get("get_table_schema"),
@@ -328,7 +361,7 @@ def test_returned_errors_never_extract_display_facts(workspace_data, mocker):
 
 
 @pytest.mark.django_db
-def test_reused_tables_and_views_are_reported_apart_from_created_ones(
+def test_reused_tables_are_counted_apart_and_used_view_names_are_conflicts(
     workspace_data,
 ):
     tables = call_tool(
@@ -347,17 +380,12 @@ def test_reused_tables_and_views_are_reported_apart_from_created_ones(
         workspace_data.ctx,
         {
             "table_id": workspace_data.table.id,
-            "views": [{"type": "grid", "name": workspace_data.view.name}] * 2,
+            "views": [{"type": "grid", "name": workspace_data.view.name}],
         },
     )
 
-    assert tables.metadata == {
-        "count": 1,
-        "table": "Projects",
-        "existing_count": 1,
-        "existing_table": "Tasks",
-    }
-    assert views.metadata == {"count": 0, "table": "Tasks", "existing_count": 1}
+    assert tables.metadata == {"count": 1, "table": "Projects"}
+    assert views["error"]["code"] == "conflict"
 
 
 @pytest.mark.django_db
@@ -373,9 +401,12 @@ def test_partial_field_creation_counts_only_created_fields(workspace_data):
 
     result = call_tool(tool_type, workspace_data.ctx, arguments)
 
-    assert tool_type.get_step_input(arguments) == {"requested_count": 2}
+    assert tool_type.get_step_input(arguments) == {
+        "requested_count": 2,
+        "values": arguments,
+    }
     assert result.metadata == {"table": "Tasks", "count": 1}
-    assert len(result.return_value["formula_errors"]) == 1
+    assert len(result.return_value["errors"]) == 1
 
 
 @pytest.mark.django_db
@@ -420,7 +451,9 @@ def test_unexpected_tool_errors_do_not_log_private_values(workspace_data, mocker
         {"table_id": workspace_data.table.id, "search": private_search},
     )
 
-    assert result.return_value == {"error": "Internal error."}
+    assert result.return_value == {
+        "error": {"code": "failed", "message": "Internal error."}
+    }
     assert result.metadata == {"error_code": "failed"}
     output = "".join(str(entry) for entry in logs)
     assert "list_table_rows" in output

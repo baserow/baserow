@@ -26,6 +26,7 @@ from baserow.core.exceptions import PermissionException
 from baserow.core.mcp import BaserowMCPServer, current_key
 from baserow.core.mcp.registries import mcp_tool_registry
 from baserow.core.tools import ToolContext
+from baserow.core.tools.errors import ToolInputError
 
 
 def _session(endpoint, callback):
@@ -88,7 +89,7 @@ def test_create_tables_over_mcp_creates_linked_tables_and_a_raw_formula(
     assert [t["id"] for t in data["created_tables"]] == [customers.id, orders.id]
     assert data["reused_tables"] == []
     assert data["notes"] == []
-    assert "formula_errors" not in data
+    assert "errors" not in data
     link = LinkRowField.objects.get(table=orders, name="Customer")
     assert link.link_row_table_id == customers.id
     # The reverse link field is created in the other table.
@@ -127,13 +128,15 @@ def test_create_tables_over_mcp_reports_a_formula_description(data_fixture):
     data = json.loads(result.content[0].text)
     people = database.table_set.get(name="People")
     assert [t["id"] for t in data["created_tables"]] == [people.id]
-    assert data["formula_errors"] == [
+    assert data["errors"] == [
         {
+            "item": "Full name",
+            "code": "invalid_formula",
+            "message": "'Full name' needs a formula, not a description. Write it "
+            "in Baserow formula syntax.",
             "table_id": people.id,
             "field_name": "Full name",
             "formula": "$formula: first and last name",
-            "error": "'Full name' needs a formula, not a description. Write it "
-            "in Baserow formula syntax.",
         }
     ]
     assert list(people.field_set.order_by("id").values_list("name", flat=True)) == [
@@ -287,7 +290,9 @@ def test_shared_create_tables_keeps_tables_and_fields_when_a_field_fails(
         "One",
         "Three",
     }
-    assert any("Error creating field Two" in note for note in result["notes"])
+    assert [(error["item"], error["table_id"]) for error in result["errors"]] == [
+        ("Two", orders.id)
+    ]
 
 
 @pytest.mark.django_db
@@ -494,7 +499,7 @@ def test_shared_create_tables_looks_up_a_field_of_a_later_table(data_fixture):
     )
 
     assert result["notes"] == []
-    assert "formula_errors" not in result
+    assert "errors" not in result
     orders = Table.objects.get(database=database, name="Orders")
     email = Field.objects.get(table__name="Customers", name="Email")
     lookup = orders.field_set.get(name="Customer email").specific
@@ -559,7 +564,7 @@ def test_shared_create_tables_rejects_a_name_several_tables_share(data_fixture):
         tags = data_fixture.create_database_table(database=database, name="Tags")
         data_fixture.create_text_field(table=tags, name="Name", primary=True)
 
-    with pytest.raises(ValidationError, match="Several tables .* named 'Tags'"):
+    with pytest.raises(ToolInputError) as exc_info:
         create_tables(
             ToolContext(user, workspace),
             database.id,
@@ -569,6 +574,10 @@ def test_shared_create_tables_rejects_a_name_several_tables_share(data_fixture):
             ],
         )
 
+    assert str(exc_info.value) == (
+        "Several tables in this database are named 'Tags'. No tables were created."
+    )
+    assert "create_fields" in exc_info.value.hint
     assert not Table.objects.filter(database=database, name="Posts").exists()
 
 
@@ -597,8 +606,8 @@ def test_shared_create_tables_does_not_link_to_a_name_several_tables_share(
         ],
     )
 
-    (note,) = result["notes"]
-    assert "Several tables in this database are named 'Tags'" in note
+    (error,) = result["errors"]
+    assert "Several tables in this database are named 'Tags'" in error["message"]
     assert not LinkRowField.objects.filter(table__name="Posts").exists()
 
 
@@ -724,8 +733,32 @@ def test_create_tables_explains_a_lookup_to_a_formula_of_a_later_table(
         ],
     )
 
-    (note,) = result["notes"]
-    assert "Error creating field Customer total" in note
-    assert "The provided target field does not exist" in note
+    (error,) = result["errors"]
+    assert error["item"] == "Customer total"
+    assert "The provided target field does not exist" in error["message"]
     orders = Table.objects.get(database=database, name="Orders")
     assert not orders.field_set.filter(name="Customer total").exists()
+
+
+@pytest.mark.django_db
+def test_create_tables_reports_field_failures_as_item_errors(data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    ctx = ToolContext(user=user, workspace=database.workspace)
+
+    result = create_tables(
+        ctx,
+        database.id,
+        [
+            TableItemCreate(
+                name="Projects",
+                primary_field_name="Title",
+                fields=[FieldItemCreate(name="Total", type="formula", formula="x(")],
+            )
+        ],
+    )
+
+    assert result["changed"] is True and "error" not in result
+    assert [(e["item"], e["code"]) for e in result["errors"]] == [
+        ("Total", "invalid_formula")
+    ]

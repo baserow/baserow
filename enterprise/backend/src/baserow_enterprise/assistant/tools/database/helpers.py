@@ -8,6 +8,7 @@ from baserow.contrib.database.fields.operations import ListFieldsOperationType
 from baserow.contrib.database.mcp.services import filter_tables
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.tools import fields as shared_fields
+from baserow.contrib.database.tools.errors import conflict_errors
 from baserow.contrib.database.tools.tables import (
     get_tables_schema,  # noqa: F401
     permitted_tables,
@@ -15,8 +16,10 @@ from baserow.contrib.database.tools.tables import (
 from baserow.contrib.database.tools.views import create_view_filter  # noqa: F401
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View
+from baserow.core.formula.parser.exceptions import BaserowFormulaException
 from baserow.core.models import Workspace
 from baserow.core.tools import ToolContext
+from baserow.core.tools.errors import classify_item_error
 from baserow_enterprise.assistant.tools.shared import (
     ToolInputError,
     raise_if_permission_denied,
@@ -81,6 +84,22 @@ def has_formula(error: dict) -> bool:
     return bool((error.get("formula") or "").strip())
 
 
+def _repair_failure(error: dict, exc: Exception) -> dict:
+    """
+    The item error to report when repairing a formula failed. An invalid formula
+    keeps the original error; any other failure is classified over it, so it is logged
+    and the model sees the real cause. Call it from the ``except`` block.
+
+    :param error: The original formula error.
+    :param exc: The exception the repair raised.
+    :return: The item error.
+    """
+
+    if isinstance(exc, (InvalidFormulaFieldError, BaserowFormulaException)):
+        return error
+    return {**error, **classify_item_error(exc, conflict_errors()).to_dict()}
+
+
 def create_repaired_formula_fields(
     user: AbstractUser,
     table: Table,
@@ -126,6 +145,8 @@ def create_repaired_formula_fields(
             # The savepoint rolled back a field its cached model may still have.
             shared_fields.forget_cached_table_models()
             raise_if_permission_denied(exc)
+            remaining.append(_repair_failure(error, exc))
+            continue
         remaining.append(error)
     return created, remaining
 
@@ -164,7 +185,7 @@ def apply_repaired_formula_updates(
     field_updates: list[FieldItemUpdate],
     formula_errors: list[dict],
     raise_if_cancelled: Callable[[], None],
-) -> tuple[list[FieldItem], bool, list[str]]:
+) -> tuple[list[FieldItem], bool, list[dict]]:
     """
     Ask the formula fixer to repair each invalid formula the shared update step
     returned, and apply those updates with the repaired formula. Call it outside a
@@ -175,15 +196,14 @@ def apply_repaired_formula_updates(
     :param field_updates: The updates the shared step received.
     :param formula_errors: The invalid formulas from the shared update step.
     :param raise_if_cancelled: Raises when the user cancelled the request.
-    :returns: The updated fields, whether any changed, and an error message for
-        each update that could not be repaired.
+    :returns: The updated fields, whether any changed, and the formula errors that
+        remain.
     """
 
     updated: list[FieldItem] = []
     changed = False
-    errors: list[str] = []
+    errors: list[dict] = []
     for error, failed, later in _failed_updates(field_updates, formula_errors):
-        field_id = error["field_id"]
         # The update rolled back as a whole. Its other properties are applied with
         # the repaired formula, except those a later update of the field set.
         values = failed.model_dump(exclude_unset=True, exclude=later)
@@ -193,7 +213,7 @@ def apply_repaired_formula_updates(
             if values.keys() == {"field_id"}:
                 continue
         elif not has_formula(error):
-            errors.append(f"Error updating field {field_id}: {error['error']}")
+            errors.append(error)
             continue
         raise_if_cancelled()
         try:
@@ -205,7 +225,7 @@ def apply_repaired_formula_updates(
                 raise_if_cancelled()
                 if not formula:
                     raise InvalidFormulaFieldError(
-                        error["field_name"], error["formula"], table, error["error"]
+                        error["field_name"], error["formula"], table, error["message"]
                     )
                 values["formula"] = formula
             update = FieldItemUpdate(**values)
@@ -218,7 +238,7 @@ def apply_repaired_formula_updates(
         except Exception as exc:
             shared_fields.forget_cached_table_models()
             raise_if_permission_denied(exc)
-            errors.append(f"Error updating field {field_id}: {exc}")
+            errors.append(_repair_failure(error, exc))
     return updated, changed, errors
 
 

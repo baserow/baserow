@@ -12,7 +12,7 @@ from tests.baserow.core.mcp.oauth.helpers import obtain_tokens
 from tests.baserow.core.mcp.test_mcp_streamable_http import _call as _rpc_call
 from tests.baserow.core.mcp.test_mcp_streamable_http import _post
 
-EDIT_TOOLS = ["create_dashboards", "create_widgets", "update_widgets"]
+EDIT_TOOLS = ["create_dashboard", "create_widgets", "update_widgets"]
 
 
 def _read_only_preset():

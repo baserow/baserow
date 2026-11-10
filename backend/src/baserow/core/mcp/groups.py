@@ -13,12 +13,15 @@ GROUP_DASHBOARD_READ = "dashboard_read"
 GROUP_DASHBOARD_EDIT = "dashboard_edit"
 GROUP_DASHBOARD_DELETE = "dashboard_delete"
 GROUP_AUDIT_LOG_READ = "audit_log_read"
+GROUP_BUILDER_READ = "builder_read"
+GROUP_BUILDER_EDIT = "builder_edit"
 
 AREA_WORKSPACE = "workspace"
 AREA_DATABASE = "database"
 AREA_AUTOMATION = "automation"
 AREA_DASHBOARD = "dashboard"
 AREA_AUDIT_LOG = "audit_log"
+AREA_BUILDER = "builder"
 
 
 class MCPToolGroup(Instance):
@@ -127,6 +130,21 @@ class AuditLogReadMCPToolGroup(MCPToolGroup):
     title = "Read the audit log"
     area = AREA_AUDIT_LOG
     order = 100
+
+
+class BuilderReadMCPToolGroup(MCPToolGroup):
+    type = GROUP_BUILDER_READ
+    title = "Read application builders"
+    area = AREA_BUILDER
+    read_only_preset = True
+    order = 110
+
+
+class BuilderEditMCPToolGroup(MCPToolGroup):
+    type = GROUP_BUILDER_EDIT
+    title = "Edit application builders"
+    area = AREA_BUILDER
+    order = 120
 
 
 mcp_tool_group_registry = MCPToolGroupRegistry()

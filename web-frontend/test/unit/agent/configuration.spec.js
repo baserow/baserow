@@ -21,6 +21,8 @@ import {
   openSection,
   page,
   providerDropdown,
+  reasoningEffortDropdown,
+  reasoningEffortWarning,
   savedValues,
   saving,
   unavailableModel,
@@ -561,11 +563,15 @@ describe('Agent configuration', () => {
   })
 
   test.each([
-    ['instructions', 'agent.instructions', '.agent-configuration textarea'],
-    ['model_identifier', 'agent.model', '.agent-configuration .dropdown'],
+    [
+      'instructions',
+      'agent.instructions',
+      (wrapper) => wrapper.findAll('.agent-configuration textarea').at(-1),
+    ],
+    ['model_identifier', 'agent.model', modelDropdown],
   ])(
     'opens the configuration on the invalid %s field from its warning',
-    async (field, label, selector) => {
+    async (field, label, findTarget) => {
       mockConfiguration(testApp, incompleteConfiguration(field))
       const wrapper = await mount()
       await wrapper
@@ -578,7 +584,7 @@ describe('Agent configuration', () => {
         .trigger('click')
       await flushPromises()
 
-      const target = wrapper.findAll(selector).at(-1).element
+      const target = findTarget(wrapper).element
       expect(target.contains(document.activeElement)).toBe(true)
     }
   )
@@ -1177,6 +1183,153 @@ describe('Agent configuration', () => {
     }
   )
 
+  describe('web search', () => {
+    const setting = (wrapper) => wrapper.get('.agent-web-search')
+    const webSearch = (extra = {}) =>
+      completeConfiguration({
+        web_search_enabled: false,
+        web_search_available: true,
+        allowed_tools: [],
+        ...extra,
+      })
+
+    test('is off by default and saves when turned on', async () => {
+      mockConfiguration(testApp, webSearch())
+      mockSaves(testApp, webSearch({ web_search_enabled: true }))
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.agentSettings')
+
+      const input = setting(wrapper).findComponent({ name: 'SwitchInput' })
+      expect(input.props('modelValue')).toBe(false)
+      expect(input.props('disabled')).toBe(false)
+
+      input.vm.$emit('update:modelValue', true)
+      await flushPromises()
+
+      expect(savedValues(testApp)).toEqual([{ web_search_enabled: true }])
+      expect(input.props('modelValue')).toBe(true)
+    })
+
+    test('explains that an unsupported model cannot search', async () => {
+      mockConfiguration(testApp, webSearch({ web_search_available: false }))
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.agentSettings')
+
+      const input = setting(wrapper).findComponent({ name: 'SwitchInput' })
+      expect(input.props('disabled')).toBe(true)
+      expect(input.props('modelValue')).toBe(false)
+      expect(
+        setting(wrapper).get('.agent-web-search__unavailable').text()
+      ).toBe('agent.webSearchUnavailable')
+    })
+
+    test('explains when the model cannot search alongside workspace tools', async () => {
+      mockConfiguration(
+        testApp,
+        webSearch({
+          web_search_available: false,
+          web_search_blocked_by_tools: true,
+          run_as: investor,
+          allowed_tools: ['list_tables'],
+        })
+      )
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.agentSettings')
+
+      const input = setting(wrapper).findComponent({ name: 'SwitchInput' })
+      expect(input.props('disabled')).toBe(true)
+      expect(
+        setting(wrapper).get('.agent-web-search__unavailable').text()
+      ).toBe('agent.webSearchBlockedByTools')
+    })
+
+    test.each([
+      { provider_type: null, model_identifier: null },
+      { model_identifier: null },
+    ])(
+      'says nothing about the model before one is chosen: %j',
+      async (extra) => {
+        mockConfiguration(
+          testApp,
+          webSearch({
+            web_search_available: false,
+            web_search_enabled: true,
+            ...extra,
+          })
+        )
+        const wrapper = await mount()
+        await openSection(wrapper, 'agent.agentSettings')
+
+        expect(
+          setting(wrapper).find('.agent-web-search__unavailable').exists()
+        ).toBe(false)
+        expect(setting(wrapper).findComponent({ name: 'Badge' }).exists()).toBe(
+          false
+        )
+      }
+    )
+
+    test('can be turned off after the model stopped supporting it', async () => {
+      mockConfiguration(
+        testApp,
+        webSearch({ web_search_available: false, web_search_enabled: true })
+      )
+      mockSaves(
+        testApp,
+        webSearch({ web_search_available: false, web_search_enabled: false })
+      )
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.agentSettings')
+
+      const input = setting(wrapper).findComponent({ name: 'SwitchInput' })
+      expect(input.props('disabled')).toBe(false)
+      // The saved choice stays on, but it shows at a glance that it can't run.
+      expect(setting(wrapper).findComponent({ name: 'Badge' }).text()).toBe(
+        'agent.webSearchUnavailableBadge'
+      )
+      expect(
+        setting(wrapper).get('.agent-web-search__unavailable').classes()
+      ).toContain('alert--warning')
+      expect(
+        setting(wrapper).get('.agent-web-search__unavailable').text()
+      ).toBe('agent.webSearchUnavailableWhileOn')
+
+      expect(input.props('modelValue')).toBe(true)
+      await setting(wrapper).get('.switch').trigger('click')
+      await flushPromises()
+
+      expect(savedValues(testApp)).toEqual([{ web_search_enabled: false }])
+      expect(input.props('modelValue')).toBe(false)
+      expect(input.props('disabled')).toBe(true)
+      expect(setting(wrapper).findComponent({ name: 'Badge' }).exists()).toBe(
+        false
+      )
+    })
+
+    test.each([
+      [true, investor, ['list_tables'], true],
+      [false, investor, ['list_tables'], false],
+      [true, null, [], false],
+      [true, investor, [], false],
+    ])(
+      'warns only when searching can reach workspace data (%s, %j, %j)',
+      async (enabled, runAs, allowedTools, warned) => {
+        mockConfiguration(
+          testApp,
+          webSearch({
+            web_search_enabled: enabled,
+            run_as: runAs,
+            allowed_tools: allowedTools,
+          })
+        )
+        const wrapper = await mount()
+        await openSection(wrapper, 'agent.agentSettings')
+
+        expect(setting(wrapper).find('.alert').exists()).toBe(warned)
+      }
+    )
+  })
+
   const withTools = (allowedTools, runAs = investor) =>
     completeConfiguration({
       run_as: runAs,
@@ -1568,6 +1721,88 @@ describe('Agent configuration', () => {
       { allowed_tools: [] },
     ])
     expect(wrapper.find('.agent-workspace-tools__group').exists()).toBe(false)
+  })
+
+  test('shows an unknown reasoning effort as the model default', async () => {
+    mockConfiguration(
+      testApp,
+      completeConfiguration({ reasoning_effort: 'xhigh' })
+    )
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.agentSettings')
+
+    expect(
+      reasoningEffortDropdown(wrapper).get('.dropdown__selected-text').text()
+    ).toBe('agent.reasoningEffortDefault')
+  })
+
+  test('saves the reasoning effort and saves the model default as null', async () => {
+    mockSaves(
+      testApp,
+      completeConfiguration({ reasoning_effort: 'high' }),
+      completeConfiguration({ reasoning_effort: null })
+    )
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.agentSettings')
+    const dropdown = () => reasoningEffortDropdown(wrapper)
+    expect(dropdown().get('.dropdown__selected-text').text()).toBe(
+      'agent.reasoningEffortDefault'
+    )
+
+    await choose(dropdown(), 'agent.reasoningEffortHigh')
+    await flushPromises()
+    expect(dropdown().get('.dropdown__selected-text').text()).toBe(
+      'agent.reasoningEffortHigh'
+    )
+    await choose(dropdown(), 'agent.reasoningEffortDefault')
+    await flushPromises()
+
+    expect(savedValues(testApp)).toEqual([
+      { reasoning_effort: 'high' },
+      { reasoning_effort: null },
+    ])
+  })
+
+  test.each([
+    ['low', 'high', 'agent.reasoningEffortAdjusted'],
+    ['high', null, 'agent.reasoningEffortNotSupported'],
+    ['high', 'high', null],
+  ])(
+    'explains when the model replies with another effort than %s',
+    async (effort, applied, note) => {
+      mockConfiguration(
+        testApp,
+        completeConfiguration({
+          reasoning_effort: effort,
+          applied_reasoning_effort: applied,
+        })
+      )
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.agentSettings')
+
+      const warning = reasoningEffortWarning(wrapper)
+      if (note) expect(warning.text()).toBe(note)
+      else expect(warning.exists()).toBe(false)
+    }
+  )
+
+  test('explains the effort the saved choice replies with', async () => {
+    mockSaves(
+      testApp,
+      completeConfiguration({
+        reasoning_effort: 'off',
+        applied_reasoning_effort: 'low',
+      })
+    )
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.agentSettings')
+    const warning = () => reasoningEffortWarning(wrapper)
+
+    await choose(reasoningEffortDropdown(wrapper), 'agent.reasoningEffortOff')
+    expect(warning().exists()).toBe(false)
+    await flushPromises()
+
+    expect(warning().text()).toBe('agent.reasoningEffortAdjusted')
   })
 
   test('renames the Agent through the application with the trimmed name', async () => {

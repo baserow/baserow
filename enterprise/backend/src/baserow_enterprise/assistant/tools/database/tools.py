@@ -39,6 +39,8 @@ from baserow.core.exceptions import PermissionDenied, PermissionException
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
 from baserow.core.service import CoreService
+from baserow.core.tools.errors import ToolErrorCode, finish_batch
+from baserow.core.tools.errors import ToolInputError as SharedToolInputError
 from baserow_enterprise.assistant.deps import AssistantDeps, ResourceChanges
 from baserow_enterprise.assistant.prompts import MISSING_RECORDS_GUIDANCE
 from baserow_enterprise.assistant.tools.shared import (
@@ -79,6 +81,17 @@ if TYPE_CHECKING:
     from baserow_enterprise.assistant.deps import ToolHelpers
 
 MAX_HINT_TABLES = 10
+
+
+def _retry_with_hint(exc: SharedToolInputError) -> ModelRetry:
+    """
+    Ask the model to retry a call a shared tool refused, with the tool's advice.
+
+    :param exc: The refusal, with its message and hint.
+    :return: The retry prompt to raise.
+    """
+
+    return ModelRetry(" ".join(part for part in (str(exc), exc.hint) if part))
 
 
 def _no_tables_found_hint(
@@ -460,6 +473,12 @@ def _note_unrepaired_formulas(
     creation: shared_tables.TableCreation, table_id: int, errors: list[dict]
 ) -> None:
     for error in errors:
+        if error["code"] != ToolErrorCode.INVALID_FORMULA:
+            creation.notes.append(
+                f"Formula field '{error['field_name']}' in table_{table_id} was "
+                f"not created: {error['message']}"
+            )
+            continue
         if not helpers.has_formula(error):
             creation.notes.append(
                 f"Formula field '{error['field_name']}' in table_{table_id} was "
@@ -468,7 +487,7 @@ def _note_unrepaired_formulas(
             continue
         creation.notes.append(
             f"Invalid formula for field '{error['field_name']}' "
-            f"in table_{table_id}: {error['error'].rstrip('.')}. "
+            f"in table_{table_id}: {error['message'].rstrip('.')}. "
             f"Use generate_formula to fix it."
         )
 
@@ -514,7 +533,8 @@ def create_tables(
         int,
         Field(
             ...,
-            description="The ID of the database to create tables in.",
+            description="The ID of the database to create tables in. "
+            "create_database returns the ID of a new one.",
         ),
     ],
     tables: Annotated[
@@ -570,6 +590,8 @@ def create_tables(
         )
     except DjangoValidationError as exc:
         raise ModelRetry(" ".join(exc.messages))
+    except SharedToolInputError as exc:
+        raise _retry_with_hint(exc)
 
     # The tables are committed now, so the fixer's model call is outside it.
     _repair_table_formulas(ctx, creation)
@@ -616,6 +638,36 @@ def create_tables(
 # ---------------------------------------------------------------------------
 
 
+def _split_formula_errors(result: dict[str, Any]) -> tuple[list[dict], list[dict]]:
+    """
+    Split the shared step's failed items into invalid formulas and the others.
+
+    :param result: The shared tool's result.
+    :return: The invalid formulas and the other failed items.
+    """
+
+    formulas: list[dict] = []
+    others: list[dict] = []
+    for error in result.get("errors", []):
+        is_formula = error["code"] == ToolErrorCode.INVALID_FORMULA
+        (formulas if is_formula else others).append(error)
+    return formulas, others
+
+
+def _hint_generate_formula(errors: list[dict]) -> None:
+    """
+    Point the model to generate_formula for each formula still invalid.
+
+    :param errors: The failed items, given the hint in place.
+    """
+
+    for error in errors:
+        if error["code"] == ToolErrorCode.INVALID_FORMULA:
+            error["hint"] = (
+                "Use generate_formula to create a valid formula for this field."
+            )
+
+
 def create_fields(
     ctx: RunContext[AssistantDeps],
     table_id: Annotated[
@@ -650,7 +702,7 @@ def create_fields(
     table = helpers.get_table(user, workspace, table_id)
     result = shared_fields.create_fields(ctx.deps.tool_context(), table.id, fields)
 
-    formula_errors = result.pop("formula_errors", [])
+    formula_errors, other_errors = _split_formula_errors(result)
     if formula_errors:
         formula_fixer = make_formula_fixer(user, workspace, ctx.deps.tool_helpers)
         repaired, formula_errors = helpers.create_repaired_formula_fields(
@@ -661,12 +713,13 @@ def create_fields(
             ctx.deps.tool_helpers.raise_if_cancelled,
         )
         result["created_fields"].extend(field.model_dump() for field in repaired)
-    if formula_errors:
-        for err in formula_errors:
-            err["hint"] = (
-                "Use generate_formula to create a valid formula for this field."
-            )
-        result["formula_errors"] = formula_errors
+    _hint_generate_formula(formula_errors)
+    finish_batch(
+        result,
+        bool(result["created_fields"]),
+        [*other_errors, *formula_errors],
+        "No field was created.",
+    )
 
     _refresh_row_tools(ctx)
     return result
@@ -700,7 +753,7 @@ def update_fields(
     """
 
     if not fields:
-        return {"updated_fields": [], "errors": [], "changed": False}
+        return {"updated_fields": [], "changed": False}
 
     tool_context = ctx.deps.tool_context()
     try:
@@ -709,12 +762,12 @@ def update_fields(
         # Another operation holds a lock on one of the fields.
         raise ModelRetry(" ".join(exc.messages))
 
-    formula_errors = result.pop("formula_errors", [])
+    formula_errors, other_errors = _split_formula_errors(result)
     if formula_errors:
         formula_fixer = make_formula_fixer(
             ctx.deps.user, ctx.deps.workspace, ctx.deps.tool_helpers
         )
-        repaired, changed, errors = helpers.apply_repaired_formula_updates(
+        repaired, changed, formula_errors = helpers.apply_repaired_formula_updates(
             tool_context,
             formula_fixer,
             fields,
@@ -723,8 +776,13 @@ def update_fields(
         )
         result["updated_fields"].extend(field.model_dump() for field in repaired)
         result["changed"] = result["changed"] or changed
-        if errors:
-            result["errors"] = [*result.get("errors", []), *errors]
+    _hint_generate_formula(formula_errors)
+    finish_batch(
+        result,
+        result["changed"],
+        [*other_errors, *formula_errors],
+        "No field was updated.",
+    )
 
     _refresh_row_tools(ctx)
     return result
@@ -756,7 +814,7 @@ def delete_fields(
     """
 
     if not field_ids:
-        return {"deleted_field_ids": [], "errors": []}
+        return {"deleted_field_ids": [], "changed": False}
 
     result = shared_fields.delete_fields(ctx.deps.tool_context(), field_ids)
 
@@ -789,7 +847,7 @@ def create_views(
 
     WHEN to use: User wants a new view (grid, form, gallery, kanban, calendar, timeline) on a table.
     WHAT it does: Creates views in the table. View names must be unique. A default grid view is auto-created with every new table — no need to recreate it.
-    RETURNS: Created views with id, name, type configuration. Views whose name is already used are not created and are listed in skipped_views.
+    RETURNS: Created views with id, name, type configuration. Views whose name is already used are not created and are returned in errors.
     DO NOT USE when: The default grid view already meets the user's needs. Check existing views with list_views to avoid duplicates.
     HOW: Each view type requires specific config. Form views: provide field_options listing every field to show (field_id, name, order, required). Kanban: set column_field_id to a single_select field. Calendar: set date_field_id to a date field. Timeline: set both start/end date fields. Gallery: optionally set cover_field_id to a file field. Call get_tables_schema first to get the field IDs you need.
     REQUIRED: `table_id` and `views` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
@@ -802,6 +860,8 @@ def create_views(
         result = shared_views.create_views(ctx.deps.tool_context(), table.id, views)
     except DjangoValidationError as exc:
         raise ModelRetry(" ".join(exc.messages))
+    except SharedToolInputError as exc:
+        raise _retry_with_hint(exc)
 
     created_views = result["created_views"]
     if created_views:
@@ -841,7 +901,7 @@ def create_view_filters(
 
     WHEN to use: User wants to filter a view to show only specific rows matching conditions.
     WHAT it does: Creates filter conditions on one or more views. Supports multiple filters per view.
-    RETURNS: Created filters with id and configuration per view. Filters that can't be created (missing field, another type, wrong value, unknown option label, or a form view) are returned in skipped_filters with the reason.
+    RETURNS: Created filters with id and configuration per view. Filters that can't be created (missing field, another type, wrong value, unknown option label, or a form view) are returned in errors with the reason.
     DO NOT USE when: The view doesn't exist yet — create it first with create_views.
     HOW: Get the table schema first to know field IDs and types. Match filter type to field type.
     REQUIRED: `view_filters` must contain at least one entry, each carrying the ID of the view it applies to. The ID says where to act; the payload says what to create. A call carrying no entries creates nothing and is rejected.
