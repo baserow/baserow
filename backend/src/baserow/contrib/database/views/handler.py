@@ -201,6 +201,7 @@ from .signals import (
     view_decoration_created,
     view_decoration_deleted,
     view_decoration_updated,
+    view_default_values_changed,
     view_deleted,
     view_field_options_updated,
     view_filter_created,
@@ -1443,7 +1444,7 @@ class ViewHandler:
 
             view = ownership_type.change_ownership_type(user, view)
             if ownership_type.default_values_authorized_when_configured:
-                self._check_can_read_linked_tables_of_default_values(user, view)
+                self.check_can_read_linked_tables_of_default_values(user, view)
 
             # Add the change of ownership type to the tracked changes for undo/redo
             original_view_values[ownership_type_key] = original_ownership_type
@@ -5559,7 +5560,26 @@ class ViewHandler:
 
         return ViewDefaultValue.objects.filter(view_id=view.id)
 
-    def _check_can_read_linked_tables_of_default_values(self, user, view):
+    def send_default_values_changed(self, view_ids: Iterable[int]):
+        """
+        Lets the clients know that the default values of the views changed because of
+        a change outside of the views, so they can fetch them again.
+
+        :param view_ids: The ids of the views whose default values changed.
+        """
+
+        if not view_ids:
+            return
+
+        for view in View.objects.filter(id__in=view_ids):
+            view_default_values_changed.send(self, view=view)
+
+    def check_can_read_linked_tables_of_default_values(
+        self,
+        user: AbstractUser,
+        view: View,
+        default_values: Optional[Dict[int, Any]] = None,
+    ):
         """
         Verifies that the user can read the tables that the view's default values link
         rows from, because a view whose defaults are trusted applies them for people
@@ -5567,14 +5587,21 @@ class ViewHandler:
 
         :param user: The user that makes the view's defaults trusted.
         :param view: The view whose default values are checked.
+        :param default_values: The default values by field id that the view is going
+            to have. The saved ones are checked if not provided.
         :raises CannotReadLinkedTable: If the user can't read a linked table.
         """
 
+        if default_values is None:
+            default_values = dict(
+                ViewDefaultValue.objects.filter(view_id=view.id).values_list(
+                    "field_id", "value"
+                )
+            )
         default_values = {
             f"field_{field_id}": value
-            for field_id, value in ViewDefaultValue.objects.filter(
-                view_id=view.id, value__isnull=False
-            ).values_list("field_id", "value")
+            for field_id, value in default_values.items()
+            if value is not None
         }
         if default_values:
             model = view.table.get_model()

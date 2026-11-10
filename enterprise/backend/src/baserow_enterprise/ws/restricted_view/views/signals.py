@@ -52,6 +52,22 @@ def view_updated(sender, view, old_view, user, **kwargs):
         )
 
 
+@receiver(view_signals.view_default_values_changed)
+def restricted_view_default_values_changed(sender, view, **kwargs):
+    if view.ownership_type == RestrictedViewOwnershipType.type:
+        view_page_type = page_registry.get("restricted_view")
+        transaction.on_commit(
+            lambda: view_page_type.broadcast(
+                {
+                    "type": "force_view_refresh_and_default_values",
+                    "view_id": view.id,
+                },
+                None,
+                restricted_view_id=view.id,
+            )
+        )
+
+
 @receiver(view_signals.view_filter_created)
 def restricted_view_filter_created(sender, view_filter, user, **kwargs):
     _send_force_rows_refresh_if_view_restricted(view_filter.view)

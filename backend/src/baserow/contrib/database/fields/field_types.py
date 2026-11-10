@@ -4241,6 +4241,12 @@ class LinkRowFieldType(
             )
             to_field.save()
 
+    def should_delete_view_default_values(self, old_field, new_field) -> bool:
+        # The defaults were authorized for the table that was linked before.
+        return (
+            getattr(old_field, "link_row_table_id", None) != new_field.link_row_table_id
+        )
+
     def after_delete(self, field, model, connection):
         """
         After the field has been deleted we also need to delete the related field.

@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from django.db import connection
+from django.db import connection, transaction
 from django.shortcuts import reverse
 from django.test.utils import CaptureQueriesContext
 
@@ -12,6 +12,7 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.database.action.scopes import TableActionScopeType
+from baserow.contrib.database.fields.actions import UpdateFieldActionType
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.actions import (
@@ -962,3 +963,108 @@ def test_assistant_row_model_does_not_read_a_hidden_linked_table(restricted_setu
     for name in ["Other", "Nope"]:
         row = user_model(Name="Row", Link=[name])
         assert row.to_django_orm()[link.db_column] == [name]
+
+
+def retarget_link_with_a_default(data_fixture, enterprise_data_fixture, setup):
+    admin = setup["admin"]
+    table = setup["table"]
+    link = setup["link"]
+    view = enterprise_data_fixture.create_grid_view(table=table)
+    ViewHandler().update_view_default_values(
+        admin, view, [{"field": link.id, "value": [setup["hidden_row"].id]}]
+    )
+    other_table = data_fixture.create_database_table(database=table.database)
+    data_fixture.create_text_field(table=other_table, primary=True)
+    admin.untrusted_client_session_id = SESSION_ID
+    action_type_registry.get_by_type(UpdateFieldActionType).do(
+        admin, link, link_row_table_id=other_table.id
+    )
+    return view
+
+
+@pytest.mark.django_db
+def test_undoing_a_link_field_target_change_restores_the_view_defaults(
+    data_fixture, enterprise_data_fixture, restricted_setup
+):
+    admin = restricted_setup["admin"]
+    table = restricted_setup["table"]
+    link = restricted_setup["link"]
+    hidden_row_id = restricted_setup["hidden_row"].id
+    scopes = [TableActionScopeType.value(table_id=table.id)]
+    view = retarget_link_with_a_default(
+        data_fixture, enterprise_data_fixture, restricted_setup
+    )
+    assert not ViewDefaultValue.objects.filter(view=view).exists()
+
+    undone = ActionHandler.undo(admin, scopes, SESSION_ID)
+
+    assert undone[0].error is None
+    assert ViewDefaultValue.objects.get(view=view).value == [hidden_row_id]
+    row = RowHandler().create_row(admin, table, {}, view=view)
+    assert linked_row_ids(table, row, link) == [hidden_row_id]
+
+    redone = ActionHandler.redo(admin, scopes, SESSION_ID)
+
+    assert redone[0].error is None
+    assert not ViewDefaultValue.objects.filter(view=view).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_clients_refresh_the_view_defaults_a_link_field_target_change_removed(
+    mock_broadcast, data_fixture, enterprise_data_fixture, restricted_setup
+):
+    table = restricted_setup["table"]
+
+    def refreshed_view_ids():
+        view_ids = [
+            call[0][1]["view_id"]
+            for call in mock_broadcast.delay.call_args_list
+            if call[0][0] == f"table-{table.id}"
+            and call[0][1]["type"] == "force_view_refresh_and_default_values"
+            # Not excluding a web socket, so the user that made the change gets it.
+            and call[0][2] is None
+        ]
+        mock_broadcast.reset_mock()
+        return view_ids
+
+    with transaction.atomic():
+        view = retarget_link_with_a_default(
+            data_fixture, enterprise_data_fixture, restricted_setup
+        )
+    assert refreshed_view_ids() == [view.id]
+
+    with transaction.atomic():
+        ActionHandler.undo(
+            restricted_setup["admin"],
+            [TableActionScopeType.value(table_id=table.id)],
+            SESSION_ID,
+        )
+    assert refreshed_view_ids() == [view.id]
+
+
+@pytest.mark.django_db
+def test_copying_a_link_default_into_a_collaborative_view_checks_the_linked_table(
+    enterprise_data_fixture, restricted_setup
+):
+    admin = restricted_setup["admin"]
+    user = restricted_setup["user"]
+    table = restricted_setup["table"]
+    hidden_row_id = restricted_setup["hidden_row"].id
+    personal_view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type="personal", owned_by=user
+    )
+    add_link_default(personal_view, restricted_setup)
+    view = enterprise_data_fixture.create_grid_view(table=table)
+    admin_view = enterprise_data_fixture.create_grid_view(table=table)
+    add_link_default(admin_view, restricted_setup)
+    handler = ViewHandler()
+
+    with pytest.raises(PermissionException):
+        handler.copy_view_configuration(
+            user, personal_view, view, ["default_row_values"]
+        )
+    assert not ViewDefaultValue.objects.filter(view=view).exists()
+
+    handler.copy_view_configuration(admin, admin_view, view, ["default_row_values"])
+    assert ViewDefaultValue.objects.get(view=view).value == [hidden_row_id]
