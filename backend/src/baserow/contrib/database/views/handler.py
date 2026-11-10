@@ -32,6 +32,7 @@ from django.db.models import (
 from django.db.models.expressions import OrderBy
 from django.db.models.query import QuerySet
 
+from celery.exceptions import SoftTimeLimitExceeded
 from loguru import logger
 from opentelemetry import trace
 from redis.exceptions import LockNotOwnedError
@@ -115,6 +116,7 @@ from baserow.contrib.database.views.registries import (
     view_ownership_type_registry,
 )
 from baserow.contrib.database.views.view_filter_groups import ViewGroupedFiltersAdapter
+from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator, sql, transaction_atomic
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
@@ -5786,6 +5788,12 @@ class ViewSubscriptionHandler:
         Checks for views that have time-sensitive filters. If a view has a
         time-sensitive filter, calling this method periodically ensure proper signals
         are emitted to notify subscribers that the view results have changed.
+
+        Each table is checked in its own atomic block with its own local cache, so
+        when called outside a transaction every table commits on its own. A table
+        that fails before its commit is logged and rolled back alone and is checked
+        again on the next call; the other tables are not affected. A soft time limit
+        stops the whole check.
         """
 
         views = View.objects.filter(
@@ -5793,11 +5801,19 @@ class ViewSubscriptionHandler:
                 type__in=view_filter_type_registry.get_time_sensitive_filter_types(),
                 view__in=ViewSubscription.objects.values("view"),
             ).values("view_id")
-        ).order_by("table", "id")
-        for _, view_group in itertools.groupby(views, key=lambda f: f.table):
+        ).order_by("table_id", "id")
+        for table_id, view_group in itertools.groupby(views, key=lambda v: v.table_id):
             view_ids = [v.id for v in view_group]
-            if view_ids:
-                cls.notify_table_views(view_ids)
+            try:
+                with local_cache.context(), transaction.atomic():
+                    cls.notify_table_views(view_ids)
+            except SoftTimeLimitExceeded:
+                raise
+            except Exception:
+                logger.exception(
+                    "Checking the time-sensitive views of table {table_id} failed.",
+                    table_id=table_id,
+                )
 
     @classmethod
     def notify_table_views_updates(
