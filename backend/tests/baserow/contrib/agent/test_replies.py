@@ -1603,7 +1603,7 @@ def test_a_held_call_waits_with_its_named_request(ask_first_agent, mocker):
 
 
 @pytest.mark.django_db
-def test_a_held_call_that_names_a_hidden_table_waits_unnamed(
+def test_a_held_call_that_names_a_hidden_table_waits_with_its_ids(
     ask_first_agent, mocker, data_fixture
 ):
     user, agent, _ = ask_first_agent
@@ -1614,7 +1614,13 @@ def test_a_held_call_that_names_a_hidden_table_waits_unnamed(
     reply = pause(user, agent)
 
     assert [(step["status"], step["input"]) for step in reply.steps] == [
-        ("waiting", {"requested_count": 1})
+        (
+            "waiting",
+            {
+                "requested_count": 1,
+                "values": {"table_id": other.id, "rows": [{"Name": "••••"}]},
+            },
+        )
     ]
     assert reply.approvals.exists()
     assert row_names(other) == []

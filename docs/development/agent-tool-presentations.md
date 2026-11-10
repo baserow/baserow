@@ -72,11 +72,12 @@ as the Agent identity, before the tool runs. The tool sends it to its running
 step as a `ToolCallInputEvent`, so `input.values` stays on running, stopped and
 failed steps too.
 
-- What the identity can't name keeps its ID, such as `{"field_id": 4}` or
-  `{"row_id": 12}`. The tool, not the preview, decides whether the call
-  succeeds; a preview that can't be built is left out.
+- What the identity can't name keeps its ID, such as `{"table_id": 7}`,
+  `{"field_id": 4}` or `{"row_id": 12}`. The tool, not the preview, decides
+  whether the call succeeds; a preview that can't be built is left out.
 - Only values of known, readable fields are shown; everything else, such as a
-  password or a misspelled field, is masked as `"••••"`.
+  password, a misspelled field or any field of a table that can't be named, is
+  masked as `"••••"`.
 - Every list keeps 10 items and every object 10 keys, at any depth;
   `requested_count` keeps the requested number.
 - Strings keep 1,000 characters.

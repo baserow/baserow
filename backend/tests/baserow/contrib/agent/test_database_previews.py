@@ -4,15 +4,14 @@ from unittest.mock import patch
 import pytest
 
 from baserow.contrib.agent.database_previews import (
-    database_name,
+    database_reference,
     named_fields,
     readable_names,
     row_names,
     table_field_names,
     table_names,
-    visible_table,
+    table_reference,
 )
-from baserow.contrib.database.table.models import Table
 from baserow.core.models import Agent
 from baserow.core.tools import ToolContext
 
@@ -45,8 +44,13 @@ def test_names_are_resolved_as_the_agent_identity(accounts, data_fixture):
         name="Secret",
     )
 
-    assert visible_table(accounts.ctx, accounts.table.id).name == "Accounts"
-    assert database_name(accounts.ctx, accounts.database.id) == "Sales"
+    assert table_reference(accounts.ctx, accounts.table.id) == (
+        accounts.table,
+        {"table": "Accounts"},
+    )
+    assert database_reference(accounts.ctx, accounts.database.id) == {
+        "database": "Sales"
+    }
     assert named_fields(accounts.ctx, [accounts.secret.id, copy.id]) == {
         accounts.secret.id: ("Secret", "Accounts"),
         copy.id: ("Secret", copy.table.name),
@@ -57,8 +61,10 @@ def test_names_are_resolved_as_the_agent_identity(accounts, data_fixture):
         accounts.acme.id: "Acme",
         accounts.unnamed.id: f"unnamed row {accounts.unnamed.id}",
     }
-    with pytest.raises(Table.DoesNotExist):
-        visible_table(accounts.ctx, other.id)
+    assert table_reference(accounts.ctx, other.id) == (None, {"table_id": other.id})
+    assert database_reference(accounts.ctx, other.database_id) == {
+        "database_id": other.database_id
+    }
 
 
 @pytest.mark.django_db
