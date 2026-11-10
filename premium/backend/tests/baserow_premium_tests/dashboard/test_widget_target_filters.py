@@ -189,7 +189,6 @@ def test_chart_filter_options_metadata_and_import(
     """Chart options use grouped-field metadata and retain it after source remapping."""
     from baserow.contrib.dashboard.formula_importer import import_formula
     from baserow.contrib.dashboard.widgets.options import (
-        DashboardWidgetOptionsService,
         dashboard_options_data_provider_registry,
     )
 
@@ -204,7 +203,12 @@ def test_chart_filter_options_metadata_and_import(
     owner.options = BaserowFormulaObject.create(
         f"get('data_source_context.{source.id}.fields.field_{field.id}.select_options.*.value')"
     )
-    assert DashboardWidgetOptionsService().get_options(owner) == ["Europe"]
+    assert (
+        service.get_type().get_context_data(service)["fields"][field.db_column][
+            "select_options"
+        ][0]["value"]
+        == "Europe"
+    )
     copied_source = premium_data_fixture.create_dashboard_local_baserow_grouped_aggregate_rows_data_source(
         dashboard=dashboard, table=service.table
     )

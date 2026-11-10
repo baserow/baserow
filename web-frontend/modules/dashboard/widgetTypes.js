@@ -284,10 +284,6 @@ export class TextFilterWidgetType extends FilterWidgetType {
     return super.getValueAfterUpdate(widget, previousWidget, value)
   }
 
-  afterSave(widget, context, values) {
-    super.afterSave(widget, context, values)
-    context.dispatch('fetchWidgetOptions', { widgetId: widget.id })
-  }
   async afterOptionsLoad(widget, context, options) {
     if (widget.mode !== 'dropdown') return
     const available = new Set(options)

@@ -1,8 +1,5 @@
 export default (client) => {
   return {
-    getOptions(widgetId) {
-      return client.get(`/dashboard/widgets/${widgetId}/options/`)
-    },
     getAllWidgets(dashboardId) {
       return client.get(`/dashboard/${dashboardId}/widgets/`)
     },

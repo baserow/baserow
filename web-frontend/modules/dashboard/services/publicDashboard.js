@@ -19,12 +19,6 @@ const withAuthToken = (authToken) => {
 
 export default (client) => {
   return {
-    getWidgetOptions(slug, widgetId, authToken = null) {
-      return client.get(
-        `/dashboard/public/${slug}/widgets/${widgetId}/options/`,
-        withAuthToken(authToken)
-      )
-    },
     fetchInfo(slug, authToken = null) {
       return client.get(`/dashboard/public/${slug}/`, withAuthToken(authToken))
     },

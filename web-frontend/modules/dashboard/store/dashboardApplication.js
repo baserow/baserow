@@ -24,7 +24,6 @@ export const state = () => ({
   widgetValues: {},
   widgetSelections: {},
   widgetSaveGenerations: {},
-  widgetOptions: {},
   dataSources: [],
   integrations: [],
   // A cache for data that has been
@@ -346,9 +345,6 @@ const applyWidgetCollection = (context, registry, widgets) => {
 }
 
 export const mutations = {
-  SET_WIDGET_OPTIONS(state, { widgetId, options }) {
-    state.widgetOptions = { ...state.widgetOptions, [widgetId]: options }
-  },
   INVALIDATE_WIDGET_SAVE(state, widgetId) {
     state.widgetSaveGenerations[widgetId] =
       (state.widgetSaveGenerations[widgetId] || 0) + 1
@@ -363,7 +359,6 @@ export const mutations = {
   DELETE_WIDGET_VALUE(state, widgetId) {
     delete state.widgetValues[widgetId]
     delete state.widgetSelections[widgetId]
-    delete state.widgetOptions[widgetId]
   },
   RESET(state) {
     dataSourceDispatchQueues.get(state)?.cancelPending()
@@ -379,7 +374,6 @@ export const mutations = {
     state.widgetValues = {}
     state.widgetSelections = {}
     state.widgetSaveGenerations = {}
-    state.widgetOptions = {}
     state.widgets = []
     state.dataSources = []
     state.integrations = []
@@ -395,7 +389,6 @@ export const mutations = {
     if (state.dashboardId !== dashboardId) {
       cancelDataSourceRefresh(state)
       state.widgetValues = {}
-      state.widgetOptions = {}
       dataSourceDispatchQueues.get(state)?.cancelPending()
       state.dashboardGeneration += 1
       state.widgetFetchGeneration += 1
@@ -531,66 +524,19 @@ export const mutations = {
 }
 
 export const actions = {
-  async fetchWidgetOptions(context, { widgetId, force = false }) {
-    const { state, commit } = context
-    // Optimistic settings are not available on the server until afterSave runs.
-    if (widgetUpdates.get(state)?.has(widgetId)) return
-    const widget = state.widgets.find(({ id }) => id === widgetId)
-    if (widget?.type !== 'text_filter' || widget.mode !== 'dropdown') return
-    const signature = JSON.stringify(widget.options)
-    const previous = state.widgetOptions[widgetId]
-    if (!force && previous && previous.signature === signature) return
-    const generation = state.dashboardGeneration
-    commit('SET_WIDGET_OPTIONS', {
-      widgetId,
-      options: { signature, loading: true, values: [], error: false },
-    })
-    const pending = state.widgetOptions[widgetId]
-    const isCurrent = () =>
-      state.dashboardGeneration === generation &&
-      state.widgetOptions[widgetId] === pending &&
-      JSON.stringify(
-        state.widgets.find(({ id }) => id === widgetId)?.options
-      ) === signature
-    try {
-      const { data } = state.publicSlug
-        ? await PublicDashboardService(this.$client).getWidgetOptions(
-            state.publicSlug,
-            widgetId,
-            state.publicAuthToken
-          )
-        : await WidgetService(this.$client).getOptions(widgetId)
-      if (isCurrent()) {
-        commit('SET_WIDGET_OPTIONS', {
-          widgetId,
-          options: {
-            signature,
-            loading: false,
-            values: data.results,
-            error: false,
-          },
-        })
-        const currentWidget = state.widgets.find(({ id }) => id === widgetId)
-        await notifyWidgetHook(
-          context,
-          this.$registry,
-          'afterOptionsLoad',
-          currentWidget,
-          data.results
-        )
-      }
-    } catch (error) {
-      if (isCurrent())
-        commit('SET_WIDGET_OPTIONS', {
-          widgetId,
-          options: {
-            signature,
-            loading: false,
-            values: [],
-            error: true,
-          },
-        })
-    }
+  /** Reconcile defaults and viewer selection after local option resolution. */
+  async reconcileWidgetOptions(context, { widgetId, options }) {
+    const widget = context.state.widgets.find(
+      (widget) => widget.id === widgetId
+    )
+    if (widget)
+      await notifyWidgetHook(
+        context,
+        this.$registry,
+        'afterOptionsLoad',
+        widget,
+        options
+      )
   },
   forceSetWidgets(context, widgets) {
     applyWidgetCollection(context, this.$registry, widgets)
@@ -1227,7 +1173,6 @@ export const actions = {
 }
 
 export const getters = {
-  getWidgetOptions: (state) => state.widgetOptions,
   getWidgetValues: (state) => state.widgetValues,
   getDashboardId(state) {
     return state.dashboardId

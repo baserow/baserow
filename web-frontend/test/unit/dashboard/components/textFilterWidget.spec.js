@@ -25,6 +25,7 @@ describe('TextFilterWidget', () => {
       ...widget,
       mode: 'dropdown',
       multiple: true,
+      options: { formula: 'France, Belgium', mode: 'raw' },
       default_value: ['France', 'Belgium'],
     }
     const store = testApp.store
@@ -56,6 +57,7 @@ describe('TextFilterWidget', () => {
       ...widget,
       mode: 'dropdown',
       multiple: true,
+      options: { formula: 'France, Belgium', mode: 'raw' },
       default_value: '',
     }
     const store = testApp.store
@@ -88,12 +90,23 @@ describe('TextFilterWidget', () => {
     )
     store.commit('dashboardApplication/RESET')
   })
-  test('loads public dropdown options when the formula is private', async () => {
-    const dropdown = { ...widget, mode: 'dropdown', default_value: '' }
+  test('resolves public dropdown choices from source context without a request', async () => {
+    const dropdown = {
+      ...widget,
+      mode: 'dropdown',
+      default_value: '',
+      options: {
+        formula: "get('data_source_context.9.field_10.*.value')",
+        mode: 'advanced',
+      },
+    }
     const store = testApp.store
     const getOptions = vi.spyOn(store.$client, 'get').mockResolvedValue({
       data: { results: ['France'] },
     })
+    store.commit('dashboardApplication/SET_DATA_SOURCES', [
+      { id: 9, context_data: { field_10: [{ value: 'France' }] } },
+    ])
     await store.dispatch('dashboardApplication/forceSetWidgets', [dropdown])
     store.commit('dashboardApplication/SET_PUBLIC', {
       slug: 'shared',
@@ -104,13 +117,66 @@ describe('TextFilterWidget', () => {
     })
     await flushPromises()
     expect(wrapper.get('.select__item-name-text').text()).toBe('France')
-    expect(getOptions).toHaveBeenCalledWith(
-      '/dashboard/public/shared/widgets/1/options/',
-      {
-        headers: { 'Baserow-Dashboard-Authorization': 'JWT token' },
-      }
-    )
+    store.commit('dashboardApplication/UPDATE_DATA_SOURCE', {
+      dataSourceId: 9,
+      values: { context_data: { field_10: [{ value: 'Belgium' }] } },
+    })
+    await flushPromises()
+    expect(wrapper.get('.select__item-name-text').text()).toBe('Belgium')
+    store.commit('dashboardApplication/UPDATE_DATA_SOURCE', {
+      dataSourceId: 9,
+      values: { context_data: { field_10: [] } },
+    })
+    await flushPromises()
+    expect(wrapper.findAll('.select__item-name-text')).toHaveLength(0)
+    expect(getOptions).not.toHaveBeenCalled()
     store.commit('dashboardApplication/RESET')
+  })
+  test('resolves template options from the template context only', async () => {
+    const dropdown = {
+      ...widget,
+      mode: 'dropdown',
+      default_value: '',
+      options: {
+        formula: "get('data_source_context.9.field_10.*.value')",
+        mode: 'advanced',
+      },
+    }
+    const store = testApp.store
+    store.commit('dashboardApplication/SET_DATA_SOURCES', [
+      { id: 9, context_data: { field_10: [{ value: 'Private' }] } },
+    ])
+    store.commit('template/dashboardApplication/SET_DATA_SOURCES', [
+      { id: 9, context_data: { field_10: [{ value: 'Template' }] } },
+    ])
+    await store.dispatch('template/dashboardApplication/forceSetWidgets', [
+      dropdown,
+    ])
+    wrapper = await testApp.mount(TextFilterWidget, {
+      props: { widget: dropdown, storePrefix: 'template/' },
+    })
+    await flushPromises()
+    expect(wrapper.get('.select__item-name-text').text()).toBe('Template')
+  })
+  test('keeps selected values when the options formula fails', async () => {
+    const dropdown = {
+      ...widget,
+      mode: 'dropdown',
+      options: {
+        formula: "get('data_source_context.999.field_10.*.value')",
+        mode: 'advanced',
+      },
+    }
+    const store = testApp.store
+    await store.dispatch('dashboardApplication/forceSetWidgets', [dropdown])
+    wrapper = await testApp.mount(TextFilterWidget, {
+      props: { widget: dropdown },
+    })
+    await flushPromises()
+    expect(wrapper.text()).toContain('textFilterWidget.optionsError')
+    expect(store.getters['dashboardApplication/getWidgetValues'][1]).toBe(
+      'Initial'
+    )
   })
   test('selects and clears dropdown values without changing option order or losing input text', async () => {
     const dropdown = {
@@ -153,7 +219,7 @@ describe('TextFilterWidget', () => {
     expect(wrapper.get('.dropdown__selected-text').text()).toBe(
       'Unlisted value'
     )
-    expect(getOptions).toHaveBeenCalledTimes(1)
+    expect(getOptions).not.toHaveBeenCalled()
     store.commit('dashboardApplication/RESET')
   })
   test('renders an accessible input and preserves viewer values across unrelated changes', async () => {
