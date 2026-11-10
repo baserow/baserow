@@ -133,6 +133,35 @@ class MCPServerIntegrationType(IntegrationType):
     def enhance_queryset(self, queryset):
         return queryset.prefetch_related("tools")
 
+    def get_dropped_secrets(
+        self, values: Dict[str, Any], instance: MCPServerIntegration
+    ) -> set[str]:
+        """
+        A credential of a sign-in method the server no longer uses is dropped,
+        and so is the secret of a client Baserow registered when the server
+        moves, or of the editor's own client when they clear its id: the next
+        sign-in registers a new client.
+        """
+
+        auth_type = values.get("auth_type", instance.auth_type)
+        url_changed = "url" in values and values["url"] != instance.url
+        client_changed = (
+            "oauth_client_id" in values
+            and values["oauth_client_id"] != instance.oauth_client_id
+        )
+        if client_changed:
+            own_client = bool(values["oauth_client_id"])
+        else:
+            own_client = instance.oauth_client_source == MCPOAuthClientSource.MANUAL
+        dropped = set()
+        if auth_type != MCPAuthType.HEADER:
+            dropped.add("auth_header_value")
+        if auth_type != MCPAuthType.OAUTH or (
+            not own_client and (url_changed or client_changed)
+        ):
+            dropped.add("oauth_client_secret")
+        return dropped
+
     def prepare_values(
         self,
         values: Dict[str, Any],
@@ -168,21 +197,19 @@ class MCPServerIntegrationType(IntegrationType):
         auth_changed = "auth_type" in values and values["auth_type"] != (
             instance.auth_type
         )
+        dropped = self.get_dropped_secrets(values, instance)
         if url_changed:
             instance.tools.all().delete()
             if instance.oauth_client_source != MCPOAuthClientSource.MANUAL:
                 values.setdefault("oauth_client_id", "")
-                values.setdefault("oauth_client_secret", "")
                 values.setdefault("oauth_client_source", "")
-        if auth_changed:
-            # A credential the server no longer uses is forgotten, so it can't
-            # be sent by mistake later or block moving the server.
-            if values["auth_type"] != MCPAuthType.HEADER:
-                values["auth_header_value"] = ""
-            if values["auth_type"] != MCPAuthType.OAUTH:
-                values.update(
-                    oauth_client_id="", oauth_client_secret="", oauth_client_source=""
-                )
+        if auth_changed and values["auth_type"] != MCPAuthType.OAUTH:
+            values.update(oauth_client_id="", oauth_client_source="")
+        # A credential the server no longer uses is forgotten, so it can't be
+        # sent by mistake later.
+        for name in dropped:
+            if getattr(instance, name):
+                values[name] = ""
         if url_changed or client_changed or auth_changed:
             instance.clear_oauth_tokens()
             instance.oauth_server = {}

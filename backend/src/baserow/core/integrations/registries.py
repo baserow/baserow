@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
+from typing import Any, Callable, Dict, List, Optional, Set, Type, TypeVar
 
 from django.contrib.auth.models import AbstractUser
 
@@ -83,6 +83,21 @@ class IntegrationType(
     Unlike that check, this one skips a secret that is not stored, because an
     integration may authenticate anonymously.
     """
+
+    def get_dropped_secrets(
+        self, values: Dict[str, Any], instance: IntegrationSubClass
+    ) -> Set[str]:
+        """
+        The secrets an update clears, such as a credential of a sign-in method
+        the integration no longer uses. They aren't asked for again when the
+        fields they protect change, since they won't be sent anywhere.
+
+        :param values: The values of the update.
+        :param instance: The integration as it is.
+        :return: The names of the secret fields the update clears.
+        """
+
+        return set()
 
     def supports_application_type(self, application_type) -> bool:
         """

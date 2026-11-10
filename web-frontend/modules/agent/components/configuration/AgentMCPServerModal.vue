@@ -208,6 +208,7 @@ import {
  * static header, or nothing. Credentials are write-only: an empty field keeps
  * the stored one, unless the URL or the header or client it belongs to
  * changes, which the backend only allows with the credential entered again.
+ * The fields below that check this only say so before saving.
  */
 const props = defineProps({
   save: { type: Function, required: true },
@@ -364,6 +365,10 @@ function show(existing = null) {
   modal.value.show()
 }
 
+/**
+ * The values the editor changed. A credential is only sent when entered: the
+ * backend keeps a stored one, or clears it when the change no longer uses it.
+ */
 function changedValues() {
   const next = {
     name: values.name.trim(),
@@ -372,35 +377,14 @@ function changedValues() {
   }
   if (values.auth_type === MCP_AUTH_TYPE.HEADER) {
     next.auth_header_name = values.auth_header_name.trim()
-    if (values.auth_header_value || !server.value) {
+    if (values.auth_header_value) {
       next.auth_header_value = values.auth_header_value
     }
   } else if (values.auth_type === MCP_AUTH_TYPE.OAUTH) {
     next.oauth_client_id = values.oauth_client_id.trim()
-    if (
-      values.oauth_client_secret ||
-      !server.value ||
-      // Clears a secret Baserow registered when its client is replaced, and
-      // the editor's own one when they clear its client id.
-      ((!ownClientId(server.value) || !next.oauth_client_id) &&
-        (urlChanged.value || clientChanged.value))
-    ) {
+    if (values.oauth_client_secret) {
       next.oauth_client_secret = values.oauth_client_secret
     }
-  }
-  // A credential the new sign-in method doesn't use is cleared, so it doesn't
-  // have to be entered again to change the URL.
-  if (
-    values.auth_type !== MCP_AUTH_TYPE.HEADER &&
-    server.value?.has_auth_header_value
-  ) {
-    next.auth_header_value = ''
-  }
-  if (
-    values.auth_type !== MCP_AUTH_TYPE.OAUTH &&
-    server.value?.has_oauth_client_secret
-  ) {
-    next.oauth_client_secret = ''
   }
   if (!server.value) return next
   const current = {

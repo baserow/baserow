@@ -195,7 +195,6 @@ describe('Agent connected apps', () => {
     expect(body(testApp.mock.history.patch[0])).toEqual({
       url: 'https://other.example.com/mcp',
       auth_type: 'none',
-      auth_header_value: '',
     })
   })
 
@@ -401,7 +400,6 @@ describe('Agent connected apps', () => {
 
       expect(body(testApp.mock.history.patch[0])).toEqual({
         url: 'https://other.example.com/mcp',
-        oauth_client_secret: '',
       })
     })
 
@@ -453,7 +451,6 @@ describe('Agent connected apps', () => {
 
       expect(body(testApp.mock.history.patch[0])).toEqual({
         oauth_client_id: '',
-        oauth_client_secret: '',
       })
     })
 

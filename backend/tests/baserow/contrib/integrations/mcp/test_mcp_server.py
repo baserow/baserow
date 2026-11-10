@@ -27,6 +27,7 @@ from baserow.contrib.integrations.mcp.toolset import (
     MCPToolSnapshot,
 )
 from baserow.core.exceptions import ApplicationOperationNotSupported
+from baserow.core.integrations.exceptions import IntegrationCredentialRequired
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
@@ -330,6 +331,50 @@ def test_switching_away_from_a_key_forgets_it(data_fixture):
     integration.refresh_from_db()
     assert integration.url == "https://other.example.com/mcp"
     assert integration.auth_header_value == ""
+
+
+@pytest.mark.django_db
+def test_a_change_that_drops_a_credential_doesnt_ask_for_it(data_fixture):
+    user = data_fixture.create_user()
+    service = IntegrationService()
+    keyed = data_fixture.create_mcp_server_integration(
+        user=user, auth_header_name="Authorization", auth_header_value="Bearer s3cr3t"
+    )
+    registered = data_fixture.create_mcp_server_integration(
+        user=user,
+        auth_type="oauth",
+        oauth_client_id="registered-client",
+        oauth_client_secret="registered-secret",
+        oauth_client_source="dynamic",
+    )
+
+    # Moved and switched to OAuth at once: the key isn't sent anywhere.
+    keyed = service.update_integration(
+        user, keyed, url="https://other.example.com/mcp", auth_type="oauth"
+    ).integration
+    # Moved: Baserow registers a new client with the new server.
+    registered = service.update_integration(
+        user, registered, url="https://other.example.com/mcp"
+    ).integration
+
+    keyed.refresh_from_db()
+    registered.refresh_from_db()
+    assert keyed.auth_header_value == ""
+    assert registered.oauth_client_secret == ""
+    assert registered.oauth_client_id == ""
+
+
+@pytest.mark.django_db
+def test_moving_a_server_with_its_key_still_asks_for_the_key(data_fixture):
+    user = data_fixture.create_user()
+    integration = data_fixture.create_mcp_server_integration(
+        user=user, auth_header_name="Authorization", auth_header_value="Bearer s3cr3t"
+    )
+
+    with pytest.raises(IntegrationCredentialRequired):
+        IntegrationService().update_integration(
+            user, integration, url="https://other.example.com/mcp"
+        )
 
 
 def test_a_server_that_never_finishes_listing_times_out(mocker):
