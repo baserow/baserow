@@ -111,6 +111,8 @@ class ImportExportConfig:
     instead of kept, because the template is installed without them.
     """
 
+    user_files_belong_to_workspace: bool = False
+
     is_publishing: bool = False
     """
     Indicates whether or not we are currently publishing. This class is used

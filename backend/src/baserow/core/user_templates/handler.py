@@ -9,6 +9,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
 from django.core.files import File
+from django.core.files.storage import Storage
 from django.db import IntegrityError, connection, transaction
 from django.db.models import (
     Case,
@@ -78,6 +79,10 @@ from baserow.core.user_templates.exceptions import (
     TemplateSlugGenerationFailed,
     TemplateUpdated,
 )
+from baserow.core.user_templates.file_transfer import (
+    TemplateContent,
+    TemplateFilesTransfer,
+)
 from baserow.core.user_templates.types import TemplateMetadata
 from baserow.core.utils import ChildProgressBuilder
 
@@ -117,11 +122,10 @@ def generate_template_slug(name: str) -> str:
 
 def user_template_copy_config() -> ImportExportConfig:
     """
-    Returns the configuration with which the content of a user template is
-    copied, both into the template and out of it when it's installed (the
-    install fills in the search data of the copy). The copy is made as if nobody
-    were a member of the target workspace, so it drops what belongs to the users
-    of the source: personal views, collaborators and sensitive data.
+    Returns the configuration with which the content of a user template is copied, into
+    the template and out of it when it's installed. The copy is made as if nobody were
+    a member of the target workspace, so it drops what belongs to the users of the
+    source: personal views, collaborators and sensitive data.
     """
 
     return ImportExportConfig(
@@ -396,16 +400,22 @@ class UserTemplateHandler:
         applications: List[Application],
         config: ImportExportConfig,
         *,
+        files_zip: TemplateFilesTransfer,
+        storage: Optional[Storage] = None,
         progress_builder: Optional[ChildProgressBuilder] = None,
     ) -> List[Dict[str, Any]]:
         """
         Serializes the applications in memory, each one in its own consistent
         snapshot, so that they can be imported with
-        `CoreHandler.import_applications_to_workspace`. Like a duplicate, the
-        copy refers to the same user files, so no file is exported.
+        `CoreHandler.import_applications_to_workspace`. The user files they refer
+        to are recorded in `files_zip`, so that the import copies them.
 
         :param applications: The applications to serialize.
         :param config: The configuration of the copy.
+        :param files_zip: Records the user files the applications refer to. It is
+            required, so that no caller copies the applications without their files
+            and leaves the copy sharing the user files of the source.
+        :param storage: The storage the user files are read from.
         :param progress_builder: A progress builder that allows for publishing
             progress.
         :return: The serialized applications.
@@ -420,7 +430,9 @@ class UserTemplateHandler:
             application_type = application_type_registry.get_by_model(application)
             with application_type.export_safe_transaction_context(application):
                 serialized.append(
-                    application_type.export_serialized(application, config)
+                    application_type.export_serialized(
+                        application, config, files_zip, storage
+                    )
                 )
             progress.increment()
         return serialized
@@ -462,6 +474,8 @@ class UserTemplateHandler:
         # Nobody is a member of the new workspace, so the import drops what
         # belongs to the users of the source: personal views and collaborators.
         config = user_template_copy_config()
+        storage = get_default_storage()
+        files = TemplateFilesTransfer(storage)
 
         workspace = Workspace.objects.create(name=name)
         track_content(template_workspace=workspace)
@@ -469,13 +483,16 @@ class UserTemplateHandler:
         serialized = self.serialize_applications(
             applications,
             config,
+            files_zip=files,
+            storage=storage,
             progress_builder=progress.create_child_builder(represents_progress=50),
         )
         CoreHandler().import_applications_to_workspace(
             workspace,
             serialized,
-            None,
-            config,
+            files,
+            dataclasses.replace(config, user_files_belong_to_workspace=True),
+            storage=storage,
             progress_builder=progress.create_child_builder(represents_progress=50),
             atomic_per_application=True,
         )
@@ -487,26 +504,33 @@ class UserTemplateHandler:
         revision: Template,
         *,
         progress_builder: Optional[ChildProgressBuilder] = None,
-    ) -> List[Dict[str, Any]]:
+    ) -> TemplateContent:
         """
         Serializes the applications of a revision of a user template, so that
         they can be installed with `install_template_content`. Each application
         is serialized in its own snapshot, so this must not be called inside an
-        atomic block.
+        atomic block. The files are only recorded, the install reads them from
+        the storage.
 
         :param revision: The revision to serialize.
         :param progress_builder: A progress builder that allows for publishing
             progress.
         :raises TemplateHasNoContent: If the revision has no application to copy.
             An install of nothing would leave no trace that it committed.
-        :return: The serialized applications.
+        :return: The serialized applications and the transfer of their files.
         """
 
-        return self.serialize_applications(
-            self._get_content_applications(revision),
+        applications = self._get_content_applications(revision)
+        storage = get_default_storage()
+        files = TemplateFilesTransfer(storage)
+        serialized = self.serialize_applications(
+            applications,
             user_template_copy_config(),
+            files_zip=files,
+            storage=storage,
             progress_builder=progress_builder,
         )
+        return TemplateContent(applications=serialized, files=files)
 
     def _get_content_applications(self, revision: Template) -> List[Application]:
         """
@@ -624,7 +648,7 @@ class UserTemplateHandler:
         user: AbstractUser,
         workspace: Workspace,
         revision: Template,
-        content: List[Dict[str, Any]],
+        content: TemplateContent,
         *,
         progress_builder: Optional[ChildProgressBuilder] = None,
     ) -> List[Application]:
@@ -650,9 +674,10 @@ class UserTemplateHandler:
         )
         applications, _ = CoreHandler().import_applications_to_workspace(
             workspace,
-            content,
-            None,
+            content.applications,
+            content.files,
             config,
+            storage=content.files.storage,
             progress_builder=progress_builder,
         )
 

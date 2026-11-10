@@ -9,8 +9,13 @@ from baserow.core.exceptions import TemplateDoesNotExist
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.constants import JOB_FINISHED
 from baserow.core.models import Template
+from baserow.core.storage import get_default_storage
 from baserow.core.user_templates.archive import clear_template_archive_stamp
 from baserow.core.user_templates.exceptions import TemplateBlocked
+from baserow.core.user_templates.file_transfer import (
+    TemplateContent,
+    TemplateFilesTransfer,
+)
 from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.test_utils.helpers import user_template_plan_rows
 from tests.baserow.core.user_templates.utils import (
@@ -27,7 +32,9 @@ pytestmark = pytest.mark.usefixtures("use_tmp_media_root")
 
 def fake_copy():
     return patch.object(
-        UserTemplateHandler, "serialize_template_content", return_value=[]
+        UserTemplateHandler,
+        "serialize_template_content",
+        return_value=TemplateContent([], TemplateFilesTransfer(get_default_storage())),
     )
 
 

@@ -1291,9 +1291,13 @@ class FormViewType(ViewType):
             if files_zip is None:
                 user_file = UserFileHandler().get_user_file_by_name(file["name"])
             else:
-                with files_zip.open(file["name"]) as stream:
+                try:
+                    stream = files_zip.open(file["name"])
+                except KeyError:
+                    return None
+                with stream as stored_file:
                     user_file = UserFileHandler().upload_user_file(
-                        None, file["original_name"], stream, storage=storage
+                        None, file["original_name"], stored_file, storage=storage
                     )
             return user_file
 
@@ -1461,7 +1465,8 @@ class FormViewType(ViewType):
 
             if isinstance(user_file, dict):
                 values[user_file_key] = UserFileHandler().get_user_file_by_name(
-                    user_file.get("name", None)
+                    user_file.get("name", None),
+                    base_queryset=UserFile.objects.exclude_template_files(),
                 )
 
             elif not isinstance(user_file, UserFile):

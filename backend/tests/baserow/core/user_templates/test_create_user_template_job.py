@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from unittest.mock import patch
 
 from django.db import transaction
@@ -43,11 +44,14 @@ from baserow.core.models import (
     Application,
     ImportExportResource,
     Template,
+    UserFile,
     Workspace,
     WorkspaceUser,
 )
 from baserow.core.storage import get_default_storage
 from baserow.core.user.exceptions import UserNotFound
+from baserow.core.user_files.handler import UserFileHandler
+from baserow.core.user_files.template_files import template_file_prefix
 from baserow.core.user_templates.actions import (
     CreateUserTemplateActionType,
     UpdateUserTemplateVisibilityActionType,
@@ -65,6 +69,7 @@ from baserow.core.utils import Progress
 from tests.baserow.core.user_templates.utils import (
     CLEARED_KEYS,
     ICON,
+    add_files_to_source,
     add_password_data,
     assert_password_data_left_out,
     cancel_in_another_connection,
@@ -77,6 +82,8 @@ from tests.baserow.core.user_templates.utils import (
     purge,
     serialized_content,
     start_job,
+    update_content,
+    user_files_referenced_in,
 )
 
 pytestmark = [
@@ -232,6 +239,94 @@ def test_create_user_template_job_empties_password_fields(data_fixture):
     ) == [password]
 
 
+def test_create_user_template_job_copies_the_files_into_the_template(data_fixture):
+    source = create_source(data_fixture)
+    user, workspace = source["user"], source["workspace"]
+    author_files = add_files_to_source(data_fixture, source)
+    author_rows = list(UserFile.objects.order_by("id").values())
+
+    job = start_job(user, workspace, [source["database"], source["builder"]])
+
+    assert job.state == JOB_FINISHED, job.error
+    template_workspace = job.template.workspace
+    copies = user_files_referenced_in(template_workspace)
+    assert len(copies) == len(author_files)
+    assert copies == set(UserFile.objects.template_files(template_workspace.id))
+    assert {copy.sha256_hash for copy in copies} == {
+        user_file.sha256_hash for user_file in author_files.values()
+    }
+    assert all(copy.uploaded_by is None for copy in copies)
+    assert list(UserFile.objects.order_by("id").values())[: len(author_rows)] == (
+        author_rows
+    )
+    assert user_files_referenced_in(workspace) == set(author_files.values())
+    storage = get_default_storage()
+    handler = UserFileHandler()
+    for copy in copies:
+        assert storage.exists(handler.user_file_path(copy.name))
+        assert storage.exists(handler.user_file_thumbnail_path(copy.name, "tiny"))
+
+
+@pytest.mark.parametrize("content_update", [False, True])
+def test_failed_copy_writes_every_file_under_the_job_template_prefix(
+    data_fixture, settings, content_update
+):
+    source = create_source(data_fixture)
+    files = add_files_to_source(data_fixture, source)
+    user, workspace = source["user"], source["workspace"]
+    applications = [source["database"], source["builder"]]
+    template = (
+        start_job(user, workspace, applications).template if content_update else None
+    )
+    media_root = Path(settings.MEDIA_ROOT)
+
+    def stored_paths():
+        return {p.relative_to(media_root) for p in media_root.rglob("*") if p.is_file()}
+
+    stored_before = stored_paths()
+    upload_user_file = UserFileHandler.upload_user_file
+    job_workspace_ids = set()
+
+    def upload_then_fail_in_the_builder(self, *args, **kwargs):
+        job_workspace_ids.add(
+            CreateUserTemplateJob.objects.values_list(
+                "template_workspace_id", flat=True
+            ).latest("id")
+        )
+        user_file = upload_user_file(self, *args, **kwargs)
+        if user_file.sha256_hash == files["element_background"].sha256_hash:
+            raise RuntimeError("Fails after the builder stored a file")
+        return user_file
+
+    with (
+        patch.object(
+            UserTemplateHandler, "delete_content_without_template", return_value=None
+        ),
+        patch.object(
+            UserFileHandler, "upload_user_file", upload_then_fail_in_the_builder
+        ),
+        pytest.raises(RuntimeError),
+    ):
+        if content_update:
+            update_content(user, template, workspace, applications)
+        else:
+            start_job(user, workspace, applications)
+
+    assert CreateUserTemplateJob.objects.latest("id").state == JOB_FAILED
+    [workspace_id] = job_workspace_ids
+    assert workspace_id is not None
+    new_paths = stored_paths() - stored_before
+    assert {path.parts[0] for path in new_paths} == {"user_files", "thumbnails"}
+    assert all(
+        path.name.startswith(template_file_prefix(workspace_id)) for path in new_paths
+    )
+    row_names = {
+        user_file.name for user_file in UserFile.objects.template_files(workspace_id)
+    }
+    assert row_names
+    assert {path.name for path in new_paths} - row_names
+
+
 def test_create_user_template_job_strips_automation_secrets(data_fixture):
     source = create_source(data_fixture)
 
@@ -283,9 +378,11 @@ def test_create_user_template_job_clears_references_outside_the_selection(data_f
         f".{source['text_field'].db_column}.*.value')"
     )
 
-    content = serialized_content(job.template)
-    assert content
-    for key, value in find_values(content, CLEARED_KEYS):
+    cleared = list(
+        find_values(serialized_content(job.template).applications, CLEARED_KEYS)
+    )
+    assert cleared
+    for key, value in cleared:
         assert value in (None, ""), f"{key} = {value}"
 
 

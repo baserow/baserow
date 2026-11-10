@@ -10,8 +10,11 @@ from django.test import override_settings
 
 import pytest
 
+from baserow.contrib.builder.elements.models import ImageElement
 from baserow.contrib.database.fields.rich_text_utils import extract_user_file_names
+from baserow.contrib.database.models import Database
 from baserow.contrib.database.search.handler import SearchHandler
+from baserow.contrib.database.views.models import FormView
 from baserow.core.action.models import Action
 from baserow.core.context import private_link_token
 from baserow.core.exceptions import TemplateDoesNotExist
@@ -30,12 +33,16 @@ from baserow.core.models import (
     WorkspaceUser,
 )
 from baserow.core.storage import get_default_storage
+from baserow.core.user_files.exceptions import FileSizeTooLargeError
 from baserow.core.user_files.handler import UserFileHandler
+from baserow.core.user_files.template_files import is_template_file_unique
 from baserow.core.user_templates.actions import DeleteUserTemplateActionType
 from tests.baserow.core.user_templates.utils import (
+    add_files_to_source,
     add_password_data,
     assert_password_data_left_out,
     cancel_in_another_connection,
+    create_source,
     fail_on_import,
     install,
     install_marks,
@@ -43,6 +50,8 @@ from tests.baserow.core.user_templates.utils import (
     purge,
     request_install,
     run_job,
+    start_job,
+    user_files_referenced_in,
 )
 
 TEST_TEMPLATES_DIR = os.path.join(settings.BASE_DIR, "../../../tests/templates")
@@ -575,7 +584,7 @@ def _add_files(data_fixture, owner, workspace):
 def _installed_files(workspace):
     """The names of the user files of the row installed by `_add_files`."""
 
-    table = Application.objects.get(workspace=workspace).specific.table_set.get()
+    table = Database.objects.get(workspace=workspace).table_set.get()
     fields = {field.name: field for field in table.field_set.all()}
     row = table.get_model().objects.get()
     return SimpleNamespace(
@@ -603,14 +612,103 @@ def test_installed_copy_keeps_its_files_after_the_template_is_deleted(data_fixtu
 
     assert job.state == JOB_FINISHED
     _assert_removed_and_installed_copy_kept(root, target, job)
-    # Like a duplicate, the copy refers to the user files of the template, which
-    # the purge of the template keeps.
     installed = _installed_files(target)
-    assert installed.documents == [files.document.name]
-    assert UserFile.objects.all().name(files.document.name).exists()
-    assert _read_user_file(files.document.name) == b"Document"
+    [document] = installed.documents
+    [image] = installed.images
+    assert document != files.document.name
+    for name in [document, image]:
+        assert not is_template_file_unique(UserFile.deconstruct_name(name)["unique"])
+        assert UserFile.objects.all().name(name).exists()
+    assert _read_user_file(document) == b"Document"
+    assert _read_user_file(image) == b"Photo"
+
+
+def _create_template_with_files(data_fixture):
+    source = create_source(data_fixture)
+    add_files_to_source(data_fixture, source)
+    job = start_job(
+        source["user"], source["workspace"], [source["database"], source["builder"]]
+    )
+    assert job.state == JOB_FINISHED, job.error
+    return data_fixture.set_user_template_state(job.template, "public")
+
+
+@install_marks
+def test_installed_copy_shares_no_user_file_with_the_template(data_fixture):
+    root = _create_template_with_files(data_fixture)
+    template_files = user_files_referenced_in(root.workspace)
+    installer = data_fixture.create_user()
+    target = data_fixture.create_workspace(user=installer)
+
+    job = install(installer, target, root)
+
+    assert job.state == JOB_FINISHED, job.error
+    installed_files = user_files_referenced_in(target)
+    assert len(installed_files) == len(template_files)
+    assert not installed_files & template_files
+    assert not any(is_template_file_unique(f.unique) for f in installed_files)
+    assert {f.sha256_hash for f in installed_files} == {
+        f.sha256_hash for f in template_files
+    }
+
+
+@install_marks
+def test_install_skips_user_files_missing_from_storage(data_fixture):
+    owner = data_fixture.create_user()
+    target = data_fixture.create_workspace(user=owner)
+    root = data_fixture.create_user_template(user=owner, name="Mine")
+    files = _add_files(data_fixture, owner, root.workspace)
+    handler = UserFileHandler()
+    cover = handler.upload_user_file(owner, "cover.png", ContentFile(b"Cover"))
+    element_image = handler.upload_user_file(owner, "logo.png", ContentFile(b"Logo"))
+    table = Database.objects.get(workspace=root.workspace).table_set.get()
+    data_fixture.create_form_view(table=table, cover_image=cover)
+    builder = data_fixture.create_builder_application(
+        workspace=root.workspace, name="Site"
+    )
+    data_fixture.create_builder_image_element(
+        page=data_fixture.create_builder_page(builder=builder),
+        image_source_type="upload",
+        image_file=element_image,
+    )
+    data_fixture.set_user_template_state(root, "public")
+    storage = get_default_storage()
+    for user_file in [files.document, files.image, cover, element_image]:
+        storage.delete(handler.user_file_path(user_file.name))
+
+    job = install(owner, target, root)
+
+    assert job.state == JOB_FINISHED, job.error
+    assert _installed_names(target) == ["Files", "Site"]
+    installed = _installed_files(target)
+    assert installed.documents == []
     assert installed.images == [files.image.name]
-    assert _read_user_file(files.image.name) == b"Photo"
+    form = FormView.objects.get(table__database__workspace=target)
+    assert form.cover_image is None
+    element = ImageElement.objects.get(page__builder__workspace=target)
+    assert element.image_file is None
+
+
+@install_marks
+def test_install_fails_when_a_template_file_exceeds_the_upload_limit(data_fixture):
+    owner = data_fixture.create_user()
+    target = data_fixture.create_workspace(user=owner)
+    root = data_fixture.create_user_template(user=owner, name="Mine")
+    _add_files(data_fixture, owner, root.workspace)
+    data_fixture.set_user_template_state(root, "public")
+    file_count = UserFile.objects.count()
+    job = request_install(owner, target, root)
+
+    with (
+        override_settings(BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB=4),
+        pytest.raises(FileSizeTooLargeError),
+    ):
+        run_job(job)
+
+    job.refresh_from_db()
+    assert job.state == JOB_FAILED
+    assert not Application.objects_and_trash.filter(workspace=target).exists()
+    assert UserFile.objects.count() == file_count
 
 
 # The official install runs in the transaction of the job, so it's rolled back
