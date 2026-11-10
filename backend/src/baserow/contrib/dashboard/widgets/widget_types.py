@@ -125,6 +125,7 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
         "target_filters",
     ]
     public_serializer_field_names = [
+        "options",
         "mode",
         "multiple",
         "placeholder",
@@ -136,7 +137,7 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
             data_provider_type_registry=dashboard_options_data_provider_registry,
         ),
     }
-    public_serializer_field_overrides = {}
+    public_serializer_field_overrides = serializer_field_overrides
     grid_layout = WidgetGridLayout(
         default_width=2,
         default_height=2,

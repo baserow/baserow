@@ -53,9 +53,6 @@
         </template>
         <template #footer>
           <div class="dashboard-text-filter-widget__footer">
-            <ButtonText v-if="optionState.error" @click="loadOptions(true)">{{
-              $t('action.retry')
-            }}</ButtonText>
             <Button
               v-if="hasValue"
               type="secondary"
@@ -106,7 +103,7 @@ const store = useStore()
 const multiple = computed(
   () => props.widget.mode === 'dropdown' && props.widget.multiple === true
 )
-const { optionState, options, loadOptions } = useWidgetOptions(props)
+const { optionState, options } = useWidgetOptions(props)
 const value = computed({
   get: () =>
     store.getters[`${props.storePrefix}dashboardApplication/getWidgetValues`][

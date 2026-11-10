@@ -92,9 +92,6 @@
         </template>
         <template #footer>
           <div class="dashboard-text-filter-widget__footer">
-            <ButtonText v-if="optionState.error" @click="loadOptions(true)">{{
-              $t('action.retry')
-            }}</ButtonText>
             <Button
               v-if="hasDefaultValue"
               type="secondary"
@@ -326,7 +323,7 @@ const props = defineProps({
   storePrefix: { type: String, default: '' },
 })
 const { $store, $client, $registry, $i18n } = useNuxtApp()
-const { optionState, options, loadOptions } = useWidgetOptions(props)
+const { optionState, options } = useWidgetOptions(props)
 const defaultValue = computed(() => getTextFilterDefaultValue(props.widget))
 const hasDefaultValue = computed(() => defaultValue.value.length > 0)
 const defaultValueLabel = computed(() =>

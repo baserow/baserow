@@ -91,7 +91,7 @@ describe('TextFilterWidgetSettings', () => {
       dispatch.mockRestore()
     }
   )
-  test('selects and clears a default from cached options', async () => {
+  test('selects and clears a default from source context', async () => {
     const widget = {
       id: 2,
       type: 'text_filter',
@@ -100,20 +100,17 @@ describe('TextFilterWidgetSettings', () => {
       default_value: '',
       options: {
         formula: "get('data_source_context.1.field_10.*.value')",
-        mode: 'formula',
+        mode: 'advanced',
       },
     }
     const store = testApp.store
     store.commit('dashboardApplication/SET_WIDGETS', [widget])
-    store.commit('dashboardApplication/SET_WIDGET_OPTIONS', {
-      widgetId: 2,
-      options: {
-        signature: JSON.stringify(widget.options),
-        values: ['France', 'Belgium'],
-        loading: false,
-        error: false,
+    store.commit('dashboardApplication/SET_DATA_SOURCES', [
+      {
+        id: 1,
+        context_data: { field_10: [{ value: 'France' }, { value: 'Belgium' }] },
       },
-    })
+    ])
     const get = vi.spyOn(store.$client, 'get')
     const dispatch = vi.spyOn(store, 'dispatch')
     const wrapper = await testApp.mount(TextFilterWidgetSettings, {

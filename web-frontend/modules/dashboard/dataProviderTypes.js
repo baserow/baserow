@@ -91,8 +91,15 @@ export class DashboardDataSourceContextDataProviderType extends DataProviderType
     )
   }
 
+  /** Preserve empty option arrays when resolving wildcard properties. */
   getDataChunk(context, path) {
-    return getValueAtPath(this.getDataContent(context), path)
+    const content = this.getDataContent(context)
+    const wildcard = path.indexOf('*')
+    if (wildcard !== -1) {
+      const items = getValueAtPath(content, path.slice(0, wildcard))
+      if (Array.isArray(items) && items.length === 0) return []
+    }
+    return getValueAtPath(content, path)
   }
 
   /** Group declared context fields by table, keeping one source per table. */

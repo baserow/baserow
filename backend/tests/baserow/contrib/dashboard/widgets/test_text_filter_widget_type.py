@@ -198,7 +198,7 @@ def test_text_widget_crud_serializers(api_client, data_fixture):
     assert public["widgets"][0]["placeholder"] == "Type here"
     assert public["widgets"][0]["mode"] == "input"
     assert public["widgets"][0]["multiple"] is False
-    assert "options" not in public["widgets"][0]
+    assert public["widgets"][0]["options"] == widget.options
     detail_url = reverse("api:dashboard:widgets:item", kwargs={"widget_id": widget_id})
     response = api_client.patch(
         detail_url,

@@ -6,17 +6,10 @@ from baserow.contrib.dashboard.api.widgets.views import (
     WidgetView,
 )
 
-from .options import WidgetOptionsView
-
 app_name = "baserow.contrib.database.api.widgets"
 
 
 urlpatterns = [
-    re_path(
-        r"widgets/(?P<widget_id>[0-9]+)/options/$",
-        WidgetOptionsView.as_view(),
-        name="options",
-    ),
     re_path(
         r"(?P<dashboard_id>[0-9]+)/widgets/layout/$",
         WidgetLayoutView.as_view(),

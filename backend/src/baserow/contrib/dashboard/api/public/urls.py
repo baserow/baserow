@@ -1,7 +1,5 @@
 from django.urls import re_path
 
-from baserow.contrib.dashboard.api.widgets.options import PublicWidgetOptionsView
-
 from .views import (
     PublicDashboardAuthView,
     PublicDashboardDataSourceDispatchView,
@@ -11,11 +9,6 @@ from .views import (
 app_name = "baserow.contrib.dashboard.api.public"
 
 urlpatterns = [
-    re_path(
-        r"(?P<slug>[-\w]+)/widgets/(?P<widget_id>[0-9]+)/options/$",
-        PublicWidgetOptionsView.as_view(),
-        name="widget_options",
-    ),
     re_path(
         r"(?P<slug>[-\w]+)/$",
         PublicDashboardInfoView.as_view(),
