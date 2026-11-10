@@ -94,13 +94,18 @@ describe('PageEditorContent', () => {
       _: { dataSourceLoading: false, dataSourceFetched: true },
       dataSources: [dataSource],
     })
+    const fetchAction = 'dataSourceContent/debouncedFetchPageDataSourceContent'
     const { $store } = useNuxtApp()
-    const dispatch = vi.spyOn($store, 'dispatch')
+    const originalDispatch = $store.dispatch.bind($store)
+    // The fetch itself is left out: it would send a request once the test is
+    // over.
+    const dispatch = vi
+      .spyOn($store, 'dispatch')
+      .mockImplementation((action, ...args) =>
+        action === fetchAction ? undefined : originalDispatch(action, ...args)
+      )
     const fetchCalls = () =>
-      dispatch.mock.calls.filter(
-        ([action]) =>
-          action === 'dataSourceContent/debouncedFetchPageDataSourceContent'
-      ).length
+      dispatch.mock.calls.filter(([action]) => action === fetchAction).length
 
     const wrapper = await mountEditor(page)
     const callsAfterMount = fetchCalls()
