@@ -39,6 +39,11 @@ from .exceptions import (
     MaximumUniqueTriesError,
 )
 from .models import deconstruct_user_file_regex
+from .template_files import (
+    TEMPLATE_FILE_PREFIX,
+    get_template_file_owner,
+    template_file_prefix,
+)
 
 if TYPE_CHECKING:
     from PIL import Image
@@ -188,7 +193,9 @@ class UserFileHandler:
 
         return join(settings.USER_THUMBNAILS_DIRECTORY, thumbnail_name, user_file_name)
 
-    def generate_unique(self, sha256_hash, extension, length=32, max_tries=1000):
+    def generate_unique(
+        self, sha256_hash, extension, length=32, max_tries=1000, prefix=""
+    ):
         """
         Generates a unique nonexistent string for a new user file.
 
@@ -203,6 +210,8 @@ class UserFileHandler:
         :param max_tries: The maximum amount of tries to check if a unique already
             exists.
         :type max_tries: int
+        :param prefix: The fixed start of the unique, counted in `length`.
+        :type prefix: str
         :raises MaximumUniqueTriesError: When the maximum amount of tries has
             been exceeded.
         :return: The generated unique string
@@ -218,7 +227,10 @@ class UserFileHandler:
                 )
 
             i += 1
-            unique = random_string(length)
+            unique = prefix + random_string(length - len(prefix))
+
+            if not prefix and unique.startswith(TEMPLATE_FILE_PREFIX):
+                continue
 
             if not UserFile.objects.filter(
                 sha256_hash=sha256_hash, original_extension=extension, unique=unique
@@ -334,11 +346,21 @@ class UserFileHandler:
                 "The provided file type is not allowed."
             )
 
-        existing_user_file = UserFile.objects.filter(
+        template_workspace_id = get_template_file_owner()
+        existing_user_files = UserFile.objects.filter(
             original_name=file_name,
             sha256_hash=stream_hash,
             deleted_at__isnull=True,
-        ).first()
+        )
+        if template_workspace_id is None:
+            existing_user_files = existing_user_files.exclude_template_files()
+            unique_prefix = ""
+        else:
+            existing_user_files = existing_user_files.template_files(
+                template_workspace_id
+            )
+            unique_prefix = template_file_prefix(template_workspace_id)
+        existing_user_file = next(iter(existing_user_files.order_by()[:1]), None)
 
         if existing_user_file:
             if is_active_content:
@@ -353,7 +375,7 @@ class UserFileHandler:
                 )
             return existing_user_file
 
-        unique = self.generate_unique(stream_hash, extension)
+        unique = self.generate_unique(stream_hash, extension, prefix=unique_prefix)
         user_file = UserFile(
             original_name=file_name,
             original_extension=extension,
@@ -540,10 +562,8 @@ class UserFileHandler:
         storage: Optional[Storage] = None,
     ) -> Optional[UserFile]:
         """
-        Given a valid file name and files_zip, re-create the file and return
-        the resulting UserFile object.
-
-        Otherwise, return the existing file from the db.
+        Re-creates the file from files_zip and returns the resulting UserFile, or None
+        when the zip lacks it. Without a files zip, returns the existing file by name.
         """
 
         if not serialized_user_file:
@@ -557,9 +577,13 @@ class UserFileHandler:
             if not name or not original_name:
                 return None
 
-            with files_zip.open(name) as stream:
+            try:
+                stream = files_zip.open(name)
+            except KeyError:
+                return None
+            with stream as file:
                 user_file = self.upload_user_file(
-                    None, original_name, stream, storage=storage
+                    None, original_name, file, storage=storage
                 )
 
         return user_file

@@ -28,6 +28,10 @@ from baserow.core.models import WorkspaceUser
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.storage import ExportZipFile
 from baserow.core.user_files.handler import UserFileHandler
+from baserow.core.user_files.models import UserFile
+from baserow.core.user_files.template_files import (
+    template_file_prefix,
+)
 from baserow.test_utils.helpers import ReplayValues, is_dict_subset
 
 
@@ -1146,3 +1150,29 @@ def test_new_fields_are_hidden_by_default_in_views_if_other_fields_are_hidden(
     assert options[0].hidden is False
     assert options[1].hidden is True
     assert options[2].hidden is True
+
+
+@pytest.mark.django_db
+def test_form_rejects_template_cover_and_logo_names(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    template_workspace = data_fixture.create_workspace()
+    template_file = data_fixture.create_user_file(
+        original_name="cover.png",
+        is_image=True,
+        unique=template_file_prefix(template_workspace.id) + "a" * 19,
+    )
+    normal_file = data_fixture.create_user_file(
+        original_name="cover.png", is_image=True, sha256_hash=template_file.sha256_hash
+    )
+    form_view_type = view_type_registry.get("form")
+
+    for key in ["cover_image", "logo_image"]:
+        with pytest.raises(UserFile.DoesNotExist):
+            form_view_type.prepare_values(
+                {key: {"name": template_file.name}}, table, user
+            )
+        values = form_view_type.prepare_values(
+            {key: {"name": normal_file.name}}, table, user
+        )
+        assert values[key] == normal_file

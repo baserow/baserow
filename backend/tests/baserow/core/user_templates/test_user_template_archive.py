@@ -1,5 +1,6 @@
 import threading
 from unittest.mock import patch
+from zipfile import ZipFile
 
 from django.core.files.base import ContentFile
 from django.db import connection, transaction
@@ -7,11 +8,14 @@ from django.db.migrations.recorder import MigrationRecorder
 
 import pytest
 
+from baserow.contrib.database.views.models import ViewDefaultValue
 from baserow.core.exceptions import TemplateDoesNotExist
 from baserow.core.import_export.handler import ImportExportHandler
 from baserow.core.jobs.constants import JOB_FINISHED
-from baserow.core.models import Template
+from baserow.core.models import Template, UserFile
 from baserow.core.storage import get_default_storage
+from baserow.core.user_files.handler import UserFileHandler
+from baserow.core.user_files.template_files import is_template_file_unique
 from baserow.core.user_templates.archive import (
     clear_template_archive_stamp,
     delete_template_archives,
@@ -22,15 +26,19 @@ from baserow.core.user_templates.archive import (
 )
 from baserow.core.user_templates.handler import UserTemplateHandler
 from tests.baserow.core.user_templates.utils import (
+    add_files_to_source,
     add_password_data,
     assert_password_data_left_out,
+    create_source,
     create_template_with_content,
     download,
     import_archive,
     install_marks,
+    start_job,
     store_archive,
     store_template_archive,
     template_archive_names,
+    user_files_referenced_in,
 )
 
 ARCHIVE_VERSION = "baserow.core.user_templates.archive.VERSION"
@@ -106,6 +114,51 @@ def test_build_template_archive(data_fixture):
         )
     ) == ["First"]
     assert_password_data_left_out(imported_table)
+
+
+@install_marks
+def test_build_template_archive_imports_with_working_files(data_fixture):
+    source = create_source(data_fixture)
+    author_files = add_files_to_source(data_fixture, source)
+    job = start_job(
+        source["user"], source["workspace"], [source["database"], source["builder"]]
+    )
+    assert job.state == JOB_FINISHED, job.error
+    template_files = user_files_referenced_in(job.template.workspace)
+    assert all(is_template_file_unique(f.unique) for f in template_files)
+
+    download_job = download(source["user"], job.template)
+
+    assert download_job.state == JOB_FINISHED, download_job.error
+    name = Template.objects.get(id=job.template.id).archive.name
+    with get_default_storage().open(name, "rb") as archive:
+        entries = set(ZipFile(archive).namelist())
+    assert {f.name for f in template_files} <= entries
+    assert not {f.name for f in author_files.values()} & entries
+    importer = data_fixture.create_user()
+    applications = import_archive(data_fixture, importer, name)
+    imported_files = user_files_referenced_in(applications[0].workspace)
+    assert len(imported_files) == len(template_files)
+    assert not imported_files & template_files
+    assert not any(is_template_file_unique(f.unique) for f in imported_files)
+    assert {f.sha256_hash for f in imported_files} == {
+        f.sha256_hash for f in template_files
+    }
+    [template_default] = ViewDefaultValue.objects.get(
+        view__table__database__workspace=job.template.workspace, field_type="file"
+    ).value
+    assert template_default["name"] in entries
+    [imported_default] = ViewDefaultValue.objects.get(
+        view__table__database__workspace=applications[0].workspace,
+        field_type="file",
+    ).value
+    imported_default_file = UserFile.objects.all().name(imported_default["name"]).get()
+    assert imported_default_file in imported_files
+    assert not is_template_file_unique(imported_default_file.unique)
+    assert imported_default["visible_name"] == "Default.png"
+    assert get_default_storage().exists(
+        UserFileHandler().user_file_path(imported_default_file.name)
+    )
 
 
 @install_marks
