@@ -56,7 +56,7 @@ class TableColumnAdd(BaseModel):
     )
     label: str | None = Field(
         default=None,
-        description="(button) Button caption. Defaults to name. Attach click actions with create_actions.",
+        description="(button) Button caption. Defaults to name. Its click actions belong to the table element.",
     )
     before_uid: str | None = Field(
         default=None,

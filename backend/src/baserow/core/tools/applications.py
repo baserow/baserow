@@ -153,15 +153,34 @@ def rename_application(
     :raises pydantic.ValidationError: When the name is empty or too long.
     """
 
-    name = _APPLICATION_NAME.validate_python(name)
-    ctx.update_status(_("Updating %(app_name)s...") % {"app_name": application.name})
-
-    changed = application.name != name
-    if changed:
-        UpdateApplicationActionType.do(ctx.user, application, name=name)
-        application.refresh_from_db()
-
+    changed = update_application(ctx, application, name=name)
     return {
         result_key: {"id": application.id, "name": application.name},
         "changed": changed,
     }
+
+
+def update_application(ctx: ToolContext, application: Application, **values) -> bool:
+    """
+    Change the values of an application through its undoable action. A value that
+    is None or the same as the current one changes nothing.
+
+    :param application: The application to update. It is refreshed after a change.
+    :param values: The values to set, like `name`, at most 160 characters.
+    :return: Whether anything changed.
+    :raises pydantic.ValidationError: When the name is empty or too long.
+    """
+
+    if values.get("name") is not None:
+        values["name"] = _APPLICATION_NAME.validate_python(values["name"])
+    ctx.update_status(_("Updating %(app_name)s...") % {"app_name": application.name})
+
+    changes = {
+        field: value
+        for field, value in values.items()
+        if value is not None and getattr(application, field) != value
+    }
+    if changes:
+        UpdateApplicationActionType.do(ctx.user, application, **changes)
+        application.refresh_from_db()
+    return bool(changes)

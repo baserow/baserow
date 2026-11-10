@@ -742,8 +742,8 @@ def test_a_page_on_a_button_points_to_click_actions(seeded: SeededMenu) -> None:
 
     _refused(
         seeded,
-        "'Help' is a button, so it can't link to a page. To make it open a page, use "
-        f"create_actions with type='open_page', element={seeded.menu.id}, "
+        "'Help' is a button, so it can't link to a page. To make it open a page, give "
+        f"it an open_page action with element={seeded.menu.id}, "
         f"event='{help_uid}_click'.",
         update=[{"uid": help_uid, "page_id": seeded.pages["About"].id}],
     )

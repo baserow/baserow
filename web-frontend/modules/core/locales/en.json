@@ -76,7 +76,8 @@
     "auditLogRead": "Read the audit log",
     "areaBuilder": "Application builder",
     "builderRead": "Read application builders",
-    "builderEdit": "Create and change"
+    "builderEdit": "Create and change",
+    "builderDelete": "Delete"
   },
   "paginator": {
     "page": "Page",

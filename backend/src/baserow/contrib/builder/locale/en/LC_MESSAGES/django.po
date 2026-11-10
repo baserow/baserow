@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-09 10:46+0000\n"
+"POT-Creation-Date: 2026-11-10 11:53+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -53,7 +53,7 @@ msgstr ""
 msgid "Last name"
 msgstr ""
 
-#: src/baserow/contrib/builder/data_providers/data_provider_types.py:785
+#: src/baserow/contrib/builder/data_providers/data_provider_types.py:789
 #, python-format
 msgid "%(user_source_name)s member"
 msgstr ""
@@ -100,7 +100,7 @@ msgstr ""
 msgid "Data source (%(data_source_id)s) moved"
 msgstr ""
 
-#: src/baserow/contrib/builder/data_sources/service.py:170
+#: src/baserow/contrib/builder/data_sources/service.py:173
 msgid "Data source"
 msgstr ""
 
@@ -258,40 +258,40 @@ msgstr ""
 msgid "Page \"%(page_name)s\" (%(page_id)s) created"
 msgstr ""
 
-#: src/baserow/contrib/builder/pages/actions.py:86
+#: src/baserow/contrib/builder/pages/actions.py:88
 msgid "Update page"
 msgstr ""
 
-#: src/baserow/contrib/builder/pages/actions.py:87
+#: src/baserow/contrib/builder/pages/actions.py:89
 #, python-format
 msgid "Page \"%(page_name)s\" (%(page_id)s) updated"
 msgstr ""
 
-#: src/baserow/contrib/builder/pages/actions.py:141
+#: src/baserow/contrib/builder/pages/actions.py:143
 msgid "Delete page"
 msgstr ""
 
-#: src/baserow/contrib/builder/pages/actions.py:142
+#: src/baserow/contrib/builder/pages/actions.py:144
 #, python-format
 msgid "Page \"%(page_name)s\" (%(page_id)s) deleted"
 msgstr ""
 
-#: src/baserow/contrib/builder/pages/actions.py:185
+#: src/baserow/contrib/builder/pages/actions.py:187
 msgid "Duplicate page"
 msgstr ""
 
-#: src/baserow/contrib/builder/pages/actions.py:187
+#: src/baserow/contrib/builder/pages/actions.py:189
 #, python-format
 msgid ""
 "Page \"%(page_name)s\" (%(page_id)s) duplicated from "
 "\"%(original_page_name)s\" (%(original_page_id)s)"
 msgstr ""
 
-#: src/baserow/contrib/builder/pages/actions.py:251
+#: src/baserow/contrib/builder/pages/actions.py:253
 msgid "Order pages"
 msgstr ""
 
-#: src/baserow/contrib/builder/pages/actions.py:252
+#: src/baserow/contrib/builder/pages/actions.py:254
 msgid "Pages ordered"
 msgstr ""
 

@@ -20,9 +20,9 @@ from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowActio
 from baserow.core.action.models import Action
 from baserow.core.formula import BaserowFormulaObject
 from baserow_enterprise.assistant.tools.builder.tools import (
-    create_actions,
     create_data_sources,
     create_display_elements,
+    create_element_actions,
     update_data_source,
     update_element,
 )
@@ -249,7 +249,7 @@ def test_action_formulas_are_generated_outside_the_transaction(
     button = data_fixture.create_builder_button_element(page=site["page"])
     in_atomic = use_generator(monkeypatch, generated("'Saved'"))
 
-    create_actions(
+    create_element_actions(
         site["ctx"],
         page_id=site["page"].id,
         actions=[
@@ -341,7 +341,7 @@ def test_open_page_change_made_while_generating_is_kept(
 
     use_generator(monkeypatch, change_query_then_generate)
 
-    create_actions(
+    create_element_actions(
         site["ctx"],
         page_id=site["page"].id,
         actions=[
@@ -400,7 +400,9 @@ def test_generated_action_formulas_are_saved_through_the_action_type(
         ),
     }[action_type]
 
-    create_actions(site["ctx"], page_id=site["page"].id, actions=[action], thought="t")
+    create_element_actions(
+        site["ctx"], page_id=site["page"].id, actions=[action], thought="t"
+    )
 
     saved = BuilderWorkflowAction.objects.get(page=site["page"]).specific
     value = {
@@ -502,7 +504,7 @@ def test_generated_row_formulas_are_written_under_the_service_lock(
 
     monkeypatch.setattr(RowActionCreate, "formula_values", checking_formula_values)
 
-    create_actions(
+    create_element_actions(
         site["ctx"],
         page_id=site["page"].id,
         actions=[

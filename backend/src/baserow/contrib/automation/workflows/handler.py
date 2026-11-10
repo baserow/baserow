@@ -52,13 +52,11 @@ from baserow.contrib.automation.workflows.signals import (
     automation_workflow_updated,
 )
 from baserow.contrib.automation.workflows.tasks import (
-    delete_superseded_published_automations,
     handle_workflow_dispatch_done,
     start_workflow_celery_task,
 )
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
 from baserow.core.cache import global_cache, local_cache
-from baserow.core.db import atomic_with_retry_on_deadlock
 from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.exceptions import IdDoesNotExist, UntrustedContentCannotBePublished
 from baserow.core.import_export.untrusted_content import defer_untrusted_content_update
@@ -195,7 +193,13 @@ class AutomationWorkflowHandler:
             published_workflow_state=Subquery(published_workflows.values("state")[:1]),
         )
 
-    def _invalidate_workflow_caches(self, workflow: AutomationWorkflow) -> None:
+    def _invalidate_publication_caches(self, workflow: AutomationWorkflow) -> None:
+        """
+        Forget the cached live copy and run rate limit of a workflow. The draft's
+        dirty flag is left alone: it tracks the test clone, which publishing doesn't
+        replace, and an edit made during the publication must still set it.
+        """
+
         original_workflow = workflow.get_original()
 
         global_cache.invalidate(
@@ -204,7 +208,6 @@ class AutomationWorkflowHandler:
         global_cache.invalidate(
             self._get_workflow_history_rate_limit_cache_key(original_workflow)
         )
-        global_cache.invalidate(WORKFLOW_DIRTY_CACHE_KEY.format(original_workflow.id))
 
     def get_workflows(
         self, automation: Automation, base_queryset: Optional[QuerySet] = None
@@ -723,71 +726,17 @@ class AutomationWorkflowHandler:
         self, workflow: AutomationWorkflow
     ) -> None:
         """
-        Disables the live versions of the workflow, and removes the versions it
-        replaces once the publish is committed. Deleting them can take many seconds
-        for a large workflow, so it doesn't happen in the transaction.
+        Disables the live versions of the workflow. The versions it replaces are
+        removed later by `clear_old_history`: deleting them can take many seconds for
+        a large workflow, so it doesn't happen when publishing.
 
         :param workflow: The workflow being published.
         """
 
-        if not Automation.objects.filter(published_from=workflow).exists():
-            return
-
-        # Disable any live workflows
         AutomationWorkflow.objects.filter(
             automation__published_from=workflow,
             state=WorkflowState.LIVE,
         ).update(state=WorkflowState.DISABLED)
-
-        workflow_id = workflow.id
-        transaction.on_commit(
-            lambda: delete_superseded_published_automations.apply_async(
-                args=[workflow_id], countdown=60
-            )
-        )
-
-    @baserow_trace(tracer)
-    @atomic_with_retry_on_deadlock()
-    def delete_superseded_published_automations(self, workflow_id: int) -> None:
-        """
-        Deletes the published automations older than the current published version of
-        the workflow, except those with history entries. What is safe is decided here,
-        when the deletion runs, as runs and publishes may have happened since it was
-        scheduled. Test clones are left to `clear_old_history`, as a test run can have
-        just picked one up and not written its history entry yet.
-
-        :param workflow_id: The id of the workflow that was published.
-        """
-
-        current_automation_id = (
-            self._get_published_workflows_queryset()
-            .filter(automation__published_from_id=workflow_id)
-            .order_by("-automation__id")
-            .values_list("automation_id", flat=True)
-            .first()
-        )
-        if current_automation_id is None:
-            return
-
-        # A row locked by another task running at the same time is left to that task.
-        ids_to_delete = list(
-            Automation.objects.select_for_update(of=("self",), skip_locked=True)
-            .filter(
-                published_from_id=workflow_id,
-                id__lt=current_automation_id,
-            )
-            .exclude(workflows__state=WorkflowState.TEST_CLONE)
-            .exclude(
-                id__in=AutomationWorkflowHistory.objects.filter(
-                    workflow__automation__published_from_id=workflow_id
-                ).values("workflow__automation_id")
-            )
-            .order_by("id")
-            .values_list("id", flat=True)
-        )
-        if ids_to_delete:
-            with deferred_service_deletion_context():
-                Automation.objects.filter(id__in=ids_to_delete).delete()
 
     def _clone_workflow(
         self,
@@ -863,7 +812,8 @@ class AutomationWorkflowHandler:
 
         :param workflow: The workflow to be published.
         :param progress: An object to track the publishing progress.
-        :return: The published workflow.
+        :return: The published workflow. Its `draft_node_ids` maps the id of each
+            of its nodes to the id of the draft node it was copied from.
         """
 
         # Make sure we are the only process to update the automation workflow
@@ -878,9 +828,17 @@ class AutomationWorkflowHandler:
             workflow, WorkflowState.LIVE, progress
         )
 
-        self._invalidate_workflow_caches(workflow)
+        # After the commit, so a publication rolled back leaves the cached live copy.
+        transaction.on_commit(lambda: self._invalidate_publication_caches(workflow))
 
-        return cloned_automation.workflows.first()
+        published_workflow = cloned_automation.workflows.first()
+        published_workflow.draft_node_ids = {
+            published_id: draft_id
+            for draft_id, published_id in id_mapping.get(
+                "automation_workflow_nodes", {}
+            ).items()
+        }
+        return published_workflow
 
     def disable_workflow(self, workflow: AutomationWorkflow) -> None:
         """
@@ -1141,7 +1099,8 @@ class AutomationWorkflowHandler:
         if active_published_ids:
             empty_published = empty_published.exclude(id__in=active_published_ids)
 
-        empty_published.delete()
+        with deferred_service_deletion_context():
+            empty_published.delete()
 
     @baserow_trace(tracer)
     def mark_failure_for_timed_out_history(self) -> None:

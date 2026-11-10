@@ -2,6 +2,7 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional
 from zipfile import ZipFile
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.storage import Storage
 from django.db import IntegrityError, transaction
 from django.db.models import QuerySet
@@ -30,6 +31,7 @@ from baserow.contrib.builder.pages.constants import (
 from baserow.contrib.builder.pages.exceptions import (
     DuplicatePageParams,
     DuplicatePathParamsInPath,
+    InvalidPagePath,
     InvalidQueryParamName,
     PageDoesNotExist,
     PageNotInBuilder,
@@ -44,6 +46,7 @@ from baserow.contrib.builder.pages.types import (
     PageQueryParam,
     PageQueryParams,
 )
+from baserow.contrib.builder.pages.validators import path_validation
 from baserow.contrib.builder.types import PageDict
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
@@ -129,6 +132,7 @@ class PageHandler:
         path_params: PagePathParams = None,
         query_params: PageQueryParam = None,
         shared: bool = False,
+        **kwargs,
     ) -> Page:
         """
         Creates a new page.
@@ -140,6 +144,10 @@ class PageHandler:
         :param query_params: The query params of the page provided
         :param shared: If this is the shared page. They should be only one shared page
           per builder application.
+        :param kwargs: Other page fields, such as `visibility`, `role_type` and
+          `roles`.
+        :raises InvalidPagePath: When the path of a page other than the shared page
+          is not a valid URL path.
         :return: The newly created page instance
         """
 
@@ -147,6 +155,8 @@ class PageHandler:
         path_params = path_params or []
         query_params = query_params or []
 
+        if not shared:
+            self.raise_if_invalid_path(path)
         self.is_page_path_valid(path, path_params, raises=True)
         self.is_page_path_unique(builder, path, raises=True)
         self.validate_query_params(path, path_params, query_params)
@@ -161,6 +171,7 @@ class PageHandler:
                 query_params=query_params,
                 shared=shared,
                 graph={},
+                **kwargs,
             )
         except IntegrityError as e:
             if "unique constraint" in e.args[0] and "path" in e.args[0]:
@@ -199,6 +210,8 @@ class PageHandler:
         if page.shared:
             raise SharedPageIsReadOnly()
 
+        if "path" in kwargs:
+            self.raise_if_invalid_path(kwargs["path"])
         if "path" in kwargs or "path_params" in kwargs:
             path = kwargs.get("path", page.path)
             path_params = kwargs.get("path_params", page.path_params)
@@ -527,6 +540,21 @@ class PageHandler:
             token.removeprefix(PAGE_PATH_PARAM_PREFIX)
             for token in PATH_PARAM_REGEX.findall(path)
         ]
+
+    def raise_if_invalid_path(self, path: str):
+        """
+        Checks that a page path is a valid URL path starting with '/', as the REST
+        API does. The published site routes on the path after its first character,
+        so a path like 'products' would otherwise answer at '/roducts'.
+
+        :param path: The path to check.
+        :raises InvalidPagePath: When the path is not valid.
+        """
+
+        try:
+            path_validation(path)
+        except DjangoValidationError as exc:
+            raise InvalidPagePath(path, " ".join(exc.messages)) from exc
 
     def is_page_path_valid(
         self, path: str, path_params: PagePathParams, raises: bool = False

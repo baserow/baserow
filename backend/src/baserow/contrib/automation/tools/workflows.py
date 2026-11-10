@@ -14,7 +14,7 @@ from pydantic import Field
 
 from baserow.api.errors import ERROR_UNTRUSTED_CONTENT_CANNOT_BE_PUBLISHED
 from baserow.contrib.automation.models import Automation
-from baserow.contrib.automation.tools.formulas import EMPTY_FORMULA
+from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.tools.types import WorkflowCreate
 from baserow.contrib.automation.workflows.actions import (
     CreateAutomationWorkflowActionType,
@@ -29,20 +29,20 @@ from baserow.contrib.automation.workflows.operations import (
     UpdateAutomationWorkflowOperationType,
 )
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
-from baserow.contrib.integrations.local_baserow.models import LocalBaserowTableService
 from baserow.core.exceptions import (
     PermissionException,
     UntrustedContentCannotBePublished,
 )
 from baserow.core.handler import CoreHandler
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.tools import ToolContext
 from baserow.core.tools.applications import (
     get_application_in_workspace,
     visible_applications,
 )
 from baserow.core.tools.errors import ToolInputError, item_error_message
-
-NODE_TYPES_NEEDING_A_ROW_ID = {"local_baserow_update_row", "local_baserow_delete_row"}
 
 
 def get_automation_in_workspace(ctx: ToolContext, automation_id: int) -> Automation:
@@ -389,18 +389,20 @@ def create_workflows(
     )
 
 
-def check_workflow_can_run(ctx: ToolContext, workflow: AutomationWorkflow) -> list[str]:
-    """
-    Checks what can be told about a workflow before it goes live. This isn't a full
-    check: a node can still fail when it runs.
-
-    :raises ToolInputError: When the workflow can never do anything.
-    :return: A warning for each node that is found to be misconfigured.
-    """
-
+def _nodes_in_order(ctx: ToolContext, workflow: AutomationWorkflow) -> list:
     from baserow.contrib.automation.tools.nodes import nodes_in_order
 
-    nodes = [node for node, *_ in nodes_in_order(ctx.user, workflow)]
+    return [
+        node
+        for node, *_ in nodes_in_order(
+            ctx.user,
+            workflow,
+            AutomationNodeHandler().get_nodes(workflow, with_cache=False),
+        )
+    ]
+
+
+def _raise_if_never_runs(nodes: list) -> None:
     if not nodes or not nodes[0].get_type().is_workflow_trigger:
         raise ToolInputError(
             "This workflow has no trigger, so it would never run. Nothing was "
@@ -412,25 +414,40 @@ def check_workflow_can_run(ctx: ToolContext, workflow: AutomationWorkflow) -> li
             "Nothing was published."
         )
 
+
+def check_workflow_can_run(
+    ctx: ToolContext, published_workflow: AutomationWorkflow
+) -> list[str]:
+    """
+    Checks what can be told about a published copy of a workflow before it goes
+    live. This isn't a full check: a node can still fail when it runs.
+
+    :param published_workflow: The copy `AutomationWorkflowService.publish` made.
+        Warnings name the draft nodes it was copied from.
+    :raises ToolInputError: When the workflow can never do anything.
+    :return: A warning for each node its type finds misconfigured.
+    """
+
+    nodes = _nodes_in_order(ctx, published_workflow)
+    _raise_if_never_runs(nodes)
+
+    draft_node_ids = getattr(published_workflow, "draft_node_ids", {})
     warnings = []
     for node in nodes:
         node_type = node.get_type()
-        problem = None
-        if (
-            isinstance(node.service, LocalBaserowTableService)
-            and node.service.table_id is None
-        ):
-            problem = (
-                "no table is set, so it never fires."
+        node_id = draft_node_ids.get(node.id, node.id)
+        try:
+            node_type.raise_if_misconfigured(node)
+        except ServiceImproperlyConfiguredDispatchException as exc:
+            consequence = (
+                "It never fires."
                 if node_type.is_workflow_trigger
-                else "no table is set, so every run fails here."
+                else "Every run fails here."
             )
-        elif node_type.type in NODE_TYPES_NEEDING_A_ROW_ID and node.service.row_id[
-            "formula"
-        ] in ("", EMPTY_FORMULA):
-            problem = "no row_id is set, so every run fails here."
-        if problem:
-            warnings.append(f"Node {node.id} ({node.label}): {problem}")
+            warnings.append(f"Node {node_id} ({node.label}): {exc} {consequence}")
+            continue
+        for notice in node_type.get_publish_notices(node):
+            warnings.append(f"Node {node_id} ({node.label}): {notice}")
     return warnings
 
 
@@ -454,10 +471,10 @@ def publish_workflow(
     which replaces that version. Republishing makes a paused or disabled workflow live
     again with a fresh error count. pause_workflow stops a live workflow.
 
-    A workflow with no trigger, or no action after its trigger, is refused. warnings
-    lists nodes found to be misconfigured, which doesn't mean the others are sound.
-    Imported content must be reviewed and trusted in the app before it can be
-    published.
+    A workflow with no trigger, or no action after its trigger, is refused and the
+    version already live stays live. warnings lists nodes found to be misconfigured,
+    which doesn't mean the others are sound. Imported content must be reviewed and
+    trusted in the app before it can be published.
     """
 
     workflow = get_workflow_in_workspace(ctx, workflow_id)
@@ -467,15 +484,16 @@ def publish_workflow(
         workspace=ctx.workspace,
         context=workflow.automation,
     )
+    # Refuse an empty draft before paying for a copy. The copy is checked again,
+    # since the draft can change while it is made.
+    _raise_if_never_runs(_nodes_in_order(ctx, workflow))
     try:
         with transaction.atomic():
-            # Deleting a node changes the workflow's graph, so locking it first keeps
-            # the checked draft unchanged until it is published.
-            workflow = AutomationWorkflowHandler().get_workflow(
-                workflow.id, for_update=True
-            )
-            warnings = check_workflow_can_run(ctx, workflow)
             published = AutomationWorkflowService().publish(ctx.user, workflow)
+            # The copy is what goes live, whatever changed in the draft while it was
+            # made. Refusing it rolls the publication back, so the previous copy
+            # stays live.
+            warnings = check_workflow_can_run(ctx, published)
     except UntrustedContentCannotBePublished as exc:
         raise ToolInputError(ERROR_UNTRUSTED_CONTENT_CANNOT_BE_PUBLISHED[2]) from exc
     result: dict[str, Any] = {

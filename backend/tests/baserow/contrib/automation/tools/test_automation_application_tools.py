@@ -11,7 +11,9 @@ from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.database.models import Database
+from baserow.core.action.models import Action
 from baserow.core.exceptions import ApplicationDoesNotExist, UserNotInWorkspace
+from baserow.core.integrations.actions import CreateIntegrationActionType
 from baserow.core.integrations.models import Integration
 from baserow.core.tools import ToolContext
 
@@ -36,6 +38,19 @@ def test_create_automation_creates_the_automation_and_its_integration(ctx):
     assert not Database.objects.exists()
     assert not Builder.objects.exists()
     assert not Dashboard.objects.exists()
+
+
+@pytest.mark.django_db
+def test_create_automation_records_the_integration_as_an_action(ctx):
+    result = create_automation(ctx, "Flows")
+
+    integration = Integration.objects.get(
+        application_id=result["created_automation"]["id"]
+    )
+    action = Action.objects.get(type=CreateIntegrationActionType.type)
+    assert action.user_id == ctx.user.id
+    assert action.workspace_id == ctx.workspace.id
+    assert action.params["integration_id"] == integration.id
 
 
 @pytest.mark.django_db

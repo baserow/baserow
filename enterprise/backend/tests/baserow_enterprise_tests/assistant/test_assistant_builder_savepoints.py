@@ -17,10 +17,10 @@ from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowActio
 from baserow.core.cache import local_cache
 from baserow.core.services.models import Service
 from baserow_enterprise.assistant.tools.builder.tools import (
-    add_action_field_mapping,
-    create_actions,
+    add_element_action_field_mapping,
     create_data_sources,
     create_display_elements,
+    create_element_actions,
     create_layout_elements,
     create_pages,
     setup_page,
@@ -214,7 +214,7 @@ def test_action_with_an_invalid_event_leaves_no_service(data_fixture, site):
     button = data_fixture.create_builder_button_element(page=site["page"])
     services = Service.objects.count()
 
-    result = create_actions(
+    result = create_element_actions(
         site["ctx"],
         page_id=site["page"].id,
         actions=[
@@ -282,7 +282,7 @@ def test_field_mapping_on_a_notification_is_a_readable_error(data_fixture, site)
     )
 
     with pytest.raises(ToolInputError, match="Cannot add field mappings"):
-        add_action_field_mapping(
+        add_element_action_field_mapping(
             site["ctx"],
             action_id=action.id,
             field_id=site["name_field"].id,

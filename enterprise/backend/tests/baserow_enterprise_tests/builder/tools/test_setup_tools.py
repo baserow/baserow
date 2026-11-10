@@ -279,7 +279,9 @@ def test_setup_page_with_nothing_to_do_is_refused(builder_ctx):
 
 
 @pytest.mark.django_db
-def test_setup_page_stores_a_column_formula_unless_told_otherwise(builder_ctx):
+def test_setup_page_stores_an_explicit_column_formula_in_every_mode(
+    builder_ctx,
+):
     def table_element():
         return ElementItemCreate(
             ref="list",
@@ -307,7 +309,7 @@ def test_setup_page_stores_a_column_formula_unless_told_otherwise(builder_ctx):
         None,
         [table_element()],
         None,
-        BuilderWriteOptions(column_name_beats_formula=True),
+        BuilderWriteOptions(column_name_beats_description=True),
     )
 
     def column_value(result):
@@ -315,7 +317,7 @@ def test_setup_page_stores_a_column_formula_unless_told_otherwise(builder_ctx):
         return element.fields.get().config["value"]["formula"]
 
     assert column_value(shared) == "get('current_record.id')"
-    assert "get('current_record.id')" not in column_value(kuma)
+    assert column_value(kuma) == "get('current_record.id')"
 
 
 @pytest.mark.django_db

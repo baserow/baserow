@@ -164,10 +164,14 @@ def update_page(
 ) -> dict[str, Any]:
     """
     Update a page: its name, path, parameters or who can see it. A new path keeps the
-    type of the parameters it still names, and adds new ones as text.
+    type of the parameters it still names, and adds new ones as text. When the
+    parameters change, navigations_to_fix lists the links, menu items and click
+    actions that go to the page with the old ones, and how to fix each: until then
+    they show as errors, and publishing hides them.
     """
 
-    get_page_in_workspace(ctx, page_id)
+    before = get_page_in_workspace(ctx, page_id)
+    old_names = [param["name"] for param in before.path_params or []]
     ctx.update_status(_("Updating page %(id)d...") % {"id": page_id})
 
     updated = helpers.update_page(
@@ -175,7 +179,12 @@ def update_page(
         ctx.workspace,
         PageUpdate(page_id=page_id, **page.model_dump(exclude={"page_id"})),
     )
-    return {"updated_page": PageItem.from_orm(updated).model_dump()}
+    result: dict[str, Any] = {"updated_page": PageItem.from_orm(updated).model_dump()}
+    if [param["name"] for param in updated.path_params or []] != old_names:
+        to_fix = helpers.navigations_out_of_step(updated)
+        if to_fix:
+            result["navigations_to_fix"] = to_fix
+    return result
 
 
 def setup_page_with_options(

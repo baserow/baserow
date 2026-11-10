@@ -121,6 +121,7 @@ class BaserowEnterpriseConfig(AppConfig):
 
         from baserow.core.mcp.groups import (
             AuditLogReadMCPToolGroup,
+            BuilderDeleteMCPToolGroup,
             BuilderEditMCPToolGroup,
             BuilderReadMCPToolGroup,
             mcp_tool_group_registry,
@@ -130,10 +131,9 @@ class BaserowEnterpriseConfig(AppConfig):
             ListAuditLogMcpTool,
         )
         from baserow_enterprise.mcp.builder.actions.tools import (
-            AddActionFieldMappingMcpTool,
-            CreateActionsMcpTool,
-            ListActionsMcpTool,
-            UpdateActionMcpTool,
+            CreateElementActionsMcpTool,
+            ListElementActionsMcpTool,
+            UpdateElementActionMcpTool,
         )
         from baserow_enterprise.mcp.builder.applications.tools import (
             CreateBuilderMcpTool,
@@ -150,6 +150,7 @@ class BaserowEnterpriseConfig(AppConfig):
             CreateDisplayElementsMcpTool,
             CreateFormElementsMcpTool,
             CreateLayoutElementsMcpTool,
+            DeleteElementItemsMcpTool,
             ListElementsMcpTool,
             MoveElementsMcpTool,
             UpdateElementMcpTool,
@@ -169,12 +170,13 @@ class BaserowEnterpriseConfig(AppConfig):
         mcp_tool_group_registry.register(AuditLogReadMCPToolGroup())
         mcp_tool_group_registry.register(BuilderReadMCPToolGroup())
         mcp_tool_group_registry.register(BuilderEditMCPToolGroup())
+        mcp_tool_group_registry.register(BuilderDeleteMCPToolGroup())
         mcp_tool_registry.register(ListAuditLogMcpTool())
         mcp_tool_registry.register(ListBuildersMcpTool())
         mcp_tool_registry.register(ListPagesMcpTool())
         mcp_tool_registry.register(ListDataSourcesMcpTool())
         mcp_tool_registry.register(ListElementsMcpTool())
-        mcp_tool_registry.register(ListActionsMcpTool())
+        mcp_tool_registry.register(ListElementActionsMcpTool())
         mcp_tool_registry.register(CreateBuilderMcpTool())
         mcp_tool_registry.register(UpdateBuilderMcpTool())
         mcp_tool_registry.register(CreatePagesMcpTool())
@@ -188,9 +190,9 @@ class BaserowEnterpriseConfig(AppConfig):
         mcp_tool_registry.register(UpdateElementMcpTool())
         mcp_tool_registry.register(UpdateElementStyleMcpTool())
         mcp_tool_registry.register(MoveElementsMcpTool())
-        mcp_tool_registry.register(CreateActionsMcpTool())
-        mcp_tool_registry.register(AddActionFieldMappingMcpTool())
-        mcp_tool_registry.register(UpdateActionMcpTool())
+        mcp_tool_registry.register(DeleteElementItemsMcpTool())
+        mcp_tool_registry.register(CreateElementActionsMcpTool())
+        mcp_tool_registry.register(UpdateElementActionMcpTool())
         mcp_tool_registry.register(SetupPageMcpTool())
         mcp_tool_registry.register(SetupUserSourceMcpTool())
         mcp_tool_registry.register(SetThemeMcpTool())

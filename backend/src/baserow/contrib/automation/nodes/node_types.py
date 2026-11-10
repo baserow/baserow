@@ -175,7 +175,30 @@ class ContainerNodeTypeMixin:
         super().before_move(node, reference_node, position, output)
 
 
-class LocalBaserowUpsertRowActionNodeType(AutomationActionNodeType):
+class LocalBaserowTableNodeTypeMixin:
+    """
+    For a node whose service reads or writes a table of the workspace. List it
+    before the node type base, so that its `raise_if_misconfigured` runs.
+    """
+
+    def raise_if_misconfigured(self, automation_node: AutomationNode) -> None:
+        """
+        Refuses a node that names no table: a trigger never fires and an action
+        fails every run.
+
+        :param automation_node: The node to check.
+        :raises ServiceImproperlyConfiguredDispatchException: When no table is set.
+        """
+
+        super().raise_if_misconfigured(automation_node)
+
+        if automation_node.service.specific.table_id is None:
+            raise ServiceImproperlyConfiguredDispatchException("No table is selected.")
+
+
+class LocalBaserowUpsertRowActionNodeType(
+    LocalBaserowTableNodeTypeMixin, AutomationActionNodeType
+):
     type = "local_baserow_upsert_row"
     compat_type = "upsert_row"
     service_type = LocalBaserowUpsertRowServiceType.type
@@ -192,7 +215,9 @@ class LocalBaserowCreateRowActionNodeType(LocalBaserowUpsertRowActionNodeType):
     model_class = LocalBaserowCreateRowActionNode
 
 
-class LocalBaserowCreateRowsActionNodeType(AutomationActionNodeType):
+class LocalBaserowCreateRowsActionNodeType(
+    LocalBaserowTableNodeTypeMixin, AutomationActionNodeType
+):
     type = "local_baserow_create_rows"
     model_class = LocalBaserowCreateRowsActionNode
     service_type = LocalBaserowCreateRowsServiceType.type
@@ -210,8 +235,17 @@ class LocalBaserowUpdateRowActionNodeType(
     compat_type = "update_row"
     model_class = LocalBaserowUpdateRowActionNode
 
+    def get_publish_notices(self, automation_node: AutomationNode) -> list[str]:
+        # An empty string literal passes the row ID check but fails every run.
+        formula = automation_node.service.specific.row_id["formula"].strip()
+        if formula in ("''", '""'):
+            return ["No row ID is set, so every run fails here."]
+        return []
 
-class LocalBaserowUpdateRowsActionNodeType(AutomationActionNodeType):
+
+class LocalBaserowUpdateRowsActionNodeType(
+    LocalBaserowTableNodeTypeMixin, AutomationActionNodeType
+):
     type = "local_baserow_update_rows"
     model_class = LocalBaserowUpdateRowsActionNode
     service_type = LocalBaserowUpdateRowsServiceType.type
@@ -221,15 +255,25 @@ class LocalBaserowUpdateRowsActionNodeType(AutomationActionNodeType):
         return {"service": service}
 
 
-class LocalBaserowDeleteRowActionNodeType(AutomationActionNodeType):
+class LocalBaserowDeleteRowActionNodeType(
+    LocalBaserowTableNodeTypeMixin, AutomationActionNodeType
+):
     display_name = _("Local Baserow delete row")
     type = "local_baserow_delete_row"
     compat_type = "delete_row"
     model_class = LocalBaserowDeleteRowActionNode
     service_type = LocalBaserowDeleteRowServiceType.type
 
+    def get_publish_notices(self, automation_node: AutomationNode) -> list[str]:
+        formula = automation_node.service.specific.row_id["formula"].strip()
+        if formula in ("", "''", '""'):
+            return ["No row ID is set, so every run deletes nothing."]
+        return []
 
-class LocalBaserowGetRowActionNodeType(AutomationActionNodeType):
+
+class LocalBaserowGetRowActionNodeType(
+    LocalBaserowTableNodeTypeMixin, AutomationActionNodeType
+):
     display_name = _("Local Baserow get row")
     type = "local_baserow_get_row"
     compat_type = "get_row"
@@ -237,7 +281,9 @@ class LocalBaserowGetRowActionNodeType(AutomationActionNodeType):
     service_type = LocalBaserowGetRowUserServiceType.type
 
 
-class LocalBaserowListRowsActionNodeType(AutomationActionNodeType):
+class LocalBaserowListRowsActionNodeType(
+    LocalBaserowTableNodeTypeMixin, AutomationActionNodeType
+):
     display_name = _("Local Baserow list rows")
     type = "local_baserow_list_rows"
     compat_type = "list_rows"
@@ -245,7 +291,9 @@ class LocalBaserowListRowsActionNodeType(AutomationActionNodeType):
     service_type = LocalBaserowListRowsUserServiceType.type
 
 
-class LocalBaserowAggregateRowsActionNodeType(AutomationActionNodeType):
+class LocalBaserowAggregateRowsActionNodeType(
+    LocalBaserowTableNodeTypeMixin, AutomationActionNodeType
+):
     display_name = _("Local Baserow aggregate rows")
     type = "local_baserow_aggregate_rows"
     compat_type = "aggregate_rows"
@@ -917,7 +965,9 @@ class AutomationTriggerNodeType(AutomationNodeType):
         return history
 
 
-class LocalBaserowRowsCreatedTriggerNodeType(AutomationTriggerNodeType):
+class LocalBaserowRowsCreatedTriggerNodeType(
+    LocalBaserowTableNodeTypeMixin, AutomationTriggerNodeType
+):
     display_name = _("Local Baserow rows created")
     type = "local_baserow_rows_created"
     compat_type = "rows_created"
@@ -925,7 +975,9 @@ class LocalBaserowRowsCreatedTriggerNodeType(AutomationTriggerNodeType):
     service_type = LocalBaserowRowsCreatedTriggerServiceType.type
 
 
-class LocalBaserowRowsUpdatedTriggerNodeType(AutomationTriggerNodeType):
+class LocalBaserowRowsUpdatedTriggerNodeType(
+    LocalBaserowTableNodeTypeMixin, AutomationTriggerNodeType
+):
     display_name = _("Local Baserow rows updated")
     type = "local_baserow_rows_updated"
     compat_type = "rows_updated"
@@ -933,7 +985,9 @@ class LocalBaserowRowsUpdatedTriggerNodeType(AutomationTriggerNodeType):
     service_type = LocalBaserowRowsUpdatedTriggerServiceType.type
 
 
-class LocalBaserowRowsDeletedTriggerNodeType(AutomationTriggerNodeType):
+class LocalBaserowRowsDeletedTriggerNodeType(
+    LocalBaserowTableNodeTypeMixin, AutomationTriggerNodeType
+):
     display_name = _("Local Baserow rows deleted")
     type = "local_baserow_rows_deleted"
     compat_type = "rows_deleted"
@@ -941,7 +995,9 @@ class LocalBaserowRowsDeletedTriggerNodeType(AutomationTriggerNodeType):
     service_type = LocalBaserowRowsDeletedTriggerServiceType.type
 
 
-class LocalBaserowFieldsUpdatedTriggerNodeType(AutomationTriggerNodeType):
+class LocalBaserowFieldsUpdatedTriggerNodeType(
+    LocalBaserowTableNodeTypeMixin, AutomationTriggerNodeType
+):
     type = "local_baserow_fields_updated"
     model_class = LocalBaserowFieldsUpdatedTriggerNode
     service_type = LocalBaserowFieldsUpdatedTriggerServiceType.type

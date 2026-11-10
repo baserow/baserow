@@ -6,7 +6,6 @@ without evaluating it.
 import pytest
 
 from baserow.core.graph.types import GraphPointPosition
-from baserow.core.tools.errors import ToolInputError
 from baserow_enterprise.builder.tools import data_sources
 from baserow_enterprise.builder.tools.formulas import (
     current_record_of,
@@ -92,7 +91,6 @@ def test_paths_the_page_has_are_accepted(site):
     for formula in [
         "add(get('page_parameter.id'), 1)",
         "get('page_parameter.q')",
-        "get('user.first_name')",
         "get('user.email')",
         f"get('form_data.{site['form_field'].id}')",
         f"get('data_source.{rows}')",
@@ -150,6 +148,7 @@ def test_a_data_source_without_a_table_reads_anything(data_fixture, site):
         ("to_duration(99999999999999999999)", "not a valid formula"),
         ("duration_format(99999999999999999999,'a')", "not a valid formula"),
         ("get('[')", "doesn't name anything"),
+        ("get('user.first_name')", "has no 'first_name'"),
     ],
 )
 def test_refused_with_a_useful_message(site, formula, expected):
@@ -290,15 +289,15 @@ def test_a_collection_following_a_property_of_a_row_is_not_checked(data_fixture,
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("row_id", ["", "   "])
-def test_update_refuses_a_blank_row_id_on_a_get_row(site, row_id):
-    with pytest.raises(ToolInputError, match="row_id"):
-        data_sources.update_data_source(
-            site["ctx"], site["row"].id, DataSourceChanges(row_id=row_id)
-        )
+def test_update_with_a_blank_row_id_reads_the_first_row(site, row_id):
+    result = data_sources.update_data_source(
+        site["ctx"], site["row"].id, DataSourceChanges(row_id=row_id)
+    )
 
+    assert "formula_errors" not in result
     service = site["row"].service.specific
     service.refresh_from_db()
-    assert service.row_id["formula"] == "'1'"
+    assert service.row_id["formula"] == ""
 
 
 @pytest.mark.django_db

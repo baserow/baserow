@@ -82,7 +82,9 @@ def setup_user_source(
 ) -> dict[str, Any]:
     """
     Let people log in to an application builder: set up a user source with password
-    login on a table of users, and a login page with an auth_form.
+    login on a table of users, and a login page with an auth_form. This also writes
+    to a database: it can create a Users table with example rows, or add a Password
+    field to an existing table.
 
     With database_id, a new Users table is created with example users, one per role.
     With table_id, the table needs an email field and a name or primary field; a

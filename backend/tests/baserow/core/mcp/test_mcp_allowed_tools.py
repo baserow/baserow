@@ -31,9 +31,10 @@ def test_endpoint_without_allow_list_gets_only_legacy_default_tools(data_fixture
     assert registry.get_allowed_tool(endpoint, LEGACY_DEFAULT_TOOLS[0]) is not None
 
 
-# Removed in milestone 2. It was disabled from the day `allowed_tools` was
-# added, so no stored list can hold it and no data migration is needed.
-REMOVED_TOOLS = ["create_table"]
+# Removed in milestone 2. `create_table` was disabled from the day `allowed_tools`
+# was added, so no stored list can hold it. Stored `create_dashboards` grants are
+# renamed to `create_dashboard` by core migration 0136.
+REMOVED_TOOLS = ["create_table", "create_dashboards"]
 # Disabled before milestone 2 and now enabled under the same names.
 REENABLED_TOOLS = ["create_fields", "update_fields", "delete_fields"]
 
