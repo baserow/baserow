@@ -28,6 +28,10 @@ export function canChangeVisibilityInDetails(template) {
   return ['private', 'public'].includes(template?.state)
 }
 
+export function canInstall(template, isStaff) {
+  return !(template?.state === 'blocked' && isOwnTemplate(template) && !isStaff)
+}
+
 /**
  * The private link of the user's template, or null without one. The link of a
  * blocked template can't be used.

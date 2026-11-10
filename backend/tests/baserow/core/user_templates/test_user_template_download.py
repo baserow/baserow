@@ -113,13 +113,13 @@ def lose_access(data_fixture, change, template, user):
         # The template stays public, but the user can't sign in anymore.
         User.objects.filter(id=user.id).update(is_active=False)
     else:
-        data_fixture.set_user_template_state(template, "marked")
+        data_fixture.set_user_template_state(template, change)
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "change,with_archive",
-    [("private", False), ("deactivated", False), ("marked", True)],
+    [("private", False), ("deactivated", False), ("blocked", False), ("marked", True)],
 )
 def test_download_job_fails_when_access_is_lost_before_it_runs(
     data_fixture, change, with_archive

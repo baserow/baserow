@@ -581,6 +581,94 @@ class RejectUserTemplateAdminActionType(ActionType):
         return RootActionScopeType.value()
 
 
+class BlockUserTemplateAdminActionType(ActionType):
+    type = "admin_block_user_template"
+    description = ActionTypeDescription(
+        _("Admin blocked template"),
+        _('Template "%(template_name)s" (%(template_id)s) blocked: "%(reason)s"'),
+    )
+    analytics_params = ["template_id", "owner_id"]
+
+    @dataclasses.dataclass
+    class Params:
+        template_id: int
+        template_name: str
+        owner_id: Optional[int]
+        reason: str
+
+    @classmethod
+    def do(cls, user: AbstractUser, template_id: int, reason: str) -> Template:
+        """
+        Blocks the template. Blocking it again records the new reason. Not
+        undoable.
+
+        :param user: The instance admin blocking the template.
+        :param template_id: The id of the template, which is its root.
+        :param reason: Why the template is blocked.
+        :return: The latest revision of the template.
+        """
+
+        with transaction.atomic():
+            revision = UserTemplateHandler().block_template(user, template_id, reason)
+            params = cls.Params(
+                template_id=template_id,
+                template_name=revision.name,
+                owner_id=revision.get_root().owner_id,
+                reason=reason,
+            )
+            cls.register_action(user, params, cls.scope())
+
+        return revision
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()
+
+
+class UnblockUserTemplateAdminActionType(ActionType):
+    type = "admin_unblock_user_template"
+    description = ActionTypeDescription(
+        _("Admin unblocked template"),
+        _('Template "%(template_name)s" (%(template_id)s) unblocked and made private'),
+    )
+    analytics_params = ["template_id", "owner_id"]
+
+    @dataclasses.dataclass
+    class Params:
+        template_id: int
+        template_name: str
+        owner_id: Optional[int]
+
+    @classmethod
+    def do(cls, user: AbstractUser, template_id: int) -> Template:
+        """
+        Unblocks the template. Nothing is recorded when it wasn't blocked. Not
+        undoable.
+
+        :param user: The instance admin unblocking the template.
+        :param template_id: The id of the template, which is its root.
+        :return: The latest revision of the template.
+        """
+
+        with transaction.atomic():
+            revision, unblocked = UserTemplateHandler().unblock_template(
+                user, template_id
+            )
+            if unblocked:
+                params = cls.Params(
+                    template_id=template_id,
+                    template_name=revision.name,
+                    owner_id=revision.get_root().owner_id,
+                )
+                cls.register_action(user, params, cls.scope())
+
+        return revision
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()
+
+
 class UpdateUserTemplatePrivateLinkActionType(ActionType):
     type = "update_user_template_private_link"
     description = ActionTypeDescription(

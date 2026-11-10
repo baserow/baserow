@@ -119,6 +119,7 @@ describe('TemplateModal navigation', () => {
         'delete',
         'make-public',
         'make-private',
+        'moderated',
       ],
       template: `<div class="details">
         {{ template.name }}: {{ categories.map((c) => c.name).join(',') }}
@@ -127,6 +128,7 @@ describe('TemplateModal navigation', () => {
         <a class="details__edit" @click="$emit('edit', 'details')" />
         <a class="details__delete" @click="$emit('delete', template)" />
         <a class="details__outdated" @click="$emit('outdated')" />
+        <a class="details__moderated" @click="$emit('moderated')" />
       </div>`,
     }),
     TemplateList: defineComponent({
@@ -515,6 +517,31 @@ describe('TemplateModal navigation', () => {
         title: 'templateModal.unavailableTitle',
       })
       expect(refreshPublicList).toHaveBeenCalledTimes(1)
+    })
+
+    it('list the public templates again once staff block or unblock the opened one', async () => {
+      testApp.authenticate({ id: 1 })
+      mockPublicTemplate()
+      const wrapper = await mountAndShow()
+      await tabs(wrapper)[1].trigger('click')
+      await wrapper.find('.public-list__sprint-tracker').trigger('click')
+      await flushPromises()
+
+      await wrapper.find('.details__moderated').trigger('click')
+
+      expect(refreshPublicList).toHaveBeenCalledTimes(1)
+    })
+
+    it('list the own templates again once staff block or unblock their own opened one', async () => {
+      testApp.authenticate({ id: 1, is_staff: true })
+      const wrapper = await mountAndShow()
+      await openOwnTab(wrapper)
+      await wrapper.find('.own-list__sprint-tracker').trigger('click')
+      await flushPromises()
+
+      await wrapper.find('.details__moderated').trigger('click')
+
+      expect(refreshList).toHaveBeenCalledTimes(1)
     })
 
     it('open the public template chosen last when an earlier one answers late', async () => {

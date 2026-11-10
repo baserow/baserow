@@ -202,12 +202,12 @@ class TemplateListItemSerializer(TemplateDetailSerializer):
     created_on = serializers.DateTimeField(source="get_root.created_on", read_only=True)
     categories = TemplateCategorySerializer(read_only=True, many=True)
     state = serializers.SerializerMethodField(
-        help_text="The state of the template as shown to its owner. Null for "
-        "anyone else."
+        help_text="The state of the template as shown to its owner, and to "
+        "instance admins on the template page. Null for anyone else."
     )
     reason = serializers.SerializerMethodField(
         help_text="Why the template was rejected or blocked, if given. Only shown "
-        "to its owner."
+        "to its owner, and to instance admins on the template page."
     )
     can_make_public = serializers.SerializerMethodField(
         help_text="Whether making the template public lists it or sends it to "
@@ -261,17 +261,24 @@ class TemplateListItemSerializer(TemplateDetailSerializer):
             "created_on",
         )
 
-    def _get_owner_state(
+    def _get_state(
         self, instance: Template
     ) -> Tuple[Optional[UserTemplateState], Optional[str]]:
         """
-        The state of the template and the admin's reason, shown to its owner only.
+        The state of the template and the admin's reason, shown to its owner, and
+        to instance admins when the context has `shows_state_to_staff`.
 
         :param instance: The template revision.
         :return: The state and the reason, None for anyone else.
         """
 
-        if not self._is_owner(instance):
+        request = self.context.get("request")
+        shown_to_staff = (
+            self.context.get("shows_state_to_staff", False)
+            and instance.type == Template.Type.USER
+            and request.user.is_staff
+        )
+        if not (shown_to_staff or self._is_owner(instance)):
             return None, None
         return UserTemplateHandler().get_template_state(instance)
 
@@ -308,12 +315,12 @@ class TemplateListItemSerializer(TemplateDetailSerializer):
         serializers.ChoiceField(choices=UserTemplateState.choices, allow_null=True)
     )
     def get_state(self, instance: Template) -> Optional[UserTemplateState]:
-        state, _ = self._get_owner_state(instance)
+        state, _ = self._get_state(instance)
         return state
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_reason(self, instance: Template) -> Optional[str]:
-        _, reason = self._get_owner_state(instance)
+        _, reason = self._get_state(instance)
         return reason
 
     @extend_schema_field(serializers.BooleanField(allow_null=True))

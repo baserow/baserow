@@ -12,7 +12,9 @@ from baserow.core.handler import CoreHandler
 from baserow.core.models import Template, UserTemplateState
 from baserow.core.user_templates.actions import (
     ApproveUserTemplateAdminActionType,
+    BlockUserTemplateAdminActionType,
     RejectUserTemplateAdminActionType,
+    UnblockUserTemplateAdminActionType,
 )
 from baserow.core.user_templates.exceptions import (
     TemplateAlreadyApproved,
@@ -392,3 +394,115 @@ def test_template_lists_read_only_the_later_revisions(data_fixture):
 
     assert rows_filtered_per_row(rejected_tab) < templates // 4
     assert rows_filtered_per_row(owned) < templates // 4
+
+
+def block(admin, root, reason="Spam"):
+    return action_type_registry.get_by_type(BlockUserTemplateAdminActionType).do(
+        admin, root.id, reason
+    )
+
+
+def unblock(admin, root):
+    return action_type_registry.get_by_type(UnblockUserTemplateAdminActionType).do(
+        admin, root.id
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "revision_states,edited_while_blocked",
+    [
+        (["shared"], False),
+        (["in_review"], False),
+        (["public"], False),
+        (["public", "in_review"], False),
+        (["rejected"], False),
+        (["public"], True),
+        (["rejected"], True),
+        (["in_review"], True),
+    ],
+)
+def test_block_then_unblock(data_fixture, revision_states, edited_while_blocked):
+    admin = data_fixture.create_user(is_staff=True)
+    root, _ = create_reviewable(data_fixture, revision_states)
+    block_fields = {"blocked_at", "blocked_by_id", "blocked_reason"}
+
+    def snapshot():
+        return [
+            {key: value for key, value in row.items() if key not in block_fields}
+            for row in Template.objects.values().order_by("id")
+        ]
+
+    before = snapshot()
+
+    with recorded_actions() as blocked:
+        latest = block(admin, root)
+
+    assert snapshot() == before
+    assert get_state(root) == UserTemplateState.BLOCKED
+    if edited_while_blocked:
+        latest = UserTemplateHandler().create_template_revision(
+            user=root.owner,
+            root=root,
+            base_revision=latest,
+            name="Edited",
+            description="",
+            icon=ICON,
+            category_ids=[data_fixture.create_template_category().id],
+            workspace=data_fixture.create_workspace(),
+        )
+
+    with recorded_actions() as unblocked:
+        assert unblock(admin, root).id == latest.id
+
+    root = Template.objects.get(id=root.id)
+    assert (root.blocked_at, root.blocked_by, root.blocked_reason) == (None, None, "")
+    assert root.public_revision_id is None
+    assert root.private_link_token == before[0]["private_link_token"]
+    assert not Template.objects.open_reviews().filter_by_root(id=root.id).exists()
+    assert get_state(root) == UserTemplateState.PRIVATE
+    assert Template.objects.with_template_state().get(
+        id=root.id
+    ).has_open_rejection is ("rejected" in revision_states)
+    assert [entry[0] for entry in blocked] == ["admin_block_user_template"]
+    assert unblocked == [
+        (
+            "admin_unblock_user_template",
+            {
+                "template_id": root.id,
+                "template_name": latest.name,
+                "owner_id": root.owner_id,
+            },
+        )
+    ]
+
+
+@pytest.mark.django_db
+def test_block_again_and_unblock_without_block(data_fixture):
+    first_admin = data_fixture.create_user(is_staff=True)
+    second_admin = data_fixture.create_user(is_staff=True)
+    root, _ = create_reviewable(data_fixture, ["public"])
+    listed, _ = create_reviewable(data_fixture, ["public"])
+
+    with recorded_actions() as actions:
+        with freeze_time("2026-11-01 12:00"):
+            block(first_admin, root, "Spam")
+        with freeze_time("2026-11-02 12:00"):
+            block(second_admin, root, "Scam")
+        before = list(Template.objects.values().order_by("id"))
+        unblock(first_admin, listed)
+
+    root.refresh_from_db()
+    assert root.blocked_reason == "Scam"
+    assert root.blocked_by == second_admin
+    assert root.blocked_at.isoformat() == "2026-11-01T12:00:00+00:00"
+    assert list(Template.objects.values().order_by("id")) == before
+    assert get_state(listed) == UserTemplateState.PUBLIC
+    params = {"template_id": root.id, "template_name": root.name}
+    assert actions == [
+        (
+            "admin_block_user_template",
+            {**params, "owner_id": root.owner_id, "reason": reason},
+        )
+        for reason in ["Spam", "Scam"]
+    ]

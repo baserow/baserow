@@ -71,6 +71,7 @@ from baserow.core.user_templates.exceptions import (
     TemplateAlreadyApproved,
     TemplateAlreadyRejected,
     TemplateBlocked,
+    TemplateBlockReasonRequired,
     TemplateChangedDuringUpdate,
     TemplateHasNoContent,
     TemplateNotReviewable,
@@ -723,17 +724,22 @@ class UserTemplateHandler:
             template_id, owner=None if is_instance_admin(user) else user
         )
 
-    def get_template_for_review(self, template_id: int) -> Template:
+    def _get_template_for_moderation(
+        self, admin: AbstractUser, template_id: int
+    ) -> Template:
         """
-        Returns the locked root of a user template to review. The caller checks
-        the admin.
+        Returns the locked root of a user template to review, block or unblock.
 
+        :param admin: The user who moderates the template.
         :param template_id: The id of the template, which is its root.
+        :raises IsNotAdminError: If the user isn't an instance admin.
         :raises TemplateDoesNotExist: If the template doesn't exist, isn't the root
             of a user template or is marked for deletion.
         :return: The locked root of the template.
         """
 
+        if not is_instance_admin(admin):
+            raise IsNotAdminError()
         return self._get_locked_user_root(template_id)
 
     def _get_locked_user_root(
@@ -767,7 +773,8 @@ class UserTemplateHandler:
         """
         Returns the annotated rows of a tab of the admin page.
 
-        :param state: The tab, one of `USER_TEMPLATE_ADMIN_STATES`.
+        :param state: The tab, one of `USER_TEMPLATE_ADMIN_STATES`, or the state of
+            a template an admin unblocked.
         :return: The rows of the tab.
         """
 
@@ -784,12 +791,21 @@ class UserTemplateHandler:
                 .filter(~Exists(in_queue))
                 .annotate(can_approve=Value(False), edited_since_submitted=Value(False))
             )
-        else:
+        elif state in [UserTemplateState.IN_REVIEW, UserTemplateState.REJECTED]:
             rows = queue.filter(
                 review_state=Template.ReviewState.PENDING
                 if state == UserTemplateState.IN_REVIEW
                 else Template.ReviewState.REJECTED
             ).with_can_approve()
+        else:
+            rows = (
+                Template.objects.user()
+                .filter_by_root(marked_for_deletion_at__isnull=True)
+                .latest_revisions()
+                .with_template_state()
+                .filter(template_state=state)
+                .annotate(can_approve=Value(False), edited_since_submitted=Value(False))
+            )
 
         return rows.annotate(
             admin_state=Value(state, output_field=CharField()),
@@ -897,6 +913,21 @@ class UserTemplateHandler:
             .order_by("-version")
             .first()
         )
+
+    def get_latest_revision_of_locked_root(self, root: Template) -> Template:
+        """
+        Returns the latest revision of a template, with the locked `root` set as
+        its root, so that the state read through it is the locked one.
+
+        :param root: The root of the template, locked.
+        :return: The latest revision, with `root` as its root.
+        """
+
+        revision = self.get_latest_revision(root)
+        if revision.id == root.id:
+            return root
+        revision.root = root
+        return revision
 
     def read_require_approval(self) -> bool:
         """
@@ -1047,8 +1078,8 @@ class UserTemplateHandler:
             reviewed, None if never.
         :param can_review: Whether the review applies to a template in a state,
             listed or not.
-        :raises IsNotAdminError: If the admin isn't an instance admin.
-        :raises TemplateDoesNotExist: See `get_template_for_review`.
+        :raises IsNotAdminError: See `_get_template_for_moderation`.
+        :raises TemplateDoesNotExist: See `_get_template_for_moderation`.
         :raises TemplateBlocked: If the template is blocked.
         :raises TemplateAlreadyApproved: If the template is public now, while the
             admin saw it in another state.
@@ -1062,10 +1093,7 @@ class UserTemplateHandler:
             `can_approve`.
         """
 
-        if not is_instance_admin(admin):
-            raise IsNotAdminError()
-
-        root = self.get_template_for_review(template_id)
+        root = self._get_template_for_moderation(admin, template_id)
         if root.blocked_at is not None:
             raise TemplateBlocked(f"The template {template_id} is blocked.")
 
@@ -1265,16 +1293,22 @@ class UserTemplateHandler:
     def withdraw_review(self, root: Template) -> Optional[Template]:
         """
         Withdraws the open review of a user template, keeping a reject reason.
-        The caller checks the owner, unlists it, and holds the lock of the root.
+        When the root is the revision withdrawn, only `root` is changed and the
+        caller saves it. The caller checks the user, unlists it, and holds the
+        lock of the root.
 
         :param root: The root of the template, locked.
         :return: The withdrawn revision, or None if none was in review or rejected.
         """
 
         revision = Template.objects.open_reviews().filter_by_root(id=root.id).first()
-        if revision is not None:
-            revision.review_state = Template.ReviewState.WITHDRAWN
-            revision.save(update_fields=["review_state"])
+        if revision is None:
+            return None
+        if revision.id == root.id:
+            root.review_state = Template.ReviewState.WITHDRAWN
+            return root
+        revision.review_state = Template.ReviewState.WITHDRAWN
+        revision.save(update_fields=["review_state"])
         return revision
 
     def _move_review(self, previous: Template, revision: Template) -> None:
@@ -1301,6 +1335,89 @@ class UserTemplateHandler:
 
         root.public_revision = None
         root.save(update_fields=["public_revision"])
+
+    def make_template_private(
+        self, root: Template, update_fields: Iterable[str] = ()
+    ) -> Optional[int]:
+        """
+        Makes a user template private, as its owner does and as unblocking it does.
+        A listed revision stays approved. The root is saved once, with the
+        `update_fields` the caller changed on it. The caller checks the user and
+        holds the lock of the root.
+
+        :param root: The root of the template, locked.
+        :param update_fields: The fields of the root the caller changed.
+        :return: The id of the revision that was listed, otherwise the id of the
+            revision withdrawn from review, otherwise None.
+        """
+
+        self.drop_scheduled_make_public(root)
+        root_fields = list(update_fields)
+        public_revision_id = root.public_revision_id
+        if public_revision_id is not None:
+            root.public_revision = None
+            root_fields.append("public_revision")
+        withdrawn = self.withdraw_review(root)
+        if withdrawn is root:
+            root_fields.append("review_state")
+        if root_fields:
+            root.save(update_fields=root_fields)
+
+        if public_revision_id is not None:
+            return public_revision_id
+        return withdrawn.id if withdrawn is not None else None
+
+    def block_template(
+        self, admin: AbstractUser, template_id: int, reason: str
+    ) -> Template:
+        """
+        Blocks a user template in any state. Blocking it again changes the reason
+        and who blocked it, and keeps when. Must run in a transaction.
+
+        :param admin: The instance admin who blocks the template.
+        :param template_id: The id of the template, which is its root.
+        :param reason: Why the template is blocked, which its author sees.
+        :raises TemplateBlockReasonRequired: If the reason is blank.
+        :raises: See `_get_template_for_moderation`.
+        :return: The latest revision of the template.
+        """
+
+        if not reason.strip():
+            raise TemplateBlockReasonRequired("A block reason is required.")
+
+        root = self._get_template_for_moderation(admin, template_id)
+        if root.blocked_at is None:
+            root.blocked_at = timezone.now()
+        root.blocked_by = admin
+        root.blocked_reason = reason
+        root.save(update_fields=["blocked_at", "blocked_by", "blocked_reason"])
+        return self.get_latest_revision_of_locked_root(root)
+
+    def unblock_template(
+        self, admin: AbstractUser, template_id: int
+    ) -> tuple[Template, bool]:
+        """
+        Lifts the block of a user template, which makes it private. Must run in a
+        transaction.
+
+        :param admin: The instance admin who unblocks the template.
+        :param template_id: The id of the template, which is its root.
+        :raises: See `_get_template_for_moderation`.
+        :return: The latest revision of the template, and whether it was blocked.
+        """
+
+        root = self._get_template_for_moderation(admin, template_id)
+        latest = self.get_latest_revision_of_locked_root(root)
+        if root.blocked_at is None:
+            return latest, False
+
+        root.blocked_at = None
+        root.blocked_by = None
+        root.blocked_reason = ""
+        self.make_template_private(
+            root, update_fields=["blocked_at", "blocked_by", "blocked_reason"]
+        )
+        return latest, True
 
     def drop_scheduled_make_public(self, root: Template) -> None:
         """
@@ -1716,7 +1833,7 @@ class UserTemplateHandler:
     def update_review_step(self, latest: Template) -> Optional[str]:
         """
         What an update of a user template does to its review. A blocked one
-        keeps its review moving, so it's in review once unblocked.
+        keeps its review moving until unblocking withdraws it.
 
         :param latest: The latest revision of the template, with its root.
         :return: "submit", "move", or None when the review is left as it is.
@@ -1731,6 +1848,7 @@ class UserTemplateHandler:
     def update_needs_review(self, latest: Template, require_approval: bool) -> bool:
         """
         Whether an update of a user template sends its new revision to review.
+        A blocked one isn't reviewed.
 
         :param latest: The latest revision of the template, see
             `get_template_state`.
@@ -1740,6 +1858,8 @@ class UserTemplateHandler:
             submitted and needs review, see `update_review_step`.
         """
 
+        if latest.get_root().blocked_at is not None:
+            return False
         step = self.update_review_step(latest)
         return step == "move" or (
             step == "submit" and self.submit_needs_review(latest, require_approval)

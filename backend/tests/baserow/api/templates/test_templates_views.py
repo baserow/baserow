@@ -429,6 +429,7 @@ def test_sync_install_template_ignores_user_templates(api_client, data_fixture):
     [
         ("owner", "private", HTTP_202_ACCEPTED, None),
         ("owner", "blocked", HTTP_400_BAD_REQUEST, "ERROR_TEMPLATE_BLOCKED"),
+        ("staff_owner", "blocked", HTTP_202_ACCEPTED, None),
         ("staff", "private", HTTP_202_ACCEPTED, None),
         ("staff", "blocked", HTTP_202_ACCEPTED, None),
         ("staff", "marked", HTTP_404_NOT_FOUND, "ERROR_TEMPLATE_DOES_NOT_EXIST"),
@@ -451,9 +452,11 @@ def test_async_install_user_template_access(
     expected_status,
     expected_error,
 ):
-    owner, owner_token = data_fixture.create_user_and_token()
+    owner, owner_token = data_fixture.create_user_and_token(
+        is_staff=actor == "staff_owner"
+    )
     user_template = create_template(data_fixture, owner, state)
-    if actor == "owner":
+    if actor in ["owner", "staff_owner"]:
         user, token = owner, owner_token
     else:
         user, token = data_fixture.create_user_and_token(is_staff=actor == "staff")

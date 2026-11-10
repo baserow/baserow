@@ -16,8 +16,9 @@
       class="templates__body"
       @loaded="(succeeded) => (loaded = succeeded)"
       @back="hide()"
+      @moderated="emit('reviewed', template.id)"
     >
-      <template #foot>
+      <template v-if="!previewOnly" #foot>
         <div class="templates-admin-review-actions">
           <Button
             v-if="rejectLabel"
@@ -69,6 +70,11 @@ const props = defineProps({
     required: false,
     default: true,
   },
+  previewOnly: {
+    type: Boolean,
+    required: false,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['reject', 'reviewed'])
@@ -91,6 +97,7 @@ const preview = computed(() => {
   return {
     ...props.template,
     author_name: author ? author.first_name || author.email : null,
+    is_own: author?.id === $store.getters['auth/getUserId'],
   }
 })
 

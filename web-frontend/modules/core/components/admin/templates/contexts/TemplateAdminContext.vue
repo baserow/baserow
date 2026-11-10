@@ -35,23 +35,36 @@ import { useCopyLink } from '@baserow/modules/core/composables/useCopyLink'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 const TEMPLATE_ADMIN_MENU_ITEMS = {
-  in_review: [{ name: 'download' }, { name: 'delete', separator: true }],
+  in_review: [
+    { name: 'download' },
+    { name: 'block', separator: true },
+    { name: 'delete', separator: true },
+  ],
   public: [
     { name: 'view' },
     { name: 'copyLink' },
     { name: 'download' },
     { name: 'unlist', separator: true },
+    { name: 'block' },
     { name: 'delete', separator: true },
   ],
   rejected: [
     { name: 'approve' },
     { name: 'download', separator: true },
+    { name: 'block', separator: true },
+    { name: 'delete', separator: true },
+  ],
+  blocked: [
+    { name: 'preview' },
+    { name: 'download' },
+    { name: 'unblock', separator: true },
     { name: 'delete', separator: true },
   ],
 }
 
 const ITEMS = {
   view: { label: 'templatesAdmin.viewInTemplates', icon: 'iconoir-view-grid' },
+  preview: { label: 'templatesAdmin.preview', icon: 'iconoir-eye-empty' },
   copyLink: { label: 'templateInstall.copyLink', icon: 'iconoir-link' },
   download: { label: 'templateInstall.download', icon: 'iconoir-download' },
   unlist: {
@@ -59,6 +72,8 @@ const ITEMS = {
     icon: 'iconoir-eye-off',
   },
   approve: { label: 'templatesAdmin.approveAfterAll', icon: 'iconoir-check' },
+  block: { label: 'templatesAdmin.block', icon: 'iconoir-warning-triangle' },
+  unblock: { label: 'templatesAdmin.unblock', icon: 'iconoir-undo' },
   delete: { label: 'templatesAdmin.delete', icon: 'iconoir-bin', danger: true },
 }
 
@@ -69,7 +84,14 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['view', 'unlist', 'delete', 'changed'])
+const emit = defineEmits([
+  'view',
+  'preview',
+  'unlist',
+  'block',
+  'delete',
+  'changed',
+])
 
 const router = useRouter()
 const config = useRuntimeConfig()
@@ -94,6 +116,10 @@ const ACTIONS = {
   view() {
     hide()
     emit('view', props.template)
+  },
+  preview() {
+    hide()
+    emit('preview', props.template)
   },
   copyLink() {
     return copyLink(
@@ -121,20 +147,31 @@ const ACTIONS = {
     hide()
     emit('unlist', props.template)
   },
-  async approve() {
-    const template = props.template
+  approve() {
+    return reviewAndRefresh('approve')
+  },
+  block() {
     hide()
-    try {
-      await decide(template, 'approve')
-      emit('changed', template.id)
-    } catch (error) {
-      notifyIf(error, 'template')
-    }
+    emit('block', props.template)
+  },
+  unblock() {
+    return reviewAndRefresh('unblock')
   },
   delete() {
     hide()
     emit('delete', props.template)
   },
+}
+
+async function reviewAndRefresh(action) {
+  const template = props.template
+  hide()
+  try {
+    await decide(template, action)
+    emit('changed', template.id)
+  } catch (error) {
+    notifyIf(error, 'template')
+  }
 }
 
 function toggle(...args) {

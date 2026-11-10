@@ -434,14 +434,18 @@ def test_get_user_template_shows_others_its_public_revision(api_client, data_fix
             datetime.fromisoformat(result["updated_on"]),
         )
 
-    for token_used in [None, other_token, staff_token]:
+    for token_used, shown_state in [
+        (None, None),
+        (other_token, None),
+        (staff_token, "public"),
+    ]:
         headers = {"HTTP_AUTHORIZATION": f"JWT {token_used}"} if token_used else {}
         assert get_shown(headers) == (
             template.id,
             public.id,
             "Second",
             False,
-            None,
+            shown_state,
             ["Sales"],
             public.created_on,
         )
@@ -454,7 +458,7 @@ def test_get_user_template_shows_others_its_public_revision(api_client, data_fix
             public_revision=public, blocked_at=None
         )
         Template.objects.filter(id=template.id).update(**changes)
-        assert get_shown(staff_headers)[1:5] == (latest.id, "Third", False, None)
+        assert get_shown(staff_headers)[1:5] == (latest.id, "Third", False, state)
         response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
 
         assert response.status_code == HTTP_200_OK
@@ -1424,18 +1428,35 @@ def test_change_private_link_actors(api_client, data_fixture, change, actor, sta
         assert response.json()["error"] == "ERROR_TEMPLATE_DOES_NOT_EXIST"
 
 
-def test_change_private_link_blocked(api_client, data_fixture):
-    owner, token = data_fixture.create_user_and_token()
-    template = create_own_template(data_fixture, owner, "blocked")
+BLOCKED_UPDATE = (
+    "The template is blocked, so its visibility and private link can't be changed."
+)
 
-    response = change_private_link(api_client, token, template.slug, "on")
+
+@pytest.mark.parametrize(
+    "body,detail",
+    [
+        (PUBLIC, BLOCKED_UPDATE),
+        ({"visibility": "public"}, BLOCKED_UPDATE),
+        (PRIVATE, BLOCKED_UPDATE),
+        ({"private_link": True}, BLOCKED_UPDATE),
+        (None, "The template is blocked, so its private link can't be changed."),
+    ],
+    ids=["public", "public_without_consent", "private", "link", "rotate"],
+)
+def test_change_blocked_template(api_client, data_fixture, body, detail):
+    owner, token = data_fixture.create_user_and_token()
+    template = create_own_template(data_fixture, owner, "public_blocked")
+    before = Template.objects.values().get(id=template.id)
+
+    if body is None:
+        response = change_private_link(api_client, token, template.slug, "rotate")
+    else:
+        response = patch_template(api_client, token, template.slug, **body)
 
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json() == {
-        "error": "ERROR_TEMPLATE_BLOCKED",
-        "detail": "The template is blocked, so its private link can't be changed.",
-    }
-    assert Template.objects.get(id=template.id).private_link_token is None
+    assert response.json() == {"error": "ERROR_TEMPLATE_BLOCKED", "detail": detail}
+    assert Template.objects.values().get(id=template.id) == before
 
 
 def test_private_link_only_opens_its_template(api_client, data_fixture):

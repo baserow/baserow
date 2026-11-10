@@ -14,6 +14,7 @@
       class="templates__body"
       @back="showList = true"
       @outdated="templateOutdated"
+      @moderated="publicTemplateList?.refresh()"
     />
     <TemplateList
       v-show="!selectedTemplate && tab === 'official'"

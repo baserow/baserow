@@ -164,6 +164,48 @@ describe('TemplateDetails', () => {
   )
 
   test.each([
+    [false, []],
+    [
+      true,
+      [
+        'templateInstall.download',
+        'templateDetails.changeBlockReason',
+        'templatesAdmin.unblock',
+      ],
+    ],
+  ])(
+    'shows the owner of a blocked template, staff %s, what they may do',
+    async (isStaff, staffActions) => {
+      testApp.authenticate({
+        id: 1,
+        preferences: {},
+        completed_onboarding: true,
+        is_staff: isStaff,
+      })
+      const wrapper = await mountComponent({
+        template: { ...template, type: 'user', state: 'blocked', is_own: true },
+        ownerActions: true,
+      })
+
+      expect(wrapper.find('.template-details__state').exists()).toBe(true)
+      expect(wrapper.find('.template-install__actions .button').exists()).toBe(
+        isStaff
+      )
+      await wrapper
+        .find('.template-install__actions .button-icon')
+        .trigger('click')
+      expect(
+        wrapper.findAll('.context__menu-item-link').map((link) => link.text())
+      ).toStrictEqual([
+        'templateDetails.editDetails',
+        'templateDetails.updateContent',
+        ...staffActions,
+        'templateDetails.delete',
+      ])
+    }
+  )
+
+  test.each([
     ['private', true],
     ['blocked', false],
   ])(
@@ -197,6 +239,102 @@ describe('TemplateDetails', () => {
       }
     }
   )
+
+  const menuLabels = async (wrapper) => {
+    await wrapper
+      .find('.template-install__actions .button-icon')
+      .trigger('click')
+    return wrapper
+      .findAll('.context__menu-item-link')
+      .map((link) => link.text())
+  }
+
+  test.each([
+    [true, { type: 'user' }, true],
+    [true, { type: 'user', is_own: true }, true],
+    [true, {}, false],
+    [false, { type: 'user' }, false],
+  ])(
+    'offers Block to staff (%s) on %o: %s',
+    async (isStaff, fields, offered) => {
+      testApp.authenticate({ id: 1, preferences: {}, is_staff: isStaff })
+      const wrapper = await mountComponent({
+        template: { ...template, ...fields },
+      })
+
+      expect((await menuLabels(wrapper)).includes('templatesAdmin.block')).toBe(
+        offered
+      )
+    }
+  )
+
+  const clickMenuItem = async (wrapper, label) => {
+    await menuLabels(wrapper)
+    await wrapper
+      .findAll('.context__menu-item-link')
+      .find((link) => link.text() === label)
+      .trigger('click')
+    await flushPromises()
+  }
+
+  const submitReason = async (reason, button) => {
+    const input = document.body.querySelector('.user-template-modal input')
+    const shown = input.value
+    input.value = reason
+    input.dispatchEvent(new Event('input'))
+    await flushPromises()
+    ;[...document.body.querySelectorAll('.user-template-modal button')]
+      .find((element) => element.textContent.includes(button))
+      .click()
+    await flushPromises()
+    return shown
+  }
+
+  test('lets staff block a template, change the reason and unblock it', async () => {
+    testApp.authenticate({ id: 1, preferences: {}, is_staff: true })
+    testApp.mock
+      .onPost('/admin/templates/5/block/')
+      .reply(200, { state: 'blocked', reason: 'Spam' })
+    testApp.mock
+      .onPost('/admin/templates/5/unblock/')
+      .reply(200, { state: 'private', reason: null })
+    const wrapper = await mountComponent({
+      template: { ...template, type: 'user' },
+    })
+
+    await clickMenuItem(wrapper, 'templatesAdmin.block')
+    await submitReason('Spam', 'rejectTemplateModal.block')
+    expect(wrapper.find('.template-details__state').exists()).toBe(true)
+    expect(await menuLabels(wrapper)).toStrictEqual([
+      'templateInstall.download',
+      'templateDetails.changeBlockReason',
+      'templatesAdmin.unblock',
+    ])
+
+    await clickMenuItem(wrapper, 'templateDetails.changeBlockReason')
+    expect(
+      await submitReason('Spam, again', 'rejectTemplateModal.changeBlockReason')
+    ).toBe('Spam')
+    await clickMenuItem(wrapper, 'templatesAdmin.unblock')
+
+    expect(
+      testApp.mock.history.post.map(({ url, data }) => [url, data])
+    ).toStrictEqual([
+      ['/admin/templates/5/block/', JSON.stringify({ reason: 'Spam' })],
+      ['/admin/templates/5/block/', JSON.stringify({ reason: 'Spam, again' })],
+      ['/admin/templates/5/unblock/', undefined],
+    ])
+    expect(testApp.store.state.toast.items).toMatchObject([
+      { type: 'success', title: 'templateDetails.blockReasonChangedTitle' },
+      {
+        type: 'success',
+        title: 'templateDetails.blockedTitle',
+        message: 'templateDetails.blockedDescription',
+      },
+    ])
+    expect(wrapper.find('.template-details__state').exists()).toBe(false)
+    expect(await menuLabels(wrapper)).toContain('templatesAdmin.block')
+  })
 
   test('shows "You" as author of an own template, by the server', async () => {
     const shown = { ...template, type: 'user', author_name: 'Ada' }

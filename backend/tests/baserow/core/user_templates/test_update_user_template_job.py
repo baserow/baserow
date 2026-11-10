@@ -411,7 +411,10 @@ def test_update_user_template_made_private_while_running_stays_private(
 
 @pytest.mark.import_export_workspace
 @pytest.mark.django_db(transaction=True)
-def test_update_user_template_blocked_template(data_fixture, use_tmp_media_root):
+@pytest.mark.parametrize("make_public", [False, True])
+def test_update_user_template_blocked_template(
+    data_fixture, use_tmp_media_root, make_public
+):
     user = data_fixture.create_user()
     root = create_template(
         data_fixture,
@@ -420,10 +423,20 @@ def test_update_user_template_blocked_template(data_fixture, use_tmp_media_root)
         blocked_reason="Spam",
     )
 
-    job = update_details(user, root)
+    job = update_details(
+        user, root, make_public=make_public, public_listing_consent=make_public
+    )
 
-    assert job.state == JOB_FINISHED, job.error
     assert revisions_of(root) == [2]
+    assert Template.objects.get(id=root.id).public_revision_id is None
+    if make_public:
+        assert job.state == JOB_FAILED
+        assert job.error_code == "TemplateBlocked"
+        assert job.human_readable_error == (
+            "The template is blocked, so it can't be made public."
+        )
+    else:
+        assert job.state == JOB_FINISHED, job.error
 
 
 @pytest.mark.django_db

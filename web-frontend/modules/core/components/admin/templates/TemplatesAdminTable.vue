@@ -34,6 +34,7 @@
       <TemplateReviewModal
         ref="reviewModal"
         :template="reviewRow"
+        :preview-only="previewing"
         :can-close="!rejecting"
         @reject="showRejectModal"
         @reviewed="(id) => reviewed(slotProps.refresh, id)"
@@ -41,6 +42,7 @@
       <RejectTemplateModal
         ref="rejectModal"
         :template="rejectRow"
+        :block="blocking"
         :request="reject"
         @done="(id) => reviewed(slotProps.refresh, id)"
         @hidden="rejectHidden"
@@ -49,7 +51,9 @@
         ref="adminContext"
         :template="contextRow"
         @view="showInTemplates"
+        @preview="showPreviewModal"
         @unlist="showRejectModal"
+        @block="showBlockModal"
         @delete="showDeleteModal"
         @changed="(id) => reviewed(slotProps.refresh, id)"
       ></TemplateAdminContext>
@@ -100,6 +104,11 @@ const TABS = [
     name: 'templatesAdmin.rejectedTab',
     empty: 'templatesAdmin.rejectedEmpty',
   },
+  {
+    state: 'blocked',
+    name: 'templatesAdmin.blockedTab',
+    empty: 'templatesAdmin.blockedEmpty',
+  },
 ]
 
 const { $client, $i18n, $store } = useNuxtApp()
@@ -110,9 +119,11 @@ const crudTable = ref(null)
 const tabIndex = ref(0)
 const counts = computed(() => $store.getters['templatesAdmin/counts'])
 const reviewRow = ref({})
+const previewing = ref(false)
 const reviewModal = ref(null)
 const rejectRow = ref({})
 const rejecting = ref(false)
+const blocking = ref(false)
 const rejectModal = ref(null)
 const contextRow = ref(null)
 const adminContext = ref(null)
@@ -151,20 +162,35 @@ function showReviewModal(row) {
     return
   }
   reviewRow.value = row
+  previewing.value = false
+  reviewModal.value.show()
+}
+
+function showPreviewModal(row) {
+  reviewRow.value = row
+  previewing.value = true
   reviewModal.value.show()
 }
 
 function reject(template, reason) {
+  if (blocking.value) {
+    return decide(template, 'block', reason)
+  }
   return decide(template, template.reject_unlists ? 'unlist' : 'reject', reason)
 }
 
-function showRejectModal(row) {
+function showRejectModal(row, { block = false } = {}) {
   if (rejecting.value) {
     return
   }
   rejectRow.value = row
+  blocking.value = block
   rejecting.value = true
   rejectModal.value.show()
+}
+
+function showBlockModal(row) {
+  showRejectModal(row, { block: true })
 }
 
 async function rejectHidden() {
@@ -245,12 +271,16 @@ const STATE_COLUMNS = {
       TemplateUsedField,
       true
     ),
-  rejected: () =>
-    new CrudTableColumn(
-      'reason',
-      () => $i18n.t('templatesAdmin.reason'),
-      TemplateReasonField
-    ),
+  rejected: reasonColumn,
+  blocked: reasonColumn,
+}
+
+function reasonColumn() {
+  return new CrudTableColumn(
+    'reason',
+    () => $i18n.t('templatesAdmin.reason'),
+    TemplateReasonField
+  )
 }
 
 const columns = computed(() => [

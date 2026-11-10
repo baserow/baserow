@@ -44,11 +44,12 @@ describe('TemplatePage', () => {
     TemplateDetails: defineComponent({
       name: 'TemplateDetails',
       props: ['template', 'categories', 'showBack'],
-      emits: ['back', 'outdated'],
+      emits: ['back', 'outdated', 'moderated'],
       template: `<div class="details">
         {{ template.name }}: {{ categories.map((c) => c.name).join(',') }}
         <a class="details__back" @click="$emit('back')" />
         <a class="details__outdated" @click="$emit('outdated')" />
+        <a class="details__moderated" @click="$emit('moderated')" />
       </div>`,
     }),
     TemplateList: defineComponent({
@@ -180,6 +181,19 @@ describe('TemplatePage', () => {
     await flushPromises()
 
     expect(wrapper.find('.details').text()).toBe('CRM 2: Sales')
+  })
+
+  test('lists the public templates again once staff block or unblock the opened one', async () => {
+    const wrapper = await mountPage('project-tracker')
+    testApp.mock.onGet('/templates/crm-a1b2c3/').reply(200, crm)
+    await wrapper.find('.details__back').trigger('click')
+    await wrapper.findAll('.segment-control__button')[1].trigger('click')
+    await wrapper.find('.public-list__crm').trigger('click')
+    await flushPromises()
+
+    await wrapper.find('.details__moderated').trigger('click')
+
+    expect(refreshPublicList).toHaveBeenCalledTimes(1)
   })
 
   test('tells that a public template is no longer shared, and lists them again', async () => {

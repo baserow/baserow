@@ -25,8 +25,8 @@ pytestmark = pytest.mark.django_db
 
 LIST_URL = reverse("api:admin:templates:list")
 COUNTS_URL = reverse("api:admin:templates:counts")
-LISTED_STATES = ["in_review", "public", "rejected"]
-REASONS = {"rejected": "Reason"}
+LISTED_STATES = ["in_review", "public", "rejected", "blocked"]
+REASONS = {"rejected": "Reason", "blocked": "Spam"}
 
 
 def list_admin_templates(api_client, token, url=LIST_URL, **params):
@@ -105,7 +105,14 @@ def test_list_rows(api_client, data_fixture):
 
 @pytest.mark.parametrize(
     "method,endpoint",
-    [("get", "list"), ("get", "counts"), ("post", "approve"), ("post", "reject")],
+    [
+        ("get", "list"),
+        ("get", "counts"),
+        ("post", "approve"),
+        ("post", "reject"),
+        ("post", "block"),
+        ("post", "unblock"),
+    ],
 )
 @pytest.mark.parametrize(
     "user,status", [(None, HTTP_401_UNAUTHORIZED), ("member", HTTP_403_FORBIDDEN)]
@@ -317,9 +324,9 @@ def per_review_action(rows):
                     "unlisted",
                 ),
                 (["rejected", "public"], "public", 1, "refused", "unlisted"),
-                (["blocked"], None, None, None, None),
-                (["public_blocked"], None, None, None, None),
-                (["blocked", "in_review"], None, None, None, None),
+                (["blocked"], "blocked", 0, "refused", "refused"),
+                (["public_blocked"], "blocked", 0, "refused", "refused"),
+                (["blocked", "in_review"], "blocked", 1, "refused", "refused"),
                 (["marked"], None, None, None, None),
                 (["marked", "in_review"], None, None, None, None),
                 (["public", "marked"], None, None, None, None),
@@ -339,7 +346,7 @@ def test_admin_is_shown_what_a_review_does(
 ):
     admin, token = data_fixture.create_user_and_token(is_staff=True)
     data_fixture.create_template()
-    root = create_template(data_fixture, None)
+    root = create_template(data_fixture, None, blocked_reason="Spam")
     data_fixture.set_user_template_revision_states(root, revision_states)
     revisions = revision_ids(root)
 
@@ -356,7 +363,8 @@ def test_admin_is_shown_what_a_review_does(
         for id in revisions
         if Template.objects.get(id=id).workspace.has_openable_template(admin)
     }
-    assert opens == {id for id in [listed, *(r["revision_id"] for _, r in rows)] if id}
+    queued = [r["revision_id"] for state, r in rows if state != "blocked"]
+    assert opens == {id for id in [listed, *queued] if id}
     if tab is None:
         return
     shown = rows[0][1]
@@ -389,6 +397,26 @@ def test_admin_is_shown_what_a_review_does(
         assert response.status_code == HTTP_200_OK
         reviewed = response.json()
         assert admin_page(api_client, token)[reviewed["state"]] == [reviewed]
+
+
+@pytest.mark.parametrize(
+    "action,state,result",
+    [("block", "in_review", "blocked"), ("unblock", "blocked", "private")],
+)
+def test_block_and_unblock(api_client, data_fixture, action, state, result):
+    token = get_staff_token(data_fixture)
+    root = create_template(data_fixture, None, state)
+
+    response = review_template(api_client, token, action, root.id, reason="Spam")
+
+    assert response.status_code == HTTP_200_OK
+    row = response.json()
+    reason = "Spam" if result == "blocked" else None
+    assert (row["id"], row["state"], row["reason"]) == (root.id, result, reason)
+    tabs = admin_page(api_client, token)
+    assert {state: rows for state, rows in tabs.items() if rows} == (
+        {"blocked": [row]} if result == "blocked" else {}
+    )
 
 
 @pytest.mark.parametrize(
@@ -451,13 +479,25 @@ def test_admin_is_shown_what_a_review_does(
             "ERROR_TEMPLATE_HAS_NO_CONTENT",
         ),
         (
-            "reject",
+            "block",
             ["public"],
-            "latest",
+            "missing",
             ("public", True),
-            "  ",
-            "ERROR_REQUEST_BODY_VALIDATION",
+            "Spam",
+            "ERROR_TEMPLATE_DOES_NOT_EXIST",
         ),
+        *[
+            (
+                action,
+                ["public"],
+                "latest",
+                ("public", True),
+                reason,
+                "ERROR_REQUEST_BODY_VALIDATION",
+            )
+            for action in ["reject", "block"]
+            for reason in ["  ", "x" * 1001]
+        ],
     ],
 )
 def test_review_errors(

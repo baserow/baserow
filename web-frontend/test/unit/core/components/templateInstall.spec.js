@@ -257,10 +257,9 @@ describe('TemplateInstall', () => {
     wrapper = await testApp.mount(TemplateInstall, {
       props: { template, showCopyLink: false },
     })
-    await wrapper
-      .find('.template-install__actions .button-icon')
-      .trigger('click')
-    expect(wrapper.findAll('.context__menu-item-link')).toHaveLength(0)
+    expect(
+      wrapper.find('.template-install__actions .button-icon').exists()
+    ).toBe(false)
   })
 
   test('does not report a failed install as installed', async () => {

@@ -83,6 +83,7 @@ from baserow.core.user_templates.models import DownloadUserTemplateJob
 from .errors import (
     ERROR_PUBLIC_LISTING_CONSENT_REQUIRED,
     ERROR_TEMPLATE_BLOCKED,
+    ERROR_TEMPLATE_BLOCKED_UPDATE,
     ERROR_TEMPLATE_DOES_NOT_EXIST,
     ERROR_TEMPLATE_FILE_DOES_NOT_EXIST,
     ERROR_TEMPLATE_HAS_NO_CONTENT,
@@ -313,7 +314,10 @@ class TemplateView(APIView):
             raise TemplateDoesNotExist(f"The template with slug {slug} does not exist.")
 
         return Response(
-            TemplateListItemSerializer(template, context={"request": request}).data
+            TemplateListItemSerializer(
+                template,
+                context={"request": request, "shows_state_to_staff": True},
+            ).data
         )
 
     @extend_schema(
@@ -348,7 +352,8 @@ class TemplateView(APIView):
             "template, also signed out, and install or download it once signed "
             "in. Turning the link off stops it from working, and a public "
             "template stays public. Asking for the link it has changes nothing. "
-            "The private link of a blocked template can't be changed."
+            "The visibility and the private link of a blocked template can't be "
+            "changed."
         ),
         request=UpdateTemplateSerializer,
         responses={
@@ -372,7 +377,7 @@ class TemplateView(APIView):
                 ERROR_PUBLIC_LISTING_CONSENT_REQUIRED
             ),
             TemplateHasNoContent: ERROR_TEMPLATE_HAS_NO_CONTENT,
-            TemplateBlocked: ERROR_TEMPLATE_PRIVATE_LINK_BLOCKED,
+            TemplateBlocked: ERROR_TEMPLATE_BLOCKED_UPDATE,
         }
     )
     @validate_body(UpdateTemplateSerializer)

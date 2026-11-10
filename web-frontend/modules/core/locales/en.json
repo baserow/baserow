@@ -665,7 +665,11 @@
     "private": "Only you can see this template",
     "makePublic": "Make public",
     "submitForReviewAgain": "Submit for review again",
-    "makePrivate": "Make private"
+    "makePrivate": "Make private",
+    "blockedTitle": "“{name}” is blocked",
+    "blockedDescription": "It's on the Blocked tab of the admin Templates page.",
+    "blockReasonChangedTitle": "Block reason of “{name}” changed",
+    "changeBlockReason": "Change block reason"
   },
   "templateModal": {
     "officialTemplates": "Official templates",
@@ -1603,6 +1607,8 @@
     "inReviewEmpty": "No templates in review.",
     "publicEmpty": "No public templates.",
     "rejectedEmpty": "No rejected templates.",
+    "blockedTab": "Blocked",
+    "blockedEmpty": "No blocked templates.",
     "template": "Template",
     "author": "Author",
     "reason": "Reason",
@@ -1611,8 +1617,11 @@
     "usedTimes": "{count} time | {count} times",
     "searchPlaceholder": "Search by name or author",
     "viewInTemplates": "View in Templates",
+    "preview": "Preview",
     "unlistFromBrowser": "Unlist from the browser",
     "approveAfterAll": "Approve after all",
+    "block": "Block",
+    "unblock": "Unblock",
     "delete": "Delete",
     "deletedAuthor": "A deleted user",
     "review": "Review",
@@ -1639,7 +1648,14 @@
     "reject": "Reject template",
     "unlistTitle": "Unlist “{name}”?",
     "unlistDescription": "The author sees this reason on their template. It comes out of the browser until you approve it again.",
-    "unlist": "Unlist template"
+    "unlist": "Unlist template",
+    "blockTitle": "Block “{name}”?",
+    "blockDescription": "It's hidden from everyone except its author and instance admins, and its private link stops working. The author sees this reason.",
+    "blockPlaceholder": "Why the template is blocked",
+    "block": "Block template",
+    "changeBlockReasonTitle": "Change why “{name}” is blocked",
+    "changeBlockReasonDescription": "It stays blocked. The author sees the new reason.",
+    "changeBlockReason": "Change reason"
   },
   "editUserContext": {
     "changePassword": "Change password",

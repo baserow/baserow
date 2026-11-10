@@ -28,6 +28,7 @@
         @delete="openDeleteModal"
         @make-public="openMakePublicModal"
         @make-private="makePrivate"
+        @moderated="moderated"
       ></TemplateDetails>
       <TemplateList
         v-show="selectedTemplate === null && tab === 'official'"
@@ -373,6 +374,10 @@ export default {
     },
     templateCreated() {
       this.$refs.userTemplateList?.refresh()
+    },
+    moderated() {
+      this.$refs.userTemplateList?.refresh()
+      this.$refs.publicTemplateList?.refresh()
     },
     async openUpdateModal(template, mode) {
       // Only one update runs at a time. Its modal is shown again instead, also

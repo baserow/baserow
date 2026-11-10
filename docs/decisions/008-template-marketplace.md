@@ -111,14 +111,14 @@ copies work fully. Official template previews are unchanged.
 Public or private decides only whether a template is listed. Who can open it is decided
 by its state, the private link and the actor's role:
 
-| Actor                                  | Private                    | Public                     | Blocked                                                       |
-| -------------------------------------- | -------------------------- | -------------------------- | ------------------------------------------------------------- |
-| Anonymous                              | —                          | preview                    | —                                                             |
-| Signed-in user                         | —                          | preview, install           | —                                                             |
-| Anyone who opened private link         | preview                    | preview                    | —                                                             |
-| Signed-in user who opened private link | preview, install           | preview, install           | —                                                             |
-| Author                                 | preview, install, manage   | preview, install, manage   | preview, change details or content, submit for review, delete |
-| Instance admin                         | preview, install, moderate | preview, install, moderate | preview, install, moderate                                    |
+| Actor                                  | Private                    | Public                     | Blocked                                    |
+| -------------------------------------- | -------------------------- | -------------------------- | ------------------------------------------ |
+| Anonymous                              | —                          | preview                    | —                                          |
+| Signed-in user                         | —                          | preview, install           | —                                          |
+| Anyone who opened private link         | preview                    | preview                    | —                                          |
+| Signed-in user who opened private link | preview, install           | preview, install           | —                                          |
+| Author                                 | preview, install, manage   | preview, install, manage   | preview, change details or content, delete |
+| Instance admin                         | preview, install, moderate | preview, install, moderate | preview, install, moderate                 |
 
 - **Preview** covers the template's details and its template workspace. Public templates
   also appear in the "Shared templates" section, like official templates.
@@ -158,10 +158,12 @@ if it does not exist.
   instance requires approval, to take it out of the listing.
 - **Making private** withdraws the listing; the private link keeps working.
 - **Block** is instance admin moderation, in any state, with a reason. The author can
-  view and delete a blocked template, change its details or content, and submit it for
-  review. **Unblock** is a separate instance admin action that returns the template to
-  the state it had before the block; reviewing a revision of a blocked template does not
-  unblock it. Unlike reject, block also suspends the private link.
+  view and delete a blocked template and change its details or content, but can't make
+  it public or private. An admin can't approve or reject it while it's blocked.
+  **Unblock** is a separate instance admin action that leaves the template private: not
+  listed, any review withdrawn, the private link working again. The author makes it
+  public through review again, so content an admin judged harmful is never listed again
+  without a review. Unlike reject, block also suspends the private link.
 - **Abuse reports** use the existing abuse report flow.
 
 ### 6. Install and download

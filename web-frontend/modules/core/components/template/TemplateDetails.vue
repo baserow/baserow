@@ -39,11 +39,23 @@
                   isOwner ? $t('templateDetails.you') : template.author_name
                 }}</span>
                 <i
-                  v-if="isOwner && !template.listed"
+                  v-if="isOwner && !template.listed && !isBlocked"
                   v-tooltip="$t('templateDetails.private')"
                   class="template-details__private iconoir-eye-off"
                 ></i>
               </div>
+              <Badge
+                v-if="isBlocked"
+                v-tooltip:[REASON_TOOLTIP_OPTIONS]="shown.reason || null"
+                class="template-details__state"
+                :color="blockedState.color"
+                rounded
+                ><i
+                  class="template-details__state-icon"
+                  :class="blockedState.icon"
+                ></i
+                >{{ blockedState.label }}</Badge
+              >
             </div>
           </div>
           <div
@@ -80,9 +92,9 @@
         <div class="template-details__foot">
           <slot name="foot">
             <TemplateInstall
-              :template="template"
+              :template="shown"
               :workspace="workspace"
-              :show-copy-link="!ownerActions && !isPrivateLink"
+              :show-copy-link="!ownerActions && !isPrivateLink && !isBlocked"
               :copy-link-url="ownerActions ? privateLinkUrl : null"
               :latest="ownerActions || isOwner"
               @installed="emit('installed')"
@@ -132,8 +144,40 @@
                   </a>
                 </li>
               </template>
-              <template v-if="ownerActions" #menu-items-end="{ hide }">
+              <template
+                v-if="ownerActions || canBlock"
+                #menu-items-end="{ hide }"
+              >
+                <template v-if="canBlock">
+                  <li
+                    class="context__menu-item context__menu-item--with-separator"
+                  >
+                    <a
+                      class="context__menu-item-link"
+                      @click.prevent="askToBlock(hide)"
+                    >
+                      <i
+                        class="context__menu-item-icon iconoir-warning-triangle"
+                      ></i>
+                      {{
+                        isBlocked
+                          ? $t('templateDetails.changeBlockReason')
+                          : $t('templatesAdmin.block')
+                      }}
+                    </a>
+                  </li>
+                  <li v-if="isBlocked" class="context__menu-item">
+                    <a
+                      class="context__menu-item-link"
+                      @click.prevent="unblock(hide)"
+                    >
+                      <i class="context__menu-item-icon iconoir-undo"></i>
+                      {{ $t('templatesAdmin.unblock') }}
+                    </a>
+                  </li>
+                </template>
                 <li
+                  v-if="ownerActions"
                   class="context__menu-item context__menu-item--with-separator"
                 >
                   <a
@@ -146,6 +190,14 @@
                 </li>
               </template>
             </TemplateInstall>
+            <RejectTemplateModal
+              v-if="canBlock"
+              ref="blockModal"
+              :template="shown"
+              block
+              :request="block"
+              @done="blocked"
+            ></RejectTemplateModal>
           </slot>
         </div>
       </div>
@@ -154,8 +206,9 @@
 </template>
 
 <script setup>
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useNuxtApp, useRoute, useRuntimeConfig } from '#app'
+import { useStore } from 'vuex'
 
 import {
   canMakePrivate,
@@ -165,6 +218,10 @@ import {
   makePublicResubmits,
 } from '@baserow/modules/core/utils/userTemplate'
 import { isPrivateLinkPage } from '@baserow/modules/core/utils/templatePrivateLink'
+import { notifyIf } from '@baserow/modules/core/utils/error'
+import { getState } from '@baserow/modules/core/components/template/userTemplateStates'
+import { useTemplateReview } from '@baserow/modules/core/composables/useTemplateReview'
+import RejectTemplateModal from '@baserow/modules/core/components/admin/templates/RejectTemplateModal'
 import TemplatePreview from '@baserow/modules/core/components/template/TemplatePreview'
 import TemplateInstall from '@baserow/modules/core/components/template/TemplateInstall'
 
@@ -211,9 +268,11 @@ const emit = defineEmits([
   'delete',
   'make-public',
   'make-private',
+  'moderated',
 ])
 
-const { $registry, $router } = useNuxtApp()
+const { $registry, $router, $i18n } = useNuxtApp()
+const store = useStore()
 const config = useRuntimeConfig()
 
 const isPrivateLink = isPrivateLinkPage(useRoute())
@@ -227,6 +286,69 @@ function edit(mode, hideMenu) {
 }
 
 const isOwner = computed(() => isOwnTemplate(props.template))
+
+const REASON_TOOLTIP_OPTIONS = {
+  contentClasses: ['tooltip__content--expandable', 'template-details__reason'],
+}
+const moderated = ref(null)
+watch(
+  () => props.template,
+  () => {
+    moderated.value = null
+  }
+)
+const shown = computed(() => ({ ...props.template, ...moderated.value }))
+const isBlocked = computed(() => shown.value.state === 'blocked')
+const blockedState = computed(() => getState('blocked', $i18n.t))
+
+const canBlock = computed(
+  () => store.getters['auth/isStaff'] && props.template.type === 'user'
+)
+const blockModal = ref(null)
+const { decide } = useTemplateReview()
+
+function askToBlock(hideMenu) {
+  hideMenu()
+  blockModal.value.show()
+}
+
+function block(template, reason) {
+  return decide(template, 'block', reason)
+}
+
+function moderate(row) {
+  moderated.value = { state: row.state, reason: row.reason }
+  emit('moderated')
+}
+
+async function unblock(hideMenu) {
+  hideMenu()
+  try {
+    const row = await decide(shown.value, 'unblock')
+    if (row) {
+      moderate(row)
+    }
+  } catch (error) {
+    notifyIf(error, 'template')
+  }
+}
+
+function blocked(id, row) {
+  if (!row) {
+    return
+  }
+  const name = props.template.name
+  store.dispatch(
+    'toast/success',
+    isBlocked.value
+      ? { title: $i18n.t('templateDetails.blockReasonChangedTitle', { name }) }
+      : {
+          title: $i18n.t('templateDetails.blockedTitle', { name }),
+          message: $i18n.t('templateDetails.blockedDescription'),
+        }
+  )
+  moderate(row)
+}
 
 function changeVisibility(event, hideMenu) {
   hideMenu()

@@ -158,6 +158,7 @@ class CreateUserTemplateJobType(JobType):
         TemplateChangedDuringUpdate: "The template was changed while it was being "
         "updated. Please try again.",
         TemplateHasNoContent: "The content of the template was removed.",
+        TemplateBlocked: "The template is blocked, so it can't be made public.",
     }
 
     # Which fields are required depends on the mode, see `_validate_mode`.

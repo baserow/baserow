@@ -393,10 +393,12 @@ class CoreConfig(AppConfig):
 
         from baserow.core.user_templates.actions import (
             ApproveUserTemplateAdminActionType,
+            BlockUserTemplateAdminActionType,
             CreateUserTemplateActionType,
             DeleteUserTemplateActionType,
             RejectUserTemplateAdminActionType,
             RotateUserTemplatePrivateLinkActionType,
+            UnblockUserTemplateAdminActionType,
             UpdateUserTemplateActionType,
             UpdateUserTemplatePrivateLinkActionType,
             UpdateUserTemplateVisibilityActionType,
@@ -408,6 +410,8 @@ class CoreConfig(AppConfig):
         action_type_registry.register(UpdateUserTemplateVisibilityActionType())
         action_type_registry.register(ApproveUserTemplateAdminActionType())
         action_type_registry.register(RejectUserTemplateAdminActionType())
+        action_type_registry.register(BlockUserTemplateAdminActionType())
+        action_type_registry.register(UnblockUserTemplateAdminActionType())
         action_type_registry.register(UpdateUserTemplatePrivateLinkActionType())
         action_type_registry.register(RotateUserTemplatePrivateLinkActionType())
 

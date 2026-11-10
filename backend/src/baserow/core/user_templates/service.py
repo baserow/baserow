@@ -135,18 +135,6 @@ class UserTemplateService:
         handler.mark_template_for_deletion(root)
         return root
 
-    def _get_latest_revision_of_locked_root(self, root: Template) -> Template:
-        """
-        Returns the latest revision of a template, with the locked `root` set as
-        its root, so that the state read through it is the locked one.
-        """
-
-        revision = UserTemplateHandler().get_latest_revision(root)
-        if revision.id == root.id:
-            return root
-        revision.root = root
-        return revision
-
     def update_visibility(
         self,
         user: AbstractUser,
@@ -166,6 +154,7 @@ class UserTemplateService:
         :param job_id: The id of the create user template job making the template
             public, which it only does while the job still asks for it.
         :raises TemplateDoesNotExist: If the user doesn't own the template.
+        :raises TemplateBlocked: If the template is blocked.
         :raises UserTemplatePublicListingConsentRequired: If the template is made
             public without the consent.
         :raises TemplateHasNoContent: If the latest revision has no content.
@@ -178,26 +167,19 @@ class UserTemplateService:
         handler = UserTemplateHandler()
         # Read before the root is locked.
         require_approval = make_public and handler.read_require_approval()
-        root = handler.get_own_template(user, template_id, for_update=True)
+        root = self._get_own_unblocked_root(user, template_id)
         if make_public and not public_listing_consent:
             raise UserTemplatePublicListingConsentRequired(
                 "Making a template public needs the consent of its author."
             )
 
-        revision = self._get_latest_revision_of_locked_root(root)
+        revision = handler.get_latest_revision_of_locked_root(root)
 
         if not make_public:
-            # Also when it's private already: a job can be about to list it.
-            handler.drop_scheduled_make_public(root)
-            public_revision_id = root.public_revision_id
-            if public_revision_id is not None:
-                handler.withdraw_listing(root)
-            withdrawn = handler.withdraw_review(root)
-            if public_revision_id is not None:
-                return revision, public_revision_id, UserTemplateState.PRIVATE
-            if withdrawn is not None:
-                return revision, withdrawn.id, UserTemplateState.PRIVATE
-            return revision, None, None
+            changed_revision_id = handler.make_template_private(root)
+            if changed_revision_id is None:
+                return revision, None, None
+            return revision, changed_revision_id, UserTemplateState.PRIVATE
 
         # Read under the lock of the root, after which a make private clears it.
         if (
@@ -231,9 +213,10 @@ class UserTemplateService:
         :return: The latest revision, and whether the link changed.
         """
 
-        root = self._get_own_root_for_private_link(user, template_id)
-        changed = UserTemplateHandler().set_private_link(root, enabled)
-        return self._get_latest_revision_of_locked_root(root), changed
+        root = self._get_own_unblocked_root(user, template_id)
+        handler = UserTemplateHandler()
+        changed = handler.set_private_link(root, enabled)
+        return handler.get_latest_revision_of_locked_root(root), changed
 
     def rotate_private_link(
         self, user: AbstractUser, template_id: int
@@ -250,16 +233,14 @@ class UserTemplateService:
         :return: The latest revision, and whether the token was replaced.
         """
 
-        root = self._get_own_root_for_private_link(user, template_id)
-        rotated = UserTemplateHandler().rotate_private_link(root)
-        return self._get_latest_revision_of_locked_root(root), rotated
+        root = self._get_own_unblocked_root(user, template_id)
+        handler = UserTemplateHandler()
+        rotated = handler.rotate_private_link(root)
+        return handler.get_latest_revision_of_locked_root(root), rotated
 
-    def _get_own_root_for_private_link(
-        self, user: AbstractUser, template_id: int
-    ) -> Template:
+    def _get_own_unblocked_root(self, user: AbstractUser, template_id: int) -> Template:
         """
-        Locks the root of a template owned by the user, if its private link can be
-        changed: the template isn't blocked.
+        Locks the root of a template owned by the user, if it isn't blocked.
         """
 
         root = UserTemplateHandler().get_own_template(

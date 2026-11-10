@@ -10,6 +10,7 @@ import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScr
 const userTemplate = (id, name, state = 'private', extra = {}) => ({
   id,
   type: 'user',
+  is_own: true,
   name,
   slug: `${name.toLowerCase().replace(/ /g, '-')}-a1b2c3`,
   description: `${name} description`,
@@ -421,9 +422,11 @@ describe('UserTemplateList', () => {
     expect(links.map((link) => link.text())).toStrictEqual([
       'userTemplateList.editDetails',
       'userTemplateList.updateContent',
-      'userTemplateList.download',
       'userTemplateList.delete',
     ])
+    expect(wrapper.findAll('.context__menu-item').at(-1).classes()).toContain(
+      'context__menu-item--with-separator'
+    )
 
     await links[1].trigger('click')
     expect(wrapper.emitted('edit')).toStrictEqual([[templates[1], 'content']])

@@ -81,6 +81,20 @@
   color: $palette-neutral-700;
 }
 
+.template-details__state {
+  margin-top: 8px;
+}
+
+.template-details__state-icon {
+  margin-right: 4px;
+  font-size: 12px;
+  vertical-align: -1px;
+}
+
+.template-details__reason {
+  overflow-wrap: anywhere;
+}
+
 .template-details__description {
   margin-top: 16px;
   font-size: 13px;
