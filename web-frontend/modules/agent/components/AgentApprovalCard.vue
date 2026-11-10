@@ -50,16 +50,9 @@
             {{ item.title }}
           </span>
           <template v-if="item.status === APPROVAL_STATUS.APPROVED">
-            <span
-              v-if="item.stepStatus === STEP_STATUS.STOPPED"
-              class="agent-approval__step-status"
-            >
-              <i class="iconoir-minus-circle" aria-hidden="true" />
-              {{ $t('toolPresentation.statusStopped') }}
-            </span>
-            <span v-else-if="item.partial" class="agent-approval__step-status">
-              <i class="iconoir-warning-circle" aria-hidden="true" />
-              {{ $t('toolPresentation.statusPartial') }}
+            <span v-if="outcomeIcon(item)" class="agent-approval__step-status">
+              <i :class="outcomeIcon(item)" aria-hidden="true" />
+              {{ outcomeLabel(item, $t) }}
             </span>
             <span
               class="agent-approval__decision agent-approval__decision--approved"
@@ -159,11 +152,12 @@ import { computed, inject, reactive, ref, useId, watch } from 'vue'
 import AgentRejectModal from '@baserow/modules/agent/components/AgentRejectModal'
 import ChatToolInput from '@baserow/modules/core/components/chat/ChatToolInput'
 import { STEP_STATUS } from '@baserow/modules/core/chatRuns/constants'
+import { stepStatusLabel } from '@baserow/modules/core/toolPresentationTypes'
 import { APPROVAL_STATUS } from '@baserow/modules/agent/utils/replies'
 
 /** Held steps for the conversation's owner to approve or reject. */
 const props = defineProps({
-  /** `{id, status, stepStatus, tool, title, input, failureHint}`, by approval. */
+  /** `{id, status, stepStatus, changesData, partial, tool, title, input, failureHint}`. */
   items: { type: Array, required: true },
   /** The viewer may not decide. */
   disabled: { type: Boolean, default: false },
@@ -191,6 +185,14 @@ const countOf = (status) =>
   props.items.filter((item) => item.status === status).length
 const approvedCount = computed(() => countOf(APPROVAL_STATUS.APPROVED))
 const rejectedCount = computed(() => countOf(APPROVAL_STATUS.REJECTED))
+const OUTCOME_ICONS = {
+  [STEP_STATUS.FAILED]: 'iconoir-warning-triangle',
+  [STEP_STATUS.STOPPED]: 'iconoir-minus-circle',
+}
+const outcomeIcon = (item) =>
+  item.partial ? 'iconoir-warning-circle' : OUTCOME_ICONS[item.stepStatus]
+const outcomeLabel = ({ stepStatus, changesData, partial }, t) =>
+  stepStatusLabel({ status: stepStatus, changesData, partial }, t)
 const itemTitleId = (item) => `${titleId}-${item.id}-title`
 const detailsId = (item) => `${titleId}-${item.id}-details`
 

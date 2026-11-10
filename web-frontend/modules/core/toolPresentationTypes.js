@@ -102,20 +102,22 @@ function itemErrors(data) {
     }))
 }
 
-/** Describe a step's status in words; an interrupted change may have completed. */
-export function stepStatusText(
-  { status, changesData, failureHint, partial },
-  t
-) {
+/** Name a step's status; an interrupted change may have completed. */
+export function stepStatusLabel({ status, changesData, partial }, t) {
   if (status === STEP_STATUS.STOPPED && changesData) {
     return t('toolPresentation.statusStopped')
   }
   if (status === STEP_STATUS.DONE && partial) {
     return t('toolPresentation.statusPartial')
   }
-  const label = t(STATUS_LABELS[status])
-  return status === STEP_STATUS.FAILED
-    ? `${label} ${failureHint || t('toolPresentation.failureFailed')}`
+  return t(STATUS_LABELS[status])
+}
+
+/** Describe a step's status in words, with why it failed. */
+export function stepStatusText(step, t) {
+  const label = stepStatusLabel(step, t)
+  return step.status === STEP_STATUS.FAILED
+    ? `${label} ${step.failureHint || t('toolPresentation.failureFailed')}`
     : label
 }
 

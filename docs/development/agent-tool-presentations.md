@@ -92,8 +92,7 @@ failed steps too.
   table's fields; others stay as written.
 - An integer `linked_table` in `create_fields` the identity can't see stays as
   written.
-- Reads of one table name only the table, for the title; clients never show a
-  read's input.
+- Reads of one table name only the table, so a held read shows what it reads.
 
 The card shows `values` as indented JSON, collapsed by default.
 
@@ -123,7 +122,8 @@ in `contrib/agent/previews.py`. When it raises, the step has no `values` and the
 `getDescription(t)` and `getActivity(step, t)`. Register it in the
 `toolPresentation` namespace from the owning module's plugin. Return
 `WORKSPACE_TOOL_GROUP` from `group` only for workspace reads: consecutive reads
-share one card, and each change gets its own. Unknown tools, missing translations
+share one card, and each change gets its own. A step that isn't running or done
+is titled by what it asked for. Unknown tools, missing translations
 and presenter errors fall back to generic labels that keep the step's status.
 
 **Translations.** Put labels in the owning module's English locale file. Use plural

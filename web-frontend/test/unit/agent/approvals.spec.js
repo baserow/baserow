@@ -343,7 +343,7 @@ describe('Agent tool approvals', () => {
     ])
     const [item] = items(wrapper)
     expect(item.get('.agent-approval__item-title').text()).toBe(
-      'agent.toolCreateRowsHeldCount - 3'
+      'agent.toolCreateRowsRequestedCount - 3'
     )
     expect(itemButtons(item)).toHaveLength(0)
     expect(item.get('.agent-approval__tool').text()).toBe('create_rows')
@@ -423,16 +423,26 @@ describe('Agent tool approvals', () => {
     ])
   })
 
-  test('an approved step that was stopped says it may have run', async () => {
-    const wrapper = await openReply(
-      reply('failed', [approval(1, 'approved')], { stepStatus: 'stopped' })
-    )
+  test.each([
+    ['stopped', 'statusStopped', 'iconoir-minus-circle'],
+    ['failed', 'statusFailed', 'iconoir-warning-triangle'],
+  ])(
+    'an approved step that ended %s says so next to the decision',
+    async (stepStatus, label, icon) => {
+      const wrapper = await openReply(
+        reply('failed', [approval(1, 'approved')], { stepStatus })
+      )
 
-    const status = items(wrapper)[0].get('.agent-approval__step-status')
-    expect(status.text()).toBe('toolPresentation.statusStopped')
-    expect(status.find('.iconoir-minus-circle').exists()).toBe(true)
-    expect(decisions(wrapper)).toEqual(['agent.approved'])
-  })
+      const item = items(wrapper)[0]
+      const status = item.get('.agent-approval__step-status')
+      expect(status.text()).toBe(`toolPresentation.${label}`)
+      expect(status.find(`.${icon}`).exists()).toBe(true)
+      expect(item.get('.agent-approval__item-title').text()).toBe(
+        'agent.toolCreateRowsRequestedCount - 3'
+      )
+      expect(decisions(wrapper)).toEqual(['agent.approved'])
+    }
+  )
 
   test('an approved step that partly failed lists the items it missed', async () => {
     const partlyDone = {

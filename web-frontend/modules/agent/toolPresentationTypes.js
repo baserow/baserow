@@ -33,28 +33,29 @@ class DatabaseToolPresentationType extends ToolPresentationType {
   }
 
   getInput({ input }) {
-    return this.constructor.definition.read ? null : input
+    return input
   }
 
-  /** A held call hasn't run, so it is titled by what it asks to do. */
-  getHeldActivity({ input }, t) {
-    const count = input.requested_count
-    if (this.constructor.definition.counted !== true || !countIsKnown(count)) {
-      return this.getLabel(t)
+  /** Titled by what the call asks to do: counted changes by count, reads by table. */
+  getRequestedActivity({ input }, t) {
+    const { counted, table: titledByTable } = this.constructor.definition
+    const table = titledByTable ? requestedTable(input) : ''
+    if (counted !== true) {
+      return table
+        ? t(`${this.labelKey}RequestedTable`, { table })
+        : this.getLabel(t)
     }
-    const table = this.constructor.definition.table ? requestedTable(input) : ''
+    const count = input.requested_count
+    if (!countIsKnown(count)) return this.getLabel(t)
     return table
-      ? t(`${this.labelKey}HeldCountTable`, { count, table }, count)
-      : t(`${this.labelKey}HeldCount`, { count }, count)
+      ? t(`${this.labelKey}RequestedCountTable`, { count, table }, count)
+      : t(`${this.labelKey}RequestedCount`, { count }, count)
   }
 
   getActivity({ status, input, facts }, t) {
     const { counted, table } = this.constructor.definition
-    if (status === STEP_STATUS.WAITING || status === STEP_STATUS.REJECTED) {
-      return this.getHeldActivity({ input }, t)
-    }
     if (status !== STEP_STATUS.RUNNING && status !== STEP_STATUS.DONE) {
-      return this.getLabel(t)
+      return this.getRequestedActivity({ input }, t)
     }
     const count =
       status === STEP_STATUS.RUNNING ? input.requested_count : facts.count
