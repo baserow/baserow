@@ -35,10 +35,9 @@ The backend emits `step` events and saves the same steps on the assistant messag
   follow a held call in the same response. Other valid calls are `running`
   until their result arrives. `rejected` means the owner denied the call, so it
   did not run. A held call the reply ends without resuming is `rejected` if the
-  owner rejected it, `stopped` if they approved it, since the resume may have run
-  it, and `failed` if undecided. Copies end held calls the same way, as approvals
-  aren't copied; a copy of a reply that still waited marks approved calls `failed`
-  too. `stopped` means the reply ended before the call's result: a change may
+  owner rejected it, `stopped` if they approved it and the resume started, since
+  it may have run, and otherwise `failed` with `not_run`. Copies end held calls
+  the same way, as approvals aren't copied. `stopped` means the reply ended before the call's result: a change may
   already have completed, and the card says so. `skipped` means the call changed nothing and failed nothing; it has
   no card. A held call is never `skipped`, as the owner already saw it. A held
   call gets its readable request when it is held, so the owner decides on
@@ -51,7 +50,8 @@ The backend emits `step` events and saves the same steps on the assistant messag
   created or read tables. A requested count doesn't prove how many items
   changed. A batch that partly fails is `done` with the count the tool reports.
 - `error_code` is set on failed steps: `not_found`, `permission_denied`,
-  `invalid_input`, `invalid_formula`, `conflict` or `failed`. For an exception
+  `invalid_input`, `invalid_formula`, `conflict`, `failed` or `not_run`, for a
+  held call that ended without running. For an exception
   the tool raises, it comes from `classify_tool_error` in
   `baserow/core/tools/errors.py`. Arguments that fail validation are
   `invalid_input`. `not_found` covers missing and inaccessible resources alike.

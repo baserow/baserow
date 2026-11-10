@@ -53,6 +53,7 @@ from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.generative_ai.constants import WEB_SEARCH_MAX_PER_REPLY
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.tools import ToolContext
+from baserow.core.tools.errors import ToolErrorCode
 from baserow.core.utils import remove_null_characters
 
 from .constants import (
@@ -90,6 +91,7 @@ def _interruption_note(reply: AgentMessage) -> str:
         if isinstance(step, dict)
         and step.get("changes_data") is True
         and step.get("status") != ChatRunStepStatus.REJECTED
+        and step.get("error_code") != ToolErrorCode.NOT_RUN
     )
     if not changes:
         return INTERRUPTED_REPLY_NOTE

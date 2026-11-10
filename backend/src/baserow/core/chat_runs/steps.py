@@ -104,7 +104,7 @@ def _end_waiting_step(
     return {
         **step,
         "status": ChatRunStepStatus.FAILED,
-        "error_code": ToolErrorCode.FAILED,
+        "error_code": ToolErrorCode.NOT_RUN,
     }
 
 

@@ -28,6 +28,7 @@ export const STEP_ERROR_CODE = Object.freeze({
   INVALID_FORMULA: 'invalid_formula',
   CONFLICT: 'conflict',
   FAILED: 'failed',
+  NOT_RUN: 'not_run',
 })
 
 export const RUN_STATUS = {

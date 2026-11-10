@@ -1937,6 +1937,7 @@
     "failureInvalidFormula": "The formula isn't valid.",
     "failureConflict": "It clashes with something that already exists.",
     "failureFailed": "This tool call failed.",
+    "failureNotRun": "It didn't run.",
     "input": "Input",
     "inputTruncated": "This is a shortened preview of the input.",
     "itemErrors": "Not done",

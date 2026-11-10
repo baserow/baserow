@@ -417,7 +417,7 @@ def test_duplicate_agent_job_rolls_back_failed_conversation_import(
             "waiting",
             "waiting",
             "approved",
-            {"status": "failed", "error_code": "failed"},
+            {"status": "failed", "error_code": "not_run"},
         ),
         ("running", "waiting", "approved", {"status": "stopped"}),
         ("running", "waiting", "rejected", {"status": "rejected"}),

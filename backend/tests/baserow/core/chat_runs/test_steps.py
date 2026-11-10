@@ -396,7 +396,7 @@ def test_held_calls_wait_until_the_reply_ends_them_without_running():
         ("done", None),
         ("rejected", None),
         ("stopped", None),
-        ("failed", "failed"),
+        ("failed", "not_run"),
         ("stopped", None),
     ]
 

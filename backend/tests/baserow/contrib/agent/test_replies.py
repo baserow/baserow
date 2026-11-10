@@ -324,6 +324,13 @@ def test_the_model_gets_the_instructions_and_recent_history(
         {**step, "tool": "list_tables", "status": "done", "changes_data": False},
         {**step, "tool": "create_rows", "status": "stopped", "changes_data": True},
         {**step, "tool": "delete_rows", "status": "rejected", "changes_data": True},
+        {
+            **step,
+            "tool": "update_rows",
+            "status": "failed",
+            "error_code": "not_run",
+            "changes_data": True,
+        },
         "malformed",
     ]
     for status, reply, reply_steps in [
@@ -737,7 +744,7 @@ HELD_STEP = {
         pytest.param(
             None,
             "I will add a row.",
-            "stopped",
+            "failed",
             ("old-model", [{"kind": "request"}], {"requests": 1}),
             id="not-started",
         ),
@@ -1576,7 +1583,7 @@ def test_a_held_call_fails_when_its_reply_stops_before_pausing(ask_first_agent, 
         (step["status"], step.get("error_code"))
         for step in reply.steps
         if step["tool"] == "create_rows"
-    ] == [("failed", "failed")]
+    ] == [("failed", "not_run")]
     assert row_names(table) == []
 
 
@@ -1863,18 +1870,18 @@ def test_a_continued_reply_waits_again_for_a_later_call_even_with_a_reused_id(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "ending,approved,status,error_code,step_status,rows",
+    "ending,approved,status,error_code,step,rows",
     [
-        ("cancelled", True, "cancelled", "", "stopped", []),
-        ("cancelled", False, "cancelled", "", "rejected", []),
-        ("not_ready", True, "failed", "not_ready", "stopped", []),
-        ("lost", True, "failed", "interrupted", "stopped", []),
-        ("persist_failed", True, "failed", "interrupted", "stopped", ["Plan"]),
+        ("cancelled", True, "cancelled", "", ("failed", "not_run"), []),
+        ("cancelled", False, "cancelled", "", ("rejected", None), []),
+        ("not_ready", True, "failed", "not_ready", ("failed", "not_run"), []),
+        ("lost", True, "failed", "interrupted", ("stopped", None), []),
+        ("persist_failed", True, "failed", "interrupted", ("stopped", None), ["Plan"]),
     ],
     ids=["cancelled", "cancelled-rejected", "not-ready", "lost", "persist-failed"],
 )
 def test_a_continuation_ending_without_a_saved_answer_keeps_the_paused_reply(
-    ask_first_agent, mocker, ending, approved, status, error_code, step_status, rows
+    ask_first_agent, mocker, ending, approved, status, error_code, step, rows
 ):
     user, agent, table = ask_first_agent
     respond(mocker, ("I will add a row.", {0: add_row(table)}))
@@ -1899,7 +1906,7 @@ def test_a_continuation_ending_without_a_saved_answer_keeps_the_paused_reply(
 
     assert reply_state(reply.id) == (status, error_code, "")
     reply.refresh_from_db()
-    assert [step["status"] for step in reply.steps] == [step_status]
+    assert [(s["status"], s.get("error_code")) for s in reply.steps] == [step]
     assert row_names(table) == rows
     transcript = AgentReplyTranscript.objects.get(reply=reply)
     assert (

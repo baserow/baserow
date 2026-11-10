@@ -33,6 +33,7 @@ const FAILURE_LABELS = new Map([
   [STEP_ERROR_CODE.INVALID_FORMULA, 'toolPresentation.failureInvalidFormula'],
   [STEP_ERROR_CODE.CONFLICT, 'toolPresentation.failureConflict'],
   [STEP_ERROR_CODE.FAILED, 'toolPresentation.failureFailed'],
+  [STEP_ERROR_CODE.NOT_RUN, 'toolPresentation.failureNotRun'],
 ])
 const MAX_MESSAGE_LENGTH = 1000
 

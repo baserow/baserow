@@ -1147,7 +1147,7 @@ class AgentHandler:
             else stop_running_steps(reply.steps or [])
         )
         if not paused:
-            steps = self._end_held_steps(reply, steps, resumed=True)
+            steps = self._end_held_steps(reply, steps, resumed=result is not None)
         reply.steps = steps or None
         reply.save(
             update_fields=["status", "error_code", "content", "steps", "updated_on"]
@@ -1313,7 +1313,10 @@ class AgentHandler:
         if not still_active:
             return None
         reply = self.finish_reply(
-            reply_id, ChatRunStatus.FAILED, ChatRunErrorCode.INTERRUPTED, None
+            reply_id,
+            ChatRunStatus.FAILED,
+            ChatRunErrorCode.INTERRUPTED,
+            AgentReplyResult(text=""),
         )
         return reply.conversation
 
