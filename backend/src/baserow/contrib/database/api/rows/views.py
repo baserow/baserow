@@ -394,7 +394,13 @@ class RowsView(APIView):
                     "ERROR_FILTERS_PARAM_VALIDATION_ERROR",
                 ]
             ),
-            401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
+            401: get_error_schema(
+                [
+                    "ERROR_NO_PERMISSION_TO_TABLE",
+                    "ERROR_NO_PERMISSION_TO_LINKED_TABLE",
+                    "ERROR_CANNOT_READ_LINKED_TABLE",
+                ]
+            ),
             404: get_error_schema(
                 [
                     "ERROR_TABLE_DOES_NOT_EXIST",
@@ -604,7 +610,14 @@ class RowsView(APIView):
                     "ERROR_USER_FILE_DOES_NOT_EXIST",
                 ]
             ),
-            401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
+            401: get_error_schema(
+                [
+                    "ERROR_NO_PERMISSION_TO_TABLE",
+                    "ERROR_NO_PERMISSION_TO_LINKED_TABLE",
+                    "ERROR_CANNOT_READ_LINKED_TABLE",
+                    "ERROR_LINKED_ROWS_NOT_VISIBLE_IN_VIEW",
+                ]
+            ),
             404: get_error_schema(
                 [
                     "ERROR_TABLE_DOES_NOT_EXIST",
@@ -1021,7 +1034,14 @@ class RowView(APIView):
                     "ERROR_USER_FILE_DOES_NOT_EXIST",
                 ]
             ),
-            401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
+            401: get_error_schema(
+                [
+                    "ERROR_NO_PERMISSION_TO_TABLE",
+                    "ERROR_NO_PERMISSION_TO_LINKED_TABLE",
+                    "ERROR_CANNOT_READ_LINKED_TABLE",
+                    "ERROR_LINKED_ROWS_NOT_VISIBLE_IN_VIEW",
+                ]
+            ),
             404: get_error_schema(
                 [
                     "ERROR_TABLE_DOES_NOT_EXIST",
@@ -1435,7 +1455,14 @@ class BatchRowsView(APIView):
                     "ERROR_USER_FILE_DOES_NOT_EXIST",
                 ]
             ),
-            401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
+            401: get_error_schema(
+                [
+                    "ERROR_NO_PERMISSION_TO_TABLE",
+                    "ERROR_NO_PERMISSION_TO_LINKED_TABLE",
+                    "ERROR_CANNOT_READ_LINKED_TABLE",
+                    "ERROR_LINKED_ROWS_NOT_VISIBLE_IN_VIEW",
+                ]
+            ),
             404: get_error_schema(
                 [
                     "ERROR_TABLE_DOES_NOT_EXIST",
@@ -1612,7 +1639,14 @@ class BatchRowsView(APIView):
                     "ERROR_USER_FILE_DOES_NOT_EXIST",
                 ]
             ),
-            401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
+            401: get_error_schema(
+                [
+                    "ERROR_NO_PERMISSION_TO_TABLE",
+                    "ERROR_NO_PERMISSION_TO_LINKED_TABLE",
+                    "ERROR_CANNOT_READ_LINKED_TABLE",
+                    "ERROR_LINKED_ROWS_NOT_VISIBLE_IN_VIEW",
+                ]
+            ),
             404: get_error_schema(
                 [
                     "ERROR_TABLE_DOES_NOT_EXIST",

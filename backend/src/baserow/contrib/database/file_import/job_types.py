@@ -29,7 +29,10 @@ from baserow.contrib.database.fields.exceptions import (
     SelectOptionDoesNotBelongToField,
 )
 from baserow.contrib.database.rows.actions import ImportRowsActionType
-from baserow.contrib.database.rows.exceptions import ReportMaxErrorCountExceeded
+from baserow.contrib.database.rows.exceptions import (
+    CannotReadLinkedTable,
+    ReportMaxErrorCountExceeded,
+)
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.rows.types import FileImportDict
 from baserow.contrib.database.table.actions import CreateTableActionType
@@ -39,7 +42,6 @@ from baserow.contrib.database.table.exceptions import (
     InvalidInitialTableData,
 )
 from baserow.core.action.registries import action_type_registry
-from baserow.core.exceptions import PermissionDenied
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.models import JobQuerySet
 from baserow.core.jobs.registries import JobType
@@ -67,7 +69,7 @@ class FileImportJobType(JobType):
         ReservedBaserowFieldNameException: ERROR_RESERVED_BASEROW_FIELD_NAME[2],
         InvalidBaserowFieldName: ERROR_INVALID_BASEROW_FIELD_NAME[2],
         FieldNotInTable: ERROR_FIELD_NOT_IN_TABLE[2],
-        PermissionDenied: "You don't have permission to import these values. "
+        CannotReadLinkedTable: "You don't have permission to import these values. "
         "Linking rows requires read access to the linked table.",
         SelectOptionDoesNotBelongToField: ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD[
             2

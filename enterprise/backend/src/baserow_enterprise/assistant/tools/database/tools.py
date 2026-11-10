@@ -360,7 +360,7 @@ def list_rows(
     response_model = create_model(
         f"ResponseTable{table.id}RowWithFieldFilter",
         id=(int, ...),
-        __base__=get_create_row_model(table, field_ids=field_ids),
+        __base__=get_create_row_model(table, user, field_ids=field_ids),
     )
 
     return {
@@ -1049,8 +1049,8 @@ def _build_row_tools(
         rebuilding tools after a schema change preserves the running count.
     """
 
-    row_model_for_create = get_create_row_model(table, field_ids=field_ids)
-    row_model_for_update = get_update_row_model(table)
+    row_model_for_create = get_create_row_model(table, user, field_ids=field_ids)
+    row_model_for_update = get_update_row_model(table, user)
     link_row_hints = get_link_row_hints(row_model_for_create)
     if resource_changes is None:
         resource_changes = ResourceChanges()

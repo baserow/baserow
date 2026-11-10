@@ -5,7 +5,11 @@ from django.shortcuts import reverse
 from django.test.utils import CaptureQueriesContext
 
 import pytest
-from rest_framework.status import HTTP_200_OK, HTTP_401_UNAUTHORIZED
+from rest_framework.status import (
+    HTTP_200_OK,
+    HTTP_400_BAD_REQUEST,
+    HTTP_401_UNAUTHORIZED,
+)
 
 from baserow.contrib.database.action.scopes import TableActionScopeType
 from baserow.contrib.database.fields.handler import FieldHandler
@@ -31,6 +35,9 @@ from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
+from baserow_enterprise.assistant.tools.database.types.rows import (
+    get_create_row_model,
+)
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 from baserow_enterprise.view_ownership_types import RestrictedViewOwnershipType
@@ -681,7 +688,7 @@ def test_saving_a_view_default_link_is_refused_when_the_role_hides_the_table(
 
 
 @pytest.mark.django_db
-def test_saving_view_defaults_allows_an_unchanged_or_empty_link_when_the_table_is_hidden(
+def test_saving_view_defaults_allows_an_unchanged_or_empty_link_to_a_hidden_table(
     enterprise_data_fixture, restricted_setup
 ):
     user = restricted_setup["user"]
@@ -819,3 +826,139 @@ def test_join_check_queries_do_not_grow_with_links_to_the_same_table(
         return with_check - without_check
 
     assert added_queries(30) <= added_queries(2)
+
+
+@pytest.mark.parametrize(
+    "service_type,include_id",
+    [
+        (LocalBaserowCreateRowsServiceType, False),
+        (LocalBaserowUpdateRowsServiceType, True),
+    ],
+)
+@pytest.mark.django_db
+def test_batch_services_do_not_describe_the_primary_field_of_a_hidden_table(
+    data_fixture, restricted_setup, service_type, include_id
+):
+    link = restricted_setup["link"]
+    primary = link.link_row_table.field_set.get(primary=True).specific
+    FieldHandler().update_field(
+        restricted_setup["admin"], primary, new_type_name="number"
+    )
+    create_service = (
+        data_fixture.create_local_baserow_update_rows_service
+        if include_id
+        else data_fixture.create_local_baserow_create_rows_service
+    )
+    service = create_service(integration=None, table=restricted_setup["table"])
+    row_values = {link.db_column: ["not a number"]}
+    if include_id:
+        row_values["id"] = restricted_setup["row"].id
+
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc_info:
+        service_type().dispatch_data(
+            service,
+            {"rows": [row_values]},
+            FakeDispatchContext(actor=restricted_setup["user"]),
+        )
+
+    assert "read access to the linked table" in str(exc_info.value)
+
+
+@pytest.mark.django_db
+def test_restricted_view_self_link_keeps_the_validation_error_of_an_invalid_name(
+    api_client, data_fixture, restricted_view_setup
+):
+    FieldHandler().update_field(
+        restricted_view_setup["admin"],
+        restricted_view_setup["primary"],
+        new_type_name="number",
+    )
+
+    response = post_self_link(
+        api_client, data_fixture, restricted_view_setup, ["not a number"]
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+
+
+@pytest.mark.django_db
+def test_saving_a_default_kept_from_another_field_type_is_checked(
+    enterprise_data_fixture, restricted_setup
+):
+    link = restricted_setup["link"]
+    hidden_row_id = restricted_setup["hidden_row"].id
+    view = enterprise_data_fixture.create_grid_view(table=restricted_setup["table"])
+    ViewDefaultValue.objects.create(
+        view=view, field=link, value=[hidden_row_id], field_type="multiple_select"
+    )
+
+    with pytest.raises(PermissionException):
+        ViewHandler().update_view_default_values(
+            restricted_setup["user"],
+            view,
+            [{"field": link.id, "value": [hidden_row_id]}],
+        )
+
+    assert ViewDefaultValue.objects.get(view=view).field_type == "multiple_select"
+
+
+@pytest.mark.django_db
+def test_link_row_has_filter_is_refused_when_the_role_hides_the_linked_table(
+    api_client, data_fixture, enterprise_data_fixture, restricted_setup
+):
+    view = enterprise_data_fixture.create_grid_view(table=restricted_setup["table"])
+    jwt = data_fixture.generate_token(restricted_setup["user"])
+
+    response = api_client.post(
+        reverse("api:database:views:list_filters", kwargs={"view_id": view.id}),
+        {
+            "field": restricted_setup["link"].id,
+            "type": "link_row_has",
+            "value": str(restricted_setup["hidden_row"].id),
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt}",
+    )
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "ERROR_CANNOT_READ_LINKED_TABLE"
+    assert "Other" not in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_link_row_has_filter_value_can_only_be_set_with_the_linked_table(
+    enterprise_data_fixture, restricted_setup
+):
+    admin = restricted_setup["admin"]
+    user = restricted_setup["user"]
+    hidden_row_id = str(restricted_setup["hidden_row"].id)
+    view = enterprise_data_fixture.create_grid_view(table=restricted_setup["table"])
+    handler = ViewHandler()
+    view_filter = handler.create_filter(
+        user, view, restricted_setup["link"], "link_row_has", ""
+    )
+
+    with pytest.raises(PermissionException):
+        handler.update_filter(user, view_filter, value=hidden_row_id)
+
+    view_filter = handler.update_filter(admin, view_filter, value=hidden_row_id)
+    assert view_filter.preload_values == {"display_name": "Other"}
+    # Moving a filter that already has a value doesn't read the linked table.
+    handler.update_filter(user, view_filter, value=hidden_row_id)
+
+
+@pytest.mark.django_db
+def test_assistant_row_model_does_not_read_a_hidden_linked_table(restricted_setup):
+    table = restricted_setup["table"]
+    link = restricted_setup["link"]
+
+    admin_model = get_create_row_model(table, restricted_setup["admin"])
+    assert "Other" in admin_model.model_fields["Link"].description
+
+    user_model = get_create_row_model(table, restricted_setup["user"])
+    assert "Other" not in user_model.model_fields["Link"].description
+    # Names aren't looked up, so a missing one isn't told apart from an existing one.
+    for name in ["Other", "Nope"]:
+        row = user_model(Name="Row", Link=[name])
+        assert row.to_django_orm()[link.db_column] == [name]

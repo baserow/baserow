@@ -185,6 +185,7 @@ from .models import (
     ViewSubscription,
 )
 from .registries import (
+    ViewFilterType,
     decorator_type_registry,
     decorator_value_provider_type_registry,
     view_aggregation_type_registry,
@@ -2092,6 +2093,10 @@ class ViewHandler:
         if filter_group_id is not None:
             self.get_filter_group(user, filter_group_id)
 
+        self._check_can_read_linked_table_of_filter(
+            user, view_filter_type, field, value
+        )
+
         view_filter = ViewFilter.objects.create(
             pk=primary_key,
             view=view,
@@ -2107,6 +2112,35 @@ class ViewHandler:
         view_filter_created.send(self, view_filter=view_filter, user=user)
 
         return view_filter
+
+    def _check_can_read_linked_table_of_filter(
+        self,
+        user: AbstractUser,
+        view_filter_type: ViewFilterType,
+        field: Field,
+        value: Optional[str],
+    ):
+        """
+        Verifies that the user can read the linked table when the filter value is a
+        row of it. The filter is returned with the name of that row, so setting the
+        value is a read of the linked table.
+
+        :param user: The user that sets the filter value.
+        :param view_filter_type: The type of the filter.
+        :param field: The field that is filtered on.
+        :param value: The value of the filter.
+        :raises CannotReadLinkedTable: If the user can't read the linked table.
+        """
+
+        from baserow.contrib.database.views.view_filters import (
+            LinkRowHasViewFilterType,
+        )
+
+        if not value or not isinstance(view_filter_type, LinkRowHasViewFilterType):
+            return
+
+        linked_table = field.specific.link_row_table
+        RowHandler().check_can_list_rows_of_tables(user, [linked_table])
 
     def update_filter(
         self,
@@ -2158,6 +2192,15 @@ class ViewHandler:
             raise FieldNotInTable(
                 f"The field {field.pk} does not belong to table "
                 f"{view_filter.view.table.id}."
+            )
+
+        if (
+            value != view_filter.value
+            or field.id != view_filter.field_id
+            or type_name != view_filter.type
+        ):
+            self._check_can_read_linked_table_of_filter(
+                user, view_filter_type, field, value
             )
 
         view_filter.field = field
@@ -5598,9 +5641,8 @@ class ViewHandler:
                 for item in items
                 if item.get("field")
                 and item.get("value") is not None
-                and (
-                    int(item["field"]) not in existing_by_field
-                    or existing_by_field[int(item["field"])].value != item["value"]
+                and not self._is_saved_default_value(
+                    model, existing_by_field.get(int(item["field"])), item["value"]
                 )
             }
             RowHandler().check_can_read_linked_tables(
@@ -5679,6 +5721,32 @@ class ViewHandler:
         view_updated.send(self, view=view, user=user, old_view=old_view)
 
         return ViewDefaultValue.objects.filter(view_id=view.id)
+
+    def _is_saved_default_value(
+        self,
+        model: GeneratedTableModel,
+        default_value: Optional[ViewDefaultValue],
+        value: Any,
+    ) -> bool:
+        """
+        Returns whether the value is the one already saved as default for the field's
+        current type. A default saved for another field type isn't used, so saving it
+        again makes it a new default.
+
+        :param model: The model of the view's table.
+        :param default_value: The saved default of the field, if any.
+        :param value: The value that is being saved.
+        :return: Whether the value is already the field's default.
+        """
+
+        if default_value is None or default_value.value != value:
+            return False
+
+        field_object = model._field_objects.get(default_value.field_id)
+        return (
+            field_object is not None
+            and default_value.field_type == field_object["type"].type
+        )
 
     def get_view_default_values_for_row_creation(self, view, model=None):
         """

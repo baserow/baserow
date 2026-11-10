@@ -2828,6 +2828,11 @@ class LocalBaserowUpsertRowsServiceType(LocalBaserowTableServiceType):
         rows_values = self._normalize_rows_values(
             model, rows, include_id=self.include_id
         )
+        # Checked first, because validation errors reveal which link names exist.
+        try:
+            RowHandler().check_can_read_linked_tables(acting_user, model, rows_values)
+        except CannotReadLinkedTable as exc:
+            raise linked_table_not_readable_dispatch_exception(exc) from exc
         self._raise_if_rows_values_are_invalid(model, rows_values)
         rows = self.dispatch_rows(service, rows_values, model, acting_user)
 

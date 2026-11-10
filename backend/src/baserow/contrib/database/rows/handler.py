@@ -2269,12 +2269,15 @@ class RowHandler:
         if not link_row_table_ids_by_field_id:
             return []
 
+        linked_table_ids = set(link_row_table_ids_by_field_id.values())
         table_ids = set()
         for row_values in rows_values:
             non_empty_values = {key: val for key, val in row_values.items() if val}
             for field_id in self.extract_field_ids_from_dict(non_empty_values):
                 if field_id in link_row_table_ids_by_field_id:
                     table_ids.add(link_row_table_ids_by_field_id[field_id])
+            if table_ids == linked_table_ids:
+                break
 
         if not table_ids:
             return []
@@ -2505,6 +2508,9 @@ class RowHandler:
                     {index: value for index, (_, value) in values_by_row.items()},
                 )
             except ValidationError as exc:
+                # Only a name without a row says something about the hidden rows.
+                if getattr(exc, "code", None) != "missing_row":
+                    raise
                 raise LinkedRowsNotVisibleInView(table.id, actor=user) from exc
             for row_index, (key, _) in values_by_row.items():
                 # Write the checked ids, so a rename can't change the linked rows.

@@ -509,14 +509,6 @@ class TokenHandler:
             if table.database.workspace_id != token.workspace_id:
                 raise NoPermissionToLinkedTable(table.id)
 
-        if not CoreHandler().check_permissions(
-            token.user,
-            UseTokenOperationType.type,
-            workspace=token.workspace,
-            context=token,
-        ):
-            raise NoPermissionToLinkedTable(tables[0].id)
-
         checks = {
             table: PermissionCheck(token, TOKEN_TO_OPERATION_MAP["read"], table)
             for table in tables
