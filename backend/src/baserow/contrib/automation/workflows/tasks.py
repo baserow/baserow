@@ -115,6 +115,35 @@ def automation_periodic_cleanup():
     handler.clear_old_history()
 
 
+@app.task(queue="automation_workflow")
+def automation_run_stall_check():
+    """
+    Fails the runs that stopped making progress (a lost task or a dead worker),
+    and warns about the runs that are slow to progress, which points at a
+    backed-up queue rather than a lost task. Runs more often than the periodic
+    cleanup so that a dead run is resolved within about an hour.
+    """
+
+    from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+
+    handler = AutomationWorkflowHandler()
+    resolved = handler.mark_failure_for_stalled_history()
+    if resolved:
+        logger.warning(
+            f"{resolved} automation workflow runs made no progress for more than "
+            f"{settings.AUTOMATION_RUN_STALL_TIMEOUT_MINUTES} minutes and were "
+            "marked as interrupted."
+        )
+
+    newly_stalled = handler.count_runs_newly_stalled()
+    if newly_stalled:
+        logger.warning(
+            f"{newly_stalled} automation workflow runs made no progress for more "
+            f"than {settings.AUTOMATION_RUN_STALL_WARNING_MINUTES} minutes; check "
+            "that a worker consumes the automation_workflow queue."
+        )
+
+
 @app.on_after_finalize.connect
 def setup_periodic_automation_tasks(sender, **kwargs):
     sender.add_periodic_task(
@@ -122,4 +151,8 @@ def setup_periodic_automation_tasks(sender, **kwargs):
             minutes=settings.AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES
         ),
         automation_periodic_cleanup.s(),
+    )
+    sender.add_periodic_task(
+        timedelta(minutes=settings.AUTOMATION_RUN_STALL_SWEEP_INTERVAL_MINUTES),
+        automation_run_stall_check.s(),
     )

@@ -1396,6 +1396,25 @@ AUTOMATION_WORKFLOW_HISTORY_MIN_RETENTION_DAYS = int(
 AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES = int(
     os.getenv("BASEROW_AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES", 60)
 )
+# A started run that made no progress (no node started or completed) for this
+# many minutes lost its next task (a lost publish or a dead worker) and is
+# failed by the stall sweep. Elapsed time cannot tell a lost task from one
+# stuck in a queue backlog, so this stays well above a normal backlog. It must
+# also stay above the broker's visibility timeout (3600 s by default with
+# Redis): a task a hard-killed worker had reserved but not started is only
+# redelivered after it, and the run then recovers. 75 minutes is that timeout
+# plus the same margin as AUTOMATION_PENDING_NODE_STALE_SECONDS.
+AUTOMATION_RUN_STALL_TIMEOUT_MINUTES = int(
+    os.getenv("BASEROW_AUTOMATION_RUN_STALL_TIMEOUT_MINUTES", 75)
+)
+# A started run that made no progress for this many minutes is only counted in
+# a warning log, to tell a backed-up queue apart from a lost task.
+AUTOMATION_RUN_STALL_WARNING_MINUTES = int(
+    os.getenv("BASEROW_AUTOMATION_RUN_STALL_WARNING_MINUTES", 5)
+)
+AUTOMATION_RUN_STALL_SWEEP_INTERVAL_MINUTES = int(
+    os.getenv("BASEROW_AUTOMATION_RUN_STALL_SWEEP_INTERVAL_MINUTES", 5)
+)
 # The maximum number of node dispatches allowed in a single workflow run.
 # This protects against infinite dispatches due to a misconfigured node.
 AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN = int(
