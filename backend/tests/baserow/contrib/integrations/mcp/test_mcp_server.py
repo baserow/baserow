@@ -196,6 +196,8 @@ def test_refresh_and_review_tools_through_the_api(data_fixture, api_client, mock
     assert "s3cr3t-value" not in str(body)
     assert body["has_auth_header_value"] is True
     assert [tool["name"] for tool in body["tools"]] == ["add", "fail"]
+    # The parameters the editor approves are shown for review.
+    assert set(body["tools"][0]["input_schema"]["properties"]) == {"a", "b"}
 
     response = api_client.patch(
         reverse("api:mcp_server:tools", args=[integration.id]),

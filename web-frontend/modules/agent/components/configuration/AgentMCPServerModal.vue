@@ -1,5 +1,5 @@
 <template>
-  <Modal ref="modal" small @hidden="confirmingRemove = false">
+  <Modal ref="modal" small @hidden="hidden">
     <template #content>
       <h2 class="box__title">
         {{
@@ -197,11 +197,13 @@ import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SegmentControl from '@baserow/modules/core/components/SegmentControl'
 import ButtonText from '@baserow/modules/core/components/ButtonText'
-import { API_ERROR_CODE, MCP_AUTH_TYPE } from '@baserow/modules/agent/constants'
+import { MCP_AUTH_TYPE } from '@baserow/modules/agent/constants'
+import { openSignInPopup } from '@baserow/modules/agent/composables/useAgentMCPServers'
 import {
+  MCPSignInCancelled,
   MCPSignInError,
-  openSignInPopup,
-} from '@baserow/modules/agent/composables/useAgentMCPServers'
+  mcpErrorMessage,
+} from '@baserow/modules/agent/utils/mcp'
 
 /**
  * Adds or edits an MCP server and how it authenticates: OAuth sign-in, a
@@ -235,6 +237,10 @@ const disconnecting = ref(false)
 const confirmingRemove = ref(false)
 const showOwnClient = ref(false)
 const error = ref(null)
+// Bumped each time the modal opens, so a request that finishes after the
+// editor moved on to another server or opening is ignored.
+let opening = 0
+let signIn = null
 const values = reactive({
   name: '',
   url: '',
@@ -348,6 +354,11 @@ function ownClientId(existing) {
 }
 
 function show(existing = null) {
+  opening++
+  cancelSignIn()
+  saving.value = false
+  removing.value = false
+  disconnecting.value = false
   server.value = existing
   Object.assign(values, {
     name: existing?.name ?? '',
@@ -400,88 +411,87 @@ function changedValues() {
   )
 }
 
-function readError(e) {
-  if (e instanceof MCPSignInError) {
-    return {
-      title: t('agent.connectedAppSignInFailedTitle'),
-      message: e.reason || t('agent.connectedAppSignInFailed'),
-    }
-  }
-  if (!e.handler) throw e
-  e.handler.handled()
-  if (e.handler.code === API_ERROR_CODE.MCP_OAUTH_FAILED) {
-    return {
-      title: t('agent.connectedAppSignInFailedTitle'),
-      message: e.handler.detail,
-    }
-  }
-  if (e.handler.code === API_ERROR_CODE.MCP_SERVER_REFUSED_CREDENTIAL) {
-    return {
-      title: t('agent.connectedAppRefusedTitle'),
-      message: t('agent.connectedAppRefused'),
-    }
-  }
-  if (e.handler.code === API_ERROR_CODE.MCP_SERVER_UNREACHABLE) {
-    return {
-      title: t('agent.connectedAppUnreachableTitle'),
-      message: t('agent.connectedAppUnreachable'),
-    }
-  }
-  return e.handler.getMessage()
+/** Gives up on a sign-in still waiting, e.g. when the modal closes. */
+function cancelSignIn() {
+  signIn?.abort()
+  signIn = null
+}
+
+function hidden() {
+  confirmingRemove.value = false
+  cancelSignIn()
 }
 
 async function submit() {
   touched.value = true
   if (Object.values(errors.value).some(Boolean)) return
   // Opened before any request, or the browser blocks the popup.
-  const signIn = needsSignIn.value
-  const popup = signIn ? openSignInPopup() : null
+  const signingIn = needsSignIn.value
+  const popup = signingIn ? openSignInPopup() : null
   const isNew = !server.value
+  const current = opening
+  const stale = () => current !== opening
+  cancelSignIn()
+  const controller = new AbortController()
+  if (signingIn) signIn = controller
   saving.value = true
   error.value = null
   try {
     let saved = await props.save(server.value, changedValues())
+    if (stale()) return popup?.close()
     // A failed sign-in keeps the modal open on the server that now exists.
     server.value = saved
-    if (signIn && !popup) {
+    if (signingIn && !popup) {
       throw new MCPSignInError(t('agent.connectedAppPopupBlocked'))
-    } else if (signIn) saved = await props.connect(saved, popup)
+    } else if (signingIn) {
+      saved = await props.connect(saved, popup, controller.signal)
+    }
+    if (stale()) return
     // A server without tools, being new, moved, or after a refused key, lists
     // them on save, so they can be reviewed and a wrong key shows here.
-    const listing = !signIn && (isNew || !saved.tools.length)
+    const listing = !signingIn && (isNew || !saved.tools.length)
     if (listing) saved = await props.refresh(saved)
+    if (stale()) return
     modal.value.hide()
-    if (signIn || listing) emit('created', saved)
+    if (signingIn || listing) emit('created', saved)
   } catch (e) {
     popup?.close()
-    error.value = readError(e)
+    if (e instanceof MCPSignInCancelled) return
+    const message = mcpErrorMessage(t, e)
+    if (!stale()) error.value = message
   } finally {
-    saving.value = false
+    if (signIn === controller) signIn = null
+    if (!stale()) saving.value = false
   }
 }
 
 async function disconnectAccount() {
+  const current = opening
   disconnecting.value = true
   error.value = null
   try {
-    server.value = await props.disconnect(server.value)
+    const disconnected = await props.disconnect(server.value)
+    if (current === opening) server.value = disconnected
   } catch (e) {
-    error.value = readError(e)
+    const message = mcpErrorMessage(t, e)
+    if (current === opening) error.value = message
   } finally {
-    disconnecting.value = false
+    if (current === opening) disconnecting.value = false
   }
 }
 
 async function confirmRemove() {
+  const current = opening
   removing.value = true
   error.value = null
   try {
     await props.remove(server.value)
-    modal.value.hide()
+    if (current === opening) modal.value.hide()
   } catch (e) {
-    error.value = readError(e)
+    const message = mcpErrorMessage(t, e)
+    if (current === opening) error.value = message
   } finally {
-    removing.value = false
+    if (current === opening) removing.value = false
   }
 }
 

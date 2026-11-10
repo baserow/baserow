@@ -58,6 +58,7 @@ export const API_ERROR_CODE = Object.freeze({
   MCP_SERVER_NOT_CONNECTED: 'ERROR_MCP_SERVER_NOT_CONNECTED',
   MCP_OAUTH_FAILED: 'ERROR_MCP_OAUTH_FAILED',
   MCP_OAUTH_STATE_INVALID: 'ERROR_MCP_OAUTH_STATE_INVALID',
+  MCP_SERVER_DOES_NOT_USE_OAUTH: 'ERROR_MCP_SERVER_DOES_NOT_USE_OAUTH',
 })
 
 export const MCP_SERVER_INTEGRATION_TYPE = 'mcp_server'
@@ -68,7 +69,9 @@ export const MCP_AUTH_TYPE = Object.freeze({
   OAUTH: 'oauth',
 })
 
-// The message the OAuth callback page sends to the window that opened it.
+// The channel and message type the OAuth callback page reports on. Unlike
+// `window.opener`, the channel still works when the provider's page cut the
+// popup off from Baserow, as a `Cross-Origin-Opener-Policy` header does.
 export const MCP_OAUTH_MESSAGE_TYPE = 'baserow-mcp-oauth'
 
 export const AGENT_REPLY_ERROR_CODE = Object.freeze({

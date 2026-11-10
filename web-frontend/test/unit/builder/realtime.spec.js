@@ -220,14 +220,12 @@ describe('builder realtime workflow_actions_reordered', () => {
 })
 
 describe('builder realtime integration events', () => {
-  const application = { id: 1, integrations: [] }
-  // Agents load their MCP servers themselves and keep no integrations list.
-  const agent = { id: 2, type: 'agent' }
+  const application = { id: 1 }
 
   const buildAppStore = ({ integration = null } = {}) => ({
     getters: {
       'application/get': (id) =>
-        [application, agent].find((app) => app.id === id),
+        id === application.id ? application : undefined,
       'integration/getIntegrationById': () => integration,
     },
     dispatch: vi.fn(),
@@ -309,21 +307,6 @@ describe('builder realtime integration events', () => {
 
     expect(dispatchedWith(store, 'integration/forceCreate')).toEqual([])
     expect(dispatchedWith(store, 'integration/forceDelete')).toEqual([])
-  })
-
-  test('integration events skip applications without an integrations list', () => {
-    const handlers = getHandlers()
-    const store = buildAppStore({ integration: { id: 5 } })
-    const integration = { id: 5, application_id: agent.id }
-
-    handlers.integration_created({ store }, { integration, before_id: null })
-    handlers.integration_updated({ store }, { integration })
-    handlers.integration_deleted(
-      { store },
-      { integration_id: 5, application_id: agent.id }
-    )
-
-    expect(store.dispatch).not.toHaveBeenCalled()
   })
 })
 

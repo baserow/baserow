@@ -87,17 +87,20 @@
 </template>
 
 <script setup>
-import { inject, onMounted, ref } from 'vue'
+import { inject, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useStore } from 'vuex'
 import ButtonText from '@baserow/modules/core/components/ButtonText'
 import ButtonIcon from '@baserow/modules/core/components/ButtonIcon'
 import Icon from '@baserow/modules/core/components/Icon'
 import {
-  MCPSignInError,
   openSignInPopup,
   useAgentMCPServers,
 } from '@baserow/modules/agent/composables/useAgentMCPServers'
+import {
+  MCPSignInCancelled,
+  mcpErrorMessage,
+} from '@baserow/modules/agent/utils/mcp'
 import { MCP_AUTH_TYPE } from '@baserow/modules/agent/constants'
 import AgentMCPServerModal from '@baserow/modules/agent/components/configuration/AgentMCPServerModal'
 import AgentMCPToolsModal from '@baserow/modules/agent/components/configuration/AgentMCPToolsModal'
@@ -152,6 +155,11 @@ async function saveServer(server, values) {
   return server ? await update(server, values) : await create(values)
 }
 
+// The sign-in waiting per server. Signing in again replaces it, so a popup
+// the editor closed doesn't keep the server waiting.
+const signIns = new Map()
+onBeforeUnmount(() => signIns.forEach((controller) => controller.abort()))
+
 async function connectServer(server) {
   const popup = openSignInPopup()
   if (!popup) {
@@ -161,22 +169,24 @@ async function connectServer(server) {
     })
     return
   }
+  signIns.get(server.id)?.abort()
+  const controller = new AbortController()
+  signIns.set(server.id, controller)
   connecting.value = server.id
+  const started = () => {
+    if (connecting.value === server.id) connecting.value = null
+  }
   try {
-    toolsModal.value.show(await connect(server, popup))
+    const connected = await connect(server, popup, controller.signal, started)
+    toolsModal.value.show(connected)
   } catch (error) {
-    popup?.close()
-    if (error instanceof MCPSignInError) {
-      store.dispatch('toast/error', {
-        title: t('agent.connectedAppSignInFailedTitle'),
-        message: error.reason || t('agent.connectedAppSignInFailed'),
-      })
-    } else {
-      error.handler?.notifyIf()
-      if (!error.handler) throw error
+    popup.close()
+    if (!(error instanceof MCPSignInCancelled)) {
+      store.dispatch('toast/error', mcpErrorMessage(t, error))
     }
   } finally {
-    connecting.value = null
+    started()
+    if (signIns.get(server.id) === controller) signIns.delete(server.id)
   }
 }
 </script>

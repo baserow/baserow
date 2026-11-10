@@ -3,6 +3,8 @@ import { flushPromises } from '@vue/test-utils'
 import { ref } from 'vue'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import AgentConnectedAppsSection from '@baserow/modules/agent/components/configuration/AgentConnectedAppsSection'
+import { MCP_OAUTH_MESSAGE_TYPE } from '@baserow/modules/agent/constants'
+import { registerRealtimeEvents } from '@baserow/modules/builder/realtime'
 
 const tool = (name, extra = {}) => ({
   name,
@@ -246,6 +248,120 @@ describe('Agent connected apps', () => {
     ).toContain('agent.connectedAppUnreachable')
   })
 
+  test('a refresh that finishes after another server was opened is ignored', async () => {
+    let answer
+    testApp.mock.onGet(/application\/10\/integrations/).reply(200, [
+      server({ tools: [tool('search')] }),
+      server({ id: 6, name: 'Tracker', tools: [tool('issue')] }),
+    ])
+    testApp.mock.onPost('/integrations/mcp/5/refresh-tools/').reply(
+      () =>
+        new Promise((resolve) => {
+          answer = () =>
+            resolve([200, server({ tools: [tool('search'), tool('fetch')] })])
+        })
+    )
+    const wrapper = await mountSection()
+    await flushPromises()
+    const toolsButtons = () =>
+      wrapper
+        .findAll('.agent-connected-apps__server')
+        .map((card) => card.findAll('button')[0])
+
+    await toolsButtons()[0].trigger('click')
+    await flushPromises()
+    buttonInBody('agent.connectedAppRefresh').click()
+    await flushPromises()
+    buttonInBody('action.cancel').click()
+    // The modal finishes hiding on the next tick.
+    await new Promise((resolve) => setTimeout(resolve))
+    await toolsButtons()[1].trigger('click')
+    await flushPromises()
+    answer()
+    await flushPromises()
+
+    expect(
+      inBody('.modal__box .agent-tool-permissions__tool-name').map((name) =>
+        name.textContent.trim()
+      )
+    ).toEqual(['issue'])
+  })
+
+  test('the review shows the parameters a tool is called with', async () => {
+    const search = tool('search', {
+      input_schema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'What to look for' },
+          limit: { type: 'integer' },
+        },
+        required: ['query'],
+      },
+    })
+    testApp.mock
+      .onGet(/application\/10\/integrations/)
+      .reply(200, [server({ tools: [search] })])
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await wrapper
+      .findAll('.agent-connected-apps__server button')[0]
+      .trigger('click')
+    await flushPromises()
+    buttonInBody('agent.connectedAppToolParameters').click()
+    await flushPromises()
+
+    const parameters = inBody('.modal__box .agent-mcp-tools__parameter').map(
+      (parameter) =>
+        [...parameter.children].map((part) => part.textContent.trim())
+    )
+    expect(parameters).toEqual([
+      [
+        'query',
+        'string',
+        'agent.connectedAppToolParameterRequired',
+        'What to look for',
+      ],
+      ['limit', 'integer'],
+    ])
+  })
+
+  test("another editor's change shows without a reload", async () => {
+    const agent = await testApp.store.dispatch('application/forceCreate', {
+      id: 10,
+      type: 'agent',
+      name: 'Helper',
+      workspace: { id: 1 },
+    })
+    testApp.mock
+      .onGet(/application\/10\/integrations/)
+      .reply(200, [server()])
+    const wrapper = await testApp.mount(AgentConnectedAppsSection, {
+      props: { editable: true },
+      global: {
+        provide: {
+          agentApplication: ref(testApp.store.getters['application/get'](10)),
+        },
+      },
+    })
+    await flushPromises()
+    const handlers = {}
+    registerRealtimeEvents({
+      registerEvent: (name, handler) => (handlers[name] = handler),
+    })
+
+    handlers.integration_updated(
+      { store: testApp.store },
+      { integration: server({ name: 'Renamed', application_id: 10 }) }
+    )
+    await flushPromises()
+
+    expect(agent).toBeDefined()
+    expect(wrapper.find('.agent-connected-apps__server-name').text()).toBe(
+      'Renamed'
+    )
+  })
+
   test('viewers see the apps but cannot add or edit them', async () => {
     testApp.mock.onGet(/application\/10\/integrations/).reply(200, [server()])
     const wrapper = await mountSection(false)
@@ -286,19 +402,22 @@ describe('Agent connected apps', () => {
       await flushPromises()
     }
 
-    test('connecting opens the provider in a popup, then lists the tools', async () => {
-      let connected = false
+    // What the callback page reports once the provider redirected back.
+    const report = (result) => {
+      const channel = new BroadcastChannel(MCP_OAUTH_MESSAGE_TYPE)
+      channel.postMessage({ type: MCP_OAUTH_MESSAGE_TYPE, ...result })
+      channel.close()
+    }
+
+    const mockSignIn = () => {
       testApp.mock
         .onGet(/application\/10\/integrations/)
-        .reply(() => [
-          200,
-          connected ? [oauthServer({ oauth_connected: true })] : [],
-        ])
+        .reply(200, [])
       testApp.mock
         .onPost(/application\/10\/integrations/)
         .reply(200, oauthServer())
       testApp.mock.onPost('/integrations/mcp/5/oauth/start/').reply(200, {
-        authorization_url: 'https://auth.example.com/authorize?x=1',
+        authorization_url: 'https://auth.example.com/authorize?state=abc',
       })
       testApp.mock
         .onPost('/integrations/mcp/5/refresh-tools/')
@@ -306,6 +425,10 @@ describe('Agent connected apps', () => {
           200,
           oauthServer({ oauth_connected: true, tools: [tool('search')] })
         )
+    }
+
+    test('connecting opens the provider in a popup, then lists the tools', async () => {
+      mockSignIn()
       const wrapper = await mountSection()
       await flushPromises()
 
@@ -317,11 +440,20 @@ describe('Agent connected apps', () => {
         auth_type: 'oauth',
         oauth_client_id: '',
       })
-      expect(popup.location.href).toBe('https://auth.example.com/authorize?x=1')
+      expect(popup.location.href).toBe(
+        'https://auth.example.com/authorize?state=abc'
+      )
 
-      // The provider redirects back, Baserow stores the tokens, the popup closes.
-      connected = true
+      // A provider page can cut the popup off from Baserow, which then sees it
+      // as closed while the editor is still signing in.
       popup.closed = true
+      await flushPromises()
+      expect(inBody('.modal__box .agent-tool-permissions__tool')).toHaveLength(
+        0
+      )
+
+      // The provider redirects back and the callback page reports.
+      report({ state: 'abc', integration: oauthServer({ oauth_connected: true }) })
       await vi.waitFor(() =>
         expect(
           inBody('.modal__box .agent-tool-permissions__tool')
@@ -332,35 +464,37 @@ describe('Agent connected apps', () => {
       )
     })
 
-    test('a closed popup without an account explains it and keeps the server', async () => {
-      testApp.mock
-        .onGet(/application\/10\/integrations/)
-        .reply(200, [oauthServer()])
-      testApp.mock
-        .onPost(/application\/10\/integrations/)
-        .reply(200, oauthServer())
-      testApp.mock
-        .onPost('/integrations/mcp/5/oauth/start/')
-        .reply(200, { authorization_url: 'https://auth.example.com/authorize' })
+    test('another sign-in finishing leaves this one waiting', async () => {
+      mockSignIn()
       const wrapper = await mountSection()
       await flushPromises()
 
-      vi.useFakeTimers({ shouldAdvanceTime: true })
       await createWithOAuth(wrapper)
-      popup.closed = true
-      // Baserow keeps checking for a while, in case the provider cut the popup
-      // off from it while the editor was still signing in.
-      await vi.advanceTimersByTimeAsync(125000)
+      report({ state: 'other', integration: oauthServer() })
+      await flushPromises()
+
+      expect(popup.close).not.toHaveBeenCalled()
+      expect(testApp.mock.history.post.at(-1).url).toBe(
+        '/integrations/mcp/5/oauth/start/'
+      )
+    })
+
+    test('a failed sign-in explains it and keeps the server', async () => {
+      mockSignIn()
+      const wrapper = await mountSection()
+      await flushPromises()
+
+      await createWithOAuth(wrapper)
+      report({ state: 'abc', error: 'The sign-in was cancelled or refused.' })
 
       await vi.waitFor(() =>
         expect(
           document.body.querySelector('.modal__box .alert')?.textContent
-        ).toContain('agent.connectedAppSignInFailed')
+        ).toContain('The sign-in was cancelled or refused.')
       )
       expect(inBody('.modal__box h2')[0].textContent).toContain(
         'agent.connectedAppEditTitle'
       )
-      vi.useRealTimers()
     })
 
     test('a new URL replaces a client Baserow registered without asking for its secret', async () => {

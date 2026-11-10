@@ -62,6 +62,50 @@
               >
                 {{ tool.description }}
               </div>
+              <ButtonText
+                v-if="parameters(tool).length"
+                class="agent-mcp-tools__parameters-toggle"
+                size="small"
+                :icon="
+                  expanded[tool.name]
+                    ? 'iconoir-nav-arrow-down'
+                    : 'iconoir-nav-arrow-right'
+                "
+                @click="toggle(tool.name)"
+              >
+                {{
+                  $t(
+                    'agent.connectedAppToolParameters',
+                    { count: parameters(tool).length },
+                    parameters(tool).length
+                  )
+                }}
+              </ButtonText>
+              <ul
+                v-if="expanded[tool.name]"
+                class="agent-mcp-tools__parameters"
+              >
+                <li
+                  v-for="parameter in parameters(tool)"
+                  :key="parameter.name"
+                  class="agent-mcp-tools__parameter"
+                >
+                  <code>{{ parameter.name }}</code>
+                  <span class="agent-mcp-tools__parameter-type">{{
+                    parameter.type
+                  }}</span>
+                  <span
+                    v-if="parameter.required"
+                    class="agent-mcp-tools__parameter-required"
+                    >{{ $t('agent.connectedAppToolParameterRequired') }}</span
+                  >
+                  <span
+                    v-if="parameter.description"
+                    class="agent-mcp-tools__parameter-description"
+                    >{{ parameter.description }}</span
+                  >
+                </li>
+              </ul>
             </div>
             <span class="agent-mcp-tools__columns">
               <Checkbox
@@ -102,12 +146,13 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { API_ERROR_CODE } from '@baserow/modules/agent/constants'
+import ButtonText from '@baserow/modules/core/components/ButtonText'
+import { mcpErrorMessage } from '@baserow/modules/agent/utils/mcp'
 
 /**
- * Reviews the tools of an MCP server: which ones the Agent may call and which
- * change data. Saving marks every listed tool as reviewed, including changed
- * ones the editor leaves off.
+ * Reviews the tools of an MCP server: which ones the Agent may call, which
+ * change data, and the parameters the model fills in. Saving marks every
+ * listed tool as reviewed, including changed ones the editor leaves off.
  */
 const props = defineProps({
   agentName: { type: String, required: true },
@@ -120,9 +165,13 @@ const { t } = useI18n()
 const modal = ref(null)
 const server = ref(null)
 const picked = ref({})
+const expanded = ref({})
 const refreshing = ref(false)
 const saving = ref(false)
 const error = ref(null)
+// Bumped each time the modal opens, so a request that finishes after the
+// editor moved on to another server or opening is ignored.
+let opening = 0
 
 // Removed tools are listed last so the ones that can be used come first.
 const tools = computed(() =>
@@ -130,6 +179,22 @@ const tools = computed(() =>
     (a, b) => Number(a.removed) - Number(b.removed)
   )
 )
+
+/** The tool's top-level parameters, as its input schema describes them. */
+function parameters(tool) {
+  const schema = tool.input_schema ?? {}
+  const required = new Set(schema.required ?? [])
+  return Object.entries(schema.properties ?? {}).map(([name, property]) => ({
+    name,
+    type: [property?.type ?? 'any'].flat().join(' | '),
+    description: property?.description ?? '',
+    required: required.has(name),
+  }))
+}
+
+function toggle(name) {
+  expanded.value = { ...expanded.value, [name]: !expanded.value[name] }
+}
 
 function reset(next) {
   // Choices the editor made survive a refresh; new tools start as stored.
@@ -146,8 +211,12 @@ function reset(next) {
 }
 
 function show(next) {
+  opening++
   picked.value = {}
+  expanded.value = {}
   error.value = null
+  refreshing.value = false
+  saving.value = false
   reset(next)
   modal.value.show()
 }
@@ -160,37 +229,23 @@ function set(name, key, value) {
   }
 }
 
-function readError(e) {
-  if (!e.handler) throw e
-  e.handler.handled()
-  if (e.handler.code === API_ERROR_CODE.MCP_SERVER_REFUSED_CREDENTIAL) {
-    return {
-      title: t('agent.connectedAppRefusedTitle'),
-      message: t('agent.connectedAppRefused'),
-    }
-  }
-  if (e.handler.code === API_ERROR_CODE.MCP_SERVER_UNREACHABLE) {
-    return {
-      title: t('agent.connectedAppUnreachableTitle'),
-      message: t('agent.connectedAppUnreachable'),
-    }
-  }
-  return e.handler.getMessage()
-}
-
 async function refreshTools() {
+  const current = opening
   refreshing.value = true
   error.value = null
   try {
-    reset(await props.refresh(server.value))
+    const refreshed = await props.refresh(server.value)
+    if (current === opening) reset(refreshed)
   } catch (e) {
-    error.value = readError(e)
+    const message = mcpErrorMessage(t, e)
+    if (current === opening) error.value = message
   } finally {
-    refreshing.value = false
+    if (current === opening) refreshing.value = false
   }
 }
 
 async function done() {
+  const current = opening
   saving.value = true
   error.value = null
   try {
@@ -205,11 +260,12 @@ async function done() {
           ...picked.value[tool.name],
         }))
     )
-    modal.value.hide()
+    if (current === opening) modal.value.hide()
   } catch (e) {
-    error.value = readError(e)
+    const message = mcpErrorMessage(t, e)
+    if (current === opening) error.value = message
   } finally {
-    saving.value = false
+    if (current === opening) saving.value = false
   }
 }
 

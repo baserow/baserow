@@ -1,39 +1,75 @@
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useNuxtApp } from '#app'
-import IntegrationService from '@baserow/modules/core/services/integration'
+import { useStore } from 'vuex'
 import MCPServerService from '@baserow/modules/agent/services/mcpServer'
 import {
   MCP_OAUTH_MESSAGE_TYPE,
   MCP_SERVER_INTEGRATION_TYPE,
 } from '@baserow/modules/agent/constants'
+import {
+  MCPSignInCancelled,
+  MCPSignInError,
+} from '@baserow/modules/agent/utils/mcp'
 
-// How often to check whether the sign-in popup was closed.
-const POPUP_POLL_MS = 500
-// A provider page can cut the popup off from Baserow, which then reports it as
-// closed while the editor is still signing in. The server is checked this
-// often, for this long, before giving up.
-const STATUS_POLL_MS = 2000
-const STATUS_POLL_LIMIT_MS = 120000
+export { MCPSignInCancelled, MCPSignInError }
 
-/** Raised when signing in with an MCP server's provider didn't connect it. */
-export class MCPSignInError extends Error {
-  constructor(reason) {
-    super(reason || 'Sign-in not completed')
-    this.reason = reason
-  }
+// As long as the backend keeps a started sign-in.
+const SIGN_IN_TIMEOUT_MS = 600000
+
+/**
+ * Open a sign-in popup. Call it straight from a click, before any request, or
+ * the browser blocks it. Each gets its own name, so two sign-ins never share
+ * one window.
+ */
+export function openSignInPopup() {
+  const name = `baserow-mcp-oauth-${Math.random().toString(36).slice(2)}`
+  return window.open('', name, 'popup,width=520,height=720')
 }
 
 /**
- * Open the sign-in popup. Call it straight from a click, before any request,
- * or the browser blocks it.
+ * Resolve with the callback page's result for this sign-in. It's matched by
+ * the sign-in's state, so another sign-in finishing doesn't end this one. The
+ * popup closing isn't waited for: a provider page can cut it off from Baserow,
+ * which then sees it as closed while the editor is still signing in.
+ *
+ * @param {string} state The state of the authorization URL.
+ * @param {AbortSignal} signal Gives up on the sign-in.
  */
-export function openSignInPopup() {
-  return window.open('', 'baserow-mcp-oauth', 'popup,width=520,height=720')
+function waitForSignIn(state, signal) {
+  return new Promise((resolve, reject) => {
+    const channel = new BroadcastChannel(MCP_OAUTH_MESSAGE_TYPE)
+    const finish = (settle) => {
+      channel.close()
+      window.removeEventListener('message', onWindowMessage)
+      signal?.removeEventListener('abort', onAbort)
+      clearTimeout(timer)
+      settle()
+    }
+    const onResult = (data) => {
+      if (data?.type === MCP_OAUTH_MESSAGE_TYPE && data.state === state) {
+        finish(() => resolve(data))
+      }
+    }
+    const onWindowMessage = (event) => {
+      if (event.origin === window.location.origin) onResult(event.data)
+    }
+    const onAbort = () => finish(() => reject(new MCPSignInCancelled()))
+    const timer = setTimeout(
+      () => finish(() => reject(new MCPSignInError(null))),
+      SIGN_IN_TIMEOUT_MS
+    )
+    channel.onmessage = (event) => onResult(event.data)
+    window.addEventListener('message', onWindowMessage)
+    signal?.addEventListener('abort', onAbort)
+    if (signal?.aborted) onAbort()
+  })
 }
 
 /**
  * The MCP servers an Agent may call tools of. Each is an integration of the
- * Agent; its tools are listed by the server and turned on by an editor.
+ * Agent, kept in the integration store like those of other applications, so
+ * other editors' changes arrive in real time. Its tools are listed by the
+ * server and turned on by an editor.
  *
  * @param {Ref<Object>} agent The Agent.
  * @param {Function} onChange Called after a server is stored or removed: which
@@ -41,99 +77,86 @@ export function openSignInPopup() {
  */
 export function useAgentMCPServers(agent, onChange = () => {}) {
   const { $client } = useNuxtApp()
-  const integrations = IntegrationService($client)
+  const store = useStore()
   const mcp = MCPServerService($client)
 
-  const servers = ref([])
+  const servers = computed(() =>
+    store.getters['integration/getIntegrations'](agent.value).filter(
+      (integration) => integration.type === MCP_SERVER_INTEGRATION_TYPE
+    )
+  )
   const loading = ref(false)
   const loadError = ref(false)
-  let request = 0
 
-  const isServer = (integration) =>
-    integration.type === MCP_SERVER_INTEGRATION_TYPE
-
-  function replace(server) {
-    const index = servers.value.findIndex(({ id }) => id === server.id)
-    if (index === -1) servers.value = [...servers.value, server]
-    else servers.value = servers.value.with(index, server)
-    onChange()
-    return server
-  }
+  const find = (id) =>
+    store.getters['integration/getIntegrationById'](agent.value, id)
 
   async function load() {
-    const current = ++request
     loading.value = true
     loadError.value = false
     try {
-      const { data } = await integrations.fetchAll(agent.value.id)
-      if (current === request) servers.value = data.filter(isServer)
+      await store.dispatch('integration/fetch', { application: agent.value })
     } catch {
-      if (current === request) loadError.value = true
+      loadError.value = true
     } finally {
-      if (current === request) loading.value = false
+      loading.value = false
     }
   }
 
+  /** Store a server an MCP endpoint answered with. */
+  async function apply(data) {
+    const integration = find(data.id)
+    if (integration) {
+      await store.dispatch('integration/forceUpdate', {
+        application: agent.value,
+        integration,
+        values: data,
+      })
+    }
+    onChange()
+    return find(data.id) ?? data
+  }
+
   async function create(values) {
-    const { data } = await integrations.create(
-      agent.value.id,
-      MCP_SERVER_INTEGRATION_TYPE,
-      values
-    )
-    return replace(data)
+    const integration = await store.dispatch('integration/create', {
+      application: agent.value,
+      integrationType: MCP_SERVER_INTEGRATION_TYPE,
+      values,
+    })
+    onChange()
+    return find(integration.id)
   }
 
   async function update(server, values) {
-    const { data } = await integrations.update(server.id, values)
-    return replace(data)
+    await store.dispatch('integration/update', {
+      application: agent.value,
+      integrationId: server.id,
+      values,
+    })
+    onChange()
+    return find(server.id)
   }
 
   async function remove(server) {
-    await integrations.delete(server.id)
-    servers.value = servers.value.filter(({ id }) => id !== server.id)
-    onChange()
-  }
-
-  async function reloadServer(server) {
-    const { data } = await integrations.fetchAll(agent.value.id)
-    const fresh = data.find(({ id }) => id === server.id)
-    return fresh ? replace(fresh) : null
-  }
-
-  /**
-   * Resolve with the callback page's message, or null once the popup closes
-   * without one. A provider page can cut the popup off from its opener, so the
-   * message is only a shortcut: the stored server is checked either way.
-   */
-  function waitForSignIn(popup) {
-    return new Promise((resolve) => {
-      const finish = (result) => {
-        window.removeEventListener('message', onMessage)
-        clearInterval(timer)
-        resolve(result)
-      }
-      const onMessage = (event) => {
-        if (
-          event.origin === window.location.origin &&
-          event.data?.type === MCP_OAUTH_MESSAGE_TYPE
-        ) {
-          finish(event.data)
-        }
-      }
-      const timer = setInterval(() => {
-        if (!popup || popup.closed) finish(null)
-      }, POPUP_POLL_MS)
-      window.addEventListener('message', onMessage)
+    await store.dispatch('integration/delete', {
+      application: agent.value,
+      integrationId: server.id,
     })
+    onChange()
   }
 
   /**
    * Sign in with the server's provider in the given popup, then list the
    * server's tools.
    *
+   * @param {Object} server The server.
+   * @param {Window} popup From `openSignInPopup`.
+   * @param {AbortSignal} signal Gives up on the sign-in.
+   * @param {Function} onStarted Called once the popup shows the provider.
    * @throws {MCPSignInError} When no account got connected.
+   * @throws {MCPSignInCancelled} When the signal aborted.
    */
-  async function connect(server, popup) {
+  async function connect(server, popup, signal, onStarted = () => {}) {
     let authorizationUrl
     try {
       const { data } = await mcp.startOAuth(server.id)
@@ -144,34 +167,35 @@ export function useAgentMCPServers(agent, onChange = () => {}) {
     }
     if (!popup) throw new MCPSignInError(null)
     popup.location.href = authorizationUrl
-    const message = await waitForSignIn(popup)
-    // Some browsers keep the popup open after the callback page closes itself.
-    popup.close()
-    let updated = await reloadServer(server)
-    if (!message) {
-      const deadline = Date.now() + STATUS_POLL_LIMIT_MS
-      while (!updated?.oauth_connected && Date.now() < deadline) {
-        await new Promise((resolve) => setTimeout(resolve, STATUS_POLL_MS))
-        updated = await reloadServer(server)
-      }
+    onStarted()
+    const state = new URL(authorizationUrl).searchParams.get('state')
+    let result
+    try {
+      result = await waitForSignIn(state, signal)
+    } finally {
+      // Some browsers keep the popup open after the callback page closes it.
+      popup.close()
     }
-    if (!updated?.oauth_connected) throw new MCPSignInError(message?.error)
-    return await refreshTools(updated)
+    if (result.error || !result.integration) {
+      throw new MCPSignInError(result.error)
+    }
+    await apply(result.integration)
+    return await refreshTools(find(server.id) ?? result.integration)
   }
 
   async function disconnect(server) {
     const { data } = await mcp.disconnectOAuth(server.id)
-    return replace(data)
+    return await apply(data)
   }
 
   async function refreshTools(server) {
     const { data } = await mcp.refreshTools(server.id)
-    return replace(data)
+    return await apply(data)
   }
 
   async function updateTools(server, tools) {
     const { data } = await mcp.updateTools(server.id, tools)
-    return replace(data)
+    return await apply(data)
   }
 
   return {

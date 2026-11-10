@@ -788,6 +788,46 @@
   opacity: 0.6;
 }
 
+.agent-mcp-tools__parameters-toggle {
+  margin-top: 4px;
+}
+
+.agent-mcp-tools__parameters {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 4px 0 0;
+  padding: 8px 12px;
+  list-style: none;
+  border-radius: 6px;
+  background-color: $palette-neutral-50;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.agent-mcp-tools__parameter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 6px;
+
+  code {
+    font-family: monospace;
+    color: $palette-neutral-1200;
+  }
+}
+
+.agent-mcp-tools__parameter-type,
+.agent-mcp-tools__parameter-required {
+  color: $palette-neutral-700;
+}
+
+.agent-mcp-tools__parameter-description {
+  flex-basis: 100%;
+  color: $palette-neutral-900;
+  overflow-wrap: anywhere;
+}
+
 .agent-connected-apps__auth {
   .segment-control__button {
     flex: 1;

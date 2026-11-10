@@ -25,6 +25,7 @@ class MCPServerToolSerializer(serializers.ModelSerializer):
             "name",
             "title",
             "description",
+            "input_schema",
             "annotations",
             "enabled",
             "changes_data",
