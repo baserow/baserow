@@ -547,3 +547,59 @@ def test_0136_renames_create_dashboards_in_stored_allow_lists(
     assert allowed(legacy) is None
 
     NewMCPEndpoint.objects.all().delete()
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0136_keeps_a_tool_revoked_while_it_runs(migrator, teardown_table_metadata):
+    import threading
+
+    from django.db import connection as test_connection
+
+    old_state = migrator.migrate([("core", "0135_workspaceinvitationlink_scope")])
+    User = old_state.apps.get_model("auth", "User")
+    Workspace = old_state.apps.get_model("core", "Workspace")
+    MCPEndpoint = old_state.apps.get_model("core", "MCPEndpoint")
+    endpoint = MCPEndpoint.objects.create(
+        name="a",
+        key="a" * 32,
+        user=User.objects.create(username="mcp-revoke-during-rename"),
+        workspace=Workspace.objects.create(name="ws"),
+        allowed_tools=["create_dashboards", "delete_rows"],
+    )
+    revoked = threading.Event()
+    migrated = threading.Event()
+
+    def revoke():
+        # Another connection removes delete_rows and commits only once the
+        # migration has started, like a user revoking a tool during a deploy.
+        connection = test_connection.copy()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("BEGIN")
+                cursor.execute(
+                    "UPDATE core_mcpendpoint SET allowed_tools = %s::jsonb "
+                    "WHERE id = %s",
+                    ['["create_dashboards"]', endpoint.id],
+                )
+                revoked.set()
+                migrated.wait(timeout=2)
+                cursor.execute("COMMIT")
+        finally:
+            connection.close()
+
+    thread = threading.Thread(target=revoke)
+    thread.start()
+    revoked.wait(timeout=10)
+    # The migration waits for the revocation's lock, so release it shortly.
+    threading.Timer(0.5, migrated.set).start()
+    new_state = migrator.migrate(
+        [("core", "0136_mcpendpoint_rename_create_dashboards")]
+    )
+    thread.join(timeout=10)
+
+    NewMCPEndpoint = new_state.apps.get_model("core", "MCPEndpoint")
+    assert NewMCPEndpoint.objects.get(id=endpoint.id).allowed_tools == [
+        "create_dashboard"
+    ]
+
+    NewMCPEndpoint.objects.all().delete()
