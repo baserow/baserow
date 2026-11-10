@@ -30,16 +30,6 @@ def export_internal(agent: AgentApplication) -> dict:
     return json.loads(json.dumps(serialized))
 
 
-def transcript_values(message: AgentMessage) -> tuple | None:
-    transcript = getattr(message, "transcript", None)
-    return transcript and (
-        transcript.provider_type,
-        transcript.model_identifier,
-        transcript.model_messages,
-        transcript.usage,
-    )
-
-
 def conversation_values(agent: AgentApplication) -> list[tuple]:
     return [
         (
@@ -54,7 +44,6 @@ def conversation_values(agent: AgentApplication) -> list[tuple]:
                     message.status,
                     message.error_code,
                     message.steps,
-                    transcript_values(message),
                     message.created_on,
                     message.updated_on,
                 )
@@ -115,6 +104,9 @@ def test_duplicate_copies_conversations_with_new_identifiers(
     copied = CoreHandler().duplicate_application(copier, agent).specific
 
     assert conversation_values(copied) == conversation_values(agent)
+    assert not AgentReplyTranscript.objects.filter(
+        reply__conversation__agent=copied
+    ).exists()
     assert uuids(copied).isdisjoint(uuids(agent))
     assert AgentConversation.objects_and_trash.filter(agent=copied).count() == 1
 
@@ -450,7 +442,7 @@ def test_a_copy_never_carries_a_reply_in_progress(
     assert (reply.status, reply.error_code) == ("failed", "interrupted")
     assert reply.steps == [{"id": "call_1", **copied_step}]
     assert not reply.approvals.exists()
-    assert reply.transcript.paused_conversation is None
+    assert not AgentReplyTranscript.objects.filter(reply=reply).exists()
 
 
 @pytest.mark.django_db

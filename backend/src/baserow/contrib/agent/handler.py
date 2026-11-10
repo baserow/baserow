@@ -101,7 +101,6 @@ class AgentHandler:
     conversation_fields = ["title"]
     run_as_fields = ["run_as_subject_type", "run_as_subject_id"]
     option_fields = ["web_search_enabled", "reasoning_effort"]
-    transcript_fields = ["provider_type", "model_identifier", "model_messages", "usage"]
 
     def get_agent(self, agent_id: int, for_update: bool = False) -> AgentApplication:
         """
@@ -1334,8 +1333,8 @@ class AgentHandler:
 
     def export_conversations(self, agent: AgentApplication) -> list[dict]:
         """
-        Serialize the agent's conversations, messages and reply transcripts for an
-        internal copy.
+        Serialize the agent's conversations and messages for an internal copy. Reply
+        transcripts stay behind: they hold every tool result, and nothing reads them.
 
         :param agent: The agent whose conversations are exported.
         :return: The conversations, oldest first, each with its messages in the order
@@ -1348,9 +1347,9 @@ class AgentHandler:
             .prefetch_related(
                 Prefetch(
                     "messages",
-                    queryset=AgentMessage.objects.order_by("id")
-                    .select_related("transcript")
-                    .prefetch_related("approvals"),
+                    queryset=AgentMessage.objects.order_by("id").prefetch_related(
+                        "approvals"
+                    ),
                 )
             )
         )
@@ -1373,7 +1372,6 @@ class AgentHandler:
                             resumed=message.status != AgentReplyStatus.WAITING,
                         )
                         or None,
-                        "transcript": self._export_transcript(message),
                         "created_on": message.created_on.isoformat(),
                         "updated_on": message.updated_on.isoformat(),
                     }
@@ -1383,26 +1381,13 @@ class AgentHandler:
             for conversation in conversations
         ]
 
-    def _export_transcript(self, message: AgentMessage) -> dict | None:
-        """
-        Serialize the transcript of a reply, if it has one.
-
-        :param message: The message, with its transcript selected.
-        :return: The serialized transcript, or None.
-        """
-
-        transcript = getattr(message, "transcript", None)
-        if transcript is None:
-            return None
-        return {field: getattr(transcript, field) for field in self.transcript_fields}
-
     def import_conversations(
         self, agent: AgentApplication, serialized_conversations: list[dict]
     ) -> None:
         """
-        Copy conversations with their messages and reply transcripts into the
-        agent with new uuids. Conversations of deleted owners are skipped, and a
-        reply still being written or waiting for approvals is ended as interrupted.
+        Copy conversations with their messages into the agent with new uuids.
+        Conversations of deleted owners are skipped, and a reply still being
+        written or waiting for approvals is ended as interrupted.
 
         :param agent: The agent to copy the conversations into.
         :param serialized_conversations: The conversations from export_conversations.
@@ -1465,17 +1450,6 @@ class AgentHandler:
             conversations, ["created_on", "updated_on"], batch_size=1000
         )
         AgentMessage.objects.bulk_create(messages, batch_size=1000)
-        AgentReplyTranscript.objects.bulk_create(
-            [
-                AgentReplyTranscript(
-                    reply=message,
-                    **extract_allowed(data["transcript"], self.transcript_fields),
-                )
-                for message, data in zip(messages, message_data)
-                if data["transcript"]
-            ],
-            batch_size=1000,
-        )
         for message, data in zip(messages, message_data):
             message.created_on = parse_datetime(data["created_on"])
             message.updated_on = parse_datetime(data["updated_on"])
