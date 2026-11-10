@@ -106,7 +106,7 @@ export function useAgentConversations(agent, configuration) {
     permission('agent_application.delete_conversation')
   )
 
-  // Every conversation down to `loadedUntil`, newest first.
+  // Every conversation down to `loadedUntil`, newest first, and older waiting ones.
   const conversations = ref([])
   const localConversations = ref([])
   // Where the next page continues, null once every conversation is loaded.
@@ -239,7 +239,8 @@ export function useAgentConversations(agent, configuration) {
 
   /**
    * Read the page after `cursor`, or with `reload` every page down to
-   * `loadedUntil` again, dropping the conversations they no longer list.
+   * `loadedUntil` again, dropping the conversations in that range they no longer
+   * list.
    */
   async function fetchConversations(cursor = null, reload = false) {
     if (!canReadConversations.value) return
@@ -279,8 +280,13 @@ export function useAgentConversations(agent, configuration) {
       }
       if (reload) {
         const listed = new Set(results.map(({ uuid }) => uuid))
+        const oldestRead = data.next_cursor ? results.at(-1) : null
         conversations.value
-          .filter(({ uuid }) => !listed.has(uuid))
+          .filter(
+            (item) =>
+              !listed.has(item.uuid) &&
+              (!oldestRead || byNewest(item, oldestRead) <= 0)
+          )
           .forEach(({ uuid }) => removeConversation(uuid))
       }
       mergeConversations(results)

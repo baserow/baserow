@@ -829,6 +829,37 @@ describe('Agent tool approvals', () => {
     ).toHaveLength(1)
   })
 
+  test('a reconnect keeps an older waiting conversation the pill opened', async () => {
+    const newest = { ...chat, pending_approval_count: 0 }
+    const oldest = {
+      ...conversation('oldest', 'Oldest', '2026-10-01T10:00:00Z'),
+      pending_approval_count: 1,
+    }
+    mockConversations(
+      testApp,
+      conversationsPage([newest], 'next'),
+      conversationsPage([oldest]),
+      conversationsPage([newest], 'next')
+    )
+    mockMessages(testApp, chat.uuid, page([]))
+    mockMessages(testApp, oldest.uuid, page([]))
+    await testApp.store.dispatch('application/forceUpdate', {
+      application: agent,
+      data: { pending_count: 1 },
+    })
+    const wrapper = await mount()
+    await wrapper.get('.agent-application__approvals').trigger('click')
+    await flushPromises()
+
+    testApp.getRegistry().get('chatRunType', 'agent').refreshChat(oldest.id)
+    await flushPromises()
+
+    expect(
+      selected(wrapper).get('.agent-conversations__item-name').text()
+    ).toBe('Oldest')
+    expect(waitingDot(wrapper)).toBe(true)
+  })
+
   test('a busy workspace keeps the step pending with the agent copy', async () => {
     testApp.dontFailOnErrorResponses()
     mockApprovals(testApp, chat.uuid, [
