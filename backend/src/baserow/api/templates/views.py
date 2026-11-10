@@ -299,7 +299,9 @@ class TemplateView(APIView):
         """
 
         revisions = Template.objects.openable(
-            request.user, private_link_token=get_private_link_token()
+            request.user,
+            private_link_token=get_private_link_token(),
+            allow_instance_admin=True,
         ).filter_by_root(slug=slug)
         template = revisions.public_revisions().first()
         if template is None or (
@@ -551,14 +553,14 @@ class AsyncInstallTemplateView(APIView):
             "Start an async job to install the applications of the given template into "
             "the given workspace if the user has access to that workspace. The response "
             "contains those newly created applications.\n\n"
-            "A user template can be installed by its owner, unless it's blocked, "
-            "by anyone signed in while it's public, and by anyone signed in with "
-            "the token of its private link while it isn't blocked. While it's "
-            "public, everyone installs its public revision, and its owner the "
-            "latest revision with `latest`. While it isn't public, its owner and "
-            "anyone with the token of its private link install the latest "
-            "revision. The `template_id` is the id of the template, not of one of "
-            "its revisions."
+            "A user template can be installed by its owner, by the instance "
+            "admins, by anyone signed in while it's public, and by anyone signed "
+            "in with the token of its private link. Only the instance admins can "
+            "install a blocked one. While it's public, everyone installs its "
+            "public revision, and its owner the latest revision with `latest`. "
+            "While it isn't public, everyone who can install it installs the "
+            "latest revision. The `template_id` is the id of the template, not of "
+            "one of its revisions."
         ),
         request=None,
         responses={
@@ -678,9 +680,9 @@ class DownloadUserTemplateView(APIView):
             "one of the user that builds it already is responded with. Once the "
             "job is finished, the archive is asked for again.\n\n"
             "A user template can be downloaded by whoever can install it. Its "
-            "owner may download any revision of it. Anyone else downloads the "
-            "public revision, or the latest one of a template that isn't public "
-            "with the token of its private link in the "
+            "owner and the instance admins may download any revision of it. Anyone "
+            "else downloads the public revision, or the latest one of a template "
+            "that isn't public with the token of its private link in the "
             "`Baserow-Template-Authorization` header: when "
             "another revision than the one shown is that one since, "
             "`ERROR_TEMPLATE_UPDATED` is responded with."

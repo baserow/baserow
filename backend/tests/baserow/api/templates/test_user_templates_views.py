@@ -200,6 +200,8 @@ def test_list_templates_hides_the_state_from_others(api_client, data_fixture):
         install_count=3, private_link_token=PRIVATE_LINK_TOKEN
     )
     data_fixture.create_template(install_count=5)
+    for state in ["private", "blocked"]:
+        create_own_template(data_fixture, data_fixture.create_user(), state=state)
     owner_only = (
         "state",
         "reason",
@@ -218,6 +220,8 @@ def test_list_templates_hides_the_state_from_others(api_client, data_fixture):
         assert response.status_code == HTTP_200_OK
         results = response.json()["results"]
         assert len(results) == 2
+        unlisted = list_templates(api_client, token, listed="false").json()
+        assert {t["id"] for t in unlisted["results"]} == {t["id"] for t in results}
         assert {tuple(t[key] for key in owner_only) for t in results} == {
             (None,) * len(owner_only)
         }
@@ -413,6 +417,8 @@ def test_get_user_template_shows_others_its_public_revision(api_client, data_fix
     url = reverse("api:templates:item", kwargs={"slug": template.slug})
 
     _, other_token = data_fixture.create_user_and_token()
+    _, staff_token = data_fixture.create_user_and_token(is_staff=True)
+    staff_headers = {"HTTP_AUTHORIZATION": f"JWT {staff_token}"}
 
     def get_shown(headers):
         response = api_client.get(url, **headers)
@@ -428,7 +434,7 @@ def test_get_user_template_shows_others_its_public_revision(api_client, data_fix
             datetime.fromisoformat(result["updated_on"]),
         )
 
-    for token_used in [None, other_token]:
+    for token_used in [None, other_token, staff_token]:
         headers = {"HTTP_AUTHORIZATION": f"JWT {token_used}"} if token_used else {}
         assert get_shown(headers) == (
             template.id,
@@ -448,6 +454,7 @@ def test_get_user_template_shows_others_its_public_revision(api_client, data_fix
             public_revision=public, blocked_at=None
         )
         Template.objects.filter(id=template.id).update(**changes)
+        assert get_shown(staff_headers)[1:5] == (latest.id, "Third", False, None)
         response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
 
         assert response.status_code == HTTP_200_OK

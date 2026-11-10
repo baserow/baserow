@@ -67,7 +67,7 @@
           class="context__menu-item"
           :class="{ 'context__menu-item--with-separator': hasMenuItems }"
         >
-          <a class="context__menu-item-link" @click.prevent="copyLink">
+          <a class="context__menu-item-link" @click.prevent="copyTemplateLink">
             <i class="context__menu-item-icon iconoir-link"></i>
             {{ $t('templateInstall.copyLink') }}
             <Copied ref="copiedRef"></Copied>
@@ -117,7 +117,7 @@ import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
 import { useUserTemplateDownload } from '@baserow/modules/core/composables/useUserTemplateDownload'
 import { fetchPermissionsOfWorkspaces } from '@baserow/modules/core/utils/workspace'
 import TemplateService from '@baserow/modules/core/services/template'
-import { copyToClipboard } from '@baserow/modules/core/utils/clipboard'
+import { useCopyLink } from '@baserow/modules/core/composables/useCopyLink'
 import { isPrivateLinkPage } from '@baserow/modules/core/utils/templatePrivateLink'
 import CreateWorkspaceModal from '@baserow/modules/core/components/workspace/CreateWorkspaceModal'
 
@@ -162,6 +162,7 @@ const store = useStore()
 const router = useRouter()
 const config = useRuntimeConfig()
 const { $client, $hasPermission, $i18n } = useNuxtApp()
+const { copyLink } = useCopyLink()
 
 const moreButton = ref(null)
 const contextRef = ref(null)
@@ -326,17 +327,12 @@ function templateRoute() {
   })
 }
 
-async function copyLink() {
+function copyTemplateLink() {
   const { href } = templateRoute()
-  try {
-    await copyToClipboard(
-      props.copyLinkUrl ??
-        new URL(href, config.public.publicWebFrontendUrl).toString()
-    )
-  } catch {
-    store.dispatch('toast/error', { title: $i18n.t('copied.linkFailed') })
-    return
-  }
-  copiedRef.value.show()
+  return copyLink(
+    props.copyLinkUrl ??
+      new URL(href, config.public.publicWebFrontendUrl).toString(),
+    copiedRef.value
+  )
 }
 </script>

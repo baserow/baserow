@@ -193,7 +193,9 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
         for check in allowed_checks:
             if check.actor not in openable_by:
                 openable_by[check.actor] = workspace.has_openable_template(
-                    check.actor, private_link_token=get_private_link_token()
+                    check.actor,
+                    private_link_token=get_private_link_token(),
+                    allow_instance_admin=True,
                 )
             if openable_by[check.actor]:
                 result[check] = True
@@ -226,7 +228,9 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
     ):
         def has_openable_template():
             return workspace and workspace.has_openable_template(
-                actor, private_link_token=get_private_link_token()
+                actor,
+                private_link_token=get_private_link_token(),
+                allow_instance_admin=True,
             )
 
         if (
@@ -245,7 +249,9 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
             workspace.id: WORKSPACE_FILTER_ALLOW_ALL
             for workspace in workspaces
             if workspace.has_openable_template(
-                actor, private_link_token=get_private_link_token()
+                actor,
+                private_link_token=get_private_link_token(),
+                allow_instance_admin=True,
             )
         }
 

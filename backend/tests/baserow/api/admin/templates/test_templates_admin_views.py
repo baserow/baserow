@@ -64,6 +64,7 @@ def test_list_rows(api_client, data_fixture):
         edited, name="Latest", description="Text", category=category
     )
     data_fixture.set_user_template_state(edited, "in_review", latest)
+    Template.objects.filter(id=edited.id).update(install_count=7)
     without_author = create_template(data_fixture, None, "in_review", author=None)
     data_fixture.create_template()
 
@@ -75,6 +76,7 @@ def test_list_rows(api_client, data_fixture):
     assert rows[edited.id] == {
         "id": edited.id,
         "revision_id": latest.id,
+        "slug": edited.slug,
         "type": "user",
         "name": "Latest",
         "description": "Text",
@@ -92,6 +94,8 @@ def test_list_rows(api_client, data_fixture):
         "reject_unlists": False,
         "updated_on": "2026-10-01T12:00:00Z",
         "reviewed_on": None,
+        "install_count": 7,
+        "submitted_on": "2026-10-01T12:00:00Z",
     }
     assert rows[without_author.id]["author"] is None
     assert admin_rows(
@@ -153,10 +157,18 @@ AUTHORS = [("Zoe", "z@x.com", 3), ("Ann", "a@x.com", 1), ("Bob", "b@x.com", 2)]
     [
         (AUTHORS, None, "acb"),
         (AUTHORS, "+name", "abc"),
+        (AUTHORS, "+used", "bca"),
+        (AUTHORS, "+submitted", "cab"),
+        (AUTHORS, "-submitted", "acb"),
         (
             [("zoe", "z@x.com", 1), ("", "b@x.com", 1), ("ann", "a@x.com", 1)],
             "+author",
             "cba",
+        ),
+        (
+            [("zoe", "z@x.com", 1), (None, "b@x.com", 1), ("ann", "a@x.com", 1)],
+            "-author",
+            "acb",
         ),
         ([(name, email, 1) for name, email, _ in AUTHORS], None, "cba"),
     ],
@@ -164,11 +176,15 @@ AUTHORS = [("Zoe", "z@x.com", 3), ("Ann", "a@x.com", 1), ("Bob", "b@x.com", 2)]
 def test_list_sorts(api_client, data_fixture, authors, sorts, expected):
     token = get_staff_token(data_fixture)
     names = {}
-    for name, (first_name, email, day) in zip("abc", authors):
-        user = data_fixture.create_user(first_name=first_name, email=email)
+    for name, (first_name, email, day), install_count in zip("abc", authors, [5, 1, 3]):
+        user = data_fixture.create_user(first_name=first_name or "", email=email)
         template = create_template(data_fixture, user, "public", name=name)
+        created_on = datetime(2026, 10, day, tzinfo=timezone.utc)
         Template.objects.filter(id=template.id).update(
-            created_on=datetime(2026, 10, day, tzinfo=timezone.utc)
+            author=user if first_name is not None else None,
+            created_on=created_on,
+            install_count=install_count,
+            submitted_on=None if name == "b" else created_on,
         )
         names[template.id] = name
 
@@ -176,6 +192,38 @@ def test_list_sorts(api_client, data_fixture, authors, sorts, expected):
     ids = admin_rows(api_client, token, "public", "id", **params)
 
     assert "".join(names[template_id] for template_id in ids) == expected
+
+
+@pytest.mark.parametrize(
+    "search,expected",
+    [
+        ("sprint", ["Sprint board"]),
+        ("ANN", ["Sprint board"]),
+        ("ann@example", ["Sprint board"]),
+        ("corp.io", ["Roadmap"]),
+        ("carl", ["Roadmap"]),
+        ("nothing", []),
+    ],
+)
+def test_list_search(api_client, data_fixture, search, expected):
+    token = get_staff_token(data_fixture)
+    for name, first_name, email in [
+        ("Sprint board", "Ann", "ann@example.com"),
+        ("Budget", "", "bob@example.com"),
+        ("Roadmap", "Carl", "ops@corp.io"),
+    ]:
+        user = data_fixture.create_user(first_name=first_name, email=email)
+        template = create_template(data_fixture, user, "public", name=name)
+    revision = data_fixture.create_user_template_revision(template, name=name)
+    data_fixture.set_user_template_state(template, "in_review", revision)
+
+    rows = [
+        name
+        for state in ["public", "in_review"]
+        for name in admin_rows(api_client, token, state, "name", search=search)
+    ]
+
+    assert rows == expected
 
 
 @pytest.mark.parametrize("state", LISTED_STATES)
@@ -187,8 +235,8 @@ def test_list_query_count(api_client, data_fixture, state):
             template = create_template(data_fixture, None, state)
             data_fixture.create_user_template_revision(template)
 
-    def list_count():
-        response = list_admin_templates(api_client, token, state=state)
+    def list_count(**params):
+        response = list_admin_templates(api_client, token, state=state, **params)
         return response.json()["count"]
 
     create_templates(1)
@@ -198,6 +246,9 @@ def test_list_query_count(api_client, data_fixture, state):
     create_templates(3)
     with CaptureQueriesContext(connection) as four_templates:
         assert list_count() == 4
+    with CaptureQueriesContext(connection) as searched:
+        assert list_count(search="@", sorts="-used") == 4
+    assert len(searched.captured_queries) == len(one_template.captured_queries)
 
     assert len(four_templates.captured_queries) == len(one_template.captured_queries)
 

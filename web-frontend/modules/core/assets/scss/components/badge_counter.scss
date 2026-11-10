@@ -18,3 +18,8 @@
 .badge-counter--one-digit {
   padding: 4px 8px;
 }
+
+.badge-counter--warning {
+  background: $palette-yellow-500;
+  color: $palette-neutral-1200;
+}

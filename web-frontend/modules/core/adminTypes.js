@@ -94,6 +94,19 @@ export class AdminType extends Registerable {
   getDeactivatedModal() {
     return null
   }
+
+  /**
+   * The number shown in a badge next to the admin type in the sidebar, which
+   * hides it when it's null or 0.
+   */
+  getBadgeCount() {
+    return null
+  }
+
+  /**
+   * Loads what `getBadgeCount` returns, when the sidebar item is shown.
+   */
+  loadBadgeCount() {}
 }
 
 export class DashboardAdminType extends AdminType {
@@ -204,6 +217,17 @@ export class TemplatesAdminType extends AdminType {
 
   isVisible() {
     return this.app.$featureFlagIsEnabled(FF_USER_TEMPLATES)
+  }
+
+  /**
+   * The number of templates waiting for a review.
+   */
+  getBadgeCount() {
+    return this.app.$store.getters['templatesAdmin/inReviewCount']
+  }
+
+  loadBadgeCount() {
+    return this.app.$store.dispatch('templatesAdmin/ensureCounts')
   }
 }
 

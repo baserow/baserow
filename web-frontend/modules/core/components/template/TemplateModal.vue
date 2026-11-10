@@ -52,6 +52,7 @@
         v-show="selectedTemplate === null"
         ref="publicTemplateList"
         :active="open && selectedTemplate === null"
+        :initial-search="sharedSearch"
         class="templates__body"
         @selected="selectPublicTemplate"
       >
@@ -188,6 +189,7 @@ export default {
       selectedTemplate: null,
       selectedOwnerActions: false,
       tab: 'official',
+      sharedSearch: '',
       // The list of the user's templates is loaded when its tab is opened first.
       userTemplatesOpened: false,
       // While a template is created, its modal takes the search shortcut.
@@ -274,30 +276,13 @@ export default {
   methods: {
     isOwnTemplate,
     /**
-     * When the modal is opened we want to fetch all the templates and their
-     * categories, so that the user can browse them. The details of the template
-     * with the provided id or slug, or else of the default template, are opened
-     * right away.
+     * Opens the modal on the details of the template with the provided id or
+     * slug, or else of the default template.
      */
     async show(templateId = null, ...args) {
-      modal.methods.show.call(this, ...args)
-
-      this.loading = true
-      this.categories = []
-      this.selectTemplate(null)
-      this.tab = 'official'
-      this.userTemplatesOpened = false
-
-      try {
-        const { data } = await TemplateService(this.$client).fetchAll()
-        this.categories = data
-        this.loading = false
-      } catch (error) {
-        notifyIf(error, 'templates')
-        this.hide()
+      if (!(await this.openAndLoad(...args))) {
         return
       }
-
       const template = this.categories
         .flatMap((category) => category.templates)
         .find((t) =>
@@ -309,8 +294,43 @@ export default {
         this.selectTemplate(template)
       }
     },
+    async showShared(search) {
+      if (await this.openAndLoad()) {
+        this.sharedSearch = search
+        this.tab = 'public'
+      }
+    },
+    /**
+     * Opens the modal and fetches all the templates and their categories, so
+     * that the user can browse them.
+     *
+     * @returns {Promise<boolean>} False if they couldn't be fetched, which closes
+     *   the modal.
+     */
+    async openAndLoad(...args) {
+      modal.methods.show.call(this, ...args)
+
+      this.loading = true
+      this.categories = []
+      this.selectTemplate(null)
+      this.tab = 'official'
+      this.sharedSearch = ''
+      this.userTemplatesOpened = false
+
+      try {
+        const { data } = await TemplateService(this.$client).fetchAll()
+        this.categories = data
+        this.loading = false
+        return true
+      } catch (error) {
+        notifyIf(error, 'templates')
+        this.hide()
+        return false
+      }
+    },
     selectTab(tab) {
       this.tab = tab
+      this.sharedSearch = ''
       if (tab === 'own') {
         this.userTemplatesOpened = true
       }

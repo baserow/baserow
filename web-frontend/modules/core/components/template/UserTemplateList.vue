@@ -239,7 +239,10 @@
                 v-if="focusedPrivateLinkUrl"
                 class="context__menu-item context__menu-item--with-separator"
               >
-                <a class="context__menu-item-link" @click.prevent="copyLink()">
+                <a
+                  class="context__menu-item-link"
+                  @click.prevent="copyPrivateLink()"
+                >
                   <i class="context__menu-item-icon iconoir-link"></i>
                   {{ $t('userTemplateList.copyLink') }}
                   <Copied ref="copied"></Copied>
@@ -301,7 +304,7 @@ import {
   makePublicResubmits,
   getPrivateLinkUrl,
 } from '@baserow/modules/core/utils/userTemplate'
-import { copyToClipboard } from '@baserow/modules/core/utils/clipboard'
+import { useCopyLink } from '@baserow/modules/core/composables/useCopyLink'
 import { useUserTemplateDownload } from '@baserow/modules/core/composables/useUserTemplateDownload'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
 import TemplateEmptyState from '@baserow/modules/core/components/template/TemplateEmptyState'
@@ -345,6 +348,7 @@ const emit = defineEmits([
 ])
 
 const { $client, $i18n, $priorityBus, $router, $store } = useNuxtApp()
+const { copyLink } = useCopyLink()
 const config = useRuntimeConfig()
 
 const searchInput = ref(null)
@@ -490,14 +494,8 @@ function togglePrivateLink(event, template) {
   )
 }
 
-async function copyLink() {
-  try {
-    await copyToClipboard(focusedPrivateLinkUrl.value)
-  } catch {
-    $store.dispatch('toast/error', { title: $i18n.t('copied.linkFailed') })
-    return
-  }
-  copied.value?.show()
+function copyPrivateLink() {
+  return copyLink(focusedPrivateLinkUrl.value, copied.value)
 }
 
 function edit(mode) {

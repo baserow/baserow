@@ -85,7 +85,7 @@ import { useNuxtApp, useRuntimeConfig } from '#app'
 import TemplateService from '@baserow/modules/core/services/template'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { getPrivateLinkUrl } from '@baserow/modules/core/utils/userTemplate'
-import { copyToClipboard } from '@baserow/modules/core/utils/clipboard'
+import { useCopyLink } from '@baserow/modules/core/composables/useCopyLink'
 
 const props = defineProps({
   template: {
@@ -113,6 +113,7 @@ const TOASTS = {
 }
 
 const { $client, $i18n, $router, $store } = useNuxtApp()
+const { copyLink } = useCopyLink()
 const config = useRuntimeConfig()
 
 const contextRef = ref(null)
@@ -136,14 +137,8 @@ watch(
   }
 )
 
-async function copy() {
-  try {
-    await copyToClipboard(url.value)
-  } catch {
-    $store.dispatch('toast/error', { title: $i18n.t('copied.linkFailed') })
-    return
-  }
-  copiedRef.value?.show()
+function copy() {
+  return copyLink(url.value, copiedRef.value)
 }
 
 async function change(newOperation) {

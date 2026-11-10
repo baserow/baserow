@@ -1,8 +1,8 @@
-from typing import Dict, List, Union
+from typing import Dict, List, Tuple, Union
 
 from django.conf import settings
 from django.db import DEFAULT_DB_ALIAS
-from django.db.models import Q, QuerySet, Value
+from django.db.models import OrderBy, Q, QuerySet, Value
 from django.http import QueryDict
 
 from baserow.api.exceptions import (
@@ -127,14 +127,29 @@ class SortableViewMixin:
     # database.
     sort_field_mapping: Dict[str, str] = {}
     default_order_by: str = "id"
+    sort_tie_breakers: Tuple[str, ...] = ()
+
+    def get_sort_expression(
+        self, attribute: str, descending: bool
+    ) -> Union[str, OrderBy]:
+        """
+        Returns what the queryset is ordered by for a sort.
+
+        :param attribute: The field in the database, from `sort_field_mapping`.
+        :param descending: Whether the sort is descending.
+        :return: The expression to order the queryset by.
+        """
+
+        return f"-{attribute}" if descending else attribute
 
     def apply_sorts_or_default_sort(
         self, sorts: Union[str, None], queryset: QuerySet
     ) -> QuerySet:
         """
         Takes a comma separated string in the form of +attribute,-attribute2 and
-        applies them to a django queryset in order.
-        Defaults to sorting by id if no sorts are provided.
+        applies them to a django queryset in order, each as `get_sort_expression`
+        returns it, followed by `sort_tie_breakers`.
+        Defaults to sorting by `default_order_by` if no sorts are provided.
         Raises an InvalidSortDirectionException if an attribute does not begin with `+`
         or `-`.
         Raises an InvalidSortAttributeException if an unknown attribute is supplied to
@@ -146,7 +161,7 @@ class SortableViewMixin:
         """
 
         if sorts is None:
-            return queryset.order_by(self.default_order_by)
+            return queryset.order_by(self.default_order_by, *self.sort_tie_breakers)
 
         parsed_django_order_bys = []
         already_seen_sorts = set()
@@ -157,10 +172,7 @@ class SortableViewMixin:
             sort_direction_prefix = s[0]
             sort_field_name = s[1:]
 
-            try:
-                sort_direction_to_django_prefix = {"+": "", "-": "-"}
-                direction = sort_direction_to_django_prefix[sort_direction_prefix]
-            except KeyError:
+            if sort_direction_prefix not in ("+", "-"):
                 raise InvalidSortDirectionException()
 
             try:
@@ -173,9 +185,11 @@ class SortableViewMixin:
             else:
                 already_seen_sorts.add(attribute)
 
-            parsed_django_order_bys.append(f"{direction}{attribute}")
+            parsed_django_order_bys.append(
+                self.get_sort_expression(attribute, sort_direction_prefix == "-")
+            )
 
-        return queryset.order_by(*parsed_django_order_bys)
+        return queryset.order_by(*parsed_django_order_bys, *self.sort_tie_breakers)
 
 
 class FilterableViewMixin:

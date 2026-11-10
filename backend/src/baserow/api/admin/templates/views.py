@@ -1,7 +1,7 @@
 from typing import Any, Dict, Optional
 
 from django.db import transaction
-from django.db.models import QuerySet
+from django.db.models import F, OrderBy, QuerySet
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -107,12 +107,15 @@ def serialize_admin_row(revision: Template) -> Dict[str, Any]:
 
 class AdminUserTemplatesView(AdminListingView):
     serializer_class = AdminUserTemplateSerializer
-    search_fields = []
+    search_fields = ["name", "author_name", "author__email", "root__author__email"]
     sort_field_mapping = {
         "name": "name",
         "author": "author_name",
         "updated_on": "template_updated_on",
+        "used": "template_install_count",
+        "submitted": "submitted_on",
     }
+    sort_tie_breakers = ("-id",)
 
     def get_queryset(self, request: Request) -> QuerySet[Template]:
         """
@@ -128,6 +131,15 @@ class AdminUserTemplatesView(AdminListingView):
             .prefetch_related("categories")
         )
 
+    def get_sort_expression(self, attribute: str, descending: bool) -> OrderBy:
+        """
+        Orders the rows without a value, like the ones never submitted, last in
+        both directions.
+        """
+
+        field = F(attribute)
+        return field.desc(nulls_last=True) if descending else field.asc(nulls_last=True)
+
     def apply_sorts_or_default_sort(
         self, sorts: Optional[str], queryset: QuerySet[Template]
     ) -> QuerySet[Template]:
@@ -139,8 +151,7 @@ class AdminUserTemplatesView(AdminListingView):
         :return: The rows, by the sorts or by last update.
         """
 
-        queryset = super().apply_sorts_or_default_sort(sorts or "-updated_on", queryset)
-        return queryset.order_by(*queryset.query.order_by, "-id")
+        return super().apply_sorts_or_default_sort(sorts or "-updated_on", queryset)
 
     def apply_ids_filter(
         self, ids_param: Optional[str], queryset: QuerySet[Template]
@@ -163,7 +174,8 @@ class AdminUserTemplatesView(AdminListingView):
         operation_id="admin_list_user_templates",
         description="Returns the user templates in review, public or rejected, if "
         "the requesting user is staff: the revision under review of a template in "
-        "review or rejected, otherwise its public revision.",
+        "review or rejected, otherwise its public revision. The templates can be "
+        "searched by name and by the name or email of the author.",
         **AdminListingView.get_extend_schema_parameters(
             "templates",
             serializer_class,

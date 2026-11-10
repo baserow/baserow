@@ -1,14 +1,19 @@
 import { flushPromises } from '@vue/test-utils'
-import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { defineComponent, h } from 'vue'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { heldBack } from '@baserow/test/helpers/heldBack'
 import { TemplatesAdminType } from '@baserow/modules/core/adminTypes'
 import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
-import TemplateReviewActionsField from '@baserow/modules/core/components/admin/templates/fields/TemplateReviewActionsField'
 import TemplateNameField from '@baserow/modules/core/components/admin/templates/fields/TemplateNameField'
 import TemplateAuthorField from '@baserow/modules/core/components/admin/templates/fields/TemplateAuthorField'
 import TemplatesAdminTable from '@baserow/modules/core/components/admin/templates/TemplatesAdminTable'
+import SidebarAdminItem from '@baserow/modules/core/components/sidebar/SidebarAdminItem'
+
+vi.mock('lodash/debounce', () => ({
+  default: vi.fn((fn) => Object.assign(fn, { cancel: () => {} })),
+}))
 
 const REVIEW_FIELDS = {
   'in_review:false': { can_reject: true, reject_unlists: false },
@@ -21,12 +26,15 @@ const REVIEW_FIELDS = {
 const row = (state, listed = false, canApprove = true) => ({
   id: 3,
   revision_id: 7,
+  slug: 'sprint-a1b2c3',
   name: 'Sprint',
   state,
   listed,
   can_approve: canApprove,
   ...REVIEW_FIELDS[`${state}:${listed}`],
   workspace_id: 9,
+  install_count: 14,
+  submitted_on: null,
   author: { first_name: '', email: 'ada@example.com' },
   reviewed_on: '2026-11-02T10:00:00Z',
 })
@@ -63,15 +71,25 @@ describe('TemplatesAdminTable', () => {
     {
       count = rows.length,
       counts = { in_review: 1, public: 1, rejected: 0 },
+      component = TemplatesAdminTable,
     } = {}
   ) => {
     testApp.mock.onGet('/admin/templates/').reply(200, { count, results: rows })
     testApp.mock.onGet('/admin/templates/counts/').reply(200, counts)
     testApp.mock.onGet('/applications/workspace/9/').reply(200, [])
-    const wrapper = await testApp.mount(TemplatesAdminTable)
+    const wrapper = await testApp.mount(component)
     await flushPromises()
     return wrapper
   }
+
+  const PageWithSidebar = defineComponent({
+    render: () => [
+      h(SidebarAdminItem, {
+        adminType: testApp.getRegistry().get('admin', 'templates'),
+      }),
+      h(TemplatesAdminTable),
+    ],
+  })
 
   const requestsTo = (url) =>
     testApp.mock.history.get.filter((request) => request.url === url)
@@ -90,6 +108,31 @@ describe('TemplatesAdminTable', () => {
         '.templates-admin-review-actions button'
       ),
     ].map((button) => button.textContent.trim())
+
+  const menuLinks = () => [
+    ...document.body.querySelectorAll(
+      '.context:not(.visibility-hidden) .context__menu-item-link'
+    ),
+  ]
+  const label = (link) =>
+    [...link.childNodes]
+      .filter((node) => node.nodeType === Node.TEXT_NODE)
+      .map((node) => node.textContent)
+      .join('')
+      .trim()
+  const menuLabels = () => menuLinks().map(label)
+
+  const openMenu = async (wrapper, index = 0) => {
+    await wrapper.findAll('.data-table__more').at(index).trigger('click')
+    await flushPromises()
+  }
+
+  const clickMenuItem = async (text) => {
+    menuLinks()
+      .find((link) => label(link) === text)
+      .dispatchEvent(new MouseEvent('click', { bubbles: false }))
+    await flushPromises()
+  }
 
   const escape = async () => {
     window.dispatchEvent(new KeyboardEvent('keyup', { key: 'Escape' }))
@@ -135,7 +178,7 @@ describe('TemplatesAdminTable', () => {
     )
     expect(listStates()).toEqual(['in_review'])
     expect(requestsTo('/admin/templates/counts/').length).toBe(1)
-    expect(headers()).toContain('templatesAdmin.updatedOn')
+    expect(headers()).toContain('templatesAdmin.submitted')
 
     await wrapper.findAll('.tabs__item').at(2).trigger('click')
     await flushPromises()
@@ -143,30 +186,7 @@ describe('TemplatesAdminTable', () => {
     expect(listStates()).toEqual(['in_review', 'rejected'])
     expect(requestsTo('/admin/templates/counts/').length).toBe(2)
     expect(headers()).toContain('templatesAdmin.reason')
-    expect(headers()).not.toContain('templatesAdmin.updatedOn')
-  })
-
-  test('shows the counts of the latest request only', async () => {
-    const wrapper = await mountTable([])
-    const older = heldBack()
-    const newer = heldBack()
-    const chooseTab = async (index, reply) => {
-      testApp.mock.onGet('/admin/templates/counts/').reply(reply)
-      await wrapper.findAll('.tabs__item').at(index).trigger('click')
-      await flushPromises()
-    }
-
-    await chooseTab(1, older.reply)
-    await chooseTab(2, newer.reply)
-    newer.send([200, { in_review: 0, public: 0, rejected: 3 }])
-    older.send([200, { in_review: 1, public: 1, rejected: 0 }])
-    await flushPromises()
-
-    expect(wrapper.findAll('.tabs__item').map((tab) => tab.text())).toEqual([
-      'templatesAdmin.tabCount - 0',
-      'templatesAdmin.tabCount - 0',
-      'templatesAdmin.tabCount - 3',
-    ])
+    expect(headers()).not.toContain('templatesAdmin.submitted')
   })
 
   test('tells when the tab has no templates', async () => {
@@ -181,7 +201,8 @@ describe('TemplatesAdminTable', () => {
 
   const clickAction = async (wrapper, template, action) => {
     if (template.state === 'public') {
-      await rowButton(wrapper, `templatesAdmin.${action}`).trigger('click')
+      await openMenu(wrapper)
+      await clickMenuItem('templatesAdmin.unlistFromBrowser')
     } else {
       await rowButton(wrapper, 'templatesAdmin.review').trigger('click')
       await flushPromises()
@@ -512,6 +533,356 @@ describe('TemplatesAdminTable', () => {
   )
 
   test.each([
+    [
+      0,
+      'in_review',
+      'templatesAdmin.submitted',
+      [
+        'templatesAdmin.template',
+        'templatesAdmin.author',
+        'templatesAdmin.submitted',
+      ],
+      ['templatesAdmin.review'],
+      ['templateInstall.download', 'templatesAdmin.delete'],
+      '',
+    ],
+    [
+      1,
+      'public',
+      'templatesAdmin.used',
+      [
+        'templatesAdmin.template',
+        'templatesAdmin.author',
+        'templatesAdmin.used',
+      ],
+      [],
+      [
+        'templatesAdmin.viewInTemplates',
+        'templateInstall.copyLink',
+        'templateInstall.download',
+        'templatesAdmin.unlistFromBrowser',
+        'templatesAdmin.delete',
+      ],
+      '14 times',
+    ],
+    [
+      2,
+      'rejected',
+      'templatesAdmin.reason',
+      ['templatesAdmin.template', 'templatesAdmin.author'],
+      ['templatesAdmin.review'],
+      [
+        'templatesAdmin.approveAfterAll',
+        'templateInstall.download',
+        'templatesAdmin.delete',
+      ],
+      '',
+    ],
+  ])(
+    'shows the columns, row button and menu of the tab %s (%s)',
+    async (tabIndex, state, column, sortable, buttons, items, cell) => {
+      const wrapper = await mountTable([row(state, state === 'public')])
+      await wrapper.findAll('.tabs__item').at(tabIndex).trigger('click')
+      await flushPromises()
+
+      expect(
+        wrapper.findAll('.data-table__table-cell--header').map((h) => h.text())
+      ).toEqual([
+        'templatesAdmin.template',
+        'templatesAdmin.author',
+        column,
+        '',
+      ])
+      expect(
+        wrapper
+          .findAll('.data-table__table-cell-head-link')
+          .map((button) => button.text())
+      ).toEqual(sortable)
+      expect(wrapper.findAll('tbody td').at(2).text()).toBe(cell)
+      expect(
+        wrapper
+          .findAll('tbody button:not(.data-table__more)')
+          .map((button) => button.text())
+      ).toEqual(buttons)
+
+      await openMenu(wrapper)
+
+      expect(menuLabels()).toEqual(items)
+    }
+  )
+
+  test('copies the link everybody opens', async () => {
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn() } })
+    try {
+      const wrapper = await mountTable([row('public', true)])
+
+      await openMenu(wrapper)
+      await clickMenuItem('templateInstall.copyLink')
+
+      const url = new URL(navigator.clipboard.writeText.mock.calls[0][0])
+      expect(url.pathname).toBe('/template/sprint-a1b2c3')
+      expect(url.search).toBe('')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  test('shows copied once the link is copied', async () => {
+    vi.stubGlobal('navigator', {
+      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+    })
+    try {
+      const wrapper = await mountTable([row('public', true)])
+
+      await openMenu(wrapper)
+      await clickMenuItem('templateInstall.copyLink')
+      await flushPromises()
+
+      expect(document.body.querySelector('.copied--show')).not.toBe(null)
+      expect(testApp.store.state.toast.items).toEqual([])
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  test('shows an error instead of copied when the link cannot be copied', async () => {
+    vi.stubGlobal('navigator', {
+      clipboard: { writeText: vi.fn().mockRejectedValue(new Error('denied')) },
+    })
+    try {
+      const wrapper = await mountTable([row('public', true)])
+
+      await openMenu(wrapper)
+      await clickMenuItem('templateInstall.copyLink')
+
+      expect(testApp.store.state.toast.items[0]).toMatchObject({
+        type: 'error',
+        title: 'copied.linkFailed',
+      })
+      expect(document.body.querySelector('.copied--show')).toBe(null)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  test('shows a published template among the shared templates, searched by its name', async () => {
+    testApp.mock
+      .onGet('/templates/')
+      .reply(({ params }) => [
+        200,
+        params?.listed ? { count: 0, next: null, results: [] } : [],
+      ])
+    testApp.authenticate({ id: 1 })
+    const wrapper = await mountTable([row('public', true)])
+
+    await openMenu(wrapper)
+    await clickMenuItem('templatesAdmin.viewInTemplates')
+    await flushPromises()
+
+    const listed = requestsTo('/templates/').filter(
+      ({ params }) => params?.listed
+    )
+    expect(listed.map(({ params }) => params.search)).toEqual(['Sprint'])
+    expect(
+      document.body.querySelector(
+        '.public-template-list .template-list__search input'
+      ).value
+    ).toBe('Sprint')
+    expect(previewButtons()).toEqual([])
+  })
+
+  test('approves a rejected template after all, then refreshes the list and counts', async () => {
+    testApp.mock.onPost('/admin/templates/3/approve/').reply(200, {})
+    const wrapper = await mountTable([row('rejected')])
+
+    await openMenu(wrapper)
+    await clickMenuItem('templatesAdmin.approveAfterAll')
+
+    expect(JSON.parse(testApp.mock.history.post[0].data)).toEqual({
+      revision_id: 7,
+      state: 'rejected',
+      listed: false,
+      reviewed_on: '2026-11-02T10:00:00Z',
+    })
+    expect(requestsTo('/admin/templates/').length).toBe(2)
+    expect(requestsTo('/admin/templates/counts/').length).toBe(2)
+    expect(menuLabels()).toEqual([])
+  })
+
+  test('deletes a template once confirmed, then refreshes the list, counts and badge', async () => {
+    testApp.mock.onDelete('/templates/sprint-a1b2c3/').reply(204)
+    const wrapper = await mountTable([row('in_review')], {
+      component: PageWithSidebar,
+    })
+    expect(requestsTo('/admin/templates/counts/').length).toBe(1)
+    expect(wrapper.find('.badge-counter--warning').text()).toBe('1')
+
+    await openMenu(wrapper)
+    await clickMenuItem('templatesAdmin.delete')
+    expect(testApp.mock.history.delete).toHaveLength(0)
+    testApp.mock
+      .onGet('/admin/templates/')
+      .reply(200, { count: 0, results: [] })
+    testApp.mock
+      .onGet('/admin/templates/counts/')
+      .reply(200, { in_review: 0, public: 1, rejected: 0 })
+    bodyButton('deleteUserTemplateModal.delete').click()
+    await flushPromises()
+
+    expect(testApp.mock.history.delete.map(({ url }) => url)).toEqual([
+      '/templates/sprint-a1b2c3/',
+    ])
+    expect(wrapper.find('.templates-admin-name').exists()).toBe(false)
+    expect(requestsTo('/admin/templates/').length).toBe(2)
+    expect(requestsTo('/admin/templates/counts/').length).toBe(2)
+    expect(wrapper.find('.badge-counter').exists()).toBe(false)
+  })
+
+  test('loads the badge on another admin page, once for its sidebar', async () => {
+    testApp.mock
+      .onGet('/admin/templates/counts/')
+      .reply(200, { in_review: 3, public: 0, rejected: 0 })
+    const props = { adminType: testApp.getRegistry().get('admin', 'templates') }
+
+    const item = await testApp.mount(SidebarAdminItem, { props })
+    await flushPromises()
+    await testApp.mount(SidebarAdminItem, { props })
+    await flushPromises()
+
+    expect(item.find('.badge-counter--warning').text()).toBe('3')
+    expect(requestsTo('/admin/templates/counts/').length).toBe(1)
+  })
+
+  test('refreshes the list and counts when the downloaded template changed since', async () => {
+    testApp.mock.onPost('/templates/sprint-a1b2c3/download/').reply(400, {
+      error: 'ERROR_TEMPLATE_UPDATED',
+      detail: 'Changed.',
+    })
+    testApp.authenticate({ id: 1, preferences: {}, completed_onboarding: true })
+    const wrapper = await mountTable([row('in_review')])
+
+    await openMenu(wrapper)
+    await clickMenuItem('templateInstall.download')
+
+    expect(testApp.mock.history.post).toHaveLength(1)
+    expect(requestsTo('/admin/templates/').length).toBe(2)
+    expect(requestsTo('/admin/templates/counts/').length).toBe(2)
+  })
+
+  test('keeps the menu of another row open when a download ends', async () => {
+    let finish = null
+    testApp.mock.onPost('/templates/sprint-a1b2c3/download/').reply(
+      () =>
+        new Promise((resolve) => {
+          finish = () =>
+            resolve([400, { error: 'ERROR_TEMPLATE_HAS_NO_CONTENT' }])
+        })
+    )
+    testApp.authenticate({ id: 1, preferences: {}, completed_onboarding: true })
+    const other = { ...row('in_review'), id: 4, slug: 'other-d4e5f6' }
+    const wrapper = await mountTable([row('in_review'), other])
+
+    await openMenu(wrapper, 0)
+    await clickMenuItem('templateInstall.download')
+    await openMenu(wrapper, 1)
+    finish()
+    await flushPromises()
+
+    expect(menuLabels()).toEqual([
+      'templateInstall.download',
+      'templatesAdmin.delete',
+    ])
+  })
+
+  test('keeps the counts of the newest request when an older one ends first', async () => {
+    const counts = (inReview) => ({
+      in_review: inReview,
+      public: 0,
+      rejected: 0,
+    })
+    const replies = []
+    testApp.mock
+      .onGet('/admin/templates/counts/')
+      .reply(() => new Promise((resolve) => replies.push(resolve)))
+    const { dispatch, getters } = testApp.store
+
+    const older = dispatch('templatesAdmin/fetchCounts')
+    const newest = dispatch('templatesAdmin/fetchCounts', { force: true })
+    await flushPromises()
+    replies[0]([200, counts(5)])
+    await older
+
+    expect(getters['templatesAdmin/counts']).toBe(null)
+
+    replies[1]([200, counts(2)])
+    await newest
+
+    expect(getters['templatesAdmin/inReviewCount']).toBe(2)
+  })
+
+  test('leaves the badge hidden without a toast when the counts fail', async () => {
+    testApp.mock.onGet('/admin/templates/counts/').reply(500)
+    const { dispatch, getters } = testApp.store
+
+    await expect(
+      dispatch('templatesAdmin/ensureCounts')
+    ).resolves.toBeUndefined()
+
+    expect(getters['templatesAdmin/counts']).toBe(null)
+    expect(testApp.store.state.toast.items).toEqual([])
+  })
+
+  test('forgets the counts when the user data is cleared', async () => {
+    testApp.mock
+      .onGet('/admin/templates/counts/')
+      .reply(200, { in_review: 3, public: 0, rejected: 0 })
+    const { dispatch, getters } = testApp.store
+    await dispatch('templatesAdmin/fetchCounts')
+
+    await dispatch('auth/clearAllStoreUserData')
+
+    expect(getters['templatesAdmin/counts']).toBe(null)
+  })
+
+  test('drops the counts request in flight when the user data is cleared', async () => {
+    const replies = []
+    testApp.mock
+      .onGet('/admin/templates/counts/')
+      .reply(() => new Promise((resolve) => replies.push(resolve)))
+    const { dispatch, getters } = testApp.store
+
+    const before = dispatch('templatesAdmin/fetchCounts')
+    await flushPromises()
+    await dispatch('auth/clearAllStoreUserData')
+    replies[0]([200, { in_review: 5, public: 0, rejected: 0 }])
+    await before
+
+    expect(getters['templatesAdmin/counts']).toBe(null)
+
+    const after = dispatch('templatesAdmin/ensureCounts')
+    await flushPromises()
+
+    expect(replies).toHaveLength(2)
+    replies[1]([200, { in_review: 2, public: 0, rejected: 0 }])
+    await after
+    expect(getters['templatesAdmin/inReviewCount']).toBe(2)
+  })
+
+  test('searches on the server without fetching the counts', async () => {
+    const wrapper = await mountTable([row('in_review')])
+
+    const input = wrapper.find('.data-table__header input')
+    await input.setValue('ada')
+    await flushPromises()
+
+    expect(testApp.mock.history.get.at(-1)).toMatchObject({
+      url: '/admin/templates/',
+      params: { search: 'ada', state: 'in_review' },
+    })
+    expect(requestsTo('/admin/templates/counts/').length).toBe(1)
+  })
+
+  test.each([
     ['Ada', 'Ada', 'A'],
     ['', 'ada@example.com', 'A'],
   ])('names the author "%s" by %s', async (firstName, name, initial) => {
@@ -539,23 +910,4 @@ describe('TemplatesAdminTable', () => {
       'userTemplateList.stateListed',
     ])
   })
-})
-
-describe('TemplateReviewActionsField', () => {
-  test.each([
-    ['public', true, ['templatesAdmin.unlist']],
-    ['in_review', false, ['templatesAdmin.review']],
-    ['rejected', true, ['templatesAdmin.review']],
-  ])(
-    'shows the actions of a %s template (listed: %s)',
-    async (state, listed, labels) => {
-      const wrapper = await testApp.mount(TemplateReviewActionsField, {
-        props: { row: row(state, listed) },
-      })
-
-      expect(wrapper.findAll('button').map((button) => button.text())).toEqual(
-        labels
-      )
-    }
-  )
 })

@@ -54,7 +54,12 @@
 .templates-admin-actions {
   @include flex-align-items(8px);
 
+  flex: 1;
   justify-content: flex-end;
+
+  > .data-table__more-wrapper {
+    width: auto;
+  }
 }
 
 .templates-admin-review-actions {
@@ -69,6 +74,11 @@
   color: $palette-neutral-900;
 }
 
+.templates-admin-used__count {
+  font-weight: 600;
+  color: $palette-neutral-1200;
+}
+
 .templates-admin-reason {
   @extend %ellipsis;
 
@@ -81,5 +91,11 @@
 
 .templates-admin-tabs {
   padding: 0 24px;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+}
+
+@media screen and (max-width: 600px) {
+  .templates-admin-tabs {
+    padding: 0 16px;
+  }
 }

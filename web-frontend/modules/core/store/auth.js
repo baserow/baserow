@@ -232,6 +232,7 @@ export const actions = {
     await dispatch('toast/removeType', 'installTemplate', { root: true })
     await dispatch('toast/removeType', 'downloadTemplate', { root: true })
     await dispatch('notification/reset', {}, { root: true })
+    await dispatch('templatesAdmin/reset', {}, { root: true })
     commit('CLEAR_USER_DATA')
   },
   /**

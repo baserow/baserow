@@ -429,8 +429,9 @@ def test_sync_install_template_ignores_user_templates(api_client, data_fixture):
     [
         ("owner", "private", HTTP_202_ACCEPTED, None),
         ("owner", "blocked", HTTP_400_BAD_REQUEST, "ERROR_TEMPLATE_BLOCKED"),
-        # An instance admin has no access of its own.
-        ("staff", "private", HTTP_404_NOT_FOUND, "ERROR_TEMPLATE_DOES_NOT_EXIST"),
+        ("staff", "private", HTTP_202_ACCEPTED, None),
+        ("staff", "blocked", HTTP_202_ACCEPTED, None),
+        ("staff", "marked", HTTP_404_NOT_FOUND, "ERROR_TEMPLATE_DOES_NOT_EXIST"),
         ("other", "private", HTTP_404_NOT_FOUND, "ERROR_TEMPLATE_DOES_NOT_EXIST"),
         ("other", "public", HTTP_202_ACCEPTED, None),
         (
