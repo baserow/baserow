@@ -1,3 +1,4 @@
+from typing import Any
 from uuid import UUID, uuid4
 
 from django.contrib.auth import get_user_model
@@ -77,6 +78,7 @@ from .types import (
     AgentConfigurationUpdated,
     AgentConversationUpdated,
     AgentMessageCreated,
+    AgentPausedRun,
     AgentReplyRequest,
     AgentReplyResult,
     AgentReplyResume,
@@ -944,8 +946,15 @@ class AgentHandler:
         run_as = self.resolve_run_as_subject(
             agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
         )
+        transcript = self._get_paused_transcript(reply)
         acting_subject = (
-            run_as.subject if run_as.status == AgentRunAsState.ACTIVE else None
+            run_as.subject
+            if run_as.status == AgentRunAsState.ACTIVE
+            and (
+                transcript is None
+                or transcript.paused_as(run_as.subject_type, run_as.subject_id)
+            )
+            else None
         )
         # A generation keeps its selected identity and tools until it ends or is
         # stopped. Configuration edits apply when the next generation is prepared.
@@ -954,17 +963,12 @@ class AgentHandler:
             if acting_subject
             else {"allowed_tools": [], "ask_first_tools": []}
         )
-        paused_conversation = (
-            AgentReplyTranscript.objects.filter(reply=reply)
-            .values_list("paused_conversation", flat=True)
-            .first()
-        )
         resume = (
             None
-            if paused_conversation is None
+            if transcript is None
             else self._get_reply_resume(
                 reply,
-                ConversationTypeAdapter.validate_python(paused_conversation),
+                ConversationTypeAdapter.validate_python(transcript.paused_conversation),
                 tools["allowed_tools"],
             )
         )
@@ -974,6 +978,7 @@ class AgentHandler:
         web_search_tool = (
             self._get_web_search_tool(agent, bool(tools["allowed_tools"]))
             if agent.web_search_enabled
+            and (transcript is None or transcript.paused_web_search)
             else None
         )
         return AgentReplyRequest(
@@ -994,6 +999,28 @@ class AgentHandler:
             reasoning_effort=agent.reasoning_effort,
             web_search_tool=web_search_tool,
             web_search_enabled=agent.web_search_enabled,
+        )
+
+    def _get_paused_transcript(
+        self, reply: AgentMessage
+    ) -> AgentReplyTranscript | None:
+        """
+        :param reply: The reply.
+        :return: Its transcript with the paused run, without the model messages, or
+            None when the reply isn't paused.
+        """
+
+        return (
+            AgentReplyTranscript.objects.filter(
+                reply=reply, paused_conversation__isnull=False
+            )
+            .only(
+                "paused_conversation",
+                "paused_web_search",
+                "paused_run_as_subject_type",
+                "paused_run_as_subject_id",
+            )
+            .first()
         )
 
     def _get_reply_prompt(self, reply: AgentMessage) -> tuple[str, list[AgentMessage]]:
@@ -1189,7 +1216,7 @@ class AgentHandler:
 
         if result is None or not result.provider_type:
             AgentReplyTranscript.objects.filter(reply=reply).update(
-                paused_conversation=None
+                **self._paused_fields(None)
             )
             return
         transcript = AgentReplyTranscript.objects.filter(reply=reply).first()
@@ -1199,9 +1226,8 @@ class AgentHandler:
                 provider_type=result.provider_type,
                 model_identifier=result.model_identifier,
             )
-        transcript.paused_conversation = remove_unstorable_characters(
-            result.paused_conversation
-        )
+        for name, value in self._paused_fields(result.paused_run).items():
+            setattr(transcript, name, value)
         if result.model_messages is not None:
             transcript.provider_type = result.provider_type
             transcript.model_identifier = result.model_identifier
@@ -1212,6 +1238,31 @@ class AgentHandler:
             ]
             transcript.usage = result.usage
         transcript.save()
+
+    def _paused_fields(self, paused_run: AgentPausedRun | None) -> dict[str, Any]:
+        """
+        :param paused_run: The run that paused, or None when the reply isn't paused.
+        :return: The transcript's paused run fields, cleared when there is none.
+        """
+
+        if paused_run is None:
+            return {
+                "paused_conversation": None,
+                "paused_web_search": False,
+                "paused_run_as_subject_type": None,
+                "paused_run_as_subject_id": None,
+            }
+        run_as = paused_run.run_as
+        return {
+            "paused_conversation": remove_unstorable_characters(
+                paused_run.conversation
+            ),
+            "paused_web_search": paused_run.web_search,
+            "paused_run_as_subject_type": None
+            if run_as is None
+            else subject_type_registry.get_by_model(run_as).type,
+            "paused_run_as_subject_id": None if run_as is None else run_as.pk,
+        }
 
     def refresh_unfinished_replies(
         self, messages: list[AgentMessage], active_runs: dict[int, UUID]

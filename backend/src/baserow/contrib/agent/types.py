@@ -131,6 +131,18 @@ class AgentReplyRequest:
 
 
 @dataclass(frozen=True)
+class AgentPausedRun:
+    """A run that paused for approvals, with what its resume must continue with."""
+
+    conversation: dict
+    """The run, dumped with its messages and held calls."""
+    web_search: bool
+    """Whether it offered web search."""
+    run_as: Subject | None
+    """Who its tools acted as, or None for no workspace access."""
+
+
+@dataclass(frozen=True)
 class AgentReplyResult:
     """What a reply produced, complete or partial."""
 
@@ -143,11 +155,11 @@ class AgentReplyResult:
     """Its tool calls in call order, or None when it made none."""
     waiting_calls: list[ChatRunWaitingCall] = field(default_factory=list)
     """The calls held for the owner's approval, when the run paused."""
-    paused_conversation: dict | None = None
-    """The paused run, dumped to resume it once its held calls are decided."""
+    paused_run: AgentPausedRun | None = None
+    """The paused run, to resume once its held calls are decided."""
 
     @property
     def paused(self) -> bool:
         """Whether the run paused for approvals instead of answering."""
 
-        return self.paused_conversation is not None
+        return self.paused_run is not None

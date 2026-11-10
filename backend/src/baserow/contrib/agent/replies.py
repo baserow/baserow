@@ -70,7 +70,7 @@ from .constants import (
 )
 from .models import AgentMessage
 from .registries import agent_tool_type_registry, hold_call, input_shower
-from .types import AgentReplyRequest, AgentReplyResult
+from .types import AgentPausedRun, AgentReplyRequest, AgentReplyResult
 
 if TYPE_CHECKING:
     from baserow.core.chat_runs.journal import ChatRunJournal
@@ -255,6 +255,7 @@ class AgentResponder:
         self._parts: dict[int, str] = {}
         self._text_is_commentary = False
         self._result: AgentRunResult[str | DeferredToolRequests] | None = None
+        self._web_search_tool: WebSearchTool | None = None
         self._response_calls: list[ToolCallPart] = []
         self._response_held_ids: set[str] | None = None
         resume = request.resume
@@ -325,7 +326,9 @@ class AgentResponder:
         instructions = request.instructions
         if request.run_as_unavailable:
             instructions += f"\n\n{UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS}"
-        if request.allowed_tool_names and request.ask_first_tool_names:
+        if request.resume is not None or (
+            request.allowed_tool_names and request.ask_first_tool_names
+        ):
             instructions += f"\n\n{ASK_FIRST_INSTRUCTIONS}"
         if web_search_tool is not None:
             instructions += f"\n\n{WEB_SEARCH_INSTRUCTIONS}"
@@ -378,6 +381,7 @@ class AgentResponder:
         :param web_search_tool: The web search to offer, if any.
         """
 
+        self._web_search_tool = web_search_tool
         agent = Agent(
             instructions=self._get_instructions(web_search_tool),
             output_type=[str, DeferredToolRequests],
@@ -604,8 +608,12 @@ class AgentResponder:
             usage=to_jsonable_python(self._result.usage),
             steps=steps,
             waiting_calls=self._steps.waiting_calls() if paused else [],
-            paused_conversation=ConversationTypeAdapter.dump_python(
-                self._result.conversation, mode="json"
+            paused_run=AgentPausedRun(
+                conversation=ConversationTypeAdapter.dump_python(
+                    self._result.conversation, mode="json"
+                ),
+                web_search=self._web_search_tool is not None,
+                run_as=self._request.acting_subject,
             )
             if paused
             else None,

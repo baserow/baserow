@@ -36,6 +36,15 @@ class Migration(migrations.Migration):
                 ("usage", models.JSONField(null=True)),
                 ("paused_conversation", models.JSONField(null=True)),
                 (
+                    "paused_web_search",
+                    models.BooleanField(db_default=False, default=False),
+                ),
+                (
+                    "paused_run_as_subject_type",
+                    models.CharField(max_length=255, null=True),
+                ),
+                ("paused_run_as_subject_id", models.BigIntegerField(null=True)),
+                (
                     "reply",
                     models.OneToOneField(
                         on_delete=django.db.models.deletion.CASCADE,

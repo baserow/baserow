@@ -193,4 +193,20 @@ class AgentReplyTranscript(BigAutoFieldMixin, models.Model):
     usage = models.JSONField(null=True)
     # The whole run, not only its new messages, so a resume keeps its request limit.
     paused_conversation = models.JSONField(null=True)
-    # Only failed steps from the paused response can be retried by the next one.
+    # A provider that refused web search would refuse the resume too.
+    paused_web_search = models.BooleanField(default=False, db_default=False)
+    # Held calls were named and approved as this identity, so they never run as another.
+    paused_run_as_subject_type = models.CharField(max_length=255, null=True)
+    paused_run_as_subject_id = models.BigIntegerField(null=True)
+
+    def paused_as(self, subject_type: str | None, subject_id: int | None) -> bool:
+        """
+        :param subject_type: An identity's subject type, or None.
+        :param subject_id: An identity's subject id, or None.
+        :return: Whether the paused run acted as that identity.
+        """
+
+        return (self.paused_run_as_subject_type, self.paused_run_as_subject_id) == (
+            subject_type,
+            subject_id,
+        )

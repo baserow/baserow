@@ -1769,7 +1769,31 @@ def test_a_rejected_call_never_runs_and_the_model_learns_why(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("change", ["disallow_the_tool", "clear_the_identity"])
+def test_a_resumed_reply_explains_approvals_after_ask_first_is_turned_off(
+    ask_first_agent, mocker
+):
+    user, agent, table = ask_first_agent
+    received = respond(mocker, ({0: add_row(table)},))
+    reply = pause(user, agent)
+    AgentHandler().update_configuration(
+        agent, allowed_tools=["list_tables", "create_rows"], ask_first_tools=[]
+    )
+
+    run_reply(decide(user, reply, approved=False))
+
+    assert ASK_FIRST_INSTRUCTIONS in received[-1][-1].instructions
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "change",
+    [
+        "disallow_the_tool",
+        "clear_the_identity",
+        "switch_the_identity",
+        "trash_the_identity",
+    ],
+)
 def test_an_approved_call_fails_when_the_agent_may_no_longer_make_it(
     ask_first_agent, mocker, change
 ):
@@ -1780,10 +1804,17 @@ def test_an_approved_call_fails_when_the_agent_may_no_longer_make_it(
         AgentHandler().update_configuration(
             agent, allowed_tools=["list_tables"], ask_first_tools=[]
         )
-    else:
+    elif change == "clear_the_identity":
         AgentHandler().update_configuration(
             agent, run_as_subject_type=None, run_as_subject_id=None
         )
+    elif change == "switch_the_identity":
+        other = Identity.objects.create(workspace=agent.workspace, name="Admin")
+        AgentHandler().update_configuration(
+            agent, run_as_subject_type="core.Agent", run_as_subject_id=other.id
+        )
+    else:
+        Identity.objects.filter(id=agent.run_as_subject_id).update(trashed=True)
 
     run_reply(decide(user, reply, approved=True))
 
