@@ -1187,6 +1187,126 @@ def test_check_is_rate_limited_uses_a_single_query_for_multiple_windows(data_fix
     assert len(queries) == 1
 
 
+def _create_unfinished_run(data_fixture, workflow, node_status, original_workflow=None):
+    """
+    Creates a `started` run of the workflow whose single node history has the given
+    status: `waiting` for a run paused by a Wait node, `started` for a working run.
+    """
+
+    workflow_history = data_fixture.create_automation_workflow_history(
+        workflow=workflow,
+        original_workflow=original_workflow or workflow,
+        status=HistoryStatusChoices.STARTED,
+    )
+    data_fixture.create_automation_node_history(
+        workflow_history=workflow_history,
+        node=data_fixture.create_automation_node(workflow=workflow),
+        status=node_status,
+    )
+    return workflow_history
+
+
+@override_settings(
+    AUTOMATION_WORKFLOW_RATE_LIMITS=((10, 5), (30, 300), (100, 3600)),
+)
+@pytest.mark.django_db
+def test_check_is_rate_limited_ignores_unfinished_runs_that_are_waiting(data_fixture):
+    original_workflow = data_fixture.create_automation_workflow()
+
+    with freeze_time("2025-08-01 14:00:00"):
+        for _ in range(12):
+            _create_unfinished_run(
+                data_fixture, original_workflow, HistoryStatusChoices.WAITING
+            )
+
+    # Outside the 5 s window, the waiting runs only count by their start time, so
+    # they stay below the 30 / 300 s and 100 / 3600 s limits.
+    with freeze_time("2025-08-01 14:00:10"):
+        assert (
+            AutomationWorkflowHandler()._check_is_rate_limited(original_workflow)
+            is False
+        )
+
+
+@override_settings(
+    AUTOMATION_WORKFLOW_RATE_LIMITS=((10, 5), (30, 300), (100, 3600)),
+)
+@pytest.mark.django_db
+def test_check_is_rate_limited_still_counts_unfinished_runs_that_are_working(
+    data_fixture,
+):
+    original_workflow = data_fixture.create_automation_workflow()
+
+    with freeze_time("2025-08-01 14:00:00"):
+        for _ in range(10):
+            _create_unfinished_run(
+                data_fixture, original_workflow, HistoryStatusChoices.STARTED
+            )
+        # A waiting run next to them changes nothing for the working ones.
+        _create_unfinished_run(
+            data_fixture, original_workflow, HistoryStatusChoices.WAITING
+        )
+
+    with freeze_time("2025-08-01 14:00:10"):
+        with pytest.raises(AutomationWorkflowRateLimited) as exc:
+            AutomationWorkflowHandler()._check_is_rate_limited(original_workflow)
+
+    assert str(exc.value) == (
+        "The workflow was rate limited due to too many recent or unfinished "
+        "runs. Limit exceeded: 10 runs in 5 seconds."
+    )
+
+
+@pytest.mark.django_db
+@override_settings(
+    AUTOMATION_WORKFLOW_RATE_LIMITS=((10, 5), (30, 300), (100, 3600)),
+)
+@patch(f"{WORKFLOWS_MODULE}.handler.start_workflow_celery_task")
+def test_events_are_accepted_while_more_than_ten_runs_are_waiting(
+    mock_celery_task, data_fixture, django_capture_on_commit_callbacks
+):
+    with freeze_time("2026-01-26 12:59:00"):
+        user = data_fixture.create_user()
+        original_workflow = data_fixture.create_automation_workflow(user=user)
+        published_workflow = data_fixture.create_automation_workflow(
+            state=WorkflowState.LIVE, user=user
+        )
+        published_workflow.automation.published_from = original_workflow
+        published_workflow.automation.save()
+
+    with freeze_time("2026-01-26 13:00:00"):
+        for _ in range(11):
+            _create_unfinished_run(
+                data_fixture,
+                published_workflow,
+                HistoryStatusChoices.WAITING,
+                original_workflow=original_workflow,
+            )
+
+    # Seven events, 6 s apart: before the fix each one was refused as rate limited,
+    # and the seventh disabled the workflow for too many consecutive errors.
+    handler = AutomationWorkflowHandler()
+    for index in range(7):
+        with freeze_time(f"2026-01-26 13:01:{index * 6:02d}"):
+            with django_capture_on_commit_callbacks(execute=True):
+                history = handler.async_start_workflow(published_workflow)
+
+            assert history.status == HistoryStatusChoices.STARTED
+            assert history.message == ""
+
+    assert mock_celery_task.delay.call_count == 7
+    assert (
+        not AutomationHistoryHandler()
+        .get_workflow_histories(original_workflow)
+        .filter(status__in=[HistoryStatusChoices.ERROR, HistoryStatusChoices.DISABLED])
+        .exists()
+    )
+    published_workflow.refresh_from_db()
+    original_workflow.refresh_from_db()
+    assert published_workflow.state == WorkflowState.LIVE
+    assert original_workflow.state != WorkflowState.DISABLED
+
+
 @pytest.mark.django_db
 @override_settings(
     AUTOMATION_WORKFLOW_RATE_LIMITS=((2, 5),),
@@ -2045,6 +2165,44 @@ def test_mark_failure_for_timed_out_history(data_fixture):
     assert timed_out_history.status == HistoryStatusChoices.ERROR
     assert timed_out_history.message == error_message
     assert timed_out_history.completed_on is not None
+
+    node_history.refresh_from_db()
+    assert node_history.status == HistoryStatusChoices.ERROR
+    assert node_history.message == error_message
+    assert node_history.completed_on == timed_out_history.completed_on
+
+
+@override_settings(AUTOMATION_WORKFLOW_TIMEOUT_HOURS=1)
+@pytest.mark.django_db
+def test_mark_failure_for_timed_out_history_times_out_waiting_nodes(data_fixture):
+    """
+    A node that waits belongs to a run that is still going: when the run times
+    out, the waiting node times out with it.
+    """
+
+    workflow = data_fixture.create_automation_workflow()
+
+    with freeze_time("2026-04-16 12:00:00"):
+        timed_out_history = data_fixture.create_automation_workflow_history(
+            workflow=workflow,
+            status=HistoryStatusChoices.STARTED,
+        )
+        node_history = AutomationNodeHistory.objects.create(
+            workflow_history=timed_out_history,
+            node=workflow.get_trigger(),
+            started_on=timed_out_history.started_on,
+            status=HistoryStatusChoices.WAITING,
+            resume_at=timezone.now() + datetime.timedelta(hours=6),
+            resume_state={"state": {"seconds": 21600}, "current_iterations": None},
+        )
+
+    with freeze_time("2026-04-16 13:00:01"):
+        AutomationWorkflowHandler().mark_failure_for_timed_out_history()
+
+    error_message = "This workflow took too long and was timed out."
+
+    timed_out_history.refresh_from_db()
+    assert timed_out_history.status == HistoryStatusChoices.ERROR
 
     node_history.refresh_from_db()
     assert node_history.status == HistoryStatusChoices.ERROR

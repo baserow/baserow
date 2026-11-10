@@ -1935,6 +1935,27 @@ def test_handle_workflow_dispatch_done_sends_signal_on_error(
 
 
 @pytest.mark.django_db
+@patch(f"{TASKS_PATH}.logger")
+@patch(f"{TASKS_PATH}.automation_workflow_dispatch_done")
+def test_handle_workflow_dispatch_done_tolerates_a_deleted_history(
+    mock_dispatch_done_signal, mock_logger, data_fixture
+):
+    """
+    The workflow, and with it the run's history, can be deleted while the run is
+    still in flight. The tail of the chain has nothing left to update.
+    """
+
+    data = create_workflow(data_fixture)
+    history_id = data["workflow_history"].id
+    AutomationWorkflowHistory.objects.filter(id=history_id).delete()
+
+    handle_workflow_dispatch_done(history_id=history_id)
+
+    mock_dispatch_done_signal.send.assert_not_called()
+    mock_logger.warning.assert_called_once()
+
+
+@pytest.mark.django_db
 @patch(f"{NODE_HANDLER_PATH}.automation_node_dispatch_started")
 @patch(f"{NODE_HANDLER_PATH}.automation_node_dispatch_completed")
 def test_dispatch_node_sends_started_and_completed_signals_on_success(
