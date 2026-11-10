@@ -817,6 +817,7 @@ describe('Agent tool approvals', () => {
 
     await pill.trigger('click')
     await pill.trigger('click')
+    await flushPromises()
     waiting.resolve(200, conversationsPage([row]))
     await flushPromises()
 
