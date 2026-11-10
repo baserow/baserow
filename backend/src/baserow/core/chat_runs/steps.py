@@ -1,6 +1,6 @@
 import json
 from collections import defaultdict, deque
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Collection, Iterable, Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
@@ -47,25 +47,65 @@ class ToolCallInputEvent(CustomEvent, ui=False):
     input: dict[str, Any]
 
 
-def stop_running_steps(
-    steps: list[ChatRunStep], keep_waiting: bool = False
-) -> list[ChatRunStep]:
+def stop_running_steps(steps: list[ChatRunStep]) -> list[ChatRunStep]:
     """Mark calls with unknown completion as stopped without implying rollback.
 
     :param steps: The steps in call order.
-    :param keep_waiting: Whether held calls stay waiting because the run paused.
-    :return: Steps with none left running, and none left waiting unless kept.
+    :return: Steps with none left running.
     """
 
-    unfinished = {ChatRunStepStatus.RUNNING}
-    if not keep_waiting:
-        unfinished.add(ChatRunStepStatus.WAITING)
     return [
         {**step, "status": ChatRunStepStatus.STOPPED}
-        if step["status"] in unfinished
+        if step["status"] == ChatRunStepStatus.RUNNING
         else step
         for step in steps
     ]
+
+
+def end_waiting_steps(
+    steps: list[ChatRunStep],
+    rejected_step_ids: Collection[str] = (),
+    approved_step_ids: Collection[str] = (),
+) -> list[ChatRunStep]:
+    """
+    End the held calls of a run that ended without resuming them. A rejected or
+    undecided call never ran; an approved one may have, so only it is stopped.
+
+    :param steps: The steps in call order.
+    :param rejected_step_ids: The held calls the user rejected.
+    :param approved_step_ids: The held calls the user approved.
+    :return: Steps with none left waiting.
+    """
+
+    return [
+        _end_waiting_step(step, rejected_step_ids, approved_step_ids)
+        if step["status"] == ChatRunStepStatus.WAITING
+        else step
+        for step in steps
+    ]
+
+
+def _end_waiting_step(
+    step: ChatRunStep,
+    rejected_step_ids: Collection[str],
+    approved_step_ids: Collection[str],
+) -> ChatRunStep:
+    """
+    :param step: A held call.
+    :param rejected_step_ids: The held calls the user rejected.
+    :param approved_step_ids: The held calls the user approved.
+    :return: The call, rejected, stopped or failed.
+    """
+
+    if step["id"] in rejected_step_ids:
+        return {**step, "status": ChatRunStepStatus.REJECTED}
+    if step["id"] in approved_step_ids:
+        return {**step, "status": ChatRunStepStatus.STOPPED}
+    return {
+        **step,
+        "status": ChatRunStepStatus.FAILED,
+        "error_code": ToolErrorCode.FAILED,
+    }
 
 
 def _display_data(value: Any) -> dict[str, Any]:
@@ -470,14 +510,14 @@ class ChatRunSteps:
             if step["status"] == ChatRunStepStatus.WAITING and step["id"] in call_ids
         ]
 
-    def finish(self, paused: bool = False) -> list[ChatRunStep]:
+    def finish(self) -> list[ChatRunStep]:
         """Finish activity once the model run ends.
 
-        :param paused: Whether the run ended holding calls for approval.
-        :return: Steps in call order, with unresolved calls marked stopped.
+        :return: Steps in call order, with unresolved calls marked stopped and held
+            calls still waiting.
         """
 
-        return stop_running_steps(list(self._steps.values()), keep_waiting=paused)
+        return stop_running_steps(list(self._steps.values()))
 
     def _update(self, step: ChatRunStep) -> None:
         """

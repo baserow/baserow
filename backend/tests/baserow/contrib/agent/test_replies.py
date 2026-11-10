@@ -1,5 +1,6 @@
 import asyncio
 import json
+import time
 from functools import wraps
 from unittest.mock import ANY
 from uuid import uuid4
@@ -64,6 +65,7 @@ from baserow.contrib.database.rows.actions import CreateRowsActionType
 from baserow.contrib.database.table.models import Table
 from baserow.core.action.registries import action_type_registry
 from baserow.core.agents.service import AgentService as IdentityService
+from baserow.core.chat_runs.constants import ChatRunStopReason
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.journal import ChatRunJournal
 from baserow.core.chat_runs.models import ChatRun
@@ -321,6 +323,7 @@ def test_the_model_gets_the_instructions_and_recent_history(
     steps = [
         {**step, "tool": "list_tables", "status": "done", "changes_data": False},
         {**step, "tool": "create_rows", "status": "stopped", "changes_data": True},
+        {**step, "tool": "delete_rows", "status": "rejected", "changes_data": True},
         "malformed",
     ]
     for status, reply, reply_steps in [
@@ -748,6 +751,9 @@ def test_a_later_segment_of_a_reply_keeps_what_the_paused_one_saved(
         status="running",
         content="I will add a row.",
         steps=[HELD_STEP],
+    )
+    data_fixture.create_agent_tool_approval(
+        reply=reply, step_id=HELD_STEP["id"], status="approved"
     )
     AgentReplyTranscript.objects.create(
         reply=reply,
@@ -1542,6 +1548,39 @@ def test_a_held_write_is_waiting_while_a_sibling_read_still_runs(
 
 
 @pytest.mark.django_db
+def test_a_held_call_fails_when_its_reply_stops_before_pausing(ask_first_agent, mocker):
+    user, agent, table = ask_first_agent
+    respond(mocker, ({0: add_row(table), 1: tool_call("list_tables", "call_read")},))
+    emitted = mocker.spy(ChatRunJournal, "emit")
+    tool_type = type(agent_tool_type_registry.get("list_tables"))
+    original = tool_type.function
+
+    @wraps(original)
+    def read(*args, **kwargs):
+        journal = emitted.call_args.args[0]
+        journal._loop.call_soon_threadsafe(
+            journal.request_stop, ChatRunStopReason.CANCELLED
+        )
+        while journal.stop_reason is None:
+            time.sleep(0.01)
+        return original(*args, **kwargs)
+
+    mocker.patch.object(tool_type, "function", read)
+    created = start(user, agent)
+
+    run_reply(run_of(created.conversation))
+
+    reply = AgentMessage.objects.get(id=created.reply.id)
+    assert reply.status == "cancelled"
+    assert [
+        (step["status"], step.get("error_code"))
+        for step in reply.steps
+        if step["tool"] == "create_rows"
+    ] == [("failed", "failed")]
+    assert row_names(table) == []
+
+
+@pytest.mark.django_db
 def test_a_held_call_waits_with_its_named_request(ask_first_agent, mocker):
     user, agent, table = ask_first_agent
     respond(mocker, ({0: add_row(table)},))
@@ -1793,22 +1832,24 @@ def test_a_continued_reply_waits_again_for_a_later_call_even_with_a_reused_id(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "ending,status,error_code,rows",
+    "ending,approved,status,error_code,step_status,rows",
     [
-        ("cancelled", "cancelled", "", []),
-        ("not_ready", "failed", "not_ready", []),
-        ("lost", "failed", "interrupted", []),
-        ("persist_failed", "failed", "interrupted", ["Plan"]),
+        ("cancelled", True, "cancelled", "", "stopped", []),
+        ("cancelled", False, "cancelled", "", "rejected", []),
+        ("not_ready", True, "failed", "not_ready", "stopped", []),
+        ("lost", True, "failed", "interrupted", "stopped", []),
+        ("persist_failed", True, "failed", "interrupted", "stopped", ["Plan"]),
     ],
+    ids=["cancelled", "cancelled-rejected", "not-ready", "lost", "persist-failed"],
 )
 def test_a_continuation_ending_without_a_saved_answer_keeps_the_paused_reply(
-    ask_first_agent, mocker, ending, status, error_code, rows
+    ask_first_agent, mocker, ending, approved, status, error_code, step_status, rows
 ):
     user, agent, table = ask_first_agent
     respond(mocker, ("I will add a row.", {0: add_row(table)}))
     reply = pause(user, agent)
     paused = AgentReplyTranscript.objects.get(reply=reply)
-    run = decide(user, reply, approved=True)
+    run = decide(user, reply, approved=approved)
 
     if ending == "cancelled":
         ChatRunHandler().request_cancel(run.id)
@@ -1827,7 +1868,7 @@ def test_a_continuation_ending_without_a_saved_answer_keeps_the_paused_reply(
 
     assert reply_state(reply.id) == (status, error_code, "")
     reply.refresh_from_db()
-    assert [step["status"] for step in reply.steps] == ["stopped"]
+    assert [step["status"] for step in reply.steps] == [step_status]
     assert row_names(table) == rows
     transcript = AgentReplyTranscript.objects.get(reply=reply)
     assert (

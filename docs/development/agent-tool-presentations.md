@@ -31,14 +31,18 @@ The backend emits `step` events and saves the same steps on the assistant messag
   only describe calls and never select what runs or what is allowed.
 - `status` is `running`, `waiting`, `done`, `failed`, `rejected`, `stopped` or
   `skipped`, see `STEP_STATUS` in `modules/core/chatRuns/constants.js`. Calls
-  held for approval are `waiting` from their call event, including changes held
-  behind another change in the same response. Other valid calls are `running`
+  held for approval are `waiting` from their call event, including changes that
+  follow a held call in the same response. Other valid calls are `running`
   until their result arrives. `rejected` means the owner denied the call, so it
-  did not run. `stopped` means the reply ended before the call's result: a change
-  may already have completed, and the card says so. `skipped` means the call
-  changed nothing and failed nothing; it has no card. A held call is never
-  `skipped`, as the owner already saw it. A held call gets its readable request
-  when it is held, so the owner decides on names, not IDs.
+  did not run. A held call the reply ends without resuming is `rejected` if the
+  owner rejected it, `stopped` if they approved it, since the resume may have run
+  it, and `failed` if undecided. Copies end held calls the same way, as approvals
+  aren't copied; a copy of a reply that still waited marks approved calls `failed`
+  too. `stopped` means the reply ended before the call's result: a change may
+  already have completed, and the card says so. `skipped` means the call changed nothing and failed nothing; it has
+  no card. A held call is never `skipped`, as the owner already saw it. A held
+  call gets its readable request when it is held, so the owner decides on
+  names, not IDs.
 - `input` is what the call asked for. `requested_count` is known when the call
   starts. `values`, the request with names instead of IDs, follows while it
   runs, before the tool changes anything; see

@@ -26,14 +26,15 @@ from pydantic_ai import (
 
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
 from baserow.core.ai_provider.resolution import ScopedAIProviderState
-from baserow.core.chat_runs.constants import ChatRunErrorCode
+from baserow.core.chat_runs.constants import ChatRunErrorCode, ChatRunStepStatus
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import (
     ACTIVE_CHAT_RUN_STATUSES,
     ChatRun,
     ChatRunStatus,
 )
-from baserow.core.chat_runs.steps import stop_running_steps
+from baserow.core.chat_runs.steps import end_waiting_steps, stop_running_steps
+from baserow.core.chat_runs.types import ChatRunStep
 from baserow.core.exceptions import SubjectTypeNotExist
 from baserow.core.generative_ai.exceptions import GenerativeAITypeDoesNotExist
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
@@ -1114,11 +1115,14 @@ class AgentHandler:
         content = remove_unstorable_characters(result.text if result else "")
         if content.strip():
             reply.content = content
-        reply.steps = (
+        steps = (
             result.steps
             if result and result.steps
             else stop_running_steps(reply.steps or [])
-        ) or None
+        )
+        if not paused:
+            steps = self._end_held_steps(reply, steps, resumed=True)
+        reply.steps = steps or None
         reply.save(
             update_fields=["status", "error_code", "content", "steps", "updated_on"]
         )
@@ -1137,6 +1141,39 @@ class AgentHandler:
             )
         reply.conversation.save(update_fields=["updated_on"])
         return reply
+
+    def _end_held_steps(
+        self, reply: AgentMessage, steps: list[ChatRunStep], resumed: bool
+    ) -> list[ChatRunStep]:
+        """
+        End the held calls of a reply that ends without resuming them, by the
+        owner's decision on each.
+
+        :param reply: The reply.
+        :param steps: Its steps.
+        :param resumed: Whether the reply resumed, so its approved calls may have
+            run.
+        :return: The steps with none left waiting.
+        """
+
+        if not any(step["status"] == ChatRunStepStatus.WAITING for step in steps):
+            return steps
+        decisions = {
+            approval.step_id: approval.status for approval in reply.approvals.all()
+        }
+        return end_waiting_steps(
+            steps,
+            rejected_step_ids={
+                step_id
+                for step_id, status in decisions.items()
+                if status == AgentToolApproval.Status.REJECTED
+            },
+            approved_step_ids={
+                step_id
+                for step_id, status in decisions.items()
+                if resumed and status == AgentToolApproval.Status.APPROVED
+            },
+        )
 
     def _save_transcript(
         self, reply: AgentMessage, result: AgentReplyResult | None
@@ -1246,9 +1283,9 @@ class AgentHandler:
             .prefetch_related(
                 Prefetch(
                     "messages",
-                    queryset=AgentMessage.objects.order_by("id").select_related(
-                        "transcript"
-                    ),
+                    queryset=AgentMessage.objects.order_by("id")
+                    .select_related("transcript")
+                    .prefetch_related("approvals"),
                 )
             )
         )
@@ -1264,7 +1301,13 @@ class AgentHandler:
                         "content": message.content,
                         "status": message.status,
                         "error_code": message.error_code,
-                        "steps": message.steps,
+                        # Approvals aren't copied, so the copy gets held calls ended.
+                        "steps": self._end_held_steps(
+                            message,
+                            message.steps or [],
+                            resumed=message.status != AgentReplyStatus.WAITING,
+                        )
+                        or None,
                         "transcript": self._export_transcript(message),
                         "created_on": message.created_on.isoformat(),
                         "updated_on": message.updated_on.isoformat(),
@@ -1346,7 +1389,6 @@ class AgentHandler:
                         content=serialized_message["content"],
                         status=status,
                         error_code=error_code,
-                        # A copied reply can't resume, so its held calls stop.
                         steps=stop_running_steps(serialized_message.get("steps") or [])
                         or None,
                     )

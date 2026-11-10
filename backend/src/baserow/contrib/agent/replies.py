@@ -42,7 +42,11 @@ from pydantic_ai.toolsets.abstract import ToolsetTool
 from pydantic_ai.usage import UsageLimits
 from pydantic_core import to_jsonable_python
 
-from baserow.core.chat_runs.constants import ChatRunErrorCode, ChatRunStopReason
+from baserow.core.chat_runs.constants import (
+    ChatRunErrorCode,
+    ChatRunStepStatus,
+    ChatRunStopReason,
+)
 from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.chat_runs.steps import ChatRunSteps
 from baserow.core.chat_runs.types import ChatRunOutcome
@@ -83,7 +87,9 @@ def _interruption_note(reply: AgentMessage) -> str:
     changes = ", ".join(
         f"{step.get('tool')} ({step.get('status')})"
         for step in reply.steps or []
-        if isinstance(step, dict) and step.get("changes_data") is True
+        if isinstance(step, dict)
+        and step.get("changes_data") is True
+        and step.get("status") != ChatRunStepStatus.REJECTED
     )
     if not changes:
         return INTERRUPTED_REPLY_NOTE
@@ -580,7 +586,7 @@ class AgentResponder:
         paused = self._result is not None and isinstance(
             self._result.output, DeferredToolRequests
         )
-        steps = self._steps.finish(paused) or None
+        steps = self._steps.finish() or None
         if self._result is None:
             return AgentReplyResult(
                 text=self._text,

@@ -14,7 +14,7 @@ from pydantic_ai.messages import (
 from baserow.core.chat_runs.steps import (
     ChatRunSteps,
     ToolCallInputEvent,
-    stop_running_steps,
+    end_waiting_steps,
 )
 
 HELD_CALL_IDS = ("approved", "rejected", "revoked")
@@ -370,11 +370,11 @@ def test_messages_for_people_are_shortened_and_hints_left_out():
     assert "HINT_CANARY" not in str(step)
 
 
-def test_held_calls_wait_only_while_the_run_is_paused():
+def test_held_calls_wait_until_the_reply_ends_them_without_running():
     journal = Mock()
     steps = paused_run(journal)
 
-    paused = steps.finish(paused=True)
+    paused = steps.finish()
     assert [step["status"] for step in paused] == [
         "done",
         "waiting",
@@ -387,16 +387,23 @@ def test_held_calls_wait_only_while_the_run_is_paused():
         for call_id, step in zip(HELD_CALL_IDS, paused[1:4])
     ]
     assert journal.emit.call_args.args[1] == paused[3]
-    assert {step["status"] for step in steps.finish()} == {"done", "stopped"}
-    assert {step["status"] for step in stop_running_steps(paused)} == {
-        "done",
-        "stopped",
-    }
+    ended = end_waiting_steps(
+        paused,
+        rejected_step_ids={paused[1]["id"]},
+        approved_step_ids={paused[2]["id"]},
+    )
+    assert [(step["status"], step.get("error_code")) for step in ended] == [
+        ("done", None),
+        ("rejected", None),
+        ("stopped", None),
+        ("failed", "failed"),
+        ("stopped", None),
+    ]
 
 
 def test_resumed_calls_update_their_saved_steps_in_place():
     paused = paused_run()
-    saved = paused.finish(paused=True)
+    saved = paused.finish()
     journal = Mock()
     steps = ChatRunSteps(
         journal,
@@ -439,7 +446,7 @@ def test_resumed_calls_update_their_saved_steps_in_place():
 
 def test_only_calls_of_this_run_count_as_started():
     paused = paused_run()
-    saved = paused.finish(paused=True)
+    saved = paused.finish()
     held = {call_id: step_id for call_id, step_id, _ in paused.waiting_calls()}
     resumed = ChatRunSteps(Mock(), describe, saved_steps=saved, held_step_ids=held)
 

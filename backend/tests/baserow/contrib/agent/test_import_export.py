@@ -417,9 +417,23 @@ def test_duplicate_agent_job_rolls_back_failed_conversation_import(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("status", ["running", "waiting"])
+@pytest.mark.parametrize(
+    "status,step_status,decision,copied_step",
+    [
+        ("running", "running", "pending", {"status": "stopped"}),
+        (
+            "waiting",
+            "waiting",
+            "approved",
+            {"status": "failed", "error_code": "failed"},
+        ),
+        ("running", "waiting", "approved", {"status": "stopped"}),
+        ("running", "waiting", "rejected", {"status": "rejected"}),
+    ],
+    ids=["running-call", "waiting-reply", "resumed-approved", "resumed-rejected"],
+)
 def test_a_copy_never_carries_a_reply_in_progress(
-    data_fixture, configured_agent, status
+    data_fixture, configured_agent, status, step_status, decision, copied_step
 ):
     owner = data_fixture.create_user()
     agent = configured_agent(user=owner)
@@ -428,9 +442,11 @@ def test_a_copy_never_carries_a_reply_in_progress(
         agent=agent,
         role=AgentMessage.Role.ASSISTANT,
         status=status,
-        steps=[{"id": "call_1", "status": status}],
+        steps=[{"id": "call_1", "status": step_status}],
     )
-    data_fixture.create_agent_tool_approval(reply=reply, step_id="call_1")
+    data_fixture.create_agent_tool_approval(
+        reply=reply, step_id="call_1", status=decision
+    )
     AgentReplyTranscript.objects.create(
         reply=reply,
         paused_conversation={"messages": []},
@@ -440,7 +456,7 @@ def test_a_copy_never_carries_a_reply_in_progress(
 
     reply = AgentMessage.objects.get(conversation__agent=copied)
     assert (reply.status, reply.error_code) == ("failed", "interrupted")
-    assert reply.steps == [{"id": "call_1", "status": "stopped"}]
+    assert reply.steps == [{"id": "call_1", **copied_step}]
     assert not reply.approvals.exists()
     assert reply.transcript.paused_conversation is None
 
