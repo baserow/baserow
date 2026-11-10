@@ -647,26 +647,27 @@ def navigations_out_of_step(page: Page) -> list[dict[str, Any]]:
                 f"editor to {', '.join(expected) or 'none'}; the tools can't.",
             }
         )
-    if expected:
-        # A menu item can't give path parameters at all.
-        for item in MenuItemElement.objects.filter(**on_page).prefetch_related(
-            "menuelement_set__page"
-        ):
-            menus = [
-                menu for menu in item.menuelement_set.all() if not menu.page.trashed
-            ]
-            if not menus:
-                continue
-            found.append(
-                {
-                    "type": "menu item",
-                    "element_id": menus[0].id,
-                    "uid": str(item.uid),
-                    "page_parameters": names(item),
-                    "fix": "A menu item can't give path parameters: point it to a "
-                    "page without them with update_element.",
-                }
-            )
+    # The editor sets a menu item's page parameters; the tools only point it to a
+    # page, so the fix offers both.
+    for item in MenuItemElement.objects.filter(**on_page).prefetch_related(
+        "menuelement_set__page"
+    ):
+        if names(item) == expected:
+            continue
+        menus = [menu for menu in item.menuelement_set.all() if not menu.page.trashed]
+        if not menus:
+            continue
+        found.append(
+            {
+                "type": "menu item",
+                "element_id": menus[0].id,
+                "uid": str(item.uid),
+                "page_parameters": names(item),
+                "fix": "Change the page parameters of this menu item in the editor "
+                f"to {', '.join(expected) or 'none'}, or point it to another page "
+                "with update_element.",
+            }
+        )
     return found
 
 
@@ -1570,8 +1571,9 @@ def page_parameters_problem(
 
 def menu_links_problem(builder_id: int, page_ids: list[int]) -> str | None:
     """
-    Why menu items can't link to these pages, if so. A menu item has no way to give
-    path parameters, and the frontend hides a menu with an item that lacks them.
+    Why menu items can't link to these pages, if so. The tools can't give a menu item
+    path parameters, only the editor can, and the frontend hides a menu with an item
+    that lacks them.
 
     :param builder_id: The application the pages must be in.
     :param page_ids: The pages the items link to.
@@ -1582,9 +1584,11 @@ def menu_links_problem(builder_id: int, page_ids: list[int]) -> str | None:
         if page.path_params:
             names = ", ".join(param["name"] for param in page.path_params)
             return (
-                f"Page {page.id} has path parameters ({names}) and a menu item can't "
-                "give them, so visitors wouldn't see the menu. Link to a page without "
-                "path parameters, or create a link element with link_page_parameters."
+                f"Page {page.id} has path parameters ({names}), which these tools "
+                "can't give a menu item, so visitors wouldn't see the menu. Link to a "
+                "page without path parameters, create a link element with "
+                "link_page_parameters, or add the item in the editor and set its page "
+                "parameters there."
             )
     return None
 

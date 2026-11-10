@@ -5,7 +5,7 @@ the ones a change breaks, and update_element can give a link new parameters.
 
 import pytest
 
-from baserow.contrib.builder.elements.models import LinkElement
+from baserow.contrib.builder.elements.models import LinkElement, MenuItemElement
 from baserow.core.tools.errors import ToolInputError
 from baserow_enterprise.builder.tools import elements, pages
 from baserow_enterprise.builder.tools.types import ElementChanges, PageChanges
@@ -161,3 +161,68 @@ def test_update_page_lists_a_table_link_column_its_new_parameters_break(
     assert column["element_id"] == table.id
     assert column["column_name"] == "Open"
     assert column["page_parameters"] == ["id"]
+
+
+def _menu_item_to(data_fixture, builder_ctx, page, page_parameters):
+    menu = data_fixture.create_builder_menu_element(page=builder_ctx["page"])
+    item = MenuItemElement.objects.create(
+        variant="link",
+        type="link",
+        name="Detail",
+        navigation_type="page",
+        navigate_to_page=page,
+        page_parameters=page_parameters,
+        menu_item_order=0,
+    )
+    menu.menu_items.add(item)
+    return menu, item
+
+
+@pytest.mark.django_db
+def test_update_page_lists_a_menu_item_still_giving_a_removed_parameter(
+    data_fixture, builder_ctx, product_page
+):
+    page, _link, _action = product_page
+    menu, item = _menu_item_to(
+        data_fixture, builder_ctx, page, [{"name": "id", "value": "'1'"}]
+    )
+
+    result = pages.update_page(
+        builder_ctx["ctx"], page.id, PageChanges(path="/products")
+    )
+
+    (entry,) = [n for n in result["navigations_to_fix"] if n["type"] == "menu item"]
+    assert entry["element_id"] == menu.id
+    assert entry["uid"] == str(item.uid)
+    assert entry["page_parameters"] == ["id"]
+    assert "editor" in entry["fix"]
+
+
+@pytest.mark.django_db
+def test_update_page_lists_a_menu_item_missing_a_new_parameter(
+    data_fixture, builder_ctx, product_page
+):
+    page, _link, _action = product_page
+    menu, _item = _menu_item_to(
+        data_fixture, builder_ctx, page, [{"name": "id", "value": "'1'"}]
+    )
+
+    result = pages.update_page(
+        builder_ctx["ctx"], page.id, PageChanges(path="/products/:slug")
+    )
+
+    (entry,) = [n for n in result["navigations_to_fix"] if n["type"] == "menu item"]
+    assert entry["element_id"] == menu.id
+    assert "slug" in entry["fix"]
+
+
+@pytest.mark.django_db
+def test_update_page_lists_no_menu_item_that_fits(
+    data_fixture, builder_ctx, product_page
+):
+    page, _link, _action = product_page
+    _menu_item_to(data_fixture, builder_ctx, page, [{"name": "id", "value": "'1'"}])
+
+    result = pages.update_page(builder_ctx["ctx"], page.id, PageChanges(name="Item"))
+
+    assert "navigations_to_fix" not in result

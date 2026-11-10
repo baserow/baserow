@@ -243,8 +243,8 @@ def create_layout_elements(
     place_in_container says which one, from "0". ref_to_id_map gives the ID of each
     ref. A ref works as parent_element inside the call that creates it; afterwards
     use the element's ID. empty_containers lists the new containers with nothing in
-    them. A menu item can't give path parameters, so it can't link to a page that has
-    them.
+    them. These tools can't give a menu item path parameters, so one can't link to a
+    page that has them; the editor can set them.
 
     A header or footer, and anything inside one, goes on the shared page and shows on
     every page, or on the pages in page_ids with share_type "only". Pass any page of
@@ -389,8 +389,9 @@ def update_element(
 
     Menu items: list_elements shows each item's uid. Change them with add_menu_items,
     update_menu_items, reorder_menu_items and remove_menu_items; items you don't list
-    stay as they are. On a header or footer they change the menu inside it. An item
-    can't give path parameters, so it can't link to a page that has them. A removed
+    stay as they are. On a header or footer they change the menu inside it. These
+    tools can't give an item path parameters, so one can't link to a page that has
+    them; the editor can set them. A removed
     button's click actions are gone for good.
     """
 
@@ -450,8 +451,9 @@ def edit_element(
 
     Menu items: list_elements shows each item's uid. Change them with add_menu_items,
     update_menu_items and reorder_menu_items; items you don't list stay as they are.
-    On a header or footer they change the menu inside it. An item can't give path
-    parameters, so it can't link to a page that has them.
+    On a header or footer they change the menu inside it. These tools can't give an
+    item path parameters, so one can't link to a page that has them; the editor can
+    set them.
 
     This tool deletes nothing: delete columns or menu items with
     delete_element_items.
