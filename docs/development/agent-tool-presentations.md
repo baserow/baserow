@@ -29,12 +29,19 @@ The backend emits `step` events and saves the same steps on the assistant messag
 
 - `tool` is the tool's name. Frontend presenters are registered under it. They
   only describe calls and never select what runs or what is allowed.
-- `status` is `running`, `done`, `failed`, `stopped` or `skipped`, see
-  `STEP_STATUS` in `modules/core/chatRuns/constants.js`. A call is `running` from
-  the moment the model makes it, so a change waiting behind another change in the
-  same response is `running` too. `stopped` means the reply ended before the
-  call's result: a change may already have completed, and the card says so.
-  `skipped` means the call changed nothing and failed nothing; it has no card.
+- `status` is `running`, `waiting`, `done`, `failed`, `rejected`, `stopped` or
+  `skipped`, see `STEP_STATUS` in `modules/core/chatRuns/constants.js`. Calls
+  held for approval are `waiting` from their call event, including changes that
+  follow a held call in the same response. Other valid calls are `running`
+  until their result arrives. `rejected` means the owner denied the call, so it
+  did not run. A held call the reply ends without resuming is `rejected` if the
+  owner rejected it, `stopped` if they approved it and the resume started, since
+  it may have run, and otherwise `failed` with `not_run`. Copies end held calls
+  the same way, as approvals aren't copied. `stopped` means the reply ended before the call's result: a change may
+  already have completed, and the card says so. `skipped` means the call changed nothing and failed nothing; it has
+  no card. A held call is never `skipped`, as the owner already saw it. A held
+  call gets its readable request when it is held, so the owner decides on
+  names, not IDs.
 - `input` is what the call asked for. `requested_count` is known when the call
   starts. `values`, the request with names instead of IDs, follows while it
   runs, before the tool changes anything; see
@@ -43,7 +50,8 @@ The backend emits `step` events and saves the same steps on the assistant messag
   created or read tables. A requested count doesn't prove how many items
   changed. A batch that partly fails is `done` with the count the tool reports.
 - `error_code` is set on failed steps: `not_found`, `permission_denied`,
-  `invalid_input`, `invalid_formula`, `conflict` or `failed`. For an exception
+  `invalid_input`, `invalid_formula`, `conflict`, `failed` or `not_run`, for a
+  held call that ended without running. For an exception
   the tool raises, it comes from `classify_tool_error` in
   `baserow/core/tools/errors.py`. Arguments that fail validation are
   `invalid_input`. `not_found` covers missing and inaccessible resources alike.
@@ -64,11 +72,12 @@ as the Agent identity, before the tool runs. The tool sends it to its running
 step as a `ToolCallInputEvent`, so `input.values` stays on running, stopped and
 failed steps too.
 
-- What the identity can't name keeps its ID, such as `{"field_id": 4}` or
-  `{"row_id": 12}`. The tool, not the preview, decides whether the call
-  succeeds; a preview that can't be built is left out.
+- What the identity can't name keeps its ID, such as `{"table_id": 7}`,
+  `{"field_id": 4}` or `{"row_id": 12}`. The tool, not the preview, decides
+  whether the call succeeds; a preview that can't be built is left out.
 - Only values of known, readable fields are shown; everything else, such as a
-  password or a misspelled field, is masked as `"••••"`.
+  password, a misspelled field or any field of a table that can't be named, is
+  masked as `"••••"`.
 - Every list keeps 10 items and every object 10 keys, at any depth;
   `requested_count` keeps the requested number.
 - Strings keep 1,000 characters.
@@ -83,8 +92,7 @@ failed steps too.
   table's fields; others stay as written.
 - An integer `linked_table` in `create_fields` the identity can't see stays as
   written.
-- Reads of one table name only the table, for the title; clients never show a
-  read's input.
+- Reads of one table name only the table, so a held read shows what it reads.
 
 The card shows `values` as indented JSON, collapsed by default.
 
@@ -96,7 +104,9 @@ input once the call is complete. Unlike other tools, its `input` keeps the
 queries (`queries`) and any page the provider opened (`url`), bounded in count and
 length, because the step is the only record of what the Agent sent out. A reply that
 was meant to search but couldn't, because the provider refused the tool, gets one
-failed step whose `input` is `{"unavailable": true}`.
+failed step whose `input` is `{"unavailable": true}`. A search is never held for
+approval, even next to a held call. A resumed reply offers search only if its
+paused run did, so a provider that refused it isn't asked again.
 
 ## Adding a tool
 
@@ -112,7 +122,8 @@ in `contrib/agent/previews.py`. When it raises, the step has no `values` and the
 `getDescription(t)` and `getActivity(step, t)`. Register it in the
 `toolPresentation` namespace from the owning module's plugin. Return
 `WORKSPACE_TOOL_GROUP` from `group` only for workspace reads: consecutive reads
-share one card, and each change gets its own. Unknown tools, missing translations
+share one card, and each change gets its own. A step that isn't running or done
+is titled by what it asked for. Unknown tools, missing translations
 and presenter errors fall back to generic labels that keep the step's status.
 
 **Translations.** Put labels in the owning module's English locale file. Use plural

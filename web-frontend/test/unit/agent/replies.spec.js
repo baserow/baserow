@@ -192,9 +192,10 @@ describe('Agent replies', () => {
     expect(card.get('pre').text()).toContain('Planning')
   })
 
-  test('names the call that runs first while later calls wait', async () => {
+  test('names the first running call while other calls queue or wait for approval', async () => {
     const wrapper = await startReply()
 
+    await receive('run-1', 'step', toolStep('held', 'create_rows', 'waiting'))
     await receive('run-1', 'step', toolStep('a', 'list_tables', 'running'))
     await receive('run-1', 'step', toolStep('b', 'create_rows', 'running'))
 

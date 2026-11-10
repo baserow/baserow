@@ -85,6 +85,7 @@ class ToolErrorCode(StrEnum):
     INVALID_FORMULA = "invalid_formula"
     CONFLICT = "conflict"
     FAILED = "failed"
+    NOT_RUN = "not_run"
 
 
 @dataclass(frozen=True)

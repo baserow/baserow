@@ -66,7 +66,14 @@ describe('Agent tool presentations', () => {
       expect(presenter.getLabel(t)).not.toMatch(/^agent\./)
       expect(presenter.getDescription(t)).not.toMatch(/^agent\./)
       const requested = { ...input, ...preview }
-      for (const status of ['running', 'done', 'failed', 'stopped']) {
+      for (const status of [
+        'running',
+        'waiting',
+        'done',
+        'failed',
+        'rejected',
+        'stopped',
+      ]) {
         const activity = toolActivity(
           step(name, status, { input: requested, facts }),
           registry,
@@ -74,7 +81,7 @@ describe('Agent tool presentations', () => {
         )
         expect(activity.title).not.toMatch(/^(agent|toolPresentation)\./)
         expect(activity.input).toEqual(
-          step(name).changes_data && requested.values
+          requested.values
             ? { values: requested.values, truncated: false }
             : null
         )
@@ -101,6 +108,60 @@ describe('Agent tool presentations', () => {
     }
   )
 
+  test.each([
+    ['create_rows', { requested_count: 3 }, 'Create 3 rows'],
+    ['create_rows', { requested_count: 1 }, 'Create 1 row'],
+    ['create_rows', {}, 'Create rows'],
+    ['delete_rows', { requested_count: 2 }, 'Delete 2 rows'],
+    ['create_fields', { requested_count: 1 }, 'Add 1 field'],
+  ])(
+    'titles a call that did not complete by what %s asks to do: %j',
+    (tool, input, title) => {
+      for (const status of ['waiting', 'rejected', 'failed', 'stopped']) {
+        expect(
+          toolActivity(step(tool, status, { input }), registry, t).title
+        ).toBe(title)
+      }
+    }
+  )
+
+  test.each(
+    cases.tools
+      .filter(({ name }) => step(name).changes_data)
+      .map(({ name }) => name)
+  )('a held %s call names its requested count', (tool) => {
+    const held = step(tool, 'waiting', { input: { requested_count: 2 } })
+
+    expect(toolActivity(held, registry, t).title).toMatch(/2/)
+  })
+
+  test('a held read shows its request and is titled with its table', () => {
+    const data = step('list_table_rows', 'waiting', {
+      input: { values: { table: 'Accounts' } },
+    })
+
+    const activity = toolActivity(data, registry, t)
+    expect(activity.title).toBe('Read rows from Accounts')
+    expect(activity.input).toEqual({
+      values: { table: 'Accounts' },
+      truncated: false,
+    })
+  })
+
+  test('a held change is titled with the table its request names', () => {
+    const data = step('create_rows', 'waiting', {
+      input: { requested_count: 2, values: { table: 'Accounts', rows: [] } },
+    })
+
+    expect(toolActivity(data, registry, t).title).toBe(
+      'Create 2 rows in Accounts'
+    )
+    expect(
+      toolActivity({ ...data, input: { requested_count: 2 } }, registry, t)
+        .title
+    ).toBe('Create 2 rows')
+  })
+
   test('completed changes use confirmed counts and missing counts keep action labels', () => {
     const data = step('create_rows', 'done', {
       input: { requested_count: 9 },
@@ -112,7 +173,7 @@ describe('Agent tool presentations', () => {
       'Create rows'
     )
     expect(toolActivity({ ...data, status: 'failed' }, registry, t).title).toBe(
-      'Create rows'
+      'Create 9 rows'
     )
   })
 

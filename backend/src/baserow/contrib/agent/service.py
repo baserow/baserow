@@ -14,7 +14,7 @@ from baserow.core.subject_options import SubjectOptionsHandler
 from baserow.core.types import PermissionCheck
 
 from .constants import RUN_AS_SUBJECT_TYPES, AgentReadinessState
-from .exceptions import AgentNotReady
+from .exceptions import AgentConversationWaitingForApproval, AgentNotReady
 from .handler import AgentHandler
 from .models import AgentApplication, AgentConversation, AgentMessage
 from .operations import (
@@ -36,6 +36,7 @@ from .types import (
     AgentConversationUpdated,
     AgentMessageCreated,
     AgentReplyRequest,
+    AgentToolDecision,
 )
 from .validators import validate_message_content
 
@@ -173,7 +174,7 @@ class AgentService:
             user, agent_id, ReadAgentConversationsOperationType.type
         )
         conversation = self.handler.get_conversation(agent, user, conversation_uuid)
-        return conversation, conversation.messages.all()
+        return conversation, conversation.messages.prefetch_related("approvals")
 
     @transaction.atomic
     def update_conversation(
@@ -271,8 +272,9 @@ class AgentService:
 
     def prepare_reply(self, reply_id: int) -> AgentReplyRequest:
         """
-        Load what a reply answers, checking again that the conversation's owner may
-        still send it: access and configuration can change while the reply waits.
+        Load what a reply answers, or the paused run it continues, checking again
+        that the conversation's owner may still send it: access and configuration
+        can change while the reply waits.
 
         :param reply_id: The id of the reply.
         :raises AgentConversationDoesNotExist: When the reply no longer exists or its
@@ -280,7 +282,8 @@ class AgentService:
         :raises PermissionException: When the agent or its workspace is trashed, or
             the owner left the workspace or may no longer send messages to the agent.
         :raises AgentNotReady: When the agent's configuration is no longer ready.
-        :return: The instructions, the model, the prompt and the earlier messages.
+        :return: The instructions, the model and the tools, with the prompt and the
+            earlier messages, or with the paused run and the owner's decisions.
         """
 
         reply = self.handler.get_reply(reply_id)
@@ -378,6 +381,8 @@ class AgentService:
             this uuid in the agent.
         :raises ValidationError: When the content is blank or too long.
         :raises AgentMessageConflict: When the uuid was accepted with other content.
+        :raises AgentConversationWaitingForApproval: When the latest reply waits for
+            the user to decide its held calls.
         :raises AgentNotReady: When the agent isn't ready for a new message.
         :raises ChatRunAlreadyActive: When the agent is still replying in this
             conversation.
@@ -398,6 +403,8 @@ class AgentService:
         retry = self.handler.get_message_retry(conversation, uuid, content)
         if retry is not None:
             return retry
+        if self.handler.get_waiting_reply(conversation) is not None:
+            raise AgentConversationWaitingForApproval
         # Configuration may have changed while waiting for the conversation lock.
         agent = self.handler.get_agent(agent_id)
         self._require_ready(agent)
@@ -407,3 +414,55 @@ class AgentService:
                 self, conversation=result.conversation, user=user, run_id=result.run_id
             )
         return result
+
+    @transaction.atomic
+    def decide_approvals(
+        self,
+        user: AbstractUser,
+        agent_id: int,
+        conversation_uuid: UUID,
+        decisions: list[AgentToolDecision],
+    ) -> tuple[AgentMessage, UUID | None]:
+        """
+        Approve or reject held calls of the reply waiting in one of the user's
+        conversations, and continue the reply once none are left to decide.
+        Continuing costs model usage like a message, so it needs the same access.
+
+        :param user: The user deciding.
+        :param agent_id: The id of the agent.
+        :param conversation_uuid: The uuid of the conversation.
+        :param decisions: Whether each held call may run, by approval id, with the
+            reason for a rejection.
+        :raises FeatureDisabledException: When Agents are disabled.
+        :raises PermissionException: When the user may not send messages to the
+            agent.
+        :raises AgentConversationDoesNotExist: When the user has no conversation with
+            this uuid in the agent.
+        :raises AgentToolApprovalNotPending: When an approval is decided already or
+            isn't held by the reply waiting in the conversation.
+        :raises AgentNotReady: When the agent isn't ready to continue the reply.
+        :raises ChatRunLimitReached: When the workspace has its maximum of replies
+            running.
+        :return: The reply with its approvals, and the run continuing it, or None
+            while some held calls are still undecided.
+        """
+
+        feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
+        agent = self._get_authorized_agent(
+            user, agent_id, CreateAgentMessageOperationType.type
+        )
+        # The lock serializes decisions with each other and with sends and trashing.
+        conversation = self.handler.get_conversation(
+            agent, user, conversation_uuid, for_update=True
+        )
+        reply, all_decided = self.handler.decide_approvals(
+            conversation, user, decisions
+        )
+        if not all_decided:
+            return reply, None
+        self._require_ready(self.handler.get_agent(agent_id))
+        run = self.handler.resume_reply(reply)
+        agent_conversation_activity.send(
+            self, conversation=conversation, user=user, run_id=run.id
+        )
+        return reply, run.id

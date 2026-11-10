@@ -5,7 +5,8 @@
     "invalid_input",
     "invalid_formula",
     "conflict",
-    "failed"
+    "failed",
+    "not_run"
   ],
   "tools": [
     {

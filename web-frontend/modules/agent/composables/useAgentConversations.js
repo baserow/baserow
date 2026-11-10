@@ -3,16 +3,37 @@ import { useStore } from 'vuex'
 import { useNuxtApp } from '#app'
 import { uuid } from '@baserow/modules/core/utils/string'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import { isTerminalStatus } from '@baserow/modules/core/chatRuns/constants'
 import { AGENT_RUN_TYPE } from '@baserow/modules/agent/chatRunTypes'
 import AgentApplicationService from '@baserow/modules/agent/services/agentApplication'
 import { API_ERROR_CODE } from '@baserow/modules/agent/constants'
+import {
+  APPROVAL_STATUS,
+  pendingApprovals,
+} from '@baserow/modules/agent/utils/replies'
 
 // The API's order, so positions compare with the pages it returns.
 const byNewest = (a, b) =>
   Date.parse(b.updated_on) - Date.parse(a.updated_on) || b.id - a.id
 const pick = (source, fields) =>
   Object.fromEntries(fields.map((field) => [field, source[field]]))
+
+/** Approval snapshots are complete: rows are only added and decisions are final. */
+function isOlderApprovalSnapshot(current, incoming) {
+  if (!current.approvals?.length) return false
+  const incomingApprovals = new Map(
+    (incoming.approvals || []).map((approval) => [approval.id, approval])
+  )
+  return current.approvals.some((approval) => {
+    const next = incomingApprovals.get(approval.id)
+    return (
+      !next ||
+      (approval.status !== APPROVAL_STATUS.PENDING &&
+        next.status !== approval.status)
+    )
+  })
+}
 
 /** Merge pages given oldest first in place, never undoing a reply's end. */
 function mergeMessages(...pages) {
@@ -22,8 +43,8 @@ function mergeMessages(...pages) {
     if (!current) {
       merged.set(message.uuid, message)
     } else if (
-      !isTerminalStatus(current.status) ||
-      isTerminalStatus(message.status)
+      (!isTerminalStatus(current.status) || isTerminalStatus(message.status)) &&
+      !isOlderApprovalSnapshot(current, message)
     ) {
       Object.assign(current, message)
     }
@@ -39,18 +60,28 @@ const REJECTED_MESSAGE_ERRORS = [
   API_ERROR_CODE.REQUEST_BODY_VALIDATION,
   API_ERROR_CODE.CHAT_RUN_IN_PROGRESS,
   API_ERROR_CODE.AGENT_BUSY,
+  API_ERROR_CODE.AGENT_CONVERSATION_WAITING_FOR_APPROVAL,
 ]
 
 const SEND_ERRORS = {
   [API_ERROR_CODE.AGENT_MESSAGE_CONFLICT]: 'agent.messageConflict',
   [API_ERROR_CODE.CHAT_RUN_IN_PROGRESS]: 'agent.replyInProgress',
   [API_ERROR_CODE.AGENT_BUSY]: 'agent.agentsBusy',
+  [API_ERROR_CODE.AGENT_CONVERSATION_WAITING_FOR_APPROVAL]:
+    'agent.conversationWaitingForApproval',
 }
+
+// Another session changed the conversation, so a refusal re-reads it.
+const CONVERSATION_CHANGED_ERRORS = [
+  API_ERROR_CODE.CHAT_RUN_IN_PROGRESS,
+  API_ERROR_CODE.AGENT_CONVERSATION_WAITING_FOR_APPROVAL,
+  API_ERROR_CODE.AGENT_TOOL_APPROVAL_NOT_PENDING,
+]
 
 /** Page-local private conversations, gated by the Agent configuration. */
 export function useAgentConversations(agent, configuration) {
   const store = useStore()
-  const { $client, $hasPermission, $registry } = useNuxtApp()
+  const { $client, $hasPermission, $i18n, $registry } = useNuxtApp()
   const service = AgentApplicationService($client)
   const runType = $registry.get('chatRunType', AGENT_RUN_TYPE)
   const permission = (operation) =>
@@ -139,6 +170,11 @@ export function useAgentConversations(agent, configuration) {
       Boolean(selectedConversation.value) &&
       (!selectedConversation.value.local || canCreateConversation.value)
   )
+  // Sending is blocked while a reply waits, so the waiting reply is the newest.
+  const pendingApprovalCount = computed(
+    () => pendingApprovals(currentHistory.value?.items.at(-1)).length
+  )
+  const waitingForApproval = computed(() => pendingApprovalCount.value > 0)
   const canSend = computed(
     () =>
       configuration.readyToSend.value &&
@@ -146,8 +182,14 @@ export function useAgentConversations(agent, configuration) {
       // Sending appends to the newest page, so only that page must be loaded.
       (!currentHistory.value || currentHistory.value.page > 0) &&
       !currentDraft.value?.sending &&
-      !replyFollower.value
+      !replyFollower.value &&
+      !waitingForApproval.value
   )
+  // Deciding continues the reply, so it needs what sending a message needs.
+  const canDecide = computed(
+    () => configuration.readyToSend.value && canWriteSelected.value
+  )
+  const decidingReplies = reactive(new Set())
   const scopeIsCurrent = (currentScope) => scope === currentScope
 
   function ensureDraft(conversationUuid) {
@@ -492,7 +534,7 @@ export function useAgentConversations(agent, configuration) {
       if (code === API_ERROR_CODE.AGENT_NOT_READY) {
         await configuration.refreshConfiguration()
       }
-      if (code === API_ERROR_CODE.CHAT_RUN_IN_PROGRESS && !conversation.local) {
+      if (CONVERSATION_CHANGED_ERRORS.includes(code) && !conversation.local) {
         await refreshMessages(conversationUuid)
       }
     } finally {
@@ -501,6 +543,52 @@ export function useAgentConversations(agent, configuration) {
         if (histories[conversationUuid]?.stale)
           refreshMessages(conversationUuid)
       }
+    }
+  }
+
+  /** Decide held steps of a reply, then follow the run that resumes it. */
+  async function decideApprovals(reply, decisions) {
+    if (!canDecide.value || decidingReplies.has(reply.uuid)) return
+    const currentScope = scope
+    const agentId = agent.value.id
+    const conversationUuid = selectedUuid.value
+    decidingReplies.add(reply.uuid)
+    try {
+      const { data } = await service.decideApprovals(
+        agentId,
+        conversationUuid,
+        decisions
+      )
+      if (!scopeIsCurrent(currentScope) || !canReadConversations.value) return
+      const history = histories[conversationUuid]
+      if (history) history.items = mergeMessages(history.items, [data])
+      const conversation = findConversation(conversationUuid)
+      if (data.run_id && conversation) {
+        conversation.run_id = data.run_id
+        followReplies(conversation, data)
+      }
+    } catch (error) {
+      if (!scopeIsCurrent(currentScope)) return
+      const code = error.response?.data?.error
+      if (SEND_ERRORS[code]) {
+        error.handler.notifyIf(
+          null,
+          new ResponseErrorMessage(
+            $i18n.t('clientHandler.notCompletedTitle'),
+            $i18n.t(SEND_ERRORS[code])
+          )
+        )
+      } else {
+        notifyIf(error)
+      }
+      if (code === API_ERROR_CODE.AGENT_NOT_READY) {
+        await configuration.refreshConfiguration()
+      }
+      if (CONVERSATION_CHANGED_ERRORS.includes(code)) {
+        await refreshMessages(conversationUuid)
+      }
+    } finally {
+      decidingReplies.delete(reply.uuid)
     }
   }
 
@@ -684,7 +772,7 @@ export function useAgentConversations(agent, configuration) {
       const saved = follower.view.message
       const row =
         saved && history?.items.find((message) => message.uuid === saved.uuid)
-      if (row) Object.assign(row, saved)
+      if (row) history.items = mergeMessages(history.items, [saved])
       else if (conversation.uuid === selectedUuid.value)
         refreshMessages(conversation.uuid)
       else if (history) history.stale = true
@@ -721,6 +809,10 @@ export function useAgentConversations(agent, configuration) {
     sendError,
     canWriteSelected,
     canSend,
+    pendingApprovalCount,
+    waitingForApproval,
+    canDecide,
+    decidingReplies,
     newConversation,
     selectConversation,
     loadMoreConversations,
@@ -728,6 +820,7 @@ export function useAgentConversations(agent, configuration) {
     loadMoreMessages,
     updateMessage,
     sendMessage,
+    decideApprovals,
     stopReply,
     updateConversation,
     deleteConversation,

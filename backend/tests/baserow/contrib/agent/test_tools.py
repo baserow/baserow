@@ -14,7 +14,7 @@ from asgiref.sync import async_to_sync
 from freezegun import freeze_time
 from pydantic_ai import ToolReturn
 
-from baserow.contrib.agent.database_previews import visible_table
+from baserow.contrib.agent.database_previews import table_reference
 from baserow.contrib.agent.previews import StepPreview
 from baserow.contrib.agent.registries import AgentToolType, agent_tool_type_registry
 from baserow.contrib.database.views.models import FormView
@@ -171,7 +171,7 @@ class TablePreviewAgentToolType(AgentToolType):
     changes_data = True
 
     def get_step_preview(self, ctx: ToolContext, arguments: dict) -> StepPreview:
-        return StepPreview({"table": visible_table(ctx, arguments["table_id"]).name})
+        return StepPreview(table_reference(ctx, arguments["table_id"])[1])
 
 
 def test_tool_names_and_whether_they_change_data_stay_the_same():
@@ -355,7 +355,10 @@ def test_tool_errors_are_answered_to_the_model(workspace_data, data_fixture):
     assert missing.return_value == {
         "error": {"code": "not_found", "message": "Not found in this workspace."}
     }
-    assert (missing.metadata, missing.input) == ({"error_code": "not_found"}, {})
+    assert (missing.metadata, missing.input) == (
+        {"error_code": "not_found"},
+        {"values": {"table_id": other_table.id}},
+    )
     unexpected = call_tool(BrokenAgentToolType(), workspace_data.ctx, {})
     assert unexpected.return_value == {
         "error": {"code": "failed", "message": "Internal error."}
@@ -370,7 +373,7 @@ def test_tool_errors_are_answered_to_the_model(workspace_data, data_fixture):
 
 
 @pytest.mark.django_db
-def test_a_request_that_cannot_be_named_is_left_to_the_tool(
+def test_a_request_that_cannot_be_named_keeps_its_ids_and_is_left_to_the_tool(
     workspace_data, data_fixture
 ):
     def write(ctx: ToolContext, table_id: int) -> str:
@@ -380,16 +383,18 @@ def test_a_request_that_cannot_be_named_is_left_to_the_tool(
         type = "write"
         function = write
 
+    hidden_id = data_fixture.create_database_table().id
     hidden = call_tool(
-        WriteAgentToolType(),
-        workspace_data.ctx,
-        {"table_id": data_fixture.create_database_table().id},
+        WriteAgentToolType(), workspace_data.ctx, {"table_id": hidden_id}
     )
     named = call_tool(
         WriteAgentToolType(), workspace_data.ctx, {"table_id": workspace_data.table.id}
     )
 
-    assert (hidden.return_value, hidden.input) == ("done", {})
+    assert (hidden.return_value, hidden.input) == (
+        "done",
+        {"values": {"table_id": hidden_id}},
+    )
     assert named.input == {"values": {"table": "Tasks"}}
 
 
@@ -562,6 +567,33 @@ def test_a_field_that_cannot_be_named_keeps_its_id_and_fails_alone(
     assert updated == {
         "values": {"fields": [{"field_id": hidden.id, "changes": {"name": "Leak"}}]}
     }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "name,arguments,values",
+    [
+        (
+            "delete_rows",
+            {"table_id": 999999, "row_ids": [1]},
+            {"table_id": 999999, "rows": [{"row_id": 1}]},
+        ),
+        (
+            "update_rows",
+            {"table_id": 999999, "rows": [{"id": 1, "Name": "Leak"}]},
+            {"table_id": 999999, "rows": [{"row_id": 1, "values": {"Name": "••••"}}]},
+        ),
+        (
+            "create_view_filters",
+            {"view_filters": [{"view_id": 999999, "filters": []}]},
+            {"views": [{"view_id": 999999, "filters": []}]},
+        ),
+    ],
+)
+def test_what_a_request_works_on_keeps_its_id_when_it_cannot_be_named(
+    workspace_data, name, arguments, values
+):
+    assert preview_of(name, workspace_data.ctx, arguments) == {"values": values}
 
 
 @pytest.mark.django_db
@@ -830,7 +862,10 @@ def test_a_row_write_to_a_table_the_identity_cannot_see_changes_nothing(
         {"table_id": other.id, "rows": [{"Name": "Leak"}]},
     )
 
-    assert (result.metadata, result.input) == ({"error_code": "not_found"}, {})
+    assert (result.metadata, result.input) == (
+        {"error_code": "not_found"},
+        {"values": {"table_id": other.id, "rows": [{"Name": "••••"}]}},
+    )
     assert other.get_model().objects.count() == 0
 
 

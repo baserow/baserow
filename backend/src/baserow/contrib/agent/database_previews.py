@@ -3,6 +3,8 @@ Names of what the Agent's database tools work on, resolved as the Agent identity
 before a call runs.
 """
 
+from typing import Any
+
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.operations import ListFieldsOperationType
 from baserow.contrib.database.fields.registries import field_type_registry
@@ -13,20 +15,25 @@ from baserow.contrib.database.table.operations import (
     ListRowsDatabaseTableOperationType,
 )
 from baserow.contrib.database.tools.tables import get_database, permitted_tables
+from baserow.core.exceptions import ApplicationDoesNotExist
 from baserow.core.tools import ToolContext
 
 
-def visible_table(ctx: ToolContext, table_id: int) -> Table:
+def table_reference(
+    ctx: ToolContext, table_id: int
+) -> tuple[Table | None, dict[str, Any]]:
     """
     :param ctx: The Agent identity and its workspace.
     :param table_id: A table the call names.
-    :return: The table, when the identity can see it.
-    :raises Table.DoesNotExist: When it can't.
+    :return: The table and its name when the identity can see it, else None and
+        its ID as written, so the tool's own error explains it.
     """
 
-    return (
-        TableHandler().list_workspace_tables(ctx.user, ctx.workspace).get(id=table_id)
-    )
+    tables = TableHandler().list_workspace_tables(ctx.user, ctx.workspace)
+    table = tables.filter(id=table_id).first()
+    if table is None:
+        return None, {"table_id": table_id}
+    return table, {"table": table.name}
 
 
 def table_names(ctx: ToolContext, table_ids: list[int]) -> dict[int, str]:
@@ -40,15 +47,17 @@ def table_names(ctx: ToolContext, table_ids: list[int]) -> dict[int, str]:
     return dict(tables.filter(id__in=table_ids).values_list("id", "name"))
 
 
-def database_name(ctx: ToolContext, database_id: int) -> str:
+def database_reference(ctx: ToolContext, database_id: int) -> dict[str, Any]:
     """
     :param ctx: The Agent identity and its workspace.
     :param database_id: A database the call names.
-    :return: Its name.
-    :raises ApplicationDoesNotExist: When the identity can't see it.
+    :return: Its name, or its ID as written when the identity can't see it.
     """
 
-    return get_database(ctx, database_id).name
+    try:
+        return {"database": get_database(ctx, database_id).name}
+    except ApplicationDoesNotExist:
+        return {"database_id": database_id}
 
 
 def named_fields(ctx: ToolContext, field_ids: list[int]) -> dict[int, tuple[str, str]]:

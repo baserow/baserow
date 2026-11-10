@@ -27,13 +27,23 @@ const APPLIED_REASONING_EFFORT_INPUTS = [
   CONFIGURATION_FIELD.MODEL_IDENTIFIER,
   CONFIGURATION_FIELD.REASONING_EFFORT,
 ]
+const MODEL_FIELDS = [
+  CONFIGURATION_FIELD.PROVIDER_TYPE,
+  CONFIGURATION_FIELD.MODEL_IDENTIFIER,
+]
+const TOOL_FIELDS = [
+  CONFIGURATION_FIELD.ALLOWED_TOOLS,
+  CONFIGURATION_FIELD.ASK_FIRST_TOOLS,
+]
+// A remote update must not split a pending linked choice.
+const LINKED_FIELDS = [MODEL_FIELDS, TOOL_FIELDS]
 // The tools an Agent can be allowed to call are listed with its configuration.
 const CONFIGURATION_FIELDS = [
   ...REQUIRED_FIELDS,
   CONFIGURATION_FIELD.REASONING_EFFORT,
   CONFIGURATION_FIELD.APPLIED_REASONING_EFFORT,
   CONFIGURATION_FIELD.RUN_AS,
-  CONFIGURATION_FIELD.ALLOWED_TOOLS,
+  ...TOOL_FIELDS,
   CONFIGURATION_FIELD.AVAILABLE_TOOLS,
   CONFIGURATION_FIELD.WEB_SEARCH_ENABLED,
   CONFIGURATION_FIELD.WEB_SEARCH_AVAILABLE,
@@ -48,6 +58,7 @@ const emptyConfiguration = () => ({
   applied_reasoning_effort: null,
   run_as: null,
   allowed_tools: [],
+  ask_first_tools: [],
   available_tools: [],
   web_search_enabled: false,
   web_search_available: false,
@@ -58,7 +69,7 @@ const emptyConfiguration = () => ({
 const isSameValue = (field, a, b) => {
   if (field === CONFIGURATION_FIELD.RUN_AS)
     return a?.type === b?.type && a?.id === b?.id
-  if (field === CONFIGURATION_FIELD.ALLOWED_TOOLS) {
+  if (TOOL_FIELDS.includes(field)) {
     return a?.length === b?.length && a.every((name) => b.includes(name))
   }
   return a === b
@@ -279,16 +290,12 @@ export function useAgentConfiguration(agent) {
       CONFIGURATION_FIELDS.map((field) => [field, data[field] ?? empty[field]])
     )
     savedConfiguration.value = saved
-    const modelFields = [
-      CONFIGURATION_FIELD.PROVIDER_TYPE,
-      CONFIGURATION_FIELD.MODEL_IDENTIFIER,
-    ]
-    if (modelFields.some((field) => field in pendingConfiguration)) {
-      // A model selection belongs to its provider. Preserve the whole selection
-      // when a remote update changes either half while a local edit is pending.
-      for (const field of modelFields) {
-        if (configuration[field] !== saved[field]) {
-          pendingConfiguration[field] = configuration[field]
+    for (const fields of LINKED_FIELDS) {
+      if (fields.some((field) => field in pendingConfiguration)) {
+        for (const field of fields) {
+          if (!isSameValue(field, configuration[field], saved[field])) {
+            pendingConfiguration[field] = configuration[field]
+          }
         }
       }
     }
@@ -348,13 +355,7 @@ export function useAgentConfiguration(agent) {
     if (!canUpdateConfiguration.value) return
     for (const [field, value] of Object.entries(values)) {
       if (!CONFIGURATION_FIELDS.includes(field)) continue
-      const normalized =
-        [
-          CONFIGURATION_FIELD.PROVIDER_TYPE,
-          CONFIGURATION_FIELD.MODEL_IDENTIFIER,
-        ].includes(field) && !value
-          ? null
-          : value
+      const normalized = MODEL_FIELDS.includes(field) && !value ? null : value
       if (
         APPLIED_REASONING_EFFORT_INPUTS.includes(field) &&
         configuration[field] !== normalized
@@ -385,6 +386,10 @@ export function useAgentConfiguration(agent) {
     const currentScope = scope
     const agentId = agent.value.id
     const values = { ...pendingConfiguration }
+    if (TOOL_FIELDS.some((field) => field in values)) {
+      // The backend reads both lists together and defaults omitted ask-first ones.
+      for (const field of TOOL_FIELDS) values[field] = configuration[field]
+    }
     savingConfiguration.value = true
     inFlightConfiguration = values
     configurationSaveError.value = false

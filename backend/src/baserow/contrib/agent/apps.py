@@ -18,6 +18,7 @@ class AgentConfig(AppConfig):
         from .actions import (
             CreateAgentConversationActionType,
             CreateAgentMessageActionType,
+            DecideAgentToolApprovalsActionType,
             DeleteAgentConversationActionType,
             UpdateAgentConfigurationActionType,
             UpdateAgentConversationActionType,
@@ -69,6 +70,7 @@ class AgentConfig(AppConfig):
         for action in (
             CreateAgentConversationActionType,
             CreateAgentMessageActionType,
+            DecideAgentToolApprovalsActionType,
             UpdateAgentConversationActionType,
             DeleteAgentConversationActionType,
             UpdateAgentConfigurationActionType,

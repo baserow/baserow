@@ -2,16 +2,17 @@ from typing import Any
 
 from baserow.contrib.database.tools import fields, rows, tables, views
 from baserow.contrib.database.tools.views import get_view
+from baserow.contrib.database.views.exceptions import ViewDoesNotExist
 from baserow.core.tools import ToolContext
 
 from .database_previews import (
-    database_name,
+    database_reference,
     named_fields,
     readable_names,
     row_names,
     table_field_names,
     table_names,
-    visible_table,
+    table_reference,
 )
 from .previews import StepPreview, mask, name_field_references
 from .registries import AgentToolType
@@ -87,7 +88,7 @@ class TableReadAgentToolType(DatabaseAgentToolType):
     def get_step_preview(
         self, ctx: ToolContext, arguments: dict[str, Any]
     ) -> StepPreview:
-        return StepPreview({"table": visible_table(ctx, arguments["table_id"]).name})
+        return StepPreview(table_reference(ctx, arguments["table_id"])[1])
 
 
 class ListTablesAgentToolType(DatabaseAgentToolType):
@@ -132,7 +133,7 @@ class CreateTablesAgentToolType(DatabaseAgentToolType):
         self, ctx: ToolContext, arguments: dict[str, Any]
     ) -> StepPreview:
         return StepPreview(
-            {"database": database_name(ctx, arguments["database_id"])},
+            database_reference(ctx, arguments["database_id"]),
             "tables",
             arguments["tables"],
         )
@@ -153,8 +154,8 @@ class CreateFieldsAgentToolType(DatabaseAgentToolType):
     def get_step_preview(
         self, ctx: ToolContext, arguments: dict[str, Any]
     ) -> StepPreview:
-        table = visible_table(ctx, arguments["table_id"])
-        preview = StepPreview({"table": table.name}, "fields")
+        _, reference = table_reference(ctx, arguments["table_id"])
+        preview = StepPreview(reference, "fields")
         requests = preview.cut_items(arguments["fields"])
         linked_ids = [
             request["linked_table"]
@@ -228,12 +229,10 @@ class CreateViewsAgentToolType(DatabaseAgentToolType):
     def get_step_preview(
         self, ctx: ToolContext, arguments: dict[str, Any]
     ) -> StepPreview:
-        table = visible_table(ctx, arguments["table_id"])
-        names = table_field_names(ctx, table)
+        table, reference = table_reference(ctx, arguments["table_id"])
+        names = table_field_names(ctx, table) if table else {}
         return StepPreview(
-            {"table": table.name},
-            "views",
-            name_field_references(arguments["views"], names),
+            reference, "views", name_field_references(arguments["views"], names)
         )
 
     def get_step_facts(
@@ -261,7 +260,11 @@ class CreateViewFiltersAgentToolType(DatabaseAgentToolType):
     ) -> StepPreview:
         preview = StepPreview({}, "views")
         for group in preview.cut_items(arguments["view_filters"]):
-            view = get_view(ctx, group["view_id"])
+            try:
+                view = get_view(ctx, group["view_id"])
+            except ViewDoesNotExist:
+                preview.items.append(group)
+                continue
             names = table_field_names(ctx, view.table)
             preview.items.append(
                 {
@@ -295,12 +298,10 @@ class CreateRowsAgentToolType(DatabaseAgentToolType):
     def get_step_preview(
         self, ctx: ToolContext, arguments: dict[str, Any]
     ) -> StepPreview:
-        table = visible_table(ctx, arguments["table_id"])
-        readable = readable_names(table)
+        table, reference = table_reference(ctx, arguments["table_id"])
+        readable = readable_names(table) if table else set()
         return StepPreview(
-            {"table": table.name},
-            "rows",
-            [mask(row, readable) for row in arguments["rows"]],
+            reference, "rows", [mask(row, readable) for row in arguments["rows"]]
         )
 
     def get_step_facts(
@@ -318,11 +319,13 @@ class UpdateRowsAgentToolType(DatabaseAgentToolType):
     def get_step_preview(
         self, ctx: ToolContext, arguments: dict[str, Any]
     ) -> StepPreview:
-        table = visible_table(ctx, arguments["table_id"])
-        preview = StepPreview({"table": table.name}, "rows")
+        table, reference = table_reference(ctx, arguments["table_id"])
+        preview = StepPreview(reference, "rows")
         updates = preview.cut_items(arguments["rows"])
-        names = row_names(ctx, table, [update["id"] for update in updates])
-        readable = readable_names(table)
+        names = (
+            row_names(ctx, table, [update["id"] for update in updates]) if table else {}
+        )
+        readable = readable_names(table) if table else set()
         preview.items = [
             {
                 **_row_reference(update["id"], names),
@@ -347,10 +350,10 @@ class DeleteRowsAgentToolType(DatabaseAgentToolType):
     def get_step_preview(
         self, ctx: ToolContext, arguments: dict[str, Any]
     ) -> StepPreview:
-        table = visible_table(ctx, arguments["table_id"])
-        preview = StepPreview({"table": table.name}, "rows")
+        table, reference = table_reference(ctx, arguments["table_id"])
+        preview = StepPreview(reference, "rows")
         row_ids = preview.cut_items(arguments["row_ids"])
-        names = row_names(ctx, table, row_ids)
+        names = row_names(ctx, table, row_ids) if table else {}
         preview.items = [names.get(row_id, {"row_id": row_id}) for row_id in row_ids]
         return preview
 

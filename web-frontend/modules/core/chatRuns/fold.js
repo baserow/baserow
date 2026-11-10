@@ -10,6 +10,11 @@ import {
   TEXT_DELTA,
 } from '@baserow/modules/core/chatRuns/constants'
 
+const UNFINISHED_STEP_STATUSES = new Set([
+  STEP_STATUS.RUNNING,
+  STEP_STATUS.WAITING,
+])
+
 /**
  * The view every run starts from, whatever its type: its status, whether a
  * stop was asked for, the text of its latest segment, its latest progress and,
@@ -70,7 +75,7 @@ export function foldRunEvent(view, event) {
         steps:
           data.message?.steps ??
           view.steps.map((step) =>
-            step.status === STEP_STATUS.RUNNING
+            UNFINISHED_STEP_STATUSES.has(step.status)
               ? { ...step, status: STEP_STATUS.STOPPED }
               : step
           ),

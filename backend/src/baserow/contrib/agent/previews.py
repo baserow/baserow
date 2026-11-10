@@ -19,11 +19,11 @@ MASKED_VALUE = "••••"
 @dataclass
 class StepPreview:
     """
-    A call's request as people read it: the names of what it works on, and the
-    items it asks for under ``items_key``.
+    A call's request as people read it: what it works on, by name or else by ID,
+    and the items it asks for under ``items_key``.
     """
 
-    names: dict[str, str]
+    names: dict[str, Any]
     items_key: str | None = None
     items: list[Any] = dataclass_field(default_factory=list)
     truncated: bool = False
