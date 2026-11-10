@@ -16,6 +16,7 @@ import hashlib
 import secrets
 import time
 from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from urllib.parse import quote, urlencode, urlparse
 
 from django.conf import settings
@@ -447,6 +448,17 @@ async def _request_token(
 async def exchange_code(
     server: OAuthServer, client: OAuthClient, code: str, code_verifier: str
 ) -> OAuthToken:
+    """
+    Exchange an authorization code for tokens.
+
+    :param server: The authorization server.
+    :param client: Baserow's client there.
+    :param code: The code the provider redirected back with.
+    :param code_verifier: The PKCE verifier of the authorization.
+    :raises MCPOAuthFailed: When the provider refuses or can't be reached.
+    :return: The tokens.
+    """
+
     return await _request_token(
         server,
         client,
@@ -462,6 +474,16 @@ async def exchange_code(
 async def refresh(
     server: OAuthServer, client: OAuthClient, refresh_token: str
 ) -> OAuthToken:
+    """
+    Get a new access token.
+
+    :param server: The authorization server.
+    :param client: Baserow's client there.
+    :param refresh_token: The stored refresh token.
+    :raises MCPOAuthFailed: When the provider refuses or can't be reached.
+    :return: The tokens. The refresh token may be left out.
+    """
+
     return await _request_token(
         server,
         client,
@@ -469,7 +491,12 @@ async def refresh(
     )
 
 
-def expires_soon(expires_at) -> bool:
+def expires_soon(expires_at: datetime | None) -> bool:
+    """
+    :param expires_at: When an access token expires, None when never.
+    :return: Whether it should be refreshed now.
+    """
+
     return expires_at is not None and (
         expires_at.timestamp() - time.time() < REFRESH_MARGIN_SECONDS
     )
