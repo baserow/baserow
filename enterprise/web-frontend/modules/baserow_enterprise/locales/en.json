@@ -879,7 +879,7 @@
   },
   "htmlElement": {
     "source": "HTML source",
-    "sourceHelp": "Add HTML for custom content, layouts or widgets. Add JavaScript in application settings → Custom CSS/JS. Use Custom JavaScript for your own code. For a service such as Senja, choose “Add an external script” and paste the URL from the script’s src attribute.",
+    "sourceHelp": "Add HTML for custom content, layouts or widgets. Add JavaScript in application settings → Custom CSS/JS. Use Custom JavaScript for your own code. To load a third-party script, choose “Add an external script” and paste the URL from the script’s src attribute.",
     "placeholder": "Empty HTML source...",
     "previewTitle": "HTML preview",
     "invalid": "Enter static HTML only. Add JavaScript in the application's Custom code settings. Use srcdoc or an external URL for embedded documents."
