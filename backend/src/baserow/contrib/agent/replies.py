@@ -2,6 +2,8 @@ import asyncio
 from functools import partial
 from typing import TYPE_CHECKING
 
+from django.conf import settings
+
 from loguru import logger
 from pydantic_ai import Agent, AgentRunResultEvent, RunContext, WebSearchTool
 from pydantic_ai.capabilities import WebSearch
@@ -128,15 +130,16 @@ def create_reply_model(request: AgentReplyRequest) -> tuple[Model, dict]:
 
 def _describe_failure(error: BaseException) -> str:
     """
-    Name a provider failure without its message, which can echo the request.
+    Include the original error only in debug mode: it can echo private content.
 
     :param error: What the model raised.
-    :return: The exception class and, when present, its HTTP status code.
+    :return: The class/status summary, with the exception text when debugging.
     """
 
     status_code = getattr(error, "status_code", None)
     name = type(error).__name__
-    return f"{name}, status {status_code}" if status_code else name
+    summary = f"{name}, status {status_code}" if status_code else name
+    return f"{summary}: {error}" if settings.DEBUG else summary
 
 
 def _step_text(value: object) -> str | None:
@@ -438,8 +441,11 @@ class AgentResponder:
             )
         if not work.cancelled() and work.exception() is not None:
             logger.error(
-                "Agent reply {} could not be written ({})",
+                "Agent reply {} failed: run_id={}, provider={!r}, model={!r}, {}",
                 self._request.reply_id,
+                self._journal.run.id,
+                self._request.provider_type[:128],
+                self._request.model_identifier[:128],
                 _describe_failure(work.exception()),
             )
         return ChatRunOutcome(ChatRunStatus.FAILED, ChatRunErrorCode.FAILED, result)
