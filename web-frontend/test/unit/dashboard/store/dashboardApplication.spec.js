@@ -34,6 +34,9 @@ vi.mock('@baserow/modules/core/utils/auth', async (importOriginal) => ({
   setToken,
 }))
 
+const resultService = { prepareResult: async () => {} }
+const resultRegistry = { get: () => resultService }
+
 const deferred = () => {
   let resolve
   let reject
@@ -219,6 +222,7 @@ describe('Dashboard application store', () => {
       }
       return actions.dispatchDataSource.call(
         {
+          $registry: resultRegistry,
           $client: {},
           $config: {
             public: { baserowDashboardDataSourceDispatchConcurrency: '2' },
@@ -440,7 +444,7 @@ describe('Dashboard application store', () => {
     const dispatch = vi.fn((action, payload) => {
       if (action === 'dispatchDataSource') {
         return actions.dispatchDataSource.call(
-          { $client: {} },
+          { $registry: resultRegistry, $client: {} },
           { state: dashboardState, commit },
           payload
         )
@@ -469,6 +473,28 @@ describe('Dashboard application store', () => {
     })
   })
 
+  test('waits for result formatting dependencies before publishing dashboard data', async () => {
+    const dashboardState = createDashboardState()
+    dashboardState.dataSources = [
+      { id: 1, type: 'local_baserow_aggregate_rows' },
+    ]
+    const prepared = deferred()
+    const prepareResult = vi.fn(() => prepared.promise)
+    DataSourceService.mockReturnValue({
+      dispatch: vi.fn().mockResolvedValue({ data: { result: '30' } }),
+    })
+    const dispatch = actions.dispatchDataSource.call(
+      { $client: {}, $registry: { get: () => ({ prepareResult }) } },
+      { state: dashboardState, commit: applyCommit(dashboardState) },
+      1
+    )
+    await vi.waitFor(() => expect(prepareResult).toHaveBeenCalledOnce())
+    expect(dashboardState.data[1]).toEqual({})
+    prepared.resolve()
+    await dispatch
+    expect(dashboardState.data[1]).toEqual({ result: '30' })
+  })
+
   test('ignores an obsolete dispatch response for the same data source', async () => {
     const dashboardState = createDashboardState()
     dashboardState.dataSources = [{ id: 1 }]
@@ -483,13 +509,13 @@ describe('Dashboard application store', () => {
     const context = { state: dashboardState, commit }
 
     const firstDispatch = actions.dispatchDataSource.call(
-      { $client: {} },
+      { $registry: resultRegistry, $client: {} },
       context,
       1
     )
     await vi.waitFor(() => expect(dispatchDataSource).toHaveBeenCalledOnce())
     const secondDispatch = actions.dispatchDataSource.call(
-      { $client: {} },
+      { $registry: resultRegistry, $client: {} },
       context,
       1
     )
@@ -518,7 +544,7 @@ describe('Dashboard application store', () => {
       const commit = applyCommit(dashboardState)
 
       const dispatch = actions.dispatchDataSource.call(
-        { $client: {} },
+        { $registry: resultRegistry, $client: {} },
         { state: dashboardState, commit },
         1
       )
@@ -548,7 +574,7 @@ describe('Dashboard application store', () => {
       const commit = applyCommit(dashboardState)
 
       const dispatch = actions.dispatchDataSource.call(
-        { $client: {} },
+        { $registry: resultRegistry, $client: {} },
         { state: dashboardState, commit },
         1
       )
@@ -607,7 +633,7 @@ describe('Dashboard application store', () => {
       const commit = applyCommit(dashboardState)
 
       const dispatch = actions.dispatchDataSource.call(
-        { $client: {} },
+        { $registry: resultRegistry, $client: {} },
         { state: dashboardState, commit },
         1
       )
@@ -633,7 +659,7 @@ describe('Dashboard application store', () => {
     const commit = applyCommit(dashboardState)
 
     const pendingDispatch = actions.dispatchDataSource.call(
-      { $client: {} },
+      { $registry: resultRegistry, $client: {} },
       { state: dashboardState, commit },
       1
     )
@@ -696,7 +722,7 @@ describe('Dashboard application store', () => {
     const dispatch = vi.fn((action, payload) => {
       if (action === 'dispatchDataSource') {
         return actions.dispatchDataSource.call(
-          { $client: {} },
+          { $registry: resultRegistry, $client: {} },
           { state: dashboardState, commit },
           payload
         )
@@ -752,7 +778,7 @@ describe('Dashboard application store', () => {
     const dispatch = vi.fn((action, payload) => {
       if (action === 'dispatchDataSource') {
         return actions.dispatchDataSource.call(
-          { $client: {} },
+          { $registry: resultRegistry, $client: {} },
           { state: dashboardState, commit },
           payload
         )
@@ -797,7 +823,7 @@ describe('Dashboard application store', () => {
     const dispatch = vi.fn((action, payload) => {
       if (action === 'dispatchDataSource') {
         return actions.dispatchDataSource.call(
-          { $client: {} },
+          { $registry: resultRegistry, $client: {} },
           { state: dashboardState, commit },
           payload
         )
@@ -1134,7 +1160,7 @@ describe('Dashboard application store public mode', () => {
     DataSourceService.mockReturnValue({ dispatch: privateDispatch })
 
     await actions.dispatchDataSource.call(
-      { $client: {} },
+      { $registry: resultRegistry, $client: {} },
       { state: dashboardState, commit },
       { dataSourceId: 7 }
     )

@@ -1,46 +1,24 @@
-import { AgentApplicationType } from '@baserow/modules/agent/applicationTypes'
-import { AgentChatRunType } from '@baserow/modules/agent/chatRunTypes'
-import { AgentLastViewedItemType } from '@baserow/modules/agent/lastViewedItemTypes'
-import { AgentApplicationSearchType } from '@baserow/modules/agent/searchTypes'
-import { agentToolPresentationTypes } from '@baserow/modules/agent/toolPresentationTypes'
-import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
-import {
-  InstructionsAgentConfigurationSectionType,
-  SettingsAgentConfigurationSectionType,
-  WorkspaceAccessAgentConfigurationSectionType,
-} from '@baserow/modules/agent/configurationSectionTypes'
+import { defineNuxtPlugin } from '#app'
+import { registerApplicationBundle } from '@baserow/modules/core/utils/applicationBundles'
 
 export default defineNuxtPlugin({
   name: 'agent',
-  dependsOn: ['core'],
-  setup(nuxtApp) {
-    const context = { app: nuxtApp }
-
-    for (const ToolPresentation of agentToolPresentationTypes) {
-      nuxtApp.$registry.register(
-        'toolPresentation',
-        new ToolPresentation(context)
-      )
+  dependsOn: ['core', 'store', 'application-shell'],
+  async setup(nuxtApp) {
+    if (nuxtApp.$isApplicationShell !== false) {
+      const { default: registerMetadata } =
+        await import('@baserow/modules/agent/pluginMetadata')
+      await registerMetadata(nuxtApp)
     }
-    nuxtApp.$registry.registerNamespace('agentConfigurationSection')
-    nuxtApp.$registry.register(
-      'agentConfigurationSection',
-      new InstructionsAgentConfigurationSectionType(context)
-    )
-    nuxtApp.$registry.register(
-      'agentConfigurationSection',
-      new WorkspaceAccessAgentConfigurationSectionType(context)
-    )
-    nuxtApp.$registry.register(
-      'agentConfigurationSection',
-      new SettingsAgentConfigurationSectionType(context)
-    )
-    nuxtApp.$registry.register('application', new AgentApplicationType(context))
-    nuxtApp.$registry.register('chatRunType', new AgentChatRunType(context))
-    nuxtApp.$registry.register(
-      'lastViewedItem',
-      new AgentLastViewedItemType(context)
-    )
-    searchTypeRegistry.register(new AgentApplicationSearchType(context))
+    registerApplicationBundle(nuxtApp, 'agent', async (app) => {
+      if (!app.$registry.getAll('application')['agent']) {
+        const { default: registerMetadata } =
+          await import('@baserow/modules/agent/pluginMetadata')
+        await registerMetadata(app)
+      }
+      const bundle = await import('@baserow/modules/agent/applicationBundle')
+      await bundle.default(app)
+      return bundle
+    })
   },
 })

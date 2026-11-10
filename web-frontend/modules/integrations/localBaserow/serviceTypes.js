@@ -1,3 +1,5 @@
+import { loadApplicationBundle } from '@baserow/modules/core/utils/applicationBundles'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 import {
   ServiceType,
   DataSourceServiceTypeMixin,
@@ -5,18 +7,58 @@ import {
   TriggerServiceTypeMixin,
 } from '@baserow/modules/core/serviceTypes'
 import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
-import LocalBaserowCreateRowsServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowCreateRowsServiceForm'
-import LocalBaserowUpsertRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowUpsertRowServiceForm'
-import LocalBaserowUpdateRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowUpdateRowServiceForm'
-import LocalBaserowDeleteRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowDeleteRowServiceForm'
 import { uuid } from '@baserow/modules/core/utils/string'
-import LocalBaserowAdhocHeader from '@baserow/modules/integrations/localBaserow/components/integrations/LocalBaserowAdhocHeader'
-import { DistributionViewAggregationType } from '@baserow/modules/database/viewAggregationTypes'
-import LocalBaserowSignalTriggerServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowSignalTriggerServiceForm'
-import LocalBaserowFieldsUpdatedTriggerServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowFieldsUpdatedTriggerServiceForm'
-import LocalBaserowGetRowForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowGetRowForm'
-import LocalBaserowListRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowListRowsForm'
-import LocalBaserowAggregateRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowAggregateRowsForm'
+
+// Editor controls load together, independently of the published runtime.
+const LocalBaserowCreateRowsServiceForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesLocalBaserowCreateRowsServiceForm
+  )
+)
+const LocalBaserowUpsertRowServiceForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesLocalBaserowUpsertRowServiceForm
+  )
+)
+const LocalBaserowUpdateRowServiceForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesLocalBaserowUpdateRowServiceForm
+  )
+)
+const LocalBaserowDeleteRowServiceForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesLocalBaserowDeleteRowServiceForm
+  )
+)
+const LocalBaserowAdhocHeader = lazyComponent(
+  () =>
+    import('@baserow/modules/integrations/localBaserow/collectionRefinementsBundle')
+)
+const LocalBaserowSignalTriggerServiceForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesLocalBaserowSignalTriggerServiceForm
+  )
+)
+const LocalBaserowFieldsUpdatedTriggerServiceForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesLocalBaserowFieldsUpdatedTriggerServiceForm
+  )
+)
+const LocalBaserowGetRowForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesLocalBaserowGetRowForm
+  )
+)
+const LocalBaserowListRowsForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesLocalBaserowListRowsForm
+  )
+)
+const LocalBaserowAggregateRowsForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesLocalBaserowAggregateRowsForm
+  )
+)
 
 export class LocalBaserowTableServiceType extends ServiceType {
   get integrationType() {
@@ -397,7 +439,12 @@ export class LocalBaserowAggregateRowsServiceType extends DataSourceLocalBaserow
    * aggregation type, this will be resolved in a future release.
    */
   get unsupportedAggregationTypes() {
-    return [DistributionViewAggregationType.getType()]
+    return ['distribution']
+  }
+
+  /** Aggregation formatting uses Database field and aggregation registrations. */
+  async prepareResult() {
+    await loadApplicationBundle(this.app, 'database')
   }
 
   getResult(service, data) {

@@ -1,11 +1,29 @@
+import { loadApplicationBundle } from '@baserow/modules/core/utils/applicationBundles'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 import { Registerable } from '@baserow/modules/core/registry'
-import ApplicationForm from '@baserow/modules/core/components/application/ApplicationForm'
 
 /**
  * The application type base class that can be extended when creating a plugin
  * for the frontend.
  */
+// Editor controls load together, independently of the published runtime.
+const ApplicationForm = lazyComponent(() =>
+  import('@baserow/modules/core/components/authoringBundle').then(
+    (bundle) => bundle.applicationTypesApplicationForm
+  )
+)
+
 export class ApplicationType extends Registerable {
+  /** Initialize this application's feature before using its editing controls. */
+  async load() {
+    await loadApplicationBundle(this.app, this.getType())
+  }
+
+  /** Select a sidebar item after its application's feature is initialized. */
+  selectFromSidebar(application) {
+    return this.app.$store.dispatch('application/select', application)
+  }
+
   /**
    * The icon class name that is used as convenience for the user to
    * recognize certain application types. If you for example want the database

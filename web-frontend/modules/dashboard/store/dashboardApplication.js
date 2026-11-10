@@ -813,6 +813,13 @@ export const actions = {
       ) {
         return
       }
+      const dataSource = state.dataSources.find(
+        (source) => source.id === request.dataSourceId
+      )
+      await this.$registry.get('service', dataSource.type).prepareResult()
+      if (!isDataSourceDispatchCurrent(state, request)) {
+        return
+      }
       commit('UPDATE_DATA', {
         dataSourceId: request.dataSourceId,
         values: response.data,

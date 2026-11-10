@@ -1,12 +1,10 @@
+import { getApplicationComponent } from '@baserow/modules/core/utils/applicationBundles'
 import { ApplicationType } from '@baserow/modules/core/applicationTypes'
-import ApplicationContext from '@baserow/modules/automation/components/application/ApplicationContext'
-import AutomationForm from '@baserow/modules/automation/components/form/AutomationForm'
-import SidebarComponentAutomation from '@baserow/modules/automation/components/sidebar/SidebarComponentAutomation'
-import { populateAutomationWorkflow } from '@baserow/modules/automation/store/automationWorkflow'
+
+import { populateAutomationWorkflow } from '@baserow/modules/automation/utils/populateAutomationWorkflow'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
-import WorkflowTemplate from '@baserow/modules/automation/components/workflow/WorkflowTemplate.vue'
-import WorkflowTemplateSideBar from '@baserow/modules/automation/components/workflow/WorkflowTemplateSideBar.vue'
+
 import { integrationsErrorMessage } from '@baserow/modules/core/utils/integration'
 
 export class AutomationApplicationType extends ApplicationType {
@@ -52,7 +50,7 @@ export class AutomationApplicationType extends ApplicationType {
   }
 
   getApplicationContextComponent() {
-    return ApplicationContext
+    return getApplicationComponent(this.app, 'automation', 'ApplicationContext')
   }
 
   getErrorMessage(application) {
@@ -60,19 +58,27 @@ export class AutomationApplicationType extends ApplicationType {
   }
 
   getApplicationFormComponent() {
-    return AutomationForm
+    return getApplicationComponent(this.app, 'automation', 'AutomationForm')
   }
 
   getSidebarComponent() {
-    return SidebarComponentAutomation
+    return getApplicationComponent(
+      this.app,
+      'automation',
+      'SidebarComponentAutomation'
+    )
   }
 
   getTemplateSidebarComponent() {
-    return WorkflowTemplateSideBar
+    return getApplicationComponent(
+      this.app,
+      'automation',
+      'WorkflowTemplateSideBar'
+    )
   }
 
   getTemplatesPageComponent() {
-    return WorkflowTemplate
+    return getApplicationComponent(this.app, 'automation', 'WorkflowTemplate')
   }
 
   getTemplatePage(application) {

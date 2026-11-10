@@ -1,18 +1,15 @@
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 import { UserSourceType } from '@baserow/modules/core/userSourceTypes'
 import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
-import LocalBaserowUserSourceForm from '@baserow_enterprise/integrations/localBaserow/components/userSources/LocalBaserowUserSourceForm'
 import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg?url'
 import moment from '@baserow/modules/core/moment'
 
-import {
-  FormulaFieldType,
-  SingleSelectFieldType,
-  TextFieldType,
-  LongTextFieldType,
-  EmailFieldType,
-  NumberFieldType,
-  UUIDFieldType,
-} from '@baserow/modules/database/fieldTypes'
+// Editor controls load together, independently of the published runtime.
+const LocalBaserowUserSourceForm = lazyComponent(() =>
+  import('@baserow_enterprise/components/authoringBundle').then(
+    (bundle) => bundle.userSourceTypesLocalBaserowUserSourceForm
+  )
+)
 
 export class LocalBaserowUserSourceType extends UserSourceType {
   static getType() {
@@ -39,11 +36,7 @@ export class LocalBaserowUserSourceType extends UserSourceType {
    * It's defined here so that it can be changed by a plugin.
    */
   get allowedEmailFieldTypes() {
-    return [
-      TextFieldType.getType(),
-      LongTextFieldType.getType(),
-      EmailFieldType.getType(),
-    ]
+    return ['text', 'long_text', 'email']
   }
 
   /**
@@ -51,13 +44,7 @@ export class LocalBaserowUserSourceType extends UserSourceType {
    * It's defined here so that it can be changed by a plugin.
    */
   get allowedNameFieldTypes() {
-    return [
-      TextFieldType.getType(),
-      LongTextFieldType.getType(),
-      EmailFieldType.getType(),
-      NumberFieldType.getType(),
-      UUIDFieldType.getType(),
-    ]
+    return ['text', 'long_text', 'email', 'number', 'uuid']
   }
 
   genUid(userSource) {
@@ -83,11 +70,7 @@ export class LocalBaserowUserSourceType extends UserSourceType {
    * `user_source_types.py::LocalBaserowUserSourceType::field_types_allowed_as_role`
    */
   get allowedRoleFieldTypes() {
-    return [
-      TextFieldType.getType(),
-      SingleSelectFieldType.getType(),
-      FormulaFieldType.getType(),
-    ]
+    return ['text', 'single_select', 'formula']
   }
 
   getSummary(userSource) {

@@ -1,5 +1,12 @@
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 import { IntegrationType } from '@baserow/modules/core/integrationTypes'
-import AIForm from '@baserow/modules/integrations/ai/components/integrations/AIForm'
+
+// Editor controls load together, independently of the published runtime.
+const AIForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.integrationTypesAIForm
+  )
+)
 
 export class AIIntegrationType extends IntegrationType {
   static getType() {

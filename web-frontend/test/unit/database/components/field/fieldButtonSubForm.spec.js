@@ -18,8 +18,11 @@ describe('FieldButtonSubForm', () => {
     testApp = new TestApp()
   })
 
-  afterEach(() => {
-    testApp.afterEach()
+  afterEach(async () => {
+    await testApp.afterEach()
+    // Mounted action forms can start lazy imports that outlive their wrappers.
+    // Finish them before Vitest destroys this file's Nuxt environment.
+    await vi.dynamicImportSettled()
   })
 
   const mountForm = async (

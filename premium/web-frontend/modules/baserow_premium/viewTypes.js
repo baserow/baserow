@@ -1,3 +1,4 @@
+import { PREMIUM_VIEW_METADATA } from '@baserow_premium/viewMetadata'
 import {
   BaseBufferedRowViewTypeMixin,
   ViewType,
@@ -60,16 +61,15 @@ export class KanbanViewType extends PremiumViewType {
   }
 
   getIconClass() {
-    return 'baserow-icon-kanban'
+    return PREMIUM_VIEW_METADATA.kanban.iconClass
   }
 
   getColorClass() {
-    return 'color-success'
+    return PREMIUM_VIEW_METADATA.kanban.colorClass
   }
 
   getName() {
-    const { $i18n } = this.app
-    return $i18n.t('premium.viewType.kanban')
+    return this.app.$i18n.t(PREMIUM_VIEW_METADATA.kanban.name)
   }
 
   canFilter() {
@@ -305,16 +305,15 @@ export class CalendarViewType extends PremiumViewType {
   }
 
   getIconClass() {
-    return 'baserow-icon-calendar'
+    return PREMIUM_VIEW_METADATA.calendar.iconClass
   }
 
   getColorClass() {
-    return 'color-success'
+    return PREMIUM_VIEW_METADATA.calendar.colorClass
   }
 
   getName() {
-    const { $i18n } = this.app
-    return $i18n.t('premium.viewType.calendar')
+    return this.app.$i18n.t(PREMIUM_VIEW_METADATA.calendar.name)
   }
 
   canFilter() {
@@ -598,16 +597,15 @@ export class TimelineViewType extends BaseBufferedRowViewTypeMixin(
   }
 
   getIconClass() {
-    return 'baserow-icon-timeline'
+    return PREMIUM_VIEW_METADATA.timeline.iconClass
   }
 
   getColorClass() {
-    return 'color-error'
+    return PREMIUM_VIEW_METADATA.timeline.colorClass
   }
 
   getName() {
-    const { $i18n } = this.app
-    return $i18n.t('premium.viewType.timeline')
+    return this.app.$i18n.t(PREMIUM_VIEW_METADATA.timeline.name)
   }
 
   canFilter() {

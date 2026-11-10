@@ -1,6 +1,4 @@
-import CoreHTTPTriggerServiceForm from '@baserow/modules/integrations/core/components/services/CoreHTTPTriggerServiceForm'
-import CoreInboundEmailTriggerServiceForm from '@baserow/modules/integrations/core/components/services/CoreInboundEmailTriggerServiceForm'
-import CoreManualTriggerServiceForm from '@baserow/modules/integrations/core/components/services/CoreManualTriggerServiceForm'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 import {
   DataSourceServiceTypeMixin,
   getFilesGroup,
@@ -10,16 +8,69 @@ import {
   TriggerServiceTypeMixin,
   WorkflowActionServiceTypeMixin,
 } from '@baserow/modules/core/serviceTypes'
-import CoreHTTPRequestServiceForm from '@baserow/modules/integrations/core/components/services/CoreHTTPRequestServiceForm'
-import CoreSMTPEmailServiceForm from '@baserow/modules/integrations/core/components/services/CoreSMTPEmailServiceForm'
-import CoreRouterServiceForm from '@baserow/modules/integrations/core/components/services/CoreRouterServiceForm'
-import CoreGotoServiceForm from '@baserow/modules/integrations/core/components/services/CoreGotoServiceForm'
-import CoreIteratorServiceForm from '@baserow/modules/integrations/core/components/services/CoreIteratorServiceForm'
-import CoreCSVFileReaderServiceForm from '@baserow/modules/integrations/core/components/services/CoreCSVFileReaderServiceForm'
-import CorePeriodicTriggerServiceForm from '@baserow/modules/integrations/core/components/services/CorePeriodicTriggerServiceForm.vue'
-import CoreStartWorkflowServiceForm from '@baserow/modules/integrations/core/components/services/CoreStartWorkflowServiceForm.vue'
 import { SMTPIntegrationType } from '@baserow/modules/integrations/core/integrationTypes'
-import CoreResponseServiceForm from '@baserow/modules/integrations/core/components/services/CoreResponseServiceForm.vue'
+
+// Editor controls load together, independently of the published runtime.
+const CoreHTTPTriggerServiceForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesCoreHTTPTriggerServiceForm
+  )
+)
+const CoreInboundEmailTriggerServiceForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesCoreInboundEmailTriggerServiceForm
+  )
+)
+const CoreManualTriggerServiceForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesCoreManualTriggerServiceForm
+  )
+)
+const CoreHTTPRequestServiceForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesCoreHTTPRequestServiceForm
+  )
+)
+const CoreSMTPEmailServiceForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesCoreSMTPEmailServiceForm
+  )
+)
+const CoreRouterServiceForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesCoreRouterServiceForm
+  )
+)
+const CoreGotoServiceForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesCoreGotoServiceForm
+  )
+)
+const CoreIteratorServiceForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesCoreIteratorServiceForm
+  )
+)
+const CoreCSVFileReaderServiceForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesCoreCSVFileReaderServiceForm
+  )
+)
+const CorePeriodicTriggerServiceForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesCorePeriodicTriggerServiceForm
+  )
+)
+const CoreStartWorkflowServiceForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesCoreStartWorkflowServiceForm
+  )
+)
+const CoreResponseServiceForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesCoreResponseServiceForm
+  )
+)
 
 export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
   ServiceType
