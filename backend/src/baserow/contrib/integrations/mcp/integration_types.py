@@ -1,5 +1,7 @@
 from typing import Any, Dict, Optional
 
+from django.urls import URLResolver, include, path
+
 from rest_framework import serializers
 
 from baserow.core.integrations.registries import IntegrationType
@@ -125,6 +127,11 @@ class MCPServerIntegrationType(IntegrationType):
             "to keep the stored value."
         }
     }
+
+    def get_api_urls(self) -> list[URLResolver]:
+        from .api import urls as api_urls
+
+        return [path("integrations/mcp/", include(api_urls, namespace="mcp_server"))]
 
     def supports_application_type(self, application_type) -> bool:
         # Only Agents call MCP tools for now.

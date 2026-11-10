@@ -2,6 +2,7 @@ from django.urls import include, path
 
 from drf_spectacular.views import SpectacularRedocView
 
+from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.registries import (
     application_type_registry,
     auth_provider_type_registry,
@@ -81,4 +82,5 @@ urlpatterns = (
     + auth_provider_type_registry.api_urls
     + plugin_registry.api_urls
     + service_type_registry.api_urls
+    + integration_type_registry.api_urls
 )

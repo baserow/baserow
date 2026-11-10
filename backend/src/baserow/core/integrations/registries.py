@@ -6,6 +6,8 @@ from django.contrib.auth.models import AbstractUser
 from baserow.api.integrations.fields import HasSecretField
 from baserow.core.registries import ImportExportConfig
 from baserow.core.registry import (
+    APIUrlsInstanceMixin,
+    APIUrlsRegistryMixin,
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
     EasyImportExportMixin,
@@ -46,6 +48,7 @@ def check_secret_targets_unchanged(
 
 
 class IntegrationType(
+    APIUrlsInstanceMixin,
     ModelInstanceMixin[Integration],
     EasyImportExportMixin[IntegrationSubClass],
     CustomFieldsInstanceMixin,
@@ -270,6 +273,7 @@ IntegrationTypeSubClass = TypeVar("IntegrationTypeSubClass", bound=IntegrationTy
 
 
 class IntegrationTypeRegistry(
+    APIUrlsRegistryMixin,
     ModelRegistryMixin[IntegrationSubClass, IntegrationTypeSubClass],
     Registry[IntegrationTypeSubClass],
     CustomFieldsRegistryMixin,
