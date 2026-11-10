@@ -8,6 +8,7 @@ from baserow.core.jobs.registries import job_type_registry
 from baserow.core.models import Application, Template, UserTemplateState, Workspace
 from baserow.core.user_templates.exceptions import (
     NoApplicationsSelected,
+    TemplateBlocked,
     TemplateHasNoContent,
     UserTemplatePublicListingConsentRequired,
 )
@@ -134,6 +135,18 @@ class UserTemplateService:
         handler.mark_template_for_deletion(root)
         return root
 
+    def _get_latest_revision_of_locked_root(self, root: Template) -> Template:
+        """
+        Returns the latest revision of a template, with the locked `root` set as
+        its root, so that the state read through it is the locked one.
+        """
+
+        revision = UserTemplateHandler().get_latest_revision(root)
+        if revision.id == root.id:
+            return root
+        revision.root = root
+        return revision
+
     def update_visibility(
         self,
         user: AbstractUser,
@@ -171,12 +184,7 @@ class UserTemplateService:
                 "Making a template public needs the consent of its author."
             )
 
-        revision = handler.get_latest_revision(root)
-        if revision.id == root.id:
-            revision = root
-        else:
-            # Reads the state of the template from the locked root.
-            revision.root = root
+        revision = self._get_latest_revision_of_locked_root(root)
 
         if not make_public:
             # Also when it's private already: a job can be about to list it.
@@ -206,3 +214,57 @@ class UserTemplateService:
         if handler.submit_revision(root, revision, require_approval=require_approval):
             return revision, revision.id, UserTemplateState.PUBLIC
         return revision, revision.id, UserTemplateState.IN_REVIEW
+
+    def update_private_link(
+        self, user: AbstractUser, template_id: int, enabled: bool
+    ) -> Tuple[Template, bool]:
+        """
+        Creates or turns off the private link of a user template owned by the
+        user, see `UserTemplateHandler.set_private_link`. Must run in a
+        transaction.
+
+        :param user: The owner of the template.
+        :param template_id: The id of the template, which is its root.
+        :param enabled: Whether the template must have a private link.
+        :raises TemplateDoesNotExist: If the user doesn't own the template.
+        :raises TemplateBlocked: If the template is blocked.
+        :return: The latest revision, and whether the link changed.
+        """
+
+        root = self._get_own_root_for_private_link(user, template_id)
+        changed = UserTemplateHandler().set_private_link(root, enabled)
+        return self._get_latest_revision_of_locked_root(root), changed
+
+    def rotate_private_link(
+        self, user: AbstractUser, template_id: int
+    ) -> Tuple[Template, bool]:
+        """
+        Replaces the token of the private link of a user template owned by the
+        user, see `UserTemplateHandler.rotate_private_link`. Must run in a
+        transaction.
+
+        :param user: The owner of the template.
+        :param template_id: The id of the template, which is its root.
+        :raises TemplateDoesNotExist: If the user doesn't own the template.
+        :raises TemplateBlocked: If the template is blocked.
+        :return: The latest revision, and whether the token was replaced.
+        """
+
+        root = self._get_own_root_for_private_link(user, template_id)
+        rotated = UserTemplateHandler().rotate_private_link(root)
+        return self._get_latest_revision_of_locked_root(root), rotated
+
+    def _get_own_root_for_private_link(
+        self, user: AbstractUser, template_id: int
+    ) -> Template:
+        """
+        Locks the root of a template owned by the user, if its private link can be
+        changed: the template isn't blocked.
+        """
+
+        root = UserTemplateHandler().get_own_template(
+            user, template_id, for_update=True
+        )
+        if root.blocked_at is not None:
+            raise TemplateBlocked(f"The template {root.id} is blocked.")
+        return root

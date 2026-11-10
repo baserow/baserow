@@ -82,7 +82,8 @@
             <TemplateInstall
               :template="template"
               :workspace="workspace"
-              :show-copy-link="!ownerActions"
+              :show-copy-link="!ownerActions && !isPrivateLink"
+              :copy-link-url="ownerActions ? privateLinkUrl : null"
               :latest="ownerActions || isOwner"
               @installed="emit('installed')"
               @outdated="emit('outdated')"
@@ -154,14 +155,16 @@
 
 <script setup>
 import { computed, nextTick, ref } from 'vue'
-import { useNuxtApp } from '#app'
+import { useNuxtApp, useRoute, useRuntimeConfig } from '#app'
 
 import {
   canMakePrivate,
   canMakePublic,
+  getPrivateLinkUrl,
   isOwnTemplate,
   makePublicResubmits,
 } from '@baserow/modules/core/utils/userTemplate'
+import { isPrivateLinkPage } from '@baserow/modules/core/utils/templatePrivateLink'
 import TemplatePreview from '@baserow/modules/core/components/template/TemplatePreview'
 import TemplateInstall from '@baserow/modules/core/components/template/TemplateInstall'
 
@@ -210,7 +213,13 @@ const emit = defineEmits([
   'make-private',
 ])
 
-const { $registry } = useNuxtApp()
+const { $registry, $router } = useNuxtApp()
+const config = useRuntimeConfig()
+
+const isPrivateLink = isPrivateLinkPage(useRoute())
+const privateLinkUrl = computed(() =>
+  getPrivateLinkUrl(props.template, $router, config.public.publicWebFrontendUrl)
+)
 
 function edit(mode, hideMenu) {
   hideMenu()

@@ -8,7 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-10 11:40+0000\n"
+"POT-Creation-Date: 2026-11-09 10:46+0000
+"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -46,95 +47,95 @@ msgstr ""
 msgid "in group \"%(group_name)s\" (%(group_id)s)."
 msgstr ""
 
-#: src/baserow/core/actions.py:49
+#: src/baserow/core/actions.py:48
 msgid "Delete group"
 msgstr ""
 
-#: src/baserow/core/actions.py:50
+#: src/baserow/core/actions.py:49
 #, python-format
 msgid "Group \"%(group_name)s\" (%(group_id)s) deleted."
 msgstr ""
 
-#: src/baserow/core/actions.py:113
+#: src/baserow/core/actions.py:112
 msgid "Create group"
 msgstr ""
 
-#: src/baserow/core/actions.py:114
+#: src/baserow/core/actions.py:113
 #, python-format
 msgid "Group \"%(group_name)s\" (%(group_id)s) created."
 msgstr ""
 
-#: src/baserow/core/actions.py:175
+#: src/baserow/core/actions.py:174
 msgid "Update group"
 msgstr ""
 
-#: src/baserow/core/actions.py:177
+#: src/baserow/core/actions.py:176
 #, python-format
 msgid ""
 "Group (%(group_id)s) name changed from \"%(original_group_name)s\" to "
 "\"%(group_name)s.\""
 msgstr ""
 
-#: src/baserow/core/actions.py:259
+#: src/baserow/core/actions.py:258
 msgid "Order groups"
 msgstr ""
 
-#: src/baserow/core/actions.py:260
+#: src/baserow/core/actions.py:259
 msgid "Groups order changed."
 msgstr ""
 
-#: src/baserow/core/actions.py:319
+#: src/baserow/core/actions.py:318
 msgid "Order applications"
 msgstr ""
 
-#: src/baserow/core/actions.py:319
+#: src/baserow/core/actions.py:318
 msgid "Applications reordered"
 msgstr ""
 
-#: src/baserow/core/actions.py:401
+#: src/baserow/core/actions.py:384
 msgid "Create application"
 msgstr ""
 
-#: src/baserow/core/actions.py:402
+#: src/baserow/core/actions.py:385
 #, python-format
 msgid ""
 "\"%(application_name)s\" (%(application_id)s) %(application_type)s created"
 msgstr ""
 
-#: src/baserow/core/actions.py:481
+#: src/baserow/core/actions.py:466
 msgid "Delete application"
 msgstr ""
 
-#: src/baserow/core/actions.py:483
+#: src/baserow/core/actions.py:468
 #, python-format
 msgid ""
 "Application \"%(application_name)s\" (%(application_id)s) of type "
 "%(application_type)s deleted"
 msgstr ""
 
-#: src/baserow/core/actions.py:548
+#: src/baserow/core/actions.py:535
 msgid "Update application"
 msgstr ""
 
-#: src/baserow/core/actions.py:550
+#: src/baserow/core/actions.py:537
 #, python-format
 msgid ""
 "Application (%(application_id)s) of type %(application_type)s renamed from "
 "\"%(original_application_name)s\" to \"%(application_name)s\""
 msgstr ""
 
-#: src/baserow/core/actions.py:654
+#: src/baserow/core/actions.py:641
 #, python-format
 msgid ""
 "Application (%(application_id)s) of type %(application_type)s "
 "\"%(application_name)s\" updated"
 msgstr ""
 
-#: src/baserow/core/actions.py:666
+#: src/baserow/core/actions.py:653
 msgid "Duplicate application"
 msgstr ""
 
-#: src/baserow/core/actions.py:668
+#: src/baserow/core/actions.py:655
 #, python-format
 msgid ""
 "Application \"%(application_name)s\" (%(application_id)s) of type "
@@ -142,66 +143,66 @@ msgid ""
 "(%(original_application_id)s)"
 msgstr ""
 
-#: src/baserow/core/actions.py:749
+#: src/baserow/core/actions.py:738
 msgid "Install template"
 msgstr ""
 
-#: src/baserow/core/actions.py:751
+#: src/baserow/core/actions.py:740
 #, python-format
 msgid ""
 "Template \"%(template_name)s\" (%(template_id)s) installed into application "
 "IDs %(installed_application_ids)s"
 msgstr ""
 
-#: src/baserow/core/actions.py:847
+#: src/baserow/core/actions.py:838
 msgid "Create group invitation"
 msgstr ""
 
-#: src/baserow/core/actions.py:849
+#: src/baserow/core/actions.py:840
 #, python-format
 msgid ""
 "Group invitation created for \"%(email)s\" to join \"%(group_name)s\" "
 "(%(group_id)s) as %(permissions)s."
 msgstr ""
 
-#: src/baserow/core/actions.py:902
+#: src/baserow/core/actions.py:893
 msgid "Delete group invitation"
 msgstr ""
 
-#: src/baserow/core/actions.py:904
+#: src/baserow/core/actions.py:895
 #, python-format
 msgid ""
 "Group invitation (%(invitation_id)s) deleted for \"%(email)s\" to join "
 "\"%(group_name)s\" (%(group_id)s) as %(permissions)s."
 msgstr ""
 
-#: src/baserow/core/actions.py:962
+#: src/baserow/core/actions.py:953
 msgid "Accept group invitation"
 msgstr ""
 
-#: src/baserow/core/actions.py:964
+#: src/baserow/core/actions.py:955
 #, python-format
 msgid ""
 "Invitation (%(invitation_id)s) sent by \"%(sender)s\" to join "
 "\"%(group_name)s\" (%(group_id)s) as %(permissions)s was accepted."
 msgstr ""
 
-#: src/baserow/core/actions.py:1023
+#: src/baserow/core/actions.py:1014
 msgid "Reject group invitation"
 msgstr ""
 
-#: src/baserow/core/actions.py:1025
+#: src/baserow/core/actions.py:1016
 #, python-format
 msgid ""
 "Invitation (%(invitation_id)s) sent by \"%(sender)s\" to join "
 "\"%(group_name)s\" (%(group_id)s) as %(permissions)s was rejected."
 msgstr ""
 
-#: src/baserow/core/actions.py:1083
+#: src/baserow/core/actions.py:1074
 msgid "Update group invitation permissions"
 msgstr ""
 
-#: src/baserow/core/actions.py:1085
+#: src/baserow/core/actions.py:1076
 #, python-format
 msgid ""
 "Invitation (%(invitation_id)s) permissions changed from "
@@ -209,22 +210,22 @@ msgid ""
 "\"%(group_name)s\" (%(group_id)s)."
 msgstr ""
 
-#: src/baserow/core/actions.py:1148
+#: src/baserow/core/actions.py:1139
 msgid "Create workspace invitation link"
 msgstr ""
 
-#: src/baserow/core/actions.py:1150
+#: src/baserow/core/actions.py:1141
 #, python-format
 msgid ""
 "Invitation link (%(invitation_link_id)s) created to join \"%(group_name)s\" "
 "(%(group_id)s) as %(permissions)s."
 msgstr ""
 
-#: src/baserow/core/actions.py:1204
+#: src/baserow/core/actions.py:1195
 msgid "Update workspace invitation link"
 msgstr ""
 
-#: src/baserow/core/actions.py:1206
+#: src/baserow/core/actions.py:1197
 #, python-format
 msgid ""
 "Invitation link (%(invitation_link_id)s) to join \"%(group_name)s\" "
@@ -232,29 +233,29 @@ msgid ""
 "%(original_permissions)s to \"%(name)s\" as %(permissions)s."
 msgstr ""
 
-#: src/baserow/core/actions.py:1274
+#: src/baserow/core/actions.py:1265
 msgid "Delete workspace invitation link"
 msgstr ""
 
-#: src/baserow/core/actions.py:1276
+#: src/baserow/core/actions.py:1267
 #, python-format
 msgid ""
 "Invitation link \"%(name)s\" (%(invitation_link_id)s) to join "
 "\"%(group_name)s\" (%(group_id)s) as %(permissions)s deleted."
 msgstr ""
 
-#: src/baserow/core/actions.py:1327 src/baserow/core/actions.py:1334
+#: src/baserow/core/actions.py:1318 src/baserow/core/actions.py:1325
 msgid "Join workspace via invitation link"
 msgstr ""
 
-#: src/baserow/core/actions.py:1329
+#: src/baserow/core/actions.py:1320
 #, python-format
 msgid ""
 "Joined \"%(group_name)s\" (%(group_id)s) through invitation link "
 "(%(invitation_link_id)s) as %(permissions)s."
 msgstr ""
 
-#: src/baserow/core/actions.py:1336
+#: src/baserow/core/actions.py:1327
 #, python-format
 msgid ""
 "Joined \"%(group_name)s\" (%(group_id)s) through invitation link "
@@ -262,61 +263,61 @@ msgid ""
 "(%(scope_id)s)."
 msgstr ""
 
-#: src/baserow/core/actions.py:1419
+#: src/baserow/core/actions.py:1410
 msgid "Leave group"
 msgstr ""
 
-#: src/baserow/core/actions.py:1420
+#: src/baserow/core/actions.py:1411
 #, python-format
 msgid "Group \"%(group_name)s\" (%(group_id)s) left."
 msgstr ""
 
-#: src/baserow/core/actions.py:1455
+#: src/baserow/core/actions.py:1446
 msgid "Update settings"
 msgstr ""
 
-#: src/baserow/core/actions.py:1456
+#: src/baserow/core/actions.py:1447
 #, python-format
 msgid "Settings updated: %(settings)s"
 msgstr ""
 
-#: src/baserow/core/actions.py:1510
+#: src/baserow/core/actions.py:1501
 msgctxt "setting value"
 msgid "on"
 msgstr ""
 
-#: src/baserow/core/actions.py:1512
+#: src/baserow/core/actions.py:1503
 msgctxt "setting value"
 msgid "off"
 msgstr ""
 
-#: src/baserow/core/actions.py:1514
+#: src/baserow/core/actions.py:1505
 msgctxt "setting value"
 msgid "none"
 msgstr ""
 
-#: src/baserow/core/actions.py:1525
+#: src/baserow/core/actions.py:1516
 msgid "Create initial workspace"
 msgstr ""
 
-#: src/baserow/core/actions.py:1526
+#: src/baserow/core/actions.py:1517
 msgid "Initial workspace created"
 msgstr ""
 
-#: src/baserow/core/actions.py:1554
+#: src/baserow/core/actions.py:1545
 msgid "Export applications"
 msgstr ""
 
-#: src/baserow/core/actions.py:1555
+#: src/baserow/core/actions.py:1546
 #, python-format
 msgid "Applications \"%(application_names)s\" (%(application_ids)s) exported"
 msgstr ""
 
-#: src/baserow/core/actions.py:1629
+#: src/baserow/core/actions.py:1620
 msgid "Import applications"
 msgstr ""
 
-#: src/baserow/core/actions.py:1630
+#: src/baserow/core/actions.py:1621
 #, python-format
 msgid "Applications \"%(application_names)s\" (%(application_ids)s) imported"
 msgstr ""
@@ -330,10 +331,6 @@ msgstr ""
 msgid ""
 "Admin \"%(user_email)s\" (%(user_id)s) disabled two-factor authentication of "
 "user \"%(disabled_user_email)s\" (%(disabled_user_id)s)."
-msgstr ""
-
-#: src/baserow/core/agents/trash_types.py:20
-msgid "identity"
 msgstr ""
 
 #: src/baserow/core/emails.py:127
@@ -682,34 +679,29 @@ msgstr ""
 msgid "Accept invitation"
 msgstr ""
 
-#: src/baserow/core/tools/applications.py:176
-#, python-format
-msgid "Updating %(app_name)s..."
-msgstr ""
-
-#: src/baserow/core/trash/actions.py:26
+#: src/baserow/core/trash/actions.py:21
 msgid "Empty trash"
 msgstr ""
 
-#: src/baserow/core/trash/actions.py:28
+#: src/baserow/core/trash/actions.py:23
 #, python-format
 msgid ""
 "Trash for application \"%(application_name)s\" (%(application_id)s) has been "
 "emptied"
 msgstr ""
 
-#: src/baserow/core/trash/actions.py:89
+#: src/baserow/core/trash/actions.py:84
 #, python-format
 msgid ""
 "Trash for workspace \"%(workspace_name)s\" (%(workspace_id)s) has been "
 "emptied."
 msgstr ""
 
-#: src/baserow/core/trash/actions.py:100
+#: src/baserow/core/trash/actions.py:95
 msgid "Restore from trash"
 msgstr ""
 
-#: src/baserow/core/trash/actions.py:101
+#: src/baserow/core/trash/actions.py:96
 #, python-format
 msgid ""
 "Item of type \"%(item_type)s\" (%(item_id)s) has been restored from trash"
@@ -997,4 +989,29 @@ msgstr ""
 msgid ""
 "Template \"%(template_name)s\" (%(template_id)s) rejected with revision "
 "%(revision_id)s and taken out of the listing: \"%(reason)s\""
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:587
+msgid "Change template private link"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:588
+#, python-format
+msgid "Template \"%(template_name)s\" (%(template_id)s) private link created"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:631
+#, python-format
+msgid ""
+"Template \"%(template_name)s\" (%(template_id)s) private link turned off"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:643
+msgid "Regenerate template private link"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:644
+#, python-format
+msgid ""
+"Template \"%(template_name)s\" (%(template_id)s) private link regenerated"
 msgstr ""

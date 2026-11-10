@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-09 15:18+0000\n"
+"POT-Creation-Date: 2026-11-09 10:46+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -110,83 +110,83 @@ msgstr ""
 msgid "Node (%(node_id)s) moved"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:205
+#: src/baserow/contrib/automation/nodes/node_types.py:182
 msgid "Local Baserow create row"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:226
+#: src/baserow/contrib/automation/nodes/node_types.py:201
 msgid "Local Baserow update row"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:247
+#: src/baserow/contrib/automation/nodes/node_types.py:218
 msgid "Local Baserow delete row"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:257
+#: src/baserow/contrib/automation/nodes/node_types.py:226
 msgid "Local Baserow get row"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:267
+#: src/baserow/contrib/automation/nodes/node_types.py:234
 msgid "Local Baserow list rows"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:277
+#: src/baserow/contrib/automation/nodes/node_types.py:242
 msgid "Local Baserow aggregate rows"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:285
+#: src/baserow/contrib/automation/nodes/node_types.py:250
 msgid "HTTP request"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:292
+#: src/baserow/contrib/automation/nodes/node_types.py:257
 msgid "Iterator"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:305
+#: src/baserow/contrib/automation/nodes/node_types.py:270
 msgid "Send email"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:336
+#: src/baserow/contrib/automation/nodes/node_types.py:301
 msgid "Response"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:364
+#: src/baserow/contrib/automation/nodes/node_types.py:329
 msgid "AI agent"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:371
+#: src/baserow/contrib/automation/nodes/node_types.py:336
 msgid "Router"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:437
+#: src/baserow/contrib/automation/nodes/node_types.py:402
 msgid "Branch"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:929
+#: src/baserow/contrib/automation/nodes/node_types.py:892
 msgid "Local Baserow rows created"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:939
+#: src/baserow/contrib/automation/nodes/node_types.py:900
 msgid "Local Baserow rows updated"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:949
+#: src/baserow/contrib/automation/nodes/node_types.py:908
 msgid "Local Baserow rows deleted"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:967
+#: src/baserow/contrib/automation/nodes/node_types.py:924
 msgid "Periodic trigger"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:974
+#: src/baserow/contrib/automation/nodes/node_types.py:931
 msgid "HTTP trigger"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:981
+#: src/baserow/contrib/automation/nodes/node_types.py:938
 msgid "Email trigger"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:1000
+#: src/baserow/contrib/automation/nodes/node_types.py:957
 msgid "Slack write message"
 msgstr ""
 
@@ -199,27 +199,22 @@ msgstr ""
 msgid "%(name)s workflow was disabled."
 msgstr ""
 
-#: src/baserow/contrib/automation/tools/automations.py:35
-#, python-format
-msgid "Creating automation %(name)s..."
-msgstr ""
-
-#: src/baserow/contrib/automation/tools/nodes.py:379
+#: src/baserow/contrib/automation/tools/nodes.py:374
 #, python-format
 msgid "Creating node %(label)s..."
 msgstr ""
 
-#: src/baserow/contrib/automation/tools/nodes.py:586
+#: src/baserow/contrib/automation/tools/nodes.py:581
 #, python-format
 msgid "Updating node %(node_id)s..."
 msgstr ""
 
-#: src/baserow/contrib/automation/tools/nodes.py:638
+#: src/baserow/contrib/automation/tools/nodes.py:633
 #, python-format
 msgid "Deleting node %(node_id)s..."
 msgstr ""
 
-#: src/baserow/contrib/automation/tools/workflows.py:324
+#: src/baserow/contrib/automation/tools/workflows.py:287
 #, python-format
 msgid "Creating workflow %(name)s..."
 msgstr ""
@@ -341,7 +336,7 @@ msgstr ""
 msgid "Data source"
 msgstr ""
 
-#: src/baserow/contrib/dashboard/tools/dashboards.py:75
+#: src/baserow/contrib/dashboard/tools/dashboards.py:104
 #, python-format
 msgid "Creating dashboard %(name)s..."
 msgstr ""

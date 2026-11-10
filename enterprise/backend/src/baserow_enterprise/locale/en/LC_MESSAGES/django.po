@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-09 15:19+0000\n"
+"POT-Creation-Date: 2026-11-10 11:53+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -78,19 +78,19 @@ msgstr ""
 msgid "Generating formulas for action on '%(ref)s'..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:457
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:469
 #: src/baserow_enterprise/builder/tools/data_sources.py:181
 #, python-format
 msgid "Updating data source %(id)d..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:949
-#: src/baserow_enterprise/builder/tools/elements.py:406
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:961
+#: src/baserow_enterprise/builder/tools/elements.py:407
 #, python-format
 msgid "Updating element %(id)d..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:1122
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1139
 #, python-format
 msgid "Moving %(count)d elements on %(name)s..."
 msgstr ""
@@ -125,35 +125,35 @@ msgstr ""
 msgid "Generating example rows for these new tables..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:354
+#: src/baserow_enterprise/assistant/tools/database/tools.py:367
 #, python-format
 msgid "Listing rows in %(table_name)s "
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:922
+#: src/baserow_enterprise/assistant/tools/database/tools.py:981
 msgid "Generating formula..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:1068
+#: src/baserow_enterprise/assistant/tools/database/tools.py:1127
 #, python-format
 msgid "Creating rows in %(table_name)s "
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:1122
+#: src/baserow_enterprise/assistant/tools/database/tools.py:1181
 #, python-format
 msgid "Updating rows in %(table_name)s "
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:1160
+#: src/baserow_enterprise/assistant/tools/database/tools.py:1219
 #, python-format
 msgid "Deleting rows in %(table_name)s "
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:1369
+#: src/baserow_enterprise/assistant/tools/database/tools.py:1428
 msgid "Reading the comments..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:1400
+#: src/baserow_enterprise/assistant/tools/database/tools.py:1459
 msgid "Posting the comments..."
 msgstr ""
 
@@ -300,12 +300,12 @@ msgstr ""
 msgid "Creating %(count)d elements on %(name)s..."
 msgstr ""
 
-#: src/baserow_enterprise/builder/tools/elements.py:527
+#: src/baserow_enterprise/builder/tools/elements.py:529
 #, python-format
 msgid "Styling element %(id)d..."
 msgstr ""
 
-#: src/baserow_enterprise/builder/tools/elements.py:561
+#: src/baserow_enterprise/builder/tools/elements.py:564
 #, python-format
 msgid "Moving element %(id)d..."
 msgstr ""

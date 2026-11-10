@@ -43,6 +43,7 @@ from baserow.core.actions import (
     ImportApplicationsActionType,
     InstallTemplateActionType,
 )
+from baserow.core.context import get_private_link_token
 from baserow.core.exceptions import (
     ApplicationDoesNotExist,
     DuplicateApplicationMaxLocksExceededException,
@@ -239,7 +240,10 @@ class InstallTemplateJobType(JobType):
             # The resolved revision is pinned, so that an update of the template
             # before the job runs doesn't change what's installed.
             template = UserTemplateHandler().get_installable_revision(
-                user, root, latest=values.get("latest", False)
+                user,
+                root,
+                latest=values.get("latest", False),
+                private_link_token=get_private_link_token(),
             )
             # The user installs the revision they were shown. If another one was
             # made public, or the owner updated it in another tab since, the user
@@ -314,7 +318,7 @@ class InstallTemplateJobType(JobType):
             context=job.workspace,
         )
         user_template_handler = UserTemplateHandler()
-        user_template_handler.check_install_access(job.user, job.template)
+        user_template_handler.recheck_admitted_install_access(job.user, job.template)
 
         progress = ChildProgressBuilder.build(progress_builder, child_total=100)
         try:

@@ -24,6 +24,7 @@ from baserow.api.templates.errors import (
     ERROR_TEMPLATE_UPDATED,
 )
 from baserow.core.action.registries import action_type_registry
+from baserow.core.context import get_private_link_token
 from baserow.core.exceptions import (
     PermissionException,
     TemplateDoesNotExist,
@@ -523,8 +524,9 @@ class DownloadUserTemplateJobType(JobType):
         ),
         "revision_id": serializers.IntegerField(
             help_text="The id of the revision of the user template that the user "
-            "was shown. Its owner may download any revision, anyone else only the "
-            "public one.",
+            "was shown. Its owner may download any revision. Anyone else downloads "
+            "the public revision, or the latest one of a template that isn't "
+            "public with the token of its private link.",
         ),
     }
 
@@ -574,13 +576,17 @@ class DownloadUserTemplateJobType(JobType):
         :param user: The user who downloads the template.
         :raises TemplateDoesNotExist: If the user may not download the template.
         :raises TemplateBlocked: If the user owns the template and it's blocked.
-        :raises TemplateUpdated: If the revision isn't the public one anymore.
+        :raises TemplateUpdated: If the user doesn't own the template and the
+            revision isn't the one install picks anymore.
         :raises TemplateHasNoContent: If the revision has no application to copy.
         :return: The values the job is created with.
         """
 
         revision = UserTemplateHandler().get_downloadable_revision(
-            user, values["slug"], values["revision_id"]
+            user,
+            values["slug"],
+            values["revision_id"],
+            private_link_token=get_private_link_token(),
         )
         return {"revision": revision}
 
@@ -602,7 +608,7 @@ class DownloadUserTemplateJobType(JobType):
         revision = job.revision
         if revision is None:
             raise TemplateDoesNotExist("The template was deleted.")
-        UserTemplateHandler().check_install_access(job.user, revision)
+        UserTemplateHandler().recheck_admitted_install_access(job.user, revision)
         # A repeated download reuses the archive.
         if has_valid_archive(revision):
             progress.increment(progress.total)

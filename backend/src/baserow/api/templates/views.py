@@ -1,5 +1,6 @@
 from typing import Any, Dict
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Exists, OuterRef, Prefetch
 
@@ -45,6 +46,7 @@ from baserow.api.templates.serializers import (
 )
 from baserow.core.action.registries import action_type_registry
 from baserow.core.actions import InstallTemplateActionType
+from baserow.core.context import get_private_link_token
 from baserow.core.exceptions import (
     TemplateDoesNotExist,
     TemplateFileDoesNotExist,
@@ -59,6 +61,8 @@ from baserow.core.jobs.registries import job_type_registry
 from baserow.core.models import Template, TemplateCategory
 from baserow.core.user_templates.actions import (
     DeleteUserTemplateActionType,
+    RotateUserTemplatePrivateLinkActionType,
+    UpdateUserTemplatePrivateLinkActionType,
     UpdateUserTemplateVisibilityActionType,
 )
 from baserow.core.user_templates.archive import (
@@ -82,6 +86,7 @@ from .errors import (
     ERROR_TEMPLATE_DOES_NOT_EXIST,
     ERROR_TEMPLATE_FILE_DOES_NOT_EXIST,
     ERROR_TEMPLATE_HAS_NO_CONTENT,
+    ERROR_TEMPLATE_PRIVATE_LINK_BLOCKED,
     ERROR_TEMPLATE_UPDATED,
 )
 
@@ -101,6 +106,16 @@ def get_template_id(slug: str) -> int:
     if template_id is None:
         raise TemplateDoesNotExist(f"The template with slug {slug} does not exist.")
     return template_id
+
+
+TEMPLATE_PRIVATE_LINK_SCHEMA_PARAMETER = OpenApiParameter(
+    name=settings.TEMPLATE_PRIVATE_LINK_TOKEN_HEADER,
+    location=OpenApiParameter.HEADER,
+    type=OpenApiTypes.STR,
+    required=False,
+    description="The token of the private link of a user template, which gives "
+    "access to it while it's private.",
+)
 
 
 class TemplatesView(APIView, SearchableViewMixin):
@@ -283,7 +298,9 @@ class TemplateView(APIView):
         revision for its owner or when it has no public one.
         """
 
-        revisions = Template.objects.openable(request.user).filter_by_root(slug=slug)
+        revisions = Template.objects.openable(
+            request.user, private_link_token=get_private_link_token()
+        ).filter_by_root(slug=slug)
         template = revisions.public_revisions().first()
         if template is None or (
             request.user.is_authenticated
@@ -318,10 +335,18 @@ class TemplateView(APIView):
             "author must agree to that with `public_listing_consent`. The `state` "
             "of the response tells whether it's listed or in review. With "
             "`visibility` `private`, it isn't listed anymore, its revision in "
-            "review or rejected is withdrawn, and only its owner can open and "
-            "install it. Nothing changes when a template whose latest revision is "
-            "listed or in review is made public, or when a template that isn't "
-            "listed and has nothing in review or rejected is made private."
+            "review or rejected is withdrawn, and only its owner and anyone with "
+            "its private link can open and install it. Nothing changes when a "
+            "template whose latest revision is listed or in review is made "
+            "public, or when a template that isn't listed and has nothing in "
+            "review or rejected is made private. With "
+            "`private_link`, instead of `visibility`, the private link of the "
+            "template is created or turned off, and its token is in "
+            "`private_link_token`. Anyone with the link can preview the "
+            "template, also signed out, and install or download it once signed "
+            "in. Turning the link off stops it from working, and a public "
+            "template stays public. Asking for the link it has changes nothing. "
+            "The private link of a blocked template can't be changed."
         ),
         request=UpdateTemplateSerializer,
         responses={
@@ -331,6 +356,7 @@ class TemplateView(APIView):
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_PUBLIC_LISTING_CONSENT_REQUIRED",
                     "ERROR_TEMPLATE_HAS_NO_CONTENT",
+                    "ERROR_TEMPLATE_BLOCKED",
                 ]
             ),
             401: None,
@@ -344,20 +370,29 @@ class TemplateView(APIView):
                 ERROR_PUBLIC_LISTING_CONSENT_REQUIRED
             ),
             TemplateHasNoContent: ERROR_TEMPLATE_HAS_NO_CONTENT,
+            TemplateBlocked: ERROR_TEMPLATE_PRIVATE_LINK_BLOCKED,
         }
     )
     @validate_body(UpdateTemplateSerializer)
     def patch(self, request: Request, data: Dict[str, Any], slug: str) -> Response:
-        """Makes a user template owned by the user public or private."""
+        """
+        Makes a user template owned by the user public or private, or changes its
+        private link.
+        """
 
-        revision = action_type_registry.get_by_type(
-            UpdateUserTemplateVisibilityActionType
-        ).do(
-            request.user,
-            get_template_id(slug),
-            data["visibility"] == "public",
-            public_listing_consent=data["public_listing_consent"],
-        )
+        if "private_link" in data:
+            revision = action_type_registry.get_by_type(
+                UpdateUserTemplatePrivateLinkActionType
+            ).do(request.user, get_template_id(slug), data["private_link"])
+        else:
+            revision = action_type_registry.get_by_type(
+                UpdateUserTemplateVisibilityActionType
+            ).do(
+                request.user,
+                get_template_id(slug),
+                data["visibility"] == "public",
+                public_listing_consent=data["public_listing_consent"],
+            )
         revision = (
             Template.objects.select_related("root")
             .with_template_state()
@@ -496,7 +531,8 @@ class AsyncInstallTemplateView(APIView):
                 location=OpenApiParameter.QUERY,
                 type=OpenApiTypes.BOOL,
                 description="Installs the latest revision of a user template, "
-                "which only its owner may. Ignored for official templates.",
+                "also while it's public. Only its owner may ask for it. Ignored "
+                "for official templates.",
             ),
             OpenApiParameter(
                 name="revision_id",
@@ -507,6 +543,7 @@ class AsyncInstallTemplateView(APIView):
                 "template was updated since, nothing is installed. Ignored for "
                 "official templates.",
             ),
+            TEMPLATE_PRIVATE_LINK_SCHEMA_PARAMETER,
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
             CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
@@ -515,10 +552,13 @@ class AsyncInstallTemplateView(APIView):
             "the given workspace if the user has access to that workspace. The response "
             "contains those newly created applications.\n\n"
             "A user template can be installed by its owner, unless it's blocked, "
-            "and by anyone signed in while it's public. Everyone installs its "
-            "public revision, and its owner the latest revision while it isn't "
-            "public, or with `latest`. The `template_id` is the id of the "
-            "template, not of one of its revisions."
+            "by anyone signed in while it's public, and by anyone signed in with "
+            "the token of its private link while it isn't blocked. While it's "
+            "public, everyone installs its public revision, and its owner the "
+            "latest revision with `latest`. While it isn't public, its owner and "
+            "anyone with the token of its private link install the latest "
+            "revision. The `template_id` is the id of the template, not of one of "
+            "its revisions."
         ),
         request=None,
         responses={
@@ -569,6 +609,53 @@ class AsyncInstallTemplateView(APIView):
         return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
 
 
+class RotateTemplatePrivateLinkTokenView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        tags=["Templates"],
+        operation_id="rotate_template_private_link_token",
+        parameters=[
+            OpenApiParameter(
+                name="slug",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.STR,
+                description="The slug of the template whose private link is "
+                "regenerated.",
+            ),
+        ],
+        description=(
+            "Replaces the token of the private link of a user template owned by "
+            "the user, which takes the access away from everybody who has the old "
+            "link. The new token is in `private_link_token`. A template without a "
+            "private link keeps having none. The private link of a blocked "
+            "template can't be changed."
+        ),
+        request=None,
+        responses={
+            200: TemplateListItemSerializer,
+            400: get_error_schema(["ERROR_TEMPLATE_BLOCKED"]),
+            401: None,
+            404: get_error_schema(["ERROR_TEMPLATE_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            TemplateDoesNotExist: ERROR_TEMPLATE_DOES_NOT_EXIST,
+            TemplateBlocked: ERROR_TEMPLATE_PRIVATE_LINK_BLOCKED,
+        }
+    )
+    def post(self, request: Request, slug: str) -> Response:
+        """Regenerates the private link of a user template owned by the user."""
+
+        revision = action_type_registry.get_by_type(
+            RotateUserTemplatePrivateLinkActionType
+        ).do(request.user, get_template_id(slug))
+        return Response(
+            TemplateListItemSerializer(revision, context={"request": request}).data
+        )
+
+
 class DownloadUserTemplateView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -582,6 +669,7 @@ class DownloadUserTemplateView(APIView):
                 type=OpenApiTypes.STR,
                 description="The slug of the user template to download.",
             ),
+            TEMPLATE_PRIVATE_LINK_SCHEMA_PARAMETER,
         ],
         description=(
             "Responds with the URL of the archive of a user template, which imports "
@@ -590,8 +678,11 @@ class DownloadUserTemplateView(APIView):
             "one of the user that builds it already is responded with. Once the "
             "job is finished, the archive is asked for again.\n\n"
             "A user template can be downloaded by whoever can install it. Its "
-            "owner may download any revision of it, anyone else only the public "
-            "one: when another revision than the one shown was made public since, "
+            "owner may download any revision of it. Anyone else downloads the "
+            "public revision, or the latest one of a template that isn't public "
+            "with the token of its private link in the "
+            "`Baserow-Template-Authorization` header: when "
+            "another revision than the one shown is that one since, "
             "`ERROR_TEMPLATE_UPDATED` is responded with."
         ),
         request=DownloadTemplateSerializer,
@@ -632,7 +723,10 @@ class DownloadUserTemplateView(APIView):
         """
 
         revision = UserTemplateHandler().get_downloadable_revision(
-            request.user, slug, data["revision_id"]
+            request.user,
+            slug,
+            data["revision_id"],
+            private_link_token=get_private_link_token(),
         )
         if has_valid_archive(revision):
             archive = {

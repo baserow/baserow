@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-09 15:18+0000\n"
+"POT-Creation-Date: 2026-11-10 11:53+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -455,7 +455,7 @@ msgstr ""
 msgid "Creating database %(name)s..."
 msgstr ""
 
-#: src/baserow/contrib/database/tools/fields.py:1042
+#: src/baserow/contrib/database/tools/fields.py:1048
 #, python-format
 msgid "Creating field %(field_name)s..."
 msgstr ""
@@ -465,22 +465,22 @@ msgstr ""
 msgid "Updating field %(field_id)s..."
 msgstr ""
 
-#: src/baserow/contrib/database/tools/fields.py:1270
+#: src/baserow/contrib/database/tools/fields.py:1266
 #, python-format
 msgid "Deleting field %(field_id)s..."
 msgstr ""
 
-#: src/baserow/contrib/database/tools/tables.py:699
+#: src/baserow/contrib/database/tools/tables.py:704
 #, python-format
 msgid "Creating table %(table_name)s..."
 msgstr ""
 
-#: src/baserow/contrib/database/tools/tables.py:874
+#: src/baserow/contrib/database/tools/tables.py:883
 #, python-format
 msgid "Listing tables in %(database_names)s..."
 msgstr ""
 
-#: src/baserow/contrib/database/tools/tables.py:963
+#: src/baserow/contrib/database/tools/tables.py:972
 #, python-format
 msgid "Inspecting %(table_names)s schema..."
 msgstr ""
@@ -503,26 +503,26 @@ msgstr ""
 msgid "Deleting filters..."
 msgstr ""
 
-#: src/baserow/contrib/database/tools/view_config.py:373
+#: src/baserow/contrib/database/tools/view_config.py:370
 #, python-format
 msgid "Colouring %(view_name)s..."
 msgstr ""
 
-#: src/baserow/contrib/database/tools/view_config.py:418
+#: src/baserow/contrib/database/tools/view_config.py:415
 msgid "Removing row colours..."
 msgstr ""
 
-#: src/baserow/contrib/database/tools/views.py:275
+#: src/baserow/contrib/database/tools/views.py:284
 #, python-format
 msgid "Listing views in %(table_name)s..."
 msgstr ""
 
-#: src/baserow/contrib/database/tools/views.py:1053
+#: src/baserow/contrib/database/tools/views.py:1090
 #, python-format
 msgid "Creating %(view_type)s view %(view_name)s"
 msgstr ""
 
-#: src/baserow/contrib/database/tools/views.py:1166
+#: src/baserow/contrib/database/tools/views.py:1209
 #, python-format
 msgid "Creating filters in %(view_name)s..."
 msgstr ""

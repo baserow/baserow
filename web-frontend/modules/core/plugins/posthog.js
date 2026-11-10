@@ -1,6 +1,11 @@
 import { nextTick } from 'vue'
 import { useNuxtApp, useRouter, useRuntimeConfig } from '#imports'
 
+import {
+  carriesPrivateLinkToken,
+  redactPrivateLinkTokens,
+} from '@baserow/modules/core/utils/templatePrivateLink'
+
 export default defineNuxtPlugin({
   name: 'posthog',
   parallel: true,
@@ -25,6 +30,7 @@ export default defineNuxtPlugin({
       autocapture: {
         css_selector_allowlist: ['[ph-autocapture]'],
       },
+      before_send: redactPrivateLinkTokens,
     })
 
     nuxtApp.provide('posthog', posthog)
@@ -43,7 +49,9 @@ export default defineNuxtPlugin({
           posthog.identify(userId, { user_email: userEmail })
         }
 
-        const preventTracking = !!to.meta.preventPageViewTracking
+        const preventTracking =
+          !!to.meta.preventPageViewTracking ||
+          carriesPrivateLinkToken(to.fullPath)
         if (preventTracking) {
           return
         }

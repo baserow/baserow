@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-09 15:18+0000\n"
+"POT-Creation-Date: 2026-11-10 11:53+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -100,7 +100,7 @@ msgstr ""
 msgid "Data source (%(data_source_id)s) moved"
 msgstr ""
 
-#: src/baserow/contrib/builder/data_sources/service.py:170
+#: src/baserow/contrib/builder/data_sources/service.py:173
 msgid "Data source"
 msgstr ""
 
