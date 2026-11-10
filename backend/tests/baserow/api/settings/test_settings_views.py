@@ -10,11 +10,16 @@ from rest_framework.status import (
     HTTP_400_BAD_REQUEST,
     HTTP_401_UNAUTHORIZED,
     HTTP_403_FORBIDDEN,
+    HTTP_409_CONFLICT,
 )
 
 from baserow.api.settings.registries import SettingsDataRegistry, SettingsDataType
+from baserow.core.actions import UpdateAdminSettingsActionType
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Settings
+from baserow.core.models import Settings, Template
+from baserow.core.user_templates.handler import UserTemplateHandler
+from tests.baserow.contrib.database.utils import get_deadlock_error
+from tests.baserow.core.user_templates.utils import create_template, recorded_actions
 
 
 @pytest.mark.django_db
@@ -422,3 +427,90 @@ def test_allow_reporting_abuse_setting(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     assert response.json()["allow_reporting_abuse"] is False
     assert CoreHandler().get_settings().allow_reporting_abuse is False
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("flag", [True, False])
+def test_user_templates_require_approval_setting(
+    api_client, data_fixture, settings, flag
+):
+    if not flag:
+        settings.FEATURE_FLAGS = []
+    token = data_fixture.create_user_and_token(is_staff=True)[1]
+    response = api_client.get(reverse("api:settings:get"))
+    assert response.json()["user_templates_require_approval"] is True
+
+    with recorded_actions() as actions:
+        response = api_client.patch(
+            reverse("api:settings:update"),
+            {"user_templates_require_approval": False, "allow_new_signups": True},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    if flag:
+        assert response.status_code == HTTP_200_OK
+        assert actions == [
+            (
+                "admin_update_settings",
+                {"settings": {"user_templates_require_approval": False}},
+            )
+        ]
+        assert UpdateAdminSettingsActionType.get_long_description(actions[0][1]) == (
+            "Settings updated: User templates require approval: off"
+        )
+    else:
+        assert response.status_code == HTTP_403_FORBIDDEN
+        assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
+    assert CoreHandler().get_settings().user_templates_require_approval is not flag
+
+
+@pytest.mark.django_db
+def test_update_settings_without_a_change_records_no_action(api_client, data_fixture):
+    token = data_fixture.create_user_and_token(is_staff=True)[1]
+
+    with recorded_actions() as actions:
+        response = api_client.patch(
+            reverse("api:settings:update"),
+            {"allow_new_signups": True},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    assert response.status_code == HTTP_200_OK
+    assert actions == []
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("deadlocks,status", [(1, HTTP_200_OK), (2, HTTP_409_CONFLICT)])
+def test_switching_approval_off_is_retried_after_a_deadlock(
+    api_client, data_fixture, deadlocks, status
+):
+    token = data_fixture.create_user_and_token(is_staff=True)[1]
+    template = create_template(data_fixture, None, "in_review")
+    approve = UserTemplateHandler.approve_pending_revisions
+    attempts = []
+
+    def deadlock(handler, admin):
+        attempts.append(admin)
+        if len(attempts) <= deadlocks:
+            raise get_deadlock_error()
+        return approve(handler, admin)
+
+    with patch.object(UserTemplateHandler, "approve_pending_revisions", deadlock):
+        response = api_client.patch(
+            reverse("api:settings:update"),
+            {"user_templates_require_approval": False},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    assert response.status_code == status
+    switched_off = status == HTTP_200_OK
+    if not switched_off:
+        assert response.json()["error"] == "ERROR_DATABASE_DEADLOCK"
+    assert CoreHandler().get_settings().user_templates_require_approval is not (
+        switched_off
+    )
+    listed = Template.objects.get(id=template.id).public_revision_id is not None
+    assert listed is switched_off

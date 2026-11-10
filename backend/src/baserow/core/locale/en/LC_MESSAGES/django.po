@@ -123,6 +123,13 @@ msgid ""
 "\"%(original_application_name)s\" to \"%(application_name)s\""
 msgstr ""
 
+#: src/baserow/core/actions.py:641
+#, python-format
+msgid ""
+"Application (%(application_id)s) of type %(application_type)s "
+"\"%(application_name)s\" updated"
+msgstr ""
+
 #: src/baserow/core/actions.py:624
 msgid "Duplicate application"
 msgstr ""
@@ -264,6 +271,30 @@ msgstr ""
 msgid "Group \"%(group_name)s\" (%(group_id)s) left."
 msgstr ""
 
+#: src/baserow/core/actions.py:1446
+msgid "Update settings"
+msgstr ""
+
+#: src/baserow/core/actions.py:1447
+#, python-format
+msgid "Settings updated: %(settings)s"
+msgstr ""
+
+#: src/baserow/core/actions.py:1501
+msgctxt "setting value"
+msgid "on"
+msgstr ""
+
+#: src/baserow/core/actions.py:1503
+msgctxt "setting value"
+msgid "off"
+msgstr ""
+
+#: src/baserow/core/actions.py:1505
+msgctxt "setting value"
+msgid "none"
+msgstr ""
+
 #: src/baserow/core/actions.py:1131
 msgid "Create initial workspace"
 msgstr ""
@@ -399,6 +430,15 @@ msgstr ""
 msgid ""
 "The MCP Endpoint (%(endpoint_id)s) name changed from "
 "\"%(original_endpoint_name)s\" to \"%(endpoint_name)s\""
+msgstr ""
+
+#: src/baserow/core/mcp/actions.py:113
+msgid "Change MCP tools"
+msgstr ""
+
+#: src/baserow/core/mcp/actions.py:114
+#, python-format
+msgid "The tools of \"%(endpoint_name)s\" (%(endpoint_id)s) changed"
 msgstr ""
 
 #: src/baserow/core/mcp/actions.py:112
@@ -866,4 +906,86 @@ msgstr ""
 #: src/baserow/core/user_sources/actions.py:204
 #, python-format
 msgid "User source (%(user_source_id)s) moved"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:30
+msgid "Create template"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:32
+#, python-format
+msgid ""
+"Template \"%(template_name)s\" (%(template_id)s) created from applications "
+"%(application_ids)s"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:138
+msgid "Update template"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:139
+#, python-format
+msgid "Template \"%(template_name)s\" (%(template_id)s) updated"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:286
+msgid "Delete template"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:287
+#, python-format
+msgid "Template \"%(template_name)s\" (%(template_id)s) deleted"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:332
+msgid "Change template visibility"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:334
+#, python-format
+msgid ""
+"Template \"%(template_name)s\" (%(template_id)s) made public with revision "
+"%(revision_id)s, with the consent of the author to list it and their name"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:403
+#, python-format
+msgid "Template \"%(template_name)s\" (%(template_id)s) made private"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:410
+#, python-format
+msgid ""
+"Template \"%(template_name)s\" (%(template_id)s) sent to review with "
+"revision %(revision_id)s, with the consent of the author to list it and "
+"their name"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:426
+msgid "Admin approved template"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:428
+#, python-format
+msgid ""
+"Template \"%(template_name)s\" (%(template_id)s) approved and listed with "
+"revision %(revision_id)s"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:503
+msgid "Admin rejected template"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:505
+#, python-format
+msgid ""
+"Template \"%(template_name)s\" (%(template_id)s) rejected with revision "
+"%(revision_id)s: \"%(reason)s\""
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:511
+#, python-format
+msgid ""
+"Template \"%(template_name)s\" (%(template_id)s) rejected with revision "
+"%(revision_id)s and taken out of the listing: \"%(reason)s\""
 msgstr ""

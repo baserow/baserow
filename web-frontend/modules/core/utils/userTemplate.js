@@ -5,16 +5,25 @@ export function isOwnTemplate(template) {
   return template.is_own === true
 }
 
-/**
- * The visibility change the author can make to their template: `make-public` for
- * a private template, `make-private` for a public one, or else null, for example
- * for a rejected or blocked template.
- */
-export function getVisibilityAction(template) {
-  return VISIBILITY_ACTIONS[template?.state] ?? null
+export function canMakePublic(template) {
+  return Boolean(template?.can_make_public)
 }
 
-const VISIBILITY_ACTIONS = {
-  private: 'make-public',
-  public: 'make-private',
+export function makePublicResubmits(template) {
+  return (
+    canMakePublic(template) &&
+    Boolean(template?.make_public_needs_review) &&
+    Boolean(template?.listed)
+  )
+}
+
+export function canMakePrivate(template) {
+  if (template?.state === 'rejected') {
+    return Boolean(template.listed)
+  }
+  return ['public', 'in_review'].includes(template?.state)
+}
+
+export function canChangeVisibilityInDetails(template) {
+  return ['private', 'public'].includes(template?.state)
 }

@@ -255,7 +255,9 @@ class TemplatesView(APIView, SearchableViewMixin):
         page = paginator.paginate_queryset(templates, request, self)
         return paginator.get_paginated_response(
             TemplateListItemSerializer(
-                page, many=True, context={"request": request}
+                page,
+                many=True,
+                context={"request": request, "listed": query_params["listed"]},
             ).data
         )
 
@@ -277,17 +279,17 @@ class TemplateView(APIView):
     )
     def get(self, request, slug):
         """
-        Responds with a more detailed serialized version of the template related to
-        the provided template slug.
+        Responds with the template of the slug: its public revision, or the latest
+        revision for its owner or when it has no public one.
         """
 
-        # A user template shows its public revision, the same for everyone, else
-        # the latest revision the user can open, which only its owner can. Install
-        # picks the same revision.
         revisions = Template.objects.openable(request.user).filter_by_root(slug=slug)
-        template = (
-            revisions.public_revisions().first() or revisions.latest_revisions().first()
-        )
+        template = revisions.public_revisions().first()
+        if template is None or (
+            request.user.is_authenticated
+            and template.get_root().owner_id == request.user.id
+        ):
+            template = revisions.latest_revisions().with_template_state().first()
         if template is None:
             raise TemplateDoesNotExist(f"The template with slug {slug} does not exist.")
 
@@ -308,13 +310,18 @@ class TemplateView(APIView):
         ],
         description=(
             "Updates a user template owned by the user. With `visibility` "
-            "`public`, its latest revision is listed, with the name of its author, "
-            "for everybody on this instance, who can open it. Signed-in users can "
-            "install it. The author must agree to that with "
-            "`public_listing_consent`. The `state` of the response tells whether "
-            "it's listed. With `visibility` `private`, it isn't listed anymore, "
-            "and only its owner can open and install it. Asking for the visibility "
-            "it has changes nothing."
+            "`public`, its latest revision goes to review, and once an instance "
+            "admin approves it, it's listed, with the name of its author, for "
+            "everybody on this instance, who can open it. Signed-in users can "
+            "install it. It's listed right away only when approval isn't required "
+            "and no admin rejected the template since it was last approved. The "
+            "author must agree to that with `public_listing_consent`. The `state` "
+            "of the response tells whether it's listed or in review. With "
+            "`visibility` `private`, it isn't listed anymore, its revision in "
+            "review or rejected is withdrawn, and only its owner can open and "
+            "install it. Nothing changes when a template whose latest revision is "
+            "listed or in review is made public, or when a template that isn't "
+            "listed and has nothing in review or rejected is made private."
         ),
         request=UpdateTemplateSerializer,
         responses={
@@ -350,6 +357,11 @@ class TemplateView(APIView):
             get_template_id(slug),
             data["visibility"] == "public",
             public_listing_consent=data["public_listing_consent"],
+        )
+        revision = (
+            Template.objects.select_related("root")
+            .with_template_state()
+            .get(id=revision.id)
         )
         return Response(
             TemplateListItemSerializer(revision, context={"request": request}).data

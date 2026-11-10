@@ -555,20 +555,22 @@ export class DownloadUserTemplateJobType extends JobType {
 
   /**
    * Saves the archive, the way `DownloadLink` saves a file. The toast shows that
-   * the file is being fetched, so that it isn't fetched twice at once.
+   * the file is being fetched, so that it isn't fetched twice at once, and that
+   * it was saved.
    */
   async downloadArchive({ url, file_name: filename }, toast) {
     const { $config: config, $i18n: i18n, $store: store } = this.app
     if (!url) {
       return
     }
-    const setDownloading = (downloading) =>
-      store.dispatch('toast/update', { toast, data: { downloading } })
-    await setDownloading(true)
+    const update = (data) => store.dispatch('toast/update', { toast, data })
+    await update({ downloading: true })
+    const done = { downloading: false }
     try {
       await triggerDownload(url, filename, {
         viaXhr: `${config.public.downloadFileViaXhr}` === '1',
       })
+      done.saved = true
     } catch (error) {
       // The file couldn't be fetched from the storage.
       await store.dispatch('toast/error', {
@@ -576,7 +578,7 @@ export class DownloadUserTemplateJobType extends JobType {
         message: i18n.t('clientHandler.notCompletedDescription'),
       })
     } finally {
-      await setDownloading(false)
+      await update(done)
     }
   }
 }

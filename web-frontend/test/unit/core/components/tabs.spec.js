@@ -97,3 +97,25 @@ test('shows an optional tab badge without changing its navigation label', async 
   expect(wrapper.get('.tabs__item--active').text()).toContain('Agents')
   wrapper.unmount()
 })
+
+test('selects a tab without a route with the keyboard', async () => {
+  const wrapper = await mountSuspended(Tabs, {
+    slots: {
+      default:
+        '<Tab title="Members">Members</Tab><Tab title="Agents">Agents</Tab>' +
+        '<Tab title="Off" disabled>Off</Tab>',
+    },
+  })
+  const links = wrapper.findAll('.tabs__link')
+  expect(links.map((link) => link.attributes('tabindex'))).toEqual([
+    '0',
+    '0',
+    undefined,
+  ])
+
+  await links[1].trigger('keydown', { key: 'Enter' })
+
+  expect(wrapper.get('.tabs__item--active').text()).toContain('Agents')
+  expect(wrapper.emitted('update:selectedIndex').at(-1)).toEqual([1])
+  wrapper.unmount()
+})

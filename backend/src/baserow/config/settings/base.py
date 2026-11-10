@@ -782,6 +782,7 @@ SPECTACULAR_SETTINGS = {
             "multiple_select_has_not",
         ],
         "EventTypesEnum": ["rows.created", "rows.updated", "rows.deleted"],
+        "UserTemplateStateEnum": "baserow.core.models.UserTemplateState.choices",
     },
 }
 
