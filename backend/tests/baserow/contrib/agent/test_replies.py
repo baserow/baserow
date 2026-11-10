@@ -1706,6 +1706,49 @@ def test_changes_after_a_held_call_wait_too_so_they_keep_the_model_order(
 
 
 @pytest.mark.django_db
+def test_an_ask_first_call_with_invalid_arguments_holds_no_later_change(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    table = allow_tools(
+        data_fixture,
+        agent,
+        ("list_tables", "create_rows", "update_rows"),
+        ask_first=("create_rows",),
+    )
+    row = table.get_model(attribute_names=True).objects.create(name="Old")
+    respond(
+        mocker,
+        (
+            {
+                0: tool_call(
+                    "create_rows", "call_invalid", table_id=table.id, rows="invalid"
+                ),
+                1: tool_call(
+                    "update_rows",
+                    "call_update",
+                    table_id=table.id,
+                    rows=[{"id": row.id, "Name": "Changed"}],
+                ),
+            },
+        ),
+    )
+    created = start(user, agent)
+
+    run_reply(run_of(created.conversation))
+
+    reply = AgentMessage.objects.get(id=created.reply.id)
+    assert reply.status == "completed"
+    assert [(step["tool"], step["status"]) for step in reply.steps] == [
+        ("create_rows", "failed"),
+        ("update_rows", "done"),
+    ]
+    assert not reply.approvals.exists()
+    assert row_names(table) == ["Changed"]
+
+
+@pytest.mark.django_db
 def test_an_approved_call_runs_as_the_identity_and_the_reply_continues(
     ask_first_agent, mocker
 ):

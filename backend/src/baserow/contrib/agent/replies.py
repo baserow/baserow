@@ -259,7 +259,7 @@ class AgentResponder:
         self._result: AgentRunResult[str | DeferredToolRequests] | None = None
         self._web_search_tool: WebSearchTool | None = None
         self._response_calls: list[ToolCallPart] = []
-        self._response_held_ids: set[str] | None = None
+        self._invalid_call_ids: set[str] = set()
         resume = request.resume
         self._steps = (
             ChatRunSteps(journal, self._describe_call)
@@ -495,7 +495,8 @@ class AgentResponder:
     def _held_call_ids(self, calls: Iterable[ToolCallPart]) -> set[str]:
         """
         Hold the ask first calls of a model response, and the changes after a held
-        call, so that changes still run in the order the model asked for them.
+        call, so that changes still run in the order the model asked for them. A
+        call with invalid arguments is retried instead, so it holds nothing.
 
         :param calls: The calls of one model response, in order.
         :return: The ids of its held calls.
@@ -504,6 +505,8 @@ class AgentResponder:
         request = self._request
         held: set[str] = set()
         for call in calls:
+            if call.tool_call_id in self._invalid_call_ids:
+                continue
             changes_data = (
                 call.tool_name in request.allowed_tool_names
                 and agent_tool_type_registry.get(call.tool_name).changes_data
@@ -523,16 +526,15 @@ class AgentResponder:
 
         if isinstance(event, PartStartEvent) and event.index == 0:
             self._response_calls = []
-            self._response_held_ids = None
+            self._invalid_call_ids = set()
         elif isinstance(event, PartEndEvent) and isinstance(event.part, ToolCallPart):
             self._response_calls.append(event.part)
         waiting = False
         if isinstance(event, FunctionToolCallEvent):
-            # All parts are complete before call events. Decide the response once,
-            # so held writes never look running while sibling reads still execute.
-            if self._response_held_ids is None:
-                self._response_held_ids = self._held_call_ids(self._response_calls)
-            waiting = event.tool_call_id in self._response_held_ids
+            # Each call is validated before its event, and none runs before the last.
+            if event.args_valid is False:
+                self._invalid_call_ids.add(event.tool_call_id)
+            waiting = event.tool_call_id in self._held_call_ids(self._response_calls)
         self._steps.on_event(event, waiting=waiting)
         match event:
             case AgentRunResultEvent(result=result):
