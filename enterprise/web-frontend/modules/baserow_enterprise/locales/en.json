@@ -879,7 +879,7 @@
   },
   "htmlElement": {
     "source": "HTML source",
-    "sourceHelp": "Add HTML for custom content, layouts or widgets. Add JavaScript in application settings → Custom CSS/JS. Use Custom JavaScript for your own code. To load a third-party script, choose “Add an external script” and paste the URL from the script’s src attribute.",
+    "sourceHelp": "Add HTML for custom content, layouts or widgets. Add JavaScript in application settings → Custom CSS/JS. To load a third-party script, choose “Add an external script” and paste the URL from the script’s src attribute.",
     "placeholder": "Empty HTML source...",
     "previewTitle": "HTML preview"
   },
