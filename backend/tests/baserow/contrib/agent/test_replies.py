@@ -405,6 +405,7 @@ def test_workspace_identity_context_is_refreshed_for_each_reply(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("debug", [False, True])
 @pytest.mark.parametrize(
     "reason,status,error_code",
     [
@@ -413,9 +414,10 @@ def test_workspace_identity_context_is_refreshed_for_each_reply(
         (None, "failed", "failed"),
     ],
 )
-def test_unfinished_replies_persist_partial_text_without_private_error_details(
-    reply_run, data_fixture, mocker, logs, reason, status, error_code
+def test_unfinished_replies_log_error_details_only_in_debug_mode(
+    reply_run, data_fixture, mocker, logs, settings, debug, reason, status, error_code
 ):
+    settings.DEBUG = debug
     agent = AgentConversation.objects.get(id=reply_run.chat_id).agent
     table = allow_create_rows(data_fixture, agent)
     emit_text = ChatRunJournal.emit_text
@@ -456,11 +458,62 @@ def test_unfinished_replies_persist_partial_text_without_private_error_details(
     assert [(step["status"], step["facts"]) for step in steps] == [
         ("done", {"count": 1})
     ]
-    assert [log.record["message"] for log in logs] == (
-        [f"Agent reply {reply_id} could not be written (ModelHTTPError, status 429)"]
-        if reason is None
-        else []
+    if reason is None:
+        assert len(logs) == 1
+        message = logs[0].record["message"]
+        assert f"Agent reply {reply_id} failed" in message
+        assert f"run_id={reply_run.id}" in message
+        assert "provider='openai', model='test-model'" in message
+        assert "ModelHTTPError, status 429" in message
+        assert ("Private provider details" in message) is debug
+        assert "Private row value" not in str(logs[0])
+        assert logs[0].record["exception"] is None
+    else:
+        assert logs == []
+
+
+@pytest.mark.django_db
+def test_empty_groq_stream_logs_the_original_error_in_debug_mode(
+    reply_run, mocker, logs, settings
+):
+    import httpx
+    from groq import AsyncGroq
+    from pydantic_ai.models.groq import GroqModel
+    from pydantic_ai.providers.groq import GroqProvider
+
+    settings.DEBUG = True
+    model = GroqModel(
+        "openai/gpt-oss-120b",
+        provider=GroqProvider(
+            groq_client=AsyncGroq(
+                api_key="PRIVATE_KEY_CANARY",
+                http_client=httpx.AsyncClient(
+                    transport=httpx.MockTransport(
+                        lambda request: httpx.Response(
+                            200,
+                            headers={"content-type": "text/event-stream"},
+                            content=b"data: [DONE]\n\n",
+                        )
+                    )
+                ),
+            )
+        ),
     )
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(model, {}),
+    )
+
+    run_reply(reply_run)
+
+    assert reply_state(reply_run.context["reply_id"]) == ("failed", "failed", "")
+    assert len(logs) == 1
+    assert (
+        "UnexpectedModelBehavior: Streamed response ended without content or tool calls"
+        in logs[0].record["message"]
+    )
+    assert "PRIVATE_KEY_CANARY" not in str(logs[0])
+    assert logs[0].record["exception"] is None
 
 
 @pytest.mark.django_db
