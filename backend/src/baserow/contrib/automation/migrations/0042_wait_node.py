@@ -46,8 +46,4 @@ class Migration(migrations.Migration):
             name='status',
             field=models.CharField(choices=[('success', 'Success'), ('error', 'Error'), ('disabled', 'Disabled'), ('started', 'Started'), ('skipped', 'Skipped'), ('cancelled', 'Cancelled'), ('retried', 'Retried'), ('waiting', 'Waiting')], max_length=16),
         ),
-        migrations.AddIndex(
-            model_name='automationnodehistory',
-            index=models.Index(condition=models.Q(('status', 'waiting')), fields=['resume_at'], name='wa_node_hist_waiting_idx'),
-        ),
     ]
