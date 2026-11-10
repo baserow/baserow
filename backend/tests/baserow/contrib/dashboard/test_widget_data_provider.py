@@ -1125,10 +1125,10 @@ def test_public_options_formula_and_referenced_context(
 def test_option_context_formula_scope_and_import(
     api_client, filter_dashboard, context_options
 ):
-    from baserow.contrib.dashboard.formula_importer import import_formula
-    from baserow.contrib.dashboard.widgets.options import (
+    from baserow.contrib.dashboard.data_providers import (
         dashboard_options_data_provider_registry,
     )
+    from baserow.contrib.dashboard.formula_importer import import_formula
 
     _, token, _, source, widget, _ = filter_dashboard
     url = reverse("api:dashboard:widgets:item", kwargs={"widget_id": widget.id})
@@ -1183,9 +1183,11 @@ def test_filter_status_tracks_source_conditions_and_empty_groups(
         type="equal",
         value=BaserowFormulaObject.create("Beta", mode="raw"),
     )
+    context = DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
     assert handler.dispatch_data_source(source, context) == {
         "result": "20",
         "_is_filtered": True,
     }
     stored_filter.delete()
+    context = DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
     assert handler.dispatch_data_source(source, context) == {"result": "70"}

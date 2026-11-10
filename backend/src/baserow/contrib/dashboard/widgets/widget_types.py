@@ -2,6 +2,9 @@ from typing import Any
 
 from rest_framework import serializers
 
+from baserow.contrib.dashboard.data_providers import (
+    dashboard_options_data_provider_registry,
+)
 from baserow.contrib.dashboard.data_sources.handler import DashboardDataSourceHandler
 from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
 from baserow.contrib.dashboard.types import WidgetDict
@@ -14,7 +17,6 @@ from baserow.core.services.registries import service_type_registry
 
 from .mixins import DisplayWidgetTypeMixin, FilterWidgetTypeMixin
 from .models import SummaryWidget, TextFilterWidget
-from .options import dashboard_options_data_provider_registry
 from .registries import WidgetType
 from .types import WidgetGridLayout
 

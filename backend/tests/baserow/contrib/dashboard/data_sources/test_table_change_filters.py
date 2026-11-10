@@ -154,18 +154,20 @@ def test_failed_table_change_leaves_conditions_untouched(api_client, table_chang
 
 @pytest.mark.django_db
 def test_reset_failure_rolls_back_table_and_conditions(monkeypatch, table_change):
-    from baserow.contrib.dashboard.data_sources import filter_links
+    from baserow.contrib.dashboard.widgets.mixins import DisplayWidgetTypeMixin
 
     user, _, _, source, owner, table, field = table_change
     before = deepcopy(owner.target_filters)
     original_table_id = source.service.specific.table_id
-    reset = filter_links.reset_filter_links
+    reset = DisplayWidgetTypeMixin.after_data_source_update
 
-    def fail_after_reset(data_source):
-        reset(data_source)
+    def fail_after_reset(self, instance, updated, original_table_id):
+        reset(self, instance, updated, original_table_id)
         raise RuntimeError("Reset failed")
 
-    monkeypatch.setattr(filter_links, "reset_filter_links", fail_after_reset)
+    monkeypatch.setattr(
+        DisplayWidgetTypeMixin, "after_data_source_update", fail_after_reset
+    )
     with pytest.raises(RuntimeError, match="Reset failed"):
         DashboardDataSourceService().update_data_source(
             user,
@@ -178,4 +180,36 @@ def test_reset_failure_rolls_back_table_and_conditions(monkeypatch, table_change
     owner.refresh_from_db()
     assert source.service.specific.table_id == original_table_id
     assert source.service.specific.service_filters.count() == 1
+    assert owner.target_filters == before
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_shared_source_resets_and_restores_each_display(table_change, data_fixture):
+    """Each display hook preserves its own undo links without duplicate notifications."""
+    user, _, dashboard, source, owner, table, field = table_change
+    target = data_fixture.create_summary_widget(dashboard=dashboard, data_source=source)
+    extra = deepcopy(owner.target_filters[0])
+    extra["target_widget_id"] = target.id
+    owner.target_filters.append(extra)
+    owner.save()
+    before = deepcopy(owner.target_filters)
+
+    UpdateDashboardDataSourceActionType.do(
+        user,
+        source.id,
+        source.service.get_type(),
+        {"table_id": table.id, "field_id": field.id},
+    )
+    owner.refresh_from_db()
+    assert owner.target_filters[1] == before[1]
+    for index in (0, 2):
+        assert owner.target_filters[index]["group"]["filters"] == []
+        assert "alternative_group" not in owner.target_filters[index]
+
+    actions = ActionHandler.undo(
+        user, [ApplicationActionScopeType.value(dashboard.id)], "table-change"
+    )
+    assert actions and not actions[0].error
+    owner.refresh_from_db()
     assert owner.target_filters == before

@@ -187,10 +187,10 @@ def test_chart_filter_options_metadata_and_import(
     premium_data_fixture, chart_filter_dashboard
 ):
     """Chart options use grouped-field metadata and retain it after source remapping."""
-    from baserow.contrib.dashboard.formula_importer import import_formula
-    from baserow.contrib.dashboard.widgets.options import (
+    from baserow.contrib.dashboard.data_providers import (
         dashboard_options_data_provider_registry,
     )
+    from baserow.contrib.dashboard.formula_importer import import_formula
 
     user, token, dashboard, source, target, owner = chart_filter_dashboard
     service = source.service.specific

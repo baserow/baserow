@@ -263,21 +263,26 @@ class DashboardDataSourceHandler:
         if original_service.id != data_source.service.id:
             self.service_handler.delete_service(service_type, original_service)
 
-        original_filter_links, updated_filter_widgets = {}, []
-        if original_table_id != getattr(data_source.service.specific, "table_id", None):
-            from .filter_links import reset_filter_links
+        from baserow.contrib.dashboard.widgets.handler import WidgetHandler
+        from baserow.contrib.dashboard.widgets.models import Widget
 
-            original_filter_links, updated_filter_widgets = reset_filter_links(
-                data_source
-            )
-
-        return UpdatedDashboardDataSource(
+        updated = UpdatedDashboardDataSource(
             data_source,
             updated_service.original_service_values if updated_service else {},
             updated_service.new_service_values if updated_service else {},
-            original_filter_links,
-            updated_filter_widgets,
         )
+        for widget in WidgetHandler().get_widgets_for_update(
+            data_source.dashboard, base_queryset=Widget.objects_and_trash.all()
+        ):
+            widget = widget.specific
+            widget_type = widget.get_type()
+            if (
+                widget_type.is_display_widget
+                and (source := widget_type.get_data_source(widget)) is not None
+                and source.id == data_source.id
+            ):
+                widget_type.after_data_source_update(widget, updated, original_table_id)
+        return updated
 
     def delete_data_source(self, data_source: DashboardDataSource):
         """
@@ -325,7 +330,14 @@ class DashboardDataSourceHandler:
             specific_service, dispatch_context
         )
 
-        if dispatch_context.filtered_services.get(specific_service.id):
+        runtime_filter = dispatch_context.get_runtime_filter(specific_service)
+        if runtime_filter is not None and (
+            runtime_filter["filters"]
+            or (
+                getattr(specific_service, "view_id", None)
+                and specific_service.view.viewfilter_set.exists()
+            )
+        ):
             return {**service_dispatch.data, "_is_filtered": True}
         return service_dispatch.data
 

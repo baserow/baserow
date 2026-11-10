@@ -232,7 +232,8 @@ class DashboardDataSourceService:
         self, user, data_source_id, service_type, values, filter_links=None
     ):
         """Replay a saved configuration, including conditions cleared by table changes."""
-        from .filter_links import restore_filter_links
+        from baserow.contrib.dashboard.widgets.handler import WidgetHandler
+        from baserow.contrib.dashboard.widgets.models import Widget
 
         updated = self.update_data_source(user, data_source_id, service_type, **values)
         service = updated.data_source.service.specific
@@ -242,9 +243,15 @@ class DashboardDataSourceService:
                 values.get("service_filters"),
                 values.get("service_filter_groups"),
             )
-        for widget in restore_filter_links(
-            updated.data_source.dashboard, filter_links or {}
+        filter_links = filter_links or {}
+        for widget in WidgetHandler().get_widgets_for_update(
+            updated.data_source.dashboard,
+            base_queryset=Widget.objects_and_trash.filter(id__in=filter_links),
         ):
+            widget = widget.specific
+            widget.get_type().restore_data_source_filter_links(
+                widget, filter_links[str(widget.id)]
+            )
             if not widget.trashed:
                 widget_updated.send(self, user=user, widget=widget)
         return updated
