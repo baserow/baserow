@@ -3,7 +3,7 @@
     v-if="isEditMode || applicationContext.mode === 'editing'"
     class="html-element__editor"
   >
-    <div
+    <p
       v-if="builder.untrusted_content || !element.html?.trim()"
       class="html-element__placeholder"
     >
@@ -12,7 +12,7 @@
           ? $t('iframeElementForm.untrustedContent')
           : $t('htmlElement.placeholder')
       }}
-    </div>
+    </p>
     <template v-else>
       <ClientOnly>
         <HTMLElementPreview :html="element.html" />
