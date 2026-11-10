@@ -62,6 +62,7 @@ from .workflow_action import (
     is_text_formula,
     mapping_value_is_formula,
     text_or_placeholder,
+    with_parameter_formulas,
 )
 
 if TYPE_CHECKING:
@@ -740,14 +741,10 @@ def _update_link_create_formulas(
 
     from baserow.contrib.builder.elements.actions import UpdateElementActionType
 
-    params = [dict(param) for param in orm_element.page_parameters or []]
-    changed = False
-    for i, param in enumerate(params):
-        formula = formulas.get(f"page_param_{i}")
-        if formula is not None:
-            param["value"] = formula_object(formula, mode=BASEROW_FORMULA_MODE_ADVANCED)
-            changed = True
-    if changed:
+    params = with_parameter_formulas(
+        orm_element.page_parameters, el.link_page_parameters, "page_param", formulas
+    )
+    if params is not None:
         UpdateElementActionType.do(user, orm_element, {"page_parameters": params})
     _update_simple_formulas(
         el,

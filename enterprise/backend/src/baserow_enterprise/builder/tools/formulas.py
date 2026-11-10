@@ -57,6 +57,7 @@ from baserow_enterprise.tools.formula_utils import (
 )
 
 from .types import DataSourceCreate, DataSourceUpdate, ElementUpdate
+from .types.workflow_action import raise_unless_same_target, with_parameter_formulas
 
 BuilderFormulaKind = Literal["element", "data_source", "action"]
 
@@ -729,10 +730,28 @@ def current_record_of(
         context.pop_current_record_context()
 
 
+def _raise_if_retargeted(
+    source: Any, item: Any, fresh: Any, formulas: dict[str, str]
+) -> None:
+    """
+    :raises ToolInputError: When page parameter formulas are to be written, and the
+        link or action opens another page than the one the call left it on.
+    """
+
+    if not any(key.startswith("page_param_") for key in formulas):
+        return
+    expected = getattr(item, "navigate_to_page_id", None)
+    if expected is None:
+        # The call kept the page, so it's the one the item opened when it was read.
+        expected = getattr(source, "navigate_to_page_id", None)
+    raise_unless_same_target(expected, fresh)
+
+
 def _write_element_formulas(
     user: AbstractUser, element: Any, item: Any, formulas: dict[str, str]
 ) -> None:
     fresh = ElementHandler().get_element_for_update(element.id)
+    _raise_if_retargeted(element, item, fresh, formulas)
     if not isinstance(item, ElementUpdate):
         item.update_with_formulas(user, fresh, formulas)
         return
@@ -742,14 +761,13 @@ def _write_element_formulas(
         if "." not in field and hasattr(element, field)
     }
     # A link's page parameters are replaced as a whole list.
-    params = [dict(param) for param in getattr(fresh, "page_parameters", None) or []]
-    changed_params = False
-    for i, param in enumerate(params):
-        formula = formulas.get(f"page_param_{i}")
-        if formula is not None:
-            param["value"] = formula_object(formula, mode=BASEROW_FORMULA_MODE_ADVANCED)
-            changed_params = True
-    if changed_params:
+    params = with_parameter_formulas(
+        getattr(fresh, "page_parameters", None),
+        item.link_page_parameters,
+        "page_param",
+        formulas,
+    )
+    if params is not None:
         values["page_parameters"] = params
     dependent = item.get_formula_dependent_fields(element.get_type().type)
     for dependent_field, formula_field in dependent.items():
@@ -789,6 +807,7 @@ def _write_action_formulas(
     if service_id is not None:
         Service.objects.select_for_update().filter(id=service_id).first()
     fresh = BuilderWorkflowActionHandler().get_workflow_action(action.id)
+    _raise_if_retargeted(action.specific, item, fresh.specific, formulas)
     values = item.formula_values(fresh, formulas)
     if values:
         UpdateBuilderWorkflowActionActionType.do(user, fresh, **values)

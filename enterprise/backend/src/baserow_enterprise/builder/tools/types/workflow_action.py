@@ -54,6 +54,63 @@ class ParameterMapping(BaseModel):
     value: str = Field(..., description="Parameter value formula.")
 
 
+def raise_unless_same_target(expected_page_id: int | None, saved: Any) -> None:
+    """
+    :raises ToolInputError: When what an item opens changed since it was updated, so
+        the parameter formulas given for one page aren't written to another.
+    """
+
+    if getattr(saved, "navigate_to_page_id", None) != expected_page_id:
+        raise ToolInputError(
+            "It now opens another page, changed since this call updated it, so its "
+            "parameter values weren't written. Read it again and give them for the "
+            "page it opens."
+        )
+
+
+def with_parameter_formulas(
+    saved: list[dict] | None,
+    asked: list["ParameterMapping"] | None,
+    prefix: str,
+    formulas: dict[str, str],
+) -> list[dict] | None:
+    """
+    The saved parameters with the formulas written to the ones they were given for.
+
+    The formulas are keyed by the position of a parameter in the call, and the saved
+    list can have changed order since, so each is matched by the parameter's name.
+
+    :param saved: The parameters as saved now.
+    :param asked: The parameters the call gave, in its order.
+    :param prefix: The start of their formula keys, like "page_param".
+    :param formulas: The formulas to write, by key.
+    :return: The whole list to save, or None when there is nothing to write.
+    :raises ToolInputError: When a parameter a formula is for is no longer saved.
+    """
+
+    by_name = {
+        param.name: formulas[f"{prefix}_{i}"]
+        for i, param in enumerate(asked or [])
+        if f"{prefix}_{i}" in formulas
+    }
+    if not by_name:
+        return None
+    params = [dict(param) for param in saved or []]
+    missing = set(by_name) - {param.get("name") for param in params}
+    if missing:
+        raise ToolInputError(
+            f"Parameter {', '.join(sorted(missing))} is no longer set, changed since "
+            "this call updated it, so its value wasn't written. Read it again and give "
+            "the parameters it has now."
+        )
+    for param in params:
+        if param.get("name") in by_name:
+            param["value"] = formula_object(
+                by_name[param["name"]], mode=BASEROW_FORMULA_MODE_ADVANCED
+            )
+    return params
+
+
 class FieldValueMapping(BaseModel):
     """Field-value mapping for row create/update actions."""
 
@@ -458,14 +515,10 @@ def _open_page_formula_values(
         ("page_parameters", "page_param"),
         ("query_parameters", "query_param"),
     ):
-        params = [dict(param) for param in getattr(specific, field) or []]
-        changed = False
-        for i, param in enumerate(params):
-            formula = formulas.get(f"{prefix}_{i}")
-            if formula is not None:
-                param["value"] = _advanced(formula)
-                changed = True
-        if changed:
+        params = with_parameter_formulas(
+            getattr(specific, field), getattr(action, field), prefix, formulas
+        )
+        if params is not None:
             values[field] = params
     return values
 
