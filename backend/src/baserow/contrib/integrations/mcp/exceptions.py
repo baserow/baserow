@@ -22,3 +22,7 @@ class MCPOAuthFailed(Exception):
 
 class MCPOAuthStateInvalid(Exception):
     """The OAuth callback doesn't match an authorization Baserow started."""
+
+
+class MCPServerDoesNotUseOAuth(Exception):
+    """A sign-in was started for a server that doesn't use OAuth."""

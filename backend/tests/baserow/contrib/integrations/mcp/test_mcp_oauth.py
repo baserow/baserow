@@ -650,3 +650,18 @@ def test_an_editors_client_uses_basic_auth_unless_the_server_lacks_it(
     )
 
     assert oauth.manual_client_auth_method(server, secret) == expected
+
+
+@pytest.mark.django_db
+def test_starting_a_sign_in_for_a_server_without_oauth_says_so(
+    data_fixture, api_client
+):
+    user, token = data_fixture.create_user_and_token()
+    integration = data_fixture.create_mcp_server_integration(
+        user=user, auth_type="header"
+    )
+
+    response = start(api_client, token, integration)
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_MCP_SERVER_DOES_NOT_USE_OAUTH"

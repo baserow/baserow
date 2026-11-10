@@ -15,6 +15,7 @@ from .. import oauth
 from ..exceptions import (
     MCPOAuthFailed,
     MCPOAuthStateInvalid,
+    MCPServerDoesNotUseOAuth,
     MCPServerNotConnected,
     MCPServerRefusedCredential,
     MCPServerUnreachable,
@@ -23,6 +24,7 @@ from ..service import MCPServerService
 from .errors import (
     ERROR_MCP_OAUTH_FAILED,
     ERROR_MCP_OAUTH_STATE_INVALID,
+    ERROR_MCP_SERVER_DOES_NOT_USE_OAUTH,
     ERROR_MCP_SERVER_NOT_CONNECTED,
     ERROR_MCP_SERVER_REFUSED_CREDENTIAL,
     ERROR_MCP_SERVER_UNREACHABLE,
@@ -47,6 +49,7 @@ EXCEPTIONS = {
     MCPServerNotConnected: ERROR_MCP_SERVER_NOT_CONNECTED,
     MCPOAuthFailed: ERROR_MCP_OAUTH_FAILED,
     MCPOAuthStateInvalid: ERROR_MCP_OAUTH_STATE_INVALID,
+    MCPServerDoesNotUseOAuth: ERROR_MCP_SERVER_DOES_NOT_USE_OAUTH,
 }
 
 
@@ -123,7 +126,9 @@ class MCPServerOAuthStartView(APIView):
         request=None,
         responses={
             200: MCPServerOAuthStartSerializer,
-            400: get_error_schema(["ERROR_MCP_OAUTH_FAILED"]),
+            400: get_error_schema(
+                ["ERROR_MCP_OAUTH_FAILED", "ERROR_MCP_SERVER_DOES_NOT_USE_OAUTH"]
+            ),
             404: get_error_schema(["ERROR_INTEGRATION_DOES_NOT_EXIST"]),
         },
     )

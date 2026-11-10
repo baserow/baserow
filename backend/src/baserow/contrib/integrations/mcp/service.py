@@ -6,7 +6,7 @@ from baserow.core.integrations.exceptions import IntegrationDoesNotExist
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.operations import UpdateIntegrationOperationType
 
-from .exceptions import MCPOAuthFailed
+from .exceptions import MCPOAuthFailed, MCPServerDoesNotUseOAuth
 from .handler import MCPServerHandler, MCPToolSettings
 from .models import MCPAuthType, MCPServerIntegration
 
@@ -79,13 +79,15 @@ class MCPServerService:
         """
         Start connecting an account to a server that uses OAuth.
 
+        :raises MCPServerDoesNotUseOAuth: When the server isn't set to use
+            OAuth.
         :raises MCPOAuthFailed: When the server doesn't support OAuth sign-in.
         :return: Where to send the editor to sign in.
         """
 
         integration = self.get_server_for_update(user, integration_id)
         if integration.auth_type != MCPAuthType.OAUTH:
-            raise IntegrationDoesNotExist()
+            raise MCPServerDoesNotUseOAuth()
         return MCPServerHandler().start_oauth(integration, user)
 
     def complete_oauth(

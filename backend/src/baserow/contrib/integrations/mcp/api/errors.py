@@ -20,3 +20,8 @@ ERROR_MCP_OAUTH_STATE_INVALID = (
     400,
     "This sign-in expired or was started by someone else. Try connecting again.",
 )
+ERROR_MCP_SERVER_DOES_NOT_USE_OAUTH = (
+    "ERROR_MCP_SERVER_DOES_NOT_USE_OAUTH",
+    400,
+    "The MCP server doesn't use OAuth sign-in.",
+)
