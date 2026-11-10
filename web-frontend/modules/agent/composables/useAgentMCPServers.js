@@ -34,8 +34,12 @@ export function openSignInPopup() {
 /**
  * The MCP servers an Agent may call tools of. Each is an integration of the
  * Agent; its tools are listed by the server and turned on by an editor.
+ *
+ * @param {Ref<Object>} agent The Agent.
+ * @param {Function} onChange Called after a server is stored or removed: which
+ *   tools a reply offers may have changed.
  */
-export function useAgentMCPServers(agent) {
+export function useAgentMCPServers(agent, onChange = () => {}) {
   const { $client } = useNuxtApp()
   const integrations = IntegrationService($client)
   const mcp = MCPServerService($client)
@@ -52,6 +56,7 @@ export function useAgentMCPServers(agent) {
     const index = servers.value.findIndex(({ id }) => id === server.id)
     if (index === -1) servers.value = [...servers.value, server]
     else servers.value = servers.value.with(index, server)
+    onChange()
     return server
   }
 
@@ -86,6 +91,7 @@ export function useAgentMCPServers(agent) {
   async function remove(server) {
     await integrations.delete(server.id)
     servers.value = servers.value.filter(({ id }) => id !== server.id)
+    onChange()
   }
 
   async function reloadServer(server) {

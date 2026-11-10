@@ -105,6 +105,8 @@ import AgentMCPToolsModal from '@baserow/modules/agent/components/configuration/
 /** Lists the MCP servers an Agent may use, and adds, edits and reviews them. */
 defineOptions({ inheritAttrs: false })
 defineProps({ editable: Boolean })
+// The web search setting depends on whether a reply offers any tools.
+const emit = defineEmits(['reload'])
 const { t } = useI18n()
 const store = useStore()
 const agent = inject('agentApplication')
@@ -123,7 +125,7 @@ const {
   updateTools,
   connect,
   disconnect,
-} = useAgentMCPServers(agent)
+} = useAgentMCPServers(agent, () => emit('reload'))
 
 onMounted(load)
 

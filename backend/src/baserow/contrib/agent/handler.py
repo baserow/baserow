@@ -12,6 +12,7 @@ from pydantic_ai import WebSearchTool
 from baserow.contrib.integrations.mcp.exceptions import MCPServerNotConnected
 from baserow.contrib.integrations.mcp.handler import MCPServerHandler
 from baserow.contrib.integrations.mcp.models import (
+    MCPAuthType,
     MCPServerIntegration,
     MCPServerTool,
 )
@@ -114,7 +115,9 @@ class AgentHandler:
             agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
         )
         allowed_tools = self.get_allowed_tool_names(agent)
-        with_tools = run_as.status == AgentRunAsState.ACTIVE and bool(allowed_tools)
+        with_tools = (
+            run_as.status == AgentRunAsState.ACTIVE and bool(allowed_tools)
+        ) or self.has_mcp_tools(agent)
         web_search_tool = self._get_web_search_tool(agent, with_tools)
         return AgentConfiguration(
             readiness=readiness,
@@ -172,7 +175,8 @@ class AgentHandler:
         Find the web search of the Agent's model, whether or not it's turned on.
 
         :param agent: The Agent.
-        :param with_function_tools: Whether the reply also offers workspace tools.
+        :param with_function_tools: Whether the reply also offers workspace or MCP
+            tools.
         :return: The tool, or None when the model can't search the web.
         """
 
@@ -795,8 +799,11 @@ class AgentHandler:
         allowed_tool_names = (
             self.get_allowed_tool_names(agent) if acting_subject else []
         )
+        mcp_servers = self.get_mcp_servers(agent)
         web_search_tool = (
-            self._get_web_search_tool(agent, bool(allowed_tool_names))
+            self._get_web_search_tool(
+                agent, bool(allowed_tool_names) or bool(mcp_servers)
+            )
             if agent.web_search_enabled
             else None
         )
@@ -813,10 +820,34 @@ class AgentHandler:
             acting_subject=acting_subject,
             allowed_tool_names=allowed_tool_names,
             timezone=conversation.owner_user.profile.timezone,
-            mcp_servers=self.get_mcp_servers(agent),
+            mcp_servers=mcp_servers,
             reasoning_effort=agent.reasoning_effort,
             web_search_tool=web_search_tool,
             web_search_enabled=agent.web_search_enabled,
+        )
+
+    def has_mcp_tools(self, agent: AgentApplication) -> bool:
+        """
+        Whether a reply may offer MCP tools: one of the Agent's servers has a
+        tool turned on and, if it uses OAuth, an account connected. Unlike
+        `get_mcp_servers` it doesn't refresh a token, so it suits reads.
+
+        :param agent: The Agent.
+        :return: True when a server offers a tool.
+        """
+
+        return (
+            MCPServerTool.objects.filter(
+                integration__application_id=agent.id,
+                integration__trashed=False,
+                enabled=True,
+                removed=False,
+            )
+            .exclude(
+                integration__auth_type=MCPAuthType.OAUTH,
+                integration__oauth_connected_at__isnull=True,
+            )
+            .exists()
         )
 
     def get_mcp_servers(self, agent: AgentApplication) -> tuple[MCPServerSnapshot, ...]:
