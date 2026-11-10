@@ -276,12 +276,38 @@ export default {
   methods: {
     isOwnTemplate,
     /**
-     * When the modal is opened we want to fetch all the templates and their
-     * categories, so that the user can browse them. The details of the template
-     * with the provided id or slug, or else of the default template, are opened
-     * right away.
+     * Opens the modal on the details of the template with the provided id or
+     * slug, or else of the default template.
      */
     async show(templateId = null, ...args) {
+      if (!(await this.openAndLoad(...args))) {
+        return
+      }
+      const template = this.categories
+        .flatMap((category) => category.templates)
+        .find((t) =>
+          templateId === null
+            ? t.is_default
+            : t.id === templateId || t.slug === templateId
+        )
+      if (template) {
+        this.selectTemplate(template)
+      }
+    },
+    async showShared(search) {
+      if (await this.openAndLoad()) {
+        this.sharedSearch = search
+        this.tab = 'public'
+      }
+    },
+    /**
+     * Opens the modal and fetches all the templates and their categories, so
+     * that the user can browse them.
+     *
+     * @returns {Promise<boolean>} False if they couldn't be fetched, which closes
+     *   the modal.
+     */
+    async openAndLoad(...args) {
       modal.methods.show.call(this, ...args)
 
       this.loading = true
@@ -295,31 +321,12 @@ export default {
         const { data } = await TemplateService(this.$client).fetchAll()
         this.categories = data
         this.loading = false
+        return true
       } catch (error) {
         notifyIf(error, 'templates')
         this.hide()
-        return
+        return false
       }
-
-      const template = this.categories
-        .flatMap((category) => category.templates)
-        .find((t) =>
-          templateId === null
-            ? t.is_default
-            : t.id === templateId || t.slug === templateId
-        )
-      if (template) {
-        this.selectTemplate(template)
-      }
-    },
-    async showShared(search) {
-      await this.show()
-      if (this.loading) {
-        return
-      }
-      this.selectTemplate(null)
-      this.sharedSearch = search
-      this.tab = 'public'
     },
     selectTab(tab) {
       this.tab = tab

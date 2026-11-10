@@ -553,14 +553,14 @@ class AsyncInstallTemplateView(APIView):
             "Start an async job to install the applications of the given template into "
             "the given workspace if the user has access to that workspace. The response "
             "contains those newly created applications.\n\n"
-            "A user template can be installed by its owner, unless it's blocked, "
-            "by anyone signed in while it's public, and by anyone signed in with "
-            "the token of its private link while it isn't blocked. While it's "
-            "public, everyone installs its public revision, and its owner the "
-            "latest revision with `latest`. While it isn't public, its owner and "
-            "anyone with the token of its private link install the latest "
-            "revision. The `template_id` is the id of the template, not of one of "
-            "its revisions."
+            "A user template can be installed by its owner, by the instance "
+            "admins, by anyone signed in while it's public, and by anyone signed "
+            "in with the token of its private link. Only the instance admins can "
+            "install a blocked one. While it's public, everyone installs its "
+            "public revision, and its owner the latest revision with `latest`. "
+            "While it isn't public, everyone who can install it installs the "
+            "latest revision. The `template_id` is the id of the template, not of "
+            "one of its revisions."
         ),
         request=None,
         responses={

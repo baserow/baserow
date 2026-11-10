@@ -165,6 +165,11 @@ AUTHORS = [("Zoe", "z@x.com", 3), ("Ann", "a@x.com", 1), ("Bob", "b@x.com", 2)]
             "+author",
             "cba",
         ),
+        (
+            [("zoe", "z@x.com", 1), (None, "b@x.com", 1), ("ann", "a@x.com", 1)],
+            "-author",
+            "acb",
+        ),
         ([(name, email, 1) for name, email, _ in AUTHORS], None, "cba"),
     ],
 )
@@ -172,10 +177,11 @@ def test_list_sorts(api_client, data_fixture, authors, sorts, expected):
     token = get_staff_token(data_fixture)
     names = {}
     for name, (first_name, email, day), install_count in zip("abc", authors, [5, 1, 3]):
-        user = data_fixture.create_user(first_name=first_name, email=email)
+        user = data_fixture.create_user(first_name=first_name or "", email=email)
         template = create_template(data_fixture, user, "public", name=name)
         created_on = datetime(2026, 10, day, tzinfo=timezone.utc)
         Template.objects.filter(id=template.id).update(
+            author=user if first_name is not None else None,
             created_on=created_on,
             install_count=install_count,
             submitted_on=None if name == "b" else created_on,

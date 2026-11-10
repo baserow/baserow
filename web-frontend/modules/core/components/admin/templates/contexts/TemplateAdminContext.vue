@@ -31,7 +31,7 @@ import { useRouter, useRuntimeConfig } from '#app'
 
 import { useTemplateReview } from '@baserow/modules/core/composables/useTemplateReview'
 import { useUserTemplateDownload } from '@baserow/modules/core/composables/useUserTemplateDownload'
-import { copyToClipboard } from '@baserow/modules/core/utils/clipboard'
+import { useCopyLink } from '@baserow/modules/core/composables/useCopyLink'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 const TEMPLATE_ADMIN_MENU_ITEMS = {
@@ -75,6 +75,7 @@ const router = useRouter()
 const config = useRuntimeConfig()
 const { decide } = useTemplateReview()
 const { isDownloading, download } = useUserTemplateDownload()
+const { copyLink } = useCopyLink()
 
 const contextRef = ref(null)
 let copied = null
@@ -95,16 +96,16 @@ const ACTIONS = {
     emit('view', props.template)
   },
   copyLink() {
-    copyToClipboard(
+    return copyLink(
       new URL(
         router.resolve({
           name: 'template',
           params: { slug: props.template.slug },
         }).href,
         config.public.publicWebFrontendUrl
-      ).toString()
+      ).toString(),
+      copied
     )
-    copied?.show()
   },
   async download() {
     const template = props.template

@@ -1414,7 +1414,7 @@ class UserTemplateHandler:
         """
         Raises if the user may not install the template: TemplateDoesNotExist
         without access, or when asking for the `latest` revision without owning
-        it, before TemplateBlocked for a blocked owner.
+        it, before TemplateBlocked for a blocked owner who isn't an instance admin.
 
         :return: Why the user may install the template.
         """
@@ -1422,7 +1422,11 @@ class UserTemplateHandler:
         access = self._get_install_access(user, root, private_link_token)
         if access is None or (latest and access != InstallAccess.OWNER):
             raise TemplateDoesNotExist(f"The template {root.id} does not exist.")
-        if access == InstallAccess.OWNER and root.blocked_at is not None:
+        if (
+            access == InstallAccess.OWNER
+            and root.blocked_at is not None
+            and not user.is_staff
+        ):
             raise TemplateBlocked(f"The template {root.id} is blocked.")
         return access
 
@@ -1447,7 +1451,8 @@ class UserTemplateHandler:
             the template through, if any.
         :raises TemplateDoesNotExist: If the user has no access to the template,
             or asks for the latest revision without owning it.
-        :raises TemplateBlocked: If the user owns the template and it's blocked.
+        :raises TemplateBlocked: If the user owns the template and it's blocked,
+            unless they're an instance admin.
         :raises TemplateHasNoContent: If the revision has no application to copy.
         :return: The revision to install, with its root selected.
         """
@@ -1504,9 +1509,10 @@ class UserTemplateHandler:
         :raises TemplateDoesNotExist: If there is no user template with the slug,
             the user may not download it, or its owner or an instance admin asks
             for a revision of another template.
-        :raises TemplateBlocked: If the user owns the template and it's blocked.
-        :raises TemplateUpdated: If the user doesn't own the template and the
-            revision isn't the one install picks anymore.
+        :raises TemplateBlocked: If the user owns the template and it's blocked,
+            unless they're an instance admin.
+        :raises TemplateUpdated: If the user neither owns the template nor is an
+            instance admin, and the revision isn't the one install picks anymore.
         :raises TemplateHasNoContent: If the revision has no application to copy.
         :return: The revision, with its root selected.
         """
@@ -1557,7 +1563,8 @@ class UserTemplateHandler:
         :param revision: The pinned revision, with its root selected.
         :raises TemplateDoesNotExist: If the user lost access to the template, or
             it's marked for deletion.
-        :raises TemplateBlocked: If the user owns the template and it's blocked.
+        :raises TemplateBlocked: If the user owns the template and it's blocked,
+            unless they're an instance admin.
         """
 
         root = revision.get_root()

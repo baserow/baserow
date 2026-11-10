@@ -1,45 +1,45 @@
 import TemplatesAdminService from '@baserow/modules/core/services/admin/templates'
 
+// The request in flight per store, kept out of the state so that it never enters
+// the serialized payload.
+const pendingRequests = new WeakMap()
+
 export const state = () => ({
   counts: null,
-  pending: null,
 })
 
 export const mutations = {
   SET_COUNTS(state, counts) {
     state.counts = counts
   },
-  SET_PENDING(state, pending) {
-    state.pending = pending
-  },
   RESET(state) {
     state.counts = null
-    state.pending = null
   },
 }
 
 export const actions = {
-  fetchCounts({ state, commit }, { force = false } = {}) {
-    if (state.pending && !force) {
-      return state.pending
+  fetchCounts({ commit }, { force = false } = {}) {
+    const pending = pendingRequests.get(this)
+    if (pending && !force) {
+      return pending
     }
     const request = TemplatesAdminService(this.$client)
       .counts()
       .then(({ data }) => {
-        if (state.pending === request) {
+        if (pendingRequests.get(this) === request) {
           commit('SET_COUNTS', data)
         }
       })
       .finally(() => {
-        if (state.pending === request) {
-          commit('SET_PENDING', null)
+        if (pendingRequests.get(this) === request) {
+          pendingRequests.delete(this)
         }
       })
-    commit('SET_PENDING', request)
+    pendingRequests.set(this, request)
     return request
   },
   async ensureCounts({ state, dispatch }) {
-    if (state.counts !== null || state.pending) {
+    if (state.counts !== null || pendingRequests.has(this)) {
       return
     }
     try {
@@ -49,6 +49,7 @@ export const actions = {
     }
   },
   reset({ commit }) {
+    pendingRequests.delete(this)
     commit('RESET')
   },
 }

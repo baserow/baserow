@@ -171,3 +171,31 @@ def test_actor_gets_what_it_is_shown(
     assert browser.filter_by_root(id=root.id).exists() is listed
     shared = revision_states == ["shared"]
     assert starts == [shared or not gets.endswith(":-")] * len(jobs)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "revision_states,gets",
+    user_template_plan_rows(
+        "3",
+        [
+            (["blocked"], "0:0:0"),
+            (["public_blocked"], "0:0:0"),
+            (["blocked", "in_review"], "01:1:1"),
+            (["public", "private"], "01:1:1"),
+        ],
+    ),
+)
+def test_staff_owner_gets_what_owner_and_admin_get(
+    api_client, data_fixture, revision_states, gets
+):
+    owner, token = data_fixture.create_user_and_token(is_staff=True)
+    data_fixture.create_workspace(user=owner)
+    root = create_template(data_fixture, owner)
+    data_fixture.set_user_template_revision_states(root, revision_states)
+    revisions = revision_ids(root)
+    for revision in Template.objects.filter(root=root):
+        data_fixture.create_database_application(workspace=revision.workspace)
+    root = Template.objects.get(id=root.id)
+
+    assert what_the_actor_gets(api_client, owner, token, root, revisions) == gets

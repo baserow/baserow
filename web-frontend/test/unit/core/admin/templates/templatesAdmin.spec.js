@@ -627,6 +627,44 @@ describe('TemplatesAdminTable', () => {
     }
   })
 
+  test('shows copied once the link is copied', async () => {
+    vi.stubGlobal('navigator', {
+      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+    })
+    try {
+      const wrapper = await mountTable([row('public', true)])
+
+      await openMenu(wrapper)
+      await clickMenuItem('templateInstall.copyLink')
+      await flushPromises()
+
+      expect(document.body.querySelector('.copied--show')).not.toBe(null)
+      expect(testApp.store.state.toast.items).toEqual([])
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  test('shows an error instead of copied when the link cannot be copied', async () => {
+    vi.stubGlobal('navigator', {
+      clipboard: { writeText: vi.fn().mockRejectedValue(new Error('denied')) },
+    })
+    try {
+      const wrapper = await mountTable([row('public', true)])
+
+      await openMenu(wrapper)
+      await clickMenuItem('templateInstall.copyLink')
+
+      expect(testApp.store.state.toast.items[0]).toMatchObject({
+        type: 'error',
+        title: 'copied.linkFailed',
+      })
+      expect(document.body.querySelector('.copied--show')).toBe(null)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   test('shows a published template among the shared templates, searched by its name', async () => {
     testApp.mock
       .onGet('/templates/')
@@ -804,6 +842,30 @@ describe('TemplatesAdminTable', () => {
     await dispatch('auth/clearAllStoreUserData')
 
     expect(getters['templatesAdmin/counts']).toBe(null)
+  })
+
+  test('drops the counts request in flight when the user data is cleared', async () => {
+    const replies = []
+    testApp.mock
+      .onGet('/admin/templates/counts/')
+      .reply(() => new Promise((resolve) => replies.push(resolve)))
+    const { dispatch, getters } = testApp.store
+
+    const before = dispatch('templatesAdmin/fetchCounts')
+    await flushPromises()
+    await dispatch('auth/clearAllStoreUserData')
+    replies[0]([200, { in_review: 5, public: 0, rejected: 0 }])
+    await before
+
+    expect(getters['templatesAdmin/counts']).toBe(null)
+
+    const after = dispatch('templatesAdmin/ensureCounts')
+    await flushPromises()
+
+    expect(replies).toHaveLength(2)
+    replies[1]([200, { in_review: 2, public: 0, rejected: 0 }])
+    await after
+    expect(getters['templatesAdmin/inReviewCount']).toBe(2)
   })
 
   test('searches on the server without fetching the counts', async () => {

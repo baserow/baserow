@@ -1,7 +1,7 @@
 from typing import Any, Dict, Optional
 
 from django.db import transaction
-from django.db.models import F, QuerySet
+from django.db.models import F, OrderBy, QuerySet
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -115,6 +115,7 @@ class AdminUserTemplatesView(AdminListingView):
         "used": "template_install_count",
         "submitted": "submitted_on",
     }
+    sort_tie_breakers = ("-id",)
 
     def get_queryset(self, request: Request) -> QuerySet[Template]:
         """
@@ -130,6 +131,15 @@ class AdminUserTemplatesView(AdminListingView):
             .prefetch_related("categories")
         )
 
+    def get_sort_expression(self, attribute: str, descending: bool) -> OrderBy:
+        """
+        Orders the rows without a value, like the ones never submitted, last in
+        both directions.
+        """
+
+        field = F(attribute)
+        return field.desc(nulls_last=True) if descending else field.asc(nulls_last=True)
+
     def apply_sorts_or_default_sort(
         self, sorts: Optional[str], queryset: QuerySet[Template]
     ) -> QuerySet[Template]:
@@ -141,15 +151,7 @@ class AdminUserTemplatesView(AdminListingView):
         :return: The rows, by the sorts or by last update.
         """
 
-        queryset = super().apply_sorts_or_default_sort(sorts or "-updated_on", queryset)
-        order_by = []
-        for order in queryset.query.order_by:
-            if order == "submitted_on":
-                order = F("submitted_on").asc(nulls_last=True)
-            elif order == "-submitted_on":
-                order = F("submitted_on").desc(nulls_last=True)
-            order_by.append(order)
-        return queryset.order_by(*order_by, "-id")
+        return super().apply_sorts_or_default_sort(sorts or "-updated_on", queryset)
 
     def apply_ids_filter(
         self, ids_param: Optional[str], queryset: QuerySet[Template]

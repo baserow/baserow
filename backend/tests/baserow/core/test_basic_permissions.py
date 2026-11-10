@@ -1600,6 +1600,27 @@ def test_allow_if_template_permission_manager_allows_openable_templates(
             as_admin = OWNER if column == ADMIN else None
             checked = row[as_admin or column] and enabled
             checked_listed = row[as_admin or listed_column] and enabled
+            opener = PermissionCheck(actor, ReadWorkspaceOperationType.type).actor
+            reason = (template.name, actor, has_link)
+            assert (
+                Template.objects.openable(opener, private_link_token=token)
+                .filter(id=template.id)
+                .exists()
+            ) is (allowed and in_lists), reason
+            assert (
+                Template.objects.openable(
+                    opener, private_link_token=token, allow_instance_admin=True
+                )
+                .filter(id=template.id)
+                .exists()
+            ) is checked, reason
+            assert (
+                workspace.has_openable_template(opener, allow_instance_admin=True)
+                is checked_listed
+            ), reason
+            assert (
+                Template.objects.openable(opener).filter(id=template.id).exists()
+            ) is (listed and in_lists), reason
             for operation in manager.OPERATION_ALLOWED_ON_TEMPLATES:
                 check = PermissionCheck(actor, operation, workspace)
                 queryset = workspace.application_set.all()
@@ -1621,29 +1642,6 @@ def test_allow_if_template_permission_manager_allows_openable_templates(
                             check.actor, operation, queryset, [workspace]
                         )
                     ) is checked, reason
-                assert (
-                    Template.objects.openable(check.actor, private_link_token=token)
-                    .filter(id=template.id)
-                    .exists()
-                ) is (allowed and in_lists), reason
-                assert (
-                    Template.objects.openable(
-                        check.actor, private_link_token=token, allow_instance_admin=True
-                    )
-                    .filter(id=template.id)
-                    .exists()
-                ) is checked, reason
-                assert (
-                    workspace.has_openable_template(
-                        check.actor, allow_instance_admin=True
-                    )
-                    is checked_listed
-                ), reason
-                assert (
-                    Template.objects.openable(check.actor)
-                    .filter(id=template.id)
-                    .exists()
-                ) is (listed and in_lists), reason
 
         workspace = not_a_template[0]
         check = PermissionCheck(actor, ReadWorkspaceOperationType.type, workspace)
