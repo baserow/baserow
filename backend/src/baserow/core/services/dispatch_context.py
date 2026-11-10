@@ -17,6 +17,7 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         "only_record_id",
         "update_sample_data_for",
         "use_sample_data",
+        "keep_sample_data_on_error",
         "force_outputs",
         "event_payload",
         "actor",
@@ -52,6 +53,7 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         event_payload: Any = None,
         update_sample_data_for: Optional[List[Service]] = None,
         use_sample_data: bool = False,
+        keep_sample_data_on_error: bool = False,
         force_outputs: Dict[int, str] = None,
         actor: Optional[AbstractUser] = None,
     ):
@@ -64,6 +66,10 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         :param update_sample_data_for: Updates the sample_data for only the
             provided services. Used in conjunction with use_sample_data.
         :param use_sample_data: Whether to use or update the sample_data.
+        :param keep_sample_data_on_error: When a dispatch that updates the
+            sample_data fails, keep the sample_data it had rather than storing
+            the error in its place. For services whose schema is read from the
+            sample_data, so that one failed attempt doesn't empty the schema.
         :param force_outputs: Mapping of service IDs and previous service
             outputs. Can be used to force a specific service to be dispatched.
         :param actor: The user this dispatch acts as, for services that have no
@@ -75,6 +81,7 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         self.only_record_id = only_record_id
         self.update_sample_data_for = update_sample_data_for
         self.use_sample_data = use_sample_data
+        self.keep_sample_data_on_error = keep_sample_data_on_error
         self.force_outputs = force_outputs
         self.event_payload = event_payload
         self.actor = actor
