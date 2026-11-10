@@ -2602,7 +2602,7 @@ def test_undoing_an_unrelated_update_keeps_the_test_run_starter(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_rolled_back_publish_keeps_the_draft_dirty(data_fixture):
+def test_publishing_leaves_the_draft_dirty_flag_alone(data_fixture):
     from django.db import transaction
 
     workflow = data_fixture.create_automation_workflow()
@@ -2619,4 +2619,26 @@ def test_a_rolled_back_publish_keeps_the_draft_dirty(data_fixture):
     with transaction.atomic():
         AutomationWorkflowHandler().publish(workflow)
 
-    assert global_cache.get(dirty_key, default=False) is False
+    # Publishing doesn't make a test clone, so the draft stays dirty for it.
+    assert global_cache.get(dirty_key, default=False) is True
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_draft_edit_during_a_publication_gives_the_next_test_run_a_new_clone(
+    data_fixture,
+):
+    from django.db import transaction
+
+    workflow = data_fixture.create_automation_workflow()
+    handler = AutomationWorkflowHandler()
+    old_clone = handler._ensure_published_for_run(workflow)
+
+    with transaction.atomic():
+        handler.publish(workflow)
+        # A draft edit from another request lands after the live copy was made,
+        # before the publication commits.
+        global_cache.update(
+            WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id), lambda _: True
+        )
+
+    assert handler._ensure_published_for_run(workflow).id != old_clone.id

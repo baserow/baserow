@@ -193,7 +193,13 @@ class AutomationWorkflowHandler:
             published_workflow_state=Subquery(published_workflows.values("state")[:1]),
         )
 
-    def _invalidate_workflow_caches(self, workflow: AutomationWorkflow) -> None:
+    def _invalidate_publication_caches(self, workflow: AutomationWorkflow) -> None:
+        """
+        Forget the cached live copy and run rate limit of a workflow. The draft's
+        dirty flag is left alone: it tracks the test clone, which publishing doesn't
+        replace, and an edit made during the publication must still set it.
+        """
+
         original_workflow = workflow.get_original()
 
         global_cache.invalidate(
@@ -202,7 +208,6 @@ class AutomationWorkflowHandler:
         global_cache.invalidate(
             self._get_workflow_history_rate_limit_cache_key(original_workflow)
         )
-        global_cache.invalidate(WORKFLOW_DIRTY_CACHE_KEY.format(original_workflow.id))
 
     def get_workflows(
         self, automation: Automation, base_queryset: Optional[QuerySet] = None
@@ -823,9 +828,8 @@ class AutomationWorkflowHandler:
             workflow, WorkflowState.LIVE, progress
         )
 
-        # After the commit: a publication rolled back must keep the draft's dirty
-        # flag, or the next test run reuses a stale clone.
-        transaction.on_commit(lambda: self._invalidate_workflow_caches(workflow))
+        # After the commit, so a publication rolled back leaves the cached live copy.
+        transaction.on_commit(lambda: self._invalidate_publication_caches(workflow))
 
         published_workflow = cloned_automation.workflows.first()
         published_workflow.draft_node_ids = {
