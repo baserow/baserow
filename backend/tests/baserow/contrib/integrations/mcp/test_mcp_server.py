@@ -2,6 +2,7 @@ import asyncio
 import re
 from contextlib import asynccontextmanager
 
+from django.test import override_settings
 from django.urls import reverse
 
 import httpx
@@ -17,6 +18,7 @@ from baserow.contrib.integrations.mcp.client import (
 )
 from baserow.contrib.integrations.mcp.handler import MCPServerHandler, MCPToolSettings
 from baserow.contrib.integrations.mcp.http import (
+    ResponseTooLarge,
     UnsafeMCPAddress,
     create_mcp_http_client,
 )
@@ -459,3 +461,49 @@ def test_a_connection_never_shows_its_credential():
 
     # Error reports and logs print objects that hold the connection.
     assert "s3cr3t-value" not in repr(connection)
+
+
+class Body(httpx.AsyncByteStream):
+    """A body that arrives over the network, unlike `content=`, which httpx
+    reads up front."""
+
+    def __init__(self, data: bytes):
+        self.data = data
+
+    async def __aiter__(self):
+        for byte in self.data:
+            yield bytes([byte])
+
+
+def fetch_through_mcp_client(mocker, response: httpx.Response) -> httpx.Response:
+    async def answer(self, request):
+        return response
+
+    mocker.patch.object(httpx.AsyncHTTPTransport, "handle_async_request", answer)
+
+    async def fetch():
+        async with create_mcp_http_client() as client:
+            result = await client.get("https://mcp.example.com/mcp")
+            return result
+
+    return async_to_sync(fetch)()
+
+
+@override_settings(INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES=10)
+def test_a_response_larger_than_the_limit_isnt_read(mocker):
+    with pytest.raises(ResponseTooLarge):
+        fetch_through_mcp_client(mocker, httpx.Response(200, stream=Body(b"x" * 11)))
+
+    response = httpx.Response(200, stream=Body(b"x" * 10))
+    assert fetch_through_mcp_client(mocker, response).content == b"x" * 10
+
+
+@override_settings(INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES=10)
+def test_a_compressed_response_isnt_accepted(mocker):
+    with pytest.raises(ResponseTooLarge):
+        fetch_through_mcp_client(
+            mocker,
+            httpx.Response(
+                200, stream=Body(b"x"), headers={"Content-Encoding": "gzip"}
+            ),
+        )

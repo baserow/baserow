@@ -77,6 +77,35 @@ class _ValidatingNetworkBackend(httpcore.AsyncNetworkBackend):
         await self._backend.sleep(seconds)
 
 
+class ResponseTooLarge(httpx.ReadError):
+    """A response is larger than `INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES`."""
+
+
+class _LimitedStream(httpx.AsyncByteStream):
+    """Stops reading a response once it's larger than the limit."""
+
+    def __init__(
+        self, stream: httpx.AsyncByteStream, max_bytes: int, request: httpx.Request
+    ):
+        self._stream = stream
+        self._max_bytes = max_bytes
+        self._request = request
+
+    async def __aiter__(self) -> typing.AsyncIterator[bytes]:
+        received = 0
+        async for chunk in self._stream:
+            received += len(chunk)
+            if received > self._max_bytes:
+                raise ResponseTooLarge(
+                    f"The response is larger than {self._max_bytes} bytes.",
+                    request=self._request,
+                )
+            yield chunk
+
+    async def aclose(self) -> None:
+        await self._stream.aclose()
+
+
 class _ValidatingTransport(httpx.AsyncHTTPTransport):
     def __init__(self, allow_private: bool):
         super().__init__(trust_env=False)
@@ -90,6 +119,22 @@ class _ValidatingTransport(httpx.AsyncHTTPTransport):
             network_backend=_ValidatingNetworkBackend(allow_private),
         )
 
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        response = await super().handle_async_request(request)
+        max_bytes = settings.INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES
+        if not max_bytes:
+            return response
+        # The limit is on the bytes that arrive, so compressed answers, which
+        # could unpack into much more, aren't accepted. Every client sends
+        # `Accept-Encoding: identity`.
+        if response.headers.get("Content-Encoding", "identity") != "identity":
+            await response.aclose()
+            raise ResponseTooLarge(
+                "The server sent a compressed response.", request=request
+            )
+        response.stream = _LimitedStream(response.stream, max_bytes, request)
+        return response
+
 
 def allows_private_addresses() -> bool:
     return bool(settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS)
@@ -100,7 +145,8 @@ def create_mcp_http_client(headers: dict[str, str] | None = None) -> httpx.Async
     An HTTP client for MCP servers that never reaches private or local addresses
     unless the instance allows it, ignores proxy environment variables, and does
     not follow redirects. The MCP transport only follows redirects within the
-    server's origin.
+    server's origin. Responses are limited to
+    `INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES`, like the HTTP request integration.
 
     :param headers: Sent with every request, e.g. the server's credential.
     :return: The client, to be used as an async context manager.
@@ -108,7 +154,7 @@ def create_mcp_http_client(headers: dict[str, str] | None = None) -> httpx.Async
 
     return httpx.AsyncClient(
         transport=_ValidatingTransport(allows_private_addresses()),
-        headers=headers,
+        headers={"Accept-Encoding": "identity", **(headers or {})},
         timeout=httpx.Timeout(MCP_CONNECT_TIMEOUT, read=MCP_READ_TIMEOUT),
         follow_redirects=False,
         trust_env=False,
