@@ -12,6 +12,11 @@ from baserow.core.integrations.exceptions import IntegrationDoesNotExist
 from baserow.core.integrations.registries import integration_type_registry
 
 from .. import oauth
+from ..actions import (
+    ConnectMCPServerAccountActionType,
+    DisconnectMCPServerAccountActionType,
+    UpdateMCPServerToolsActionType,
+)
 from ..exceptions import (
     MCPOAuthFailed,
     MCPOAuthStateInvalid,
@@ -109,7 +114,9 @@ class MCPServerToolsView(APIView):
     @validate_body(MCPToolsUpdateSerializer, return_validated=True)
     def patch(self, request, integration_id: int, data: dict):
         return _respond(
-            MCPServerService().update_tools(request.user, integration_id, data["tools"])
+            UpdateMCPServerToolsActionType.do(
+                request.user, integration_id, data["tools"]
+            )
         )
 
 
@@ -153,7 +160,7 @@ class MCPServerOAuthDisconnectView(APIView):
     @map_exceptions(EXCEPTIONS)
     def post(self, request, integration_id: int):
         return _respond(
-            MCPServerService().disconnect_oauth(request.user, integration_id)
+            DisconnectMCPServerAccountActionType.do(request.user, integration_id)
         )
 
 
@@ -179,7 +186,9 @@ class MCPServerOAuthCompleteView(APIView):
     @validate_body(MCPServerOAuthCompleteSerializer)
     def post(self, request, data: dict):
         return _respond(
-            MCPServerService().complete_oauth(request.user, data["state"], data["code"])
+            ConnectMCPServerAccountActionType.do(
+                request.user, data["state"], data["code"]
+            )
         )
 
 

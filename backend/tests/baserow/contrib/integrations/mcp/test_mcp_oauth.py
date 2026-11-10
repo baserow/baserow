@@ -16,7 +16,8 @@ from baserow.contrib.integrations.mcp.exceptions import (
     MCPServerNotConnected,
 )
 from baserow.contrib.integrations.mcp.handler import MCPServerHandler
-from baserow.contrib.integrations.mcp.models import MCPServerIntegration
+from baserow.contrib.integrations.mcp.models import MCPServerIntegration, MCPServerTool
+from baserow.core.action.signals import action_done
 from baserow.core.integrations.service import IntegrationService
 
 from .utils import FakeAuthorizationServer, make_server, serve, serve_oauth
@@ -747,3 +748,46 @@ def test_a_refresh_never_sends_tokens_of_a_server_it_moved_to(
 
     with pytest.raises(MCPServerNotConnected):
         MCPServerHandler().get_connection(read)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_tool_and_account_changes_are_audited_and_sent_to_other_editors(
+    data_fixture, api_client, mocker
+):
+    fake = serve_oauth(mocker, FakeAuthorizationServer())
+    broadcast = mocker.patch(
+        "baserow.core.integrations.ws.signals.broadcast_to_permitted_users.delay"
+    )
+    audited = []
+
+    def audit(sender, action_type, action_params, **kwargs):
+        audited.append((action_type.type, action_params))
+
+    action_done.connect(audit)
+    user, token = data_fixture.create_user_and_token()
+    integration = oauth_server(data_fixture, user)
+    MCPServerTool.objects.create(integration=integration, name="search")
+
+    try:
+        sign_in(api_client, token, fake, integration)
+        api_client.patch(
+            reverse("api:mcp_server:tools", args=[integration.id]),
+            {"tools": [{"name": "search", "enabled": True}]},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        api_client.post(
+            reverse("api:mcp_server:oauth_disconnect", args=[integration.id]),
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+    finally:
+        action_done.disconnect(audit)
+
+    assert [action_type for action_type, _ in audited] == [
+        "connect_mcp_server_account",
+        "update_mcp_server_tools",
+        "disconnect_mcp_server_account",
+    ]
+    assert audited[1][1]["enabled_tools"] == ["search"]
+    sent = [call.args[4]["type"] for call in broadcast.call_args_list]
+    assert sent.count("integration_updated") == 3

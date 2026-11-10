@@ -5,6 +5,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.integrations.exceptions import IntegrationDoesNotExist
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.operations import UpdateIntegrationOperationType
+from baserow.core.integrations.signals import integration_updated
 
 from .exceptions import MCPOAuthFailed, MCPServerDoesNotUseOAuth
 from .handler import MCPServerHandler, MCPToolSettings
@@ -65,7 +66,7 @@ class MCPServerService:
             )
             if current_url == fetched_from:
                 MCPServerHandler().store_tools(integration, definitions)
-        return self._reload(integration_id)
+        return self._updated(user, integration_id)
 
     def update_tools(
         self, user: AbstractUser, integration_id: int, tools: list[dict]
@@ -85,7 +86,7 @@ class MCPServerService:
             MCPServerHandler().update_tools(
                 integration, [MCPToolSettings(**tool) for tool in tools]
             )
-        return self._reload(integration_id)
+            return self._updated(user, integration_id)
 
     def start_oauth(self, user: AbstractUser, integration_id: int) -> str:
         """
@@ -126,7 +127,7 @@ class MCPServerService:
             raise MCPOAuthFailed("The sign-in was cancelled or refused.")
         integration = self.get_server_for_update(user, pending.integration_id)
         MCPServerHandler().complete_oauth(integration, user, pending, code)
-        return self._reload(integration.id)
+        return self._updated(user, integration.id)
 
     def disconnect_oauth(
         self, user: AbstractUser, integration_id: int
@@ -142,9 +143,18 @@ class MCPServerService:
         with transaction.atomic():
             integration = self.get_server_for_update(user, integration_id)
             MCPServerHandler().disconnect_oauth(integration)
-        return self._reload(integration_id)
+            return self._updated(user, integration_id)
 
-    def _reload(self, integration_id: int) -> MCPServerIntegration:
-        """Read the server again, so its prefetched tools are the stored ones."""
+    def _updated(self, user: AbstractUser, integration_id: int) -> MCPServerIntegration:
+        """
+        Read the server again, so its prefetched tools are the stored ones, and
+        tell other editors it changed.
 
-        return IntegrationHandler().get_integration(integration_id).specific
+        :param user: Who changed it.
+        :param integration_id: The integration.
+        :return: The server.
+        """
+
+        integration = IntegrationHandler().get_integration(integration_id).specific
+        integration_updated.send(self, integration=integration, user=user)
+        return integration
