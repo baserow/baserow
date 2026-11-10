@@ -10,6 +10,7 @@ Run the unit test suite (no LLM needed):
 just b test -n auto \
   ../enterprise/backend/tests/baserow_enterprise_tests/assistant/ \
   ../enterprise/backend/tests/baserow_enterprise_tests/builder/tools/ \
+  tests/baserow/contrib/builder/tools/ \
   tests/baserow/core/tools/ \
   tests/baserow/contrib/database/tools/ \
   tests/baserow/contrib/automation/tools/ \

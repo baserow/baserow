@@ -15,6 +15,19 @@ from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.models import Page
+from baserow.contrib.builder.tools import (
+    BuilderWriteOptions,
+    helpers,
+    pages,
+    themes,
+)
+from baserow.contrib.builder.tools.types import (
+    ActionCreate,
+    DataSourceCreate,
+    ElementItemCreate,
+    PageCreate,
+    TableFieldConfig,
+)
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.table.models import Table
@@ -23,22 +36,8 @@ from baserow.core.integrations.models import Integration
 from baserow.core.tools.errors import PERMISSION_DENIED_MESSAGE, ToolInputError
 from baserow.core.user_sources.models import UserSource
 from baserow_enterprise.assistant.tools.builder import tools as kuma_tools
-from baserow_enterprise.builder.elements.element_types import AuthFormElementType
 from baserow_enterprise.builder.elements.models import AuthFormElement
-from baserow_enterprise.builder.tools import (
-    BuilderWriteOptions,
-    helpers,
-    pages,
-    themes,
-    user_sources,
-)
-from baserow_enterprise.builder.tools.types import (
-    ActionCreate,
-    DataSourceCreate,
-    ElementItemCreate,
-    PageCreate,
-    TableFieldConfig,
-)
+from baserow_enterprise.builder.tools import login, user_sources
 from baserow_enterprise.builder.tools.types.user_source import UserSourceSetup
 from baserow_enterprise.integrations.local_baserow.models import LocalBaserowUserSource
 
@@ -511,7 +510,9 @@ def test_enterprise_only_types_behave_as_the_rest_api_does(
 def test_a_refused_auth_form_gets_the_message_of_the_rest_api(
     api_client, data_fixture, builder_ctx, monkeypatch, users_table
 ):
-    monkeypatch.setattr(AuthFormElementType, "is_deactivated", lambda self, ws: True)
+    monkeypatch.setattr(
+        element_type_registry.get("auth_form"), "is_deactivated", lambda ws: True
+    )
 
     _user_source, rest_form = _rest_results(
         api_client, data_fixture, builder_ctx, users_table
@@ -730,7 +731,7 @@ def test_setup_user_source_writes_nothing_when_the_login_page_fails(
     def fail(*args, **kwargs):
         raise ToolInputError("No login page.")
 
-    monkeypatch.setattr(helpers, "create_login_page", fail)
+    monkeypatch.setattr(login, "create_login_page", fail)
     fields = Field.objects.filter(table=users_table).count()
     tables = Table.objects.count()
     setup = (

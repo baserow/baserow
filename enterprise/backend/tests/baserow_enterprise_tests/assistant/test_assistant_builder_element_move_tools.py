@@ -9,16 +9,16 @@ from pydantic import ValidationError
 
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import Element
+from baserow.contrib.builder.tools import helpers
+from baserow.contrib.builder.tools.types import (
+    DisplayElementCreate,
+    ElementMove,
+    LayoutElementCreate,
+)
 from baserow_enterprise.assistant.tools.builder.tools import (
     create_display_elements,
     create_layout_elements,
     move_elements,
-)
-from baserow_enterprise.builder.tools import helpers
-from baserow_enterprise.builder.tools.types import (
-    DisplayElementCreate,
-    ElementMove,
-    LayoutElementCreate,
 )
 
 from .utils import create_fake_tool_helpers, make_test_ctx
@@ -138,8 +138,8 @@ def test_move_element_to_end_keeps_the_request_cache(data_fixture):
 def test_move_after_a_failed_move_reads_the_saved_graph(data_fixture, monkeypatch):
     from django.test import override_settings
 
+    from baserow.contrib.builder.tools import helpers
     from baserow.core.cache import local_cache
-    from baserow_enterprise.builder.tools import helpers
 
     ctx, page, ref_to_id_map = _create_two_headings(data_fixture)
     move_element = helpers.move_element

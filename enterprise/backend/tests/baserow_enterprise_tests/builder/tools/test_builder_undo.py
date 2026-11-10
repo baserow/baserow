@@ -16,6 +16,15 @@ from baserow.contrib.builder.action_scopes import (
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.pages.models import Page
+from baserow.contrib.builder.tools import helpers
+from baserow.contrib.builder.tools.types import (
+    ActionCreate,
+    DataSourceCreate,
+    DataSourceUpdate,
+    PageCreate,
+    PageUpdate,
+)
+from baserow.contrib.builder.tools.types.workflow_action import FieldValueMapping
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.models import Action
@@ -31,15 +40,7 @@ from baserow_enterprise.assistant.tools.builder.tools import (
 )
 from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.builder.elements.models import AuthFormElement
-from baserow_enterprise.builder.tools import helpers
-from baserow_enterprise.builder.tools.types import (
-    ActionCreate,
-    DataSourceCreate,
-    DataSourceUpdate,
-    PageCreate,
-    PageUpdate,
-)
-from baserow_enterprise.builder.tools.types.workflow_action import FieldValueMapping
+from baserow_enterprise.builder.tools import login
 from baserow_enterprise_tests.assistant.utils import make_test_ctx
 
 
@@ -314,7 +315,7 @@ def test_create_user_source_is_undoable(data_fixture, site):
         "password": data_fixture.create_password_field(table=table, name="Password"),
     }
 
-    user_source = helpers.create_user_source(
+    user_source = login.create_user_source(
         site["user"], site["builder"], "Members", table, field_map, site["integration"]
     )
     assert UserSource.objects.filter(id=user_source.id).exists()
@@ -335,11 +336,11 @@ def test_undo_of_create_login_page_removes_the_form_and_keeps_the_page(
         "email": data_fixture.create_email_field(table=table, name="Email"),
         "password": data_fixture.create_password_field(table=table, name="Password"),
     }
-    user_source = helpers.create_user_source(
+    user_source = login.create_user_source(
         site["user"], site["builder"], "Members", table, field_map, site["integration"]
     )
 
-    page = helpers.create_login_page(site["user"], site["builder"], user_source.id)
+    page = login.create_login_page(site["user"], site["builder"], user_source.id)
     assert page.path == "/login"
     assert site["builder"].login_page_id == page.id
     assert Element.objects.filter(page=page).count() == 1
@@ -355,7 +356,7 @@ def test_undo_of_create_login_page_removes_the_form_and_keeps_the_page(
 
 @pytest.mark.django_db
 def test_create_builder_records_its_integration_outside_the_undo_stack(site):
-    from baserow_enterprise.builder.tools import applications
+    from baserow.contrib.builder.tools import applications
 
     result = applications.create_builder(
         ToolContext(user=site["user"], workspace=site["workspace"]), "Shop"

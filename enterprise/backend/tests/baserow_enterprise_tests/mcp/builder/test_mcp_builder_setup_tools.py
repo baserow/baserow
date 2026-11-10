@@ -6,8 +6,11 @@ import pytest
 
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.user_sources.models import UserSource
-
-from .test_mcp_builder_read_tools import READ_TOOLS, _endpoint, _session
+from tests.baserow.contrib.builder.mcp.test_mcp_builder_read_tools import (
+    READ_TOOLS,
+    _endpoint,
+    _session,
+)
 
 WRITE_TOOLS = [
     "create_element_actions",

@@ -8,14 +8,7 @@ import pytest
 from baserow.contrib.builder.elements.models import MenuElement
 from baserow.contrib.builder.elements.operations import UpdateElementOperationType
 from baserow.contrib.builder.pages.models import Page
-from baserow.core.exceptions import PermissionDenied
-from baserow.test_utils.fixtures import Fixtures
-from baserow_enterprise.assistant.tools.builder.tools import (
-    create_layout_elements,
-    update_element,
-)
-from baserow_enterprise.assistant.tools.shared import ToolInputError
-from baserow_enterprise.builder.tools.element_tool_types import (
+from baserow.contrib.builder.tools.element_tool_types import (
     ButtonElementToolType,
     ColumnElementToolType,
     FooterElementToolType,
@@ -24,21 +17,28 @@ from baserow_enterprise.builder.tools.element_tool_types import (
     MenuElementToolType,
     TableElementToolType,
 )
-from baserow_enterprise.builder.tools.registries import (
+from baserow.contrib.builder.tools.registries import (
     ElementToolType,
     PreparedElementUpdate,
     element_tool_type_registry,
 )
-from baserow_enterprise.builder.tools.types import (
+from baserow.contrib.builder.tools.types import (
     ElementUpdate,
     LayoutElementCreate,
     MenuItemAdd,
     MenuItemCreate,
 )
-from baserow_enterprise.builder.tools.types.element import (
+from baserow.contrib.builder.tools.types.element import (
     BUTTON_NAVIGATION_GUIDANCE,
     MENU_ITEM_PROPERTIES,
 )
+from baserow.core.exceptions import PermissionDenied
+from baserow.test_utils.fixtures import Fixtures
+from baserow_enterprise.assistant.tools.builder.tools import (
+    create_layout_elements,
+    update_element,
+)
+from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 

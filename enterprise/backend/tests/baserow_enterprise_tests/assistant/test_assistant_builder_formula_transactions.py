@@ -13,6 +13,17 @@ import pytest
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.actions import UpdateElementActionType
 from baserow.contrib.builder.elements.models import Element
+from baserow.contrib.builder.tools.types import (
+    ActionCreate,
+    DataSourceCreate,
+    DataSourceUpdate,
+    DisplayElementCreate,
+    ElementUpdate,
+)
+from baserow.contrib.builder.tools.types.workflow_action import (
+    FieldValueMapping,
+    ParameterMapping,
+)
 from baserow.contrib.builder.workflow_actions.actions import (
     UpdateBuilderWorkflowActionActionType,
 )
@@ -25,17 +36,6 @@ from baserow_enterprise.assistant.tools.builder.tools import (
     create_element_actions,
     update_data_source,
     update_element,
-)
-from baserow_enterprise.builder.tools.types import (
-    ActionCreate,
-    DataSourceCreate,
-    DataSourceUpdate,
-    DisplayElementCreate,
-    ElementUpdate,
-)
-from baserow_enterprise.builder.tools.types.workflow_action import (
-    FieldValueMapping,
-    ParameterMapping,
 )
 
 from .utils import make_test_ctx
@@ -421,14 +421,14 @@ def test_generated_table_column_formulas_are_saved_through_the_action_type(
     data_fixture, site, monkeypatch
 ):
     from baserow.contrib.builder.elements.models import TableElement
-    from baserow_enterprise.assistant.tools.builder.tools import (
-        create_collection_elements,
-    )
-    from baserow_enterprise.builder.tools.types import (
+    from baserow.contrib.builder.tools.types import (
         CollectionElementCreate,
     )
-    from baserow_enterprise.builder.tools.types.element import (
+    from baserow.contrib.builder.tools.types.element import (
         TableFieldConfig,
+    )
+    from baserow_enterprise.assistant.tools.builder.tools import (
+        create_collection_elements,
     )
 
     data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
@@ -471,10 +471,10 @@ def test_generated_row_formulas_are_written_under_the_service_lock(
 
     from django.db import OperationalError, transaction
 
-    from baserow.core.services.models import Service
-    from baserow_enterprise.builder.tools.types.workflow_action import (
+    from baserow.contrib.builder.tools.types.workflow_action import (
         ActionCreate as RowActionCreate,
     )
+    from baserow.core.services.models import Service
 
     button = data_fixture.create_builder_button_element(page=site["page"])
     name_field = site["table"].field_set.get(name="Name")

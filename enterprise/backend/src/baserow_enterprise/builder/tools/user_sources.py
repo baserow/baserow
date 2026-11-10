@@ -1,5 +1,6 @@
 """
-Application builder user source tools shared by the clients that act for a user.
+The user source tool shared by the clients that act for a user. Login needs
+enterprise code, so it extends the builder tools from here.
 """
 
 from typing import Annotated, Any
@@ -12,15 +13,22 @@ from pydantic import Field
 
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.models import Page
+from baserow.contrib.builder.tools import helpers
+from baserow.contrib.builder.tools.lookups import (
+    get_builder_in_workspace,
+    workspace_pages,
+)
+from baserow.contrib.builder.tools.types import PageItem
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import ToolInputError
 from baserow.core.user_sources.handler import UserSourceHandler
 from baserow.core.user_sources.models import UserSource
 from baserow.core.user_sources.service import UserSourceService
+from baserow_enterprise.integrations.local_baserow.models import (
+    LocalBaserowPasswordAppAuthProvider,
+)
 
-from . import helpers
-from .lookups import get_builder_in_workspace, workspace_pages
-from .types import PageItem
+from . import login
 from .types.user_source import UserSourceSetup
 
 
@@ -45,10 +53,6 @@ def _raise_unless_password_login_works(user_source: UserSource) -> None:
     :raises ToolInputError: When members couldn't log in with a password through
         the user source, so a login form for it would only fail.
     """
-
-    from baserow_enterprise.integrations.local_baserow.models import (
-        LocalBaserowPasswordAppAuthProvider,
-    )
 
     provider = LocalBaserowPasswordAppAuthProvider.objects.filter(
         user_source=user_source.id
@@ -119,7 +123,7 @@ def setup_user_source(
             "or set another login page with update_builder. No changes were applied."
         )
     login_page_id = set_login_page.id if set_login_page else None
-    creates_page = not login_page_id and not helpers.find_public_login_page(builder)
+    creates_page = not login_page_id and not login.find_public_login_page(builder)
 
     field_map: dict[str, Any] = {}
     with transaction.atomic():
@@ -128,17 +132,17 @@ def setup_user_source(
         else:
             if setup.table_id:
                 ctx.update_status(_("Validating existing table..."))
-                table, field_map = helpers.resolve_existing_table(
+                table, field_map = login.resolve_existing_table(
                     ctx.user, ctx.workspace, setup.table_id
                 )
             else:
                 ctx.update_status(_("Creating users table..."))
-                table, field_map = helpers.create_users_table(
+                table, field_map = login.create_users_table(
                     ctx.user, setup.database_id, ctx.workspace, setup.get_roles()
                 )
             ctx.update_status(_("Creating user source..."))
             integration = helpers.get_local_baserow_integration(ctx.user, builder)
-            user_source = helpers.create_user_source(
+            user_source = login.create_user_source(
                 ctx.user, builder, setup.name, table, field_map, integration
             )
             table_id = table.id
@@ -146,10 +150,10 @@ def setup_user_source(
         login_page = None
         if not login_page_id:
             ctx.update_status(_("Creating login page..."))
-            login_page = helpers.create_login_page(ctx.user, builder, user_source.id)
+            login_page = login.create_login_page(ctx.user, builder, user_source.id)
             login_page_id = login_page.id
         else:
-            helpers.add_auth_form(ctx.user, set_login_page, user_source.id)
+            login.add_auth_form(ctx.user, set_login_page, user_source.id)
 
     key = "created_user_source" if existing is None else "reused_user_source"
     result: dict[str, Any] = {

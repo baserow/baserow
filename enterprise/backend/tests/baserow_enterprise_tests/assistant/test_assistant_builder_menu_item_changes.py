@@ -11,18 +11,18 @@ from pydantic import ValidationError
 
 from baserow.contrib.builder.elements.models import MenuElement, MenuItemElement
 from baserow.contrib.builder.pages.models import Page
-from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
-from baserow.test_utils.fixtures import Fixtures
-from baserow_enterprise.assistant.tools.shared import ToolInputError
-from baserow_enterprise.builder.tools.menu_item_changes import (
+from baserow.contrib.builder.tools.menu_item_changes import (
     MenuItemsChange,
     linkable_page_ids,
     merge_menu_items,
 )
-from baserow_enterprise.builder.tools.types.menu_items import (
+from baserow.contrib.builder.tools.types.menu_items import (
     MenuItemAdd,
     MenuItemUpdate,
 )
+from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.test_utils.fixtures import Fixtures
+from baserow_enterprise.assistant.tools.shared import ToolInputError
 
 UNKNOWN_UID = "00000000-0000-0000-0000-000000000000"
 STRUCTURE_FIELDS = frozenset({"id", "menu_item_order", "parent_menu_item_id"})

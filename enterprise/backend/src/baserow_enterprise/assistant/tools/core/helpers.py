@@ -2,10 +2,10 @@ from typing import Any
 
 from django.contrib.auth.models import AbstractUser
 
+from baserow.contrib.builder.tools.themes import builder_uses_theme
 from baserow.core.service import CoreService
 from baserow.core.tools import ToolContext
 from baserow.core.tools.applications import visible_applications
-from baserow_enterprise.builder.tools.themes import builder_uses_theme
 
 # Kuma's builder types and the application types they are.
 APPLICATION_TYPES = {

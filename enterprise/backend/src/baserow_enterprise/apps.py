@@ -121,81 +121,19 @@ class BaserowEnterpriseConfig(AppConfig):
 
         from baserow.core.mcp.groups import (
             AuditLogReadMCPToolGroup,
-            BuilderDeleteMCPToolGroup,
-            BuilderEditMCPToolGroup,
-            BuilderReadMCPToolGroup,
             mcp_tool_group_registry,
         )
         from baserow.core.mcp.registries import mcp_tool_registry
         from baserow_enterprise.mcp.audit_log.tools import (
             ListAuditLogMcpTool,
         )
-        from baserow_enterprise.mcp.builder.actions.tools import (
-            CreateElementActionsMcpTool,
-            ListElementActionsMcpTool,
-            UpdateElementActionMcpTool,
-        )
-        from baserow_enterprise.mcp.builder.applications.tools import (
-            CreateBuilderMcpTool,
-            ListBuildersMcpTool,
-            UpdateBuilderMcpTool,
-        )
-        from baserow_enterprise.mcp.builder.data_sources.tools import (
-            CreateDataSourcesMcpTool,
-            ListDataSourcesMcpTool,
-            UpdateDataSourceMcpTool,
-        )
-        from baserow_enterprise.mcp.builder.elements.tools import (
-            CreateCollectionElementsMcpTool,
-            CreateDisplayElementsMcpTool,
-            CreateFormElementsMcpTool,
-            CreateLayoutElementsMcpTool,
-            DeleteElementItemsMcpTool,
-            ListElementsMcpTool,
-            MoveElementsMcpTool,
-            UpdateElementMcpTool,
-            UpdateElementStyleMcpTool,
-        )
-        from baserow_enterprise.mcp.builder.pages.tools import (
-            CreatePagesMcpTool,
-            ListPagesMcpTool,
-            SetupPageMcpTool,
-            UpdatePageMcpTool,
-        )
-        from baserow_enterprise.mcp.builder.themes.tools import SetThemeMcpTool
         from baserow_enterprise.mcp.builder.user_sources.tools import (
             SetupUserSourceMcpTool,
         )
 
         mcp_tool_group_registry.register(AuditLogReadMCPToolGroup())
-        mcp_tool_group_registry.register(BuilderReadMCPToolGroup())
-        mcp_tool_group_registry.register(BuilderEditMCPToolGroup())
-        mcp_tool_group_registry.register(BuilderDeleteMCPToolGroup())
         mcp_tool_registry.register(ListAuditLogMcpTool())
-        mcp_tool_registry.register(ListBuildersMcpTool())
-        mcp_tool_registry.register(ListPagesMcpTool())
-        mcp_tool_registry.register(ListDataSourcesMcpTool())
-        mcp_tool_registry.register(ListElementsMcpTool())
-        mcp_tool_registry.register(ListElementActionsMcpTool())
-        mcp_tool_registry.register(CreateBuilderMcpTool())
-        mcp_tool_registry.register(UpdateBuilderMcpTool())
-        mcp_tool_registry.register(CreatePagesMcpTool())
-        mcp_tool_registry.register(UpdatePageMcpTool())
-        mcp_tool_registry.register(CreateDataSourcesMcpTool())
-        mcp_tool_registry.register(UpdateDataSourceMcpTool())
-        mcp_tool_registry.register(CreateDisplayElementsMcpTool())
-        mcp_tool_registry.register(CreateLayoutElementsMcpTool())
-        mcp_tool_registry.register(CreateFormElementsMcpTool())
-        mcp_tool_registry.register(CreateCollectionElementsMcpTool())
-        mcp_tool_registry.register(UpdateElementMcpTool())
-        mcp_tool_registry.register(UpdateElementStyleMcpTool())
-        mcp_tool_registry.register(MoveElementsMcpTool())
-        mcp_tool_registry.register(DeleteElementItemsMcpTool())
-        mcp_tool_registry.register(CreateElementActionsMcpTool())
-        mcp_tool_registry.register(UpdateElementActionMcpTool())
-        mcp_tool_registry.register(SetupPageMcpTool())
         mcp_tool_registry.register(SetupUserSourceMcpTool())
-        mcp_tool_registry.register(SetThemeMcpTool())
 
         job_type_registry.register(DataScanResultExportJobType())
         agent_extension_type_registry.register(EnterpriseAgentExtensionType())
@@ -600,18 +538,6 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.assistant.tools.search_user_docs.tool_types import (
             SearchDocsToolType,
         )
-        from baserow_enterprise.builder.tools.element_tool_types import (
-            ButtonElementToolType,
-            ColumnElementToolType,
-            FooterElementToolType,
-            HeaderElementToolType,
-            LinkElementToolType,
-            MenuElementToolType,
-            TableElementToolType,
-        )
-        from baserow_enterprise.builder.tools.registries import (
-            element_tool_type_registry,
-        )
 
         ai_provider_model_feature_type_registry.register(
             KumaAIProviderModelFeatureType()
@@ -631,13 +557,6 @@ class BaserowEnterpriseConfig(AppConfig):
         assistant_tool_registry.register(DashboardToolType())
         assistant_tool_registry.register(BuilderToolType())
         assistant_tool_registry.register(SearchDocsToolType())
-        element_tool_type_registry.register(TableElementToolType())
-        element_tool_type_registry.register(ButtonElementToolType())
-        element_tool_type_registry.register(LinkElementToolType())
-        element_tool_type_registry.register(ColumnElementToolType())
-        element_tool_type_registry.register(MenuElementToolType())
-        element_tool_type_registry.register(HeaderElementToolType())
-        element_tool_type_registry.register(FooterElementToolType())
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.

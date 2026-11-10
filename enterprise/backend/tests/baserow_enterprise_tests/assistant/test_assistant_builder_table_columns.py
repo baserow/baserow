@@ -14,6 +14,13 @@ from baserow.contrib.builder.elements.actions import UpdateElementActionType
 from baserow.contrib.builder.elements.models import TableElement
 from baserow.contrib.builder.elements.operations import UpdateElementOperationType
 from baserow.contrib.builder.pages.models import Page
+from baserow.contrib.builder.tools.types import (
+    ElementUpdate,
+    TableColumnUpdate,
+)
+from baserow.contrib.builder.tools.types.table_columns import (
+    data_source_fields,
+)
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field
@@ -25,13 +32,6 @@ from baserow.core.formula.types import BaserowFormulaObject
 from baserow.test_utils.fixtures import Fixtures
 from baserow_enterprise.assistant.tools.builder.tools import update_element
 from baserow_enterprise.assistant.tools.shared import ToolInputError
-from baserow_enterprise.builder.tools.types import (
-    ElementUpdate,
-    TableColumnUpdate,
-)
-from baserow_enterprise.builder.tools.types.table_columns import (
-    data_source_fields,
-)
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 

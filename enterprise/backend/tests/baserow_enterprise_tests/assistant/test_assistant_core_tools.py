@@ -7,6 +7,10 @@ import pytest
 from baserow.api.sessions import set_client_undo_redo_action_group_id
 from baserow.contrib.automation.models import Automation
 from baserow.contrib.builder.models import Builder
+from baserow.contrib.builder.tools.themes import (
+    apply_theme,
+    builder_uses_theme,
+)
 from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.database.models import Database
 from baserow.core.action.handler import ActionHandler
@@ -30,10 +34,6 @@ from baserow_enterprise.assistant.tools.core.tools import (
 )
 from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.audit_log.models import AuditLogEntry
-from baserow_enterprise.builder.tools.themes import (
-    apply_theme,
-    builder_uses_theme,
-)
 
 from .utils import make_test_ctx
 
