@@ -135,12 +135,32 @@ def _origin(url: str) -> str:
     return str(AnyHttpUrl(f"{parsed.scheme}://{parsed.netloc}"))
 
 
-async def _send_metadata_request(
-    client: httpx.AsyncClient, url: str
-) -> httpx.Response | None:
-    """One candidate metadata URL; None when it can't be reached, so the next
-    candidate is tried."""
+def _check_secure(url: str, server_url: str) -> str:
+    """
+    The MCP authorization spec requires HTTPS for every authorization server
+    endpoint. A server on plain http, such as a local one, is left alone.
 
+    :param url: A URL discovery would fetch or store.
+    :param server_url: The MCP server's URL.
+    :raises MCPOAuthFailed: When the server uses https and the URL doesn't.
+    :return: The URL.
+    """
+
+    if urlparse(server_url).scheme == "https" and urlparse(str(url)).scheme != "https":
+        raise MCPOAuthFailed("The server's sign-in endpoints must use https.")
+    return str(url)
+
+
+async def _send_metadata_request(
+    client: httpx.AsyncClient, url: str, server_url: str
+) -> httpx.Response | None:
+    """One candidate metadata URL; None when it can't be reached or isn't
+    https while the server is, so the next candidate is tried."""
+
+    try:
+        _check_secure(url, server_url)
+    except MCPOAuthFailed:
+        return None
     try:
         return await client.send(create_oauth_metadata_request(url))
     except httpx.HTTPError:
@@ -196,7 +216,7 @@ async def _discover(server_url: str) -> OAuthServer:
         for url in build_protected_resource_metadata_discovery_urls(
             extract_resource_metadata_from_www_auth(probe), server_url
         ):
-            response = await _send_metadata_request(client, url)
+            response = await _send_metadata_request(client, url, server_url)
             if response is None:
                 continue
             resource_metadata = await handle_protected_resource_response(response)
@@ -213,7 +233,7 @@ async def _discover(server_url: str) -> OAuthServer:
             resource = advertised
 
         authorization_server = (
-            str(resource_metadata.authorization_servers[0])
+            _check_secure(resource_metadata.authorization_servers[0], server_url)
             if resource_metadata and resource_metadata.authorization_servers
             else None
         )
@@ -223,7 +243,7 @@ async def _discover(server_url: str) -> OAuthServer:
         for url in build_oauth_authorization_server_metadata_discovery_urls(
             authorization_server, server_url
         ):
-            response = await _send_metadata_request(client, url)
+            response = await _send_metadata_request(client, url, server_url)
             if response is None:
                 continue
             ok, metadata = await handle_auth_metadata_response(response)
@@ -238,10 +258,12 @@ async def _discover(server_url: str) -> OAuthServer:
 
     return OAuthServer(
         issuer=str(metadata.issuer),
-        authorization_endpoint=str(metadata.authorization_endpoint),
-        token_endpoint=str(metadata.token_endpoint),
+        authorization_endpoint=_check_secure(
+            metadata.authorization_endpoint, server_url
+        ),
+        token_endpoint=_check_secure(metadata.token_endpoint, server_url),
         registration_endpoint=(
-            str(metadata.registration_endpoint)
+            _check_secure(metadata.registration_endpoint, server_url)
             if metadata.registration_endpoint
             else None
         ),

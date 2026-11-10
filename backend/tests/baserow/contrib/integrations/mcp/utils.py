@@ -83,6 +83,8 @@ class FakeAuthorizationServer:
         self.unreachable_metadata_url = None
         # Answers `initialize` without sign-in, with a stream that stays open.
         self.anonymous_initialize = False
+        # Replaces the token endpoint in the authorization server metadata.
+        self.token_endpoint = None
 
     def authorize(self, authorization_url: str) -> str:
         """Approve like the user would, and return the code."""
@@ -151,7 +153,7 @@ class FakeAuthorizationServer:
                 json={
                     "issuer": self.ISSUER,
                     "authorization_endpoint": f"{self.ISSUER}/authorize",
-                    "token_endpoint": f"{self.ISSUER}/token",
+                    "token_endpoint": self.token_endpoint or f"{self.ISSUER}/token",
                     "response_types_supported": ["code"],
                     "code_challenge_methods_supported": ["S256"],
                     "token_endpoint_auth_methods_supported": [

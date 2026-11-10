@@ -561,6 +561,38 @@ def test_an_unreachable_metadata_url_falls_back_to_the_next(
 
 
 @pytest.mark.django_db
+def test_an_https_server_cant_send_sign_in_over_plain_http(
+    data_fixture, api_client, mocker
+):
+    fake = serve_oauth(mocker, FakeAuthorizationServer())
+    fake.token_endpoint = "http://auth.example.com/token"
+    user, token = data_fixture.create_user_and_token()
+    integration = oauth_server(data_fixture, user)
+
+    response = start(api_client, token, integration)
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_MCP_OAUTH_FAILED"
+    integration.refresh_from_db()
+    assert integration.oauth_server == {}
+
+
+@pytest.mark.django_db
+def test_a_plain_http_metadata_url_is_skipped(data_fixture, api_client, mocker):
+    fake = serve_oauth(mocker, FakeAuthorizationServer())
+    fake.unreachable_metadata_url = "http://mcp.example.com/metadata"
+    user, token = data_fixture.create_user_and_token()
+    integration = oauth_server(data_fixture, user)
+
+    response = start(api_client, token, integration)
+
+    assert response.status_code == 200, response.json()
+    assert "http://mcp.example.com/metadata" not in [
+        str(request.url) for request in fake.requests
+    ]
+
+
+@pytest.mark.django_db
 def test_a_server_that_streams_its_initialize_answer_is_still_discovered(
     data_fixture, api_client, mocker
 ):
