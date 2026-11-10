@@ -791,3 +791,19 @@ def test_tool_and_account_changes_are_audited_and_sent_to_other_editors(
     assert audited[1][1]["enabled_tools"] == ["search"]
     sent = [call.args[4]["type"] for call in broadcast.call_args_list]
     assert sent.count("integration_updated") == 3
+
+
+@pytest.mark.parametrize(
+    "backend_url,expected",
+    [
+        ("https://baserow.example.com", True),
+        ("http://baserow.example.com", False),
+        ("https://localhost:8443", False),
+        ("https://127.0.0.1:8443", False),
+    ],
+)
+def test_only_a_fetchable_https_backend_offers_a_client_metadata_document(
+    backend_url, expected
+):
+    with override_settings(PUBLIC_BACKEND_URL=backend_url):
+        assert (oauth.get_client_metadata_url() is not None) is expected

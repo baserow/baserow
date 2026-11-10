@@ -13,6 +13,7 @@ addresses either.
 import asyncio
 import base64
 import hashlib
+import ipaddress
 import secrets
 import time
 from dataclasses import asdict, dataclass, field
@@ -68,13 +69,22 @@ def get_redirect_uri() -> str:
 def get_client_metadata_url() -> str | None:
     """
     The URL of Baserow's client metadata document, used as its client id with
-    authorization servers that support it. Only an https URL qualifies, so
-    instances on plain http register dynamically instead.
+    authorization servers that support it. Only an https URL the server can
+    fetch qualifies, so instances on plain http or on this machine register
+    dynamically instead.
     """
 
     url = settings.PUBLIC_BACKEND_URL.rstrip("/") + reverse(
         "api:mcp_server:oauth_client_metadata"
     )
+    host = urlparse(url).hostname or ""
+    if host == "localhost" or host.endswith(".localhost"):
+        return None
+    try:
+        if ipaddress.ip_address(host).is_loopback:
+            return None
+    except ValueError:
+        pass
     return url if is_valid_client_metadata_url(url) else None
 
 
