@@ -76,33 +76,89 @@ describe('ChatStepGroup', () => {
     )
   })
 
-  test('shows an escaped failure hint on the header icon', async () => {
-    const failureHint = 'Tool failed: <img src=x onerror=alert(1)>'
+  test('expands input safely, indicates a shortened preview, and keeps it open through completion', async () => {
+    const values = {
+      table_id: 42,
+      rows: [{ Name: '<img src=x onerror=alert(1)>', Done: false, Amount: 0 }],
+    }
     const wrapper = mount(ChatStepGroup, {
-      props: { title: 'Create rows', status: 'failed', failureHint },
+      props: {
+        title: 'Creating rows',
+        status: 'running',
+        input: { values, truncated: true },
+      },
       global: { directives: { tooltip }, mocks: { $t: (key) => key } },
     })
 
-    try {
-      expect(wrapper.get('.chat-step-group__status').text()).toContain(
-        failureHint
-      )
-      await wrapper.get('.iconoir-warning-triangle').trigger('mouseenter')
-      expect(document.querySelector('.tooltip__content').textContent).toBe(
-        failureHint
-      )
-      expect(document.querySelector('.tooltip img')).toBeNull()
+    expect(wrapper.get('button').attributes('aria-expanded')).toBe('false')
+    expect(wrapper.get('.iconoir-nav-arrow-right').exists()).toBe(true)
+    expect(wrapper.find('pre').exists()).toBe(false)
+    await wrapper.get('button').trigger('click')
 
-      await wrapper.setProps({ status: 'done' })
-      expect(document.querySelector('.tooltip')).toBeNull()
-      expect(wrapper.get('.chat-step-group__status').text()).not.toContain(
-        failureHint
-      )
-    } finally {
-      document.body.click()
-      wrapper.unmount()
-    }
+    const detailsId = wrapper.get('button').attributes('aria-controls')
+    expect(wrapper.get(`[id="${detailsId}"]`).text()).toContain(
+      'toolPresentation.input'
+    )
+    expect(wrapper.get('pre').text()).toBe(JSON.stringify(values, null, 2))
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(wrapper.get('pre').attributes('tabindex')).toBe('0')
+    expect(wrapper.get('.chat-step-group__input-note').text()).toBe(
+      'toolPresentation.inputTruncated'
+    )
+
+    await wrapper.setProps({ status: 'done', title: 'Added 1 row' })
+    expect(wrapper.get('button').attributes('aria-expanded')).toBe('true')
+    expect(wrapper.get('pre').text()).toContain('Amount')
+    await wrapper.get('button').trigger('click')
+    expect(wrapper.find('pre').exists()).toBe(false)
   })
+
+  test('does not add a toggle without input', () => {
+    const wrapper = mount(ChatStepGroup, {
+      props: { title: 'Added rows', status: 'done', input: null },
+      global: { directives: { tooltip }, mocks: { $t: (key) => key } },
+    })
+
+    expect(wrapper.find('button').exists()).toBe(false)
+    expect(wrapper.find('pre').exists()).toBe(false)
+  })
+
+  test.each([false, true])(
+    'shows an escaped failure hint on a header icon, expandable: %s',
+    async (expandable) => {
+      const failureHint = 'Tool failed: <img src=x onerror=alert(1)>'
+      const wrapper = mount(ChatStepGroup, {
+        props: {
+          title: 'Create rows',
+          status: 'failed',
+          failureHint,
+          input: expandable ? { values: { table_id: 42 } } : null,
+        },
+        global: { directives: { tooltip }, mocks: { $t: (key) => key } },
+      })
+
+      try {
+        expect(wrapper.find('button button').exists()).toBe(false)
+        expect(wrapper.get('.chat-step-group__status').text()).toContain(
+          failureHint
+        )
+        await wrapper.get('.iconoir-warning-triangle').trigger('mouseenter')
+        expect(document.querySelector('.tooltip__content').textContent).toBe(
+          failureHint
+        )
+        expect(document.querySelector('.tooltip img')).toBeNull()
+
+        await wrapper.setProps({ status: 'done' })
+        expect(document.querySelector('.tooltip')).toBeNull()
+        expect(wrapper.get('.chat-step-group__status').text()).not.toContain(
+          failureHint
+        )
+      } finally {
+        document.body.click()
+        wrapper.unmount()
+      }
+    }
+  )
 
   test('uses a generic failure hint when history has no reason', async () => {
     const wrapper = mount(ChatStepGroup, {
@@ -192,5 +248,34 @@ describe('ChatStepGroup', () => {
     expect(wrapper.find(icon).exists()).toBe(true)
     expect(wrapper.text()).toContain(label)
     expect(wrapper.attributes('aria-busy')).toBe(String(status === 'running'))
+  })
+
+  test('a done call with failed items warns and lists them in the details', async () => {
+    const wrapper = mount(ChatStepGroup, {
+      props: {
+        title: 'Created 1 field',
+        status: 'done',
+        itemErrors: [
+          { item: 'Total', message: "The formula isn't valid." },
+          { item: '', message: 'Unnamed item failed.' },
+        ],
+      },
+      global: { directives: { tooltip }, mocks: { $t: (key) => key } },
+    })
+
+    expect(wrapper.find('button .iconoir-warning-circle').exists()).toBe(true)
+    expect(wrapper.find('button .iconoir-check-circle').exists()).toBe(false)
+    expect(wrapper.get('.chat-step-group__status--visible').text()).toBe(
+      'toolPresentation.statusPartial'
+    )
+    await wrapper.get('button').trigger('click')
+    const errors = wrapper.findAll('.chat-step-group__item-error')
+    expect(errors.map((error) => error.text())).toEqual([
+      "Total The formula isn't valid.",
+      'Unnamed item failed.',
+    ])
+    expect(wrapper.find('.chat-step-group__item-error-name').text()).toBe(
+      'Total'
+    )
   })
 })

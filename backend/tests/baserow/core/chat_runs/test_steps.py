@@ -121,51 +121,32 @@ def retry(call_id):
     return FunctionToolResultEvent(RetryPromptPart("Fix it", tool_call_id=call_id))
 
 
-def test_a_retry_continues_the_step_of_its_invalid_attempt_but_not_of_siblings():
-    journal = Mock()
-    steps = ChatRunSteps(journal, describe)
-    steps.on_event(call("invalid", valid=False))
-    steps.on_event(call("sibling", arguments={"rows": [1]}))
-    steps.on_event(retry("invalid"))
-    steps.on_event(result("sibling", facts={"count": 1}))
-    steps.on_event(call("retry", arguments={"rows": [1, 2]}))
-    steps.on_event(result("retry", facts={"count": 2}))
+@pytest.mark.parametrize(
+    "first,first_result,first_ending",
+    [
+        (call("one", arguments={"rows": [{}]}), result("one"), ("done", None)),
+        (
+            call("one", arguments={"rows": [{}]}),
+            result("one", content={"error": {"code": "conflict", "message": "No."}}),
+            ("failed", "conflict"),
+        ),
+        (call("one", valid=False), retry("one"), ("failed", "invalid_input")),
+    ],
+    ids=["two-calls", "failed-then-done", "invalid-then-valid"],
+)
+def test_every_call_has_its_own_step(first, first_result, first_ending):
+    steps = ChatRunSteps(Mock(), describe)
+    steps.on_event(first)
+    steps.on_event(first_result)
+    steps.on_event(call("two", arguments={"rows": [{}]}))
+    steps.on_event(result("two", facts={"count": 1}))
 
     saved = steps.finish()
-    first = journal.emit.call_args_list[0].args[1]
-    assert [(step["status"], step["facts"]) for step in saved] == [
-        ("done", {"count": 1}),
-        ("done", {"count": 2}),
+    assert [(step["status"], step.get("error_code")) for step in saved] == [
+        first_ending,
+        ("done", None),
     ]
-    assert saved[1]["id"] == first["id"]
-    assert "error_code" not in saved[1]
-
-
-def test_only_the_next_response_can_retry_an_invalid_call():
-    steps = ChatRunSteps(Mock(), describe)
-    steps.on_event(call("invalid", valid=False))
-    steps.on_event(retry("invalid"))
-    steps.on_event(call("read", name="list_tables"))
-    steps.on_event(result("read"))
-    steps.on_event(call("later", arguments={"rows": [1]}))
-
-    assert [step["status"] for step in steps.finish()] == [
-        "failed",
-        "done",
-        "stopped",
-    ]
-
-
-def test_a_call_that_runs_out_of_retries_leaves_one_failed_step():
-    steps = ChatRunSteps(Mock(), describe)
-    steps.on_event(call("one", valid=False))
-    steps.on_event(retry("one"))
-    steps.on_event(call("two", valid=False))
-
-    saved = steps.finish()
-    assert [(step["status"], step["error_code"]) for step in saved] == [
-        ("failed", "invalid_input")
-    ]
+    assert saved[0]["id"] != saved[1]["id"]
 
 
 def test_unknown_tools_and_presentation_errors_do_not_fail_the_run(logs):
@@ -246,3 +227,92 @@ def test_success_or_stop_clears_earlier_validation_error(outcome, status):
     step = steps.finish()[0]
     assert step["status"] == status
     assert "error_code" not in step
+
+
+def test_an_error_object_fails_the_step_with_its_message_and_items():
+    journal = Mock()
+    steps = ChatRunSteps(journal, describe)
+    steps.on_event(call("one", arguments={"rows": [{}]}))
+    steps.on_event(
+        result(
+            "one",
+            content={
+                "changed": False,
+                "error": {"code": "conflict", "message": "A exists."},
+                "errors": [
+                    {
+                        "item": "A",
+                        "code": "conflict",
+                        "message": "A exists.",
+                        "hint": "x",
+                    }
+                ],
+            },
+        )
+    )
+
+    (step,) = steps.finish()
+    assert (step["status"], step["error_code"], step["error_message"]) == (
+        "failed",
+        "conflict",
+        "A exists.",
+    )
+    assert step["item_errors"] == [
+        {"item": "A", "code": "conflict", "message": "A exists."}
+    ]
+
+
+def test_a_call_that_changed_nothing_without_errors_is_skipped():
+    steps = ChatRunSteps(Mock(), describe)
+    steps.on_event(call("one", arguments={"rows": [{}]}))
+    steps.on_event(result("one", content={"changed": False}, facts={"count": 0}))
+
+    assert [step["status"] for step in steps.finish()] == ["skipped"]
+
+
+def test_a_partial_batch_is_done_with_its_displayable_failed_items():
+    steps = ChatRunSteps(Mock(), describe)
+    steps.on_event(call("one", arguments={"rows": [{}, {}]}))
+    unusable = [{"item": "x", "code": "failed"}, {"item": "y", "message": " "}]
+    errors = unusable + [
+        {"item": i, "code": "invalid_input", "message": "Bad."} for i in range(25)
+    ]
+    steps.on_event(
+        result("one", content={"changed": True, "errors": errors}, facts={"count": 1})
+    )
+
+    (step,) = steps.finish()
+    assert step["status"] == "done" and len(step["item_errors"]) == 20
+    assert step["item_errors"][0]["item"] == 0
+
+
+@pytest.mark.parametrize("error", ["Not allowed.", ["Not allowed."]])
+def test_errors_that_are_not_objects_fail_the_step_without_a_message(error):
+    steps = ChatRunSteps(Mock(), describe)
+    steps.on_event(call("one"))
+    steps.on_event(result("one", content={"error": error}))
+
+    (step,) = steps.finish()
+    assert step["status"] == "failed" and "error_message" not in step
+
+
+def test_messages_for_people_are_shortened_and_hints_left_out():
+    steps = ChatRunSteps(Mock(), describe)
+    steps.on_event(call("one", arguments={"rows": [{}]}))
+    long_message = "x" * 1500
+    error = {"code": "invalid_input", "message": long_message, "hint": "HINT_CANARY"}
+    steps.on_event(
+        result(
+            "one",
+            content={
+                "changed": False,
+                "error": error,
+                "errors": [{"item": 0, **error}],
+            },
+        )
+    )
+
+    (step,) = steps.finish()
+    assert step["error_message"] == "x" * 999 + "…"
+    assert step["item_errors"][0]["message"] == "x" * 999 + "…"
+    assert "HINT_CANARY" not in str(step)

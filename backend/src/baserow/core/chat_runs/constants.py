@@ -22,6 +22,12 @@ class ChatRunStepStatus(StrEnum):
     DONE = "done"
     FAILED = "failed"
     STOPPED = "stopped"
+    # Changed nothing and failed nothing, so clients don't show it.
+    SKIPPED = "skipped"
+
+
+MAX_STEP_ITEM_ERRORS = 20
+MAX_STEP_MESSAGE_LENGTH = 1000
 
 
 class ChatRunErrorCode(StrEnum):

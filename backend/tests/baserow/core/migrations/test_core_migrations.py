@@ -509,10 +509,10 @@ def test_0133_adds_template_metadata_and_lets_revisions_share_a_workspace(
 
 
 @pytest.mark.once_per_day_in_ci
-def test_0136_renames_create_dashboards_in_stored_allow_lists(
+def test_0137_renames_create_dashboards_in_stored_allow_lists(
     migrator, teardown_table_metadata
 ):
-    old_state = migrator.migrate([("core", "0135_workspaceinvitationlink_scope")])
+    old_state = migrator.migrate([("core", "0136_template_reject_reason_help_text")])
     User = old_state.apps.get_model("auth", "User")
     Workspace = old_state.apps.get_model("core", "Workspace")
     MCPEndpoint = old_state.apps.get_model("core", "MCPEndpoint")
@@ -534,7 +534,7 @@ def test_0136_renames_create_dashboards_in_stored_allow_lists(
     legacy = endpoint("d", None)
 
     new_state = migrator.migrate(
-        [("core", "0136_mcpendpoint_rename_create_dashboards")]
+        [("core", "0137_mcpendpoint_rename_create_dashboards")]
     )
     NewMCPEndpoint = new_state.apps.get_model("core", "MCPEndpoint")
 
@@ -550,12 +550,12 @@ def test_0136_renames_create_dashboards_in_stored_allow_lists(
 
 
 @pytest.mark.once_per_day_in_ci
-def test_0136_keeps_a_tool_revoked_while_it_runs(migrator, teardown_table_metadata):
+def test_0137_keeps_a_tool_revoked_while_it_runs(migrator, teardown_table_metadata):
     import threading
 
     from django.db import connection as test_connection
 
-    old_state = migrator.migrate([("core", "0135_workspaceinvitationlink_scope")])
+    old_state = migrator.migrate([("core", "0136_template_reject_reason_help_text")])
     User = old_state.apps.get_model("auth", "User")
     Workspace = old_state.apps.get_model("core", "Workspace")
     MCPEndpoint = old_state.apps.get_model("core", "MCPEndpoint")
@@ -593,7 +593,7 @@ def test_0136_keeps_a_tool_revoked_while_it_runs(migrator, teardown_table_metada
     # The migration waits for the revocation's lock, so release it shortly.
     threading.Timer(0.5, migrated.set).start()
     new_state = migrator.migrate(
-        [("core", "0136_mcpendpoint_rename_create_dashboards")]
+        [("core", "0137_mcpendpoint_rename_create_dashboards")]
     )
     thread.join(timeout=10)
 

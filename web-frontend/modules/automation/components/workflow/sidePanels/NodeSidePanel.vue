@@ -30,7 +30,7 @@
       @values-changed="handleServiceChange"
     />
 
-    <template v-if="!nodeType.isTrigger">
+    <template v-if="nodeType.hasErrorPolicy">
       <div class="separator"></div>
       <NodeErrorHandlingForm
         :node="node"

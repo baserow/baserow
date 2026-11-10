@@ -5,6 +5,7 @@ import hashlib
 import inspect
 import io
 import ipaddress
+import json
 import math
 import os
 import random
@@ -694,6 +695,19 @@ def remove_null_characters(value: Any) -> Any:
     if isinstance(value, tuple):
         return tuple(remove_null_characters(item) for item in value)
     return value
+
+
+def remove_unstorable_characters(value: Any) -> Any:
+    """
+    Removes NUL characters and lone surrogates from every string in a JSON value,
+    keys included, as PostgreSQL can't store them in a text or json column.
+
+    :param value: A value that can be dumped as JSON.
+    :return: A copy of the value without those characters.
+    """
+
+    dumped = json.dumps(value).encode("utf-8")
+    return json.loads(remove_invalid_surrogate_characters(dumped, "utf-8"))
 
 
 def split_ending_number(name: str) -> Tuple[str, str]:

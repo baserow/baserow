@@ -83,6 +83,7 @@ export default defineNuxtModule({
         baserowUsePgFulltextSearch: 'true',
         integrationLocalBaserowPageSizeLimit: 200,
         automationWorkflowResponseTimeoutMaxSeconds: 20,
+        automationWaitMaxSeconds: 21600,
         formulaRangeMaxItems: 10000,
         integrationLocalBaserowBatchOperationSizeLimit: 1000,
         extraPublicWebFrontendHostnames: [],

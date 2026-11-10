@@ -11,6 +11,8 @@ from baserow.ws.tasks import send_messages_to_channel_group
 from baserow.ws.types import ChannelGroupMessage
 from tests.baserow.contrib.database.utils import get_message, received_message
 
+pytestmark = pytest.mark.usefixtures("fake_async_redis")
+
 
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)

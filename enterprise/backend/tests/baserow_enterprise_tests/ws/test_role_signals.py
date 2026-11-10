@@ -17,6 +17,8 @@ from baserow_enterprise.role.models import Role
 from baserow_enterprise.teams.handler import TeamHandler
 from tests.baserow.contrib.database.utils import get_message, received_message
 
+pytestmark = pytest.mark.usefixtures("fake_async_redis")
+
 
 # We have to run this every time between test executions since we are using
 # `transaction=True`for some of the tests which flushes the DB and deletes the roles

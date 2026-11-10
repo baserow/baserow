@@ -1,5 +1,7 @@
 """Tests for the row tools shared by MCP and the Agent Builder."""
 
+from typing import get_type_hints
+
 from django.conf import settings
 from django.db import transaction
 
@@ -8,6 +10,7 @@ from asgiref.sync import async_to_sync
 from mcp.shared.memory import (
     create_connected_server_and_client_session as client_session,
 )
+from pydantic import TypeAdapter, ValidationError
 
 from baserow.contrib.database.tools import rows
 from baserow.core.mcp import BaserowMCPServer, current_key
@@ -62,3 +65,18 @@ def test_create_rows_keeps_rich_text_mentions(data_fixture):
 
     assert created["Name"] == "Test"
     assert f"@{user.id}" in created["Notes"]
+
+
+@pytest.mark.parametrize(
+    "function,arguments",
+    [
+        (rows.create_rows, {"table_id": 1, "rows": []}),
+        (rows.update_rows, {"table_id": 1, "rows": []}),
+        (rows.delete_rows, {"table_id": 1, "row_ids": []}),
+    ],
+)
+def test_row_tools_refuse_empty_lists(function, arguments):
+    name = next(key for key in arguments if key != "table_id")
+    annotation = get_type_hints(function, include_extras=True)[name]
+    with pytest.raises(ValidationError):
+        TypeAdapter(annotation).validate_python(arguments[name])

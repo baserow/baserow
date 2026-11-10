@@ -41,7 +41,7 @@ def forward(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("core", "0135_workspaceinvitationlink_scope"),
+        ("core", "0136_template_reject_reason_help_text"),
     ]
 
     operations = [

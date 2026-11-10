@@ -64,6 +64,11 @@ class AutomationNodeType(
 
     is_container = False
 
+    # Whether the node carries an error policy (`ERROR_POLICY_FIELDS`): what the
+    # runner does when a dispatch fails, and the retry condition. Without one
+    # the fields are not accepted and the node is never retried.
+    has_error_policy = False
+
     class SerializedDict(AutomationNodeDict): ...
 
     def is_deactivated(self, workspace: Workspace) -> bool:
@@ -467,6 +472,33 @@ class AutomationNodeType(
             dispatch_context,
             application_id=automation_node.workflow.automation_id,
         )
+
+    def resume_dispatch(
+        self,
+        automation_node: AutomationNode,
+        state: dict,
+        dispatch_context: AutomationDispatchContext,
+    ) -> DispatchResult:
+        """
+        Finishes a dispatch that `dispatch()` left pending, see
+        `DispatchResult.pending`. The service's integration was checked when the
+        node suspended itself, so the service type is resumed directly.
+
+        :param automation_node: The node whose dispatch is resumed.
+        :param state: The state the service stored when it suspended.
+        :param dispatch_context: The context rebuilt for the resume.
+        :return: The final dispatch result.
+        """
+
+        if self.is_deactivated(
+            automation_node.workflow.get_original().automation.workspace
+        ):
+            raise ServiceImproperlyConfiguredDispatchException(
+                "This node type is not available for this workspace."
+            )
+
+        service = automation_node.service.specific
+        return service.get_type().resume_dispatch(service, state, dispatch_context)
 
     def validate_jump_destination(
         self,

@@ -457,6 +457,162 @@ def test_dispatch_data_source(data_fixture):
     }
 
 
+def _create_get_row_data_source(data_fixture, row_id="2", builder=None):
+    user = data_fixture.create_user()
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Name", "text"),
+            ("My Color", "text"),
+        ],
+        rows=[
+            ["BMW", "Blue"],
+            ["Audi", "Orange"],
+        ],
+    )
+    view = data_fixture.create_grid_view(user, table=table)
+    if builder is None:
+        builder = data_fixture.create_builder_application(
+            user=user, workspace=table.database.workspace
+        )
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=builder
+    )
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        user=user,
+        page=page,
+        integration=integration,
+        view=view,
+        table=table,
+        row_id=row_id,
+    )
+    return user, page, data_source, fields, rows
+
+
+@pytest.mark.django_db
+@patch("baserow.contrib.builder.data_sources.service.data_source_updated")
+def test_simulate_dispatch_data_source(data_source_updated_mock, data_fixture):
+    user, page, data_source, fields, rows = _create_get_row_data_source(data_fixture)
+
+    dispatch_context = BuilderDispatchContext(
+        HttpRequest(), page, only_expose_public_allowed_properties=False
+    )
+    service = DataSourceService()
+    result = service.simulate_dispatch_data_source(user, data_source, dispatch_context)
+
+    assert result == data_source
+    data_source.service.refresh_from_db()
+    assert data_source.service.sample_data["data"] == {
+        "id": rows[1].id,
+        "order": AnyStr(),
+        fields[0].name: "Audi",
+        fields[1].name: "Orange",
+    }
+    data_source_updated_mock.send.assert_called_once_with(
+        service, data_source=data_source, user=user
+    )
+
+
+@pytest.mark.django_db
+def test_simulate_dispatch_data_source_only_updates_the_tested_data_source(
+    data_fixture,
+):
+    user, page, referenced_data_source, fields, rows = _create_get_row_data_source(
+        data_fixture
+    )
+    # A second data source, after the first one, whose row id comes from the
+    # first one.
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        user=user,
+        page=page,
+        integration=referenced_data_source.service.integration,
+        view=referenced_data_source.service.view,
+        table=referenced_data_source.service.table,
+        row_id=f"get('data_source.{referenced_data_source.id}.id')",
+    )
+
+    dispatch_context = BuilderDispatchContext(
+        HttpRequest(), page, only_expose_public_allowed_properties=False
+    )
+    DataSourceService().simulate_dispatch_data_source(
+        user, data_source, dispatch_context
+    )
+
+    data_source.service.refresh_from_db()
+    referenced_data_source.service.refresh_from_db()
+    assert data_source.service.sample_data["data"]["id"] == rows[1].id
+    assert referenced_data_source.service.sample_data is None
+
+
+@pytest.mark.django_db
+def test_simulate_dispatch_data_source_keeps_sample_data_on_failure(data_fixture):
+    user, page, data_source, fields, rows = _create_get_row_data_source(
+        data_fixture, row_id="999"
+    )
+    previous_sample_data = {"data": {"id": 1}, "status": 200}
+    Service.objects.filter(id=data_source.service_id).update(
+        sample_data=previous_sample_data
+    )
+
+    dispatch_context = BuilderDispatchContext(
+        HttpRequest(), page, only_expose_public_allowed_properties=False
+    )
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
+        DataSourceService().simulate_dispatch_data_source(
+            user, data_source, dispatch_context
+        )
+
+    data_source.service.refresh_from_db()
+    assert data_source.service.sample_data == previous_sample_data
+
+
+@pytest.mark.django_db
+def test_simulate_dispatch_data_source_permission_denied(
+    data_fixture, stub_check_permissions
+):
+    user, page, data_source, fields, rows = _create_get_row_data_source(data_fixture)
+
+    dispatch_context = BuilderDispatchContext(
+        HttpRequest(), page, only_expose_public_allowed_properties=False
+    )
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
+    ):
+        DataSourceService().simulate_dispatch_data_source(
+            user, data_source, dispatch_context
+        )
+
+    data_source.service.refresh_from_db()
+    assert data_source.service.sample_data is None
+
+
+@pytest.mark.django_db
+def test_simulate_dispatch_data_source_refused_on_published_builder(
+    data_fixture, stub_check_permissions
+):
+    builder = data_fixture.create_builder_application()
+    published_builder = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(
+        builder=builder, published_to=published_builder
+    )
+    user, page, data_source, fields, rows = _create_get_row_data_source(
+        data_fixture, builder=published_builder
+    )
+
+    dispatch_context = BuilderDispatchContext(
+        HttpRequest(), page, only_expose_public_allowed_properties=False
+    )
+    with stub_check_permissions(), pytest.raises(PermissionException):
+        DataSourceService().simulate_dispatch_data_source(
+            user, data_source, dispatch_context
+        )
+
+    data_source.service.refresh_from_db()
+    assert data_source.service.sample_data is None
+
+
 @pytest.mark.django_db
 def test_dispatch_page_data_sources(data_fixture):
     user = data_fixture.create_user()

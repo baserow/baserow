@@ -160,7 +160,7 @@ class StaffOnlyPermissionManagerType(PermissionManagerType):
 class AllowIfTemplatePermissionManagerType(PermissionManagerType):
     """
     Allows read operations on the templates the actor can open, see
-    `Template.is_openable_by`.
+    `Workspace.has_openable_template`.
     """
 
     type = "allow_if_template"

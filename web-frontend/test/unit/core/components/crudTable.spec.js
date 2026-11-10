@@ -413,6 +413,28 @@ describe('CrudTable component', () => {
     expect(table.find('.data-table__expanded-rows').exists()).toBe(false)
   })
 
+  test('a sort on a column that is no longer shown is not sent', async () => {
+    const sentSorts = []
+    const fetch = vi.fn((baseUrl, page, search, sorts) => {
+      sentSorts.push(sorts.map(({ key }) => key))
+      return Promise.resolve(aPage([{ id: 1, name: 'A', updated: 'today' }]))
+    })
+    const name = new CrudTableColumn('name', 'Name', SimpleField, true)
+    const updated = new CrudTableColumn('updated', 'Updated', SimpleField, true)
+    const table = await mountCrudTable(aService(fetch), {
+      columns: [name, updated],
+    })
+    await flushPromises()
+    await table.findAll('thead button')[1].trigger('click')
+    await flushPromises()
+
+    await table.setProps({ columns: [name] })
+    await table.find('thead button').trigger('click')
+    await flushPromises()
+
+    expect(sentSorts).toEqual([[], ['updated'], ['name']])
+  })
+
   test('a silent refresh keeps the rows on screen until the new ones arrive', async () => {
     let resolveRefresh
     const fetch = vi

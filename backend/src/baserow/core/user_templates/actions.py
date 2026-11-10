@@ -1,4 +1,5 @@
 import dataclasses
+from datetime import datetime
 from typing import Any, Callable, Dict, Iterable, List, Optional
 
 from django.contrib.auth.models import AbstractUser
@@ -16,7 +17,7 @@ from baserow.core.action.scopes import (
     RootActionScopeType,
     WorkspaceActionScopeType,
 )
-from baserow.core.models import Template, Workspace
+from baserow.core.models import Template, UserTemplateState, Workspace
 from baserow.core.user_templates.exceptions import TemplateChangedDuringUpdate
 from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.user_templates.service import UserTemplateService
@@ -335,35 +336,35 @@ class UpdateUserTemplateVisibilityActionType(ActionType):
             "and their name"
         ),
     )
-    analytics_params = ["template_id", "revision_id", "listed"]
+    analytics_params = ["template_id", "revision_id", "make_public", "state"]
 
     @dataclasses.dataclass
     class Params:
         template_id: int
         template_name: str
         revision_id: int
-        listed: bool
+        make_public: bool
         # Recorded so the audit log shows that the author agreed to the listing.
         public_listing_consent: bool
+        state: str
 
     @classmethod
     def do(
         cls,
         user: AbstractUser,
         template_id: int,
-        listed: bool,
+        make_public: bool,
         *,
         public_listing_consent: bool,
         job_id: Optional[int] = None,
     ) -> Template:
         """
         Makes a user template owned by the user public or private, see
-        `UserTemplateService.update_visibility`. Asking for the visibility it has
-        changes nothing and isn't recorded. This action is not undoable.
+        `UserTemplateService.update_visibility`. Not undoable.
 
         :param user: The user changing the visibility of the template.
         :param template_id: The id of the template, which is its root.
-        :param listed: Whether the template is made public.
+        :param make_public: Whether the template is made public, else private.
         :param public_listing_consent: Whether the user agreed that the template
             and their name are listed for everybody on the instance.
         :param job_id: The id of the create user template job making the template
@@ -373,16 +374,21 @@ class UpdateUserTemplateVisibilityActionType(ActionType):
 
         # The create job makes a template public outside of a transaction.
         with transaction.atomic():
-            revision, changed_revision_id = UserTemplateService().update_visibility(
-                user, template_id, listed, public_listing_consent, job_id
+            (
+                revision,
+                changed_revision_id,
+                state,
+            ) = UserTemplateService().update_visibility(
+                user, template_id, make_public, public_listing_consent, job_id
             )
             if changed_revision_id is not None:
                 params = cls.Params(
                     template_id=template_id,
                     template_name=revision.name,
                     revision_id=changed_revision_id,
-                    listed=listed,
+                    make_public=make_public,
                     public_listing_consent=public_listing_consent,
+                    state=state,
                 )
                 cls.register_action(user, params, cls.scope())
 
@@ -390,12 +396,184 @@ class UpdateUserTemplateVisibilityActionType(ActionType):
 
     @classmethod
     def get_long_description(cls, params_dict: Dict[str, Any], *args, **kwargs) -> str:
-        if not params_dict.get("listed"):
+        # Older entries carry `listed` instead of `make_public`, and no `state`.
+        if not params_dict.get("make_public", params_dict.get("listed")):
             description = ActionTypeDescription(
                 cls.description.short,
                 _('Template "%(template_name)s" (%(template_id)s) made private'),
             )
             return render_action_type_description(description, params_dict)
+        if params_dict.get("state") == UserTemplateState.IN_REVIEW:
+            description = ActionTypeDescription(
+                cls.description.short,
+                _(
+                    'Template "%(template_name)s" (%(template_id)s) sent to review '
+                    "with revision %(revision_id)s, with the consent of the author "
+                    "to list it and their name"
+                ),
+            )
+            return render_action_type_description(description, params_dict)
+        return super().get_long_description(params_dict, *args, **kwargs)
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()
+
+
+class ApproveUserTemplateAdminActionType(ActionType):
+    type = "admin_approve_user_template"
+    description = ActionTypeDescription(
+        _("Admin approved template"),
+        _(
+            'Template "%(template_name)s" (%(template_id)s) approved and listed with '
+            "revision %(revision_id)s"
+        ),
+    )
+    analytics_params = ["template_id", "revision_id", "owner_id"]
+
+    @dataclasses.dataclass
+    class Params:
+        template_id: int
+        template_name: str
+        revision_id: int
+        owner_id: Optional[int]
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        template_id: int,
+        revision_id: int,
+        seen_state: UserTemplateState,
+        seen_listed: bool,
+        seen_reviewed_on: Optional[datetime],
+    ) -> Template:
+        """
+        Approves the template. Not undoable.
+
+        :param user: The instance admin approving the template.
+        :param template_id: The id of the template, which is its root.
+        :param revision_id: The id of the revision the admin reviewed.
+        :param seen_state: The state of the template the admin reviewed.
+        :param seen_listed: Whether the template the admin reviewed was listed.
+        :param seen_reviewed_on: When the revision the admin reviewed was last
+            reviewed, None if never.
+        :return: The approved revision.
+        """
+
+        with transaction.atomic():
+            revision = UserTemplateHandler().approve_template(
+                user,
+                template_id,
+                revision_id,
+                seen_state,
+                seen_listed,
+                seen_reviewed_on,
+            )
+            cls._register(user, revision)
+
+        return revision
+
+    @classmethod
+    def _register(cls, user: AbstractUser, revision: Template) -> None:
+        """
+        Records the approval of a revision.
+
+        :param user: The instance admin who approved it.
+        :param revision: The approved revision.
+        """
+
+        root = revision.get_root()
+        params = cls.Params(
+            template_id=root.id,
+            template_name=revision.name,
+            revision_id=revision.id,
+            owner_id=root.owner_id,
+        )
+        cls.register_action(user, params, cls.scope())
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()
+
+
+class RejectUserTemplateAdminActionType(ActionType):
+    type = "admin_reject_user_template"
+    description = ActionTypeDescription(
+        _("Admin rejected template"),
+        _(
+            'Template "%(template_name)s" (%(template_id)s) rejected with revision '
+            '%(revision_id)s: "%(reason)s"'
+        ),
+    )
+    unlisted_description = ActionTypeDescription(
+        long=_(
+            'Template "%(template_name)s" (%(template_id)s) rejected with revision '
+            '%(revision_id)s and taken out of the listing: "%(reason)s"'
+        ),
+    )
+    analytics_params = ["template_id", "revision_id", "owner_id", "unlisted"]
+
+    @dataclasses.dataclass
+    class Params:
+        template_id: int
+        template_name: str
+        revision_id: int
+        owner_id: Optional[int]
+        reason: str
+        unlisted: bool
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        template_id: int,
+        revision_id: int,
+        reason: str,
+        seen_state: UserTemplateState,
+        seen_listed: bool,
+        seen_reviewed_on: Optional[datetime],
+    ) -> Template:
+        """
+        Rejects the template. Not undoable.
+
+        :param user: The instance admin rejecting the template.
+        :param template_id: The id of the template, which is its root.
+        :param revision_id: The id of the revision the admin reviewed.
+        :param reason: Why the template is rejected.
+        :param seen_state: The state of the template the admin reviewed.
+        :param seen_listed: Whether the template the admin reviewed was listed.
+        :param seen_reviewed_on: When the revision the admin reviewed was last
+            reviewed, None if never.
+        :return: The rejected revision.
+        """
+
+        with transaction.atomic():
+            revision, unlisted = UserTemplateHandler().reject_template(
+                user,
+                template_id,
+                revision_id,
+                reason,
+                seen_state,
+                seen_listed,
+                seen_reviewed_on,
+            )
+            params = cls.Params(
+                template_id=template_id,
+                template_name=revision.name,
+                revision_id=revision.id,
+                owner_id=revision.get_root().owner_id,
+                reason=reason,
+                unlisted=unlisted,
+            )
+            cls.register_action(user, params, cls.scope())
+
+        return revision
+
+    @classmethod
+    def get_long_description(cls, params_dict: Dict[str, Any], *args, **kwargs) -> str:
+        if params_dict["unlisted"]:
+            return render_action_type_description(cls.unlisted_description, params_dict)
         return super().get_long_description(params_dict, *args, **kwargs)
 
     @classmethod

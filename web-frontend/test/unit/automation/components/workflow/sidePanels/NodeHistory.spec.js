@@ -1,5 +1,7 @@
 import { createStore } from 'vuex'
 import { mount } from '@vue/test-utils'
+import moment from '@baserow/modules/core/moment'
+import { getUserTimeZone } from '@baserow/modules/core/utils/date'
 import Badge from '@baserow/modules/core/components/Badge'
 import NodeHistory from '@baserow/modules/automation/components/workflow/sidePanels/NodeHistory'
 
@@ -25,10 +27,12 @@ const mountNodeHistory = (nodeHistory, props = {}) => {
     },
   })
   const fakeNuxtApp = {
-    // Echoes the number so the assertions see which label is used.
+    // Echoes the number (or time) so the assertions see which label is used.
     $i18n: {
-      t: (key, params) =>
-        params?.n !== undefined ? `${key}:${params.n}` : key,
+      t: (key, params) => {
+        const value = params?.n ?? params?.time
+        return value !== undefined ? `${key}:${value}` : key
+      },
     },
     $registry: { get: () => nodeType },
   }
@@ -146,5 +150,69 @@ describe('NodeHistory attempts', () => {
       'historySidePanel.runNumber:2',
       'historySidePanel.retryNumber:1',
     ])
+  })
+})
+
+describe('NodeHistory of a run in progress', () => {
+  afterEach(() => {
+    mounted.splice(0).forEach((wrapper) => wrapper.unmount())
+  })
+
+  test('a waiting node says until when it waits, in the local time zone', () => {
+    const resumeAt = '2026-09-15T10:00:30Z'
+    const wrapper = mountNodeHistory(
+      attempt({ node_type: 'wait', status: 'waiting', resume_at: resumeAt })
+    )
+
+    const badge = wrapper.find('.badge')
+    expect(badge.text()).toBe('historySidePanel.statusWaitingBadge')
+    expect(badge.classes()).toContain('badge--cyan')
+    const expected = moment.utc(resumeAt).tz(getUserTimeZone())
+    expect(labels(wrapper)).toEqual([
+      `historySidePanel.waitingUntil:${expected.format('HH:mm:ss')}`,
+    ])
+    // The full date is one hover away, for a wait that crosses midnight.
+    expect(
+      wrapper.find('.node-history__header-info-pass').attributes('title')
+    ).toBe(expected.format('YYYY-MM-DD HH:mm:ss'))
+    expect(wrapper.find('.node-history__error').exists()).toBe(false)
+    // Nothing to show yet: the result only exists once the wait is over.
+    expect(wrapper.find('.node-history__header-show-result').exists()).toBe(
+      false
+    )
+  })
+
+  test('a node that is running right now is badged as such', () => {
+    const wrapper = mountNodeHistory(attempt({ status: 'started' }))
+
+    const badge = wrapper.find('.badge')
+    expect(badge.text()).toBe('historySidePanel.statusRunningBadge')
+    expect(badge.classes()).toContain('badge--cyan')
+    expect(labels(wrapper)).toEqual([])
+    expect(wrapper.find('.node-history__header-show-result').exists()).toBe(
+      false
+    )
+  })
+
+  test('a node the run was stopped at is badged as cancelled', () => {
+    const wrapper = mountNodeHistory(
+      attempt({ node_type: 'wait', status: 'cancelled' })
+    )
+
+    const badge = wrapper.find('.badge')
+    expect(badge.text()).toBe('historySidePanel.statusCancelledBadge')
+    expect(badge.classes()).toContain('badge--neutral')
+    expect(labels(wrapper)).toEqual([])
+    // It was stopped before it ran, so it has no result to show.
+    expect(wrapper.find('.node-history__header-show-result').exists()).toBe(
+      false
+    )
+  })
+
+  test('a finished node keeps its result toggle', () => {
+    const wrapper = mountNodeHistory(attempt())
+    expect(wrapper.find('.node-history__header-show-result').exists()).toBe(
+      true
+    )
   })
 })

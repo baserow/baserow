@@ -3,6 +3,7 @@ import { flushPromises } from '@vue/test-utils'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { heldBack } from '@baserow/test/helpers/heldBack'
+import { toastsOfType } from '@baserow/test/helpers/store'
 import UserTemplateList from '@baserow/modules/core/components/template/UserTemplateList'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
 
@@ -135,6 +136,25 @@ describe('UserTemplateList', () => {
     ])
     expect(wrapper.find('.template-empty-state').exists()).toBe(false)
   })
+
+  test.each([
+    ['in_review', true, 'stateInReview', true],
+    ['public', true, 'statePublic', false],
+    ['in_review', false, 'stateInReview', false],
+  ])(
+    'shows that a %s template (listed: %s) is still listed',
+    async (state, listed, label, shown) => {
+      mockPages(page([userTemplate(1, 'Sprint Tracker', state, { listed })]))
+      const wrapper = await mountComponent()
+
+      expect(
+        wrapper.findAll('.badge').map((badge) => badge.text())
+      ).toStrictEqual([
+        `userTemplateList.${label}`,
+        ...(shown ? ['userTemplateList.stateListed'] : []),
+      ])
+    }
+  )
 
   test('shows how many times each template was used', async () => {
     mockPages(
@@ -450,10 +470,7 @@ describe('UserTemplateList', () => {
         ...JSON.parse(request.data),
       }))
 
-  const downloadToasts = () =>
-    testApp.store.state.toast.items.filter(
-      (toast) => toast.type === 'downloadTemplate'
-    )
+  const downloadToasts = () => toastsOfType(testApp.store, 'downloadTemplate')
 
   const menuLink = (wrapper, text) =>
     wrapper
@@ -585,32 +602,48 @@ describe('UserTemplateList', () => {
   })
 
   test.each([
-    ['private', 'userTemplateList.makePublic', 'make-public'],
-    ['public', 'userTemplateList.makePrivate', 'make-private'],
+    [false, ['userTemplateList.makePublic'], ['make-public']],
+    [
+      true,
+      ['userTemplateList.submitForReviewAgain', 'userTemplateList.makePrivate'],
+      ['make-public', 'make-private'],
+    ],
   ])(
-    'offers to change the visibility of a %s template',
-    async (state, item, event) => {
-      const template = userTemplate(1, 'Sprint Tracker', state)
+    'offers to make a rejected template (listed: %s) public or private',
+    async (listed, visibilityLabels, events) => {
+      const template = userTemplate(1, 'Sprint Tracker', 'rejected', {
+        can_make_public: true,
+        make_public_needs_review: true,
+        listed,
+      })
       mockPages(page([template]))
       const wrapper = await mountComponent()
+      const openMenu = async () => {
+        await wrapper
+          .find('.user-template-list__actions .button-icon')
+          .trigger('click')
+        return wrapper.findAll('.context__menu-item-link')
+      }
 
-      await wrapper
-        .find('.user-template-list__actions .button-icon')
-        .trigger('click')
-      const links = wrapper.findAll('.context__menu-item-link')
-
+      const links = await openMenu()
       expect(links.map((link) => link.text())).toStrictEqual([
         'userTemplateList.editDetails',
         'userTemplateList.updateContent',
-        item,
+        ...visibilityLabels,
         'userTemplateList.download',
         'userTemplateList.delete',
       ])
-
       await links[2].trigger('click')
+      if (listed) {
+        await (await openMenu())[3].trigger('click')
+      }
       await flushPromises()
 
-      expect(wrapper.emitted(event)).toStrictEqual([[template]])
+      for (const event of ['make-public', 'make-private']) {
+        expect(wrapper.emitted(event)).toStrictEqual(
+          events.includes(event) ? [[template]] : undefined
+        )
+      }
       // The modal makes the change, not the list.
       expect(testApp.mock.history.patch).toHaveLength(0)
     }

@@ -300,6 +300,10 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   color: $palette-yellow-600;
 }
 
+.chat-step-group__icon--partial {
+  color: $palette-yellow-600;
+}
+
 .chat-step-group__icon--stopped,
 .chat-step-group__chevron {
   color: $palette-neutral-600;
@@ -352,6 +356,56 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
 .chat-step-group__failure-tooltip {
   overflow-wrap: anywhere;
+}
+
+.chat-step-group__input {
+  margin: 6px 8px 8px 32px;
+}
+
+.chat-step-group__item-errors {
+  margin: 0 8px 8px;
+}
+
+.chat-step-group__item-error-list {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  color: $palette-neutral-900;
+}
+
+.chat-step-group__item-error-name {
+  font-weight: 500;
+  margin-right: 4px;
+}
+
+.chat-step-group__input-label {
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.chat-step-group__input-values {
+  max-height: 320px;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid $palette-neutral-200;
+  border-radius: 6px;
+  background: $palette-neutral-50;
+  font-family: monospace;
+  font-size: 12px;
+  line-height: 20px;
+  color: $palette-neutral-900;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+  }
+}
+
+.chat-step-group__input-note {
+  margin: 8px 0 0;
+  color: $palette-neutral-900;
 }
 
 .chat-markdown {

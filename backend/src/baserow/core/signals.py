@@ -29,6 +29,8 @@ before_user_deleted = Signal()
 
 before_workspace_deleted = Signal()
 
+settings_updated = Signal()
+
 user_updated = Signal()
 user_deleted = Signal()
 user_restored = Signal()

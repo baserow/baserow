@@ -37,6 +37,7 @@ from baserow.core.registry import (
 )
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.types import DispatchResult, FormulaToResolve
+from baserow.core.services.utils import sanitize_sample_data
 
 from .exceptions import (
     DispatchException,
@@ -89,7 +90,7 @@ class ServiceType(
         storage=None,
         cache=None,
     ) -> Dict[str, Any]:
-        """Redact sensitive values, retaining named rows for reconfiguration."""
+        """Redact sensitive settings and sanitize samples for external exports."""
 
         serialized = {
             key: self.serialize_property(
@@ -115,6 +116,15 @@ class ServiceType(
                     if isinstance(value, list)
                     else None
                 )
+        if getattr(import_export_config, "is_user_template", False) or getattr(
+            import_export_config, "exclude_sensitive_data", False
+        ):
+            sample_data = serialized.get("sample_data")
+            serialized["sample_data"] = (
+                None
+                if isinstance(sample_data, dict) and "_error" in sample_data
+                else sanitize_sample_data(sample_data)
+            )
         return serialized
 
     # Does this service return a list of record?
@@ -551,9 +561,13 @@ class ServiceType(
                     service, resolved_values, dispatch_context
                 )
         except Exception as e:
-            if dispatch_context.use_sample_data and (
-                dispatch_context.update_sample_data_for is None
-                or service in dispatch_context.update_sample_data_for
+            if (
+                dispatch_context.use_sample_data
+                and not dispatch_context.keep_sample_data_on_error
+                and (
+                    dispatch_context.update_sample_data_for is None
+                    or service in dispatch_context.update_sample_data_for
+                )
             ):
                 service.sample_data = {"_error": str(e)}
                 service.save()
@@ -578,16 +592,45 @@ class ServiceType(
                 # data (PostgreSQL refuses a NUL character in a json column,
                 # for one), the caller's transaction must stay usable so it can
                 # record the failure, and the sentinel is stored the same way
-                # it is for a failed dispatch.
+                # it is for a failed dispatch, unless the context asks to keep
+                # the sample data the service already had.
+                previous_sample_data = service.sample_data
                 service.sample_data = sample_data
                 try:
                     with transaction.atomic():
                         service.save()
                 except Exception as e:
-                    service.sample_data = {"_error": str(e)}
-                    service.save()
+                    if dispatch_context.keep_sample_data_on_error:
+                        service.sample_data = previous_sample_data
+                    else:
+                        service.sample_data = {"_error": str(e)}
+                        service.save()
                     raise
             return serialized_data
+
+    def resume_dispatch(
+        self,
+        service: ServiceSubClass,
+        state: dict,
+        dispatch_context: DispatchContext,
+    ) -> DispatchResult:
+        """
+        Finishes a dispatch that returned a `PendingDispatch`. The consumer that
+        suspended the dispatch calls this once the wait is over, with the `state`
+        the service stored on the pending result. Returns the final result,
+        exactly as `dispatch()` would have.
+
+        :param service: The service instance whose dispatch is resumed.
+        :param state: The state the service stored when it suspended.
+        :param dispatch_context: The context used for the dispatch.
+        :raises NotImplementedError: If the service type never suspends.
+        :return: The final dispatch result.
+        """
+
+        raise NotImplementedError(
+            f"The {self.type} service type returned a pending dispatch but does "
+            "not implement resume_dispatch()."
+        )
 
     def remove_unused_field_names(
         self,

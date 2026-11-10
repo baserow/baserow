@@ -342,6 +342,8 @@ class ModeAwareToolset(AbstractToolset[AgentDepsT]):
         try:
             return await self._inner.call_tool(name, tool_args, ctx, tool)
         except ToolInputError as exc:
+            if exc.hint:
+                return {"error": str(exc), "next_steps": exc.hint}
             return {"error": str(exc)}
         except DRFValidationError as exc:
             # A module refused the values the tool was called with.

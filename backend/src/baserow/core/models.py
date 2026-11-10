@@ -2,6 +2,7 @@ import secrets
 import uuid
 from datetime import datetime, timezone
 from functools import lru_cache
+from typing import Any
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -12,12 +13,17 @@ from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models import (
+    Case,
     Exists,
+    ExpressionWrapper,
     F,
     OuterRef,
     Q,
     QuerySet,
+    Subquery,
     UniqueConstraint,
+    Value,
+    When,
 )
 from django.db.models.functions import Coalesce
 from django.db.models.manager import BaseManager
@@ -388,9 +394,10 @@ class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOn
 
     def has_openable_template(self, actor) -> bool:
         """
-        Whether the actor can open this workspace as a template, see
-        `Template.is_openable_by`. Prefetch `template_set__root` to check many
-        workspaces without a query each.
+        Whether the actor can open this workspace as a template: official, own,
+        public or, for an instance admin, in the review queue. Prefetch
+        `template_set__root` to check many workspaces without a query each, except
+        the review queue query for an instance admin.
         """
 
         template_types = self.get_template_types()
@@ -405,7 +412,12 @@ class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOn
         templates = self.template_set.all()
         if "template_set" not in getattr(self, "_prefetched_objects_cache", {}):
             templates = templates.select_related("root")
-        return any(template.is_openable_by(actor) for template in templates)
+        if any(template.is_openable_outside_review_by(actor) for template in templates):
+            return True
+        return (
+            is_instance_admin(actor)
+            and Template.objects.review_queue().filter(workspace=self).exists()
+        )
 
     def get_workspace_user(
         self, user: User, include_trash: bool = False
@@ -693,6 +705,25 @@ def _get_user_id(actor) -> int | None:
     return actor.id if isinstance(actor, User) else None
 
 
+class UserTemplateState(models.TextChoices):
+    PRIVATE = "private", "Private"
+    IN_REVIEW = "in_review", "In review"
+    REJECTED = "rejected", "Rejected"
+    BLOCKED = "blocked", "Blocked"
+    PUBLIC = "public", "Public"
+
+
+def is_instance_admin(actor: Any) -> bool:
+    """
+    Whether the actor is an instance admin: an active staff user.
+
+    :param actor: A user, an anonymous user or another actor.
+    :return: True for an instance admin.
+    """
+
+    return isinstance(actor, User) and actor.is_active and actor.is_staff
+
+
 def _root_q(**lookups) -> Q:
     """
     Matches the rows whose root matches the lookups: the root itself, which also
@@ -702,6 +733,43 @@ def _root_q(**lookups) -> Q:
     return Q(root__isnull=True, **lookups) | Q(
         root__isnull=False,
         **{f"root__{lookup}": value for lookup, value in lookups.items()},
+    )
+
+
+def template_state_expression() -> Case:
+    """
+    The `UserTemplateState` of every row, see `with_template_state`.
+
+    :return: The expression.
+    """
+
+    return Case(
+        When(_root_q(blocked_at__isnull=False), then=Value(UserTemplateState.BLOCKED)),
+        When(
+            last_submitted_state=Template.ReviewState.PENDING,
+            then=Value(UserTemplateState.IN_REVIEW),
+        ),
+        When(
+            last_submitted_state=Template.ReviewState.REJECTED,
+            then=Value(UserTemplateState.REJECTED),
+        ),
+        When(
+            _root_q(public_revision__isnull=False),
+            then=Value(UserTemplateState.PUBLIC),
+        ),
+        default=Value(UserTemplateState.PRIVATE),
+    )
+
+
+def _later_revisions() -> QuerySet:
+    """
+    The revisions after the outer row in its template, by `family_id`.
+
+    :return: The later revisions.
+    """
+
+    return Template.objects.filter(
+        root_id=OuterRef("family_id"), version__gt=OuterRef("version")
     )
 
 
@@ -720,13 +788,11 @@ class TemplateQuerySet(QuerySet):
         selected too, because it holds the fields of the template as a whole.
         """
 
-        family_id = Coalesce("root_id", "id")
         newer_revision = self.filter(
-            Q(id=OuterRef("family_id")) | Q(root_id=OuterRef("family_id")),
-            version__gt=OuterRef("version"),
+            root_id=OuterRef("family_id"), version__gt=OuterRef("version")
         )
         return (
-            self.alias(family_id=family_id)
+            self.alias(family_id=Coalesce("root_id", "id"))
             .filter(~Exists(newer_revision))
             .select_related("root")
         )
@@ -760,6 +826,110 @@ class TemplateQuerySet(QuerySet):
 
         return self.filter(_root_q(**lookups))
 
+    def with_template_state(self) -> "TemplateQuerySet":
+        """
+        Annotates every row with the state of its template, from the reviews of
+        all its revisions.
+
+        :return: The rows, annotated.
+        """
+
+        revisions = Template.objects.filter(
+            Q(id=OuterRef("family_id")) | Q(root_id=OuterRef("family_id"))
+        ).order_by("-version")
+        submitted = revisions.exclude(review_state=Template.ReviewState.NOT_SUBMITTED)
+        # A rejection stays open until an approval, also when resubmitted or withdrawn.
+        last_decision_is_rejection = (
+            revisions.filter(
+                Q(review_state=Template.ReviewState.APPROVED) | ~Q(reject_reason="")
+            )
+            .annotate(
+                is_rejection=ExpressionWrapper(
+                    ~Q(review_state=Template.ReviewState.APPROVED),
+                    output_field=models.BooleanField(),
+                )
+            )
+            .values("is_rejection")[:1]
+        )
+        return (
+            self.alias(family_id=Coalesce("root_id", "id"))
+            .annotate(
+                last_submitted_state=Subquery(submitted.values("review_state")[:1]),
+                last_submitted_reason=Subquery(submitted.values("reject_reason")[:1]),
+                has_open_rejection=Coalesce(
+                    Subquery(last_decision_is_rejection), Value(False)
+                ),
+            )
+            .annotate(template_state=template_state_expression())
+        )
+
+    def open_reviews(self) -> "TemplateQuerySet":
+        """
+        The latest submitted revision of every template, if pending or rejected.
+
+        :return: Those revisions.
+        """
+
+        return (
+            self.user()
+            .filter(
+                review_state__in=[
+                    Template.ReviewState.PENDING,
+                    Template.ReviewState.REJECTED,
+                ]
+            )
+            .alias(family_id=Coalesce("root_id", "id"))
+            .filter(
+                ~Exists(
+                    _later_revisions().exclude(
+                        review_state=Template.ReviewState.NOT_SUBMITTED
+                    )
+                )
+            )
+        )
+
+    def review_queue(self) -> "TemplateQuerySet":
+        """
+        The open reviews of templates not blocked nor marked for deletion.
+
+        :return: Those revisions.
+        """
+
+        return self.open_reviews().filter_by_root(
+            blocked_at__isnull=True, marked_for_deletion_at__isnull=True
+        )
+
+    def with_can_approve(self) -> "TemplateQuerySet":
+        """
+        Annotates the rows with `edited_since_submitted` and `can_approve`.
+
+        :return: The rows, annotated.
+        """
+
+        return (
+            self.alias(family_id=Coalesce("root_id", "id"))
+            .annotate(edited_since_submitted=Exists(_later_revisions()))
+            .annotate(
+                can_approve=ExpressionWrapper(
+                    Q(
+                        workspace__isnull=False,
+                        pruned_at__isnull=True,
+                        edited_since_submitted=False,
+                    ),
+                    output_field=models.BooleanField(),
+                )
+            )
+        )
+
+    def approvable(self) -> "TemplateQuerySet":
+        """
+        The rows of the review queue that an admin can approve.
+
+        :return: Those rows.
+        """
+
+        return self.with_can_approve().filter(can_approve=True)
+
     def official_or_owned(self, actor):
         """
         The official templates and every revision of the user templates owned by
@@ -771,10 +941,12 @@ class TemplateQuerySet(QuerySet):
             q |= Q(type=Template.Type.USER) & _root_q(owner_id=user_id)
         return self.filter(q)
 
-    def openable(self, actor):
+    def openable(self, actor: Any) -> "TemplateQuerySet":
         """
-        The templates the actor can open: every revision of the own ones, only the
-        public revision of the others. Matches `Template.is_openable_by`.
+        The templates the actor can open, except the admin review queue.
+
+        :param actor: The user or anonymous user.
+        :return: Those templates.
         """
 
         official = _official_template_q()
@@ -996,7 +1168,9 @@ class Template(models.Model):
         default="",
         db_default="",
         blank=True,
-        help_text="Why this revision was rejected, shown to the template author.",
+        help_text="Why an admin rejected this revision, shown to the template "
+        "author. Kept when it's resubmitted or withdrawn: the rejection stays open "
+        "until a revision is approved.",
     )
     pruned_at = models.DateTimeField(
         null=True,
@@ -1112,12 +1286,13 @@ class Template(models.Model):
 
         return self.workspace_id is not None and not self.pruned_at
 
-    def is_openable_by(self, actor) -> bool:
+    def is_openable_outside_review_by(self, actor: Any) -> bool:
         """
-        Whether the actor can open this template: an official one or, while user
-        templates are enabled, a revision of a user template not marked for
-        deletion that is owned by the actor, or is the public revision of a template
-        that isn't blocked. Matches `Template.objects.openable`.
+        Whether the actor can open this template, official, own or public,
+        without a query.
+
+        :param actor: The user or anonymous user.
+        :return: True if the actor can open it without the review queue.
         """
 
         if self.type in (None, Template.Type.OFFICIAL):

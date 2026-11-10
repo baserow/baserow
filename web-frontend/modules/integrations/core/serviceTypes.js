@@ -14,6 +14,7 @@ import CoreHTTPRequestServiceForm from '@baserow/modules/integrations/core/compo
 import CoreSMTPEmailServiceForm from '@baserow/modules/integrations/core/components/services/CoreSMTPEmailServiceForm'
 import CoreRouterServiceForm from '@baserow/modules/integrations/core/components/services/CoreRouterServiceForm'
 import CoreGotoServiceForm from '@baserow/modules/integrations/core/components/services/CoreGotoServiceForm'
+import CoreWaitServiceForm from '@baserow/modules/integrations/core/components/services/CoreWaitServiceForm'
 import CoreIteratorServiceForm from '@baserow/modules/integrations/core/components/services/CoreIteratorServiceForm'
 import CoreCSVFileReaderServiceForm from '@baserow/modules/integrations/core/components/services/CoreCSVFileReaderServiceForm'
 import CorePeriodicTriggerServiceForm from '@baserow/modules/integrations/core/components/services/CorePeriodicTriggerServiceForm.vue'
@@ -260,6 +261,52 @@ export class CoreGotoServiceType extends WorkflowActionServiceTypeMixin(
   }
 }
 
+export class CoreWaitServiceType extends WorkflowActionServiceTypeMixin(
+  ServiceType
+) {
+  static getType() {
+    return 'wait'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.coreWait')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.coreWaitDescription')
+  }
+
+  get icon() {
+    return 'iconoir-timer'
+  }
+
+  get group() {
+    return getWorkflowGroup(this.app)
+  }
+
+  getErrorMessage({ service }) {
+    if (service === undefined) {
+      return null
+    }
+    if (!service.seconds?.formula) {
+      return this.app.$i18n.t('serviceType.coreWaitSecondsRequired')
+    }
+    return super.getErrorMessage({ service })
+  }
+
+  getDataSchema(service) {
+    return service.schema
+  }
+
+  get formComponent() {
+    return CoreWaitServiceForm
+  }
+
+  getOrder() {
+    return 11
+  }
+}
+
 export class CoreHTTPTriggerServiceType extends TriggerServiceTypeMixin(
   ServiceType
 ) {
@@ -464,6 +511,10 @@ export class CoreCSVFileReaderServiceType extends DataSourceServiceTypeMixin(
   }
 
   get returnsList() {
+    return true
+  }
+
+  get hiddenInDataSourcePicker() {
     return true
   }
 

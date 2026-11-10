@@ -281,11 +281,19 @@ class AgentConversationUpdateSerializer(
     )
 
 
+class AgentMessageStepItemErrorSerializer(serializers.Serializer):
+    item = serializers.JSONField(help_text="The failed item's name or ID.")
+    code = serializers.ChoiceField(choices=list(ToolErrorCode))
+    message = serializers.CharField()
+
+
 class AgentMessageStepSerializer(serializers.Serializer):
     id = serializers.CharField()
     tool = serializers.CharField()
     status = serializers.ChoiceField(choices=list(ChatRunStepStatus))
     error_code = serializers.ChoiceField(choices=list(ToolErrorCode), required=False)
+    error_message = serializers.CharField(required=False)
+    item_errors = AgentMessageStepItemErrorSerializer(many=True, required=False)
     changes_data = serializers.BooleanField()
     input = serializers.DictField()
     facts = serializers.DictField()

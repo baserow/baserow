@@ -55,7 +55,7 @@ def test_create_fields_stores_a_raw_formula_unchanged(table_ctx):
     (created,) = result["created_fields"]
     assert created["name"] == "Joined"
     assert created["formula"] == "concat('a', 'b')"
-    assert "formula_errors" not in result
+    assert "errors" not in result
     field = table.field_set.get(name="Joined").specific
     assert field.formula == "concat('a', 'b')"
 
@@ -74,11 +74,12 @@ def test_create_fields_reports_an_invalid_formula_without_creating_it(table_ctx)
     )
 
     assert [field["name"] for field in result["created_fields"]] == ["Notes"]
-    (error,) = result["formula_errors"]
+    (error,) = result["errors"]
+    assert (error["item"], error["code"]) == ("Broken", "invalid_formula")
     assert error["table_id"] == table.id
     assert error["field_name"] == "Broken"
     assert error["formula"] == "concat("
-    assert "Invalid syntax" in error["error"]
+    assert "Invalid syntax" in error["message"]
     assert not Field.objects_and_trash.filter(table=table, name="Broken").exists()
 
 
@@ -97,13 +98,15 @@ def test_create_fields_rejects_a_formula_description(table_ctx):
     )
 
     assert result["created_fields"] == []
-    assert result["formula_errors"] == [
+    assert result["errors"] == [
         {
+            "item": "Full name",
+            "code": "invalid_formula",
+            "message": "'Full name' needs a formula, not a description. Write it in "
+            "Baserow formula syntax.",
             "table_id": table.id,
             "field_name": "Full name",
             "formula": "$formula: full name",
-            "error": "'Full name' needs a formula, not a description. Write it in "
-            "Baserow formula syntax.",
         }
     ]
     assert not table.field_set.filter(name="Full name").exists()
@@ -130,7 +133,7 @@ def test_update_fields_stores_a_raw_formula_unchanged(data_fixture, table_ctx):
 
     assert result["changed"] is True
     assert result["updated_fields"][0]["formula"] == "concat('a', 'b')"
-    assert "formula_errors" not in result
+    assert "errors" not in result
     field.refresh_from_db()
     assert field.formula == "concat('a', 'b')"
 
@@ -159,12 +162,13 @@ def test_update_fields_reports_an_invalid_formula_without_storing_it(
 
     assert result["updated_fields"] == []
     assert result["changed"] is False
-    (error,) = result["formula_errors"]
+    (error,) = result["errors"]
+    assert (error["item"], error["code"]) == (field.id, "invalid_formula")
     assert error["table_id"] == table.id
     assert error["field_id"] == field.id
     assert error["field_name"] == "G"
     assert error["formula"] == formula
-    assert message in error["error"]
+    assert message in error["message"]
     field.refresh_from_db()
     assert (field.name, field.formula) == ("F", "'x'")
 
@@ -184,18 +188,14 @@ def test_update_and_delete_treat_other_workspaces_as_missing(data_fixture, table
     )
     deleted = delete_fields(ctx, [other_field.id, missing_id])
 
-    assert updated["errors"] == [
-        f"Error updating field {other_field.id}: The field with id "
-        f"{other_field.id} does not exist.",
-        f"Error updating field {missing_id}: The field with id {missing_id} "
-        "does not exist.",
+    assert [(e["item"], e["code"]) for e in updated["errors"]] == [
+        (other_field.id, "not_found"),
+        (missing_id, "not_found"),
     ]
     assert deleted["deleted_field_ids"] == []
-    assert deleted["errors"] == [
-        f"Error deleting field {other_field.id}: The field with id "
-        f"{other_field.id} does not exist.",
-        f"Error deleting field {missing_id}: The field with id {missing_id} "
-        "does not exist.",
+    assert [(e["item"], e["code"]) for e in deleted["errors"]] == [
+        (other_field.id, "not_found"),
+        (missing_id, "not_found"),
     ]
     other_field.refresh_from_db()
     assert other_field.name == "Other"
@@ -209,7 +209,7 @@ def test_delete_fields_trashes_the_fields(data_fixture, table_ctx):
 
     result = delete_fields(ctx, [field.id])
 
-    assert result == {"deleted_field_ids": [field.id]}
+    assert result == {"deleted_field_ids": [field.id], "changed": True}
     assert Field.objects_and_trash.get(id=field.id).trashed
 
 
@@ -246,8 +246,8 @@ def test_create_fields_keeps_the_other_fields_when_one_fails(table_ctx):
         )
 
     assert [f["name"] for f in result["created_fields"]] == ["One", "Three"]
-    (error,) = result["field_errors"]
-    assert "Error creating field Two" in error
+    (error,) = result["errors"]
+    assert error["item"] == "Two"
     assert set(table.field_set.values_list("name", flat=True)) == {
         "Name",
         "One",
@@ -274,7 +274,7 @@ def test_update_fields_keeps_the_other_updates_when_one_fails(data_fixture, tabl
         fields[2].id,
     ]
     (error,) = result["errors"]
-    assert error.startswith(f"Error updating field {fields[1].id}")
+    assert error["item"] == fields[1].id
     assert [Field.objects.get(id=f.id).name for f in fields] == [
         "One new",
         "Two",
@@ -295,7 +295,7 @@ def test_delete_fields_keeps_the_other_deletes_when_one_fails(data_fixture, tabl
 
     assert result["deleted_field_ids"] == [fields[0].id, fields[2].id]
     (error,) = result["errors"]
-    assert error.startswith(f"Error deleting field {fields[1].id}")
+    assert error["item"] == fields[1].id
     assert [Field.objects_and_trash.get(id=f.id).trashed for f in fields] == [
         True,
         False,
@@ -326,7 +326,7 @@ def _raise_unexpected(*args, **kwargs):
             lambda ctx, table, field: create_fields(
                 ctx, table.id, [FieldItemCreate(name="New", type="text")]
             ),
-            "field_errors",
+            "errors",
         ),
         (
             UpdateFieldActionType,
@@ -352,8 +352,8 @@ def test_field_tools_log_an_unexpected_error_and_hide_its_message(
         result = run(ctx, table, field)
 
     (error,) = result[errors_key]
-    assert "Internal error." in error
-    assert "secret_table" not in error
+    assert error["code"] == "failed"
+    assert error["message"] == "Internal error."
     (record,) = error_records
     assert record["exception"].type is RuntimeError
 
@@ -370,19 +370,14 @@ def test_field_tools_keep_the_message_of_an_expected_error(
     updated = update_fields(ctx, [FieldItemUpdate(field_id=field.id, name="Name")])
     deleted = delete_fields(ctx, [primary.id])
 
-    (create_error,) = created["field_errors"]
-    assert (
-        f"A field already exists for table '{table.name}' with the name 'Old'."
-        in create_error
-    )
-    assert updated["errors"] == [
-        f"Error updating field {field.id}: A field already exists for table "
-        f"'{table.name}' with the name 'Name'."
-    ]
-    assert deleted["errors"] == [
-        f"Error deleting field {primary.id}: Cannot delete the primary field of "
-        "a table."
-    ]
+    (create_error,) = created["errors"]
+    assert create_error["code"] == "conflict"
+    assert create_error["message"].startswith("You cannot have two fields")
+    (update_error,) = updated["errors"]
+    assert (update_error["item"], update_error["code"]) == (field.id, "conflict")
+    (delete_error,) = deleted["errors"]
+    assert delete_error["item"] == primary.id
+    assert delete_error["message"] == "Cannot delete the primary field of a table."
     assert error_records == []
 
 
@@ -397,13 +392,14 @@ def test_create_fields_reports_a_formula_field_without_a_formula(table_ctx, form
     result = create_fields(ctx, table.id, [FieldItemCreate(**item)])
 
     assert result["created_fields"] == []
-    assert "field_errors" not in result
-    assert result["formula_errors"] == [
+    assert result["errors"] == [
         {
+            "item": "Total",
+            "code": "invalid_formula",
+            "message": "'Total' needs a formula.",
             "table_id": table.id,
             "field_name": "Total",
             "formula": formula or "",
-            "error": "'Total' needs a formula.",
         }
     ]
     assert not Field.objects_and_trash.filter(table=table, name="Total").exists()
@@ -417,15 +413,16 @@ def test_update_fields_reports_an_empty_formula(data_fixture, table_ctx):
     result = update_fields(ctx, [FieldItemUpdate(field_id=field.id, formula="")])
 
     assert result["updated_fields"] == []
-    assert "errors" not in result
-    assert result["formula_errors"] == [
+    assert result["errors"] == [
         {
-            "field_id": field.id,
-            "index": 0,
+            "item": field.id,
+            "code": "invalid_formula",
+            "message": "'F' needs a formula.",
             "table_id": table.id,
             "field_name": "F",
             "formula": "",
-            "error": "'F' needs a formula.",
+            "field_id": field.id,
+            "index": 0,
         }
     ]
     field.refresh_from_db()
@@ -475,7 +472,10 @@ def test_field_tools_over_mcp(data_fixture):
 
     assert created.isError is False
     assert json.loads(updated.content[0].text)["updated_fields"][0]["name"] == "State"
-    assert json.loads(deleted.content[0].text) == {"deleted_field_ids": [field_id]}
+    assert json.loads(deleted.content[0].text) == {
+        "deleted_field_ids": [field_id],
+        "changed": True,
+    }
     assert Field.objects_and_trash.get(id=field_id).trashed
 
 
@@ -497,18 +497,17 @@ def test_create_fields_over_mcp_table_in_other_workspace_is_not_found(data_fixtu
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "tool,arguments,verb",
+    "tool,arguments",
     [
         (
             "update_fields",
             lambda field_id: {"fields": [{"field_id": field_id, "name": "Renamed"}]},
-            "updating",
         ),
-        ("delete_fields", lambda field_id: {"field_ids": [field_id]}, "deleting"),
+        ("delete_fields", lambda field_id: {"field_ids": [field_id]}),
     ],
 )
 def test_field_tools_over_mcp_treat_other_workspaces_as_missing(
-    data_fixture, tool, arguments, verb
+    data_fixture, tool, arguments
 ):
     endpoint = data_fixture.create_mcp_endpoint(allowed_tools=FIELD_TOOLS)
     other_field = data_fixture.create_text_field(user=endpoint.user, name="Other")
@@ -517,14 +516,13 @@ def test_field_tools_over_mcp_treat_other_workspaces_as_missing(
     other = json.loads(_call(endpoint, tool, arguments(other_field.id)).content[0].text)
     missing = json.loads(_call(endpoint, tool, arguments(missing_id)).content[0].text)
 
-    def error(field_id):
-        return (
-            f"Error {verb} field {field_id}: The field with id {field_id} does "
-            "not exist."
-        )
-
-    assert other["errors"] == [error(other_field.id)]
-    assert missing["errors"] == [error(missing_id)]
+    assert [(e["item"], e["code"]) for e in other["errors"]] == [
+        (other_field.id, "not_found")
+    ]
+    assert [(e["item"], e["code"]) for e in missing["errors"]] == [
+        (missing_id, "not_found")
+    ]
+    assert other["errors"][0]["message"] == missing["errors"][0]["message"]
     other_field.refresh_from_db()
     assert other_field.name == "Other"
     assert not other_field.trashed
@@ -610,7 +608,7 @@ def test_create_fields_looks_up_through_the_named_link_field(
         ],
     )
 
-    assert "field_errors" not in result
+    assert "errors" not in result
     (created,) = result["created_fields"]
     assert created["through_field"] == second.id
     assert table.field_set.get(name="Titles").specific.through_field_id == second.id
@@ -659,8 +657,8 @@ def test_create_fields_reports_a_through_field_that_is_no_link_of_the_table(
     )
 
     assert result["created_fields"] == []
-    (error,) = result["field_errors"]
-    assert f"has no link_row field '{text.id}' for lookup 'Titles'" in error
+    (error,) = result["errors"]
+    assert f"has no link_row field '{text.id}' for lookup 'Titles'" in error["message"]
     assert set(table.field_set.values_list("name", flat=True)) == {"Name", "Notes"}
 
 
@@ -729,7 +727,6 @@ def test_update_fields_applies_a_rename_before_a_formula_that_uses_it(
         ],
     )
 
-    assert "formula_errors" not in result
     assert "errors" not in result
     assert [f["name"] for f in result["updated_fields"]] == ["Cost", "Double"]
     double.refresh_from_db()
@@ -805,9 +802,9 @@ def test_create_fields_rejects_options_that_share_a_value(table_ctx, field_type)
     )
 
     assert [f["name"] for f in result["created_fields"]] == ["Notes"]
-    (error,) = result["field_errors"]
-    assert "Error creating field Status" in error
-    assert "the new option 'Open' and the new option ' open '" in error
+    (error,) = result["errors"]
+    assert error["item"] == "Status"
+    assert "the new option 'Open' and the new option ' open '" in error["message"]
     assert not table.field_set.filter(name="Status").exists()
 
 
@@ -826,7 +823,7 @@ def test_create_fields_looks_up_through_the_only_link_field(
         [FieldItemCreate(name="Titles", type="lookup", target_field="Title")],
     )
 
-    assert "field_errors" not in result
+    assert "errors" not in result
     assert [f["through_field"] for f in result["created_fields"]] == [link.id]
 
 
@@ -846,8 +843,103 @@ def test_create_fields_needs_the_link_when_the_table_has_not_exactly_one(
     )
 
     assert result["created_fields"] == []
-    (error,) = result["field_errors"]
-    assert "Set linked_table or through_field" in error
+    (error,) = result["errors"]
+    assert error["hint"] == "Set linked_table or through_field."
     if links:
-        assert "'First', 'Second'" in error
+        assert "'First', 'Second'" in error["message"]
     assert not table.field_set.filter(name="Titles").exists()
+
+
+@pytest.mark.django_db
+def test_create_fields_answers_an_error_when_no_field_was_created(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    other = data_fixture.create_database_table(user=user)
+    ctx = ToolContext(user=user, workspace=table.database.workspace)
+
+    result = create_fields(
+        ctx,
+        table.id,
+        [FieldItemCreate(name="Link", type="link_row", linked_table=other.id)],
+    )
+
+    assert result["created_fields"] == [] and result["changed"] is False
+    (error,) = result["errors"]
+    assert error["item"] == "Link" and error["code"] == "invalid_input"
+    assert result["error"] == {"code": "invalid_input", "message": error["message"]}
+    assert "table_" not in error["message"]
+
+
+@pytest.mark.django_db
+def test_a_link_to_a_table_of_another_database_says_so(data_fixture, table_ctx):
+    ctx, table = table_ctx
+    data_fixture.create_database_table(
+        database=data_fixture.create_database_application(workspace=ctx.workspace),
+        name="Activity QA",
+    )
+
+    result = create_fields(
+        ctx,
+        table.id,
+        [FieldItemCreate(name="Act", type="link_row", linked_table="Activity QA")],
+    )
+
+    (error,) = result["errors"]
+    assert error["message"] == (
+        "Table 'Activity QA' is in another database, and a link can only point to "
+        "a table of the same database."
+    )
+    assert error["hint"] == "Link to a table of this database, by name or ID."
+
+
+@pytest.mark.django_db
+def test_partial_field_creation_is_a_change_with_item_errors(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Taken")
+    ctx = ToolContext(user=user, workspace=table.database.workspace)
+
+    result = create_fields(
+        ctx,
+        table.id,
+        [
+            FieldItemCreate(name="Notes", type="text"),
+            FieldItemCreate(name="Taken", type="text"),
+            FieldItemCreate(name="Total", type="formula", formula="unknown("),
+        ],
+    )
+
+    assert [f["name"] for f in result["created_fields"]] == ["Notes"]
+    assert result["changed"] is True and "error" not in result
+    assert [(e["item"], e["code"]) for e in result["errors"]] == [
+        ("Taken", "conflict"),
+        ("Total", "invalid_formula"),
+    ]
+    assert result["errors"][1]["formula"] == "unknown("
+
+
+@pytest.mark.django_db
+def test_update_fields_without_changes_is_unchanged_without_error(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table, name="Name")
+    ctx = ToolContext(user=user, workspace=table.database.workspace)
+
+    result = update_fields(ctx, [FieldItemUpdate(field_id=field.id, name="Name")])
+
+    assert result["changed"] is False
+    assert "error" not in result and "errors" not in result
+
+
+@pytest.mark.django_db
+def test_delete_fields_answers_an_error_when_nothing_was_deleted(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    primary = data_fixture.create_text_field(table=table, name="Name", primary=True)
+    ctx = ToolContext(user=user, workspace=table.database.workspace)
+
+    result = delete_fields(ctx, [primary.id])
+
+    assert result["deleted_field_ids"] == []
+    assert result["errors"][0]["item"] == primary.id
+    assert result["error"]["message"] == result["errors"][0]["message"]
