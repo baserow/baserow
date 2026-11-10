@@ -87,6 +87,16 @@ describe('HTML element', () => {
     expect(wrapper.get('a').attributes('href')).toBe('java script:docs')
   })
 
+  test('preserves trusted HTML without filtering its attributes or scripts', async () => {
+    const html =
+      '<button id="anchor" onclick="this.textContent=123">Click</button><script src="/widget.js"></script>'
+    const wrapper = await mountElement('preview', 'preview', html)
+    expect(wrapper.get('#anchor').attributes('onclick')).toBe(
+      'this.textContent=123'
+    )
+    expect(wrapper.get('script').attributes('src')).toBe('/widget.js')
+  })
+
   test('waits for an explicit visitor context before inserting markup', async () => {
     const wrapper = await mountElement('public', '')
     expect(wrapper.find('#anchor').exists()).toBe(false)
@@ -95,20 +105,9 @@ describe('HTML element', () => {
   test.each([
     ['', false],
     [snippet, true],
-    ['<img id="anchor" onerror="alert(1)">', false],
-    ['<a id="anchor" href="java&#9;script:alert(1)">Open</a>', false],
-    ['<img id="anchor" srcset="/pic.png 1x, javascript:alert(1) 2x">', false],
-    ['<iframe id="anchor" srcdoc="&lt;body onload=alert(1)>"></iframe>', false],
-    [
-      '<svg id="anchor"><set attributeName="href" to="javascript:alert(1)" /></svg>',
-      false,
-    ],
-  ])(
-    'withholds empty, untrusted or invalid content',
-    async (html, untrusted) => {
-      const wrapper = await mountElement('preview', 'preview', html, untrusted)
-      expect(wrapper.find('#anchor').exists()).toBe(false)
-      expect(wrapper.text()).toBe('')
-    }
-  )
+  ])('withholds empty or untrusted content', async (html, untrusted) => {
+    const wrapper = await mountElement('preview', 'preview', html, untrusted)
+    expect(wrapper.find('#anchor').exists()).toBe(false)
+    expect(wrapper.text()).toBe('')
+  })
 })

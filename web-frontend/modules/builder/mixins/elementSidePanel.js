@@ -91,13 +91,6 @@ export default {
             values: clone(differences),
           })
         } catch (error) {
-          // Keep a rejected draft available for correction in its own form.
-          if (
-            form === this.$refs.panelForm &&
-            form?.handleErrorByForm?.(error)
-          ) {
-            return
-          }
           // Restore the previous saved values from the store
           if (form === this.$refs.panelForm) form?.reset(true)
           notifyIf(error)

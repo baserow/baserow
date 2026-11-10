@@ -881,12 +881,11 @@
     "source": "HTML source",
     "sourceHelp": "Add HTML for custom content, layouts or widgets. Add JavaScript in application settings → Custom CSS/JS. Use Custom JavaScript for your own code. To load a third-party script, choose “Add an external script” and paste the URL from the script’s src attribute.",
     "placeholder": "Empty HTML source...",
-    "previewTitle": "HTML preview",
-    "invalid": "Enter static HTML only. Add JavaScript in the application's Custom code settings. Use srcdoc or an external URL for embedded documents."
+    "previewTitle": "HTML preview"
   },
   "elementType": {
     "html": "HTML",
-    "htmlDescription": "Place static HTML directly on the page for custom layouts and widget integrations.",
+    "htmlDescription": "Place HTML directly on the page for custom layouts and widget integrations.",
     "errorHtmlContentMissing": "Missing HTML content",
     "graph": "Graph",
     "graphDescription": "Display formula-driven data as a graph.",

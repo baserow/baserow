@@ -29,14 +29,13 @@
       !builder.untrusted_content &&
       element.html
     "
-    v-static-html="element.html"
+    v-html-content="element.html"
   ></div>
 </template>
 
 <script>
 import ElementPreviewHint from '@baserow/modules/builder/components/elements/ElementPreviewHint'
 import element from '@baserow/modules/builder/mixins/element'
-import { parseStaticHTML } from '@baserow_enterprise/builder/staticHtml'
 import HTMLElementPreview from '@baserow_enterprise/builder/components/elements/HTMLElementPreview'
 
 export default {
@@ -44,9 +43,10 @@ export default {
   components: { ElementPreviewHint, HTMLElementPreview },
   mixins: [element],
   directives: {
-    staticHtml(host, { value, oldValue }) {
+    // Insert client-side; script loading remains in application settings.
+    htmlContent(host, { value, oldValue }) {
       if (value !== oldValue) {
-        host.replaceChildren(parseStaticHTML(value) ?? '')
+        host.innerHTML = value
       }
     },
   },

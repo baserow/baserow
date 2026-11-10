@@ -83,7 +83,6 @@ dependencies = [
     "prosemirror==0.5.2",
     "rich==15.0.0",
     "markdown-it-py==4.0.0",
-    "html5lib==1.1",
     "tzdata==2026.2",
     "sentry-sdk==2.52.0",
     "typing_extensions>=4.14.1",

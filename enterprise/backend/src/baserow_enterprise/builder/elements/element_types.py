@@ -1,9 +1,7 @@
 import mimetypes
 import uuid
 from typing import Any, Dict, List, Optional
-from zipfile import ZipFile
 
-from django.core.files.storage import Storage
 from django.utils.translation import gettext_lazy as _
 
 from rest_framework import serializers
@@ -25,12 +23,10 @@ from baserow.core.formula.types import (
     BaserowFormula,
     BaserowFormulaObject,
 )
-from baserow.core.import_export.exceptions import ImportExportResourceInvalidFile
 from baserow.core.import_export.untrusted_content import UntrustedContentTypeMixin
 from baserow.core.models import Workspace
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.user_sources.handler import UserSourceHandler
-from baserow_enterprise.builder.elements.html import HTML_ERROR, is_static_html
 from baserow_enterprise.builder.elements.models import (
     AuthFormElement,
     FileInputElement,
@@ -63,31 +59,6 @@ class HTMLElementType(UntrustedContentTypeMixin, ElementType):
                 allow_blank=True, required=False, trim_whitespace=False
             ),
         }
-
-    def prepare_value_for_db(
-        self, values: dict[str, Any], instance: Element | None = None
-    ) -> dict[str, Any]:
-        if "html" in values and not is_static_html(values["html"]):
-            raise RequestBodyValidationException(
-                {"html": [{"error": HTML_ERROR, "code": "invalid_html"}]}
-            )
-        return super().prepare_value_for_db(values, instance)
-
-    def deserialize_property(
-        self,
-        prop_name: str,
-        value: Any,
-        id_mapping: dict[str, Any],
-        files_zip: ZipFile | None = None,
-        storage: Storage | None = None,
-        cache: dict[str, Any] | None = None,
-        **kwargs: Any,
-    ) -> Any:
-        if prop_name == "html" and not is_static_html(value):
-            raise ImportExportResourceInvalidFile(HTML_ERROR)
-        return super().deserialize_property(
-            prop_name, value, id_mapping, files_zip, storage, cache, **kwargs
-        )
 
     def get_import_report_entry(
         self, instance: HTMLElement

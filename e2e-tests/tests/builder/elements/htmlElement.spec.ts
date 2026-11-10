@@ -15,70 +15,8 @@ import { createLocalBaserowIntegration } from "../../../fixtures/builder/integra
 
 test.describe.configure({ mode: "default" });
 
-test("HTML source validates locally and still displays server errors @enterprise", async ({
-  page,
-  builderPagePage,
-}) => {
-  const license = await createLicense(ENTERPRISE_LICENSE);
-  try {
-    const element = await createBuilderElement(
-      builderPagePage.builderPage,
-      "html",
-      { html: "<p>Initial content</p>" }
-    );
-    const submittedSources: string[] = [];
-    const rejectedByServer = "<p>Rejected by server</p>";
-    await page.route(`**/api/builder/element/${element.id}/`, (route) => {
-      if (route.request().method() !== "PATCH") return route.continue();
-      const source = route.request().postDataJSON().html;
-      submittedSources.push(source);
-      if (source === rejectedByServer) {
-        return route.fulfill({
-          status: 400,
-          json: {
-            error: "ERROR_REQUEST_BODY_VALIDATION",
-            detail: { html: [{ error: "Invalid HTML", code: "invalid_html" }] },
-          },
-        });
-      }
-      return route.continue();
-    });
-    await builderPagePage.goto();
-    await page.locator(".html-element__editor").click();
-    const field = page.getByRole("textbox", { name: "HTML source" });
-    if (!(await field.isVisible()))
-      await builderPagePage.getElementGeneralTab();
-    const error = page.getByText("Enter static HTML only.", { exact: false });
-
-    await field.fill("<script>alert(1)</script>");
-    await expect(error).toBeVisible();
-    await expect(field).toHaveAttribute("aria-invalid", "true");
-    expect(submittedSources).toEqual([]);
-
-    await field.fill(rejectedByServer);
-    await expect.poll(() => submittedSources).toEqual([rejectedByServer]);
-    await expect(error).toBeVisible();
-    await expect(field).toHaveValue(rejectedByServer);
-
-    const corrected = "<p>Corrected content</p>";
-    await field.fill(corrected);
-    await expect(error).toBeHidden();
-    await expect(field).toHaveAttribute("aria-invalid", "false");
-    await expect
-      .poll(() => submittedSources)
-      .toEqual([rejectedByServer, corrected]);
-    await expect(
-      page
-        .frameLocator('iframe[title="HTML preview"]')
-        .getByText("Corrected content")
-    ).toBeVisible();
-  } finally {
-    await deleteLicense(license);
-  }
-});
-
 const html =
-  '<section id="widget" class="widget" aria-label="Widget" data-widget="map"><div style="height:48px"><strong>Widget status</strong><div data-status></div></div><img src="/html-widget-probe.png" alt="" hidden></section>';
+  '<section id="widget" class="widget" aria-label="Widget" data-widget="map"><div style="height:48px"><strong onclick="this.textContent=\'Clicked\'">Widget status</strong><div data-status></div></div><img src="/html-widget-probe.png" alt="" hidden><script>window.htmlSourceScriptRan = true</script></section>';
 const script = `
   (() => {
     window.loaderRuns = (window.loaderRuns || 0) + 1;
@@ -95,7 +33,7 @@ const script = `
 `;
 
 for (const mode of ["preview", "published"]) {
-  test(`static HTML widgets initialize across ${mode} navigation @enterprise`, async ({
+  test(`HTML widgets initialize across ${mode} navigation @enterprise`, async ({
     page,
     context,
     builderPagePage,
@@ -153,14 +91,6 @@ for (const mode of ["preview", "published"]) {
       ).toHaveText("Missing HTML content");
       await field.fill(html);
       await expect(page.locator(".element-preview--in-error")).toHaveCount(0);
-      await field.fill('<img src="/html-widget-probe.png" onerror="alert(1)">');
-      await expect(
-        page.getByText("Enter static HTML only.", { exact: false })
-      ).toBeVisible();
-      await field.fill(html);
-      await expect(
-        page.getByText("Enter static HTML only.", { exact: false })
-      ).toBeHidden();
       await expect(page.locator("#widget")).toHaveCount(0);
       expect(probeRequests).toBeGreaterThan(0);
       await page.screenshot({ path: testInfo.outputPath("editor.png") });
@@ -191,6 +121,11 @@ for (const mode of ["preview", "published"]) {
       );
       await expect(anchor).toHaveAttribute("data-initialized", "1");
       await visitor.waitForLoadState("networkidle");
+      expect(
+        await visitor.evaluate(() => Reflect.get(window, "htmlSourceScriptRan"))
+      ).toBeUndefined();
+      await anchor.getByText("Widget status", { exact: true }).click();
+      await expect(anchor.getByText("Clicked", { exact: true })).toBeVisible();
       const initial = await anchor.elementHandle();
       const initialLoads = await visitor.evaluate(() =>
         Reflect.get(window, "loaderRuns")
@@ -316,6 +251,7 @@ test("editor HTML isolates styles, blocks nested scripts and adapts its height @
     const source =
       "<style>body { background: rgb(17, 34, 51); }</style>" +
       '<div id="editor-card" style="height:80px;color:white">Static HTML</div>' +
+      '<script>document.querySelector("#editor-card").textContent = "Script executed"</script>' +
       '<iframe title="Child document" src="/html-editor-child.html" style="display:block;height:40px;border:0"></iframe>';
     await createBuilderElement(builderPagePage.builderPage, "html", {
       html: source,
