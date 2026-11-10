@@ -919,9 +919,6 @@ class CoreHTTPDataSourceServiceType(ListServiceTypeMixin, CoreHTTPRequestService
     # The URL stays for the same reason as on the action.
     sensitive_fields = ["headers", "query_params"]
 
-    # The sample data is the response of the API.
-    sample_data_is_sensitive = True
-
     allowed_fields = ["url", "timeout", "returns_list", "list_path"]
 
     _serializer_field_names = [

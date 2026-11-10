@@ -19,8 +19,6 @@ from baserow.contrib.integrations.core.constants import (
 )
 from baserow.contrib.integrations.core.models import (
     CoreHTTPDataSourceService,
-    CoreHTTPRequestService,
-    CoreRouterService,
     HTTPHeader,
     HTTPQueryParam,
 )
@@ -38,7 +36,6 @@ from baserow.core.services.exceptions import (
     UnexpectedDispatchException,
 )
 from baserow.core.services.registries import service_type_registry
-from baserow.core.services.utils import sample_data_skeleton, sanitize_sample_data
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 
@@ -664,37 +661,8 @@ def test_http_data_source_switch_to_list_keeps_the_service(data_fixture):
     ]
 
 
-def test_sample_data_skeleton():
-    assert sample_data_skeleton(
-        {
-            "name": "Ada",
-            "age": 36,
-            "score": 1.5,
-            "active": True,
-            "nothing": None,
-            "tags": ["a", "b"],
-            "items": [
-                {"id": 1, "label": "x"},
-                {"id": 2, "extra": {"deep": "y"}},
-            ],
-            "empty": [],
-        }
-    ) == {
-        "name": "",
-        "age": 0,
-        "score": 0,
-        "active": False,
-        "nothing": None,
-        "tags": [""],
-        "items": [{"id": 0, "label": "", "extra": {"deep": ""}}],
-        "empty": [],
-    }
-    assert sample_data_skeleton([[{"a": 1}], [{"b": "x"}]]) == [[{"a": 0, "b": ""}]]
-    assert sample_data_skeleton([None, {"a": 1}]) == [{"a": 0}]
-
-
 @pytest.mark.django_db
-def test_http_data_source_export_skeleton_vs_publish(data_fixture):
+def test_http_data_source_export_placeholders_vs_publish(data_fixture):
     service = create_http_get_service(data_fixture)
     HTTPHeader.objects.create(service=service, key="Authorization", value="'Bearer x'")
     service.sample_data = {
@@ -709,7 +677,7 @@ def test_http_data_source_export_skeleton_vs_publish(data_fixture):
         service, import_export_config=ImportExportConfig(include_permission_data=False)
     )
     assert external["sample_data"] == {
-        "data": {"name": "", "items": [{"id": 0}]},
+        "data": {"name": "Example", "items": [{"id": 0}]},
         "status": 200,
         "output_uid": "",
     }
@@ -784,29 +752,7 @@ def test_public_dispatch_sends_http_requests_outside_a_transaction(
 
 
 @pytest.mark.django_db
-def test_other_sample_data_is_replaced_by_placeholders_on_export(data_fixture):
-    # Only the sample data of an HTTP data source is cut down to its shape. The
-    # sample data of other services keeps its lists, with placeholder values.
-    action = data_fixture.create_service(
-        CoreHTTPRequestService,
-        url="'https://example.notexist'",
-        sample_data={"data": {"body": {"id": 13}, "status_code": 200}},
-    )
-    router = data_fixture.create_service(
-        CoreRouterService,
-        sample_data={"data": {"edge": {"label": "Urgent"}}, "output_uid": "abc"},
-    )
-    config = ImportExportConfig(include_permission_data=False)
-
-    for service in [action, router]:
-        exported = service.get_type().export_serialized(
-            service, import_export_config=config
-        )
-        assert exported["sample_data"] == sanitize_sample_data(service.sample_data)
-
-
-@pytest.mark.django_db
-def test_http_data_source_import_keeps_skeleton_schema(data_fixture):
+def test_http_data_source_import_keeps_the_schema(data_fixture):
     service = create_http_get_service(data_fixture, returns_list=True)
     service.sample_data = {
         "data": {
@@ -912,15 +858,8 @@ def test_simulate_dispatch_http_list_data_source_keeps_response(
     }
     assert set(response.json()["schema"]["items"]["properties"]) == {"id", "tags"}
 
-    # An export without the sensitive data only keeps the shape of it.
-    service = DataSourceHandler().get_data_source(data_source.id).service.specific
-    skeleton = service.get_type().sample_data_skeleton(service.sample_data)
-    assert skeleton["data"]["response"] == {
-        "data": {"items": [{"id": 0, "tags": [""]}]},
-        "total": 0,
-    }
-
     # Only a test keeps the response.
+    service = DataSourceHandler().get_data_source(data_source.id).service.specific
     with mock_http_get(body):
         result = service.get_type().dispatch(service, FakeDispatchContext())
     assert "response" not in result.data
