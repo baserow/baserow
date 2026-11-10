@@ -12,13 +12,8 @@ from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.table.operations import (
     ListRowsDatabaseTableOperationType,
 )
-from baserow.contrib.database.tools.tables import (
-    get_database,
-    get_table,
-    permitted_tables,
-)
+from baserow.contrib.database.tools.tables import get_database, permitted_tables
 from baserow.core.tools import ToolContext
-from baserow.core.tools.errors import ToolNotFoundError
 
 
 def visible_table(ctx: ToolContext, table_id: int) -> Table:
@@ -62,8 +57,9 @@ def named_fields(ctx: ToolContext, field_ids: list[int]) -> dict[int, tuple[str,
 
     :param ctx: The Agent identity and its workspace.
     :param field_ids: Fields the call names.
-    :return: Each field's name and its table's name, by field ID.
-    :raises ToolNotFoundError: When the identity can't see one of them.
+    :return: Each field's name and its table's name, by field ID, for the fields
+        the identity can see. The others keep their IDs, so the tool's own error
+        explains them.
     """
 
     listed = TableHandler().list_workspace_tables(ctx.user, ctx.workspace)
@@ -77,20 +73,11 @@ def named_fields(ctx: ToolContext, field_ids: list[int]) -> dict[int, tuple[str,
             ctx, tables.values(), ListFieldsOperationType.type
         )
     }
-    names = {
+    return {
         found_field.id: (found_field.name, found_field.table.name)
         for found_field in found
         if found_field.table_id in permitted
     }
-    missing = [
-        field_id for field_id in dict.fromkeys(field_ids) if field_id not in names
-    ]
-    if missing:
-        raise ToolNotFoundError(
-            f"Fields {missing} were not found. Call get_table_schema for the "
-            "current field IDs."
-        )
-    return names
 
 
 def table_field_names(ctx: ToolContext, table: Table) -> dict[int, str]:
@@ -120,32 +107,17 @@ def readable_names(table: Table) -> set[str]:
     }
 
 
-def table_with_rows(ctx: ToolContext, table_id: int) -> Table:
+def row_names(ctx: ToolContext, table: Table, row_ids: list[int]) -> dict[int, str]:
     """
     :param ctx: The Agent identity and its workspace.
-    :param table_id: The table whose rows the call names.
-    :return: The table, when the identity may list its rows.
-    :raises Table.DoesNotExist: When the identity can't see it.
-    :raises PermissionDenied: When it may not list its rows.
-    """
-
-    return get_table(ctx, table_id, ListRowsDatabaseTableOperationType.type)
-
-
-def row_names(table: Table, row_ids: list[int]) -> dict[int, str]:
-    """
-    :param table: A table whose rows the identity may list.
+    :param table: A table the identity can see.
     :param row_ids: Rows the call names.
     :return: Each row's primary value as text, or ``unnamed row <id>`` when it's
-        empty, by row ID.
-    :raises ToolNotFoundError: When a row is missing or trashed.
+        empty, by row ID. Rows that are missing or trashed, and all rows when the
+        identity may not list them, keep their IDs.
     """
 
+    if not permitted_tables(ctx, [table], ListRowsDatabaseTableOperationType.type):
+        return {}
     names = RowHandler().get_row_names(table, row_ids)
-    missing = [row_id for row_id in dict.fromkeys(row_ids) if row_id not in names]
-    if missing:
-        raise ToolNotFoundError(
-            f"Rows {missing} were not found in table {table.id}. Call "
-            "list_table_rows for the current row IDs."
-        )
-    return {row_id: names[row_id] or f"unnamed row {row_id}" for row_id in row_ids}
+    return {row_id: name or f"unnamed row {row_id}" for row_id, name in names.items()}

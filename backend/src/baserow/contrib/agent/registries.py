@@ -108,7 +108,6 @@ def _call_tool(
     try:
         with local_cache.context():
             ctx = act_as_identity(ctx)
-            # A name the identity can't resolve stops the call before it changes data.
             preview = tool_type.get_step_preview_input(ctx, arguments)
             result = function(ctx, **arguments)
             if isinstance(result, dict) and "error" in result:
@@ -183,8 +182,8 @@ class AgentToolType(Instance):
     ) -> StepPreview | None:
         """
         Describe the request with names instead of IDs, as the Agent identity,
-        before the call runs. Raise when a name can't be resolved: the call then
-        fails and nothing runs.
+        before the call runs. Whatever can't be named keeps its ID: the tool, not
+        the preview, decides whether the call succeeds.
 
         :param ctx: Who the call acts for, already refreshed.
         :param arguments: The arguments as the model sent them, as JSON values.
@@ -197,16 +196,25 @@ class AgentToolType(Instance):
         self, ctx: ToolContext, arguments: dict[str, Any]
     ) -> dict[str, Any]:
         """
-        The readable request as the step's input stores it.
+        The readable request as the step's input stores it, without letting a
+        broken preview fail the call.
 
         :param ctx: Who the call acts for, already refreshed.
         :param arguments: The validated arguments.
         :return: ``values`` and, when part of the request was left out,
-            ``truncated``; nothing for a tool without a preview.
+            ``truncated``; nothing for a tool without a preview, or when it can't
+            be built.
         """
 
-        preview = self.get_step_preview(ctx, as_requested(arguments))
-        return {} if preview is None else preview.to_input()
+        try:
+            preview = self.get_step_preview(ctx, as_requested(arguments))
+            return {} if preview is None else preview.to_input()
+        except Exception as exc:
+            if classify_tool_error(exc).message is None:
+                logger.error(
+                    "Agent tool {} preview failed ({})", self.type, type(exc).__name__
+                )
+            return {}
 
     def get_step_facts(
         self, ctx: ToolContext, arguments: dict[str, Any], result: Any

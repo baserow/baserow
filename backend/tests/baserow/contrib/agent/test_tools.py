@@ -21,7 +21,6 @@ from baserow.core.models import Agent
 from baserow.core.notifications.models import NotificationRecipient
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import (
-    NOT_FOUND_MESSAGE,
     ToolErrorCode,
     ToolInputError,
 )
@@ -123,6 +122,15 @@ def preview_of(name: str, ctx: ToolContext, arguments: dict) -> dict:
         arguments
     )
     return tool_type.get_step_preview_input(ctx, validated)
+
+
+def person_ctx(workspace_data, data_fixture) -> ToolContext:
+    """A person of the workspace to act as, for tools the Agent identity can't use."""
+
+    workspace = workspace_data.ctx.workspace
+    return ToolContext(
+        user=data_fixture.create_user(workspace=workspace), workspace=workspace
+    )
 
 
 def call_tool(tool_type: AgentToolType, ctx: ToolContext, arguments: dict) -> object:
@@ -241,13 +249,9 @@ def test_every_tool_acts_as_the_agent_identity(workspace_data, name):
 def test_successful_field_deletion_reports_its_confirmed_count(
     workspace_data, data_fixture
 ):
-    ctx = ToolContext(
-        user=data_fixture.create_user(workspace=workspace_data.ctx.workspace),
-        workspace=workspace_data.ctx.workspace,
-    )
     result = call_tool(
         agent_tool_type_registry.get("delete_fields"),
-        ctx,
+        person_ctx(workspace_data, data_fixture),
         {"field_ids": [workspace_data.hours.id]},
     )
 
@@ -345,13 +349,11 @@ def test_tool_errors_are_answered_to_the_model(workspace_data, data_fixture):
 
 
 @pytest.mark.django_db
-def test_a_request_that_cannot_be_named_fails_before_the_tool_runs(
-    workspace_data, data_fixture, mocker
+def test_a_request_that_cannot_be_named_is_left_to_the_tool(
+    workspace_data, data_fixture
 ):
-    ran = mocker.Mock(return_value="done")
-
     def write(ctx: ToolContext, table_id: int) -> str:
-        return ran(table_id)
+        return "done"
 
     class WriteAgentToolType(TablePreviewAgentToolType):
         type = "write"
@@ -366,9 +368,10 @@ def test_a_request_that_cannot_be_named_fails_before_the_tool_runs(
         WriteAgentToolType(), workspace_data.ctx, {"table_id": workspace_data.table.id}
     )
 
-    assert hidden.return_value["error"]["code"] == "not_found"
-    assert hidden.metadata == {"error_code": "not_found", "input": {}}
-    ran.assert_called_once_with(workspace_data.table.id)
+    assert (hidden.return_value, hidden.metadata) == (
+        "done",
+        {"facts": {}, "input": {}},
+    )
     assert named.metadata == {"facts": {}, "input": {"values": {"table": "Tasks"}}}
 
 
@@ -521,33 +524,35 @@ def test_fields_with_the_same_name_stay_separate_entries(workspace_data, data_fi
 
 
 @pytest.mark.django_db
-def test_a_field_the_identity_cannot_see_fails_the_call_before_anything_changes(
+def test_a_field_that_cannot_be_named_keeps_its_id_and_fails_alone(
     workspace_data, data_fixture
 ):
+    trashed = data_fixture.create_text_field(table=workspace_data.table, trashed=True)
     hidden = data_fixture.create_text_field(name="Elsewhere")
 
-    result = call_tool(
-        agent_tool_type_registry.get("update_fields"),
+    deleted = call_tool(
+        agent_tool_type_registry.get("delete_fields"),
+        person_ctx(workspace_data, data_fixture),
+        {"field_ids": [workspace_data.hours.id, trashed.id]},
+    )
+    updated = preview_of(
+        "update_fields",
         workspace_data.ctx,
-        {
-            "fields": [
-                {"field_id": workspace_data.hours.id, "name": "Effort"},
-                {"field_id": hidden.id, "name": "Leak"},
-            ]
-        },
+        {"fields": [{"field_id": hidden.id, "name": "Leak"}]},
     )
 
     workspace_data.hours.refresh_from_db()
-    assert result.return_value == {
-        "error": {
-            "code": "not_found",
-            "message": NOT_FOUND_MESSAGE,
-            "hint": f"Fields [{hidden.id}] were not found. Call get_table_schema "
-            "for the current field IDs.",
+    assert workspace_data.hours.trashed
+    assert deleted.return_value["deleted_field_ids"] == [workspace_data.hours.id]
+    assert [error["item"] for error in deleted.return_value["errors"]] == [trashed.id]
+    assert deleted.metadata["input"] == {
+        "values": {
+            "fields": [{"field": "Hours", "table": "Tasks"}, {"field_id": trashed.id}]
         }
     }
-    assert result.metadata == {"error_code": "not_found", "input": {}}
-    assert workspace_data.hours.name == "Hours"
+    assert updated == {
+        "values": {"fields": [{"field_id": hidden.id, "changes": {"name": "Leak"}}]}
+    }
 
 
 @pytest.mark.django_db
@@ -777,7 +782,7 @@ def test_changed_rows_are_named_by_their_primary_value(workspace_data):
 
 
 @pytest.mark.django_db
-def test_a_missing_row_fails_the_call_before_any_row_is_deleted(workspace_data):
+def test_a_missing_row_keeps_its_id_and_the_tool_deletes_nothing(workspace_data):
     result = call_tool(
         agent_tool_type_registry.get("delete_rows"),
         workspace_data.ctx,
@@ -788,11 +793,29 @@ def test_a_missing_row_fails_the_call_before_any_row_is_deleted(workspace_data):
     )
 
     assert result.return_value["error"]["code"] == "not_found"
+    assert result.metadata["input"] == {
+        "values": {"table": "Tasks", "rows": ["Draft", {"row_id": 999999}]}
+    }
     assert (
         workspace_data.table.get_model()
         .objects.filter(id=workspace_data.row.id)
         .exists()
     )
+
+
+@pytest.mark.django_db
+def test_rows_of_a_table_without_a_primary_field_are_deleted_unnamed(workspace_data):
+    workspace_data.table.field_set.update(primary=False)
+
+    result = call_tool(
+        agent_tool_type_registry.get("delete_rows"),
+        workspace_data.ctx,
+        {"table_id": workspace_data.table.id, "row_ids": [workspace_data.row.id]},
+    )
+
+    assert "error" not in result.return_value
+    assert result.metadata["input"] == {}
+    assert not workspace_data.table.get_model().objects.exists()
 
 
 @pytest.mark.django_db
@@ -834,8 +857,8 @@ def test_a_row_request_too_large_to_store_keeps_the_rows_that_fit(
 
 
 @pytest.mark.django_db
-def test_an_unexpected_preview_error_fails_the_call_before_the_tool_runs(
-    workspace_data, mocker, logs
+def test_an_unexpected_preview_error_leaves_the_call_unnamed(
+    workspace_data, data_fixture, mocker, logs
 ):
     private_error = "PRIVATE_PREVIEW_ERROR_CANARY"
     tool_type = agent_tool_type_registry.get("delete_fields")
@@ -844,17 +867,16 @@ def test_an_unexpected_preview_error_fails_the_call_before_the_tool_runs(
     )
 
     result = call_tool(
-        tool_type, workspace_data.ctx, {"field_ids": [workspace_data.hours.id]}
+        tool_type,
+        person_ctx(workspace_data, data_fixture),
+        {"field_ids": [workspace_data.hours.id]},
     )
 
     workspace_data.hours.refresh_from_db()
-    assert result.return_value == {
-        "error": {"code": "failed", "message": "Internal error."}
-    }
-    assert result.metadata == {"error_code": "failed", "input": {}}
-    assert not workspace_data.hours.trashed
+    assert result.metadata == {"facts": {"count": 1}, "input": {}}
+    assert workspace_data.hours.trashed
     assert [log.record["message"] for log in logs] == [
-        "Agent tool delete_fields failed (RuntimeError)"
+        "Agent tool delete_fields preview failed (RuntimeError)"
     ]
     assert private_error not in "".join(str(entry) for entry in logs)
 

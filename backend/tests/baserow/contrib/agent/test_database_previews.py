@@ -10,14 +10,11 @@ from baserow.contrib.agent.database_previews import (
     row_names,
     table_field_names,
     table_names,
-    table_with_rows,
     visible_table,
 )
 from baserow.contrib.database.table.models import Table
-from baserow.core.exceptions import PermissionDenied
 from baserow.core.models import Agent
 from baserow.core.tools import ToolContext
-from baserow.core.tools.errors import ToolNotFoundError
 
 
 @pytest.fixture
@@ -47,7 +44,6 @@ def test_names_are_resolved_as_the_agent_identity(accounts, data_fixture):
         table=data_fixture.create_database_table(database=accounts.database),
         name="Secret",
     )
-    table = table_with_rows(accounts.ctx, accounts.table.id)
 
     assert visible_table(accounts.ctx, accounts.table.id).name == "Accounts"
     assert database_name(accounts.ctx, accounts.database.id) == "Sales"
@@ -55,7 +51,9 @@ def test_names_are_resolved_as_the_agent_identity(accounts, data_fixture):
         accounts.secret.id: ("Secret", "Accounts"),
         copy.id: ("Secret", copy.table.name),
     }
-    assert row_names(table, [accounts.acme.id, accounts.unnamed.id]) == {
+    assert row_names(
+        accounts.ctx, accounts.table, [accounts.acme.id, accounts.unnamed.id]
+    ) == {
         accounts.acme.id: "Acme",
         accounts.unnamed.id: f"unnamed row {accounts.unnamed.id}",
     }
@@ -64,22 +62,21 @@ def test_names_are_resolved_as_the_agent_identity(accounts, data_fixture):
 
 
 @pytest.mark.django_db
-def test_missing_fields_and_rows_are_named_to_the_model(accounts, data_fixture):
+def test_missing_hidden_and_trashed_fields_and_rows_are_left_out(
+    accounts, data_fixture
+):
     hidden = data_fixture.create_text_field(name="Elsewhere")
-
-    with pytest.raises(ToolNotFoundError) as fields:
-        named_fields(accounts.ctx, [accounts.secret.id, hidden.id])
-    with pytest.raises(ToolNotFoundError) as rows:
-        row_names(accounts.table, [accounts.acme.id, 999999])
-
-    assert fields.value.hint == (
-        f"Fields [{hidden.id}] were not found. Call get_table_schema for the "
-        "current field IDs."
+    trashed = data_fixture.create_text_field(table=accounts.table, trashed=True)
+    accounts.table.get_model().objects.filter(id=accounts.unnamed.id).update(
+        trashed=True
     )
-    assert rows.value.hint == (
-        f"Rows [999999] were not found in table {accounts.table.id}. Call "
-        "list_table_rows for the current row IDs."
-    )
+
+    assert named_fields(accounts.ctx, [accounts.secret.id, hidden.id, trashed.id]) == {
+        accounts.secret.id: ("Secret", "Accounts")
+    }
+    assert row_names(
+        accounts.ctx, accounts.table, [accounts.acme.id, accounts.unnamed.id, 999999]
+    ) == {accounts.acme.id: "Acme"}
 
 
 @pytest.mark.django_db
@@ -103,28 +100,10 @@ def test_table_and_field_names_are_listed(accounts, data_fixture):
 
 
 @pytest.mark.django_db
-def test_trashed_rows_are_not_found(accounts):
-    accounts.table.get_model().objects.filter(id=accounts.acme.id).update(trashed=True)
-
-    with pytest.raises(ToolNotFoundError):
-        row_names(accounts.table, [accounts.acme.id])
-
-
-@pytest.mark.django_db
-def test_rows_need_the_right_to_list_them(accounts):
-    with patch(
-        "baserow.core.handler.CoreHandler.check_permissions",
-        side_effect=PermissionDenied(),
-    ):
-        with pytest.raises(PermissionDenied):
-            table_with_rows(accounts.ctx, accounts.table.id)
-
-
-@pytest.mark.django_db
-def test_fields_need_the_right_to_list_them(accounts):
+def test_fields_and_rows_need_the_right_to_list_them(accounts):
     with patch(
         "baserow.contrib.agent.database_previews.permitted_tables", return_value=[]
     ):
-        with pytest.raises(ToolNotFoundError) as named:
-            named_fields(accounts.ctx, [accounts.secret.id])
+        assert named_fields(accounts.ctx, [accounts.secret.id]) == {}
         assert table_field_names(accounts.ctx, accounts.table) == {}
+        assert row_names(accounts.ctx, accounts.table, [accounts.acme.id]) == {}

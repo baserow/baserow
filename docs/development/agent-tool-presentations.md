@@ -61,7 +61,9 @@ Calls to tools the reply doesn't offer get no step.
 `AgentToolType.get_step_preview(ctx, arguments)` names a database tool's request
 as the Agent identity, before the tool runs, and stores it in `input.values`.
 
-- A name the identity can't resolve fails the call, so nothing changes.
+- What the identity can't name keeps its ID, such as `{"field_id": 4}` or
+  `{"row_id": 12}`. The tool, not the preview, decides whether the call
+  succeeds; a preview that can't be built is left out.
 - A failed call keeps the request it named.
 - Only values of known, readable fields are shown; everything else, such as a
   password or a misspelled field, is masked as `"••••"`.
@@ -72,7 +74,8 @@ as the Agent identity, before the tool runs, and stores it in `input.values`.
 - `input.truncated` marks any of these cuts; the card says the preview is
   shortened.
 - Each ID is resolved on its own: two fields named "Name" stay two entries.
-- Rows are named by their primary field value, or `unnamed row <id>`.
+- Rows are named by their primary field value, or `unnamed row <id>`, when the
+  identity may list them.
 - Field IDs in views and filters become names when the identity may list the
   table's fields; others stay as written.
 - An integer `linked_table` in `create_fields` the identity can't see stays as
@@ -99,7 +102,7 @@ failed step whose `input` is `{"unavailable": true}`.
 `get_step_facts(ctx, arguments, result)`. `get_step_input` and `get_step_facts`
 default to `{}`; a failure in either is logged without values and doesn't change
 the tool's result. `get_step_preview` defaults to `None`; build it with the helpers
-in `contrib/agent/previews.py`. When it raises, the call fails before it runs.
+in `contrib/agent/previews.py`. When it raises, the step has no `values` and the call still runs.
 
 **Frontend.** Extend `ToolPresentationType` from
 `modules/core/toolPresentationTypes.js` and implement `getLabel(t)`,

@@ -11,7 +11,6 @@ from .database_previews import (
     row_names,
     table_field_names,
     table_names,
-    table_with_rows,
     visible_table,
 )
 from .previews import StepPreview, mask, name_field_references
@@ -26,6 +25,31 @@ def _without(values: dict[str, Any], key: str) -> dict[str, Any]:
     """
 
     return {name: value for name, value in values.items() if name != key}
+
+
+def _field_reference(
+    field_id: int, names: dict[int, tuple[str, str]]
+) -> dict[str, Any]:
+    """
+    :param field_id: A field the call names.
+    :param names: The field and table names the identity can see, by field ID.
+    :return: The field's and its table's names, or its ID as written.
+    """
+
+    if field_id not in names:
+        return {"field_id": field_id}
+    field_name, table_name = names[field_id]
+    return {"field": field_name, "table": table_name}
+
+
+def _row_reference(row_id: int, names: dict[int, str]) -> dict[str, Any]:
+    """
+    :param row_id: A row the call names.
+    :param names: The row names the identity can see, by row ID.
+    :return: The row's name, or its ID as written.
+    """
+
+    return {"row": names[row_id]} if row_id in names else {"row_id": row_id}
 
 
 def _named_link(request: dict[str, Any], names: dict[int, str]) -> dict[str, Any]:
@@ -161,8 +185,7 @@ class UpdateFieldsAgentToolType(DatabaseAgentToolType):
         names = named_fields(ctx, [update["field_id"] for update in updates])
         preview.items = [
             {
-                "field": names[update["field_id"]][0],
-                "table": names[update["field_id"]][1],
+                **_field_reference(update["field_id"], names),
                 "changes": _without(update, "field_id"),
             }
             for update in updates
@@ -187,10 +210,7 @@ class DeleteFieldsAgentToolType(DatabaseAgentToolType):
         preview = StepPreview({}, "fields")
         field_ids = preview.cut_items(arguments["field_ids"])
         names = named_fields(ctx, field_ids)
-        preview.items = [
-            {"field": names[field_id][0], "table": names[field_id][1]}
-            for field_id in field_ids
-        ]
+        preview.items = [_field_reference(field_id, names) for field_id in field_ids]
         return preview
 
     def get_step_facts(
@@ -298,14 +318,14 @@ class UpdateRowsAgentToolType(DatabaseAgentToolType):
     def get_step_preview(
         self, ctx: ToolContext, arguments: dict[str, Any]
     ) -> StepPreview:
-        table = table_with_rows(ctx, arguments["table_id"])
+        table = visible_table(ctx, arguments["table_id"])
         preview = StepPreview({"table": table.name}, "rows")
         updates = preview.cut_items(arguments["rows"])
-        names = row_names(table, [update["id"] for update in updates])
+        names = row_names(ctx, table, [update["id"] for update in updates])
         readable = readable_names(table)
         preview.items = [
             {
-                "row": names[update["id"]],
+                **_row_reference(update["id"], names),
                 "values": mask(_without(update, "id"), readable),
             }
             for update in updates
@@ -327,11 +347,11 @@ class DeleteRowsAgentToolType(DatabaseAgentToolType):
     def get_step_preview(
         self, ctx: ToolContext, arguments: dict[str, Any]
     ) -> StepPreview:
-        table = table_with_rows(ctx, arguments["table_id"])
+        table = visible_table(ctx, arguments["table_id"])
         preview = StepPreview({"table": table.name}, "rows")
         row_ids = preview.cut_items(list(dict.fromkeys(arguments["row_ids"])))
-        names = row_names(table, row_ids)
-        preview.items = [names[row_id] for row_id in row_ids]
+        names = row_names(ctx, table, row_ids)
+        preview.items = [names.get(row_id, {"row_id": row_id}) for row_id in row_ids]
         return preview
 
     def get_step_facts(

@@ -47,18 +47,6 @@ class ToolInputError(Exception):
         self.hint = hint
 
 
-class ToolNotFoundError(Exception):
-    """Something the call names doesn't exist or is hidden from the caller."""
-
-    def __init__(self, hint: str) -> None:
-        """
-        :param hint: Which of the named IDs were not found, for the model only.
-        """
-
-        super().__init__(hint)
-        self.hint = hint
-
-
 def _detail_messages(detail) -> str:
     if isinstance(detail, dict):
         return " ".join(
@@ -183,8 +171,6 @@ def classify_tool_error(exc: Exception) -> ToolError:
     :return: The failure's code and the message for the client.
     """
 
-    if isinstance(exc, ToolNotFoundError):
-        return ToolError(ToolErrorCode.NOT_FOUND, NOT_FOUND_MESSAGE, exc.hint)
     if isinstance(exc, ToolInputError):
         return ToolError(ToolErrorCode.INVALID_INPUT, str(exc), exc.hint)
     # UserNotInWorkspace is a PermissionException, but the user must not learn
