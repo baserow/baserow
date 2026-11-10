@@ -887,6 +887,7 @@
   "elementType": {
     "html": "HTML",
     "htmlDescription": "Place static HTML directly on the page for custom layouts and widget integrations.",
+    "errorHtmlContentMissing": "Missing HTML content",
     "graph": "Graph",
     "graphDescription": "Display formula-driven data as a graph.",
     "errorUserSourceHasNoLoginOption": "The selected user source has no login option",

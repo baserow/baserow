@@ -85,6 +85,12 @@ for (const mode of ["preview", "published"]) {
       if (!(await field.isVisible()))
         await builderPagePage.getElementGeneralTab();
       await expect(field).toHaveValue(html);
+      await field.fill("");
+      await expect(
+        page.locator(".element-preview--in-error .element-preview__error-tag")
+      ).toHaveText("Missing HTML content");
+      await field.fill(html);
+      await expect(page.locator(".element-preview--in-error")).toHaveCount(0);
       await field.fill('<img src="/html-widget-probe.png" onerror="alert(1)">');
       await expect(
         page.getByText("Enter static HTML only.", { exact: false })

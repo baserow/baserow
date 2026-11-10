@@ -5,6 +5,18 @@ import GraphElementForm from '@baserow_enterprise/builder/components/elements/Gr
 import { FileInputElementType } from '@baserow_enterprise/builder/elementTypes'
 
 describe('Enterprise builder element types', () => {
+  describe('HTML source error message', () => {
+    test.each([
+      ['', 'elementType.errorHtmlContentMissing'],
+      [' \n\t ', 'elementType.errorHtmlContentMissing'],
+      ['<h1>Hello</h1>', null],
+      ['<div class="senja-embed" data-id="widget"></div>', null],
+    ])('reports missing content for source %j', (html, expectedError) => {
+      const elementType = useNuxtApp().$registry.get('element', 'html')
+      expect(elementType.getErrorMessage({ html }, {})).toBe(expectedError)
+    })
+  })
+
   describe('Auth form error message', () => {
     const getAuthFormErrorMessage = (
       authProviders,

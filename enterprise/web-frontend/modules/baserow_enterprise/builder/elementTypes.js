@@ -405,6 +405,13 @@ export class HTMLElementType extends ElementType {
     return HTMLElementForm
   }
 
+  getErrorMessage(element, applicationContext) {
+    if (!element.html?.trim()) {
+      return this.app.$i18n.t('elementType.errorHtmlContentMissing')
+    }
+    return super.getErrorMessage(element, applicationContext)
+  }
+
   isDeactivatedReason({ workspace }) {
     if (!workspace) {
       return null
