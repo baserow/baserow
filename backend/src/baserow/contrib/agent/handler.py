@@ -52,6 +52,7 @@ from .constants import (
     DISALLOWED_TOOL_CALL_NOTE,
     HISTORY_MESSAGE_LIMIT,
     REJECTED_TOOL_CALL_NOTE,
+    RUN_AS_LOST_TOOL_CALL_NOTE,
     RUN_AS_SUBJECT_TYPES,
     AgentConfigurationErrorCode,
     AgentReadinessState,
@@ -969,6 +970,9 @@ class AgentHandler:
                 reply,
                 ConversationTypeAdapter.validate_python(transcript.paused_conversation),
                 tools["allowed_tools"],
+                DISALLOWED_TOOL_CALL_NOTE
+                if acting_subject
+                else RUN_AS_LOST_TOOL_CALL_NOTE,
             )
         )
         prompt, history = (
@@ -1040,6 +1044,7 @@ class AgentHandler:
         reply: AgentMessage,
         paused_conversation: Conversation,
         allowed_tool_names: list[str],
+        disallowed_note: str,
     ) -> AgentReplyResume:
         """
         Continue a paused reply with the owner's decision on each held call, showing
@@ -1048,6 +1053,7 @@ class AgentHandler:
         :param reply: The paused reply.
         :param paused_conversation: Its paused run, holding the calls.
         :param allowed_tool_names: The tools the reply may call now.
+        :param disallowed_note: Tells the model why an approved call can't run.
         :return: The paused run with the decisions and the saved steps.
         """
 
@@ -1061,7 +1067,9 @@ class AgentHandler:
         }
         # An undecided call gets no result, so the run fails instead of guessing.
         results = {
-            tool_call_id: self._get_approval_result(approval, allowed_tool_names)
+            tool_call_id: self._get_approval_result(
+                approval, allowed_tool_names, disallowed_note
+            )
             for tool_call_id, approval in approvals.items()
             if approval.status != AgentToolApproval.Status.PENDING
         }
@@ -1081,7 +1089,10 @@ class AgentHandler:
         )
 
     def _get_approval_result(
-        self, approval: AgentToolApproval, allowed_tool_names: list[str]
+        self,
+        approval: AgentToolApproval,
+        allowed_tool_names: list[str],
+        disallowed_note: str,
     ) -> ToolApproved | ToolDenied:
         """
         Tell the model what the owner decided about a held call. An approved call
@@ -1090,6 +1101,7 @@ class AgentHandler:
 
         :param approval: The decided approval of the call.
         :param allowed_tool_names: The tools the reply may call now.
+        :param disallowed_note: Tells the model why an approved call can't run.
         :return: Whether the call runs, or why it doesn't.
         """
 
@@ -1100,7 +1112,7 @@ class AgentHandler:
                 else REJECTED_TOOL_CALL_NOTE
             )
         if approval.tool_name not in allowed_tool_names:
-            return ToolDenied(DISALLOWED_TOOL_CALL_NOTE)
+            return ToolDenied(disallowed_note)
         return ToolApproved()
 
     def finish_reply(

@@ -39,9 +39,11 @@ from baserow.contrib.agent.actions import (
 from baserow.contrib.agent.chat_run_type import AgentChatRunType
 from baserow.contrib.agent.constants import (
     ASK_FIRST_INSTRUCTIONS,
+    DISALLOWED_TOOL_CALL_NOTE,
     INTERRUPTED_CHANGES_NOTE,
     INTERRUPTED_REPLY_NOTE,
     REJECTED_TOOL_CALL_NOTE,
+    RUN_AS_LOST_TOOL_CALL_NOTE,
     TOOL_RETRIES,
 )
 from baserow.contrib.agent.handler import AgentHandler
@@ -1838,7 +1840,9 @@ def test_an_approved_call_fails_when_the_agent_may_no_longer_make_it(
     assert list(reply.approvals.values_list("status", flat=True)) == ["approved"]
     assert row_names(table) == []
     assert [part.content for part in received[-1][-1].parts] == [
-        "This tool is no longer allowed."
+        DISALLOWED_TOOL_CALL_NOTE
+        if change == "disallow_the_tool"
+        else RUN_AS_LOST_TOOL_CALL_NOTE
     ]
 
 

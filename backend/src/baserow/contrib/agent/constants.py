@@ -50,6 +50,11 @@ ASK_FIRST_INSTRUCTIONS = (
     "repeat the call unless they ask for it again."
 )
 DISALLOWED_TOOL_CALL_NOTE = "This tool is no longer allowed."
+RUN_AS_LOST_TOOL_CALL_NOTE = (
+    "You no longer act as the identity this call was held under, so it did not run. "
+    "Tools are unavailable for the rest of this reply; the user can ask again in a "
+    "new message."
+)
 UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS = (
     "The identity configured for your workspace access is no longer available. "
     "You cannot read or change workspace data. When a request needs workspace "
