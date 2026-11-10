@@ -290,8 +290,6 @@ def test_model_tool_names_are_valid_and_unique():
 
 @pytest.mark.django_db
 def test_a_refused_key_answers_its_own_error(data_fixture, api_client, mocker):
-    import httpx
-
     from baserow.contrib.integrations.mcp import handler
 
     request = httpx.Request("POST", "https://mcp.example.com/mcp")

@@ -1,6 +1,5 @@
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework import serializers
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -21,28 +20,17 @@ from ..exceptions import (
     MCPServerUnreachable,
 )
 from ..service import MCPServerService
-
-ERROR_MCP_SERVER_UNREACHABLE = (
-    "ERROR_MCP_SERVER_UNREACHABLE",
-    400,
-    "The MCP server could not be reached or failed to list its tools.",
+from .errors import (
+    ERROR_MCP_OAUTH_FAILED,
+    ERROR_MCP_OAUTH_STATE_INVALID,
+    ERROR_MCP_SERVER_NOT_CONNECTED,
+    ERROR_MCP_SERVER_REFUSED_CREDENTIAL,
+    ERROR_MCP_SERVER_UNREACHABLE,
 )
-
-ERROR_MCP_SERVER_REFUSED_CREDENTIAL = (
-    "ERROR_MCP_SERVER_REFUSED_CREDENTIAL",
-    400,
-    "The MCP server refused the API key or the connected account.",
-)
-ERROR_MCP_SERVER_NOT_CONNECTED = (
-    "ERROR_MCP_SERVER_NOT_CONNECTED",
-    400,
-    "The MCP server uses OAuth and no account is connected.",
-)
-ERROR_MCP_OAUTH_FAILED = ("ERROR_MCP_OAUTH_FAILED", 400, "{e.message}")
-ERROR_MCP_OAUTH_STATE_INVALID = (
-    "ERROR_MCP_OAUTH_STATE_INVALID",
-    400,
-    "This sign-in expired or was started by someone else. Try connecting again.",
+from .serializers import (
+    MCPServerOAuthCompleteSerializer,
+    MCPServerOAuthStartSerializer,
+    MCPToolsUpdateSerializer,
 )
 
 INTEGRATION_ID_PARAMETER = OpenApiParameter(
@@ -60,22 +48,6 @@ EXCEPTIONS = {
     MCPOAuthFailed: ERROR_MCP_OAUTH_FAILED,
     MCPOAuthStateInvalid: ERROR_MCP_OAUTH_STATE_INVALID,
 }
-
-
-class MCPToolSettingsSerializer(serializers.Serializer):
-    name = serializers.CharField(max_length=128)
-    enabled = serializers.BooleanField(required=False)
-    changes_data = serializers.BooleanField(required=False)
-    definition_hash = serializers.CharField(
-        max_length=64,
-        required=False,
-        help_text="The definition reviewed. A tool that changed since is left "
-        "unchanged.",
-    )
-
-
-class MCPToolsUpdateSerializer(serializers.Serializer):
-    tools = MCPToolSettingsSerializer(many=True)
 
 
 def _respond(integration) -> Response:
@@ -138,10 +110,6 @@ class MCPServerToolsView(APIView):
         )
 
 
-class MCPServerOAuthStartSerializer(serializers.Serializer):
-    authorization_url = serializers.URLField()
-
-
 class MCPServerOAuthStartView(APIView):
     @extend_schema(
         parameters=[INTEGRATION_ID_PARAMETER],
@@ -182,11 +150,6 @@ class MCPServerOAuthDisconnectView(APIView):
         return _respond(
             MCPServerService().disconnect_oauth(request.user, integration_id)
         )
-
-
-class MCPServerOAuthCompleteSerializer(serializers.Serializer):
-    state = serializers.CharField()
-    code = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class MCPServerOAuthCompleteView(APIView):

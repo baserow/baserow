@@ -192,7 +192,6 @@
     "connectedAppUrlHelper": "The server's Streamable HTTP endpoint.",
     "connectedAppUrlInvalid": "Enter a URL starting with http:// or https://.",
     "connectedAppHeaderName": "Auth header",
-    "connectedAppHeaderNameHelper": "The header that carries the key, usually Authorization.",
     "connectedAppHeaderValue": "Auth header value",
     "connectedAppHeaderValueHelper": "Sent with every request to the server. It's never shown again.",
     "connectedAppHeaderValueKept": "Leave empty to keep the stored value.",
