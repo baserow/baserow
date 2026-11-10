@@ -1,8 +1,10 @@
 import asyncio
 import json
 import threading
+from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 from django.db import OperationalError
 from django.urls import reverse
@@ -16,6 +18,7 @@ from baserow.contrib.agent.database_previews import visible_table
 from baserow.contrib.agent.previews import StepPreview
 from baserow.contrib.agent.registries import AgentToolType, agent_tool_type_registry
 from baserow.contrib.database.views.models import FormView
+from baserow.core.chat_runs.steps import ToolCallInputEvent
 from baserow.core.chat_runs.tool_input import MAX_INPUT_PREVIEW_SIZE
 from baserow.core.models import Agent
 from baserow.core.notifications.models import NotificationRecipient
@@ -133,11 +136,33 @@ def person_ctx(workspace_data, data_fixture) -> ToolContext:
     )
 
 
-def call_tool(tool_type: AgentToolType, ctx: ToolContext, arguments: dict) -> object:
+class ModelRun:
+    """The model run a tool streams its readable request to."""
+
+    def __init__(self) -> None:
+        self.input: dict = {}
+
+    async def emit(self, event: ToolCallInputEvent) -> None:
+        self.input = event.input
+
+
+@dataclass
+class Called:
+    """A call's result, and the readable request it sent to its step."""
+
+    return_value: Any
+    metadata: dict | None
+    input: dict
+
+
+def call_tool(tool_type: AgentToolType, ctx: ToolContext, arguments: dict) -> Called:
     tool = tool_type.get_tool(ctx)
-    return async_to_sync(tool.function)(
-        **tool.function_schema.validator.validate_python(arguments)
+    run = ModelRun()
+    result = async_to_sync(tool.function)(
+        run, **tool.function_schema.validator.validate_python(arguments)
     )
+    assert isinstance(result, ToolReturn), result
+    return Called(result.return_value, result.metadata, run.input)
 
 
 class TablePreviewAgentToolType(AgentToolType):
@@ -230,7 +255,6 @@ def test_every_tool_acts_as_the_agent_identity(workspace_data, name):
         arguments(workspace_data),
     )
 
-    assert isinstance(result, ToolReturn), result
     value = result.return_value
     if name == "delete_fields":
         workspace_data.hours.refresh_from_db()
@@ -239,10 +263,10 @@ def test_every_tool_acts_as_the_agent_identity(workspace_data, name):
     assert not (
         isinstance(value, dict) and (value.get("error") or value.get("errors"))
     ), value
-    assert result.metadata == {
-        "facts": PRESENTATIONS[name]["facts"],
-        "input": PRESENTATIONS[name].get("preview", {}),
-    }, value
+    assert (result.metadata, result.input) == (
+        {"facts": PRESENTATIONS[name]["facts"]},
+        PRESENTATIONS[name].get("preview", {}),
+    ), value
 
 
 @pytest.mark.django_db
@@ -331,21 +355,18 @@ def test_tool_errors_are_answered_to_the_model(workspace_data, data_fixture):
     assert missing.return_value == {
         "error": {"code": "not_found", "message": "Not found in this workspace."}
     }
-    assert missing.metadata == {"error_code": "not_found", "input": {}}
+    assert (missing.metadata, missing.input) == ({"error_code": "not_found"}, {})
     unexpected = call_tool(BrokenAgentToolType(), workspace_data.ctx, {})
     assert unexpected.return_value == {
         "error": {"code": "failed", "message": "Internal error."}
     }
-    assert unexpected.metadata == {"error_code": "failed", "input": {}}
+    assert (unexpected.metadata, unexpected.input) == ({"error_code": "failed"}, {})
     hidden_schema = call_tool(
         agent_tool_type_registry.get("get_table_schema"),
         workspace_data.ctx,
         {"table_ids": [other_table.id]},
     )
-    assert (hidden_schema.return_value, hidden_schema.metadata) == (
-        [],
-        {"facts": {}, "input": {}},
-    )
+    assert (hidden_schema.return_value, hidden_schema.input) == ([], {})
 
 
 @pytest.mark.django_db
@@ -368,11 +389,8 @@ def test_a_request_that_cannot_be_named_is_left_to_the_tool(
         WriteAgentToolType(), workspace_data.ctx, {"table_id": workspace_data.table.id}
     )
 
-    assert (hidden.return_value, hidden.metadata) == (
-        "done",
-        {"facts": {}, "input": {}},
-    )
-    assert named.metadata == {"facts": {}, "input": {"values": {"table": "Tasks"}}}
+    assert (hidden.return_value, hidden.input) == ("done", {})
+    assert named.input == {"values": {"table": "Tasks"}}
 
 
 @pytest.mark.django_db
@@ -389,10 +407,7 @@ def test_a_call_that_fails_after_its_request_was_named_keeps_it(workspace_data):
     )
 
     assert result.return_value["error"]["code"] == "invalid_input"
-    assert result.metadata == {
-        "error_code": "invalid_input",
-        "input": {"values": {"table": "Tasks"}},
-    }
+    assert result.input == {"values": {"table": "Tasks"}}
 
 
 @pytest.mark.django_db
@@ -417,10 +432,7 @@ def test_display_facts_failure_keeps_the_successful_tool_result(workspace_data, 
         {"private_value": private_argument},
     )
 
-    assert (result.return_value, result.metadata) == (
-        private_result,
-        {"facts": {}, "input": {}},
-    )
+    assert (result.return_value, result.metadata) == (private_result, {"facts": {}})
     assert [log.record["message"] for log in logs] == [
         "Agent tool factless step facts failed (RuntimeError)"
     ]
@@ -444,10 +456,7 @@ def test_returned_errors_never_extract_display_facts(workspace_data, mocker):
 
     result = call_tool(tool_type, workspace_data.ctx, {})
 
-    assert (result.return_value, result.metadata) == (
-        {"error": "Not allowed"},
-        {"input": {}},
-    )
+    assert (result.return_value, result.metadata) == ({"error": "Not allowed"}, None)
     facts.assert_not_called()
 
 
@@ -493,10 +502,10 @@ def test_partial_field_creation_counts_only_created_fields(workspace_data):
     result = call_tool(tool_type, workspace_data.ctx, arguments)
 
     assert tool_type.get_step_input(arguments) == {"requested_count": 2}
-    assert result.metadata == {
-        "facts": {"count": 1},
-        "input": {"values": {"table": "Tasks", "fields": arguments["fields"]}},
-    }
+    assert (result.metadata, result.input) == (
+        {"facts": {"count": 1}},
+        {"values": {"table": "Tasks", "fields": arguments["fields"]}},
+    )
     assert len(result.return_value["errors"]) == 1
 
 
@@ -545,7 +554,7 @@ def test_a_field_that_cannot_be_named_keeps_its_id_and_fails_alone(
     assert workspace_data.hours.trashed
     assert deleted.return_value["deleted_field_ids"] == [workspace_data.hours.id]
     assert [error["item"] for error in deleted.return_value["errors"]] == [trashed.id]
-    assert deleted.metadata["input"] == {
+    assert deleted.input == {
         "values": {
             "fields": [{"field": "Hours", "table": "Tasks"}, {"field_id": trashed.id}]
         }
@@ -677,11 +686,7 @@ def test_views_are_created_when_the_identity_may_not_list_fields(
         {"table_id": workspace_data.table.id, "views": [board]},
     )
 
-    assert result.metadata == {
-        "facts": {"count": 1},
-        "input": {"values": {"table": "Tasks", "views": [board]}},
-    }
-    assert "Status" not in json.dumps(result.metadata)
+    assert result.input == {"values": {"table": "Tasks", "views": [board]}}
 
 
 @pytest.mark.django_db
@@ -699,13 +704,9 @@ def test_row_writes_show_their_values_with_passwords_masked(
         },
     )
 
-    assert result.metadata == {
-        "facts": {"count": 1},
-        "input": {
-            "values": {"table": "Tasks", "rows": [{"Name": "Acme", "Secret": "••••"}]}
-        },
+    assert result.input == {
+        "values": {"table": "Tasks", "rows": [{"Name": "Acme", "Secret": "••••"}]}
     }
-    assert "hunter2" not in json.dumps(result.metadata)
 
 
 @pytest.mark.django_db
@@ -721,10 +722,8 @@ def test_a_failed_row_write_never_stores_a_value_of_a_password_field(
     )
 
     assert "error" in result.return_value
-    assert result.metadata["input"] == {
-        "values": {"table": "Tasks", "rows": [{"secret": "••••"}]}
-    }
-    assert "hunter2" not in json.dumps(result.metadata)
+    assert result.input == {"values": {"table": "Tasks", "rows": [{"secret": "••••"}]}}
+    assert "hunter2" not in json.dumps(result.input)
 
 
 @pytest.mark.django_db
@@ -793,7 +792,7 @@ def test_a_missing_row_keeps_its_id_and_the_tool_deletes_nothing(workspace_data)
     )
 
     assert result.return_value["error"]["code"] == "not_found"
-    assert result.metadata["input"] == {
+    assert result.input == {
         "values": {"table": "Tasks", "rows": ["Draft", {"row_id": 999999}]}
     }
     assert (
@@ -814,7 +813,7 @@ def test_rows_of_a_table_without_a_primary_field_are_deleted_unnamed(workspace_d
     )
 
     assert "error" not in result.return_value
-    assert result.metadata["input"] == {}
+    assert result.input == {}
     assert not workspace_data.table.get_model().objects.exists()
 
 
@@ -831,7 +830,7 @@ def test_a_row_write_to_a_table_the_identity_cannot_see_changes_nothing(
         {"table_id": other.id, "rows": [{"Name": "Leak"}]},
     )
 
-    assert result.metadata == {"error_code": "not_found", "input": {}}
+    assert (result.metadata, result.input) == ({"error_code": "not_found"}, {})
     assert other.get_model().objects.count() == 0
 
 
@@ -873,7 +872,7 @@ def test_an_unexpected_preview_error_leaves_the_call_unnamed(
     )
 
     workspace_data.hours.refresh_from_db()
-    assert result.metadata == {"facts": {"count": 1}, "input": {}}
+    assert (result.metadata, result.input) == ({"facts": {"count": 1}}, {})
     assert workspace_data.hours.trashed
     assert [log.record["message"] for log in logs] == [
         "Agent tool delete_fields preview failed (RuntimeError)"
@@ -926,10 +925,10 @@ def test_unexpected_tool_errors_do_not_log_private_values(workspace_data, mocker
     assert result.return_value == {
         "error": {"code": "failed", "message": "Internal error."}
     }
-    assert result.metadata == {
-        "error_code": "failed",
-        "input": {"values": {"table": "Tasks"}},
-    }
+    assert (result.metadata, result.input) == (
+        {"error_code": "failed"},
+        {"values": {"table": "Tasks"}},
+    )
     output = "".join(str(entry) for entry in logs)
     assert "list_table_rows" in output
     assert "OperationalError" in output
@@ -952,7 +951,7 @@ def test_a_stop_waits_for_the_running_tool(workspace_data):
 
     async def stop_during_the_call() -> bool:
         call = asyncio.ensure_future(
-            SlowAgentToolType().get_tool(workspace_data.ctx).function()
+            SlowAgentToolType().get_tool(workspace_data.ctx).function(ModelRun())
         )
         await asyncio.to_thread(started.wait, 5)
         call.cancel()

@@ -36,7 +36,8 @@ The backend emits `step` events and saves the same steps on the assistant messag
   call's result: a change may already have completed, and the card says so.
   `skipped` means the call changed nothing and failed nothing; it has no card.
 - `input` is what the call asked for. `requested_count` is known when the call
-  starts. When it ends, `values` holds the request with names instead of IDs; see
+  starts. `values`, the request with names instead of IDs, follows while it
+  runs, before the tool changes anything; see
   [Readable requests](#readable-requests).
 - `facts` are confirmed after an authorized success: a count, and the names of
   created or read tables. A requested count doesn't prove how many items
@@ -59,12 +60,13 @@ Calls to tools the reply doesn't offer get no step.
 ### Readable requests
 
 `AgentToolType.get_step_preview(ctx, arguments)` names a database tool's request
-as the Agent identity, before the tool runs, and stores it in `input.values`.
+as the Agent identity, before the tool runs. The tool sends it to its running
+step as a `ToolCallInputEvent`, so `input.values` stays on running, stopped and
+failed steps too.
 
 - What the identity can't name keeps its ID, such as `{"field_id": 4}` or
   `{"row_id": 12}`. The tool, not the preview, decides whether the call
   succeeds; a preview that can't be built is left out.
-- A failed call keeps the request it named.
 - Only values of known, readable fields are shown; everything else, such as a
   password or a misspelled field, is masked as `"••••"`.
 - Every list keeps 10 items and every object 10 keys, at any depth;

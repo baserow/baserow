@@ -801,7 +801,8 @@ def test_a_reply_calls_the_allowed_tools_as_the_agent_identity(
         streamed = [
             call.args[2] for call in emitted.call_args_list if call.args[1] == "step"
         ]
-        assert [step["status"] for step in streamed] == ["running", "done"]
+        assert [step["status"] for step in streamed] == ["running", "running", "done"]
+        assert streamed[1]["input"] == steps[0]["input"]
         assert streamed[-1] == steps[0]
         run = run_of(created.conversation)
         assert run.outcome["steps"] == steps

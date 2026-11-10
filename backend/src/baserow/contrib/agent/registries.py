@@ -4,11 +4,12 @@ import json
 from dataclasses import replace
 from typing import Any, Callable, get_type_hints
 
-from asgiref.sync import sync_to_async
+from asgiref.sync import async_to_sync, sync_to_async
 from loguru import logger
-from pydantic_ai import Tool, ToolReturn
+from pydantic_ai import RunContext, Tool, ToolReturn
 
 from baserow.core.cache import local_cache
+from baserow.core.chat_runs.steps import ToolCallInputEvent
 from baserow.core.db import with_usable_db_connection
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.registries import subject_type_registry
@@ -38,18 +39,13 @@ def act_as_identity(ctx: ToolContext) -> ToolContext:
     return replace(ctx, user=subject)
 
 
-def failed_call(
-    tool_type: "AgentToolType",
-    exc: Exception,
-    preview: dict[str, Any] | None = None,
-) -> ToolReturn:
+def failed_call(tool_type: "AgentToolType", exc: Exception) -> ToolReturn:
     """
     Answer an exception with an error the model can explain.
 
     :param tool_type: The tool that failed.
     :param exc: What it raised.
-    :param preview: The call's readable request, when it was named.
-    :return: The ``error``, with its code and the request as metadata.
+    :return: The ``error``, with its code as metadata.
     """
 
     error = classify_tool_error(exc)
@@ -57,7 +53,7 @@ def failed_call(
         logger.error("Agent tool {} failed ({})", tool_type.type, type(exc).__name__)
     return ToolReturn(
         return_value={"error": error.to_dict()},
-        metadata={"error_code": error.code, "input": preview or {}},
+        metadata={"error_code": error.code},
     )
 
 
@@ -89,42 +85,45 @@ def _step_facts(
 
 @with_usable_db_connection
 def _call_tool(
-    tool_type: "AgentToolType", ctx: ToolContext, arguments: dict[str, Any]
+    tool_type: "AgentToolType",
+    ctx: ToolContext,
+    arguments: dict[str, Any],
+    show_input: Callable[[dict[str, Any]], None],
 ) -> ToolReturn:
     """
-    Name the call's request, run the shared tool, and answer an error the model
-    can explain instead of failing the reply.
+    Show the call's readable request, run the shared tool, and answer an error
+    the model can explain instead of failing the reply.
 
     :param tool_type: The shared tool and how its calls are described.
     :param ctx: Who the tool acts for.
     :param arguments: The validated arguments.
-    :return: The result with ``facts`` and ``input``, the readable request, as
-        metadata; the ``error`` the tool returned with ``input``; or an ``error``
-        for an exception with ``error_code`` and ``input``.
+    :param show_input: Adds the readable request to the call's step.
+    :return: The result with ``facts`` as metadata, the ``error`` the tool
+        returned, or an ``error`` for an exception with ``error_code``.
     """
 
     function = type(tool_type).function
-    preview: dict[str, Any] = {}
     try:
         with local_cache.context():
             ctx = act_as_identity(ctx)
-            preview = tool_type.get_step_preview_input(ctx, arguments)
+            if preview := tool_type.get_step_preview_input(ctx, arguments):
+                show_input(preview)
             result = function(ctx, **arguments)
             if isinstance(result, dict) and "error" in result:
-                return ToolReturn(return_value=result, metadata={"input": preview})
+                return ToolReturn(return_value=result)
             return ToolReturn(
                 return_value=result,
-                metadata={
-                    "facts": _step_facts(tool_type, ctx, arguments, result),
-                    "input": preview,
-                },
+                metadata={"facts": _step_facts(tool_type, ctx, arguments, result)},
             )
     except Exception as exc:
-        return failed_call(tool_type, exc, preview)
+        return failed_call(tool_type, exc)
 
 
 async def _run_tool(
-    tool_type: "AgentToolType", ctx: ToolContext, arguments: dict[str, Any]
+    tool_type: "AgentToolType",
+    ctx: ToolContext,
+    arguments: dict[str, Any],
+    run_ctx: RunContext,
 ) -> ToolReturn:
     """
     Run a shared tool without blocking the reply's event loop. A stop waits for the
@@ -133,12 +132,17 @@ async def _run_tool(
     :param tool_type: The shared tool and how its calls are described.
     :param ctx: Who the tool acts for.
     :param arguments: The validated arguments.
+    :param run_ctx: The model run, which streams the call's readable request to
+        its step.
     :return: What ``_call_tool`` returns.
     """
 
+    def show_input(step_input: dict[str, Any]) -> None:
+        async_to_sync(run_ctx.emit)(ToolCallInputEvent(input=step_input))
+
     # On the worker's own thread, so tools share its connection and never leak one.
     running = asyncio.ensure_future(
-        sync_to_async(_call_tool)(tool_type, ctx, arguments)
+        sync_to_async(_call_tool)(tool_type, ctx, arguments, show_input)
     )
     try:
         return await asyncio.shield(running)
@@ -246,16 +250,20 @@ class AgentToolType(Instance):
             for parameter in list(inspect.signature(function).parameters.values())[1:]
         ]
 
-        async def call(**arguments: Any) -> Any:
-            return await _run_tool(self, ctx, arguments)
+        async def call(run_ctx: RunContext, **arguments: Any) -> Any:
+            return await _run_tool(self, ctx, arguments, run_ctx)
 
-        call.__signature__ = inspect.Signature(parameters)
+        run_parameter = inspect.Parameter(
+            "run_ctx", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=RunContext
+        )
+        call.__signature__ = inspect.Signature([run_parameter, *parameters])
         call.__annotations__ = {
-            parameter.name: hints[parameter.name] for parameter in parameters
+            "run_ctx": RunContext,
+            **{parameter.name: hints[parameter.name] for parameter in parameters},
         }
         return Tool(
             call,
-            takes_ctx=False,
+            takes_ctx=True,
             name=self.type,
             description=function.__doc__,
             sequential=self.changes_data,
