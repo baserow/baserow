@@ -174,6 +174,12 @@ export const routes = [
     file: path.resolve(__dirname, 'pages/template.vue'),
   },
   {
+    name: 'template-private-link',
+    path: '/template/:slug/private-link/:token([0-9a-f]{64})',
+    file: path.resolve(__dirname, 'pages/templatePrivateLink.vue'),
+    meta: { preventPageViewTracking: true },
+  },
+  {
     name: 'health-check',
     path: '/_health/:trailing()?',
     file: path.resolve(__dirname, 'pages/_health.vue'),

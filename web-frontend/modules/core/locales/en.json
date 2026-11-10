@@ -147,7 +147,8 @@
     }
   },
   "copied": {
-    "label": "Copied!"
+    "label": "Copied!",
+    "linkFailed": "The link couldn't be copied to the clipboard."
   },
   "sampleDataViewer": {
     "payloadLabel": "Output",
@@ -725,6 +726,24 @@
     "resubmitTitle": "Submit “{name}” for review again?",
     "submitForReviewAgain": "Submit for review again"
   },
+  "userTemplatePrivateLink": {
+    "emptyTitle": "This template has no private link",
+    "emptyDescription": "Anyone with the link can preview this template. To install or download it, they need to sign in.",
+    "create": "Create a sharing link",
+    "sharedTitle": "This template is shared via a private link",
+    "sharedDescription": "Anyone with the link can preview this template. To install or download it, they need to sign in.",
+    "copy": "Copy link",
+    "regenerate": "Generate a new link",
+    "regenerateHint": "Regenerating creates a new link and breaks the old one.",
+    "remove": "Disable shared link",
+    "createdTitle": "Sharing link created",
+    "createdDescription": "Anyone with the link can preview this template. To install or download it, they need to sign in.",
+    "regeneratedTitle": "New sharing link generated",
+    "regeneratedDescription": "The old link no longer works.",
+    "removedTitle": "Sharing link disabled",
+    "removedDescription": "The link no longer works. If the template is public, it stays public.",
+    "blocked": "This template is blocked, so its private link can't be changed."
+  },
   "userTemplateDetailsForm": {
     "name": "Name",
     "namePlaceholder": "Template name",
@@ -783,6 +802,8 @@
     "makePublic": "Make public",
     "submitForReviewAgain": "Submit for review again",
     "makePrivate": "Make private",
+    "privateLink": "Sharing link",
+    "copyLink": "Copy sharing link",
     "delete": "Delete"
   },
   "publicTemplateList": {

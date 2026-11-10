@@ -123,6 +123,7 @@ MIDDLEWARE = [
     "baserow.core.cache.LocalCacheMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "baserow.api.user_sources.middleware.AddUserSourceUserMiddleware",
+    "baserow.api.templates.middleware.TemplatePrivateLinkMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "baserow.middleware.BaserowCustomHttp404Middleware",
@@ -605,6 +606,7 @@ BASEROW_CACHE_TTL_SECONDS = int(os.getenv("BASEROW_CACHE_TTL_SECONDS", 120))
 
 PUBLIC_VIEW_AUTHORIZATION_HEADER = "Baserow-View-Authorization"
 PUBLIC_DASHBOARD_AUTHORIZATION_HEADER = "Baserow-Dashboard-Authorization"
+TEMPLATE_PRIVATE_LINK_TOKEN_HEADER = "Baserow-Template-Authorization"
 
 CORS_ORIGIN_ALLOW_ALL = True
 CLIENT_SESSION_ID_HEADER = "ClientSessionId"
@@ -621,6 +623,7 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
     WEBSOCKET_ID_HEADER,
     PUBLIC_VIEW_AUTHORIZATION_HEADER,
     PUBLIC_DASHBOARD_AUTHORIZATION_HEADER,
+    TEMPLATE_PRIVATE_LINK_TOKEN_HEADER,
     CLIENT_SESSION_ID_HEADER,
     CLIENT_UNDO_REDO_ACTION_GROUP_ID_HEADER,
     USER_SOURCE_AUTHENTICATION_HEADER,
@@ -1965,7 +1968,7 @@ if SENTRY_DSN:
     from sentry_sdk.integrations.django import DjangoIntegration
     from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
-    from baserow.core.sentry import drop_expected_asyncio_disconnect_events
+    from baserow.core.sentry import before_send, redact_private_link_tokens
     from baserow.core.sentry_transport import ConsoleSentryTransport
 
     # Exclude integrations whose module-level imports are incompatible:
@@ -1987,6 +1990,8 @@ if SENTRY_DSN:
         "code_verifier",
         "refresh_token",
         "access_token",
+        TEMPLATE_PRIVATE_LINK_TOKEN_HEADER.lower(),
+        "private_link_token",
     ]
     sentry_transport = None
 
@@ -2035,7 +2040,8 @@ if SENTRY_DSN:
         ],
         traces_sample_rate=sentry_traces_sample_rate,
         send_default_pii=False,
-        before_send=drop_expected_asyncio_disconnect_events,
+        before_send=before_send,
+        before_send_transaction=redact_private_link_tokens,
         event_scrubber=EventScrubber(recursive=True, denylist=SENTRY_DENYLIST),
         environment=os.getenv("SENTRY_ENVIRONMENT", ""),
         transport=sentry_transport,

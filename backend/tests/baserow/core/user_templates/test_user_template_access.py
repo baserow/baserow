@@ -167,4 +167,5 @@ def test_actor_gets_what_it_is_shown(
     assert gets == expected[actor]
     browser = CoreHandler().list_templates(AnonymousUser(), listed=True)
     assert browser.filter_by_root(id=root.id).exists() is listed
-    assert starts == [not gets.endswith(":-")] * len(jobs)
+    shared = revision_states == ["shared"]
+    assert starts == [shared or not gets.endswith(":-")] * len(jobs)
