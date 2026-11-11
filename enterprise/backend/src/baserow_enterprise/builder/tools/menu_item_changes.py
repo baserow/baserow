@@ -274,7 +274,7 @@ def _check_can_link_to_page(item: MenuItemElement, menu_id: int | None) -> None:
     if item.type == MenuItemElement.TYPES.BUTTON:
         raise ToolInputError(
             f"'{item.name}' is a button, so it can't link to a page. To make it open "
-            f"a page, use create_actions with type='open_page', element={menu_id}, "
+            f"a page, give it an open_page action with element={menu_id}, "
             f"event='{_click_event(item)}'. {NO_CHANGES}"
         )
     if item.type != MenuItemElement.TYPES.LINK:

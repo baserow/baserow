@@ -32,6 +32,8 @@ from baserow_enterprise.builder.tools.registries import (
 )
 from baserow_enterprise.tools.formula_utils import (
     EMPTY_FORMULA,
+    FORMULA_PREFIX,
+    FormulaDescription,
     formula_desc,
     formula_object,
     wrap_static_string,
@@ -41,12 +43,14 @@ from baserow_enterprise.tools.types import BaseModel, without_field
 from .changes import name_key
 from .limits import MAX_NESTED_ITEMS
 from .menu_items import (
+    MENU_ITEM_NAME_MAX_LENGTH,
     ListedTopLevelMenuItem,
     MenuItemAdd,
     MenuItemUpdate,
     new_menu_link,
 )
 from .table_columns import (
+    COLUMN_NAME_MAX_LENGTH,
     TableColumnAdd,
     TableColumnItem,
     TableColumnUpdate,
@@ -58,6 +62,7 @@ from .workflow_action import (
     is_text_formula,
     mapping_value_is_formula,
     text_or_placeholder,
+    with_parameter_formulas,
 )
 
 if TYPE_CHECKING:
@@ -130,8 +135,8 @@ MENU_ITEM_PROPERTIES = (
 
 BUTTON_NAVIGATION_GUIDANCE = (
     "Buttons do not store navigation properties. Create the button with its value, "
-    "then call create_actions with type='open_page', event='click', and the button "
-    "ID/ref plus the navigation target. Alternatively create a link element with "
+    "then give it an open_page action with event='click' and the navigation "
+    "target. Alternatively create a link element with "
     "link_variant='button' and navigation properties."
 )
 
@@ -159,8 +164,17 @@ class ItemsPerRow(BaseModel):
 class MenuItemCreate(BaseModel):
     """A menu item linking to an internal page."""
 
-    name: str = Field(..., description="Display text.")
+    name: str = Field(
+        ..., max_length=MENU_ITEM_NAME_MAX_LENGTH, description="Display text."
+    )
     page_id: int = Field(..., description="Target page ID.")
+
+    @field_validator("name")
+    @classmethod
+    def _name_is_not_blank(cls, name: str) -> str:
+        if not name.strip():
+            raise ValueError("A menu item name can't be blank.")
+        return name
 
 
 class TableFieldConfig(BaseModel):
@@ -171,14 +185,16 @@ class TableFieldConfig(BaseModel):
       formula (see the tool description). Omit ``value`` to show the data source field
       whose name matches ``name``.
     - type="button": ``label`` is the button caption. Its click actions attach
-      to the table element (see create_actions).
+      to the table element.
 
     These are the only column types you can create, and ``name``, ``type``,
     ``value``, ``label`` are the only accepted keys; any other key is rejected.
     Column keys are not interchangeable with element keys.
     """
 
-    name: str = Field(..., description="Column header name.")
+    name: str = Field(
+        ..., max_length=COLUMN_NAME_MAX_LENGTH, description="Column header name."
+    )
     type: Literal["text", "button"] = Field(
         default="text", description="Column type: 'text' (default) or 'button'."
     )
@@ -626,8 +642,8 @@ def _table_formulas(el: "ElementItemCreate", orm_element, context) -> dict[str, 
                     formulas[f"fields.{i}.value"] = formula_desc(value)
             elif not value and el.data_source:
                 if not existing or existing == "''":
-                    formulas[f"fields.{i}.value"] = (
-                        f"the {field_cfg.name} value from the current record"
+                    formulas[f"fields.{i}.value"] = FormulaDescription(
+                        f"the {field_cfg.name} value from the current record", ""
                     )
 
         elif field_cfg.type == "button" and field_cfg.label:
@@ -725,14 +741,10 @@ def _update_link_create_formulas(
 
     from baserow.contrib.builder.elements.actions import UpdateElementActionType
 
-    params = [dict(param) for param in orm_element.page_parameters or []]
-    changed = False
-    for i, param in enumerate(params):
-        formula = formulas.get(f"page_param_{i}")
-        if formula is not None:
-            param["value"] = formula_object(formula, mode=BASEROW_FORMULA_MODE_ADVANCED)
-            changed = True
-    if changed:
+    params = with_parameter_formulas(
+        orm_element.page_parameters, el.link_page_parameters, "page_param", formulas
+    )
+    if params is not None:
         UpdateElementActionType.do(user, orm_element, {"page_parameters": params})
     _update_simple_formulas(
         el,
@@ -757,6 +769,12 @@ _UPDATE_FORMULAS: dict[str, Any] = {
 # ---------------------------------------------------------------------------
 
 
+def _is_formula_description(value: str) -> bool:
+    """Whether a value is only a description of a formula, not a formula."""
+
+    return value.strip().lower().startswith(FORMULA_PREFIX)
+
+
 def _convert_table_fields(el: "ElementItemCreate") -> list[dict]:
     """Convert the TableFieldConfig list of a new table to ORM collection fields."""
 
@@ -765,12 +783,19 @@ def _convert_table_fields(el: "ElementItemCreate") -> list[dict]:
     for field_cfg in el.fields or []:
         if field_cfg.type == "text":
             value = field_cfg.value or ""
+            match = table_fields.get(name_key(field_cfg.name))
             if value and not is_text_formula(value):
                 value_formula = wrap_static_string(value)
-            elif value and not el._column_name_beats_formula:
+            elif value and not (
+                match
+                and el._column_name_beats_description
+                and _is_formula_description(value)
+            ):
+                # The formula step stores the column's own formula. An explicit
+                # formula always wins; with the option, a description like
+                # '$formula: the name' gives way to the field named like the column.
                 value_formula = "''"
             else:
-                match = table_fields.get(name_key(field_cfg.name))
                 value_formula = field_formula(match) if match else "''"
             result.append(
                 {
@@ -816,7 +841,7 @@ class ElementItemCreate(BaseModel):
     post-creation hooks, and formula handling based on the ``type`` field.
     """
 
-    _column_name_beats_formula: bool = PrivateAttr(default=False)
+    _column_name_beats_description: bool = PrivateAttr(default=False)
 
     ref: str = Field(..., description="Unique reference for this element.")
     type: ElementType = Field(..., description="Element type.")
@@ -1609,6 +1634,10 @@ def _update_link_formulas(el: "ElementUpdate", orm_element, context) -> dict[str
         formulas["value"] = formula_desc(el.value)
     if el.navigate_to_url and is_text_formula(el.navigate_to_url):
         formulas["navigate_to_url"] = formula_desc(el.navigate_to_url)
+    # The link's update puts the parameters in the page's order first.
+    for i, param in enumerate(el.link_page_parameters or []):
+        if mapping_value_is_formula(param.value):
+            formulas[f"page_param_{i}"] = formula_desc(param.value)
     return formulas
 
 
@@ -1694,6 +1723,15 @@ class ElementUpdate(BaseModel):
     )
     link_target: Literal["self", "blank"] | None = Field(
         default=None, description="(link) Navigation target."
+    )
+    link_page_parameters: list[ParameterMapping] | None = Field(
+        default=None,
+        max_length=MAX_NESTED_ITEMS,
+        description=(
+            "(link) The page parameters, replacing the whole list. Name exactly the "
+            "path parameters of the page the link opens. A value is fixed text or a "
+            "formula, like get('page_parameter.id')."
+        ),
     )
 
     # -- Image fields ---------------------------------------------------------
@@ -1922,6 +1960,14 @@ class ElementUpdate(BaseModel):
 
 
 ElementChanges = without_field(ElementUpdate, "ElementChanges", "element_id")
+
+# The changes of an MCP update_element, which deletes nothing: removing table columns
+# or menu items is a tool of its own, in the builder_delete group.
+ElementEdits = without_field(
+    without_field(ElementChanges, "ElementEdits", "remove_table_columns"),
+    "ElementEdits",
+    "remove_menu_items",
+)
 
 
 class ElementItem(BaseModel):

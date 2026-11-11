@@ -259,7 +259,7 @@ def test_a_description_inside_a_repeat_is_reported(builder_ctx, repeat):
         {
             "element_id": child,
             "field": "value",
-            "formula": "the name of the product",
+            "formula": "$formula: the name of the product",
             "error": (
                 "'value' needs a formula, not a description. Write it in Baserow "
                 "formula syntax, like get('page_parameter.id')."
@@ -416,9 +416,45 @@ def test_table_columns_store_formulas_and_report_descriptions(builder_ctx):
         (entry["element_id"], entry["field"], entry["formula"])
         for entry in result["formula_errors"]
     ] == [
-        (table.id, "fields.1.value", "the price"),
-        (table.id, "fields.2.label", "the action"),
+        (table.id, "fields.1.value", "$formula: the price"),
+        (table.id, "fields.2.label", "$formula: the action"),
     ]
+
+
+@pytest.mark.django_db
+def test_a_formula_error_reports_the_value_the_client_sent(builder_ctx):
+    result = elements.create_display_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            DisplayElementCreate(
+                ref="h", type="heading", value="New deal: $formula: the deal name"
+            )
+        ],
+    )
+
+    [entry] = result["formula_errors"]
+    assert entry["formula"] == "New deal: $formula: the deal name"
+
+
+@pytest.mark.django_db
+def test_an_empty_table_column_reports_an_empty_formula(builder_ctx):
+    result = elements.create_collection_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            CollectionElementCreate(
+                ref="t",
+                type="table",
+                data_source=builder_ctx["data_source"].id,
+                fields=[TableFieldConfig(name="Not a field")],
+            )
+        ],
+    )
+
+    [entry] = result["formula_errors"]
+    assert entry["field"] == "fields.0.value"
+    assert entry["formula"] == ""
 
 
 @pytest.mark.django_db
@@ -453,6 +489,12 @@ def test_a_column_named_like_a_field_keeps_its_own_formula(builder_ctx):
     assert [(e["element_id"], e["field"]) for e in result["formula_errors"]] == [
         (described.id, "fields.0.value")
     ]
+
+
+def test_a_column_named_like_a_field_does_not_beat_a_description_by_default():
+    assert ElementItemCreate(ref="t", type="table")._column_name_beats_description is (
+        False
+    )
 
 
 @pytest.mark.django_db
@@ -1033,10 +1075,6 @@ def test_update_of_an_unknown_property_changes_nothing(data_fixture, builder_ctx
     assert saved(element.id).value["formula"] == "'Old'"
 
 
-def test_a_column_named_like_a_field_does_not_beat_a_formula_by_default():
-    assert ElementItemCreate(ref="t", type="table")._column_name_beats_formula is False
-
-
 @pytest.mark.django_db
 def test_record_selector_and_datetime_picker_store_their_default_value(
     data_fixture, builder_ctx
@@ -1169,7 +1207,7 @@ def test_changing_a_button_text_points_to_its_notification(
     action.refresh_from_db()
     assert save_button.value["formula"] == "'All done!'"
     assert action.title["formula"] == "'Saved'"
-    assert "update_action" in result["note"]
+    assert "change that action" in result["note"]
     assert str(action.id) in result["note"]
     assert "'Saved'" in result["note"]
 
@@ -1990,7 +2028,7 @@ def test_a_new_target_that_does_not_fit_a_link_is_refused(
         )
 
     assert all(part in str(error.value) for part in named)
-    assert "create a new link with link_page_parameters" in str(error.value)
+    assert "Give link_page_parameters for that page" in str(error.value)
     assert "Replace" not in str(error.value)
     stored = saved(link.id)
     assert stored.navigate_to_page_id == link_pages[start].id

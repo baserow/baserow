@@ -13,3 +13,13 @@ class WorkflowState(models.TextChoices):
 
 
 WORKFLOW_DIRTY_CACHE_KEY = "wa_workflow_dirty_{}"
+
+# The stall sweep resolves at most this many runs per pass, oldest first. A full
+# batch means more remain, and the next pass takes them.
+STALLED_RUN_SWEEP_BATCH_SIZE = 100
+# Distinct from the run timeout messages, so the two cases can be told apart in
+# the history.
+STALLED_RUN_ERROR = "This run was interrupted before it could finish."
+STALLED_RUN_CANCELLED_ERROR = (
+    "Cancellation was requested and the run was stopped after being interrupted."
+)

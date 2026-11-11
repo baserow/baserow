@@ -49,14 +49,14 @@ from baserow_enterprise.assistant.tools.automation.types.node import (
     RowsTriggersSettings,
 )
 from baserow_enterprise.assistant.tools.builder.tools import (
-    create_actions,
     create_collection_elements,
     create_data_sources,
     create_display_elements,
+    create_element_actions,
     create_layout_elements,
     create_pages,
-    list_actions,
     list_data_sources,
+    list_element_actions,
     list_elements,
     setup_page,
 )
@@ -256,7 +256,10 @@ def _fingerprint_page(ctx: Any, page_id: int) -> PageFingerprint:
         list_data_sources, ctx=ctx, page_id=page_id, thought="chain: read the tree back"
     )["data_sources"]
     actions = _read_back(
-        list_actions, ctx=ctx, page_id=page_id, thought="chain: read the tree back"
+        list_element_actions,
+        ctx=ctx,
+        page_id=page_id,
+        thought="chain: read the tree back",
     )["workflow_actions"]
 
     at = {element["id"]: position for position, element in enumerate(elements)}
@@ -414,7 +417,7 @@ def test_chain_builds_a_page_against_a_real_table(data_fixture):
     display_ids = _element_ids_by_ref(display_result, "create_display_elements")
 
     # Action attached to the button by ref, writing to the seeded table.
-    action_result = create_actions(
+    action_result = create_element_actions(
         ctx,
         page_id=page_id,
         actions=[
@@ -434,7 +437,7 @@ def test_chain_builds_a_page_against_a_real_table(data_fixture):
         thought="chain: the button writes a row into the seeded table",
     )
     assert not action_result.get("errors") and action_result["created_actions"], (
-        f"create_actions could not attach an action to the 'new_btn' ref created "
+        f"create_element_actions could not attach an action to the 'new_btn' ref created "
         f"by the previous call: {action_result}. Element refs are tracked per "
         f"page in ToolHelpers.request_context — a change there breaks every "
         f"multi-call page build."
@@ -495,10 +498,13 @@ def test_chain_builds_a_page_against_a_real_table(data_fixture):
     )
 
     read_actions = _read_back(
-        list_actions, ctx=ctx, page_id=page_id, thought="chain: verify the actions"
+        list_element_actions,
+        ctx=ctx,
+        page_id=page_id,
+        thought="chain: verify the actions",
     )["workflow_actions"]
     assert [action["id"] for action in read_actions] == [action_id], (
-        f"list_actions returned {read_actions}, but create_actions reported id "
+        f"list_element_actions returned {read_actions}, but create_element_actions reported id "
         f"{action_id}."
     )
     assert read_actions[0]["element_id"] == display_ids["new_btn"], (
@@ -596,7 +602,7 @@ def _build_page_step_by_step(
         ],
         thought="chain: granular build",
     )
-    create_actions(
+    create_element_actions(
         ctx,
         page_id=page_id,
         actions=[
@@ -706,7 +712,7 @@ def test_setup_page_matches_the_granular_tools(data_fixture):
         f"parent position). The two paths are documented as interchangeable."
     )
     assert one_shot.actions == step.actions, (
-        f"setup_page produced different workflow actions than create_actions:\n"
+        f"setup_page produced different workflow actions than create_element_actions:\n"
         f"  setup_page:  {one_shot.actions}\n"
         f"  granular:    {step.actions}\n"
         f"Tuples are (type, event, element position, table_id, field mappings)."

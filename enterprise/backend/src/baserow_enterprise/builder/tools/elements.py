@@ -27,6 +27,7 @@ from .types import (
     CollectionElementCreate,
     DisplayElementCreate,
     ElementChanges,
+    ElementEdits,
     ElementItem,
     ElementItemCreate,
     ElementMove,
@@ -36,7 +37,7 @@ from .types import (
     FormElementCreate,
     LayoutElementCreate,
 )
-from .types.limits import MAX_ITEMS_PER_CALL
+from .types.limits import MAX_ITEMS_PER_CALL, MAX_NESTED_ITEMS
 
 
 def list_elements(
@@ -52,7 +53,7 @@ def list_elements(
     empty cell. Menus show their items in order: uid, name, type, page_id (or
     url, for a link to a custom address), and the sub-links of a top-level link
     as children.
-    What a button does when clicked isn't listed here: use list_actions.
+    What a button does when clicked isn't listed here: use list_element_actions.
 
     Elements with page_name "[shared]" are headers and footers shown on every
     page. They belong to the shared page, not to this one.
@@ -112,7 +113,9 @@ def create_elements_with_options(
     with transaction.atomic():
         for el_create in elements:
             ctx.update_status(status)
-            el_create._column_name_beats_formula = options.column_name_beats_formula
+            el_create._column_name_beats_description = (
+                options.column_name_beats_description
+            )
             try:
                 with transaction.atomic():
                     element, el_id = helpers.create_element(
@@ -240,8 +243,8 @@ def create_layout_elements(
     place_in_container says which one, from "0". ref_to_id_map gives the ID of each
     ref. A ref works as parent_element inside the call that creates it; afterwards
     use the element's ID. empty_containers lists the new containers with nothing in
-    them. A menu item can't give path parameters, so it can't link to a page that has
-    them.
+    them. These tools can't give a menu item path parameters, so one can't link to a
+    page that has them; the editor can set them.
 
     A header or footer, and anything inside one, goes on the shared page and shows on
     every page, or on the pages in page_ids with share_type "only". Pass any page of
@@ -365,11 +368,12 @@ def update_element(
     element's type doesn't have refuse the whole update. A button has no target of its
     own: give it a click action. A button's text is what it says before it's clicked;
     what it shows or does when clicked, like the message of a notification, is a click
-    action: find it with list_actions and change it with update_action. If a changed
+    action: find it with list_element_actions and change it with
+    update_element_action. If a changed
     button also shows a notification when clicked, the result has a note naming that
     action, which stays as it was. A link given a page or a URL goes there, unless
-    navigation_type says otherwise. A link's new page must fit the parameters it has,
-    or the update is refused. To move an element or change its style use move_elements
+    navigation_type says otherwise. A link's new page must fit its parameters: give
+    link_page_parameters for it in the same call, or the update is refused. To move an element or change its style use move_elements
     or update_element_style.
 
     Give dynamic values as formulas in Baserow formula syntax, like
@@ -385,17 +389,24 @@ def update_element(
 
     Menu items: list_elements shows each item's uid. Change them with add_menu_items,
     update_menu_items, reorder_menu_items and remove_menu_items; items you don't list
-    stay as they are. On a header or footer they change the menu inside it. An item
-    can't give path parameters, so it can't link to a page that has them. A removed
+    stay as they are. On a header or footer they change the menu inside it. These
+    tools can't give an item path parameters, so one can't link to a page that has
+    them; the editor can set them. A removed
     button's click actions are gone for good.
     """
 
+    return _update_element(
+        ctx, element_id, _full_update(ElementUpdate, element_id, element)
+    )
+
+
+def _update_element(
+    ctx: ToolContext, element_id: int, element: ElementUpdate
+) -> dict[str, Any]:
     page = get_page_in_workspace(ctx, _element_in_workspace(ctx, element_id).page_id)
     ctx.update_status(_("Updating element %(id)d...") % {"id": element_id})
 
-    outcome, formula_errors = update_element_on_page(
-        ctx, page, _full_update(ElementUpdate, element_id, element)
-    )
+    outcome, formula_errors = update_element_on_page(ctx, page, element)
 
     updated = ElementHandler().get_element(element_id)
     result: dict[str, Any] = {
@@ -405,6 +416,96 @@ def update_element(
     if formula_errors:
         result["formula_errors"] = formula_errors
     return result
+
+
+def edit_element(
+    ctx: ToolContext,
+    element_id: Annotated[
+        int, Field(description="The ID of the element, from list_elements.")
+    ],
+    element: Annotated[
+        ElementEdits, Field(description="The changes. Set only what should change.")
+    ],
+) -> dict[str, Any]:
+    """
+    Update an element: its text, settings, table columns or menu items. Properties the
+    element's type doesn't have refuse the whole update. A button has no target of its
+    own: give it a click action. A button's text is what it says before it's clicked;
+    what it shows or does when clicked, like the message of a notification, is a click
+    action: find it with list_element_actions and change it with update_element_action. If a changed
+    button also shows a notification when clicked, the result has a note naming that
+    action, which stays as it was. A link given a page or a URL goes there, unless
+    navigation_type says otherwise. A link's new page must fit its parameters: give
+    link_page_parameters for it in the same call, or the update is refused. To move an element or change its style use move_elements
+    or update_element_style.
+
+    Give dynamic values as formulas in Baserow formula syntax, like
+    get('page_parameter.id'). A value that isn't a valid formula keeps its previous
+    value and is listed in formula_errors.
+
+    Table columns: list_elements shows each column's uid. Change them with
+    add_table_columns, update_table_columns and reorder_table_columns; columns you
+    don't list stay as they are. Only text and button columns can be created. A new or
+    changed column's formula must parse and read what the page has, or the whole
+    update is refused and nothing is listed in formula_errors.
+
+    Menu items: list_elements shows each item's uid. Change them with add_menu_items,
+    update_menu_items and reorder_menu_items; items you don't list stay as they are.
+    On a header or footer they change the menu inside it. These tools can't give an
+    item path parameters, so one can't link to a page that has them; the editor can
+    set them.
+
+    This tool deletes nothing: delete columns or menu items with
+    delete_element_items.
+    """
+
+    return _update_element(
+        ctx, element_id, _full_update(ElementUpdate, element_id, element)
+    )
+
+
+def delete_element_items(
+    ctx: ToolContext,
+    element_id: Annotated[
+        int, Field(description="The ID of the table or menu, from list_elements.")
+    ],
+    table_columns: Annotated[
+        list[str] | None,
+        Field(
+            max_length=MAX_NESTED_ITEMS,
+            description="(table) Uids of the columns to delete, from list_elements.",
+        ),
+    ] = None,
+    menu_items: Annotated[
+        list[str] | None,
+        Field(
+            max_length=MAX_NESTED_ITEMS,
+            description=(
+                "(menu, header, footer) Uids of the items to delete, from "
+                "list_elements. A removed item's sub-links go with it."
+            ),
+        ),
+    ] = None,
+) -> dict[str, Any]:
+    """
+    Delete table columns or menu items of an element, with the click actions of a
+    deleted button. Only delete what the user asked to delete. Undo doesn't restore
+    them or their click actions. Columns and items you don't list stay as they are.
+    """
+
+    if not table_columns and not menu_items:
+        raise ToolInputError("Give table_columns or menu_items to delete.")
+    return _update_element(
+        ctx,
+        element_id,
+        _full_update(
+            ElementUpdate,
+            element_id,
+            ElementChanges(
+                remove_table_columns=table_columns, remove_menu_items=menu_items
+            ),
+        ),
+    )
 
 
 def update_element_style(
@@ -451,7 +552,8 @@ def move_elements(
     Move elements within their page: before another element, into a container, or to
     the end. An element can't move to another page, and elements on the shared page
     stay on it. A move that fails is listed in errors, as "<element id>: <message>",
-    and the others are kept.
+    and the others are kept. A move the user isn't allowed to make refuses the whole
+    call, and nothing is moved.
     """
 
     moved: list[dict] = []
@@ -470,6 +572,10 @@ def move_elements(
                     element = helpers.move_element(ctx.user, page, element_move)
             except Exception as exc:
                 raise_if_permission_denied(exc)
+                # The savepoint rolled back, so the cached graph is stale. A
+                # successful move leaves it right, as the create loop does.
+                if page is not None:
+                    helpers.forget_page_graphs(page)
                 errors.append(f"{element_move.element_id}: {client_item_error(exc)}")
             else:
                 moved.append(
@@ -479,9 +585,6 @@ def move_elements(
                         "place_in_container": element.place_in_container,
                     }
                 )
-            finally:
-                if page is not None:
-                    helpers.forget_page_graphs(page)
 
     result: dict[str, Any] = {"moved_elements": moved}
     if errors:

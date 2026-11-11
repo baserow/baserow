@@ -1,4 +1,7 @@
+from unittest.mock import patch
+
 from django.test import override_settings
+from django.utils import timezone
 
 import pytest
 from freezegun import freeze_time
@@ -8,12 +11,10 @@ from baserow.contrib.automation.workflows.constants import (
     WORKFLOW_DIRTY_CACHE_KEY,
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
-from baserow.contrib.automation.workflows.models import AutomationWorkflow
-from baserow.contrib.automation.workflows.tasks import (
-    automation_periodic_cleanup,
-    delete_superseded_published_automations,
-)
+from baserow.contrib.automation.workflows.tasks import automation_periodic_cleanup
 from baserow.core.cache import global_cache
+
+NODE_HANDLER_PATH = "baserow.contrib.automation.nodes.handler"
 
 
 @override_settings(
@@ -359,18 +360,68 @@ def test_automation_periodic_cleanup_old_entries_beyond_count_are_deleted(data_f
     assert workflow.workflow_histories.filter(id=history_3.id).exists()
 
 
-@pytest.mark.django_db
-def test_delete_superseded_published_automations_task(data_fixture):
+def create_waiting_node_history(data_fixture, resume_at):
+    """A run with one node that suspended itself and is due at `resume_at`."""
+
     workflow = data_fixture.create_automation_workflow()
-    handler = AutomationWorkflowHandler()
-    published_1 = handler.publish(workflow)
-    published_2 = handler.publish(workflow)
+    workflow_history = data_fixture.create_automation_workflow_history(
+        workflow=workflow, status=HistoryStatusChoices.STARTED
+    )
+    return data_fixture.create_automation_node_history(
+        workflow_history=workflow_history,
+        node=data_fixture.create_automation_node(workflow=workflow),
+        status=HistoryStatusChoices.WAITING,
+        resume_at=resume_at,
+        resume_state={"state": {}, "current_iterations": None},
+    )
 
-    delete_superseded_published_automations(workflow.id)
 
-    assert not AutomationWorkflow.objects.filter(id=published_1.id).exists()
-    assert handler.get_published_workflow(workflow, with_cache=False) == published_2
+@pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.chain")
+def test_automation_periodic_cleanup_resumes_a_stale_waiting_node(
+    mock_chain, data_fixture, django_capture_on_commit_callbacks
+):
+    """
+    A waiting node whose resume is long overdue lost its task; the cleanup
+    runs the recovery sweep, which queues a new one.
+    """
+
+    with freeze_time("2026-04-10 10:00:00"):
+        node_history = create_waiting_node_history(data_fixture, timezone.now())
+
+    with (
+        freeze_time("2026-04-10 12:00:00"),
+        django_capture_on_commit_callbacks(execute=True),
+    ):
+        automation_periodic_cleanup()
+
+    resume_signature, _ = mock_chain.call_args.args
+    assert resume_signature.args == (node_history.id,)
+    mock_chain.return_value.delay.assert_called_once_with()
+
+    node_history.refresh_from_db()
+    assert node_history.status == HistoryStatusChoices.WAITING
 
 
-def test_delete_superseded_published_automations_task_runs_on_the_export_queue():
-    assert delete_superseded_published_automations.queue == "export"
+@override_settings(AUTOMATION_WORKFLOW_TIMEOUT_HOURS=1)
+@pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.chain")
+def test_automation_periodic_cleanup_does_not_resume_a_timed_out_run(
+    mock_chain, data_fixture
+):
+    """
+    The timeout sweep runs first, so the waiting nodes of a run that is over
+    its budget are errored with it instead of being resumed.
+    """
+
+    with freeze_time("2026-04-10 10:00:00"):
+        node_history = create_waiting_node_history(data_fixture, timezone.now())
+
+    with freeze_time("2026-04-10 12:00:00"):
+        automation_periodic_cleanup()
+
+    mock_chain.assert_not_called()
+
+    node_history.refresh_from_db()
+    assert node_history.status == HistoryStatusChoices.ERROR
+    assert node_history.workflow_history.status == HistoryStatusChoices.ERROR

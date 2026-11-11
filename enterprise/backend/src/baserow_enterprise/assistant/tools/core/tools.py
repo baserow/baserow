@@ -388,7 +388,36 @@ def switch_mode(
     return f"Switched to {target.value} mode."
 
 
-def _application_not_found(application_id: int) -> ToolInputError:
+# The tool that updates each application type, by the type list_builders shows.
+_UPDATE_TOOLS = {
+    "database": "update_database",
+    "application": "update_builder",
+    "automation": "update_automation",
+    "dashboard": "update_dashboard",
+}
+
+
+def _application_not_found(
+    ctx: RunContext[AssistantDeps], application_id: int
+) -> ToolInputError:
+    """
+    The error for an ID that isn't an application of the type a tool updates. When
+    the ID is another type of application, the error names the tool for it.
+    """
+
+    application = (
+        shared_applications.visible_applications(ctx.deps.tool_context())
+        .filter(id=application_id)
+        .first()
+    )
+    if application is not None:
+        model_type = application.get_type().type
+        for builder_type, tool in _UPDATE_TOOLS.items():
+            if APPLICATION_TYPES[builder_type] == model_type:
+                return ToolInputError(
+                    f"Application with ID {application_id} is not of this type: "
+                    f"list_builders shows it as {builder_type}. Use {tool} for it."
+                )
     return ToolInputError(
         f"Application with ID {application_id} not found in this workspace. "
         "Use list_builders to find valid application IDs."
@@ -421,7 +450,7 @@ def update_database(
             ctx.deps.tool_context(), database_id, name
         )
     except ApplicationDoesNotExist as exc:
-        raise _application_not_found(database_id) from exc
+        raise _application_not_found(ctx, database_id) from exc
     return {**result["updated_database"], "changed": result["changed"]}
 
 
@@ -453,7 +482,7 @@ def update_automation(
             ctx.deps.tool_context(), automation_id, name
         )
     except ApplicationDoesNotExist as exc:
-        raise _application_not_found(automation_id) from exc
+        raise _application_not_found(ctx, automation_id) from exc
     return {**result["updated_automation"], "changed": result["changed"]}
 
 
@@ -485,7 +514,7 @@ def update_dashboard(
             ctx.deps.tool_context(), dashboard_id, name
         )
     except ApplicationDoesNotExist as exc:
-        raise _application_not_found(dashboard_id) from exc
+        raise _application_not_found(ctx, dashboard_id) from exc
     return {**result["updated_dashboard"], "changed": result["changed"]}
 
 
@@ -523,7 +552,7 @@ def update_builder(
             ctx.deps.tool_context(), builder_id, name, login_page_id
         )
     except ApplicationDoesNotExist as exc:
-        raise _application_not_found(builder_id) from exc
+        raise _application_not_found(ctx, builder_id) from exc
     return {**result["updated_builder"], "changed": result["changed"]}
 
 

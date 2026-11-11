@@ -26,3 +26,17 @@ ERROR_POLICY_FIELDS = [
     "max_retries",
     "retry_condition",
 ]
+
+# A node that suspended itself (e.g. a "Wait" node) is resumed by a Celery task
+# scheduled with a countdown. The broker redelivers a message that stays unacked
+# longer than its visibility timeout (3600 s by default with Redis), and a
+# countdown message is unacked until it runs, so a long wait is cut into chunks
+# of at most this many seconds: the resume task wakes up, and reschedules itself
+# while the node is not due. Must stay well below the visibility timeout.
+AUTOMATION_PENDING_NODE_COUNTDOWN_CHUNK_SECONDS = 600
+# A waiting node whose resume is overdue by more than this many seconds lost its
+# resume task (the broker lost the message): the periodic cleanup resumes it. A
+# live task is never this late: visibility timeout, plus one chunk, plus margin.
+AUTOMATION_PENDING_NODE_STALE_SECONDS = (
+    3600 + AUTOMATION_PENDING_NODE_COUNTDOWN_CHUNK_SECONDS + 300
+)

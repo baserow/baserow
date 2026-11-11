@@ -18,7 +18,7 @@
         :template="selectedTemplate"
         :categories="selectedTemplateCategories"
         :workspace="workspace"
-        :is-own="selectedIsOwn"
+        :owner-actions="selectedOwnerActions"
         show-back
         class="templates__body"
         @back="selectTemplate(null)"
@@ -52,6 +52,7 @@
         v-show="selectedTemplate === null"
         ref="publicTemplateList"
         :active="open && selectedTemplate === null"
+        :initial-search="sharedSearch"
         class="templates__body"
         @selected="selectPublicTemplate"
       >
@@ -186,11 +187,9 @@ export default {
       loading: true,
       categories: [],
       selectedTemplate: null,
-      // Whether the selected template is one of the user's, who can update it.
-      // Also when it's opened from the public ones, which list its public revision
-      // then.
-      selectedIsOwn: false,
+      selectedOwnerActions: false,
       tab: 'official',
+      sharedSearch: '',
       // The list of the user's templates is loaded when its tab is opened first.
       userTemplatesOpened: false,
       // While a template is created, its modal takes the search shortcut.
@@ -277,30 +276,13 @@ export default {
   methods: {
     isOwnTemplate,
     /**
-     * When the modal is opened we want to fetch all the templates and their
-     * categories, so that the user can browse them. The details of the template
-     * with the provided id or slug, or else of the default template, are opened
-     * right away.
+     * Opens the modal on the details of the template with the provided id or
+     * slug, or else of the default template.
      */
     async show(templateId = null, ...args) {
-      modal.methods.show.call(this, ...args)
-
-      this.loading = true
-      this.categories = []
-      this.selectTemplate(null)
-      this.tab = 'official'
-      this.userTemplatesOpened = false
-
-      try {
-        const { data } = await TemplateService(this.$client).fetchAll()
-        this.categories = data
-        this.loading = false
-      } catch (error) {
-        notifyIf(error, 'templates')
-        this.hide()
+      if (!(await this.openAndLoad(...args))) {
         return
       }
-
       const template = this.categories
         .flatMap((category) => category.templates)
         .find((t) =>
@@ -312,15 +294,50 @@ export default {
         this.selectTemplate(template)
       }
     },
+    async showShared(search) {
+      if (await this.openAndLoad()) {
+        this.sharedSearch = search
+        this.tab = 'public'
+      }
+    },
+    /**
+     * Opens the modal and fetches all the templates and their categories, so
+     * that the user can browse them.
+     *
+     * @returns {Promise<boolean>} False if they couldn't be fetched, which closes
+     *   the modal.
+     */
+    async openAndLoad(...args) {
+      modal.methods.show.call(this, ...args)
+
+      this.loading = true
+      this.categories = []
+      this.selectTemplate(null)
+      this.tab = 'official'
+      this.sharedSearch = ''
+      this.userTemplatesOpened = false
+
+      try {
+        const { data } = await TemplateService(this.$client).fetchAll()
+        this.categories = data
+        this.loading = false
+        return true
+      } catch (error) {
+        notifyIf(error, 'templates')
+        this.hide()
+        return false
+      }
+    },
     selectTab(tab) {
       this.tab = tab
+      this.sharedSearch = ''
       if (tab === 'own') {
         this.userTemplatesOpened = true
       }
     },
     selectTemplate(template, own = false) {
       this.selectedTemplate = template
-      this.selectedIsOwn = own
+      this.selectedOwnerActions = own
     },
     /**
      * Shows the public template as it is now, which may have been made private or
@@ -381,7 +398,10 @@ export default {
     async templateUpdated(job) {
       this.$refs.userTemplateList?.refresh()
       this.$refs.publicTemplateList?.refresh()
-      if (!this.selectedIsOwn || this.selectedTemplate?.id !== job.template) {
+      if (
+        !this.selectedOwnerActions ||
+        this.selectedTemplate?.id !== job.template
+      ) {
         return
       }
       try {
@@ -400,13 +420,13 @@ export default {
      * template was listed since. The preview then shows the new revision.
      */
     async templateOutdated() {
-      if (this.selectedIsOwn) {
+      if (this.selectedOwnerActions) {
         return this.templateUpdated({ template: this.selectedTemplate.id })
       }
       const { id, slug } = this.selectedTemplate
       try {
         const { data } = await TemplateService(this.$client).fetch(slug)
-        if (!this.selectedIsOwn && this.selectedTemplate?.id === id) {
+        if (!this.selectedOwnerActions && this.selectedTemplate?.id === id) {
           this.selectedTemplate = data
         }
       } catch (error) {
@@ -446,7 +466,10 @@ export default {
     templateChanged(template) {
       this.$refs.userTemplateList?.replace(template)
       this.$refs.publicTemplateList?.refresh()
-      if (this.selectedIsOwn && this.selectedTemplate?.id === template.id) {
+      if (
+        this.selectedOwnerActions &&
+        this.selectedTemplate?.id === template.id
+      ) {
         this.selectedTemplate = template
       }
       if (this.updatedTemplate?.id === template.id) {
@@ -473,7 +496,10 @@ export default {
         this.$refs.userTemplateList?.remove(templateId, requestedAt)
       }
       this.$refs.publicTemplateList?.refresh()
-      if (this.selectedIsOwn && this.selectedTemplate?.id === templateId) {
+      if (
+        this.selectedOwnerActions &&
+        this.selectedTemplate?.id === templateId
+      ) {
         this.selectTemplate(null)
       }
       if (this.updatedTemplate?.id === templateId) {

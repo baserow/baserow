@@ -1,6 +1,8 @@
 from unittest.mock import Mock
 from uuid import uuid4
 
+from django.contrib.auth.models import AbstractUser
+
 import pytest
 from pydantic_ai import WebSearchTool
 from pydantic_ai.exceptions import ModelHTTPError
@@ -27,8 +29,10 @@ from baserow.contrib.agent.constants import (
     WEB_SEARCH_UNAVAILABLE_INSTRUCTIONS,
 )
 from baserow.contrib.agent.handler import AgentHandler
-from baserow.contrib.agent.models import AgentMessage
+from baserow.contrib.agent.models import AgentApplication, AgentMessage
 from baserow.contrib.agent.replies import AgentResponder, _web_search_step_input
+from baserow.contrib.agent.service import AgentService
+from baserow.contrib.database.table.models import Table
 from baserow.contrib.integrations.mcp.models import MCPServerTool
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 from baserow.core.chat_runs.models import ChatRun
@@ -225,6 +229,112 @@ def test_search_left_waiting_by_a_tool_call_keeps_its_tool(
     assert reply.status == "completed"
     assert len(seen[1]) == 1
     assert seen[1][0].max_uses == WEB_SEARCH_MAX_PER_REPLY
+
+
+def ask_first_agent(
+    data_fixture, configured_agent, user: AbstractUser
+) -> tuple[AgentApplication, Table]:
+    """An Agent that searches the web and asks before it creates rows."""
+
+    agent = agent_with_tools(configured_agent, user, "openai", "test-model")
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(workspace=agent.workspace)
+    )
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    AgentHandler().update_configuration(
+        agent, allowed_tools=["create_rows"], ask_first_tools=["create_rows"]
+    )
+    return agent, table
+
+
+def add_row(table: Table, index: int = 0) -> dict[int, DeltaToolCall]:
+    return {
+        index: DeltaToolCall(
+            name="create_rows",
+            json_args=f'{{"table_id": {table.id}, "rows": [{{"Name": "A"}}]}}',
+        )
+    }
+
+
+def approve_and_resume(user: AbstractUser, reply: AgentMessage) -> AgentMessage:
+    (approval,) = reply.approvals.all()
+    conversation = reply.conversation
+    _, run_id = AgentService().decide_approvals(
+        user,
+        conversation.agent_id,
+        conversation.uuid,
+        [{"id": approval.id, "approved": True}],
+    )
+    run_reply(ChatRun.objects.get(id=run_id))
+    reply.refresh_from_db()
+    return reply
+
+
+@pytest.mark.django_db
+def test_a_search_next_to_a_held_call_is_never_held_and_search_stays_on_resume(
+    mocker, data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    agent, table = ask_first_agent(data_fixture, configured_agent, user)
+    seen = []
+
+    async def stream(messages, info):
+        seen.append(info.model_request_parameters.native_tools)
+        if len(seen) == 1:
+            yield searches(1)
+            yield add_row(table, 2)
+        else:
+            yield "Done."
+
+    use_stream(mocker, stream)
+
+    reply = answer(user, agent)
+
+    assert reply.status == "waiting"
+    assert [(step["tool"], step["status"]) for step in reply.steps] == [
+        (WebSearchTool.kind, "done"),
+        ("create_rows", "waiting"),
+    ]
+    reply = approve_and_resume(user, reply)
+    assert reply.status == "completed"
+    assert [step["status"] for step in reply.steps] == ["done", "done"]
+    assert [len(tools) for tools in seen] == [1, 1]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("refused_by", ["provider", "sdk"])
+def test_a_resumed_reply_never_offers_the_search_its_paused_run_could_not_use(
+    mocker, data_fixture, configured_agent, refused_by
+):
+    user = data_fixture.create_user()
+    agent, table = ask_first_agent(data_fixture, configured_agent, user)
+    responses = iter([add_row(table), "Done."])
+
+    async def stream(messages, info):
+        if info.model_request_parameters.native_tools:
+            raise ModelHTTPError(400, "test-model", body="web_search not supported")
+        yield next(responses)
+
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(
+            FunctionModel(
+                stream_function=stream,
+                profile=ModelProfile(supported_native_tools=frozenset())
+                if refused_by == "sdk"
+                else None,
+            ),
+            {},
+        ),
+    )
+
+    reply = approve_and_resume(user, answer(user, agent))
+
+    assert (reply.status, reply.content) == ("completed", "Done.")
+    assert [(step["tool"], step["status"]) for step in reply.steps] == [
+        (WebSearchTool.kind, "failed"),
+        ("create_rows", "done"),
+    ]
 
 
 def test_the_model_is_told_how_many_searches_a_reply_may_make():
@@ -481,7 +591,7 @@ def test_code_the_provider_runs_to_filter_results_is_not_a_step(
 def test_step_starts_when_the_search_does_and_learns_the_query_when_it_arrives():
     journal = Mock()
     responder = AgentResponder(
-        Mock(allowed_tool_names=[], mcp_servers=()), journal, Mock(), {}
+        Mock(allowed_tool_names=[], mcp_servers=(), resume=None), journal, Mock(), {}
     )
     started = NativeToolCallPart(WebSearchTool.kind, tool_call_id="search-1")
 
@@ -501,7 +611,7 @@ def test_step_starts_when_the_search_does_and_learns_the_query_when_it_arrives()
 def test_text_before_a_search_leaves_the_stream_once_the_answer_starts():
     journal = Mock()
     responder = AgentResponder(
-        Mock(allowed_tool_names=[], mcp_servers=()), journal, Mock(), {}
+        Mock(allowed_tool_names=[], mcp_servers=(), resume=None), journal, Mock(), {}
     )
 
     for index, part in enumerate(
@@ -520,7 +630,7 @@ def test_text_before_a_search_leaves_the_stream_once_the_answer_starts():
 def test_text_before_a_search_whose_result_arrives_late_leaves_the_stream():
     journal = Mock()
     responder = AgentResponder(
-        Mock(allowed_tool_names=[], mcp_servers=()), journal, Mock(), {}
+        Mock(allowed_tool_names=[], mcp_servers=(), resume=None), journal, Mock(), {}
     )
 
     for index, part in enumerate(

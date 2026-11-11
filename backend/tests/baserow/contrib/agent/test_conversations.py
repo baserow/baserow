@@ -80,6 +80,7 @@ def test_first_message_creates_a_private_conversation(
             "error_code": "",
             "run_id": None,
             "steps": None,
+            "approvals": [],
         },
         "reply": {
             "id": reply.id,
@@ -91,6 +92,7 @@ def test_first_message_creates_a_private_conversation(
             "error_code": "",
             "run_id": run_id,
             "steps": None,
+            "approvals": [],
         },
     }
     assert conversation.owner_user == api_user
@@ -103,24 +105,31 @@ def test_first_message_creates_a_private_conversation(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("existing", [False, True])
+@pytest.mark.parametrize("write", ["conversation", "message", "decision"])
 def test_agents_answer_nothing_while_the_feature_is_off(
-    data_fixture, configured_agent, settings, existing
+    data_fixture, configured_agent, settings, write
 ):
     """An Agent imported while the feature is off must not call its provider."""
 
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
     conversation = data_fixture.create_agent_conversation(user=user, agent=agent)
+    approval = data_fixture.create_agent_tool_approval(conversation=conversation)
     settings.FEATURE_FLAGS = []
+    service = AgentService()
 
     with pytest.raises(FeatureDisabledException):
-        if existing:
-            AgentService().create_message(
-                user, agent.id, conversation.uuid, uuid4(), "Hi"
-            )
+        if write == "conversation":
+            service.create_conversation(user, agent.id, uuid4(), uuid4(), "Hi")
+        elif write == "message":
+            service.create_message(user, agent.id, conversation.uuid, uuid4(), "Hi")
         else:
-            AgentService().create_conversation(user, agent.id, uuid4(), uuid4(), "Hi")
+            service.decide_approvals(
+                user,
+                agent.id,
+                conversation.uuid,
+                [{"id": approval.id, "approved": True}],
+            )
 
     assert not ChatRun.objects.exists()
 
@@ -241,6 +250,7 @@ def test_conversations_are_private_to_their_owner_and_agent(
     agent = configured_agent(workspace=workspace)
     conversation = data_fixture.create_agent_conversation(user=owner, agent=agent)
     message = data_fixture.create_agent_message(conversation=conversation)
+    approval = data_fixture.create_agent_tool_approval(conversation=conversation)
     actor, target = (
         (owner, configured_agent(workspace=workspace))
         if case == "other agent"
@@ -261,10 +271,15 @@ def test_conversations_are_private_to_their_owner_and_agent(
             actor, target.id, conversation.uuid, title="Renamed"
         ),
         lambda: service.delete_conversation(actor, target.id, conversation.uuid),
+        lambda: service.decide_approvals(
+            actor, target.id, conversation.uuid, [{"id": approval.id, "approved": True}]
+        ),
     ]:
         with pytest.raises(AgentConversationDoesNotExist):
             attempt()
-    assert AgentMessage.objects.count() == 1
+    assert AgentMessage.objects.count() == 2
+    approval.refresh_from_db()
+    assert approval.status == "pending"
     assert AgentConversation.objects.get().title == conversation.title
 
 
@@ -654,6 +669,10 @@ def test_a_deleted_conversation_stops_its_reply_and_only_its_owner_restores_it(
         api_client.post(messages_url, {"uuid": str(uuid4()), "content": "Hello"}),
         api_client.post(agent_url(agent, "conversations"), payload),
         api_client.patch(url, {"title": "Renamed"}),
+        api_client.post(
+            agent_url(agent, "approvals", conversation_uuid=payload["uuid"]),
+            {"decisions": [{"id": 1, "approved": True}]},
+        ),
         api_client.delete(url),
     ]:
         assert response.json()["error"] == "ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST"

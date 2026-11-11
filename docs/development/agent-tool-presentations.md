@@ -16,26 +16,42 @@ The backend emits `step` events and saves the same steps on the assistant messag
     "tool": "create_rows",
     "status": "done",
     "changes_data": true,
-    "input": { "requested_count": 2 },
-    "facts": { "count": 2, "table": "Tasks" }
+    "input": {
+        "requested_count": 2,
+        "values": {
+            "table": "Tasks",
+            "rows": [{ "Name": "Acme" }, { "Name": "Beta" }]
+        }
+    },
+    "facts": { "count": 2 }
 }
 ```
 
 - `tool` is the tool's name. Frontend presenters are registered under it. They
   only describe calls and never select what runs or what is allowed.
-- `status` is `running`, `done`, `failed`, `stopped` or `skipped`, see
-  `STEP_STATUS` in `modules/core/chatRuns/constants.js`. A call is `running` from
-  the moment the model makes it, so a change waiting behind another change in the
-  same response is `running` too. `stopped` means the reply ended before the
-  call's result: a change may already have completed, and the card says so.
-  `skipped` means the call changed nothing and failed nothing; it has no card.
-- `input` is derived from the arguments before the call runs, such as a requested
-  count. It never copies argument values.
-- `facts` are confirmed after an authorized success, such as a count and a table
-  name. A requested count doesn't prove how many items changed. A batch that
-  partly fails is `done` with the count the tool reports.
+- `status` is `running`, `waiting`, `done`, `failed`, `rejected`, `stopped` or
+  `skipped`, see `STEP_STATUS` in `modules/core/chatRuns/constants.js`. Calls
+  held for approval are `waiting` from their call event, including changes that
+  follow a held call in the same response. Other valid calls are `running`
+  until their result arrives. `rejected` means the owner denied the call, so it
+  did not run. A held call the reply ends without resuming is `rejected` if the
+  owner rejected it, `stopped` if they approved it and the resume started, since
+  it may have run, and otherwise `failed` with `not_run`. Copies end held calls
+  the same way, as approvals aren't copied. `stopped` means the reply ended before the call's result: a change may
+  already have completed, and the card says so. `skipped` means the call changed nothing and failed nothing; it has
+  no card. A held call is never `skipped`, as the owner already saw it. A held
+  call gets its readable request when it is held, so the owner decides on
+  names, not IDs.
+- `input` is what the call asked for. `requested_count` is known when the call
+  starts. `values`, the request with names instead of IDs, follows while it
+  runs, before the tool changes anything; see
+  [Readable requests](#readable-requests).
+- `facts` are confirmed after an authorized success: a count, and the names of
+  created or read tables. A requested count doesn't prove how many items
+  changed. A batch that partly fails is `done` with the count the tool reports.
 - `error_code` is set on failed steps: `not_found`, `permission_denied`,
-  `invalid_input`, `invalid_formula`, `conflict` or `failed`. For an exception
+  `invalid_input`, `invalid_formula`, `conflict`, `failed` or `not_run`, for a
+  held call that ended without running. For an exception
   the tool raises, it comes from `classify_tool_error` in
   `baserow/core/tools/errors.py`. Arguments that fail validation are
   `invalid_input`. `not_found` covers missing and inaccessible resources alike.
@@ -49,17 +65,36 @@ Every call has its own step, so a retry after a failure is a new step.
 
 Calls to tools the reply doesn't offer get no step.
 
-### Input previews
+### Readable requests
 
-Write tools can add `input.values`, a copy of the arguments they select in
-`DatabaseAgentToolType.step_input_arguments`. Core's `tool_input_preview` shortens
-strings to 1,000 characters and sets `input.truncated` when it does. It leaves the
-preview out when the stored JSON would exceed 16 KiB, because a partial copy could
-misstate the request. The card shows it as escaped JSON, collapsed by default. It
-describes the request, not what changed, and is stored with the step.
+`AgentToolType.get_step_preview(ctx, arguments)` names a database tool's request
+as the Agent identity, before the tool runs. The tool sends it to its running
+step as a `ToolCallInputEvent`, so `input.values` stays on running, stopped and
+failed steps too.
 
-Row tools don't select their rows: values can include passwords, which the row
-itself only stores hashed.
+- What the identity can't name keeps its ID, such as `{"table_id": 7}`,
+  `{"field_id": 4}` or `{"row_id": 12}`. The tool, not the preview, decides
+  whether the call succeeds; a preview that can't be built is left out.
+- Only values of known, readable fields are shown; everything else, such as a
+  password, a misspelled field or any field of a table that can't be named, is
+  masked as `"••••"`.
+- Every list keeps 10 items and every object 10 keys, at any depth;
+  `requested_count` keeps the requested number.
+- Strings keep 1,000 characters.
+- Over 16 KiB of JSON, trailing items are left out until it fits; when none
+  fits, the list is left out, never shown empty.
+- `input.truncated` marks any of these cuts; the card says the preview is
+  shortened.
+- Each ID is resolved on its own: two fields named "Name" stay two entries.
+- Rows are named by their primary field value, or `unnamed row <id>`, when the
+  identity may list them.
+- Field IDs in views and filters become names when the identity may list the
+  table's fields; others stay as written.
+- An integer `linked_table` in `create_fields` the identity can't see stays as
+  written.
+- Reads of one table name only the table, so a held read shows what it reads.
+
+The card shows `values` as indented JSON, collapsed by default.
 
 ## Web search
 
@@ -69,21 +104,26 @@ input once the call is complete. Unlike other tools, its `input` keeps the
 queries (`queries`) and any page the provider opened (`url`), bounded in count and
 length, because the step is the only record of what the Agent sent out. A reply that
 was meant to search but couldn't, because the provider refused the tool, gets one
-failed step whose `input` is `{"unavailable": true}`.
+failed step whose `input` is `{"unavailable": true}`. A search is never held for
+approval, even next to a held call. A resumed reply offers search only if its
+paused run did, so a provider that refused it isn't asked again.
 
 ## Adding a tool
 
 **Backend.** An `AgentToolType` describes its calls with
-`get_step_input(arguments)` and `get_step_facts(ctx, arguments, result)`. Both
-default to `{}`. A failure in either is logged without values and doesn't change
-the tool's result.
+`get_step_input(arguments)`, `get_step_preview(ctx, arguments)` and
+`get_step_facts(ctx, arguments, result)`. `get_step_input` and `get_step_facts`
+default to `{}`; a failure in either is logged without values and doesn't change
+the tool's result. `get_step_preview` defaults to `None`; build it with the helpers
+in `contrib/agent/previews.py`. When it raises, the step has no `values` and the call still runs.
 
 **Frontend.** Extend `ToolPresentationType` from
 `modules/core/toolPresentationTypes.js` and implement `getLabel(t)`,
 `getDescription(t)` and `getActivity(step, t)`. Register it in the
 `toolPresentation` namespace from the owning module's plugin. Return
 `WORKSPACE_TOOL_GROUP` from `group` only for workspace reads: consecutive reads
-share one card, and each change gets its own. Unknown tools, missing translations
+share one card, and each change gets its own. A step that isn't running or done
+is titled by what it asked for. Unknown tools, missing translations
 and presenter errors fall back to generic labels that keep the step's status.
 
 **Translations.** Put labels in the owning module's English locale file. Use plural
@@ -91,7 +131,8 @@ forms such as `"Creating {count} row | Creating {count} rows"`, called with
 `t(key, { count }, count)`.
 
 **Coverage.** Add each tool to `tests/cases/agent_tools.json` with valid
-arguments, the expected `input` and representative `facts`. Backend tests check
+arguments, the expected `input`, the `preview` a call on the test table produces,
+and representative `facts`. Backend tests check
 the examples against the tool registry and argument schemas. Frontend tests check
 that every tool has a registered presenter with translated titles for each status.
 The fixture's `step_error_codes` keeps the backend and frontend codes in sync.

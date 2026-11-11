@@ -124,6 +124,7 @@ from .signals import (
     before_workspace_deleted,
     before_workspace_user_deleted,
     before_workspace_user_updated,
+    settings_updated,
     workspace_created,
     workspace_deleted,
     workspace_invitation_accepted,
@@ -215,15 +216,16 @@ class CoreHandler:
 
     def update_settings(
         self, user: User, settings_instance: Optional[Settings] = None, **kwargs
-    ) -> Settings:
+    ) -> Tuple[Settings, Dict[str, Any]]:
         """
         Updates one or more setting values if the user has staff permissions.
 
         :param user: The user on whose behalf the settings are updated.
-        :param settings_instance: If already fetched, the settings instance can be
-            provided to avoid fetching the values for a second time.
+        :param settings_instance: The settings, if already fetched. The update reads
+            the row again, locked, so a stale instance is fine.
         :param kwargs: An dict containing the settings that need to be updated.
-        :return: The update settings instance.
+        :return: The updated settings instance, and the new values of the settings
+            that changed, by name, a file as its id.
         """
 
         CoreHandler().check_permissions(
@@ -233,9 +235,9 @@ class CoreHandler:
         if not settings_instance:
             settings_instance = self.get_settings()
 
-        settings_instance = set_allowed_attrs(
-            kwargs,
-            [
+        fields = [
+            name
+            for name in [
                 "allow_new_signups",
                 "allow_signups_via_workspace_invitations",
                 "allow_reset_password",
@@ -247,12 +249,45 @@ class CoreHandler:
                 "email_verification",
                 "verify_import_signature",
                 "allow_reporting_abuse",
-            ],
-            settings_instance,
-        )
+                "user_templates_require_approval",
+            ]
+            if name in kwargs
+        ]
+        with transaction.atomic():
+            # The previous values are the stored ones: a cached instance can be stale.
+            settings_instance = Settings.objects.select_for_update().get(
+                id=settings_instance.id
+            )
+            old_values = self._get_settings_values(settings_instance, fields)
+            set_allowed_attrs(kwargs, fields, settings_instance)
+            settings_instance.save(update_fields=fields)
+            settings_updated.send(
+                self, user=user, settings=settings_instance, old_values=old_values
+            )
+        changed = {
+            name: value
+            for name, value in self._get_settings_values(
+                settings_instance, fields
+            ).items()
+            if value != old_values[name]
+        }
+        return settings_instance, changed
 
-        settings_instance.save()
-        return settings_instance
+    def _get_settings_values(
+        self, settings_instance: Settings, fields: List[str]
+    ) -> Dict[str, Any]:
+        """
+        The values of settings, in the form they're stored in.
+
+        :param settings_instance: The settings.
+        :param fields: The names of the settings to read.
+        :return: The values of the settings by name, a file as its id.
+        """
+
+        return {
+            name: Settings._meta.get_field(name).value_from_object(settings_instance)
+            for name in fields
+        }
 
     @baserow_trace(tracer, allow_nested=True)
     def check_multiple_permissions(
@@ -2559,7 +2594,9 @@ class CoreHandler:
                 if actor.is_authenticated
                 else templates.none()
             )
-        templates = templates.listed() if listed else templates.latest_revisions()
+        templates = (
+            templates.listed() if listed else templates.latest_revisions()
+        ).with_template_state()
 
         # A revision isn't changed after it's created, an official template is.
         # A listed revision is dated by when it was listed, see `submit_revision`.

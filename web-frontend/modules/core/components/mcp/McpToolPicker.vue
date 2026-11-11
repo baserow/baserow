@@ -136,6 +136,7 @@ const GROUP_LABELS = {
   audit_log_read: 'mcpToolPicker.auditLogRead',
   builder_read: 'mcpToolPicker.builderRead',
   builder_edit: 'mcpToolPicker.builderEdit',
+  builder_delete: 'mcpToolPicker.builderDelete',
 }
 const AREA_LABELS = {
   workspace: 'mcpToolPicker.areaWorkspace',

@@ -250,4 +250,6 @@ class MCPServerToolset(AbstractToolset[Any]):
         text = result_to_text(result)
         if result.isError:
             return _error(text or "The tool failed.", ToolErrorCode.FAILED)
-        return ToolReturn(return_value=text, metadata={"server": self._server.name})
+        return ToolReturn(
+            return_value=text, metadata={"facts": {"server": self._server.name}}
+        )

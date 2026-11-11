@@ -1,4 +1,8 @@
-from baserow.core.mcp.groups import GROUP_BUILDER_EDIT, GROUP_BUILDER_READ
+from baserow.core.mcp.groups import (
+    GROUP_BUILDER_DELETE,
+    GROUP_BUILDER_EDIT,
+    GROUP_BUILDER_READ,
+)
 from baserow.core.mcp.registries import FunctionMCPTool
 from baserow_enterprise.builder.tools import elements
 
@@ -53,7 +57,8 @@ class UpdateElementMcpTool(FunctionMCPTool):
     title = "Update an element"
     read_only = False
     destructive = True
-    function = elements.update_element
+    # Deletes nothing: removing table columns or menu items is delete_element_items.
+    function = elements.edit_element
 
 
 class UpdateElementStyleMcpTool(FunctionMCPTool):
@@ -72,3 +77,12 @@ class MoveElementsMcpTool(FunctionMCPTool):
     read_only = False
     destructive = True
     function = elements.move_elements
+
+
+class DeleteElementItemsMcpTool(FunctionMCPTool):
+    type = "delete_element_items"
+    group = GROUP_BUILDER_DELETE
+    title = "Delete table columns or menu items"
+    read_only = False
+    destructive = True
+    function = elements.delete_element_items

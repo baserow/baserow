@@ -63,11 +63,11 @@
       <ul class="context__menu">
         <slot name="menu-items" :hide="hideContext"></slot>
         <li
-          v-if="showCopyLink"
+          v-if="showCopyLink || copyLinkUrl"
           class="context__menu-item"
           :class="{ 'context__menu-item--with-separator': hasMenuItems }"
         >
-          <a class="context__menu-item-link" @click.prevent="copyLink">
+          <a class="context__menu-item-link" @click.prevent="copyTemplateLink">
             <i class="context__menu-item-icon iconoir-link"></i>
             {{ $t('templateInstall.copyLink') }}
             <Copied ref="copiedRef"></Copied>
@@ -79,7 +79,8 @@
           "
           class="context__menu-item"
           :class="{
-            'context__menu-item--with-separator': hasMenuItems && !showCopyLink,
+            'context__menu-item--with-separator':
+              hasMenuItems && !showCopyLink && !copyLinkUrl,
           }"
         >
           <a
@@ -116,6 +117,8 @@ import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
 import { useUserTemplateDownload } from '@baserow/modules/core/composables/useUserTemplateDownload'
 import { fetchPermissionsOfWorkspaces } from '@baserow/modules/core/utils/workspace'
 import TemplateService from '@baserow/modules/core/services/template'
+import { useCopyLink } from '@baserow/modules/core/composables/useCopyLink'
+import { isPrivateLinkPage } from '@baserow/modules/core/utils/templatePrivateLink'
 import CreateWorkspaceModal from '@baserow/modules/core/components/workspace/CreateWorkspaceModal'
 
 const props = defineProps({
@@ -135,6 +138,11 @@ const props = defineProps({
     required: false,
     default: true,
   },
+  copyLinkUrl: {
+    type: String,
+    required: false,
+    default: null,
+  },
   // Whether the latest revision of a user template is installed, which only its
   // owner may. Otherwise it's the public revision, or the owner's latest one
   // while it isn't public.
@@ -153,7 +161,8 @@ const slots = useSlots()
 const store = useStore()
 const router = useRouter()
 const config = useRuntimeConfig()
-const { $client, $hasPermission } = useNuxtApp()
+const { $client, $hasPermission, $i18n } = useNuxtApp()
+const { copyLink } = useCopyLink()
 
 const moreButton = ref(null)
 const contextRef = ref(null)
@@ -234,9 +243,11 @@ async function loadPermissions() {
 
 onMounted(loadPermissions)
 
-// Sends the user back to this template's page after logging in.
 async function goToLogin() {
-  const original = templateRoute().fullPath
+  const current = router.currentRoute.value
+  const { fullPath: original } = isPrivateLinkPage(current)
+    ? current
+    : templateRoute()
   await router.push({ name: 'login', query: { original } })
 }
 
@@ -316,11 +327,12 @@ function templateRoute() {
   })
 }
 
-async function copyLink() {
+function copyTemplateLink() {
   const { href } = templateRoute()
-  await navigator.clipboard.writeText(
-    new URL(href, config.public.publicWebFrontendUrl).toString()
+  return copyLink(
+    props.copyLinkUrl ??
+      new URL(href, config.public.publicWebFrontendUrl).toString(),
+    copiedRef.value
   )
-  copiedRef.value.show()
 }
 </script>

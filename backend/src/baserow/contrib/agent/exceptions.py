@@ -12,3 +12,11 @@ class AgentNotReady(Exception):
 
 class AgentRunAsSubjectDoesNotExist(Exception):
     """The subject to run as is missing, trashed or in another workspace."""
+
+
+class AgentConversationWaitingForApproval(Exception):
+    """The conversation's latest reply waits for the owner to decide its held calls."""
+
+
+class AgentToolApprovalNotPending(Exception):
+    """The approval is decided or isn't held by the conversation's waiting reply."""

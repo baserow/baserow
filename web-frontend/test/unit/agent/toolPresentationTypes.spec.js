@@ -62,20 +62,28 @@ describe('Agent tool presentations', () => {
         .filter((type) => !['mcp_server_tool', 'web_search'].includes(type))
         .sort()
     ).toEqual(cases.tools.map(({ name }) => name).sort())
-    for (const { name, input, facts } of cases.tools) {
+    for (const { name, input, preview, facts } of cases.tools) {
       const presenter = registry.get('toolPresentation', name)
       expect(presenter.getLabel(t)).not.toMatch(/^agent\./)
       expect(presenter.getDescription(t)).not.toMatch(/^agent\./)
-      for (const status of ['running', 'done', 'failed', 'stopped']) {
+      const requested = { ...input, ...preview }
+      for (const status of [
+        'running',
+        'waiting',
+        'done',
+        'failed',
+        'rejected',
+        'stopped',
+      ]) {
         const activity = toolActivity(
-          step(name, status, { input, facts }),
+          step(name, status, { input: requested, facts }),
           registry,
           t
         )
         expect(activity.title).not.toMatch(/^(agent|toolPresentation)\./)
         expect(activity.input).toEqual(
-          step(name).changes_data && input.values
-            ? { values: input.values, truncated: false }
+          requested.values
+            ? { values: requested.values, truncated: false }
             : null
         )
       }
@@ -90,8 +98,8 @@ describe('Agent tool presentations', () => {
     'translates requested and actual row counts: %s',
     (count, running, done) => {
       const data = step('create_rows', 'running', {
-        input: { requested_count: count },
-        facts: { count, table: 'Tasks' },
+        input: { requested_count: count, values: { table: 'Tasks', rows: [] } },
+        facts: { count },
       })
 
       expect(toolActivity(data, registry, t).title).toBe(running)
@@ -100,6 +108,60 @@ describe('Agent tool presentations', () => {
       )
     }
   )
+
+  test.each([
+    ['create_rows', { requested_count: 3 }, 'Create 3 rows'],
+    ['create_rows', { requested_count: 1 }, 'Create 1 row'],
+    ['create_rows', {}, 'Create rows'],
+    ['delete_rows', { requested_count: 2 }, 'Delete 2 rows'],
+    ['create_fields', { requested_count: 1 }, 'Add 1 field'],
+  ])(
+    'titles a call that did not complete by what %s asks to do: %j',
+    (tool, input, title) => {
+      for (const status of ['waiting', 'rejected', 'failed', 'stopped']) {
+        expect(
+          toolActivity(step(tool, status, { input }), registry, t).title
+        ).toBe(title)
+      }
+    }
+  )
+
+  test.each(
+    cases.tools
+      .filter(({ name }) => step(name).changes_data)
+      .map(({ name }) => name)
+  )('a held %s call names its requested count', (tool) => {
+    const held = step(tool, 'waiting', { input: { requested_count: 2 } })
+
+    expect(toolActivity(held, registry, t).title).toMatch(/2/)
+  })
+
+  test('a held read shows its request and is titled with its table', () => {
+    const data = step('list_table_rows', 'waiting', {
+      input: { values: { table: 'Accounts' } },
+    })
+
+    const activity = toolActivity(data, registry, t)
+    expect(activity.title).toBe('Read rows from Accounts')
+    expect(activity.input).toEqual({
+      values: { table: 'Accounts' },
+      truncated: false,
+    })
+  })
+
+  test('a held change is titled with the table its request names', () => {
+    const data = step('create_rows', 'waiting', {
+      input: { requested_count: 2, values: { table: 'Accounts', rows: [] } },
+    })
+
+    expect(toolActivity(data, registry, t).title).toBe(
+      'Create 2 rows in Accounts'
+    )
+    expect(
+      toolActivity({ ...data, input: { requested_count: 2 } }, registry, t)
+        .title
+    ).toBe('Create 2 rows')
+  })
 
   test('completed changes use confirmed counts and missing counts keep action labels', () => {
     const data = step('create_rows', 'done', {
@@ -112,7 +174,7 @@ describe('Agent tool presentations', () => {
       'Create rows'
     )
     expect(toolActivity({ ...data, status: 'failed' }, registry, t).title).toBe(
-      'Create rows'
+      'Create 9 rows'
     )
   })
 
@@ -120,7 +182,8 @@ describe('Agent tool presentations', () => {
     expect(
       toolActivity(
         step('list_table_rows', 'done', {
-          facts: { count: 3, table: 'Tasks' },
+          input: { values: { table: 'Tasks' } },
+          facts: { count: 3 },
         }),
         registry,
         t
@@ -128,7 +191,10 @@ describe('Agent tool presentations', () => {
     ).toBe('Read 3 rows from Tasks')
     expect(
       toolActivity(
-        step('list_table_rows', 'done', { facts: { table: 'Tasks' } }),
+        step('list_table_rows', 'done', {
+          input: { values: { table: 'Tasks' } },
+          facts: {},
+        }),
         registry,
         t
       ).title
@@ -149,6 +215,40 @@ describe('Agent tool presentations', () => {
         t
       ).title
     ).toBe('Created 1 table: Projects')
+  })
+
+  test('a done change is titled with the table its request names', () => {
+    const data = step('delete_rows', 'done', {
+      input: {
+        requested_count: 2,
+        values: { table: 'Accounts', rows: ['Acme', 'Beta'] },
+      },
+      facts: { count: 2 },
+    })
+
+    expect(toolActivity(data, registry, t).title).toBe(
+      'Deleted 2 rows from Accounts'
+    )
+    expect(toolActivity(data, registry, t).input).toEqual({
+      values: { table: 'Accounts', rows: ['Acme', 'Beta'] },
+      truncated: false,
+    })
+  })
+
+  test('a cut request keeps the shortened-preview flag', () => {
+    const data = step('create_rows', 'done', {
+      input: {
+        requested_count: 25,
+        values: { table: 'Accounts', rows: [{ Name: 'Row 1' }] },
+        truncated: true,
+      },
+      facts: { count: 25 },
+    })
+
+    expect(toolActivity(data, registry, t).title).toBe(
+      'Added 25 rows to Accounts'
+    )
+    expect(toolActivity(data, registry, t).input.truncated).toBe(true)
   })
 
   test.each([null, [], { requested_count: -1 }, { requested_count: '3' }])(

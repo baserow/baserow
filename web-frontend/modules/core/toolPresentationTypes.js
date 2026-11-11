@@ -9,14 +9,18 @@ export const WORKSPACE_TOOL_GROUP = 'workspace'
 const STATUSES = new Set(Object.values(STEP_STATUS))
 const FALLBACK_LABELS = {
   [STEP_STATUS.RUNNING]: 'Using a tool',
+  [STEP_STATUS.WAITING]: 'Tool waiting for approval',
   [STEP_STATUS.DONE]: 'Tool completed',
   [STEP_STATUS.FAILED]: 'Tool failed',
+  [STEP_STATUS.REJECTED]: 'Tool rejected',
   [STEP_STATUS.STOPPED]: 'Tool interrupted',
 }
 const STATUS_LABELS = {
   [STEP_STATUS.RUNNING]: 'toolPresentation.statusRunning',
+  [STEP_STATUS.WAITING]: 'toolPresentation.statusWaiting',
   [STEP_STATUS.DONE]: 'toolPresentation.statusDone',
   [STEP_STATUS.FAILED]: 'toolPresentation.statusFailed',
+  [STEP_STATUS.REJECTED]: 'toolPresentation.statusRejected',
   [STEP_STATUS.STOPPED]: 'toolPresentation.statusInterrupted',
 }
 const FAILURE_LABELS = new Map([
@@ -29,6 +33,7 @@ const FAILURE_LABELS = new Map([
   [STEP_ERROR_CODE.INVALID_FORMULA, 'toolPresentation.failureInvalidFormula'],
   [STEP_ERROR_CODE.CONFLICT, 'toolPresentation.failureConflict'],
   [STEP_ERROR_CODE.FAILED, 'toolPresentation.failureFailed'],
+  [STEP_ERROR_CODE.NOT_RUN, 'toolPresentation.failureNotRun'],
 ])
 const MAX_MESSAGE_LENGTH = 1000
 
@@ -119,20 +124,22 @@ function itemErrors(data) {
     }))
 }
 
-/** Describe a step's status in words; an interrupted change may have completed. */
-export function stepStatusText(
-  { status, changesData, failureHint, partial },
-  t
-) {
+/** Name a step's status; an interrupted change may have completed. */
+export function stepStatusLabel({ status, changesData, partial }, t) {
   if (status === STEP_STATUS.STOPPED && changesData) {
     return t('toolPresentation.statusStopped')
   }
   if (status === STEP_STATUS.DONE && partial) {
     return t('toolPresentation.statusPartial')
   }
-  const label = t(STATUS_LABELS[status])
-  return status === STEP_STATUS.FAILED
-    ? `${label} ${failureHint || t('toolPresentation.failureFailed')}`
+  return t(STATUS_LABELS[status])
+}
+
+/** Describe a step's status in words, with why it failed. */
+export function stepStatusText(step, t) {
+  const label = stepStatusLabel(step, t)
+  return step.status === STEP_STATUS.FAILED
+    ? `${label} ${step.failureHint || t('toolPresentation.failureFailed')}`
     : label
 }
 

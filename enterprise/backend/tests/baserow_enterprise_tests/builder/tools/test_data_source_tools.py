@@ -4,7 +4,6 @@ without a model. The conftest of this folder fails any model call.
 """
 
 import pytest
-from pydantic import ValidationError
 
 from baserow.contrib.automation.tools.formulas import wrap_static_string
 from baserow.contrib.builder.data_sources.exceptions import DataSourceDoesNotExist
@@ -76,7 +75,7 @@ def test_create_stores_explicit_formulas_and_reports_descriptions(site):
     assert set(entry) == {"data_source_id", "field", "formula", "error"}
     assert entry["data_source_id"] == ids["described"]
     assert entry["field"] == "search_query"
-    assert entry["formula"] == "the text of the search box"
+    assert entry["formula"] == "$formula: the text of the search box"
     assert "errors" not in result
 
 
@@ -259,7 +258,7 @@ def test_defer_creates_the_get_row_with_the_placeholder_and_reports_the_value(si
         {
             "data_source_id": data_source_id,
             "field": "row_id",
-            "formula": "the id page parameter",
+            "formula": "$formula: the id page parameter",
             "error": result["formula_errors"][0]["error"],
         }
     ]
@@ -404,12 +403,51 @@ def test_update_of_a_data_source_of_another_workspace_is_not_found(data_fixture,
     assert tool_error_message(exc.value) == "Not found in this workspace."
 
 
-@pytest.mark.parametrize("row_id", ["", "   "])
-def test_get_row_with_a_blank_row_id_is_refused(row_id):
-    with pytest.raises(ValidationError, match="row_id"):
-        DataSourceCreate(
-            ref="row", name="Row", type="get_row", table_id=1, row_id=row_id
-        )
+@pytest.mark.django_db
+@pytest.mark.parametrize("row_id", [None, "", "   "])
+def test_get_row_without_a_row_id_reads_the_first_row(site, row_id):
+    result = data_sources.create_data_sources(
+        site["ctx"],
+        site["page"].id,
+        [
+            DataSourceCreate(
+                ref="row",
+                name="Row",
+                type="get_row",
+                table_id=site["table"].id,
+                row_id=row_id,
+            )
+        ],
+    )
+
+    assert "errors" not in result
+    data_source = DataSource.objects.get(id=result["ref_to_id_map"]["row"])
+    assert data_source.service.specific.row_id["formula"] == ""
+
+
+@pytest.mark.django_db
+def test_update_with_a_blank_row_id_removes_the_row_id(site):
+    created = data_sources.create_data_sources(
+        site["ctx"],
+        site["page"].id,
+        [
+            DataSourceCreate(
+                ref="row",
+                name="Row",
+                type="get_row",
+                table_id=site["table"].id,
+                row_id="2",
+            )
+        ],
+    )
+    data_source_id = created["ref_to_id_map"]["row"]
+
+    data_sources.update_data_source(
+        site["ctx"], data_source_id, DataSourceChanges(row_id="")
+    )
+
+    data_source = DataSource.objects.get(id=data_source_id)
+    assert data_source.service.specific.row_id["formula"] == ""
 
 
 @pytest.mark.django_db

@@ -111,7 +111,11 @@ def test_the_default_guidance_lists_the_supported_properties() -> None:
         (
             "link",
             LinkAssistantElementType,
-            {"link_variant": "variant", "link_target": "target"},
+            {
+                "link_variant": "variant",
+                "link_target": "target",
+                "link_page_parameters": "page_parameters",
+            },
         ),
         ("column", ColumnAssistantElementType, {"column_alignment": "alignment"}),
         (

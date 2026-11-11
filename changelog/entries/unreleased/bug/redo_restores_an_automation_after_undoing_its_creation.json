@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Redo restores an automation after undoing its creation, and undoing an automation's deletion or redoing its duplication no longer fails",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-11-09"
+}

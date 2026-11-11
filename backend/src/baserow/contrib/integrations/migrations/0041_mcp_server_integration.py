@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('core', '0135_workspaceinvitationlink_scope'),
-        ('integrations', '0039_localbaserowintegration_authorized_agent'),
+        ('integrations', '0040_corewaitservice'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

@@ -16,10 +16,14 @@ from baserow.contrib.agent.models import (
     AgentApplication,
     AgentConversation,
     AgentMessage,
+    AgentToolApproval,
 )
 from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.contrib.agent.types import AgentConfiguration
-from baserow.contrib.agent.validators import AGENT_TEXT_MAX_LENGTH
+from baserow.contrib.agent.validators import (
+    AGENT_REJECTION_REASON_MAX_LENGTH,
+    AGENT_TEXT_MAX_LENGTH,
+)
 from baserow.core.chat_runs.constants import ChatRunStepStatus
 from baserow.core.generative_ai.constants import ReasoningEffort
 from baserow.core.tools.errors import ToolErrorCode
@@ -109,6 +113,11 @@ class AgentConfigurationSerializer(serializers.Serializer):
         child=serializers.CharField(),
         help_text="The names of the tools the agent may call while it has an "
         "identity to act as.",
+    )
+    ask_first_tools = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="The names of the allowed tools that wait for the conversation "
+        "owner's approval before they run.",
     )
     available_tools = serializers.SerializerMethodField(
         help_text="Every tool an agent can be allowed to call, with its group and "
@@ -200,6 +209,14 @@ class AgentConfigurationUpdateSerializer(
         help_text="The names of all the tools the agent may call. Tools left out "
         "are turned off. Without a selected Run as identity, all tools stay off.",
     )
+    ask_first_tools = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        help_text="The names of the allowed tools that wait for the conversation "
+        "owner's approval. Provide it with allowed_tools. When it's left out, newly "
+        "allowed tools that change data ask first and the other tools keep their "
+        "setting.",
+    )
 
     class Meta:
         model = AgentApplication
@@ -212,6 +229,7 @@ class AgentConfigurationUpdateSerializer(
             "run_as_subject_id",
             "allowed_tools",
             "web_search_enabled",
+            "ask_first_tools",
         )
         extra_kwargs = {
             "instructions": {
@@ -236,12 +254,16 @@ class AgentConfigurationUpdateSerializer(
             )
         return list(dict.fromkeys(names))
 
+    validate_ask_first_tools = validate_allowed_tools
+
     def validate(self, values: dict) -> dict:
         """
-        Require the run-as type and id together, both set or both null.
+        Require the run-as type and id together, both set or both null, and the
+        tools that ask first to be among the allowed tools given with them.
 
         :param values: The validated fields.
-        :raises ValidationError: When only one of them is given or set.
+        :raises ValidationError: When only one of the run-as fields is given or
+            set, or a tool that asks first isn't allowed.
         :return: The validated fields.
         """
 
@@ -255,6 +277,19 @@ class AgentConfigurationUpdateSerializer(
             raise serializers.ValidationError(
                 "run_as_subject_type and run_as_subject_id must be set together."
             )
+        if "ask_first_tools" in values:
+            if "allowed_tools" not in values:
+                raise serializers.ValidationError(
+                    {"ask_first_tools": "Provide allowed_tools with ask_first_tools."}
+                )
+            not_allowed = set(values["ask_first_tools"]) - set(values["allowed_tools"])
+            if not_allowed:
+                raise serializers.ValidationError(
+                    {
+                        "ask_first_tools": "Tools that ask first must be allowed: "
+                        f"{', '.join(sorted(not_allowed))}."
+                    }
+                )
         return values
 
 
@@ -299,8 +334,22 @@ class AgentMessageStepSerializer(serializers.Serializer):
     facts = serializers.DictField()
 
 
+class AgentToolApprovalSerializer(serializers.ModelSerializer):
+    tool = serializers.CharField(source="tool_name")
+
+    class Meta:
+        model = AgentToolApproval
+        fields = ("id", "step_id", "pause", "tool", "status", "reason")
+
+
 class AgentMessageSerializer(serializers.ModelSerializer):
     steps = AgentMessageStepSerializer(many=True, allow_null=True, read_only=True)
+    approvals = AgentToolApprovalSerializer(
+        many=True,
+        read_only=True,
+        help_text="The reply's held tool calls, joined to their steps by step_id, "
+        "with the owner's decision on each.",
+    )
     run_id = serializers.SerializerMethodField(
         help_text=(
             "The run writing this reply, to follow its output: set while it runs "
@@ -320,6 +369,7 @@ class AgentMessageSerializer(serializers.ModelSerializer):
             "error_code",
             "run_id",
             "steps",
+            "approvals",
         )
         read_only_fields = ("id",)
 
@@ -350,6 +400,63 @@ class AgentConversationCreateSerializer(AgentMessageContentSerializer):
 
 class AgentMessageCreateSerializer(AgentMessageContentSerializer):
     uuid = serializers.UUIDField()
+
+
+class AgentToolDecisionSerializer(
+    UnknownFieldRaisesExceptionSerializerMixin, serializers.Serializer
+):
+    id = serializers.IntegerField(help_text="The id of a pending approval.")
+    approved = serializers.BooleanField(
+        help_text="Whether the held call may run. A rejected call never runs."
+    )
+    reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=AGENT_REJECTION_REASON_MAX_LENGTH,
+        help_text="Why the call is rejected, passed on to the agent. Only accepted "
+        "with a rejection.",
+    )
+
+    def validate(self, values: dict) -> dict:
+        """
+        Accept a reason only for a rejection.
+
+        :param values: The validated fields.
+        :raises ValidationError: When an approval has a reason.
+        :return: The validated fields.
+        """
+
+        values = super().validate(values)
+        if values["approved"] and "reason" in values:
+            raise serializers.ValidationError(
+                {"reason": "Only a rejection has a reason."}
+            )
+        return values
+
+
+class AgentToolDecisionsSerializer(
+    UnknownFieldRaisesExceptionSerializerMixin, serializers.Serializer
+):
+    decisions = AgentToolDecisionSerializer(
+        many=True,
+        allow_empty=False,
+        help_text="Decisions on pending approvals of the waiting reply, at most one "
+        "per approval. The reply continues once none is pending.",
+    )
+
+    def validate_decisions(self, decisions: list[dict]) -> list[dict]:
+        """
+        Accept one decision per approval.
+
+        :param decisions: The validated decisions.
+        :raises ValidationError: When an approval is decided twice.
+        :return: The decisions.
+        """
+
+        ids = [decision["id"] for decision in decisions]
+        if len(set(ids)) < len(ids):
+            raise serializers.ValidationError("Decide each approval once.")
+        return decisions
 
 
 class AgentMessageCreatedSerializer(serializers.Serializer):

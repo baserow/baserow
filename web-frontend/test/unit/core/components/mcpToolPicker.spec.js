@@ -293,10 +293,17 @@ describe('McpToolPicker', () => {
           area: 'builder',
           read_only_preset: false,
         },
+        {
+          type: 'builder_delete',
+          title: 'Delete in application builders',
+          area: 'builder',
+          read_only_preset: false,
+        },
       ],
       tools: [
         ['list_builders', 'builder_read'],
         ['create_pages', 'builder_edit'],
+        ['delete_element_items', 'builder_delete'],
       ].map(([name, group]) => ({
         name,
         title: name,
@@ -312,6 +319,9 @@ describe('McpToolPicker', () => {
     expect(area.text()).toContain('mcpToolPicker.areaBuilder')
     expect(group('builder_read').text()).toContain('mcpToolPicker.builderRead')
     expect(group('builder_edit').text()).toContain('mcpToolPicker.builderEdit')
+    expect(group('builder_delete').text()).toContain(
+      'mcpToolPicker.builderDelete'
+    )
     expect(area.text()).not.toContain('Read application builders')
   })
 

@@ -37,6 +37,15 @@ class PagePathNotUnique(Exception):
         )
 
 
+class InvalidPagePath(Exception):
+    """Raised when a page path is not a valid URL path."""
+
+    def __init__(self, path: str, reason: str, *args, **kwargs):
+        self.path = path
+        self.reason = reason
+        super().__init__(f"The path '{path}' is not valid: {reason}", *args, **kwargs)
+
+
 class PathParamNotInPath(Exception):
     """Raised when a path param is not in the path itself"""
 

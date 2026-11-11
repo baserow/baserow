@@ -107,14 +107,7 @@
         <div class="chat-step-group__input-label">
           {{ $t('toolPresentation.input') }}
         </div>
-        <pre
-          class="chat-step-group__input-values"
-          tabindex="0"
-          :aria-label="$t('toolPresentation.input')"
-        ><code>{{ inputText }}</code></pre>
-        <p v-if="input.truncated" class="chat-step-group__input-note">
-          {{ $t('toolPresentation.inputTruncated') }}
-        </p>
+        <ChatToolInput :input="input" />
       </div>
     </div>
   </div>
@@ -124,6 +117,7 @@
 import { computed, ref, useId } from 'vue'
 import { STEP_STATUS } from '@baserow/modules/core/chatRuns/constants'
 import { stepStatusText } from '@baserow/modules/core/toolPresentationTypes'
+import ChatToolInput from '@baserow/modules/core/components/chat/ChatToolInput'
 
 const props = defineProps({
   title: { type: String, required: true },
@@ -144,9 +138,6 @@ const failureTooltipOptions = {
 const detailsId = useId()
 // Workspace activity starts open; action inputs are available on demand.
 const expanded = ref(props.lines.length > 0)
-const inputText = computed(() =>
-  props.input ? JSON.stringify(props.input.values, null, 2) : ''
-)
 const hasDetails = computed(
   () => props.lines.length > 0 || !!props.input || props.itemErrors.length > 0
 )
@@ -159,9 +150,11 @@ const statusClass = computed(() => ({
     partial.value,
 }))
 const statusIcons = {
+  [STEP_STATUS.WAITING]: 'iconoir-clock chat-step-group__icon--waiting',
   [STEP_STATUS.DONE]: 'iconoir-check-circle chat-step-group__icon--done',
   [STEP_STATUS.FAILED]:
     'iconoir-warning-triangle chat-step-group__icon--failed',
+  [STEP_STATUS.REJECTED]: 'iconoir-prohibition chat-step-group__icon--rejected',
   [STEP_STATUS.STOPPED]: 'iconoir-minus-circle chat-step-group__icon--stopped',
 }
 </script>

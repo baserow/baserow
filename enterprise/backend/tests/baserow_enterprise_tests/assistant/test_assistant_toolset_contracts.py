@@ -440,10 +440,10 @@ EVERYWHERE = frozenset(AgentMode)
 
 # Adding a tool must fail here, so its reach is a decision and not a default.
 TOOL_VISIBILITY: dict[str, frozenset[AgentMode]] = {
-    "add_action_field_mapping": frozenset({APPLICATION}),
+    "add_element_action_field_mapping": frozenset({APPLICATION}),
     "add_nodes": frozenset({AUTOMATION}),
     "ask_user": EVERYWHERE,
-    "create_actions": frozenset({APPLICATION}),
+    "create_element_actions": frozenset({APPLICATION}),
     "create_database": frozenset({DATABASE}),
     "create_automation": frozenset({AUTOMATION}),
     "create_dashboard": frozenset({DASHBOARD}),
@@ -473,7 +473,7 @@ TOOL_VISIBILITY: dict[str, frozenset[AgentMode]] = {
     "generate_formula": frozenset({DATABASE}),
     "get_tables_schema": EVERYWHERE,
     "get_widget_data": frozenset({DASHBOARD, EXPLAIN}),
-    "list_actions": frozenset({APPLICATION, EXPLAIN}),
+    "list_element_actions": frozenset({APPLICATION, EXPLAIN}),
     "list_audit_log": EVERYWHERE,
     "list_builders": EVERYWHERE,
     "search_workspace": EVERYWHERE,
@@ -498,7 +498,7 @@ TOOL_VISIBILITY: dict[str, frozenset[AgentMode]] = {
     "setup_page": frozenset({APPLICATION}),
     "setup_user_source": frozenset({APPLICATION}),
     "switch_mode": EVERYWHERE,
-    "update_action": frozenset({APPLICATION}),
+    "update_element_action": frozenset({APPLICATION}),
     "update_builder": frozenset({APPLICATION}),
     "update_data_source": frozenset({APPLICATION}),
     "update_element": frozenset({APPLICATION}),

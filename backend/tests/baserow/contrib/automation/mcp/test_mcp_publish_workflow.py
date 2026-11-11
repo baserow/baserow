@@ -27,6 +27,7 @@ from baserow.contrib.automation.workflows.operations import (
     PublishAutomationWorkflowOperationType,
     UpdateAutomationWorkflowOperationType,
 )
+from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.models import Table
 from baserow.core.exceptions import PermissionException
@@ -237,8 +238,8 @@ def test_an_action_deleted_while_publishing_waits_for_the_publication(data_fixtu
     deletion = Thread(target=_delete_node, args=(endpoint.user, log_node.id))
     waited = []
 
-    def check_then_delete(ctx, draft):
-        warnings = check(ctx, draft)
+    def check_then_delete(ctx, published):
+        warnings = check(ctx, published)
         # Another request deletes the action after the checks ran.
         deletion.start()
         deletion.join(timeout=2)
@@ -261,6 +262,120 @@ def _delete_node(user, node_id):
             AutomationNodeService().delete_node(user, node_id)
     finally:
         connection.close()
+
+
+def _update_node(user, node_id, **values):
+    try:
+        with transaction.atomic():
+            AutomationNodeService().update_node(user, node_id, **values)
+    finally:
+        connection.close()
+
+
+def _while_publishing(target, *args, **kwargs):
+    """
+    Runs `target` from another connection when the publication starts, after
+    anything the tool checks on the draft beforehand.
+    """
+
+    publish = AutomationWorkflowService.publish
+    other = Thread(target=target, args=args, kwargs=kwargs)
+
+    def publish_after_the_other_request(self, *publish_args, **kwargs):
+        other.start()
+        other.join(timeout=5)
+        return publish(self, *publish_args, **kwargs)
+
+    return other, patch.object(
+        AutomationWorkflowService, "publish", publish_after_the_other_request
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_row_id_cleared_while_publishing_is_reported(data_fixture):
+    endpoint, orders, log, _ = _build_workflow_over_mcp(data_fixture)
+    automation = Automation.objects.filter(workspace=endpoint.workspace).get()
+    (workflow,) = _json(
+        _call(
+            endpoint,
+            "create_workflows",
+            {
+                "automation_id": automation.id,
+                "workflows": [
+                    {
+                        "name": "Change row",
+                        "trigger": {
+                            "ref": "trigger",
+                            "label": "Order created",
+                            "type": "rows_created",
+                            "rows_triggers_settings": {"table_id": orders["id"]},
+                        },
+                        "nodes": [
+                            {
+                                "ref": "change",
+                                "label": "Change it",
+                                "type": "update_row",
+                                "previous_node_ref": "trigger",
+                                "table_id": log["id"],
+                                "row_id": "1",
+                                "values": [
+                                    {
+                                        "field_id": log["primary_field"]["id"],
+                                        "value": "Changed",
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ],
+            },
+        )
+    )["created_workflows"]
+    node = AutomationNode.objects.get(workflow_id=workflow["id"], label="Change it")
+    # An edit of the node's service only, as the editor sends it.
+    other, patched = _while_publishing(
+        _update_node, endpoint.user, node.id, service={"row_id": ""}
+    )
+
+    with patched:
+        result = _json(
+            _call(endpoint, "publish_workflow", {"workflow_id": workflow["id"]})
+        )
+    other.join(timeout=30)
+
+    published = AutomationNode.objects.get(
+        workflow__automation__published_from_id=workflow["id"], label="Change it"
+    )
+    assert published.service.specific.row_id["formula"] == ""
+    assert result["published_workflow"]["state"] == "live"
+    assert result["warnings"] == [
+        f"Node {node.id} (Change it): A row ID is required to update a row. "
+        "Every run fails here."
+    ]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_refused_publication_leaves_the_live_copy_running(data_fixture):
+    endpoint, orders, log, workflow = _build_workflow_over_mcp(data_fixture)
+    endpoint.allowed_tools = [*TOOLS, "delete_nodes"]
+    endpoint.save(update_fields=["allowed_tools"])
+    _json(_call(endpoint, "publish_workflow", {"workflow_id": workflow["id"]}))
+    (live,) = _published(workflow["id"])
+    log_node = AutomationNode.objects.get(workflow_id=workflow["id"], label="Log it")
+    other, patched = _while_publishing(_delete_node, endpoint.user, log_node.id)
+
+    with patched:
+        result = _call(endpoint, "publish_workflow", {"workflow_id": workflow["id"]})
+    other.join(timeout=30)
+
+    assert result.isError is True
+    assert "no action after its trigger" in result.content[0].text
+    assert not AutomationNode.objects.filter(id=log_node.id).exists()
+    assert list(_published(workflow["id"])) == [live]
+    live.refresh_from_db()
+    assert live.state == WorkflowState.LIVE
+    _create_order(endpoint.user, orders)
+    assert _logged(log) == ["Written"]
 
 
 @pytest.mark.django_db
@@ -432,15 +547,23 @@ def test_publish_warns_about_a_row_trigger_and_action_with_no_table(data_fixture
 
     assert result["published_workflow"]["state"] == "live"
     assert result["warnings"] == [
-        f"Node {trigger.id} ({trigger.label}): no table is set, so it never fires.",
-        f"Node {action.id} ({action.label}): no table is set, so every run fails here.",
+        f"Node {trigger.id} ({trigger.label}): No table is selected. It never fires.",
+        f"Node {action.id} ({action.label}): No table is selected. "
+        "Every run fails here.",
     ]
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.parametrize("node_type", ["update_row", "delete_row"])
+@pytest.mark.parametrize(
+    "node_type,warning",
+    [
+        ("update_row", "A row ID is required to update a row. Every run fails here."),
+        # A delete with no row ID deletes nothing, it doesn't fail.
+        ("delete_row", "No row ID is set, so every run deletes nothing."),
+    ],
+)
 def test_publish_warns_about_a_row_id_left_empty_by_a_bad_formula(
-    data_fixture, node_type
+    data_fixture, node_type, warning
 ):
     endpoint, orders, log, _ = _build_workflow_over_mcp(data_fixture)
     automation = Automation.objects.filter(workspace=endpoint.workspace).get()
@@ -486,9 +609,7 @@ def test_publish_warns_about_a_row_id_left_empty_by_a_bad_formula(
 
     result = _json(_call(endpoint, "publish_workflow", {"workflow_id": workflow["id"]}))
 
-    assert result["warnings"] == [
-        f"Node {node.id} (Change it): no row_id is set, so every run fails here."
-    ]
+    assert result["warnings"] == [f"Node {node.id} (Change it): {warning}"]
 
 
 @pytest.mark.django_db(transaction=True)
@@ -513,12 +634,18 @@ def test_publish_warns_about_a_row_id_emptied_by_an_update(data_fixture, empty_r
                         },
                         "nodes": [
                             {
-                                "ref": "remove",
-                                "label": "Remove it",
-                                "type": "delete_row",
+                                "ref": "change",
+                                "label": "Change it",
+                                "type": "update_row",
                                 "previous_node_ref": "trigger",
                                 "table_id": log["id"],
                                 "row_id": "1",
+                                "values": [
+                                    {
+                                        "field_id": log["primary_field"]["id"],
+                                        "value": "Changed",
+                                    }
+                                ],
                             }
                         ],
                     }
@@ -527,7 +654,7 @@ def test_publish_warns_about_a_row_id_emptied_by_an_update(data_fixture, empty_r
         )
     )
     (workflow,) = created["created_workflows"]
-    node = AutomationNode.objects.get(workflow_id=workflow["id"], label="Remove it")
+    node = AutomationNode.objects.get(workflow_id=workflow["id"], label="Change it")
     _json(
         _call(
             endpoint,
@@ -539,12 +666,13 @@ def test_publish_warns_about_a_row_id_emptied_by_an_update(data_fixture, empty_r
         )
     )
     node = AutomationNode.objects.get(id=node.id).specific
-    assert node.service.specific.row_id["formula"] == "''"
+    assert node.service.specific.row_id["formula"] == ""
 
     result = _json(_call(endpoint, "publish_workflow", {"workflow_id": workflow["id"]}))
 
     assert result["warnings"] == [
-        f"Node {node.id} (Remove it): no row_id is set, so every run fails here."
+        f"Node {node.id} (Change it): A row ID is required to update a row. "
+        "Every run fails here."
     ]
 
 

@@ -172,7 +172,7 @@ def test_move_after_a_failed_move_reads_the_saved_graph(data_fixture, monkeypatc
 
 
 @pytest.mark.django_db(transaction=True)
-def test_moves_keep_an_element_added_between_them(data_fixture, monkeypatch):
+def test_an_element_added_during_the_moves_is_kept(data_fixture, monkeypatch):
     from threading import Thread
 
     from django.db import connection
@@ -199,15 +199,14 @@ def test_moves_keep_an_element_added_between_them(data_fixture, monkeypatch):
         finally:
             connection.close()
 
+    thread = Thread(target=add_heading_from_another_connection)
     calls = []
 
     def add_before_the_second_move(*args, **kwargs):
-        # The first move has committed and released its lock by now.
+        # The moves are one transaction, so the addition waits for them.
         calls.append(1)
         if len(calls) == 2:
-            thread = Thread(target=add_heading_from_another_connection)
             thread.start()
-            thread.join(timeout=10)
         return move_element(*args, **kwargs)
 
     monkeypatch.setattr(helpers, "move_element", add_before_the_second_move)
@@ -222,10 +221,12 @@ def test_moves_keep_an_element_added_between_them(data_fixture, monkeypatch):
             ],
             thought="t",
         )
+    thread.join(timeout=10)
 
     assert "errors" not in result
     page.refresh_from_db()
     assert str(added[0].id) in page.graph
+    assert str(ref_to_id_map["h2"]) in page.graph
 
 
 @pytest.mark.django_db(transaction=True)

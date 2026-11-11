@@ -57,6 +57,7 @@ from baserow.core.operations import ReadWorkspaceOperationType
 from baserow.core.registries import ImportExportConfig, plugin_registry
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_files.models import UserFile
+from baserow.test_utils.helpers import stale_cached_settings
 
 
 @pytest.mark.django_db
@@ -75,15 +76,31 @@ def test_update_settings(data_fixture):
     with pytest.raises(IsNotAdminError):
         CoreHandler().update_settings(user_2, allow_new_signups=False)
 
-    settings = CoreHandler().update_settings(
+    settings, changed = CoreHandler().update_settings(
         user_1, allow_new_signups=False, instance_id="test"
     )
     assert settings.allow_new_signups is False
     assert settings.instance_id != "test"
+    assert changed == {"allow_new_signups": False}
 
     settings = Settings.objects.all().first()
     assert settings.instance_id != "test"
     assert settings.allow_new_signups is False
+
+
+@pytest.mark.django_db
+def test_update_settings_saves_only_the_received_settings(data_fixture):
+    admin = data_fixture.create_user(is_staff=True)
+
+    with stale_cached_settings(user_templates_require_approval=True):
+        updated, _ = CoreHandler().update_settings(admin, allow_new_signups=False)
+
+    stored = Settings.objects.get()
+    for instance in [updated, stored]:
+        assert (
+            instance.allow_new_signups,
+            instance.user_templates_require_approval,
+        ) == (False, True)
 
 
 @pytest.mark.django_db

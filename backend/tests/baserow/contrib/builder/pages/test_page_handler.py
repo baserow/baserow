@@ -14,6 +14,7 @@ from baserow.contrib.builder.pages.constants import ILLEGAL_PATH_SAMPLE_CHARACTE
 from baserow.contrib.builder.pages.exceptions import (
     DuplicatePageParams,
     DuplicatePathParamsInPath,
+    InvalidPagePath,
     InvalidQueryParamName,
     PageDoesNotExist,
     PageNotInBuilder,
@@ -201,11 +202,53 @@ def test_update_page_page_name_not_unique(data_fixture):
 
 @pytest.mark.django_db
 def test_update_page_page_path_not_unique(data_fixture):
-    page = data_fixture.create_builder_page()
-    page_two = data_fixture.create_builder_page(builder=page.builder)
+    page = data_fixture.create_builder_page(path="/one")
+    page_two = data_fixture.create_builder_page(builder=page.builder, path="/two")
 
     with pytest.raises(PagePathNotUnique):
         PageHandler().update_page(page_two, path=page.path)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("path", ["products", "/my products", ""])
+def test_create_page_refuses_an_invalid_path(data_fixture, path):
+    builder = data_fixture.create_builder_application()
+
+    with pytest.raises(InvalidPagePath):
+        PageHandler().create_page(builder, "Products", path)
+
+    assert not Page.objects_without_shared.filter(builder=builder).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("path", ["products", "/my products", ""])
+def test_update_page_refuses_an_invalid_path(data_fixture, path):
+    page = data_fixture.create_builder_page(path="/products")
+
+    with pytest.raises(InvalidPagePath):
+        PageHandler().update_page(page, path=path)
+
+    page.refresh_from_db()
+    assert page.path == "/products"
+
+
+@pytest.mark.django_db
+def test_create_page_sets_visibility_and_roles(data_fixture):
+    builder = data_fixture.create_builder_application()
+
+    page = PageHandler().create_page(
+        builder,
+        "Members",
+        "/members",
+        visibility=Page.VISIBILITY_TYPES.LOGGED_IN,
+        role_type=Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+        roles=["Admin"],
+    )
+
+    page.refresh_from_db()
+    assert page.visibility == Page.VISIBILITY_TYPES.LOGGED_IN
+    assert page.role_type == Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT
+    assert page.roles == ["Admin"]
 
 
 @pytest.mark.django_db

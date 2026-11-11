@@ -15,6 +15,7 @@ from baserow.contrib.integrations.core.models import (
     CoreRouterService,
     CoreSMTPEmailService,
     CoreStartWorkflowService,
+    CoreWaitService,
 )
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowAggregateRows,
@@ -196,6 +197,9 @@ class ServiceFixtures:
 
     def create_core_goto_service(self, **kwargs) -> CoreGotoService:
         return self.create_service(CoreGotoService, **kwargs)
+
+    def create_core_wait_service(self, **kwargs) -> CoreWaitService:
+        return self.create_service(CoreWaitService, **kwargs)
 
     def create_core_http_trigger_service(self, **kwargs) -> CoreSMTPEmailService:
         if "uid" not in kwargs:

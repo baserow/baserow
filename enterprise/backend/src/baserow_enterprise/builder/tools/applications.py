@@ -11,13 +11,11 @@ from pydantic import Field
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.builder.models import Builder
-from baserow.core.actions import UpdateApplicationActionType
-from baserow.core.integrations.registries import integration_type_registry
-from baserow.core.integrations.service import IntegrationService
 from baserow.core.tools import ToolContext
 from baserow.core.tools import applications as shared_applications
 from baserow.core.tools.errors import ToolInputError, validation_messages
 
+from .helpers import create_local_baserow_integration
 from .themes import ThemeName, apply_theme
 
 
@@ -76,12 +74,7 @@ def create_builder(
     ctx.update_status(_("Creating application %(name)s...") % {"name": name})
     with transaction.atomic():
         builder = shared_applications.create_application(ctx, "builder", name)
-        IntegrationService().create_integration(
-            ctx.user,
-            integration_type_registry.get("local_baserow"),
-            builder,
-            name="Local Baserow",
-        )
+        create_local_baserow_integration(ctx.user, builder)
         apply_theme(builder, theme or "baserow", ctx.user)
     return {"created_builder": {"id": builder.id, "name": builder.name}}
 
@@ -107,24 +100,16 @@ def update_builder(
     """
 
     builder = get_builder_in_workspace(ctx, builder_id)
-    ctx.update_status(_("Updating %(app_name)s...") % {"app_name": builder.name})
-
-    requested = {"name": name, "login_page_id": login_page_id}
-    changes = {
-        field: value
-        for field, value in requested.items()
-        if value is not None and getattr(builder, field) != value
-    }
-    if changes:
-        try:
-            UpdateApplicationActionType.do(ctx.user, builder, **changes)
-        except DRFValidationError as exc:
-            # The builder refuses a login page it doesn't own.
-            raise ToolInputError(
-                f"{validation_messages(exc)} Use list_pages to find valid page IDs. "
-                "No changes were applied."
-            ) from exc
-        builder.refresh_from_db()
+    try:
+        changed = shared_applications.update_application(
+            ctx, builder, name=name, login_page_id=login_page_id
+        )
+    except DRFValidationError as exc:
+        # The builder refuses a login page it doesn't own.
+        raise ToolInputError(
+            f"{validation_messages(exc)} Use list_pages to find valid page IDs. "
+            "No changes were applied."
+        ) from exc
 
     return {
         "updated_builder": {
@@ -132,5 +117,5 @@ def update_builder(
             "name": builder.name,
             "login_page_id": builder.login_page_id,
         },
-        "changed": bool(changes),
+        "changed": changed,
     }

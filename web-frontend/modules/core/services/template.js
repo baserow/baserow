@@ -1,3 +1,5 @@
+import { PRIVATE_LINK_TOKEN_HEADER } from '@baserow/modules/core/utils/templatePrivateLink'
+
 export default (client) => {
   return {
     fetchAll() {
@@ -64,11 +66,18 @@ export default (client) => {
     /**
      * Responds with the archive of a user template (200), or with the job that
      * builds it (202), after which the archive is asked for again.
+     *
+     * @param {string} [privateLinkToken] The token of the private link the
+     *   template was opened through, sent even once its page is left.
      */
-    download(slug, revisionId) {
-      return client.post(`/templates/${slug}/download/`, {
-        revision_id: revisionId,
-      })
+    download(slug, revisionId, privateLinkToken = null) {
+      return client.post(
+        `/templates/${slug}/download/`,
+        { revision_id: revisionId },
+        privateLinkToken
+          ? { headers: { [PRIVATE_LINK_TOKEN_HEADER]: privateLinkToken } }
+          : {}
+      )
     },
     delete(slug) {
       return client.delete(`/templates/${slug}/`)
@@ -85,6 +94,18 @@ export default (client) => {
         visibility,
         ...(isPublic && { public_listing_consent: publicListingConsent }),
       })
+    },
+    /**
+     * Creates the private link of a template of the user, or turns it off.
+     */
+    setPrivateLink(slug, enabled) {
+      return client.patch(`/templates/${slug}/`, { private_link: enabled })
+    },
+    /**
+     * Replaces the private link of a template of the user with a new one.
+     */
+    rotatePrivateLinkToken(slug) {
+      return client.post(`/templates/${slug}/rotate-private-link-token/`)
     },
   }
 }

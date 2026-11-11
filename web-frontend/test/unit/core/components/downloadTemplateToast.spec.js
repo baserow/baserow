@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
-import { updateJob } from '@baserow/test/helpers/store'
+import { heldBack } from '@baserow/test/helpers/heldBack'
+import { toastsOfType, updateJob } from '@baserow/test/helpers/store'
 import { triggerDownload } from '@baserow/modules/core/utils/download'
+import TemplateService from '@baserow/modules/core/services/template'
 import DownloadTemplateToast from '@baserow/modules/core/components/toasts/DownloadTemplateToast'
 
 // Saving the file is replaced, so that nothing navigates.
@@ -46,6 +48,7 @@ describe('DownloadTemplateToast', () => {
   })
 
   afterEach(async () => {
+    vi.useRealTimers()
     vi.restoreAllMocks()
     vi.mocked(triggerDownload).mockReset()
     await testApp.afterEach()
@@ -53,11 +56,9 @@ describe('DownloadTemplateToast', () => {
 
   const jobType = () => testApp.$registry.get('job', 'download_user_template')
 
-  const downloadToasts = () =>
-    store.state.toast.items.filter((toast) => toast.type === 'downloadTemplate')
+  const downloadToasts = () => toastsOfType(store, 'downloadTemplate')
 
-  const errorToasts = () =>
-    store.state.toast.items.filter((toast) => toast.type === 'error')
+  const errorToasts = () => toastsOfType(store, 'error')
 
   // What the download endpoint answers once the job ends.
   const mockDownload = (slug = template.slug) =>
@@ -115,7 +116,31 @@ describe('DownloadTemplateToast', () => {
     expect(downloadToasts()).toHaveLength(0)
   })
 
+  test('asks for the archive with the token of the private link it was started from, also once left', async () => {
+    const token = 'a'.repeat(64)
+    const { $client, $router } = testApp.nuxtApp
+    await $router.replace(`/template/${template.slug}/private-link/${token}`)
+    const { reply, send } = heldBack()
+    mockDownload().replyOnce(reply)
+    const clicked = TemplateService($client).download(
+      template.slug,
+      template.revision_id
+    )
+    await flushPromises()
+    await $router.replace('/')
+    send([202, runningJob()])
+    await click(await clicked)
+    mockDownload().replyOnce(200, archive)
+
+    await updateJob(store, 10, { state: 'finished' })
+
+    const [, archiveRequest] = testApp.mock.history.post
+    expect(archiveRequest.headers['Baserow-Template-Authorization']).toBe(token)
+    expect(triggerDownload).toHaveBeenCalledTimes(1)
+  })
+
   test('does not hold the polling while the archive is saved, and disables its button meanwhile', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
     const wrapper = await startDownload()
     mockDownload().replyOnce(200, archive)
     let saved = null
@@ -129,10 +154,14 @@ describe('DownloadTemplateToast', () => {
     const button = wrapper.find('.download-template-toast__download')
     expect(button.attributes('disabled')).toBeDefined()
 
+    vi.advanceTimersByTime(5000)
+    expect(downloadToasts()).toHaveLength(1)
+
     saved()
     await flushPromises()
 
     expect(button.attributes('disabled')).toBeUndefined()
+    expect(downloadToasts()).toHaveLength(0)
   })
 
   test('follows the new job when the archive has to be built again', async () => {
@@ -157,6 +186,20 @@ describe('DownloadTemplateToast', () => {
     expect(wrapper.find('.download-template-toast__download').exists()).toBe(
       true
     )
+  })
+
+  const finishedJob = () => runningJob({ id: 11, state: 'finished' })
+
+  test('saves the archive when a click gets a job that already finished', async () => {
+    mockDownload().replyOnce(200, archive)
+    await click({ status: 202, data: finishedJob() })
+    await flushPromises()
+
+    expect(triggerDownload).toHaveBeenCalledTimes(1)
+    expect(downloadToasts().map((toast) => toast.data.url)).toStrictEqual([
+      archive.url,
+    ])
+    expect(store.getters['job/getAll']).toHaveLength(0)
   })
 
   test('saves the archive once when a click gets it ready', async () => {
@@ -236,14 +279,14 @@ describe('DownloadTemplateToast', () => {
     'changes nothing when the archive answers %i after a logout',
     async (status, data) => {
       await startDownload()
-      let reply = null
-      mockDownload().reply(() => new Promise((resolve) => (reply = resolve)))
+      const { reply, send } = heldBack()
+      mockDownload().reply(reply)
 
       // Ends once the archive is answered.
       const jobEnded = updateJob(store, 10, { state: 'finished' })
       await flushPromises()
       await store.dispatch('auth/forceLogoff')
-      reply([status, data])
+      send([status, data])
       await jobEnded
 
       expect(triggerDownload).not.toHaveBeenCalled()
@@ -297,7 +340,8 @@ describe('DownloadTemplateToast', () => {
     expect(shown()).toStrictEqual(expected)
   })
 
-  test('only shows the button for a download started before the page was loaded', async () => {
+  test('only shows the button for a download started before the page was loaded, and stays until it is saved', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
     // The pending jobs are fetched when the page loads, without their toast.
     await store.dispatch('job/forceCreate', runningJob({ revision_id: 4 }))
     mockDownload().replyOnce(200, archive)
@@ -318,21 +362,25 @@ describe('DownloadTemplateToast', () => {
       name: template.name,
     })
 
+    vi.advanceTimersByTime(5000)
+    expect(downloadToasts()).toHaveLength(1)
+
     await wrapper.find('.download-template-toast__download').trigger('click')
     await flushPromises()
 
     expect(triggerDownload).toHaveBeenCalledTimes(1)
+    expect(downloadToasts()).toHaveLength(0)
   })
 
   test('a click while the archive is asked for after the job saves it once, in the same toast', async () => {
     await startDownload()
-    let reply = null
-    mockDownload().reply(() => new Promise((resolve) => (reply = resolve)))
+    const { reply, send } = heldBack()
+    mockDownload().reply(reply)
     const jobEnded = updateJob(store, 10, { state: 'finished' })
     await flushPromises()
 
     await click({ status: 200, data: archive })
-    reply([200, archive])
+    send([200, archive])
     await jobEnded
 
     expect(downloadToasts()).toHaveLength(1)

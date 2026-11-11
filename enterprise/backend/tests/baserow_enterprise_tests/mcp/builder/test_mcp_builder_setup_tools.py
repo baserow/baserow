@@ -10,9 +10,8 @@ from baserow.core.user_sources.models import UserSource
 from .test_mcp_builder_read_tools import READ_TOOLS, _endpoint, _session
 
 WRITE_TOOLS = [
-    "create_actions",
-    "add_action_field_mapping",
-    "update_action",
+    "create_element_actions",
+    "update_element_action",
     "setup_page",
     "setup_user_source",
     "set_theme",
@@ -57,10 +56,9 @@ def _call(data_fixture, builder_ctx, name, arguments, allowed=None):
     return _session(endpoint, callback)
 
 
-def _calls(builder_ctx, users_table, mapping_action):
-    table = builder_ctx["data_source"].service.specific.table
+def _calls(builder_ctx, users_table):
     return {
-        "create_actions": {
+        "create_element_actions": {
             "page_id": builder_ctx["page"].id,
             "actions": [
                 {
@@ -70,12 +68,7 @@ def _calls(builder_ctx, users_table, mapping_action):
                 }
             ],
         },
-        "add_action_field_mapping": {
-            "action_id": mapping_action.id,
-            "field_id": table.field_set.first().id,
-            "value_formula": "'x'",
-        },
-        "update_action": {
+        "update_element_action": {
             "action_id": builder_ctx["action"].id,
             "changes": {"title": "Hello"},
         },
@@ -91,23 +84,12 @@ def _calls(builder_ctx, users_table, mapping_action):
     }
 
 
-@pytest.fixture
-def mapping_action(data_fixture, builder_ctx):
-    table = builder_ctx["data_source"].service.specific.table
-    return data_fixture.create_local_baserow_create_row_workflow_action(
-        page=builder_ctx["page"],
-        element=builder_ctx["button"],
-        event="click",
-        service=data_fixture.create_local_baserow_upsert_row_service(table=table),
-    )
-
-
 @pytest.mark.django_db
 def test_write_tools_with_builder_edit_turned_on(
-    data_fixture, builder_ctx, users_table, mapping_action
+    data_fixture, builder_ctx, users_table
 ):
     endpoint = _endpoint(data_fixture, builder_ctx, [*READ_TOOLS, *WRITE_TOOLS])
-    calls = _calls(builder_ctx, users_table, mapping_action)
+    calls = _calls(builder_ctx, users_table)
 
     async def callback(client):
         listed = await client.list_tools()
@@ -121,21 +103,18 @@ def test_write_tools_with_builder_edit_turned_on(
 
     tools = {tool.name: tool for tool in listed.tools}
     assert set(WRITE_TOOLS) <= set(tools)
+    # update_element_action sets one field of a row action and keeps the others.
+    assert "add_element_action_field_mapping" not in tools
     for name in WRITE_TOOLS:
         assert tools[name].annotations.readOnlyHint is False
         assert tools[name].annotations.destructiveHint is (
-            name in ("set_theme", "update_action", "add_action_field_mapping")
+            name in ("set_theme", "update_element_action")
         )
-    assert set(tools["create_actions"].inputSchema["properties"]) == {
+    assert set(tools["create_element_actions"].inputSchema["properties"]) == {
         "page_id",
         "actions",
     }
-    assert set(tools["add_action_field_mapping"].inputSchema["properties"]) == {
-        "action_id",
-        "field_id",
-        "value_formula",
-    }
-    assert set(tools["update_action"].inputSchema["properties"]) == {
+    assert set(tools["update_element_action"].inputSchema["properties"]) == {
         "action_id",
         "changes",
     }
@@ -154,13 +133,10 @@ def test_write_tools_with_builder_edit_turned_on(
         for word in ("navigate", "thought", "load_", "ask_user", "get_tables_schema"):
             assert word not in tools[name].description, (name, word)
 
-    assert _load(results["create_actions"])["created_actions"][0]["type"] == (
+    assert _load(results["create_element_actions"])["created_actions"][0]["type"] == (
         "notification"
     )
-    assert _load(results["add_action_field_mapping"])["updated_action"]["id"] == (
-        mapping_action.id
-    )
-    assert _load(results["update_action"])["updated_action"]["id"] == (
+    assert _load(results["update_element_action"])["updated_action"]["id"] == (
         builder_ctx["action"].id
     )
     assert _load(results["setup_page"])["created_elements"][0]["ref"] == "h"
@@ -172,10 +148,10 @@ def test_write_tools_with_builder_edit_turned_on(
 
 @pytest.mark.django_db
 def test_write_tools_with_only_builder_read_turned_on_are_refused(
-    data_fixture, builder_ctx, users_table, mapping_action
+    data_fixture, builder_ctx, users_table
 ):
     endpoint = _endpoint(data_fixture, builder_ctx, READ_TOOLS)
-    calls = _calls(builder_ctx, users_table, mapping_action)
+    calls = _calls(builder_ctx, users_table)
     actions_before = BuilderWorkflowAction.objects.count()
 
     async def callback(client):
@@ -242,7 +218,7 @@ def test_a_refused_title_is_fixed_with_update_action_over_mcp(
     async def callback(client):
         created = _load(
             await client.call_tool(
-                "create_actions",
+                "create_element_actions",
                 {
                     "page_id": builder_ctx["page"].id,
                     "actions": [
@@ -258,13 +234,13 @@ def test_a_refused_title_is_fixed_with_update_action_over_mcp(
         action_id = created["formula_errors"][0]["action_id"]
         refused = _load(
             await client.call_tool(
-                "update_action",
+                "update_element_action",
                 {"action_id": action_id, "changes": {"title": "get('nope.x')"}},
             )
         )
         fixed = _load(
             await client.call_tool(
-                "update_action",
+                "update_element_action",
                 {"action_id": action_id, "changes": {"title": formula}},
             )
         )
@@ -279,7 +255,7 @@ def test_a_refused_title_is_fixed_with_update_action_over_mcp(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("tool", ["create_actions", "setup_page"])
+@pytest.mark.parametrize("tool", ["create_element_actions", "setup_page"])
 def test_an_open_page_without_its_parameters_is_refused_over_mcp(
     data_fixture, builder_ctx, tool
 ):
@@ -328,7 +304,7 @@ def test_an_open_page_parameter_is_fixed_with_update_action_over_mcp(
     async def callback(client):
         created = _load(
             await client.call_tool(
-                "create_actions",
+                "create_element_actions",
                 {
                     "page_id": builder_ctx["page"].id,
                     "actions": [
@@ -347,7 +323,7 @@ def test_an_open_page_parameter_is_fixed_with_update_action_over_mcp(
         action_id = created["formula_errors"][0]["action_id"]
         fixed = _load(
             await client.call_tool(
-                "update_action",
+                "update_element_action",
                 {
                     "action_id": action_id,
                     "changes": {"page_parameters": [{"name": "id", "value": formula}]},
@@ -380,7 +356,7 @@ def test_update_action_outside_the_workspace_is_refused_over_mcp(
     result = _call(
         data_fixture,
         builder_ctx,
-        "update_action",
+        "update_element_action",
         {"action_id": action.id, "changes": {"title": "Taken"}},
     )
 
@@ -419,7 +395,7 @@ def test_a_form_can_be_wired_in_a_second_call_over_mcp(data_fixture, builder_ctx
 
     async def wire(client):
         return await client.call_tool(
-            "create_actions",
+            "create_element_actions",
             {
                 "page_id": page_id,
                 "actions": [
@@ -456,7 +432,7 @@ def test_other_workspaces_are_not_found_over_mcp(data_fixture, builder_ctx):
     builder = data_fixture.create_builder_application(workspace=other)
     page = data_fixture.create_builder_page(builder=builder)
     calls = {
-        "create_actions": {
+        "create_element_actions": {
             "page_id": page.id,
             "actions": [{"type": "logout", "element": 1}],
         },
