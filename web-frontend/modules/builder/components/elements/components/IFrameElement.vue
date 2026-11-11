@@ -54,6 +54,20 @@
           />
         </template>
       </client-only>
+      <button
+        v-if="shouldShowEditorEmbedHint"
+        v-tooltip="$t('iframeElementForm.editorEmbedHint')"
+        type="button"
+        class="iframe-element__editor-hint"
+        :aria-label="$t('iframeElementForm.editorEmbedHint')"
+        tooltip-position="bottom-left"
+        @focus="$event.currentTarget.tooltipOpen($event)"
+        @blur="$event.currentTarget.tooltipClose()"
+        @keydown.esc.stop="$event.currentTarget.tooltipClose()"
+        @mousedown.stop
+      >
+        <i class="iconoir-info-empty" aria-hidden="true" />
+      </button>
     </template>
   </div>
 </template>
@@ -90,6 +104,12 @@ export default {
       return (
         this.element.source_type === IFRAME_SOURCE_TYPES.URL &&
         Boolean(this.resolvedURL) &&
+        (this.isEditMode || this.applicationContext.mode === 'editing')
+      )
+    },
+    shouldShowEditorEmbedHint() {
+      return (
+        this.element.source_type === IFRAME_SOURCE_TYPES.EMBED &&
         (this.isEditMode || this.applicationContext.mode === 'editing')
       )
     },
