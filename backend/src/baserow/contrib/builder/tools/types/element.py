@@ -1028,7 +1028,10 @@ class ElementItemCreate(BaseModel):
 
     user_source_id: int | None = Field(
         default=None,
-        description="(auth_form) ID of the user source. Get it from setup_user_source.",
+        description=(
+            "(auth_form) ID of the user source, from setup_user_source. Only "
+            "instances that have auth_form have that tool."
+        ),
     )
     login_button_label: str | None = Field(
         default=None, description="(auth_form) Label for the login button."

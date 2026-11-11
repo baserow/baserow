@@ -735,8 +735,7 @@ def create_element(
     except element_type_registry.does_not_exist_exception_class:
         # auth_form comes from enterprise, which an instance can run without.
         raise ToolInputError(
-            f"This instance has no {element_create.type} element. No changes were "
-            "applied."
+            f"This instance has no {element_create.type} element, so it wasn't created."
         )
 
     # Determine target page
