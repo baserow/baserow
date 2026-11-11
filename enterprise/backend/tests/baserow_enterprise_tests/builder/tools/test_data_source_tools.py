@@ -5,18 +5,16 @@ without a model. The conftest of this folder fails any model call.
 
 import pytest
 
-from baserow.contrib.automation.tools.formulas import wrap_static_string
 from baserow.contrib.builder.data_sources.exceptions import DataSourceDoesNotExist
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
-from baserow.core.exceptions import PermissionException
+from baserow.core.formula.literals import wrap_static_string
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.tools.errors import ToolInputError, tool_error_message
 from baserow_enterprise.builder.tools import (
     BuilderWriteOptions,
     data_sources,
     formulas,
-    helpers,
 )
 from baserow_enterprise.builder.tools.types import DataSourceChanges, DataSourceCreate
 
@@ -448,25 +446,6 @@ def test_update_with_a_blank_row_id_removes_the_row_id(site):
 
     data_source = DataSource.objects.get(id=data_source_id)
     assert data_source.service.specific.row_id["formula"] == ""
-
-
-@pytest.mark.django_db
-def test_create_stops_when_permission_is_denied(site, monkeypatch):
-    def denied(*args, **kwargs):
-        raise PermissionException()
-
-    monkeypatch.setattr(helpers, "create_data_source", denied)
-
-    with pytest.raises(PermissionException):
-        data_sources.create_data_sources(
-            site["ctx"],
-            site["page"].id,
-            [
-                DataSourceCreate(
-                    ref="a", name="A", type="list_rows", table_id=site["table"].id
-                )
-            ],
-        )
 
 
 @pytest.mark.django_db

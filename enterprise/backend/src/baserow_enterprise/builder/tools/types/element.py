@@ -21,26 +21,32 @@ Not all tables need entries — only add to those relevant for the new type.
 
 from typing import TYPE_CHECKING, Any, Literal
 
-from pydantic import Field, PrivateAttr, field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from baserow.contrib.builder.constants import COLOR_FIELD_MAX_LENGTH
+from baserow.core.formula.literals import (
+    EMPTY_FORMULA,
+    wrap_static_string,
+)
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.graph.types import GraphPointPosition
 from baserow.core.tools.errors import ToolInputError
 from baserow_enterprise.builder.tools.registries import (
-    assistant_element_type_registry,
+    element_tool_type_registry,
 )
 from baserow_enterprise.tools.formula_utils import (
-    EMPTY_FORMULA,
-    FORMULA_PREFIX,
     FormulaDescription,
     formula_desc,
     formula_object,
-    wrap_static_string,
 )
 from baserow_enterprise.tools.types import BaseModel, without_field
 
 from .changes import name_key
+from .formula_policy import (
+    is_text_formula,
+    mapping_value_is_formula,
+    text_or_placeholder,
+)
 from .limits import MAX_NESTED_ITEMS
 from .menu_items import (
     MENU_ITEM_NAME_MAX_LENGTH,
@@ -57,13 +63,7 @@ from .table_columns import (
     data_source_fields,
     field_formula,
 )
-from .workflow_action import (
-    ParameterMapping,
-    is_text_formula,
-    mapping_value_is_formula,
-    text_or_placeholder,
-    with_parameter_formulas,
-)
+from .workflow_action import ParameterMapping, with_parameter_formulas
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
@@ -769,12 +769,6 @@ _UPDATE_FORMULAS: dict[str, Any] = {
 # ---------------------------------------------------------------------------
 
 
-def _is_formula_description(value: str) -> bool:
-    """Whether a value is only a description of a formula, not a formula."""
-
-    return value.strip().lower().startswith(FORMULA_PREFIX)
-
-
 def _convert_table_fields(el: "ElementItemCreate") -> list[dict]:
     """Convert the TableFieldConfig list of a new table to ORM collection fields."""
 
@@ -786,14 +780,8 @@ def _convert_table_fields(el: "ElementItemCreate") -> list[dict]:
             match = table_fields.get(name_key(field_cfg.name))
             if value and not is_text_formula(value):
                 value_formula = wrap_static_string(value)
-            elif value and not (
-                match
-                and el._column_name_beats_description
-                and _is_formula_description(value)
-            ):
-                # The formula step stores the column's own formula. An explicit
-                # formula always wins; with the option, a description like
-                # '$formula: the name' gives way to the field named like the column.
+            elif value:
+                # The formula step stores the column's own formula.
                 value_formula = "''"
             else:
                 value_formula = field_formula(match) if match else "''"
@@ -840,8 +828,6 @@ class ElementItemCreate(BaseModel):
     Type-specific fields are optional. Dispatch tables route ORM conversion,
     post-creation hooks, and formula handling based on the ``type`` field.
     """
-
-    _column_name_beats_description: bool = PrivateAttr(default=False)
 
     ref: str = Field(..., description="Unique reference for this element.")
     type: ElementType = Field(..., description="Element type.")
@@ -2017,7 +2003,7 @@ class ElementItem(BaseModel):
         element_type = element.get_type().type
         page = element.page
         page_name = "[shared]" if page.shared else page.name
-        hooks = assistant_element_type_registry.get_for(element_type)
+        hooks = element_tool_type_registry.get_for(element_type)
         return cls(
             id=element.id,
             type=element_type,

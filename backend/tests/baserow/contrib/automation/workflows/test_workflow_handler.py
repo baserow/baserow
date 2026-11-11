@@ -1,4 +1,5 @@
 import datetime
+import re
 from unittest.mock import MagicMock, patch
 
 from django.db import connection
@@ -1278,6 +1279,42 @@ def test_disable_workflow_disables_published_workflow(data_fixture):
     # Ensure both published and original workflows are disabled
     assert published_workflow.state == WorkflowState.DISABLED
     assert original_workflow.state == WorkflowState.DISABLED
+
+
+@pytest.mark.django_db
+def test_disable_workflow_locks_the_draft_before_writing_the_published_one(
+    data_fixture,
+):
+    # Publishing and pausing lock the draft and then write the published workflow.
+    # Disabling in the other order would deadlock with a concurrent pause.
+    original_workflow = data_fixture.create_automation_workflow()
+    published_workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE
+    )
+    published_workflow.automation.published_from = original_workflow
+    published_workflow.automation.save()
+
+    with CaptureQueriesContext(connection) as queries:
+        AutomationWorkflowHandler().disable_workflow(published_workflow)
+
+    statements = [query["sql"] for query in queries.captured_queries]
+
+    def on_workflow(sql, workflow):
+        return re.search(
+            rf'"automation_automationworkflow"\."id" = {workflow.id}\b', sql
+        )
+
+    draft_lock = next(
+        i
+        for i, sql in enumerate(statements)
+        if "FOR UPDATE" in sql and on_workflow(sql, original_workflow)
+    )
+    published_write = next(
+        i
+        for i, sql in enumerate(statements)
+        if sql.startswith("UPDATE") and on_workflow(sql, published_workflow)
+    )
+    assert draft_lock < published_write
 
 
 @pytest.mark.django_db(transaction=True)
@@ -2800,3 +2837,41 @@ def test_a_draft_edit_during_a_publication_gives_the_next_test_run_a_new_clone(
         )
 
     assert handler._ensure_published_for_run(workflow).id != old_clone.id
+
+
+@pytest.mark.django_db
+def test_a_state_change_waits_for_a_publication_in_progress(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    AutomationWorkflowHandler().publish(workflow)
+
+    with CaptureQueriesContext(connection) as queries:
+        AutomationWorkflowHandler().update_workflow(
+            workflow, state=WorkflowState.PAUSED
+        )
+
+    # Publishing locks the same row, so the change waits for it.
+    locks = [
+        query["sql"]
+        for query in queries.captured_queries
+        if "FOR UPDATE" in query["sql"]
+    ]
+    assert len(locks) == 1
+    assert f'"automation_automationworkflow"."id" = {workflow.id}' in locks[0]
+    assert AutomationWorkflowHandler().get_state(workflow, with_cache=False) == (
+        WorkflowState.PAUSED
+    )
+
+
+@pytest.mark.django_db
+def test_get_state_reports_draft_without_a_published_version(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    handler = AutomationWorkflowHandler()
+
+    assert handler.get_state(workflow) == WorkflowState.DRAFT
+
+    annotated = handler.annotate_published_workflow_data(
+        AutomationWorkflow.objects.filter(id=workflow.id)
+    ).get()
+    with CaptureQueriesContext(connection) as queries:
+        assert handler.get_state(annotated) == WorkflowState.DRAFT
+    assert len(queries) == 0

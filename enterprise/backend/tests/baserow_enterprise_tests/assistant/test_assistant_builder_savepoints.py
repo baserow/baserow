@@ -23,11 +23,11 @@ from baserow_enterprise.assistant.tools.builder.tools import (
     create_element_actions,
     create_layout_elements,
     create_pages,
+    item_error,
     setup_page,
     update_page,
 )
 from baserow_enterprise.assistant.tools.shared import ToolInputError
-from baserow_enterprise.builder.tools.errors import item_error
 from baserow_enterprise.builder.tools.types import (
     ActionCreate,
     DataSourceCreate,
@@ -417,7 +417,12 @@ def test_item_error_gives_the_messages_of_a_validation_error():
     assert item_error(DRFValidationError("Pick a container.")) == "Pick a container."
     assert (
         item_error(DRFValidationError({"place_in_container": ["Bad.", "Worse."]}))
-        == "place_in_container: Bad. Worse."
+        == "place_in_container: Bad. place_in_container: Worse."
+    )
+    # A nested error keeps the index of the item it's on.
+    assert (
+        item_error(DRFValidationError({"fields": [{}, {"name": ["Too long."]}]}))
+        == "fields.1.name: Too long."
     )
 
 

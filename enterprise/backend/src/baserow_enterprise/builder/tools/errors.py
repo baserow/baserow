@@ -14,22 +14,21 @@ from baserow.api.utils import apply_exception_mapping
 from baserow.core.tools.errors import (
     ToolInputError,
     item_error_message,
-    validation_messages,
 )
 
 
 class UnknownRefError(ToolInputError):
     """
-    A ref that nothing in the call defined. The message is for a client whose refs
+    A ref that nothing in the call defined. The message is for a caller whose refs
     only last one call.
 
-    :param remembered_refs_message: The message for a client that remembers refs
-        across calls.
+    :param message_with_known_refs: The message for a caller that passes the refs
+        of earlier calls in ``known_refs``.
     """
 
-    def __init__(self, message: str, remembered_refs_message: str):
+    def __init__(self, message: str, message_with_known_refs: str):
         super().__init__(message)
-        self.remembered_refs_message = remembered_refs_message
+        self.message_with_known_refs = message_with_known_refs
 
 
 def _user_error_mapping() -> dict[type[Exception], Any]:
@@ -73,16 +72,6 @@ def client_item_error(exc: Exception) -> str:
     """The message for an item that failed, for a client with no model to explain it."""
 
     return user_error_message(exc) or item_error_message(exc)
-
-
-def item_error(exc: Exception) -> str:
-    """The message reported for one item of a batch that failed with ``exc``."""
-
-    if isinstance(exc, UnknownRefError):
-        return exc.remembered_refs_message
-    if isinstance(exc, DRFValidationError):
-        return validation_messages(exc)
-    return user_error_message(exc) or str(exc)
 
 
 def is_input_error(exc: Exception) -> bool:

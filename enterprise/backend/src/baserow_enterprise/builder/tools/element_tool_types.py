@@ -1,4 +1,4 @@
-"""The element types Kuma's builder tools treat in their own way."""
+"""The element types the builder tools treat in their own way."""
 
 from operator import itemgetter
 from typing import Any
@@ -12,13 +12,10 @@ from baserow.contrib.builder.elements.models import (
     TableElement,
 )
 from baserow.contrib.builder.workflow_actions.models import NotificationWorkflowAction
+from baserow.core.formula.literals import EMPTY_FORMULA, wrap_static_string
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.tools.errors import ToolInputError
-from baserow_enterprise.tools.formula_utils import (
-    EMPTY_FORMULA,
-    formula_object,
-    wrap_static_string,
-)
+from baserow_enterprise.tools.formula_utils import formula_object
 
 from .formulas import current_record_of, formula_problem, page_formula_context
 from .helpers import (
@@ -29,7 +26,7 @@ from .helpers import (
     save_child_menu,
 )
 from .menu_item_changes import MenuItemsChange, linkable_page_ids, merge_menu_items
-from .registries import AssistantElementType, PreparedElementUpdate
+from .registries import ElementToolType, PreparedElementUpdate
 from .table_column_changes import merge_table_columns
 from .types import ElementUpdate
 from .types.changes import NO_CHANGES, canonical_uid
@@ -38,9 +35,9 @@ from .types.element import (
     MENU_ITEM_PROPERTIES,
     TABLE_COLUMN_PROPERTIES,
 )
+from .types.formula_policy import mapping_value_is_formula
 from .types.menu_items import listed_menu_items
 from .types.table_columns import stored_formula_text, table_column_items
-from .types.workflow_action import mapping_value_is_formula
 
 
 def _merge_menu_item_changes(
@@ -98,10 +95,10 @@ def _removed_result(change: MenuItemsChange) -> dict[str, Any]:
     return {"removed_menu_items": change.removed} if change.removed else {}
 
 
-class ButtonAssistantElementType(AssistantElementType):
+class ButtonElementToolType(ElementToolType):
     """
-    Kuma saves a button's label as its value, and points the model to click actions
-    for navigation.
+    The tools save a button's label as its value, and point the client to click
+    actions for navigation.
     """
 
     type = "button"
@@ -170,8 +167,8 @@ class ButtonAssistantElementType(AssistantElementType):
         }
 
 
-class LinkAssistantElementType(AssistantElementType):
-    """Kuma sets a link's variant and target with link_variant and link_target."""
+class LinkElementToolType(ElementToolType):
+    """The tools set a link's variant and target with link_variant and link_target."""
 
     type = "link"
 
@@ -283,8 +280,8 @@ class LinkAssistantElementType(AssistantElementType):
         ]
 
 
-class ColumnAssistantElementType(AssistantElementType):
-    """Kuma sets a column element's alignment with column_alignment."""
+class ColumnElementToolType(ElementToolType):
+    """The tools set a column element's alignment with column_alignment."""
 
     type = "column"
 
@@ -299,10 +296,10 @@ class ColumnAssistantElementType(AssistantElementType):
         return {"column_alignment": "alignment"}
 
 
-class MenuAssistantElementType(AssistantElementType):
+class MenuElementToolType(ElementToolType):
     """
-    Kuma sets a menu's orientation and alignment with menu_orientation and
-    menu_alignment, and changes its items by uid.
+    The tools set a menu's orientation and alignment with menu_orientation and
+    menu_alignment, and change its items by uid.
     """
 
     type = "menu"
@@ -370,10 +367,10 @@ class MenuAssistantElementType(AssistantElementType):
         return {"menu_items": listed_menu_items(element.specific)}
 
 
-class MultiPageContainerAssistantElementType(AssistantElementType):
+class MultiPageContainerElementToolType(ElementToolType):
     """
-    Kuma changes a header's or footer's menu items on the menu inside it, because
-    headers and footers are containers, not menus.
+    The tools change a header's or footer's menu items on the menu inside it,
+    because headers and footers are containers, not menus.
     """
 
     properties_applied_after_update = frozenset(MENU_ITEM_PROPERTIES)
@@ -423,11 +420,11 @@ class MultiPageContainerAssistantElementType(AssistantElementType):
         }
 
 
-class HeaderAssistantElementType(MultiPageContainerAssistantElementType):
+class HeaderElementToolType(MultiPageContainerElementToolType):
     type = "header"
 
 
-class FooterAssistantElementType(MultiPageContainerAssistantElementType):
+class FooterElementToolType(MultiPageContainerElementToolType):
     type = "footer"
 
 
@@ -461,8 +458,8 @@ def _check_changed_column_formulas(
                 raise ToolInputError(f"{problem} {NO_CHANGES}")
 
 
-class TableAssistantElementType(AssistantElementType):
-    """Kuma lists a table's columns, changes them by uid and reads them back."""
+class TableElementToolType(ElementToolType):
+    """The tools list a table's columns, change them by uid and read them back."""
 
     type = "table"
 

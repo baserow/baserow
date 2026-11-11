@@ -58,7 +58,7 @@ class UpdateElementMcpTool(FunctionMCPTool):
     read_only = False
     destructive = True
     # Deletes nothing: removing table columns or menu items is delete_element_items.
-    function = elements.edit_element
+    function = elements.update_element
 
 
 class UpdateElementStyleMcpTool(FunctionMCPTool):

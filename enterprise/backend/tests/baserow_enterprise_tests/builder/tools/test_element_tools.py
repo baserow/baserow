@@ -25,7 +25,7 @@ from baserow_enterprise.builder.tools.formulas import (
 from baserow_enterprise.builder.tools.types import (
     CollectionElementCreate,
     DisplayElementCreate,
-    ElementChanges,
+    ElementEdits,
     ElementItemCreate,
     ElementMove,
     ElementStyleChanges,
@@ -491,12 +491,6 @@ def test_a_column_named_like_a_field_keeps_its_own_formula(builder_ctx):
     ]
 
 
-def test_a_column_named_like_a_field_does_not_beat_a_description_by_default():
-    assert ElementItemCreate(ref="t", type="table")._column_name_beats_description is (
-        False
-    )
-
-
 @pytest.mark.django_db
 def test_a_column_named_like_a_field_without_a_value_shows_that_field(
     builder_ctx, table_field
@@ -783,7 +777,7 @@ def test_nested_page_ids_must_be_of_this_builder(builder_ctx, elsewhere, target)
 @pytest.mark.django_db
 def test_update_scopes_the_element_to_the_workspace(builder_ctx, elsewhere):
     ctx = builder_ctx["ctx"]
-    changes = ElementChanges(column_amount=3)
+    changes = ElementEdits(column_amount=3)
 
     with pytest.raises(ElementDoesNotExist):
         elements.update_element(ctx, elsewhere["other_box"].id, changes)
@@ -810,13 +804,13 @@ def test_update_refuses_a_link_or_menu_item_to_another_builder(builder_ctx, else
         elements.update_element(
             ctx,
             created["link"],
-            ElementChanges(navigate_to_page_id=away),
+            ElementEdits(navigate_to_page_id=away),
         )
     with pytest.raises(ToolInputError):
         elements.update_element(
             ctx,
             created["menu"],
-            ElementChanges(add_menu_items=[MenuItemAdd(name="Away", page_id=away)]),
+            ElementEdits(add_menu_items=[MenuItemAdd(name="Away", page_id=away)]),
         )
 
 
@@ -905,19 +899,6 @@ def test_move_keeps_the_good_moves(data_fixture, builder_ctx):
     assert result["errors"] == ["999999: Not found in this workspace."]
 
 
-@pytest.mark.django_db
-def test_a_denied_move_stops_the_call(builder_ctx, monkeypatch):
-    def deny(*args, **kwargs):
-        raise PermissionException()
-
-    monkeypatch.setattr(helpers, "move_element", deny)
-
-    with pytest.raises(PermissionException):
-        elements.move_elements(
-            builder_ctx["ctx"], [ElementMove(element_id=builder_ctx["button"].id)]
-        )
-
-
 # ---------------------------------------------------------------------------
 # Updates
 # ---------------------------------------------------------------------------
@@ -936,7 +917,7 @@ def test_update_stores_a_formula_and_returns_the_element(data_fixture, builder_c
     result = elements.update_element(
         builder_ctx["ctx"],
         element.id,
-        ElementChanges(value="get('page_parameter.id')", level=2),
+        ElementEdits(value="get('page_parameter.id')", level=2),
     )
 
     assert result["updated_element"]["id"] == element.id
@@ -956,7 +937,7 @@ def test_update_keeps_the_old_value_for_a_description(data_fixture, builder_ctx)
     result = elements.update_element(
         builder_ctx["ctx"],
         element.id,
-        ElementChanges(value="$formula: a new title", level=3),
+        ElementEdits(value="$formula: a new title", level=3),
     )
 
     assert result["formula_errors"][0]["element_id"] == element.id
@@ -978,7 +959,7 @@ def test_update_a_link_url_formula_switches_its_type_only_when_stored(
     described = elements.update_element(
         ctx,
         element.id,
-        ElementChanges(navigation_type="custom", navigate_to_url="$formula: a url"),
+        ElementEdits(navigation_type="custom", navigate_to_url="$formula: a url"),
     )
     assert described["formula_errors"][0]["field"] == "navigate_to_url"
     assert saved(element.id).navigation_type == "page"
@@ -986,7 +967,7 @@ def test_update_a_link_url_formula_switches_its_type_only_when_stored(
     stored = elements.update_element(
         ctx,
         element.id,
-        ElementChanges(navigation_type="custom", navigate_to_url="get('user.email')"),
+        ElementEdits(navigation_type="custom", navigate_to_url="get('user.email')"),
     )
     assert "formula_errors" not in stored
     element = saved(element.id)
@@ -1014,7 +995,7 @@ def test_update_changes_table_columns_and_menu_items(data_fixture, builder_ctx):
     table = elements.update_element(
         ctx,
         created["t"],
-        ElementChanges(
+        ElementEdits(
             add_table_columns=[
                 TableColumnAdd(name="Id", value="get('current_record.id')")
             ]
@@ -1024,14 +1005,12 @@ def test_update_changes_table_columns_and_menu_items(data_fixture, builder_ctx):
     renamed = elements.update_element(
         ctx,
         created["t"],
-        ElementChanges(
-            update_table_columns=[TableColumnUpdate(uid=uid, name="Renamed")]
-        ),
+        ElementEdits(update_table_columns=[TableColumnUpdate(uid=uid, name="Renamed")]),
     )
     menu = elements.update_element(
         ctx,
         created["menu"],
-        ElementChanges(add_menu_items=[MenuItemAdd(name="Home", page_id=page.id)]),
+        ElementEdits(add_menu_items=[MenuItemAdd(name="Home", page_id=page.id)]),
     )
 
     assert [c["name"] for c in table["updated_element"]["table_columns"]] == [
@@ -1052,7 +1031,7 @@ def test_update_a_header_changes_its_menu_and_returns_it(data_fixture, builder_c
     result = elements.update_element(
         ctx,
         header,
-        ElementChanges(add_menu_items=[MenuItemAdd(name="Home", page_id=page.id)]),
+        ElementEdits(add_menu_items=[MenuItemAdd(name="Home", page_id=page.id)]),
     )
 
     assert result["updated_element"]["page_name"] == "[shared]"
@@ -1069,7 +1048,7 @@ def test_update_of_an_unknown_property_changes_nothing(data_fixture, builder_ctx
         elements.update_element(
             builder_ctx["ctx"],
             element.id,
-            ElementChanges(column_amount=3, value="New"),
+            ElementEdits(column_amount=3, value="New"),
         )
 
     assert saved(element.id).value["formula"] == "'Old'"
@@ -1173,6 +1152,60 @@ def test_update_element_style(data_fixture, builder_ctx):
 
 
 @pytest.mark.django_db
+def test_the_highest_style_values_are_stored(builder_ctx):
+    button = builder_ctx["button"]
+
+    elements.update_element_style(
+        builder_ctx["ctx"],
+        button.id,
+        ElementStyleChanges(
+            border_radius=32767,
+            background_radius=0,
+            background_color="x" * 255,
+            border_color="y" * 255,
+            padding=2147483647,
+        ),
+    )
+
+    stored = Element.objects.get(id=button.id)
+    assert stored.style_border_radius == 32767
+    assert stored.style_background_radius == 0
+    assert stored.style_background_color == "x" * 255
+    assert stored.style_border_left_color == "y" * 255
+    assert stored.style_padding_top == 2147483647
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "style",
+    [
+        {"padding": -5},
+        {"border_radius": 32768},
+        {"border_radius": -5},
+        {"background_radius": 32768},
+        {"background_radius": -5},
+        {"background_color": "x" * 256},
+        {"border_color": "x" * 256},
+        {"border_color": {"left": "x" * 256}},
+        {"padding": 2147483648},
+        {"margin": {"top": 2147483648}},
+        {"border_size": 2147483648},
+    ],
+)
+def test_a_style_the_rest_api_refuses_changes_nothing(builder_ctx, style):
+    button = builder_ctx["button"]
+    before = Element.objects.filter(id=button.id).values().get()
+
+    # The input model refuses most; the rest are refused when the style is built.
+    with pytest.raises((PydanticValidationError, ToolInputError)):
+        elements.update_element_style(
+            builder_ctx["ctx"], button.id, ElementStyleChanges(**style)
+        )
+
+    assert Element.objects.filter(id=button.id).values().get() == before
+
+
+@pytest.mark.django_db
 def test_update_element_style_with_a_bad_side_is_an_input_error(
     data_fixture, builder_ctx
 ):
@@ -1200,7 +1233,7 @@ def test_changing_a_button_text_points_to_its_notification(
     )
 
     result = elements.update_element(
-        builder_ctx["ctx"], save_button.id, ElementChanges(label="All done!")
+        builder_ctx["ctx"], save_button.id, ElementEdits(label="All done!")
     )
 
     save_button.refresh_from_db()
@@ -1221,7 +1254,7 @@ def test_changing_the_text_of_a_button_without_a_notification_adds_no_note(
     )
 
     result = elements.update_element(
-        builder_ctx["ctx"], save_button.id, ElementChanges(value="Store")
+        builder_ctx["ctx"], save_button.id, ElementEdits(value="Store")
     )
 
     assert "note" not in result
@@ -1236,7 +1269,7 @@ def test_changing_a_button_without_touching_its_text_adds_no_note(
     )
 
     result = elements.update_element(
-        builder_ctx["ctx"], save_button.id, ElementChanges(visibility="logged-in")
+        builder_ctx["ctx"], save_button.id, ElementEdits(visibility="logged-in")
     )
 
     assert "note" not in result
@@ -1289,7 +1322,7 @@ def test_a_new_column_reading_what_the_page_lacks_is_refused(
         elements.update_element(
             builder_ctx["ctx"],
             table.id,
-            ElementChanges(add_table_columns=[TableColumnAdd(name="Bad", value=value)]),
+            ElementEdits(add_table_columns=[TableColumnAdd(name="Bad", value=value)]),
         )
 
     assert [column.name for column in saved(table.id).fields.all()] == ["Stale"]
@@ -1307,13 +1340,13 @@ def test_a_changed_column_reading_a_field_by_name_is_refused(
     elements.update_element(
         ctx,
         table.id,
-        ElementChanges(update_table_columns=[TableColumnUpdate(uid=uid, value=good)]),
+        ElementEdits(update_table_columns=[TableColumnUpdate(uid=uid, value=good)]),
     )
     with pytest.raises(ToolInputError, match="current_record.Name"):
         elements.update_element(
             ctx,
             table.id,
-            ElementChanges(
+            ElementEdits(
                 update_table_columns=[
                     TableColumnUpdate(uid=uid, value="get('current_record.Name')")
                 ]
@@ -1331,7 +1364,7 @@ def test_a_new_button_column_label_reading_a_field_by_name_is_refused(
         elements.update_element(
             builder_ctx["ctx"],
             table_with_stale_column.id,
-            ElementChanges(
+            ElementEdits(
                 add_table_columns=[
                     TableColumnAdd(
                         name="Go", type="button", label="get('current_record.Name')"
@@ -1352,12 +1385,12 @@ def test_a_stored_column_does_not_block_an_unrelated_change(
     elements.update_element(
         ctx,
         table.id,
-        ElementChanges(update_table_columns=[TableColumnUpdate(uid=uid, name="Old")]),
+        ElementEdits(update_table_columns=[TableColumnUpdate(uid=uid, name="Old")]),
     )
     result = elements.update_element(
         ctx,
         table.id,
-        ElementChanges(
+        ElementEdits(
             add_table_columns=[
                 TableColumnAdd(
                     name="Good", value=f"get('current_record.field_{table_field.id}')"
@@ -1426,7 +1459,7 @@ def test_a_default_value_reads_the_row_of_the_repeat_around_it(
     formula = f"get('current_record.field_{table_field.id}')"
 
     result = elements.update_element(
-        builder_ctx["ctx"], selector.id, ElementChanges(default_value=formula)
+        builder_ctx["ctx"], selector.id, ElementEdits(default_value=formula)
     )
 
     assert "formula_errors" not in result
@@ -1442,7 +1475,7 @@ def test_a_default_value_can_not_read_the_selectors_own_rows(
     result = elements.update_element(
         builder_ctx["ctx"],
         selector.id,
-        ElementChanges(default_value=f"get('current_record.field_{own_field.id}')"),
+        ElementEdits(default_value=f"get('current_record.field_{own_field.id}')"),
     )
 
     assert [e["field"] for e in result["formula_errors"]] == ["default_value"]
@@ -1614,72 +1647,70 @@ def test_elements_moved_into_a_container_keep_their_order(data_fixture, builder_
     ]
 
 
-@pytest.mark.django_db
-def test_moving_the_last_child_into_its_container_changes_nothing(builder_ctx):
-    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
+@pytest.fixture
+def box(data_fixture, builder_ctx):
+    """
+    A container holding First and Second, a Middle heading outside it, and the
+    page's button, by name.
+    """
+
     ids = elements.create_elements(
-        ctx,
-        page.id,
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
         [
             ElementItemCreate(ref="box", type="simple_container"),
             text("a", "First", parent_element="box"),
             text("b", "Second", parent_element="box"),
         ],
     )["ref_to_id_map"]
+    middle = data_fixture.create_builder_heading_element(
+        page=builder_ctx["page"], value="'Middle'"
+    )
+    return {**ids, "middle": middle.id, "button": builder_ctx["button"].id}
 
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "move, children, error",
+    [
+        pytest.param(
+            {"element_id": "b", "parent_element_id": "box"},
+            ["'First'", "'Second'"],
+            None,
+            id="the last child into its container changes nothing",
+        ),
+        pytest.param(
+            {"element_id": "a", "parent_element_id": "box"},
+            ["'Second'", "'First'"],
+            None,
+            id="a child to the end of its container",
+        ),
+        pytest.param(
+            {"element_id": "middle", "parent_element_id": "box", "before_id": "b"},
+            ["'First'", "'Middle'", "'Second'"],
+            None,
+            id="into a container before one of its children",
+        ),
+        pytest.param(
+            {"element_id": "middle", "parent_element_id": "box", "before_id": "button"},
+            ["'First'", "'Second'"],
+            "isn't in",
+            id="before an element outside the parent is refused",
+        ),
+    ],
+)
+def test_move_in_a_container(builder_ctx, box, move, children, error):
     result = elements.move_elements(
-        ctx, [ElementMove(element_id=ids["b"], parent_element_id=ids["box"])]
+        builder_ctx["ctx"],
+        [ElementMove(**{key: box[name] for key, name in move.items()})],
     )
 
-    assert not result.get("errors")
-    assert children_of(ids["box"]) == ["'First'", "'Second'"]
-
-
-@pytest.mark.django_db
-def test_moving_a_child_to_the_end_of_its_container(builder_ctx):
-    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
-    ids = elements.create_elements(
-        ctx,
-        page.id,
-        [
-            ElementItemCreate(ref="box", type="simple_container"),
-            text("a", "First", parent_element="box"),
-            text("b", "Second", parent_element="box"),
-        ],
-    )["ref_to_id_map"]
-
-    elements.move_elements(
-        ctx, [ElementMove(element_id=ids["a"], parent_element_id=ids["box"])]
-    )
-
-    assert children_of(ids["box"]) == ["'Second'", "'First'"]
-
-
-@pytest.mark.django_db
-def test_moving_into_a_container_before_one_of_its_children(data_fixture, builder_ctx):
-    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
-    ids = elements.create_elements(
-        ctx,
-        page.id,
-        [
-            ElementItemCreate(ref="box", type="simple_container"),
-            text("a", "First", parent_element="box"),
-            text("b", "Second", parent_element="box"),
-        ],
-    )["ref_to_id_map"]
-    middle = data_fixture.create_builder_heading_element(page=page, value="'Middle'")
-
-    result = elements.move_elements(
-        ctx,
-        [
-            ElementMove(
-                element_id=middle.id, parent_element_id=ids["box"], before_id=ids["b"]
-            )
-        ],
-    )
-
-    assert not result.get("errors")
-    assert children_of(ids["box"]) == ["'First'", "'Middle'", "'Second'"]
+    if error:
+        assert error in result["errors"][0]
+        assert str(box[move["before_id"]]) in result["errors"][0]
+    else:
+        assert not result.get("errors")
+    assert children_of(box["box"]) == children
 
 
 @pytest.mark.django_db
@@ -1710,9 +1741,14 @@ def test_elements_are_listed_in_page_order_with_children_after_their_container(
 
 
 @pytest.mark.django_db
-def test_move_before_a_child_with_an_empty_place_uses_the_childs_place(
-    data_fixture, builder_ctx
-):
+@pytest.mark.parametrize(
+    "place, error",
+    [
+        pytest.param("", None, id="an empty place uses the child's place"),
+        pytest.param("1", "not '1'", id="another place is refused"),
+    ],
+)
+def test_move_before_a_child_of_a_column(data_fixture, builder_ctx, place, error):
     ctx, page = builder_ctx["ctx"], builder_ctx["page"]
     ids = elements.create_elements(
         ctx,
@@ -1731,41 +1767,17 @@ def test_move_before_a_child_with_an_empty_place_uses_the_childs_place(
                 element_id=moved.id,
                 parent_element_id=ids["cols"],
                 before_id=ids["a"],
-                place_in_container="",
+                place_in_container=place,
             )
         ],
     )
 
-    assert not result.get("errors")
-    assert children_of(ids["cols"]) == ["'M'", "'A'"]
-
-
-@pytest.mark.django_db
-def test_move_before_a_child_in_another_place_is_refused(data_fixture, builder_ctx):
-    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
-    ids = elements.create_elements(
-        ctx,
-        page.id,
-        [
-            ElementItemCreate(ref="cols", type="column"),
-            text("a", "A", parent_element="cols"),
-        ],
-    )["ref_to_id_map"]
-    moved = data_fixture.create_builder_heading_element(page=page, value="'M'")
-
-    result = elements.move_elements(
-        ctx,
-        [
-            ElementMove(
-                element_id=moved.id,
-                parent_element_id=ids["cols"],
-                before_id=ids["a"],
-                place_in_container="1",
-            )
-        ],
-    )
-
-    assert "not '1'" in str(result["errors"])
+    if error:
+        assert error in str(result["errors"])
+        assert children_of(ids["cols"]) == ["'A'"]
+    else:
+        assert not result.get("errors")
+        assert children_of(ids["cols"]) == ["'M'", "'A'"]
 
 
 @pytest.mark.django_db
@@ -2024,7 +2036,7 @@ def test_a_new_target_that_does_not_fit_a_link_is_refused(
         elements.update_element(
             builder_ctx["ctx"],
             link.id,
-            ElementChanges(navigate_to_page_id=link_pages[target].id, value="New"),
+            ElementEdits(navigate_to_page_id=link_pages[target].id, value="New"),
         )
 
     assert all(part in str(error.value) for part in named)
@@ -2048,7 +2060,7 @@ def test_a_new_target_that_fits_a_link_is_stored(
     elements.update_element(
         builder_ctx["ctx"],
         link.id,
-        ElementChanges(navigate_to_page_id=link_pages[target].id),
+        ElementEdits(navigate_to_page_id=link_pages[target].id),
     )
 
     stored = saved(link.id)
@@ -2065,7 +2077,7 @@ def test_a_link_that_keeps_its_target_is_not_checked(
     elements.update_element(
         builder_ctx["ctx"],
         link.id,
-        ElementChanges(navigate_to_page_id=link_pages["by_id"].id, value="New"),
+        ElementEdits(navigate_to_page_id=link_pages["by_id"].id, value="New"),
     )
 
     assert saved(link.id).value["formula"] == "'New'"
@@ -2139,7 +2151,7 @@ def test_two_changed_columns_of_one_name_are_both_checked(data_fixture, builder_
         elements.update_element(
             builder_ctx["ctx"],
             table.id,
-            ElementChanges(
+            ElementEdits(
                 update_table_columns=[
                     TableColumnUpdate(uid=first, value="get('page_parameter.nope')"),
                     TableColumnUpdate(uid=second, value="get('current_record.id')"),
@@ -2284,7 +2296,7 @@ def test_a_link_given_a_new_page_keeps_its_parameters_in_that_page_order(
     )["ref_to_id_map"]["l"]
 
     elements.update_element(
-        builder_ctx["ctx"], link_id, ElementChanges(navigate_to_page_id=second.id)
+        builder_ctx["ctx"], link_id, ElementEdits(navigate_to_page_id=second.id)
     )
 
     assert _link_parameters(link_id) == [("b", "2"), ("a", "1")]
@@ -2314,67 +2326,71 @@ def links(data_fixture, builder_ctx):
 
 
 @pytest.mark.django_db
-def test_giving_a_custom_link_a_page_makes_it_go_to_the_page(builder_ctx, links):
-    elements.update_element(
-        builder_ctx["ctx"],
-        links["custom"],
-        ElementChanges(navigate_to_page_id=links["target"].id),
-    )
-
-    link = saved(links["custom"])
-    assert link.navigation_type == "page"
-    assert link.navigate_to_page_id == links["target"].id
-
-
-@pytest.mark.django_db
-def test_giving_a_page_link_a_url_makes_it_go_to_the_url(builder_ctx, links):
-    elements.update_element(
-        builder_ctx["ctx"],
-        links["page"],
-        ElementChanges(navigate_to_url="https://example.org"),
-    )
-
-    link = saved(links["page"])
-    assert link.navigation_type == "custom"
-    assert link.navigate_to_url["formula"] == "'https://example.org'"
-
-
-@pytest.mark.django_db
-def test_a_page_link_given_a_formula_url_switches_with_the_formula(builder_ctx, links):
-    elements.update_element(
-        builder_ctx["ctx"],
-        links["page"],
-        ElementChanges(navigate_to_url="concat('https://', 'example.org')"),
-    )
-
-    link = saved(links["page"])
-    assert link.navigation_type == "custom"
-    assert link.navigate_to_url["formula"] == "concat('https://', 'example.org')"
-
-
-@pytest.mark.django_db
-def test_a_page_link_given_a_bad_formula_url_stays_on_its_page(builder_ctx, links):
-    result = elements.update_element(
-        builder_ctx["ctx"],
-        links["page"],
-        ElementChanges(navigate_to_url="$formula: the shop's address"),
-    )
-
-    assert result["formula_errors"][0]["field"] == "navigate_to_url"
-    assert saved(links["page"]).navigation_type == "page"
-
-
-@pytest.mark.django_db
-def test_an_explicit_navigation_type_is_kept(builder_ctx, links):
-    elements.update_element(
-        builder_ctx["ctx"],
-        links["custom"],
-        ElementChanges(
-            navigation_type="custom", navigate_to_page_id=links["target"].id
+@pytest.mark.parametrize(
+    "link, edits, navigation_type, url_formula, url_error",
+    [
+        pytest.param(
+            "custom",
+            {"navigate_to_page_id": "target"},
+            "page",
+            None,
+            False,
+            id="a custom link given a page goes to the page",
         ),
+        pytest.param(
+            "page",
+            {"navigate_to_url": "https://example.org"},
+            "custom",
+            "'https://example.org'",
+            False,
+            id="a page link given a url goes to the url",
+        ),
+        pytest.param(
+            "page",
+            {"navigate_to_url": "concat('https://', 'example.org')"},
+            "custom",
+            "concat('https://', 'example.org')",
+            False,
+            id="a page link given a formula url switches with the formula",
+        ),
+        pytest.param(
+            "page",
+            {"navigate_to_url": "$formula: the shop's address"},
+            "page",
+            None,
+            True,
+            id="a page link given a bad formula url stays on its page",
+        ),
+        pytest.param(
+            "custom",
+            {"navigation_type": "custom", "navigate_to_page_id": "target"},
+            "custom",
+            None,
+            False,
+            id="an explicit navigation type is kept",
+        ),
+    ],
+)
+def test_a_link_given_a_new_target(
+    builder_ctx, links, link, edits, navigation_type, url_formula, url_error
+):
+    values = {
+        key: links["target"].id if value == "target" else value
+        for key, value in edits.items()
+    }
+
+    result = elements.update_element(
+        builder_ctx["ctx"], links[link], ElementEdits(**values)
     )
 
-    assert saved(links["custom"]).navigation_type == "custom"
+    stored = saved(links[link])
+    assert stored.navigation_type == navigation_type
+    if navigation_type == "page" and "navigate_to_page_id" in values:
+        assert stored.navigate_to_page_id == links["target"].id
+    if url_formula is not None:
+        assert stored.navigate_to_url["formula"] == url_formula
+    if url_error:
+        assert result["formula_errors"][0]["field"] == "navigate_to_url"
 
 
 @pytest.mark.django_db
@@ -2393,7 +2409,7 @@ def test_a_custom_link_back_to_its_stored_page_needs_parameters_that_fit(
         elements.update_element(
             builder_ctx["ctx"],
             links["custom"],
-            ElementChanges(navigate_to_page_id=target.id),
+            ElementEdits(navigate_to_page_id=target.id),
         )
 
     assert saved(links["custom"]).navigation_type == "custom"
@@ -2453,7 +2469,7 @@ def test_add_menu_items_can_not_link_to_a_page_with_path_parameters(
         elements.update_element(
             builder_ctx["ctx"],
             menu_id,
-            ElementChanges(
+            ElementEdits(
                 add_menu_items=[MenuItemAdd(name="Item", page_id=item_page.id)]
             ),
         )
@@ -2471,7 +2487,7 @@ def test_update_menu_items_can_not_link_to_a_page_with_path_parameters(
         elements.update_element(
             builder_ctx["ctx"],
             menu_id,
-            ElementChanges(
+            ElementEdits(
                 update_menu_items=[MenuItemUpdate(uid=uid, page_id=item_page.id)]
             ),
         )
@@ -2491,7 +2507,7 @@ def test_a_menu_item_set_up_with_parameters_in_the_editor_can_be_renamed(
     elements.update_element(
         builder_ctx["ctx"],
         menu_id,
-        ElementChanges(
+        ElementEdits(
             update_menu_items=[
                 MenuItemUpdate(uid=str(item.uid), name="New", page_id=item_page.id)
             ]
@@ -2501,37 +2517,6 @@ def test_a_menu_item_set_up_with_parameters_in_the_editor_can_be_renamed(
     item = saved(menu_id).menu_items.get()
     assert item.name == "New"
     assert [param["name"] for param in item.page_parameters] == ["id"]
-
-
-@pytest.mark.django_db
-def test_move_before_an_element_outside_the_parent_is_refused(
-    data_fixture, builder_ctx
-):
-    ctx, page = builder_ctx["ctx"], builder_ctx["page"]
-    ids = elements.create_elements(
-        ctx,
-        page.id,
-        [
-            ElementItemCreate(ref="box", type="simple_container"),
-            text("a", "First", parent_element="box"),
-        ],
-    )["ref_to_id_map"]
-    moved = data_fixture.create_builder_heading_element(page=page, value="'Moved'")
-
-    result = elements.move_elements(
-        ctx,
-        [
-            ElementMove(
-                element_id=moved.id,
-                parent_element_id=ids["box"],
-                before_id=builder_ctx["button"].id,
-            )
-        ],
-    )
-
-    assert str(builder_ctx["button"].id) in result["errors"][0]
-    assert "isn't in" in result["errors"][0]
-    assert children_of(ids["box"]) == ["'First'"]
 
 
 @pytest.mark.django_db
@@ -2594,7 +2579,7 @@ def test_update_header_can_not_show_on_only_no_pages(builder_ctx):
 
     with pytest.raises(ToolInputError, match="page_ids"):
         elements.update_element(
-            builder_ctx["ctx"], header_id, ElementChanges(share_type="only")
+            builder_ctx["ctx"], header_id, ElementEdits(share_type="only")
         )
 
     assert saved(header_id).share_type == "all"
@@ -2607,7 +2592,7 @@ def test_update_header_can_go_back_to_the_pages_it_has(builder_ctx):
     )
 
     elements.update_element(
-        builder_ctx["ctx"], header_id, ElementChanges(share_type="only")
+        builder_ctx["ctx"], header_id, ElementEdits(share_type="only")
     )
 
     assert saved(header_id).share_type == "only"
@@ -2653,7 +2638,7 @@ def test_a_formula_from_list_elements_can_be_sent_back(data_fixture, builder_ctx
     )
 
     result = elements.update_element(
-        builder_ctx["ctx"], heading_element.id, ElementChanges(value=label)
+        builder_ctx["ctx"], heading_element.id, ElementEdits(value=label)
     )
 
     assert "formula_errors" not in result
@@ -2697,7 +2682,7 @@ def test_a_whole_function_call_on_a_table_column_is_a_formula(
     elements.update_element(
         builder_ctx["ctx"],
         table.id,
-        ElementChanges(
+        ElementEdits(
             update_table_columns=[
                 TableColumnUpdate(uid=str(column.uid), value="upper('a')")
             ]

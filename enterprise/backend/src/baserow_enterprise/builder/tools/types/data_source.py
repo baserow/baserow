@@ -9,17 +9,17 @@ from typing import TYPE_CHECKING, Any, Callable, Literal
 
 from pydantic import Field, PrivateAttr, model_serializer, model_validator
 
+from baserow.core.formula.literals import EMPTY_FORMULA
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow_enterprise.tools.formula_utils import (
-    EMPTY_FORMULA,
     formula_desc,
     formula_object,
     literal_or_placeholder,
 )
 from baserow_enterprise.tools.types import BaseModel, without_field
 
+from .formula_policy import is_text_formula, text_or_placeholder
 from .limits import MAX_NESTED_ITEMS
-from .workflow_action import is_text_formula, text_or_placeholder
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser

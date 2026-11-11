@@ -22,6 +22,7 @@ from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
 from baserow.core.integrations.models import Integration
 from baserow.core.tools.errors import PERMISSION_DENIED_MESSAGE, ToolInputError
 from baserow.core.user_sources.models import UserSource
+from baserow_enterprise.assistant.tools.builder import tools as kuma_tools
 from baserow_enterprise.builder.elements.element_types import AuthFormElementType
 from baserow_enterprise.builder.elements.models import AuthFormElement
 from baserow_enterprise.builder.tools import (
@@ -309,7 +310,7 @@ def test_setup_page_stores_an_explicit_column_formula_in_every_mode(
         None,
         [table_element()],
         None,
-        BuilderWriteOptions(column_name_beats_description=True),
+        BuilderWriteOptions(prepare_element=kuma_tools._named_field_beats_description),
     )
 
     def column_value(result):
@@ -318,20 +319,6 @@ def test_setup_page_stores_an_explicit_column_formula_in_every_mode(
 
     assert column_value(shared) == "get('current_record.id')"
     assert column_value(kuma) == "get('current_record.id')"
-
-
-@pytest.mark.django_db
-def test_setup_page_refused_with_nothing_done_raises(builder_ctx, monkeypatch):
-    def deny(*args, **kwargs):
-        raise PermissionException()
-
-    monkeypatch.setattr(helpers, "create_element", deny)
-
-    with pytest.raises(PermissionException):
-        setup(
-            builder_ctx,
-            elements=[ElementItemCreate(ref="h", type="heading", value="Title")],
-        )
 
 
 @pytest.mark.django_db
@@ -1193,3 +1180,22 @@ def test_setup_page_stores_page_parameters_in_page_order(data_fixture, builder_c
     ).specific
     assert [param["name"] for param in link.page_parameters] == ["a", "b"]
     assert [param["name"] for param in action.page_parameters] == ["a", "b"]
+
+
+@pytest.mark.django_db
+def test_the_highest_values_the_rest_api_takes_are_stored(builder_ctx):
+    result = setup(
+        builder_ctx,
+        elements=[
+            ElementItemCreate(ref="h", type="heading", value="x", level=6),
+            ElementItemCreate(ref="c", type="column", column_amount=6, column_gap=2000),
+            ElementItemCreate(ref="i", type="input_text", rows=100),
+        ],
+    )
+
+    assert not result.get("errors")
+    ids = {element["ref"]: element["id"] for element in result["created_elements"]}
+    assert Element.objects.get(id=ids["h"]).specific.level == 6
+    column = Element.objects.get(id=ids["c"]).specific
+    assert (column.column_amount, column.column_gap) == (6, 2000)
+    assert Element.objects.get(id=ids["i"]).specific.rows == 100

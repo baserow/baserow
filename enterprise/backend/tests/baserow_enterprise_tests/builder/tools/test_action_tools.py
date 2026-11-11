@@ -16,19 +16,23 @@ from baserow.api.sessions import (
     set_client_undo_redo_action_group_id,
     set_untrusted_client_session_id,
 )
-from baserow.contrib.automation.tools.formulas import wrap_static_string
 from baserow.contrib.builder.action_scopes import PageActionScopeType
 from baserow.contrib.builder.workflow_actions.models import (
     BuilderWorkflowAction,
     NotificationWorkflowAction,
 )
 from baserow.core.action.handler import ActionHandler
+from baserow.core.formula.literals import wrap_static_string
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.services.models import Service
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import ToolInputError
-from baserow_enterprise.builder.tools import BuilderWriteOptions, actions
-from baserow_enterprise.builder.tools.types import ActionChanges, ActionCreate
+from baserow_enterprise.builder.tools import BuilderWriteOptions, actions, pages
+from baserow_enterprise.builder.tools.types import (
+    ActionChanges,
+    ActionCreate,
+    ElementItemCreate,
+)
 
 
 def notification(element, title="Hi", **kwargs):
@@ -2174,3 +2178,113 @@ def test_an_action_on_a_trashed_page_can_not_be_changed(builder_ctx):
         )
 
     assert stored(action.id).title == title
+
+
+@pytest.mark.django_db
+def test_a_refused_page_parameter_is_fixed_with_update_action(builder_ctx, detail_page):
+    formula = f"get('data_source.{builder_ctx['data_source'].id}.0.id')"
+    created = create(
+        builder_ctx,
+        ActionCreate(
+            type="open_page",
+            element=builder_ctx["button"].id,
+            navigate_to_page_id=detail_page.id,
+            page_parameters=[{"name": "id", "value": "$formula: the row id"}],
+        ),
+    )
+    action_id = created["formula_errors"][0]["action_id"]
+
+    fixed = update(
+        builder_ctx, action_id, page_parameters=[{"name": "id", "value": formula}]
+    )
+
+    assert "formula_errors" not in fixed
+    assert stored(action_id).page_parameters[0]["value"]["formula"] == formula
+
+
+@pytest.mark.django_db
+def test_a_form_made_in_an_earlier_call_can_be_wired(builder_ctx):
+    table = builder_ctx["data_source"].service.specific.table
+    field = table.field_set.first()
+    made = pages.setup_page(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        data_sources=None,
+        elements=[
+            ElementItemCreate(ref="form", type="form_container"),
+            ElementItemCreate(
+                ref="name", type="input_text", label="Name", parent_element="form"
+            ),
+        ],
+        actions=None,
+    )
+    ids = {item["ref"]: item["id"] for item in made["created_elements"]}
+    value = f"get('form_data.{ids['name']}')"
+
+    result = create(
+        builder_ctx,
+        ActionCreate(
+            type="create_row",
+            element=ids["form"],
+            event="submit",
+            table_id=table.id,
+            field_values=[{"field_id": str(field.id), "value": value}],
+        ),
+    )
+
+    assert "errors" not in result
+    assert "formula_errors" not in result
+    action = stored(result["created_actions"][0]["id"])
+    assert action.service.specific.field_mappings.get().value["formula"] == value
+
+
+def _edit_before_the_lock(edit):
+    """Run ``edit`` as an editor's change landing just before the service lock."""
+
+    from baserow.contrib.builder.workflow_actions.handler import (
+        BuilderWorkflowActionHandler,
+    )
+
+    lock = BuilderWorkflowActionHandler.lock_service_for_update
+
+    def edit_then_lock(self, workflow_action):
+        edit()
+        return lock(self, workflow_action)
+
+    return patch.object(
+        BuilderWorkflowActionHandler, "lock_service_for_update", edit_then_lock
+    )
+
+
+@pytest.mark.django_db
+def test_add_action_field_mapping_checks_the_table_the_action_has_after_the_lock(
+    data_fixture, builder_ctx, row_action_with_mapping
+):
+    action, table, field = row_action_with_mapping
+    other_table = data_fixture.create_database_table(database=table.database)
+
+    service = action.service.specific
+
+    def change_table():
+        type(service).objects.filter(id=service.id).update(table_id=other_table.id)
+
+    with _edit_before_the_lock(change_table):
+        with pytest.raises(ToolInputError, match="not in the table"):
+            actions.add_element_action_field_mapping(
+                builder_ctx["ctx"], action.id, field.id, "'y'"
+            )
+
+
+@pytest.mark.django_db
+def test_add_action_field_mapping_on_an_action_deleted_meanwhile_is_an_input_error(
+    builder_ctx, row_action_with_mapping
+):
+    action, _table, field = row_action_with_mapping
+
+    with _edit_before_the_lock(
+        lambda: type(action).objects.filter(id=action.id).delete()
+    ):
+        with pytest.raises(ToolInputError, match="deleted or changed type"):
+            actions.add_element_action_field_mapping(
+                builder_ctx["ctx"], action.id, field.id, "'y'"
+            )

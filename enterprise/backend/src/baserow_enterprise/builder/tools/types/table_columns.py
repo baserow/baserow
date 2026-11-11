@@ -1,4 +1,4 @@
-"""Table element columns as Kuma reads and changes them."""
+"""Table element columns as the builder tools read and change them."""
 
 from typing import TYPE_CHECKING, Any, Literal, NotRequired, TypedDict
 

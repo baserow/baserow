@@ -21,7 +21,7 @@ from .formulas import (
     check_required_formulas,
     page_formula_context,
 )
-from .pages import get_page_in_workspace
+from .lookups import get_page_in_workspace
 from .types import (
     DataSourceChanges,
     DataSourceCreate,

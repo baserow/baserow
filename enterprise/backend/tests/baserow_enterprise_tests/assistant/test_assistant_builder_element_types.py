@@ -15,19 +15,19 @@ from baserow_enterprise.assistant.tools.builder.tools import (
     update_element,
 )
 from baserow_enterprise.assistant.tools.shared import ToolInputError
-from baserow_enterprise.builder.tools.assistant_element_types import (
-    ButtonAssistantElementType,
-    ColumnAssistantElementType,
-    FooterAssistantElementType,
-    HeaderAssistantElementType,
-    LinkAssistantElementType,
-    MenuAssistantElementType,
-    TableAssistantElementType,
+from baserow_enterprise.builder.tools.element_tool_types import (
+    ButtonElementToolType,
+    ColumnElementToolType,
+    FooterElementToolType,
+    HeaderElementToolType,
+    LinkElementToolType,
+    MenuElementToolType,
+    TableElementToolType,
 )
 from baserow_enterprise.builder.tools.registries import (
-    AssistantElementType,
+    ElementToolType,
     PreparedElementUpdate,
-    assistant_element_type_registry,
+    element_tool_type_registry,
 )
 from baserow_enterprise.builder.tools.types import (
     ElementUpdate,
@@ -60,10 +60,10 @@ def seeded(data_fixture: Fixtures) -> SeededPage:
 
 
 def test_a_table_gets_the_registered_table_type() -> None:
-    table = assistant_element_type_registry.get_for("table")
+    table = element_tool_type_registry.get_for("table")
 
-    assert isinstance(table, TableAssistantElementType)
-    assert table is assistant_element_type_registry.get("table")
+    assert isinstance(table, TableElementToolType)
+    assert table is element_tool_type_registry.get("table")
     assert table.property_aliases == {
         "add_table_columns": "fields",
         "update_table_columns": "fields",
@@ -81,7 +81,7 @@ def test_an_element_type_without_hooks_gets_hooks_that_do_nothing(
     )
     update = ElementUpdate(element_id=heading.id, value="New title")
 
-    hooks = assistant_element_type_registry.get_for("heading")
+    hooks = element_tool_type_registry.get_for("heading")
 
     assert hooks.prepare_update(seeded.ctx.deps.user, heading, update) == (
         PreparedElementUpdate(kwargs={}, result={})
@@ -97,7 +97,7 @@ def test_an_element_type_without_hooks_gets_hooks_that_do_nothing(
 
 
 def test_the_default_guidance_lists_the_supported_properties() -> None:
-    hooks = assistant_element_type_registry.get_for("heading")
+    hooks = element_tool_type_registry.get_for("heading")
 
     assert hooks.unsupported_guidance({"value", "level"}) == (
         "Supported properties include: level, value."
@@ -107,20 +107,20 @@ def test_the_default_guidance_lists_the_supported_properties() -> None:
 @pytest.mark.parametrize(
     "element_type,registered_type,aliases",
     [
-        ("button", ButtonAssistantElementType, {"label": "value"}),
+        ("button", ButtonElementToolType, {"label": "value"}),
         (
             "link",
-            LinkAssistantElementType,
+            LinkElementToolType,
             {
                 "link_variant": "variant",
                 "link_target": "target",
                 "link_page_parameters": "page_parameters",
             },
         ),
-        ("column", ColumnAssistantElementType, {"column_alignment": "alignment"}),
+        ("column", ColumnElementToolType, {"column_alignment": "alignment"}),
         (
             "menu",
-            MenuAssistantElementType,
+            MenuElementToolType,
             {
                 "menu_orientation": "orientation",
                 "menu_alignment": "alignment",
@@ -134,13 +134,13 @@ def test_the_default_guidance_lists_the_supported_properties() -> None:
 )
 def test_an_element_type_with_aliases_gets_its_registered_type(
     element_type: str,
-    registered_type: type[AssistantElementType],
+    registered_type: type[ElementToolType],
     aliases: dict[str, str],
 ) -> None:
-    hooks = assistant_element_type_registry.get_for(element_type)
+    hooks = element_tool_type_registry.get_for(element_type)
 
     assert isinstance(hooks, registered_type)
-    assert hooks is assistant_element_type_registry.get(element_type)
+    assert hooks is element_tool_type_registry.get(element_type)
     assert hooks.property_aliases == aliases
 
 
@@ -252,15 +252,15 @@ def test_a_button_gets_the_navigation_guidance(
 
 @pytest.mark.parametrize(
     "element_type,registered_type",
-    [("header", HeaderAssistantElementType), ("footer", FooterAssistantElementType)],
+    [("header", HeaderElementToolType), ("footer", FooterElementToolType)],
 )
 def test_a_header_or_footer_applies_its_menu_items_after_the_update(
-    element_type: str, registered_type: type[AssistantElementType]
+    element_type: str, registered_type: type[ElementToolType]
 ) -> None:
-    hooks = assistant_element_type_registry.get_for(element_type)
+    hooks = element_tool_type_registry.get_for(element_type)
 
     assert isinstance(hooks, registered_type)
-    assert hooks is assistant_element_type_registry.get(element_type)
+    assert hooks is element_tool_type_registry.get(element_type)
     assert hooks.properties_applied_after_update == frozenset(MENU_ITEM_PROPERTIES)
 
 

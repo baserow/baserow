@@ -1,5 +1,5 @@
 """
-Shared helpers for the builder assistant tools.
+Shared helpers for the builder tools that Kuma and MCP call.
 
 Contains permission-checked accessors, listing functions, and the element/data
 source/action creation orchestrators used by ``tools.py`` and ``agents.py``.
@@ -7,13 +7,11 @@ source/action creation orchestrators used by ``tools.py`` and ``agents.py``.
 
 import re
 from collections import Counter
-from collections.abc import Callable
-from operator import attrgetter, itemgetter
-from typing import Any, NamedTuple
+from typing import Any, Callable, NamedTuple
 
 from django.contrib.auth.models import AbstractUser
 from django.db import DatabaseError, transaction
-from django.db.models import Q, QuerySet
+from django.db.models import Q
 
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
@@ -67,7 +65,6 @@ from baserow.contrib.builder.pages.exceptions import (
 )
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
-from baserow.contrib.builder.pages.operations import ReadPageOperationType
 from baserow.contrib.builder.workflow_actions.actions import (
     CreateBuilderWorkflowActionActionType,
 )
@@ -94,7 +91,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 )
 from baserow.core.action.context import without_undo_redo_registration
 from baserow.core.actions import UpdateApplicationActionType
-from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
+from baserow.core.graph.types import GraphPointPosition
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.actions import CreateIntegrationActionType
 from baserow.core.integrations.models import Integration
@@ -109,9 +106,12 @@ from baserow.core.tools.errors import (
     validation_messages,
 )
 from baserow.core.user_sources.actions import CreateUserSourceActionType
+from baserow.core.workflow_actions.exceptions import WorkflowActionDoesNotExist
 
 from .errors import UnknownRefError
-from .registries import assistant_element_type_registry
+from .lookups import get_readable_page
+from .page_parameters import parameters_in_page_order
+from .registries import element_tool_type_registry
 from .types import (
     ActionCreate,
     ActionItem,
@@ -136,46 +136,6 @@ from .types.workflow_action import raise_if_read_only_field
 # ---------------------------------------------------------------------------
 
 
-def get_builder(
-    user: AbstractUser, workspace: Workspace, application_id: int
-) -> Builder:
-    """
-    Get a builder application scoped to the user's workspace.
-
-    :param user: The acting user.
-    :param workspace: The workspace the application must belong to.
-    :param application_id: The ID of the application to fetch.
-    :returns: The matching builder application.
-    :raises ToolInputError: When the application is not visible in the
-        workspace.
-    """
-
-    from baserow.core.service import CoreService
-
-    try:
-        return CoreService().get_application(
-            user,
-            application_id,
-            base_queryset=Builder.objects.filter(workspace=workspace),
-        )
-    except Exception as exc:
-        raise_if_permission_denied(exc)
-        raise ToolInputError(
-            f"Application with ID {application_id} not found in this workspace. "
-            "Use list_builders to find valid application IDs."
-        )
-
-
-def workspace_pages(workspace: Workspace) -> QuerySet:
-    """
-    The pages of the workspace's builders that aren't trashed. Looking pages up
-    through it makes an ID from another workspace the user belongs to look like a
-    missing one.
-    """
-
-    return Page.objects.filter(builder__workspace=workspace, builder__trashed=False)
-
-
 def on_page(page: Page) -> Q:
     """
     Filter for the elements or data sources a tool working on ``page`` may reach:
@@ -196,31 +156,6 @@ def forget_page_graphs(page: Page) -> None:
     for graph_page in (page, page.builder.shared_page):
         graph_page.reload_graph()
         ElementHandler().invalidate_element_cache(graph_page)
-
-
-def end_of_container(
-    page: Page, parent_id: int, place: str
-) -> tuple[int, GraphPointPositionType, str]:
-    """
-    Where an element goes to come last in a place of a container. Core puts a new
-    child first, so one call's children would come out reversed.
-
-    :param page: The page the container is on.
-    :param parent_id: The container.
-    :param place: The place inside it, "" by default.
-    :return: The reference element, the position and the place to create or move the
-        element with. Only the first child of a place names the place: the next ones
-        follow it.
-    """
-
-    graph = page.get_graph()
-    graph.lock_for_update()
-    children = (
-        graph.get_children(parent_id, place) if str(parent_id) in graph.graph else []
-    )
-    if children:
-        return children[-1].id, GraphPointPosition.SOUTH, ""
-    return parent_id, GraphPointPosition.CHILD, place
 
 
 def check_data_source_on_page(page: Page, data_source_id: int) -> None:
@@ -277,11 +212,7 @@ def get_page(user: AbstractUser, workspace: Workspace, page_id: int) -> Page:
     """
 
     try:
-        page = PageHandler().get_page(page_id, base_queryset=workspace_pages(workspace))
-        CoreHandler().check_permissions(
-            user, ReadPageOperationType.type, workspace=workspace, context=page
-        )
-        return page
+        return get_readable_page(user, workspace, page_id)
     except Exception as exc:
         raise_if_permission_denied(exc)
         raise ToolInputError(
@@ -364,24 +295,8 @@ def _in_page_order(page: Page, elements: list) -> list:
     right after it. Elements the graph doesn't reach go last.
     """
 
-    graph = page.get_graph().graph
-    position: dict[int, int] = {}
-    stack = [graph["0"]] if graph.get("0") is not None else []
-    while stack:
-        current = int(stack.pop())
-        if current in position:
-            continue
-        position[current] = len(position)
-        info = graph.get(str(current))
-        if not isinstance(info, dict):
-            continue
-        children = info.get("children") or {}
-        if isinstance(children, list):
-            children = {"": children}
-        following = [*info.get("next", {}).get("", [])]
-        for place in reversed(sorted(children, key=_place_order)):
-            following = [*children[place], *following]
-        stack.extend(reversed(following))
+    ordered = page.get_graph().get_ordered_point_ids(edge_order=_place_order)
+    position = {point_id: index for index, point_id in enumerate(ordered)}
     return sorted(elements, key=lambda el: position.get(el.id, len(position)))
 
 
@@ -806,9 +721,11 @@ def create_element(
     data_source_ref_to_id_map: dict[str, int],
     shared_page_refs: set[str] | None = None,
     before_id: int | None = None,
+    prepare: Callable[[ElementItemCreate], None] | None = None,
 ) -> tuple[Any, int]:
     """
-    Create an element on a page, resolving refs to IDs.
+    Create an element on a page, resolving refs to IDs. ``prepare`` is called with
+    the element once its data source ref is an ID, before anything is saved.
 
     Returns ``(orm_element, element_id)``.
     """
@@ -855,6 +772,8 @@ def create_element(
     # Checked before to_orm_kwargs, which reads the data source's table fields.
     if element_create.data_source is not None:
         check_data_source_on_page(page, int(element_create.data_source))
+    if prepare is not None:
+        prepare(element_create)
 
     # In place: a formula's field names its parameter by position in this list.
     element_create.link_page_parameters = parameters_in_page_order(
@@ -950,7 +869,7 @@ def create_element(
     if parent_element_id is not None and (
         before is None or before.parent_element_id != parent_element_id
     ):
-        reference_element_id, position, place = end_of_container(
+        reference_element_id, position, place = ElementHandler().get_end_position(
             target_page, parent_element_id, kwargs.pop("place_in_container", "") or ""
         )
         if place:
@@ -1071,7 +990,7 @@ def move_element(
         )
 
     if parent is not None and before is None:
-        reference_element_id, position, place = end_of_container(
+        reference_element_id, position, place = ElementHandler().get_end_position(
             parent.page, parent.id, place
         )
         # A container's own id comes back when it is empty: the move refuses that.
@@ -1093,17 +1012,12 @@ def move_element(
         place = ""
     else:
         # before_id=None means "move to end" — append after the current last element.
-        # The lock reads the latest graph, as the move does.
-        graph = element.page.get_graph()
-        graph.lock_for_update()
-        last_ref, _, _ = graph.get_last_position()
-
-        if last_ref is not None and last_ref.id == element.id:
+        reference_element_id, position, place = ElementHandler().get_end_position(
+            element.page
+        )
+        if reference_element_id == element.id:
             # Already at the end — no-op.
             return element
-
-        position = "south"
-        reference_element_id = last_ref.id if last_ref is not None else None
 
     return MoveElementActionType.do(
         user, element, element.page, place, reference_element_id, position
@@ -1178,7 +1092,7 @@ def update_element(
         )
 
         element_type = element.get_type().type
-        hooks = assistant_element_type_registry.get_for(element_type)
+        hooks = element_tool_type_registry.get_for(element_type)
         kwargs = element_update.to_update_kwargs(element_type)
         allowed = _accepted_update_keys(element)
         kwargs = {name: value for name, value in kwargs.items() if name in allowed}
@@ -1593,33 +1507,6 @@ def menu_links_problem(builder_id: int, page_ids: list[int]) -> str | None:
     return None
 
 
-def parameters_in_page_order(
-    builder_id: int,
-    page_id: int | None,
-    parameters: list | None,
-    name_of: Callable[[Any], str] = attrgetter("name"),
-) -> list | None:
-    """
-    Sort page parameters like the path parameters of the page they open, because the
-    frontend hides a link or button whose names are in another order.
-
-    :param builder_id: The application the page must be in.
-    :param page_id: The page they open.
-    :param parameters: The parameters.
-    :param name_of: Reads a parameter's name.
-    :return: The sorted parameters, the ones the page doesn't have last. They come
-        back as given when there's no such page in the application.
-    """
-
-    if not parameters:
-        return parameters
-    page = Page.objects.filter(id=page_id, builder_id=builder_id).first()
-    if page is None:
-        return parameters
-    order = {param["name"]: i for i, param in enumerate(page.path_params or [])}
-    return sorted(parameters, key=lambda param: order.get(name_of(param), len(order)))
-
-
 def check_open_page_parameters(
     action: BuilderWorkflowAction, item: ActionCreate | ActionUpdate
 ) -> None:
@@ -1671,7 +1558,6 @@ def update_workflow_action(
     from baserow.contrib.builder.workflow_actions.actions import (
         UpdateBuilderWorkflowActionActionType,
     )
-    from baserow.core.services.models import Service
 
     if item.data_source is not None:
         page = action.element.page if action.element_id else action.page
@@ -1679,28 +1565,44 @@ def update_workflow_action(
     check_open_page_parameters(action, item)
 
     with transaction.atomic():
-        # A row action's mappings are replaced as a whole list.
-        service_id = getattr(action, "service_id", None)
-        if service_id is not None:
-            Service.objects.select_for_update().filter(id=service_id).first()
-        fresh = BuilderWorkflowActionHandler().get_workflow_action(action.id)
-        if item.type == "open_page":
-            page_id = item.navigate_to_page_id or fresh.navigate_to_page_id
-            # In place: a formula's field names its parameter by position in this list.
-            item.page_parameters = parameters_in_page_order(
-                action.page.builder_id, page_id, item.page_parameters
-            )
+        fresh = BuilderWorkflowActionHandler().get_workflow_action_for_update(action)
         values = item.update_values(fresh, user, workspace)
-        if item.type == "open_page" and "page_parameters" not in values:
-            if item.navigate_to_page_id is not None:
-                values["page_parameters"] = parameters_in_page_order(
-                    action.page.builder_id,
-                    item.navigate_to_page_id,
-                    fresh.page_parameters,
-                    itemgetter("name"),
-                )
         if values:
             UpdateBuilderWorkflowActionActionType.do(user, fresh, **values)
+
+
+def _mappable_service(action, action_id: int, field_id: int):
+    """
+    The service of a create_row or update_row action, after checking the field is
+    one of its table's and can take a value.
+    """
+
+    action_type = action.get_type().type
+    if action_type not in ("create_row", "update_row"):
+        raise ToolInputError(
+            f"Cannot add field mappings to '{action_type}'. "
+            "Only create_row and update_row support field mappings."
+        )
+
+    service = action.service.specific
+    if not service.table_id:
+        raise ToolInputError(
+            f"Action {action_id} has no table selected, so it has no fields to map. "
+            "This tool cannot select a table. Until one is selected, the action will fail."
+        )
+
+    field = (
+        Field.objects_and_trash.select_related("content_type")
+        .filter(id=field_id, table_id=service.table_id)
+        .first()
+    )
+    if field is None:
+        raise ToolInputError(
+            f"Field {field_id} is not in the table this action writes to. "
+            "Use the IDs of that table's fields."
+        )
+    raise_if_read_only_field(field)
+    return service
 
 
 def add_field_mapping_to_action(
@@ -1719,71 +1621,41 @@ def add_field_mapping_to_action(
         LocalBaserowTableServiceFieldMapping,
     )
     from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
-    from baserow.core.services.models import Service
     from baserow_enterprise.tools.formula_utils import formula_object
 
     action = get_writable_action(user, workspace, action_id)
-    action_type = action.get_type().type
-
-    if action_type not in ("create_row", "update_row"):
-        raise ToolInputError(
-            f"Cannot add field mappings to '{action_type}'. "
-            "Only create_row and update_row support field mappings."
-        )
-
-    service = action.service.specific
-
-    if not service.table_id:
-        raise ToolInputError(
-            f"Action {action_id} has no table selected, so it has no fields to map. "
-            "This tool cannot select a table. Until one is selected, the action will fail."
-        )
-
-    field = (
-        Field.objects_and_trash.select_related("content_type")
-        .filter(id=field_id, table_id=service.table_id)
-        .first()
-    )
-    if field is None:
-        raise ToolInputError(
-            f"Field {field_id} is not in the table this action writes to. "
-            "Use the IDs of that table's fields."
-        )
-    raise_if_read_only_field(field)
-
-    # The service replaces its whole list of mappings, mappings on trashed fields
-    # included. The service row lock makes a concurrent addition wait for this one,
-    # and the transaction keeps the old list if the replacement fails.
     value = formula_object(value_formula, mode=BASEROW_FORMULA_MODE_ADVANCED)
+
+    # The service replaces its whole list of mappings, so its lock makes a
+    # concurrent addition wait for this one, and the transaction keeps the old list
+    # if the replacement fails. The checks run on the action as loaded after the
+    # lock, so an editor's change of its table or type is seen.
     with transaction.atomic():
-        Service.objects.select_for_update().filter(id=service.id).first()
-        field_mappings = []
-        status = "created"
-        for mapping in LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(
-            service=service
-        ):
-            if mapping.field_id == field_id:
-                status = "updated"
-                field_mappings.append(
-                    {"field_id": field_id, "enabled": True, "value": value}
-                )
-            else:
-                field_mappings.append(
-                    {
-                        "field_id": mapping.field_id,
-                        "enabled": mapping.enabled,
-                        "value": mapping.value,
-                    }
-                )
-        if status == "created":
-            if not Field.objects.filter(id=field_id).exists():
-                raise ToolInputError(
-                    f"Field {field_id} is in the trash, so it can't get a new value. "
-                    "Use another field of the table, or restore it first."
-                )
-            field_mappings.append(
-                {"field_id": field_id, "enabled": True, "value": value}
+        try:
+            action = BuilderWorkflowActionHandler().get_workflow_action_for_update(
+                action
             )
+        except WorkflowActionDoesNotExist:
+            raise ToolInputError(
+                f"Action {action_id} was deleted or changed type while it was "
+                "updated. List the element's actions again."
+            )
+        service = _mappable_service(action, action_id, field_id)
+        status = (
+            "updated"
+            if LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(
+                service=service, field_id=field_id
+            ).exists()
+            else "created"
+        )
+        if status == "created" and not Field.objects.filter(id=field_id).exists():
+            raise ToolInputError(
+                f"Field {field_id} is in the trash, so it can't get a new value. "
+                "Use another field of the table, or restore it first."
+            )
+        field_mappings = service.get_type().field_mappings_with(
+            service, {field_id: value}, enable=True
+        )
         action = UpdateBuilderWorkflowActionActionType.do(
             user, action, service={"field_mappings": field_mappings}
         )

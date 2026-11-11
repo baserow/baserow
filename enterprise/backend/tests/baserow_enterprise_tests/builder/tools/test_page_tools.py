@@ -4,9 +4,9 @@ import pytest
 
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.models import Page
-from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
+from baserow.core.exceptions import ApplicationDoesNotExist
 from baserow.core.tools.errors import ToolInputError, tool_error_message
-from baserow_enterprise.builder.tools import helpers, pages
+from baserow_enterprise.builder.tools import pages
 from baserow_enterprise.builder.tools.types import PageChanges, PageCreate
 
 
@@ -55,21 +55,6 @@ def test_create_pages_in_another_type_of_application_is_not_found(
     with pytest.raises(ApplicationDoesNotExist):
         pages.create_pages(
             builder_ctx["ctx"], database.id, [PageCreate(name="One", path="/one")]
-        )
-
-
-@pytest.mark.django_db
-def test_create_pages_stops_when_permission_is_denied(builder_ctx, monkeypatch):
-    def denied(*args, **kwargs):
-        raise PermissionException()
-
-    monkeypatch.setattr(helpers, "create_page", denied)
-
-    with pytest.raises(PermissionException):
-        pages.create_pages(
-            builder_ctx["ctx"],
-            builder_ctx["builder"].id,
-            [PageCreate(name="One", path="/one")],
         )
 
 

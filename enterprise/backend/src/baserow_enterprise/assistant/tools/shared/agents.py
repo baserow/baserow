@@ -21,8 +21,7 @@ from baserow.core.formula.types import (
 )
 from baserow.core.generative_ai.lifecycle import run_agent_sync_with_model
 from baserow_enterprise.assistant.model_profiles import UTILITY
-
-from .formula_utils import BaseFormulaContext
+from baserow_enterprise.tools.formula_utils import BaseFormulaContext
 
 if TYPE_CHECKING:
     from baserow_enterprise.assistant.model_profiles import (

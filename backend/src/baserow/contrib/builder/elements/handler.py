@@ -368,25 +368,83 @@ class ElementHandler:
 
         return _get_elements()
 
-    def invalidate_element_cache(self, page: Page):
+    def invalidate_element_cache(self, page: Page, keep_point_map: bool = False):
         """
         Invalidates the element, graph parent and visibility cache. To be used when we
         add or remove an element from the page (and from the graph).
 
         :param page: The target page cache.
+        :param keep_point_map: Keep the page's map of elements by ID, for a change
+            that leaves every element it holds valid, such as a move within the
+            page. Rebuilding it loads every element of the page.
         """
 
         local_cache.delete(self._get_elements_cache_key(page, True))
         local_cache.delete(self._get_elements_cache_key(page, False))
         local_cache.delete(self._get_builder_elements_cache_key(page.builder_id, True))
         local_cache.delete(self._get_builder_elements_cache_key(page.builder_id, False))
-        local_cache.delete(BaseGraphHandler.generate_point_map_cache_key(page))
+        if not keep_point_map:
+            local_cache.delete(BaseGraphHandler.generate_point_map_cache_key(page))
         local_cache.delete(
             BaseGraphHandler.generate_previous_position_map_cache_key(page)
         )
         ElementVisibilityPermissionManager.invalidate_builder_element_visibility_cache(
             page.builder_id
         )
+
+    def put_in_element_cache(self, page: Page, element: Element) -> None:
+        """
+        Invalidates the caches a new or moved element changes, and puts it in the
+        page's map of elements by ID when that is loaded, instead of loading the
+        page again. A move can save the element itself, so the map takes the
+        instance given.
+
+        :param page: The page the element is on.
+        :param element: The element created or moved within the page.
+        """
+
+        self.invalidate_element_cache(page, keep_point_map=True)
+        point_map = local_cache.get_if_cached(
+            BaseGraphHandler.generate_point_map_cache_key(page)
+        )
+        if point_map is not None:
+            point_map[element.id] = element
+
+    def get_end_position(
+        self,
+        page: Page,
+        parent_element_id: int | None = None,
+        place_in_container: str = "",
+    ) -> tuple[int | None, GraphPointPositionType, str]:
+        """
+        Where an element goes to come last: at the end of the page, or of a place in
+        a container. Creating with the reference returned puts it after the others,
+        where a container child is otherwise created first. Inside a transaction it
+        takes the page graph lock, so it reads the latest graph and a concurrent
+        create or move waits. Call it in the transaction that does the create or
+        move: outside one, nothing is locked or read again.
+
+        :param page: The page.
+        :param parent_element_id: The container, or None for the page itself.
+        :param place_in_container: The place inside the container, "" by default.
+        :return: The reference element id (None on an empty page), the position and
+            the place to create or move the element with. Only the first child of
+            a place names the place: the next ones follow it.
+        """
+
+        graph = page.get_graph()
+        graph.lock_for_update()
+        if parent_element_id is None:
+            last, _, _ = graph.get_last_position()
+            return (last.id if last else None), GraphPointPosition.SOUTH, ""
+        children = (
+            graph.get_children(parent_element_id, place_in_container)
+            if str(parent_element_id) in graph.graph
+            else []
+        )
+        if children:
+            return children[-1].id, GraphPointPosition.SOUTH, ""
+        return parent_element_id, GraphPointPosition.CHILD, place_in_container
 
     def create_element(
         self,
@@ -427,7 +485,7 @@ class ElementHandler:
 
         element_type.after_create(element, kwargs)
 
-        self.invalidate_element_cache(page)
+        self.put_in_element_cache(page, element)
 
         return element
 

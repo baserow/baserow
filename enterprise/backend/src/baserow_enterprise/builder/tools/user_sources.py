@@ -19,7 +19,7 @@ from baserow.core.user_sources.models import UserSource
 from baserow.core.user_sources.service import UserSourceService
 
 from . import helpers
-from .applications import get_builder_in_workspace
+from .lookups import get_builder_in_workspace, workspace_pages
 from .types import PageItem
 from .types.user_source import UserSourceSetup
 
@@ -110,7 +110,7 @@ def setup_user_source(
         _raise_unless_password_login_works(existing)
     # A login page that was undone is in the trash, so it counts as none.
     set_login_page = (
-        helpers.workspace_pages(ctx.workspace).filter(id=builder.login_page_id).first()
+        workspace_pages(ctx.workspace).filter(id=builder.login_page_id).first()
     )
     if set_login_page and set_login_page.visibility != Page.VISIBILITY_TYPES.ALL:
         raise ToolInputError(

@@ -37,6 +37,11 @@ from baserow.core.action.handler import ActionHandler
 from baserow.core.action.models import Action
 from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.exceptions import PermissionDenied
+from baserow.core.formula.literals import (
+    is_valid_formula,
+    needs_formula,
+    wrap_static_string,
+)
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.services.models import Service
@@ -104,10 +109,7 @@ from baserow_enterprise.tools.formula_utils import (
     ensure_valid_formula,
     formula_desc,
     formula_object,
-    is_valid_formula,
     literal_or_placeholder,
-    needs_formula,
-    wrap_static_string,
 )
 
 from .utils import create_fake_tool_helpers, make_test_ctx
