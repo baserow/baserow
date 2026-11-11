@@ -30,6 +30,12 @@ from baserow.core.tools.errors import (
 
 # Whether each tool changes data, and arguments it succeeds with on workspace_data.
 TOOLS = {
+    "list_databases": (False, lambda s: {}),
+    "create_database": (True, lambda s: {"name": "Projects"}),
+    "update_database": (
+        True,
+        lambda s: {"database_id": s.table.database_id, "name": "Projects"},
+    ),
     "list_tables": (False, lambda s: {}),
     "get_table_schema": (False, lambda s: {"table_ids": [s.table.id]}),
     "list_table_rows": (False, lambda s: {"table_id": s.table.id}),
@@ -284,6 +290,52 @@ def test_successful_field_deletion_reports_its_confirmed_count(
         "changed": True,
         "deleted_field_ids": [workspace_data.hours.id],
     }
+
+
+@pytest.mark.django_db
+def test_renaming_a_database_to_its_current_name_reports_no_change(workspace_data):
+    result = call_tool(
+        agent_tool_type_registry.get("update_database"),
+        workspace_data.ctx,
+        {"database_id": workspace_data.table.database_id, "name": "Work"},
+    )
+
+    assert result.return_value == {
+        "updated_database": {
+            "id": workspace_data.table.database_id,
+            "name": "Work",
+        },
+        "changed": False,
+    }
+    assert result.metadata == {"facts": {"database": "Work", "changed": False}}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("hidden", ["other_workspace", "trashed", "other_type"])
+def test_database_update_does_not_disclose_or_change_hidden_applications(
+    workspace_data, data_fixture, hidden
+):
+    if hidden == "other_workspace":
+        database = data_fixture.create_database_application(name="Private")
+    elif hidden == "trashed":
+        database = data_fixture.create_database_application(
+            workspace=workspace_data.ctx.workspace, name="Private", trashed=True
+        )
+    else:
+        database = data_fixture.create_builder_application(
+            workspace=workspace_data.ctx.workspace, name="Private"
+        )
+
+    result = call_tool(
+        agent_tool_type_registry.get("update_database"),
+        workspace_data.ctx,
+        {"database_id": database.id, "name": "Projects"},
+    )
+
+    assert result.return_value["error"]["code"] == "not_found"
+    assert result.input == {"values": {"database_id": database.id, "name": "Projects"}}
+    database.refresh_from_db()
+    assert database.name == "Private"
 
 
 @pytest.mark.django_db

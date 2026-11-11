@@ -86,6 +86,66 @@ class DatabaseToolPresentationType extends ToolPresentationType {
   }
 }
 
+export class ListDatabasesToolPresentationType extends DatabaseToolPresentationType {
+  static definition = {
+    type: 'list_databases',
+    label: 'ListDatabases',
+    read: true,
+  }
+}
+
+/** Database creation and renaming show the requested or confirmed name. */
+class DatabaseApplicationToolPresentationType extends DatabaseToolPresentationType {
+  getRequestedDatabase(input) {
+    const name = input?.values?.[this.constructor.definition.requestName]
+    return typeof name === 'string' ? name.trim() : ''
+  }
+
+  getRequestedActivity({ input }, t) {
+    const database = this.getRequestedDatabase(input)
+    return database
+      ? t(`${this.labelKey}RequestedDatabase`, { database })
+      : this.getLabel(t)
+  }
+
+  getActivity({ status, input, facts }, t) {
+    if (status !== STEP_STATUS.RUNNING && status !== STEP_STATUS.DONE) {
+      return this.getRequestedActivity({ input }, t)
+    }
+    const database =
+      status === STEP_STATUS.DONE
+        ? typeof facts.database === 'string'
+          ? facts.database.trim()
+          : ''
+        : this.getRequestedDatabase(input)
+    const activity =
+      status === STEP_STATUS.RUNNING
+        ? 'Running'
+        : facts.changed === false
+          ? 'Unchanged'
+          : 'Done'
+    return t(`${this.labelKey}${activity}${database ? 'Database' : ''}`, {
+      database,
+    })
+  }
+}
+
+export class CreateDatabaseToolPresentationType extends DatabaseApplicationToolPresentationType {
+  static definition = {
+    type: 'create_database',
+    label: 'CreateDatabase',
+    requestName: 'name',
+  }
+}
+
+export class UpdateDatabaseToolPresentationType extends DatabaseApplicationToolPresentationType {
+  static definition = {
+    type: 'update_database',
+    label: 'UpdateDatabase',
+    requestName: 'database',
+  }
+}
+
 export class ListTablesToolPresentationType extends DatabaseToolPresentationType {
   static definition = { type: 'list_tables', label: 'ListTables', read: true }
 }
@@ -286,10 +346,13 @@ export class WebSearchToolPresentationType extends ToolPresentationType {
 
 export const agentToolPresentationTypes = [
   WebSearchToolPresentationType,
+  ListDatabasesToolPresentationType,
   ListTablesToolPresentationType,
   GetTableSchemaToolPresentationType,
   ListTableRowsToolPresentationType,
   ListViewsToolPresentationType,
+  CreateDatabaseToolPresentationType,
+  UpdateDatabaseToolPresentationType,
   CreateTablesToolPresentationType,
   CreateFieldsToolPresentationType,
   UpdateFieldsToolPresentationType,

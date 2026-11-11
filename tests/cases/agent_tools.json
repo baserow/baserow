@@ -10,6 +10,26 @@
   ],
   "tools": [
     {
+      "name": "list_databases",
+      "arguments": {},
+      "input": {},
+      "facts": {}
+    },
+    {
+      "name": "create_database",
+      "arguments": { "name": "Projects" },
+      "input": {},
+      "preview": { "values": { "name": "Projects" } },
+      "facts": { "database": "Projects" }
+    },
+    {
+      "name": "update_database",
+      "arguments": { "database_id": 1, "name": "Projects" },
+      "input": {},
+      "preview": { "values": { "database": "Work", "name": "Projects" } },
+      "facts": { "database": "Projects", "changed": true }
+    },
+    {
       "name": "list_tables",
       "arguments": {},
       "input": {},

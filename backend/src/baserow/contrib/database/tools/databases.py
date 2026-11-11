@@ -11,10 +11,38 @@ from pydantic import Field
 from baserow.contrib.database.tools.tables import get_database
 from baserow.core.tools import ToolContext
 from baserow.core.tools.applications import (
+    MAX_PAGE_SIZE,
     ApplicationName,
     create_application,
+    list_applications,
     rename_application,
 )
+
+
+def list_databases(
+    ctx: ToolContext,
+    page: Annotated[int, Field(ge=1, description="The page to return.")] = 1,
+    size: Annotated[
+        int,
+        Field(ge=1, le=MAX_PAGE_SIZE, description="The number of databases a page."),
+    ] = 20,
+) -> dict[str, Any]:
+    """
+    List the databases in the workspace, with their id and name, in sidebar order.
+    Returns one page, the total count, and whether more pages follow. Use the IDs
+    to create tables or rename a database.
+    """
+
+    result = list_applications(ctx, types=["database"], page=page, size=size)
+    return {
+        "databases": [
+            {"id": database["id"], "name": database["name"]}
+            for database in result["applications"]
+        ],
+        "total": result["total"],
+        "page": result["page"],
+        "has_more": result["has_more"],
+    }
 
 
 def create_database(
@@ -37,7 +65,11 @@ def create_database(
 def update_database(
     ctx: ToolContext,
     database_id: Annotated[
-        int, Field(description="The ID of the database, from list_applications.")
+        int,
+        Field(
+            description="The ID of the database, from list_databases, "
+            "list_applications or create_database."
+        ),
     ],
     name: Annotated[
         ApplicationName,

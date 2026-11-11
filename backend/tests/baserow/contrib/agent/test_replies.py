@@ -65,6 +65,7 @@ from baserow.contrib.agent.types import (
     AgentReplyRequest,
     AgentReplyResult,
 )
+from baserow.contrib.database.models import Database
 from baserow.contrib.database.rows.actions import CreateRowsActionType
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.integrations.mcp.handler import MCPServerHandler, MCPToolSettings
@@ -165,9 +166,9 @@ def respond(
     return received
 
 
-def tool_call(name: str, call_id: str, **arguments: object) -> DeltaToolCall:
+def tool_call(tool_name: str, call_id: str, **arguments: object) -> DeltaToolCall:
     return DeltaToolCall(
-        name=name, json_args=json.dumps(arguments), tool_call_id=call_id
+        name=tool_name, json_args=json.dumps(arguments), tool_call_id=call_id
     )
 
 
@@ -1611,6 +1612,65 @@ def test_a_held_call_waits_with_its_named_request(ask_first_agent, mocker):
         "requested_count": 1,
         "values": {"table": table.name, "rows": [{"Name": "Plan"}]},
     }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("tool_name", ["create_database", "update_database"])
+@pytest.mark.parametrize("approved", [True, False])
+def test_database_changes_wait_for_approval_before_persisting(
+    data_fixture, configured_agent, mocker, tool_name, approved
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    table = allow_tools(
+        data_fixture,
+        agent,
+        ("list_databases", tool_name),
+        ask_first=(tool_name,),
+    )
+    database = table.database
+    original_name = database.name
+    databases = Database.objects.filter(workspace=agent.workspace)
+    original_count = databases.count()
+    arguments = {"name": "Projects"}
+    preview = {"name": "Projects"}
+    if tool_name == "update_database":
+        arguments["database_id"] = database.id
+        preview["database"] = original_name
+    respond(
+        mocker,
+        (
+            {
+                0: tool_call("list_databases", "call_read"),
+                1: tool_call(tool_name, "call_write", **arguments),
+            },
+        ),
+    )
+
+    reply = pause(user, agent)
+
+    assert reply.status == "waiting"
+    assert [(step["tool"], step["status"]) for step in reply.steps] == [
+        ("list_databases", "done"),
+        (tool_name, "waiting"),
+    ]
+    assert reply.steps[1]["input"] == {"values": preview}
+    assert databases.count() == original_count
+    database.refresh_from_db()
+    assert database.name == original_name
+
+    run_reply(decide(user, reply, approved=approved))
+
+    reply.refresh_from_db()
+    assert reply.status == "completed"
+    assert reply.steps[1]["status"] == ("done" if approved else "rejected")
+    database.refresh_from_db()
+    if tool_name == "create_database":
+        assert databases.count() == original_count + int(approved)
+        assert databases.filter(name="Projects").exists() is approved
+    else:
+        assert database.name == ("Projects" if approved else original_name)
+        assert databases.count() == original_count
 
 
 @pytest.mark.django_db

@@ -676,8 +676,23 @@ def test_run_as_rejects_subjects_the_agent_cannot_act_as(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "tools,expected,write_tool",
+    [
+        (
+            ["create_rows", "list_table_rows"],
+            ["list_table_rows", "create_rows"],
+            "create_rows",
+        ),
+        (
+            ["update_database", "create_database", "list_databases"],
+            ["list_databases", "create_database", "update_database"],
+            "update_database",
+        ),
+    ],
+)
 def test_allowed_tools_are_replaced_and_validated(
-    configured_agent, api_client, api_user
+    configured_agent, api_client, api_user, tools, expected, write_tool
 ):
     agent = configured_agent(user=api_user)
     identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
@@ -685,12 +700,11 @@ def test_allowed_tools_are_replaced_and_validated(
     agent.save()
     url = agent_url(agent, "configuration")
 
-    response = api_client.patch(
-        url, {"allowed_tools": ["create_rows", "list_table_rows"]}
-    )
-    assert response.json()["allowed_tools"] == ["list_table_rows", "create_rows"]
+    assert api_client.get(url).json()["allowed_tools"] == []
+    response = api_client.patch(url, {"allowed_tools": tools})
+    assert response.json()["allowed_tools"] == expected
     assert {
-        "name": "create_rows",
+        "name": write_tool,
         "group": "database",
         "changes_data": True,
     } in response.json()["available_tools"]
@@ -699,10 +713,7 @@ def test_allowed_tools_are_replaced_and_validated(
         url, {"allowed_tools": ["list_tables", "drop_database"]}
     )
     assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
-    assert api_client.get(url).json()["allowed_tools"] == [
-        "list_table_rows",
-        "create_rows",
-    ]
+    assert api_client.get(url).json()["allowed_tools"] == expected
 
     assert api_client.patch(url, {"allowed_tools": []}).json()["allowed_tools"] == []
 

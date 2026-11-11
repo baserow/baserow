@@ -1,6 +1,6 @@
 from typing import Any
 
-from baserow.contrib.database.tools import fields, rows, tables, views
+from baserow.contrib.database.tools import databases, fields, rows, tables, views
 from baserow.contrib.database.tools.views import get_view
 from baserow.contrib.database.views.exceptions import ViewDoesNotExist
 from baserow.core.tools import ToolContext
@@ -89,6 +89,51 @@ class TableReadAgentToolType(DatabaseAgentToolType):
         self, ctx: ToolContext, arguments: dict[str, Any]
     ) -> StepPreview:
         return StepPreview(table_reference(ctx, arguments["table_id"])[1])
+
+
+class ListDatabasesAgentToolType(DatabaseAgentToolType):
+    type = "list_databases"
+    function = databases.list_databases
+
+
+class CreateDatabaseAgentToolType(DatabaseAgentToolType):
+    type = "create_database"
+    function = databases.create_database
+    changes_data = True
+
+    def get_step_preview(
+        self, ctx: ToolContext, arguments: dict[str, Any]
+    ) -> StepPreview:
+        return StepPreview({"name": arguments["name"]})
+
+    def get_step_facts(
+        self, ctx: ToolContext, arguments: dict[str, Any], result: Any
+    ) -> dict[str, Any]:
+        return {"database": result["created_database"]["name"]}
+
+
+class UpdateDatabaseAgentToolType(DatabaseAgentToolType):
+    type = "update_database"
+    function = databases.update_database
+    changes_data = True
+
+    def get_step_preview(
+        self, ctx: ToolContext, arguments: dict[str, Any]
+    ) -> StepPreview:
+        return StepPreview(
+            {
+                **database_reference(ctx, arguments["database_id"]),
+                "name": arguments["name"],
+            }
+        )
+
+    def get_step_facts(
+        self, ctx: ToolContext, arguments: dict[str, Any], result: Any
+    ) -> dict[str, Any]:
+        return {
+            "database": result["updated_database"]["name"],
+            "changed": result["changed"],
+        }
 
 
 class ListTablesAgentToolType(DatabaseAgentToolType):
