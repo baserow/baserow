@@ -14,6 +14,7 @@ from pydantic_ai import (
     ConversationTypeAdapter,
     DeferredToolRequests,
     RunContext,
+    ToolReturn,
     WebSearchTool,
 )
 from pydantic_ai.capabilities import WebSearch
@@ -229,6 +230,38 @@ class _HeldCallsToolset(WrapperToolset[None]):
                 self.tool_ctx,
                 tool_args,
                 input_shower(ctx),
+            )
+        return await super().call_tool(name, tool_args, ctx, tool)
+
+
+# What the model reads when an MCP call isn't run because it follows a held one.
+MCP_CALL_AFTER_HELD_NOTE = (
+    "Not run: it may change data and comes after a step that waits for the "
+    "owner's approval. Call it again once that step is decided."
+)
+
+
+@dataclass
+class _AfterHeldCallsToolset(WrapperToolset[None]):
+    """
+    Refuses the MCP calls that would have to wait behind a held call. They can't
+    be held themselves, and must not change anything before the held call is
+    decided.
+    """
+
+    is_held: Callable[[RunContext[None]], bool]
+
+    async def call_tool(
+        self,
+        name: str,
+        tool_args: dict[str, Any],
+        ctx: RunContext[None],
+        tool: ToolsetTool[None],
+    ) -> Any:
+        if not ctx.tool_call_approved and self.is_held(ctx):
+            return ToolReturn(
+                return_value={"error": MCP_CALL_AFTER_HELD_NOTE},
+                metadata={"error_code": ToolErrorCode.NOT_RUN},
             )
         return await super().call_tool(name, tool_args, ctx, tool)
 
@@ -487,7 +520,13 @@ class AgentResponder:
                     ctx,
                 )
             )
-        return [*toolsets, *self._mcp_toolsets]
+        return [
+            *toolsets,
+            *(
+                _AfterHeldCallsToolset(toolset, self._is_held)
+                for toolset in self._mcp_toolsets
+            ),
+        ]
 
     def _is_held(self, ctx: RunContext[None]) -> bool:
         """
@@ -520,14 +559,27 @@ class AgentResponder:
             if call.tool_call_id in self._invalid_call_ids:
                 continue
             changes_data = (
-                call.tool_name in request.allowed_tool_names
-                and agent_tool_type_registry.get(call.tool_name).changes_data
+                agent_tool_type_registry.get(call.tool_name).changes_data
+                if call.tool_name in request.allowed_tool_names
+                else self._mcp_changes_data(call.tool_name)
             )
             if call.tool_name in request.ask_first_tool_names or (
                 held and changes_data
             ):
                 held.add(call.tool_call_id)
         return held
+
+    def _mcp_changes_data(self, name: str) -> bool:
+        """
+        :param name: A called tool's name.
+        :return: Whether it's an MCP tool that may change data.
+        """
+
+        return any(
+            snapshot.changes_data
+            for toolset in self._mcp_toolsets
+            if (snapshot := toolset.get_tool_snapshot(name))
+        )
 
     def _on_event(self, event: AgentStreamEvent | AgentRunResultEvent) -> None:
         """

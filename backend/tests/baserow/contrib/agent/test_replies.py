@@ -1967,3 +1967,45 @@ def test_a_continuation_ending_without_a_saved_answer_keeps_the_paused_reply(
         transcript.usage,
         transcript.paused_conversation,
     ) == (paused.model_messages, paused.usage, None)
+
+
+@pytest.mark.django_db
+def test_an_mcp_write_after_a_held_call_never_runs_before_the_decision(
+    ask_first_agent, data_fixture, mocker
+):
+    from mcp.server.fastmcp import FastMCP
+
+    from baserow.contrib.integrations.mcp.handler import (
+        MCPServerHandler,
+        MCPToolSettings,
+    )
+
+    from ..integrations.mcp.utils import serve
+
+    user, agent, table = ask_first_agent
+    ran = []
+    server = FastMCP("test")
+
+    @server.tool()
+    def close_ticket() -> str:
+        """Close the ticket."""
+
+        ran.append("close_ticket")
+        return "Closed."
+
+    serve(mocker, server)
+    integration = data_fixture.create_mcp_server_integration(application=agent)
+    MCPServerHandler().refresh_tools(integration)
+    MCPServerHandler().update_tools(
+        integration, [MCPToolSettings("close_ticket", enabled=True)]
+    )
+    close = f"mcp{integration.id}_close_ticket"
+    respond(mocker, ({0: add_row(table), 1: tool_call(close, "call_mcp")},))
+
+    reply = pause(user, agent)
+
+    assert ran == []
+    assert [(step["tool"], step["status"]) for step in reply.steps] == [
+        ("create_rows", "waiting"),
+        (close, "failed"),
+    ]
