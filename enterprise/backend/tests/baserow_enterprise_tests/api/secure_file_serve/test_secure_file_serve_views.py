@@ -462,6 +462,64 @@ def test_deactivate_user_prevents_file_download(
 @override_settings(
     DEBUG=True,
     BASEROW_SERVE_FILES_THROUGH_BACKEND=True,
+    BASEROW_SERVE_FILES_THROUGH_BACKEND_PERMISSION=SecureFileServePermission.SIGNED_IN,
+    STORAGES={
+        "default": {
+            "BACKEND": "baserow_enterprise.secure_file_serve.storage.EnterpriseFileStorage"
+        }
+    },
+)
+def test_password_change_prevents_file_download_with_previous_cookie(
+    enable_enterprise, enterprise_data_fixture, api_client, tmpdir
+):
+    user = enterprise_data_fixture.create_user(password="password")
+    storage = dummy_storage(tmpdir)
+
+    def log_in(password):
+        response = api_client.post(
+            reverse("api:user:token_auth"),
+            data={"email": user.email, "password": password},
+            format="json",
+        )
+        assert response.status_code == HTTP_200_OK
+        return response.json()["user_session"]
+
+    def download(cookie):
+        with patch("baserow.core.storage.get_default_storage", new=storage):
+            return api_client.get(file_path, HTTP_COOKIE=f"user_session={cookie}")
+
+    with freeze_time("2026-10-20 09:00:00"):
+        cookie = log_in("password")
+
+        with patch("baserow.core.storage.get_default_storage", new=storage):
+            response = api_client.post(
+                reverse("api:user_files:upload_file"),
+                data={"file": SimpleUploadedFile("test.txt", b"Hello World")},
+                format="multipart",
+                HTTP_AUTHORIZATION=f"JWT {enterprise_data_fixture.generate_token(user)}",
+            )
+        assert response.status_code == HTTP_200_OK, response.json()
+        file_path = response.json()["url"].replace("http://localhost:8000", "")
+
+        assert download(cookie).status_code == HTTP_200_OK
+
+    with freeze_time("2026-10-20 09:00:05"):
+        response = api_client.post(
+            reverse("api:user:change_password"),
+            data={"old_password": "password", "new_password": "new-password-123"},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {enterprise_data_fixture.generate_token(user)}",
+        )
+        assert response.status_code == HTTP_204_NO_CONTENT
+
+        assert download(cookie).status_code == HTTP_403_FORBIDDEN
+        assert download(log_in("new-password-123")).status_code == HTTP_200_OK
+
+
+@pytest.mark.django_db()
+@override_settings(
+    DEBUG=True,
+    BASEROW_SERVE_FILES_THROUGH_BACKEND=True,
     BASEROW_SERVE_FILES_THROUGH_BACKEND_EXPIRE_SECONDS=59,
     BASEROW_SERVE_FILES_THROUGH_BACKEND_PERMISSION=SecureFileServePermission.SIGNED_IN,
     STORAGES={
