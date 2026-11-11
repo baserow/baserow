@@ -58,41 +58,39 @@
             },
         },
         {
-            "name": "vscode-jest-current-file",
+            // Core (web-frontend) tests only. Premium and enterprise tests use their
+            // own Vitest config: run or debug them from the Vitest extension instead.
+            "name": "vitest: current core test file",
             "type": "node",
-            "runtimeVersion": "16.15.0",
+            "runtimeVersion": "24",
             "request": "launch",
             "cwd": "${workspaceFolder}/web-frontend",
-            "program": "./node_modules/jest/bin/jest",
-            "args": [
-                "${fileBasename}",
-                "--verbose",
-                "-i",
-                "--no-cache"
-            ],
+            "program": "${workspaceFolder}/web-frontend/node_modules/vitest/vitest.mjs",
+            "args": ["run", "${file}", "--no-file-parallelism"],
             "env": {
-                "PRIVATE_BACKEND_URL": "http://localhost:8000"
+                "NODE_OPTIONS": "--max-old-space-size=8192"
             },
+            "autoAttachChildProcesses": true,
+            "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+            "smartStep": true,
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen"
         },
         {
-            "name": "vscode-jest-tests",
+            "name": "vitest: all core tests",
             "type": "node",
-            "runtimeVersion": "16.15.0",
+            "runtimeVersion": "24",
             "request": "launch",
-            "console": "integratedTerminal",
-            "internalConsoleOptions": "neverOpen",
             "cwd": "${workspaceFolder}/web-frontend",
-            "program": "node_modules/.bin/jest",
-            "args": [
-                "--config=jest.config.js",
-                "--runInBand",
-                "--watchAll=false",
-            ],
+            "program": "${workspaceFolder}/web-frontend/node_modules/vitest/vitest.mjs",
+            "args": ["run"],
             "env": {
-                "PRIVATE_BACKEND_URL": "http://localhost:8000"
+                "NODE_OPTIONS": "--max-old-space-size=8192"
             },
+            "autoAttachChildProcesses": true,
+            "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen"
         },
     ]
 }
