@@ -2672,7 +2672,7 @@ def test_a_whole_function_call_on_a_table_column_is_a_formula(
 def test_an_element_type_the_instance_lacks_is_refused(builder_ctx, monkeypatch):
     from baserow.contrib.builder.elements.registries import element_type_registry
 
-    monkeypatch.delitem(element_type_registry.registry, "auth_form")
+    monkeypatch.delitem(element_type_registry.registry, "auth_form", raising=False)
 
     result = elements.create_elements(
         builder_ctx["ctx"],
