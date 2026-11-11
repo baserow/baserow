@@ -288,7 +288,7 @@ def test_literal_or_formula(value, text_formula, mapping_formula):
     mapping_value_is_formula for row field values and link parameters.
     """
 
-    from baserow_enterprise.builder.tools.types.workflow_action import (
+    from baserow_enterprise.builder.tools.types.formula_policy import (
         is_text_formula,
         mapping_value_is_formula,
     )
@@ -298,6 +298,6 @@ def test_literal_or_formula(value, text_formula, mapping_formula):
 
 
 def test_a_missing_text_value_is_not_a_formula():
-    from baserow_enterprise.builder.tools.types.workflow_action import is_text_formula
+    from baserow_enterprise.builder.tools.types.formula_policy import is_text_formula
 
     assert is_text_formula(None) is False

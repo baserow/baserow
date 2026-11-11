@@ -42,6 +42,11 @@ from baserow_enterprise.tools.formula_utils import (
 from baserow_enterprise.tools.types import BaseModel, without_field
 
 from .changes import name_key
+from .formula_policy import (
+    is_text_formula,
+    mapping_value_is_formula,
+    text_or_placeholder,
+)
 from .limits import MAX_NESTED_ITEMS
 from .menu_items import (
     MENU_ITEM_NAME_MAX_LENGTH,
@@ -58,13 +63,7 @@ from .table_columns import (
     data_source_fields,
     field_formula,
 )
-from .workflow_action import (
-    ParameterMapping,
-    is_text_formula,
-    mapping_value_is_formula,
-    text_or_placeholder,
-    with_parameter_formulas,
-)
+from .workflow_action import ParameterMapping, with_parameter_formulas
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser

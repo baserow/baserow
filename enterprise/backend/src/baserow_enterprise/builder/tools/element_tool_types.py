@@ -35,9 +35,9 @@ from .types.element import (
     MENU_ITEM_PROPERTIES,
     TABLE_COLUMN_PROPERTIES,
 )
+from .types.formula_policy import mapping_value_is_formula
 from .types.menu_items import listed_menu_items
 from .types.table_columns import stored_formula_text, table_column_items
-from .types.workflow_action import mapping_value_is_formula
 
 
 def _merge_menu_item_changes(

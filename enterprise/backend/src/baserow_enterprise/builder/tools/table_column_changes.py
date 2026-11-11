@@ -14,6 +14,7 @@ from baserow.core.tools.errors import ToolInputError
 from baserow_enterprise.tools.formula_utils import formula_desc, formula_object
 
 from .types.changes import NO_CHANGES, canonical_uid, name_key, unique_in_order
+from .types.formula_policy import is_text_formula
 from .types.table_columns import (
     VALUE_COLUMN_TYPES,
     RemovedTableColumn,
@@ -24,7 +25,6 @@ from .types.table_columns import (
     stored_formula_text,
     table_fields,
 )
-from .types.workflow_action import is_text_formula
 
 MAX_LISTED_COLUMNS = 25
 
